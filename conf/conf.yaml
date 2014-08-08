@@ -1,0 +1,6 @@
+in:
+    - loghub.receivers.Log4JZMQ:
+        endpoint: "tcp://localhost:2120"
+    - loghub.receivers.SnmpTrap
+out: loghub.senders.ElasticSearch
+pipe: loghub.transformers.Log
