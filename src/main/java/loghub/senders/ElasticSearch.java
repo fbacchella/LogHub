@@ -79,7 +79,6 @@ public class ElasticSearch extends Sender {
         request.setBody(jo.toString().getBytes());
         synchronized(client) {
             JSONObject put_r = parse(client.execute(request));
-            System.out.println(put_r);
             String id = put_r.getString("_id");
             request = new RestRequest(Method.GET, String.format("/logstash-%s/%s/%s", index, type, id));
             parse(client.execute(request));            
@@ -87,11 +86,7 @@ public class ElasticSearch extends Sender {
     }
 
     private JSONObject parse(RestResponse response) {
-//        System.out.println(response.getStatus());
-//        System.out.println(response.headers);
-//        System.out.println(new String(response.getBody()));
         JSONObject data = new JSONObject(new String(response.getBody()));
-//        System.out.println(data.toString(4));
         return data;
     }
 

@@ -20,11 +20,11 @@ public abstract class Receiver extends Thread {
     public abstract void run();
     
     public void send(Event event) {
+        System.out.println("piping " + event.key());
         try {
             String key = event.key();
             pipe.send(key.getBytes());
             eventQueue.put(key, event);
-            System.out.println("piping " + key);
         } catch (zmq.ZError.IOException | java.nio.channels.ClosedSelectorException | org.zeromq.ZMQException e ) {
             try {
                 pipe.close();

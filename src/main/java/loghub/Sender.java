@@ -27,6 +27,7 @@ public abstract class Sender extends Thread {
                 if(event == null) {
                     continue;
                 }
+                System.out.println("sending " + event.key());
                 send(event);
             } catch (zmq.ZError.IOException | java.nio.channels.ClosedSelectorException | org.zeromq.ZMQException e ) {
                 // ZeroMQ throws exception

@@ -88,7 +88,6 @@ public class ZMQAppender extends AppenderSkeleton {
             } catch (Exception e1) {
             }
         } catch (IOException e) {
-            System.out.println(e);
             errorHandler.error(e.getMessage(), e, ErrorCode.GENERIC_FAILURE);
             LogLog.error(e.getMessage());
         }

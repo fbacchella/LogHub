@@ -4,12 +4,17 @@ import java.io.Serializable;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class Event implements Serializable {
+    
+    private final static AtomicInteger KeyGenerator = new AtomicInteger(0);
 
     public Date timestamp;
     public String type;
     public Map<String, Object> properties = new HashMap<>();
+    
+    private final String key = Integer.toString(KeyGenerator.getAndIncrement());
     
     public Event() {
         timestamp = new Date();
@@ -25,7 +30,7 @@ public class Event implements Serializable {
     }
     
     public String key() {
-        return super.toString();
+        return key;
     }
     
 }
