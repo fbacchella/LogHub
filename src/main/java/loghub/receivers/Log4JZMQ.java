@@ -20,7 +20,7 @@ import loghub.configuration.Beans;
 public class Log4JZMQ extends Receiver {
 
     private Socket log4jsocket;
-    private String method;
+    private String method = "bind";
     private String endpoint = "tcp://localhost:2120";
     private int hwm = 1000;
     private final Context context;

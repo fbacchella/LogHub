@@ -1,22 +1,17 @@
 package loghub;
 
 import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 import java.security.Permission;
 import java.security.Permissions;
 import java.security.SecurityPermission;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import javax.management.MBeanPermission;
 
-import loghub.configuration.TransformerBuilder;
-import loghub.senders.ElasticSearch;
-import loghub.transformers.Groovy;
-import loghub.transformers.Log;
+import loghub.configuration.Configuration;
 
 import org.zeromq.ZMQ;
 import org.zeromq.ZMQ.Context;
@@ -149,39 +144,22 @@ public class Start extends Thread {
     public void run() {
         Context context = ZMQ.context(1);
         Map<String, Event> eventQueue = new ConcurrentHashMap<>();
-        Map<String, String> empty = Collections.emptyMap();
         
-        Transformer[] logger = TransformerBuilder.create(Log.class.getCanonicalName(), eventQueue, empty);
-        Map<String, String> grooveBeans = new HashMap<>(1);
-        grooveBeans.put("script", "println event");
-        grooveBeans.put("threads", "2");
-        Transformer[] groovies = TransformerBuilder.create(Groovy.class.getCanonicalName(), eventQueue, grooveBeans);
-        Transformer[][] transformers = new Transformer[][] {
-                logger,
-                groovies,
-        };
-        System.out.println(Arrays.toString(transformers));
+        Configuration conf = new Configuration(eventQueue, context);
+        
+        conf.parse("conf/conf.yaml");
 
+        Transformer[][] transformers = conf.getTransformers();
         PipeStream mainPipe = new PipeStream(context, "", transformers);
 
-        Sender o = new ElasticSearch(context, mainPipe.getOutEndpoint(), eventQueue);
-        o.start();
-
-        String[] receivers = new String[] {
-                "loghub.receivers.Log4JZMQ",
-                "loghub.receivers.SnmpTrap"
-        };
-        for(String receiverName: receivers) {
-            try {
-                @SuppressWarnings("unchecked")
-                Class<Receiver> cl = (Class<Receiver>) getContextClassLoader().loadClass(receiverName);
-                Constructor<Receiver> c = cl.getConstructor(Context.class, String.class, Map.class);
-                Receiver r = c.newInstance(context, mainPipe.getInEndpoint(), eventQueue);
-                r.start();
-            } catch (ClassNotFoundException|NoSuchMethodException|SecurityException|InstantiationException|IllegalAccessException|IllegalArgumentException|InvocationTargetException e) {
-                e.printStackTrace();
-            }
+        for(Sender s: conf.getSenders(mainPipe.getOutEndpoint())) {
+            s.start();
         }
+        
+        for(Receiver r: conf.getReceivers(mainPipe.getInEndpoint())) {
+            r.start();
+        }
+        
         try {
             Thread.currentThread().join();
         } catch (InterruptedException e) {
@@ -200,7 +178,7 @@ public class Start extends Thread {
                 try {
                     super.checkPermission(perm);
                 } catch (Exception e) {
-                    //System.out.println(perm);
+                    System.out.println(perm);
                 }
             }
         };    
