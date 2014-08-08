@@ -41,14 +41,16 @@ public class PipeStream {
         }
     }
 
-    public PipeStream(Context context, String parent, Transformer[] transformer) {
+    public PipeStream(Context context, String parent, Transformer[][] transformer) {
         Proxy[] proxies = new Proxy[transformer.length + 1];
         for(int i = 1; i <= transformer.length + 1; i++) {
             proxies[i-1] = new Proxy(context, parent, i);
             proxies[i-1].start();
         }
         for(int i = 0; i < transformer.length; i++) {
-            transformer[i].start(context, proxies[i].outEndpoint, proxies[i+1].inEndpoint);
+            for(Transformer t: transformer[i]) {
+                t.start(context, proxies[i].outEndpoint, proxies[i+1].inEndpoint);
+            }
         }
         inEndpoint = proxies[0].inEndpoint;
         outEndpoint = proxies[proxies.length - 1].outEndpoint;

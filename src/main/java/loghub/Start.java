@@ -6,13 +6,16 @@ import java.security.Permission;
 import java.security.Permissions;
 import java.security.SecurityPermission;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import javax.management.MBeanPermission;
 
+import loghub.configuration.TransformerBuilder;
 import loghub.senders.ElasticSearch;
+import loghub.transformers.Groovy;
 import loghub.transformers.Log;
 
 import org.zeromq.ZMQ;
@@ -146,31 +149,27 @@ public class Start extends Thread {
     public void run() {
         Context context = ZMQ.context(1);
         Map<String, Event> eventQueue = new ConcurrentHashMap<>();
-
-        Transformer[] transformers = new Transformer[] {
-                new Log(eventQueue),
+        Map<String, String> empty = Collections.emptyMap();
+        
+        Transformer[] logger = TransformerBuilder.create(Log.class.getCanonicalName(), eventQueue, empty);
+        Map<String, String> grooveBeans = new HashMap<>(1);
+        grooveBeans.put("script", "println event");
+        grooveBeans.put("threads", "2");
+        Transformer[] groovies = TransformerBuilder.create(Groovy.class.getCanonicalName(), eventQueue, grooveBeans);
+        Transformer[][] transformers = new Transformer[][] {
+                logger,
+                groovies,
         };
+        System.out.println(Arrays.toString(transformers));
 
         PipeStream mainPipe = new PipeStream(context, "", transformers);
 
-        //        String routerEndpoint = "inproc://router." + Util.stringSignature(toString());
-        //        String dealerEndpoint = "inproc://dealer." + Util.stringSignature(toString());
-        //  Prepare our context and sockets
-
-        //  Socket facing clients
-        //        Socket frontend = context.socket(ZMQ.ROUTER);
-        //        frontend.bind(routerEndpoint);
-        //
-        //        //  Socket facing services
-        //        Socket backend = context.socket(ZMQ.DEALER);
-        //        backend.bind(dealerEndpoint);
-
         Sender o = new ElasticSearch(context, mainPipe.getOutEndpoint(), eventQueue);
         o.start();
-        
+
         String[] receivers = new String[] {
                 "loghub.receivers.Log4JZMQ",
-        //        "loghub.receivers.SnmpTrap"
+                "loghub.receivers.SnmpTrap"
         };
         for(String receiverName: receivers) {
             try {

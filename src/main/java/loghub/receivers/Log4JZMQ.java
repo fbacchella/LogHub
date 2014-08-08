@@ -14,18 +14,32 @@ import org.zeromq.ZMQ.Socket;
 
 import loghub.Event;
 import loghub.Receiver;
+import loghub.configuration.Beans;
 
+@Beans({"method", "endpoint"})
 public class Log4JZMQ extends Receiver {
 
-    private final Socket log4jsocket;
-
+    private Socket log4jsocket;
+    private String method;
+    private String endpoint = "tcp://localhost:2120";
+    private int hwm = 1000;
+    private final Context context;
     public Log4JZMQ(Context context, String endpoint, Map<String, Event> eventQueue) {
         super(context, endpoint, eventQueue);
-
-        log4jsocket = context.socket(ZMQ.PULL);
-        log4jsocket.setHWM(1000);
-        log4jsocket.bind("tcp://localhost:2120");
+        this.context = context;
     }
+
+    @Override
+    public synchronized void start() {
+        log4jsocket = context.socket(ZMQ.PULL);
+        log4jsocket.setHWM(hwm);
+        switch (method.toLowerCase()) {
+        case "bind": log4jsocket.bind(endpoint); break;
+        case "connect": log4jsocket.connect(endpoint); break;
+        }
+
+        super.start();
+    }    
 
     @Override
     public void run() {
@@ -78,6 +92,30 @@ public class Log4JZMQ extends Receiver {
         } catch (Throwable t) {
             t.printStackTrace();
         }
+    }
+
+    public String getMethod() {
+        return method;
+    }
+
+    public void setMethod(String method) {
+        this.method = method;
+    }
+
+    public String getEndpoint() {
+        return endpoint;
+    }
+
+    public void setEndpoint(String endpoint) {
+        this.endpoint = endpoint;
+    }
+
+    public int getHwm() {
+        return hwm;
+    }
+
+    public void setHwm(int hwm) {
+        this.hwm = hwm;
     }
 
 }
