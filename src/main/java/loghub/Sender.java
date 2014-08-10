@@ -7,8 +7,12 @@ import org.zeromq.ZMQ.Context;
 
 public abstract class Sender extends Thread {
 
-    protected final ZMQ.Socket pipe;
-    private final Map<String, Event> eventQueue;
+    protected ZMQ.Socket pipe;
+    private Map<String, Event> eventQueue;
+    
+    public Sender() {
+        
+    }
     public Sender(Context ctx, String endpoint, Map<String, Event> eventQueue) {
         setDaemon(true);
         this.eventQueue = eventQueue;
@@ -22,12 +26,10 @@ public abstract class Sender extends Thread {
         while (! isInterrupted()) {
             try {
                 byte[] msg = pipe.recv(0);
-                String key = new String(msg);
-                Event event = eventQueue.remove(key);
+                Event event = eventQueue.remove(msg);
                 if(event == null) {
                     continue;
                 }
-                System.out.println("sending " + event.key());
                 send(event);
             } catch (zmq.ZError.IOException | java.nio.channels.ClosedSelectorException | org.zeromq.ZMQException e ) {
                 // ZeroMQ throws exception

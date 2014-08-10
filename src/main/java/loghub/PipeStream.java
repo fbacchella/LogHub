@@ -1,5 +1,8 @@
 package loghub;
 
+import java.util.List;
+import java.util.Map;
+
 import org.zeromq.ZMQ;
 import org.zeromq.ZMQ.Context;
 import org.zeromq.ZMQ.Socket;
@@ -41,16 +44,18 @@ public class PipeStream {
         }
     }
 
-    public PipeStream(Context context, String parent, Transformer[][] transformer) {
-        Proxy[] proxies = new Proxy[transformer.length + 1];
-        for(int i = 1; i <= transformer.length + 1; i++) {
+    public PipeStream(Map<byte[], Event> eventQueue, Context context, String parent, List<PipeStep[]> pipe) {
+        Proxy[] proxies = new Proxy[pipe.size() + 1 ];
+        for(int i = 1; i <= pipe.size() + 1; i++) {
             proxies[i-1] = new Proxy(context, parent, i);
             proxies[i-1].start();
         }
-        for(int i = 0; i < transformer.length; i++) {
-            for(Transformer t: transformer[i]) {
-                t.start(context, proxies[i].outEndpoint, proxies[i+1].inEndpoint);
+        int i = 0;
+        for(PipeStep[] step: pipe) {
+            for(PipeStep p: step) {
+                p.start(eventQueue, context, proxies[i].outEndpoint, proxies[i+1].inEndpoint);
             }
+            i++;
         }
         inEndpoint = proxies[0].inEndpoint;
         outEndpoint = proxies[proxies.length - 1].outEndpoint;

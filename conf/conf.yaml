@@ -1,6 +1,10 @@
 in:
-    - loghub.receivers.Log4JZMQ:
+    - loghub.receivers.ZMQ:
         endpoint: "tcp://localhost:2120"
+        codec: loghub.codec.Log4j
     - loghub.receivers.SnmpTrap
 out: loghub.senders.ElasticSearch
-pipe: loghub.transformers.Log
+pipe: 
+    - loghub.transformers.Groovy:
+        script: "println event"
+        threads: 4

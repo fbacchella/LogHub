@@ -6,6 +6,7 @@ import java.security.Permissions;
 import java.security.SecurityPermission;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -143,14 +144,14 @@ public class Start extends Thread {
 
     public void run() {
         Context context = ZMQ.context(1);
-        Map<String, Event> eventQueue = new ConcurrentHashMap<>();
+        Map<byte[], Event> eventQueue = new ConcurrentHashMap<>();
         
         Configuration conf = new Configuration(eventQueue, context);
         
         conf.parse("conf/conf.yaml");
 
-        Transformer[][] transformers = conf.getTransformers();
-        PipeStream mainPipe = new PipeStream(context, "", transformers);
+        List<PipeStep[]> pipe = conf.getTransformersPipe();
+        PipeStream mainPipe = new PipeStream(eventQueue, context, "", pipe);
 
         for(Sender s: conf.getSenders(mainPipe.getOutEndpoint())) {
             s.start();

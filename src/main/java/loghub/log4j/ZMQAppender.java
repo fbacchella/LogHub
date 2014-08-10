@@ -60,7 +60,6 @@ public class ZMQAppender extends AppenderSkeleton {
         try {
             socket.close();
         } catch (Exception e) {
-            System.out.println(e);
         }
         ctx.term();
     }

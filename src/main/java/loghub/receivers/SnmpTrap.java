@@ -59,7 +59,7 @@ public class SnmpTrap extends Receiver implements CommandResponder {
     }
 
     public SnmpTrap(Context context, String endpoint,
-            Map<String, Event> eventQueue) {
+            Map<byte[], Event> eventQueue) {
         super(context, endpoint, eventQueue);
         try {
             threadPool = ThreadPool.create("Trap", 10);

@@ -12,7 +12,7 @@ public class TransformerBuilder {
     private TransformerBuilder() {
     }
     
-    public static Transformer[] create(String className, Map<String, Event> eventQueue, Map<String, String> properties) {
+    public static Transformer[] create(String className, Map<byte[], Event> eventQueue, Map<String, String> properties) {
         
         try {
             @SuppressWarnings("unchecked")
@@ -31,7 +31,6 @@ public class TransformerBuilder {
             
             for(int i =0 ; i < countThread; i++) {
                 transformers[i] = constr.newInstance(eventQueue);
-                transformers[i].setName(className + "-" + i);
                 for(Map.Entry<String, String> e: properties.entrySet()) {
                     BeansManager.beanSetter(transformers[i], e.getKey(), e.getValue());
                 }

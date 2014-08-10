@@ -14,10 +14,6 @@ import loghub.configuration.Beans;
 public class Groovy extends Transformer  {
 
     private Script groovyScript;
-    public Groovy(Map<String, Event> eventQueue) {
-        super(eventQueue);
-        setName("TransformerGrovy");
-    }
 
     @Override
     public void transform(Event event) {
@@ -38,6 +34,11 @@ public class Groovy extends Transformer  {
 
     public String getScript() {
         return groovyScript.toString();
+    }
+
+    @Override
+    public String getName() {
+        return "groovy";
     }
 
 }

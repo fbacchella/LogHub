@@ -8,9 +8,10 @@ import org.zeromq.ZMQ.Socket;
 
 public abstract class Receiver extends Thread {
     protected final Socket pipe;
-    private final Map<String, Event> eventQueue;
+    private final Map<byte[], Event> eventQueue;
+    protected Codec codec;
 
-    public Receiver(Context context, String endpoint, Map<String, Event> eventQueue) {
+    public Receiver(Context context, String endpoint, Map<byte[], Event> eventQueue) {
         setDaemon(true);
         this.eventQueue = eventQueue;
         pipe = context.socket(ZMQ.PUSH);
@@ -20,10 +21,9 @@ public abstract class Receiver extends Thread {
     public abstract void run();
     
     public void send(Event event) {
-        System.out.println("piping " + event.key());
         try {
-            String key = event.key();
-            pipe.send(key.getBytes());
+            byte[] key = event.key();
+            pipe.send(key);
             eventQueue.put(key, event);
         } catch (zmq.ZError.IOException | java.nio.channels.ClosedSelectorException | org.zeromq.ZMQException e ) {
             try {
@@ -33,6 +33,14 @@ public abstract class Receiver extends Thread {
         } catch (Throwable t) {
             t.printStackTrace();
         }
+    }
+
+    public Codec getCodec() {
+        return codec;
+    }
+
+    public void setCodec(Codec codec) {
+        this.codec = codec;
     }
 
 }
