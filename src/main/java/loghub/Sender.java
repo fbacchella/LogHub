@@ -8,13 +8,13 @@ import org.zeromq.ZMQ.Context;
 public abstract class Sender extends Thread {
 
     protected ZMQ.Socket pipe;
-    private Map<String, Event> eventQueue;
+    private Map<byte[], Event> eventQueue;
     
     public Sender() {
         
     }
-    public Sender(Context ctx, String endpoint, Map<String, Event> eventQueue) {
-        setDaemon(true);
+
+    public void configure(Context ctx, String endpoint, Map<byte[], Event> eventQueue) {
         this.eventQueue = eventQueue;
         pipe = ctx.socket(ZMQ.PULL);
         pipe.connect(endpoint);

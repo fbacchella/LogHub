@@ -5,11 +5,15 @@ import java.io.InputStream;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Enumeration;
-import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.SortedMap;
 import java.util.TreeMap;
-import java.util.Map.Entry;
+
+import loghub.Event;
+import loghub.Receiver;
+import loghub.snmp.NaturalOrderComparator;
+import loghub.snmp.OidTreeNode;
 
 import org.snmp4j.CommandResponder;
 import org.snmp4j.CommandResponderEvent;
@@ -27,12 +31,6 @@ import org.snmp4j.smi.VariableBinding;
 import org.snmp4j.transport.DefaultUdpTransportMapping;
 import org.snmp4j.util.MultiThreadedMessageDispatcher;
 import org.snmp4j.util.ThreadPool;
-import org.zeromq.ZMQ.Context;
-
-import loghub.Event;
-import loghub.Receiver;
-import loghub.snmp.NaturalOrderComparator;
-import loghub.snmp.OidTreeNode;
 
 public class SnmpTrap extends Receiver implements CommandResponder {
 
@@ -58,9 +56,8 @@ public class SnmpTrap extends Receiver implements CommandResponder {
         }
     }
 
-    public SnmpTrap(Context context, String endpoint,
-            Map<byte[], Event> eventQueue) {
-        super(context, endpoint, eventQueue);
+    public SnmpTrap() {
+        super();
         try {
             threadPool = ThreadPool.create("Trap", 10);
             MultiThreadedMessageDispatcher dispatcher = new MultiThreadedMessageDispatcher(threadPool,

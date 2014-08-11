@@ -2,20 +2,27 @@ package loghub;
 
 import java.util.Map;
 
+import loghub.configuration.Beans;
+
 import org.zeromq.ZMQ;
 import org.zeromq.ZMQ.Context;
 import org.zeromq.ZMQ.Socket;
 
+@Beans({"codec"})
 public abstract class Receiver extends Thread {
-    protected final Socket pipe;
-    private final Map<byte[], Event> eventQueue;
+    protected Socket pipe;
+    private Map<byte[], Event> eventQueue;
     protected Codec codec;
 
-    public Receiver(Context context, String endpoint, Map<byte[], Event> eventQueue) {
+    public Receiver(){
         setDaemon(true);
+        setName("receiver-" + getReceiverName());
+    }
+    
+    public void configure(Context context, String endpoint, Map<byte[], Event> eventQueue) {
         this.eventQueue = eventQueue;
         pipe = context.socket(ZMQ.PUSH);
-        pipe.connect(endpoint);
+        pipe.connect(endpoint);        
     }
 
     public abstract void run();

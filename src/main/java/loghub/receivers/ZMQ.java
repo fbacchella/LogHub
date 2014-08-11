@@ -20,15 +20,6 @@ public class ZMQ extends Receiver {
     private int hwm = 1000;
     private Context context;
 
-    public ZMQ() {
-        super();
-    }
-
-    public ZMQ(Context context, String endpoint, Map<byte[], Event> eventQueue) {
-        super(context, endpoint, eventQueue);
-        this.context = context;
-    }
-
     @Override
     public synchronized void start() {
         log4jsocket = context.socket(PULL);
@@ -40,6 +31,13 @@ public class ZMQ extends Receiver {
 
         super.start();
     }    
+
+    @Override
+    public void configure(Context context, String endpoint,
+            Map<byte[], Event> eventQueue) {
+        super.configure(context, endpoint, eventQueue);
+        this.context = context;
+    }
 
     @Override
     public void run() {

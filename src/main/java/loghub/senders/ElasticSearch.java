@@ -32,10 +32,11 @@ public class ElasticSearch extends Sender {
         ES_INDEX.setTimeZone(tz);        
     }
 
-    private final Rest.Client client; 
+    private Rest.Client client; 
 
-    public ElasticSearch(Context ctx, String endpoint, Map<String, Event> eventQueue) {
-        super(ctx, endpoint, eventQueue);
+    @Override
+    public void configure(Context ctx, String endpoint, Map<byte[], Event> eventQueue) {
+        super.configure(ctx, endpoint, eventQueue);
         TTransport transport = new TSocket("localhost", 9500);
         TProtocol protocol = new TBinaryProtocol(transport);
         client = new Rest.Client(protocol);
@@ -72,7 +73,7 @@ public class ElasticSearch extends Sender {
             e.printStackTrace();
         }
     }
-    
+
     private void put(JSONObject jo, Date timestamp, String type) throws TException {
         String index = ES_INDEX.format(timestamp);
         RestRequest request = new RestRequest(Method.POST, String.format("/logstash-%s/%s/", index, type));
@@ -89,6 +90,5 @@ public class ElasticSearch extends Sender {
         JSONObject data = new JSONObject(new String(response.getBody()));
         return data;
     }
-
 
 }

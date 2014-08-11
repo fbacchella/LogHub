@@ -8,6 +8,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.Locale;
 import java.util.Map;
@@ -160,5 +161,15 @@ public class BeansManager {
         return name.substring(0, 1).toUpperCase(Locale.ENGLISH) + name.substring(1);
     }
 
+    public static Set<String> getBeans(Class<?> clazz) {
+        Set<Beans> beansAnnotations = enumerateAnnotation(clazz, Beans.class, Object.class);
+        Set<String> beans = new HashSet<>();
+        for(Beans annotation: beansAnnotations) {
+            for(String b: annotation.value()) {
+                beans.add(b);
+            }
+        }
+        return beans;
+    }
 
 }
