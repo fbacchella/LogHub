@@ -6,8 +6,8 @@ import java.util.Map;
 import loghub.Event;
 import loghub.Receiver;
 import loghub.configuration.Beans;
-
 import static org.zeromq.ZMQ.PULL;
+
 import org.zeromq.ZMQ.Context;
 import org.zeromq.ZMQ.Socket;
 
@@ -18,7 +18,12 @@ public class ZMQ extends Receiver {
     private String method = "bind";
     private String endpoint = "tcp://localhost:2120";
     private int hwm = 1000;
-    private final Context context;
+    private Context context;
+
+    public ZMQ() {
+        super();
+    }
+
     public ZMQ(Context context, String endpoint, Map<byte[], Event> eventQueue) {
         super(context, endpoint, eventQueue);
         this.context = context;
@@ -86,6 +91,11 @@ public class ZMQ extends Receiver {
 
     public void setHwm(int hwm) {
         this.hwm = hwm;
+    }
+
+    @Override
+    public String getReceiverName() {
+        return "ZMQ";
     }
 
 }

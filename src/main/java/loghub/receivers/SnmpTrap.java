@@ -122,4 +122,9 @@ public class SnmpTrap extends Receiver implements CommandResponder {
         return formatted;
     }
 
+    @Override
+    public String getReceiverName() {
+        return "SnmpTrap";
+    }
+
 }

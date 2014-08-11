@@ -42,5 +42,7 @@ public abstract class Receiver extends Thread {
     public void setCodec(Codec codec) {
         this.codec = codec;
     }
+    
+    public abstract String getReceiverName();
 
 }
