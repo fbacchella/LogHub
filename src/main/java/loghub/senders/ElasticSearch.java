@@ -91,4 +91,9 @@ public class ElasticSearch extends Sender {
         return data;
     }
 
+    @Override
+    public String getSenderName() {
+        return "ElasticSearch";
+    }
+
 }

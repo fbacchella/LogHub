@@ -11,7 +11,8 @@ public abstract class Sender extends Thread {
     private Map<byte[], Event> eventQueue;
     
     public Sender() {
-        
+        setDaemon(true);
+        setName("sender-" + getSenderName());
     }
 
     public void configure(Context ctx, String endpoint, Map<byte[], Event> eventQueue) {
@@ -21,6 +22,7 @@ public abstract class Sender extends Thread {
     }
 
     public abstract void send(Event e);
+    public abstract String getSenderName();
 
     public void run() {
         while (! isInterrupted()) {

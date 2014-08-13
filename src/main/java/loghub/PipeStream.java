@@ -19,7 +19,7 @@ public class PipeStream {
         private final String outEndpoint;
 
         Proxy(Context context, String parent, int rank) {
-            setDaemon(false);
+            setDaemon(true);
             setName("proxy-" + parent + "." + rank);
             inEndpoint = "inproc://in" + parent + "." + rank;
             outEndpoint = "inproc://out" + parent + "." + rank;
