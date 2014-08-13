@@ -161,6 +161,9 @@ public class Start extends Thread {
             r.start();
         }
         
+        // configuration is not needed any more, don't hold reference to it.
+        conf = null;
+        
         try {
             Thread.currentThread().join();
         } catch (InterruptedException e) {
