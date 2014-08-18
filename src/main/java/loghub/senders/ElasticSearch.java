@@ -56,7 +56,7 @@ public class ElasticSearch extends Sender {
         JSONObject esobject = new JSONObject();
         esobject.put("type", event.type);
         esobject.put("@timestamp", ISO8601.format(event.timestamp));
-        for(Map.Entry<String, Object> i: event.properties.entrySet()) {
+        for(Map.Entry<String, Object> i: event.entrySet()) {
             Object value = i.getValue();
             if(value instanceof Map) {
                 esobject.put(i.getKey(), (Map<?,?>) value);
