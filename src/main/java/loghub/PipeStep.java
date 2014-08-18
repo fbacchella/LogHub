@@ -47,9 +47,14 @@ public class PipeStep extends Thread {
                 for(Transformer t: transformers) {
                     setName(threadName + "-" + t.getName());
                     t.transform(event);
+                    if(event.dropped) {
+                        break;
+                    }
                 }
-                out.send(key);
-                eventQueue.put(key, event);
+                if( ! event.dropped) {
+                    out.send(key);
+                    eventQueue.put(key, event);                    
+                }
             } catch (zmq.ZError.IOException | java.nio.channels.ClosedSelectorException | org.zeromq.ZMQException e ) {
                 try {
                     in.close();
