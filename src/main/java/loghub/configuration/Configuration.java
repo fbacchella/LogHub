@@ -1,10 +1,14 @@
 package loghub.configuration;
 
+import java.beans.IntrospectionException;
+import java.beans.PropertyDescriptor;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.Reader;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -16,8 +20,10 @@ import loghub.PipeStep;
 import loghub.Receiver;
 import loghub.Sender;
 import loghub.Transformer;
+import loghub.transformers.Test;
 import loghub.configuration.StackConf.ParseException;
 
+import org.yaml.snakeyaml.Yaml;
 import org.zeromq.ZMQ.Context;
 
 public class Configuration {
@@ -40,6 +46,12 @@ public class Configuration {
     }
 
     public void parse(String fileName) {
+        try {
+            Object o1 = (new Yaml().load(new FileInputStream(fileName)));
+        } catch (FileNotFoundException e1) {
+            // TODO Auto-generated catch block
+            e1.printStackTrace();
+        }
         try {
             Reader r = new FileReader(fileName);
             StackConf stack = new StackConf(r);
@@ -83,9 +95,21 @@ public class Configuration {
                 throw new ParseException("Unknown bean " + i.name, stack.getEvent());
             }
             try {
+                try {
+                    PropertyDescriptor bean = new PropertyDescriptor(i.name, o.getClass());
+                    System.out.println(bean.getPropertyType() + " " + i.value);
+                } catch (IntrospectionException e) {
+                }
+                
                 if("codec".equals(i.name)) {
                     Object argument = doObject(stack);
                     ((Receiver) o).setCodec((Codec)argument);
+                } else if("then".equals(i.name)) {
+                    Object argument = doObject(stack);
+                    ((Test) o).setThen((Transformer)argument);
+                } else if("else".equals(i.name)) {
+                    Object argument = doObject(stack);
+                    ((Test) o).setElse((Transformer)argument);
                 } else {
                     BeansManager.beanSetter(o, i.name, i.value);                    
                 }

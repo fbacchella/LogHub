@@ -4,22 +4,28 @@
 
 grammar Route;
 
-route: object ( '|' pipenodeList )*  '|' object;
+
+pipelineList: pipeline+ EOF;
+pipeline: 'pipeline' '[' Identifier ']' '=' pipenodeList;
 
 pipenodeList
     :   pipenode ('|' pipenode)*
     ;
-pipenode: object | test | '(' pipenodeList ')' ;
-object: qualifiedName beansDescription ;
-beansDescription: ( '{' ( beanName ':' beanValue )+ '}')*;
+pipenode: test | object | '(' pipenodeList ')' | '$' piperef;
+object: QualifiedIdentifier beansDescription ; 
+beansDescription:  ('{' (bean (',' bean)*)? '}')? ;
+bean: beanName ':' beanValue;
 beanName: Identifier;
-beanValue: literal;
+beanValue: object | Literal;
+piperef:  Identifier;
 
-test: expression '?' object ':' object;
+test: testExpression '?' pipenode (':' pipenode)?;
+
+testExpression: expression;
 
 expression
-    :   literal
-    |   'event' '.' Identifier
+    :   Literal
+    |   QualifiedIdentifier
     |   ('~'|'!') expression
     |   expression ('**') expression
     |   expression ('*'|'/'|'%') expression
@@ -35,17 +41,17 @@ expression
     |   expression '||' expression
     ;
 
-qualifiedName
-    :   Identifier ('.' Identifier)*
-    ;
-
 Identifier
     :   JavaLetter JavaLetterOrDigit*
     ;
 
+QualifiedIdentifier
+    :   Identifier ('.' Identifier)+
+    ;
+    
 fragment
 JavaLetter
-    :   [a-zA-Z$_] // these are the "java letters" below 0xFF
+    :   [a-zA-Z_] // these are the "java letters" below 0xFF
     |   // covers all characters above 0xFF which are not a surrogate
         ~[\u0000-\u00FF\uD800-\uDBFF]
         {Character.isJavaIdentifierStart(_input.LA(-1))}?
@@ -65,7 +71,7 @@ JavaLetterOrDigit
         {Character.isJavaIdentifierPart(Character.toCodePoint((char)_input.LA(-2), (char)_input.LA(-1)))}?
     ;
 
-literal
+Literal
     :   IntegerLiteral
     |   FloatingPointLiteral
     |   CharacterLiteral
