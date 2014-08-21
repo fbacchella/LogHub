@@ -12,58 +12,84 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.antlr.v4.runtime.Token;
-
 import loghub.PipeStep;
+import loghub.Receiver;
 import loghub.RouteBaseListener;
 import loghub.RouteParser.BeanContext;
 import loghub.RouteParser.BeanNameContext;
 import loghub.RouteParser.BeanValueContext;
+import loghub.RouteParser.InputContext;
+import loghub.RouteParser.InputObjectlistContext;
 import loghub.RouteParser.ObjectContext;
+import loghub.RouteParser.OutputContext;
+import loghub.RouteParser.OutputObjectlistContext;
 import loghub.RouteParser.PipelineContext;
 import loghub.RouteParser.PipenodeListContext;
+import loghub.RouteParser.PiperefContext;
 import loghub.RouteParser.TestContext;
 import loghub.RouteParser.TestExpressionContext;
+import loghub.Sender;
 import loghub.Transformer;
 import loghub.transformers.Pipe;
+import loghub.transformers.PipeRef;
 import loghub.transformers.Test;
+
+import org.antlr.v4.runtime.tree.TerminalNode;
 
 public class ConfigListener extends RouteBaseListener {
 
-    public final class ConfigException extends RuntimeException {
-        private final Token start;
-        private final Token end;
-        ConfigException(String message, Token start, Token end, Exception e) {
-            super(message, e);
-            this.start = start;
-            this.end = end;
-        }
-        ConfigException(String message, Token start, Token end) {
-            super(message);
-            this.start = start;
-            this.end = end;
-        }
-        public String getStartPost() {
-            return "line " + start.getLine() + ":" + start.getCharPositionInLine();
-        }
-        public String getStartEnd() {
-            return "line " + end.getLine() + ":" + end.getCharPositionInLine();
+    private static enum StackMarker {
+        ObjectList,
+        PipeNodeList;
+        boolean isEquals(Object other) {
+            return (other != null && other instanceof StackMarker && equals(other));
         }
     };
+
+    final class Input {
+        final List<Receiver> receiver;
+        String piperef;
+        Input(List<Receiver>receiver, String piperef) {
+            this.piperef = piperef;
+            this.receiver = receiver;
+        }
+        @Override
+        public String toString() {
+            return "(" + receiver.toString() + " -> " + piperef + ")";
+        }
+    }
+
+    final class Output {
+        final List<Sender> sender;
+        final String piperef;
+        Output(List<Sender>sender, String piperef) {
+            this.piperef = piperef;
+            this.sender = sender;
+        }
+        @Override
+        public String toString() {
+            return "(" + piperef + " -> " +  sender.toString() + ")";
+        }
+    }
+
     public Deque<Object> stack = new ArrayDeque<>();
 
-    public final Map<String, Pipe> pipelines = new HashMap<>();
+    public final Map<String, List<Pipe>> pipelines = new HashMap<>();
+    public final List<Input> inputs = new ArrayList<>();
+    public final List<Output> outputs = new ArrayList<>();
 
-    private static final class PipeNodeList {};
+    private List<Pipe> currentPipeList = null;
+
+    @Override
+    public void enterPipeline(PipelineContext ctx) {
+        String currentPipeLineName = ctx.Identifier().getText();
+        currentPipeList = new ArrayList<>();
+        pipelines.put(currentPipeLineName, currentPipeList);
+    }
 
     @Override
     public void exitPipeline(PipelineContext ctx) {
-        System.out.println(stack);
-        System.out.println(ctx.start);
-        System.out.println(ctx.stop);
-        String name = ctx.Identifier().getText();
-        Pipe pipe = (Pipe) stack.pop();
-        pipelines.put(name, pipe);
+        stack.pop();
     }
 
     @Override
@@ -73,7 +99,13 @@ public class ConfigListener extends RouteBaseListener {
 
     @Override
     public void enterBeanValue(BeanValueContext ctx) {
-        stack.push(ctx.getText());
+        TerminalNode literal = ctx.Literal();
+
+        // Only needed to push if Literal
+        // Overwise the object will be pushed anyway
+        if(literal != null) {
+            stack.push(ctx.getText());
+        }
     }
 
     @Override
@@ -85,7 +117,7 @@ public class ConfigListener extends RouteBaseListener {
         try {
             bean = new PropertyDescriptor(beanName, beanObject.getClass());
         } catch (IntrospectionException e1) {
-            throw new ConfigException(String.format("Unknown bean '%s'", beanName), ctx.start, ctx.stop);
+            throw new ConfigException(String.format("Unknown bean '%s'", beanName), ctx.start, ctx.stop, e1);
         }
 
         Method setMethod = bean.getWriteMethod();
@@ -129,9 +161,13 @@ public class ConfigListener extends RouteBaseListener {
 
     @Override
     public void enterPipenodeList(PipenodeListContext ctx) {
-        stack.push(new PipeNodeList() );
+        stack.push(StackMarker.PipeNodeList );
     }
 
+    @Override
+    public void exitPiperef(PiperefContext ctx) {
+        stack.push(ctx.Identifier().getText());
+    }
 
     @Override
     public void exitPipenodeList(PipenodeListContext ctx) {
@@ -152,7 +188,12 @@ public class ConfigListener extends RouteBaseListener {
         int rank = 0;
         int threads = -1;
         PipeStep[] step = null;
-        while( ! (stack.peek() instanceof PipeNodeList)) {
+        while( ! StackMarker.PipeNodeList.isEquals(stack.peek()) ) {
+            if(stack.peek().getClass().isAssignableFrom(String.class)) {
+                PipeRef piperef = new PipeRef();
+                piperef.setPipeRef((String) stack.pop());
+                stack.push(piperef);
+            }
             Transformer t = (Transformer) stack.pop();
             if(t.getThreads() != threads) {
                 threads = t.getThreads();
@@ -165,13 +206,14 @@ public class ConfigListener extends RouteBaseListener {
             }
             for(int i = 0; i < threads ; i++) {
                 step[i].addTransformer(t);
-            }
+            }                
         }
         //Remove the marker
         stack.pop();
         Pipe pipe = new Pipe();
         pipe.setPipe(pipeList);
         stack.push(pipe);
+        currentPipeList.add(pipe);
     }
 
     @Override
@@ -196,6 +238,60 @@ public class ConfigListener extends RouteBaseListener {
         }
         testTransformer.setIf(test);
         stack.push(testTransformer);
+    }
+
+    @Override
+    public void enterInputObjectlist(InputObjectlistContext ctx) {
+        stack.push(StackMarker.ObjectList);
+    }
+
+    @Override
+    public void exitInputObjectlist(InputObjectlistContext ctx) {
+        List<Receiver> l = new ArrayList<>();
+        while(! StackMarker.ObjectList.equals(stack.peek())) {
+            l.add((Receiver) stack.pop());
+        }
+        stack.pop();
+        stack.push(l);
+    }
+
+    @Override
+    public void enterOutputObjectlist(OutputObjectlistContext ctx) {
+        stack.push(StackMarker.ObjectList);
+    }
+
+    @Override
+    public void exitOutputObjectlist(OutputObjectlistContext ctx) {
+        List<Sender> l = new ArrayList<>();
+        while(! StackMarker.ObjectList.equals(stack.peek())) {
+            l.add((Sender) stack.pop());
+        }
+        stack.pop();
+        stack.push(l);
+    }
+
+    @Override
+    public void exitOutput(OutputContext ctx) {
+        String piperef = null;
+        @SuppressWarnings("unchecked")
+        List<Sender> senders = (List<Sender>) stack.pop();
+        if(stack.peek() != null && stack.peek().getClass().isAssignableFrom(String.class)) {
+            piperef = (String) stack.pop();
+        }
+        Output output = new Output(senders, piperef);
+        outputs.add(output);
+    }
+
+    @Override
+    public void exitInput(InputContext ctx) {
+        String piperef = null;
+        if(stack.peek().getClass().isAssignableFrom(String.class)) {
+            piperef = (String) stack.pop();
+        }
+        @SuppressWarnings("unchecked")
+        List<Receiver> receivers = (List<Receiver>) stack.pop();
+        Input input = new Input(receivers, piperef);
+        inputs.add(input);
     }
 
 }

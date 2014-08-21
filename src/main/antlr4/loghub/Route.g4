@@ -4,16 +4,18 @@
 
 grammar Route;
 
-
-pipelineList: pipeline+ EOF;
-pipeline: 'pipeline' '[' Identifier ']' '=' pipenodeList;
-
+configuration: (pipeline|input|output)+ EOF;
+pipeline: 'pipeline' '[' Identifier ']' '{' pipenodeList '}';
+input: 'input' '{'  inputObjectlist ('|' '$' piperef)? '}';
+output: 'output' '{' ('$' piperef '|' )?  outputObjectlist '}';
+inputObjectlist: (object (',' object)*)? ','?;
+outputObjectlist: (object (',' object)*)? ','?;
 pipenodeList
     :   pipenode ('|' pipenode)*
     ;
 pipenode: test | object | '(' pipenodeList ')' | '$' piperef;
 object: QualifiedIdentifier beansDescription ; 
-beansDescription:  ('{' (bean (',' bean)*)? '}')? ;
+beansDescription:  ('{' (bean (',' bean)*)? ','? '}')? ;
 bean: beanName ':' beanValue;
 beanName: Identifier;
 beanValue: object | Literal;

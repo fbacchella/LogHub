@@ -1,9 +1,13 @@
 package loghub.transformers;
 
 import java.util.List;
+import java.util.Map;
+
+import org.zeromq.ZMQ.Context;
 
 import loghub.Event;
 import loghub.PipeStep;
+import loghub.PipeStream;
 import loghub.Transformer;
 import loghub.configuration.Beans;
 
@@ -11,6 +15,7 @@ import loghub.configuration.Beans;
 public class Pipe extends Transformer {
 
     private List<PipeStep[]> pipe;
+    PipeStream mainPipe = null;
     
     public List<PipeStep[]> getPipe() {
         return pipe;
@@ -27,6 +32,18 @@ public class Pipe extends Transformer {
     @Override
     public String getName() {
         return "pipe";
+    }
+    
+    public void startStream(Map<byte[], Event> eventQueue, Context context, String parent) {
+        mainPipe = new PipeStream(eventQueue, context, parent, pipe);
+    }
+
+    public String getInEndpoint() {
+        return mainPipe.getInEndpoint();
+    }
+
+    public String getOutEndpoint() {
+        return mainPipe.getOutEndpoint();
     }
 
 }
