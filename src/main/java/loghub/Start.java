@@ -5,44 +5,55 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import loghub.configuration.Configuration;
+import loghub.transformers.Pipe;
 
 import org.zeromq.ZMQ;
 import org.zeromq.ZMQ.Context;
 
 public class Start extends Thread {
 
-
-    static public void main(String[] args) {
+    private String configFile = null;
+    
+    static public void main(final String[] args) {
 
         //Make it wait on himself to wait forever
         try {
-            Thread me = new Start();
-            me.setName("LogHub");
-            me.start();
-            me.join();
+            new Start(args[0]) {{
+                setName("LogHub");
+                start();
+                join();
+            }};
         } catch (InterruptedException e) {
         }
     }
-
+    
+    Start(String configFile) {
+        this.configFile = configFile;
+    }
+    
     public void run() {
         Context context = ZMQ.context(1);
         Map<byte[], Event> eventQueue = new ConcurrentHashMap<>();
         
-        Configuration conf = new Configuration(eventQueue, context);
+        Configuration conf = new Configuration();
         
-        conf.parse("conf/conf.yaml");
+        conf.parse(configFile);
 
-        List<PipeStep[]> pipe = conf.getTransformersPipe();
-        PipeStream mainPipe = new PipeStream(eventQueue, context, "", pipe);
-
-        for(Sender s: conf.getSenders(mainPipe.getOutEndpoint())) {
-            s.start();
+        for(Map.Entry<String, List<Pipe>> e: conf.getTransformersPipe()) {
+            int i = 0;
+            for(Pipe p: e.getValue()) {
+                p.startStream(eventQueue, context, e.getKey() + i++);
+            }
         }
-        
-        for(Receiver r: conf.getReceivers(mainPipe.getInEndpoint())) {
-            r.start();
-        }
-        
+//
+//        for(Sender s: conf.getSenders(mainPipe.getOutEndpoint())) {
+//            s.start();
+//        }
+//        
+//        for(Receiver r: conf.getReceivers(mainPipe.getInEndpoint())) {
+//            r.start();
+//        }
+//        
         // configuration is not needed any more, don't hold reference to it.
         conf = null;
         
