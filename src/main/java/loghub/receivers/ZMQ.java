@@ -5,10 +5,9 @@ import java.util.Map;
 
 import loghub.Event;
 import loghub.Receiver;
+import loghub.ZMQManager;
 import loghub.configuration.Beans;
-import static org.zeromq.ZMQ.PULL;
 
-import org.zeromq.ZMQ.Context;
 import org.zeromq.ZMQ.Socket;
 
 @Beans({"method", "endpoint"})
@@ -18,25 +17,19 @@ public class ZMQ extends Receiver {
     private String method = "bind";
     private String endpoint = "tcp://localhost:2120";
     private int hwm = 1000;
-    private Context context;
 
     @Override
     public synchronized void start() {
-        log4jsocket = context.socket(PULL);
+        log4jsocket = ZMQManager.newSocket(ZMQManager.Method.valueOf(method.toUpperCase()), ZMQManager.Type.PULL, endpoint);
         log4jsocket.setHWM(hwm);
-        switch (method.toLowerCase()) {
-        case "bind": log4jsocket.bind(endpoint); break;
-        case "connect": log4jsocket.connect(endpoint); break;
-        }
 
         super.start();
     }    
 
     @Override
-    public void configure(Context context, String endpoint,
+    public void configure(String endpoint,
             Map<byte[], Event> eventQueue) {
-        super.configure(context, endpoint, eventQueue);
-        this.context = context;
+        super.configure(endpoint, eventQueue);
     }
 
     @Override
@@ -46,19 +39,13 @@ public class ZMQ extends Receiver {
                 byte[] msg;
                 try {
                     // Get work piece
-                    msg = log4jsocket.recv();
+                    msg = ZMQManager.recv(log4jsocket);
                     Event event = new Event();
                     Date d = new Date();
                     event.timestamp = d;
                     codec.decode(event, msg);
                     send(event);
                 } catch (zmq.ZError.IOException | java.nio.channels.ClosedSelectorException | org.zeromq.ZMQException e ) {
-                    // ZeroMQ throws exception
-                    // when context is terminated
-                    try {
-                        log4jsocket.close();
-                    } catch (Exception e1) {
-                    }
                     break;
                 }
             }

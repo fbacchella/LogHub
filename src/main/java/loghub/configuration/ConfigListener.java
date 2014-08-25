@@ -79,10 +79,11 @@ public class ConfigListener extends RouteBaseListener {
     public final List<Output> outputs = new ArrayList<>();
 
     private List<Pipe> currentPipeList = null;
-
+    private String currentPipeLineName = null;
+    
     @Override
     public void enterPipeline(PipelineContext ctx) {
-        String currentPipeLineName = ctx.Identifier().getText();
+        currentPipeLineName = ctx.Identifier().getText();
         currentPipeList = new ArrayList<>();
         pipelines.put(currentPipeLineName, currentPipeList);
     }
@@ -90,6 +91,7 @@ public class ConfigListener extends RouteBaseListener {
     @Override
     public void exitPipeline(PipelineContext ctx) {
         stack.pop();
+        currentPipeLineName = null;
     }
 
     @Override
@@ -195,23 +197,29 @@ public class ConfigListener extends RouteBaseListener {
                 stack.push(piperef);
             }
             Transformer t = (Transformer) stack.pop();
-            if(t.getThreads() != threads) {
-                threads = t.getThreads();
-                step = new PipeStep[threads];
-                pipeList.add(step);
-                rank++;
-                for(int i=0; i < threads ; i++) {
-                    step[i] = new PipeStep(rank, i + 1);
+            // A pipe transformer provides is own PipeStep
+            if(t.getClass().isAssignableFrom(Pipe.class)) {
+                // the pipestep can't be reused
+                threads = -1;
+                pipeList.add(((Pipe) t).getPipeSteps());
+            } else {
+                if(t.getThreads() != threads) {
+                    threads = t.getThreads();
+                    step = new PipeStep[threads];
+                    pipeList.add(step);
+                    rank++;
+                    for(int i=0; i < threads ; i++) {
+                        step[i] = new PipeStep(rank, i + 1);
+                    }
                 }
+                for(int i = 0; i < threads ; i++) {
+                    step[i].addTransformer(t);
+                }                
             }
-            for(int i = 0; i < threads ; i++) {
-                step[i].addTransformer(t);
-            }                
         }
         //Remove the marker
         stack.pop();
-        Pipe pipe = new Pipe();
-        pipe.setPipe(pipeList);
+        Pipe pipe = new Pipe(pipeList, this.currentPipeLineName + "$" + currentPipeList.size());
         stack.push(pipe);
         currentPipeList.add(pipe);
     }

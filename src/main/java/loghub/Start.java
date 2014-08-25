@@ -7,9 +7,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import loghub.configuration.Configuration;
 import loghub.transformers.Pipe;
 
-import org.zeromq.ZMQ;
-import org.zeromq.ZMQ.Context;
-
 public class Start extends Thread {
 
     private String configFile = null;
@@ -32,7 +29,6 @@ public class Start extends Thread {
     }
     
     public void run() {
-        Context context = ZMQ.context(1);
         Map<byte[], Event> eventQueue = new ConcurrentHashMap<>();
         
         Configuration conf = new Configuration();
@@ -42,7 +38,8 @@ public class Start extends Thread {
         for(Map.Entry<String, List<Pipe>> e: conf.getTransformersPipe()) {
             int i = 0;
             for(Pipe p: e.getValue()) {
-                p.startStream(eventQueue, context, e.getKey() + i++);
+                p.startStream(eventQueue, e.getKey() + "." + i++);
+                System.out.println(p.getInEndpoint() + "->" + p.getOutEndpoint());
             }
         }
 //
@@ -63,7 +60,7 @@ public class Start extends Thread {
             // TODO Auto-generated catch block
             e.printStackTrace();
         }
-        context.term();
+        ZMQManager.terminate();
     }
 
 }

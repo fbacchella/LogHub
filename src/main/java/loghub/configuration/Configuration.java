@@ -50,8 +50,7 @@ public class Configuration {
         } catch (ConfigException e) {
             throw new RuntimeException("Error at " + e.getStartPost() + ": " + e.getMessage(), e);
         }
-        pipelines = conf.pipelines;
-        
+        pipelines = conf.pipelines;        
     }
 
     public Set<Map.Entry<String, List<Pipe>>> getTransformersPipe() {

@@ -21,7 +21,6 @@ import org.elasticsearch.thrift.Rest;
 import org.elasticsearch.thrift.RestRequest;
 import org.elasticsearch.thrift.RestResponse;
 import org.json.JSONObject;
-import org.zeromq.ZMQ.Context;
 
 public class ElasticSearch extends Sender {
     private static final TimeZone tz = TimeZone.getTimeZone("UTC");
@@ -35,8 +34,8 @@ public class ElasticSearch extends Sender {
     private Rest.Client client; 
 
     @Override
-    public void configure(Context ctx, String endpoint, Map<byte[], Event> eventQueue) {
-        super.configure(ctx, endpoint, eventQueue);
+    public void configure(String endpoint, Map<byte[], Event> eventQueue) {
+        super.configure(endpoint, eventQueue);
         TTransport transport = new TSocket("localhost", 9500);
         TProtocol protocol = new TBinaryProtocol(transport);
         client = new Rest.Client(protocol);

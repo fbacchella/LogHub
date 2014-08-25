@@ -4,8 +4,6 @@ import java.util.Map;
 
 import loghub.configuration.Beans;
 
-import org.zeromq.ZMQ;
-import org.zeromq.ZMQ.Context;
 import org.zeromq.ZMQ.Socket;
 
 @Beans({"codec"})
@@ -19,10 +17,9 @@ public abstract class Receiver extends Thread {
         setName("receiver-" + getReceiverName());
     }
     
-    public void configure(Context context, String endpoint, Map<byte[], Event> eventQueue) {
+    public void configure(String endpoint, Map<byte[], Event> eventQueue) {
         this.eventQueue = eventQueue;
-        pipe = context.socket(ZMQ.PUSH);
-        pipe.connect(endpoint);        
+        pipe = ZMQManager.newSocket(ZMQManager.Method.CONNECT, ZMQManager.Type.PUSH, endpoint);
     }
 
     public abstract void run();
@@ -33,10 +30,7 @@ public abstract class Receiver extends Thread {
             pipe.send(key);
             eventQueue.put(key, event);
         } catch (zmq.ZError.IOException | java.nio.channels.ClosedSelectorException | org.zeromq.ZMQException e ) {
-            try {
-                pipe.close();
-            } catch (Exception e1) {
-            }
+            ZMQManager.close(pipe);
         } catch (Throwable t) {
             t.printStackTrace();
         }

@@ -3,26 +3,23 @@ package loghub.transformers;
 import java.util.List;
 import java.util.Map;
 
-import org.zeromq.ZMQ.Context;
-
 import loghub.Event;
 import loghub.PipeStep;
-import loghub.PipeStream;
+import loghub.Pipeline;
+import loghub.SubPipeline;
 import loghub.Transformer;
-import loghub.configuration.Beans;
 
-@Beans({"pipe"})
 public class Pipe extends Transformer {
 
     private List<PipeStep[]> pipe;
-    PipeStream mainPipe = null;
-    
-    public List<PipeStep[]> getPipe() {
-        return pipe;
-    }
+    Pipeline pipeline = null;
+    SubPipeline child;
+    final private String name;
 
-    public void setPipe(List<PipeStep[]> pipe) {
+    public Pipe(List<PipeStep[]> pipe, String name) {
+        super();
         this.pipe = pipe;
+        this.name = name;
     }
 
     @Override
@@ -33,17 +30,47 @@ public class Pipe extends Transformer {
     public String getName() {
         return "pipe";
     }
-    
-    public void startStream(Map<byte[], Event> eventQueue, Context context, String parent) {
-        mainPipe = new PipeStream(eventQueue, context, parent, pipe);
+
+    public void startStream(Map<byte[], Event> eventQueue, String parent) {
+        pipeline = new Pipeline(eventQueue, parent, pipe);
     }
 
     public String getInEndpoint() {
-        return mainPipe.getInEndpoint();
+        return pipeline.getInEndpoint();
     }
 
     public String getOutEndpoint() {
-        return mainPipe.getOutEndpoint();
+        return pipeline.getOutEndpoint();
+    }
+
+    public Pipeline getPipeline() {
+        return pipeline;
+    }
+
+    public PipeStep[] getPipeSteps() {
+        if(child == null) {
+            child = new SubPipeline(name, pipeline.getInEndpoint(), pipeline.getOutEndpoint());            
+        }
+        return new PipeStep[] {child};
+    }
+
+    @Override
+    public String toString() {
+        return name + "." + (pipe != null ? pipe.toString() : pipeline.toString());
+    }
+
+    public void stop() {
+        if(pipeline != null) {
+            pipeline.stop();            
+        }
+        for(PipeStep[] i: pipe) {
+            for(PipeStep j: i) {
+                j.interrupt();
+            }
+        }
+        if(child != null) {
+            child.interrupt();            
+        }
     }
 
 }
