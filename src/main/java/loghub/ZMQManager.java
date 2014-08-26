@@ -6,12 +6,16 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.zeromq.ZMQ;
 import org.zeromq.ZMQ.Context;
 import org.zeromq.ZMQ.Socket;
 import org.zeromq.ZMQException;
 
 public class ZMQManager {
+    
+    private static final Logger logger = LogManager.getLogger();
 
     public static class SocketInfo {
         final Method method;
@@ -71,7 +75,7 @@ public class ZMQManager {
                 try {
                     context.term();
                 } catch (ZMQException|ZMQException.IOException|zmq.ZError.IOException|zmq.ZError.CtxTerminatedException|zmq.ZError.InstantiationException e) {
-                    System.out.println(exceptionString("term", e));
+                    logZMQException("term", e);
                 } catch (java.nio.channels.ClosedSelectorException e) {
                     System.out.println("in term: " + e);
                 } catch (Exception e) {
@@ -79,7 +83,6 @@ public class ZMQManager {
                 }
             }
         };
-        proxies.retainAll(Collections.emptyList());
         try {
             terminator.join(2000);
         } catch (InterruptedException e) {
@@ -87,9 +90,10 @@ public class ZMQManager {
         for(Thread t: proxies) {
             t.interrupt();
         }
+        proxies.retainAll(Collections.emptyList());
         if(sockets.size() > 0) {
             for(Socket s: sockets) {
-                System.out.println(new String(s.getIdentity()));
+                logger.error("Unclosed socket: {}", new String(s.getIdentity()));
             }
             throw new RuntimeException("Some sockets still open");
         }
@@ -104,23 +108,23 @@ public class ZMQManager {
         return socket;
     }
 
-    public static String exceptionString(String prefix, Exception e0) {
+    public static void logZMQException(String prefix, Exception e0) {
         try {
+            e0.getStackTrace()[0].getMethodName();
             throw e0;
-        } catch (ZMQException e) {
-            return "in "+ prefix +  ": ZMQException: " + e;
-        } catch (ZMQException.IOException e) {
-            return "in "+ prefix +  ": ZMQException.IOException: " + e.getCause();
-        } catch (zmq.ZError.IOException e) {
-            return "in "+ prefix +  ":zmq.ZError.IOException : " + e.getCause();
         } catch (zmq.ZError.CtxTerminatedException e) {
-            return "in "+ prefix +  ":zmq.ZError.CtxTerminatedException: " + e;
+            logger.debug("ZMQ context terminated in {}", prefix);
+        } catch (ZMQException e) {
+            logger.debug("in {}: ZMQException: ", prefix, e);
+        } catch (ZMQException.IOException e) {
+            logger.debug("in {}: ZMQException.IOException: {}", prefix, e.getCause());
+        } catch (zmq.ZError.IOException e) {
+            logger.debug("in {}: zmq.ZError.IOException: {}", prefix, e.getCause());
         } catch (zmq.ZError.InstantiationException e) {
-            return "in "+ prefix +  ":zmq.ZError.InstantiationException: " + e;
+            logger.error("in {}: zmq.ZError.InstantiationException: {}", prefix, e);
         } catch (Exception e) {
-            return "bad previous catch";
+            logger.debug("bad previous catch: {}", e);
         }
-
     }
 
     public static void close(Socket socket) {
@@ -128,7 +132,7 @@ public class ZMQManager {
             socket.setLinger(0);
             socket.close();
         } catch (ZMQException|ZMQException.IOException|zmq.ZError.IOException|zmq.ZError.CtxTerminatedException|zmq.ZError.InstantiationException e) {
-            System.out.println(exceptionString("close", e));
+            logZMQException("close", e);
         } catch (java.nio.channels.ClosedSelectorException e) {
             System.out.println("in close: " + e);
         } catch (Exception e) {
@@ -156,12 +160,12 @@ public class ZMQManager {
                 try {
                     ZMQ.proxy(in, out, null);
                 } catch (ZMQException|ZMQException.IOException|zmq.ZError.IOException|zmq.ZError.CtxTerminatedException|zmq.ZError.InstantiationException e) {
-                    System.out.println(exceptionString("proxy", e));
+                    logZMQException("proxy", e);
                 } catch (Exception e) {
                     System.out.println("in proxy: " + e);
                 }
-                ZMQManager.close(in);
-                ZMQManager.close(out);
+                close(in);
+                close(out);
                 System.out.println("Stopping proxy " + getName());
             }
         };
@@ -171,20 +175,20 @@ public class ZMQManager {
         try {
             ZMQ.proxy(socketIn, socketOut, null);
         } catch (ZMQException|ZMQException.IOException|zmq.ZError.IOException|zmq.ZError.CtxTerminatedException|zmq.ZError.InstantiationException e) {
-            System.out.println(exceptionString("proxy", e));
+            logZMQException("proxy", e);
         } catch (Exception e) {
             System.out.println("in proxy: " + e);
         }
 
-        ZMQManager.close(socketIn);
-        ZMQManager.close(socketOut);
+        close(socketIn);
+        close(socketOut);
     }
 
     public static byte[] recv(Socket socket) {
         try {
             return socket.recv();
-        } catch (java.nio.channels.ClosedSelectorException | org.zeromq.ZMQException e ) {
-            System.out.println(e);
+        } catch (ZMQException|ZMQException.IOException|zmq.ZError.IOException|zmq.ZError.CtxTerminatedException|zmq.ZError.InstantiationException e ) {
+            logZMQException("recv", e);
             close(socket);
             throw e;
         } catch (Exception e ) {
