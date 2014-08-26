@@ -63,14 +63,6 @@ public class Pipe extends Transformer {
         if(pipeline != null) {
             pipeline.stop();            
         }
-        for(PipeStep[] i: pipe) {
-            for(PipeStep j: i) {
-                j.interrupt();
-            }
-        }
-        if(child != null) {
-            child.interrupt();            
-        }
     }
 
 }
