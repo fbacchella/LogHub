@@ -33,10 +33,6 @@ public class SubPipeline extends PipeStep {
 
     @Override
     public void run() {
-        try {
-            this.join();
-        } catch (InterruptedException e) {
-        }
     }
 
     @Override

@@ -10,7 +10,7 @@ import loghub.Receiver;
 import loghub.RouteLexer;
 import loghub.RouteParser;
 import loghub.Sender;
-import loghub.transformers.Pipe;
+import loghub.transformers.Pipeline;
 
 import org.antlr.v4.runtime.ANTLRFileStream;
 import org.antlr.v4.runtime.CharStream;
@@ -19,7 +19,7 @@ import org.antlr.v4.runtime.tree.ParseTreeWalker;
 
 public class Configuration {
 
-    private Map<String, List<Pipe>> pipelines = new HashMap<>();
+    private Map<String, List<Pipeline>> pipelines = new HashMap<>();
 
     public Configuration() {
     }
@@ -53,7 +53,7 @@ public class Configuration {
         pipelines = conf.pipelines;        
     }
 
-    public Set<Map.Entry<String, List<Pipe>>> getTransformersPipe() {
+    public Set<Map.Entry<String, List<Pipeline>>> getTransformersPipe() {
         return pipelines.entrySet();
     }
 

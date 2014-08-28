@@ -10,7 +10,7 @@ import loghub.Transformer;
 import loghub.ZMQManager;
 import loghub.ZMQManager.SocketInfo;
 
-public class Pipe extends Transformer {
+public class Pipeline extends Transformer {
 
     private class Proxy {
 
@@ -35,7 +35,7 @@ public class Pipe extends Transformer {
     private String inEndpoint = null;
     private String outEndpoint = null;
 
-    public Pipe(List<PipeStep[]> pipe, String name) {
+    public Pipeline(List<PipeStep[]> pipe, String name) {
         super();
         this.pipe = pipe;
         this.name = name;

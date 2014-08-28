@@ -30,7 +30,7 @@ import loghub.RouteParser.TestContext;
 import loghub.RouteParser.TestExpressionContext;
 import loghub.Sender;
 import loghub.Transformer;
-import loghub.transformers.Pipe;
+import loghub.transformers.Pipeline;
 import loghub.transformers.PipeRef;
 import loghub.transformers.Test;
 
@@ -74,26 +74,13 @@ public class ConfigListener extends RouteBaseListener {
 
     public Deque<Object> stack = new ArrayDeque<>();
 
-    public final Map<String, List<Pipe>> pipelines = new HashMap<>();
+    public final Map<String, List<Pipeline>> pipelines = new HashMap<>();
     public final List<Input> inputs = new ArrayList<>();
     public final List<Output> outputs = new ArrayList<>();
 
-    private List<Pipe> currentPipeList = null;
+    private List<Pipeline> currentPipeList = null;
     private String currentPipeLineName = null;
     
-    @Override
-    public void enterPipeline(PipelineContext ctx) {
-        currentPipeLineName = ctx.Identifier().getText();
-        currentPipeList = new ArrayList<>();
-        pipelines.put(currentPipeLineName, currentPipeList);
-    }
-
-    @Override
-    public void exitPipeline(PipelineContext ctx) {
-        stack.pop();
-        currentPipeLineName = null;
-    }
-
     @Override
     public void enterBeanName(BeanNameContext ctx) {
         stack.push(ctx.getText());
@@ -104,7 +91,7 @@ public class ConfigListener extends RouteBaseListener {
         TerminalNode literal = ctx.Literal();
 
         // Only needed to push if Literal
-        // Overwise the object will be pushed anyway
+        // Otherwise the object will be pushed anyway
         if(literal != null) {
             stack.push(ctx.getText());
         }
@@ -162,6 +149,19 @@ public class ConfigListener extends RouteBaseListener {
     }
 
     @Override
+    public void enterPipeline(PipelineContext ctx) {
+        currentPipeLineName = ctx.Identifier().getText();
+        currentPipeList = new ArrayList<>();
+        pipelines.put(currentPipeLineName, currentPipeList);
+    }
+
+    @Override
+    public void exitPipeline(PipelineContext ctx) {
+        stack.pop();
+        currentPipeLineName = null;
+    }
+
+    @Override
     public void enterPipenodeList(PipenodeListContext ctx) {
         stack.push(StackMarker.PipeNodeList );
     }
@@ -198,10 +198,10 @@ public class ConfigListener extends RouteBaseListener {
             }
             Transformer t = (Transformer) stack.pop();
             // A pipe transformer provides is own PipeStep
-            if(t.getClass().isAssignableFrom(Pipe.class)) {
+            if(t.getClass().isAssignableFrom(Pipeline.class)) {
                 // the pipestep can't be reused
                 threads = -1;
-                pipeList.add(((Pipe) t).getPipeSteps());
+                pipeList.add(((Pipeline) t).getPipeSteps());
             } else {
                 if(t.getThreads() != threads) {
                     threads = t.getThreads();
@@ -219,7 +219,7 @@ public class ConfigListener extends RouteBaseListener {
         }
         //Remove the marker
         stack.pop();
-        Pipe pipe = new Pipe(pipeList, this.currentPipeLineName + "$" + currentPipeList.size());
+        Pipeline pipe = new Pipeline(pipeList, this.currentPipeLineName + "$" + currentPipeList.size());
         stack.push(pipe);
         currentPipeList.add(pipe);
     }
