@@ -5,7 +5,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import loghub.configuration.Configuration;
-import loghub.transformers.Pipeline;
+import loghub.Pipeline;
 
 public class Start extends Thread {
 
@@ -36,9 +36,8 @@ public class Start extends Thread {
         conf.parse(configFile);
 
         for(Map.Entry<String, List<Pipeline>> e: conf.getTransformersPipe()) {
-            int i = 0;
             for(Pipeline p: e.getValue()) {
-                p.startStream(eventQueue, e.getKey() + "." + i++);
+                p.startStream(eventQueue);
                 System.out.println(p.getInEndpoint() + "->" + p.getOutEndpoint());
             }
         }

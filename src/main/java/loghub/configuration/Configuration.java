@@ -1,16 +1,17 @@
 package loghub.configuration;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import loghub.Pipeline;
 import loghub.Receiver;
 import loghub.RouteLexer;
 import loghub.RouteParser;
 import loghub.Sender;
-import loghub.transformers.Pipeline;
 
 import org.antlr.v4.runtime.ANTLRFileStream;
 import org.antlr.v4.runtime.CharStream;
@@ -19,7 +20,8 @@ import org.antlr.v4.runtime.tree.ParseTreeWalker;
 
 public class Configuration {
 
-    private Map<String, List<Pipeline>> pipelines = new HashMap<>();
+    public Map<String, List<Pipeline>> pipelines = null;
+    public Map<String, Pipeline> namedPipeLine = null;
 
     public Configuration() {
     }
@@ -50,7 +52,12 @@ public class Configuration {
         } catch (ConfigException e) {
             throw new RuntimeException("Error at " + e.getStartPost() + ": " + e.getMessage(), e);
         }
-        pipelines = conf.pipelines;        
+        pipelines = Collections.unmodifiableMap(conf.pipelines);
+        namedPipeLine = new HashMap<>(pipelines.size());
+        for(Map.Entry<String, List<Pipeline>> e: pipelines.entrySet()) {
+            namedPipeLine.put(e.getKey(), e.getValue().get(e.getValue().size() - 1));
+        }
+        namedPipeLine = Collections.unmodifiableMap(namedPipeLine);
     }
 
     public Set<Map.Entry<String, List<Pipeline>>> getTransformersPipe() {

@@ -30,7 +30,7 @@ import loghub.RouteParser.TestContext;
 import loghub.RouteParser.TestExpressionContext;
 import loghub.Sender;
 import loghub.Transformer;
-import loghub.transformers.Pipeline;
+import loghub.Pipeline;
 import loghub.transformers.PipeRef;
 import loghub.transformers.Test;
 
@@ -39,6 +39,7 @@ import org.antlr.v4.runtime.tree.TerminalNode;
 public class ConfigListener extends RouteBaseListener {
 
     private static enum StackMarker {
+        Test,
         ObjectList,
         PipeNodeList;
         boolean isEquals(Object other) {
@@ -80,7 +81,7 @@ public class ConfigListener extends RouteBaseListener {
 
     private List<Pipeline> currentPipeList = null;
     private String currentPipeLineName = null;
-    
+
     @Override
     public void enterBeanName(BeanNameContext ctx) {
         stack.push(ctx.getText());
@@ -191,18 +192,20 @@ public class ConfigListener extends RouteBaseListener {
         int threads = -1;
         PipeStep[] step = null;
         while( ! StackMarker.PipeNodeList.isEquals(stack.peek()) ) {
-            if(stack.peek().getClass().isAssignableFrom(String.class)) {
+            if(stack.peek() instanceof String) {
                 PipeRef piperef = new PipeRef();
                 piperef.setPipeRef((String) stack.pop());
                 stack.push(piperef);
             }
-            Transformer t = (Transformer) stack.pop();
+            Object poped = stack.pop();
             // A pipe transformer provides is own PipeStep
-            if(t.getClass().isAssignableFrom(Pipeline.class)) {
+            if(poped instanceof Pipeline) {
+                Pipeline pipeline = (Pipeline) poped;
                 // the pipestep can't be reused
                 threads = -1;
-                pipeList.add(((Pipeline) t).getPipeSteps());
-            } else {
+                pipeList.add(pipeline.getPipeSteps());
+            } else if(poped instanceof Transformer){
+                Transformer t = (Transformer) poped;
                 if(t.getThreads() != threads) {
                     threads = t.getThreads();
                     step = new PipeStep[threads];
@@ -215,36 +218,59 @@ public class ConfigListener extends RouteBaseListener {
                 for(int i = 0; i < threads ; i++) {
                     step[i].addTransformer(t);
                 }                
+            } else {
+                throw new ConfigException("unknown stack state " + poped, ctx.start, ctx.stop);
+
             }
         }
         //Remove the marker
         stack.pop();
-        Pipeline pipe = new Pipeline(pipeList, this.currentPipeLineName + "$" + currentPipeList.size());
+        Pipeline pipe = new Pipeline(pipeList, currentPipeLineName + "$" + currentPipeList.size());
         stack.push(pipe);
         currentPipeList.add(pipe);
     }
 
     @Override
     public void enterTestExpression(TestExpressionContext ctx) {
-        stack.push(ctx.getText());
+        stack.push(StackMarker.Test);
     }
 
     @Override
     public void exitTest(TestContext ctx) {
         Test testTransformer = new Test();
-        Object o2 = stack.pop();
-        Object o1 = stack.pop();
-        String test;
-        if(Transformer.class.isAssignableFrom(o1.getClass())) {
-            testTransformer.setElse((Transformer) o2);
-            testTransformer.setThen((Transformer) o1);
-            test = (String) stack.pop();
-        }
-        else {
-            test = (String) o1;
-            testTransformer.setThen((Transformer) o2);
-        }
-        testTransformer.setIf(test);
+        PipeStep[][] clauses = new PipeStep[2][];
+
+        for(int i=1; !( stack.peek() instanceof StackMarker) ; i-- ) {
+            Object o = stack.pop();
+            if(o instanceof Pipeline) {
+                Pipeline p = (Pipeline) o;
+                clauses[i] =  p.getPipeSteps();
+            } else if (o instanceof PipeStep[] ) {
+                PipeStep[] p = (PipeStep[]) o;
+                clauses[i] = p;
+            } else if (o instanceof Transformer ) {
+                Transformer t = (Transformer) o;
+                PipeStep[] steps = new PipeStep[t.getThreads()];
+                for(int j = 0; j < steps.length ; j++) {
+                    steps[j] = new PipeStep();
+                    steps[j].addTransformer(t);
+                }
+                clauses[i] = steps;
+            }
+        };
+        stack.pop();
+        System.out.println(Arrays.asList(clauses));
+        //        Object o2 = stack.pop();
+        //        Object o1 = stack.pop();
+        //        if(Transformer.class.isAssignableFrom(o1.getClass())) {
+        //            testTransformer.setElse((Transformer) o2);
+        //            testTransformer.setThen((Transformer) o1);
+        //            stack.pop();
+        //        }
+        //        else {
+        //            testTransformer.setThen((Transformer) o2);
+        //        }
+        testTransformer.setIf(ctx.testExpression().getText());
         stack.push(testTransformer);
     }
 

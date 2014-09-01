@@ -5,9 +5,7 @@ import groovy.lang.GroovyShell;
 import groovy.lang.Script;
 import loghub.Event;
 import loghub.Transformer;
-import loghub.configuration.Beans;
 
-@Beans({"if", "then", "else"})
 public class Test extends Transformer {
 
     Script ifClause;

@@ -4,10 +4,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.zeromq.ZMQ.Socket;
 import org.zeromq.ZMQException;
 
 public class PipeStep extends Thread {
+
+    private static final Logger logger = LogManager.getLogger();
 
     protected Socket in;
     protected Socket out;
@@ -41,8 +45,10 @@ public class PipeStep extends Thread {
             try {
                 byte[] key = in.recv();
                 Event event = eventQueue.remove(key);
+                logger.debug("received event {}", event);
 
                 if(event == null) {
+                    logger.warn("received a null event");
                     continue;
                 }
                 for(Transformer t: transformers) {
@@ -56,7 +62,12 @@ public class PipeStep extends Thread {
                     eventQueue.put(key, event);                    
                     out.send(key);
                 }
-            } catch (ZMQException | ZMQException.IOException | zmq.ZError.IOException | zmq.ZError.CtxTerminatedException  | java.nio.channels.ClosedSelectorException  e ) {
+            } catch (zmq.ZError.CtxTerminatedException e ) {
+                ZMQManager.close(out);
+                ZMQManager.close(in);
+                break;
+            } catch (ZMQException | ZMQException.IOException | zmq.ZError.IOException e ) {
+                ZMQManager.logZMQException("PipeStep", e);
                 ZMQManager.close(out);
                 ZMQManager.close(in);
                 break;
@@ -71,14 +82,6 @@ public class PipeStep extends Thread {
     @Override
     public String toString() {
         return super.toString() + "." + transformers.toString();
-    }
-    
-    public ZMQManager.Type getInType() {
-        return ZMQManager.Type.PUSH;
-    }
-
-    public ZMQManager.Type getOutType() {
-        return ZMQManager.Type.PULL;
     }
 
 }

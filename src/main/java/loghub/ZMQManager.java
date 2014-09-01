@@ -1,9 +1,12 @@
 package loghub;
 
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.logging.log4j.LogManager;
@@ -12,6 +15,8 @@ import org.zeromq.ZMQ;
 import org.zeromq.ZMQ.Context;
 import org.zeromq.ZMQ.Socket;
 import org.zeromq.ZMQException;
+
+import zmq.ZError;
 
 public class ZMQManager {
     
@@ -28,17 +33,98 @@ public class ZMQManager {
             this.endpoint = endpoint;
         }
     };
+    
+    private final static Map<Integer, ERRNO> map = new HashMap<>();
+
+    public enum ERRNO {
+        EOTHER(-1),
+        EINTR(ZError.EINTR),
+        EACCESS(ZError.EACCESS),
+        EFAULT(ZError.EFAULT),
+        EINVAL(ZError.EINVAL),
+        EAGAIN(ZError.EAGAIN),
+        EINPROGRESS(ZError.EINPROGRESS),
+        EPROTONOSUPPORT(ZError.EPROTONOSUPPORT),
+        ENOTSUP(ZError.ENOTSUP),
+        EADDRINUSE(ZError.EADDRINUSE) {
+            @Override
+            public String toString() {
+                return ZError.toString(code);
+            }            
+        },
+        EADDRNOTAVAIL(ZError.EADDRNOTAVAIL),
+        ENETDOWN(ZError.ENETDOWN),
+        ENOBUFS(ZError.ENOBUFS),
+        EISCONN(ZError.EISCONN),
+        ENOTCONN(ZError.ENOTCONN),
+        ECONNREFUSED(ZError.ECONNREFUSED),
+        EHOSTUNREACH(ZError.EHOSTUNREACH),
+        EFSM(ZError.EFSM) {
+            @Override
+            public String toString() {
+                return ZError.toString(code);
+            }            
+        },
+        ENOCOMPATPROTO(ZError.ENOCOMPATPROTO) {
+            @Override
+            public String toString() {
+                return ZError.toString(code);
+            }            
+        },
+        ETERM(ZError.ETERM) {
+            @Override
+            public String toString() {
+                return ZError.toString(code);
+            }            
+            public String toString(String context, Exception exceptionToClass, Throwable exceptionToMessage) {
+                return String.format("[%s] %s: %s", context, exceptionToClass.getClass().getCanonicalName(), toString());
+            }
+        },
+        EMTHREAD(ZError.EMTHREAD) {
+            @Override
+            public String toString() {
+                return ZError.toString(code);
+            }            
+        },
+        EIOEXC(ZError.EIOEXC),
+        ESOCKET(ZError.ESOCKET),
+        EMFILE(ZError.EMFILE);
+        
+        public final int code;
+        ERRNO(int code) {
+            this.code = code;
+            map.put(code, this);
+        }
+        
+        public static ERRNO get(int code) {
+            return map.get(code);
+        }
+        public String toString(String context, Exception exceptionToClass, Throwable exceptionToMessage) {
+            return String.format("[%s] %s: %s", context, exceptionToClass.getClass().getCanonicalName(), exceptionToMessage.getMessage());
+        }
+    }
 
     public enum Method {
         CONNECT {
             @Override
             void act(ZMQ.Socket socket, String address) { socket.connect(address); }
+
+            @Override
+            public char getSymbol() {
+                return '(';
+            }
         },
         BIND {
             @Override
             void act(ZMQ.Socket socket, String address) { socket.bind(address); }
+            
+            @Override
+            public char getSymbol() {
+                return ')';
+            }
         };
         abstract void act(ZMQ.Socket socket, String address);
+        abstract char getSymbol();
     }
 
     public enum Type {
@@ -53,7 +139,8 @@ public class ZMQManager {
         }
     }
 
-    private final static Set<Socket> sockets = Collections.newSetFromMap(new ConcurrentHashMap<Socket, Boolean>());
+    //private final static Set<Socket> sockets = Collections.newSetFromMap(new ConcurrentHashMap<Socket, Boolean>());
+    private final static Map<Socket, String> sockets = new ConcurrentHashMap<>();
     private static final int numSocket = 1;
     private static Context context = ZMQ.context(numSocket);
     private static List<Thread> proxies = new ArrayList<>();
@@ -75,7 +162,7 @@ public class ZMQManager {
                 try {
                     context.term();
                 } catch (ZMQException|ZMQException.IOException|zmq.ZError.IOException|zmq.ZError.CtxTerminatedException|zmq.ZError.InstantiationException e) {
-                    logZMQException("term", e);
+                    logZMQException("terminate", e);
                 } catch (java.nio.channels.ClosedSelectorException e) {
                     System.out.println("in term: " + e);
                 } catch (Exception e) {
@@ -92,8 +179,8 @@ public class ZMQManager {
         }
         proxies.retainAll(Collections.emptyList());
         if(sockets.size() > 0) {
-            for(Socket s: sockets) {
-                logger.error("Unclosed socket: {}", new String(s.getIdentity()));
+            for(String s: sockets.values()) {
+                logger.error("Unclosed socket: {}", s);
             }
             throw new RuntimeException("Some sockets still open");
         }
@@ -103,27 +190,36 @@ public class ZMQManager {
     public static Socket newSocket(Method method, Type type, String endpoint) {
         Socket socket = context.socket(type.type);
         method.act(socket, endpoint);
-        socket.setIdentity((type.toString() + ":" + method.toString() + ":" + endpoint).getBytes());
-        sockets.add(socket);
+        sockets.put(socket, endpoint + ":" + type.toString() + ":" + method.getSymbol());
         return socket;
     }
 
-    public static void logZMQException(String prefix, Exception e0) {
+    public static void logZMQException(String prefix, RuntimeException e0) {
+        ERRNO errno = ERRNO.EOTHER;
+        String message;
         try {
-            e0.getStackTrace()[0].getMethodName();
             throw e0;
-        } catch (zmq.ZError.CtxTerminatedException e) {
-            logger.debug("ZMQ context terminated in {}", prefix);
         } catch (ZMQException e) {
-            logger.debug("in {}: ZMQException: ", prefix, e);
+            errno = ERRNO.get(e.getErrorCode());
+            message = errno.toString(prefix, e, e);
         } catch (ZMQException.IOException e) {
-            logger.debug("in {}: ZMQException.IOException: {}", prefix, e.getCause());
+            errno = ERRNO.get(zmq.ZError.exccode((IOException) e.getCause()));
+            message = errno.toString(prefix, e, e.getCause());
+        } catch (zmq.ZError.CtxTerminatedException e) {
+            errno = ERRNO.ETERM;
+            message = errno.toString(prefix, e, new RuntimeException("Context terminated")); 
         } catch (zmq.ZError.IOException e) {
-            logger.debug("in {}: zmq.ZError.IOException: {}", prefix, e.getCause());
+            errno = ERRNO.get(zmq.ZError.exccode((IOException) e.getCause()));
+            message = errno.toString(prefix, e, e.getCause());
         } catch (zmq.ZError.InstantiationException e) {
-            logger.error("in {}: zmq.ZError.InstantiationException: {}", prefix, e);
-        } catch (Exception e) {
-            logger.debug("bad previous catch: {}", e);
+            message =  errno.toString(prefix, e, e.getCause());
+        } catch (RuntimeException e) {
+            throw e;
+        }
+        switch(errno) {
+        case ETERM: logger.debug(message); break;
+        case EOTHER: logger.fatal(message); break;
+        default: logger.error(message); break;
         }
     }
 
@@ -166,7 +262,7 @@ public class ZMQManager {
                 }
                 close(in);
                 close(out);
-                System.out.println("Stopping proxy " + getName());
+                logger.debug("Stopping proxy {}", getName());
             }
         };
     }
@@ -177,7 +273,7 @@ public class ZMQManager {
         } catch (ZMQException|ZMQException.IOException|zmq.ZError.IOException|zmq.ZError.CtxTerminatedException|zmq.ZError.InstantiationException e) {
             logZMQException("proxy", e);
         } catch (Exception e) {
-            System.out.println("in proxy: " + e);
+            logger.error("in proxy: {}", e.getMessage());
         }
 
         close(socketIn);
@@ -192,9 +288,13 @@ public class ZMQManager {
             close(socket);
             throw e;
         } catch (Exception e ) {
-            System.out.println(e);
+            logger.error("in recv: {}", e.getMessage());
             close(socket);
             throw e;
         }
+    }
+    
+    public static Collection<String> getSocketsList() {
+        return new ArrayList<>(sockets.values());
     }
 }
