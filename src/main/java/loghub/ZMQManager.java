@@ -1,6 +1,5 @@
 package loghub;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -119,7 +118,6 @@ public class ZMQManager {
         }
     }
 
-    //private final static Set<Socket> sockets = Collections.newSetFromMap(new ConcurrentHashMap<Socket, Boolean>());
     private final static Map<Socket, String> sockets = new ConcurrentHashMap<>();
     private static final int numSocket = 1;
     private static Context context = ZMQ.context(numSocket);
@@ -180,15 +178,6 @@ public class ZMQManager {
     public static void logZMQException(String prefix, RuntimeException e0) {
         ERRNO errno = ERRNO.EOTHER;
         String message;
-//        switch(e0.getClass().getCanonicalName()) {
-//        case "org.zeromq.ZMQException":
-//            errno = ERRNO.get(zmq.ZError.exccode((IOException) e0.getCause()));
-//            message = errno.toString(prefix, e0, e0.getCause());
-//            if(e0.getCause() != null && e0.getCause().getClass() == java.nio.channels.ClosedByInterruptException.class){
-//                logger.debug("[{}] {}", prefix, "Thread interrupted");
-//                return;
-//            }            
-//        }
         try {
             throw e0;
         } catch (ZMQException e) {
@@ -197,11 +186,9 @@ public class ZMQManager {
         } catch (zmq.ZError.CtxTerminatedException e) {
             errno = ERRNO.ETERM;
             message = errno.toString(prefix, e, new RuntimeException("Context terminated"));
-            logger.debug(message);
-            return;
-//        } catch (zmq.ZError.IOException e) {
-//            errno = ERRNO.get(zmq.ZError.exccode((IOException) e.getCause()));
-//            message = errno.toString(prefix, e, e.getCause());
+        } catch (zmq.ZError.IOException e) {
+            errno = ERRNO.get(zmq.Error.exccode(e));
+            message = errno.toString(prefix, e, e.getCause());
         } catch (zmq.ZError.InstantiationException e) {
             message =  errno.toString(prefix, e, e.getCause());
         } catch (RuntimeException e) {
