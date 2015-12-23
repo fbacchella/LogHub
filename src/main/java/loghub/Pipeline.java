@@ -3,11 +3,16 @@ package loghub;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import loghub.ZMQManager.SocketInfo;
 
 public class Pipeline {
 
-    private class Proxy {
+    private static final Logger logger = LogManager.getLogger();
+
+    private static class Proxy {
 
         public final String inEndpoint;
         public final String outEndpoint;
@@ -25,9 +30,9 @@ public class Pipeline {
 
     final private List<PipeStep[]> pipes;
     final private String name;
-    private String inEndpoint = null;
-    private String outEndpoint = null;
-    private PipeStep child;
+    public final String inEndpoint;
+    public final String outEndpoint;
+    private final PipeStep child;
 
     public Pipeline(List<PipeStep[]> pipes, String name) {
         this.pipes = pipes;
@@ -58,11 +63,13 @@ public class Pipeline {
             public String toString() {
                 return "pipeline(" + Pipeline.this.name + ")";
             }
-
         };
+        inEndpoint = "inproc://in." + name + ".1";
+        outEndpoint = "inproc://out." + name + "." + ( pipes.size() + 1 );
     }
 
     public void startStream(Map<byte[], Event> eventQueue) {
+        logger.debug(this.name + " start stream with " + eventQueue);
         Proxy[] proxies = new Proxy[pipes.size() + 1 ];
         for(int i = 0; i <= pipes.size(); i++) {
             proxies[i] = new Proxy(name, i + 1);
@@ -74,16 +81,14 @@ public class Pipeline {
             }
             i++;
         }
-        inEndpoint = proxies[0].inEndpoint;
-        outEndpoint = proxies[proxies.length - 1].outEndpoint;
     }
 
-    public String getInEndpoint() {
-        return inEndpoint;
-    }
-
-    public String getOutEndpoint() {
-        return outEndpoint;
+    public void stop() {
+        for(PipeStep[] i: pipes) {
+            for(PipeStep j: i) {
+                j.interrupt();
+            }
+        }
     }
 
     public PipeStep[] getPipeSteps() {

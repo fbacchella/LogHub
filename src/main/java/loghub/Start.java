@@ -16,7 +16,6 @@ public class Start extends Thread {
         //Make it wait on himself to wait forever
         try {
             new Start(args[0]) {{
-                setName("LogHub");
                 start();
                 join();
             }};
@@ -26,6 +25,7 @@ public class Start extends Thread {
     
     Start(String configFile) {
         this.configFile = configFile;
+        setName("LogHub");
     }
     
     public void run() {
@@ -38,26 +38,23 @@ public class Start extends Thread {
         for(Map.Entry<String, List<Pipeline>> e: conf.getTransformersPipe()) {
             for(Pipeline p: e.getValue()) {
                 p.startStream(eventQueue);
-                System.out.println(p.getInEndpoint() + "->" + p.getOutEndpoint());
             }
         }
-//
-//        for(Sender s: conf.getSenders(mainPipe.getOutEndpoint())) {
-//            s.start();
-//        }
-//        
-//        for(Receiver r: conf.getReceivers(mainPipe.getInEndpoint())) {
-//            r.start();
-//        }
-//        
+
+        for(Sender s: conf.getSenders()) {
+            s.configure(eventQueue);
+        }
+        
+        for(Receiver r: conf.getReceivers()) {
+            r.start(eventQueue);
+        }
+        
         // configuration is not needed any more, don't hold reference to it.
         conf = null;
         
         try {
             Thread.currentThread().join();
-        } catch (InterruptedException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
+        } catch (InterruptedException e1) {
         }
         ZMQManager.terminate();
     }

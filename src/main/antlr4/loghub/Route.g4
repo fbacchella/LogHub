@@ -18,7 +18,7 @@ object: QualifiedIdentifier beansDescription ;
 beansDescription:  ('{' (bean (',' bean)*)? ','? '}')? ;
 bean: beanName ':' beanValue;
 beanName: Identifier;
-beanValue: object | Literal;
+beanValue: object | literal;
 piperef:  Identifier;
 
 test: testExpression '?' pipenode (':' pipenode)?;
@@ -26,7 +26,7 @@ test: testExpression '?' pipenode (':' pipenode)?;
 testExpression: expression;
 
 expression
-    :   Literal
+    :   literal
     |   QualifiedIdentifier
     |   ('~'|'!') expression
     |   expression ('**') expression
@@ -73,16 +73,20 @@ JavaLetterOrDigit
         {Character.isJavaIdentifierPart(Character.toCodePoint((char)_input.LA(-2), (char)_input.LA(-1)))}?
     ;
 
-Literal
-    :   IntegerLiteral
-    |   FloatingPointLiteral
-    |   CharacterLiteral
-    |   StringLiteral
-    |   BooleanLiteral
+literal
+    :   integerLiteral
+    |   floatingPointLiteral
+    |   characterLiteral
+    |   stringLiteral
+    |   booleanLiteral
     |   'null'
     ;
 
 // §3.10.1 Integer Literals
+
+integerLiteral
+    : IntegerLiteral
+    ;
 
 IntegerLiteral
     :   DecimalIntegerLiteral
@@ -95,12 +99,11 @@ fragment
 DecimalIntegerLiteral
     :   DecimalNumeral IntegerTypeSuffix?
     ;
-
 fragment
 HexIntegerLiteral
     :   HexNumeral IntegerTypeSuffix?
     ;
-
+    
 fragment
 OctalIntegerLiteral
     :   OctalNumeral IntegerTypeSuffix?
@@ -214,12 +217,14 @@ BinaryDigitOrUnderscore
 
 // §3.10.2 Floating-Point Literals
 
+floatingPointLiteral: FloatingPointLiteral;
+
 FloatingPointLiteral
     :   DecimalFloatingPointLiteral
     |   HexadecimalFloatingPointLiteral
     ;
 
-fragment
+
 DecimalFloatingPointLiteral
     :   Digits '.' Digits? ExponentPart? FloatTypeSuffix?
     |   '.' Digits ExponentPart? FloatTypeSuffix?
@@ -252,7 +257,6 @@ FloatTypeSuffix
     :   [fFdD]
     ;
 
-fragment
 HexadecimalFloatingPointLiteral
     :   HexSignificand BinaryExponent FloatTypeSuffix?
     ;
@@ -275,12 +279,14 @@ BinaryExponentIndicator
 
 // §3.10.3 Boolean Literals
 
-BooleanLiteral
+booleanLiteral
     :   'true'
     |   'false'
     ;
 
 // §3.10.4 Character Literals
+
+characterLiteral: CharacterLiteral;
 
 CharacterLiteral
     :   '\'' SingleCharacter '\''
@@ -292,19 +298,15 @@ SingleCharacter
     :   ~['\\]
     ;
 
+
 // §3.10.5 String Literals
 
-//RawString
-//    : StringCharacter+
-//    ;
-
-StringLiteral
-    :   '"' StringCharacters? '"'
+stringLiteral
+    :   StringLiteral
     ;
 
-fragment
-StringCharacters
-    :   StringCharacter+
+StringLiteral
+    :   '"' StringCharacter* '"'
     ;
 
 fragment

@@ -29,8 +29,10 @@ public class PipeStep extends Thread {
     }
 
     public void start(Map<byte[], Event> eventQueue, String endpointIn, String endpointOut) {
+        logger.debug("starting " +  this);
+        
         this.eventQueue = eventQueue;
-        in = ZMQManager.newSocket(ZMQManager.Method.CONNECT, ZMQManager.Type.PULL, endpointIn);
+        in = ZMQManager.newSocket(ZMQManager.Method.BIND, ZMQManager.Type.PULL, endpointIn);
         out = ZMQManager.newSocket(ZMQManager.Method.CONNECT, ZMQManager.Type.PUSH, endpointOut);
         super.start();
     }
@@ -43,6 +45,7 @@ public class PipeStep extends Thread {
         while (! isInterrupted()) {
             String threadName = getName();
             try {
+                logger.debug("waiting on " + in);
                 byte[] key = in.recv();
                 Event event = eventQueue.remove(key);
                 logger.debug("received event {}", event);
@@ -59,7 +62,7 @@ public class PipeStep extends Thread {
                     }
                 }
                 if( ! event.dropped) {
-                    eventQueue.put(key, event);                    
+                    eventQueue.put(key, event);
                     out.send(key);
                 }
             } catch (zmq.ZError.CtxTerminatedException e ) {

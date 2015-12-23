@@ -1,4 +1,4 @@
-package loghub;
+package loghub.configuration;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -6,9 +6,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import loghub.configuration.ConfigErrorListener;
-import loghub.configuration.ConfigException;
-import loghub.configuration.ConfigListener;
+import loghub.Event;
+import loghub.Pipeline;
+import loghub.RouteLexer;
+import loghub.RouteParser;
+import loghub.ZMQManager;
 
 import org.antlr.v4.runtime.ANTLRInputStream;
 import org.antlr.v4.runtime.CharStream;
@@ -19,7 +21,7 @@ import org.apache.logging.log4j.Logger;
 import org.junit.Assert;
 import org.junit.Test;
 
-public class TestGrammar {
+public class TestParser {
 
     private static final Logger logger = LogManager.getLogger();
 
@@ -58,7 +60,9 @@ public class TestGrammar {
             if(e.getCause() != null) {
                 e.getCause().printStackTrace();                
             }
+            Assert.fail("parsing failed");
         }
+        Assert.assertEquals("stack not empty :" + conf.stack, 0, conf.stack.size());
 
         System.out.println("pipelines");
         System.out.println(conf.pipelines);
@@ -68,8 +72,6 @@ public class TestGrammar {
         //                System.out.println("   " + j);
         //            }
         //        }
-        System.out.println("stack");
-        System.out.println(conf.stack);
         System.out.println("inputs");
         System.out.println(conf.inputs);
         System.out.println("outputs");
@@ -80,7 +82,7 @@ public class TestGrammar {
             Pipeline last = null;
             for(Pipeline p: e.getValue()) {
                 p.startStream(eventQueue);
-                System.out.println(p.getInEndpoint() + "->" + p.getOutEndpoint());
+                System.out.println(p.inEndpoint + "->" + p.outEndpoint);
                 last = p;
             }
             if(last != null) {

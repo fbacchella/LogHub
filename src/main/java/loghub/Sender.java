@@ -11,13 +11,18 @@ public abstract class Sender extends Thread {
 
     protected ZMQ.Socket pipe;
     private Map<byte[], Event> eventQueue;
+    private String endpoint;
     
     public Sender() {
         setDaemon(true);
         setName("sender-" + getSenderName());
     }
 
-    public void configure(String endpoint, Map<byte[], Event> eventQueue) {
+    public void setEndpoint(String endpoint) {
+        this.endpoint = endpoint;
+    }
+    
+    public void configure(Map<byte[], Event> eventQueue) {
         this.eventQueue = eventQueue;
         pipe = ZMQManager.newSocket(Method.CONNECT, Type.PULL, endpoint);
     }

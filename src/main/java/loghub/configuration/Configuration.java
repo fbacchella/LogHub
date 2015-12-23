@@ -1,8 +1,11 @@
 package loghub.configuration;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -12,6 +15,8 @@ import loghub.Receiver;
 import loghub.RouteLexer;
 import loghub.RouteParser;
 import loghub.Sender;
+import loghub.configuration.ConfigListener.Input;
+import loghub.configuration.ConfigListener.Output;
 
 import org.antlr.v4.runtime.ANTLRFileStream;
 import org.antlr.v4.runtime.CharStream;
@@ -22,7 +27,11 @@ public class Configuration {
 
     public Map<String, List<Pipeline>> pipelines = null;
     public Map<String, Pipeline> namedPipeLine = null;
-
+    private List<Receiver> receivers;
+    private Set<String> inputpipelines = new HashSet<>();
+    private Set<String> outputpipelines = new HashSet<>();
+    private List<Sender> senders;
+    
     public Configuration() {
     }
 
@@ -58,37 +67,54 @@ public class Configuration {
             namedPipeLine.put(e.getKey(), e.getValue().get(e.getValue().size() - 1));
         }
         namedPipeLine = Collections.unmodifiableMap(namedPipeLine);
+        
+        // File the receivers list
+        receivers = new ArrayList<>();
+        for(Input i: conf.inputs) {
+            if(i.piperef == null || ! namedPipeLine.containsKey(i.piperef)) {
+                throw new RuntimeException("Invalid input, no destination pipeline: " + i);
+            }
+            for(Receiver r: i.receiver) {
+                System.out.println("receiver " + i + " destination point will be " + namedPipeLine.get(i.piperef).inEndpoint);
+                r.setEndpoint(namedPipeLine.get(i.piperef).inEndpoint);
+                receivers.add(r);
+            }
+            inputpipelines.add(i.piperef);
+        }
+        
+        // File the senders list
+        senders = new ArrayList<>();
+        for(Output o: conf.outputs) {
+            if(o.piperef == null || ! namedPipeLine.containsKey(o.piperef)) {
+                throw new RuntimeException("Invalid output, no source pipeline: " + o);
+            }
+            for(Sender s: o.sender) {
+                System.out.println("sender " + s + " source point will be " + namedPipeLine.get(o.piperef).outEndpoint);
+                s.setEndpoint(namedPipeLine.get(o.piperef).outEndpoint);
+                senders.add(s);
+            }
+            outputpipelines.add(o.piperef);
+        }
     }
 
     public Set<Map.Entry<String, List<Pipeline>>> getTransformersPipe() {
         return pipelines.entrySet();
     }
 
-    public Receiver[] getReceivers(String inEndpoint) {
-//        List<Object> descriptions = slots.get(IN_SLOT);
-//        Receiver[] receivers = new Receiver[descriptions.size()];
-//        int i = 0;
-//        for(Object o: descriptions) {
-//            Receiver r = (Receiver) o;
-//            r.configure(context, inEndpoint, eventQueue);
-//            receivers[i++] = r;
-//        }
-//        return receivers;
-        return new Receiver[0];
+    public Collection<String> getReceiversPipelines() {
+        return Collections.unmodifiableSet(inputpipelines);
     }
 
-    public Sender[] getSenders(String outEndpoint) {
-//        List<Object> descriptions = slots.get(OUT_SLOT);
-//        Sender[] senders = new Sender[descriptions.size()];
-//        int i = 0;
-//        for(Object oi: descriptions) {
-//            Sender r = (Sender) oi;
-//            r.configure(context, outEndpoint, eventQueue);
-//            senders[i++] = r;
-//        }
-//
-//        return senders;
-        return new Sender[0];
+    public Collection<Receiver> getReceivers() {
+        return Collections.unmodifiableList(receivers);
+    }
+
+    public Collection<Sender> getSenders() {
+        return Collections.unmodifiableList(senders);
+    }
+
+    public Collection<String> getSendersPipelines() {
+        return Collections.unmodifiableSet(outputpipelines);
     }
 
 }

@@ -30,10 +30,10 @@ public class TestPipeStep {
         String outEndpoint = "inproc://out." + "TestPipeStep";
 
         //  Socket facing clients
-        Socket in = ZMQManager.newSocket(Method.BIND, Type.PUSH, inEndpoint);
+        Socket in = ZMQManager.newSocket(Method.CONNECT, Type.PUSH, inEndpoint);
 
         //  Socket facing services
-        Socket out = ZMQManager.newSocket(Method.BIND, Type.PULL, outEndpoint);
+        Socket out = ZMQManager.newSocket(Method.CONNECT, Type.PULL, outEndpoint);
 
         try {
             ps.start(eventQueue, inEndpoint, outEndpoint);
@@ -59,7 +59,6 @@ public class TestPipeStep {
 
     @Test(timeout=5000)
     public void testPipeline() {
-        System.out.println("testPipeline");
 
         PipeStep subps = new PipeStep();
         subps.addTransformer(new Identity() {
@@ -83,13 +82,14 @@ public class TestPipeStep {
         eventQueue.put("1".getBytes(), new Event());
         pipeline.startStream(eventQueue);
 
-        Socket in = ZMQManager.newSocket(Method.BIND, Type.PUSH, pipeline.getInEndpoint());
-        Socket out = ZMQManager.newSocket(Method.BIND, Type.PULL, pipeline.getOutEndpoint());
+        Socket in = ZMQManager.newSocket(Method.CONNECT, Type.PUSH, pipeline.inEndpoint);
+        Socket out = ZMQManager.newSocket(Method.CONNECT, Type.PULL, pipeline.outEndpoint);
 
-        logger.debug(pipeline);
+        logger.debug("pipeline is " + pipeline);
         for(String s: ZMQManager.getSocketsList()) {
-            logger.debug(s); 
+            logger.debug("sockets: " + s); 
         }
+        logger.debug("send message: " + eventQueue.keySet().iterator().next());
         in.send(eventQueue.keySet().iterator().next());
         ZMsg msg = ZMsg.recvMsg(out);
         logger.debug("received message: " + msg);

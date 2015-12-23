@@ -12,31 +12,38 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import loghub.PipeStep;
+import loghub.Pipeline;
 import loghub.Receiver;
 import loghub.RouteBaseListener;
 import loghub.RouteParser.BeanContext;
 import loghub.RouteParser.BeanNameContext;
-import loghub.RouteParser.BeanValueContext;
+import loghub.RouteParser.BooleanLiteralContext;
+import loghub.RouteParser.CharacterLiteralContext;
+import loghub.RouteParser.FloatingPointLiteralContext;
 import loghub.RouteParser.InputContext;
 import loghub.RouteParser.InputObjectlistContext;
+import loghub.RouteParser.IntegerLiteralContext;
 import loghub.RouteParser.ObjectContext;
 import loghub.RouteParser.OutputContext;
 import loghub.RouteParser.OutputObjectlistContext;
 import loghub.RouteParser.PipelineContext;
 import loghub.RouteParser.PipenodeListContext;
 import loghub.RouteParser.PiperefContext;
+import loghub.RouteParser.StringLiteralContext;
 import loghub.RouteParser.TestContext;
 import loghub.RouteParser.TestExpressionContext;
 import loghub.Sender;
 import loghub.Transformer;
-import loghub.Pipeline;
 import loghub.transformers.PipeRef;
 import loghub.transformers.Test;
 
-import org.antlr.v4.runtime.tree.TerminalNode;
+class ConfigListener extends RouteBaseListener {
 
-public class ConfigListener extends RouteBaseListener {
+    private static final Logger logger = LogManager.getLogger();
 
     private static enum StackMarker {
         Test,
@@ -72,15 +79,27 @@ public class ConfigListener extends RouteBaseListener {
             return "(" + piperef + " -> " +  sender.toString() + ")";
         }
     }
+    
+    final class PipeRefName {
+        final String piperef;
+        private PipeRefName(String piperef) {
+            this.piperef = piperef;
+        }
+    }
 
-    public Deque<Object> stack = new ArrayDeque<>();
+    Deque<Object> stack = new ArrayDeque<>();
 
-    public final Map<String, List<Pipeline>> pipelines = new HashMap<>();
-    public final List<Input> inputs = new ArrayList<>();
-    public final List<Output> outputs = new ArrayList<>();
+    final Map<String, List<Pipeline>> pipelines = new HashMap<>();
+    final List<Input> inputs = new ArrayList<>();
+    final List<Output> outputs = new ArrayList<>();
 
     private List<Pipeline> currentPipeList = null;
     private String currentPipeLineName = null;
+
+    @Override
+    public void enterPiperef(PiperefContext ctx) {
+        stack.push(new PipeRefName(ctx.getText()));
+    }
 
     @Override
     public void enterBeanName(BeanNameContext ctx) {
@@ -88,14 +107,34 @@ public class ConfigListener extends RouteBaseListener {
     }
 
     @Override
-    public void enterBeanValue(BeanValueContext ctx) {
-        TerminalNode literal = ctx.Literal();
+    public void enterFloatingPointLiteral(FloatingPointLiteralContext ctx) {
+        String content = ctx.FloatingPointLiteral().getText();
+        stack.push( new Double(content));
+    }
 
-        // Only needed to push if Literal
-        // Otherwise the object will be pushed anyway
-        if(literal != null) {
-            stack.push(ctx.getText());
-        }
+    @Override
+    public void enterCharacterLiteral(CharacterLiteralContext ctx) {
+        String content = ctx.CharacterLiteral().getText();
+        stack.push(content.charAt(0));
+    }
+
+    @Override
+    public void enterStringLiteral(StringLiteralContext ctx) {
+        String content = ctx.StringLiteral().getText();
+        // remove the wrapping "..."
+        stack.push(content.substring(1, content.length() - 1));
+    }
+
+    @Override
+    public void enterIntegerLiteral(IntegerLiteralContext ctx) {
+        String content = ctx.IntegerLiteral().getText();
+        stack.push(new Integer(content));
+    }
+
+    @Override
+    public void enterBooleanLiteral(BooleanLiteralContext ctx) {
+        String content = ctx.getText();
+        stack.push(new Boolean(content));
     }
 
     @Override
@@ -121,10 +160,14 @@ public class ConfigListener extends RouteBaseListener {
             } else if (beanValue instanceof String){
                 Object argInstance = BeansManager.ConstructFromString(setArgType, (String) beanValue);
                 setMethod.invoke(beanObject, argInstance);                       
+            } else if (beanValue instanceof Number){
+                setMethod.invoke(beanObject, beanValue);                       
             } else {
                 throw new ConfigException(String.format("Invalid internal stack state for '%s'", beanName), ctx.start, ctx.stop);                
             }
-        } catch (IllegalAccessException|IllegalArgumentException|InvocationTargetException e) {
+        } catch (InvocationTargetException e) {
+            throw new ConfigException(String.format("Bean setter failed for '%s': %s", beanName, e.getCause().getMessage()), ctx.start, ctx.stop);
+        } catch (IllegalAccessException|IllegalArgumentException e) {
             throw new ConfigException(String.format("Invalid bean setter for '%s'", beanName), ctx.start, ctx.stop);
         }
     }
@@ -168,11 +211,6 @@ public class ConfigListener extends RouteBaseListener {
     }
 
     @Override
-    public void exitPiperef(PiperefContext ctx) {
-        stack.push(ctx.Identifier().getText());
-    }
-
-    @Override
     public void exitPipenodeList(PipenodeListContext ctx) {
         List<PipeStep[]> pipeList = new ArrayList<PipeStep[]>() {
             @Override
@@ -192,9 +230,9 @@ public class ConfigListener extends RouteBaseListener {
         int threads = -1;
         PipeStep[] step = null;
         while( ! StackMarker.PipeNodeList.isEquals(stack.peek()) ) {
-            if(stack.peek() instanceof String) {
+            if(stack.peek() instanceof PipeRefName) {
                 PipeRef piperef = new PipeRef();
-                piperef.setPipeRef((String) stack.pop());
+                piperef.setPipeRef(((PipeRefName) stack.pop()).piperef);
                 stack.push(piperef);
             }
             Object poped = stack.pop();
@@ -219,8 +257,8 @@ public class ConfigListener extends RouteBaseListener {
                     step[i].addTransformer(t);
                 }                
             } else {
+                System.out.println(poped.getClass());
                 throw new ConfigException("unknown stack state " + poped, ctx.start, ctx.stop);
-
             }
         }
         //Remove the marker
@@ -306,25 +344,25 @@ public class ConfigListener extends RouteBaseListener {
 
     @Override
     public void exitOutput(OutputContext ctx) {
-        String piperef = null;
+        PipeRefName piperef = new PipeRefName("main");
         @SuppressWarnings("unchecked")
         List<Sender> senders = (List<Sender>) stack.pop();
-        if(stack.peek() != null && stack.peek().getClass().isAssignableFrom(String.class)) {
-            piperef = (String) stack.pop();
+        if(stack.peek() != null && stack.peek() instanceof PipeRefName) {
+            piperef = (PipeRefName) stack.pop();
         }
-        Output output = new Output(senders, piperef);
+        Output output = new Output(senders, piperef.piperef);
         outputs.add(output);
     }
 
     @Override
     public void exitInput(InputContext ctx) {
-        String piperef = null;
-        if(stack.peek().getClass().isAssignableFrom(String.class)) {
-            piperef = (String) stack.pop();
+        PipeRefName piperef = new PipeRefName("main");
+        if(stack.peek() instanceof PipeRefName) {
+            piperef = (PipeRefName) stack.pop();
         }
         @SuppressWarnings("unchecked")
         List<Receiver> receivers = (List<Receiver>) stack.pop();
-        Input input = new Input(receivers, piperef);
+        Input input = new Input(receivers, piperef.piperef);
         inputs.add(input);
     }
 

@@ -34,8 +34,8 @@ public class ElasticSearch extends Sender {
     private Rest.Client client; 
 
     @Override
-    public void configure(String endpoint, Map<byte[], Event> eventQueue) {
-        super.configure(endpoint, eventQueue);
+    public void configure(Map<byte[], Event> eventQueue) {
+        super.configure(eventQueue);
         TTransport transport = new TSocket("localhost", 9500);
         TProtocol protocol = new TBinaryProtocol(transport);
         client = new Rest.Client(protocol);

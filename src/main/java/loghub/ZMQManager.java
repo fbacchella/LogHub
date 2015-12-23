@@ -19,7 +19,7 @@ import org.zeromq.ZMQException;
 import zmq.ZError;
 
 public class ZMQManager {
-    
+
     private static final Logger logger = LogManager.getLogger();
 
     public static class SocketInfo {
@@ -33,7 +33,7 @@ public class ZMQManager {
             this.endpoint = endpoint;
         }
     };
-    
+
     private final static Map<Integer, ERRNO> map = new HashMap<>();
 
     public enum ERRNO {
@@ -46,12 +46,7 @@ public class ZMQManager {
         EINPROGRESS(ZError.EINPROGRESS),
         EPROTONOSUPPORT(ZError.EPROTONOSUPPORT),
         ENOTSUP(ZError.ENOTSUP),
-        EADDRINUSE(ZError.EADDRINUSE) {
-            @Override
-            public String toString() {
-                return ZError.toString(code);
-            }            
-        },
+        EADDRINUSE(ZError.EADDRINUSE),
         EADDRNOTAVAIL(ZError.EADDRNOTAVAIL),
         ENETDOWN(ZError.ENETDOWN),
         ENOBUFS(ZError.ENOBUFS),
@@ -59,48 +54,32 @@ public class ZMQManager {
         ENOTCONN(ZError.ENOTCONN),
         ECONNREFUSED(ZError.ECONNREFUSED),
         EHOSTUNREACH(ZError.EHOSTUNREACH),
-        EFSM(ZError.EFSM) {
-            @Override
-            public String toString() {
-                return ZError.toString(code);
-            }            
-        },
-        ENOCOMPATPROTO(ZError.ENOCOMPATPROTO) {
-            @Override
-            public String toString() {
-                return ZError.toString(code);
-            }            
-        },
+        EFSM(ZError.EFSM),
+        ENOCOMPATPROTO(ZError.ENOCOMPATPROTO),
         ETERM(ZError.ETERM) {
-            @Override
-            public String toString() {
-                return ZError.toString(code);
-            }            
             public String toString(String context, Exception exceptionToClass, Throwable exceptionToMessage) {
-                return String.format("[%s] %s: %s", context, exceptionToClass.getClass().getCanonicalName(), toString());
-            }
-        },
-        EMTHREAD(ZError.EMTHREAD) {
-            @Override
-            public String toString() {
-                return ZError.toString(code);
+                return String.format("[%s] %s: %s", context, exceptionToClass.getClass().getCanonicalName(), toStringMessage());
             }            
         },
+        EMTHREAD(ZError.EMTHREAD),
         EIOEXC(ZError.EIOEXC),
         ESOCKET(ZError.ESOCKET),
         EMFILE(ZError.EMFILE);
-        
+
         public final int code;
         ERRNO(int code) {
             this.code = code;
             map.put(code, this);
         }
-        
+
         public static ERRNO get(int code) {
             return map.get(code);
         }
+        public String toStringMessage() {
+            return ZError.toString(code);
+        }            
         public String toString(String context, Exception exceptionToClass, Throwable exceptionToMessage) {
-            return String.format("[%s] %s: %s", context, exceptionToClass.getClass().getCanonicalName(), exceptionToMessage.getMessage());
+            return String.format("[%s] %s %s", context, toStringMessage(), exceptionToMessage);
         }
     }
 
@@ -117,7 +96,7 @@ public class ZMQManager {
         BIND {
             @Override
             void act(ZMQ.Socket socket, String address) { socket.bind(address); }
-            
+
             @Override
             public char getSymbol() {
                 return ')';
@@ -131,6 +110,7 @@ public class ZMQManager {
         PUSH(ZMQ.PUSH),
         PULL(ZMQ.PULL),
         PUB(ZMQ.PUB),
+        SUB(ZMQ.SUB),
         DEALER(ZMQ.DEALER),
         ROUTER(ZMQ.ROUTER);
         public final int type;
@@ -145,6 +125,7 @@ public class ZMQManager {
     private static Context context = ZMQ.context(numSocket);
     private static List<Thread> proxies = new ArrayList<>();
     private ZMQManager() {
+        logger.debug("new context " + context);
     }
 
     public static Context getContext() {
@@ -164,18 +145,20 @@ public class ZMQManager {
                 } catch (ZMQException|ZMQException.IOException|zmq.ZError.IOException|zmq.ZError.CtxTerminatedException|zmq.ZError.InstantiationException e) {
                     logZMQException("terminate", e);
                 } catch (java.nio.channels.ClosedSelectorException e) {
-                    System.out.println("in term: " + e);
+                    logger.error("closed selector:" + e.getMessage());
                 } catch (Exception e) {
-                    System.out.println("in term: " + e);
+                    logger.error("Unexpected error:" + e.getMessage());
                 }
             }
         };
+        for(Thread t: proxies) {
+            t.interrupt();
+        }
         try {
             terminator.join(2000);
         } catch (InterruptedException e) {
-        }
-        for(Thread t: proxies) {
-            t.interrupt();
+            e.printStackTrace();
+            logger.error("Interrupted while terminating");
         }
         proxies.retainAll(Collections.emptyList());
         if(sockets.size() > 0) {
@@ -197,20 +180,28 @@ public class ZMQManager {
     public static void logZMQException(String prefix, RuntimeException e0) {
         ERRNO errno = ERRNO.EOTHER;
         String message;
+//        switch(e0.getClass().getCanonicalName()) {
+//        case "org.zeromq.ZMQException":
+//            errno = ERRNO.get(zmq.ZError.exccode((IOException) e0.getCause()));
+//            message = errno.toString(prefix, e0, e0.getCause());
+//            if(e0.getCause() != null && e0.getCause().getClass() == java.nio.channels.ClosedByInterruptException.class){
+//                logger.debug("[{}] {}", prefix, "Thread interrupted");
+//                return;
+//            }            
+//        }
         try {
             throw e0;
         } catch (ZMQException e) {
             errno = ERRNO.get(e.getErrorCode());
             message = errno.toString(prefix, e, e);
-        } catch (ZMQException.IOException e) {
-            errno = ERRNO.get(zmq.ZError.exccode((IOException) e.getCause()));
-            message = errno.toString(prefix, e, e.getCause());
         } catch (zmq.ZError.CtxTerminatedException e) {
             errno = ERRNO.ETERM;
-            message = errno.toString(prefix, e, new RuntimeException("Context terminated")); 
-        } catch (zmq.ZError.IOException e) {
-            errno = ERRNO.get(zmq.ZError.exccode((IOException) e.getCause()));
-            message = errno.toString(prefix, e, e.getCause());
+            message = errno.toString(prefix, e, new RuntimeException("Context terminated"));
+            logger.debug(message);
+            return;
+//        } catch (zmq.ZError.IOException e) {
+//            errno = ERRNO.get(zmq.ZError.exccode((IOException) e.getCause()));
+//            message = errno.toString(prefix, e, e.getCause());
         } catch (zmq.ZError.InstantiationException e) {
             message =  errno.toString(prefix, e, e.getCause());
         } catch (RuntimeException e) {
@@ -225,7 +216,7 @@ public class ZMQManager {
 
     public static void close(Socket socket) {
         try {
-            socket.setLinger(0);
+            socket.setLinger(1);
             socket.close();
         } catch (ZMQException|ZMQException.IOException|zmq.ZError.IOException|zmq.ZError.CtxTerminatedException|zmq.ZError.InstantiationException e) {
             logZMQException("close", e);
@@ -252,7 +243,6 @@ public class ZMQManager {
             }
             @Override
             public void run() {
-                System.out.println("Starting proxy " + getName());
                 try {
                     ZMQ.proxy(in, out, null);
                 } catch (ZMQException|ZMQException.IOException|zmq.ZError.IOException|zmq.ZError.CtxTerminatedException|zmq.ZError.InstantiationException e) {
@@ -262,7 +252,7 @@ public class ZMQManager {
                 }
                 close(in);
                 close(out);
-                logger.debug("Stopping proxy {}", getName());
+                logger.debug("Stopped proxy {}", getName());
             }
         };
     }
@@ -293,7 +283,7 @@ public class ZMQManager {
             throw e;
         }
     }
-    
+
     public static Collection<String> getSocketsList() {
         return new ArrayList<>(sockets.values());
     }

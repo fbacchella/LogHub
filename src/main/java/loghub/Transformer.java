@@ -2,13 +2,9 @@ package loghub;
 
 import loghub.configuration.Beans;
 
-import org.zeromq.ZMQ.Socket;
-
 @Beans({"threads"})
 public abstract class Transformer {
 
-    protected Socket in;
-    protected Socket out;
     private int threads = 1;
     
     public Transformer() {

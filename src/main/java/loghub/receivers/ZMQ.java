@@ -10,27 +10,22 @@ import loghub.configuration.Beans;
 
 import org.zeromq.ZMQ.Socket;
 
-@Beans({"method", "endpoint"})
+@Beans({"method", "listen", "type"})
 public class ZMQ extends Receiver {
 
     private Socket log4jsocket;
     private String method = "bind";
-    private String endpoint = "tcp://localhost:2120";
+    private String listen = "tcp://localhost:2120";
+    private ZMQManager.Type type = ZMQManager.Type.SUB;
     private int hwm = 1000;
 
     @Override
-    public synchronized void start() {
-        log4jsocket = ZMQManager.newSocket(ZMQManager.Method.valueOf(method.toUpperCase()), ZMQManager.Type.PULL, endpoint);
+    public void start(Map<byte[], Event> eventQueue) {
+        log4jsocket = ZMQManager.newSocket(ZMQManager.Method.valueOf(method.toUpperCase()), ZMQManager.Type.SUB, listen);
         log4jsocket.setHWM(hwm);
-
-        super.start();
+        log4jsocket.subscribe(new byte[] {});
+        super.start(eventQueue);
     }    
-
-    @Override
-    public void configure(String endpoint,
-            Map<byte[], Event> eventQueue) {
-        super.configure(endpoint, eventQueue);
-    }
 
     @Override
     public void run() {
@@ -62,12 +57,12 @@ public class ZMQ extends Receiver {
         this.method = method;
     }
 
-    public String getEndpoint() {
-        return endpoint;
+    public String getListen() {
+        return listen;
     }
 
-    public void setEndpoint(String endpoint) {
-        this.endpoint = endpoint;
+    public void setListen(String endpoint) {
+        this.listen = endpoint;
     }
 
     public int getHwm() {
@@ -76,6 +71,14 @@ public class ZMQ extends Receiver {
 
     public void setHwm(int hwm) {
         this.hwm = hwm;
+    }
+
+    public String getType() {
+        return type.toString();
+    }
+
+    public void setType(String type) {
+        this.type = ZMQManager.Type.valueOf(type.trim().toUpperCase());
     }
 
     @Override
