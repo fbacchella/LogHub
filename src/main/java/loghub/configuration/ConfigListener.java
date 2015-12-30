@@ -12,9 +12,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import loghub.PipeStep;
 import loghub.Pipeline;
 import loghub.Receiver;
@@ -42,8 +39,6 @@ import loghub.transformers.PipeRef;
 import loghub.transformers.Test;
 
 class ConfigListener extends RouteBaseListener {
-
-    private static final Logger logger = LogManager.getLogger();
 
     private static enum StackMarker {
         Test,
@@ -79,7 +74,7 @@ class ConfigListener extends RouteBaseListener {
             return "(" + piperef + " -> " +  sender.toString() + ")";
         }
     }
-    
+
     final class PipeRefName {
         final String piperef;
         private PipeRefName(String piperef) {
@@ -145,8 +140,8 @@ class ConfigListener extends RouteBaseListener {
         PropertyDescriptor bean;
         try {
             bean = new PropertyDescriptor(beanName, beanObject.getClass());
-        } catch (IntrospectionException e1) {
-            throw new ConfigException(String.format("Unknown bean '%s'", beanName), ctx.start, ctx.stop, e1);
+        } catch (IntrospectionException e) {
+            throw new ConfigException(String.format("Unknown bean '%s'", beanName), ctx.start, ctx.stop, e);
         }
 
         Method setMethod = bean.getWriteMethod();
@@ -230,11 +225,6 @@ class ConfigListener extends RouteBaseListener {
         int threads = -1;
         PipeStep[] step = null;
         while( ! StackMarker.PipeNodeList.isEquals(stack.peek()) ) {
-            if(stack.peek() instanceof PipeRefName) {
-                PipeRef piperef = new PipeRef();
-                piperef.setPipeRef(((PipeRefName) stack.pop()).piperef);
-                stack.push(piperef);
-            }
             Object poped = stack.pop();
             // A pipe transformer provides is own PipeStep
             if(poped instanceof Pipeline) {
@@ -257,7 +247,6 @@ class ConfigListener extends RouteBaseListener {
                     step[i].addTransformer(t);
                 }                
             } else {
-                System.out.println(poped.getClass());
                 throw new ConfigException("unknown stack state " + poped, ctx.start, ctx.stop);
             }
         }
@@ -266,6 +255,17 @@ class ConfigListener extends RouteBaseListener {
         Pipeline pipe = new Pipeline(pipeList, currentPipeLineName + "$" + currentPipeList.size());
         stack.push(pipe);
         currentPipeList.add(pipe);
+    }
+
+    @Override
+    public void exitPiperef(PiperefContext ctx) {
+        // In pipenode, part of a pipeline, expect to find a transformer, so transform the name to a PipeRef transformer
+        // Other case the name is kept as is
+        if(ctx.getParent() instanceof loghub.RouteParser.PipenodeContext) {
+            PipeRef piperef = new PipeRef();
+            piperef.setPipeRef(((PipeRefName) stack.pop()).piperef);
+            stack.push(piperef);
+        }
     }
 
     @Override
@@ -297,17 +297,6 @@ class ConfigListener extends RouteBaseListener {
             }
         };
         stack.pop();
-        System.out.println(Arrays.asList(clauses));
-        //        Object o2 = stack.pop();
-        //        Object o1 = stack.pop();
-        //        if(Transformer.class.isAssignableFrom(o1.getClass())) {
-        //            testTransformer.setElse((Transformer) o2);
-        //            testTransformer.setThen((Transformer) o1);
-        //            stack.pop();
-        //        }
-        //        else {
-        //            testTransformer.setThen((Transformer) o2);
-        //        }
         testTransformer.setIf(ctx.testExpression().getText());
         stack.push(testTransformer);
     }
@@ -356,9 +345,12 @@ class ConfigListener extends RouteBaseListener {
 
     @Override
     public void exitInput(InputContext ctx) {
-        PipeRefName piperef = new PipeRefName("main");
+        PipeRefName piperef;
         if(stack.peek() instanceof PipeRefName) {
             piperef = (PipeRefName) stack.pop();
+        } else {
+            // if no pipe name given, data are sent to the main pipe
+            piperef = new PipeRefName("main");
         }
         @SuppressWarnings("unchecked")
         List<Receiver> receivers = (List<Receiver>) stack.pop();
