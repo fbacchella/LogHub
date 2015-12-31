@@ -172,11 +172,11 @@ public class NaturalOrderComparator implements Comparator<String>
                 "pic 5 something", "pic 6", "pic   7", "pic100", "pic100a", "pic120", "pic121",
                 "pic02000", "tom", "x2-g8", "x2-y7", "x2-y08", "x8-y8" };
 
-        List orig = Arrays.asList(strings);
+        List<String> orig = Arrays.asList(strings);
 
         System.out.println("Original: " + orig);
 
-        List scrambled = Arrays.asList(strings);
+        List<String> scrambled = Arrays.asList(strings);
         Collections.shuffle(scrambled);
 
         System.out.println("Scrambled: " + scrambled);
