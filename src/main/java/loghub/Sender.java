@@ -2,20 +2,22 @@ package loghub;
 
 import java.util.Map;
 
-import loghub.ZMQManager.Method;
-import loghub.ZMQManager.Type;
-
 import org.zeromq.ZMQ;
+
+import zmq.ZMQHelper.Method;
+import zmq.ZMQHelper.Type;
 
 public abstract class Sender extends Thread {
 
     protected ZMQ.Socket pipe;
     private Map<byte[], Event> eventQueue;
     private String endpoint;
+    protected final SmartContext ctx;
     
     public Sender() {
         setDaemon(true);
         setName("sender-" + getSenderName());
+        ctx = SmartContext.getContext();
     }
 
     public void setEndpoint(String endpoint) {
@@ -24,7 +26,7 @@ public abstract class Sender extends Thread {
     
     public void configure(Map<byte[], Event> eventQueue) {
         this.eventQueue = eventQueue;
-        pipe = ZMQManager.newSocket(Method.CONNECT, Type.PULL, endpoint);
+        pipe = ctx.newSocket(Method.CONNECT, Type.PULL, endpoint);
     }
 
     public abstract void send(Event e);
@@ -33,7 +35,7 @@ public abstract class Sender extends Thread {
     public void run() {
         while (! isInterrupted()) {
             try {
-                byte[] msg = ZMQManager.recv(pipe);
+                byte[] msg = ctx.recv(pipe);
                 Event event = eventQueue.remove(msg);
                 if(event == null) {
                     continue;

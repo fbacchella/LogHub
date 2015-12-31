@@ -5,7 +5,6 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import loghub.configuration.Configuration;
-import loghub.Pipeline;
 
 public class Start extends Thread {
 
@@ -56,7 +55,7 @@ public class Start extends Thread {
             Thread.currentThread().join();
         } catch (InterruptedException e1) {
         }
-        ZMQManager.terminate();
+        SmartContext.terminate();
     }
 
 }
