@@ -4,7 +4,7 @@
 
 grammar Route;
 
-configuration: (pipeline|input|output)+ EOF;
+configuration: (pipeline|input|output|property)+ EOF;
 pipeline: 'pipeline' '[' Identifier ']' '{' pipenodeList '}';
 input: 'input' '{'  inputObjectlist ('|' '$' piperef)? '}';
 output: 'output' '{' ('$' piperef '|' )?  outputObjectlist '}';
@@ -20,6 +20,7 @@ bean: beanName ':' beanValue;
 beanName: Identifier;
 beanValue: object | literal;
 piperef:  Identifier;
+property: Identifier ':' literal;
 
 test: testExpression '?' pipenode (':' pipenode)?;
 

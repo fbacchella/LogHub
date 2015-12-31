@@ -30,6 +30,7 @@ import loghub.RouteParser.OutputObjectlistContext;
 import loghub.RouteParser.PipelineContext;
 import loghub.RouteParser.PipenodeListContext;
 import loghub.RouteParser.PiperefContext;
+import loghub.RouteParser.PropertyContext;
 import loghub.RouteParser.StringLiteralContext;
 import loghub.RouteParser.TestContext;
 import loghub.RouteParser.TestExpressionContext;
@@ -87,6 +88,7 @@ class ConfigListener extends RouteBaseListener {
     final Map<String, List<Pipeline>> pipelines = new HashMap<>();
     final List<Input> inputs = new ArrayList<>();
     final List<Output> outputs = new ArrayList<>();
+    final Map<String, Object> properties = new HashMap<>();
 
     private List<Pipeline> currentPipeList = null;
     private String currentPipeLineName = null;
@@ -104,7 +106,7 @@ class ConfigListener extends RouteBaseListener {
     @Override
     public void enterFloatingPointLiteral(FloatingPointLiteralContext ctx) {
         String content = ctx.FloatingPointLiteral().getText();
-        stack.push( new Double(content));
+        stack.push(new Double(content));
     }
 
     @Override
@@ -357,5 +359,19 @@ class ConfigListener extends RouteBaseListener {
         Input input = new Input(receivers, piperef.piperef);
         inputs.add(input);
     }
+
+    @Override
+    public void exitProperty(PropertyContext ctx) {
+        Object value = stack.pop();
+        String key = ctx.Identifier().getText();
+        properties.put(key, value);
+    }
+
+    @Override
+    public void enterProperty(PropertyContext ctx) {
+        // TODO Auto-generated method stub
+        super.enterProperty(ctx);
+    }
+
 
 }
