@@ -3,9 +3,6 @@ package loghub.transformers;
 import groovy.lang.Binding;
 import groovy.lang.GroovyShell;
 import groovy.lang.Script;
-
-import java.util.Map;
-
 import loghub.Event;
 import loghub.Transformer;
 import loghub.configuration.Beans;
