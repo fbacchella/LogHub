@@ -10,11 +10,6 @@ import java.util.Properties;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
-import loghub.Event;
-import loghub.Receiver;
-import loghub.snmp.NaturalOrderComparator;
-import loghub.snmp.OidTreeNode;
-
 import org.snmp4j.CommandResponder;
 import org.snmp4j.CommandResponderEvent;
 import org.snmp4j.MessageDispatcherImpl;
@@ -31,6 +26,11 @@ import org.snmp4j.smi.VariableBinding;
 import org.snmp4j.transport.DefaultUdpTransportMapping;
 import org.snmp4j.util.MultiThreadedMessageDispatcher;
 import org.snmp4j.util.ThreadPool;
+
+import loghub.Event;
+import loghub.Receiver;
+import loghub.snmp.NaturalOrderComparator;
+import loghub.snmp.OidTreeNode;
 
 public class SnmpTrap extends Receiver implements CommandResponder {
 
@@ -75,7 +75,6 @@ public class SnmpTrap extends Receiver implements CommandResponder {
 
     @Override
     public void run() {
-        System.out.println("start SnmpTrap");
         try {
             snmp.wait();
         } catch (InterruptedException e) {
