@@ -8,12 +8,17 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.log4j.spi.LoggingEvent;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import loghub.Codec;
 import loghub.Event;
 
-import org.apache.log4j.spi.LoggingEvent;
-
 public class Log4j extends Codec {
+
+    private static final Logger logger = LogManager.getLogger();
 
     @Override
     public void decode(Event event, byte[] msg) {
@@ -51,11 +56,11 @@ public class Log4j extends Codec {
             event.timestamp = d;
             event.put("message", o.getRenderedMessage());
         } catch (IOException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
+            logger.fatal("IO exception while reading ByteArrayInputStream: {}", e.getMessage());
+            logger.catching(Level.FATAL, e);
         } catch (ClassNotFoundException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
+            logger.warn("Unable to unserialize log4j event: {}", e.getMessage());
+            logger.catching(Level.DEBUG, e);
         }
     }
 
