@@ -73,12 +73,6 @@ public class TestParser {
 
         System.out.println("pipelines");
         System.out.println("    " + conf.pipelines);
-        //        for(Map.Entry<String, List<Pipeline>> i: conf.pipelines.entrySet()) {
-        //            System.out.println(i.getKey());
-        //            for(Pipeline j: i.getValue()) {
-        //                System.out.println("   " + j);
-        //            }
-        //        }
         System.out.println("inputs");
         System.out.println("    " + conf.inputs);
         System.out.println("outputs");

@@ -15,10 +15,10 @@ import loghub.configuration.Beans;
 public class File extends Sender {
 
     private final int CAPACITY = 10;
-    
+
     String pattern;
     Locale locale = Locale.getDefault();
-    
+
     FileWriter destination;
     Map<String, FileWriter> writers = new LinkedHashMap<String, FileWriter>() {
 
@@ -32,14 +32,13 @@ public class File extends Sender {
                 }
             }
             return true;
-        }        
+        }
     };
-    
+
     @Override
     public void configure(Map<byte[], Event> eventQueue) {
-        super.configure(eventQueue);        
+        super.configure(eventQueue);
     }
-
 
     @Override
     public void send(Event e) {

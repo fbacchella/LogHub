@@ -28,8 +28,8 @@ public class TestPipeStep {
 
     @Rule
     public ContextRule tctxt = new ContextRule();
-    
-    
+
+
     @BeforeClass
     static public void configure() throws IOException {
         Tools.configure();
@@ -87,7 +87,7 @@ public class TestPipeStep {
             public void transform(Event event) {
                 logger.debug("step 1");
             }
-            
+
         });
         subps.addTransformer(new Identity() {
 
@@ -95,7 +95,7 @@ public class TestPipeStep {
             public void transform(Event event) {
                 logger.debug("step 2");
             }
-            
+
         });
         Pipeline pipeline = new Pipeline(Collections.singletonList(new PipeStep[] {subps}), "main");
         Map<byte[], Event> eventQueue = new ConcurrentHashMap<>();
@@ -109,9 +109,6 @@ public class TestPipeStep {
         Socket out = tctxt.ctx.newSocket(Method.CONNECT, Type.PULL, pipeline.outEndpoint);
 
         logger.debug("pipeline is " + pipeline);
-        //for(String s: ctx.getSocketsList()) {
-        //    logger.debug("sockets: " + s); 
-        //}
         logger.debug("send message: " + sent.key());
         in.send(sent.key());
         byte[] keyReceived = out.recv();
@@ -123,7 +120,7 @@ public class TestPipeStep {
         tctxt.terminate();
     }
 
-     public void testSub() throws InterruptedException {
+    public void testSub() throws InterruptedException {
         System.out.println("testSub");
         final String subInEndpoint = "inproc://in." + "subTestPipeStep";
         final String subOutEndpoint = "inproc://out." + "subTestPipeStep";
@@ -134,7 +131,7 @@ public class TestPipeStep {
         Map<byte[], Event> eventQueue = new ConcurrentHashMap<>();
         eventQueue.put("1".getBytes(), new Event());
         pipeline.startStream(eventQueue);
-        
+
         PipeStep ps = pipeline.getPipeSteps()[0];
 
         String inEndpoint = "inproc://in." + "TestPipeStep";
@@ -161,16 +158,7 @@ public class TestPipeStep {
             public void run() {
                 try {
                     subOut.send(subIn.recv());
-                    System.out.println("ressent");                        
-                    //                    ZMsg msg = ZMsg.recvMsg(subIn);
-                    //                    System.out.println("received from SubPipeline" + msg);
-                    //                    ZFrame part = null;
-                    //                    while(msg.size() > 1) {
-                    //                        System.out.println("part " + part);
-                    //                        msg.removeFirst().sendAndDestroy(subOut, ZFrame.REUSE + ZFrame.MORE);
-                    //                    }
-                    //                    msg.removeFirst().sendAndDestroy(subOut, ZFrame.REUSE);
-                    //                    msg.destroy();
+                    System.out.println("ressent");
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -200,7 +188,7 @@ public class TestPipeStep {
         }
         tctxt.ctx.close(in);
         tctxt.ctx.close(out);
-        tctxt.terminate();        
+        tctxt.terminate();
     }
 
 }

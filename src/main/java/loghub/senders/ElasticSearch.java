@@ -27,8 +27,8 @@ public class ElasticSearch extends Sender {
     private static final DateFormat ISO8601 = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
     private static final DateFormat ES_INDEX = new SimpleDateFormat("yyyy.MM.dd");
     {
-        ISO8601.setTimeZone(tz);        
-        ES_INDEX.setTimeZone(tz);        
+        ISO8601.setTimeZone(tz);
+        ES_INDEX.setTimeZone(tz);
     }
 
     private Rest.Client client; 
@@ -63,7 +63,7 @@ public class ElasticSearch extends Sender {
                 esobject.put(i.getKey(), (Collection<?>) value);
             }
             else {
-                esobject.put(i.getKey(), i.getValue());                
+                esobject.put(i.getKey(), i.getValue());
             }
         }
         try {
@@ -81,7 +81,7 @@ public class ElasticSearch extends Sender {
             JSONObject put_r = parse(client.execute(request));
             String id = put_r.getString("_id");
             request = new RestRequest(Method.GET, String.format("/logstash-%s/%s/%s", index, type, id));
-            parse(client.execute(request));            
+            parse(client.execute(request));
         }
     }
 

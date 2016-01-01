@@ -20,17 +20,17 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
     protected Codec codec;
     private String endpoint;
     protected final SmartContext ctx;
-    
+
     public Receiver(){
         setDaemon(true);
         setName("receiver-" + getReceiverName());
         ctx = SmartContext.getContext();
     }
-    
+
     public void setEndpoint(String endpoint) {
         this.endpoint = endpoint;
     }
-    
+
     public void start(Map<byte[], Event> eventQueue) {
         this.eventQueue = eventQueue;
         pipe = ctx.newSocket(ZMQHelper.Method.CONNECT, ZMQHelper.Type.PUSH, endpoint);
@@ -93,7 +93,7 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
             }
         }
     }
-    
+
     /**
      * This method call startStream and return this as an iterator. 
      * In this case, startStream will be called once and then hasNext and next will be used to iterate.
@@ -108,7 +108,7 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
 
     protected void startStream() {
     };
-    
+
     @Override
     public boolean hasNext() {
         return false;
@@ -144,7 +144,7 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
     public void setCodec(Codec codec) {
         this.codec = codec;
     }
-    
+
     public abstract String getReceiverName();
 
 }

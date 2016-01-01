@@ -13,7 +13,7 @@ public abstract class Sender extends Thread {
     private Map<byte[], Event> eventQueue;
     private String endpoint;
     protected final SmartContext ctx;
-    
+
     public Sender() {
         setDaemon(true);
         setName("sender-" + getSenderName());
@@ -23,7 +23,7 @@ public abstract class Sender extends Thread {
     public void setEndpoint(String endpoint) {
         this.endpoint = endpoint;
     }
-    
+
     public void configure(Map<byte[], Event> eventQueue) {
         this.eventQueue = eventQueue;
         pipe = ctx.newSocket(Method.CONNECT, Type.PULL, endpoint);
@@ -48,4 +48,5 @@ public abstract class Sender extends Thread {
             }
         }
     }
+
 }

@@ -10,7 +10,7 @@ public class TimeSerie extends Receiver {
 
     private final static AtomicInteger r = new AtomicInteger(0);
     private final int rnum;
-    
+
     public TimeSerie() {
         super();
         rnum = r.getAndIncrement();
@@ -37,7 +37,7 @@ public class TimeSerie extends Receiver {
                 e.put("count", i++);
                 return e;
             }
-            
+
         };
     }
 
@@ -45,6 +45,5 @@ public class TimeSerie extends Receiver {
     public String getReceiverName() {
         return "TimeSerie";
     }
-
 
 }

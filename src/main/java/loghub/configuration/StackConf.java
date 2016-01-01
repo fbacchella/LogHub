@@ -16,7 +16,7 @@ import org.yaml.snakeyaml.events.Event.ID;
 import org.yaml.snakeyaml.events.ScalarEvent;
 
 public class StackConf  {
-    
+
     public static class ParseException extends RuntimeException {
         public final Event event;
         public ParseException(String message, Event event, Throwable cause) {

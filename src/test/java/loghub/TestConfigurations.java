@@ -38,15 +38,15 @@ public class TestConfigurations {
         conf.parse(conffile);
         return conf;
     }
-    
+
     @Test(timeout=1000)
     public void testBuildPipeline() throws IOException, InterruptedException {
         Configuration conf = loadConf("simple.conf");
         Map<byte[], Event> eventQueue = new ConcurrentHashMap<>();
-        
+
         Event sent = new Event();
         eventQueue.put(sent.key(), sent);
-    
+
         for(Map.Entry<String, List<Pipeline>> e: conf.pipelines.entrySet()) {
             for(Pipeline p: e.getValue()) {
                 p.startStream(eventQueue);
@@ -61,7 +61,7 @@ public class TestConfigurations {
         for(String sockName: tctxt.ctx.getSocketsList()) {
             logger.debug("    " + sockName);
         }
-        
+
         byte[] buffer = tctxt.ctx.recv(out);
         Event received = eventQueue.get(buffer);
         Assert.assertEquals("not expected event received", sent, received);
@@ -72,13 +72,13 @@ public class TestConfigurations {
         tctxt.ctx.close(out);
         tctxt.terminate();
     }
-    
+
     @Test(timeout=1000) 
     public void testSimpleInput() throws InterruptedException {
         Configuration conf = loadConf("simpleinput.conf");
         logger.debug("pipelines: {}", conf.pipelines);
         Map<byte[], Event> eventQueue = new ConcurrentHashMap<>();
-    
+
         Pipeline main = conf.namedPipeLine.get("main");
         logger.debug("receiver pipelines: {}", conf.getReceiversPipelines());
         //for(String inpipe: conf.getReceiversPipelines()) {
@@ -115,7 +115,7 @@ public class TestConfigurations {
         }
         SmartContext.terminate();
     }
-    
+
     @Test
     public void testComplexConf() {
         Configuration conf = loadConf("test.conf");

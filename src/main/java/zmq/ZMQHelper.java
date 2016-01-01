@@ -4,20 +4,14 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.zeromq.ZMQ;
 import org.zeromq.ZMQ.Socket;
+import org.zeromq.ZMQException;
 
 import loghub.SmartContext;
 
-import org.zeromq.ZMQException;
-
-import zmq.ZError;
-
 public class ZMQHelper {
-
-    private static final Logger logger = LogManager.getLogger();
 
     public static class SocketInfo {
         public final Method method;
@@ -118,7 +112,7 @@ public class ZMQHelper {
 
     private ZMQHelper() {
     }
-    
+
     @Deprecated
     public static void terminate() {
         SmartContext.terminate();

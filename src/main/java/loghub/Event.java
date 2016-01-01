@@ -8,14 +8,14 @@ import java.util.HashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class Event extends HashMap<String, Object> implements Serializable {
-    
+
     private final static AtomicLong KeyGenerator = new AtomicLong(0);
 
     public Date timestamp;
     public String type;
     private final byte[] key;
     public boolean dropped = false;
-    
+
     public Event() {
         super();
         timestamp = new Date();
@@ -29,9 +29,9 @@ public class Event extends HashMap<String, Object> implements Serializable {
     public String toString() {
         return type + "[" + timestamp + "]" + super.toString();
     }
-    
+
     public byte[] key() {
         return key;
     }
-    
+
 }

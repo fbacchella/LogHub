@@ -110,10 +110,10 @@ public class SnmpTrap extends Receiver implements CommandResponder {
             }
             else {
                 formatted = found.getName();
-            }                                
+            }
         }
         else {
-            formatted = oid.toDottedString();                                
+            formatted = oid.toDottedString();
         }
         return formatted;
     }

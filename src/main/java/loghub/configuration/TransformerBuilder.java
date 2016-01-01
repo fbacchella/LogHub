@@ -11,9 +11,9 @@ public class TransformerBuilder {
 
     private TransformerBuilder() {
     }
-    
+
     public static Transformer[] create(String className, Map<byte[], Event> eventQueue, Map<String, String> properties) {
-        
+
         try {
             @SuppressWarnings("unchecked")
             Class<Transformer> transClass = (Class<Transformer>) TransformerBuilder.class.getClassLoader().loadClass(className);
@@ -28,7 +28,7 @@ public class TransformerBuilder {
                 countThread = BeansManager.ConstructFromString(Integer.class, countThreadString);
             }
             Transformer[] transformers = new Transformer[countThread];
-            
+
             for(int i =0 ; i < countThread; i++) {
                 transformers[i] = constr.newInstance(eventQueue);
                 for(Map.Entry<String, String> e: properties.entrySet()) {

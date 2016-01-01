@@ -6,14 +6,14 @@ import loghub.configuration.Beans;
 public abstract class Transformer {
 
     private int threads = 1;
-    
+
     public Transformer() {
-        
+
     }
-    
+
     public abstract void transform(Event event);
     public abstract String getName();
-    
+
     public int getThreads() {
         return threads;
     }

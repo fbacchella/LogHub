@@ -27,7 +27,7 @@ public class ContextRule implements TestRule {
             }            
         };
     }
-    
+
     public void terminate() throws InterruptedException {
         terminator = SmartContext.terminate();
         terminator.join(2000);
@@ -41,22 +41,6 @@ public class ContextRule implements TestRule {
                 if(terminator != null) {
                     terminator.join(500);
                 }
-
-//                Thread[] allthreads = new Thread[Thread.activeCount() * 2];
-//                Thread.enumerate(allthreads);
-//                for(Thread t: allthreads) {
-//                    if(t == null) {
-//                        continue;
-//                    }
-//                    System.err.println(t.getName() + ": " + Arrays.toString(t.getStackTrace()));
-//                }
-//                proxies.retainAll(Collections.emptyList());
-//                if(sockets.size() > 0) {
-//                    for(String s: sockets.values()) {
-//                        logger.error("Unclosed socket: {}", s);
-//                    }
-//                    throw new RuntimeException("Some sockets still open");
-//                }
             } catch (Exception e) {
                 e.printStackTrace();
             }

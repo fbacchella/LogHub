@@ -3,8 +3,12 @@ package loghub.configuration;
 import org.antlr.v4.runtime.BaseErrorListener;
 import org.antlr.v4.runtime.RecognitionException;
 import org.antlr.v4.runtime.Recognizer;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 public class ConfigErrorListener extends BaseErrorListener {
+
+    private static final Logger logger = LogManager.getLogger();
 
     boolean failed = false;
 
@@ -16,7 +20,7 @@ public class ConfigErrorListener extends BaseErrorListener {
     public void syntaxError(Recognizer<?, ?> recognizer,
             Object offendingSymbol, int line, int charPositionInLine,
             String msg, RecognitionException e) {
-        System.err.println("line " + line + ":" + charPositionInLine + " " + msg);
+        logger.error("line {}@{}: {}", line, charPositionInLine, msg);
         failed = true;
     }
 }

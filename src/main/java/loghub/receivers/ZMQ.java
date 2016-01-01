@@ -3,18 +3,17 @@ package loghub.receivers;
 import java.nio.channels.ClosedSelectorException;
 import java.util.Date;
 import java.util.Iterator;
-import java.util.Map;
+
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.zeromq.ZMQ.Socket;
+import org.zeromq.ZMQException;
 
 import loghub.Event;
 import loghub.Receiver;
 import loghub.configuration.Beans;
 import zmq.ZMQHelper;
-
-import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.zeromq.ZMQException;
-import org.zeromq.ZMQ.Socket;
 
 @Beans({"method", "listen", "type"})
 public class ZMQ extends Receiver {

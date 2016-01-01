@@ -10,9 +10,6 @@ import org.snmp4j.TransportMapping;
 import org.snmp4j.UserTarget;
 import org.snmp4j.event.ResponseEvent;
 import org.snmp4j.event.ResponseListener;
-import org.snmp4j.log.ConsoleLogFactory;
-import org.snmp4j.log.LogFactory;
-import org.snmp4j.log.LogLevel;
 import org.snmp4j.mp.MPv3;
 import org.snmp4j.mp.SnmpConstants;
 import org.snmp4j.security.AuthMD5;
@@ -97,11 +94,11 @@ public class SNMPTrapGeneratorClient2 {
 
             ResponseListener listener = new ResponseListener() {
                 public void onResponse(ResponseEvent event) {
-                   // Always cancel async request when response has been received
-                   // otherwise a memory leak is created! Not canceling a request
-                   // immediately can be useful when sending a request to a broadcast
-                   // address.
-                   ((Snmp)event.getSource()).cancel(event.getRequest(), this);
+                    // Always cancel async request when response has been received
+                    // otherwise a memory leak is created! Not canceling a request
+                    // immediately can be useful when sending a request to a broadcast
+                    // address.
+                    ((Snmp)event.getSource()).cancel(event.getRequest(), this);
                     PDU response = event.getResponse();
                     PDU request = event.getRequest();
                     if (response == null) {
@@ -109,7 +106,7 @@ public class SNMPTrapGeneratorClient2 {
                     }
                     else {
                         System.out.println("Received response "+response+" on request "+
-                                           request);
+                                request);
                     }
                 }
             };
