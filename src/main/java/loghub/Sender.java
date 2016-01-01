@@ -24,9 +24,13 @@ public abstract class Sender extends Thread {
         this.endpoint = endpoint;
     }
 
-    public void configure(Map<byte[], Event> eventQueue) {
+    public void configure(Map<String, Object> properties) {
+    }
+
+    public void start(Map<byte[], Event> eventQueue) {
         this.eventQueue = eventQueue;
         pipe = ctx.newSocket(Method.CONNECT, Type.PULL, endpoint);
+        start();
     }
 
     public abstract void send(Event e);

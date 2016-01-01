@@ -39,6 +39,7 @@ public class Configuration {
     public String logfile;
     public Level loglevel;
     public Map<Level, List<String>> loglevels;
+    Map<String, Object> properties;
 
     public Configuration() {
     }
@@ -123,6 +124,10 @@ public class Configuration {
 
     public Collection<String> getSendersPipelines() {
         return Collections.unmodifiableSet(outputpipelines);
+    }
+    
+    public Map<String, Object> getProperties() {
+        return Collections.unmodifiableMap(properties);
     }
 
 }

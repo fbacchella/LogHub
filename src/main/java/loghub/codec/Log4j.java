@@ -64,4 +64,8 @@ public class Log4j extends Codec {
         }
     }
 
+    @Override
+    public void configure(Map<String, Object> properties) {
+    }
+
 }

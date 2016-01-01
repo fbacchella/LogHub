@@ -41,10 +41,12 @@ public class Start extends Thread {
         }
 
         for(Sender s: conf.getSenders()) {
-            s.configure(eventQueue);
+            s.configure(conf.getProperties());
+            s.start(eventQueue);
         }
 
         for(Receiver r: conf.getReceivers()) {
+            r.configure(conf.getProperties());
             r.start(eventQueue);
         }
 

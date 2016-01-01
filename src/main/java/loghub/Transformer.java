@@ -1,5 +1,7 @@
 package loghub;
 
+import java.util.Map;
+
 import loghub.configuration.Beans;
 
 @Beans({"threads"})
@@ -8,7 +10,9 @@ public abstract class Transformer {
     private int threads = 1;
 
     public Transformer() {
+    }
 
+    public void configure(Map<String, Object> properties) {
     }
 
     public abstract void transform(Event event);

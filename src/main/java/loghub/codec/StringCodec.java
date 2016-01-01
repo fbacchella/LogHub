@@ -1,6 +1,7 @@
 package loghub.codec;
 
 import java.nio.charset.Charset;
+import java.util.Map;
 
 import loghub.Codec;
 import loghub.Event;
@@ -23,6 +24,10 @@ public class StringCodec extends Codec {
 
     public void setCharset(String charset) {
         this.charset = Charset.forName(charset);
+    }
+
+    @Override
+    public void configure(Map<String, Object> properties) {
     }
 
 }

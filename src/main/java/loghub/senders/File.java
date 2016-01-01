@@ -36,11 +36,6 @@ public class File extends Sender {
     };
 
     @Override
-    public void configure(Map<byte[], Event> eventQueue) {
-        super.configure(eventQueue);
-    }
-
-    @Override
     public void send(Event e) {
         System.out.println("new event to file");
         //String destination = String.format(pattern, e, e.timestamp);
