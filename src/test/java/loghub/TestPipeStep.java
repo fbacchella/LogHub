@@ -1,39 +1,62 @@
 package loghub;
 
+import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import loghub.ZMQManager.Method;
-import loghub.ZMQManager.Type;
-import loghub.transformers.Identity;
-
+import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.core.LoggerContext;
+import org.junit.Assert;
+import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
 import org.zeromq.ZFrame;
 import org.zeromq.ZMQ.Socket;
 import org.zeromq.ZMsg;
 
+import loghub.transformers.Identity;
+import zmq.ZMQHelper.Method;
+import zmq.ZMQHelper.Type;
+
 public class TestPipeStep {
 
-    private static final Logger logger = LogManager.getLogger();
+    private static Logger logger ;
 
-    @Test(timeout=5000)
-    public void testPipeStep() {
+    @Rule
+    public ContextRule tctxt = new ContextRule();
+    
+    
+    @BeforeClass
+    static public void configure() throws IOException {
+        Tools.configure();
+        logger = LogManager.getLogger();
+        LogUtils.setLevel(logger, Level.TRACE, "loghub");
+    }
+
+    @Test(timeout=1000)
+    public void testPipeStep() throws InterruptedException {
+        logger.debug("start test");
         PipeStep ps = new PipeStep(1, 1);
         ps.addTransformer(new Identity());
+        ps.addTransformer(new Identity());
         Map<byte[], Event> eventQueue = new ConcurrentHashMap<>();
-        eventQueue.put("totor".getBytes(), new Event());
+        Event sent = new Event();
+        sent.type = "testEvent";
+        eventQueue.put(sent.key(), sent);
+        System.out.println(sent.key() + " = " + Arrays.toString(sent.key()));
 
-        String inEndpoint = "inproc://in." + "TestPipeStep";
-        String outEndpoint = "inproc://out." + "TestPipeStep";
+        String inEndpoint = "inproc://in.TestPipeStep";
+        String outEndpoint = "inproc://out.TestPipeStep";
 
         //  Socket facing clients
-        Socket in = ZMQManager.newSocket(Method.CONNECT, Type.PUSH, inEndpoint);
+        Socket in = tctxt.ctx.newSocket(Method.BIND, Type.PUSH, inEndpoint);
 
         //  Socket facing services
-        Socket out = ZMQManager.newSocket(Method.CONNECT, Type.PULL, outEndpoint);
+        Socket out = tctxt.ctx.newSocket(Method.BIND, Type.PULL, outEndpoint);
 
         try {
             ps.start(eventQueue, inEndpoint, outEndpoint);
@@ -43,22 +66,19 @@ public class TestPipeStep {
                 t.printStackTrace();
             } while((t = t.getCause()) != null);
         }
-        in.send(eventQueue.keySet().iterator().next());
-        System.out.println(out.recvStr());
-        ZMQManager.close(in);
-        ZMQManager.close(out);
-        try {
-            ZMQManager.terminate();
-        } catch (Exception e) {
-            Throwable t = e;
-            do {
-                t.printStackTrace();
-            } while((t = t.getCause()) != null);
-        }
+        in.send(sent.key());
+        byte[] keyReceived = out.recv();
+        Event received = eventQueue.get(keyReceived);
+        Assert.assertEquals("Not expected event received", sent, received);
+        tctxt.ctx.close(in);
+        tctxt.ctx.close(out);
+        System.out.println("LoggerContext.getContext().getName(): " + LoggerContext.getContext().getName());
+        System.out.println("LoggerContext.getContext().getLoggers(): "+ LoggerContext.getContext().getLoggers());
+        System.out.println("LoggerContext.getContext().getConfiguration().getRootLogger().getLevel(): "+ LoggerContext.getContext().getConfiguration().getRootLogger().getLevel());
     }
 
-    @Test(timeout=5000)
-    public void testPipeline() {
+    @Test(timeout=1000)
+    public void testPipeline() throws InterruptedException {
 
         PipeStep subps = new PipeStep();
         subps.addTransformer(new Identity() {
@@ -79,40 +99,31 @@ public class TestPipeStep {
         });
         Pipeline pipeline = new Pipeline(Collections.singletonList(new PipeStep[] {subps}), "main");
         Map<byte[], Event> eventQueue = new ConcurrentHashMap<>();
-        eventQueue.put("1".getBytes(), new Event());
+        Event sent = new Event();
+        sent.type = "testEvent";
+        eventQueue.put(sent.key(), sent);
+        System.out.println(sent.key() + " = " + Arrays.toString(sent.key()));
         pipeline.startStream(eventQueue);
 
-        Socket in = ZMQManager.newSocket(Method.CONNECT, Type.PUSH, pipeline.inEndpoint);
-        Socket out = ZMQManager.newSocket(Method.CONNECT, Type.PULL, pipeline.outEndpoint);
+        Socket in = tctxt.ctx.newSocket(Method.CONNECT, Type.PUSH, pipeline.inEndpoint);
+        Socket out = tctxt.ctx.newSocket(Method.CONNECT, Type.PULL, pipeline.outEndpoint);
 
         logger.debug("pipeline is " + pipeline);
-        for(String s: ZMQManager.getSocketsList()) {
-            logger.debug("sockets: " + s); 
-        }
-        logger.debug("send message: " + eventQueue.keySet().iterator().next());
-        in.send(eventQueue.keySet().iterator().next());
-        ZMsg msg = ZMsg.recvMsg(out);
-        logger.debug("received message: " + msg);
-        int i = 0;
-        while(msg.size() > 0) {
-            ZFrame frame = msg.pop();
-            logger.debug("received frame " + i++ + " " + frame.toString());
-        }
-        msg.destroy();
+        //for(String s: ctx.getSocketsList()) {
+        //    logger.debug("sockets: " + s); 
+        //}
+        logger.debug("send message: " + sent.key());
+        in.send(sent.key());
+        byte[] keyReceived = out.recv();
+        Event received = eventQueue.get(keyReceived);
+        Assert.assertEquals("Not expected event received", sent, received);
 
-        ZMQManager.close(in);
-        ZMQManager.close(out);
-        try {
-            ZMQManager.terminate();
-        } catch (Exception e) {
-            Throwable t = e;
-            do {
-                t.printStackTrace();
-            } while((t = t.getCause()) != null);
-        }
+        tctxt.ctx.close(in);
+        tctxt.ctx.close(out);
+        tctxt.terminate();
     }
 
-     public void testSub() {
+     public void testSub() throws InterruptedException {
         System.out.println("testSub");
         final String subInEndpoint = "inproc://in." + "subTestPipeStep";
         final String subOutEndpoint = "inproc://out." + "subTestPipeStep";
@@ -121,7 +132,7 @@ public class TestPipeStep {
         subps.addTransformer(new Identity());
         Pipeline pipeline = new Pipeline(Collections.singletonList(new PipeStep[] {subps}), "subTestPipeStep");
         Map<byte[], Event> eventQueue = new ConcurrentHashMap<>();
-        eventQueue.put("totor".getBytes(), new Event());
+        eventQueue.put("1".getBytes(), new Event());
         pipeline.startStream(eventQueue);
         
         PipeStep ps = pipeline.getPipeSteps()[0];
@@ -129,8 +140,8 @@ public class TestPipeStep {
         String inEndpoint = "inproc://in." + "TestPipeStep";
         String outEndpoint = "inproc://out." + "TestPipeStep";
 
-        Socket in = ZMQManager.newSocket(Method.BIND, Type.PUSH, inEndpoint);
-        Socket out = ZMQManager.newSocket(Method.BIND, Type.PULL, outEndpoint);
+        Socket in = tctxt.ctx.newSocket(Method.BIND, Type.PUSH, inEndpoint);
+        Socket out = tctxt.ctx.newSocket(Method.BIND, Type.PULL, outEndpoint);
 
         Thread thread = new Thread() {
             final Socket subIn;
@@ -138,10 +149,10 @@ public class TestPipeStep {
 
             {
                 //  Socket facing clients
-                subIn = ZMQManager.newSocket(Method.BIND, Type.PULL, subInEndpoint);
+                subIn = tctxt.ctx.newSocket(Method.BIND, Type.PULL, subInEndpoint);
 
                 //  Socket facing services
-                subOut = ZMQManager.newSocket(Method.BIND, Type.PUSH, subOutEndpoint);
+                subOut = tctxt.ctx.newSocket(Method.BIND, Type.PUSH, subOutEndpoint);
 
                 setDaemon(true);
                 start();
@@ -163,13 +174,13 @@ public class TestPipeStep {
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
-                ZMQManager.close(subIn);
-                ZMQManager.close(subOut);
+                tctxt.ctx.close(subIn);
+                tctxt.ctx.close(subOut);
             };
         };
         ps.start(eventQueue, inEndpoint, outEndpoint);
         logger.debug(pipeline);
-        for(String s: ZMQManager.getSocketsList()) {
+        for(String s: tctxt.ctx.getSocketsList()) {
             logger.debug(s); 
         }
         in.send(eventQueue.keySet().iterator().next());
@@ -187,16 +198,9 @@ public class TestPipeStep {
         } catch (InterruptedException e1) {
             e1.printStackTrace();
         }
-        ZMQManager.close(in);
-        ZMQManager.close(out);
-        try {
-            ZMQManager.terminate();
-        } catch (Exception e) {
-            Throwable t = e;
-            do {
-                t.printStackTrace();
-            } while((t = t.getCause()) != null);
-        }
+        tctxt.ctx.close(in);
+        tctxt.ctx.close(out);
+        tctxt.terminate();        
     }
 
 }

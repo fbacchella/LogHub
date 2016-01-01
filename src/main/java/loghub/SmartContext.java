@@ -7,18 +7,18 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.zeromq.ZMQ;
 import org.zeromq.ZMQ.Context;
 import org.zeromq.ZMQ.Socket;
+import org.zeromq.ZMQException;
 
 import zmq.ZMQHelper;
 import zmq.ZMQHelper.Method;
 import zmq.ZMQHelper.SocketInfo;
 import zmq.ZMQHelper.Type;
-
-import org.zeromq.ZMQException;
 
 public class SmartContext {
 
@@ -33,11 +33,12 @@ public class SmartContext {
     private final Context context = ZMQ.context(numSocket);
     private final Socket controller;
     private final List<Thread> proxies = new ArrayList<>();
+    private volatile boolean running = true;
 
     private SmartContext() {
         // Socket for worker control
         controller = context.socket(ZMQ.PUB);
-        controller.bind(TERMINATOR_RENDEZVOUS);       
+        controller.bind(TERMINATOR_RENDEZVOUS);
     }
 
     public static synchronized SmartContext getContext() {
@@ -58,28 +59,8 @@ public class SmartContext {
     }
 
     private Thread _terminate() {
+        running = false;
         controller.send("KILL", 0);
-        // Now we've send termination signals, let other threads
-        // some time to finish
-        Thread.yield();
-        logger.debug("proxies to kill: {}", proxies);
-        logger.debug("sockets to close: {}", sockets);
-        controller.setLinger(0);
-        controller.close();
-        for(Socket s: sockets.keySet()) {
-            try {
-                logger.debug("forgotten socket: {}", () -> sockets.get(s));
-                s.setLinger(0);
-                s.close();
-            } catch (ZMQException|ZMQException.IOException|zmq.ZError.IOException|zmq.ZError.CtxTerminatedException|zmq.ZError.InstantiationException e) {
-                ZMQHelper.logZMQException("close " + sockets.get(s), e);
-            } catch (java.nio.channels.ClosedSelectorException e) {
-                logger.error("in close: " + e);
-            } catch (Exception e) {
-                logger.error("in close: " + e);
-            } finally {
-            }
-        }
         final Thread terminator = new Thread() {
             @Override
             public void run() {
@@ -87,7 +68,7 @@ public class SmartContext {
                     logger.trace("will terminate");
                     context.term();
                 } catch (ZMQException|ZMQException.IOException|zmq.ZError.IOException|zmq.ZError.CtxTerminatedException|zmq.ZError.InstantiationException e) {
-                    ZMQHelper.logZMQException("terminate", e);
+                    ZMQHelper.logZMQException(logger, "terminate", e);
                 } catch (java.nio.channels.ClosedSelectorException e) {
                     logger.error("closed selector:" + e.getMessage());
                 } catch (Exception e) {
@@ -98,8 +79,37 @@ public class SmartContext {
         };
         terminator.setName("terminator");
         terminator.start();
+        // Now we've send termination signals, let other threads
+        // some time to finish
         Thread.yield();
+        logger.debug("proxies to kill: {}", proxies);
+        logger.debug("sockets to close: {}", sockets);
+        controller.setLinger(0);
+        controller.close();
+        for(Socket s: new ArrayList<Socket>(sockets.keySet())) {
+            try {
+                synchronized(s) {
+                    // If someone close the socket meanwhile
+                    if(! sockets.containsKey(s)) {
+                        continue;
+                    }
+                    logger.debug("forgotten socket: {}", () -> sockets.get(s));
+                    close(s);
+                }
+            } catch (ZMQException|ZMQException.IOException|zmq.ZError.IOException|zmq.ZError.CtxTerminatedException|zmq.ZError.InstantiationException e) {
+                ZMQHelper.logZMQException(logger, "close " + sockets.get(s), e);
+            } catch (java.nio.channels.ClosedSelectorException e) {
+                logger.error("in close: " + e);
+            } catch (Exception e) {
+                logger.error("in close: " + e);
+            } finally {
+            }
+        }
         return terminator;
+    }
+
+    public boolean isRunning() {
+        return running;
     }
 
     public Socket newSocket(Method method, Type type, String endpoint) {
@@ -112,18 +122,23 @@ public class SmartContext {
     }
 
     public void close(Socket socket) {
-        try {
-            logger.debug("close socket: " + sockets.get(socket));
-            socket.setLinger(0);
-            socket.close();
-        } catch (ZMQException|ZMQException.IOException|zmq.ZError.IOException|zmq.ZError.CtxTerminatedException|zmq.ZError.InstantiationException e) {
-            ZMQHelper.logZMQException("close " + sockets.get(socket), e);
-        } catch (java.nio.channels.ClosedSelectorException e) {
-            logger.debug("in close: " + e);
-        } catch (Exception e) {
-            logger.error("in close: " + e);
-        } finally {
-            sockets.remove(socket);
+        synchronized(socket){
+            try {
+                logger.debug("close socket {}: {}", socket, sockets.get(socket));
+                if(sockets.get(socket) == null) {
+                    logger.catching(Level.DEBUG, new RuntimeException());
+                }
+                socket.setLinger(0);
+                socket.close();
+            } catch (ZMQException|ZMQException.IOException|zmq.ZError.IOException|zmq.ZError.CtxTerminatedException|zmq.ZError.InstantiationException e) {
+                ZMQHelper.logZMQException(logger, "close " + sockets.get(socket), e);
+            } catch (java.nio.channels.ClosedSelectorException e) {
+                logger.debug("in close: " + e);
+            } catch (Exception e) {
+                logger.error("in close: " + e);
+            } finally {
+                sockets.remove(socket);
+            }
         }
     }
 
@@ -139,13 +154,16 @@ public class SmartContext {
     public byte[] recv(Socket socket) {
         try {
             return socket.recv();
+        } catch (java.nio.channels.ClosedSelectorException e ) {
+            throw e;
         } catch (ZMQException|ZMQException.IOException|zmq.ZError.IOException|zmq.ZError.CtxTerminatedException|zmq.ZError.InstantiationException e ) {
-            ZMQHelper.logZMQException("recv", e);
-            close(socket);
+            ZMQHelper.logZMQException(logger, "recv", e);
+            //close(socket);
             throw e;
         } catch (Exception e ) {
             logger.error("in recv: {}", e.getMessage());
-            close(socket);
+            logger.error(e);
+            //close(socket);
             throw e;
         }
     }
@@ -176,7 +194,7 @@ public class SmartContext {
                             controller.close();
                             return false;
                         } else {
-                            return true;
+                            return true && SmartContext.this.running;
                         }
                     }
                     @Override
@@ -186,9 +204,9 @@ public class SmartContext {
                     @Override
                     public void remove() {
                         throw new java.lang.UnsupportedOperationException();
-                    }                    
+                    }
                 };
-            }            
+            }
         };
     }
 
@@ -214,13 +232,13 @@ public class SmartContext {
                         socketOut.send(msg);
                     }
                 } catch (ZMQException|ZMQException.IOException|zmq.ZError.IOException|zmq.ZError.CtxTerminatedException|zmq.ZError.InstantiationException e) {
-                    ZMQHelper.logZMQException("proxy", e);
+                    ZMQHelper.logZMQException(logger, "proxy", e);
                 } catch (Exception e) {
                     logger.error("in proxy: {}", e);
                 } finally {
-                    logger.debug("Stopped proxy {}", getName());
+                    logger.debug("Stopped proxy {}", () -> getName());
                     close(socketIn);
-                    close(socketOut);                    
+                    close(socketOut);
                 }
             }
         };

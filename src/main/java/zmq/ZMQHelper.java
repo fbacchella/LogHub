@@ -144,7 +144,7 @@ public class ZMQHelper {
         SmartContext.getContext().close(socket);
     }
 
-    public static void logZMQException(String prefix, RuntimeException e0) {
+    public static void logZMQException(Logger l, String prefix, RuntimeException e0) {
         ERRNO errno = ERRNO.EOTHER;
         String message;
         try {
@@ -164,9 +164,9 @@ public class ZMQHelper {
             throw e;
         }
         switch(errno) {
-        case ETERM: logger.debug(message); break;
-        case EOTHER: logger.fatal(message); break;
-        default: logger.error(message); break;
+        case ETERM: l.debug(message); break;
+        case EOTHER: l.fatal(message); break;
+        default: l.error(message); break;
         }
     }
 

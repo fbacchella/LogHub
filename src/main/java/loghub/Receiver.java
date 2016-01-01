@@ -46,27 +46,32 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
         int eventseen = 0;
         int looptry = 0;
         int wait = 100;
-        while(! isInterrupted()) {
+        while(! isInterrupted() && ctx.isRunning()) {
             Iterable<Event> stream = new Iterable<Event>() {
                 @Override
                 public Iterator<Event> iterator() {
                     return Receiver.this.getIterator();
-                }                
+                }
             };
             try {
                 for(Event e: stream) {
+                    logger.trace("new message received: {}", e);
                     if(e != null) {
                         eventseen++;
                         //Wrap, but not a problem, just count as 1
                         if(eventseen < 0) {
                             eventseen = 1;
                         }
-                        send(e);                    
+                        if( !ctx.isRunning()) {
+                            break;
+                        }
+                        send(e);
                     }
                 }
             } catch (Exception e) {
                 eventseen = 0;
-                logger.error(e.getMessage(), e);
+                logger.error(e.getMessage());
+                logger.catching(e);
             }
             // The previous loop didn't catch anything
             // So try some recovery
@@ -80,7 +85,7 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
                         looptry = 0;
                     } catch (InterruptedException ex) {
                         break;
-                    }                    
+                    }
                 }
             } else {
                 looptry = 0;

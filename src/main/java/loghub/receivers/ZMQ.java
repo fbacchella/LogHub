@@ -1,5 +1,6 @@
 package loghub.receivers;
 
+import java.nio.channels.ClosedSelectorException;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.Map;
@@ -9,35 +10,52 @@ import loghub.Receiver;
 import loghub.configuration.Beans;
 import zmq.ZMQHelper;
 
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.zeromq.ZMQException;
 import org.zeromq.ZMQ.Socket;
 
 @Beans({"method", "listen", "type"})
 public class ZMQ extends Receiver {
 
-    private Socket log4jsocket;
-    private String method = "bind";
+    private static final Logger logger = LogManager.getLogger();
+
+    private ZMQHelper.Method method = ZMQHelper.Method.BIND;
     private String listen = "tcp://localhost:2120";
     private ZMQHelper.Type type = ZMQHelper.Type.SUB;
     private int hwm = 1000;
 
     @Override
-    public void start(Map<byte[], Event> eventQueue) {
-        log4jsocket = ctx.newSocket(ZMQHelper.Method.valueOf(method.toUpperCase()), ZMQHelper.Type.SUB, listen);
-        log4jsocket.setHWM(hwm);
-        log4jsocket.subscribe(new byte[] {});
-        super.start(eventQueue);
-    }    
-
-    @Override
     protected Iterator<Event> getIterator() {
+        Socket log4jsocket = ctx.newSocket(method, type, listen);
+        log4jsocket.setHWM(hwm);
+        if(type == ZMQHelper.Type.SUB){
+            log4jsocket.subscribe(new byte[] {});
+        }
         return new Iterator<Event>() {
             byte[] msg;
             @Override
             public boolean hasNext() {
+                msg = null;
+                if(! ctx.isRunning()) {
+                    return false;
+                }
                 try {
-                    msg = ctx.recv(log4jsocket);      
+                    logger.debug("listening");
+                    msg = log4jsocket.recv();
+                    logger.debug("received a message");
                     return true;
-                } catch (zmq.ZError.IOException | java.nio.channels.ClosedSelectorException | org.zeromq.ZMQException e ) {
+                } catch (ClosedSelectorException|zmq.ZError.CtxTerminatedException e) {
+                    return false;
+                } catch (ZMQException|ZMQException.IOException|zmq.ZError.IOException|zmq.ZError.InstantiationException e) {
+                    ZMQHelper.logZMQException(logger, "recv", e);
+                    ctx.close(log4jsocket);
+                    return false;
+                } catch (Exception e) {
+                    logger.error(e.getMessage());
+                    logger.catching(Level.DEBUG, e);
+                    ctx.close(log4jsocket);
                     return false;
                 }
             }
@@ -50,16 +68,16 @@ public class ZMQ extends Receiver {
                 codec.decode(event, msg);
                 return event;
             }
-            
+
         };
     }
 
     public String getMethod() {
-        return method;
+        return method.toString();
     }
 
     public void setMethod(String method) {
-        this.method = method;
+        this.method = ZMQHelper.Method.valueOf(method.toUpperCase());
     }
 
     public String getListen() {

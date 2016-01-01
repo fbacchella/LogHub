@@ -7,18 +7,21 @@ import java.util.Map;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.zeromq.ZMQ.Socket;
+
+import zmq.ZMQHelper;
+
 import org.zeromq.ZMQException;
 
 public class PipeStep extends Thread {
 
     private static final Logger logger = LogManager.getLogger();
 
-    protected Socket in;
-    protected Socket out;
-    protected Map<byte[], Event> eventQueue;
+    private Map<byte[], Event> eventQueue;
+    private String endpointIn;
+    private String endpointOut;
 
     private final List<Transformer> transformers = new ArrayList<>();
- 
+
     public PipeStep() {
         setDaemon(true);
     }
@@ -29,31 +32,39 @@ public class PipeStep extends Thread {
     }
 
     public void start(Map<byte[], Event> eventQueue, String endpointIn, String endpointOut) {
-        logger.debug("starting " +  this);
-        
+        logger.debug("starting {}", this);
+
         this.eventQueue = eventQueue;
-        in = ZMQManager.newSocket(ZMQManager.Method.BIND, ZMQManager.Type.PULL, endpointIn);
-        out = ZMQManager.newSocket(ZMQManager.Method.CONNECT, ZMQManager.Type.PUSH, endpointOut);
+        this.endpointIn = endpointIn;
+        this.endpointOut = endpointOut;
+
         super.start();
     }
 
     public void addTransformer(Transformer t) {
         transformers.add(t);
     }
-    
-    public void run() {
-        while (! isInterrupted()) {
-            String threadName = getName();
-            try {
-                logger.debug("waiting on " + in);
-                byte[] key = in.recv();
-                Event event = eventQueue.remove(key);
-                logger.debug("received event {}", event);
 
+    public void run() {
+        SmartContext ctx = SmartContext.getContext();
+        Socket in = ctx.newSocket(ZMQHelper.Method.CONNECT, ZMQHelper.Type.PULL, endpointIn);
+        Socket out = ctx.newSocket(ZMQHelper.Method.CONNECT, ZMQHelper.Type.PUSH, endpointOut);
+        String threadName = getName();
+        boolean doclose = true;
+        try {
+            logger.debug("waiting on {}", () -> ctx.getURL(in));
+            for(byte[] key: ctx.read(in)) {
+                if( isInterrupted()) {
+                    logger.debug("interrupted");
+                    break;
+                }
+                Event event = eventQueue.remove(key);
                 if(event == null) {
                     logger.warn("received a null event");
                     continue;
                 }
+                logger.trace("{} received event {}", () -> ctx.getURL(in), () -> event);
+
                 for(Transformer t: transformers) {
                     setName(threadName + "-" + t.getName());
                     t.transform(event);
@@ -61,25 +72,27 @@ public class PipeStep extends Thread {
                         break;
                     }
                 }
+                setName(threadName);
                 if( ! event.dropped) {
                     eventQueue.put(key, event);
                     out.send(key);
+                    logger.trace("{} send event {}", () -> ctx.getURL(out), () -> event);
+                } else {
+                    logger.trace("{} dropped event {}", () -> ctx.getURL(out), () -> event);                    
                 }
-            } catch (zmq.ZError.CtxTerminatedException e ) {
-                ZMQManager.close(out);
-                ZMQManager.close(in);
-                break;
-            } catch (ZMQException | ZMQException.IOException | zmq.ZError.IOException e ) {
-                ZMQManager.logZMQException("PipeStep", e);
-                ZMQManager.close(out);
-                ZMQManager.close(in);
-                break;
-            } catch (Throwable t) {
-                t.printStackTrace();
-            } finally {
-                setName(threadName);
             }
-        }    
+            logger.debug("stop waiting on {}", () -> ctx.getURL(in));
+        } catch (zmq.ZError.CtxTerminatedException e ) {
+            ZMQHelper.logZMQException(logger, "PipeStep", e);
+            doclose = false;
+        } catch (ZMQException | ZMQException.IOException | zmq.ZError.IOException e ) {
+            ZMQHelper.logZMQException(logger, "PipeStep", e);
+        } finally {
+            if(doclose) {
+                ctx.close(out);
+                ctx.close(in);
+            }
+        }
     }
 
     @Override

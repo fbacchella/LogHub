@@ -22,8 +22,13 @@ import org.antlr.v4.runtime.ANTLRFileStream;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.tree.ParseTreeWalker;
+import org.apache.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 public class Configuration {
+
+    private static final Logger logger = LogManager.getLogger();
 
     public Map<String, List<Pipeline>> pipelines = null;
     public Map<String, Pipeline> namedPipeLine = null;
@@ -31,7 +36,10 @@ public class Configuration {
     private Set<String> inputpipelines = new HashSet<>();
     private Set<String> outputpipelines = new HashSet<>();
     private List<Sender> senders;
-    
+    public String logfile;
+    public Level loglevel;
+    public Map<Level, List<String>> loglevels;
+
     public Configuration() {
     }
 
@@ -42,7 +50,7 @@ public class Configuration {
         } catch (IOException e1) {
             throw new RuntimeException(e1.getMessage());
         }
-        
+
         //Passing the input to the lexer to create tokens
         RouteLexer lexer = new RouteLexer(cs);
 
@@ -67,7 +75,7 @@ public class Configuration {
             namedPipeLine.put(e.getKey(), e.getValue().get(e.getValue().size() - 1));
         }
         namedPipeLine = Collections.unmodifiableMap(namedPipeLine);
-        
+
         // File the receivers list
         receivers = new ArrayList<>();
         for(Input i: conf.inputs) {
@@ -75,13 +83,13 @@ public class Configuration {
                 throw new RuntimeException("Invalid input, no destination pipeline: " + i);
             }
             for(Receiver r: i.receiver) {
-                System.out.println("receiver " + i + " destination point will be " + namedPipeLine.get(i.piperef).inEndpoint);
+                logger.debug("receiver {} destination point will be {}", () -> i, () -> namedPipeLine.get(i.piperef).inEndpoint);
                 r.setEndpoint(namedPipeLine.get(i.piperef).inEndpoint);
                 receivers.add(r);
             }
             inputpipelines.add(i.piperef);
         }
-        
+
         // File the senders list
         senders = new ArrayList<>();
         for(Output o: conf.outputs) {
@@ -89,7 +97,7 @@ public class Configuration {
                 throw new RuntimeException("Invalid output, no source pipeline: " + o);
             }
             for(Sender s: o.sender) {
-                System.out.println("sender " + s + " source point will be " + namedPipeLine.get(o.piperef).outEndpoint);
+                logger.debug("sender {} source point will be {}", () -> s, () -> namedPipeLine.get(o.piperef).outEndpoint);
                 s.setEndpoint(namedPipeLine.get(o.piperef).outEndpoint);
                 senders.add(s);
             }
