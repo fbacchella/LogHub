@@ -64,7 +64,7 @@ public class ZMQ extends Receiver {
                 Event event = new Event();
                 Date d = new Date();
                 event.timestamp = d;
-                codec.decode(event, msg);
+                decoder.decode(event, msg);
                 return event;
             }
 

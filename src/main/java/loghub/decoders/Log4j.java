@@ -1,4 +1,4 @@
-package loghub.codec;
+package loghub.decoders;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -13,10 +13,10 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import loghub.Codec;
+import loghub.Decode;
 import loghub.Event;
 
-public class Log4j extends Codec {
+public class Log4j extends Decode {
 
     private static final Logger logger = LogManager.getLogger();
 

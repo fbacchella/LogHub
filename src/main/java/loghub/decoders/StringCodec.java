@@ -1,21 +1,21 @@
-package loghub.codec;
+package loghub.decoders;
 
 import java.nio.charset.Charset;
-import java.util.Map;
 
-import loghub.Codec;
+import loghub.Decode;
 import loghub.Event;
 import loghub.configuration.Beans;
 
-@Beans({"charset"})
-public class StringCodec extends Codec {
+@Beans({"charset", "field"})
+public class StringCodec extends Decode {
 
     private Charset charset = Charset.defaultCharset();
+    private String field = "message";
 
     @Override
     public void decode(Event event, byte[] msg) {
         String message = new String(msg, charset);
-        event.put("message", message);
+        event.put(field, message);
     }
 
     public String getCharset() {
@@ -26,8 +26,12 @@ public class StringCodec extends Codec {
         this.charset = Charset.forName(charset);
     }
 
-    @Override
-    public void configure(Map<String, Object> properties) {
+    public String getField() {
+        return field;
+    }
+
+    public void setField(String field) {
+        this.field = field;
     }
 
 }

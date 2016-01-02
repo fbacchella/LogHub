@@ -10,14 +10,14 @@ import org.zeromq.ZMQ.Socket;
 import loghub.configuration.Beans;
 import zmq.ZMQHelper;
 
-@Beans({"codec"})
+@Beans({"decoder"})
 public abstract class Receiver extends Thread implements Iterator<Event> {
 
     private static final Logger logger = LogManager.getLogger();
 
     protected Socket pipe;
     private Map<byte[], Event> eventQueue;
-    protected Codec codec;
+    protected Decode decoder;
     private String endpoint;
     protected final SmartContext ctx;
 
@@ -140,12 +140,12 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
         }
     }
 
-    public Codec getCodec() {
-        return codec;
+    public Decode getDecoder() {
+        return decoder;
     }
 
-    public void setCodec(Codec codec) {
-        this.codec = codec;
+    public void setDecoder(Decode codec) {
+        this.decoder = codec;
     }
 
     public abstract String getReceiverName();

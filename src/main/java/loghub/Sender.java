@@ -4,14 +4,17 @@ import java.util.Map;
 
 import org.zeromq.ZMQ;
 
+import loghub.configuration.Beans;
 import zmq.ZMQHelper.Method;
 import zmq.ZMQHelper.Type;
 
+@Beans({"encoder"})
 public abstract class Sender extends Thread {
 
     protected ZMQ.Socket pipe;
     private Map<byte[], Event> eventQueue;
     private String endpoint;
+    private Encode encoder;
     protected final SmartContext ctx;
 
     public Sender() {
@@ -51,6 +54,14 @@ public abstract class Sender extends Thread {
                 t.printStackTrace();
             }
         }
+    }
+
+    public Encode getEncoder() {
+        return encoder;
+    }
+
+    public void setEncoder(Encode codec) {
+        this.encoder = codec;
     }
 
 }

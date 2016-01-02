@@ -17,7 +17,7 @@ import loghub.ContextRule;
 import loghub.Event;
 import loghub.LogUtils;
 import loghub.Tools;
-import loghub.codec.StringCodec;
+import loghub.decoders.StringCodec;
 import loghub.receivers.ZMQ;
 import zmq.ZMQHelper.Method;
 import zmq.ZMQHelper.Type;
@@ -42,7 +42,7 @@ public class TestZMQ {
         Socket receiver = tctxt.ctx.newSocket(Method.BIND, Type.PULL, "inproc://out.listener1");
         ZMQ r = new ZMQ();
         r.setListen("inproc://listener1");
-        r.setCodec(new StringCodec());
+        r.setDecoder(new StringCodec());
         r.setMethod("CONNECT");
         r.setType("SUB");
         r.setEndpoint("inproc://out.listener1");
@@ -60,7 +60,7 @@ public class TestZMQ {
         Socket receiver = tctxt.ctx.newSocket(Method.BIND, Type.PULL, "inproc://out.listener1");
         ZMQ r = new ZMQ();
         r.setListen("inproc://listener1");
-        r.setCodec(new StringCodec());
+        r.setDecoder(new StringCodec());
         r.setEndpoint("inproc://out.listener1");
         Map<byte[], Event> eventQueue = new HashMap<>();
         r.start(eventQueue);
