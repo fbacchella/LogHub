@@ -1,5 +1,8 @@
 package loghub.transformers;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import groovy.lang.Binding;
 import groovy.lang.GroovyShell;
 import groovy.lang.Script;
@@ -9,6 +12,8 @@ import loghub.configuration.Beans;
 
 @Beans({"script"})
 public class Groovy extends Transformer  {
+
+    private static final Logger logger = LogManager.getLogger();
 
     private Script groovyScript;
 
@@ -20,13 +25,14 @@ public class Groovy extends Transformer  {
         try {
             groovyScript.run();
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("script failed: {}", e.getMessage());
+            logger.catching(e);
         }
     }
     
     public void setScript(String script) {
         GroovyShell groovyShell = new GroovyShell(getClass().getClassLoader());
-        groovyScript = groovyShell.parse(script);   
+        groovyScript = groovyShell.parse(script);
     }
 
     public String getScript() {

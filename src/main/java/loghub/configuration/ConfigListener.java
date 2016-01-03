@@ -183,8 +183,8 @@ class ConfigListener extends RouteBaseListener {
             beanObject = clazz.getConstructor().newInstance();
         } catch (InstantiationException | IllegalAccessException
                 | IllegalArgumentException | InvocationTargetException
-                | NoSuchMethodException | SecurityException e) {
-            throw new ConfigException(String.format("Invalid class '%s'", qualifiedName), ctx.start, ctx.stop);
+                | NoSuchMethodException | SecurityException | ExceptionInInitializerError e) {
+            throw new ConfigException(String.format("Invalid class '%s': %s", qualifiedName), ctx.start, ctx.stop);
         }
         stack.push(beanObject);
     }
@@ -366,12 +366,5 @@ class ConfigListener extends RouteBaseListener {
         String key = ctx.Identifier().getText();
         properties.put(key, value);
     }
-
-    @Override
-    public void enterProperty(PropertyContext ctx) {
-        // TODO Auto-generated method stub
-        super.enterProperty(ctx);
-    }
-
 
 }
