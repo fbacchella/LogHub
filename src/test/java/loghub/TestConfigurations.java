@@ -79,39 +79,36 @@ public class TestConfigurations {
         logger.debug("pipelines: {}", conf.pipelines);
         Map<byte[], Event> eventQueue = new ConcurrentHashMap<>();
 
-        Pipeline main = conf.namedPipeLine.get("main");
         logger.debug("receiver pipelines: {}", conf.getReceiversPipelines());
-        //for(String inpipe: conf.getReceiversPipelines()) {
-        //    Pipeline in = conf.namedPipeLine.get(inpipe);
-        //    ZMQManager.proxy(inpipe, new SocketInfo(Method.CONNECT, Type.PULL, in.outEndpoint), new SocketInfo(Method.CONNECT, Type.PUSH, main.inEndpoint));
-        //}
-        //Socket temp = ZMQManager.newSocket(Method.CONNECT, Type.PULL, conf.);
         for(Map.Entry<String, List<Pipeline>> e: conf.pipelines.entrySet()) {
             for(Pipeline p: e.getValue()) {
                 p.startStream(eventQueue);
             }
         }
+        Thread.sleep(30);
         for(Receiver r: conf.getReceivers()) {
             r.start(eventQueue);
         }
         Thread.sleep(30);
-        Socket out = tctxt.ctx.newSocket(Method.CONNECT, Type.PULL, main.outEndpoint);
-        Socket sender1 = tctxt.ctx.newSocket(Method.CONNECT, Type.PUB, "inproc://listener1");
-        Socket sender2 = tctxt.ctx.newSocket(Method.CONNECT, Type.PUB, "inproc://listener2");
+        for(Sender s: conf.getSenders()) {
+            s.start(eventQueue);
+        }
         Thread.sleep(30);
-        sender1.send("something1");
-        sender2.send("something1");
+        Socket out = tctxt.ctx.newSocket(Method.CONNECT, Type.SUB, "inproc://sender");
+        out.subscribe(new byte[]{});
+        Socket sender = tctxt.ctx.newSocket(Method.CONNECT, Type.PUB, "inproc://listener1");
         Thread.sleep(30);
-        sender1.send("something2");
-        sender2.send("something2");
+        sender.send("something");
         byte[] buffer = out.recv();
-        Event ev = eventQueue.get(buffer);
-        Assert.assertNotNull("Event not found", ev);
-        tctxt.ctx.close(sender1);
-        tctxt.ctx.close(sender2);
+        Assert.assertEquals("wrong send message", "something", new String(buffer));
+        Assert.assertEquals("Event queue not empty", 0, eventQueue.size());
+        tctxt.ctx.close(sender);
         tctxt.ctx.close(out);
         for(Receiver r: conf.getReceivers()) {
             r.interrupt();
+        }
+        for(Sender s: conf.getSenders()) {
+            s.interrupt();
         }
         SmartContext.terminate();
     }
