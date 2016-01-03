@@ -89,9 +89,7 @@ public class SnmpTrap extends Receiver implements CommandResponder {
     }
 
     @Override
-    public void configure(Map<String, Object> properties) {
-        super.configure(properties);
-
+    public boolean configure(Map<String, Object> properties) {
         if(! reconfigured && properties.containsKey("oidfile")) {
             reconfigured = true;
             String oidfile = null;
@@ -107,6 +105,7 @@ public class SnmpTrap extends Receiver implements CommandResponder {
                 logger.error("oidfile {} cant't be read:{}", oidfile, e.getMessage());
             }
         }
+        return super.configure(properties);
     }
 
     @Override

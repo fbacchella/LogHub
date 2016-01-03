@@ -64,8 +64,4 @@ public class Log4j extends Decode {
         }
     }
 
-    @Override
-    public void configure(Map<String, Object> properties) {
-    }
-
 }

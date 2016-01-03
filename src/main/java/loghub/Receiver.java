@@ -32,7 +32,8 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
         this.endpoint = endpoint;
     }
 
-    public void configure(Map<String, Object> properties) {
+    public boolean configure(Map<String, Object> properties) {
+        return true;
     }
 
     public void start(Map<byte[], Event> eventQueue) {

@@ -4,8 +4,8 @@ import java.util.Map;
 
 public abstract class Decode {
 
-    public void configure(Map<String, Object> properties) {
-
+    public boolean configure(Map<String, Object> properties) {
+        return true;
     }
 
     abstract public void decode(Event event, byte[] msg, int offset, int length);

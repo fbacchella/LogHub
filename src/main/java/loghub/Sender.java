@@ -27,7 +27,8 @@ public abstract class Sender extends Thread {
         this.endpoint = endpoint;
     }
 
-    public void configure(Map<String, Object> properties) {
+    public boolean configure(Map<String, Object> properties) {
+        return true;
     }
 
     public void start(Map<byte[], Event> eventQueue) {

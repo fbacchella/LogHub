@@ -8,11 +8,11 @@ import loghub.configuration.Beans;
 public abstract class Encode {
 
     protected String field;
-    
-    public void configure(Map<String, Object> properties) {
-        
+
+    public boolean configure(Map<String, Object> properties) {
+        return true;
     }
-    
+
     abstract public byte[] encode(Event event);
 
     public String getField() {
@@ -22,5 +22,5 @@ public abstract class Encode {
     public void setField(String field) {
         this.field = field;
     }
-    
+
 }

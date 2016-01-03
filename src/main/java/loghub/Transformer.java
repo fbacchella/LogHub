@@ -12,7 +12,8 @@ public abstract class Transformer {
     public Transformer() {
     }
 
-    public void configure(Map<String, Object> properties) {
+    public boolean configure(Map<String, Object> properties) {
+        return true;
     }
 
     public abstract void transform(Event event);
