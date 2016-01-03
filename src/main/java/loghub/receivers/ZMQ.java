@@ -15,7 +15,7 @@ import loghub.Receiver;
 import loghub.configuration.Beans;
 import zmq.ZMQHelper;
 
-@Beans({"method", "listen", "type"})
+@Beans({"method", "listen", "type", "hwm"})
 public class ZMQ extends Receiver {
 
     private static final Logger logger = LogManager.getLogger();
@@ -64,7 +64,7 @@ public class ZMQ extends Receiver {
                 Event event = new Event();
                 Date d = new Date();
                 event.timestamp = d;
-                decoder.decode(event, msg);
+                decoder.decode(event, msg, 0, msg.length);
                 return event;
             }
 

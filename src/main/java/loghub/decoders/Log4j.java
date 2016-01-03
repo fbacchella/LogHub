@@ -21,10 +21,10 @@ public class Log4j extends Decode {
     private static final Logger logger = LogManager.getLogger();
 
     @Override
-    public void decode(Event event, byte[] msg) {
+    public void decode(Event event, byte[] msg, int offset, int length) {
         ObjectInputStream ois;
         try {
-            ois = new ObjectInputStream(new ByteArrayInputStream(msg));
+            ois = new ObjectInputStream(new ByteArrayInputStream(msg, offset, length));
             LoggingEvent o = (LoggingEvent)ois.readObject();
             event.type = "log4j";
             event.put("host", "");

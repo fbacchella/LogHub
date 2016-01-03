@@ -3,6 +3,7 @@ package loghub;
 import java.util.Iterator;
 import java.util.Map;
 
+import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.zeromq.ZMQ.Socket;
@@ -30,7 +31,7 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
     public void setEndpoint(String endpoint) {
         this.endpoint = endpoint;
     }
-    
+
     public void configure(Map<String, Object> properties) {
     }
 
@@ -53,7 +54,24 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
             Iterable<Event> stream = new Iterable<Event>() {
                 @Override
                 public Iterator<Event> iterator() {
-                    return Receiver.this.getIterator();
+                    Iterator<Event> i = Receiver.this.getIterator();
+                    if(i == null) {
+                        return new Iterator<Event>() {
+
+                            @Override
+                            public boolean hasNext() {
+                                return false;
+                            }
+
+                            @Override
+                            public Event next() {
+                                return null;
+                            }
+
+                        };
+                    } else {
+                        return i;
+                    }
                 }
             };
             try {
@@ -79,6 +97,8 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
             // The previous loop didn't catch anything
             // So try some recovery
             if(eventseen == 0) {
+                looptry++;
+                logger.debug("event seen = 0, try = {}", looptry);
                 // A little magic, give the CPU to other threads
                 Thread.yield();
                 if(looptry > 3) {
@@ -101,12 +121,18 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
      * This method call startStream and return this as an iterator. 
      * In this case, startStream will be called once and then hasNext and next will be used to iterate.
      * If overridden, startStream, hasNext and next methods will never be called, and the user is
-     * in charge of preparing the iterator
-     * @return
+     * in charge of preparing the iterator.
+     * @return an iterator or null in case of failure
      */
     protected Iterator<Event> getIterator() {
-        startStream();
-        return this;
+        try {
+            startStream();
+            return this;
+        } catch (Exception e) {
+            logger.error("unable to start receiver stream: {}", e.getMessage());
+            logger.catching(Level.DEBUG, e);
+            return null;
+        }
     }
 
     protected void startStream() {

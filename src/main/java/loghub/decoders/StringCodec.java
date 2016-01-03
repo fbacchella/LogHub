@@ -13,8 +13,8 @@ public class StringCodec extends Decode {
     private String field = "message";
 
     @Override
-    public void decode(Event event, byte[] msg) {
-        String message = new String(msg, charset);
+    public void decode(Event event, byte[] msg, int offset, int length) {
+        String message = new String(msg, offset, length, charset);
         event.put(field, message);
     }
 
