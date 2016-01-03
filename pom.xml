@@ -99,6 +99,11 @@
             <artifactId>log4j</artifactId>
             <version>1.2.17</version>
         </dependency>
+        <dependency>
+            <groupId>org.python</groupId>
+            <artifactId>jython</artifactId>
+            <version>2.7-b1</version>
+        </dependency>
     </dependencies>
     <repositories>
         <repository>
