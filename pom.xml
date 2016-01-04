@@ -45,9 +45,9 @@
             <version>2.7.0</version>
         </dependency>
         <dependency>
-            <groupId>org.json</groupId>
-            <artifactId>json</artifactId>
-            <version>20151123</version>
+            <groupId>org.glassfish</groupId>
+            <artifactId>javax.json</artifactId>
+            <version>1.0.4</version>
         </dependency>
         <dependency>
             <groupId>org.snmp4j</groupId>
