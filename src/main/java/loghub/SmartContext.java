@@ -1,5 +1,7 @@
 package loghub;
 
+import java.io.IOException;
+import java.nio.channels.Selector;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
@@ -14,6 +16,7 @@ import org.zeromq.ZMQ;
 import org.zeromq.ZMQ.Context;
 import org.zeromq.ZMQ.Socket;
 import org.zeromq.ZMQException;
+import org.zeromq.ZPoller;
 
 import zmq.ZMQHelper;
 import zmq.ZMQHelper.Method;
@@ -168,14 +171,17 @@ public class SmartContext {
         }
     }
 
-    public Iterable<byte[]> read(final Socket receiver) {
+    public Iterable<byte[]> read(final Socket receiver) throws IOException {
         final ZMQ.Socket controller = context.socket(ZMQ.SUB);
         controller.connect(TERMINATOR_RENDEZVOUS);
         controller.subscribe("".getBytes());
+        
+        final Selector selector =  Selector.open();
+        @SuppressWarnings("resource")
+        final ZPoller zpoller = new ZPoller(selector);
+        zpoller.register(receiver, ZPoller.POLLIN | ZPoller.POLLERR);
+        zpoller.register(controller, ZPoller.POLLIN | ZPoller.POLLERR);
 
-        final ZMQ.Poller items = new ZMQ.Poller(2);
-        items.register(receiver, ZMQ.Poller.POLLIN);
-        items.register(controller, ZMQ.Poller.POLLIN);
         return new Iterable<byte[]>() {
             @Override
             public Iterator<byte[]> iterator() {
@@ -183,15 +189,15 @@ public class SmartContext {
                     @Override
                     public boolean hasNext() {
                         logger.trace("waiting for next");
-                        try {
-                            items.poll();
-                        } catch (Exception e) {
-                            controller.close();
-                            throw e;
-                        }
-                        if (items.pollin(1) || Thread.interrupted()) {
+                        zpoller.poll(-1L);
+                        if (zpoller.isReadable(controller) || zpoller.isError(controller) || zpoller.isError(receiver) || Thread.interrupted()) {
                             logger.trace("received kill");
                             controller.close();
+                            zpoller.destroy();
+                            try {
+                                selector.close();
+                            } catch (IOException e) {
+                            };
                             return false;
                         } else {
                             return true && SmartContext.this.running;

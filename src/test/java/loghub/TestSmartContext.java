@@ -1,5 +1,6 @@
 package loghub;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicLong;
@@ -43,7 +44,10 @@ public class TestSmartContext {
                     logger.debug(e.getMessage());
                     logger.debug(e.getErrorCode());
                     logger.debug(e.getCause());
-                    e.printStackTrace();
+                    logger.catching(e);
+                } catch (IOException e) {
+                    logger.debug(e.getMessage());
+                    logger.catching(e);
                 } finally {
                     context.close(in);
                     context.close(out);

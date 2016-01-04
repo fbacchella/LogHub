@@ -1,5 +1,6 @@
 package zmq;
 
+import java.io.IOException;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -129,7 +130,7 @@ public class ZMQHelper {
     }
 
     @Deprecated
-    public static Iterable<byte[]> read(final Socket receiver) {
+    public static Iterable<byte[]> read(final Socket receiver) throws IOException {
         return SmartContext.getContext().read(receiver);
     }
 
