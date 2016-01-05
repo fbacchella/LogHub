@@ -31,8 +31,8 @@
         </dependency>
         <dependency>
             <groupId>org.msgpack</groupId>
-            <artifactId>msgpack</artifactId>
-            <version>0.6.12</version>
+            <artifactId>jackson-dataformat-msgpack</artifactId>
+            <version>0.7.1</version>
         </dependency>
         <dependency>
             <groupId>org.zeromq</groupId>
