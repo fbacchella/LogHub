@@ -5,6 +5,9 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import loghub.configuration.Configuration;
+import loghub.configuration.Configuration.PipeJoin;
+import zmq.ZMQHelper;
+import zmq.ZMQHelper.SocketInfo;
 
 public class Start extends Thread {
 
@@ -50,6 +53,14 @@ public class Start extends Thread {
             if(r.configure(conf.getProperties())) {
                 r.start(eventQueue);
             }
+        }
+
+        for(PipeJoin j: conf.joins) {
+            Pipeline inpipe = conf.namedPipeLine.get(j.inpipe);
+            Pipeline outpipe = conf.namedPipeLine.get(j.outpipe);
+            SocketInfo inSi = new SocketInfo(ZMQHelper.Method.CONNECT, ZMQHelper.Type.PULL, inpipe.outEndpoint);
+            SocketInfo outSi = new SocketInfo(ZMQHelper.Method.CONNECT, ZMQHelper.Type.PUSH, outpipe.inEndpoint);
+            SmartContext.getContext().proxy(j.toString(), inSi, outSi);
         }
 
         // configuration is not needed any more, don't hold reference to it.

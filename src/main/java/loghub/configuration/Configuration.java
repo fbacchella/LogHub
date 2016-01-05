@@ -28,10 +28,25 @@ import org.apache.logging.log4j.Logger;
 
 public class Configuration {
 
+    public static final class PipeJoin {
+        public final String inpipe;
+        public final String outpipe;
+        PipeJoin(String inpipe, String outpipe) {
+            this.inpipe = inpipe;
+            this.outpipe = outpipe;
+        }
+        @Override
+        public String toString() {
+            return inpipe + "->" + outpipe;
+        }
+        
+    }
+
     private static final Logger logger = LogManager.getLogger();
 
     public Map<String, List<Pipeline>> pipelines = null;
     public Map<String, Pipeline> namedPipeLine = null;
+    public Set<PipeJoin> joins = null;
     private List<Receiver> receivers;
     private Set<String> inputpipelines = new HashSet<>();
     private Set<String> outputpipelines = new HashSet<>();
@@ -76,6 +91,7 @@ public class Configuration {
             namedPipeLine.put(e.getKey(), e.getValue().get(e.getValue().size() - 1));
         }
         namedPipeLine = Collections.unmodifiableMap(namedPipeLine);
+        joins = Collections.unmodifiableSet(conf.joins);
 
         // File the receivers list
         receivers = new ArrayList<>();

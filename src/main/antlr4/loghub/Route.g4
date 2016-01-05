@@ -5,9 +5,9 @@
 grammar Route;
 
 configuration: (pipeline|input|output|property)+ EOF;
-pipeline: 'pipeline' '[' Identifier ']' '{' pipenodeList '}';
-input: 'input' '{'  inputObjectlist ('|' '$' piperef)? '}';
-output: 'output' '{' ('$' piperef '|' )?  outputObjectlist '}';
+pipeline: 'pipeline' '[' Identifier ']' '{' pipenodeList '}' ( '|' '$' finalpiperef) ?;
+input: 'input' '{'  inputObjectlist '}' ('|' '$' piperef)?;
+output: 'output' ('$' piperef '|' )? '{' outputObjectlist '}';
 inputObjectlist: (object (',' object)*)? ','?;
 outputObjectlist: (object (',' object)*)? ','?;
 pipenodeList
@@ -19,6 +19,7 @@ beansDescription:  ('{' (bean (',' bean)*)? ','? '}')? ;
 bean: beanName ':' beanValue;
 beanName: Identifier;
 beanValue: object | literal;
+finalpiperef: piperef;
 piperef:  Identifier;
 property: Identifier ':' literal;
 

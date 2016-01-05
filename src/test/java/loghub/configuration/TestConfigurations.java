@@ -1,4 +1,4 @@
-package loghub;
+package loghub.configuration;
 
 import java.io.IOException;
 import java.util.List;
@@ -14,8 +14,19 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.zeromq.ZMQ.Socket;
 
+import loghub.ContextRule;
+import loghub.Event;
+import loghub.LogUtils;
+import loghub.Pipeline;
+import loghub.Receiver;
+import loghub.Sender;
+import loghub.SmartContext;
+import loghub.Tools;
 import loghub.configuration.Configuration;
+import loghub.configuration.Configuration.PipeJoin;
+import zmq.ZMQHelper;
 import zmq.ZMQHelper.Method;
+import zmq.ZMQHelper.SocketInfo;
 import zmq.ZMQHelper.Type;
 
 public class TestConfigurations {
@@ -94,6 +105,53 @@ public class TestConfigurations {
             s.start(eventQueue);
         }
         Thread.sleep(30);
+        Socket out = tctxt.ctx.newSocket(Method.CONNECT, Type.SUB, "inproc://sender");
+        out.subscribe(new byte[]{});
+        Socket sender = tctxt.ctx.newSocket(Method.CONNECT, Type.PUB, "inproc://listener1");
+        Thread.sleep(30);
+        sender.send("something");
+        byte[] buffer = out.recv();
+        Assert.assertEquals("wrong send message", "something", new String(buffer));
+        Assert.assertEquals("Event queue not empty", 0, eventQueue.size());
+        tctxt.ctx.close(sender);
+        tctxt.ctx.close(out);
+        for(Receiver r: conf.getReceivers()) {
+            r.interrupt();
+        }
+        for(Sender s: conf.getSenders()) {
+            s.interrupt();
+        }
+        SmartContext.terminate();
+    }
+
+    @Test(timeout=1000) 
+    public void testTwoPipe() throws InterruptedException {
+        Configuration conf = loadConf("twopipe.conf");
+        logger.debug("pipelines: {}", conf.pipelines);
+        Map<byte[], Event> eventQueue = new ConcurrentHashMap<>();
+
+        logger.debug("receiver pipelines: {}", conf.getReceiversPipelines());
+        for(Map.Entry<String, List<Pipeline>> e: conf.pipelines.entrySet()) {
+            for(Pipeline p: e.getValue()) {
+                p.startStream(eventQueue);
+            }
+        }
+        Thread.sleep(30);
+        for(Receiver r: conf.getReceivers()) {
+            r.start(eventQueue);
+        }
+        Thread.sleep(30);
+        for(Sender s: conf.getSenders()) {
+            s.start(eventQueue);
+        }
+        Thread.sleep(30);
+        for(PipeJoin j: conf.joins) {
+            Pipeline inpipe = conf.namedPipeLine.get(j.inpipe);
+            Pipeline outpipe = conf.namedPipeLine.get(j.outpipe);
+            SocketInfo inSi = new SocketInfo(ZMQHelper.Method.CONNECT, ZMQHelper.Type.PULL, inpipe.outEndpoint);
+            SocketInfo outSi = new SocketInfo(ZMQHelper.Method.CONNECT, ZMQHelper.Type.PUSH, outpipe.inEndpoint);
+            SmartContext.getContext().proxy(j.toString(), inSi, outSi);
+        }
         Socket out = tctxt.ctx.newSocket(Method.CONNECT, Type.SUB, "inproc://sender");
         out.subscribe(new byte[]{});
         Socket sender = tctxt.ctx.newSocket(Method.CONNECT, Type.PUB, "inproc://listener1");

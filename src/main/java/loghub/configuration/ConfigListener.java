@@ -9,8 +9,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Deque;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import loghub.PipeStep;
 import loghub.Pipeline;
@@ -20,6 +22,7 @@ import loghub.RouteParser.BeanContext;
 import loghub.RouteParser.BeanNameContext;
 import loghub.RouteParser.BooleanLiteralContext;
 import loghub.RouteParser.CharacterLiteralContext;
+import loghub.RouteParser.FinalpiperefContext;
 import loghub.RouteParser.FloatingPointLiteralContext;
 import loghub.RouteParser.InputContext;
 import loghub.RouteParser.InputObjectlistContext;
@@ -36,6 +39,7 @@ import loghub.RouteParser.TestContext;
 import loghub.RouteParser.TestExpressionContext;
 import loghub.Sender;
 import loghub.Transformer;
+import loghub.configuration.Configuration.PipeJoin;
 import loghub.transformers.PipeRef;
 import loghub.transformers.Test;
 
@@ -82,13 +86,14 @@ class ConfigListener extends RouteBaseListener {
             this.piperef = piperef;
         }
     }
-
+    
     Deque<Object> stack = new ArrayDeque<>();
 
     final Map<String, List<Pipeline>> pipelines = new HashMap<>();
     final List<Input> inputs = new ArrayList<>();
     final List<Output> outputs = new ArrayList<>();
     final Map<String, Object> properties = new HashMap<>();
+    final Set<PipeJoin> joins = new HashSet<>();
 
     private List<Pipeline> currentPipeList = null;
     private String currentPipeLineName = null;
@@ -198,6 +203,11 @@ class ConfigListener extends RouteBaseListener {
 
     @Override
     public void exitPipeline(PipelineContext ctx) {
+        FinalpiperefContext nextpipe = ctx.finalpiperef();
+        if(nextpipe != null) {
+            PipeJoin join = new PipeJoin(currentPipeLineName, nextpipe.getText());
+            joins.add(join);
+        }
         stack.pop();
         currentPipeLineName = null;
     }
