@@ -21,7 +21,7 @@ public class VarExtractor extends Transformer {
 
     private Pattern parser = Pattern.compile("(?<name>\\p{Alnum}+)\\p{Space}?[=:]\\p{Space}?(?<value>[^;,:]+)[;,:]?");
     private String field = "message";
-    
+
     @Override
     public void transform(Event event) {
         String fieldcontent = event.get(field).toString();

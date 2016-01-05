@@ -1,72 +1,40 @@
 package loghub.transformers;
 
+import java.io.IOException;
 import java.io.StringReader;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 
-import javax.json.JsonArray;
-import javax.json.JsonNumber;
-import javax.json.JsonObject;
-import javax.json.JsonReader;
-import javax.json.JsonString;
-import javax.json.JsonStructure;
-import javax.json.JsonValue;
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import loghub.Event;
 import loghub.Transformer;
 
 public class ParseJson extends Transformer {
 
+    private static final JsonFactory factory = new JsonFactory();
+    private static final ThreadLocal<ObjectMapper> json = new ThreadLocal<ObjectMapper>() {
+        @Override
+        protected ObjectMapper initialValue() {
+            return new ObjectMapper(factory);
+        }
+    };
+
     private String field = "message";
 
     @Override
     public void transform(Event event) {
-        JsonReader reader = javax.json.Json.createReader(new StringReader(event.get(field).toString()));
-        JsonStructure jsonst = reader.read();
-        Object o = navigateTree(jsonst);
-        if (o instanceof Map) {
-            @SuppressWarnings("unchecked")
-            Map<String, ?> map = (Map<String, ?>) o;
-            event.putAll(map); 
-        } else {
-            event.put(field, o);
-        }
-    }
-
-    public Object navigateTree(JsonValue tree) {
-        switch(tree.getValueType()) {
-        case OBJECT:
-            JsonObject jobject = (JsonObject) tree;
-            Map<String, Object> object = new HashMap<>();
-            for (Entry<String, JsonValue> i : jobject.entrySet())
-                object.put(i.getKey(), navigateTree(i.getValue()));
-            return object;
-        case ARRAY:
-            JsonArray jarray = (JsonArray) tree;
-            List<Object> array = new ArrayList<>(jarray.size());
-            jarray.stream().map((i) -> navigateTree(i)).forEach((i) -> array.add(i));
-            return array;
-        case STRING:
-            JsonString st = (JsonString) tree;
-            return st.getString();
-        case NUMBER:
-            JsonNumber jnum = (JsonNumber) tree;
-            if (jnum.isIntegral()) {
-                return jnum.longValue();
+        try {
+            Object o = json.get().readValue(new StringReader(event.get(field).toString()), Object.class);
+            if(o instanceof Map) {
+                @SuppressWarnings("unchecked")
+                Map<Object, Object> map = (Map<Object, Object>) o;
+                map.entrySet().stream().forEach( (i) -> event.put(i.getKey().toString(), i.getValue()));
             } else {
-                return jnum.doubleValue();
+                event.put(field, o);
             }
-        case TRUE:
-            return Boolean.TRUE;
-        case FALSE:
-            return Boolean.FALSE;
-        case NULL:
-            return null;
-        default:
-            throw new RuntimeException("unparsable json object");
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         }
     }
 

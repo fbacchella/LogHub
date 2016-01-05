@@ -65,11 +65,15 @@ public class Script extends Transformer {
                 String extension = script.substring(p + 1);
                 engine = factory.getEngineByExtension(extension);
             }
+            if(engine == null) {
+                logger.error("langage not found for script {}", script);
+            }
+            logger.debug("script language is {}", () -> engine);
+            logger.debug("script language is {}", () -> engine.getFactory().getLanguageName());
             if( ! (engine instanceof Invocable)) {
                 logger.error("engine for langage {} is not invocable", () -> engine.getFactory().getLanguageName());
                 return false;
             }
-            logger.debug("script language is {}", () -> engine.getFactory().getLanguageName());
             Reader r = getScriptReader();
             inv = (Invocable) engine;
             settings = (Map<String, String>) engine.eval(r);

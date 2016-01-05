@@ -1,7 +1,6 @@
 package loghub.transformers;
 
 import java.io.IOException;
-import java.util.Collection;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -36,9 +35,9 @@ public class TestVarExtractor {
         Assert.assertEquals("key a not found", "1", e.get("a"));
         Assert.assertEquals("key b not found", "2", e.get("b"));
         Assert.assertEquals("key message not found", "c", e.get("message"));
-        
+
     }
-    
+
     @Test
     public void test2() {
         Event e = new Event();
@@ -50,9 +49,9 @@ public class TestVarExtractor {
         Assert.assertEquals("key a not found", "1", e.get("a"));
         Assert.assertEquals("key b found", "2", e.get("b"));
         Assert.assertEquals("key message found", null, e.get("message"));
-        
+
     }
-    
+
     @Test
     public void test3() {
         Event e = new Event();
@@ -63,6 +62,6 @@ public class TestVarExtractor {
         Assert.assertEquals("key a not found", "1", e.get("a"));
         Assert.assertEquals("key b not found", "2", e.get("b"));
         Assert.assertEquals("key message not found", "c", e.get("message"));
-        
+
     }
 }

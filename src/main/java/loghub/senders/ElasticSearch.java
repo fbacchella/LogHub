@@ -1,16 +1,12 @@
 package loghub.senders;
 
-import java.io.StringReader;
+import java.io.IOException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.TimeZone;
-
-import javax.json.JsonObject;
-import javax.json.JsonReader;
-import javax.json.JsonStructure;
 
 import org.apache.thrift.TException;
 import org.apache.thrift.protocol.TBinaryProtocol;
@@ -23,11 +19,26 @@ import org.elasticsearch.thrift.Rest;
 import org.elasticsearch.thrift.RestRequest;
 import org.elasticsearch.thrift.RestResponse;
 
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import loghub.Event;
 import loghub.Sender;
-import loghub.encoders.ToJson;
 
 public class ElasticSearch extends Sender {
+
+    private static final JsonFactory factory = new JsonFactory();
+    private static final ThreadLocal<ObjectMapper> json = new ThreadLocal<ObjectMapper>() {
+        @Override
+        protected ObjectMapper initialValue() {
+            return new ObjectMapper(factory);
+        }
+    };
+    private static final TypeReference<Map<String, Object>> mapReference = new TypeReference<Map<String, Object>>(){};
+
     private static final TimeZone tz = TimeZone.getTimeZone("UTC");
     private static final DateFormat ISO8601 = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
     private static final DateFormat ES_INDEX = new SimpleDateFormat("yyyy.MM.dd");
@@ -61,29 +72,27 @@ public class ElasticSearch extends Sender {
         esjson.put("type", event.type);
         esjson.put("@timestamp", ISO8601.format(event.timestamp));
         try {
-            put(ToJson.generateObject(esjson).build(), event.timestamp, event.type);
-        } catch (TException e) {
+            put(esjson, event.timestamp, event.type);
+        } catch (TException | IOException e) {
             e.printStackTrace();
         }
     }
 
 
-    private void put(JsonObject jo, Date timestamp, String type) throws TException {
+    private void put(Map<String, Object> esjson, Date timestamp, String type) throws TException, IOException {
         String index = ES_INDEX.format(timestamp);
         RestRequest request = new RestRequest(Method.POST, String.format("/logstash-%s/%s/", index, type));
-        request.setBody(jo.toString().getBytes());
+        request.setBody(json.get().writeValueAsBytes(esjson));
         synchronized(client) {
-            JsonObject put_r = parse(client.execute(request));
-            String id = put_r.getString("_id");
+            Map<String, Object> put_r = parse(client.execute(request));
+            String id = put_r.get("_id").toString();
             request = new RestRequest(Method.GET, String.format("/logstash-%s/%s/%s", index, type, id));
             parse(client.execute(request));
         }
     }
 
-    private JsonObject parse(RestResponse response) {
-        JsonReader reader = javax.json.Json.createReader(new StringReader(new String(response.getBody())));
-        JsonStructure jsonst = reader.read();
-        return (JsonObject) jsonst;
+    private Map<String, Object> parse(RestResponse response) throws JsonParseException, JsonMappingException, IOException {
+        return json.get().readValue(response.getBody(), mapReference);
     }
 
     @Override
