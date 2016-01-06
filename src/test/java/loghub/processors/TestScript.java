@@ -1,4 +1,4 @@
-package loghub.transformers;
+package loghub.processors;
 
 import java.io.IOException;
 import java.net.URL;
