@@ -85,6 +85,11 @@
             <artifactId>jython</artifactId>
             <version>2.7-b1</version>
         </dependency>
+        <dependency>
+            <groupId>com.maxmind.geoip</groupId>
+            <artifactId>geoip-api</artifactId>
+            <version>1.2.14</version>
+        </dependency>
     </dependencies>
     <repositories>
         <repository>
