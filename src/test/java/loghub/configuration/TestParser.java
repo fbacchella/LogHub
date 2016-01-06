@@ -31,7 +31,7 @@ public class TestParser {
 
     @Test
     public void test1() throws Exception {
-        org.antlr.v4.runtime.misc.TestRig.main(new String[] {
+        org.antlr.v4.gui.TestRig.main(new String[] {
                 "loghub.Route",
                 "configuration",
                 "-tokens",
