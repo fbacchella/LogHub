@@ -5,6 +5,7 @@ import java.util.Map;
 import org.zeromq.ZMQ;
 
 import loghub.configuration.Beans;
+import loghub.configuration.Properties;
 import zmq.ZMQHelper.Method;
 import zmq.ZMQHelper.Type;
 
@@ -27,7 +28,7 @@ public abstract class Sender extends Thread {
         this.endpoint = endpoint;
     }
 
-    public boolean configure(Map<String, Object> properties) {
+    public boolean configure(Properties properties) {
         return true;
     }
 

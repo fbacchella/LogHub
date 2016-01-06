@@ -6,7 +6,6 @@ import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
-import java.util.Map;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -15,6 +14,7 @@ import org.apache.logging.log4j.Logger;
 import loghub.Event;
 import loghub.Sender;
 import loghub.configuration.Beans;
+import loghub.configuration.Properties;
 
 @Beans({"port", "destination"})
 public class Udp extends Sender {
@@ -29,7 +29,7 @@ public class Udp extends Sender {
     @Override
     public void send(Event event) {
         byte[] msg = getEncoder().encode(event);
-        
+
         DatagramPacket packet = new DatagramPacket(msg, msg.length, IPAddress, port);
         try {
             socket.send(packet);
@@ -45,7 +45,7 @@ public class Udp extends Sender {
     }
 
     @Override
-    public boolean configure(Map<String, Object> properties) {
+    public boolean configure(Properties properties) {
         try {
             IPAddress = InetAddress.getByName(destination);
             socket = new DatagramSocket();

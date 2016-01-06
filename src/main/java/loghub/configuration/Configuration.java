@@ -67,7 +67,7 @@ public class Configuration {
     Set<String> inputpipelines = new HashSet<>();
     Set<String> outputpipelines = new HashSet<>();
     private List<Sender> senders;
-    public Map<String, Object> properties = new HashMap<>();
+    public Properties properties;
     private ClassLoader classLoader = Configuration.class.getClassLoader();
 
     public Configuration() {
@@ -157,7 +157,9 @@ public class Configuration {
         senders = Collections.unmodifiableList(senders);
 
         joins = Collections.unmodifiableSet(conf.joins);
-        properties = Collections.unmodifiableMap(conf.properties);
+        
+        conf.properties.put(Properties.CLASSLOADERNAME, classLoader);
+        properties = new Properties(conf.properties);
     }
 
     private Pipeline parsePipeline(ConfigListener.Pipeline desc, String currentPipeLineName, List<Pipeline> currentPipeList, int depth) {
@@ -321,7 +323,6 @@ public class Configuration {
             }
         };
     }
-
 
     public Collection<Receiver> getReceivers() {
         return Collections.unmodifiableList(receivers);

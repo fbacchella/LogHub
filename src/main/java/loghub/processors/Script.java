@@ -24,17 +24,17 @@ import org.apache.logging.log4j.Logger;
 import loghub.Event;
 import loghub.Processor;
 import loghub.configuration.Beans;
+import loghub.configuration.Properties;
 
 @Beans("script")
 public class Script extends Processor {
 
     private static final Logger logger = LogManager.getLogger();
-    private static final ScriptEngineManager factory = new ScriptEngineManager();
+    private static ScriptEngineManager factory = null;
 
     private String script;
     private Invocable inv;
     private Map<String, String> settings = Collections.emptyMap();
-
 
     @Override
     public void process(Event event) {
@@ -52,7 +52,10 @@ public class Script extends Processor {
 
     @SuppressWarnings("unchecked")
     @Override
-    public boolean configure(Map<String, Object> properties) {
+    public boolean configure(Properties properties) {
+        if( factory == null) {
+            factory = new ScriptEngineManager(properties.classloader);
+        }
         try {
             Path scriptp = Paths.get(script);
             String mimeType = Files.probeContentType(scriptp);
@@ -61,7 +64,7 @@ public class Script extends Processor {
                 engine = factory.getEngineByMimeType(mimeType);
                 logger.debug("script{} type is {}", script, mimeType);
             } else {
-                int p =script.lastIndexOf(".");
+                int p = script.lastIndexOf(".");
                 String extension = script.substring(p + 1);
                 engine = factory.getEngineByExtension(extension);
             }

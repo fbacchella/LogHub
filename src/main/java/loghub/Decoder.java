@@ -1,10 +1,10 @@
 package loghub;
 
-import java.util.Map;
+import loghub.configuration.Properties;
 
 public abstract class Decoder {
 
-    public boolean configure(Map<String, Object> properties) {
+    public boolean configure(Properties properties) {
         return true;
     }
 

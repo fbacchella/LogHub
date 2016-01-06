@@ -1,15 +1,14 @@
 package loghub;
 
-import java.util.Map;
-
 import loghub.configuration.Beans;
+import loghub.configuration.Properties;
 
 @Beans({"field"})
 public abstract class Encoder {
 
     protected String field;
 
-    public boolean configure(Map<String, Object> properties) {
+    public boolean configure(Properties properties) {
         return true;
     }
 

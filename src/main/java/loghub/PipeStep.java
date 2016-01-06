@@ -14,6 +14,8 @@ import zmq.ZMQHelper;
 
 import org.zeromq.ZMQException;
 
+import loghub.configuration.Properties;
+
 public class PipeStep extends Thread {
 
     private static final Logger logger = LogManager.getLogger();
@@ -33,7 +35,7 @@ public class PipeStep extends Thread {
         setName(name + "@" + numStep + "." + width);
     }
 
-    public boolean configure(final Map<String, Object> properties) {
+    public boolean configure(final Properties properties) {
         return processors.stream().allMatch(i -> i.configure(properties));
     }
 

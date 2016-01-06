@@ -7,9 +7,7 @@ import java.io.InputStream;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Enumeration;
-import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Properties;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
@@ -36,6 +34,7 @@ import org.snmp4j.util.ThreadPool;
 import loghub.Event;
 import loghub.Receiver;
 import loghub.configuration.Beans;
+import loghub.configuration.Properties;
 import loghub.snmp.NaturalOrderComparator;
 import loghub.snmp.OidTreeNode;
 
@@ -46,16 +45,16 @@ public class SnmpTrap extends Receiver implements CommandResponder {
 
     static private Snmp snmp;
     static private ThreadPool threadPool;
-    static private final OidTreeNode top = new OidTreeNode();
+    static private OidTreeNode top = null;
     static private boolean reconfigured = false;
 
-    private String protocol =  "udp";
+    private String protocol = "udp";
     private int port = 162;
     private String listen = "0.0.0.0";
 
     private static void loadOids(InputStream is) throws IOException {
         SortedMap<String, String> oids = new TreeMap<String, String>(new NaturalOrderComparator());
-        Properties p = new Properties();
+        java.util.Properties p = new java.util.Properties();
         p.load(is);
         for(Entry<Object, Object> e: p.entrySet()) {
             oids.put((String) e.getKey(), (String) e.getValue());
@@ -66,13 +65,6 @@ public class SnmpTrap extends Receiver implements CommandResponder {
     }
 
     static {
-        InputStream in = OidTreeNode.class.getClassLoader().getResourceAsStream("oid.properties");
-        try {
-            loadOids(in);
-        } catch (IOException e) {
-            logger.fatal("unable to load default oid: {}", e.getMessage());
-            logger.catching(Level.DEBUG, e);
-        }
     }
 
     public SnmpTrap() throws IOException {
@@ -89,7 +81,18 @@ public class SnmpTrap extends Receiver implements CommandResponder {
     }
 
     @Override
-    public boolean configure(Map<String, Object> properties) {
+    public boolean configure(Properties properties) {
+        if(top == null) {
+            InputStream in = properties.classloader.getResourceAsStream("oid.properties");
+            try {
+                loadOids(in);
+            } catch (IOException e) {
+                logger.fatal("unable to load default oid: {}", e.getMessage());
+                logger.catching(Level.DEBUG, e);
+                return false;
+            }
+        }
+
         if(! reconfigured && properties.containsKey("oidfile")) {
             reconfigured = true;
             String oidfile = null;
@@ -99,10 +102,13 @@ public class SnmpTrap extends Receiver implements CommandResponder {
                 loadOids(is);
             } catch (ClassCastException e) {
                 logger.error("oidfile property is not a string");
+                return false;
             } catch (FileNotFoundException e) {
                 logger.error("oidfile {} cant't be found", oidfile);
+                return false;
             } catch (IOException e) {
                 logger.error("oidfile {} cant't be read:{}", oidfile, e.getMessage());
+                return false;
             }
         }
         return super.configure(properties);

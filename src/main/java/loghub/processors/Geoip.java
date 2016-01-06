@@ -18,12 +18,13 @@ import com.maxmind.geoip.LookupService;
 
 import loghub.Event;
 import loghub.Processor;
+import loghub.configuration.Properties;
 
 public class Geoip extends Processor {
 
     private static final Logger logger = LogManager.getLogger();
     static LookupService lookup = null;
-    
+
     private Path datfilepath = Paths.get("usr","local","share","GeoIP", "GeoIP.dat");
     private String hostfield = "host";
     private String asfield = null;
@@ -31,7 +32,7 @@ public class Geoip extends Processor {
     private String countryfield = null;
     private String countrycodefield = null;
     private String countrynamefield = null;
-    
+
     @Override
     public void process(Event event) {
         try {
@@ -85,7 +86,7 @@ public class Geoip extends Processor {
     }
 
     @Override
-    public boolean configure(Map<String, Object> properties) {
+    public boolean configure(Properties properties) {
         String datfile = properties.get("geoipdata").toString();
         if(datfile != null) {
             datfilepath = Paths.get(datfile);

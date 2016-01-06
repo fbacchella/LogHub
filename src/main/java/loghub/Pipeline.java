@@ -6,6 +6,7 @@ import java.util.Map;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import loghub.configuration.Properties;
 import zmq.ZMQHelper;
 import zmq.ZMQHelper.SocketInfo;
 
@@ -44,7 +45,7 @@ public class Pipeline {
         logger.debug("new pipeline from {} to {}", inEndpoint, outEndpoint);
     }
 
-    public boolean configure(Map<String, Object> properties) {
+    public boolean configure(Properties properties) {
         return pipes.parallelStream().allMatch(i -> i[0].configure(properties));
     }
 

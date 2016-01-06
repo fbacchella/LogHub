@@ -1,8 +1,7 @@
 package loghub;
 
-import java.util.Map;
-
 import loghub.configuration.Beans;
+import loghub.configuration.Properties;
 
 @Beans({"threads"})
 public abstract class Processor {
@@ -12,7 +11,7 @@ public abstract class Processor {
     public Processor() {
     }
 
-    public boolean configure(Map<String, Object> properties) {
+    public boolean configure(Properties properties) {
         return true;
     }
 

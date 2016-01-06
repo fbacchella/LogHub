@@ -9,6 +9,7 @@ import org.apache.logging.log4j.Logger;
 import org.zeromq.ZMQ.Socket;
 
 import loghub.configuration.Beans;
+import loghub.configuration.Properties;
 import zmq.ZMQHelper;
 
 @Beans({"decoder"})
@@ -32,7 +33,7 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
         this.endpoint = endpoint;
     }
 
-    public boolean configure(Map<String, Object> properties) {
+    public boolean configure(Properties properties) {
         return true;
     }
 
