@@ -58,3 +58,6 @@ The log4j events are directly send to the main pipeline, that does some magic tr
 A property called "extensions" is defined. It allows to define custom extensions folders that will be used to resolve scripts and added to the class path.
 
 In the configuration file, all the agent are defined using directly the class name.
+
+If needed, slow or CPU bound processor can be given more dedicated threads by specifing a specific number of threads. They will be still one processor class instance,
+but many threads will send events to it.
