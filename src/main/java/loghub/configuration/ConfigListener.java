@@ -103,11 +103,12 @@ class ConfigListener extends RouteBaseListener {
     }
 
     static class ObjectDescription implements ObjectReference, Iterable<String> {
-        ParserRuleContext ctx;
-        String clazz;
+        final ParserRuleContext ctx;
+        final String clazz;
         Map<String, ObjectReference> beans = new HashMap<>();
-        ObjectDescription(String clazz) {
+        ObjectDescription(String clazz, ParserRuleContext ctx) {
             this.clazz = clazz;
+            this.ctx = ctx;
         }
         ObjectReference get(String name) {
             return beans.get(name);
@@ -122,11 +123,11 @@ class ConfigListener extends RouteBaseListener {
     };
 
     static final class ProcessorInstance extends ObjectDescription implements Processor {
-        ProcessorInstance(String clazz) {
-            super(clazz);
+        ProcessorInstance(String clazz, ParserRuleContext ctx) {
+            super(clazz, ctx);
         }
-        ProcessorInstance(ObjectDescription object) {
-            super(object.clazz);
+        ProcessorInstance(ObjectDescription object, ParserRuleContext ctx) {
+            super(object.clazz, ctx);
             this.beans = object.beans;
         }
     };
@@ -206,7 +207,7 @@ class ConfigListener extends RouteBaseListener {
     @Override
     public void enterObject(ObjectContext ctx) {
         String qualifiedName = ctx.QualifiedIdentifier().getText();
-        ObjectReference beanObject = new ObjectDescription(qualifiedName);
+        ObjectReference beanObject = new ObjectDescription(qualifiedName, ctx);
         stack.push(beanObject);
     }
 
@@ -215,7 +216,7 @@ class ConfigListener extends RouteBaseListener {
         Object o = stack.pop();
         if( ! (o instanceof Processor) ) {
             ObjectDescription object = (ObjectDescription) o;
-            ProcessorInstance ti = new ProcessorInstance(object);
+            ProcessorInstance ti = new ProcessorInstance(object, ctx);
             stack.push(ti);
         } else {
             stack.push(o);

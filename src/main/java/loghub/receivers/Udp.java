@@ -57,7 +57,7 @@ public class Udp extends Receiver {
 
             };
         } catch (SocketException e) {
-            logger.error("Can't start listening socket: {}", e.getMessage());
+            logger.error("Can't start listening socket '{}': {}", listen, e.getMessage());
             return null;
         } catch (UnknownHostException e) {
             logger.error("Can't resolve listening address: {}", e.getMessage());

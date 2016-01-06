@@ -248,7 +248,9 @@ public class Configuration {
             }
             return object;
         } catch (ClassNotFoundException e) {
-            throw new ConfigException(String.format("Unknown class '%s': %s", desc.clazz), desc.ctx.start, desc.ctx.stop);
+            logger.debug(desc.clazz);
+            logger.debug(desc.ctx);
+            throw new ConfigException(String.format("Unknown class '%s'", desc.clazz), desc.ctx.start, desc.ctx.stop);
         } catch (InstantiationException | IllegalAccessException
                 | IllegalArgumentException | InvocationTargetException
                 | NoSuchMethodException | SecurityException | ExceptionInInitializerError e) {
