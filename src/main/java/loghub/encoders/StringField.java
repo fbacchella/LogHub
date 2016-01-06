@@ -7,12 +7,12 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import loghub.Encode;
+import loghub.Encoder;
 import loghub.Event;
 import loghub.configuration.Beans;
 
 @Beans({"locale", "charset", "format"})
-public class StringField extends Encode {
+public class StringField extends Encoder {
 
     private static final Pattern varregexp = Pattern.compile("(?<before>.*?)(?:\\$\\{(?<varname>[\\w\\.-]+)(?<format>%[^}]+)?\\})(?<after>.*)");
 

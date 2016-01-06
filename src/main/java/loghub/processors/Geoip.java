@@ -1,4 +1,4 @@
-package loghub.transformers;
+package loghub.processors;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -17,9 +17,9 @@ import com.maxmind.geoip.Location;
 import com.maxmind.geoip.LookupService;
 
 import loghub.Event;
-import loghub.Transformer;
+import loghub.Processor;
 
-public class Geoip extends Transformer {
+public class Geoip extends Processor {
 
     private static final Logger logger = LogManager.getLogger();
     static LookupService lookup = null;
@@ -33,7 +33,7 @@ public class Geoip extends Transformer {
     private String countrynamefield = null;
     
     @Override
-    public void transform(Event event) {
+    public void process(Event event) {
         try {
             if(! event.containsKey(hostfield) || event.get(hostfield).toString().isEmpty()) {
                 return;

@@ -14,7 +14,7 @@ public abstract class Sender extends Thread {
     protected ZMQ.Socket pipe;
     private Map<byte[], Event> eventQueue;
     private String endpoint;
-    private Encode encoder;
+    private Encoder encoder;
     protected final SmartContext ctx;
 
     public Sender() {
@@ -57,11 +57,11 @@ public abstract class Sender extends Thread {
         }
     }
 
-    public Encode getEncoder() {
+    public Encoder getEncoder() {
         return encoder;
     }
 
-    public void setEncoder(Encode codec) {
+    public void setEncoder(Encoder codec) {
         this.encoder = codec;
     }
 

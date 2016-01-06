@@ -2,7 +2,7 @@ package loghub;
 
 import java.util.Map;
 
-public abstract class Decode {
+public abstract class Decoder {
 
     public boolean configure(Map<String, Object> properties) {
         return true;

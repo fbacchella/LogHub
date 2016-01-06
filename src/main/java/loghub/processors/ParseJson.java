@@ -1,4 +1,4 @@
-package loghub.transformers;
+package loghub.processors;
 
 import java.io.IOException;
 import java.io.StringReader;
@@ -8,9 +8,9 @@ import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import loghub.Event;
-import loghub.Transformer;
+import loghub.Processor;
 
-public class ParseJson extends Transformer {
+public class ParseJson extends Processor {
 
     private static final JsonFactory factory = new JsonFactory();
     private static final ThreadLocal<ObjectMapper> json = new ThreadLocal<ObjectMapper>() {
@@ -23,7 +23,7 @@ public class ParseJson extends Transformer {
     private String field = "message";
 
     @Override
-    public void transform(Event event) {
+    public void process(Event event) {
         try {
             Object o = json.get().readValue(new StringReader(event.get(field).toString()), Object.class);
             if(o instanceof Map) {

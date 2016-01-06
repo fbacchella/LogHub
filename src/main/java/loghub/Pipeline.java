@@ -89,7 +89,7 @@ public class Pipeline {
                         }
 
                         @Override
-                        public void addTransformer(Transformer t) {
+                        public void addProcessor(Processor t) {
                             throw new UnsupportedOperationException("can't add transformer to a pipeline");
                         }
 

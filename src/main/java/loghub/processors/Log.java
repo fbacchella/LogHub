@@ -1,12 +1,12 @@
-package loghub.transformers;
+package loghub.processors;
 
 import loghub.Event;
-import loghub.Transformer;
+import loghub.Processor;
 
-public class Log extends Transformer {
+public class Log extends Processor {
 
     @Override
-    public void transform(Event event) {
+    public void process(Event event) {
         System.out.println("received " + event);
     }
 

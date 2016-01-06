@@ -34,13 +34,13 @@ import loghub.Receiver;
 import loghub.RouteLexer;
 import loghub.RouteParser;
 import loghub.Sender;
-import loghub.Transformer;
+import loghub.Processor;
 import loghub.configuration.ConfigListener.Input;
 import loghub.configuration.ConfigListener.ObjectReference;
 import loghub.configuration.ConfigListener.Output;
-import loghub.transformers.PipeRef;
-import loghub.transformers.SubPipeline;
-import loghub.transformers.Test;
+import loghub.processors.PipeRef;
+import loghub.processors.SubPipeline;
+import loghub.processors.Test;
 
 public class Configuration {
 
@@ -179,8 +179,8 @@ public class Configuration {
         int threads = -1;
         int rank = 0;
         PipeStep[] steps = null;
-        for(ConfigListener.Transformer i: desc.transformers) {
-            Transformer t = getTransformer(i, currentPipeLineName, currentPipeList, depth);
+        for(ConfigListener.Processor i: desc.processors) {
+            Processor t = getProcessor(i, currentPipeLineName, currentPipeList, depth);
             if(t.getThreads() != threads) {
                 threads = t.getThreads();
                 steps = new PipeStep[threads];
@@ -191,7 +191,7 @@ public class Configuration {
                 }
             }
             for(int j = 0; j < threads ; j++) {
-                steps[j].addTransformer(t);
+                steps[j].addProcessor(t);
             } 
         }
         Pipeline pipe = new Pipeline(pipeList, currentPipeLineName + "$" + currentPipeList.size());
@@ -200,18 +200,18 @@ public class Configuration {
         return pipe;
     }
 
-    private Transformer getTransformer(ConfigListener.Transformer i, String currentPipeLineName, List<Pipeline> currentPipeList, int depth) {
-        Transformer t;
-        if(i instanceof ConfigListener.TransformerInstance) {
-            ConfigListener.TransformerInstance ti = (ConfigListener.TransformerInstance) i;
-            t = (Transformer) parseObjectDescription(ti);
+    private Processor getProcessor(ConfigListener.Processor i, String currentPipeLineName, List<Pipeline> currentPipeList, int depth) {
+        Processor t;
+        if(i instanceof ConfigListener.ProcessorInstance) {
+            ConfigListener.ProcessorInstance ti = (ConfigListener.ProcessorInstance) i;
+            t = (Processor) parseObjectDescription(ti);
         } else if (i instanceof ConfigListener.Test){
             ConfigListener.Test ti = (ConfigListener.Test) i;
             Test test = new Test();
             test.setIf(ti.test);
-            test.setThen(getTransformer(ti.True, currentPipeLineName, currentPipeList, depth + 1));
+            test.setThen(getProcessor(ti.True, currentPipeLineName, currentPipeList, depth + 1));
             if(ti.False != null) {
-                test.setElse(getTransformer(ti.False, currentPipeLineName, currentPipeList, depth + 1));
+                test.setElse(getProcessor(ti.False, currentPipeLineName, currentPipeList, depth + 1));
             }
             t = test;
         } else if (i instanceof ConfigListener.PipeRef){
@@ -252,7 +252,7 @@ public class Configuration {
         } catch (InstantiationException | IllegalAccessException
                 | IllegalArgumentException | InvocationTargetException
                 | NoSuchMethodException | SecurityException | ExceptionInInitializerError e) {
-            throw new ConfigException(String.format("Invalid class '%s': %s", desc.clazz), desc.ctx.start, desc.ctx.stop);
+            throw new ConfigException(String.format("Invalid class '%s': %s", desc.clazz, e), desc.ctx.start, desc.ctx.stop);
         }
     }
 

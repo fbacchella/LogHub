@@ -12,6 +12,7 @@ import org.junit.Test;
 import loghub.Event;
 import loghub.LogUtils;
 import loghub.Tools;
+import loghub.processors.VarExtractor;
 
 public class TestVarExtractor {
 
@@ -31,7 +32,7 @@ public class TestVarExtractor {
         VarExtractor t = new VarExtractor();
         t.setField("message");
         t.setParser("(?<name>[a-z]+)[=:](?<value>[^;]+);?");
-        t.transform(e);
+        t.process(e);
         Assert.assertEquals("key a not found", "1", e.get("a"));
         Assert.assertEquals("key b not found", "2", e.get("b"));
         Assert.assertEquals("key message not found", "c", e.get("message"));
@@ -45,7 +46,7 @@ public class TestVarExtractor {
         VarExtractor t = new VarExtractor();
         t.setField("message");
         t.setParser("(?<name>[a-z]+)[=:](?<value>[^;]+);?");
-        t.transform(e);
+        t.process(e);
         Assert.assertEquals("key a not found", "1", e.get("a"));
         Assert.assertEquals("key b found", "2", e.get("b"));
         Assert.assertEquals("key message found", null, e.get("message"));
@@ -58,7 +59,7 @@ public class TestVarExtractor {
         e.put("message", "a=1;b:2;c");
         VarExtractor t = new VarExtractor();
         t.setField("message");
-        t.transform(e);
+        t.process(e);
         Assert.assertEquals("key a not found", "1", e.get("a"));
         Assert.assertEquals("key b not found", "2", e.get("b"));
         Assert.assertEquals("key message not found", "c", e.get("message"));

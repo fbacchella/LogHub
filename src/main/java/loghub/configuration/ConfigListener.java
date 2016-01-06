@@ -70,23 +70,23 @@ class ConfigListener extends RouteBaseListener {
         }
     }
 
-    static interface Transformer {};
+    static interface Processor {};
 
-    static final class Pipeline implements Transformer {
-        final List<Transformer> transformers = new ArrayList<>();
+    static final class Pipeline implements Processor {
+        final List<Processor> processors = new ArrayList<>();
     }
 
-    static final class Test implements Transformer {
+    static final class Test implements Processor {
         String test;
-        Transformer True;
-        Transformer False;
+        Processor True;
+        Processor False;
     }
 
-    static final class PipeRef implements Transformer {
+    static final class PipeRef implements Processor {
         String pipename;
     }
 
-    static final class PipeRefName implements Transformer {
+    static final class PipeRefName implements Processor {
         final String piperef;
         private PipeRefName(String piperef) {
             this.piperef = piperef;
@@ -121,11 +121,11 @@ class ConfigListener extends RouteBaseListener {
         }
     };
 
-    static final class TransformerInstance extends ObjectDescription implements Transformer {
-        TransformerInstance(String clazz) {
+    static final class ProcessorInstance extends ObjectDescription implements Processor {
+        ProcessorInstance(String clazz) {
             super(clazz);
         }
-        TransformerInstance(ObjectDescription object) {
+        ProcessorInstance(ObjectDescription object) {
             super(object.clazz);
             this.beans = object.beans;
         }
@@ -213,9 +213,9 @@ class ConfigListener extends RouteBaseListener {
     @Override
     public void exitPipenode(PipenodeContext ctx) {
         Object o = stack.pop();
-        if( ! (o instanceof Transformer) ) {
+        if( ! (o instanceof Processor) ) {
             ObjectDescription object = (ObjectDescription) o;
-            TransformerInstance ti = new TransformerInstance(object);
+            ProcessorInstance ti = new ProcessorInstance(object);
             stack.push(ti);
         } else {
             stack.push(o);
@@ -250,8 +250,8 @@ class ConfigListener extends RouteBaseListener {
     public void exitPipenodeList(PipenodeListContext ctx) {
         Pipeline pipe = new Pipeline();
         while( ! (stack.peek() instanceof StackMarker) ) {
-            Transformer poped = (Transformer)stack.pop();
-            pipe.transformers.add(0, poped);
+            Processor poped = (Processor)stack.pop();
+            pipe.processors.add(0, poped);
         }
         //Remove the marker
         stack.pop();
@@ -277,10 +277,10 @@ class ConfigListener extends RouteBaseListener {
     @Override
     public void exitTest(TestContext ctx) {
         Test testTransformer = new Test();
-        Transformer[] clauses = new Transformer[2];
+        Processor[] clauses = new Processor[2];
 
         for(int i=1; ! StackMarker.Test.equals(stack.peek()) ; i-- ) {
-            Transformer t = (Transformer) stack.pop();
+            Processor t = (Processor) stack.pop();
             clauses[i] = t;
         };
         stack.pop();

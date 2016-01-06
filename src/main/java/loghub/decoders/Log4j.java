@@ -13,10 +13,10 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import loghub.Decode;
+import loghub.Decoder;
 import loghub.Event;
 
-public class Log4j extends Decode {
+public class Log4j extends Decoder {
 
     private static final Logger logger = LogManager.getLogger();
 

@@ -1,12 +1,12 @@
-package loghub.transformers;
+package loghub.processors;
 
 import loghub.Event;
-import loghub.Transformer;
+import loghub.Processor;
 
-public class Drop extends Transformer {
+public class Drop extends Processor {
 
     @Override
-    public void transform(Event event) {
+    public void process(Event event) {
         event.dropped = true;
     }
 

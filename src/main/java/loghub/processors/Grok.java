@@ -1,11 +1,11 @@
-package loghub.transformers;
+package loghub.processors;
 
 import loghub.Event;
-import loghub.Transformer;
+import loghub.Processor;
 import oi.thekraken.grok.api.Match;
 import oi.thekraken.grok.api.exception.GrokException;
 
-public class Grok extends Transformer {
+public class Grok extends Processor {
     private final oi.thekraken.grok.api.Grok grok;
     private String field;
 
@@ -18,7 +18,7 @@ public class Grok extends Transformer {
     }
 
     @Override
-    public void transform(Event event) {
+    public void process(Event event) {
         String line = (String) event.get(field);
 
         Match gm = grok.match(line);

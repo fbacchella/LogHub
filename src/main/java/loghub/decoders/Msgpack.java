@@ -8,7 +8,7 @@ import org.msgpack.jackson.dataformat.MessagePackFactory;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import loghub.Decode;
+import loghub.Decoder;
 import loghub.Event;
 import loghub.configuration.Beans;
 
@@ -19,7 +19,7 @@ import loghub.configuration.Beans;
  *
  */
 @Beans("field")
-public class Msgpack extends Decode {
+public class Msgpack extends Decoder {
 
     private static final JsonFactory factory = new MessagePackFactory();
     private static final ThreadLocal<ObjectMapper> msgpack = new ThreadLocal<ObjectMapper>() {

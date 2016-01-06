@@ -16,9 +16,11 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.zeromq.ZFrame;
 import org.zeromq.ZMQ.Socket;
+
+import loghub.processors.Identity;
+
 import org.zeromq.ZMsg;
 
-import loghub.transformers.Identity;
 import zmq.ZMQHelper.Method;
 import zmq.ZMQHelper.Type;
 
@@ -41,8 +43,8 @@ public class TestPipeStep {
     public void testPipeStep() throws InterruptedException {
         logger.debug("start test");
         PipeStep ps = new PipeStep("test", 1, 1);
-        ps.addTransformer(new Identity());
-        ps.addTransformer(new Identity());
+        ps.addProcessor(new Identity());
+        ps.addProcessor(new Identity());
         Map<byte[], Event> eventQueue = new ConcurrentHashMap<>();
         Event sent = new Event();
         sent.type = "testEvent";
@@ -81,18 +83,18 @@ public class TestPipeStep {
     public void testPipeline() throws InterruptedException {
 
         PipeStep subps = new PipeStep();
-        subps.addTransformer(new Identity() {
+        subps.addProcessor(new Identity() {
 
             @Override
-            public void transform(Event event) {
+            public void process(Event event) {
                 logger.debug("step 1");
             }
 
         });
-        subps.addTransformer(new Identity() {
+        subps.addProcessor(new Identity() {
 
             @Override
-            public void transform(Event event) {
+            public void process(Event event) {
                 logger.debug("step 2");
             }
 
@@ -126,7 +128,7 @@ public class TestPipeStep {
         final String subOutEndpoint = "inproc://out." + "subTestPipeStep";
 
         PipeStep subps = new PipeStep();
-        subps.addTransformer(new Identity());
+        subps.addProcessor(new Identity());
         Pipeline pipeline = new Pipeline(Collections.singletonList(new PipeStep[] {subps}), "subTestPipeStep");
         Map<byte[], Event> eventQueue = new ConcurrentHashMap<>();
         eventQueue.put("1".getBytes(), new Event());

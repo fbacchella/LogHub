@@ -5,18 +5,18 @@ import java.util.Map;
 import loghub.configuration.Beans;
 
 @Beans({"threads"})
-public abstract class Transformer {
+public abstract class Processor {
 
     private int threads = 1;
 
-    public Transformer() {
+    public Processor() {
     }
 
     public boolean configure(Map<String, Object> properties) {
         return true;
     }
 
-    public abstract void transform(Event event);
+    public abstract void process(Event event);
     public abstract String getName();
 
     public int getThreads() {

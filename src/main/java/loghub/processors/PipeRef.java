@@ -1,9 +1,9 @@
-package loghub.transformers;
+package loghub.processors;
 
 import loghub.Event;
-import loghub.Transformer;
+import loghub.Processor;
 
-public class PipeRef extends Transformer {
+public class PipeRef extends Processor {
 
     private String pipeRef;
     public String getPipeRef() {
@@ -19,7 +19,7 @@ public class PipeRef extends Transformer {
     }
 
     @Override
-    public void transform(Event event) {
+    public void process(Event event) {
         // TODO Auto-generated method stub
 
     }

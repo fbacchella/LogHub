@@ -12,7 +12,8 @@ import org.junit.Test;
 import loghub.Event;
 import loghub.LogUtils;
 import loghub.Tools;
-import loghub.Transformer;
+import loghub.processors.ParseJson;
+import loghub.Processor;
 
 public class TestToJson {
 
@@ -28,9 +29,10 @@ public class TestToJson {
     @Test
     public void test1() {
         Event e = new Event();
-        Transformer t = new ParseJson();
+        Processor t = new ParseJson();
         e.put("message", "{\"a\": [ 1, 2.0 , 3.01 , {\"b\": true} ] }");
-        t.transform(e);
+        t.process(e);
+        @SuppressWarnings("unchecked")
         Collection<Object> a = (Collection<Object>) e.get("a");
         a.stream().forEach((i) -> logger.debug(i.getClass()));
         logger.debug(e);

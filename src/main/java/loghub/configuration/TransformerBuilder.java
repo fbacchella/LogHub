@@ -5,20 +5,20 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.Map;
 
 import loghub.Event;
-import loghub.Transformer;
+import loghub.Processor;
 
 public class TransformerBuilder {
 
     private TransformerBuilder() {
     }
 
-    public static Transformer[] create(String className, Map<byte[], Event> eventQueue, Map<String, String> properties) {
+    public static Processor[] create(String className, Map<byte[], Event> eventQueue, Map<String, String> properties) {
 
         try {
             @SuppressWarnings("unchecked")
-            Class<Transformer> transClass = (Class<Transformer>) TransformerBuilder.class.getClassLoader().loadClass(className);
+            Class<Processor> transClass = (Class<Processor>) TransformerBuilder.class.getClassLoader().loadClass(className);
             //System.out.println(BeansManager.getBeanPropertiesMap(transClass, Transformer.class));
-            Constructor<Transformer> constr = transClass.getConstructor(Map.class);
+            Constructor<Processor> constr = transClass.getConstructor(Map.class);
             String countThreadString = properties.remove("threads");
             int countThread;
             if(countThreadString == null) {
@@ -27,7 +27,7 @@ public class TransformerBuilder {
             else {
                 countThread = BeansManager.ConstructFromString(Integer.class, countThreadString);
             }
-            Transformer[] transformers = new Transformer[countThread];
+            Processor[] transformers = new Processor[countThread];
 
             for(int i =0 ; i < countThread; i++) {
                 transformers[i] = constr.newInstance(eventQueue);

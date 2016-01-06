@@ -18,7 +18,7 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
 
     protected Socket pipe;
     private Map<byte[], Event> eventQueue;
-    protected Decode decoder;
+    protected Decoder decoder;
     private String endpoint;
     protected final SmartContext ctx;
 
@@ -167,11 +167,11 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
         }
     }
 
-    public Decode getDecoder() {
+    public Decoder getDecoder() {
         return decoder;
     }
 
-    public void setDecoder(Decode codec) {
+    public void setDecoder(Decoder codec) {
         this.decoder = codec;
     }
 

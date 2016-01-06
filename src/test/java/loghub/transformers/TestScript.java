@@ -14,6 +14,7 @@ import org.junit.Test;
 import loghub.Event;
 import loghub.LogUtils;
 import loghub.Tools;
+import loghub.processors.Script;
 
 public class TestScript {
 
@@ -28,22 +29,22 @@ public class TestScript {
 
     @Test
     public void testJs() throws IOException {
-        Script s = new loghub.transformers.Script();
+        Script s = new loghub.processors.Script();
         URL scripturl = getClass().getClassLoader().getResource("script.js");
         s.setScript(scripturl.getFile());
         s.configure(Collections.emptyMap());
         Event e = new Event();
-        s.transform(e);
+        s.process(e);
         Assert.assertTrue("event not transformed", (Boolean) e.get("done")); 
     }
 
     @Test
     public void testPython() throws IOException {
-        Script s = new loghub.transformers.Script();
+        Script s = new loghub.processors.Script();
         s.setScript("script.py");
         s.configure(Collections.emptyMap());
         Event e = new Event();
-        s.transform(e);
+        s.process(e);
         Assert.assertTrue("event not transformed", (Boolean) e.get("done")); 
     }
 }

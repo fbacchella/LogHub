@@ -1,4 +1,4 @@
-package loghub.transformers;
+package loghub.processors;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -22,11 +22,11 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import loghub.Event;
-import loghub.Transformer;
+import loghub.Processor;
 import loghub.configuration.Beans;
 
 @Beans("script")
-public class Script extends Transformer {
+public class Script extends Processor {
 
     private static final Logger logger = LogManager.getLogger();
     private static final ScriptEngineManager factory = new ScriptEngineManager();
@@ -37,7 +37,7 @@ public class Script extends Transformer {
 
 
     @Override
-    public void transform(Event event) {
+    public void process(Event event) {
         try {
             inv.invokeFunction(settings.get("transform"), event);
         } catch (NoSuchMethodException | ScriptException e) {

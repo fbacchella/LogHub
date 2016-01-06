@@ -1,4 +1,4 @@
-package loghub.transformers;
+package loghub.processors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -7,18 +7,18 @@ import groovy.lang.Binding;
 import groovy.lang.GroovyShell;
 import groovy.lang.Script;
 import loghub.Event;
-import loghub.Transformer;
+import loghub.Processor;
 import loghub.configuration.Beans;
 
 @Beans({"script"})
-public class Groovy extends Transformer  {
+public class Groovy extends Processor  {
 
     private static final Logger logger = LogManager.getLogger();
 
     private Script groovyScript;
 
     @Override
-    public void transform(Event event) {
+    public void process(Event event) {
         Binding groovyBinding = new Binding();
         groovyBinding.setVariable("event", event);
         groovyScript.setBinding(groovyBinding);

@@ -1,10 +1,10 @@
-package loghub.transformers;
+package loghub.processors;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import loghub.Event;
-import loghub.Transformer;
+import loghub.Processor;
 import loghub.configuration.Beans;
 
 /**
@@ -17,13 +17,13 @@ import loghub.configuration.Beans;
  *
  */
 @Beans({"field", "parser"})
-public class VarExtractor extends Transformer {
+public class VarExtractor extends Processor {
 
     private Pattern parser = Pattern.compile("(?<name>\\p{Alnum}+)\\p{Space}?[=:]\\p{Space}?(?<value>[^;,:]+)[;,:]?");
     private String field = "message";
 
     @Override
-    public void transform(Event event) {
+    public void process(Event event) {
         String fieldcontent = event.get(field).toString();
         String after = fieldcontent;
         Matcher m = parser.matcher(fieldcontent);

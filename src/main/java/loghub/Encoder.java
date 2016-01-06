@@ -5,7 +5,7 @@ import java.util.Map;
 import loghub.configuration.Beans;
 
 @Beans({"field"})
-public abstract class Encode {
+public abstract class Encoder {
 
     protected String field;
 

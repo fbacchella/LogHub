@@ -15,7 +15,7 @@ import org.msgpack.jackson.dataformat.MessagePackFactory;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import loghub.Decode;
+import loghub.Decoder;
 import loghub.Event;
 import loghub.LogUtils;
 import loghub.Tools;
@@ -43,7 +43,7 @@ public class TestMsgpack {
 
     @Test
     public void testmap() throws IOException {
-        Decode d = new Msgpack();
+        Decoder d = new Msgpack();
 
         Event e = new Event();
         d.decode(e, objectMapper.writeValueAsBytes(obj));

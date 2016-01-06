@@ -22,7 +22,7 @@ public class PipeStep extends Thread {
     private String endpointIn;
     private String endpointOut;
 
-    private final List<Transformer> transformers = new ArrayList<>();
+    private final List<Processor> processors = new ArrayList<>();
 
     public PipeStep() {
         setDaemon(true);
@@ -34,7 +34,7 @@ public class PipeStep extends Thread {
     }
 
     public boolean configure(final Map<String, Object> properties) {
-        return transformers.stream().allMatch(i -> i.configure(properties));
+        return processors.stream().allMatch(i -> i.configure(properties));
     }
 
     public void start(Map<byte[], Event> eventQueue, String endpointIn, String endpointOut) {
@@ -47,8 +47,8 @@ public class PipeStep extends Thread {
         super.start();
     }
 
-    public void addTransformer(Transformer t) {
-        transformers.add(t);
+    public void addProcessor(Processor t) {
+        processors.add(t);
     }
 
     public void run() {
@@ -72,9 +72,9 @@ public class PipeStep extends Thread {
                 logger.trace("{} received event {}", () -> ctx.getURL(in), () -> event);
 
                 try {
-                    for(Transformer t: transformers) {
+                    for(Processor t: processors) {
                         setName(threadName + "-" + t.getName());
-                        t.transform(event);
+                        t.process(event);
                         if(event.dropped) {
                             break;
                         }
@@ -112,7 +112,7 @@ public class PipeStep extends Thread {
 
     @Override
     public String toString() {
-        return super.toString() + "." + transformers.toString();
+        return super.toString() + "." + processors.toString();
     }
 
 }

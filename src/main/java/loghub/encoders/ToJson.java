@@ -4,12 +4,12 @@ import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import loghub.Encode;
+import loghub.Encoder;
 import loghub.Event;
 import loghub.configuration.Beans;
 
 @Beans({"charset"})
-public class ToJson extends Encode {
+public class ToJson extends Encoder {
     
     private static final JsonFactory factory = new JsonFactory();
     private static final ThreadLocal<ObjectMapper> json = new ThreadLocal<ObjectMapper>() {

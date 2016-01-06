@@ -2,12 +2,12 @@ package loghub.decoders;
 
 import java.nio.charset.Charset;
 
-import loghub.Decode;
+import loghub.Decoder;
 import loghub.Event;
 import loghub.configuration.Beans;
 
 @Beans({"charset", "field"})
-public class StringCodec extends Decode {
+public class StringCodec extends Decoder {
 
     private Charset charset = Charset.defaultCharset();
     private String field = "message";
