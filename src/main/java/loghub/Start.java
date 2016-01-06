@@ -1,6 +1,5 @@
 package loghub;
 
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -37,20 +36,18 @@ public class Start extends Thread {
 
         conf.parse(configFile);
 
-        for(Map.Entry<String, List<Pipeline>> e: conf.getTransformersPipe()) {
-            for(Pipeline p: e.getValue()) {
-                p.startStream(eventQueue);
-            }
+        for(Pipeline pipe: conf.pipelines) {
+            pipe.startStream(eventQueue);
         }
 
         for(Sender s: conf.getSenders()) {
-            if(s.configure(conf.getProperties())) {
+            if(s.configure(conf.properties)) {
                 s.start(eventQueue);
             };
         }
 
         for(Receiver r: conf.getReceivers()) {
-            if(r.configure(conf.getProperties())) {
+            if(r.configure(conf.properties)) {
                 r.start(eventQueue);
             }
         }

@@ -1,7 +1,6 @@
 package loghub.configuration;
 
 import java.io.IOException;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -22,7 +21,6 @@ import loghub.Receiver;
 import loghub.Sender;
 import loghub.SmartContext;
 import loghub.Tools;
-import loghub.configuration.Configuration;
 import loghub.configuration.Configuration.PipeJoin;
 import zmq.ZMQHelper;
 import zmq.ZMQHelper.Method;
@@ -58,10 +56,8 @@ public class TestConfigurations {
         Event sent = new Event();
         eventQueue.put(sent.key(), sent);
 
-        for(Map.Entry<String, List<Pipeline>> e: conf.pipelines.entrySet()) {
-            for(Pipeline p: e.getValue()) {
-                p.startStream(eventQueue);
-            }
+        for(Pipeline i: conf.pipelines) {
+            i.startStream(eventQueue);
         }
         logger.debug("pipelines: " + conf.pipelines);
         logger.debug("namedPipeLine: " + conf.namedPipeLine);
@@ -90,11 +86,9 @@ public class TestConfigurations {
         logger.debug("pipelines: {}", conf.pipelines);
         Map<byte[], Event> eventQueue = new ConcurrentHashMap<>();
 
-        logger.debug("receiver pipelines: {}", conf.getReceiversPipelines());
-        for(Map.Entry<String, List<Pipeline>> e: conf.pipelines.entrySet()) {
-            for(Pipeline p: e.getValue()) {
-                p.startStream(eventQueue);
-            }
+        logger.debug("receiver pipelines: {}", conf.inputpipelines);
+        for(Pipeline i: conf.pipelines) {
+            i.startStream(eventQueue);
         }
         Thread.sleep(30);
         for(Receiver r: conf.getReceivers()) {
@@ -130,11 +124,9 @@ public class TestConfigurations {
         logger.debug("pipelines: {}", conf.pipelines);
         Map<byte[], Event> eventQueue = new ConcurrentHashMap<>();
 
-        logger.debug("receiver pipelines: {}", conf.getReceiversPipelines());
-        for(Map.Entry<String, List<Pipeline>> e: conf.pipelines.entrySet()) {
-            for(Pipeline p: e.getValue()) {
-                p.startStream(eventQueue);
-            }
+        logger.debug("receiver pipelines: {}", conf.inputpipelines);
+        for(Pipeline i: conf.pipelines) {
+            i.startStream(eventQueue);
         }
         Thread.sleep(30);
         for(Receiver r: conf.getReceivers()) {
@@ -175,7 +167,7 @@ public class TestConfigurations {
     public void testComplexConf() {
         Configuration conf = loadConf("test.conf");
         for(String plName: new String[]{"main", "oneref", "groovy"}) {
-            Assert.assertTrue("pipeline '" + plName +"'not found", conf.namedPipeLine.containsKey(plName));            
+            Assert.assertTrue("pipeline '" + plName +"'not found", conf.namedPipeLine.containsKey(plName));
         }
         Assert.assertEquals("input not found", 1, conf.getReceivers().size());
         Assert.assertEquals("ouput not found", 1, conf.getSenders().size());

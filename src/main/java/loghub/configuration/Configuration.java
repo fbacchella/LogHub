@@ -1,30 +1,38 @@
 package loghub.configuration;
 
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
-
-import loghub.Pipeline;
-import loghub.Receiver;
-import loghub.RouteLexer;
-import loghub.RouteParser;
-import loghub.Sender;
-import loghub.configuration.ConfigListener.Input;
-import loghub.configuration.ConfigListener.Output;
 
 import org.antlr.v4.runtime.ANTLRFileStream;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.tree.ParseTreeWalker;
-import org.apache.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
+import loghub.PipeStep;
+import loghub.Pipeline;
+import loghub.Receiver;
+import loghub.RouteLexer;
+import loghub.RouteParser;
+import loghub.Sender;
+import loghub.Transformer;
+import loghub.configuration.ConfigListener.Input;
+import loghub.configuration.ConfigListener.ObjectReference;
+import loghub.configuration.ConfigListener.Output;
+import loghub.transformers.PipeRef;
+import loghub.transformers.SubPipeline;
+import loghub.transformers.Test;
 
 public class Configuration {
 
@@ -39,22 +47,19 @@ public class Configuration {
         public String toString() {
             return inpipe + "->" + outpipe;
         }
-        
+
     }
 
     private static final Logger logger = LogManager.getLogger();
 
-    public Map<String, List<Pipeline>> pipelines = null;
     public Map<String, Pipeline> namedPipeLine = null;
+    public Set<Pipeline> pipelines = new HashSet<>();
     public Set<PipeJoin> joins = null;
     private List<Receiver> receivers;
-    private Set<String> inputpipelines = new HashSet<>();
-    private Set<String> outputpipelines = new HashSet<>();
+    Set<String> inputpipelines = new HashSet<>();
+    Set<String> outputpipelines = new HashSet<>();
     private List<Sender> senders;
-    public String logfile;
-    public Level loglevel;
-    public Map<Level, List<String>> loglevels;
-    Map<String, Object> properties = new HashMap<>();
+    public Map<String, Object> properties = new HashMap<>();
 
     public Configuration() {
     }
@@ -63,20 +68,23 @@ public class Configuration {
         CharStream cs;
         try {
             cs = new ANTLRFileStream(fileName);
-        } catch (IOException e1) {
-            throw new RuntimeException(e1.getMessage());
+        } catch (IOException e) {
+            throw new RuntimeException(e.getMessage(), e);
         }
 
         //Passing the input to the lexer to create tokens
         RouteLexer lexer = new RouteLexer(cs);
 
         CommonTokenStream tokens = new CommonTokenStream(lexer);
-        //Passing the tokens to the parser to create the parse trea.
+        //Passing the tokens to the parser to create the parse tree.
         RouteParser parser = new RouteParser(tokens);
         parser.removeErrorListeners();
         ConfigErrorListener errListener = new ConfigErrorListener();
         parser.addErrorListener(errListener);
-        loghub.RouteParser.ConfigurationContext tree = parser.configuration(); // begin parsing at init rule
+        loghub.RouteParser.ConfigurationContext tree = parser.configuration();
+        if(errListener.failed) {
+            throw new RuntimeException("parsing failed");
+        }
 
         ConfigListener conf = new ConfigListener();
         ParseTreeWalker walker = new ParseTreeWalker();
@@ -85,49 +93,150 @@ public class Configuration {
         } catch (ConfigException e) {
             throw new RuntimeException("Error at " + e.getStartPost() + ": " + e.getMessage(), e);
         }
-        pipelines = Collections.unmodifiableMap(conf.pipelines);
-        namedPipeLine = new HashMap<>(pipelines.size());
-        for(Map.Entry<String, List<Pipeline>> e: pipelines.entrySet()) {
-            namedPipeLine.put(e.getKey(), e.getValue().get(e.getValue().size() - 1));
+
+        // Generate all the named pipeline
+        namedPipeLine = new HashMap<>(conf.pipelines.size());
+        for(Entry<String, ConfigListener.Pipeline> e: conf.pipelines.entrySet()) {
+            List<Pipeline> currentPipeList = new ArrayList<>();
+            String name = e.getKey();
+            Pipeline p = parsePipeline(e.getValue(), name, currentPipeList, 0);
+            namedPipeLine.put(name, p);
         }
         namedPipeLine = Collections.unmodifiableMap(namedPipeLine);
-        joins = Collections.unmodifiableSet(conf.joins);
+        pipelines = Collections.unmodifiableSet(pipelines);
 
-        // File the receivers list
+        // Fill the receivers list
         receivers = new ArrayList<>();
         for(Input i: conf.inputs) {
             if(i.piperef == null || ! namedPipeLine.containsKey(i.piperef)) {
                 throw new RuntimeException("Invalid input, no destination pipeline: " + i);
             }
-            for(Receiver r: i.receiver) {
+            for(ConfigListener.ObjectDescription desc: i.receiver) {
+                Receiver r = (Receiver) parseObjectDescription(desc);
                 logger.debug("receiver {} destination point will be {}", () -> i, () -> namedPipeLine.get(i.piperef).inEndpoint);
                 r.setEndpoint(namedPipeLine.get(i.piperef).inEndpoint);
                 receivers.add(r);
             }
             inputpipelines.add(i.piperef);
         }
+        inputpipelines = Collections.unmodifiableSet(inputpipelines);
+        receivers = Collections.unmodifiableList(receivers);
 
-        // File the senders list
+        // Fill the senders list
         senders = new ArrayList<>();
         for(Output o: conf.outputs) {
             if(o.piperef == null || ! namedPipeLine.containsKey(o.piperef)) {
                 throw new RuntimeException("Invalid output, no source pipeline: " + o);
             }
-            for(Sender s: o.sender) {
+            for(ConfigListener.ObjectDescription desc: o.sender) {
+                Sender s = (Sender) parseObjectDescription(desc);
                 logger.debug("sender {} source point will be {}", () -> s, () -> namedPipeLine.get(o.piperef).outEndpoint);
                 s.setEndpoint(namedPipeLine.get(o.piperef).outEndpoint);
                 senders.add(s);
             }
             outputpipelines.add(o.piperef);
         }
+        outputpipelines = Collections.unmodifiableSet(outputpipelines);
+        senders = Collections.unmodifiableList(senders);
+
+        joins = Collections.unmodifiableSet(conf.joins);
+        properties = Collections.unmodifiableMap(properties);
     }
 
-    public Set<Map.Entry<String, List<Pipeline>>> getTransformersPipe() {
-        return pipelines.entrySet();
+    private Pipeline parsePipeline(ConfigListener.Pipeline desc, String currentPipeLineName, List<Pipeline> currentPipeList, int depth) {
+        List<PipeStep[]> pipeList = new ArrayList<PipeStep[]>() {
+            @Override
+            public String toString() {
+                StringBuilder buffer = new StringBuilder();
+                buffer.append("PipeList(");
+                for(PipeStep[] i: this) {
+                    buffer.append(Arrays.toString(i));
+                    buffer.append(", ");
+                }
+                buffer.setLength(buffer.length() - 2);
+                buffer.append(')');
+                return buffer.toString();
+            }
+        };
+
+        int threads = -1;
+        int rank = 0;
+        PipeStep[] steps = null;
+        for(ConfigListener.Transformer i: desc.transformers) {
+            Transformer t = getTransformer(i, currentPipeLineName, currentPipeList, depth);
+            if(t.getThreads() != threads) {
+                threads = t.getThreads();
+                steps = new PipeStep[threads];
+                pipeList.add(steps);
+                rank++;
+                for(int j =0; j < threads ; j++) {
+                    steps[j] = new PipeStep(currentPipeLineName + "." + depth, rank, j + 1);
+                }
+            }
+            for(int j = 0; j < threads ; j++) {
+                steps[j].addTransformer(t);
+            } 
+        }
+        Pipeline pipe = new Pipeline(pipeList, currentPipeLineName + "$" + currentPipeList.size());
+        currentPipeList.add(pipe);
+        this.pipelines.add(pipe);
+        return pipe;
     }
 
-    public Collection<String> getReceiversPipelines() {
-        return Collections.unmodifiableSet(inputpipelines);
+    private Transformer getTransformer(ConfigListener.Transformer i, String currentPipeLineName, List<Pipeline> currentPipeList, int depth) {
+        Transformer t;
+        if(i instanceof ConfigListener.TransformerInstance) {
+            ConfigListener.TransformerInstance ti = (ConfigListener.TransformerInstance) i;
+            t = (Transformer) parseObjectDescription(ti);
+        } else if (i instanceof ConfigListener.Test){
+            ConfigListener.Test ti = (ConfigListener.Test) i;
+            Test test = new Test();
+            test.setIf(ti.test);
+            test.setThen(getTransformer(ti.True, currentPipeLineName, currentPipeList, depth + 1));
+            if(ti.False != null) {
+                test.setElse(getTransformer(ti.False, currentPipeLineName, currentPipeList, depth + 1));
+            }
+            t = test;
+        } else if (i instanceof ConfigListener.PipeRef){
+            ConfigListener.PipeRef cpr = (ConfigListener.PipeRef) i;
+            PipeRef pr = new PipeRef();
+            pr.setPipeRef(cpr.pipename);
+            t = pr;
+        } else if (i instanceof ConfigListener.Pipeline){
+            ConfigListener.Pipeline pl = (ConfigListener.Pipeline) i;
+            Pipeline pipe = parsePipeline(pl, currentPipeLineName, currentPipeList, depth + 1);
+            t = new SubPipeline(pipe);
+        } else {
+            throw new RuntimeException("unknown configuration element: " + i);
+        }
+        return t;
+    }
+
+    private <T> T parseObjectDescription(ConfigListener.ObjectDescription desc) {
+        try {
+            @SuppressWarnings("unchecked")
+            Class<T> clazz = (Class<T>) getClass().getClassLoader().loadClass(desc.clazz);
+            T object = clazz.getConstructor().newInstance();
+            for(Entry<String, ObjectReference> i: desc.beans.entrySet()) {
+                ObjectReference ref = i.getValue();
+                Object beanValue;
+                if(i.getValue() instanceof ConfigListener.ObjectWrapped) {
+                    beanValue = ((ConfigListener.ObjectWrapped) ref).wrapped;
+                } else if (i.getValue() instanceof ConfigListener.ObjectDescription) {
+                    beanValue = parseObjectDescription((ConfigListener.ObjectDescription) ref);
+                } else {
+                    throw new ConfigException(String.format("Invalid class '%s': %s", desc.clazz), desc.ctx.start, desc.ctx.stop);
+                }
+                BeansManager.beanSetter(object, i.getKey(), beanValue);
+            }
+            return object;
+        } catch (ClassNotFoundException e) {
+            throw new ConfigException(String.format("Unknown class '%s': %s", desc.clazz), desc.ctx.start, desc.ctx.stop);
+        } catch (InstantiationException | IllegalAccessException
+                | IllegalArgumentException | InvocationTargetException
+                | NoSuchMethodException | SecurityException | ExceptionInInitializerError e) {
+            throw new ConfigException(String.format("Invalid class '%s': %s", desc.clazz), desc.ctx.start, desc.ctx.stop);
+        }
     }
 
     public Collection<Receiver> getReceivers() {
@@ -136,14 +245,6 @@ public class Configuration {
 
     public Collection<Sender> getSenders() {
         return Collections.unmodifiableList(senders);
-    }
-
-    public Collection<String> getSendersPipelines() {
-        return Collections.unmodifiableSet(outputpipelines);
-    }
-    
-    public Map<String, Object> getProperties() {
-        return Collections.unmodifiableMap(properties);
     }
 
 }

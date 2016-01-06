@@ -24,7 +24,7 @@ public class BeansManager {
      * The bean type is expect to have a constructor taking a String argument
      * @param o the object to set
      * @param beanName the bean to set
-     * @param beanValue the bean value
+     * @param beanValue the bean value, as a string
      * @throws InvocationTargetException
      */
     static public void beanSetter(Object o, String beanName, String beanValue) throws InvocationTargetException{
@@ -36,9 +36,42 @@ public class BeansManager {
             }
             Class<?> setArgType = bean.getPropertyType();
             Object argInstance = ConstructFromString(setArgType, beanValue);
-            setMethod.invoke(o, argInstance);       
+            setMethod.invoke(o, argInstance);
         } catch (Exception e) {
             throw new InvocationTargetException(e, "invalid bean '" + beanName + "' for " + o);
+        }
+    }
+
+    /**
+     * Given an object, a bean name and a bean value, try to set the bean.
+     * 
+     * @param o the object to set
+     * @param beanName the bean to set
+     * @param beanValue the bean value
+     * @throws InvocationTargetException
+     */
+    static public void beanSetter(Object beanObject, String beanName, Object beanValue) throws InvocationTargetException{
+        try {
+            PropertyDescriptor bean = new PropertyDescriptor(beanName, beanObject.getClass());
+            Method setMethod = bean.getWriteMethod();
+            if(setMethod == null) {
+                throw new InvocationTargetException(new NullPointerException(), String.format("Unknown bean %s", beanName));
+            }
+            Class<?> setArgType = bean.getPropertyType();
+            if(setArgType.isAssignableFrom(beanValue.getClass())) {
+                setMethod.invoke(beanObject, beanValue);
+            } else if (beanValue instanceof String){
+                Object argInstance = BeansManager.ConstructFromString(setArgType, (String) beanValue);
+                setMethod.invoke(beanObject, argInstance);                       
+            } else if (beanValue instanceof Number){
+                setMethod.invoke(beanObject, beanValue);                       
+            } else {
+                throw new InvocationTargetException(new ClassCastException(), String.format("Unknown bean %s", beanName));
+            }
+        } catch (IntrospectionException e) {
+            throw new InvocationTargetException(e, "Unknown bean '" + beanName + "' for " + beanObject);
+        } catch (Exception e) {
+            throw new InvocationTargetException(e, "invalid bean '" + beanName + "' for " + beanObject);
         }
     }
 

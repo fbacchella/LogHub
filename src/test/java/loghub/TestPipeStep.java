@@ -40,7 +40,7 @@ public class TestPipeStep {
     @Test(timeout=1000)
     public void testPipeStep() throws InterruptedException {
         logger.debug("start test");
-        PipeStep ps = new PipeStep(1, 1);
+        PipeStep ps = new PipeStep("test", 1, 1);
         ps.addTransformer(new Identity());
         ps.addTransformer(new Identity());
         Map<byte[], Event> eventQueue = new ConcurrentHashMap<>();

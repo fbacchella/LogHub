@@ -1,25 +1,21 @@
 package loghub.configuration;
 
-import java.beans.IntrospectionException;
-import java.beans.PropertyDescriptor;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import loghub.PipeStep;
-import loghub.Pipeline;
-import loghub.Receiver;
+import org.antlr.v4.runtime.ParserRuleContext;
+
 import loghub.RouteBaseListener;
 import loghub.RouteParser.BeanContext;
 import loghub.RouteParser.BeanNameContext;
+import loghub.RouteParser.BeanValueContext;
 import loghub.RouteParser.BooleanLiteralContext;
 import loghub.RouteParser.CharacterLiteralContext;
 import loghub.RouteParser.FinalpiperefContext;
@@ -31,17 +27,14 @@ import loghub.RouteParser.ObjectContext;
 import loghub.RouteParser.OutputContext;
 import loghub.RouteParser.OutputObjectlistContext;
 import loghub.RouteParser.PipelineContext;
+import loghub.RouteParser.PipenodeContext;
 import loghub.RouteParser.PipenodeListContext;
 import loghub.RouteParser.PiperefContext;
 import loghub.RouteParser.PropertyContext;
 import loghub.RouteParser.StringLiteralContext;
 import loghub.RouteParser.TestContext;
 import loghub.RouteParser.TestExpressionContext;
-import loghub.Sender;
-import loghub.Transformer;
 import loghub.configuration.Configuration.PipeJoin;
-import loghub.transformers.PipeRef;
-import loghub.transformers.Test;
 
 class ConfigListener extends RouteBaseListener {
 
@@ -49,15 +42,12 @@ class ConfigListener extends RouteBaseListener {
         Test,
         ObjectList,
         PipeNodeList;
-        boolean isEquals(Object other) {
-            return (other != null && other instanceof StackMarker && equals(other));
-        }
     };
 
-    final class Input {
-        final List<Receiver> receiver;
+    static final class Input {
+        final List<ObjectDescription> receiver;
         String piperef;
-        Input(List<Receiver>receiver, String piperef) {
+        Input(List<ObjectDescription>receiver, String piperef) {
             this.piperef = piperef;
             this.receiver = receiver;
         }
@@ -67,10 +57,10 @@ class ConfigListener extends RouteBaseListener {
         }
     }
 
-    final class Output {
-        final List<Sender> sender;
+    static final class Output {
+        final List<ObjectDescription> sender;
         final String piperef;
-        Output(List<Sender>sender, String piperef) {
+        Output(List<ObjectDescription>sender, String piperef) {
             this.piperef = piperef;
             this.sender = sender;
         }
@@ -80,22 +70,75 @@ class ConfigListener extends RouteBaseListener {
         }
     }
 
-    final class PipeRefName {
+    static interface Transformer {};
+
+    static final class Pipeline implements Transformer {
+        final List<Transformer> transformers = new ArrayList<>();
+    }
+
+    static final class Test implements Transformer {
+        String test;
+        Transformer True;
+        Transformer False;
+    }
+
+    static final class PipeRef implements Transformer {
+        String pipename;
+    }
+
+    static final class PipeRefName implements Transformer {
         final String piperef;
         private PipeRefName(String piperef) {
             this.piperef = piperef;
         }
     }
-    
-    Deque<Object> stack = new ArrayDeque<>();
 
-    final Map<String, List<Pipeline>> pipelines = new HashMap<>();
+    static interface ObjectReference {};
+
+    static final class ObjectWrapped implements ObjectReference {
+        final Object wrapped;
+        private ObjectWrapped(Object wrapped) {
+            this.wrapped = wrapped;
+        }
+    }
+
+    static class ObjectDescription implements ObjectReference, Iterable<String> {
+        ParserRuleContext ctx;
+        String clazz;
+        Map<String, ObjectReference> beans = new HashMap<>();
+        ObjectDescription(String clazz) {
+            this.clazz = clazz;
+        }
+        ObjectReference get(String name) {
+            return beans.get(name);
+        }
+        void put(String name, ObjectReference object) {
+            beans.put(name, object);
+        }
+        @Override
+        public Iterator<String> iterator() {
+            return beans.keySet().iterator();
+        }
+    };
+
+    static final class TransformerInstance extends ObjectDescription implements Transformer {
+        TransformerInstance(String clazz) {
+            super(clazz);
+        }
+        TransformerInstance(ObjectDescription object) {
+            super(object.clazz);
+            this.beans = object.beans;
+        }
+    };
+
+    final Deque<Object> stack = new ArrayDeque<>();
+
+    final Map<String, Pipeline> pipelines = new HashMap<>();
     final List<Input> inputs = new ArrayList<>();
     final List<Output> outputs = new ArrayList<>();
     final Map<String, Object> properties = new HashMap<>();
     final Set<PipeJoin> joins = new HashSet<>();
 
-    private List<Pipeline> currentPipeList = null;
     private String currentPipeLineName = null;
 
     @Override
@@ -108,97 +151,80 @@ class ConfigListener extends RouteBaseListener {
         stack.push(ctx.getText());
     }
 
+    private void pushLiteral(ParserRuleContext ctx, Object content) {
+        // Don't keep literal in a test, they will be managed in groovy
+        if(StackMarker.Test.equals(stack.peek())) {
+            return;
+        }
+        if(ctx.getParent().getParent() instanceof BeanValueContext) {
+            stack.push(new ObjectWrapped(content));
+        } else {
+            stack.push(content);
+        }
+    }
+
     @Override
     public void enterFloatingPointLiteral(FloatingPointLiteralContext ctx) {
         String content = ctx.FloatingPointLiteral().getText();
-        stack.push(new Double(content));
+        pushLiteral(ctx, new Double(content));
     }
 
     @Override
     public void enterCharacterLiteral(CharacterLiteralContext ctx) {
         String content = ctx.CharacterLiteral().getText();
-        stack.push(content.charAt(0));
+        pushLiteral(ctx, content.charAt(0));
     }
 
     @Override
     public void enterStringLiteral(StringLiteralContext ctx) {
         String content = ctx.StringLiteral().getText();
         // remove the wrapping "..."
-        stack.push(content.substring(1, content.length() - 1));
+        content = content.substring(1, content.length() - 1);
+        pushLiteral(ctx, content);
     }
 
     @Override
     public void enterIntegerLiteral(IntegerLiteralContext ctx) {
         String content = ctx.IntegerLiteral().getText();
-        stack.push(new Integer(content));
+        pushLiteral(ctx, new Integer(content));
     }
 
     @Override
     public void enterBooleanLiteral(BooleanLiteralContext ctx) {
         String content = ctx.getText();
-        stack.push(new Boolean(content));
+        pushLiteral(ctx, new Boolean(content));
     }
 
     @Override
     public void exitBean(BeanContext ctx) {
-        Object beanValue = stack.pop();
+        ObjectReference beanValue = (ObjectReference) stack.pop();
         String beanName = (String) stack.pop();
-        Object beanObject = stack.peek();
-        PropertyDescriptor bean;
-        try {
-            bean = new PropertyDescriptor(beanName, beanObject.getClass());
-        } catch (IntrospectionException e) {
-            throw new ConfigException(String.format("Unknown bean '%s'", beanName), ctx.start, ctx.stop, e);
-        }
-
-        Method setMethod = bean.getWriteMethod();
-        if(setMethod == null) {
-            throw new ConfigException(String.format("Unknown bean '%s'", beanName), ctx.start, ctx.stop);
-        }
-        Class<?> setArgType = bean.getPropertyType();
-        try {
-            if(setArgType.isAssignableFrom(beanValue.getClass())) {
-                setMethod.invoke(beanObject, beanValue);                       
-            } else if (beanValue instanceof String){
-                Object argInstance = BeansManager.ConstructFromString(setArgType, (String) beanValue);
-                setMethod.invoke(beanObject, argInstance);                       
-            } else if (beanValue instanceof Number){
-                setMethod.invoke(beanObject, beanValue);                       
-            } else {
-                throw new ConfigException(String.format("Invalid internal stack state for '%s'", beanName), ctx.start, ctx.stop);                
-            }
-        } catch (InvocationTargetException e) {
-            throw new ConfigException(String.format("Bean setter failed for '%s': %s", beanName, e.getCause().getMessage()), ctx.start, ctx.stop);
-        } catch (IllegalAccessException|IllegalArgumentException e) {
-            throw new ConfigException(String.format("Invalid bean setter for '%s'", beanName), ctx.start, ctx.stop);
-        }
+        ObjectDescription beanObject = (ObjectDescription) stack.peek();
+        beanObject.put(beanName, beanValue);
     }
 
     @Override
     public void enterObject(ObjectContext ctx) {
         String qualifiedName = ctx.QualifiedIdentifier().getText();
-        Class<?> clazz;
-        try {
-            clazz = getClass().getClassLoader().loadClass(qualifiedName);
-        } catch (ClassNotFoundException e) {
-            throw new ConfigException(String.format("Unknown class '%s'", qualifiedName), ctx.start, ctx.stop);
-        }
-        Object beanObject;
-        try {
-            beanObject = clazz.getConstructor().newInstance();
-        } catch (InstantiationException | IllegalAccessException
-                | IllegalArgumentException | InvocationTargetException
-                | NoSuchMethodException | SecurityException | ExceptionInInitializerError e) {
-            throw new ConfigException(String.format("Invalid class '%s': %s", qualifiedName), ctx.start, ctx.stop);
-        }
+        ObjectReference beanObject = new ObjectDescription(qualifiedName);
         stack.push(beanObject);
+    }
+
+    @Override
+    public void exitPipenode(PipenodeContext ctx) {
+        Object o = stack.pop();
+        if( ! (o instanceof Transformer) ) {
+            ObjectDescription object = (ObjectDescription) o;
+            TransformerInstance ti = new TransformerInstance(object);
+            stack.push(ti);
+        } else {
+            stack.push(o);
+        }
     }
 
     @Override
     public void enterPipeline(PipelineContext ctx) {
         currentPipeLineName = ctx.Identifier().getText();
-        currentPipeList = new ArrayList<>();
-        pipelines.put(currentPipeLineName, currentPipeList);
     }
 
     @Override
@@ -207,8 +233,11 @@ class ConfigListener extends RouteBaseListener {
         if(nextpipe != null) {
             PipeJoin join = new PipeJoin(currentPipeLineName, nextpipe.getText());
             joins.add(join);
+            // The PipeRefName was useless
+            stack.pop();
         }
-        stack.pop();
+        Pipeline pipe = (Pipeline) stack.pop();
+        pipelines.put(currentPipeLineName, pipe);
         currentPipeLineName = null;
     }
 
@@ -219,54 +248,14 @@ class ConfigListener extends RouteBaseListener {
 
     @Override
     public void exitPipenodeList(PipenodeListContext ctx) {
-        List<PipeStep[]> pipeList = new ArrayList<PipeStep[]>() {
-            @Override
-            public String toString() {
-                StringBuilder buffer = new StringBuilder();
-                buffer.append("PipeList(");
-                for(PipeStep[] i: this) {
-                    buffer.append(Arrays.toString(i));
-                    buffer.append(", ");
-                }
-                buffer.setLength(buffer.length() - 2);
-                buffer.append(')');
-                return buffer.toString();
-            }
-        };
-        int rank = 0;
-        int threads = -1;
-        PipeStep[] step = null;
-        while( ! StackMarker.PipeNodeList.isEquals(stack.peek()) ) {
-            Object poped = stack.pop();
-            // A pipe transformer provides is own PipeStep
-            if(poped instanceof Pipeline) {
-                Pipeline pipeline = (Pipeline) poped;
-                // the pipestep can't be reused
-                threads = -1;
-                pipeList.add(pipeline.getPipeSteps());
-            } else if(poped instanceof Transformer){
-                Transformer t = (Transformer) poped;
-                if(t.getThreads() != threads) {
-                    threads = t.getThreads();
-                    step = new PipeStep[threads];
-                    pipeList.add(step);
-                    rank++;
-                    for(int i=0; i < threads ; i++) {
-                        step[i] = new PipeStep(rank, i + 1);
-                    }
-                }
-                for(int i = 0; i < threads ; i++) {
-                    step[i].addTransformer(t);
-                }                
-            } else {
-                throw new ConfigException("unknown stack state " + poped, ctx.start, ctx.stop);
-            }
+        Pipeline pipe = new Pipeline();
+        while( ! (stack.peek() instanceof StackMarker) ) {
+            Transformer poped = (Transformer)stack.pop();
+            pipe.transformers.add(0, poped);
         }
         //Remove the marker
         stack.pop();
-        Pipeline pipe = new Pipeline(pipeList, currentPipeLineName + "$" + currentPipeList.size());
         stack.push(pipe);
-        currentPipeList.add(pipe);
     }
 
     @Override
@@ -275,7 +264,7 @@ class ConfigListener extends RouteBaseListener {
         // Other case the name is kept as is
         if(ctx.getParent() instanceof loghub.RouteParser.PipenodeContext) {
             PipeRef piperef = new PipeRef();
-            piperef.setPipeRef(((PipeRefName) stack.pop()).piperef);
+            piperef.pipename = ((PipeRefName) stack.pop()).piperef;
             stack.push(piperef);
         }
     }
@@ -288,28 +277,16 @@ class ConfigListener extends RouteBaseListener {
     @Override
     public void exitTest(TestContext ctx) {
         Test testTransformer = new Test();
-        PipeStep[][] clauses = new PipeStep[2][];
+        Transformer[] clauses = new Transformer[2];
 
-        for(int i=1; !( stack.peek() instanceof StackMarker) ; i-- ) {
-            Object o = stack.pop();
-            if(o instanceof Pipeline) {
-                Pipeline p = (Pipeline) o;
-                clauses[i] =  p.getPipeSteps();
-            } else if (o instanceof PipeStep[] ) {
-                PipeStep[] p = (PipeStep[]) o;
-                clauses[i] = p;
-            } else if (o instanceof Transformer ) {
-                Transformer t = (Transformer) o;
-                PipeStep[] steps = new PipeStep[t.getThreads()];
-                for(int j = 0; j < steps.length ; j++) {
-                    steps[j] = new PipeStep();
-                    steps[j].addTransformer(t);
-                }
-                clauses[i] = steps;
-            }
+        for(int i=1; ! StackMarker.Test.equals(stack.peek()) ; i-- ) {
+            Transformer t = (Transformer) stack.pop();
+            clauses[i] = t;
         };
         stack.pop();
-        testTransformer.setIf(ctx.testExpression().getText());
+        testTransformer.test = ctx.testExpression().getText();
+        testTransformer.True = clauses[0];
+        testTransformer.False = clauses[1];
         stack.push(testTransformer);
     }
 
@@ -320,9 +297,9 @@ class ConfigListener extends RouteBaseListener {
 
     @Override
     public void exitInputObjectlist(InputObjectlistContext ctx) {
-        List<Receiver> l = new ArrayList<>();
+        List<ObjectDescription> l = new ArrayList<>();
         while(! StackMarker.ObjectList.equals(stack.peek())) {
-            l.add((Receiver) stack.pop());
+            l.add((ObjectDescription) stack.pop());
         }
         stack.pop();
         stack.push(l);
@@ -335,9 +312,9 @@ class ConfigListener extends RouteBaseListener {
 
     @Override
     public void exitOutputObjectlist(OutputObjectlistContext ctx) {
-        List<Sender> l = new ArrayList<>();
+        List<ObjectDescription> l = new ArrayList<>();
         while(! StackMarker.ObjectList.equals(stack.peek())) {
-            l.add((Sender) stack.pop());
+            l.add((ObjectDescription) stack.pop());
         }
         stack.pop();
         stack.push(l);
@@ -345,11 +322,14 @@ class ConfigListener extends RouteBaseListener {
 
     @Override
     public void exitOutput(OutputContext ctx) {
-        PipeRefName piperef = new PipeRefName("main");
+        PipeRefName piperef;
         @SuppressWarnings("unchecked")
-        List<Sender> senders = (List<Sender>) stack.pop();
+        List<ObjectDescription> senders = (List<ObjectDescription>) stack.pop();
         if(stack.peek() != null && stack.peek() instanceof PipeRefName) {
             piperef = (PipeRefName) stack.pop();
+        } else {
+            // if no pipe name given, take events from the main pipe
+            piperef = new PipeRefName("main");
         }
         Output output = new Output(senders, piperef.piperef);
         outputs.add(output);
@@ -361,11 +341,11 @@ class ConfigListener extends RouteBaseListener {
         if(stack.peek() instanceof PipeRefName) {
             piperef = (PipeRefName) stack.pop();
         } else {
-            // if no pipe name given, data are sent to the main pipe
+            // if no pipe name given, events are sent to the main pipe
             piperef = new PipeRefName("main");
         }
         @SuppressWarnings("unchecked")
-        List<Receiver> receivers = (List<Receiver>) stack.pop();
+        List<ObjectDescription> receivers = (List<ObjectDescription>) stack.pop();
         Input input = new Input(receivers, piperef.piperef);
         inputs.add(input);
     }

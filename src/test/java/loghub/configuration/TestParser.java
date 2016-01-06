@@ -1,10 +1,6 @@
 package loghub.configuration;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 import org.antlr.v4.runtime.ANTLRInputStream;
 import org.antlr.v4.runtime.CharStream;
@@ -17,12 +13,9 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import loghub.Event;
 import loghub.LogUtils;
-import loghub.Pipeline;
 import loghub.RouteLexer;
 import loghub.RouteParser;
-import loghub.SmartContext;
 import loghub.Tools;
 
 public class TestParser {
@@ -71,27 +64,14 @@ public class TestParser {
         }
         Assert.assertEquals("stack not empty :" + conf.stack, 0, conf.stack.size());
 
-        System.out.println("pipelines");
-        System.out.println("    " + conf.pipelines);
-        System.out.println("inputs");
-        System.out.println("    " + conf.inputs);
-        System.out.println("outputs");
-        System.out.println("    " + conf.outputs);
-        System.out.println("properties");
-        System.out.println("    " + conf.properties);
-        Map<byte[], Event> eventQueue = new ConcurrentHashMap<>();
-        Map<String, Pipeline> pipelines = new HashMap<>();
-        for(Map.Entry<String, List<Pipeline>> e: conf.pipelines.entrySet()) {
-            Pipeline last = null;
-            for(Pipeline p: e.getValue()) {
-                p.startStream(eventQueue);
-                System.out.println(p.inEndpoint + "->" + p.outEndpoint);
-                last = p;
-            }
-            if(last != null) {
-                pipelines.put(e.getKey(), last);
-            }
+        for(String s: new String[] {"oneref", "main", "groovy"}) {
+            Assert.assertTrue("pipeline " + s + " not found", conf.pipelines.containsKey(s));
         }
-        SmartContext.terminate().join(100);;
+        Assert.assertEquals("too much pipelines", 3, conf.pipelines.size());
+        Assert.assertEquals("too much inputs", 1, conf.inputs.size());
+        Assert.assertEquals("too much outputs", 1, conf.outputs.size());
+        for(String s: new String[] {"logfile", "extensions"}) {
+            Assert.assertTrue("property " + s + " not found", conf.properties.containsKey(s));
+        }
     }
 }

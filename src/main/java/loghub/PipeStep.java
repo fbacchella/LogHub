@@ -28,9 +28,9 @@ public class PipeStep extends Thread {
         setDaemon(true);
     }
 
-    public PipeStep(int numStep, int width) {
+    public PipeStep(String name, int numStep, int width) {
         setDaemon(true);
-        setName("pipe." + numStep + "." + width);
+        setName(name + "@" + numStep + "." + width);
     }
 
     public void start(Map<byte[], Event> eventQueue, String endpointIn, String endpointOut) {
