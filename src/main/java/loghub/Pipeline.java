@@ -44,6 +44,10 @@ public class Pipeline {
         logger.debug("new pipeline from {} to {}", inEndpoint, outEndpoint);
     }
 
+    public boolean configure(Map<String, Object> properties) {
+        return pipes.parallelStream().allMatch(i -> i[0].configure(properties));
+    }
+
     public void startStream(Map<byte[], Event> eventQueue) {
         logger.debug("{} start stream", name);
         Proxy[] proxies = new Proxy[pipes.size() + 1 ];

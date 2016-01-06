@@ -33,6 +33,10 @@ public class PipeStep extends Thread {
         setName(name + "@" + numStep + "." + width);
     }
 
+    public boolean configure(final Map<String, Object> properties) {
+        return transformers.stream().allMatch(i -> i.configure(properties));
+    }
+
     public void start(Map<byte[], Event> eventQueue, String endpointIn, String endpointOut) {
         logger.debug("starting {}", this);
 

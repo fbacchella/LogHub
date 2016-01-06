@@ -37,7 +37,9 @@ public class Start extends Thread {
         conf.parse(configFile);
 
         for(Pipeline pipe: conf.pipelines) {
-            pipe.startStream(eventQueue);
+            if(pipe.configure(conf.properties)) {
+                pipe.startStream(eventQueue);
+            };
         }
 
         for(Sender s: conf.getSenders()) {

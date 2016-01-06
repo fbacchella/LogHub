@@ -157,7 +157,7 @@ public class Configuration {
         senders = Collections.unmodifiableList(senders);
 
         joins = Collections.unmodifiableSet(conf.joins);
-        properties = Collections.unmodifiableMap(properties);
+        properties = Collections.unmodifiableMap(conf.properties);
     }
 
     private Pipeline parsePipeline(ConfigListener.Pipeline desc, String currentPipeLineName, List<Pipeline> currentPipeList, int depth) {
