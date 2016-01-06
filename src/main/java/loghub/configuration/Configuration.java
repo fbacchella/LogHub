@@ -1,7 +1,13 @@
 package loghub.configuration;
 
+import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
+import java.net.URL;
+import java.net.URLClassLoader;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -12,6 +18,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 import org.antlr.v4.runtime.ANTLRFileStream;
 import org.antlr.v4.runtime.CharStream;
@@ -60,6 +68,7 @@ public class Configuration {
     Set<String> outputpipelines = new HashSet<>();
     private List<Sender> senders;
     public Map<String, Object> properties = new HashMap<>();
+    private ClassLoader classLoader = Configuration.class.getClassLoader();
 
     public Configuration() {
     }
@@ -92,6 +101,14 @@ public class Configuration {
             walker.walk(conf, tree);
         } catch (ConfigException e) {
             throw new RuntimeException("Error at " + e.getStartPost() + ": " + e.getMessage(), e);
+        }
+
+        if(conf.properties.containsKey("plugins") && ! conf.properties.get("plugins").toString().isEmpty()) {
+            try {
+                classLoader = doClassLoader(conf.properties.get("plugins").toString());
+            } catch (IOException ex) {
+                throw new RuntimeException("can't load plugins: " + ex.getMessage(), ex);
+            }
         }
 
         // Generate all the named pipeline
@@ -215,7 +232,7 @@ public class Configuration {
     private <T> T parseObjectDescription(ConfigListener.ObjectDescription desc) {
         try {
             @SuppressWarnings("unchecked")
-            Class<T> clazz = (Class<T>) getClass().getClassLoader().loadClass(desc.clazz);
+            Class<T> clazz = (Class<T>) classLoader.loadClass(desc.clazz);
             T object = clazz.getConstructor().newInstance();
             for(Entry<String, ObjectReference> i: desc.beans.entrySet()) {
                 ObjectReference ref = i.getValue();
@@ -238,6 +255,71 @@ public class Configuration {
             throw new ConfigException(String.format("Invalid class '%s': %s", desc.clazz), desc.ctx.start, desc.ctx.stop);
         }
     }
+
+    @FunctionalInterface
+    public interface ThrowingPredicate<T> extends Predicate<T> {
+
+        @Override
+        default boolean test(final T elem) {
+            try {
+                return testThrows(elem);
+            } catch (final Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        boolean testThrows(T elem) throws Exception;
+
+    }
+
+    @FunctionalInterface
+    public interface ThrowingConsumer<T> extends Consumer<T> {
+
+        @Override
+        default void accept(final T elem) {
+            try {
+                acceptThrows(elem);
+            } catch (final Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        void acceptThrows(T elem) throws Exception;
+
+    }
+
+    ClassLoader doClassLoader(String extendedclasspath) throws IOException {
+
+        final Collection<URL> urls = new ArrayList<URL>();
+
+        // Needed for all the lambda that throws exception
+        ThrowingPredicate<Path> filterReadable = i -> ! Files.isHidden(i);
+        ThrowingConsumer<Path> toUrl = i -> urls.add(i.toUri().toURL());
+
+        Path[] components;
+        components = (Path[]) Arrays.stream(extendedclasspath.split(File.pathSeparator))
+                .map((i) -> Paths.get(i))
+                .filter(i -> Files.isReadable(i))
+                .filter(filterReadable)
+                .filter(i -> (Files.isRegularFile(i) && i.toString().endsWith(".jar")) || Files.isDirectory(i))
+                .toArray(Path[]::new);
+        for(Path i: components) {
+            toUrl.accept(i);
+            if(Files.isDirectory(i)) {
+                Files.list(i)
+                .filter(p -> Files.isRegularFile(p) && p.toString().endsWith(".jar"))
+                .forEach(toUrl);
+            }
+        }
+
+        return new URLClassLoader(urls.toArray(new URL[] {}), getClass().getClassLoader()) {
+            @Override
+            public String toString() {
+                return "Loghub's class loader";
+            }
+        };
+    }
+
 
     public Collection<Receiver> getReceivers() {
         return Collections.unmodifiableList(receivers);
