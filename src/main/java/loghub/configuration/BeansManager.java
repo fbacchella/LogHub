@@ -22,33 +22,33 @@ public class BeansManager {
      * Given an object, a bean name and a bean value, try to set the bean.
      * 
      * The bean type is expect to have a constructor taking a String argument
-     * @param o the object to set
+     * @param beanObject the object to set
      * @param beanName the bean to set
      * @param beanValue the bean value, as a string
-     * @throws InvocationTargetException
+     * @throws InvocationTargetException if unable to set bean
      */
-    static public void beanSetter(Object o, String beanName, String beanValue) throws InvocationTargetException{
+    static public void beanSetter(Object beanObject, String beanName, String beanValue) throws InvocationTargetException{
         try {
-            PropertyDescriptor bean = new PropertyDescriptor(beanName, o.getClass());
+            PropertyDescriptor bean = new PropertyDescriptor(beanName, beanObject.getClass());
             Method setMethod = bean.getWriteMethod();
             if(setMethod == null) {
                 throw new InvocationTargetException(new NullPointerException(), String.format("Unknown bean %s", beanName));
             }
             Class<?> setArgType = bean.getPropertyType();
             Object argInstance = ConstructFromString(setArgType, beanValue);
-            setMethod.invoke(o, argInstance);
+            setMethod.invoke(beanObject, argInstance);
         } catch (Exception e) {
-            throw new InvocationTargetException(e, "invalid bean '" + beanName + "' for " + o);
+            throw new InvocationTargetException(e, "invalid bean '" + beanName + "' for " + beanObject);
         }
     }
 
     /**
      * Given an object, a bean name and a bean value, try to set the bean.
      * 
-     * @param o the object to set
+     * @param beanObject the object to set
      * @param beanName the bean to set
      * @param beanValue the bean value
-     * @throws InvocationTargetException
+     * @throws InvocationTargetException if unable to set bean
      */
     static public void beanSetter(Object beanObject, String beanName, Object beanValue) throws InvocationTargetException{
         try {

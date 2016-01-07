@@ -79,10 +79,6 @@ public class Convert extends Processor {
         return className;
     }
 
-    /**
-     * @param field
-     *            the field to set
-     */
     public void setClassName(String className) {
         this.className = className;
     }
