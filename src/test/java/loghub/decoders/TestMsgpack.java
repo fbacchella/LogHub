@@ -16,7 +16,6 @@ import org.msgpack.jackson.dataformat.MessagePackFactory;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import loghub.Decoder;
-import loghub.Event;
 import loghub.LogUtils;
 import loghub.Tools;
 
@@ -45,8 +44,7 @@ public class TestMsgpack {
     public void testmap() throws IOException {
         Decoder d = new Msgpack();
 
-        Event e = new Event();
-        d.decode(e, objectMapper.writeValueAsBytes(obj));
+        Map<String, Object> e = d.decode(objectMapper.writeValueAsBytes(obj));
 
         testContent(e);
     }
@@ -59,8 +57,7 @@ public class TestMsgpack {
 
         Msgpack d = new Msgpack();
         d.setField("vector");
-        Event e = new Event();
-        d.decode(e, bs);
+        Map<String, Object> e = d.decode(bs);
 
         List<Map<String, Object>> v = (List<Map<String, Object>>) e.get("vector");
         testContent(v.get(0));

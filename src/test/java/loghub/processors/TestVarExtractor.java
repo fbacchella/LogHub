@@ -27,11 +27,12 @@ public class TestVarExtractor {
 
     @Test
     public void test1() {
-        Event e = new Event();
-        e.put("message", "a=1;b:2;c");
         VarExtractor t = new VarExtractor();
         t.setField("message");
         t.setParser("(?<name>[a-z]+)[=:](?<value>[^;]+);?");
+
+        Event e = new Event();
+        t.addElement(e, "message", "a=1;b:2;c");
         t.process(e);
         Assert.assertEquals("key a not found", "1", e.get("a"));
         Assert.assertEquals("key b not found", "2", e.get("b"));
@@ -41,11 +42,11 @@ public class TestVarExtractor {
 
     @Test
     public void test2() {
-        Event e = new Event();
-        e.put("message", "a=1;b:2");
         VarExtractor t = new VarExtractor();
         t.setField("message");
         t.setParser("(?<name>[a-z]+)[=:](?<value>[^;]+);?");
+        Event e = new Event();
+        t.addElement(e, "message", "a=1;b:2");
         t.process(e);
         Assert.assertEquals("key a not found", "1", e.get("a"));
         Assert.assertEquals("key b found", "2", e.get("b"));
@@ -55,10 +56,11 @@ public class TestVarExtractor {
 
     @Test
     public void test3() {
-        Event e = new Event();
-        e.put("message", "a=1;b:2;c");
         VarExtractor t = new VarExtractor();
         t.setField("message");
+
+        Event e = new Event();
+        t.addElement(e, "message", "a=1;b:2;c");
         t.process(e);
         Assert.assertEquals("key a not found", "1", e.get("a"));
         Assert.assertEquals("key b not found", "2", e.get("b"));

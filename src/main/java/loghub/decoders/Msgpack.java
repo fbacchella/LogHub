@@ -1,6 +1,8 @@
 package loghub.decoders;
 
 import java.io.IOException;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 
 import org.msgpack.jackson.dataformat.MessagePackFactory;
@@ -9,12 +11,12 @@ import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import loghub.Decoder;
-import loghub.Event;
 import loghub.configuration.Beans;
 
 /**
- * This transformer parse a msgpack object.
- * If it's a map, all the elements are added to the event. Otherwise it's content is added to the field indicated.
+ * This transformer parse a msgpack object. If it's a map, all the elements are
+ * added to the event. Otherwise it's content is added to the field indicated.
+ * 
  * @author Fabrice Bacchella
  *
  */
@@ -32,15 +34,17 @@ public class Msgpack extends Decoder {
     private String field = "message";
 
     @Override
-    public void decode(Event event, byte[] msg, int offset, int length) {
+    public Map<String, Object> decode(byte[] msg, int offset, int length) {
         try {
             Object o = msgpack.get().readValue(msg, offset, length, Object.class);
             if(o instanceof Map) {
                 @SuppressWarnings("unchecked")
                 Map<Object, Object> map = (Map<Object, Object>) o;
-                map.entrySet().stream().forEach( (i) -> event.put(i.getKey().toString(), i.getValue()));
+                final Map<String, Object> newMap = new HashMap<>(map.size());
+                map.entrySet().stream().forEach((i) -> newMap.put(i.getKey().toString(), i.getValue()));
+                return newMap;
             } else {
-                event.put(field, o);
+                return Collections.singletonMap(field, o);
             }
         } catch (IOException e) {
             throw new RuntimeException(e);

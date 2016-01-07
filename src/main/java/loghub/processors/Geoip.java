@@ -42,18 +42,18 @@ public class Geoip extends Processor {
             String host = event.get(hostfield).toString();
             if(host != null) {
                 if(asfield != null) {
-                    event.put(asfield, lookup.getOrg(host));
+                    addElement(event, asfield, lookup.getOrg(host));
                 }
                 if(countryfield != null || countrynamefield != null || countrycodefield != null) {
                     Country c = lookup.getCountry(host);
                     if(countryfield != null) {
-                        event.put(countryfield, c);
+                        addElement(event, countryfield, c);
                     }
                     if(countrynamefield != null) {
-                        event.put(countrynamefield, c.getName());
+                        addElement(event, countrynamefield, c.getName());
                     }
                     if(countrycodefield != null) {
-                        event.put(countrycodefield, c.getCode());
+                        addElement(event, countrycodefield, c.getCode());
                     }
                 }
                 if(locationfield != null) {
@@ -71,7 +71,7 @@ public class Geoip extends Processor {
                     resolve.accept("metro_code", l.metro_code);
                     resolve.accept("postalCode", l.postalCode);
                     resolve.accept("region", l.region);
-                    event.put(locationfield, l);
+                    addElement(event, locationfield, l);
                 }
             }
         } catch (Exception e) {

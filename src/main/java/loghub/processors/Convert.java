@@ -11,8 +11,8 @@ import loghub.configuration.BeansManager;
 import loghub.configuration.Properties;
 
 /**
- * A processor that take a String field and transform it to any object
- * that can take a String as a constructor.
+ * A processor that take a String field and transform it to any object that can
+ * take a String as a constructor.
  * 
  * It uses the custom class loader.
  * 
@@ -35,7 +35,7 @@ public class Convert extends Processor {
         try {
             Object o = BeansManager.ConstructFromString(clazz,
                     event.get(field).toString());
-            event.put(field, o);
+            addElement(event, field, o);
         } catch (InvocationTargetException e) {
         }
 

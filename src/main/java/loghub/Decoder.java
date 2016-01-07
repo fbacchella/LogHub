@@ -1,5 +1,7 @@
 package loghub;
 
+import java.util.Map;
+
 import loghub.configuration.Properties;
 
 public abstract class Decoder {
@@ -8,10 +10,10 @@ public abstract class Decoder {
         return true;
     }
 
-    abstract public void decode(Event event, byte[] msg, int offset, int length);
+    abstract public Map<String, Object> decode(byte[] msg, int offset, int length);
 
-    public void decode(Event event, byte[] msg) {
-        decode(event, msg, 0, msg.length);
+    public Map<String, Object> decode(byte[] msg) {
+        return decode(msg, 0, msg.length);
     }
 
 }

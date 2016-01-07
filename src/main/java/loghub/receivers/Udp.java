@@ -6,12 +6,12 @@ import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
+import java.util.Arrays;
 import java.util.Iterator;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import loghub.Event;
 import loghub.Receiver;
 import loghub.configuration.Beans;
 
@@ -29,14 +29,14 @@ public class Udp extends Receiver {
     }
 
     @Override
-    public Iterator<Event> getIterator() {
+    public Iterator<byte[]> getIterator() {
         try {
             DatagramSocket socket = new DatagramSocket(port, InetAddress.getByName(listen));
             // if port was 0, a random port was choosen, get it back, useful for tests
             port = socket.getLocalPort();
             final byte[] buffer = new byte[65536];
             final DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
-            return new Iterator<Event>() {
+            return new Iterator<byte[]>() {
 
                 @Override
                 public boolean hasNext() {
@@ -49,10 +49,8 @@ public class Udp extends Receiver {
                     }
                 }
                 @Override
-                public Event next() {
-                    Event event = new Event();
-                    decoder.decode(event, packet.getData(), 0, packet.getLength());
-                    return event;
+                public byte[] next() {
+                    return Arrays.copyOfRange(packet.getData(), 0, packet.getLength());
                 }
 
             };

@@ -1,7 +1,6 @@
 package loghub.receivers;
 
 import java.nio.channels.ClosedSelectorException;
-import java.util.Date;
 import java.util.Iterator;
 
 import org.apache.logging.log4j.Level;
@@ -10,7 +9,6 @@ import org.apache.logging.log4j.Logger;
 import org.zeromq.ZMQ.Socket;
 import org.zeromq.ZMQException;
 
-import loghub.Event;
 import loghub.Receiver;
 import loghub.configuration.Beans;
 import zmq.ZMQHelper;
@@ -26,13 +24,13 @@ public class ZMQ extends Receiver {
     private int hwm = 1000;
 
     @Override
-    protected Iterator<Event> getIterator() {
+    protected Iterator<byte[]> getIterator() {
         Socket log4jsocket = ctx.newSocket(method, type, listen);
         log4jsocket.setHWM(hwm);
         if(type == ZMQHelper.Type.SUB){
             log4jsocket.subscribe(new byte[] {});
         }
-        return new Iterator<Event>() {
+        return new Iterator<byte[]>() {
             byte[] msg;
             @Override
             public boolean hasNext() {
@@ -60,12 +58,8 @@ public class ZMQ extends Receiver {
             }
 
             @Override
-            public Event next() {
-                Event event = new Event();
-                Date d = new Date();
-                event.timestamp = d;
-                decoder.decode(event, msg, 0, msg.length);
-                return event;
+            public byte[] next() {
+                return msg;
             }
 
         };

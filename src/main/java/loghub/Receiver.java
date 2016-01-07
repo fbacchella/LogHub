@@ -1,5 +1,6 @@
 package loghub;
 
+import java.util.Date;
 import java.util.Iterator;
 import java.util.Map;
 
@@ -13,7 +14,7 @@ import loghub.configuration.Properties;
 import zmq.ZMQHelper;
 
 @Beans({"decoder"})
-public abstract class Receiver extends Thread implements Iterator<Event> {
+public abstract class Receiver extends Thread implements Iterator<byte[]> {
 
     private static final Logger logger = LogManager.getLogger();
 
@@ -53,12 +54,12 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
         int looptry = 0;
         int wait = 100;
         while(! isInterrupted() && ctx.isRunning()) {
-            Iterable<Event> stream = new Iterable<Event>() {
+            Iterable<byte[]> stream = new Iterable<byte[]>() {
                 @Override
-                public Iterator<Event> iterator() {
-                    Iterator<Event> i = Receiver.this.getIterator();
+                public Iterator<byte[]> iterator() {
+                    Iterator<byte[]> i = Receiver.this.getIterator();
                     if(i == null) {
-                        return new Iterator<Event>() {
+                        return new Iterator<byte[]>() {
 
                             @Override
                             public boolean hasNext() {
@@ -66,7 +67,7 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
                             }
 
                             @Override
-                            public Event next() {
+                            public byte[] next() {
                                 return null;
                             }
 
@@ -77,7 +78,7 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
                 }
             };
             try {
-                for(Event e: stream) {
+                for(byte[] e: stream) {
                     logger.trace("new message received: {}", e);
                     if(e != null) {
                         eventseen++;
@@ -88,7 +89,9 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
                         if( !ctx.isRunning()) {
                             break;
                         }
-                        send(e);
+                        Event event = new Event();
+                        decode(event, e);
+                        send(event);
                     }
                 }
             } catch (Exception e) {
@@ -126,7 +129,7 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
      * in charge of preparing the iterator.
      * @return an iterator or null in case of failure
      */
-    protected Iterator<Event> getIterator() {
+    protected Iterator<byte[]> getIterator() {
         try {
             startStream();
             return this;
@@ -146,8 +149,23 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
     }
 
     @Override
-    public Event next() {
+    public byte[] next() {
         return null;
+    }
+
+    protected final void decode(Event event, byte[] msg) {
+        decode(event, msg, 0, msg.length);
+    }
+
+    protected final void decode(Event event, byte[] msg, int offset, int size) {
+        Map<String, Object> content = decoder.decode(msg, offset, size);
+        if( content.containsKey(Event.TIMESTAMPKEY) && (event.get(Event.TIMESTAMPKEY) instanceof Date)) {
+            event.timestamp = (Date) event.remove(Event.TIMESTAMPKEY);
+        }
+        if( content.containsKey(Event.TYPEKEY)) {
+            event.type = event.remove(Event.TYPEKEY).toString();
+        }
+        content.entrySet().stream().forEach( i -> event.put("", i.getKey(), i.getValue()));
     }
 
     /**

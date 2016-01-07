@@ -53,7 +53,7 @@ public class TestUdp {
             byte[] buf = "message 1".getBytes();
             InetAddress address = InetAddress.getLocalHost();
             DatagramPacket packet = new DatagramPacket(buf, buf.length, 
-                                            address, r.getPort());
+                    address, r.getPort());
             packet.setPort(r.getPort());
             send.send(packet);
         }
