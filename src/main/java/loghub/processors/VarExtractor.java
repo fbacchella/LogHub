@@ -32,13 +32,13 @@ public class VarExtractor extends Processor {
             String value = m.group("value");
             if(key != null && ! key.isEmpty()) {
                 if(value != null && ! value.isEmpty()) {
-                    addElement(event, key, value);
+                    event.put(key, value);
                 }
             }
             after = fieldcontent.substring(m.end());
         }
         if(after != null && ! after.isEmpty()) {
-            addElement(event, field, after);
+            event.put(field, after);
         } else {
             event.remove(field);
         }

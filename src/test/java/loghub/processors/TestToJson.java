@@ -11,6 +11,7 @@ import org.junit.Test;
 
 import loghub.Event;
 import loghub.LogUtils;
+import loghub.PipeStep;
 import loghub.Tools;
 import loghub.processors.ParseJson;
 import loghub.Processor;
@@ -28,9 +29,10 @@ public class TestToJson {
 
     @Test
     public void test1() {
-        Event e = new Event();
+        PipeStep.EventWrapper e = new PipeStep.EventWrapper(new Event());
         Processor t = new ParseJson();
-        t.addElement(e, "message", "{\"a\": [ 1, 2.0 , 3.01 , {\"b\": true} ] }");
+        e.processor = t;
+        e.put("message", "{\"a\": [ 1, 2.0 , 3.01 , {\"b\": true} ] }");
         t.process(e);
         @SuppressWarnings("unchecked")
         Collection<Object> a = (Collection<Object>) e.get("a");

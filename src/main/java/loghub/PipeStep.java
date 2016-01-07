@@ -4,19 +4,52 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.zeromq.ZMQ.Socket;
-
-import zmq.ZMQHelper;
-
 import org.zeromq.ZMQException;
 
 import loghub.configuration.Properties;
+import zmq.ZMQHelper;
 
 public class PipeStep extends Thread {
+
+    public static final class EventWrapper extends Event {
+        private final Event event;
+        public Processor processor;
+        public EventWrapper(Event event) {
+            this.event = event;
+        }
+
+        @Override
+        public Set<java.util.Map.Entry<String, Object>> entrySet() {
+            return event.entrySet();
+        }
+
+        @Override
+        public Object put(String key, Object value) {
+            return event.put(processor.getFieldprefix(), key, value);
+        }
+
+        @Override
+        public void putAll(Map<? extends String, ? extends Object> m) {
+            m.entrySet().stream().forEach( i-> event.put(processor.getFieldprefix(), i.getKey(), i.getValue()));
+        }
+
+        @Override
+        public Object get(Object key) {
+            return event.get(key);
+        }
+
+        @Override
+        public Object remove(Object key) {
+            return event.remove(processor.getFieldprefix(), (String) key);
+        }
+
+    }
 
     private static final Logger logger = LogManager.getLogger();
 
@@ -74,9 +107,11 @@ public class PipeStep extends Thread {
                 logger.trace("{} received event {}", () -> ctx.getURL(in), () -> event);
 
                 try {
-                    for(Processor t: processors) {
-                        setName(threadName + "-" + t.getName());
-                        t.process(event);
+                    EventWrapper wevent = new EventWrapper(event);
+                    for(Processor p: processors) {
+                        wevent.processor = p;
+                        setName(threadName + "-" + p.getName());
+                        p.process(wevent);
                         if(event.dropped) {
                             break;
                         }

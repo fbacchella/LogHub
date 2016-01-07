@@ -6,6 +6,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import loghub.Event;
+import loghub.PipeStep;
 import loghub.configuration.Properties;
 
 public class TestGrok {
@@ -23,8 +24,9 @@ public class TestGrok {
 
         Assert.assertTrue("Failed to configure grok", grok.configure(props));
 
-        Event e = new Event();
-        grok.addElement(e, "message", "112.169.19.192 - - [06/Mar/2013:01:36:30 +0900] \"GET / HTTP/1.1\" 200 44346 \"-\" \"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_8_2) AppleWebKit/537.22 (KHTML, like Gecko) Chrome/25.0.1364.152 Safari/537.22\"");
+        PipeStep.EventWrapper e = new PipeStep.EventWrapper(new Event());
+        e.processor = grok;
+        e.put("message", "112.169.19.192 - - [06/Mar/2013:01:36:30 +0900] \"GET / HTTP/1.1\" 200 44346 \"-\" \"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_8_2) AppleWebKit/537.22 (KHTML, like Gecko) Chrome/25.0.1364.152 Safari/537.22\"");
         grok.process(e);
 
         Assert.assertEquals("Didn't find the good user agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_8_2) AppleWebKit/537.22 (KHTML, like Gecko) Chrome/25.0.1364.152 Safari/537.22", e.get("agent"));

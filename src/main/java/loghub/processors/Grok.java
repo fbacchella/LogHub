@@ -36,7 +36,7 @@ public class Grok extends Processor {
         gm.captures();
         gm.toMap().entrySet().stream()
         .filter( i -> i.getValue() != null)
-        .forEach( i-> addElement(event, i.getKey(), i.getValue()));
+        .forEach( i-> event.put(i.getKey(), i.getValue()));
     }
 
     public String getField() {

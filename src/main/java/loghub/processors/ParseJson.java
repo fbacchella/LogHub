@@ -29,9 +29,9 @@ public class ParseJson extends Processor {
             if(o instanceof Map) {
                 @SuppressWarnings("unchecked")
                 Map<Object, Object> map = (Map<Object, Object>) o;
-                map.entrySet().stream().forEach( (i) -> addElement(event, i.getKey().toString(), i.getValue()));
+                map.entrySet().stream().forEach( (i) -> event.put(i.getKey().toString(), i.getValue()));
             } else {
-                addElement(event, field, o);
+                event.put(field, o);
             }
         } catch (IOException e) {
             throw new RuntimeException(e);

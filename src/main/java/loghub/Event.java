@@ -39,7 +39,6 @@ public class Event extends HashMap<String, Object> implements Serializable {
     }
 
     @Override
-    @Deprecated
     public Object put(String key, Object value) {
         throw new UnsupportedOperationException("don't call put from a processor");
     }
@@ -58,7 +57,6 @@ public class Event extends HashMap<String, Object> implements Serializable {
         }
         current = (Map<String, Object>) current.get(path[0]);
         for(int i = 1; i < path.length - 1 ; i++) {
-            System.out.println(path[i] + " " + current.get(path[i]));
             if(! current.containsKey(path[i]) || ! (current.get(path[i]) instanceof Map) ) {
                 current.put(path[i], new HashMap<String, Object>());
             }
@@ -69,9 +67,49 @@ public class Event extends HashMap<String, Object> implements Serializable {
     }
 
     @Override
-    @Deprecated
     public void putAll(Map<? extends String, ? extends Object> m) {
         throw new UnsupportedOperationException("don't call put from a processor");
+    };
+
+    @SuppressWarnings("unchecked")
+    public Object get(String prefix, String key) {
+        if(prefix == null || prefix.isEmpty()) {
+            return super.get(key);
+        }
+        Map<String, Object> current = this;
+        String[] path = key.split("\\.");
+        for(int i = 1; i < path.length - 1 ; i++) {
+            if(! current.containsKey(path[i]) || ! (current.get(path[i]) instanceof Map) ) {
+                return null;
+            }
+            current = (Map<String, Object>) current.get(path[i]);
+        }
+        return current.get(key);
     }
 
+    @Override
+    public Object get(Object key) {
+        return super.get(key);
+    }
+
+    @Override
+    public Object remove(Object key) {
+        throw new UnsupportedOperationException("don't call remove from a processor");
+    }
+
+    @SuppressWarnings("unchecked")
+    public Object remove(String prefix, String key) {
+        if(prefix == null || prefix.isEmpty()) {
+            return super.remove(key);
+        }
+        Map<String, Object> current = this;
+        String[] path = key.split("\\.");
+        for(int i = 1; i < path.length - 1 ; i++) {
+            if(! current.containsKey(path[i]) || ! (current.get(path[i]) instanceof Map) ) {
+                return null;
+            }
+            current = (Map<String, Object>) current.get(path[i]);
+        }
+        return current.remove(key);
+    }
 }

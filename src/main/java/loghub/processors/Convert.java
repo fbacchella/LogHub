@@ -35,7 +35,7 @@ public class Convert extends Processor {
         try {
             Object o = BeansManager.ConstructFromString(clazz,
                     event.get(field).toString());
-            addElement(event, field, o);
+            event.put(field, o);
         } catch (InvocationTargetException e) {
         }
 

@@ -1,7 +1,5 @@
 package loghub;
 
-import java.util.Map;
-
 import loghub.configuration.Beans;
 import loghub.configuration.Properties;
 
@@ -20,15 +18,6 @@ public abstract class Processor {
 
     public abstract void process(Event event);
     public abstract String getName();
-
-    public void addElement(Event event, String key, Object value) {
-        event.put(fieldprefix, key, value);
-    }
-
-    public void addElementAll(Event event, Map<String, Object> map) {
-        map.entrySet().stream()
-        .forEach( e -> event.put(fieldprefix, e.getKey(), e.getValue()));
-    }
 
     public int getThreads() {
         return threads;
