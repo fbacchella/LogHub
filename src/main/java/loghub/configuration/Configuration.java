@@ -17,9 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
-import java.util.function.Consumer;
 import java.util.function.Function;
-import java.util.function.Predicate;
 
 import org.antlr.v4.runtime.ANTLRFileStream;
 import org.antlr.v4.runtime.CharStream;
@@ -28,6 +26,8 @@ import org.antlr.v4.runtime.tree.ParseTreeWalker;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import loghub.Helpers.ThrowingConsumer;
+import loghub.Helpers.ThrowingPredicate;
 import loghub.PipeStep;
 import loghub.Pipeline;
 import loghub.Processor;
@@ -55,7 +55,6 @@ public class Configuration {
         public String toString() {
             return inpipe + "->" + outpipe;
         }
-
     }
 
     private static final Logger logger = LogManager.getLogger();
@@ -264,38 +263,6 @@ public class Configuration {
                 | NoSuchMethodException | SecurityException | ExceptionInInitializerError e) {
             throw new ConfigException(String.format("Invalid class '%s': %s", desc.clazz, e), desc.ctx.start, desc.ctx.stop);
         }
-    }
-
-    @FunctionalInterface
-    public interface ThrowingPredicate<T> extends Predicate<T> {
-
-        @Override
-        default boolean test(final T elem) {
-            try {
-                return testThrows(elem);
-            } catch (final Exception e) {
-                throw new RuntimeException(e);
-            }
-        }
-
-        boolean testThrows(T elem) throws Exception;
-
-    }
-
-    @FunctionalInterface
-    public interface ThrowingConsumer<T> extends Consumer<T> {
-
-        @Override
-        default void accept(final T elem) {
-            try {
-                acceptThrows(elem);
-            } catch (final Exception e) {
-                throw new RuntimeException(e);
-            }
-        }
-
-        void acceptThrows(T elem) throws Exception;
-
     }
 
     ClassLoader doClassLoader(List<Object> pathElements) throws IOException {
