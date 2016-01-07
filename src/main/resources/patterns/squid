@@ -1,0 +1,1 @@
+SQUIDLINE ^%{TIMESTAMP_ISO8601:timestamp8601} +%{NUMBER:resptime} +%{IP:squidclient} +%{WORD:squidstatus}/%{NUMBER:remotestatus} +%{NUMBER:replysize} +%{WORD:reqmethod} +%{QUOTEDSTRING:request} +%{WORD:squidhierastatus}/(%{IP:ipremote}|-) +%{NOTSPACE:contenttype}
