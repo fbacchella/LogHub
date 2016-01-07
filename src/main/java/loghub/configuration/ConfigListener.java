@@ -13,6 +13,7 @@ import java.util.Set;
 import org.antlr.v4.runtime.ParserRuleContext;
 
 import loghub.RouteBaseListener;
+import loghub.RouteParser.ArrayContext;
 import loghub.RouteParser.BeanContext;
 import loghub.RouteParser.BeanNameContext;
 import loghub.RouteParser.BeanValueContext;
@@ -41,7 +42,8 @@ class ConfigListener extends RouteBaseListener {
     private static enum StackMarker {
         Test,
         ObjectList,
-        PipeNodeList;
+        PipeNodeList,
+        Array;
     };
 
     static final class Input {
@@ -356,6 +358,24 @@ class ConfigListener extends RouteBaseListener {
         Object value = stack.pop();
         String key = ctx.Identifier().getText();
         properties.put(key, value);
+    }
+
+    @Override
+    public void enterArray(ArrayContext ctx) {
+        stack.push(StackMarker.Array);
+    }
+
+    @Override
+    public void exitArray(ArrayContext ctx) {
+        List<Object> array = new ArrayList<>();
+        while(! StackMarker.Array.equals(stack.peek()) ) {
+            Object o = stack.pop();
+            if(o instanceof ObjectWrapped) {
+                o = ((ObjectWrapped) o).wrapped;
+            }
+            array.add(o);
+        }
+        stack.push(array);
     }
 
 }

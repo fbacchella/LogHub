@@ -18,10 +18,10 @@ object: QualifiedIdentifier beansDescription ;
 beansDescription:  ('{' (bean (',' bean)*)? ','? '}')? ;
 bean: beanName ':' beanValue;
 beanName: Identifier;
-beanValue: object | literal;
+beanValue: object | literal | array;
 finalpiperef: piperef;
 piperef:  Identifier;
-property: Identifier ':' literal;
+property: Identifier ':' beanValue;
 
 test: testExpression '?' pipenode (':' pipenode)?;
 
@@ -44,6 +44,8 @@ expression
     |   expression '&&' expression
     |   expression '||' expression
     ;
+
+array: '[' (beanValue (',' beanValue)*)? ','? ']';
 
 Identifier
     :   JavaLetter JavaLetterOrDigit*
