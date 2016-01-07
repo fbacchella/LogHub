@@ -70,7 +70,7 @@ public class TestParser {
         Assert.assertEquals("too much pipelines", 3, conf.pipelines.size());
         Assert.assertEquals("too much inputs", 1, conf.inputs.size());
         Assert.assertEquals("too much outputs", 1, conf.outputs.size());
-        for(String s: new String[] {"logfile", "extensions"}) {
+        for(String s: new String[] {"logfile", "plugins"}) {
             Assert.assertTrue("property " + s + " not found", conf.properties.containsKey(s));
         }
     }

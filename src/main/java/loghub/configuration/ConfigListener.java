@@ -375,6 +375,7 @@ class ConfigListener extends RouteBaseListener {
             }
             array.add(o);
         }
+        stack.pop();
         stack.push(array);
     }
 
