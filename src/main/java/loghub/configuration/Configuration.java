@@ -1,6 +1,5 @@
 package loghub.configuration;
 
-import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URL;
@@ -19,6 +18,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.Predicate;
 
 import org.antlr.v4.runtime.ANTLRFileStream;
@@ -30,11 +30,11 @@ import org.apache.logging.log4j.Logger;
 
 import loghub.PipeStep;
 import loghub.Pipeline;
+import loghub.Processor;
 import loghub.Receiver;
 import loghub.RouteLexer;
 import loghub.RouteParser;
 import loghub.Sender;
-import loghub.Processor;
 import loghub.configuration.ConfigListener.Input;
 import loghub.configuration.ConfigListener.ObjectReference;
 import loghub.configuration.ConfigListener.Output;
@@ -103,13 +103,24 @@ public class Configuration {
             throw new RuntimeException("Error at " + e.getStartPost() + ": " + e.getMessage(), e);
         }
 
-        if(conf.properties.containsKey("plugins") && ! conf.properties.get("plugins").toString().isEmpty()) {
+        Function<Object, Object> resolve = i -> ((i instanceof ConfigListener.ObjectWrapped) ? ((ConfigListener.ObjectWrapped) i).wrapped : 
+            (i instanceof ConfigListener.ObjectReference) ? parseObjectDescription((ConfigListener.ObjectDescription) i) : i);
+
+        final Map<String, Object > newProperties = new HashMap<>(conf.properties.size());
+        conf.properties.entrySet().stream().forEach( i-> newProperties.put(i.getKey(), resolve.apply(i.getValue())));
+
+        if(newProperties.containsKey("plugins") && newProperties.get("plugins") instanceof List) {
             try {
-                classLoader = doClassLoader(conf.properties.get("plugins").toString());
+                @SuppressWarnings("unchecked")
+                List<Object> plugins = (List<Object>) newProperties.remove("plugins");
+                classLoader = doClassLoader(plugins);
             } catch (IOException ex) {
                 throw new RuntimeException("can't load plugins: " + ex.getMessage(), ex);
             }
         }
+
+        conf.properties.put(Properties.CLASSLOADERNAME, classLoader);
+        properties = new Properties(newProperties);
 
         // Generate all the named pipeline
         namedPipeLine = new HashMap<>(conf.pipelines.size());
@@ -157,9 +168,6 @@ public class Configuration {
         senders = Collections.unmodifiableList(senders);
 
         joins = Collections.unmodifiableSet(conf.joins);
-        
-        conf.properties.put(Properties.CLASSLOADERNAME, classLoader);
-        properties = new Properties(conf.properties);
     }
 
     private Pipeline parsePipeline(ConfigListener.Pipeline desc, String currentPipeLineName, List<Pipeline> currentPipeList, int depth) {
@@ -198,7 +206,7 @@ public class Configuration {
         }
         Pipeline pipe = new Pipeline(pipeList, currentPipeLineName + "$" + currentPipeList.size());
         currentPipeList.add(pipe);
-        this.pipelines.add(pipe);
+        pipelines.add(pipe);
         return pipe;
     }
 
@@ -250,8 +258,6 @@ public class Configuration {
             }
             return object;
         } catch (ClassNotFoundException e) {
-            logger.debug(desc.clazz);
-            logger.debug(desc.ctx);
             throw new ConfigException(String.format("Unknown class '%s'", desc.clazz), desc.ctx.start, desc.ctx.stop);
         } catch (InstantiationException | IllegalAccessException
                 | IllegalArgumentException | InvocationTargetException
@@ -292,7 +298,7 @@ public class Configuration {
 
     }
 
-    ClassLoader doClassLoader(String extendedclasspath) throws IOException {
+    ClassLoader doClassLoader(List<Object> pathElements) throws IOException {
 
         final Collection<URL> urls = new ArrayList<URL>();
 
@@ -300,21 +306,23 @@ public class Configuration {
         ThrowingPredicate<Path> filterReadable = i -> ! Files.isHidden(i);
         ThrowingConsumer<Path> toUrl = i -> urls.add(i.toUri().toURL());
 
-        Path[] components;
-        components = (Path[]) Arrays.stream(extendedclasspath.split(File.pathSeparator))
-                .map((i) -> Paths.get(i))
-                .filter(i -> Files.isReadable(i))
-                .filter(filterReadable)
-                .filter(i -> (Files.isRegularFile(i) && i.toString().endsWith(".jar")) || Files.isDirectory(i))
-                .toArray(Path[]::new);
-        for(Path i: components) {
+        pathElements.stream()
+        .map(i -> Paths.get(i.toString()))
+        .filter(i -> Files.isReadable(i))
+        .filter(filterReadable)
+        .filter(i -> (Files.isRegularFile(i) && i.toString().endsWith(".jar")) || Files.isDirectory(i))
+        .forEach( i-> {
             toUrl.accept(i);
             if(Files.isDirectory(i)) {
-                Files.list(i)
-                .filter(p -> Files.isRegularFile(p) && p.toString().endsWith(".jar"))
-                .forEach(toUrl);
+                try {
+                    Files.list(i)
+                    .filter(p -> Files.isRegularFile(p) && p.toString().endsWith(".jar"))
+                    .forEach(toUrl);
+                } catch (Exception e) {
+                    new RuntimeException(e);
+                }
             }
-        }
+        });
 
         return new URLClassLoader(urls.toArray(new URL[] {}), getClass().getClassLoader()) {
             @Override

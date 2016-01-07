@@ -11,8 +11,8 @@ public class Properties extends HashMap<String, Object> {
     public final ClassLoader classloader;
     
     public Properties(Map<String, Object> properties) {
-        super(properties);
-        ClassLoader cl = (ClassLoader) properties.get(CLASSLOADERNAME);
+        super();
+        ClassLoader cl = (ClassLoader) properties.remove(CLASSLOADERNAME);
         if(cl == null) {
             cl = Properties.class.getClassLoader();
         }
