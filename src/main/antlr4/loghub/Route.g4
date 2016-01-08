@@ -5,14 +5,13 @@
 grammar Route;
 
 configuration: (pipeline|input|output|property)+ EOF;
-pipeline: 'pipeline' '[' Identifier ']' '{' pipenodeList '}' ( '|' '$' finalpiperef) ?;
+pipeline: 'pipeline' '[' Identifier ']' '{' pipenodeList? '}' ( '|' '$' finalpiperef) ?;
 input: 'input' '{'  inputObjectlist '}' ('|' '$' piperef)?;
 output: 'output' ('$' piperef '|' )? '{' outputObjectlist '}';
 inputObjectlist: (object (',' object)*)? ','?;
 outputObjectlist: (object (',' object)*)? ','?;
-pipenodeList
-    :   pipenode ('|' pipenode)*
-    ;
+pipenodeList :   pipenode (('+' forkpiperef)|('|' pipenode))*;
+forkpiperef: '$' Identifier;
 pipenode: test | object | '(' pipenodeList ')' | '$' piperef;
 object: QualifiedIdentifier beansDescription ; 
 beansDescription:  ('{' (bean (',' bean)*)? ','? '}')? ;

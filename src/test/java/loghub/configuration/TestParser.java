@@ -67,7 +67,7 @@ public class TestParser {
         for(String s: new String[] {"oneref", "main", "groovy"}) {
             Assert.assertTrue("pipeline " + s + " not found", conf.pipelines.containsKey(s));
         }
-        Assert.assertEquals("too much pipelines", 3, conf.pipelines.size());
+        Assert.assertEquals("too much pipelines", 5, conf.pipelines.size());
         Assert.assertEquals("too much inputs", 1, conf.inputs.size());
         Assert.assertEquals("too much outputs", 1, conf.outputs.size());
         for(String s: new String[] {"logfile", "plugins"}) {

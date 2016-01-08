@@ -102,12 +102,15 @@ public class Configuration {
             throw new RuntimeException("Error at " + e.getStartPost() + ": " + e.getMessage(), e);
         }
 
+        namedPipeLine = new HashMap<>(conf.pipelines.size());
+
         Function<Object, Object> resolve = i -> ((i instanceof ConfigListener.ObjectWrapped) ? ((ConfigListener.ObjectWrapped) i).wrapped : 
             (i instanceof ConfigListener.ObjectReference) ? parseObjectDescription((ConfigListener.ObjectDescription) i) : i);
 
         final Map<String, Object > newProperties = new HashMap<>(conf.properties.size());
         conf.properties.entrySet().stream().forEach( i-> newProperties.put(i.getKey(), resolve.apply(i.getValue())));
 
+        // Neeeded because conf.properties store a lot of wrapped object, they needs to be resolved
         if(newProperties.containsKey("plugins") && newProperties.get("plugins") instanceof List) {
             try {
                 @SuppressWarnings("unchecked")
@@ -118,11 +121,12 @@ public class Configuration {
             }
         }
 
-        conf.properties.put(Properties.CLASSLOADERNAME, classLoader);
+        newProperties.put(Properties.CLASSLOADERNAME, classLoader);
+        newProperties.put(Properties.NAMEDPIPELINES, namedPipeLine);
+
         properties = new Properties(newProperties);
 
         // Generate all the named pipeline
-        namedPipeLine = new HashMap<>(conf.pipelines.size());
         for(Entry<String, ConfigListener.Pipeline> e: conf.pipelines.entrySet()) {
             List<Pipeline> currentPipeList = new ArrayList<>();
             String name = e.getKey();

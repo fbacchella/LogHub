@@ -13,6 +13,7 @@ import org.zeromq.ZMQ.Socket;
 import org.zeromq.ZMQException;
 
 import loghub.configuration.Properties;
+import loghub.processors.Forker;
 import zmq.ZMQHelper;
 
 public class PipeStep extends Thread {
@@ -105,10 +106,13 @@ public class PipeStep extends Thread {
                     continue;
                 }
                 logger.trace("{} received event {}", () -> ctx.getURL(in), () -> event);
-
                 try {
                     EventWrapper wevent = new EventWrapper(event);
                     for(Processor p: processors) {
+                        if(p instanceof Forker) {
+                            ((Forker) p).fork(event, eventQueue);
+                            continue;
+                        }
                         wevent.processor = p;
                         setName(threadName + "-" + p.getName());
                         p.process(wevent);

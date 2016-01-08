@@ -1,6 +1,7 @@
 package loghub.configuration;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -38,7 +39,7 @@ public class TestConfigurations {
     static public void configure() throws IOException {
         Tools.configure();
         logger = LogManager.getLogger();
-        LogUtils.setLevel(logger, Level.TRACE, "loghub.SmartContext", "loghub.PipeStep","loghub.Pipeline", "loghub.configuration.Configuration","loghub.receivers.ZMQ", "loghub.Receiver");
+        LogUtils.setLevel(logger, Level.TRACE, "loghub.SmartContext", "loghub.PipeStep","loghub.Pipeline", "loghub.configuration.Configuration","loghub.receivers.ZMQ", "loghub.Receiver", "loghub.processors.Forker");
     }
 
     private Configuration loadConf(String configname) {
@@ -160,6 +161,39 @@ public class TestConfigurations {
         for(Sender s: conf.getSenders()) {
             s.interrupt();
         }
+        SmartContext.terminate();
+    }
+
+    @Test(timeout=1000) 
+    public void testFork() throws InterruptedException {
+        Configuration conf = loadConf("fork.conf");
+        for(Pipeline pipe: conf.pipelines) {
+            pipe.configure(conf.properties);
+        }
+        logger.debug("pipelines: {}", conf.pipelines);
+        Map<byte[], Event> eventQueue = new ConcurrentHashMap<>();
+        for(Pipeline i: conf.pipelines) {
+            i.startStream(eventQueue);
+        }
+
+        Event sent = new Event();
+        sent.put("", "childs", new HashMap<String, Object>());
+        eventQueue.put(sent.key(), sent);
+
+        Thread.sleep(30);
+        Socket out1 = tctxt.ctx.newSocket(Method.CONNECT, Type.PULL, "inproc://out.main$0.2");
+        Socket out2 = tctxt.ctx.newSocket(Method.CONNECT, Type.PULL, "inproc://out.forked$0.1");
+        Socket sender = tctxt.ctx.newSocket(Method.CONNECT, Type.PUSH, "inproc://in.main$0.1");
+        Thread.sleep(30);
+        sender.send(sent.key());
+
+        out1.recv();
+        out2.recv();
+        Assert.assertEquals("Event queue don't contains requested events", 2, eventQueue.size());
+
+        tctxt.ctx.close(sender);
+        tctxt.ctx.close(out1);
+        tctxt.ctx.close(out2);
         SmartContext.terminate();
     }
 

@@ -21,6 +21,7 @@ import loghub.RouteParser.BooleanLiteralContext;
 import loghub.RouteParser.CharacterLiteralContext;
 import loghub.RouteParser.FinalpiperefContext;
 import loghub.RouteParser.FloatingPointLiteralContext;
+import loghub.RouteParser.ForkpiperefContext;
 import loghub.RouteParser.InputContext;
 import loghub.RouteParser.InputObjectlistContext;
 import loghub.RouteParser.IntegerLiteralContext;
@@ -36,6 +37,7 @@ import loghub.RouteParser.StringLiteralContext;
 import loghub.RouteParser.TestContext;
 import loghub.RouteParser.TestExpressionContext;
 import loghub.configuration.Configuration.PipeJoin;
+import loghub.processors.Forker;
 
 class ConfigListener extends RouteBaseListener {
 
@@ -226,6 +228,14 @@ class ConfigListener extends RouteBaseListener {
     }
 
     @Override
+    public void exitForkpiperef(ForkpiperefContext ctx) {
+        ObjectDescription beanObject = new ObjectDescription(Forker.class.getCanonicalName(), ctx);
+        beanObject.put("destination", new ObjectWrapped(ctx.Identifier().getText()));
+        ProcessorInstance ti = new ProcessorInstance(beanObject, ctx);
+        stack.push(ti);
+    }
+
+    @Override
     public void enterPipeline(PipelineContext ctx) {
         currentPipeLineName = ctx.Identifier().getText();
     }
@@ -239,7 +249,13 @@ class ConfigListener extends RouteBaseListener {
             // The PipeRefName was useless
             stack.pop();
         }
-        Pipeline pipe = (Pipeline) stack.pop();
+        Pipeline pipe;
+        if( ! stack.isEmpty()) {
+            pipe = (Pipeline) stack.pop();
+        } else {
+            // Empty pipeline, was not created in exitPipenodeList
+            pipe = new Pipeline();
+        }
         pipelines.put(currentPipeLineName, pipe);
         currentPipeLineName = null;
     }

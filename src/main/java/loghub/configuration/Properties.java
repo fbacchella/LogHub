@@ -1,15 +1,21 @@
 package loghub.configuration;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.BiFunction;
 
+import loghub.Pipeline;
+
 public class Properties extends HashMap<String, Object> {
     
     final static String CLASSLOADERNAME = "__classloader";
+    final static String NAMEDPIPELINES = "__pipelines";
     
     public final ClassLoader classloader;
+    public Map<String, Pipeline> namedPipeLine;
     
+    @SuppressWarnings("unchecked")
     public Properties(Map<String, Object> properties) {
         super();
         ClassLoader cl = (ClassLoader) properties.remove(CLASSLOADERNAME);
@@ -17,6 +23,12 @@ public class Properties extends HashMap<String, Object> {
             cl = Properties.class.getClassLoader();
         }
         classloader = cl;
+        namedPipeLine = (Map<String, Pipeline>) properties.remove(NAMEDPIPELINES);
+        if(namedPipeLine != null) {
+            namedPipeLine = Collections.unmodifiableMap(namedPipeLine);
+        } else {
+            namedPipeLine = Collections.emptyMap();
+        }
     }
 
     @Override

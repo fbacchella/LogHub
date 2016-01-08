@@ -1,5 +1,10 @@
 package loghub;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -8,8 +13,13 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 public class Event extends HashMap<String, Object> implements Serializable {
 
+    private final static Logger logger = LogManager.getLogger();
     private final static AtomicLong KeyGenerator = new AtomicLong(0);
 
     public static final String TIMESTAMPKEY = "__timestamp";
@@ -23,10 +33,47 @@ public class Event extends HashMap<String, Object> implements Serializable {
     public Event() {
         super();
         timestamp = new Date();
+        key = Arrays.copyOf(getNewKey(), 8);
+    }
+
+    /**
+     * Return a deep copy of the event.
+     * 
+     * It work by doing serialize/deserialize ofthe event. So a event must
+     * only contains serializable object to make it works.
+     * 
+     * @return a copy of this event, with a different key
+     */
+    public Event duplicate() {
+        try {
+            ByteArrayOutputStream bos = new ByteArrayOutputStream();
+            ObjectOutputStream oos = new ObjectOutputStream(bos);
+            oos.writeObject(this);
+            oos.flush();
+            oos.close();
+            bos.close();
+            byte[] byteData = bos.toByteArray();
+            ByteArrayInputStream bais = new ByteArrayInputStream(byteData);
+            Event newEvent = (Event) new ObjectInputStream(bais).readObject();
+
+            //Generate a new key, needed because the byte[] key is reloaded
+            byte[] newKeyBuffer = getNewKey();
+            for(int i = 0; i < newKeyBuffer.length; i++) {
+                key[i] = newKeyBuffer[i];
+            }
+            return newEvent;
+        } catch (ClassNotFoundException | IOException ex) {
+            logger.fatal("Event copy failed: {}", ex.getMessage());
+            logger.catching(Level.FATAL, ex);
+            return null;
+        }
+    }
+
+    private byte[] getNewKey() {
         long keyValue = KeyGenerator.getAndIncrement();
         ByteBuffer buffer = ByteBuffer.allocate(8);
         buffer.putLong(keyValue);
-        key = Arrays.copyOf(buffer.array(), 8);
+        return buffer.array();
     }
 
     @Override
