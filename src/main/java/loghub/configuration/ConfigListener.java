@@ -183,8 +183,8 @@ class ConfigListener extends RouteBaseListener {
     @Override
     public void enterStringLiteral(StringLiteralContext ctx) {
         String content = ctx.StringLiteral().getText();
-        // remove the wrapping "..."
-        content = content.substring(1, content.length() - 1);
+        // remove "..." and parse escaped char
+        content = CharSupport.getStringFromGrammarStringLiteral(content);
         pushLiteral(ctx, content);
     }
 
