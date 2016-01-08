@@ -29,6 +29,7 @@ public class Properties extends HashMap<String, Object> {
         } else {
             namedPipeLine = Collections.emptyMap();
         }
+        super.putAll(properties);
     }
 
     @Override
