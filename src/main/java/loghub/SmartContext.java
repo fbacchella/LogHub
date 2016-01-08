@@ -115,13 +115,20 @@ public class SmartContext {
         return running;
     }
 
-    public Socket newSocket(Method method, Type type, String endpoint) {
+    public Socket newSocket(Method method, Type type, String endpoint, long hwm, int timeout) {
         Socket socket = context.socket(type.type);
         method.act(socket, endpoint);
+        socket.setSndHWM(hwm);
+        socket.setSendTimeOut(timeout);
         String url = endpoint + ":" + type.toString() + ":" + method.getSymbol();
         sockets.put(socket, url);
         logger.debug("new socket: {}", url);
         return socket;
+    }
+
+    public Socket newSocket(Method method, Type type, String endpoint) {
+        // All socket have high hwm and are not blocking
+        return newSocket(method, type, endpoint, 100, 0);
     }
 
     public void close(Socket socket) {
@@ -175,7 +182,7 @@ public class SmartContext {
         final ZMQ.Socket controller = context.socket(ZMQ.SUB);
         controller.connect(TERMINATOR_RENDEZVOUS);
         controller.subscribe("".getBytes());
-        
+
         final Selector selector =  Selector.open();
         @SuppressWarnings("resource")
         final ZPoller zpoller = new ZPoller(selector);

@@ -9,18 +9,15 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.core.LoggerContext;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.zeromq.ZFrame;
 import org.zeromq.ZMQ.Socket;
-
-import loghub.processors.Identity;
-
 import org.zeromq.ZMsg;
 
+import loghub.processors.Identity;
 import zmq.ZMQHelper.Method;
 import zmq.ZMQHelper.Type;
 
@@ -55,11 +52,10 @@ public class TestPipeStep {
         String outEndpoint = "inproc://out.TestPipeStep";
 
         //  Socket facing clients
-        Socket in = tctxt.ctx.newSocket(Method.BIND, Type.PUSH, inEndpoint);
+        Socket in = tctxt.ctx.newSocket(Method.BIND, Type.PUSH, inEndpoint, 1, -1);
 
         //  Socket facing services
-        Socket out = tctxt.ctx.newSocket(Method.BIND, Type.PULL, outEndpoint);
-
+        Socket out = tctxt.ctx.newSocket(Method.BIND, Type.PULL, outEndpoint, 1, -1);
         try {
             ps.start(eventQueue, inEndpoint, outEndpoint);
         } catch (Exception e) {
@@ -68,15 +64,12 @@ public class TestPipeStep {
                 t.printStackTrace();
             } while((t = t.getCause()) != null);
         }
-        in.send(sent.key());
+        Assert.assertTrue("send failed", in.send(sent.key()));
         byte[] keyReceived = out.recv();
         Event received = eventQueue.get(keyReceived);
         Assert.assertEquals("Not expected event received", sent, received);
         tctxt.ctx.close(in);
         tctxt.ctx.close(out);
-        System.out.println("LoggerContext.getContext().getName(): " + LoggerContext.getContext().getName());
-        System.out.println("LoggerContext.getContext().getLoggers(): "+ LoggerContext.getContext().getLoggers());
-        System.out.println("LoggerContext.getContext().getConfiguration().getRootLogger().getLevel(): "+ LoggerContext.getContext().getConfiguration().getRootLogger().getLevel());
     }
 
     @Test(timeout=1000)
@@ -104,11 +97,10 @@ public class TestPipeStep {
         Event sent = new Event();
         sent.type = "testEvent";
         eventQueue.put(sent.key(), sent);
-        System.out.println(sent.key() + " = " + Arrays.toString(sent.key()));
         pipeline.startStream(eventQueue);
 
-        Socket in = tctxt.ctx.newSocket(Method.CONNECT, Type.PUSH, pipeline.inEndpoint);
-        Socket out = tctxt.ctx.newSocket(Method.CONNECT, Type.PULL, pipeline.outEndpoint);
+        Socket in = tctxt.ctx.newSocket(Method.CONNECT, Type.PUSH, pipeline.inEndpoint, 1, -1);
+        Socket out = tctxt.ctx.newSocket(Method.CONNECT, Type.PULL, pipeline.outEndpoint, 1, -1);
 
         logger.debug("pipeline is " + pipeline);
         logger.debug("send message: " + sent.key());
@@ -123,7 +115,6 @@ public class TestPipeStep {
     }
 
     public void testSub() throws InterruptedException {
-        System.out.println("testSub");
         final String subInEndpoint = "inproc://in." + "subTestPipeStep";
         final String subOutEndpoint = "inproc://out." + "subTestPipeStep";
 
@@ -139,8 +130,8 @@ public class TestPipeStep {
         String inEndpoint = "inproc://in." + "TestPipeStep";
         String outEndpoint = "inproc://out." + "TestPipeStep";
 
-        Socket in = tctxt.ctx.newSocket(Method.BIND, Type.PUSH, inEndpoint);
-        Socket out = tctxt.ctx.newSocket(Method.BIND, Type.PULL, outEndpoint);
+        Socket in = tctxt.ctx.newSocket(Method.BIND, Type.PUSH, inEndpoint, 1, -1);
+        Socket out = tctxt.ctx.newSocket(Method.BIND, Type.PULL, outEndpoint, 1, -1);
 
         Thread thread = new Thread() {
             final Socket subIn;
@@ -148,10 +139,10 @@ public class TestPipeStep {
 
             {
                 //  Socket facing clients
-                subIn = tctxt.ctx.newSocket(Method.BIND, Type.PULL, subInEndpoint);
+                subIn = tctxt.ctx.newSocket(Method.BIND, Type.PULL, subInEndpoint, 1, -1);
 
                 //  Socket facing services
-                subOut = tctxt.ctx.newSocket(Method.BIND, Type.PUSH, subOutEndpoint);
+                subOut = tctxt.ctx.newSocket(Method.BIND, Type.PUSH, subOutEndpoint, 1, -1);
 
                 setDaemon(true);
                 start();

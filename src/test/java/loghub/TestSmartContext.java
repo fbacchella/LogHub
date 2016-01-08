@@ -22,18 +22,17 @@ public class TestSmartContext {
     @Test(timeout=1000)
     public void doTerminate() throws InterruptedException {
 
-        logger.debug("start");
         final SmartContext context = SmartContext.getContext();
 
-        Socket out = context.newSocket(Method.BIND, Type.PUSH, "inproc://in.TestPipeStep");
-        Socket in = context.newSocket(Method.BIND, Type.PULL, "inproc://out.TestPipeStep");
+        Socket out = context.newSocket(Method.BIND, Type.PUSH, "inproc://in.TestPipeStep", 1, -1);
+        Socket in = context.newSocket(Method.BIND, Type.PULL, "inproc://out.TestPipeStep", 1, -1);
 
         final Thread forward = new Thread() {
 
             @Override
             public void run() {
-                Socket in = context.newSocket(Method.CONNECT, Type.PULL, "inproc://in.TestPipeStep");
-                Socket out = context.newSocket(Method.CONNECT, Type.PUSH, "inproc://out.TestPipeStep");
+                Socket in = context.newSocket(Method.CONNECT, Type.PULL, "inproc://in.TestPipeStep", 1, -1);
+                Socket out = context.newSocket(Method.CONNECT, Type.PUSH, "inproc://out.TestPipeStep", 1, -1);
                 try {
                     for(byte[] msg: context.read(in)){
                         logger.debug("one received");
@@ -66,10 +65,7 @@ public class TestSmartContext {
 
         context.close(in);
         context.close(out);
-
         SmartContext.terminate();
-        logger.debug("end");
-
     }
 
 }

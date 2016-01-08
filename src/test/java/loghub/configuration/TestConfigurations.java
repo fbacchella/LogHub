@@ -63,8 +63,8 @@ public class TestConfigurations {
         logger.debug("pipelines: " + conf.pipelines);
         logger.debug("namedPipeLine: " + conf.namedPipeLine);
         Pipeline main = conf.namedPipeLine.get("main");
-        Socket in = tctxt.ctx.newSocket(Method.CONNECT, Type.PUSH, main.inEndpoint);
-        Socket out = tctxt.ctx.newSocket(Method.CONNECT, Type.PULL, main.outEndpoint);
+        Socket in = tctxt.ctx.newSocket(Method.CONNECT, Type.PUSH, main.inEndpoint, 1, -1);
+        Socket out = tctxt.ctx.newSocket(Method.CONNECT, Type.PULL, main.outEndpoint, 1, -1);
         in.send(sent.key());
         for(String sockName: tctxt.ctx.getSocketsList()) {
             logger.debug("    " + sockName);
@@ -100,9 +100,9 @@ public class TestConfigurations {
             s.start(eventQueue);
         }
         Thread.sleep(30);
-        Socket out = tctxt.ctx.newSocket(Method.CONNECT, Type.SUB, "inproc://sender");
+        Socket out = tctxt.ctx.newSocket(Method.CONNECT, Type.SUB, "inproc://sender", 1, -1);
         out.subscribe(new byte[]{});
-        Socket sender = tctxt.ctx.newSocket(Method.CONNECT, Type.PUB, "inproc://listener1");
+        Socket sender = tctxt.ctx.newSocket(Method.CONNECT, Type.PUB, "inproc://listener1", 1, -1);
         Thread.sleep(30);
         sender.send("something");
         byte[] buffer = out.recv();
@@ -145,9 +145,9 @@ public class TestConfigurations {
             SocketInfo outSi = new SocketInfo(ZMQHelper.Method.CONNECT, ZMQHelper.Type.PUSH, outpipe.inEndpoint);
             SmartContext.getContext().proxy(j.toString(), inSi, outSi);
         }
-        Socket out = tctxt.ctx.newSocket(Method.CONNECT, Type.SUB, "inproc://sender");
+        Socket out = tctxt.ctx.newSocket(Method.CONNECT, Type.SUB, "inproc://sender", 1, -1);
         out.subscribe(new byte[]{});
-        Socket sender = tctxt.ctx.newSocket(Method.CONNECT, Type.PUB, "inproc://listener1");
+        Socket sender = tctxt.ctx.newSocket(Method.CONNECT, Type.PUB, "inproc://listener1", 1, -1);
         Thread.sleep(30);
         sender.send("something");
         byte[] buffer = out.recv();
@@ -181,9 +181,9 @@ public class TestConfigurations {
         eventQueue.put(sent.key(), sent);
 
         Thread.sleep(30);
-        Socket out1 = tctxt.ctx.newSocket(Method.CONNECT, Type.PULL, "inproc://out.main$0.2");
-        Socket out2 = tctxt.ctx.newSocket(Method.CONNECT, Type.PULL, "inproc://out.forked$0.1");
-        Socket sender = tctxt.ctx.newSocket(Method.CONNECT, Type.PUSH, "inproc://in.main$0.1");
+        Socket out1 = tctxt.ctx.newSocket(Method.CONNECT, Type.PULL, "inproc://out.main$0.2", 1, -1);
+        Socket out2 = tctxt.ctx.newSocket(Method.CONNECT, Type.PULL, "inproc://out.forked$0.1", 1, -1);
+        Socket sender = tctxt.ctx.newSocket(Method.CONNECT, Type.PUSH, "inproc://in.main$0.1", 1, -1);
         Thread.sleep(30);
         sender.send(sent.key());
 
