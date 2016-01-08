@@ -47,7 +47,6 @@ public class Forker extends Processor {
             destSocket.setSndHWM(100);
             destSocket.setSendTimeOut(0);
         }
-        System.out.println("forker");
 
         Event newEvent = event.duplicate();
         if(newEvent == null) {
@@ -62,7 +61,6 @@ public class Forker extends Processor {
             ZMQHelper.logZMQException(logger, "forker", ex);
             logger.catching(Level.DEBUG, ex);
         }
-
 
     }
 
