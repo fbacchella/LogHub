@@ -47,7 +47,10 @@ public class Geoip extends Processor {
                 if(countryfield != null || countrynamefield != null || countrycodefield != null) {
                     Country c = lookup.getCountry(host);
                     if(countryfield != null) {
-                        event.put(countryfield, c);
+                        Map<String, String> countryinfo = new HashMap<>(2);
+                        countryinfo.put("code", c.getCode());
+                        countryinfo.put("name", c.getName());
+                        event.put(countryfield, countryinfo);
                     }
                     if(countrynamefield != null) {
                         event.put(countrynamefield, c.getName());
