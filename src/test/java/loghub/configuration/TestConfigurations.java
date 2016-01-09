@@ -177,7 +177,7 @@ public class TestConfigurations {
         }
 
         Event sent = new Event();
-        sent.put("", "childs", new HashMap<String, Object>());
+        sent.put("childs", new HashMap<String, Object>());
         eventQueue.put(sent.key(), sent);
 
         Thread.sleep(30);

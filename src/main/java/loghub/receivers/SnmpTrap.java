@@ -134,7 +134,7 @@ public class SnmpTrap extends Receiver implements CommandResponder {
             if(i.getVariable().getSyntax() == SMIConstants.SYNTAX_OBJECT_IDENTIFIER) {
                 value = smartPrint( (OID) i.getVariable() );
             }
-            event.put("", key, value);
+            event.put(key, value);
         }
         trap.setProcessed(true);
         send(event);

@@ -25,7 +25,7 @@ public class TestGrok {
         Assert.assertTrue("Failed to configure grok", grok.configure(props));
 
         PipeStep.EventWrapper e = new PipeStep.EventWrapper(new Event());
-        e.processor = grok;
+        e.setProcessor(grok);
         e.put("message", "112.169.19.192 - - [06/Mar/2013:01:36:30 +0900] \"GET / HTTP/1.1\" 200 44346 \"-\" \"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_8_2) AppleWebKit/537.22 (KHTML, like Gecko) Chrome/25.0.1364.152 Safari/537.22\"");
         grok.process(e);
 

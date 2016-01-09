@@ -1,7 +1,6 @@
 package loghub;
 
 import java.io.IOException;
-import java.util.Map;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -22,19 +21,18 @@ public class TestEvent {
         LogUtils.setLevel(logger, Level.TRACE, "loghub");
     }
 
-    @SuppressWarnings("unchecked")
     @Test()
     public void TestPath() {
         Event e = new Event();
-        e.put("0", "a.b.c", 1);
-        e.put("", "d", 2);
-        Map<String, Object> current = e;
-        System.out.println(e);
-        for(String key: new String[] {"0", "a", "b"}) {
-            current = (Map<String, Object>) current.get(key);
-        }
-        Assert.assertEquals("Didn't resolve the path correctly",  1, current.get("c") );
-        System.out.println(e);
+        e.put(new String[]{"a", "b", "c"}, 1);
+        e.put("d", 2);
+        e.put(new String[]{"e"}, 3);
+        Assert.assertEquals("wrong number of keys", 3, e.keySet().size());
+        Assert.assertEquals("Didn't resolve the path correctly",  1, e.get(new String[]{"a", "b", "c"}) );
+        Assert.assertEquals("Didn't resolve the path correctly",  1, e.remove(new String[]{"a", "b", "c"}) );
+        Assert.assertEquals("Didn't resolve the path correctly",  null, e.remove(new String[]{"a", "b", "c"}) );
+        Assert.assertEquals("Didn't resolve the path correctly",  2, e.get(new String[]{"d"}) );
+        Assert.assertEquals("Didn't resolve the path correctly",  3, e.get("e") );
     }
 
 }

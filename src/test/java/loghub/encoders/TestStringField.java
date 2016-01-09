@@ -31,8 +31,8 @@ public class TestStringField {
         encoder.setCharset("UTF-16");
         encoder.setFormat("${K1}: ${K2%02d}");
         Event e = new Event();
-        e.put("", "K1", "V1");
-        e.put("", "K2", 2);
+        e.put("K1", "V1");
+        e.put("K2", 2);
 
         byte[] result = encoder.encode(e);
 

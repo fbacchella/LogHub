@@ -1,5 +1,8 @@
 package loghub;
 
+import java.util.Arrays;
+import java.util.Optional;
+
 import loghub.configuration.Beans;
 import loghub.configuration.Properties;
 
@@ -7,7 +10,7 @@ import loghub.configuration.Properties;
 public abstract class Processor {
 
     private int threads = 1;
-    private String fieldprefix = "";
+    private String[] path = new String[]{};
 
     public Processor() {
     }
@@ -27,18 +30,22 @@ public abstract class Processor {
         this.threads = threads;
     }
 
+    public String[] getPathArray() {
+        return path;
+    }
     /**
      * @return the fieldprefix
      */
-    public String getFieldprefix() {
-        return fieldprefix;
+    public String getPath() {
+        Optional<String> o = Arrays.stream(path).reduce( (i,j) -> i + "." + j);
+        return o.isPresent() ? o.get() : "";
     }
 
     /**
      * @param fieldprefix the fieldprefix to set
      */
-    public void setFieldprefix(String fieldprefix) {
-        this.fieldprefix = fieldprefix;
+    public void setPath(String fieldprefix) {
+        this.path = fieldprefix.split("\\.");
     }
 
 }

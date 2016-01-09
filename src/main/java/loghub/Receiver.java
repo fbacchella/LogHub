@@ -165,7 +165,7 @@ public abstract class Receiver extends Thread implements Iterator<byte[]> {
         if( content.containsKey(Event.TYPEKEY)) {
             event.type = event.remove(Event.TYPEKEY).toString();
         }
-        content.entrySet().stream().forEach( i -> event.put("", i.getKey(), i.getValue()));
+        content.entrySet().stream().forEach( i -> event.put(i.getKey(), i.getValue()));
     }
 
     /**

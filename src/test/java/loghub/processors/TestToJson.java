@@ -31,7 +31,7 @@ public class TestToJson {
     public void test1() {
         PipeStep.EventWrapper e = new PipeStep.EventWrapper(new Event());
         Processor t = new ParseJson();
-        e.processor = t;
+        e.setProcessor(t);
         e.put("message", "{\"a\": [ 1, 2.0 , 3.01 , {\"b\": true} ] }");
         t.process(e);
         @SuppressWarnings("unchecked")

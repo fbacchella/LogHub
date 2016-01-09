@@ -13,7 +13,6 @@ import loghub.Event;
 import loghub.LogUtils;
 import loghub.PipeStep;
 import loghub.Tools;
-import loghub.processors.VarExtractor;
 
 public class TestVarExtractor {
 
@@ -29,12 +28,12 @@ public class TestVarExtractor {
     @Test
     public void test1() {
         VarExtractor t = new VarExtractor();
-        t.setField("message");
+        t.setPath("sub");
+        t.setField(".message");
         t.setParser("(?<name>[a-z]+)[=:](?<value>[^;]+);?");
-
         PipeStep.EventWrapper e = new PipeStep.EventWrapper(new Event());
-        e.processor = t;
-        e.put("message", "a=1;b:2;c");
+        e.setProcessor(t);
+        e.put(".message", "a=1;b:2;c");
         t.process(e);
         Assert.assertEquals("key a not found", "1", e.get("a"));
         Assert.assertEquals("key b not found", "2", e.get("b"));
@@ -48,9 +47,10 @@ public class TestVarExtractor {
         t.setField("message");
         t.setParser("(?<name>[a-z]+)[=:](?<value>[^;]+);?");
         PipeStep.EventWrapper e = new PipeStep.EventWrapper(new Event());
-        e.processor = t;
+        e.setProcessor(t);
         e.put("message", "a=1;b:2");
         t.process(e);
+        System.out.println(e);
         Assert.assertEquals("key a not found", "1", e.get("a"));
         Assert.assertEquals("key b found", "2", e.get("b"));
         Assert.assertEquals("key message found", null, e.get("message"));
@@ -63,12 +63,12 @@ public class TestVarExtractor {
         t.setField("message");
 
         PipeStep.EventWrapper e = new PipeStep.EventWrapper(new Event());
-        e.processor = t;
+        e.setProcessor(t);
         e.put("message", "a=1;b:2;c");
         t.process(e);
         Assert.assertEquals("key a not found", "1", e.get("a"));
         Assert.assertEquals("key b not found", "2", e.get("b"));
         Assert.assertEquals("key message not found", "c", e.get("message"));
-
     }
+
 }
