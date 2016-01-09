@@ -62,7 +62,6 @@ public class Geoip extends Processor {
                 if(locationfield != null) {
                     Location l = lookup.getLocation(host);
                     Map<String, Object> lm = new HashMap<>(10);
-                    Function.identity();
                     BiConsumer<String, Object> resolve = (a,b) -> { if (b != null) {lm.put(a, b);};};
                     resolve.accept("area_code", l.area_code);
                     resolve.accept("city", l.city);
