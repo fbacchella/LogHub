@@ -3,6 +3,7 @@ package loghub;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.NotSerializableException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
@@ -62,6 +63,10 @@ public class Event extends HashMap<String, Object> implements Serializable {
                 key[i] = newKeyBuffer[i];
             }
             return newEvent;
+        } catch (NotSerializableException ex) {
+            logger.info("Event copy failed: {}", ex.getMessage());
+            logger.catching(Level.DEBUG, ex);
+            return null;
         } catch (ClassNotFoundException | IOException ex) {
             logger.fatal("Event copy failed: {}", ex.getMessage());
             logger.catching(Level.FATAL, ex);
