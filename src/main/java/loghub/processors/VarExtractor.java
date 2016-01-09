@@ -24,6 +24,9 @@ public class VarExtractor extends Processor {
 
     @Override
     public void process(Event event) {
+        if(! event.containsKey(field) || event.get(field) == null) {
+            return;
+        }
         String fieldcontent = event.get(field).toString();
         String after = fieldcontent;
         Matcher m = parser.matcher(fieldcontent);
