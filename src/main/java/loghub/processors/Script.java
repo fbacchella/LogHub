@@ -9,10 +9,8 @@ import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.AbstractMap;
 import java.util.Collections;
 import java.util.Map;
-import java.util.Set;
 
 import javax.script.Invocable;
 import javax.script.ScriptEngine;
@@ -40,26 +38,8 @@ public class Script extends Processor {
 
     @Override
     public void process(Event event) {
-        Map<String, Object> wrapper = new AbstractMap<String, Object>() {
-
-            @Override
-            public Set<java.util.Map.Entry<String, Object>> entrySet() {
-                return event.entrySet();
-            }
-
-            @Override
-            public Object put(String key, Object value) {
-                return event.put(getFieldprefix(), key, value);
-            }
-
-            @Override
-            public void putAll(Map<? extends String, ? extends Object> m) {
-                m.entrySet().stream().forEach( i-> event.put(getFieldprefix(), i.getKey(), i.getValue()));
-            }
-
-        };
         try {
-            inv.invokeFunction(settings.get("transform"), wrapper);
+            inv.invokeFunction(settings.get("transform"), event);
         } catch (NoSuchMethodException | ScriptException e) {
             logger.error("transformation script failed: {}", e.getMessage());
         }
