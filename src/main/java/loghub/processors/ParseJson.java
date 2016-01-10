@@ -8,9 +8,8 @@ import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import loghub.Event;
-import loghub.Processor;
 
-public class ParseJson extends Processor {
+public class ParseJson extends FieldsProcessor {
 
     private static final JsonFactory factory = new JsonFactory();
     private static final ThreadLocal<ObjectMapper> json = new ThreadLocal<ObjectMapper>() {
@@ -20,10 +19,8 @@ public class ParseJson extends Processor {
         }
     };
 
-    private String field = "message";
-
     @Override
-    public void process(Event event) {
+    public void processMessage(Event event, String field) {
         try {
             Object o = json.get().readValue(new StringReader(event.get(field).toString()), Object.class);
             if(o instanceof Map) {
@@ -36,20 +33,6 @@ public class ParseJson extends Processor {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-    }
-
-    /**
-     * @return the field
-     */
-    public String getField() {
-        return field;
-    }
-
-    /**
-     * @param field the field to set
-     */
-    public void setField(String field) {
-        this.field = field;
     }
 
     @Override

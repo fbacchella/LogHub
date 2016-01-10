@@ -6,7 +6,6 @@ import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.BiConsumer;
-import java.util.function.Function;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -17,16 +16,14 @@ import com.maxmind.geoip.Location;
 import com.maxmind.geoip.LookupService;
 
 import loghub.Event;
-import loghub.Processor;
 import loghub.configuration.Properties;
 
-public class Geoip extends Processor {
+public class Geoip extends FieldsProcessor {
 
     private static final Logger logger = LogManager.getLogger();
     static LookupService lookup = null;
 
     private Path datfilepath = Paths.get("usr","local","share","GeoIP", "GeoIP.dat");
-    private String hostfield = "host";
     private String asfield = null;
     private String locationfield = null;
     private String countryfield = null;
@@ -34,12 +31,9 @@ public class Geoip extends Processor {
     private String countrynamefield = null;
 
     @Override
-    public void process(Event event) {
+    public void processMessage(Event event, String field) {
         try {
-            if(! event.containsKey(hostfield) || event.get(hostfield).toString().isEmpty()) {
-                return;
-            }
-            String host = event.get(hostfield).toString();
+            String host = event.get(field).toString();
             if(host != null) {
                 if(asfield != null) {
                     event.put(asfield, lookup.getOrg(host));
@@ -112,15 +106,6 @@ public class Geoip extends Processor {
     public void setDatfilepath(String datfilepath) {
         this.datfilepath = Paths.get(datfilepath);
     }
-
-    public String getHostfield() {
-        return hostfield;
-    }
-
-    public void setHostfield(String hostfield) {
-        this.hostfield = hostfield;
-    }
-
 
     public String getAsfield() {
         return asfield;

@@ -12,17 +12,15 @@ import org.apache.logging.log4j.Logger;
 
 import loghub.Event;
 import loghub.Helpers;
-import loghub.Processor;
 import loghub.configuration.Properties;
 import oi.thekraken.grok.api.Match;
 import oi.thekraken.grok.api.exception.GrokException;
 
-public class Grok extends Processor {
+public class Grok extends FieldsProcessor {
 
     private static final Logger logger = LogManager.getLogger();
 
     private final oi.thekraken.grok.api.Grok grok;
-    private String field;
     private String pattern;
 
     public Grok() {
@@ -30,21 +28,13 @@ public class Grok extends Processor {
     }
 
     @Override
-    public void process(Event event) {
+    public void processMessage(Event event, String field) {
         String line = (String) event.get(field);
         Match gm = grok.match(line);
         gm.captures();
         gm.toMap().entrySet().stream()
         .filter( i -> i.getValue() != null)
         .forEach( i-> event.put(i.getKey(), i.getValue()));
-    }
-
-    public String getField() {
-        return field;
-    }
-
-    public void setField(String field) {
-        this.field = field;
     }
 
     public void setPattern(String pattern) {

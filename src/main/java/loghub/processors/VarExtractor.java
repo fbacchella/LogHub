@@ -4,7 +4,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import loghub.Event;
-import loghub.Processor;
 import loghub.configuration.Beans;
 
 /**
@@ -16,20 +15,16 @@ import loghub.configuration.Beans;
  * @author Fabrice Bacchella
  *
  */
-@Beans({"field", "parser"})
-public class VarExtractor extends Processor {
+@Beans({"parser"})
+public class VarExtractor extends FieldsProcessor {
 
     private Pattern parser = Pattern.compile("(?<name>\\p{Alnum}+)\\p{Space}?[=:]\\p{Space}?(?<value>[^;,:]+)[;,:]?");
-    private String field = "message";
 
     @Override
-    public void process(Event event) {
-        if(! event.containsKey(field) || event.get(field) == null) {
-            return;
-        }
-        String fieldcontent = event.get(field).toString();
-        String after = fieldcontent;
-        Matcher m = parser.matcher(fieldcontent);
+    public void processMessage(Event event, String field ) {
+        String message = event.get(field).toString();
+        String after = message;
+        Matcher m = parser.matcher(message);
         while(m.find()) {
             String key = m.group("name");
             String value = m.group("value");
@@ -38,7 +33,7 @@ public class VarExtractor extends Processor {
                     event.put(key, value);
                 }
             }
-            after = fieldcontent.substring(m.end());
+            after = message.substring(m.end());
         }
         if(after != null && ! after.isEmpty()) {
             event.put(field, after);
@@ -64,14 +59,6 @@ public class VarExtractor extends Processor {
      */
     public void setParser(String parser) {
         this.parser = Pattern.compile(parser);
-    }
-
-    public String getField() {
-        return field;
-    }
-
-    public void setField(String field) {
-        this.field = field;
     }
 
 }

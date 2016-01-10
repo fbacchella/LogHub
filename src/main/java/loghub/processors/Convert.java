@@ -6,7 +6,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import loghub.Event;
-import loghub.Processor;
 import loghub.configuration.BeansManager;
 import loghub.configuration.Properties;
 
@@ -19,26 +18,20 @@ import loghub.configuration.Properties;
  * @author Fabrice Bacchella
  *
  */
-public class Convert extends Processor {
+public class Convert extends FieldsProcessor {
 
     private static final Logger logger = LogManager.getLogger();
 
-    private String field = "message";
     private String className = "java.lang.String";
     private Class<?> clazz;
 
     @Override
-    public void process(Event event) {
-        if (!event.containsKey(field)) {
-            return;
-        }
+    public void processMessage(Event event, String field) {
         try {
-            Object o = BeansManager.ConstructFromString(clazz,
-                    event.get(field).toString());
+            Object o = BeansManager.ConstructFromString(clazz, event.get(field).toString());
             event.put(field, o);
         } catch (InvocationTargetException e) {
         }
-
     }
 
     @Override
@@ -55,21 +48,6 @@ public class Convert extends Processor {
             return false;
         }
         return super.configure(properties);
-    }
-
-    /**
-     * @return the field
-     */
-    public String getField() {
-        return field;
-    }
-
-    /**
-     * @param field
-     *            the field to set
-     */
-    public void setField(String field) {
-        this.field = field;
     }
 
     /**
