@@ -7,6 +7,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.zeromq.ZMQ.Socket;
@@ -35,6 +36,7 @@ public class TestZMQ {
         LogUtils.setLevel(logger, Level.TRACE, "loghub.SmartContext", "loghub.receivers.ZMQ", "loghub.Receiver");
     }
 
+    @Ignore
     @Test(timeout=500)
     public void testone() throws InterruptedException {
         Socket sender = tctxt.ctx.newSocket(Method.BIND, Type.PUB, "inproc://listener1");
@@ -52,6 +54,7 @@ public class TestZMQ {
         tctxt.ctx.close(sender);
     }
 
+    @Ignore
     @Test(timeout=500)
     public void testtwo() throws InterruptedException {
         NamedArrayBlockingQueue receiver = new NamedArrayBlockingQueue("out.listener1");
