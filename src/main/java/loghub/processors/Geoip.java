@@ -83,9 +83,9 @@ public class Geoip extends FieldsProcessor {
 
     @Override
     public boolean configure(Properties properties) {
-        String datfile = properties.get("geoipdata").toString();
+        Object datfile = properties.get("geoipdata");
         if(datfile != null) {
-            datfilepath = Paths.get(datfile);
+            datfilepath = Paths.get(datfile.toString());
         }
         if(lookup == null) {
             try {
