@@ -62,9 +62,9 @@ public class BeansManager {
                 setMethod.invoke(beanObject, beanValue);
             } else if (beanValue instanceof String){
                 Object argInstance = BeansManager.ConstructFromString(setArgType, (String) beanValue);
-                setMethod.invoke(beanObject, argInstance);                       
+                setMethod.invoke(beanObject, argInstance);
             } else if (beanValue instanceof Number){
-                setMethod.invoke(beanObject, beanValue);                       
+                setMethod.invoke(beanObject, beanValue);
             } else {
                 throw new InvocationTargetException(new ClassCastException(), String.format("Unknown bean %s", beanName));
             }

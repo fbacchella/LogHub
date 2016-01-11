@@ -16,6 +16,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.zeromq.ZMQ.Socket;
@@ -191,7 +192,13 @@ public class TestConfigurations {
         Assert.assertEquals("ouput not found", 1, conf.getSenders().size());
     }
 
-    //@Test(timeout=1000)
+    @Test
+    public void testArray() {
+        loadConf("array.conf");
+    }
+
+    @Ignore
+    @Test(timeout=1000)
     public void testfill() throws NotCompliantMBeanException, MalformedObjectNameException, InstanceAlreadyExistsException, MBeanRegistrationException, InstantiationException, IllegalAccessException, IOException, NotBoundException, InterruptedException {
         Start s = createStart("filesbuffer.conf");
         s.start();
