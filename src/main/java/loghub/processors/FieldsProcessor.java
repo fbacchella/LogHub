@@ -20,7 +20,7 @@ public abstract class FieldsProcessor extends Processor {
         if(patterns.length != 0) {
             for(String f: event.keySet()) {
                 for(Pattern p: patterns) {
-                    if (p.matcher(f).matches()) {
+                    if (p.matcher(f).matches() && event.containsKey(f) && event.get(f) != null) {
                         processMessage(event, f);
                         // Processed, don't look for another matchin pattern
                         break;
