@@ -1,7 +1,6 @@
 package loghub;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -42,11 +41,8 @@ public class TestPipeStep {
         PipeStep ps = new PipeStep("test", 1, 1);
         ps.addProcessor(new Identity());
         ps.addProcessor(new Identity());
-        Map<byte[], Event> eventQueue = new ConcurrentHashMap<>();
         Event sent = new Event();
         sent.type = "testEvent";
-        eventQueue.put(sent.key(), sent);
-        System.out.println(sent.key() + " = " + Arrays.toString(sent.key()));
 
         //  Socket facing clients
         NamedArrayBlockingQueue in = new NamedArrayBlockingQueue("in.TestPipeStep");
@@ -93,7 +89,6 @@ public class TestPipeStep {
 
 
         logger.debug("pipeline is " + pipeline);
-        logger.debug("send message: " + sent.key());
         pipeline.inQueue.offer(sent);
         Event received = pipeline.outQueue.take();
         Assert.assertEquals("Not expected event received", sent, received);

@@ -31,6 +31,11 @@ public final class Helpers {
     }
 
     @FunctionalInterface
+    public interface TriFunction<S, T, U, R> {
+        R apply(S s, T t, U u);
+    }
+
+    @FunctionalInterface
     public interface Actor {
         void act();
     }

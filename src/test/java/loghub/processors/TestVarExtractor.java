@@ -10,8 +10,8 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import loghub.Event;
+import loghub.EventWrapper;
 import loghub.LogUtils;
-import loghub.PipeStep;
 import loghub.Tools;
 
 public class TestVarExtractor {
@@ -22,7 +22,7 @@ public class TestVarExtractor {
     static public void configure() throws IOException {
         Tools.configure();
         logger = LogManager.getLogger();
-        LogUtils.setLevel(logger, Level.TRACE, "loghub.transformers.Script");
+        LogUtils.setLevel(logger, Level.TRACE, "loghub.processors.VarExtractor");
     }
 
     @Test
@@ -31,15 +31,15 @@ public class TestVarExtractor {
         t.setPath("sub");
         t.setField(".message");
         t.setParser("(?<name>[a-z]+)[=:](?<value>[^;]+);?");
-        PipeStep.EventWrapper e = new PipeStep.EventWrapper(new Event());
+        Event rootEvent = new Event();
+        EventWrapper e = new EventWrapper(rootEvent);
         e.setProcessor(t);
         e.put(".message", "a=1;b:2;c");
         t.process(e);
-        System.out.println(e);
+        System.out.println(rootEvent);
         Assert.assertEquals("key a not found", "1", e.get("a"));
         Assert.assertEquals("key b not found", "2", e.get("b"));
         Assert.assertEquals("key message not found", "c", e.get(".message"));
-
     }
 
     @Test
@@ -47,7 +47,7 @@ public class TestVarExtractor {
         VarExtractor t = new VarExtractor();
         t.setField("message");
         t.setParser("(?<name>[a-z]+)[=:](?<value>[^;]+);?");
-        PipeStep.EventWrapper e = new PipeStep.EventWrapper(new Event());
+        EventWrapper e = new EventWrapper(new Event());
         e.setProcessor(t);
         e.put("message", "a=1;b:2");
         t.process(e);
@@ -55,7 +55,6 @@ public class TestVarExtractor {
         Assert.assertEquals("key a not found", "1", e.get("a"));
         Assert.assertEquals("key b found", "2", e.get("b"));
         Assert.assertEquals("key message found", null, e.get("message"));
-
     }
 
     @Test
@@ -63,7 +62,7 @@ public class TestVarExtractor {
         VarExtractor t = new VarExtractor();
         t.setField("message");
 
-        PipeStep.EventWrapper e = new PipeStep.EventWrapper(new Event());
+        EventWrapper e = new EventWrapper(new Event());
         e.setProcessor(t);
         e.put("message", "a=1;b:2;c");
         t.process(e);

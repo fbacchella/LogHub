@@ -10,8 +10,8 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import loghub.Event;
+import loghub.EventWrapper;
 import loghub.LogUtils;
-import loghub.PipeStep;
 import loghub.Tools;
 import loghub.processors.ParseJson;
 import loghub.Processor;
@@ -29,7 +29,7 @@ public class TestToJson {
 
     @Test
     public void test1() {
-        PipeStep.EventWrapper e = new PipeStep.EventWrapper(new Event());
+        EventWrapper e = new EventWrapper(new Event());
         Processor t = new ParseJson();
         e.setProcessor(t);
         e.put("message", "{\"a\": [ 1, 2.0 , 3.01 , {\"b\": true} ] }");

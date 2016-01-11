@@ -24,14 +24,14 @@ public class TestEvent {
     @Test()
     public void TestPath() {
         Event e = new Event();
-        e.put(new String[]{"a", "b", "c"}, 1);
+        e.applyAtPath((i, j, k) -> i.put(j, k), new String[]{"a", "b", "c"}, 1, true);
         e.put("d", 2);
-        e.put(new String[]{"e"}, 3);
+        e.applyAtPath((i, j, k) -> i.put(j, k), new String[]{"e"}, 3, true);
+        System.out.println(e);
         Assert.assertEquals("wrong number of keys", 3, e.keySet().size());
-        Assert.assertEquals("Didn't resolve the path correctly",  1, e.get(new String[]{"a", "b", "c"}) );
-        Assert.assertEquals("Didn't resolve the path correctly",  1, e.remove(new String[]{"a", "b", "c"}) );
-        Assert.assertEquals("Didn't resolve the path correctly",  null, e.remove(new String[]{"a", "b", "c"}) );
-        Assert.assertEquals("Didn't resolve the path correctly",  2, e.get(new String[]{"d"}) );
+        Assert.assertEquals("Didn't resolve the path correctly",  1, e.applyAtPath((i, j, k) -> i.get(j), new String[]{"a", "b", "c"}, null));
+        Assert.assertEquals("Didn't resolve the path correctly",  1, e.applyAtPath((i, j, k) -> i.remove(j), new String[]{"a", "b", "c"}, null));
+        Assert.assertEquals("Didn't resolve the path correctly",  2, e.applyAtPath((i, j, k) -> i.get(j), new String[]{"d"}, null) );
         Assert.assertEquals("Didn't resolve the path correctly",  3, e.get("e") );
     }
 
