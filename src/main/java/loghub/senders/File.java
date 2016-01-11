@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import loghub.Event;
+import loghub.NamedArrayBlockingQueue;
 import loghub.Sender;
 import loghub.configuration.Beans;
 
@@ -35,12 +36,15 @@ public class File extends Sender {
         }
     };
 
+    public File(NamedArrayBlockingQueue inQueue) {
+        super(inQueue);
+    }
+
     @Override
-    public void send(Event e) {
-        System.out.println("new event to file");
-        //String destination = String.format(pattern, e, e.timestamp);
+    public boolean send(Event e) {
         try {
             destination.write(e.toString());
+            return true;
         } catch (IOException e1) {
             throw new RuntimeException(e1);
         }
@@ -48,7 +52,6 @@ public class File extends Sender {
 
     @Override
     public String getSenderName() {
-        // TODO Auto-generated method stub
         return null;
     }
 
@@ -59,7 +62,6 @@ public class File extends Sender {
     public void setPattern(String pattern) throws IOException {
         this.pattern = pattern;
         java.io.File f = new java.io.File(pattern);
-        System.out.println(f.getCanonicalPath());
         destination = new FileWriter(f, true);
     }
 

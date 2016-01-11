@@ -1,66 +1,67 @@
 package loghub;
 
 import java.util.List;
-import java.util.Map;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import loghub.configuration.Properties;
-import zmq.ZMQHelper;
-import zmq.ZMQHelper.SocketInfo;
 
 public class Pipeline {
 
     private static final Logger logger = LogManager.getLogger();
 
-    //A meeting point for each of the many instances of PipeStep
-    private static class Proxy {
-
-        public final String inEndpoint;
-        public final String outEndpoint;
-
-        Proxy(String parent, int rank) {
-            String name = parent + "." + rank;
-            inEndpoint = "inproc://in." + parent + "." + rank;
-            outEndpoint = "inproc://out." + parent + "." + rank;
-            SocketInfo in = new SocketInfo(ZMQHelper.Method.BIND, ZMQHelper.Type.PULL, inEndpoint);
-            SocketInfo out = new SocketInfo(ZMQHelper.Method.BIND, ZMQHelper.Type.PUSH, outEndpoint);
-            SmartContext.getContext().proxy(name, in, out);
-        }
-
-    }
-
-    final private List<PipeStep[]> pipes;
-    final private String name;
-    public final String inEndpoint;
-    public final String outEndpoint;
+    private final List<PipeStep[]> steps;
+    private final String name;
+    public final NamedArrayBlockingQueue inQueue;
+    public final NamedArrayBlockingQueue outQueue;
     private PipeStep[] wrapper = null;
+    private Thread proxy = null;
 
-    public Pipeline(List<PipeStep[]> pipes, String name) {
-        this.pipes = pipes;
+    public Pipeline(List<PipeStep[]> steps, String name) {
+        this.steps = steps;
         this.name = name;
-        inEndpoint = "inproc://in." + name + ".1";
-        outEndpoint = "inproc://out." + name + "." + ( pipes.size() + 1 );
-        logger.debug("new pipeline from {} to {}", inEndpoint, outEndpoint);
+        inQueue = new NamedArrayBlockingQueue(name + ".0");
+        outQueue = new NamedArrayBlockingQueue(name + "." + ( steps.size() + 1 ));
+        logger.debug("new pipeline from {} to {}", inQueue.name, outQueue.name);
     }
 
     public boolean configure(Properties properties) {
-        return pipes.parallelStream().allMatch(i -> i[0].configure(properties));
+        return steps.parallelStream().allMatch(i -> i[0].configure(properties));
     }
 
-    public void startStream(Map<byte[], Event> eventQueue) {
+    public void startStream() {
         logger.debug("{} start stream", name);
-        Proxy[] proxies = new Proxy[pipes.size() + 1 ];
-        for(int i = 0; i <= pipes.size(); i++) {
-            proxies[i] = new Proxy(name, i + 1);
+        NamedArrayBlockingQueue[] proxies = new NamedArrayBlockingQueue[steps.size() + 1];
+        for(int i = 1 ; i < proxies.length - 1 ; i++) {
+            proxies[i] = new NamedArrayBlockingQueue(name + "." + i);
         }
+        proxies[0] = inQueue;
+        proxies[steps.size()] = outQueue;
         int i = 0;
-        for(PipeStep[] step: pipes) {
-            for(PipeStep p: step) {
-                p.start(eventQueue, proxies[i].outEndpoint, proxies[i+1].inEndpoint);
+        if(steps.size() > 0) {
+            for(PipeStep[] step: steps) {
+                for(PipeStep p: step) {
+                    p.start(proxies[i], proxies[i+1]);
+                }
+                i++;
             }
-            i++;
+        } else {
+            // an empty queue,just forward events
+            proxy = Helpers.QueueProxy(name + ".empty", inQueue, outQueue, () -> {logger.error("pipeline {} destination full", name);});
+            proxy.start();
+        }
+    }
+
+    public void stopStream() {
+        if(proxy != null) {
+            proxy.interrupt();
+        } else {
+            for(PipeStep[] step: steps) {
+                for(PipeStep p: step) {
+                    p.interrupt();
+                }
+            }
         }
     }
 
@@ -75,14 +76,8 @@ public class Pipeline {
                     new PipeStep() {
 
                         @Override
-                        public void start(Map<byte[], Event> eventQueue, String endpointIn,
-                                String endpointOut) {
-                            SmartContext.getContext().proxy("in." + Pipeline.this.name, 
-                                    new SocketInfo(ZMQHelper.Method.CONNECT, ZMQHelper.Type.PULL, endpointIn), 
-                                    new SocketInfo(ZMQHelper.Method.BIND, ZMQHelper.Type.PUSH, Pipeline.this.inEndpoint));
-                            SmartContext.getContext().proxy("out." + Pipeline.this.name, 
-                                    new SocketInfo(ZMQHelper.Method.BIND, ZMQHelper.Type.PULL, Pipeline.this.outEndpoint),
-                                    new SocketInfo(ZMQHelper.Method.CONNECT, ZMQHelper.Type.PUSH, endpointOut)); 
+                        public void start(NamedArrayBlockingQueue endpointIn, NamedArrayBlockingQueue endpointOut) {
+                            throw new UnsupportedOperationException("not yet implemented");
                         }
 
                         @Override
@@ -107,7 +102,7 @@ public class Pipeline {
 
     @Override
     public String toString() {
-        return "pipeline[" + name + "]." + inEndpoint + "->" + outEndpoint;
+        return "pipeline[" + name + "]." + inQueue.name + "->" + outQueue.name;
     }
 
 }

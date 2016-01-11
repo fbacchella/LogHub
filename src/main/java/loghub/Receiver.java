@@ -7,41 +7,26 @@ import java.util.Map;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.zeromq.ZMQ.Socket;
 
 import loghub.configuration.Beans;
 import loghub.configuration.Properties;
-import zmq.ZMQHelper;
 
 @Beans({"decoder"})
 public abstract class Receiver extends Thread implements Iterator<byte[]> {
 
     private static final Logger logger = LogManager.getLogger();
 
-    protected Socket pipe;
-    private Map<byte[], Event> eventQueue;
+    private final NamedArrayBlockingQueue outQueue;
     protected Decoder decoder;
-    private String endpoint;
-    protected final SmartContext ctx;
 
-    public Receiver(){
+    public Receiver(NamedArrayBlockingQueue outQueue){
         setDaemon(true);
         setName("receiver-" + getReceiverName());
-        ctx = SmartContext.getContext();
-    }
-
-    public void setEndpoint(String endpoint) {
-        this.endpoint = endpoint;
+        this.outQueue = outQueue;
     }
 
     public boolean configure(Properties properties) {
         return true;
-    }
-
-    public void start(Map<byte[], Event> eventQueue) {
-        this.eventQueue = eventQueue;
-        pipe = ctx.newSocket(ZMQHelper.Method.CONNECT, ZMQHelper.Type.PUSH, endpoint);
-        start();
     }
 
     /**
@@ -53,7 +38,7 @@ public abstract class Receiver extends Thread implements Iterator<byte[]> {
         int eventseen = 0;
         int looptry = 0;
         int wait = 100;
-        while(! isInterrupted() && ctx.isRunning()) {
+        while(! isInterrupted()) {
             Iterable<byte[]> stream = new Iterable<byte[]>() {
                 @Override
                 public Iterator<byte[]> iterator() {
@@ -85,9 +70,6 @@ public abstract class Receiver extends Thread implements Iterator<byte[]> {
                         //Wrap, but not a problem, just count as 1
                         if(eventseen < 0) {
                             eventseen = 1;
-                        }
-                        if( !ctx.isRunning()) {
-                            break;
                         }
                         Event event = new Event();
                         decode(event, e);
@@ -173,16 +155,12 @@ public abstract class Receiver extends Thread implements Iterator<byte[]> {
      * For listener that does asynchronous reception
      * @param event
      */
-    protected void send(Event event) {
-        try {
-            logger.debug("new event: {}", event);
-            byte[] key = event.key();
-            pipe.send(key);
-            eventQueue.put(key, event);
-        } catch (zmq.ZError.IOException | java.nio.channels.ClosedSelectorException | org.zeromq.ZMQException e ) {
-            ctx.close(pipe);
-        } catch (Throwable t) {
-            t.printStackTrace();
+    protected final void send(Event event) {
+        logger.debug("new event: {}", event);
+        if(! outQueue.offer(event)) {
+            logger.error("send failed for {}", event);
+        } else {
+            Stats.received.incrementAndGet();
         }
     }
 

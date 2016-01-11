@@ -32,6 +32,7 @@ import org.snmp4j.util.MultiThreadedMessageDispatcher;
 import org.snmp4j.util.ThreadPool;
 
 import loghub.Event;
+import loghub.NamedArrayBlockingQueue;
 import loghub.Receiver;
 import loghub.configuration.Beans;
 import loghub.configuration.Properties;
@@ -67,7 +68,8 @@ public class SnmpTrap extends Receiver implements CommandResponder {
     static {
     }
 
-    public SnmpTrap() throws IOException {
+    public SnmpTrap(NamedArrayBlockingQueue outQueue) throws IOException {
+        super(outQueue);
         threadPool = ThreadPool.create("Trap", 2);
         MultiThreadedMessageDispatcher dispatcher = new MultiThreadedMessageDispatcher(threadPool,
                 new MessageDispatcherImpl());

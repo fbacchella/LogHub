@@ -27,7 +27,9 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import loghub.Helpers.ThrowingConsumer;
+import loghub.Helpers.ThrowingFunction;
 import loghub.Helpers.ThrowingPredicate;
+import loghub.NamedArrayBlockingQueue;
 import loghub.PipeStep;
 import loghub.Pipeline;
 import loghub.Processor;
@@ -57,7 +59,9 @@ public class Configuration {
         }
     }
 
+    @SuppressWarnings("unused")
     private static final Logger logger = LogManager.getLogger();
+    private static final ThrowingFunction<Class<Object>, Object> emptyConstructor = i -> {return i.getConstructor().newInstance();};
 
     public Map<String, Pipeline> namedPipeLine = null;
     public Set<Pipeline> pipelines = new HashSet<>();
@@ -105,7 +109,7 @@ public class Configuration {
         namedPipeLine = new HashMap<>(conf.pipelines.size());
 
         Function<Object, Object> resolve = i -> ((i instanceof ConfigListener.ObjectWrapped) ? ((ConfigListener.ObjectWrapped) i).wrapped : 
-            (i instanceof ConfigListener.ObjectReference) ? parseObjectDescription((ConfigListener.ObjectDescription) i) : i);
+            (i instanceof ConfigListener.ObjectReference) ? parseObjectDescription((ConfigListener.ObjectDescription) i, emptyConstructor) : i);
 
         final Map<String, Object > newProperties = new HashMap<>(conf.properties.size());
         conf.properties.entrySet().stream().forEach( i-> newProperties.put(i.getKey(), resolve.apply(i.getValue())));
@@ -143,9 +147,10 @@ public class Configuration {
                 throw new RuntimeException("Invalid input, no destination pipeline: " + i);
             }
             for(ConfigListener.ObjectDescription desc: i.receiver) {
-                Receiver r = (Receiver) parseObjectDescription(desc);
-                logger.debug("receiver {} destination point will be {}", () -> i, () -> namedPipeLine.get(i.piperef).inEndpoint);
-                r.setEndpoint(namedPipeLine.get(i.piperef).inEndpoint);
+                Pipeline p = namedPipeLine.get(i.piperef);
+                ThrowingFunction<Class<Receiver>, Receiver> receiverConstructor = r -> {return r.getConstructor(NamedArrayBlockingQueue.class).newInstance(p.inQueue);};
+                Receiver r = (Receiver) parseObjectDescription(desc, receiverConstructor);
+                //logger.debug("receiver {} destination point will be {}", () -> i, () -> namedPipeLine.get(i.piperef).inQueue);
                 receivers.add(r);
             }
             inputpipelines.add(i.piperef);
@@ -160,9 +165,10 @@ public class Configuration {
                 throw new RuntimeException("Invalid output, no source pipeline: " + o);
             }
             for(ConfigListener.ObjectDescription desc: o.sender) {
-                Sender s = (Sender) parseObjectDescription(desc);
-                logger.debug("sender {} source point will be {}", () -> s, () -> namedPipeLine.get(o.piperef).outEndpoint);
-                s.setEndpoint(namedPipeLine.get(o.piperef).outEndpoint);
+                Pipeline p = namedPipeLine.get(o.piperef);
+                ThrowingFunction<Class<Sender>, Sender> senderConstructor = r -> {return r.getConstructor(NamedArrayBlockingQueue.class).newInstance(p.outQueue);};
+                Sender s = (Sender) parseObjectDescription(desc, senderConstructor);
+                //logger.debug("sender {} source point will be {}", () -> s, () -> namedPipeLine.get(o.piperef).outQueue);
                 senders.add(s);
             }
             outputpipelines.add(o.piperef);
@@ -217,7 +223,7 @@ public class Configuration {
         Processor t;
         if(i instanceof ConfigListener.ProcessorInstance) {
             ConfigListener.ProcessorInstance ti = (ConfigListener.ProcessorInstance) i;
-            t = (Processor) parseObjectDescription(ti);
+            t = (Processor) parseObjectDescription(ti, emptyConstructor);
         } else if (i instanceof ConfigListener.Test){
             ConfigListener.Test ti = (ConfigListener.Test) i;
             Test test = new Test();
@@ -242,29 +248,33 @@ public class Configuration {
         return t;
     }
 
-    private <T> T parseObjectDescription(ConfigListener.ObjectDescription desc) {
+    private <T, C> T parseObjectDescription(ConfigListener.ObjectDescription desc, ThrowingFunction<Class<T>, T> constructor) {
         try {
             @SuppressWarnings("unchecked")
             Class<T> clazz = (Class<T>) classLoader.loadClass(desc.clazz);
-            T object = clazz.getConstructor().newInstance();
+            T object = constructor.apply(clazz);
+
             for(Entry<String, ObjectReference> i: desc.beans.entrySet()) {
                 ObjectReference ref = i.getValue();
                 Object beanValue;
                 if(i.getValue() instanceof ConfigListener.ObjectWrapped) {
                     beanValue = ((ConfigListener.ObjectWrapped) ref).wrapped;
                 } else if (i.getValue() instanceof ConfigListener.ObjectDescription) {
-                    beanValue = parseObjectDescription((ConfigListener.ObjectDescription) ref);
+                    beanValue = parseObjectDescription((ConfigListener.ObjectDescription) ref, emptyConstructor);
                 } else {
                     throw new ConfigException(String.format("Invalid class '%s': %s", desc.clazz), desc.ctx.start, desc.ctx.stop);
                 }
-                BeansManager.beanSetter(object, i.getKey(), beanValue);
+                try {
+                    BeansManager.beanSetter(object, i.getKey(), beanValue);
+                } catch (InvocationTargetException ex) {
+                    ex.printStackTrace();
+                    throw new ConfigException(String.format("Invalid bean '%s.%s': %s", desc.clazz, i.getKey(), ex.getCause()), desc.ctx.start, desc.ctx.stop);
+                }
             }
             return object;
         } catch (ClassNotFoundException e) {
             throw new ConfigException(String.format("Unknown class '%s'", desc.clazz), desc.ctx.start, desc.ctx.stop);
-        } catch (InstantiationException | IllegalAccessException
-                | IllegalArgumentException | InvocationTargetException
-                | NoSuchMethodException | SecurityException | ExceptionInInitializerError e) {
+        } catch (RuntimeException | ExceptionInInitializerError e) {
             throw new ConfigException(String.format("Invalid class '%s': %s", desc.clazz, e), desc.ctx.start, desc.ctx.stop);
         }
     }

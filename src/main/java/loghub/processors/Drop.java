@@ -7,7 +7,7 @@ public class Drop extends Processor {
 
     @Override
     public void process(Event event) {
-        event.dropped = true;
+        throw new UnsupportedOperationException("can't process wrapped event");
     }
 
     @Override

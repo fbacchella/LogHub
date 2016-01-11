@@ -12,6 +12,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import loghub.Event;
+import loghub.NamedArrayBlockingQueue;
 import loghub.Sender;
 import loghub.configuration.Beans;
 import loghub.configuration.Properties;
@@ -26,16 +27,22 @@ public class Udp extends Sender {
     DatagramSocket socket;
     InetAddress IPAddress;
 
+    public Udp(NamedArrayBlockingQueue inQueue) {
+        super(inQueue);
+    }
+
     @Override
-    public void send(Event event) {
+    public boolean send(Event event) {
         byte[] msg = getEncoder().encode(event);
 
         DatagramPacket packet = new DatagramPacket(msg, msg.length, IPAddress, port);
         try {
             socket.send(packet);
+            return true;
         } catch (IOException e) {
             logger.error("unable to send message: {}", e);
             logger.throwing(Level.DEBUG, e);
+            return false;
         }
     }
 

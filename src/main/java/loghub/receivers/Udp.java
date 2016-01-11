@@ -12,6 +12,7 @@ import java.util.Iterator;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import loghub.NamedArrayBlockingQueue;
 import loghub.Receiver;
 import loghub.configuration.Beans;
 
@@ -23,6 +24,10 @@ public class Udp extends Receiver {
     private int port = 0;
     private String listen = "0.0.0.0";
 
+    public Udp(NamedArrayBlockingQueue outQueue) {
+        super(outQueue);
+    }
+
     @Override
     public String getReceiverName() {
         return "UDP";
@@ -32,7 +37,7 @@ public class Udp extends Receiver {
     public Iterator<byte[]> getIterator() {
         try {
             DatagramSocket socket = new DatagramSocket(port, InetAddress.getByName(listen));
-            // if port was 0, a random port was choosen, get it back, useful for tests
+            // if port was 0, a random port was chosen, get it back, useful for tests
             port = socket.getLocalPort();
             final byte[] buffer = new byte[65536];
             final DatagramPacket packet = new DatagramPacket(buffer, buffer.length);

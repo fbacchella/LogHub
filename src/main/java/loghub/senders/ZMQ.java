@@ -5,13 +5,16 @@ import org.apache.logging.log4j.Logger;
 import org.zeromq.ZMQ.Socket;
 
 import loghub.Event;
+import loghub.NamedArrayBlockingQueue;
 import loghub.Sender;
+import loghub.SmartContext;
 import loghub.configuration.Beans;
 import zmq.ZMQHelper;
 
 @Beans({"method", "destination", "type", "hwm"})
 public class ZMQ extends Sender {
 
+    @SuppressWarnings("unused")
     private static final Logger logger = LogManager.getLogger();
 
     private ZMQHelper.Method method = ZMQHelper.Method.BIND;
@@ -19,12 +22,17 @@ public class ZMQ extends Sender {
     private ZMQHelper.Type type = ZMQHelper.Type.PUB;
     private int hwm = 1000;
     private Socket sendsocket;
+    private final SmartContext ctx = SmartContext.getContext();
 
+    public ZMQ(NamedArrayBlockingQueue inQueue) {
+        super(inQueue);
+    }
 
     @Override
-    public void send(Event event) {
+    public boolean send(Event event) {
         byte[] msg = getEncoder().encode(event);
         sendsocket.send(msg);
+        return true;
     }
 
     public String getMethod() {

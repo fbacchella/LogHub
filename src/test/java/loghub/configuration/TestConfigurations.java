@@ -1,9 +1,15 @@
 package loghub.configuration;
 
 import java.io.IOException;
+import java.rmi.NotBoundException;
 import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.HashSet;
+import java.util.Set;
+
+import javax.management.InstanceAlreadyExistsException;
+import javax.management.MBeanRegistrationException;
+import javax.management.MalformedObjectNameException;
+import javax.management.NotCompliantMBeanException;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -16,16 +22,16 @@ import org.zeromq.ZMQ.Socket;
 
 import loghub.ContextRule;
 import loghub.Event;
+import loghub.Helpers;
 import loghub.LogUtils;
 import loghub.Pipeline;
 import loghub.Receiver;
 import loghub.Sender;
 import loghub.SmartContext;
+import loghub.Start;
 import loghub.Tools;
 import loghub.configuration.Configuration.PipeJoin;
-import zmq.ZMQHelper;
 import zmq.ZMQHelper.Method;
-import zmq.ZMQHelper.SocketInfo;
 import zmq.ZMQHelper.Type;
 
 public class TestConfigurations {
@@ -49,55 +55,51 @@ public class TestConfigurations {
         return conf;
     }
 
+    private Start createStart(String configname) throws NotCompliantMBeanException, MalformedObjectNameException, InstanceAlreadyExistsException, MBeanRegistrationException, InstantiationException, IllegalAccessException, IOException, NotBoundException {
+        String conffile = getClass().getClassLoader().getResource(configname).getFile();
+        return new Start(conffile);
+    }
+
+
     @Test(timeout=1000)
     public void testBuildPipeline() throws IOException, InterruptedException {
         Configuration conf = loadConf("simple.conf");
-        Map<byte[], Event> eventQueue = new ConcurrentHashMap<>();
-
         Event sent = new Event();
-        eventQueue.put(sent.key(), sent);
 
         for(Pipeline i: conf.pipelines) {
-            i.startStream(eventQueue);
+            i.startStream();
         }
         logger.debug("pipelines: " + conf.pipelines);
         logger.debug("namedPipeLine: " + conf.namedPipeLine);
         Pipeline main = conf.namedPipeLine.get("main");
-        Socket in = tctxt.ctx.newSocket(Method.CONNECT, Type.PUSH, main.inEndpoint, 1, -1);
-        Socket out = tctxt.ctx.newSocket(Method.CONNECT, Type.PULL, main.outEndpoint, 1, -1);
-        in.send(sent.key());
+        main.inQueue.offer(sent);
         for(String sockName: tctxt.ctx.getSocketsList()) {
             logger.debug("    " + sockName);
         }
 
-        byte[] buffer = tctxt.ctx.recv(out);
-        Event received = eventQueue.get(buffer);
+        Event received = main.outQueue.take();
         Assert.assertEquals("not expected event received", sent, received);
         for(String sockName: tctxt.ctx.getSocketsList()) {
             logger.debug("    " + sockName);
         }
-        tctxt.ctx.close(in);
-        tctxt.ctx.close(out);
-        tctxt.terminate();
     }
 
     @Test(timeout=1000) 
     public void testSimpleInput() throws InterruptedException {
         Configuration conf = loadConf("simpleinput.conf");
         logger.debug("pipelines: {}", conf.pipelines);
-        Map<byte[], Event> eventQueue = new ConcurrentHashMap<>();
 
         logger.debug("receiver pipelines: {}", conf.inputpipelines);
         for(Pipeline i: conf.pipelines) {
-            i.startStream(eventQueue);
+            i.startStream();
         }
         Thread.sleep(30);
         for(Receiver r: conf.getReceivers()) {
-            r.start(eventQueue);
+            r.start();
         }
         Thread.sleep(30);
         for(Sender s: conf.getSenders()) {
-            s.start(eventQueue);
+            s.start();
         }
         Thread.sleep(30);
         Socket out = tctxt.ctx.newSocket(Method.CONNECT, Type.SUB, "inproc://sender", 1, -1);
@@ -107,7 +109,6 @@ public class TestConfigurations {
         sender.send("something");
         byte[] buffer = out.recv();
         Assert.assertEquals("wrong send message", "something", new String(buffer));
-        Assert.assertEquals("Event queue not empty", 0, eventQueue.size());
         tctxt.ctx.close(sender);
         tctxt.ctx.close(out);
         for(Receiver r: conf.getReceivers()) {
@@ -123,27 +124,28 @@ public class TestConfigurations {
     public void testTwoPipe() throws InterruptedException {
         Configuration conf = loadConf("twopipe.conf");
         logger.debug("pipelines: {}", conf.pipelines);
-        Map<byte[], Event> eventQueue = new ConcurrentHashMap<>();
 
         logger.debug("receiver pipelines: {}", conf.inputpipelines);
         for(Pipeline i: conf.pipelines) {
-            i.startStream(eventQueue);
+            i.startStream();
         }
         Thread.sleep(30);
         for(Receiver r: conf.getReceivers()) {
-            r.start(eventQueue);
+            r.start();
         }
         Thread.sleep(30);
         for(Sender s: conf.getSenders()) {
-            s.start(eventQueue);
+            s.start();
         }
         Thread.sleep(30);
+        Set<Thread> joins = new HashSet<>();
+        int i = 0;
         for(PipeJoin j: conf.joins) {
             Pipeline inpipe = conf.namedPipeLine.get(j.inpipe);
             Pipeline outpipe = conf.namedPipeLine.get(j.outpipe);
-            SocketInfo inSi = new SocketInfo(ZMQHelper.Method.CONNECT, ZMQHelper.Type.PULL, inpipe.outEndpoint);
-            SocketInfo outSi = new SocketInfo(ZMQHelper.Method.CONNECT, ZMQHelper.Type.PUSH, outpipe.inEndpoint);
-            SmartContext.getContext().proxy(j.toString(), inSi, outSi);
+            Thread t = Helpers.QueueProxy("test" + i++, inpipe.outQueue, outpipe.inQueue,  () -> {} );
+            t.start();
+            joins.add(t);
         }
         Socket out = tctxt.ctx.newSocket(Method.CONNECT, Type.SUB, "inproc://sender", 1, -1);
         out.subscribe(new byte[]{});
@@ -152,49 +154,31 @@ public class TestConfigurations {
         sender.send("something");
         byte[] buffer = out.recv();
         Assert.assertEquals("wrong send message", "something", new String(buffer));
-        Assert.assertEquals("Event queue not empty", 0, eventQueue.size());
         tctxt.ctx.close(sender);
         tctxt.ctx.close(out);
-        for(Receiver r: conf.getReceivers()) {
-            r.interrupt();
-        }
-        for(Sender s: conf.getSenders()) {
-            s.interrupt();
-        }
-        SmartContext.terminate();
+        conf.getReceivers().stream().forEach(r -> r.interrupt());
+        conf.getSenders().stream().forEach(s -> s.interrupt());
+        conf.pipelines.stream().forEach(p -> p.stopStream());
+        joins.stream().forEach(t -> t.interrupt());
     }
 
-    @Test(timeout=1000) 
+    @Test(timeout=1000)
     public void testFork() throws InterruptedException {
         Configuration conf = loadConf("fork.conf");
         for(Pipeline pipe: conf.pipelines) {
-            pipe.configure(conf.properties);
+            Assert.assertTrue("configuration failed", pipe.configure(conf.properties));
         }
         logger.debug("pipelines: {}", conf.pipelines);
-        Map<byte[], Event> eventQueue = new ConcurrentHashMap<>();
         for(Pipeline i: conf.pipelines) {
-            i.startStream(eventQueue);
+            i.startStream();
         }
 
         Event sent = new Event();
         sent.put("childs", new HashMap<String, Object>());
-        eventQueue.put(sent.key(), sent);
 
-        Thread.sleep(30);
-        Socket out1 = tctxt.ctx.newSocket(Method.CONNECT, Type.PULL, "inproc://out.main$0.2", 1, -1);
-        Socket out2 = tctxt.ctx.newSocket(Method.CONNECT, Type.PULL, "inproc://out.forked$0.1", 1, -1);
-        Socket sender = tctxt.ctx.newSocket(Method.CONNECT, Type.PUSH, "inproc://in.main$0.1", 1, -1);
-        Thread.sleep(30);
-        sender.send(sent.key());
-
-        out1.recv();
-        out2.recv();
-        Assert.assertEquals("Event queue don't contains requested events", 2, eventQueue.size());
-
-        tctxt.ctx.close(sender);
-        tctxt.ctx.close(out1);
-        tctxt.ctx.close(out2);
-        SmartContext.terminate();
+        conf.namedPipeLine.get("main").inQueue.offer(sent);
+        conf.namedPipeLine.get("main").outQueue.take();
+        conf.namedPipeLine.get("forked").outQueue.take();
     }
 
     @Test
@@ -205,6 +189,13 @@ public class TestConfigurations {
         }
         Assert.assertEquals("input not found", 1, conf.getReceivers().size());
         Assert.assertEquals("ouput not found", 1, conf.getSenders().size());
+    }
+
+    //@Test(timeout=1000)
+    public void testfill() throws NotCompliantMBeanException, MalformedObjectNameException, InstanceAlreadyExistsException, MBeanRegistrationException, InstantiationException, IllegalAccessException, IOException, NotBoundException, InterruptedException {
+        Start s = createStart("filesbuffer.conf");
+        s.start();
+        s.join();
     }
 
 }

@@ -26,6 +26,7 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import loghub.Event;
+import loghub.NamedArrayBlockingQueue;
 import loghub.Sender;
 
 public class ElasticSearch extends Sender {
@@ -49,6 +50,10 @@ public class ElasticSearch extends Sender {
 
     private Rest.Client client; 
 
+    public ElasticSearch(NamedArrayBlockingQueue inQueue) {
+        super(inQueue);
+    }
+
     @Override
     public void start() {
         TTransport transport = new TSocket("localhost", 9500);
@@ -66,15 +71,17 @@ public class ElasticSearch extends Sender {
     }
 
     @Override
-    public void send(Event event) {
+    public boolean send(Event event) {
         Map<String, Object> esjson = new HashMap<>(event.size());
         esjson.putAll(event);
         esjson.put("type", event.type);
         esjson.put("@timestamp", ISO8601.format(event.timestamp));
         try {
             put(esjson, event.timestamp, event.type);
+            return true;
         } catch (TException | IOException e) {
             e.printStackTrace();
+            return false;
         }
     }
 

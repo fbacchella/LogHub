@@ -48,28 +48,22 @@ public class TestPipeStep {
         eventQueue.put(sent.key(), sent);
         System.out.println(sent.key() + " = " + Arrays.toString(sent.key()));
 
-        String inEndpoint = "inproc://in.TestPipeStep";
-        String outEndpoint = "inproc://out.TestPipeStep";
-
         //  Socket facing clients
-        Socket in = tctxt.ctx.newSocket(Method.BIND, Type.PUSH, inEndpoint, 1, -1);
+        NamedArrayBlockingQueue in = new NamedArrayBlockingQueue("in.TestPipeStep");
 
         //  Socket facing services
-        Socket out = tctxt.ctx.newSocket(Method.BIND, Type.PULL, outEndpoint, 1, -1);
+        NamedArrayBlockingQueue out = new NamedArrayBlockingQueue("out.TestPipeStep");
         try {
-            ps.start(eventQueue, inEndpoint, outEndpoint);
+            ps.start(in, out);
         } catch (Exception e) {
             Throwable t = e;
             do {
                 t.printStackTrace();
             } while((t = t.getCause()) != null);
         }
-        Assert.assertTrue("send failed", in.send(sent.key()));
-        byte[] keyReceived = out.recv();
-        Event received = eventQueue.get(keyReceived);
+        Assert.assertTrue("send failed", in.add(sent));
+        Event received = out.take();
         Assert.assertEquals("Not expected event received", sent, received);
-        tctxt.ctx.close(in);
-        tctxt.ctx.close(out);
     }
 
     @Test(timeout=1000)
@@ -93,25 +87,17 @@ public class TestPipeStep {
 
         });
         Pipeline pipeline = new Pipeline(Collections.singletonList(new PipeStep[] {subps}), "main");
-        Map<byte[], Event> eventQueue = new ConcurrentHashMap<>();
         Event sent = new Event();
         sent.type = "testEvent";
-        eventQueue.put(sent.key(), sent);
-        pipeline.startStream(eventQueue);
+        pipeline.startStream();
 
-        Socket in = tctxt.ctx.newSocket(Method.CONNECT, Type.PUSH, pipeline.inEndpoint, 1, -1);
-        Socket out = tctxt.ctx.newSocket(Method.CONNECT, Type.PULL, pipeline.outEndpoint, 1, -1);
 
         logger.debug("pipeline is " + pipeline);
         logger.debug("send message: " + sent.key());
-        in.send(sent.key());
-        byte[] keyReceived = out.recv();
-        Event received = eventQueue.get(keyReceived);
+        pipeline.inQueue.offer(sent);
+        Event received = pipeline.outQueue.take();
         Assert.assertEquals("Not expected event received", sent, received);
 
-        tctxt.ctx.close(in);
-        tctxt.ctx.close(out);
-        tctxt.terminate();
     }
 
     public void testSub() throws InterruptedException {
@@ -123,7 +109,7 @@ public class TestPipeStep {
         Pipeline pipeline = new Pipeline(Collections.singletonList(new PipeStep[] {subps}), "subTestPipeStep");
         Map<byte[], Event> eventQueue = new ConcurrentHashMap<>();
         eventQueue.put("1".getBytes(), new Event());
-        pipeline.startStream(eventQueue);
+        pipeline.startStream();
 
         PipeStep ps = pipeline.getPipeSteps()[0];
 
@@ -159,7 +145,7 @@ public class TestPipeStep {
                 tctxt.ctx.close(subOut);
             };
         };
-        ps.start(eventQueue, inEndpoint, outEndpoint);
+        ps.start();
         logger.debug(pipeline);
         for(String s: tctxt.ctx.getSocketsList()) {
             logger.debug(s); 

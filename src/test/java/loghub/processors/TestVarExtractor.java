@@ -35,9 +35,10 @@ public class TestVarExtractor {
         e.setProcessor(t);
         e.put(".message", "a=1;b:2;c");
         t.process(e);
+        System.out.println(e);
         Assert.assertEquals("key a not found", "1", e.get("a"));
         Assert.assertEquals("key b not found", "2", e.get("b"));
-        Assert.assertEquals("key message not found", "c", e.get("message"));
+        Assert.assertEquals("key message not found", "c", e.get(".message"));
 
     }
 

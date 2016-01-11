@@ -6,6 +6,7 @@ import loghub.Processor;
 
 public class SubPipeline extends Processor {
 
+    @SuppressWarnings("unused")
     private final Pipeline pipeline;
     public SubPipeline(Pipeline pipeline) {
         this.pipeline = pipeline;

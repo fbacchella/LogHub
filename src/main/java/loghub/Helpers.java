@@ -15,6 +15,7 @@ import java.util.Collections;
 import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.List;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -25,6 +26,27 @@ import java.util.stream.StreamSupport;
 public final class Helpers {
 
     private Helpers() {
+
+    }
+
+    @FunctionalInterface
+    public interface Actor {
+        void act();
+    }
+
+    @FunctionalInterface
+    public interface ThrowingActor extends Actor {
+
+        @Override
+        default void act() {
+            try {
+                act();
+            } catch (final Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        void actThrows() throws Exception;
 
     }
 
@@ -76,6 +98,21 @@ public final class Helpers {
 
     }
 
+    @FunctionalInterface
+    public interface ThrowingBiFunction<T, U, R> extends BiFunction<T, U, R> {
+
+        @Override
+        default R apply(final T elem1, final U elem2) {
+            try {
+                return applyThrows(elem1, elem2);
+            } catch (final Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        R applyThrows(final T elem1, final U elem2) throws Exception;
+    }
+
     public static <E> Iterable<E> enumIterable(Enumeration<E> e){
         return new Iterable<E>() {
             @Override
@@ -121,6 +158,27 @@ public final class Helpers {
                 throw new RuntimeException("cant load ressource at " + url);
             }
         }
+    }
+
+    public static Thread QueueProxy(String name, NamedArrayBlockingQueue inQueue, NamedArrayBlockingQueue outQueue, Actor onerror) {
+        Thread t = new Thread() {
+            @Override
+            public void run() {
+                while(true) {
+                    try {
+                        Event e = inQueue.take();
+                        if(! outQueue.offer(e)) {
+                            onerror.act();
+                        }
+                    } catch (InterruptedException e) {
+                        break;
+                    }
+                }
+            }
+        };
+        t.setDaemon(true);
+        t.setName(name);
+        return t;
     }
 
 }
