@@ -157,10 +157,10 @@ public abstract class Receiver extends Thread implements Iterator<byte[]> {
      */
     protected final void send(Event event) {
         logger.debug("new event: {}", event);
+        Stats.received.incrementAndGet();
         if(! outQueue.offer(event)) {
-            logger.error("send failed for {}", event);
-        } else {
-            Stats.received.incrementAndGet();
+            Stats.dropped.incrementAndGet();
+            logger.error("send failed for {}, destination blocked", event);
         }
     }
 

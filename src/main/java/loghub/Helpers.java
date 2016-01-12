@@ -174,6 +174,7 @@ public final class Helpers {
                     try {
                         Event e = inQueue.take();
                         if(! outQueue.offer(e)) {
+                            Stats.dropped.incrementAndGet();
                             onerror.act();
                         }
                     } catch (InterruptedException e) {

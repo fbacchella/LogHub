@@ -28,6 +28,8 @@ public abstract class Sender extends Thread {
                 Event event = inQueue.take();
                 if(send(event)) {
                     Stats.sent.incrementAndGet();
+                } else {
+                    Stats.dropped.incrementAndGet();
                 }
             } catch (InterruptedException e) {
                 break;

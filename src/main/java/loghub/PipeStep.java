@@ -75,7 +75,10 @@ public class PipeStep extends Thread {
                 }
                 setName(threadName);
                 if( ! event.dropped) {
-                    queueOut.put(event);
+                    if( ! queueOut.offer(event) ) {
+                        Stats.dropped.incrementAndGet();
+                        logger.error("send failed for {}, destination blocked", event);
+                    };
                     logger.trace("{} send event {}", () -> queueOut, () -> event);
                 } else {
                     logger.error("{} dropped event {}", () -> queueOut, () -> event);
