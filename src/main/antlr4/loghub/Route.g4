@@ -12,7 +12,7 @@ inputObjectlist: (object (',' object)*)? ','?;
 outputObjectlist: (object (',' object)*)? ','?;
 pipenodeList :   pipenode (('+' forkpiperef)|('|' pipenode))*;
 forkpiperef: '$' Identifier;
-pipenode: test | object | '(' pipenodeList ')' | '$' piperef;
+pipenode: test | object | '(' pipenodeList ')' | '$' piperef | drop;
 object: QualifiedIdentifier beansDescription ; 
 beansDescription:  ('{' (bean (',' bean)*)? ','? '}')? ;
 bean: beanName ':' beanValue;
@@ -20,6 +20,8 @@ beanName: Identifier;
 beanValue: object | literal | array;
 finalpiperef: piperef;
 piperef:  Identifier;
+drop: Drop;
+Drop: 'd' 'r' 'o' 'p';
 property: Identifier ':' beanValue;
 
 test: testExpression '?' pipenode (':' pipenode)?;

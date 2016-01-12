@@ -19,6 +19,7 @@ import loghub.RouteParser.BeanNameContext;
 import loghub.RouteParser.BeanValueContext;
 import loghub.RouteParser.BooleanLiteralContext;
 import loghub.RouteParser.CharacterLiteralContext;
+import loghub.RouteParser.DropContext;
 import loghub.RouteParser.FinalpiperefContext;
 import loghub.RouteParser.FloatingPointLiteralContext;
 import loghub.RouteParser.ForkpiperefContext;
@@ -37,6 +38,7 @@ import loghub.RouteParser.StringLiteralContext;
 import loghub.RouteParser.TestContext;
 import loghub.RouteParser.TestExpressionContext;
 import loghub.configuration.Configuration.PipeJoin;
+import loghub.processors.Drop;
 import loghub.processors.Forker;
 
 class ConfigListener extends RouteBaseListener {
@@ -393,6 +395,12 @@ class ConfigListener extends RouteBaseListener {
         }
         stack.pop();
         stack.push(new ObjectWrapped(array.toArray()));
+    }
+
+    @Override
+    public void exitDrop(DropContext ctx) {
+        ObjectDescription drop = new ObjectDescription(Drop.class.getCanonicalName(), ctx);
+        stack.push(drop);
     }
 
 }
