@@ -8,15 +8,21 @@ import java.text.MessageFormat;
 import java.text.ParsePosition;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.time.chrono.JapaneseDate;
+import java.time.chrono.ThaiBuddhistDate;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoField;
+import java.time.temporal.TemporalAccessor;
+import java.time.temporal.TemporalQuery;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.TimeZone;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -27,6 +33,7 @@ public class VarFormatter {
         public final boolean leftjustified;
         public final boolean alternateform;
         public final boolean withsign;
+        @SuppressWarnings("unused")
         public final boolean leadingspace;
         public final boolean zeropadded;
         public final boolean grouping;
@@ -188,19 +195,22 @@ public class VarFormatter {
         private final DecimalFormat nf;
         private final DateTimeFormatter dtf;
         private final ChronoField field;
-        private final Function<Integer, Integer> transform;
-        private ExtendedDateFormat(Locale l, char timeFormat, ZoneId tz) {
+        private final TemporalQuery<Long> transform;
+        private final Function<String, String> transformResult;
+        private final Function<ZonedDateTime, TemporalAccessor> getDate;
+        private ExtendedDateFormat(Locale l, char timeFormat, ZoneId tz, boolean isUpper) {
             this.tz = tz;
             String dtfPattern = null;
             String nfPattern = null;
             ChronoField fieldTemp = null;
-            Function<Integer, Integer> transformTemp = null;
+            TemporalQuery<Long> transformTemp = null;
+            Function<String, String> transformResultTemp = isUpper ? i -> i.toUpperCase(l) : null ;
             //dtf = DateTimeFormatter.ofPattern("" + timeFormat);
             switch(timeFormat) {
             // Hour of the day for the 24-hour clock, formatted as two digits with a leading zero as necessary i.e. 00 - 23.
             case 'H': nfPattern = "00" ; fieldTemp = ChronoField.HOUR_OF_DAY ; break;
             // Hour for the 12-hour clock, formatted as two digits with a leading zero as necessary, i.e. 01 - 12.
-            case 'I': nfPattern = "00" ; fieldTemp = ChronoField.CLOCK_HOUR_OF_DAY ; break;
+            case 'I': nfPattern = "00" ; fieldTemp = ChronoField.CLOCK_HOUR_OF_AMPM ; break;
             // Hour of the day for the 24-hour clock, i.e. 0 - 23.
             case 'k': nfPattern = "##" ; fieldTemp = ChronoField.HOUR_OF_DAY ; break;
             // Hour for the 12-hour clock, i.e. 1 - 12.
@@ -214,31 +224,31 @@ public class VarFormatter {
             // Nanosecond within the second, formatted as nine digits with leading zeros as necessary, i.e. 000000000 - 999999999.
             case 'N': nfPattern = "000000000" ; fieldTemp = ChronoField.NANO_OF_SECOND ; break;
             // Locale-specific morning or afternoon marker in lower case, e.g."am" or "pm". Use of the conversion prefix 'T' forces this output to upper case.
-            case 'p': dtfPattern = "a" ; break;
+            case 'p': dtfPattern = "a" ; transformResultTemp = isUpper ? i -> i.toUpperCase(l) : i -> i.toLowerCase(l) ; break;
             // RFC 822 style numeric time zone offset from GMT, e.g. -0800. This value will be adjusted as necessary for Daylight Saving Time. For long, Long, and Date the time zone used is the default time zone for this instance of the Java virtual machine.
-            case 'z': nfPattern = "0000" ; fieldTemp = ChronoField.HOUR_OF_DAY ; break;
+            case 'z': dtfPattern = "Z" ; break;
             // A string representing the abbreviation for the time zone. This value will be adjusted as necessary for Daylight Saving Time. For long, Long, and Date the time zone used is the default time zone for this instance of the Java virtual machine. The Formatter's locale will supersede the locale of the argument (if any).
-            case 'Z': dtfPattern = "" ; fieldTemp = ChronoField.HOUR_OF_DAY ; break;
+            case 'Z': dtfPattern = "z" ; break;
             // Seconds since the beginning of the epoch starting at 1 January 1970 00:00:00 UTC, i.e. Long.MIN_VALUE/1000 to Long.MAX_VALUE/1000.
-            case 's': dtfPattern = "" ; fieldTemp = ChronoField.HOUR_OF_DAY ; break;
+            case 's': nfPattern = "#" ; fieldTemp = ChronoField.INSTANT_SECONDS ; break;
             // Milliseconds since the beginning of the epoch starting at 1 January 1970 00:00:00 UTC, i.e. Long.MIN_VALUE to Long.MAX_VALUE.
-            case 'Q': nfPattern = "#" ; break;
+            case 'Q': nfPattern = "#" ; transformTemp = i -> (i.getLong(ChronoField.INSTANT_SECONDS) * 1000 + i.getLong(ChronoField.MILLI_OF_SECOND)) ; break;
             // Locale-specific full month name, e.g. "January", "February".
             case 'B': dtfPattern = "MMMM" ; fieldTemp = ChronoField.HOUR_OF_DAY ; break;
             // Locale-specific abbreviated month name, e.g. "Jan", "Feb".
-            case 'b': dtfPattern = "MMM" ; break;
-            // Same as 'b'.
+            case 'b':
+                // Same as 'b'.
             case 'h': dtfPattern = "MMM" ; break;
             // Locale-specific full name of the day of the week, e.g. "Sunday", "Monday"
             case 'A': dtfPattern = "EEEE" ; break;
             // Locale-specific short name of the day of the week, e.g. "Sun", "Mon"
             case 'a': dtfPattern = "EEE" ; break;
             // Four-digit year divided by 100, formatted as two digits with leading zero as necessary, i.e. 00 - 99
-            case 'C': nfPattern = "00" ; fieldTemp = ChronoField.HOUR_OF_DAY ; transformTemp = i -> i % 100; break;
+            case 'C': nfPattern = "00" ; fieldTemp = ChronoField.YEAR_OF_ERA ; transformTemp = i -> i.getLong(ChronoField.YEAR_OF_ERA) / 100 ; break;
             // Year, formatted as at least four digits with leading zeros as necessary, e.g. 0092 equals 92 CE for the Gregorian calendar.
-            case 'Y': nfPattern = "0000" ; fieldTemp = ChronoField.HOUR_OF_DAY; transformTemp = i -> i % 100; break;
+            case 'Y': nfPattern = "0000" ; fieldTemp = ChronoField.YEAR_OF_ERA; break;
             // Last two digits of the year, formatted with leading zeros as necessary, i.e. 00 - 99.
-            case 'y': nfPattern = "00" ; fieldTemp = ChronoField.YEAR; transformTemp = i -> i % 100; break;
+            case 'y': nfPattern = "00" ; fieldTemp = ChronoField.YEAR_OF_ERA; transformTemp = i -> i.getLong(ChronoField.YEAR_OF_ERA) % 100 ; break;
             // Day of year, formatted as three digits with leading zeros as necessary, e.g. 001 - 366 for the Gregorian calendar.
             case 'j': nfPattern = "000" ; fieldTemp = ChronoField.DAY_OF_YEAR ; break;
             // Month, formatted as two digits with leading zeros as necessary, i.e. 01 - 13.
@@ -268,26 +278,56 @@ public class VarFormatter {
             }
             field = fieldTemp;
             transform = transformTemp;
+            transformResult = transformResultTemp;
             if(dtfPattern != null) {
                 dtf = DateTimeFormatter.ofPattern(dtfPattern, l);
             } else {
                 dtf = null;
             }
+
+            // Use the good calendar, as printf("%tY") does when given a date;
+            Calendar cal = Calendar.getInstance(TimeZone.getTimeZone(tz), l);
+            switch(cal.getCalendarType()) {
+            case "gregory": getDate = i -> i; break;
+            case "buddhist": getDate = i -> ThaiBuddhistDate.from(i); break;
+            case "japanese": getDate = i -> JapaneseDate.from(i) ; break;
+            default: getDate = i -> i; break;
+            }
         }
         @Override
         public StringBuffer format(Object obj, StringBuffer toAppendTo,
                 FieldPosition pos) {
-            Date d = (Date) obj;
-            ZonedDateTime timePoint = ZonedDateTime.ofInstant(d.toInstant(), tz);
-            if(field != null && nf != null) {
-                int value = timePoint.get(field);
-                if(transform != null) {
-                    value = transform.apply(value);
+            TemporalAccessor timePoint;
+            if(obj instanceof Date) {
+                Date d = (Date) obj;
+                ZonedDateTime temp = ZonedDateTime.ofInstant(d.toInstant(), tz);
+                if(field == ChronoField.YEAR_OF_ERA) {
+                    timePoint = getDate.apply(temp);
+                } else {
+                    timePoint = temp;
                 }
-                toAppendTo.append(nf.format(value));
-            } else if ( dtf != null) {
-                dtf.formatTo(timePoint, toAppendTo);
+            } else if(obj instanceof TemporalAccessor){
+                timePoint = (TemporalAccessor) obj;
+            } else {
+                return toAppendTo;
             }
+            String resulStr = "";
+            if(nf != null) {
+                long value = 0;
+                if(transform != null) {
+                    value = transform.queryFrom(timePoint);
+                } else if (field != null){
+                    value = timePoint.getLong(field);
+
+                }
+                resulStr = nf.format(value);
+            } else if ( dtf != null) {
+                resulStr = dtf.format(timePoint);
+            }
+            if(transformResult != null && resulStr != null ) {
+                resulStr = transformResult.apply(resulStr);
+            }
+            toAppendTo.append(resulStr);
             return toAppendTo;
         }
         @Override
@@ -296,28 +336,28 @@ public class VarFormatter {
         }
     }
 
-    private static final Pattern varregexp = Pattern.compile("(?<before>.*?)(?:\\$\\{(?<varname>[\\w\\.-]+)(?:%(?<format>[^}]+))?\\})(?<after>.*)");
-    private static final Pattern formatSpecifier = Pattern.compile("^(?<flag>[-#+ 0,(]*)?(?<length>\\d+)?(?:\\.(?<precision>\\d+))?(?:(?<istime>[tT])(?:\\<(?<tz>.*)\\>)?)?(?<conversion>[a-zA-Z%])(?:(?<locale>.*+))?$");
+    private static final Pattern varregexp = Pattern.compile("(?<before>.*?)(?:(?:\\$\\{(?<varname>([\\w\\.-]+|\\$\\{\\}))(?:%(?<format>[^}]+))?\\})|(?<curlybrace>\\{\\}))(?<after>.*)");
+    private static final Pattern formatSpecifier = Pattern.compile("^(?<flag>[-#+ 0,(]*)?(?<length>\\d+)?(?:\\.(?<precision>\\d+))?(?:(?<istime>[tT])(?:\\<(?<tz>.*)\\>)?)?(?<conversion>[a-zA-Z%])(?::(?<locale>.*))?$");
     private static final String lineseparator = System.lineSeparator();
 
     private final Map<String, Integer> mapper = new LinkedHashMap<>();
     private final MessageFormat mf;
 
     private ZoneId tz = ZoneId.systemDefault();
-    private Locale locale = Locale.getDefault();
+    private Locale locale;
 
     public VarFormatter(String format) {
+        this(format, Locale.getDefault());
+    }
+
+    public VarFormatter(String format, Locale l) {
+        locale = l;
         List<String> formats = new ArrayList<>();
         String pattern = findVariables(new StringBuilder(), format, mapper, 0, formats).toString();
         mf = new MessageFormat(pattern);
         for(int i = 0; i < mf.getFormats().length; i++) {
             mf.setFormat(i, resolveFormat(formats.get(i)));
         }
-    }
-
-    public VarFormatter(String format, Locale l) {
-        this(format);
-        locale = l;
     }
 
     public String format(Map<String, Object> variables) {
@@ -332,8 +372,12 @@ public class VarFormatter {
             String format = m.group("format");
             String varname = m.group("varname");
             String after = m.group("after");
+            String curlybrace = m.group("curlybrace");
             buffer.append(before);
-            if(varname != null && ! varname.isEmpty()) {
+            if(curlybrace != null) {
+                buffer.append("'{}'");
+            }
+            else if(varname != null && ! varname.isEmpty()) {
                 if(format == null || format.isEmpty()) {
                     format = "s";
                 }
@@ -345,6 +389,8 @@ public class VarFormatter {
                 buffer.append("{" + index + "}");
             }
             findVariables(buffer, after, mapper, last, formats);
+        } else {
+            buffer.append(in);
         }
         return buffer;
     }
@@ -353,7 +399,7 @@ public class VarFormatter {
         Matcher m = formatSpecifier.matcher(format);
         if(m.matches()) {
             String localeStr = m.group("locale");
-            if(localeStr != null && localeStr != null) {
+            if(localeStr != null && ! localeStr.isEmpty()) {
                 locale = Locale.forLanguageTag(localeStr);
             }
 
@@ -369,14 +415,12 @@ public class VarFormatter {
             String isTime =  m.group("istime");
 
             String conversionStr = m.group("conversion");
-            boolean isUpper = conversionStr.toUpperCase(locale).equals(conversionStr);
-            char conversion = conversionStr.toLowerCase(locale).charAt(0);
 
             final Character timeFormat;
             final ZoneId tz;
-            if(isTime != null) {
+            if(isTime != null && ! isTime.isEmpty()) {
                 timeFormat = conversionStr.charAt(0);
-                conversion = isTime.charAt(0);
+                conversionStr = isTime;
                 String tzStr = m.group("tz");
                 if(tzStr != null && ! tzStr.isEmpty()) {
                     tz = ZoneId.of(tzStr);
@@ -387,6 +431,9 @@ public class VarFormatter {
                 timeFormat = null;
                 tz = null;
             }
+
+            boolean isUpper = conversionStr.toUpperCase(locale).equals(conversionStr);
+            char conversion = conversionStr.toLowerCase(locale).charAt(0);
 
             final Function<String, String> cut = i -> precision < 0 ? i : i.substring(0, precision);
             switch(conversion) {
@@ -401,7 +448,7 @@ public class VarFormatter {
             case 'f': {Format f = numberFormat(locale, conversion, flags, false, length, precision, isUpper); return new NonParsingFormat(locale, false, i -> f.format(i));}
             case 'g': {Format f = numberFormat(locale, conversion, flags, false, length, precision, isUpper); return new NonParsingFormat(locale, false, i -> f.format(i));}
             case 'a': {Format f = numberFormat(locale, conversion, flags, false, length, precision, isUpper); return new NonParsingFormat(locale, false, i -> f.format(i));}
-            case 't': return new ExtendedDateFormat(locale, timeFormat, tz);
+            case 't': return new ExtendedDateFormat(locale, timeFormat, tz, isUpper);
             case '%': return new NonParsingFormat(Locale.getDefault(), false, i -> "%");
             case 'n': return new NonParsingFormat(Locale.getDefault(), false, i -> lineseparator);
             default: return null;
@@ -412,10 +459,10 @@ public class VarFormatter {
     }
 
     private Format numberFormat(Locale l, char conversion, Flags flags, boolean integer, int length, int precision, boolean isUpper) {
-        System.out.println(l.toString() + " " + length + " " + flags.leftjustified);
         precision = (precision == -1 ? 6 : precision);
         DecimalFormatSymbols symbols = DecimalFormatSymbols.getInstance(l);
         symbols.setExponentSeparator( isUpper ? "E" : "e");
+        symbols.setDigit(flags.zeropadded ? '0' : '#');
         int fixed = (integer ? length : length - precision);
         DecimalFormat df = new DecimalFormat("#" + (conversion == 'e' ? "E00" : ""), symbols);
         if(flags.grouping) {
