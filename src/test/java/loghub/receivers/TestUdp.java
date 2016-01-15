@@ -1,4 +1,4 @@
-package receivers;
+package loghub.receivers;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
