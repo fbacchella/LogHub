@@ -47,7 +47,6 @@ public class Etl extends Processor {
     public boolean configure(Properties properties) {
         if(operator == '=') {
             try {
-                expression = expression.replaceAll("\\[(.+)\\]", "event.$1");
                 script = new Expression(expression, properties.groovyClassLoader);
             } catch (CompilationFailedException e) {
                 logger.error("invalid groovy expression: {}", e.getMessage());
