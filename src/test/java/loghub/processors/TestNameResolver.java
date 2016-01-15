@@ -21,7 +21,7 @@ public class TestNameResolver {
         Event e = new Event();
         e.put("host", InetAddress.getByName("127.0.0.1"));
         nr.process(e);
-        Assert.assertEquals("resolution failed", "localhost", e.get("fqdn_host"));
+        Assert.assertEquals("resolution failed", "localhost", e.get("fqdn"));
     }
 
     @Test
