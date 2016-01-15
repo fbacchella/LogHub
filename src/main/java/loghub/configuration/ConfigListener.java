@@ -21,7 +21,7 @@ import loghub.RouteParser.BooleanLiteralContext;
 import loghub.RouteParser.CharacterLiteralContext;
 import loghub.RouteParser.DropContext;
 import loghub.RouteParser.EtlContext;
-import loghub.RouteParser.EventVariableContext;
+import loghub.RouteParser.ExpressionContext;
 import loghub.RouteParser.FinalpiperefContext;
 import loghub.RouteParser.FloatingPointLiteralContext;
 import loghub.RouteParser.ForkpiperefContext;
@@ -29,7 +29,6 @@ import loghub.RouteParser.InputContext;
 import loghub.RouteParser.InputObjectlistContext;
 import loghub.RouteParser.IntegerLiteralContext;
 import loghub.RouteParser.ObjectContext;
-import loghub.RouteParser.OperationContext;
 import loghub.RouteParser.OutputContext;
 import loghub.RouteParser.OutputObjectlistContext;
 import loghub.RouteParser.PipelineContext;
@@ -52,6 +51,7 @@ class ConfigListener extends RouteBaseListener {
         ObjectList,
         PipeNodeList,
         Array,
+        Expression,
         Etl;
     };
 
@@ -303,16 +303,19 @@ class ConfigListener extends RouteBaseListener {
     @Override
     public void exitTest(TestContext ctx) {
         Test testTransformer = new Test();
-        Processor[] clauses = new Processor[2];
+        List<Processor> clauses = new ArrayList<>(2);
 
-        for(int i=1; ! StackMarker.Test.equals(stack.peek()) ; i-- ) {
-            Processor t = (Processor) stack.pop();
-            clauses[i] = t;
-        };
-        stack.pop();
+        Object o;
+        do {
+            o = stack.pop();
+            if(o instanceof Processor) {
+                Processor t = (Processor) o;
+                clauses.add(0, t);
+            }
+        } while(! StackMarker.Test.equals(o));
         testTransformer.test = ctx.testExpression().getText();
-        testTransformer.True = clauses[0];
-        testTransformer.False = clauses[1];
+        testTransformer.True = clauses.get(0);
+        testTransformer.False = clauses.size() == 2 ? clauses.get(1) : null;
         stack.push(testTransformer);
     }
 
@@ -427,6 +430,19 @@ class ConfigListener extends RouteBaseListener {
             etl.beans.put("expression", new ConfigListener.ObjectWrapped(ctx.expression().getText()));
         }
         stack.push(etl);
+    }
+
+    @Override
+    public void enterExpression(ExpressionContext ctx) {
+        stack.push(StackMarker.Expression);
+        super.enterExpression(ctx);
+    }
+
+    @Override
+    public void exitExpression(ExpressionContext ctx) {
+        while(! StackMarker.Expression.equals(stack.pop()) ) {
+        }
+        stack.push(new ObjectWrapped(ctx.getText()));
     }
 
 }

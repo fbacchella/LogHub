@@ -17,7 +17,7 @@ object: QualifiedIdentifier beansDescription ;
 beansDescription:  ('{' (bean (',' bean)*)? ','? '}')? ;
 bean: beanName ':' beanValue;
 beanName: Identifier;
-beanValue: object | literal | array;
+beanValue: object | literal | array | expression;
 finalpiperef: piperef;
 piperef:  Identifier;
 drop: Drop;

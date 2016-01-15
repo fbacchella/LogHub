@@ -65,7 +65,9 @@ public class PipeStep extends Thread {
                             continue;
                         } else {
                             wevent.setProcessor(p);
-                            p.process(wevent);
+                            if(p.isprocessNeeded(wevent)) {
+                                p.process(wevent);
+                            }
                         }
                     }
                 } catch (Exception e) {
