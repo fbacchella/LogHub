@@ -55,7 +55,7 @@ public class UserAgent extends FieldsProcessor {
             return false;
         }
         is = new BufferedInputStream(is);
-        uaParser = new CachingParser(cacheSize, is);
+        uaParser = new CachingParser(cacheSize, properties, is);
 
         return super.configure(properties);
     }

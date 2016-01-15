@@ -15,7 +15,9 @@ import javax.naming.directory.InitialDirContext;
 
 import loghub.Event;
 import loghub.configuration.Properties;
-
+import net.sf.ehcache.Cache;
+import net.sf.ehcache.Element;
+import net.sf.ehcache.config.CacheConfiguration;
 import sun.net.util.IPAddressUtil;
 
 @SuppressWarnings("restriction")
@@ -26,10 +28,41 @@ public class NameResolver extends FieldsProcessor {
     private int timeout = 1;
     private int retries = 2;
     private DirContext ctx;
+    private int cacheSize = 100;
+    private Cache hostCache;
+    private int ttl = 60;
+
+    @Override
+    public boolean configure(Properties properties) {
+        Hashtable<String, String> env = new Hashtable<>();
+        env.put("java.naming.factory.initial", "com.sun.jndi.dns.DnsContextFactory");
+        env.put("java.naming.provider.url", "dns:");
+        env.put("com.example.jndi.dns.timeout.initial", Integer.toString(timeout));
+        env.put("com.example.jndi.dns.timeout.retries", Integer.toString(retries));
+        try {
+            ctx = new InitialDirContext(env);
+        } catch (NamingException e) {
+            return false;
+        }
+        CacheConfiguration config = properties.getDefaultCacheConfig()
+                .maxEntriesLocalHeap(cacheSize)
+                .timeToLiveSeconds(ttl);
+
+        hostCache = properties.getCache(config);
+        return super.configure(properties);
+    }
 
     @Override
     public void processMessage(Event event, String field, String destination) {
         Object addr = event.get(field);
+
+        Element cacheElement = hostCache.get(addr.toString());
+
+        if(cacheElement != null && ! cacheElement.isExpired()) {
+            event.put(destination, cacheElement.getObjectValue());
+            return;
+        }
+
         String toresolv = null;
 
         // If a string was given, convert it to a Inet?Address
@@ -48,7 +81,7 @@ public class NameResolver extends FieldsProcessor {
                 }
             }
         }
-        
+
         if(addr instanceof Inet4Address) {
             Inet4Address ipv4 = (Inet4Address) addr;
             byte[] parts = ipv4.getAddress();
@@ -64,7 +97,7 @@ public class NameResolver extends FieldsProcessor {
             buffer.append("ip6.arpa");
             toresolv = buffer.toString();
         }
-        
+
         //If a query was build, use it
         if (toresolv != null) {
             try {
@@ -77,7 +110,9 @@ public class NameResolver extends FieldsProcessor {
                     Object o = attr.getAll().next();
                     if (o != null) {
                         String value = attr.getAll().next().toString();
-                        event.put(destination, value.substring(0, value.length() - 1));
+                        value = value.substring(0, value.length() - 1);
+                        hostCache.put(new Element(addr.toString(), value));
+                        event.put(destination, value);
                     }
                 }
             } catch (NamingException e) {
@@ -105,19 +140,32 @@ public class NameResolver extends FieldsProcessor {
         this.url = "dns://" + url;
     }
 
-    @Override
-    public boolean configure(Properties properties) {
-        Hashtable<String, String> env = new Hashtable<>();
-        env.put("java.naming.factory.initial", "com.sun.jndi.dns.DnsContextFactory");
-        env.put("java.naming.provider.url", "dns:");
-        env.put("com.example.jndi.dns.timeout.initial", Integer.toString(timeout));
-        env.put("com.example.jndi.dns.timeout.retries", Integer.toString(retries));
-        try {
-            ctx = new InitialDirContext(env);
-        } catch (NamingException e) {
-            return false;
-        }
-        return super.configure(properties);
+    /**
+     * @return the cacheSize
+     */
+    public int getCacheSize() {
+        return cacheSize;
+    }
+
+    /**
+     * @param cacheSize the cacheSize to set
+     */
+    public void setCacheSize(int cacheSize) {
+        this.cacheSize = cacheSize;
+    }
+
+    /**
+     * @return the ttl
+     */
+    public int getTtl() {
+        return ttl;
+    }
+
+    /**
+     * @param ttl the ttl to set
+     */
+    public void setTtl(int ttl) {
+        this.ttl = ttl;
     }
 
 }

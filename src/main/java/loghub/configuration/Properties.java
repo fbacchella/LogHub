@@ -25,20 +25,46 @@ public class Properties extends HashMap<String, Object> {
             cl = Properties.class.getClassLoader();
         }
         classloader = cl;
+
         namedPipeLine = (Map<String, Pipeline>) properties.remove(NAMEDPIPELINES);
         if(namedPipeLine != null) {
             namedPipeLine = Collections.unmodifiableMap(namedPipeLine);
         } else {
             namedPipeLine = Collections.emptyMap();
         }
+
         groovyClassLoader = new GroovyClassLoader(cl);
+
+        cacheManager = new CacheManager(new net.sf.ehcache.config.Configuration()
+                .name(UUID.randomUUID().toString())
+                );
+
         super.putAll(properties);
+    }
+
+    public Cache getCache(int size) {
+        CacheConfiguration config = getDefaultCacheConfig().maxEntriesLocalHeap(size);
+        return getCache(config);
+    }
+
+    public CacheConfiguration getDefaultCacheConfig() {
+        return new CacheConfiguration()
+                .name(UUID.randomUUID().toString())
+                .persistence(new PersistenceConfiguration().strategy(PersistenceConfiguration.Strategy.NONE))
+                .eternal(true)
+                .memoryStoreEvictionPolicy(MemoryStoreEvictionPolicy.LFU)
+                ;
+    }
+
+    public Cache getCache(CacheConfiguration config) {
+        Cache memoryOnlyCache = new Cache(config); 
+        cacheManager.addCache(memoryOnlyCache); 
+        return memoryOnlyCache;
     }
 
     @Override
     public Object put(String key, Object value) {
         throw new UnsupportedOperationException("read only");
-        
     }
 
     @Override

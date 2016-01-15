@@ -2,16 +2,11 @@ package ua_parser;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.Collections;
-import java.util.Map;
+import java.util.function.Function;
 
-import org.apache.commons.collections4.map.LRUMap;
-
-import ua_parser.Client;
-import ua_parser.Device;
-import ua_parser.OS;
-import ua_parser.Parser;
-import ua_parser.UserAgent;
+import loghub.configuration.Properties;
+import net.sf.ehcache.Cache;
+import net.sf.ehcache.Element;
 
 /**
  * When doing webanalytics (with for example PIG) the main pattern is to process
@@ -28,93 +23,76 @@ import ua_parser.UserAgent;
  */
 public class CachingParser extends Parser {
 
-    private final Map<String, Client>    cacheClient;
-    private final Map<String, UserAgent> cacheUserAgent;
-    private final Map<String, Device>    cacheDevice;
-    private final Map<String, OS>        cacheOS;
+    private final Cache    cacheClient;
+    private final Cache cacheUserAgent;
+    private final Cache    cacheDevice;
+    private final Cache        cacheOS;
 
     // ------------------------------------------
 
-    public CachingParser(int cacheSize) throws IOException {
+    public CachingParser(int cacheSize, Properties props) throws IOException {
         super();
-        cacheClient = Collections.synchronizedMap(new LRUMap<>(0, cacheSize));
-        cacheUserAgent = Collections.synchronizedMap(new LRUMap<>(0, cacheSize));
-        cacheDevice = Collections.synchronizedMap(new LRUMap<>(0, cacheSize));
-        cacheOS = Collections.synchronizedMap(new LRUMap<>(0, cacheSize));
+        cacheClient = props.getCache(cacheSize);
+        cacheUserAgent = props.getCache(cacheSize);
+        cacheDevice = props.getCache(cacheSize);
+        cacheOS = props.getCache(cacheSize);
     }
 
-    public CachingParser(int cacheSize, InputStream regexYaml) {
+    public CachingParser(int cacheSize, Properties props, InputStream regexYaml) {
         super(regexYaml);
-        cacheClient = Collections.synchronizedMap(new LRUMap<>(cacheSize));
-        cacheUserAgent = Collections.synchronizedMap(new LRUMap<>(cacheSize));
-        cacheDevice = Collections.synchronizedMap(new LRUMap<>(cacheSize));
-        cacheOS = Collections.synchronizedMap(new LRUMap<>(cacheSize));
+        cacheClient = props.getCache(cacheSize);
+        cacheUserAgent = props.getCache(cacheSize);
+        cacheDevice = props.getCache(cacheSize);
+        cacheOS = props.getCache(cacheSize);
     }
 
-    // ------------------------------------------
+    @SuppressWarnings("unchecked")
+    private <T> T getObject(Cache cache, String key, Function<String, T> resolve) {
+        T value = null;
+        Element e = cache.get(key);
+        if(e == null) {
+            value = resolve.apply(key);
+            cache.put(new Element(key, value));
+        } else {
+            value = (T) e.getObjectValue();
+        }
+        return value;
+    }
 
     @Override
     public Client parse(String agentString) {
         if (agentString == null) {
             return null;
+        } else {
+            return getObject(cacheClient, agentString, i -> super.parse(agentString));
         }
-        Client client = cacheClient.get(agentString);
-        if (client != null) {
-            return client;
-        }
-        client = super.parse(agentString);
-        cacheClient.put(agentString, client);
-        return client;
     }
-
-    // ------------------------------------------
 
     @Override
     public UserAgent parseUserAgent(String agentString) {
         if (agentString == null) {
             return null;
+        } else {
+            return getObject(cacheUserAgent, agentString, i -> super.parseUserAgent(agentString));
         }
-        UserAgent userAgent = cacheUserAgent.get(agentString);
-        if (userAgent != null) {
-            return userAgent;
-        }
-        userAgent = super.parseUserAgent(agentString);
-        cacheUserAgent.put(agentString, userAgent);
-        return userAgent;
     }
-
-    // ------------------------------------------
 
     @Override
     public Device parseDevice(String agentString) {
         if (agentString == null) {
             return null;
+        } else {
+            return getObject(cacheDevice, agentString, i -> super.parseDevice(agentString));
         }
-        Device device = cacheDevice.get(agentString);
-        if (device != null) {
-            return device;
-        }
-        device = super.parseDevice(agentString);
-        cacheDevice.put(agentString, device);
-        return device;
     }
-
-    // ------------------------------------------
 
     @Override
     public OS parseOS(String agentString) {
         if (agentString == null) {
             return null;
+        } else {
+            return getObject(cacheOS, agentString, i -> super.parseOS(agentString));
         }
-        OS os = cacheOS.get(agentString);
-        if (os != null) {
-            return os;
-        }
-        os = super.parseOS(agentString);
-        cacheOS.put(agentString, os);
-        return os;
     }
-
-    // ------------------------------------------
 
 }
