@@ -20,6 +20,8 @@ import loghub.RouteParser.BeanValueContext;
 import loghub.RouteParser.BooleanLiteralContext;
 import loghub.RouteParser.CharacterLiteralContext;
 import loghub.RouteParser.DropContext;
+import loghub.RouteParser.EtlContext;
+import loghub.RouteParser.EventVariableContext;
 import loghub.RouteParser.FinalpiperefContext;
 import loghub.RouteParser.FloatingPointLiteralContext;
 import loghub.RouteParser.ForkpiperefContext;
@@ -27,6 +29,7 @@ import loghub.RouteParser.InputContext;
 import loghub.RouteParser.InputObjectlistContext;
 import loghub.RouteParser.IntegerLiteralContext;
 import loghub.RouteParser.ObjectContext;
+import loghub.RouteParser.OperationContext;
 import loghub.RouteParser.OutputContext;
 import loghub.RouteParser.OutputObjectlistContext;
 import loghub.RouteParser.PipelineContext;
@@ -47,7 +50,8 @@ class ConfigListener extends RouteBaseListener {
         Test,
         ObjectList,
         PipeNodeList,
-        Array;
+        Array,
+        Etl;
     };
 
     static final class Input {
@@ -401,6 +405,27 @@ class ConfigListener extends RouteBaseListener {
     public void exitDrop(DropContext ctx) {
         ObjectDescription drop = new ObjectDescription(Drop.class.getCanonicalName(), ctx);
         stack.push(drop);
+    }
+
+    @Override
+    public void enterEtl(EtlContext ctx) {
+        stack.push(StackMarker.Etl);
+    }
+
+    @Override
+    public void exitEtl(EtlContext ctx) {
+        while(! StackMarker.Etl.equals(stack.pop()) ) {
+        }
+
+        String lvalue = ctx.eventVariable().getText();
+        Character operator = ctx.operation().getText().charAt(0);
+        ObjectDescription etl = new ObjectDescription(Etl.class.getCanonicalName(), ctx);
+        etl.beans.put("lvalue", new ConfigListener.ObjectWrapped(lvalue));
+        etl.beans.put("operator", new ConfigListener.ObjectWrapped(operator));
+        if(ctx.expression() != null) {
+            etl.beans.put("expression", new ConfigListener.ObjectWrapped(ctx.expression().getText()));
+        }
+        stack.push(etl);
     }
 
 }

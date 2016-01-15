@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.BiFunction;
 
+import groovy.lang.GroovyClassLoader;
 import loghub.Pipeline;
 
 public class Properties extends HashMap<String, Object> {
@@ -14,6 +15,7 @@ public class Properties extends HashMap<String, Object> {
     
     public final ClassLoader classloader;
     public Map<String, Pipeline> namedPipeLine;
+    public final GroovyClassLoader groovyClassLoader;
     
     @SuppressWarnings("unchecked")
     public Properties(Map<String, Object> properties) {
@@ -29,6 +31,7 @@ public class Properties extends HashMap<String, Object> {
         } else {
             namedPipeLine = Collections.emptyMap();
         }
+        groovyClassLoader = new GroovyClassLoader(cl);
         super.putAll(properties);
     }
 
