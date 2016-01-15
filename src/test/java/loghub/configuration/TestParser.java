@@ -17,6 +17,8 @@ import loghub.LogUtils;
 import loghub.RouteLexer;
 import loghub.RouteParser;
 import loghub.Tools;
+import loghub.configuration.ConfigListener.ObjectDescription;
+import loghub.configuration.ConfigListener.ObjectWrapped;
 
 public class TestParser {
 
@@ -74,4 +76,36 @@ public class TestParser {
             Assert.assertTrue("property " + s + " not found", conf.properties.containsKey(s));
         }
     }
+    
+    
+    @Test
+    public void testType() throws IOException {
+        CharStream cs = new ANTLRInputStream(getClass().getClassLoader().getResourceAsStream("types.conf"));
+        RouteLexer lexer = new RouteLexer(cs);
+
+        CommonTokenStream tokens = new CommonTokenStream(lexer);
+        RouteParser parser = new RouteParser(tokens);
+        parser.removeErrorListeners();
+        ConfigErrorListener errListener = new ConfigErrorListener();
+        parser.addErrorListener(errListener);
+        loghub.RouteParser.ConfigurationContext tree = parser.configuration(); // begin parsing at init rule
+
+        Assert.assertFalse(errListener.isFailed());
+        ConfigListener conf = new ConfigListener();
+        ParseTreeWalker walker = new ParseTreeWalker();
+        try {
+            walker.walk(conf, tree);
+        } catch (ConfigException e) {
+            logger.error("Error at " + e.getStartPost() + ": " + e.getMessage(), e);
+            Assert.fail("parsing failed");
+        }
+        Assert.assertEquals("stack not empty :" + conf.stack, 0, conf.stack.size());
+        ConfigListener.Pipeline main = conf.pipelines.get("main");
+        ObjectDescription p = (ObjectDescription) main.processors.get(0);
+        Assert.assertTrue(((ObjectWrapped)p.beans.get("string")).wrapped instanceof String);
+        Assert.assertTrue(((ObjectWrapped)p.beans.get("boolean")).wrapped instanceof Boolean);
+        Assert.assertTrue(((ObjectWrapped)p.beans.get("int")).wrapped instanceof Integer);
+        Assert.assertTrue(((ObjectWrapped)p.beans.get("double")).wrapped instanceof Double);
+    }
+
 }
