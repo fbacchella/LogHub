@@ -12,7 +12,7 @@ inputObjectlist: (object (',' object)*)? ','?;
 outputObjectlist: (object (',' object)*)? ','?;
 pipenodeList :   pipenode (('+' forkpiperef)|('|' pipenode))*;
 forkpiperef: '$' Identifier;
-pipenode: test | object | '(' pipenodeList ')' | '$' piperef | drop;
+pipenode: test | object | '(' pipenodeList ')' | '$' piperef | drop | etl;
 object: QualifiedIdentifier beansDescription ; 
 beansDescription:  ('{' (bean (',' bean)*)? ','? '}')? ;
 bean: beanName ':' beanValue;
@@ -24,12 +24,17 @@ drop: Drop;
 Drop: 'd' 'r' 'o' 'p';
 property: Identifier ':' beanValue;
 
+etl: eventVariable operation expression?;
+
+operation: '<' | '-' | '=';
+
 test: testExpression '?' pipenode (':' pipenode)?;
 
 testExpression: expression;
 
 expression
     :   literal
+    |   eventVariable
     |   QualifiedIdentifier
     |   ('~'|'!') expression
     |   expression ('**') expression
@@ -47,6 +52,8 @@ expression
     ;
 
 array: '[' (beanValue (',' beanValue)*)? ','? ']';
+
+eventVariable: '[' Identifier ('.' Identifier)* ']' ;
 
 Identifier
     :   JavaLetter JavaLetterOrDigit*
