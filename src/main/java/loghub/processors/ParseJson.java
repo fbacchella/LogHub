@@ -20,7 +20,7 @@ public class ParseJson extends FieldsProcessor {
     };
 
     @Override
-    public void processMessage(Event event, String field) {
+    public void processMessage(Event event, String field, String destination) {
         try {
             Object o = json.get().readValue(new StringReader(event.get(field).toString()), Object.class);
             if(o instanceof Map) {
@@ -28,7 +28,7 @@ public class ParseJson extends FieldsProcessor {
                 Map<Object, Object> map = (Map<Object, Object>) o;
                 map.entrySet().stream().forEach( (i) -> event.put(i.getKey().toString(), i.getValue()));
             } else {
-                event.put(field, o);
+                event.put(destination, o);
             }
         } catch (IOException e) {
             throw new RuntimeException(e);

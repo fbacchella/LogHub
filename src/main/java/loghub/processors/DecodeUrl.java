@@ -11,7 +11,7 @@ public class DecodeUrl extends FieldsProcessor {
     private boolean loop = false;
 
     @Override
-    public void processMessage(Event event, String field) {
+    public void processMessage(Event event, String field, String destination) {
         try {
             String oldMessage = event.get(field).toString();
             String message = null;
@@ -23,7 +23,7 @@ public class DecodeUrl extends FieldsProcessor {
                 oldMessage = message;
                 count ++;
             } while(again && count < 5);
-            event.put(field, message);
+            event.put(destination, message);
         } catch (UnsupportedEncodingException|java.lang.IllegalArgumentException e) {
         }
 

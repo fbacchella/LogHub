@@ -17,10 +17,11 @@ public class TestNameResolver {
         NameResolver nr = new NameResolver();
         nr.configure(new Properties(Collections.emptyMap()));
         nr.setField("host");
+        nr.setDestination("fqdn");
         Event e = new Event();
         e.put("host", InetAddress.getByName("127.0.0.1"));
         nr.process(e);
-        System.out.println(e);
+        Assert.assertEquals("resolution failed", "localhost", e.get("fqdn_host"));
     }
 
     @Test
@@ -29,10 +30,12 @@ public class TestNameResolver {
         nr.configure(new Properties(Collections.emptyMap()));
         nr.setResolver("dns:");
         nr.setField("host");
+        nr.setDestination("fqdn_${field%s}");
         Event e = new Event();
         /// resolving a.root-servers.net.
         e.put("host", InetAddress.getByName("2001:503:ba3e::2:30"));
         nr.process(e);
-        Assert.assertEquals("resolution failed", "a.root-servers.net", e.get("host"));
+        System.out.println(e);
+        Assert.assertEquals("resolution failed", "a.root-servers.net", e.get("fqdn_host"));
     }
 }

@@ -31,7 +31,7 @@ public class Geoip extends FieldsProcessor {
     private String countrynamefield = null;
 
     @Override
-    public void processMessage(Event event, String field) {
+    public void processMessage(Event event, String field, String destination) {
         try {
             String host = event.get(field).toString();
             if(host != null) {

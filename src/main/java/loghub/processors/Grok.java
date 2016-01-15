@@ -28,7 +28,7 @@ public class Grok extends FieldsProcessor {
     }
 
     @Override
-    public void processMessage(Event event, String field) {
+    public void processMessage(Event event, String field, String destination) {
         String line = (String) event.get(field);
         Match gm = grok.match(line);
         gm.captures();

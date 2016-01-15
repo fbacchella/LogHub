@@ -21,7 +21,7 @@ public class VarExtractor extends FieldsProcessor {
     private Pattern parser = Pattern.compile("(?<name>\\p{Alnum}+)\\p{Space}?[=:]\\p{Space}?(?<value>[^;,:]+)[;,:]?");
 
     @Override
-    public void processMessage(Event event, String field ) {
+    public void processMessage(Event event, String field, String destination ) {
         String message = event.get(field).toString();
         String after = message;
         Matcher m = parser.matcher(message);
@@ -36,7 +36,7 @@ public class VarExtractor extends FieldsProcessor {
             after = message.substring(m.end());
         }
         if(after != null && ! after.isEmpty()) {
-            event.put(field, after);
+            event.put(destination, after);
         } else {
             event.remove(field);
         }

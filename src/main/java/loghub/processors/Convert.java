@@ -26,10 +26,10 @@ public class Convert extends FieldsProcessor {
     private Class<?> clazz;
 
     @Override
-    public void processMessage(Event event, String field) {
+    public void processMessage(Event event, String field, String destination) {
         try {
             Object o = BeansManager.ConstructFromString(clazz, event.get(field).toString());
-            event.put(field, o);
+            event.put(destination, o);
         } catch (InvocationTargetException e) {
         }
     }

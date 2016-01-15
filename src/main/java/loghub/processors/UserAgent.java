@@ -17,12 +17,14 @@ public class UserAgent extends FieldsProcessor {
     private int cacheSize = 1000;
 
     @Override
-    public void processMessage(Event event, String field) {
+    public void processMessage(Event event, String field, String destination) {
         String userAgent = event.get(field).toString();
         Client c = uaParser.parse(userAgent);
+
+
         Map<String, Object> ua = new HashMap<>(3);
         ua.put("device", c.device.family);
-        
+
         Map<String, Object> os =  new HashMap<>(5);
         os.put("family", c.os.family);
         os.put("major", c.os.major);
@@ -30,15 +32,15 @@ public class UserAgent extends FieldsProcessor {
         os.put("patch", c.os.patch);
         os.put("patchMinor", c.os.patchMinor);
         ua.put("os", os);
-        
+
         Map<String, Object> agent =  new HashMap<>(4);
         agent.put("family", c.userAgent.family);
         agent.put("major", c.userAgent.major);
         agent.put("minor", c.userAgent.minor);
         agent.put("patch", c.userAgent.patch);
         ua.put("userAgent", agent);
-        
-        event.put(field, ua);
+
+        event.put(destination, ua);
     }
 
     @Override

@@ -11,7 +11,7 @@ public class Identity extends FieldsProcessor {
     }
 
     @Override
-    public void processMessage(Event event, String field) {
+    public void processMessage(Event event, String field, String destination) {
     }
 
 }

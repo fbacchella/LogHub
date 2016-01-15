@@ -28,7 +28,7 @@ public class NameResolver extends FieldsProcessor {
     private DirContext ctx;
 
     @Override
-    public void processMessage(Event event, String field) {
+    public void processMessage(Event event, String field, String destination) {
         Object addr = event.get(field);
         String toresolv = null;
 
@@ -77,7 +77,7 @@ public class NameResolver extends FieldsProcessor {
                     Object o = attr.getAll().next();
                     if (o != null) {
                         String value = attr.getAll().next().toString();
-                        event.put(field, value.substring(0, value.length() - 1));
+                        event.put(destination, value.substring(0, value.length() - 1));
                     }
                 }
             } catch (NamingException e) {
