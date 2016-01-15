@@ -12,6 +12,7 @@ import org.junit.Test;
 import loghub.Event;
 import loghub.EventWrapper;
 import loghub.LogUtils;
+import loghub.ProcessorException;
 import loghub.Tools;
 
 public class TestUrlDecoders {
@@ -26,7 +27,7 @@ public class TestUrlDecoders {
     }
 
     @Test
-    public void testUrlDecoder() {
+    public void testUrlDecoder() throws ProcessorException {
         DecodeUrl t = new DecodeUrl();
         t.setFields(new Object[] { "*" });
         EventWrapper e = new EventWrapper(new Event());
@@ -39,7 +40,7 @@ public class TestUrlDecoders {
     }
 
     @Test
-    public void testUrlDecoderLoop() {
+    public void testUrlDecoderLoop() throws ProcessorException {
         DecodeUrl t = new DecodeUrl();
         t.setFields(new Object[] { "userAgent" });
         t.setLoop(true);

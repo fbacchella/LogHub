@@ -5,6 +5,7 @@ import groovy.lang.GroovyShell;
 import groovy.lang.Script;
 import loghub.Event;
 import loghub.Processor;
+import loghub.ProcessorException;
 
 public class Test extends Processor {
 
@@ -15,35 +16,42 @@ public class Test extends Processor {
     public String getIf() {
         return ifClause.toString();
     }
+    
     public void setIf(String ifClause) {
         GroovyShell groovyShell = new GroovyShell(getClass().getClassLoader());
         this.ifClause = groovyShell.parse(ifClause);   
     }
+    
     public Processor getThen() {
         return thenTransformer;
     }
+    
     public void setThen(Processor thenTransformer) {
         this.thenTransformer = thenTransformer;
     }
+    
     public Processor getElse() {
         return elseTransformer;
     }
+    
     public void setElse(Processor elseTransformer) {
         this.elseTransformer = elseTransformer;
     }
+    
     @Override
-    public void process(Event event) {
+    public void process(Event event) throws ProcessorException {
         Binding groovyBinding = new Binding();
         groovyBinding.setVariable("event", event);
         ifClause.setBinding(groovyBinding);
+        Boolean testResult = (Boolean) ifClause.run();
+        Processor nextTransformer = testResult ? thenTransformer : elseTransformer;
         try {
-            Boolean testResult = (Boolean) ifClause.run();
-            Processor nextTransformer = testResult ? thenTransformer : elseTransformer;
             nextTransformer.process(event);
-        } catch (Exception e) {
-            e.printStackTrace();
+        } catch (ProcessorException e) {
+            throw new ProcessorException("test term failed to execute", e);
         }
     }
+    
     @Override
     public String getName() {
         return "test";

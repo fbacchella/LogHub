@@ -23,6 +23,7 @@ import org.apache.logging.log4j.Logger;
 
 import loghub.Event;
 import loghub.Processor;
+import loghub.ProcessorException;
 import loghub.configuration.Beans;
 import loghub.configuration.Properties;
 
@@ -37,11 +38,11 @@ public class Script extends Processor {
     private Map<String, String> settings = Collections.emptyMap();
 
     @Override
-    public void process(Event event) {
+    public void process(Event event) throws ProcessorException {
         try {
             inv.invokeFunction(settings.get("transform"), event);
         } catch (NoSuchMethodException | ScriptException e) {
-            logger.error("transformation script failed: {}", e.getMessage());
+            throw new ProcessorException("unable to execute script " + script, e);
         }
     }
 

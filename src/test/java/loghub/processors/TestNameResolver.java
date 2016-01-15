@@ -8,12 +8,13 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import loghub.Event;
+import loghub.ProcessorException;
 import loghub.configuration.Properties;
 
 public class TestNameResolver {
 
     @Test
-    public void test2() throws UnknownHostException {
+    public void test2() throws UnknownHostException, ProcessorException {
         NameResolver nr = new NameResolver();
         nr.configure(new Properties(Collections.emptyMap()));
         nr.setField("host");
@@ -25,7 +26,7 @@ public class TestNameResolver {
     }
 
     @Test
-    public void test3() throws UnknownHostException {
+    public void test3() throws UnknownHostException, ProcessorException {
         NameResolver nr = new NameResolver();
         nr.configure(new Properties(Collections.emptyMap()));
         nr.setResolver("dns:");

@@ -54,26 +54,28 @@ public class PipeStep extends Thread {
             while(! isInterrupted()) {
                 Event event = queueIn.take();
                 logger.trace("{} received event {}", queueIn.name, event);
-                try {
-                    EventWrapper wevent = new EventWrapper(event);
-                    for(Processor p: processors) {
-                        setName(threadName + "-" + p.getName());
-                        if(p instanceof Forker) {
-                            ((Forker) p).fork(event);
-                        } else if(p instanceof Drop) {
-                            event.dropped = true;
-                            continue;
-                        } else {
-                            wevent.setProcessor(p);
-                            if(p.isprocessNeeded(wevent)) {
+                EventWrapper wevent = new EventWrapper(event);
+                for(Processor p: processors) {
+                    setName(threadName + "-" + p.getName());
+                    if(p instanceof Forker) {
+                        ((Forker) p).fork(event);
+                    } else if(p instanceof Drop) {
+                        event.dropped = true;
+                        continue;
+                    } else {
+                        wevent.setProcessor(p);
+                        if(p.isprocessNeeded(wevent)) {
+                            try {
                                 p.process(wevent);
+                            } catch (ProcessorException e) {
+                                Stats.newError(e);
+                            } catch (Exception e) {
+                                logger.error("failed to transform event with unmanaged error {}: {}", event, e.getMessage());
+                                logger.throwing(Level.ERROR, e);
+                                event.dropped = true;
                             }
                         }
                     }
-                } catch (Exception e) {
-                    logger.error("failed to transform event {}", event);
-                    logger.throwing(Level.ERROR, e);
-                    event.dropped = true;
                 }
                 setName(threadName);
                 if( ! event.dropped) {

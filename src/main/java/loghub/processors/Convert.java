@@ -6,6 +6,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import loghub.Event;
+import loghub.ProcessorException;
 import loghub.configuration.BeansManager;
 import loghub.configuration.Properties;
 
@@ -26,11 +27,12 @@ public class Convert extends FieldsProcessor {
     private Class<?> clazz;
 
     @Override
-    public void processMessage(Event event, String field, String destination) {
+    public void processMessage(Event event, String field, String destination) throws ProcessorException {
         try {
             Object o = BeansManager.ConstructFromString(clazz, event.get(field).toString());
             event.put(destination, o);
         } catch (InvocationTargetException e) {
+            throw new ProcessorException("unable to convert from string to " + className, (Exception)e.getCause());
         }
     }
 

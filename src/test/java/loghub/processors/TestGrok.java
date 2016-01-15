@@ -7,12 +7,13 @@ import org.junit.Test;
 
 import loghub.Event;
 import loghub.EventWrapper;
+import loghub.ProcessorException;
 import loghub.configuration.Properties;
 
 public class TestGrok {
 
     @Test
-    public void TestLoadPatterns() {
+    public void TestLoadPatterns() throws ProcessorException {
         Grok grok = new Grok();
         grok.setField("message");
         grok.setPattern("%{COMBINEDAPACHELOG}");

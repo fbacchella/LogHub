@@ -10,6 +10,7 @@ import java.util.Set;
 public class EventWrapper extends Event {
     private final Event event;
     private String[] path;
+
     public EventWrapper(Event event) {
         this.event = event;
     }

@@ -8,6 +8,7 @@ import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import loghub.Event;
+import loghub.ProcessorException;
 
 public class ParseJson extends FieldsProcessor {
 
@@ -20,9 +21,10 @@ public class ParseJson extends FieldsProcessor {
     };
 
     @Override
-    public void processMessage(Event event, String field, String destination) {
+    public void processMessage(Event event, String field, String destination) throws ProcessorException {
+        String message = event.get(field).toString();
         try {
-            Object o = json.get().readValue(new StringReader(event.get(field).toString()), Object.class);
+            Object o = json.get().readValue(new StringReader(message), Object.class);
             if(o instanceof Map) {
                 @SuppressWarnings("unchecked")
                 Map<Object, Object> map = (Map<Object, Object>) o;
@@ -31,7 +33,7 @@ public class ParseJson extends FieldsProcessor {
                 event.put(destination, o);
             }
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            throw new ProcessorException("failed to parse json " + message, e);
         }
     }
 

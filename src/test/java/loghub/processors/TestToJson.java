@@ -15,6 +15,7 @@ import loghub.LogUtils;
 import loghub.Tools;
 import loghub.processors.ParseJson;
 import loghub.Processor;
+import loghub.ProcessorException;
 
 public class TestToJson {
 
@@ -28,7 +29,7 @@ public class TestToJson {
     }
 
     @Test
-    public void test1() {
+    public void test1() throws ProcessorException {
         EventWrapper e = new EventWrapper(new Event());
         Processor t = new ParseJson();
         e.setProcessor(t);
@@ -38,6 +39,5 @@ public class TestToJson {
         Collection<Object> a = (Collection<Object>) e.get("a");
         a.stream().forEach((i) -> logger.debug(i.getClass()));
         logger.debug(e);
-
     }
 }

@@ -12,6 +12,7 @@ import org.junit.Test;
 import loghub.Event;
 import loghub.EventWrapper;
 import loghub.LogUtils;
+import loghub.ProcessorException;
 import loghub.Tools;
 
 public class TestVarExtractor {
@@ -26,7 +27,7 @@ public class TestVarExtractor {
     }
 
     @Test
-    public void test1() {
+    public void test1() throws ProcessorException {
         VarExtractor t = new VarExtractor();
         t.setPath("sub");
         t.setField(".message");
@@ -43,7 +44,7 @@ public class TestVarExtractor {
     }
 
     @Test
-    public void test2() {
+    public void test2() throws ProcessorException {
         VarExtractor t = new VarExtractor();
         t.setField("message");
         t.setParser("(?<name>[a-z]+)[=:](?<value>[^;]+);?");
@@ -58,7 +59,7 @@ public class TestVarExtractor {
     }
 
     @Test
-    public void test3() {
+    public void test3() throws ProcessorException {
         VarExtractor t = new VarExtractor();
         t.setField("message");
 

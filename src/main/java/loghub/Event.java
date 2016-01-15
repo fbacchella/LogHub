@@ -85,7 +85,7 @@ public class Event extends HashMap<String, Object> implements Serializable {
     public Object applyAtPath(Helpers.TriFunction<Map<String, Object>, String, Object, Object> f, String[] path, Object value) {
         return applyAtPath(f, path, value, false);
     }
-    
+
     public Object applyAtPath(Helpers.TriFunction<Map<String, Object>, String, Object, Object> f, String[] path, Object value, boolean create) {
         Map<String, Object> current = this;
         String key = path[0];

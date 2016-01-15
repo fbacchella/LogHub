@@ -14,6 +14,7 @@ import javax.naming.directory.DirContext;
 import javax.naming.directory.InitialDirContext;
 
 import loghub.Event;
+import loghub.ProcessorException;
 import loghub.configuration.Properties;
 import net.sf.ehcache.Cache;
 import net.sf.ehcache.Element;
@@ -53,7 +54,7 @@ public class NameResolver extends FieldsProcessor {
     }
 
     @Override
-    public void processMessage(Event event, String field, String destination) {
+    public void processMessage(Event event, String field, String destination) throws ProcessorException {
         Object addr = event.get(field);
 
         Element cacheElement = hostCache.get(addr.toString());
@@ -78,6 +79,7 @@ public class NameResolver extends FieldsProcessor {
                 try {
                     addr = InetAddress.getByAddress(parts);
                 } catch (UnknownHostException e) {
+                    throw new ProcessorException("unknonw host " + addr, e);
                 }
             }
         }
@@ -116,7 +118,7 @@ public class NameResolver extends FieldsProcessor {
                     }
                 }
             } catch (NamingException e) {
-                throw new RuntimeException(e);
+                throw new ProcessorException("unresolvable name " + addr, e);
             } 
         }
     }

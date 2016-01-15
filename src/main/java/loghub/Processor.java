@@ -29,7 +29,7 @@ public abstract class Processor {
         return true;
     }
 
-    public abstract void process(Event event);
+    public abstract void process(Event event) throws ProcessorException;
     public abstract String getName();
 
     public int getThreads() {

@@ -13,6 +13,7 @@ import org.junit.Test;
 
 import loghub.Event;
 import loghub.LogUtils;
+import loghub.ProcessorException;
 import loghub.Tools;
 import loghub.configuration.Properties;
 import loghub.processors.Script;
@@ -29,7 +30,7 @@ public class TestScript {
     }
 
     @Test
-    public void testJs() throws IOException {
+    public void testJs() throws IOException, ProcessorException {
         Script s = new loghub.processors.Script();
         URL scripturl = getClass().getClassLoader().getResource("script.js");
         s.setScript(scripturl.getFile());
@@ -40,7 +41,7 @@ public class TestScript {
     }
 
     @Test
-    public void testPython() throws IOException {
+    public void testPython() throws IOException, ProcessorException {
         Script s = new loghub.processors.Script();
         s.setScript("script.py");
         s.configure(new Properties(Collections.emptyMap()));

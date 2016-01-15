@@ -4,6 +4,7 @@ import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 
 import loghub.Event;
+import loghub.ProcessorException;
 
 public class DecodeUrl extends FieldsProcessor {
 
@@ -11,9 +12,9 @@ public class DecodeUrl extends FieldsProcessor {
     private boolean loop = false;
 
     @Override
-    public void processMessage(Event event, String field, String destination) {
+    public void processMessage(Event event, String field, String destination) throws ProcessorException {
+        String oldMessage = event.get(field).toString();
         try {
-            String oldMessage = event.get(field).toString();
             String message = null;
             boolean again = loop;
             int count = 0;
@@ -25,6 +26,7 @@ public class DecodeUrl extends FieldsProcessor {
             } while(again && count < 5);
             event.put(destination, message);
         } catch (UnsupportedEncodingException|java.lang.IllegalArgumentException e) {
+            throw new ProcessorException("unable to decode " + oldMessage, e);
         }
 
     }

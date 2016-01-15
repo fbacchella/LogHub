@@ -6,6 +6,7 @@ import java.util.regex.Pattern;
 import loghub.Event;
 import loghub.Helpers;
 import loghub.Processor;
+import loghub.ProcessorException;
 import loghub.VarFormatter;
 import loghub.configuration.Beans;
 
@@ -16,10 +17,10 @@ public abstract class FieldsProcessor extends Processor {
     private String[] fields = new String[] {};
     private Pattern[] patterns = new Pattern[]{};
 
-    public abstract void processMessage(Event event, String field, String destination);
+    public abstract void processMessage(Event event, String field, String destination) throws ProcessorException;
 
     @Override
-    public void process(Event event) {
+    public void process(Event event) throws ProcessorException {
         if(patterns.length != 0) {
             for(String f: event.keySet()) {
                 for(Pattern p: patterns) {
