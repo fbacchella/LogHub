@@ -3,20 +3,27 @@ package loghub.configuration;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 import java.util.function.BiFunction;
 
 import groovy.lang.GroovyClassLoader;
 import loghub.Pipeline;
+import net.sf.ehcache.Cache;
+import net.sf.ehcache.CacheManager;
+import net.sf.ehcache.config.CacheConfiguration;
+import net.sf.ehcache.config.PersistenceConfiguration;
+import net.sf.ehcache.store.MemoryStoreEvictionPolicy;
 
 public class Properties extends HashMap<String, Object> {
-    
+
     final static String CLASSLOADERNAME = "__classloader";
     final static String NAMEDPIPELINES = "__pipelines";
-    
+
     public final ClassLoader classloader;
     public Map<String, Pipeline> namedPipeLine;
     public final GroovyClassLoader groovyClassLoader;
-    
+    private final CacheManager cacheManager;
+
     @SuppressWarnings("unchecked")
     public Properties(Map<String, Object> properties) {
         super();
