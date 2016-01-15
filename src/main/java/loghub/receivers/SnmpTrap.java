@@ -156,7 +156,6 @@ public class SnmpTrap extends Receiver implements CommandResponder {
             smartPut(event, vbOID, value);
         }
         trap.setProcessed(true);
-        System.out.println(event);
         send(event);
     }
 
