@@ -42,6 +42,7 @@ import loghub.RouteParser.TestContext;
 import loghub.RouteParser.TestExpressionContext;
 import loghub.configuration.Configuration.PipeJoin;
 import loghub.processors.Drop;
+import loghub.processors.Etl;
 import loghub.processors.Forker;
 
 class ConfigListener extends RouteBaseListener {

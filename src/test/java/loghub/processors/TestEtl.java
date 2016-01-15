@@ -6,7 +6,6 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import loghub.Event;
-import loghub.configuration.Etl;
 import loghub.configuration.Properties;
 
 public class TestEtl {

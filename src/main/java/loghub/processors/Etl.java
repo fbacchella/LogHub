@@ -1,4 +1,4 @@
-package loghub.configuration;
+package loghub.processors;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -11,6 +11,7 @@ import org.codehaus.groovy.control.CompilationFailedException;
 import loghub.Event;
 import loghub.Expression;
 import loghub.Processor;
+import loghub.configuration.Properties;
 
 public class Etl extends Processor {
 
@@ -67,11 +68,11 @@ public class Etl extends Processor {
         return null;
     }
 
-    public char getOperator() {
+    public Character getOperator() {
         return operator;
     }
 
-    public void setOperator(char operator) {
+    public void setOperator(Character operator) {
         this.operator = operator;
     }
 
