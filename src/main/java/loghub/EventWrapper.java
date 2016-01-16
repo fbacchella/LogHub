@@ -74,7 +74,8 @@ public class EventWrapper extends Event {
     }
 
     public int size() {
-        return (Integer) action( ((i, j, k) -> i.size()), null, null);
+        Integer size = (Integer) action( ((i, j, k) -> i.size()), null, null);
+        return size != null ? size : 0;
     }
 
     public boolean isEmpty() {
@@ -86,7 +87,7 @@ public class EventWrapper extends Event {
     }
 
     public boolean containsValue(Object value) {
-        return event.getAtPath(path).containsValue(value);
+        return (Boolean) action( ((i, j, k) -> i.containsValue(k)), null, null) == true;
     }
 
     @SuppressWarnings("unchecked")

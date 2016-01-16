@@ -67,21 +67,6 @@ public class Event extends HashMap<String, Object> implements Serializable {
         return type + "[" + timestamp + "]" + super.toString();
     }
 
-    public Map<String, Object> getAtPath(String[] path) {
-        Map<String, Object> current = this;
-        String key = path[0];
-        for(int i = 0; i < path.length - 1; i++) {
-            @SuppressWarnings("unchecked")
-            Map<String, Object> next = (Map<String, Object>) current.get(key);
-            if( next == null || ! (next instanceof Map) ) {
-                return null;
-            }
-            current = next;
-            key = path[i + 1];
-        }
-        return current;
-    }
-
     public Object applyAtPath(Helpers.TriFunction<Map<String, Object>, String, Object, Object> f, String[] path, Object value) {
         return applyAtPath(f, path, value, false);
     }
