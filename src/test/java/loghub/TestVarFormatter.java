@@ -3,6 +3,7 @@ package loghub;
 import java.time.ZonedDateTime;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 
@@ -151,6 +152,32 @@ public class TestVarFormatter {
         VarFormatter vf = new VarFormatter("a${}b{}c");
         String formatter = vf.format(values);
         Assert.assertEquals("mismatch for string escape" , "a${}b{}c", formatter );
+    }
+
+    @Test
+    public void testMany() {
+        Map<String, Object> values = new HashMap<String, Object>(){{
+            put("a", 2);
+            put("b", 1);
+            Object sub = (Map<String, ?>) Collections.singletonMap("d", 3);
+            put("c", sub);
+        }};
+        VarFormatter vf = new VarFormatter("${b}${a}${c.d}");
+        Assert.assertEquals("mismatch for complex pattern" , "123", vf.format(values) );
+    }
+
+    @Test(expected=RuntimeException.class)
+    public void testError1() {
+        Map<String, Object> values = Collections.singletonMap("a", 1);
+        VarFormatter vf = new VarFormatter("${b}");
+        vf.format(values);
+    }
+
+    @Test(expected=RuntimeException.class)
+    public void testError2() {
+        Map<String, Object> values = Collections.singletonMap("a", 1);
+        VarFormatter vf = new VarFormatter("${b.c}");
+        vf.format(values);
     }
 
 }

@@ -361,7 +361,33 @@ public class VarFormatter {
     }
 
     public String format(Map<String, Object> variables) {
-        Object[] resolved = mapper.keySet().stream().map( i-> variables.get(i)).toArray();
+        Object[] resolved = new Object[mapper.size()];
+        for(Map.Entry<String, Integer> e: mapper.entrySet()) {
+            String[] path = e.getKey().split("\\.");
+            if(path.length == 1) {
+                // Only one element in the key, just use it
+                if(! variables.containsKey(e.getKey())) {
+                    throw new RuntimeException("invalid values for format key " + e.getKey());
+                }
+                resolved[e.getValue()] = variables.get(e.getKey());
+            } else {
+                // Recurse, variables written as "a.b.c" are paths in maps
+                Map<String, Object> current = variables;
+                String key = path[0];
+                for(int i = 0; i < path.length - 1; i++) {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> next = (Map<String, Object>) current.get(key);
+                    if( next == null || ! (next instanceof Map) ) {
+                        throw new RuntimeException("invalid values for format key " + e.getKey());
+                    }
+                    current = next;
+                    key = path[i + 1];
+                }
+                if(current != null) {
+                    resolved[e.getValue()] = current.get(key);
+                }
+            }
+        }
         return mf.format(resolved, new StringBuffer(), new FieldPosition(0)).toString();
     }
 
