@@ -1,6 +1,7 @@
 package loghub.processors;
 
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.regex.Pattern;
 
 import loghub.Event;
@@ -22,7 +23,7 @@ public abstract class FieldsProcessor extends Processor {
     @Override
     public void process(Event event) throws ProcessorException {
         if(patterns.length != 0) {
-            for(String f: event.keySet()) {
+            for(String f: new HashSet<>(event.keySet())) {
                 for(Pattern p: patterns) {
                     if (p.matcher(f).matches() && event.containsKey(f) && event.get(f) != null) {
                         processMessage(event, f, getDestination(f));
