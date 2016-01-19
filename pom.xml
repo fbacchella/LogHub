@@ -93,9 +93,9 @@
             <version>2.7-b1</version>
         </dependency>
         <dependency>
-            <groupId>com.maxmind.geoip</groupId>
-            <artifactId>geoip-api</artifactId>
-            <version>1.2.14</version>
+            <groupId>com.maxmind.geoip2</groupId>
+            <artifactId>geoip2</artifactId>
+            <version>2.6.0</version>
         </dependency>
         <dependency>
             <groupId>org.yaml</groupId>

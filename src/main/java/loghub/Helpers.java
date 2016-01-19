@@ -3,10 +3,12 @@ package loghub;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.InetAddress;
 import java.net.JarURLConnection;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLConnection;
+import java.net.UnknownHostException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -24,6 +26,9 @@ import java.util.jar.JarFile;
 import java.util.regex.Pattern;
 import java.util.stream.StreamSupport;
 
+import sun.net.util.IPAddressUtil;
+
+@SuppressWarnings("restriction")
 public final class Helpers {
 
     private Helpers() {
@@ -35,6 +40,12 @@ public final class Helpers {
         R apply(S s, T t, U u);
     }
 
+    @FunctionalInterface
+    public interface TriConsumer<S, T, U> {
+        void accept(S s, T t, U u);
+    }
+
+ 
     @FunctionalInterface
     public interface Actor {
         void act();
@@ -290,4 +301,17 @@ public final class Helpers {
         return Pattern.compile(sb.toString());
     }
 
+    public static InetAddress parseIpAddres(String ipstring) throws UnknownHostException{
+        byte[] parts = null;
+        if(IPAddressUtil.isIPv4LiteralAddress(ipstring)) {
+            parts = IPAddressUtil.textToNumericFormatV4(ipstring);
+        } else if(IPAddressUtil.isIPv6LiteralAddress(ipstring)) {
+            parts = IPAddressUtil.textToNumericFormatV6(ipstring);
+        }
+        if(parts != null) {
+            return InetAddress.getByAddress(parts);
+        } else {
+            return null;
+        }
+    }
 }
