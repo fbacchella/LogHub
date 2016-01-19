@@ -3,6 +3,7 @@ package loghub.configuration;
 import java.beans.IntrospectionException;
 import java.beans.PropertyDescriptor;
 import java.lang.annotation.Annotation;
+import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -65,11 +66,24 @@ public class BeansManager {
                 setMethod.invoke(beanObject, argInstance);
             } else if (beanValue instanceof Number){
                 setMethod.invoke(beanObject, beanValue);
+            } else if(setArgType.isArray() && beanValue.getClass().isArray()) {
+                // In case of an array, try a crude conversion, expect that type cast is possible
+                // for every element
+                int length = Array.getLength(beanValue);
+                Class<?> arrayType = setArgType.getComponentType();
+                Object newValue = Array.newInstance(arrayType, length);
+                for(int i = 0; i < length ; i++){
+                    Array.set(newValue, i, Array.get(beanValue, i));
+                }
+                setMethod.invoke(beanObject, newValue);
             } else {
                 throw new InvocationTargetException(new ClassCastException(), String.format("Unknown bean %s", beanName));
             }
         } catch (IntrospectionException e) {
             throw new InvocationTargetException(e, "Unknown bean '" + beanName + "' for " + beanObject);
+        } catch (InvocationTargetException e) {
+            // No need to wrap again the exception
+            throw e;
         } catch (Exception e) {
             throw new InvocationTargetException(e, "invalid bean '" + beanName + "' for " + beanObject);
         }

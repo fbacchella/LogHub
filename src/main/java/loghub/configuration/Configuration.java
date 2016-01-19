@@ -267,7 +267,6 @@ public class Configuration {
                 try {
                     BeansManager.beanSetter(object, i.getKey(), beanValue);
                 } catch (InvocationTargetException ex) {
-                    ex.printStackTrace();
                     throw new ConfigException(String.format("Invalid bean '%s.%s': %s", desc.clazz, i.getKey(), ex.getCause()), desc.ctx.start, desc.ctx.stop);
                 }
             }
