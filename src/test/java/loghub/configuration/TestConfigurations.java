@@ -121,7 +121,7 @@ public class TestConfigurations {
         SmartContext.terminate();
     }
 
-    @Test(timeout=1000) 
+    @Test(timeout=500) 
     public void testTwoPipe() throws InterruptedException {
         Configuration conf = loadConf("twopipe.conf");
         logger.debug("pipelines: {}", conf.pipelines);
@@ -130,33 +130,20 @@ public class TestConfigurations {
         for(Pipeline i: conf.pipelines) {
             i.startStream();
         }
-        Thread.sleep(30);
-        for(Receiver r: conf.getReceivers()) {
-            r.start();
-        }
-        Thread.sleep(30);
-        for(Sender s: conf.getSenders()) {
-            s.start();
-        }
-        Thread.sleep(30);
         Set<Thread> joins = new HashSet<>();
         int i = 0;
         for(PipeJoin j: conf.joins) {
             Pipeline inpipe = conf.namedPipeLine.get(j.inpipe);
             Pipeline outpipe = conf.namedPipeLine.get(j.outpipe);
-            Thread t = Helpers.QueueProxy("test" + i++, inpipe.outQueue, outpipe.inQueue,  () -> {} );
+            Thread t = Helpers.QueueProxy("join-" + i++, inpipe.outQueue, outpipe.inQueue, () -> { System.out.println("error");});
             t.start();
             joins.add(t);
         }
-        Socket out = tctxt.ctx.newSocket(Method.CONNECT, Type.SUB, "inproc://sender", 1, -1);
-        out.subscribe(new byte[]{});
-        Socket sender = tctxt.ctx.newSocket(Method.CONNECT, Type.PUB, "inproc://listener1", 1, -1);
-        Thread.sleep(30);
-        sender.send("something");
-        byte[] buffer = out.recv();
-        Assert.assertEquals("wrong send message", "something", new String(buffer));
-        tctxt.ctx.close(sender);
-        tctxt.ctx.close(out);
+        Event se = new Event();
+        se.put("message", "1");
+        conf.namedPipeLine.get("pipeone").inQueue.add(se);
+        Event re = conf.namedPipeLine.get("main").outQueue.take();
+        Assert.assertEquals("wrong event received", "1", re.get("message"));
         conf.getReceivers().stream().forEach(r -> r.interrupt());
         conf.getSenders().stream().forEach(s -> s.interrupt());
         conf.pipelines.stream().forEach(p -> p.stopStream());

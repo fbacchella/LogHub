@@ -275,7 +275,12 @@ public class Configuration {
         } catch (ClassNotFoundException e) {
             throw new ConfigException(String.format("Unknown class '%s'", desc.clazz), desc.ctx.start, desc.ctx.stop);
         } catch (RuntimeException | ExceptionInInitializerError e) {
-            throw new ConfigException(String.format("Invalid class '%s': %s", desc.clazz, e), desc.ctx.start, desc.ctx.stop);
+            Exception rootCause = ( Exception) e;
+            if(rootCause.getCause() instanceof InvocationTargetException) {
+                rootCause = (InvocationTargetException) rootCause.getCause();
+            }
+            logger.throwing(rootCause);
+            throw new ConfigException(String.format("Invalid class '%s': %s", desc.clazz, rootCause), desc.ctx.start, desc.ctx.stop);
         }
     }
 
