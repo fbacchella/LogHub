@@ -20,6 +20,7 @@ import org.apache.logging.log4j.Logger;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.maxmind.db.NodeCache;
 import com.maxmind.geoip2.DatabaseReader;
+import com.maxmind.geoip2.exception.AddressNotFoundException;
 import com.maxmind.geoip2.exception.GeoIp2Exception;
 import com.maxmind.geoip2.model.CityResponse;
 import com.maxmind.geoip2.model.CountryResponse;
@@ -116,6 +117,8 @@ public class Geoip2 extends FieldsProcessor {
                 break;
             }
             }
+        } catch (AddressNotFoundException e) {
+            // not an error, do nothing
         } catch (IOException | GeoIp2Exception e) {
             throw new ProcessorException("can't read geoip database", e);
         }
@@ -232,17 +235,23 @@ public class Geoip2 extends FieldsProcessor {
                     }
                 }
             };
-            try {
-                if(datfilepath != null) {
+            if(datfilepath != null) {
+                try {
                     reader = new DatabaseReader.Builder(datfilepath.toFile()).withCache(nc).build();
-                } else {
+                } catch (IOException e) {
+                    logger.error("can't read geoip database " + datfilepath.toString());
+                    logger.throwing(Level.DEBUG, e);
+                    return false;
+                }
+            } else {
+                try {
                     InputStream embedded = new BufferedInputStream(properties.classloader.getResourceAsStream("GeoLite2-City.mmdb"));
                     reader = new DatabaseReader.Builder(embedded).withCache(nc).build();
+                } catch (IOException e) {
+                    logger.error("Didn't find a default database");
+                    logger.throwing(Level.DEBUG, e);
+                    return false;
                 }
-            } catch (IOException e) {
-                logger.error("can't read geoip database " + datfilepath.toString());
-                logger.throwing(Level.DEBUG, e);
-                return false;
             }
         }
         return super.configure(properties);
