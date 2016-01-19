@@ -9,6 +9,8 @@ import java.util.function.BiFunction;
 import groovy.lang.GroovyClassLoader;
 import loghub.Pipeline;
 import loghub.VarFormatter;
+import loghub.jmx.Helper;
+import loghub.jmx.Helper.PROTOCOL;
 import net.sf.ehcache.Cache;
 import net.sf.ehcache.CacheManager;
 import net.sf.ehcache.config.CacheConfiguration;
@@ -26,7 +28,10 @@ public class Properties extends HashMap<String, Object> {
     public final GroovyClassLoader groovyClassLoader;
     private final CacheManager cacheManager;
     final Map<String, VarFormatter> formatters = new HashMap<String, VarFormatter>();
-    
+    public final int jmxport;
+    public final PROTOCOL jmxproto;
+    public final String jmxlisten;
+
     @SuppressWarnings("unchecked")
     public Properties(Map<String, Object> properties) {
         super();
@@ -54,7 +59,27 @@ public class Properties extends HashMap<String, Object> {
         if(buffer != null && buffer.size() > 0) {
             formatters.putAll(buffer);
         }
-        
+
+        //Read the jmx configuration
+        Integer jmxport = (Integer) properties.get("jmx.port");
+        if(jmxport != null) {
+            this.jmxport = jmxport;
+        } else {
+            this.jmxport = -1;
+        }
+        String jmxproto = (String) properties.get("jmx.protocol");
+        if(jmxproto != null) {
+            this.jmxproto = PROTOCOL.valueOf(jmxproto.toLowerCase());
+        } else {
+            this.jmxproto = Helper.defaultProto;
+        }
+        String jmxlisten = (String) properties.get("jmx.listen");
+        if(jmxlisten != null) {
+            this.jmxlisten = jmxlisten;
+        } else {
+            this.jmxlisten = "0.0.0.0";
+        }
+
         super.putAll(properties);
     }
 
