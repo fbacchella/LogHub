@@ -14,11 +14,11 @@ import loghub.configuration.Properties;
 public class TestNameResolver {
 
     @Test
-    public void test2() throws UnknownHostException, ProcessorException {
+    public void test1() throws UnknownHostException, ProcessorException {
         NameResolver nr = new NameResolver();
-        nr.configure(new Properties(Collections.emptyMap()));
         nr.setField("host");
         nr.setDestination("fqdn");
+        nr.configure(new Properties(Collections.emptyMap()));
         Event e = new Event();
         e.put("host", InetAddress.getByName("127.0.0.1"));
         nr.process(e);
@@ -26,17 +26,30 @@ public class TestNameResolver {
     }
 
     @Test
-    public void test3() throws UnknownHostException, ProcessorException {
+    public void test2() throws UnknownHostException, ProcessorException {
         NameResolver nr = new NameResolver();
-        nr.configure(new Properties(Collections.emptyMap()));
-        nr.setResolver("dns:");
         nr.setField("host");
         nr.setDestination("fqdn_${field%s}");
+        nr.configure(new Properties(Collections.emptyMap()));
         Event e = new Event();
         /// resolving a.root-servers.net.
         e.put("host", InetAddress.getByName("2001:503:ba3e::2:30"));
         nr.process(e);
-        System.out.println(e);
         Assert.assertEquals("resolution failed", "a.root-servers.net", e.get("fqdn_host"));
     }
+    
+    @Test
+    public void test3() throws UnknownHostException, ProcessorException {
+        NameResolver nr = new NameResolver();
+        nr.setField("host");
+        nr.setDestination("fqdn_${field%s}");
+        nr.setResolvers(new String[] { "8.8.8.8"} );
+        nr.configure(new Properties(Collections.emptyMap()));
+        Event e = new Event();
+        /// resolving a.root-servers.net.
+        e.put("host", "2001:503:ba3e::2:30");
+        nr.process(e);
+        Assert.assertEquals("resolution failed", "a.root-servers.net", e.get("fqdn_host"));
+    }
+
 }
