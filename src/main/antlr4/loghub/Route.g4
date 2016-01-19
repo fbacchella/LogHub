@@ -36,7 +36,7 @@ finalpiperef: piperef;
 piperef:  Identifier;
 drop: Drop;
 Drop: 'drop';
-property: Identifier ':' beanValue;
+property: propertyName ':' beanValue;
 
 etl: eventVariable operation expression?;
 
@@ -93,6 +93,10 @@ binaryOperator
 array: '[' (beanValue (',' beanValue)*)? ','? ']';
 
 eventVariable: '[' Identifier ('.' Identifier)* ']' ;
+
+propertyName
+    :   Identifier | QualifiedIdentifier
+    ;
 
 Identifier
     :   JavaLetter JavaLetterOrDigit*

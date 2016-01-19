@@ -391,7 +391,7 @@ class ConfigListener extends RouteBaseListener {
     @Override
     public void exitProperty(PropertyContext ctx) {
         Object value = stack.pop();
-        String key = ctx.Identifier().getText();
+        String key = ctx.propertyName().getText();
         properties.put(key, value);
     }
 
