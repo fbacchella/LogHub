@@ -15,13 +15,27 @@ forkpiperef: '$' Identifier;
 pipenode: test | object | '(' pipenodeList ')' | '$' piperef | drop | etl;
 object: QualifiedIdentifier beansDescription ; 
 beansDescription:  ('{' (bean (',' bean)*)? ','? '}')? ;
-bean: beanName ':' beanValue;
+
+bean
+    :   (keyword ':' keywordvalue)
+    |   (beanName ':' beanValue)
+    ;
+
+keyword
+    :   'if';
+
+keywordvalue
+    :   object
+    |   literal
+    |   array
+    |   expression;
+
 beanName: Identifier;
-beanValue: object | literal | array | expression;
+beanValue: object | literal | array;
 finalpiperef: piperef;
 piperef:  Identifier;
 drop: Drop;
-Drop: 'd' 'r' 'o' 'p';
+Drop: 'drop';
 property: Identifier ':' beanValue;
 
 etl: eventVariable operation expression?;
@@ -33,24 +47,49 @@ test: testExpression '?' pipenode (':' pipenode)?;
 testExpression: expression;
 
 expression
-    :   literal
-    |   eventVariable
-    |   QualifiedIdentifier
-    |   ('~'|'!') expression
-    |   expression ('**') expression
-    |   expression ('*'|'/'|'%') expression
-    |   expression ('+'|'-') expression
-    |   expression ('<' '<' | '>' '>' '>' | '>' '>') expression
-    |   expression ('<=' | '>=' | '>' | '<' | 'instanceof' | 'in') expression
-    |   expression ('==' | '==' | '!=' | '<=>' | '===' | '!==' ) expression
-    |   expression ( '=~' '==~') expression
-    |   expression '&' expression
-    |   expression '^' expression
-    |   expression '|' expression
-    |   expression '&&' expression
-    |   expression '||' expression
+    :   sl = stringLiteral
+    |   l = literal
+    |   ev = eventVariable
+    |   qi = QualifiedIdentifier
+    |   opu = unaryOperator e2 = expression
+    |   e1 = expression opb=binaryOperator e2=expression
+    ;
+    
+unaryOperator
+    :   '~'
+    |   '!'
     ;
 
+binaryOperator
+    :   '**'
+    |   '*'
+    |   '/'
+    |   '%'
+    |   '+'
+    |   '-'
+    |   '<<'
+    |   '>>>'
+    |   '>>'
+    |   '<='
+    |   '>='
+    |   '>'
+    |   '<'
+    |   'instanceof'
+    |   'in'
+    |   '=='
+    |   '==='
+    |   '!='
+    |   '<=>'
+    |   '!=='
+    |   '=~'
+    |   '==~'
+    |   '&'
+    |   '^'
+    |   '|'
+    |   '&&'
+    |   '||'
+    ;
+    
 array: '[' (beanValue (',' beanValue)*)? ','? ']';
 
 eventVariable: '[' Identifier ('.' Identifier)* ']' ;
@@ -310,9 +349,6 @@ SingleCharacter
     :   ~['\\]
     ;
 
-
-// §3.10.5 String Literals
-
 stringLiteral
     :   StringLiteral
     ;
@@ -320,6 +356,7 @@ stringLiteral
 StringLiteral
     :   '"' StringCharacter* '"'
     ;
+
 
 fragment
 StringCharacter

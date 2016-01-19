@@ -15,13 +15,12 @@ public class TestEtl {
         Etl etl = new Etl();
         etl.setLvalue("a.b");
         etl.setOperator('=');
-        etl.setExpression("[c] + 1");
+        etl.setExpression("event.c + 1");
         boolean done = etl.configure(new Properties(Collections.emptyMap()));
         Assert.assertTrue("configuration failed", done);
         Event event = new Event();
         event.put("c", 0);
         etl.process(event);
-        System.out.println(event);
         Assert.assertEquals("evaluation failed", 1, event.applyAtPath((i,j,k) -> i.get(j), new String[] {"a", "b"}, null, false));
     }
 
@@ -35,7 +34,6 @@ public class TestEtl {
         Event event = new Event();
         event.put("a", 0);
         etl.process(event);
-        System.out.println(event);
         Assert.assertEquals("evaluation failed", null, event.applyAtPath((i,j,k) -> i.get(j), new String[] {"a"}, null, false));
     }
 
@@ -50,7 +48,6 @@ public class TestEtl {
         Event event = new Event();
         event.put("a", 0);
         etl.process(event);
-        System.out.println(event);
         Assert.assertEquals("evaluation failed", 0, event.applyAtPath((i,j,k) -> i.get(j), new String[] {"b"}, null, false));
     }
 

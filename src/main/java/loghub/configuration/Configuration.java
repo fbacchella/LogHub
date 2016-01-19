@@ -59,7 +59,6 @@ public class Configuration {
         }
     }
 
-    @SuppressWarnings("unused")
     private static final Logger logger = LogManager.getLogger();
     private static final ThrowingFunction<Class<Object>, Object> emptyConstructor = i -> {return i.getConstructor().newInstance();};
 
@@ -127,6 +126,7 @@ public class Configuration {
 
         newProperties.put(Properties.CLASSLOADERNAME, classLoader);
         newProperties.put(Properties.NAMEDPIPELINES, namedPipeLine);
+        newProperties.put(Properties.FORMATTERS, conf.formatters);
 
         properties = new Properties(newProperties);
 

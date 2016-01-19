@@ -28,6 +28,7 @@ import loghub.RouteParser.ForkpiperefContext;
 import loghub.RouteParser.InputContext;
 import loghub.RouteParser.InputObjectlistContext;
 import loghub.RouteParser.IntegerLiteralContext;
+import loghub.RouteParser.KeywordContext;
 import loghub.RouteParser.ObjectContext;
 import loghub.RouteParser.OutputContext;
 import loghub.RouteParser.OutputObjectlistContext;
@@ -39,6 +40,7 @@ import loghub.RouteParser.PropertyContext;
 import loghub.RouteParser.StringLiteralContext;
 import loghub.RouteParser.TestContext;
 import loghub.RouteParser.TestExpressionContext;
+import loghub.VarFormatter;
 import loghub.configuration.Configuration.PipeJoin;
 import loghub.processors.Drop;
 import loghub.processors.Etl;
@@ -150,22 +152,19 @@ class ConfigListener extends RouteBaseListener {
     final List<Output> outputs = new ArrayList<>();
     final Map<String, Object> properties = new HashMap<>();
     final Set<PipeJoin> joins = new HashSet<>();
+    final Map<String, VarFormatter> formatters = new HashMap<>();
 
     private String currentPipeLineName = null;
+    private int expressionDepth = 0;
 
     @Override
     public void enterPiperef(PiperefContext ctx) {
         stack.push(new PipeRefName(ctx.getText()));
     }
 
-    @Override
-    public void enterBeanName(BeanNameContext ctx) {
-        stack.push(ctx.getText());
-    }
-
     private void pushLiteral(ParserRuleContext ctx, Object content) {
-        // Don't keep literal in a test, they will be managed in groovy
-        if(StackMarker.Test.equals(stack.peek())) {
+        // Don't keep literal in a expression, they will be managed in groovy
+        if(expressionDepth > 0) {
             return;
         }
         if(ctx.getParent().getParent() instanceof BeanValueContext) {
@@ -205,6 +204,16 @@ class ConfigListener extends RouteBaseListener {
     public void enterBooleanLiteral(BooleanLiteralContext ctx) {
         String content = ctx.getText();
         pushLiteral(ctx, new Boolean(content));
+    }
+
+    @Override
+    public void exitKeyword(KeywordContext ctx) {
+        stack.push(ctx.getText());
+    }
+
+    @Override
+    public void exitBeanName(BeanNameContext ctx) {
+        stack.push(ctx.getText());
     }
 
     @Override
@@ -434,15 +443,38 @@ class ConfigListener extends RouteBaseListener {
 
     @Override
     public void enterExpression(ExpressionContext ctx) {
-        stack.push(StackMarker.Expression);
-        super.enterExpression(ctx);
+        expressionDepth++;
     }
 
     @Override
     public void exitExpression(ExpressionContext ctx) {
-        while(! StackMarker.Expression.equals(stack.pop()) ) {
+        String expression = null;
+        if(ctx.sl != null) {
+            String format = ctx.sl.getText();
+            String key = Integer.toHexString(format.hashCode());
+            formatters.put(key, new VarFormatter(format));
+            expression = "formatter." + key + ".format(event)";
+        } else if (ctx.l != null) {
+            expression = ctx.l.getText();
+        } else if (ctx.ev != null) {
+            String ev = ctx.ev.getText();
+            ev = ev.substring(1, ev.length() - 1 );
+            expression = "event." + ev;
+        } else if (ctx.qi != null) {
+            expression = ctx.qi.getText();
+        } else if (ctx.opu != null) {
+            expression = ctx.opu.getText() + " " + stack.pop();
+        } else if (ctx.opb != null) {
+            Object post = stack.pop();
+            Object pre = stack.pop();
+            expression = pre + " " + ctx.opb.getText() + " " + post;
         }
-        stack.push(new ObjectWrapped(ctx.getText()));
+        expressionDepth--;
+        if(expressionDepth == 0) {
+            stack.push( new ObjectWrapped(expression));
+        } else {
+            stack.push(expression);
+        }
     }
 
 }

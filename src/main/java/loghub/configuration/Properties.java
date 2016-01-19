@@ -8,6 +8,7 @@ import java.util.function.BiFunction;
 
 import groovy.lang.GroovyClassLoader;
 import loghub.Pipeline;
+import loghub.VarFormatter;
 import net.sf.ehcache.Cache;
 import net.sf.ehcache.CacheManager;
 import net.sf.ehcache.config.CacheConfiguration;
@@ -18,12 +19,14 @@ public class Properties extends HashMap<String, Object> {
 
     final static String CLASSLOADERNAME = "__classloader";
     final static String NAMEDPIPELINES = "__pipelines";
+    final static String FORMATTERS = "__formatters";
 
     public final ClassLoader classloader;
     public Map<String, Pipeline> namedPipeLine;
     public final GroovyClassLoader groovyClassLoader;
     private final CacheManager cacheManager;
-
+    final Map<String, VarFormatter> formatters = new HashMap<String, VarFormatter>();
+    
     @SuppressWarnings("unchecked")
     public Properties(Map<String, Object> properties) {
         super();
@@ -46,6 +49,12 @@ public class Properties extends HashMap<String, Object> {
                 .name(UUID.randomUUID().toString())
                 );
 
+        //buffer is here to make writing tests easier
+        Map<String, VarFormatter> buffer = (Map<String, VarFormatter>) properties.remove(FORMATTERS);
+        if(buffer != null && buffer.size() > 0) {
+            formatters.putAll(buffer);
+        }
+        
         super.putAll(properties);
     }
 
