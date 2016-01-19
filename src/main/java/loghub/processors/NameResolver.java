@@ -6,6 +6,7 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Hashtable;
 
+import javax.naming.NameNotFoundException;
 import javax.naming.NamingEnumeration;
 import javax.naming.NamingException;
 import javax.naming.directory.Attribute;
@@ -24,27 +25,33 @@ import sun.net.util.IPAddressUtil;
 @SuppressWarnings("restriction")
 public class NameResolver extends FieldsProcessor {
 
+    private ThreadLocal<DirContext> localContext = new ThreadLocal<DirContext>(){
+        @Override
+        protected DirContext initialValue() {
+            Hashtable<String, String> env = new Hashtable<>();
+            env.put("java.naming.factory.initial", "com.sun.jndi.dns.DnsContextFactory");
+            env.put("java.naming.provider.url", url);
+            env.put("com.example.jndi.dns.timeout.initial", Integer.toString(timeout));
+            env.put("com.example.jndi.dns.timeout.retries", Integer.toString(retries));
+            try {
+                return new InitialDirContext(env);
+            } catch (NamingException e) {
+                throw new IllegalArgumentException(e);
+            }
+        }
+
+    };
+
     private String url = "dns:";
     private String type = "PTR";
     private int timeout = 1;
     private int retries = 2;
-    private DirContext ctx;
-    private int cacheSize = 100;
+    private int cacheSize = 1000;
     private Cache hostCache;
     private int ttl = 60;
 
     @Override
     public boolean configure(Properties properties) {
-        Hashtable<String, String> env = new Hashtable<>();
-        env.put("java.naming.factory.initial", "com.sun.jndi.dns.DnsContextFactory");
-        env.put("java.naming.provider.url", "dns:");
-        env.put("com.example.jndi.dns.timeout.initial", Integer.toString(timeout));
-        env.put("com.example.jndi.dns.timeout.retries", Integer.toString(retries));
-        try {
-            ctx = new InitialDirContext(env);
-        } catch (NamingException e) {
-            return false;
-        }
         CacheConfiguration config = properties.getDefaultCacheConfig()
                 .maxEntriesLocalHeap(cacheSize)
                 .timeToLiveSeconds(ttl);
@@ -60,7 +67,11 @@ public class NameResolver extends FieldsProcessor {
         Element cacheElement = hostCache.get(addr.toString());
 
         if(cacheElement != null && ! cacheElement.isExpired()) {
-            event.put(destination, cacheElement.getObjectValue());
+            Object o = cacheElement.getObjectValue();
+            //Set only if it was not a negative cache
+            if(o != null) {
+                event.put(destination, o);
+            }
             return;
         }
 
@@ -103,7 +114,7 @@ public class NameResolver extends FieldsProcessor {
         //If a query was build, use it
         if (toresolv != null) {
             try {
-                Attributes attrs = ctx.getAttributes(toresolv, new String[] { type });
+                Attributes attrs = localContext.get().getAttributes(toresolv, new String[] { type });
                 for (NamingEnumeration<? extends Attribute> ae = attrs.getAll(); ae.hasMoreElements();) {
                     Attribute attr = (Attribute) ae.next();
                     if (attr.getID() != type) {
@@ -117,6 +128,14 @@ public class NameResolver extends FieldsProcessor {
                         event.put(destination, value);
                     }
                 }
+            } catch (IllegalArgumentException e) {
+                throw new ProcessorException("can't setup resolver " + addr, (Exception) e.getCause());
+            } catch (NameNotFoundException | javax.naming.ServiceUnavailableException | javax.naming.CommunicationException ex) {
+                // Expected failure from DNS, don't care
+                // But keep a short negative cache to avoid flooding
+                Element e = new Element(addr.toString(), null);
+                e.setTimeToLive(timeout * 5);
+                hostCache.put(e);
             } catch (NamingException e) {
                 throw new ProcessorException("unresolvable name " + addr, e);
             } 
@@ -139,7 +158,7 @@ public class NameResolver extends FieldsProcessor {
      * @param url the url to set
      */
     public void setResolver(String resolver) {
-        this.url = "dns://" + url;
+        this.url = "dns://" + resolver;
     }
 
     /**
