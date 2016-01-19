@@ -76,8 +76,7 @@ public class TestParser {
             Assert.assertTrue("property " + s + " not found", conf.properties.containsKey(s));
         }
     }
-    
-    
+
     @Test
     public void testType() throws IOException {
         CharStream cs = new ANTLRInputStream(getClass().getClassLoader().getResourceAsStream("types.conf"));
