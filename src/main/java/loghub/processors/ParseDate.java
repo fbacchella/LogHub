@@ -5,7 +5,6 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.TemporalAccessor;
-import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Locale;
@@ -66,7 +65,6 @@ public class ParseDate extends FieldsProcessor {
                 patterns[i] = patterns[i].withZone(zone);
             }
         }
-        System.out.println(Arrays.toString(patterns));
         return super.configure(properties);
     }
 
