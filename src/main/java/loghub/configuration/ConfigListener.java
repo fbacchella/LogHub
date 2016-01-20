@@ -431,6 +431,7 @@ class ConfigListener extends RouteBaseListener {
         }
 
         String lvalue = ctx.eventVariable().getText();
+        lvalue = lvalue.substring(1, lvalue.length() - 1);
         Character operator = ctx.operation().getText().charAt(0);
         ObjectDescription etl = new ObjectDescription(Etl.class.getCanonicalName(), ctx);
         etl.beans.put("lvalue", new ConfigListener.ObjectWrapped(lvalue));
