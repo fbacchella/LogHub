@@ -20,10 +20,8 @@ public class Event extends HashMap<String, Object> implements Serializable {
     private final static Logger logger = LogManager.getLogger();
 
     public static final String TIMESTAMPKEY = "__timestamp";
-    public static final String TYPEKEY = "__type";
 
     public Date timestamp;
-    public String type;
     public boolean dropped = false;
 
     public Event() {
@@ -64,7 +62,7 @@ public class Event extends HashMap<String, Object> implements Serializable {
 
     @Override
     public String toString() {
-        return type + "[" + timestamp + "]" + super.toString();
+        return "[" + timestamp + "]" + super.toString();
     }
 
     public Object applyAtPath(Helpers.TriFunction<Map<String, Object>, String, Object, Object> f, String[] path, Object value) {

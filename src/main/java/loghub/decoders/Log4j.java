@@ -28,7 +28,6 @@ public class Log4j extends Decoder {
         try {
             ois = new ObjectInputStream(new ByteArrayInputStream(msg, offset, length));
             LoggingEvent o = (LoggingEvent) ois.readObject();
-            map.put(Event.TYPEKEY, "log4j");
             map.put("host", "");
             map.put("path", o.getLoggerName());
             map.put("priority", o.getLevel());

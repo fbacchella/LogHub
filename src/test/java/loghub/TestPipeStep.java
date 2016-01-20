@@ -42,7 +42,6 @@ public class TestPipeStep {
         ps.addProcessor(new Identity());
         ps.addProcessor(new Identity());
         Event sent = new Event();
-        sent.type = "testEvent";
 
         //  Socket facing clients
         NamedArrayBlockingQueue in = new NamedArrayBlockingQueue("in.TestPipeStep");
@@ -84,7 +83,6 @@ public class TestPipeStep {
         });
         Pipeline pipeline = new Pipeline(Collections.singletonList(new PipeStep[] {subps}), "main");
         Event sent = new Event();
-        sent.type = "testEvent";
         pipeline.startStream();
 
 
