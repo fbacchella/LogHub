@@ -36,7 +36,7 @@ public interface Stats {
         List<ProcessorException> errors = loghub.Stats.getErrors();
         String[] errorsMessages = new String[errors.size()];
         final AtomicInteger count = new AtomicInteger(0);
-        errors.stream().forEach( i -> { System.out.println(i.getMessage()); Throwable t = i.getCause() ; errorsMessages[count.getAndIncrement()] = "" + i.getMessage() + t != null ? ": " + t.getMessage() : "";});
+        errors.stream().forEach( i -> { Throwable t = i.getCause() ; errorsMessages[count.getAndIncrement()] = "" + i.getMessage() + t != null ? ": " + t.getMessage() : "";});
         return errorsMessages;
     }
 
