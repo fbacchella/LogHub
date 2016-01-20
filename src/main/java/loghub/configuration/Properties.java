@@ -1,10 +1,13 @@
 package loghub.configuration;
 
+import java.lang.management.ManagementFactory;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.function.BiFunction;
+
+import javax.management.MBeanServer;
 
 import groovy.lang.GroovyClassLoader;
 import loghub.Pipeline;
@@ -15,6 +18,7 @@ import net.sf.ehcache.Cache;
 import net.sf.ehcache.CacheManager;
 import net.sf.ehcache.config.CacheConfiguration;
 import net.sf.ehcache.config.PersistenceConfiguration;
+import net.sf.ehcache.management.ManagementService;
 import net.sf.ehcache.store.MemoryStoreEvictionPolicy;
 
 public class Properties extends HashMap<String, Object> {
@@ -80,17 +84,23 @@ public class Properties extends HashMap<String, Object> {
             this.jmxlisten = "0.0.0.0";
         }
 
+        if(this.jmxport > 0) {
+            MBeanServer mBeanServer = ManagementFactory.getPlatformMBeanServer(); 
+            ManagementService.registerMBeans(cacheManager, mBeanServer, false, false, false, 
+                    true);
+        }
+
         super.putAll(properties);
     }
 
-    public Cache getCache(int size) {
-        CacheConfiguration config = getDefaultCacheConfig().maxEntriesLocalHeap(size);
+    public Cache getCache(int size, String name, Object parent) {
+        CacheConfiguration config = getDefaultCacheConfig(name, parent).maxEntriesLocalHeap(size);
         return getCache(config);
     }
 
-    public CacheConfiguration getDefaultCacheConfig() {
+    public CacheConfiguration getDefaultCacheConfig(String name, Object parent) {
         return new CacheConfiguration()
-                .name(UUID.randomUUID().toString())
+                .name(name + "@" + parent.hashCode())
                 .persistence(new PersistenceConfiguration().strategy(PersistenceConfiguration.Strategy.NONE))
                 .eternal(true)
                 .memoryStoreEvictionPolicy(MemoryStoreEvictionPolicy.LFU)

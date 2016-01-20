@@ -32,18 +32,18 @@ public class CachingParser extends Parser {
 
     public CachingParser(int cacheSize, Properties props) throws IOException {
         super();
-        cacheClient = props.getCache(cacheSize);
-        cacheUserAgent = props.getCache(cacheSize);
-        cacheDevice = props.getCache(cacheSize);
-        cacheOS = props.getCache(cacheSize);
+        cacheClient = props.getCache(cacheSize, "UA-client", this);
+        cacheUserAgent = props.getCache(cacheSize, "UA-useragent", this);
+        cacheDevice = props.getCache(cacheSize, "UA-device", this);
+        cacheOS = props.getCache(cacheSize, "UA-os", this);
     }
 
     public CachingParser(int cacheSize, Properties props, InputStream regexYaml) {
         super(regexYaml);
-        cacheClient = props.getCache(cacheSize);
-        cacheUserAgent = props.getCache(cacheSize);
-        cacheDevice = props.getCache(cacheSize);
-        cacheOS = props.getCache(cacheSize);
+        cacheClient = props.getCache(cacheSize, "UA-client", this);
+        cacheUserAgent = props.getCache(cacheSize, "UA-useragent", this);
+        cacheDevice = props.getCache(cacheSize, "UA-device", this);
+        cacheOS = props.getCache(cacheSize, "UA-os", this);
     }
 
     @SuppressWarnings("unchecked")

@@ -52,7 +52,7 @@ public class NameResolver extends FieldsProcessor {
 
     @Override
     public boolean configure(Properties properties) {
-        CacheConfiguration config = properties.getDefaultCacheConfig()
+        CacheConfiguration config = properties.getDefaultCacheConfig("NameResolver", this)
                 .maxEntriesLocalHeap(cacheSize)
                 .timeToLiveSeconds(ttl);
 
@@ -63,17 +63,6 @@ public class NameResolver extends FieldsProcessor {
     @Override
     public void processMessage(Event event, String field, String destination) throws ProcessorException {
         Object addr = event.get(field);
-
-        Element cacheElement = hostCache.get(addr.toString());
-
-        if(cacheElement != null && ! cacheElement.isExpired()) {
-            Object o = cacheElement.getObjectValue();
-            //Set only if it was not a negative cache
-            if(o != null) {
-                event.put(destination, o);
-            }
-            return;
-        }
 
         String toresolv = null;
 
@@ -111,6 +100,17 @@ public class NameResolver extends FieldsProcessor {
             toresolv = buffer.toString();
         }
 
+        Element cacheElement = hostCache.get(toresolv);
+
+        if(cacheElement != null && ! cacheElement.isExpired()) {
+            Object o = cacheElement.getObjectValue();
+            //Set only if it was not a negative cache
+            if(o != null) {
+                event.put(destination, o);
+            }
+            return;
+        }
+
         //If a query was build, use it
         if (toresolv != null) {
             try {
@@ -124,7 +124,7 @@ public class NameResolver extends FieldsProcessor {
                     if (o != null) {
                         String value = attr.getAll().next().toString();
                         value = value.substring(0, value.length() - 1);
-                        hostCache.put(new Element(addr.toString(), value));
+                        hostCache.put(new Element(toresolv, value));
                         event.put(destination, value);
                     }
                 }
@@ -133,7 +133,7 @@ public class NameResolver extends FieldsProcessor {
             } catch (NameNotFoundException | javax.naming.ServiceUnavailableException | javax.naming.CommunicationException ex) {
                 // Expected failure from DNS, don't care
                 // But keep a short negative cache to avoid flooding
-                Element e = new Element(addr.toString(), null);
+                Element e = new Element(toresolv, null);
                 e.setTimeToLive(timeout * 5);
                 hostCache.put(e);
             } catch (NamingException e) {

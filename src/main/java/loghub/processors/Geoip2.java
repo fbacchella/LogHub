@@ -220,7 +220,7 @@ public class Geoip2 extends FieldsProcessor {
             datfilepath = Paths.get(datfile.toString());
         }
         if(reader == null) {
-            final Cache ehCache = properties.getCache(100);
+            final Cache ehCache = properties.getCache(100, "Geoip2", this);
             NodeCache nc = new NodeCache() {
                 @Override
                 public JsonNode get(int key, Loader loader) throws IOException {
