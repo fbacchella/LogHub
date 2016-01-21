@@ -61,7 +61,7 @@ public class PipeStep extends Thread {
                         ((Forker) p).fork(event);
                     } else if(p instanceof Drop) {
                         event.dropped = true;
-                        continue;
+                        break;
                     } else {
                         wevent.setProcessor(p);
                         if(p.isprocessNeeded(wevent)) {
