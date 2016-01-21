@@ -2,6 +2,7 @@ package loghub.configuration;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Files;
@@ -311,12 +312,41 @@ public class Configuration {
             }
         });
 
+        //Add myself to class loader, so the custom class loader is used in priority
+        Path myself = locateResourcefile("loghub");
+        if(myself.endsWith("loghub")) {
+            myself = myself.getParent();
+        }
+        urls.add(myself.toUri().toURL());
+
         return new URLClassLoader(urls.toArray(new URL[] {}), getClass().getClassLoader()) {
             @Override
             public String toString() {
                 return "Loghub's class loader";
             }
         };
+    }
+
+    private Path locateResourcefile(String ressource) {
+        try {
+            URL url = getClass().getClassLoader().getResource(ressource);
+            String protocol = url.getProtocol();
+            String file = null;
+            switch(protocol) {
+            case "file":
+                file = url.getFile();
+                break;
+            case "jar":
+                url = new URL(url.getFile().replaceFirst("!.*", ""));
+                file = url.getFile();
+                break;
+            default:
+                throw new IllegalArgumentException("unmanaged ressource URL");
+            }
+            return Paths.get(file);
+        } catch (MalformedURLException e) {
+            throw new IllegalArgumentException("can't locate the ressource file path", e);
+        }
     }
 
     public Collection<Receiver> getReceivers() {
