@@ -45,7 +45,7 @@ public class TestParseDate {
     public void test3() throws ProcessorException {
         ParseDate parse = new ParseDate();
         parse.setPattern("yyyy-MM-dd'T'HH:m:ss");
-        parse.setTimeZone("Z");
+        parse.setTimezone("Z");
         parse.setField("field");
         parse.configure(new Properties(Collections.emptyMap()));
         Event event = new Event();

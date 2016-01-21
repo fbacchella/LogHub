@@ -72,16 +72,25 @@ public class ParseDate extends FieldsProcessor {
     public void processMessage(Event event, String field, String destination)
             throws ProcessorException {
         String dateString = event.get(field).toString();
+        boolean converted = false;
         for(DateTimeFormatter format: patterns) {
             try {
                 TemporalAccessor ta = format.parse(dateString);
                 Instant instant = Instant.from(ta);
                 Date date = Date.from(instant);
-                event.put(destination, date);
+                if("@timestamp".equals(destination)) {
+                    event.timestamp = date;
+                } else {
+                    event.put(destination, date);
+                }
+                converted = true;
                 break;
             } catch (DateTimeException e) {
                 //no problem, just wrong parser, keep going
             }
+        }
+        if(!converted) {
+            throw new ProcessorException("date string " + dateString + " not parsed", null);
         }
 
     }
@@ -127,11 +136,11 @@ public class ParseDate extends FieldsProcessor {
         this.locale = Locale.forLanguageTag(locale);
     }
 
-    public String getTimeZone() {
+    public String getTimezone() {
         return zone.getId();
     }
 
-    public void setTimeZone(String zone) {
+    public void setTimezone(String zone) {
         this.zone = ZoneId.of(zone);
     }
 
