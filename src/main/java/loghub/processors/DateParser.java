@@ -17,7 +17,7 @@ import loghub.Event;
 import loghub.ProcessorException;
 import loghub.configuration.Properties;
 
-public class ParseDate extends FieldsProcessor {
+public class DateParser extends FieldsProcessor {
 
     private static final Logger logger = LogManager.getLogger();
 
@@ -78,7 +78,7 @@ public class ParseDate extends FieldsProcessor {
                 TemporalAccessor ta = format.parse(dateString);
                 Instant instant = Instant.from(ta);
                 Date date = Date.from(instant);
-                if("@timestamp".equals(destination)) {
+                if(Event.TIMESTAMPKEY.equals(destination)) {
                     event.timestamp = date;
                 } else {
                     event.put(destination, date);

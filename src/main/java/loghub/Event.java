@@ -19,7 +19,7 @@ public class Event extends HashMap<String, Object> implements Serializable {
 
     private final static Logger logger = LogManager.getLogger();
 
-    public static final String TIMESTAMPKEY = "__timestamp";
+    public static final String TIMESTAMPKEY = "@timestamp";
 
     public Date timestamp;
     public boolean dropped = false;

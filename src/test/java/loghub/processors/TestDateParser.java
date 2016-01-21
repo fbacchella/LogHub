@@ -14,11 +14,11 @@ import loghub.Event;
 import loghub.ProcessorException;
 import loghub.configuration.Properties;
 
-public class TestParseDate {
+public class TestDateParser {
 
     @Test
     public void test1() throws ProcessorException {
-        ParseDate parse = new ParseDate();
+        DateParser parse = new DateParser();
         parse.setPattern("ISO_INSTANT");
         parse.setField("field");
         parse.configure(new Properties(Collections.emptyMap()));
@@ -30,7 +30,7 @@ public class TestParseDate {
 
     @Test
     public void test2() throws ProcessorException {
-        ParseDate parse = new ParseDate();
+        DateParser parse = new DateParser();
         parse.setPattern("yyyy-MM-dd'T'HH:m:ss.SSSSSSXXX");
         parse.setField("field");
         parse.configure(new Properties(Collections.emptyMap()));
@@ -43,7 +43,7 @@ public class TestParseDate {
 
     @Test
     public void test3() throws ProcessorException {
-        ParseDate parse = new ParseDate();
+        DateParser parse = new DateParser();
         parse.setPattern("yyyy-MM-dd'T'HH:m:ss");
         parse.setTimezone("Z");
         parse.setField("field");
@@ -57,7 +57,7 @@ public class TestParseDate {
 
     @Test
     public void test4() throws ProcessorException {
-        ParseDate parse = new ParseDate();
+        DateParser parse = new DateParser();
         parse.setField("field");
         parse.configure(new Properties(Collections.emptyMap()));
         Event event = new Event();
