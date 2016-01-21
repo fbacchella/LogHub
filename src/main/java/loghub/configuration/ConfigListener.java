@@ -29,6 +29,7 @@ import loghub.RouteParser.InputContext;
 import loghub.RouteParser.InputObjectlistContext;
 import loghub.RouteParser.IntegerLiteralContext;
 import loghub.RouteParser.KeywordContext;
+import loghub.RouteParser.NullLiteralContext;
 import loghub.RouteParser.ObjectContext;
 import loghub.RouteParser.OutputContext;
 import loghub.RouteParser.OutputObjectlistContext;
@@ -204,6 +205,11 @@ class ConfigListener extends RouteBaseListener {
     public void enterBooleanLiteral(BooleanLiteralContext ctx) {
         String content = ctx.getText();
         pushLiteral(ctx, new Boolean(content));
+    }
+
+    @Override
+    public void enterNullLiteral(NullLiteralContext ctx) {
+        pushLiteral(ctx, null);
     }
 
     @Override

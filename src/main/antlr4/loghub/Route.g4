@@ -134,7 +134,7 @@ literal
     |   characterLiteral
     |   stringLiteral
     |   booleanLiteral
-    |   'null'
+    |   nullLiteral
     ;
 
 // §3.10.1 Integer Literals
@@ -394,6 +394,9 @@ ZeroToThree
     :   [0-3]
     ;
 
+nullLiteral
+    :   'null'
+    ;
 //
 // Whitespace and comments
 //

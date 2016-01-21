@@ -59,7 +59,7 @@ public class BeansManager {
                 throw new InvocationTargetException(new NullPointerException(), String.format("Unknown bean %s", beanName));
             }
             Class<?> setArgType = bean.getPropertyType();
-            if(setArgType.isAssignableFrom(beanValue.getClass())) {
+            if(beanValue == null || setArgType.isAssignableFrom(beanValue.getClass())) {
                 setMethod.invoke(beanObject, beanValue);
             } else if (beanValue instanceof String){
                 Object argInstance = BeansManager.ConstructFromString(setArgType, (String) beanValue);
