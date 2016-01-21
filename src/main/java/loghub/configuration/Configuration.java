@@ -267,12 +267,14 @@ public class Configuration {
                 try {
                     BeansManager.beanSetter(object, i.getKey(), beanValue);
                 } catch (InvocationTargetException ex) {
-                    throw new ConfigException(String.format("Invalid bean '%s.%s': %s", desc.clazz, i.getKey(), ex.getCause()), desc.ctx.start, desc.ctx.stop);
+                    throw new ConfigException(String.format("Invalid bean '%s.%s': %s", desc.clazz, i.getKey(), ex.getCause()), desc.ctx.start, desc.ctx.stop, (Exception) ex.getCause());
                 }
             }
             return object;
         } catch (ClassNotFoundException e) {
             throw new ConfigException(String.format("Unknown class '%s'", desc.clazz), desc.ctx.start, desc.ctx.stop);
+        } catch (ConfigException e) {
+            throw e;
         } catch (RuntimeException | ExceptionInInitializerError e) {
             Exception rootCause = ( Exception) e;
             if(rootCause.getCause() instanceof InvocationTargetException) {
