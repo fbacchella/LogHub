@@ -234,7 +234,7 @@ public class VarFormatter {
             // Milliseconds since the beginning of the epoch starting at 1 January 1970 00:00:00 UTC, i.e. Long.MIN_VALUE to Long.MAX_VALUE.
             case 'Q': nfPattern = "#" ; transformTemp = i -> (i.getLong(ChronoField.INSTANT_SECONDS) * 1000 + i.getLong(ChronoField.MILLI_OF_SECOND)) ; break;
             // Locale-specific full month name, e.g. "January", "February".
-            case 'B': dtfPattern = "MMMM" ; fieldTemp = ChronoField.HOUR_OF_DAY ; break;
+            case 'B': dtfPattern = "MMMM" ; fieldTemp = ChronoField.MONTH_OF_YEAR ; break;
             // Locale-specific abbreviated month name, e.g. "Jan", "Feb".
             case 'b':
                 // Same as 'b'.
@@ -345,12 +345,14 @@ public class VarFormatter {
 
     private ZoneId tz = ZoneId.systemDefault();
     private Locale locale;
+    private final String format;
 
     public VarFormatter(String format) {
         this(format, Locale.getDefault());
     }
 
     public VarFormatter(String format, Locale l) {
+        this.format = format;
         locale = l;
         List<String> formats = new ArrayList<>();
         String pattern = findVariables(new StringBuilder(), format, mapper, 0, formats).toString();
@@ -514,5 +516,10 @@ public class VarFormatter {
             return new RightJustifyFormat(df, length);
         }
 
+    }
+
+    @Override
+    public String toString() {
+        return this.format;
     }
 }

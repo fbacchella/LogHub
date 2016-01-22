@@ -52,6 +52,23 @@ public class Properties extends HashMap<String, Object> {
     @SuppressWarnings("unchecked")
     public Properties(Map<String, Object> properties) {
         super();
+        
+        String tz = (String) properties.remove("timezone");
+        try {
+            if (tz != null) {
+                ZoneId id = ZoneId.of(tz);
+                TimeZone.setDefault(TimeZone.getTimeZone(id));
+            }
+        } catch (DateTimeException e) {
+            logger.error("Invalid timezone {}: {}", tz, e.getMessage());
+        }
+
+        String locale = (String) properties.remove("locale");
+        if(locale != null) {
+            Locale l = Locale.forLanguageTag(locale);
+            Locale.setDefault(l);
+        }
+
         ClassLoader cl = (ClassLoader) properties.remove(CLASSLOADERNAME);
         if(cl == null) {
             cl = Properties.class.getClassLoader();
@@ -72,9 +89,11 @@ public class Properties extends HashMap<String, Object> {
                 );
 
         //buffer is here to make writing tests easier
-        Map<String, VarFormatter> buffer = (Map<String, VarFormatter>) properties.remove(FORMATTERS);
+        Map<String, String> buffer = (Map<String, String>) properties.remove(FORMATTERS);
         if(buffer != null && buffer.size() > 0) {
-            formatters = Collections.unmodifiableMap(buffer);
+            Map<String, VarFormatter> formatters = new HashMap<>(buffer.size());
+            buffer.entrySet().stream().forEach(i -> formatters.put(i.getKey(), new VarFormatter(i.getValue())));
+            this.formatters = Collections.unmodifiableMap(formatters);
         } else {
             formatters = Collections.emptyMap();
             
@@ -104,22 +123,6 @@ public class Properties extends HashMap<String, Object> {
             MBeanServer mBeanServer = ManagementFactory.getPlatformMBeanServer(); 
             ManagementService.registerMBeans(cacheManager, mBeanServer, false, false, false, 
                     true);
-        }
-
-        String tz = (String) properties.remove("timezone");
-        try {
-            if (tz != null) {
-                ZoneId id = ZoneId.of(tz);
-                TimeZone.setDefault(TimeZone.getTimeZone(id));
-            }
-        } catch (DateTimeException e) {
-            logger.error("Invalid timezone {}: {}", tz, e.getMessage());
-        }
-
-        String locale = (String) properties.remove("locale");
-        if(locale != null) {
-            Locale l = Locale.forLanguageTag(locale);
-            Locale.setDefault(l);
         }
 
         super.putAll(properties);

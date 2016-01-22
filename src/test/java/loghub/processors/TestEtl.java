@@ -62,7 +62,7 @@ public class TestEtl {
         etl.setLvalue("a");
         etl.setOperator('=');
         etl.setExpression("formatters.a.format(event)");
-        Map<String, VarFormatter> formats = Collections.singletonMap("a", new VarFormatter("${@timestamp%t<GMT>H}"));
+        Map<String, String> formats = Collections.singletonMap("a", "${@timestamp%t<GMT>H}");
         Map<String, Object> properties = new HashMap<>();
         properties.put("__formatters", formats);
         boolean done = etl.configure(new Properties(properties));

@@ -41,7 +41,6 @@ import loghub.RouteParser.PropertyContext;
 import loghub.RouteParser.StringLiteralContext;
 import loghub.RouteParser.TestContext;
 import loghub.RouteParser.TestExpressionContext;
-import loghub.VarFormatter;
 import loghub.configuration.Configuration.PipeJoin;
 import loghub.processors.Drop;
 import loghub.processors.Etl;
@@ -153,7 +152,7 @@ class ConfigListener extends RouteBaseListener {
     final List<Output> outputs = new ArrayList<>();
     final Map<String, Object> properties = new HashMap<>();
     final Set<PipeJoin> joins = new HashSet<>();
-    final Map<String, VarFormatter> formatters = new HashMap<>();
+    final Map<String, String> formatters = new HashMap<>();
 
     private String currentPipeLineName = null;
     private int expressionDepth = 0;
@@ -433,7 +432,15 @@ class ConfigListener extends RouteBaseListener {
 
     @Override
     public void exitEtl(EtlContext ctx) {
-        while(! StackMarker.Etl.equals(stack.pop()) ) {
+        ObjectWrapped expression = null;
+        while(true) {
+            Object o = stack.pop();
+            if(o instanceof ObjectWrapped) {
+                expression = (ObjectWrapped) o;
+            }
+            if(StackMarker.Etl.equals(o)) {
+                break;
+            }
         }
 
         String lvalue = ctx.eventVariable().getText();
@@ -442,8 +449,8 @@ class ConfigListener extends RouteBaseListener {
         ObjectDescription etl = new ObjectDescription(Etl.class.getCanonicalName(), ctx);
         etl.beans.put("lvalue", new ConfigListener.ObjectWrapped(lvalue));
         etl.beans.put("operator", new ConfigListener.ObjectWrapped(operator));
-        if(ctx.expression() != null) {
-            etl.beans.put("expression", new ConfigListener.ObjectWrapped(ctx.expression().getText()));
+        if(expression != null) {
+            etl.beans.put("expression", expression);
         }
         stack.push(etl);
     }
@@ -458,8 +465,9 @@ class ConfigListener extends RouteBaseListener {
         String expression = null;
         if(ctx.sl != null) {
             String format = ctx.sl.getText();
-            String key = Integer.toHexString(format.hashCode());
-            formatters.put(key, new VarFormatter(format));
+            format = format.substring(1, format.length() - 1);
+            String key = "h_" + Integer.toHexString(format.hashCode());
+            formatters.put(key, format);
             expression = "formatters." + key + ".format(event)";
         } else if (ctx.l != null) {
             expression = ctx.l.getText();
