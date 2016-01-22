@@ -13,6 +13,7 @@ public class EventWrapper extends Event {
 
     public EventWrapper(Event event) {
         this.event = event;
+        this.timestamp = event.timestamp;
     }
 
     public void setProcessor(Processor processor) {
