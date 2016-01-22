@@ -181,6 +181,14 @@ public class ElasticSearch extends Sender {
         });
         client = builder.build();
         
+        //Schedule a task to flush every 5 seconds
+        Runnable flush = () -> {
+            synchronized(publisher) {
+                publisher.notify();
+            }
+        };
+        properties.registerScheduledTask("flushElasticSearch", flush, 5000);
+        
         return true;
     }
 

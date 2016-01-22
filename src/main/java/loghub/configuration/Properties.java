@@ -4,6 +4,8 @@ import java.lang.management.ManagementFactory;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.UUID;
 import java.util.function.BiFunction;
 
@@ -35,6 +37,7 @@ public class Properties extends HashMap<String, Object> {
     public final int jmxport;
     public final PROTOCOL jmxproto;
     public final String jmxlisten;
+    private final Timer timer = new Timer("loghubtimer", true);
 
     @SuppressWarnings("unchecked")
     public Properties(Map<String, Object> properties) {
@@ -111,6 +114,25 @@ public class Properties extends HashMap<String, Object> {
         Cache memoryOnlyCache = new Cache(config); 
         cacheManager.addCache(memoryOnlyCache); 
         return memoryOnlyCache;
+    }
+    
+    /**
+     * Used by object to register tasks to be executed at defined interval
+     * Each task will be given it's own thread at execution.
+     * 
+     * @param name the name that will be given to the thread when running
+     * @param task the task to execute in it's dedicated thread
+     * @param period time in milliseconds between successive task executions.
+     */
+    public void registerScheduledTask(String name, Runnable task, long period) {
+        TimerTask collector = new TimerTask () {
+            public void run() {
+                Thread taskexecution = new Thread(task, name);
+                taskexecution.setDaemon(true);
+                taskexecution.start();
+            }
+        };
+        timer.scheduleAtFixedRate(collector, period, period);
     }
 
     @Override
