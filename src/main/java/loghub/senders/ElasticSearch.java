@@ -3,6 +3,8 @@ package loghub.senders;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.ConnectException;
+import java.net.SocketTimeoutException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;
@@ -26,6 +28,7 @@ import org.apache.http.client.HttpRequestRetryHandler;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.config.ConnectionConfig;
 import org.apache.http.config.SocketConfig;
+import org.apache.http.conn.ConnectionPoolTimeoutException;
 import org.apache.http.conn.HttpHostConnectException;
 import org.apache.http.entity.ByteArrayEntity;
 import org.apache.http.entity.ContentType;
@@ -33,6 +36,9 @@ import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.apache.http.message.BasicHttpEntityEnclosingRequest;
 import org.apache.http.protocol.HttpContext;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -43,6 +49,8 @@ import loghub.NamedArrayBlockingQueue;
 import loghub.Sender;
 
 public class ElasticSearch extends Sender {
+
+    private static final Logger logger = LogManager.getLogger();
 
     private static final JsonFactory factory = new JsonFactory();
     private static final ThreadLocal<ObjectMapper> json = new ThreadLocal<ObjectMapper>() {
@@ -228,17 +236,29 @@ public class ElasticSearch extends Sender {
 
         int tryExecute = 0;
         do {
+            URI tryURI = routes[ThreadLocalRandom.current().nextInt(routes.length)];
+            BasicHttpEntityEnclosingRequest request = new BasicHttpEntityEnclosingRequest(
+                    verb, tryURI.getPath() + path,
+                    HttpVersion.HTTP_1_1);
+            request.setEntity(content);
+            HttpHost host = new HttpHost(tryURI.getHost(),
+                    tryURI.getPort());
             try {
-                URI tryURI = routes[ThreadLocalRandom.current().nextInt(routes.length)];
-                BasicHttpEntityEnclosingRequest request = new BasicHttpEntityEnclosingRequest(
-                        verb, tryURI.getPath() + path,
-                        HttpVersion.HTTP_1_1);
-                request.setEntity(content);
-                HttpHost host = new HttpHost(tryURI.getHost(),
-                        tryURI.getPort());
                 response = client.execute(host, request);
+            } catch (ConnectionPoolTimeoutException e) {
+                logger.error("connection to {} timed out", host);
+                tryExecute++;
             } catch (HttpHostConnectException e) {
-                e.printStackTrace();
+                try {
+                    throw e.getCause();
+                } catch (ConnectException e1) {
+                    logger.error("connection to {} refused", host);
+                } catch (SocketTimeoutException e1) {
+                    logger.error("slow response from {}", host);
+                } catch (Throwable e1) {
+                    logger.error("connection to {} failed: {}", host, e1.getMessage());
+                    logger.throwing(Level.DEBUG, e1);
+                }
                 tryExecute++;
             } catch (ClientProtocolException e) {
                 e.printStackTrace();
@@ -252,15 +272,25 @@ public class ElasticSearch extends Sender {
             return null;
         };
 
-        HttpEntity resultBody = response.getEntity();
-        if(response.getStatusLine().getStatusCode() >= 300) {
+        if(response.getStatusLine().getStatusCode()/10 == 20) {
             return null;
         }
-        try(InputStream body = resultBody.getContent()) {
-            @SuppressWarnings("unchecked")
-            T o = (T) json.get().readValue(resultBody.getContent(), Object.class);
-            return o;
-        } catch (UnsupportedOperationException | IOException e) {
+        HttpEntity resultBody = response.getEntity();
+        logger.error(response.getStatusLine());
+        if(ContentType.APPLICATION_JSON.getMimeType().equals(response.getEntity().getContentType().getValue())) {
+            try(InputStream body = resultBody.getContent()) {
+                @SuppressWarnings("unchecked")
+                T o = (T) json.get().readValue(body, Object.class);
+                return o;
+            } catch (UnsupportedOperationException | IOException e) {
+                e.printStackTrace();
+                return null;
+            }
+        } else {
+            try {
+                resultBody.writeTo(System.out);
+            } catch (IOException e) {
+            }
             return null;
         }
     }
