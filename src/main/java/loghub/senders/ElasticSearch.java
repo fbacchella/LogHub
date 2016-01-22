@@ -20,22 +20,23 @@ import java.util.concurrent.ThreadLocalRandom;
 
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHost;
-import org.apache.http.HttpResponse;
 import org.apache.http.HttpVersion;
 import org.apache.http.client.ClientProtocolException;
-import org.apache.http.client.HttpClient;
 import org.apache.http.client.HttpRequestRetryHandler;
 import org.apache.http.client.config.RequestConfig;
+import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.config.ConnectionConfig;
 import org.apache.http.config.SocketConfig;
 import org.apache.http.conn.ConnectionPoolTimeoutException;
 import org.apache.http.conn.HttpHostConnectException;
 import org.apache.http.entity.ByteArrayEntity;
 import org.apache.http.entity.ContentType;
+import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.apache.http.message.BasicHttpEntityEnclosingRequest;
 import org.apache.http.protocol.HttpContext;
+import org.apache.http.util.EntityUtils;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -47,6 +48,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import loghub.Event;
 import loghub.NamedArrayBlockingQueue;
 import loghub.Sender;
+import loghub.configuration.Properties;
 
 public class ElasticSearch extends Sender {
 
@@ -61,7 +63,7 @@ public class ElasticSearch extends Sender {
     };
 
     private final DateFormat ISO8601 = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
-    private final DateFormat ES_INDEX = new SimpleDateFormat("'loghub-'yyyy.MM.dd");
+    private final DateFormat ES_INDEX = new SimpleDateFormat("'logstash-'yyyy.MM.dd");
 
     // Beans
     private String[] destinations;
@@ -71,7 +73,7 @@ public class ElasticSearch extends Sender {
     private int port = 9300;
     private int timeout = 2;
 
-    private HttpClient client = null;
+    private CloseableHttpClient client = null;
     private ArrayBlockingQueue<Map<String, Object>> bulkqueue;
     private final Runnable publisher;
     private URI[] routes;
@@ -105,7 +107,7 @@ public class ElasticSearch extends Sender {
     }
 
     @Override
-    public void start() {
+    public boolean configure(Properties properties) {
 
         // Uses URI parsing to read destination given by the user.
         routes = new URI[destinations.length];
@@ -131,7 +133,12 @@ public class ElasticSearch extends Sender {
                         null
                         );
             } catch (URISyntaxException e) {
+                logger.error("invalid destination {}: {}", destinations[i], e.getMessage());
             }
+        }
+        
+        if(routes.length == 0) {
+            return false;
         }
 
         // Create the senders threads and the common queue
@@ -147,6 +154,7 @@ public class ElasticSearch extends Sender {
         HttpClientBuilder builder = HttpClientBuilder.create();
         PoolingHttpClientConnectionManager cm = new PoolingHttpClientConnectionManager();
         cm.setDefaultMaxPerRoute(2);
+        cm.setMaxTotal( 2 * publisherThreads);
         cm.setValidateAfterInactivity(timeout * 1000);
         builder.setConnectionManager(cm);
 
@@ -172,6 +180,8 @@ public class ElasticSearch extends Sender {
             }
         });
         client = builder.build();
+        
+        return true;
     }
 
     public void close() {
@@ -232,7 +242,7 @@ public class ElasticSearch extends Sender {
     }
 
     private <T> T doQuery(HttpEntity content, String verb, String path) {
-        HttpResponse response = null;
+        CloseableHttpResponse response = null;
 
         int tryExecute = 0;
         do {
@@ -247,6 +257,7 @@ public class ElasticSearch extends Sender {
                 response = client.execute(host, request);
             } catch (ConnectionPoolTimeoutException e) {
                 logger.error("connection to {} timed out", host);
+                e.printStackTrace();
                 tryExecute++;
             } catch (HttpHostConnectException e) {
                 try {
@@ -266,29 +277,37 @@ public class ElasticSearch extends Sender {
             } catch (IOException e) {
                 e.printStackTrace();
                 tryExecute++;
-            } 
+            }
         } while (response == null && tryExecute < 5);
         if(response == null) {
             return null;
         };
-
         if(response.getStatusLine().getStatusCode()/10 == 20) {
+            EntityUtils.consumeQuietly(response.getEntity());
+            try {
+                response.close();
+            } catch (IOException e) {
+            }
             return null;
         }
         HttpEntity resultBody = response.getEntity();
-        logger.error(response.getStatusLine());
         if(ContentType.APPLICATION_JSON.getMimeType().equals(response.getEntity().getContentType().getValue())) {
             try(InputStream body = resultBody.getContent()) {
                 @SuppressWarnings("unchecked")
                 T o = (T) json.get().readValue(body, Object.class);
                 return o;
             } catch (UnsupportedOperationException | IOException e) {
+                try {
+                    response.close();
+                } catch (IOException e1) {
+                }
                 e.printStackTrace();
                 return null;
             }
         } else {
             try {
                 resultBody.writeTo(System.out);
+                response.close();
             } catch (IOException e) {
             }
             return null;
