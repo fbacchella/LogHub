@@ -62,7 +62,7 @@ public class ElasticSearch extends Sender {
         }
     };
 
-    private final DateFormat ISO8601 = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
+    private final DateFormat ISO8601 = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ");
     private final DateFormat ES_INDEX = new SimpleDateFormat("'logstash-'yyyy.MM.dd");
 
     // Beans
@@ -98,7 +98,10 @@ public class ElasticSearch extends Sender {
                         while((o = bulkqueue.poll()) != null && i < buffersize * 1.5) {
                             waiting.add(o);
                         }
-                        bulkindex(waiting);
+                        // It might received spurious notifications
+                        if(waiting.size() > 0) {
+                            bulkindex(waiting);
+                        }
                     }
                 } catch (InterruptedException e) {
                 }
@@ -136,7 +139,7 @@ public class ElasticSearch extends Sender {
                 logger.error("invalid destination {}: {}", destinations[i], e.getMessage());
             }
         }
-        
+
         if(routes.length == 0) {
             return false;
         }
@@ -180,7 +183,7 @@ public class ElasticSearch extends Sender {
             }
         });
         client = builder.build();
-        
+
         //Schedule a task to flush every 5 seconds
         Runnable flush = () -> {
             synchronized(publisher) {
@@ -188,7 +191,7 @@ public class ElasticSearch extends Sender {
             }
         };
         properties.registerScheduledTask("flushElasticSearch", flush, 5000);
-        
+
         return true;
     }
 
@@ -314,6 +317,7 @@ public class ElasticSearch extends Sender {
             }
         } else {
             try {
+                content.writeTo(System.out);
                 resultBody.writeTo(System.out);
                 response.close();
             } catch (IOException e) {
