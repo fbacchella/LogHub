@@ -60,7 +60,7 @@ public class TimeSerie extends Receiver {
     }
 
     /**
-     * @param interval the interval to set
+     * @param frequency the interval to set
      */
     public void setFrequency(int frequency) {
         this.frequency = frequency;

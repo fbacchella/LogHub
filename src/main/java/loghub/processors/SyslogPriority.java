@@ -95,7 +95,7 @@ public class SyslogPriority extends FieldsProcessor {
     }
 
     /**
-     * @param severity the severity to set
+     * @param severitiesNames the severity to set
      */
     public void setSeverities(String[] severitiesNames) {
         this.severitiesNames = severitiesNames;
@@ -109,7 +109,7 @@ public class SyslogPriority extends FieldsProcessor {
     }
 
     /**
-     * @param facility the facility to set
+     * @param facilitiesNames the facility to set
      */
     public void setFacilities(String[] facilitiesNames) {
         this.facilitiesNames = facilitiesNames;

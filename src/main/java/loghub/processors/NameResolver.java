@@ -148,14 +148,14 @@ public class NameResolver extends FieldsProcessor {
     }
 
     /**
-     * @return the url
+     * @return the the IP of the resolver
      */
     public String getResolver() {
         return url;
     }
 
     /**
-     * @param url the url to set
+     * @param resolver The IP of the resolver
      */
     public void setResolver(String resolver) {
         this.url = "dns://" + resolver;

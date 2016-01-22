@@ -92,7 +92,7 @@ public class BeansManager {
     /**
      * Extract a map of the beans of an class. Only the beans listed in the ProbeBean class will be return
      * @param c a class to extract beans from
-     * @return
+     * @return a map of beans
      * @throws InvocationTargetException
      */
     static public Map<String, PropertyDescriptor> getBeanPropertiesMap(Class<?> c, Class<?> topClass) throws InvocationTargetException {

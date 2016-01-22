@@ -27,7 +27,7 @@ import org.yaml.snakeyaml.constructor.SafeConstructor;
 /**
  * Java implementation of <a href="https://github.com/tobie/ua-parser">UA Parser</a>
  *
- * @author Steve Jiang (@sjiang) <gh at iamsteve com>
+ * @author Steve Jiang (@sjiang) &lt;gh at iamsteve com&gt;
  */
 public class Parser {
 
