@@ -1,15 +1,22 @@
 package loghub.configuration;
 
 import java.lang.management.ManagementFactory;
+import java.time.DateTimeException;
+import java.time.ZoneId;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
+import java.util.TimeZone;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.UUID;
 import java.util.function.BiFunction;
 
 import javax.management.MBeanServer;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import groovy.lang.GroovyClassLoader;
 import loghub.Pipeline;
@@ -25,6 +32,8 @@ import net.sf.ehcache.store.MemoryStoreEvictionPolicy;
 
 public class Properties extends HashMap<String, Object> {
 
+    private static final Logger logger = LogManager.getLogger();
+
     final static String CLASSLOADERNAME = "__classloader";
     final static String NAMEDPIPELINES = "__pipelines";
     final static String FORMATTERS = "__formatters";
@@ -32,12 +41,13 @@ public class Properties extends HashMap<String, Object> {
     public final ClassLoader classloader;
     public Map<String, Pipeline> namedPipeLine;
     public final GroovyClassLoader groovyClassLoader;
-    private final CacheManager cacheManager;
-    final Map<String, VarFormatter> formatters = new HashMap<String, VarFormatter>();
+    public final Map<String, VarFormatter> formatters;
     public final int jmxport;
     public final PROTOCOL jmxproto;
     public final String jmxlisten;
+
     private final Timer timer = new Timer("loghubtimer", true);
+    private final CacheManager cacheManager;
 
     @SuppressWarnings("unchecked")
     public Properties(Map<String, Object> properties) {
@@ -64,7 +74,10 @@ public class Properties extends HashMap<String, Object> {
         //buffer is here to make writing tests easier
         Map<String, VarFormatter> buffer = (Map<String, VarFormatter>) properties.remove(FORMATTERS);
         if(buffer != null && buffer.size() > 0) {
-            formatters.putAll(buffer);
+            formatters = Collections.unmodifiableMap(buffer);
+        } else {
+            formatters = Collections.emptyMap();
+            
         }
 
         //Read the jmx configuration
@@ -93,6 +106,22 @@ public class Properties extends HashMap<String, Object> {
                     true);
         }
 
+        String tz = (String) properties.remove("timezone");
+        try {
+            if (tz != null) {
+                ZoneId id = ZoneId.of(tz);
+                TimeZone.setDefault(TimeZone.getTimeZone(id));
+            }
+        } catch (DateTimeException e) {
+            logger.error("Invalid timezone {}: {}", tz, e.getMessage());
+        }
+
+        String locale = (String) properties.remove("locale");
+        if(locale != null) {
+            Locale l = Locale.forLanguageTag(locale);
+            Locale.setDefault(l);
+        }
+
         super.putAll(properties);
     }
 
@@ -115,7 +144,7 @@ public class Properties extends HashMap<String, Object> {
         cacheManager.addCache(memoryOnlyCache); 
         return memoryOnlyCache;
     }
-    
+
     /**
      * Used by object to register tasks to be executed at defined interval
      * Each task will be given it's own thread at execution.

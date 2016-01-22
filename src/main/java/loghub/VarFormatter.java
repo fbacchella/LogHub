@@ -336,7 +336,7 @@ public class VarFormatter {
         }
     }
 
-    private static final Pattern varregexp = Pattern.compile("(?<before>.*?)(?:(?:\\$\\{(?<varname>([\\w\\.-]+|\\$\\{\\}))(?:%(?<format>[^}]+))?\\})|(?<curlybrace>\\{\\}))(?<after>.*)");
+    private static final Pattern varregexp = Pattern.compile("(?<before>.*?)(?:(?:\\$\\{(?<varname>(@?[\\w\\.-]+|\\$\\{\\}))(?:%(?<format>[^}]+))?\\})|(?<curlybrace>\\{\\}))(?<after>.*)");
     private static final Pattern formatSpecifier = Pattern.compile("^(?<flag>[-#+ 0,(]*)?(?<length>\\d+)?(?:\\.(?<precision>\\d+))?(?:(?<istime>[tT])(?:\\<(?<tz>.*)\\>)?)?(?<conversion>[a-zA-Z%])(?::(?<locale>.*))?$");
     private static final String lineseparator = System.lineSeparator();
 

@@ -55,7 +55,11 @@ public class EventWrapper extends Event {
 
     @Override
     public Object get(Object key) {
-        return action( ((i, j, k) -> i.get(j)), key.toString(), null);
+        if(key instanceof String && "@timestamp".equals(key)) {
+            return timestamp;
+        } else {
+            return action( ((i, j, k) -> i.get(j)), key.toString(), null);
+        }
     }
 
     @Override
@@ -65,7 +69,11 @@ public class EventWrapper extends Event {
 
     @Override
     public boolean containsKey(Object key) {
-        return (Boolean) action( ((i, j, k) -> i.containsKey(j)), key.toString(), null) == true;
+        if(key instanceof String && "@timestamp".equals(key)) {
+            return true;
+        } else {
+            return (Boolean) action( ((i, j, k) -> i.containsKey(j)), key.toString(), null) == true;
+        }
     }
 
     @Override

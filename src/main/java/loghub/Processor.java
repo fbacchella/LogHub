@@ -21,7 +21,7 @@ public abstract class Processor {
     public boolean configure(Properties properties) {
         if(ifsource != null) {
             try {
-                ifexpression = new Expression(ifsource, properties.groovyClassLoader);
+                ifexpression = new Expression(ifsource, properties.groovyClassLoader, properties.formatters);
             } catch (InstantiationException | IllegalAccessException e) {
                 return false;
             }

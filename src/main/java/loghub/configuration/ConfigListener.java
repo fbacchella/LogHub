@@ -460,7 +460,7 @@ class ConfigListener extends RouteBaseListener {
             String format = ctx.sl.getText();
             String key = Integer.toHexString(format.hashCode());
             formatters.put(key, new VarFormatter(format));
-            expression = "formatter." + key + ".format(event)";
+            expression = "formatters." + key + ".format(event)";
         } else if (ctx.l != null) {
             expression = ctx.l.getText();
         } else if (ctx.ev != null) {
