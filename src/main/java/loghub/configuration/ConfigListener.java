@@ -16,7 +16,6 @@ import loghub.RouteBaseListener;
 import loghub.RouteParser.ArrayContext;
 import loghub.RouteParser.BeanContext;
 import loghub.RouteParser.BeanNameContext;
-import loghub.RouteParser.BeanValueContext;
 import loghub.RouteParser.BooleanLiteralContext;
 import loghub.RouteParser.CharacterLiteralContext;
 import loghub.RouteParser.DropContext;
@@ -166,11 +165,8 @@ class ConfigListener extends RouteBaseListener {
         // Don't keep literal in a expression, they will be managed in groovy
         if(expressionDepth > 0) {
             return;
-        }
-        if(ctx.getParent().getParent() instanceof BeanValueContext) {
-            stack.push(new ObjectWrapped(content));
         } else {
-            stack.push(content);
+            stack.push(new ObjectWrapped(content));
         }
     }
 

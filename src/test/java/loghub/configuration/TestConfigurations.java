@@ -132,12 +132,62 @@ public class TestConfigurations {
         loadConf("array.conf");
     }
 
-    @Ignore
     @Test(timeout=1000)
-    public void testfill() throws NotCompliantMBeanException, MalformedObjectNameException, InstanceAlreadyExistsException, MBeanRegistrationException, InstantiationException, IllegalAccessException, IOException, NotBoundException, InterruptedException {
-        Start s = createStart("filesbuffer.conf");
-        s.start();
-        s.join();
+    public void testif() throws InterruptedException {
+        Configuration conf = loadConf("conditions.conf");
+        for(Pipeline pipe: conf.pipelines) {
+            Assert.assertTrue("configuration failed", pipe.configure(conf.properties));
+        }
+        logger.debug("pipelines: {}", conf.pipelines);
+        for(Pipeline i: conf.pipelines) {
+            i.startStream();
+        }
+
+        Event sent = new Event();
+        sent.put("a", "1");
+
+        conf.namedPipeLine.get("ifpipe").inQueue.offer(sent);
+        Event received = conf.namedPipeLine.get("ifpipe").outQueue.take();
+        Assert.assertEquals("conversion not expected", String.class, received.get("a").getClass());
+    }
+
+    @Test(timeout=1000)
+    public void testsuccess() throws InterruptedException {
+        Configuration conf = loadConf("conditions.conf");
+        for(Pipeline pipe: conf.pipelines) {
+            Assert.assertTrue("configuration failed", pipe.configure(conf.properties));
+        }
+        logger.debug("pipelines: {}", conf.pipelines);
+        for(Pipeline i: conf.pipelines) {
+            i.startStream();
+        }
+
+        Event sent = new Event();
+        sent.put("a", "1");
+
+        conf.namedPipeLine.get("successpipe").inQueue.offer(sent);
+        Event received = conf.namedPipeLine.get("successpipe").outQueue.take();
+        Assert.assertEquals("conversion not expected", "success", received.get("test"));
+    }
+
+    @Test(timeout=1000)
+    public void testfailure() throws InterruptedException {
+        Configuration conf = loadConf("conditions.conf");
+        for(Pipeline pipe: conf.pipelines) {
+            Assert.assertTrue("configuration failed", pipe.configure(conf.properties));
+        }
+        logger.debug("pipelines: {}", conf.pipelines);
+        for(Pipeline i: conf.pipelines) {
+            i.startStream();
+        }
+
+        Event sent = new Event();
+        sent.put("a", "a");
+
+        conf.namedPipeLine.get("failurepipe").inQueue.offer(sent);
+        Event received = conf.namedPipeLine.get("failurepipe").outQueue.take();
+        System.out.println(received);
+        Assert.assertEquals("conversion not expected", "failure", received.get("test"));
     }
 
 }

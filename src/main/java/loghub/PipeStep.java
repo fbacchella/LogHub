@@ -57,24 +57,9 @@ public class PipeStep extends Thread {
                 EventWrapper wevent = new EventWrapper(event);
                 for(Processor p: processors) {
                     setName(threadName + "-" + p.getName());
-                    if(p instanceof Forker) {
-                        ((Forker) p).fork(event);
-                    } else if(p instanceof Drop) {
-                        event.dropped = true;
+                    process(event, wevent, p);
+                    if (event.dropped) {
                         break;
-                    } else {
-                        wevent.setProcessor(p);
-                        if(p.isprocessNeeded(wevent)) {
-                            try {
-                                p.process(wevent);
-                            } catch (ProcessorException e) {
-                                Stats.newError(e);
-                            } catch (Exception e) {
-                                logger.error("failed to transform event with unmanaged error {}: {}", event, e.getMessage());
-                                logger.throwing(Level.ERROR, e);
-                                event.dropped = true;
-                            }
-                        }
                     }
                 }
                 setName(threadName);
@@ -90,6 +75,37 @@ public class PipeStep extends Thread {
             }
         } catch (InterruptedException e) {
             logger.debug("stop waiting on {}", queueIn.name);
+        }
+    }
+
+    private void process(Event event, EventWrapper wevent, Processor p) {
+        boolean success = false;
+        if(p instanceof Forker) {
+            ((Forker) p).fork(event);
+        } else if(p instanceof Drop) {
+            event.dropped = true;
+        } else {
+            wevent.setProcessor(p);
+            if(p.isprocessNeeded(wevent)) {
+                try {
+                    p.process(wevent);
+                    success = true;
+                } catch (ProcessorException e) {
+                    Stats.newError(e);
+                } catch (Exception e) {
+                    logger.error("failed to transform event with unmanaged error {}: {}", event, e.getMessage());
+                    logger.throwing(Level.ERROR, e);
+                    event.dropped = true;
+                }
+            }
+        }
+        // After processing, check the failures and sucess processors
+        Processor failureProcessor = p.getFailure();
+        Processor successProcessor = p.getSuccess();
+        if(success && successProcessor != null) {
+            process(event, wevent, successProcessor);
+        } else if (! success && failureProcessor != null) {
+            process(event, wevent, failureProcessor);
         }
     }
 

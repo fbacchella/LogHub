@@ -22,13 +22,11 @@ bean
     ;
 
 keyword
-    :   'if';
+    :   'if' | 'success' | 'failure';
 
 keywordvalue
-    :   object
-    |   literal
-    |   array
-    |   expression;
+    :   expression
+    |   pipenode;
 
 beanName: Identifier;
 beanValue: object | literal | array;

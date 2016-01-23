@@ -13,6 +13,8 @@ public abstract class Processor {
     private int threads = 1;
     private String[] path = new String[]{};
     private Expression ifexpression = null;
+    private Processor success = null;
+    private Processor failure = null;
     private String ifsource = null;
 
     public Processor() {
@@ -25,6 +27,12 @@ public abstract class Processor {
             } catch (InstantiationException | IllegalAccessException e) {
                 return false;
             }
+        }
+        if(success != null &&  ! success.configure(properties)) {
+            return false;
+        }
+        if(failure != null &&  ! failure.configure(properties)) {
+            return false;
         }
         return true;
     }
@@ -82,11 +90,38 @@ public abstract class Processor {
             } else if (status instanceof String ){
                 return ! ((String) status).isEmpty();
             } else {
-                System.out.println(status + " " + status.getClass().getCanonicalName());
                 // a non empty object, it must be true ?
                 return true;
             }
         }
+    }
+
+    /**
+     * @return the failure
+     */
+    public Processor getFailure() {
+        return failure;
+    }
+
+    /**
+     * @param failure the failure to set
+     */
+    public void setFailure(Processor failure) {
+        this.failure = failure;
+    }
+
+    /**
+     * @return the success
+     */
+    public Processor getSuccess() {
+        return success;
+    }
+
+    /**
+     * @param success the success to set
+     */
+    public void setSuccess(Processor success) {
+        this.success = success;
     }
 
 }
