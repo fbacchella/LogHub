@@ -1,46 +1,27 @@
 package loghub.configuration;
 
 import java.io.IOException;
-import java.rmi.NotBoundException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
-
-import javax.management.InstanceAlreadyExistsException;
-import javax.management.MBeanRegistrationException;
-import javax.management.MalformedObjectNameException;
-import javax.management.NotCompliantMBeanException;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.Assert;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
-import org.junit.Rule;
 import org.junit.Test;
-import org.zeromq.ZMQ.Socket;
 
-import loghub.ContextRule;
 import loghub.Event;
 import loghub.Helpers;
 import loghub.LogUtils;
 import loghub.Pipeline;
-import loghub.Receiver;
-import loghub.Sender;
-import loghub.SmartContext;
-import loghub.Start;
 import loghub.Tools;
 import loghub.configuration.Configuration.PipeJoin;
-import zmq.ZMQHelper.Method;
-import zmq.ZMQHelper.Type;
 
 public class TestConfigurations {
 
     private static Logger logger;
-
-    @Rule
-    public ContextRule tctxt = new ContextRule();
 
     @BeforeClass
     static public void configure() throws IOException {
@@ -56,13 +37,7 @@ public class TestConfigurations {
         return conf;
     }
 
-    private Start createStart(String configname) throws NotCompliantMBeanException, MalformedObjectNameException, InstanceAlreadyExistsException, MBeanRegistrationException, InstantiationException, IllegalAccessException, IOException, NotBoundException {
-        String conffile = getClass().getClassLoader().getResource(configname).getFile();
-        return new Start(conffile);
-    }
-
-
-    @Test(timeout=1000)
+    @Test(timeout=500)
     public void testBuildPipeline() throws IOException, InterruptedException {
         Configuration conf = loadConf("simple.conf");
         Event sent = new Event();
@@ -74,51 +49,24 @@ public class TestConfigurations {
         logger.debug("namedPipeLine: " + conf.namedPipeLine);
         Pipeline main = conf.namedPipeLine.get("main");
         main.inQueue.offer(sent);
-        for(String sockName: tctxt.ctx.getSocketsList()) {
-            logger.debug("    " + sockName);
-        }
-
         Event received = main.outQueue.take();
         Assert.assertEquals("not expected event received", sent, received);
-        for(String sockName: tctxt.ctx.getSocketsList()) {
-            logger.debug("    " + sockName);
-        }
     }
 
-    @Test(timeout=1000) 
-    public void testSimpleInput() throws InterruptedException {
-        Configuration conf = loadConf("simpleinput.conf");
-        logger.debug("pipelines: {}", conf.pipelines);
+    @Test(timeout=500)
+    public void testBuildSubPipeline() throws IOException, InterruptedException {
+        Configuration conf = loadConf("simple.conf");
+        Event sent = new Event();
 
-        logger.debug("receiver pipelines: {}", conf.inputpipelines);
         for(Pipeline i: conf.pipelines) {
             i.startStream();
         }
-        Thread.sleep(30);
-        for(Receiver r: conf.getReceivers()) {
-            r.start();
-        }
-        Thread.sleep(30);
-        for(Sender s: conf.getSenders()) {
-            s.start();
-        }
-        Thread.sleep(30);
-        Socket out = tctxt.ctx.newSocket(Method.CONNECT, Type.SUB, "inproc://sender", 1, -1);
-        out.subscribe(new byte[]{});
-        Socket sender = tctxt.ctx.newSocket(Method.CONNECT, Type.PUB, "inproc://listener1", 1, -1);
-        Thread.sleep(30);
-        sender.send("something");
-        byte[] buffer = out.recv();
-        Assert.assertEquals("wrong send message", "something", new String(buffer));
-        tctxt.ctx.close(sender);
-        tctxt.ctx.close(out);
-        for(Receiver r: conf.getReceivers()) {
-            r.interrupt();
-        }
-        for(Sender s: conf.getSenders()) {
-            s.interrupt();
-        }
-        SmartContext.terminate();
+        logger.debug("pipelines: " + conf.pipelines);
+        logger.debug("namedPipeLine: " + conf.namedPipeLine);
+        Pipeline parent = conf.namedPipeLine.get("parent");
+        parent.inQueue.offer(sent);
+        Event received = parent.outQueue.take();
+        Assert.assertEquals("not expected event received", sent, received);
     }
 
     @Test(timeout=500) 
