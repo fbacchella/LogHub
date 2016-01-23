@@ -37,7 +37,7 @@ public class TestConfigurations {
         return conf;
     }
 
-    @Test(timeout=500)
+    @Test(timeout=2000)
     public void testBuildPipeline() throws IOException, InterruptedException {
         Configuration conf = loadConf("simple.conf");
         Event sent = new Event();
@@ -53,7 +53,7 @@ public class TestConfigurations {
         Assert.assertEquals("not expected event received", sent, received);
     }
 
-    @Test(timeout=500)
+    @Test(timeout=2000)
     public void testBuildSubPipeline() throws IOException, InterruptedException {
         Configuration conf = loadConf("simple.conf");
         Event sent = new Event();
@@ -69,7 +69,7 @@ public class TestConfigurations {
         Assert.assertEquals("not expected event received", sent, received);
     }
 
-    @Test(timeout=500) 
+    @Test(timeout=2000) 
     public void testTwoPipe() throws InterruptedException {
         Configuration conf = loadConf("twopipe.conf");
         logger.debug("pipelines: {}", conf.pipelines);
@@ -92,13 +92,9 @@ public class TestConfigurations {
         conf.namedPipeLine.get("pipeone").inQueue.add(se);
         Event re = conf.namedPipeLine.get("main").outQueue.take();
         Assert.assertEquals("wrong event received", "1", re.get("message"));
-        conf.getReceivers().stream().forEach(r -> r.interrupt());
-        conf.getSenders().stream().forEach(s -> s.interrupt());
-        conf.pipelines.stream().forEach(p -> p.stopStream());
-        joins.stream().forEach(t -> t.interrupt());
     }
 
-    @Test(timeout=1000)
+    @Test(timeout=2000)
     public void testFork() throws InterruptedException {
         Configuration conf = loadConf("fork.conf");
         for(Pipeline pipe: conf.pipelines) {
@@ -132,7 +128,7 @@ public class TestConfigurations {
         loadConf("array.conf");
     }
 
-    @Test(timeout=1000)
+    @Test(timeout=2000)
     public void testif() throws InterruptedException {
         Configuration conf = loadConf("conditions.conf");
         for(Pipeline pipe: conf.pipelines) {
@@ -151,7 +147,7 @@ public class TestConfigurations {
         Assert.assertEquals("conversion not expected", String.class, received.get("a").getClass());
     }
 
-    @Test(timeout=1000)
+    @Test(timeout=2000)
     public void testsuccess() throws InterruptedException {
         Configuration conf = loadConf("conditions.conf");
         for(Pipeline pipe: conf.pipelines) {
@@ -170,7 +166,7 @@ public class TestConfigurations {
         Assert.assertEquals("conversion not expected", "success", received.get("test"));
     }
 
-    @Test(timeout=1000)
+    @Test(timeout=2000)
     public void testfailure() throws InterruptedException {
         Configuration conf = loadConf("conditions.conf");
         for(Pipeline pipe: conf.pipelines) {
