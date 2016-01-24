@@ -6,7 +6,7 @@ written in java for improved stability and performance.
 It received events from external sources, process them and send them.
 
 All components are organized in many pipeline that can be interconnect. A pipeline goes from one receiver source
-that generate events, send throught processor and forward them to a sender.
+that generate events, send through processor and forward them to a sender or another pipeline.
 
 Receiver source uses decoders that takes bytes messages and generate a event from that.
 
@@ -15,13 +15,9 @@ Sender source uses decoders that take event and produce bytes message that are t
 All of these five kind of operator (Receivers, Senders, Processors, Coders and Decoders) are java classes that can be derived for
 custom usages.
 
-Internally it uses [ØMQ](http://zeromq.org "Distributed Messaging") to forward events. Using it allows to avoid
-any synchronized primitives while still using many threads for each processing step and so use all the cores of 
-modern servers.
-
-For configuration it uses a [DSL](https://en.wikipedia.org/wiki/Domain-specific_language "Domain specific langage") generated
+For configuration it uses a [DSL](https://en.wikipedia.org/wiki/Domain-specific_language "Domain specific language") generated
 using [antlr](http://www.antlr.org "ANother Tool for Language Recognition"). It's syntax is a strange mix of logstash configuration files,
-java and a small tast of ruby. The exact grammar can be found at https://github.com/fbacchella/LogHub/blob/master/src/main/antlr4/loghub/Route.g4.
+java and a small tast of groovy. The exact grammar can be found at https://github.com/fbacchella/LogHub/blob/master/src/main/antlr4/loghub/Route.g4.
 
 It look like:
 
@@ -59,5 +55,4 @@ A property called "extensions" is defined. It allows to define custom extensions
 
 In the configuration file, all the agent are defined using directly the class name.
 
-If needed, slow or CPU bound processor can be given more dedicated threads by specifing a specific number of threads. They will be still one processor class instance,
-but many threads will send events to it.
+If needed, slow or CPU bound processor can be given more dedicated threads by specifying a specific number of threads. They will be still one processor class instance, but many threads will send events to it.
