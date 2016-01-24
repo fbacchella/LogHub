@@ -10,6 +10,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import loghub.Event;
@@ -30,6 +31,7 @@ public class TestUdp {
         LogUtils.setLevel(logger, Level.TRACE, "loghub.SmartContext", "loghub.receivers.Udp", "loghub.Receiver");
     }
 
+    @Ignore
     @Test(timeout=500)
     public void testone() throws InterruptedException, IOException {
         NamedArrayBlockingQueue receiver = new NamedArrayBlockingQueue("out.listener1");

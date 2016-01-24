@@ -7,6 +7,7 @@ import java.nio.file.Paths;
 import java.util.Arrays;
 
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -16,6 +17,7 @@ public class TestClassLoader {
     @Rule
     public TemporaryFolder testFolder = new TemporaryFolder();
 
+    @Ignore
     @Test
     public void load() throws IOException {
         Configuration conf = new Configuration();
