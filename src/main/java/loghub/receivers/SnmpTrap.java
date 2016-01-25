@@ -97,16 +97,23 @@ public class SnmpTrap extends Receiver implements CommandResponder {
             logger.error("can't listen: {}", e.getMessage());
         }
         if(top == null) {
-            InputStream in = properties.classloader.getResourceAsStream("oid.properties");
-            if(in != null) {
-                top = new OidTreeNode();
-                try {
-                    loadOids(in);
-                } catch (IOException e) {
-                    logger.fatal("unable to load default oid: {}", e.getMessage());
-                    logger.catching(Level.DEBUG, e);
-                    return false;
-                }
+            top = new OidTreeNode();
+            try {
+                Collections.list(properties.classloader.getResources("oid.properties"))
+                .stream()
+                .forEach(i -> {
+                    try {
+                        InputStream in = i.openStream();
+                        loadOids(in);
+                    } catch (IOException e) {
+                        logger.error("unable to load oid from {}: {}", i, e.getMessage());
+                        logger.catching(Level.DEBUG, e);
+                    }
+                });
+            } catch (IOException e) {
+                logger.error("unable to found oid.properties: {}", e.getMessage());
+                logger.catching(Level.DEBUG, e);
+                return false;
             }
         }
 
