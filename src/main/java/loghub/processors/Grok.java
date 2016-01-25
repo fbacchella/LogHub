@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URISyntaxException;
+import java.util.Map;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -32,9 +33,22 @@ public class Grok extends FieldsProcessor {
         String line = (String) event.get(field);
         Match gm = grok.match(line);
         gm.captures();
-        gm.toMap().entrySet().stream()
-        .filter( i -> i.getValue() != null)
-        .forEach( i-> event.put(i.getKey(), i.getValue()));
+        if(! gm.isNull()) {
+            //Bug in grok, rebuild the matching manually
+            Map<String, String> groups = gm.getMatch().namedGroups();
+            Map<String, String> names = grok.getNamedRegexCollection();
+            for(Map.Entry<String, String> found: groups.entrySet()) {
+                if(found.getValue() == null) {
+                    continue;
+                }
+                String finalname = names.get(found.getKey());
+                //Dirty hack to filter non capturing group
+                if(finalname.equals(finalname.toUpperCase())) {
+                    continue;
+                }
+                event.put(finalname, found.getValue());
+            }
+        }
     }
 
     public void setPattern(String pattern) {
