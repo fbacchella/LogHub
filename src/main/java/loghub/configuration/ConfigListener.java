@@ -321,9 +321,10 @@ class ConfigListener extends RouteBaseListener {
             if(o instanceof Processor) {
                 Processor t = (Processor) o;
                 clauses.add(0, t);
+            } else if(o instanceof ObjectWrapped) {
+                testTransformer.test = ((ObjectWrapped)o).wrapped.toString();
             }
         } while(! StackMarker.Test.equals(o));
-        testTransformer.test = ctx.testExpression().getText();
         testTransformer.True = clauses.get(0);
         testTransformer.False = clauses.size() == 2 ? clauses.get(1) : null;
         stack.push(testTransformer);

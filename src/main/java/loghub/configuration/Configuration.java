@@ -228,7 +228,7 @@ public class Configuration {
         } else if (i instanceof ConfigListener.Test){
             ConfigListener.Test ti = (ConfigListener.Test) i;
             Test test = new Test();
-            test.setIf(ti.test);
+            test.setTest(ti.test);
             test.setThen(getProcessor(ti.True, currentPipeLineName, currentPipeList, depth + 1));
             if(ti.False != null) {
                 test.setElse(getProcessor(ti.False, currentPipeLineName, currentPipeList, depth + 1));
