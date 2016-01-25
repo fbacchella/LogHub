@@ -429,22 +429,27 @@ class ConfigListener extends RouteBaseListener {
     @Override
     public void exitEtl(EtlContext ctx) {
         ObjectWrapped expression = null;
-        while(true) {
-            Object o = stack.pop();
-            if(o instanceof ObjectWrapped) {
-                expression = (ObjectWrapped) o;
-            }
-            if(StackMarker.Etl.equals(o)) {
-                break;
-            }
-        }
 
-        String lvalue = ctx.eventVariable().getText();
+        switch(ctx.op.getText()) {
+        case("-"): break;
+        case("<"): {
+            String temp = ctx.eventVariable().get(1).getText();
+            temp = temp.substring(1, temp.length() -1);
+            expression = new ObjectWrapped(temp);
+            break;
+        }
+        case("="): expression = (ObjectWrapped) stack.pop(); break;
+        case("("): expression = new ObjectWrapped(ctx.QualifiedIdentifier().getText());break;
+        }
+        // Remove Etl marker
+        Object o = stack.pop();
+        assert StackMarker.Etl.equals(o);
+
+        String lvalue = ctx.eventVariable().get(0).getText();
         lvalue = lvalue.substring(1, lvalue.length() - 1);
-        Character operator = ctx.operation().getText().charAt(0);
         ObjectDescription etl = new ObjectDescription(Etl.class.getCanonicalName(), ctx);
         etl.beans.put("lvalue", new ConfigListener.ObjectWrapped(lvalue));
-        etl.beans.put("operator", new ConfigListener.ObjectWrapped(operator));
+        etl.beans.put("operator", new ConfigListener.ObjectWrapped(ctx.op.getText().charAt(0)));
         if(expression != null) {
             etl.beans.put("expression", expression);
         }
@@ -479,6 +484,9 @@ class ConfigListener extends RouteBaseListener {
             Object post = stack.pop();
             Object pre = stack.pop();
             expression = pre + " " + ctx.opb.getText() + " " + post;
+        } else if (ctx.e3 != null) {
+            Object subexpression = stack.pop();
+            expression = "(" + subexpression + ")";
         }
         expressionDepth--;
         if(expressionDepth == 0) {

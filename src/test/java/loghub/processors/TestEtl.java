@@ -10,13 +10,13 @@ import org.junit.Test;
 
 import loghub.Event;
 import loghub.EventWrapper;
-import loghub.VarFormatter;
+import loghub.ProcessorException;
 import loghub.configuration.Properties;
 
 public class TestEtl {
 
     @Test
-    public void test1() {
+    public void test1() throws ProcessorException {
         Etl etl = new Etl();
         etl.setLvalue("a.b");
         etl.setOperator('=');
@@ -30,7 +30,7 @@ public class TestEtl {
     }
 
     @Test
-    public void test2() {
+    public void test2() throws ProcessorException {
         Etl etl = new Etl();
         etl.setLvalue("a");
         etl.setOperator('-');
@@ -43,7 +43,7 @@ public class TestEtl {
     }
 
     @Test
-    public void test3() {
+    public void test3() throws ProcessorException {
         Etl etl = new Etl();
         etl.setLvalue("b");
         etl.setOperator('<');
@@ -57,7 +57,7 @@ public class TestEtl {
     }
 
     @Test
-    public void test4() {
+    public void test4() throws ProcessorException {
         Etl etl = new Etl();
         etl.setLvalue("a");
         etl.setOperator('=');

@@ -36,11 +36,13 @@ drop: Drop;
 Drop: 'drop';
 property: propertyName ':' beanValue;
 
-etl: eventVariable operation expression?;
+etl
+    : eventVariable op='<' s=eventVariable
+    | eventVariable op='-'
+    | eventVariable op='=' expression
+    | op='(' QualifiedIdentifier ')' eventVariable;
 
-operation: '<' | '-' | '=';
-
-test: testExpression '?' pipenode (':' pipenode)?;
+test: testExpression '?' pipenode (':' pipenode)? ';' ;
 
 testExpression: expression;
 
@@ -51,6 +53,7 @@ expression
     |   qi = QualifiedIdentifier
     |   opu = unaryOperator e2 = expression
     |   e1 = expression opb=binaryOperator e2=expression
+    |   '(' e3 = expression ')'
     ;
     
 unaryOperator

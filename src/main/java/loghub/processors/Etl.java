@@ -1,8 +1,10 @@
 package loghub.processors;
 
+import java.lang.reflect.InvocationTargetException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
+import java.util.concurrent.CompletionException;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -12,6 +14,8 @@ import org.codehaus.groovy.control.CompilationFailedException;
 import loghub.Event;
 import loghub.Expression;
 import loghub.Processor;
+import loghub.ProcessorException;
+import loghub.configuration.BeansManager;
 import loghub.configuration.Properties;
 
 public class Etl extends Processor {
@@ -23,9 +27,11 @@ public class Etl extends Processor {
     private String[] source;
     private char operator;
     private Expression script;
+    private String className = null;
+    private Class<?> clazz;
 
     @Override
-    public void process(Event event) {
+    public void process(Event event) throws ProcessorException {
         switch(operator){
         case '=': {
             Object o = script.eval(event, Collections.emptyMap());
@@ -50,6 +56,20 @@ public class Etl extends Processor {
             }
             break;
         }
+        case '(': {
+            try {
+                event.applyAtPath((i,j,k) -> {
+                    try {
+                        Object o = BeansManager.ConstructFromString(clazz, i.get(j).toString());
+                        return i.put(j, o);
+                    } catch (InvocationTargetException e) {
+                        throw new CompletionException(e);
+                    }
+                }, lvalue, (Object) null, false);
+            } catch (CompletionException e1) {
+                throw new ProcessorException("unable to convert from string to " + className, (Exception)e1.getCause());
+            }
+        }
         }
     }
 
@@ -68,6 +88,13 @@ public class Etl extends Processor {
             }
         } else if (operator == '<') {
             source = expression.split("\\.");
+        } else if (operator == '(') {
+            try {
+                clazz = properties.classloader.loadClass(className);
+            } catch (ClassNotFoundException e) {
+                logger.error("class not found: {}", className);
+                return false;
+            }
         }
         return super.configure(properties);
     }
