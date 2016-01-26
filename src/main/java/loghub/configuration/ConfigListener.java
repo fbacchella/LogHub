@@ -481,10 +481,20 @@ class ConfigListener extends RouteBaseListener {
             expression = ctx.qi.getText();
         } else if (ctx.opu != null) {
             expression = ctx.opu.getText() + " " + stack.pop();
+        } else if (ctx.opm != null) {
+            Object pre = stack.pop();
+            expression = pre + " " + ctx.opm.getText() + " " + ctx.patternLiteral().getText();
         } else if (ctx.opb != null) {
+            String opb = ctx.opb.getText();
+            // because of use of | as a pipe symbol, it can't be used for the binary or
+            // So for users simplicity and consistency, alre binary operators are prefixed by a '.'
+            // but then it must be removed for groovy
+            if(opb.length() == 2 && opb.startsWith(".")) {
+                opb = opb.substring(1);
+            }
             Object post = stack.pop();
             Object pre = stack.pop();
-            expression = pre + " " + ctx.opb.getText() + " " + post;
+            expression = pre + " " + opb + " " + post;
         } else if (ctx.e3 != null) {
             Object subexpression = stack.pop();
             expression = "(" + subexpression + ")";

@@ -58,6 +58,9 @@ public class TestConfigurations {
         Configuration conf = loadConf("simple.conf");
         Event sent = new Event();
 
+        for(Pipeline pipe: conf.pipelines) {
+            Assert.assertTrue("configuration failed", pipe.configure(conf.properties));
+        }
         for(Pipeline i: conf.pipelines) {
             i.startStream();
         }
@@ -75,6 +78,9 @@ public class TestConfigurations {
         logger.debug("pipelines: {}", conf.pipelines);
 
         logger.debug("receiver pipelines: {}", conf.inputpipelines);
+        for(Pipeline pipe: conf.pipelines) {
+            Assert.assertTrue("configuration failed", pipe.configure(conf.properties));
+        }
         for(Pipeline i: conf.pipelines) {
             i.startStream();
         }
