@@ -1,26 +1,32 @@
 package loghub.processors;
 
-import groovy.lang.Binding;
-import groovy.lang.GroovyShell;
-import groovy.lang.Script;
+import java.util.Collections;
+
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import loghub.Event;
+import loghub.Expression;
 import loghub.Processor;
 import loghub.ProcessorException;
 import loghub.configuration.Properties;
 
 public class Test extends Processor {
 
-    Script ifClause;
-    Processor thenTransformer;
-    Processor elseTransformer = new Identity();
+    private static final Logger logger = LogManager.getLogger();
+
+    private Expression ifClause;
+    private String ifClauseSource;
+    private Processor thenTransformer;
+    private Processor elseTransformer = new Identity();
 
     public String getTest() {
-        return ifClause.toString();
+        return ifClauseSource;
     }
 
-    public void setTest(String ifClause) {
-        GroovyShell groovyShell = new GroovyShell(getClass().getClassLoader());
-        this.ifClause = groovyShell.parse(ifClause);   
+    public void setTest(String ifClauseSource) {
+        this.ifClauseSource = ifClauseSource;
     }
 
     public Processor getThen() {
@@ -41,10 +47,7 @@ public class Test extends Processor {
 
     @Override
     public void process(Event event) throws ProcessorException {
-        Binding groovyBinding = new Binding();
-        groovyBinding.setVariable("event", event);
-        ifClause.setBinding(groovyBinding);
-        Boolean testResult = (Boolean) ifClause.run();
+        Boolean testResult = Boolean.TRUE.equals(ifClause.eval(event, Collections.emptyMap()));
         Processor nextTransformer = testResult ? thenTransformer : elseTransformer;
         try {
             nextTransformer.process(event);
@@ -62,6 +65,13 @@ public class Test extends Processor {
     public boolean configure(Properties properties) {
         thenTransformer.configure(properties);
         elseTransformer.configure(properties);
+        try {
+            ifClause = new Expression(ifClauseSource, properties.groovyClassLoader, properties.formatters);
+        } catch (InstantiationException | IllegalAccessException e) {
+            logger.error("Critical groovy error for expression {}: {}", ifClauseSource, e.getMessage());
+            logger.throwing(Level.DEBUG, e);
+            return false;
+        }
         return super.configure(properties);
     }
 
