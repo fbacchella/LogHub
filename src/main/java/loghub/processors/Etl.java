@@ -18,64 +18,52 @@ import loghub.ProcessorException;
 import loghub.configuration.BeansManager;
 import loghub.configuration.Properties;
 
-public class Etl extends Processor {
+public abstract class Etl extends Processor {
 
     private static final Logger logger = LogManager.getLogger();
 
-    private String[] lvalue;
-    private String expression;
-    private String[] source;
-    private char operator;
-    private Expression script;
-    private String className = null;
-    private Class<?> clazz;
+    protected String[] lvalue;
 
-    @Override
-    public void process(Event event) throws ProcessorException {
-        switch(operator){
-        case '=': {
-            Object o = script.eval(event, Collections.emptyMap());
-            if(lvalue.length == 1 && Event.TIMESTAMPKEY.equals(lvalue[0]) && o instanceof Date) {
-                event.timestamp = (Date) o;
-            } else {
-                event.applyAtPath((i,j,k) -> i.put(j, k), lvalue, o, true);
-            }
-            break;
-        }
-        case '-': {
-            event.applyAtPath((i,j,k) -> i.remove(j), lvalue, null);
-            break;
-        }
-        case '<': {
-            Object old = event.applyAtPath((i,j,k) -> i.remove(j), source, null);
+    public static class Rename extends Etl{
+        private String source;
+        private String[] sourcePath;
+        @Override
+        public void process(Event event) throws ProcessorException {
+            Object old = event.applyAtPath((i,j,k) -> i.remove(j), sourcePath, null);
             if(lvalue.length == 1 && Event.TIMESTAMPKEY.equals(lvalue[0]) && old instanceof Date) {
                 event.timestamp = (Date) old;
                 event.applyAtPath((i,j,k) -> i.remove(j), lvalue, null);
             } else {
                 event.applyAtPath((i,j,k) -> i.put(j, k), lvalue, old, true);
             }
-            break;
         }
-        case '(': {
-            try {
-                event.applyAtPath((i,j,k) -> {
-                    try {
-                        Object o = BeansManager.ConstructFromString(clazz, i.get(j).toString());
-                        return i.put(j, o);
-                    } catch (InvocationTargetException e) {
-                        throw new CompletionException(e);
-                    }
-                }, lvalue, (Object) null, false);
-            } catch (CompletionException e1) {
-                throw new ProcessorException("unable to convert from string to " + className, (Exception)e1.getCause());
-            }
+        @Override
+        public boolean configure(Properties properties) {
+            sourcePath = source.split("\\.");
+            return super.configure(properties);
         }
+        public String getSource() {
+            return source;
+        }
+        public void setSource(String source) {
+            this.source = source;
         }
     }
 
-    @Override
-    public boolean configure(Properties properties) {
-        if(operator == '=') {
+    public static class Assign extends Etl{
+        private String expression;
+        private Expression script;
+        @Override
+        public void process(Event event) throws ProcessorException {
+            Object o = script.eval(event, Collections.emptyMap());
+            if(lvalue.length == 1 && Event.TIMESTAMPKEY.equals(lvalue[0]) && o instanceof Date) {
+                event.timestamp = (Date) o;
+            } else {
+                event.applyAtPath((i,j,k) -> i.put(j, k), lvalue, o, true);
+            }
+        }
+        @Override
+        public boolean configure(Properties properties) {
             try {
                 script = new Expression(expression, properties.groovyClassLoader, properties.formatters);
             } catch (CompilationFailedException e) {
@@ -86,30 +74,71 @@ public class Etl extends Processor {
                 logger.throwing(Level.DEBUG, e);
                 return false;
             }
-        } else if (operator == '<') {
-            source = expression.split("\\.");
-        } else if (operator == '(') {
+            return super.configure(properties);
+        }
+        public String getExpression() {
+            return expression;
+        }
+        public void setExpression(String expression) {
+            this.expression = expression;
+        }
+    }
+
+    public static class Convert extends Etl{
+        private String className = null;
+        private Class<?> clazz;
+        @Override
+        public void process(Event event) throws ProcessorException {
+            try {
+                event.applyAtPath((i,j,k) -> {
+                    try {
+                        Object val = i.get(j);
+                        if(val == null) {
+                            return null;
+                        } else {
+                            Object o = BeansManager.ConstructFromString(clazz, val.toString());
+                            return i.put(j, o);
+                        }
+                    } catch (InvocationTargetException e) {
+                        throw new CompletionException(e);
+                    }
+                }, lvalue, (Object) null, false);
+            } catch (CompletionException e1) {
+                throw new ProcessorException("unable to convert from string to " + className, (Exception)e1.getCause());
+            }
+        }
+        @Override
+        public boolean configure(Properties properties) {
             try {
                 clazz = properties.classloader.loadClass(className);
             } catch (ClassNotFoundException e) {
                 logger.error("class not found: {}", className);
                 return false;
             }
+            return super.configure(properties);
         }
-        return super.configure(properties);
+        public String getClassName() {
+            return className;
+        }
+        public void setClassName(String className) {
+            this.className = className;
+        }
     }
+
+
+    public static class Remove extends Etl{
+        @Override
+        public void process(Event event) throws ProcessorException {
+            event.applyAtPath((i,j,k) -> i.remove(j), lvalue, null);
+        }
+    }
+
+    public abstract void process(Event event) throws ProcessorException; 
+
 
     @Override
     public String getName() {
         return null;
-    }
-
-    public Character getOperator() {
-        return operator;
-    }
-
-    public void setOperator(Character operator) {
-        this.operator = operator;
     }
 
     public String getLvalue() {
@@ -118,14 +147,6 @@ public class Etl extends Processor {
 
     public void setLvalue(String lvalue) {
         this.lvalue = lvalue.split("\\.");
-    }
-
-    public String getExpression() {
-        return expression;
-    }
-
-    public void setExpression(String expression) {
-        this.expression = expression;
     }
 
 }

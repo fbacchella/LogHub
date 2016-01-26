@@ -28,6 +28,7 @@ import loghub.RouteParser.InputContext;
 import loghub.RouteParser.InputObjectlistContext;
 import loghub.RouteParser.IntegerLiteralContext;
 import loghub.RouteParser.KeywordContext;
+import loghub.RouteParser.MapContext;
 import loghub.RouteParser.NullLiteralContext;
 import loghub.RouteParser.ObjectContext;
 import loghub.RouteParser.OutputContext;
@@ -44,6 +45,7 @@ import loghub.configuration.Configuration.PipeJoin;
 import loghub.processors.Drop;
 import loghub.processors.Etl;
 import loghub.processors.Forker;
+import loghub.processors.Mapper;
 
 class ConfigListener extends RouteBaseListener {
 
@@ -53,7 +55,8 @@ class ConfigListener extends RouteBaseListener {
         PipeNodeList,
         Array,
         Expression,
-        Etl;
+        Etl,
+        Map;
     };
 
     static final class Input {
@@ -429,32 +432,68 @@ class ConfigListener extends RouteBaseListener {
 
     @Override
     public void exitEtl(EtlContext ctx) {
-        ObjectWrapped expression = null;
+        String lvalue = ctx.eventVariable().get(0).getText();
+        lvalue = lvalue.substring(1, lvalue.length() - 1);
+
+        ObjectDescription etl;
 
         switch(ctx.op.getText()) {
-        case("-"): break;
+        case("-"):
+            etl = new ObjectDescription(Etl.Remove.class.getName(), ctx);
+        break;
         case("<"): {
+            etl = new ObjectDescription(Etl.Rename.class.getName(), ctx);
             String temp = ctx.eventVariable().get(1).getText();
             temp = temp.substring(1, temp.length() -1);
-            expression = new ObjectWrapped(temp);
+            etl.beans.put("source", new ObjectWrapped(temp));
             break;
         }
-        case("="): expression = (ObjectWrapped) stack.pop(); break;
-        case("("): expression = new ObjectWrapped(ctx.QualifiedIdentifier().getText());break;
+        case("="): {
+            etl = new ObjectDescription(Etl.Assign.class.getName(), ctx);
+            ObjectWrapped expression = (ObjectWrapped) stack.pop();
+            etl.beans.put("expression", expression);
+            break;
+        }
+        case("("): {
+            etl = new ObjectDescription(Etl.Convert.class.getName(), ctx);
+            ObjectWrapped className = new ObjectWrapped(ctx.QualifiedIdentifier().getText());
+            etl.beans.put("className", className);
+            break;
+        }
+        case("@"): {
+            etl = new ObjectDescription(Mapper.class.getName(), ctx);
+            etl.beans.put("map", (ObjectReference) stack.pop());
+            String temp = ctx.eventVariable().get(1).getText();
+            temp = temp.substring(1, temp.length() -1);
+            etl.beans.put("field", new ConfigListener.ObjectWrapped(temp));
+            break;
+        }
+        default:
+            throw new RuntimeException("invalid parsing");
         }
         // Remove Etl marker
         Object o = stack.pop();
         assert StackMarker.Etl.equals(o);
 
-        String lvalue = ctx.eventVariable().get(0).getText();
-        lvalue = lvalue.substring(1, lvalue.length() - 1);
-        ObjectDescription etl = new ObjectDescription(Etl.class.getCanonicalName(), ctx);
         etl.beans.put("lvalue", new ConfigListener.ObjectWrapped(lvalue));
-        etl.beans.put("operator", new ConfigListener.ObjectWrapped(ctx.op.getText().charAt(0)));
-        if(expression != null) {
-            etl.beans.put("expression", expression);
-        }
         stack.push(etl);
+    }
+
+    @Override
+    public void enterMap(MapContext ctx) {
+        stack.push(StackMarker.Map);
+    }
+
+    @Override
+    public void exitMap(MapContext ctx) {
+        Map<Object, Object> map = new HashMap<>();
+        Object o;
+        while((o = stack.pop()) != StackMarker.Map) { 
+            ObjectWrapped value = (ObjectWrapped) o;
+            ObjectWrapped key = (ObjectWrapped) stack.pop();
+            map.put(key.wrapped, value.wrapped);
+        };
+        stack.push(new ConfigListener.ObjectWrapped(map));
     }
 
     @Override

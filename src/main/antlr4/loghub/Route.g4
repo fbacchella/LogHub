@@ -12,7 +12,16 @@ inputObjectlist: (object (',' object)*)? ','?;
 outputObjectlist: (object (',' object)*)? ','?;
 pipenodeList :   pipenode (('+' forkpiperef)|('|' pipenode))*;
 forkpiperef: '$' Identifier;
-pipenode: test | object | '(' pipenodeList ')' | '$' piperef | drop | etl;
+pipenode
+    : test
+    | mapping
+    | drop
+    | etl
+    | '(' pipenodeList ')'
+    | '$' piperef
+    | object
+    ;
+
 object: QualifiedIdentifier beansDescription ; 
 beansDescription:  ('{' (bean (',' bean)*)? ','? '}')? ;
 
@@ -29,18 +38,26 @@ keywordvalue
     |   pipenode;
 
 beanName: Identifier;
-beanValue: object | literal | array;
+beanValue: object | literal | array | map;
 finalpiperef: piperef;
+
 piperef:  Identifier;
+mapping
+    :   'map' eventVariable map
+    ;
+
 drop: Drop;
 Drop: 'drop';
+
 property: propertyName ':' beanValue;
 
 etl
     : eventVariable op='<' s=eventVariable
     | eventVariable op='-'
     | eventVariable op='=' expression
-    | op='(' QualifiedIdentifier ')' eventVariable;
+    | eventVariable op='@' s=eventVariable map
+    | op='(' QualifiedIdentifier ')' eventVariable
+    ;
 
 test: testExpression '?' pipenode (':' pipenode)? ;
 
@@ -96,6 +113,10 @@ matchOperator
     ;
 
 array: '[' (beanValue (',' beanValue)*)? ','? ']';
+
+map
+    : '{' literal ':' literal ( ',' ? literal ':' literal)* ','? '}'
+    ;
 
 eventVariable: '[' Identifier ('.' Identifier)* ']' ;
 
