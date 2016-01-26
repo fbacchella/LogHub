@@ -42,9 +42,27 @@ public class TestGrok {
 
         EventWrapper e = new EventWrapper(new Event());
         e.setProcessor(grok);
-        e.put("message", "<34>1 2016-01-25T12:28:00.164593+01:00 sys403 krb5kdc 4906 - -  closing down fd 14");
+        e.put("message", "<34>1 2016-01-25T12:28:00.164593+01:00 somehost krb5kdc 4906 - -  closing down fd 14");
         grok.process(e);
 
         Assert.assertEquals("invalid syslog line matching", 8, e.size());
+    }
+    
+    @Test
+    public void TestLoadPatterns3() throws ProcessorException {
+        Grok grok = new Grok();
+        grok.setField("message");
+        grok.setPattern("(?<message>fetching user_deny.db entry) for '%{USERNAME:imap_user}'");
+        
+        Properties props = new Properties(Collections.emptyMap());
+
+        Assert.assertTrue("Failed to configure grok", grok.configure(props));
+
+        EventWrapper e = new EventWrapper(new Event());
+        e.setProcessor(grok);
+        e.put("message", "fetching user_deny.db entry for 'someone'");
+        grok.process(e);
+
+        Assert.assertEquals("invalid syslog line matching", 2, e.size());
     }
 }

@@ -5,6 +5,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.logging.log4j.Level;
@@ -23,6 +27,7 @@ public class Grok extends FieldsProcessor {
 
     private final oi.thekraken.grok.api.Grok grok;
     private String pattern;
+    private final Map<String, List<String>> reverseIndex = new HashMap<>();
 
     public Grok() {
         grok = new oi.thekraken.grok.api.Grok();
@@ -34,19 +39,37 @@ public class Grok extends FieldsProcessor {
         Match gm = grok.match(line);
         gm.captures();
         if(! gm.isNull()) {
-            //Bug in grok, rebuild the matching manually
+            //Many bug in java grok, rebuild the matching manually
             Map<String, String> groups = gm.getMatch().namedGroups();
-            Map<String, String> names = grok.getNamedRegexCollection();
-            for(Map.Entry<String, String> found: groups.entrySet()) {
-                if(found.getValue() == null) {
+            Map<String, List<Object>> results = new HashMap<>();
+            for(Map.Entry<String, Object> e: gm.toMap().entrySet()) {
+                //Dirty hack to filter non named regex
+                if(e.getKey().equals(e.getKey().toUpperCase())) {
                     continue;
                 }
-                String finalname = names.get(found.getKey());
-                //Dirty hack to filter non capturing group
-                if(finalname.equals(finalname.toUpperCase())) {
-                    continue;
+                List<Object> values = new ArrayList<Object>();
+                if( reverseIndex.containsKey(e.getKey())) {
+                    for(String subname: reverseIndex.get(e.getKey())) {
+                        String subvalue = groups.get(subname);
+                        if(subvalue != null) {
+                            values.add(subvalue);
+                        }
+                    }
+                } else {
+                    results.put(e.getKey(), Collections.singletonList(e.getValue()));
                 }
-                event.put(finalname, found.getValue());
+                // Don't keep empty matching
+                if(values.size() > 0) {
+                    results.put(e.getKey(), values);
+                }
+            }
+            for(Map.Entry<String, List<Object>> e: results.entrySet()) {
+                if(e.getValue().size() == 1) {
+                    // If only one value found, keep it
+                    event.put(e.getKey(), e.getValue().get(0));
+                } else {
+                    event.put(e.getKey(), e.getValue());
+                }
             }
         }
     }
@@ -78,6 +101,12 @@ public class Grok extends FieldsProcessor {
             logger.error("wrong pattern {}: {}", pattern, e.getMessage());
             logger.catching(Level.DEBUG, e);
             return false;
+        }
+        for(Map.Entry<String, String> e: grok.getNamedRegexCollection().entrySet()) {
+            if( ! reverseIndex.containsKey(e.getValue())) {
+                reverseIndex.put(e.getValue(), new ArrayList<String>());
+            }
+            reverseIndex.get(e.getValue()).add(e.getKey());
         }
         return super.configure(properties);
     }
