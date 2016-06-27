@@ -9,12 +9,10 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
-import java.util.SortedMap;
-import java.util.TreeMap;
+import java.util.stream.Collectors;
 
-import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.snmp4j.CommandResponder;
@@ -34,7 +32,6 @@ import org.snmp4j.smi.IpAddress;
 import org.snmp4j.smi.OID;
 import org.snmp4j.smi.OctetString;
 import org.snmp4j.smi.Opaque;
-import org.snmp4j.smi.SMIConstants;
 import org.snmp4j.smi.TimeTicks;
 import org.snmp4j.smi.UdpAddress;
 import org.snmp4j.smi.UnsignedInteger32;
@@ -44,13 +41,13 @@ import org.snmp4j.transport.DefaultUdpTransportMapping;
 import org.snmp4j.util.MultiThreadedMessageDispatcher;
 import org.snmp4j.util.ThreadPool;
 
+import fr.jrds.SmiExtensions.MibTree;
+import fr.jrds.SmiExtensions.objects.ObjectInfos;
 import loghub.Event;
 import loghub.NamedArrayBlockingQueue;
 import loghub.Receiver;
 import loghub.configuration.Beans;
 import loghub.configuration.Properties;
-import loghub.snmp.NaturalOrderComparator;
-import loghub.snmp.OidTreeNode;
 
 @Beans({"protocol", "port", "listen"})
 public class SnmpTrap extends Receiver implements CommandResponder {
@@ -62,13 +59,13 @@ public class SnmpTrap extends Receiver implements CommandResponder {
     static final private byte TAG_DOUBLE = (byte) 0x79;
 
     static private Snmp snmp;
-    static private OidTreeNode top = null;
     static private boolean reconfigured = false;
 
     private ThreadPool threadPool;
     private String protocol = "udp";
     private int port = 162;
     private String listen = "0.0.0.0";
+    private MibTree mibtree = null;
 
     public SnmpTrap(NamedArrayBlockingQueue outQueue) {
         super(outQueue);
@@ -96,25 +93,8 @@ public class SnmpTrap extends Receiver implements CommandResponder {
         } catch (IOException e) {
             logger.error("can't listen: {}", e.getMessage());
         }
-        if(top == null) {
-            top = new OidTreeNode();
-            try {
-                Collections.list(properties.classloader.getResources("oid.properties"))
-                .stream()
-                .forEach(i -> {
-                    try {
-                        InputStream in = i.openStream();
-                        loadOids(in);
-                    } catch (IOException e) {
-                        logger.error("unable to load oid from {}: {}", i, e.getMessage());
-                        logger.catching(Level.DEBUG, e);
-                    }
-                });
-            } catch (IOException e) {
-                logger.error("unable to found oid.properties: {}", e.getMessage());
-                logger.catching(Level.DEBUG, e);
-                return false;
-            }
+        if(mibtree == null) {
+            mibtree = new MibTree();
         }
 
         if(! reconfigured && properties.containsKey("oidfile")) {
@@ -123,7 +103,7 @@ public class SnmpTrap extends Receiver implements CommandResponder {
             try {
                 oidfile = (String) properties.get("oidfile");
                 InputStream is = new FileInputStream(oidfile);
-                loadOids(is);
+                mibtree.load(is);
             } catch (ClassCastException e) {
                 logger.error("oidfile property is not a string");
                 return false;
@@ -166,46 +146,34 @@ public class SnmpTrap extends Receiver implements CommandResponder {
         send(event);
     }
 
-    public String smartPrint(OID oid) {
-        OidTreeNode found = top.search(oid);
-        OID foundOID = found.getOID();
-        String formatted;
-        if (oid.startsWith(foundOID)) {
-            int[] suffixes = Arrays.copyOfRange(oid.getValue(), foundOID.size(), oid.size());
-            if(suffixes.length > 0) {
-                formatted = found.getName() + "." + new OID(suffixes);
-            }
-            else {
-                formatted = found.getName();
-            }
-        }
-        else {
-            formatted = oid.toDottedString();
-        }
-        return formatted;
+    public List<String> smartPrint(OID oid) {
+        return Arrays.stream(mibtree.parseIndexOID(oid)).map( i-> i.toString()).collect(Collectors.toList());
     }
 
     private void smartPut(Event e, OID oid, Object value) {
-        OidTreeNode found = top.search(oid);
-        OID foundOID = found.getOID();
-        if (oid.startsWith(foundOID)) {
-            int[] suffixes = Arrays.copyOfRange(oid.getValue(), foundOID.size(), oid.size());
-            if(suffixes.length > 0) {
-                if(suffixes.length != 1 || suffixes[0] != 0) {
-                    Map<String, Object> valueMap = new HashMap<>(2);
-                    valueMap.put("indexoid", new OID(suffixes).toDottedString());
-                    valueMap.put("value", value);
-                    e.put(found.getName(), valueMap);
-                } else {
-                    e.put(found.getName(), value);
-                }
-            }
-            else {
-                e.put(found.getName(), value);
-            }
-        }
-        else {
+        ObjectInfos found = mibtree.getInfos(oid);
+        if(found == null) {
             e.put(oid.toDottedString(), value);
+        }
+        else if(found.isIndex()) {
+            Map<String, Object> valueMap = new HashMap<>(3);
+            Object[] resolved = found.resolve(oid.getValue());
+            valueMap.put("index", resolved[0]);
+            valueMap.put("key", Arrays.copyOfRange(resolved, 1, resolved.length));
+            valueMap.put("value", value);
+            e.put(found.getName(), valueMap);
+        } else {
+            int oidCompare = found.compareTo(oid);
+            if (oidCompare == 0) {
+                e.put(found.getName(), value);
+            } else if (oidCompare > 0){ // found OID is shorter than request OID
+                OID foundOID = found.getOID();
+                int[] suffixes = Arrays.copyOfRange(oid.getValue(), foundOID.size() - 1, oid.size());
+                Map<String, Object> valueMap = new HashMap<>(2);
+                valueMap.put("suboid", new OID(suffixes));
+                valueMap.put("value", value);
+                e.put(found.getName(), valueMap);
+            } // else found is never longer that the search OID
         }
     }
 
@@ -213,58 +181,54 @@ public class SnmpTrap extends Receiver implements CommandResponder {
         if(var == null) {
             return null;
         }
-        Object retvalue = null;
-        switch(var.getSyntax()) {
-        case 1 ://BOOLEAN
-            return var.toInt();
-        case SMIConstants.SYNTAX_INTEGER:
-            return var.toInt();
-        case 3: //BIT STRING
-            break;
-        case SMIConstants.SYNTAX_OCTET_STRING:
-            //It might be a C string, try to remove the last 0;
-            //But only if the new string is printable
-            OctetString octetVar = (OctetString)var;
-            int length = octetVar.length();
-            if(length > 1 && octetVar.get(length - 1) == 0) {
-                OctetString newVar = octetVar.substring(0, length - 1);
-                if(newVar.isPrintable()) {
-                    var = newVar;
-                    logger.debug("Convertion an octet stream from {} to {}", octetVar, var);
-                }
-            }
-            return var.toString();
-        case SMIConstants.SYNTAX_NULL:
-            return null;
-        case SMIConstants.SYNTAX_OBJECT_IDENTIFIER:
-            return smartPrint( (OID) var );
-        case 9: // REAL
-            break;
-        case 10: // ENUMERATED
-            break;
-        case SMIConstants.SYNTAX_IPADDRESS:
-            return ((IpAddress)var).getInetAddress();
-        case SMIConstants.SYNTAX_COUNTER32:
-        case SMIConstants.SYNTAX_GAUGE32: //SYNTAX_UNSIGNED_INTEGER32
-            return var.toLong();
-        case SMIConstants.SYNTAX_TIMETICKS:
-            return new Double(1.0 * ((TimeTicks)var).toMilliseconds() / 1000.0);
-        case SMIConstants.SYNTAX_OPAQUE:
-            return resolvOpaque((Opaque) var);
-        case SMIConstants.SYNTAX_COUNTER64:
-            return var.toLong();
-        }
         if(var instanceof UnsignedInteger32) {
-            retvalue  = var.toLong();
+            return var.toLong();
         }
-        else if(var instanceof Integer32)
-            retvalue  = var.toInt();
-        else if(var instanceof Counter64)
-            retvalue  = var.toLong();
+        else if(var instanceof Integer32) {
+            return var.toInt();
+        }
+        else if(var instanceof Counter64) {
+            return var.toLong();
+        }
         else {
-            logger.warn("Unknown syntax: " + var.getSyntaxString());
+            switch(var.getSyntax()) {
+            case BER.ASN_BOOLEAN:
+                return var.toInt();
+            case BER.INTEGER:
+                return var.toInt();
+            case BER.OCTETSTRING:
+                //It might be a C string, try to remove the last 0;
+                //But only if the new string is printable
+                OctetString octetVar = (OctetString)var;
+                int length = octetVar.length();
+                if(length > 1 && octetVar.get(length - 1) == 0) {
+                    OctetString newVar = octetVar.substring(0, length - 1);
+                    if(newVar.isPrintable()) {
+                        var = newVar;
+                        logger.debug("Convertion an octet stream from {} to {}", octetVar, var);
+                    }
+                }
+                return var.toString();
+            case BER.NULL:
+                return null;
+            case BER.OID:
+                return smartPrint( (OID) var );
+            case BER.IPADDRESS:
+                return ((IpAddress)var).getInetAddress();
+            case BER.COUNTER32:
+            case BER.GAUGE32:
+                return var.toLong();
+            case BER.TIMETICKS:
+                return new Double(1.0 * ((TimeTicks)var).toMilliseconds() / 1000.0);
+            case BER.OPAQUE:
+                return resolvOpaque((Opaque) var);
+            case BER.COUNTER64:
+                return var.toLong();
+            default:
+                logger.warn("Unknown syntax: " + var.getSyntaxString());
+                return null;
+            }
         }
-        return retvalue;
     }
 
     private Object resolvOpaque(Opaque var) {
@@ -289,18 +253,6 @@ public class SnmpTrap extends Receiver implements CommandResponder {
             logger.error(var.toString());
         }
         return value;
-    }
-
-    private void loadOids(InputStream is) throws IOException {
-        SortedMap<String, String> oids = new TreeMap<String, String>(new NaturalOrderComparator());
-        java.util.Properties p = new java.util.Properties();
-        p.load(is);
-        for(Entry<Object, Object> e: p.entrySet()) {
-            oids.put((String) e.getKey(), (String) e.getValue());
-        }
-        for(Entry<String, String> e: oids.entrySet()) {
-            top.addOID(new OID(e.getKey()), e.getValue());
-        }
     }
 
     @Override
