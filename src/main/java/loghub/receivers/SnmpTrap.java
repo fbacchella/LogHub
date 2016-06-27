@@ -22,6 +22,8 @@ import org.snmp4j.Snmp;
 import org.snmp4j.TransportMapping;
 import org.snmp4j.asn1.BER;
 import org.snmp4j.asn1.BERInputStream;
+import org.snmp4j.log.Log4jLogFactory;
+import org.snmp4j.log.LogFactory;
 import org.snmp4j.mp.MPv1;
 import org.snmp4j.mp.MPv2c;
 import org.snmp4j.smi.Address;
@@ -51,6 +53,10 @@ import loghub.configuration.Properties;
 
 @Beans({"protocol", "port", "listen"})
 public class SnmpTrap extends Receiver implements CommandResponder {
+
+    static {
+        LogFactory.setLogFactory(new Log4jLogFactory());
+    }
 
     private static final Logger logger = LogManager.getLogger();
 
@@ -151,29 +157,33 @@ public class SnmpTrap extends Receiver implements CommandResponder {
     }
 
     private void smartPut(Event e, OID oid, Object value) {
-        ObjectInfos found = mibtree.getInfos(oid);
+        ObjectInfos found = mibtree.searchInfos(oid);
         if(found == null) {
             e.put(oid.toDottedString(), value);
         }
-        else if(found.isIndex()) {
-            Map<String, Object> valueMap = new HashMap<>(3);
-            Object[] resolved = found.resolve(oid.getValue());
-            valueMap.put("index", resolved[0]);
-            valueMap.put("key", Arrays.copyOfRange(resolved, 1, resolved.length));
-            valueMap.put("value", value);
-            e.put(found.getName(), valueMap);
-        } else {
-            int oidCompare = found.compareTo(oid);
-            if (oidCompare == 0) {
-                e.put(found.getName(), value);
-            } else if (oidCompare > 0){ // found OID is shorter than request OID
-                OID foundOID = found.getOID();
-                int[] suffixes = Arrays.copyOfRange(oid.getValue(), foundOID.size() - 1, oid.size());
-                Map<String, Object> valueMap = new HashMap<>(2);
-                valueMap.put("suboid", new OID(suffixes));
+        else {
+            ObjectInfos parent = mibtree.getParent(found.getOidElements());
+            if(parent != null && parent.isIndex()) {
+                Map<String, Object> valueMap = new HashMap<>(3);
+                Object[] resolved = mibtree.parseIndexOID(oid);
+                valueMap.put("index", Arrays.copyOfRange(resolved, 1, resolved.length));
                 valueMap.put("value", value);
                 e.put(found.getName(), valueMap);
-            } // else found is never longer that the search OID
+            } else {
+                int oidCompare = found.compareTo(oid);
+                if (oidCompare == 0 || (-oidCompare == oid.size() && oid.last() == 0)) {
+                    // if found exactly or was suffixed by .0, put the value directly
+                    e.put(found.getName(), value);
+                } else { // found OID is shorter than request OID
+                    OID foundOID = found.getOID();
+                    int[] suffixes = Arrays.copyOfRange(oid.getValue(), foundOID.size(), oid.size());
+                    Map<String, Object> valueMap = new HashMap<>(2);
+                    // Put suboid only if it's not .0
+                    valueMap.put("suboid", new OID(suffixes));
+                    valueMap.put("value", value);
+                    e.put(found.getName(), valueMap);
+                }
+            }
         }
     }
 
