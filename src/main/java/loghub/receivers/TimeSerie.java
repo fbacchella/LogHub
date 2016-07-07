@@ -6,6 +6,7 @@ import java.nio.ByteBuffer;
 import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicLong;
 
+import loghub.Event;
 import loghub.NamedArrayBlockingQueue;
 import loghub.Receiver;
 
@@ -20,9 +21,9 @@ public class TimeSerie extends Receiver {
     }
 
     @Override
-    protected Iterator<byte[]> getIterator() {
+    protected Iterator<Event> getIterator() {
         final ByteBuffer buffer = ByteBuffer.allocate(8);
-        return new Iterator<byte[]>() {
+        return new Iterator<Event>() {
             @Override
             public boolean hasNext() {
                 try {
@@ -34,14 +35,14 @@ public class TimeSerie extends Receiver {
             }
 
             @Override
-            public byte[] next() {
+            public Event next() {
                 try {
                     buffer.clear();
                     buffer.put(Long.toString(r.getAndIncrement()).getBytes());
                 } catch (Exception e) {
                     throw new RuntimeException("can't push to buffer", e);
                 }
-                return buffer.array();
+                return decode(buffer.array());
             }
 
         };

@@ -10,7 +10,7 @@ import loghub.configuration.Properties;
 @Beans({"threads"})
 public abstract class Processor {
 
-    private int threads = 1;
+    private int threads = -1;
     private String[] path = new String[]{};
     private Expression ifexpression = null;
     private Processor success = null;

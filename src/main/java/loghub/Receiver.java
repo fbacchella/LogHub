@@ -12,7 +12,7 @@ import loghub.configuration.Beans;
 import loghub.configuration.Properties;
 
 @Beans({"decoder"})
-public abstract class Receiver extends Thread implements Iterator<byte[]> {
+public abstract class Receiver extends Thread implements Iterator<Event> {
 
     private static final Logger logger = LogManager.getLogger();
 
@@ -39,12 +39,12 @@ public abstract class Receiver extends Thread implements Iterator<byte[]> {
         int looptry = 0;
         int wait = 100;
         while(! isInterrupted()) {
-            Iterable<byte[]> stream = new Iterable<byte[]>() {
+            Iterable<Event> stream = new Iterable<Event>() {
                 @Override
-                public Iterator<byte[]> iterator() {
-                    Iterator<byte[]> i = Receiver.this.getIterator();
+                public Iterator<Event> iterator() {
+                    Iterator<Event> i = Receiver.this.getIterator();
                     if(i == null) {
-                        return new Iterator<byte[]>() {
+                        return new Iterator<Event>() {
 
                             @Override
                             public boolean hasNext() {
@@ -52,7 +52,7 @@ public abstract class Receiver extends Thread implements Iterator<byte[]> {
                             }
 
                             @Override
-                            public byte[] next() {
+                            public Event next() {
                                 return null;
                             }
 
@@ -63,7 +63,7 @@ public abstract class Receiver extends Thread implements Iterator<byte[]> {
                 }
             };
             try {
-                for(byte[] e: stream) {
+                for(Event e: stream) {
                     logger.trace("new message received: {}", e);
                     if(e != null) {
                         eventseen++;
@@ -72,7 +72,6 @@ public abstract class Receiver extends Thread implements Iterator<byte[]> {
                             eventseen = 1;
                         }
                         Event event = new Event();
-                        decode(event, e);
                         send(event);
                     }
                 }
@@ -111,7 +110,7 @@ public abstract class Receiver extends Thread implements Iterator<byte[]> {
      * in charge of preparing the iterator.
      * @return an iterator or null in case of failure
      */
-    protected Iterator<byte[]> getIterator() {
+    protected Iterator<Event> getIterator() {
         try {
             startStream();
             return this;
@@ -131,20 +130,22 @@ public abstract class Receiver extends Thread implements Iterator<byte[]> {
     }
 
     @Override
-    public byte[] next() {
+    public Event next() {
         return null;
     }
 
-    protected final void decode(Event event, byte[] msg) {
-        decode(event, msg, 0, msg.length);
+    protected final Event decode(byte[] msg) {
+        return decode(msg, 0, msg.length);
     }
 
-    protected final void decode(Event event, byte[] msg, int offset, int size) {
+    protected final Event decode(byte[] msg, int offset, int size) {
+        Event event = new Event();
         Map<String, Object> content = decoder.decode(msg, offset, size);
         if( content.containsKey(Event.TIMESTAMPKEY) && (event.get(Event.TIMESTAMPKEY) instanceof Date)) {
             event.timestamp = (Date) event.remove(Event.TIMESTAMPKEY);
         }
         content.entrySet().stream().forEach( i -> event.put(i.getKey(), i.getValue()));
+        return event;
     }
 
     /**

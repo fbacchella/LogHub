@@ -26,16 +26,10 @@ object: QualifiedIdentifier beansDescription ;
 beansDescription:  ('{' (bean (',' bean)*)? ','? '}')? ;
 
 bean
-    :   (keyword ':' keywordvalue)
+    :   'if' ':' expression
+    |   condition=('success' | 'failure') ':' pipenode
     |   (beanName ':' beanValue)
     ;
-
-keyword
-    :   'if' | 'success' | 'failure';
-
-keywordvalue
-    :   expression
-    |   pipenode;
 
 beanName: Identifier;
 beanValue: object | literal | array | map;

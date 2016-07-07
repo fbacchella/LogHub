@@ -47,7 +47,7 @@ public class Pipeline {
                 i++;
             }
         } else {
-            // an empty queue,just forward events
+            // an empty queue, just forward events
             proxy = Helpers.QueueProxy(name + ".empty", inQueue, outQueue, () -> {logger.error("pipeline {} destination full", name);});
             proxy.start();
         }

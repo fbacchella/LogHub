@@ -77,7 +77,7 @@ public class BeansManager {
                 }
                 setMethod.invoke(beanObject, newValue);
             } else {
-                throw new InvocationTargetException(new ClassCastException(), String.format("Unknown bean %s", beanName));
+                throw new InvocationTargetException(new ClassCastException("unmanaged class " + beanValue), String.format("Unknown bean %s", beanName));
             }
         } catch (IntrospectionException e) {
             throw new InvocationTargetException(e, "Unknown bean '" + beanName + "' for " + beanObject);

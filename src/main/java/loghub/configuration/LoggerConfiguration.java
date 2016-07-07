@@ -86,6 +86,7 @@ public class LoggerConfiguration extends AbstractConfiguration {
         builder.add(appenderBuilder);
         builder.add(builder.newRootLogger(Level.ERROR).add(builder.newAppenderRef("Stdout")));
         return builder.build();
+        
     }
 
     /**
@@ -100,6 +101,7 @@ public class LoggerConfiguration extends AbstractConfiguration {
      * @throws IOException
      */
     public void configure(Configuration conf) throws IOException {
+        System.out.println("configure");
     }
 
     /**

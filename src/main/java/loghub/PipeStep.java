@@ -16,8 +16,8 @@ public class PipeStep extends Thread {
 
     private static final Logger logger = LogManager.getLogger();
 
-    private NamedArrayBlockingQueue queueIn;
-    private NamedArrayBlockingQueue queueOut;
+    protected NamedArrayBlockingQueue queueIn;
+    protected NamedArrayBlockingQueue queueOut;
 
     private final List<Processor> processors = new ArrayList<>();
 

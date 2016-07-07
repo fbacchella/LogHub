@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 
 import org.antlr.v4.runtime.ANTLRFileStream;
@@ -34,15 +35,17 @@ import loghub.NamedArrayBlockingQueue;
 import loghub.PipeStep;
 import loghub.Pipeline;
 import loghub.Processor;
+import loghub.PipelinePipeStep;
 import loghub.Receiver;
 import loghub.RouteLexer;
 import loghub.RouteParser;
 import loghub.Sender;
+import loghub.SubPipeline;
 import loghub.configuration.ConfigListener.Input;
 import loghub.configuration.ConfigListener.ObjectReference;
 import loghub.configuration.ConfigListener.Output;
-import loghub.processors.PipeRef;
-import loghub.processors.SubPipeline;
+import loghub.processors.NamedSubPipeline;
+import loghub.processors.AnonymousSubPipeline;
 import loghub.processors.Test;
 
 public class Configuration {
@@ -132,10 +135,9 @@ public class Configuration {
         properties = new Properties(newProperties);
 
         // Generate all the named pipeline
-        for(Entry<String, ConfigListener.Pipeline> e: conf.pipelines.entrySet()) {
-            List<Pipeline> currentPipeList = new ArrayList<>();
-            String name = e.getKey();
-            Pipeline p = parsePipeline(e.getValue(), name, currentPipeList, 0);
+        for(Entry<String, ConfigListener.PipenodesList> e: conf.pipelines.entrySet()) {
+            String name = e.getKey(); 
+            Pipeline p = parsePipeline(e.getValue(), name, 0, new AtomicInteger());
             namedPipeLine.put(name, p);
         }
         namedPipeLine = Collections.unmodifiableMap(namedPipeLine);
@@ -180,8 +182,8 @@ public class Configuration {
         joins = Collections.unmodifiableSet(conf.joins);
     }
 
-    private Pipeline parsePipeline(ConfigListener.Pipeline desc, String currentPipeLineName, List<Pipeline> currentPipeList, int depth) {
-        List<PipeStep[]> pipeList = new ArrayList<PipeStep[]>() {
+    private Pipeline parsePipeline(ConfigListener.PipenodesList desc, String currentPipeLineName, int depth, AtomicInteger subPipeCount) {
+        List<PipeStep[]> allSteps = new ArrayList<PipeStep[]>() {
             @Override
             public String toString() {
                 StringBuilder buffer = new StringBuilder();
@@ -196,53 +198,77 @@ public class Configuration {
             }
         };
 
-        int threads = -1;
+        boolean newps = true;
         int rank = 0;
         PipeStep[] steps = null;
-        for(ConfigListener.Processor i: desc.processors) {
-            Processor t = getProcessor(i, currentPipeLineName, currentPipeList, depth);
-            if(t.getThreads() != threads) {
-                threads = t.getThreads();
-                steps = new PipeStep[threads];
-                pipeList.add(steps);
-                rank++;
-                for(int j =0; j < threads ; j++) {
-                    steps[j] = new PipeStep(currentPipeLineName + "." + depth, rank, j + 1);
-                }
+        for(ConfigListener.Pipenode i: desc.processors) {
+            Processor t = getProcessor(i, currentPipeLineName, depth, subPipeCount);
+            int threads = t.getThreads();
+            if(threads > 0) {
+                newps = true;
+            } else {
+                threads = 1;
+            }
+            if(t instanceof SubPipeline) {
+                Pipeline sub = ((SubPipeline)t).getPipeline();
+                steps = new PipeStep[1];
+                steps[0] = new PipelinePipeStep(sub);
+                newps = true;
+            }
+            // Some kinds of processor needs a dedicated pipestep
+            else if(threads > 0 || t.getFailure() != null || t.getSuccess() != null || t instanceof Test) {
+                steps = doPipeSteps(t, currentPipeLineName, threads, depth, rank);
+                allSteps.add(steps);
+                newps = true;
+            }
+            else if(newps) {
+                steps = doPipeSteps(t, currentPipeLineName, threads, depth, rank);
+                allSteps.add(steps);
+                newps = false;
             }
             for(int j = 0; j < threads ; j++) {
                 steps[j].addProcessor(t);
             } 
         }
-        Pipeline pipe = new Pipeline(pipeList, currentPipeLineName + "$" + currentPipeList.size());
-        currentPipeList.add(pipe);
+        Pipeline pipe = new Pipeline(allSteps, currentPipeLineName + (depth == 0 ? "" : "$" + subPipeCount.getAndIncrement()));
         pipelines.add(pipe);
         return pipe;
     }
+    
+    private PipeStep[] doPipeSteps(Processor proc, String currentPipeLineName, int threads, int depth, int rank) {
+        PipeStep[] steps = new PipeStep[threads];
+        rank++;
+        for(int j =0; j < threads ; j++) {
+            steps[j] = new PipeStep(currentPipeLineName + "." + depth, rank, j + 1);
+        }
+        return steps;
+    }
 
-    private Processor getProcessor(ConfigListener.Processor i, String currentPipeLineName, List<Pipeline> currentPipeList, int depth) {
+    private Processor getProcessor(ConfigListener.Pipenode i, String currentPipeLineName, int depth, AtomicInteger subPipeLine) {
         Processor t;
         if(i instanceof ConfigListener.ProcessorInstance) {
             ConfigListener.ProcessorInstance ti = (ConfigListener.ProcessorInstance) i;
-            t = (Processor) parseObjectDescription(ti, emptyConstructor);
+            t = (Processor) parseObjectDescription(ti, emptyConstructor, currentPipeLineName, depth, subPipeLine);
         } else if (i instanceof ConfigListener.Test){
             ConfigListener.Test ti = (ConfigListener.Test) i;
             Test test = new Test();
             test.setTest(ti.test);
-            test.setThen(getProcessor(ti.True, currentPipeLineName, currentPipeList, depth + 1));
+            test.setThen(getProcessor(ti.True, currentPipeLineName, depth + 1, subPipeLine));
             if(ti.False != null) {
-                test.setElse(getProcessor(ti.False, currentPipeLineName, currentPipeList, depth + 1));
+                test.setElse(getProcessor(ti.False, currentPipeLineName, depth + 1, subPipeLine));
             }
             t = test;
         } else if (i instanceof ConfigListener.PipeRef){
             ConfigListener.PipeRef cpr = (ConfigListener.PipeRef) i;
-            PipeRef pr = new PipeRef();
+            NamedSubPipeline pr = new NamedSubPipeline();
             pr.setPipeRef(cpr.pipename);
             t = pr;
-        } else if (i instanceof ConfigListener.Pipeline){
-            ConfigListener.Pipeline pl = (ConfigListener.Pipeline) i;
-            Pipeline pipe = parsePipeline(pl, currentPipeLineName, currentPipeList, depth + 1);
-            t = new SubPipeline(pipe);
+        } else if (i instanceof ConfigListener.PipenodesList){
+            ConfigListener.PipenodesList pl = (ConfigListener.PipenodesList) i;
+            Pipeline pipe = parsePipeline(pl, currentPipeLineName, depth + 1, subPipeLine);
+            t = new AnonymousSubPipeline();
+            ((AnonymousSubPipeline) t).setPipeline(pipe);
+            assert false;
         } else {
             throw new RuntimeException("unknown configuration element: " + i);
         }
@@ -250,6 +276,10 @@ public class Configuration {
     }
 
     private <T, C> T parseObjectDescription(ConfigListener.ObjectDescription desc, ThrowingFunction<Class<T>, T> constructor) {
+        return parseObjectDescription(desc, constructor, null, 0, null);
+    }
+
+    private <T, C> T parseObjectDescription(ConfigListener.ObjectDescription desc, ThrowingFunction<Class<T>, T> constructor, String currentPipeLineName, int depth, AtomicInteger numSubpipe) {
         try {
             @SuppressWarnings("unchecked")
             Class<T> clazz = (Class<T>) classLoader.loadClass(desc.clazz);
@@ -258,12 +288,17 @@ public class Configuration {
             for(Entry<String, ObjectReference> i: desc.beans.entrySet()) {
                 ObjectReference ref = i.getValue();
                 Object beanValue;
-                if(i.getValue() instanceof ConfigListener.ObjectWrapped) {
+                if(ref instanceof ConfigListener.ObjectWrapped) {
                     beanValue = ((ConfigListener.ObjectWrapped) ref).wrapped;
-                } else if (i.getValue() instanceof ConfigListener.ObjectDescription) {
-                    beanValue = parseObjectDescription((ConfigListener.ObjectDescription) ref, emptyConstructor);
+                    if(beanValue instanceof ConfigListener.PipenodesList) {
+                        assert currentPipeLineName != null;
+                        numSubpipe.incrementAndGet();
+                        beanValue = parsePipeline((ConfigListener.PipenodesList)beanValue, currentPipeLineName, depth, numSubpipe);
+                    }
+                } else if (ref instanceof ConfigListener.ObjectDescription) {
+                    beanValue = parseObjectDescription((ConfigListener.ObjectDescription) ref, emptyConstructor, currentPipeLineName, depth + 1, numSubpipe);
                 } else {
-                    throw new ConfigException(String.format("Invalid class '%s': %s", desc.clazz), desc.ctx.start, desc.ctx.stop);
+                    throw new ConfigException(String.format("Invalid class '%s': %s", desc.clazz, ref.getClass().getCanonicalName()), desc.ctx.start, desc.ctx.stop);
                 }
                 try {
                     BeansManager.beanSetter(object, i.getKey(), beanValue);

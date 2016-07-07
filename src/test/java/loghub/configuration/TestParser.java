@@ -99,7 +99,7 @@ public class TestParser {
             Assert.fail("parsing failed");
         }
         Assert.assertEquals("stack not empty :" + conf.stack, 0, conf.stack.size());
-        ConfigListener.Pipeline main = conf.pipelines.get("main");
+        ConfigListener.PipenodesList main = conf.pipelines.get("main");
         ObjectDescription p = (ObjectDescription) main.processors.get(0);
         Assert.assertTrue(((ObjectWrapped)p.beans.get("string")).wrapped instanceof String);
         Assert.assertTrue(((ObjectWrapped)p.beans.get("boolean")).wrapped instanceof Boolean);

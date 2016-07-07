@@ -13,9 +13,9 @@ import java.util.Set;
 import org.antlr.v4.runtime.ParserRuleContext;
 
 import loghub.RouteBaseListener;
+import loghub.RouteParser;
 import loghub.RouteParser.ArrayContext;
 import loghub.RouteParser.BeanContext;
-import loghub.RouteParser.BeanNameContext;
 import loghub.RouteParser.BooleanLiteralContext;
 import loghub.RouteParser.CharacterLiteralContext;
 import loghub.RouteParser.DropContext;
@@ -27,7 +27,6 @@ import loghub.RouteParser.ForkpiperefContext;
 import loghub.RouteParser.InputContext;
 import loghub.RouteParser.InputObjectlistContext;
 import loghub.RouteParser.IntegerLiteralContext;
-import loghub.RouteParser.KeywordContext;
 import loghub.RouteParser.MapContext;
 import loghub.RouteParser.NullLiteralContext;
 import loghub.RouteParser.ObjectContext;
@@ -46,6 +45,7 @@ import loghub.processors.Drop;
 import loghub.processors.Etl;
 import loghub.processors.Forker;
 import loghub.processors.Mapper;
+import loghub.processors.AnonymousSubPipeline;
 
 class ConfigListener extends RouteBaseListener {
 
@@ -85,23 +85,23 @@ class ConfigListener extends RouteBaseListener {
         }
     }
 
-    static interface Processor {};
+    static interface Pipenode {};
 
-    static final class Pipeline implements Processor {
-        final List<Processor> processors = new ArrayList<>();
+    static final class PipenodesList implements Pipenode {
+        final List<Pipenode> processors = new ArrayList<>();
     }
 
-    static final class Test implements Processor {
+    static final class Test implements Pipenode {
         String test;
-        Processor True;
-        Processor False;
+        Pipenode True;
+        Pipenode False;
     }
 
-    static final class PipeRef implements Processor {
+    static final class PipeRef implements Pipenode {
         String pipename;
     }
 
-    static final class PipeRefName implements Processor {
+    static final class PipeRefName implements Pipenode {
         final String piperef;
         private PipeRefName(String piperef) {
             this.piperef = piperef;
@@ -137,7 +137,7 @@ class ConfigListener extends RouteBaseListener {
         }
     };
 
-    static final class ProcessorInstance extends ObjectDescription implements Processor {
+    static final class ProcessorInstance extends ObjectDescription implements Pipenode {
         ProcessorInstance(String clazz, ParserRuleContext ctx) {
             super(clazz, ctx);
         }
@@ -149,7 +149,7 @@ class ConfigListener extends RouteBaseListener {
 
     final Deque<Object> stack = new ArrayDeque<>();
 
-    final Map<String, Pipeline> pipelines = new HashMap<>();
+    final Map<String, PipenodesList> pipelines = new HashMap<>();
     final List<Input> inputs = new ArrayList<>();
     final List<Output> outputs = new ArrayList<>();
     final Map<String, Object> properties = new HashMap<>();
@@ -211,20 +211,22 @@ class ConfigListener extends RouteBaseListener {
     }
 
     @Override
-    public void exitKeyword(KeywordContext ctx) {
-        stack.push(ctx.getText());
-    }
-
-    @Override
-    public void exitBeanName(BeanNameContext ctx) {
-        stack.push(ctx.getText());
-    }
-
-    @Override
     public void exitBean(BeanContext ctx) {
-        ObjectReference beanValue = (ObjectReference) stack.pop();
-        String beanName = (String) stack.pop();
+        String beanName = null;
+        ObjectReference beanValue = null;
+        if(ctx.condition != null) {
+            beanName = ctx.condition.getText();
+            beanValue = (ObjectReference) stack.pop();
+        } else if (ctx.expression() != null) {
+            beanName = "if";
+            beanValue = (ObjectReference) stack.pop();
+        } else {
+            beanName = ctx.beanName().getText();
+            beanValue = (ObjectReference) stack.pop();
+        }
         ObjectDescription beanObject = (ObjectDescription) stack.peek();
+        assert (beanName != null);
+        assert (beanValue != null);
         beanObject.put(beanName, beanValue);
     }
 
@@ -238,7 +240,7 @@ class ConfigListener extends RouteBaseListener {
     @Override
     public void exitPipenode(PipenodeContext ctx) {
         Object o = stack.pop();
-        if( ! (o instanceof Processor) ) {
+        if( ! (o instanceof Pipenode) ) {
             ObjectDescription object = (ObjectDescription) o;
             ProcessorInstance ti = new ProcessorInstance(object, ctx);
             stack.push(ti);
@@ -269,12 +271,12 @@ class ConfigListener extends RouteBaseListener {
             // The PipeRefName was useless
             stack.pop();
         }
-        Pipeline pipe;
+        PipenodesList pipe;
         if( ! stack.isEmpty()) {
-            pipe = (Pipeline) stack.pop();
+            pipe = (PipenodesList) stack.pop();
         } else {
             // Empty pipeline, was not created in exitPipenodeList
-            pipe = new Pipeline();
+            pipe = new PipenodesList();
         }
         pipelines.put(currentPipeLineName, pipe);
         currentPipeLineName = null;
@@ -287,14 +289,21 @@ class ConfigListener extends RouteBaseListener {
 
     @Override
     public void exitPipenodeList(PipenodeListContext ctx) {
-        Pipeline pipe = new Pipeline();
+        PipenodesList pipe = new PipenodesList();
         while( ! (stack.peek() instanceof StackMarker) ) {
-            Processor poped = (Processor)stack.pop();
+            Pipenode poped = (Pipenode)stack.pop();
             pipe.processors.add(0, poped);
         }
         //Remove the marker
         stack.pop();
-        stack.push(pipe);
+        if(RouteParser.RULE_pipenode == ctx.getParent().getRuleIndex()) {
+            ObjectWrapped pipeline = new ObjectWrapped(pipe);
+            ProcessorInstance sub = new ProcessorInstance(AnonymousSubPipeline.class.getName(), ctx);
+            sub.beans.put("pipeline", pipeline);
+            stack.push(sub);
+        } else {
+            stack.push(pipe);
+        }
     }
 
     @Override
@@ -316,13 +325,13 @@ class ConfigListener extends RouteBaseListener {
     @Override
     public void exitTest(TestContext ctx) {
         Test testTransformer = new Test();
-        List<Processor> clauses = new ArrayList<>(2);
+        List<Pipenode> clauses = new ArrayList<>(2);
 
         Object o;
         do {
             o = stack.pop();
-            if(o instanceof Processor) {
-                Processor t = (Processor) o;
+            if(o instanceof Pipenode) {
+                Pipenode t = (Pipenode) o;
                 clauses.add(0, t);
             } else if(o instanceof ObjectWrapped) {
                 testTransformer.test = ((ObjectWrapped)o).wrapped.toString();

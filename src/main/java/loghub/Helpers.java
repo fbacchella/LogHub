@@ -314,4 +314,20 @@ public final class Helpers {
             return null;
         }
     }
+    
+    /**
+     * Check if an Throwable is fatal hence should never be catched.
+     * Thanks to superbaloo for the tips
+     * @param err
+     * @return true if the exception is fatal to the JVM and should not be catched in a plugin
+     */
+    public static boolean isFatal(Throwable err) {
+        return (
+                // StackOverflowError is a VirtualMachineError but not critical if found in a plugin
+                ! (err instanceof StackOverflowError) && 
+                // VirtualMachineError includes OutOfMemoryError and other fatal errors
+                (err instanceof VirtualMachineError || err instanceof InterruptedException || err instanceof ThreadDeath) ) 
+                ;
+    };
+
 }

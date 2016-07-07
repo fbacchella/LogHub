@@ -117,10 +117,13 @@ public class SmartContext {
 
     public Socket newSocket(Method method, Type type, String endpoint, long hwm, int timeout) {
         Socket socket = context.socket(type.type);
-        method.act(socket, endpoint);
+        socket.setRcvHWM(hwm);
         socket.setSndHWM(hwm);
         socket.setSendTimeOut(timeout);
+        socket.setReceiveTimeOut(timeout);;
+        method.act(socket, endpoint);
         String url = endpoint + ":" + type.toString() + ":" + method.getSymbol();
+        socket.setIdentity(url.getBytes());
         sockets.put(socket, url);
         logger.debug("new socket: {}", url);
         return socket;
@@ -128,7 +131,7 @@ public class SmartContext {
 
     public Socket newSocket(Method method, Type type, String endpoint) {
         // All socket have high hwm and are not blocking
-        return newSocket(method, type, endpoint, 100, 0);
+        return newSocket(method, type, endpoint, 1, 0);
     }
 
     public void close(Socket socket) {
@@ -223,12 +226,24 @@ public class SmartContext {
         };
     }
 
+    /**
+     * Generate a blocking proxy.
+     * @param name the proxy name
+     * @param socketIn
+     * @param socketOut
+     */
     public void proxy(String name, SocketInfo socketIn, SocketInfo socketOut) {
-        Socket in = newSocket(socketIn.method, socketIn.type, socketIn.endpoint);
-        Socket out = newSocket(socketOut.method, socketOut.type, socketOut.endpoint);
+        Socket in = newSocket(socketIn.method, socketIn.type, socketIn.endpoint, 1, -1);
+        Socket out = newSocket(socketOut.method, socketOut.type, socketOut.endpoint, 1, -1);
         proxy(name, in, out);
     }
 
+    /**
+     * Generate a blocking proxy.
+     * @param name
+     * @param socketIn
+     * @param socketOut
+     */
     public void proxy(final String name, final Socket socketIn, final Socket socketOut) {
         logger.debug("new proxy from {} to {}", () -> getURL(socketIn), () -> getURL(socketOut));
         new Thread() {
@@ -242,9 +257,13 @@ public class SmartContext {
             public void run() {
                 try {
                     for(byte[] msg: read(socketIn)) {
-                        socketOut.send(msg);
+                        logger.error("try proxy send");
+                        if(!socketOut.send(msg)) {
+                            logger.error("proxy send failed");
+                        };
                     }
                 } catch (ZMQException|ZMQException.IOException|zmq.ZError.IOException|zmq.ZError.CtxTerminatedException|zmq.ZError.InstantiationException e) {
+                    logger.error("send failed");
                     ZMQHelper.logZMQException(logger, "proxy", e);
                 } catch (Exception e) {
                     logger.error("in proxy: {}", e);

@@ -9,6 +9,7 @@ import org.apache.logging.log4j.Logger;
 import org.zeromq.ZMQ.Socket;
 import org.zeromq.ZMQException;
 
+import loghub.Event;
 import loghub.NamedArrayBlockingQueue;
 import loghub.Receiver;
 import loghub.SmartContext;
@@ -30,14 +31,14 @@ public class ZMQ extends Receiver {
     }
 
     @Override
-    protected Iterator<byte[]> getIterator() {
+    protected Iterator<Event> getIterator() {
         SmartContext ctx = SmartContext.getContext();
         Socket log4jsocket = ctx.newSocket(method, type, listen);
         log4jsocket.setHWM(hwm);
         if(type == ZMQHelper.Type.SUB){
             log4jsocket.subscribe(new byte[] {});
         }
-        return new Iterator<byte[]>() {
+        return new Iterator<Event>() {
             byte[] msg;
             @Override
             public boolean hasNext() {
@@ -65,8 +66,8 @@ public class ZMQ extends Receiver {
             }
 
             @Override
-            public byte[] next() {
-                return msg;
+            public Event next() {
+                return decode(msg);
             }
 
         };

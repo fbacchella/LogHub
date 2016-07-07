@@ -6,9 +6,10 @@ import org.apache.logging.log4j.Logger;
 import loghub.Event;
 import loghub.Pipeline;
 import loghub.Processor;
+import loghub.SubPipeline;
 import loghub.configuration.Properties;
 
-public class PipeRef extends Processor {
+public class NamedSubPipeline extends Processor implements SubPipeline {
 
     private static final Logger logger = LogManager.getLogger();
 
@@ -17,11 +18,12 @@ public class PipeRef extends Processor {
 
     @Override
     public void process(Event event) {
-        try {
-            pipe.inQueue.put(event);
-            pipe.outQueue.take();
-        } catch (InterruptedException e) {
-        }
+        assert false;
+//        try {
+//            pipe.inQueue.put(event);
+//            pipe.outQueue.take();
+//        } catch (InterruptedException e) {
+//        }
     }
 
     @Override
@@ -45,6 +47,11 @@ public class PipeRef extends Processor {
 
     public void setPipeRef(String pipeRef) {
         this.pipeRef = pipeRef;
+    }
+
+    @Override
+    public Pipeline getPipeline() {
+        return pipe;
     }
 
 }

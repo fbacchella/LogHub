@@ -48,7 +48,7 @@ public class Udp extends Sender {
 
     @Override
     public String getSenderName() {
-        return null;
+        return "UDP";
     }
 
     @Override

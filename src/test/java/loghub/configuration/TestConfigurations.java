@@ -30,21 +30,10 @@ public class TestConfigurations {
         LogUtils.setLevel(logger, Level.TRACE, "loghub.SmartContext", "loghub.PipeStep","loghub.Pipeline", "loghub.configuration.Configuration","loghub.receivers.ZMQ", "loghub.Receiver", "loghub.processors.Forker");
     }
 
-    private Configuration loadConf(String configname) {
-        String conffile = getClass().getClassLoader().getResource(configname).getFile();
-        Configuration conf = new Configuration();
-        conf.parse(conffile);
-        return conf;
-    }
-
     @Test(timeout=2000)
     public void testBuildPipeline() throws IOException, InterruptedException {
-        Configuration conf = loadConf("simple.conf");
+        Configuration conf = Tools.loadConf("simple.conf");
         Event sent = new Event();
-
-        for(Pipeline i: conf.pipelines) {
-            i.startStream();
-        }
         logger.debug("pipelines: " + conf.pipelines);
         logger.debug("namedPipeLine: " + conf.namedPipeLine);
         Pipeline main = conf.namedPipeLine.get("main");
@@ -55,15 +44,9 @@ public class TestConfigurations {
 
     @Test(timeout=2000)
     public void testBuildSubPipeline() throws IOException, InterruptedException {
-        Configuration conf = loadConf("simple.conf");
+        Configuration conf = Tools.loadConf("simple.conf");
         Event sent = new Event();
 
-        for(Pipeline pipe: conf.pipelines) {
-            Assert.assertTrue("configuration failed", pipe.configure(conf.properties));
-        }
-        for(Pipeline i: conf.pipelines) {
-            i.startStream();
-        }
         logger.debug("pipelines: " + conf.pipelines);
         logger.debug("namedPipeLine: " + conf.namedPipeLine);
         Pipeline parent = conf.namedPipeLine.get("parent");
@@ -74,16 +57,7 @@ public class TestConfigurations {
 
     @Test(timeout=2000) 
     public void testTwoPipe() throws InterruptedException {
-        Configuration conf = loadConf("twopipe.conf");
-        logger.debug("pipelines: {}", conf.pipelines);
-
-        logger.debug("receiver pipelines: {}", conf.inputpipelines);
-        for(Pipeline pipe: conf.pipelines) {
-            Assert.assertTrue("configuration failed", pipe.configure(conf.properties));
-        }
-        for(Pipeline i: conf.pipelines) {
-            i.startStream();
-        }
+        Configuration conf = Tools.loadConf("twopipe.conf");
         Set<Thread> joins = new HashSet<>();
         int i = 0;
         for(PipeJoin j: conf.joins) {
@@ -102,14 +76,7 @@ public class TestConfigurations {
 
     @Test(timeout=2000)
     public void testFork() throws InterruptedException {
-        Configuration conf = loadConf("fork.conf");
-        for(Pipeline pipe: conf.pipelines) {
-            Assert.assertTrue("configuration failed", pipe.configure(conf.properties));
-        }
-        logger.debug("pipelines: {}", conf.pipelines);
-        for(Pipeline i: conf.pipelines) {
-            i.startStream();
-        }
+        Configuration conf = Tools.loadConf("fork.conf");
 
         Event sent = new Event();
         sent.put("childs", new HashMap<String, Object>());
@@ -121,7 +88,7 @@ public class TestConfigurations {
 
     @Test
     public void testComplexConf() {
-        Configuration conf = loadConf("test.conf");
+        Configuration conf = Tools.loadConf("test.conf", false);
         for(String plName: new String[]{"main", "oneref", "groovy"}) {
             Assert.assertTrue("pipeline '" + plName +"'not found", conf.namedPipeLine.containsKey(plName));
         }
@@ -131,65 +98,7 @@ public class TestConfigurations {
 
     @Test
     public void testArray() {
-        loadConf("array.conf");
-    }
-
-    @Test(timeout=2000)
-    public void testif() throws InterruptedException {
-        Configuration conf = loadConf("conditions.conf");
-        for(Pipeline pipe: conf.pipelines) {
-            Assert.assertTrue("configuration failed", pipe.configure(conf.properties));
-        }
-        logger.debug("pipelines: {}", conf.pipelines);
-        for(Pipeline i: conf.pipelines) {
-            i.startStream();
-        }
-
-        Event sent = new Event();
-        sent.put("a", "1");
-
-        conf.namedPipeLine.get("ifpipe").inQueue.offer(sent);
-        Event received = conf.namedPipeLine.get("ifpipe").outQueue.take();
-        Assert.assertEquals("conversion not expected", String.class, received.get("a").getClass());
-    }
-
-    @Test(timeout=2000)
-    public void testsuccess() throws InterruptedException {
-        Configuration conf = loadConf("conditions.conf");
-        for(Pipeline pipe: conf.pipelines) {
-            Assert.assertTrue("configuration failed", pipe.configure(conf.properties));
-        }
-        logger.debug("pipelines: {}", conf.pipelines);
-        for(Pipeline i: conf.pipelines) {
-            i.startStream();
-        }
-
-        Event sent = new Event();
-        sent.put("a", "1");
-
-        conf.namedPipeLine.get("successpipe").inQueue.offer(sent);
-        Event received = conf.namedPipeLine.get("successpipe").outQueue.take();
-        Assert.assertEquals("conversion not expected", "success", received.get("test"));
-    }
-
-    @Test(timeout=2000)
-    public void testfailure() throws InterruptedException {
-        Configuration conf = loadConf("conditions.conf");
-        for(Pipeline pipe: conf.pipelines) {
-            Assert.assertTrue("configuration failed", pipe.configure(conf.properties));
-        }
-        logger.debug("pipelines: {}", conf.pipelines);
-        for(Pipeline i: conf.pipelines) {
-            i.startStream();
-        }
-
-        Event sent = new Event();
-        sent.put("a", "a");
-
-        conf.namedPipeLine.get("failurepipe").inQueue.offer(sent);
-        Event received = conf.namedPipeLine.get("failurepipe").outQueue.take();
-        System.out.println(received);
-        Assert.assertEquals("conversion not expected", "failure", received.get("test"));
+        Tools.loadConf("array.conf", false);
     }
 
 }

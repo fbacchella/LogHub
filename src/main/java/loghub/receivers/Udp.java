@@ -12,6 +12,7 @@ import java.util.Iterator;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import loghub.Event;
 import loghub.NamedArrayBlockingQueue;
 import loghub.Receiver;
 import loghub.configuration.Beans;
@@ -34,14 +35,14 @@ public class Udp extends Receiver {
     }
 
     @Override
-    public Iterator<byte[]> getIterator() {
+    public Iterator<Event> getIterator() {
         try {
             DatagramSocket socket = new DatagramSocket(port, InetAddress.getByName(listen));
             // if port was 0, a random port was chosen, get it back, useful for tests
             port = socket.getLocalPort();
             final byte[] buffer = new byte[65536];
             final DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
-            return new Iterator<byte[]>() {
+            return new Iterator<Event>() {
 
                 @Override
                 public boolean hasNext() {
@@ -54,8 +55,10 @@ public class Udp extends Receiver {
                     }
                 }
                 @Override
-                public byte[] next() {
-                    return Arrays.copyOfRange(packet.getData(), 0, packet.getLength());
+                public Event next() {
+                    Event event = decode(Arrays.copyOfRange(packet.getData(), 0, packet.getLength()));
+                    event.put("host", packet.getAddress());
+                    return event;
                 }
 
             };
