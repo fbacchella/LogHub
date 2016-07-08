@@ -3,6 +3,7 @@ package loghub;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.concurrent.BlockingQueue;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -16,13 +17,15 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
 
     private static final Logger logger = LogManager.getLogger();
 
-    private final NamedArrayBlockingQueue outQueue;
+    private final BlockingQueue<Event> outQueue;
+    private final Pipeline pipeline;
     protected Decoder decoder;
 
-    public Receiver(NamedArrayBlockingQueue outQueue){
+    public Receiver(BlockingQueue<Event> outQueue, Pipeline pipeline){
         setDaemon(true);
         setName("receiver-" + getReceiverName());
         this.outQueue = outQueue;
+        this.pipeline = pipeline;
     }
 
     public boolean configure(Properties properties) {
@@ -71,7 +74,7 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
                         if(eventseen < 0) {
                             eventseen = 1;
                         }
-                        Event event = new Event();
+                        EventInstance event = new EventInstance();
                         send(event);
                     }
                 }
@@ -139,13 +142,18 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
     }
 
     protected final Event decode(byte[] msg, int offset, int size) {
-        Event event = new Event();
+        EventInstance event = new EventInstance();
         Map<String, Object> content = decoder.decode(msg, offset, size);
         if( content.containsKey(Event.TIMESTAMPKEY) && (event.get(Event.TIMESTAMPKEY) instanceof Date)) {
             event.timestamp = (Date) event.remove(Event.TIMESTAMPKEY);
         }
         content.entrySet().stream().forEach( i -> event.put(i.getKey(), i.getValue()));
         return event;
+    }
+    
+    protected final Event emptyEvent() {
+        return new EventInstance();
+        
     }
 
     /**
@@ -156,6 +164,7 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
     protected final void send(Event event) {
         logger.debug("new event: {}", event);
         Stats.received.incrementAndGet();
+        event.inject(pipeline, outQueue);
         if(! outQueue.offer(event)) {
             Stats.dropped.incrementAndGet();
             logger.error("send failed for {}, destination blocked", event);

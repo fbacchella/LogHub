@@ -8,6 +8,7 @@ import org.junit.Test;
 
 import loghub.Event;
 import loghub.ProcessorException;
+import loghub.Tools;
 
 /**
  * @author fa4
@@ -34,7 +35,7 @@ public class TestFieldsProcessor {
 
         p.setDestination("${field}_done");
         p.setFields(new String[] {"a", "b"});
-        Event e = new Event();
+        Event e = Tools.getEvent();
         e.put("a", 1);
         e.put("b", 2);
         p.process(e);

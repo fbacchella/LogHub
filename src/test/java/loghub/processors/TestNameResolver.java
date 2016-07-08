@@ -9,6 +9,7 @@ import org.junit.Test;
 
 import loghub.Event;
 import loghub.ProcessorException;
+import loghub.Tools;
 import loghub.configuration.Properties;
 
 public class TestNameResolver {
@@ -19,7 +20,7 @@ public class TestNameResolver {
         nr.setField("host");
         nr.setDestination("fqdn");
         nr.configure(new Properties(Collections.emptyMap()));
-        Event e = new Event();
+        Event e = Tools.getEvent();
         e.put("host", InetAddress.getByName("10.0.0.1"));
         nr.process(e);
         Assert.assertEquals("resolution failed", null, e.get("fqdn"));
@@ -31,7 +32,7 @@ public class TestNameResolver {
         nr.setField("host");
         nr.setDestination("fqdn");
         nr.configure(new Properties(Collections.emptyMap()));
-        Event e = new Event();
+        Event e = Tools.getEvent();
         e.put("host", InetAddress.getByName("127.0.0.1"));
         nr.process(e);
         Assert.assertEquals("resolution failed", "localhost", e.get("fqdn"));
@@ -44,7 +45,7 @@ public class TestNameResolver {
         nr.setField("host");
         nr.setDestination("fqdn_${field%s}");
         nr.configure(new Properties(Collections.emptyMap()));
-        Event e = new Event();
+        Event e = Tools.getEvent();
         /// resolving a.root-servers.net.
         e.put("host", InetAddress.getByName("2001:503:ba3e::2:30"));
         nr.process(e);

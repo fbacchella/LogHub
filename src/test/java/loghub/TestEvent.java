@@ -23,7 +23,7 @@ public class TestEvent {
 
     @Test()
     public void TestPath() {
-        Event e = new Event();
+        Event e = Tools.getEvent();
         e.applyAtPath((i, j, k) -> i.put(j, k), new String[]{"a", "b", "c"}, 1, true);
         e.put("d", 2);
         e.applyAtPath((i, j, k) -> i.put(j, k), new String[]{"e"}, 3, true);

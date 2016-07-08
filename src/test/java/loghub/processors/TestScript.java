@@ -35,7 +35,7 @@ public class TestScript {
         URL scripturl = getClass().getClassLoader().getResource("script.js");
         s.setScript(scripturl.getFile());
         s.configure(new Properties(Collections.emptyMap()));
-        Event e = new Event();
+        Event e = Tools.getEvent();
         s.process(e);
         Assert.assertTrue("event not transformed", (Boolean) e.get("done")); 
     }
@@ -45,7 +45,7 @@ public class TestScript {
         Script s = new loghub.processors.Script();
         s.setScript("script.py");
         s.configure(new Properties(Collections.emptyMap()));
-        Event e = new Event();
+        Event e = Tools.getEvent();
         s.process(e);
         Assert.assertTrue("event not transformed", (Boolean) e.get("done")); 
     }

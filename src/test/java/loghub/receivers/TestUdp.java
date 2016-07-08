@@ -4,6 +4,9 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
+import java.util.Collections;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -15,10 +18,9 @@ import org.junit.Test;
 
 import loghub.Event;
 import loghub.LogUtils;
-import loghub.NamedArrayBlockingQueue;
+import loghub.Pipeline;
 import loghub.Tools;
 import loghub.decoders.StringCodec;
-import loghub.receivers.Udp;
 
 public class TestUdp {
 
@@ -34,8 +36,8 @@ public class TestUdp {
     @Ignore
     @Test(timeout=500)
     public void testone() throws InterruptedException, IOException {
-        NamedArrayBlockingQueue receiver = new NamedArrayBlockingQueue("out.listener1");
-        Udp r = new Udp(receiver);
+        BlockingQueue<Event> receiver = new ArrayBlockingQueue<>(1);
+        Udp r = new Udp(receiver, new Pipeline(Collections.emptyList(), "testone"));
         r.setListen(InetAddress.getLocalHost().getHostAddress());
         r.setDecoder(new StringCodec());
         r.start();

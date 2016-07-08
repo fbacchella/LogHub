@@ -1,5 +1,8 @@
 package loghub.processors;
 
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -11,13 +14,14 @@ public class TestConditions {
 
     @Test(timeout=2000)
     public void testif() throws InterruptedException {
+        BlockingQueue<Event> mainqueue = new ArrayBlockingQueue(1);
         Configuration conf = Tools.loadConf("conditions.conf");
 
-        Event sent = new Event();
+        Event sent = Tools.getEvent();
         sent.put("a", "1");
 
-        conf.namedPipeLine.get("ifpipe").inQueue.offer(sent);
-        Event received = conf.namedPipeLine.get("ifpipe").outQueue.take();
+        sent.inject(conf.namedPipeLine.get("ifpipe"), mainqueue);
+        Event received = mainqueue.take();
         Assert.assertEquals("conversion not expected", String.class, received.get("a").getClass());
     }
 
@@ -25,7 +29,7 @@ public class TestConditions {
     public void testsuccess() throws InterruptedException {
         Configuration conf = Tools.loadConf("conditions.conf");
 
-        Event sent = new Event();
+        Event sent = Tools.getEvent();
         sent.put("a", "1");
 
         conf.namedPipeLine.get("successpipe").inQueue.offer(sent);
@@ -37,7 +41,7 @@ public class TestConditions {
     public void testfailure() throws InterruptedException {
         Configuration conf = Tools.loadConf("conditions.conf");
 
-        Event sent = new Event();
+        Event sent = Tools.getEvent();
         sent.put("a", "a");
 
         conf.namedPipeLine.get("failurepipe").inQueue.offer(sent);
@@ -49,7 +53,7 @@ public class TestConditions {
     public void testsubpipe() throws InterruptedException {
         Configuration conf = Tools.loadConf("conditions.conf");
 
-        Event sent = new Event();
+        Event sent = Tools.getEvent();
         sent.put("a", "1");
 
         conf.namedPipeLine.get("subpipe").inQueue.offer(sent);

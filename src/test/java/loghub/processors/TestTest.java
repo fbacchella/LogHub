@@ -5,6 +5,7 @@ import org.junit.Test;
 
 import loghub.Event;
 import loghub.Pipeline;
+import loghub.Tools;
 import loghub.configuration.Configuration;
 
 public class TestTest {
@@ -26,7 +27,7 @@ public class TestTest {
             i.startStream();
         }
 
-        Event sent = new Event();
+        Event sent = Tools.getEvent();
         sent.put("a",1);
 
         conf.namedPipeLine.get("main").inQueue.offer(sent);
@@ -44,7 +45,7 @@ public class TestTest {
             i.startStream();
         }
 
-        Event sent = new Event();
+        Event sent = Tools.getEvent();
         sent.put("a",2);
 
         conf.namedPipeLine.get("main").inQueue.offer(sent);
@@ -62,7 +63,7 @@ public class TestTest {
             i.startStream();
         }
 
-        Event sent = new Event();
+        Event sent = Tools.getEvent();
         sent.put("a",2);
 
         conf.namedPipeLine.get("subpipe").inQueue.offer(sent);

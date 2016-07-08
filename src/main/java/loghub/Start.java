@@ -10,7 +10,6 @@ import javax.management.NotCompliantMBeanException;
 import javax.management.remote.JMXConnectorServer;
 
 import loghub.configuration.Configuration;
-import loghub.configuration.Configuration.PipeJoin;
 import loghub.jmx.Helper;
 
 public class Start extends Thread {
@@ -31,11 +30,7 @@ public class Start extends Thread {
 
         conf.parse(configFile);
 
-        for(Pipeline pipe: conf.pipelines) {
-            if(pipe.configure(conf.properties)) {
-                pipe.startStream();
-            };
-        }
+        conf.pipelines.stream().forEach(i-> i.configure(conf.properties));
 
         for(Sender s: conf.getSenders()) {
             if(s.configure(conf.properties)) {
@@ -49,11 +44,11 @@ public class Start extends Thread {
             }
         }
 
-        int i = 0;
-        for(PipeJoin j: conf.joins) {
-            Pipeline inpipe = conf.namedPipeLine.get(j.inpipe);
-            Pipeline outpipe = conf.namedPipeLine.get(j.outpipe);
-            Helpers.QueueProxy("join-" + i++, inpipe.outQueue, outpipe.inQueue, () -> { }).start();
+        for(int i = 0; i < conf.properties.numWorkers; i++) {
+            Thread t = new EventsProcessor(conf.properties.mainQueue, conf.properties.outputQueues);
+            t.setName("ProcessingThread" + i);
+            t.setDaemon(true);
+            t.start();
         }
 
         try {
@@ -72,7 +67,7 @@ public class Start extends Thread {
     public void run() {
         try {
             Thread.currentThread().join();
-        } catch (InterruptedException e1) {
+        } catch (InterruptedException e) {
         }
         SmartContext.terminate();
     }

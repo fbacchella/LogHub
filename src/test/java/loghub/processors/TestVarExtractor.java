@@ -32,8 +32,7 @@ public class TestVarExtractor {
         t.setPath("sub");
         t.setField(".message");
         t.setParser("(?<name>[a-z]+)[=:](?<value>[^;]+);?");
-        Event rootEvent = new Event();
-        EventWrapper e = new EventWrapper(rootEvent);
+        Event e = Tools.getEvent();
         e.setProcessor(t);
         e.put(".message", "a=1;b:2;c");
         t.process(e);

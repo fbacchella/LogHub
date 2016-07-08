@@ -4,10 +4,11 @@ package loghub.receivers;
 
 import java.nio.ByteBuffer;
 import java.util.Iterator;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.atomic.AtomicLong;
 
 import loghub.Event;
-import loghub.NamedArrayBlockingQueue;
+import loghub.Pipeline;
 import loghub.Receiver;
 
 public class TimeSerie extends Receiver {
@@ -16,8 +17,8 @@ public class TimeSerie extends Receiver {
 
     private int frequency = 1000;
 
-    public TimeSerie(NamedArrayBlockingQueue outQueue) {
-        super(outQueue);
+    public TimeSerie(BlockingQueue<Event> outQueue, Pipeline processors) {
+        super(outQueue, processors);
     }
 
     @Override

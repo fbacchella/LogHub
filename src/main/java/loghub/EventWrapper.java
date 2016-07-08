@@ -3,15 +3,17 @@ package loghub;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.BlockingQueue;
 
 
-public class EventWrapper extends Event {
-    private final Event event;
+class EventWrapper extends Event {
+    private final EventInstance event;
     private String[] path;
 
-    public EventWrapper(Event event) {
+    public EventWrapper(EventInstance event) {
         this.event = event;
         this.timestamp = event.timestamp;
     }
@@ -114,4 +116,45 @@ public class EventWrapper extends Event {
         return (Collection<Object>) action( ((i, j, k) -> i.values()), null, null);
     }
 
+    @Override
+    public Event duplicate() {
+        return event.duplicate();
+    }
+
+    @Override
+    public Processor next() {
+        return event.next();
+    }
+
+    @Override
+    public void appendProcessors(List<Processor> processors) {
+        event.appendProcessors(processors);
+    }
+
+    @Override
+    public void insertProcessor(Processor p) {
+        event.insertProcessor(p);
+    }
+
+    @Override
+    public void appendProcessor(Processor p) {
+        event.appendProcessor(p);
+    }
+
+    @Override
+    public void insertProcessors(List<Processor> p) {
+        event.insertProcessors(p);
+    }
+
+    @Override
+    public void inject(Pipeline pipeline, BlockingQueue<Event> mainqueue) {
+        event.inject(pipeline, mainqueue);
+    }
+
+    @Override
+    public void inject(BlockingQueue<Event> blockingQueue) {
+        event.inject(blockingQueue);
+    }
+
+    
 }

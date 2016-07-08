@@ -9,6 +9,7 @@ import org.junit.Test;
 
 import loghub.Event;
 import loghub.ProcessorException;
+import loghub.Tools;
 import loghub.configuration.Properties;
 
 public class TestGeoip2 {
@@ -28,7 +29,7 @@ public class TestGeoip2 {
         geoip.setLocale("en");
         geoip.configure(props);
 
-        Event e = new Event();
+        Event e = Tools.getEvent();
         e.put("ip", "8.8.8.8");
 
         geoip.process(e);

@@ -6,9 +6,9 @@ import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.concurrent.BlockingQueue;
 
 import loghub.Event;
-import loghub.NamedArrayBlockingQueue;
 import loghub.Sender;
 import loghub.configuration.Beans;
 
@@ -36,7 +36,7 @@ public class File extends Sender {
         }
     };
 
-    public File(NamedArrayBlockingQueue inQueue) {
+    public File(BlockingQueue<Event> inQueue) {
         super(inQueue);
     }
 

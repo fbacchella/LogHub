@@ -11,6 +11,7 @@ import java.util.TimeZone;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.UUID;
+import java.util.concurrent.BlockingQueue;
 import java.util.function.BiFunction;
 
 import javax.management.MBeanServer;
@@ -19,6 +20,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import groovy.lang.GroovyClassLoader;
+import loghub.Event;
 import loghub.Pipeline;
 import loghub.VarFormatter;
 import loghub.jmx.Helper;
@@ -37,6 +39,9 @@ public class Properties extends HashMap<String, Object> {
     final static String CLASSLOADERNAME = "__classloader";
     final static String NAMEDPIPELINES = "__pipelines";
     final static String FORMATTERS = "__formatters";
+    final static String MAINQUEUE = "__mainqueue";
+    final static String OUTPUTQUEUE = "__outputqueues";
+    final static String QUEUESDEPTH = "__queuesdepth";
 
     public final ClassLoader classloader;
     public Map<String, Pipeline> namedPipeLine;
@@ -45,14 +50,19 @@ public class Properties extends HashMap<String, Object> {
     public final int jmxport;
     public final PROTOCOL jmxproto;
     public final String jmxlisten;
+    public final int numWorkers;
+    public final BlockingQueue<Event> mainQueue;
+    public final Map<String, BlockingQueue<Event>> outputQueues;
+    public final int queuesDepth;
 
     private final Timer timer = new Timer("loghubtimer", true);
     private final CacheManager cacheManager;
 
+
     @SuppressWarnings("unchecked")
     public Properties(Map<String, Object> properties) {
         super();
-        
+
         String tz = (String) properties.remove("timezone");
         try {
             if (tz != null) {
@@ -96,7 +106,7 @@ public class Properties extends HashMap<String, Object> {
             this.formatters = Collections.unmodifiableMap(formatters);
         } else {
             formatters = Collections.emptyMap();
-            
+
         }
 
         //Read the jmx configuration
@@ -119,11 +129,21 @@ public class Properties extends HashMap<String, Object> {
             this.jmxlisten = "0.0.0.0";
         }
 
+        if(properties.containsKey("numWorkers")) {
+            numWorkers = (Integer) properties.get("numWorkers");
+        } else {
+            numWorkers = Runtime.getRuntime().availableProcessors() * 2;
+        }
+
         if(this.jmxport > 0) {
             MBeanServer mBeanServer = ManagementFactory.getPlatformMBeanServer(); 
-            ManagementService.registerMBeans(cacheManager, mBeanServer, false, false, false, 
-                    true);
+            ManagementService.registerMBeans(cacheManager, mBeanServer, false, false, false, true);
         }
+
+        // Default values are for tests, so the build unusable queuing environment
+        queuesDepth = properties.containsKey(QUEUESDEPTH) ? (int) properties.get(QUEUESDEPTH) : 0;
+        mainQueue = properties.containsKey(QUEUESDEPTH) ? (BlockingQueue<Event>) properties.get(MAINQUEUE) : null;
+        outputQueues = properties.containsKey(QUEUESDEPTH) ? (Map<String, BlockingQueue<Event>>) properties.get(OUTPUTQUEUE) : null;
 
         super.putAll(properties);
     }

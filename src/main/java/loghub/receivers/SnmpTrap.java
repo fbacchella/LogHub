@@ -11,6 +11,7 @@ import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.BlockingQueue;
 import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
@@ -46,7 +47,7 @@ import org.snmp4j.util.ThreadPool;
 import fr.jrds.SmiExtensions.MibTree;
 import fr.jrds.SmiExtensions.objects.ObjectInfos;
 import loghub.Event;
-import loghub.NamedArrayBlockingQueue;
+import loghub.Pipeline;
 import loghub.Receiver;
 import loghub.configuration.Beans;
 import loghub.configuration.Properties;
@@ -73,8 +74,8 @@ public class SnmpTrap extends Receiver implements CommandResponder {
     private String listen = "0.0.0.0";
     private MibTree mibtree = null;
 
-    public SnmpTrap(NamedArrayBlockingQueue outQueue) {
-        super(outQueue);
+    public SnmpTrap(BlockingQueue<Event> outQueue, Pipeline processors) {
+        super(outQueue, processors);
     }
 
     @Override
@@ -138,7 +139,7 @@ public class SnmpTrap extends Receiver implements CommandResponder {
     public void processPdu(CommandResponderEvent trap) {
         @SuppressWarnings("unchecked")
         Enumeration<VariableBinding> vbenum = (Enumeration<VariableBinding>) trap.getPDU().getVariableBindings().elements();
-        Event event = new Event();
+        Event event = emptyEvent();
         Address addr = trap.getPeerAddress();
         if(addr instanceof IpAddress) {
             event.put("host", ((IpAddress)addr).getInetAddress());

@@ -24,9 +24,6 @@ public class Tools {
         for(Pipeline pipe: conf.pipelines) {
             Assert.assertTrue("configuration failed", pipe.configure(conf.properties));
         }
-        for(Pipeline i: conf.pipelines) {
-            i.startStream();
-        }
 
         return conf;
     }
@@ -35,5 +32,8 @@ public class Tools {
         return loadConf(configname, true);
     }
 
+    public static Event getEvent() {
+        return new EventInstance();
+    }
 
 }

@@ -1,5 +1,7 @@
 package loghub.processors;
 
+import java.util.concurrent.BlockingQueue;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -20,6 +22,7 @@ public class Forker extends Processor {
 
     private String destination;
     private Pipeline pipeDestination;
+    private BlockingQueue<Event> mainQueue;
 
     @Override
     public void process(Event event) {
@@ -37,9 +40,7 @@ public class Forker extends Processor {
             return;
         }
 
-        if(!pipeDestination.inQueue.offer(newEvent)) {
-            logger.error("dropping event");
-        };
+        newEvent.inject(pipeDestination, mainQueue);
 
     }
 
@@ -64,6 +65,7 @@ public class Forker extends Processor {
             return false;
         }
         pipeDestination = properties.namedPipeLine.get(destination);
+        mainQueue = properties.mainQueue;
         return super.configure(properties);
     }
 

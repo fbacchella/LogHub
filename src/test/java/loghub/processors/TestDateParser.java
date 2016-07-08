@@ -12,6 +12,7 @@ import org.junit.Test;
 
 import loghub.Event;
 import loghub.ProcessorException;
+import loghub.Tools;
 import loghub.configuration.Properties;
 
 public class TestDateParser {
@@ -22,7 +23,7 @@ public class TestDateParser {
         parse.setPattern("ISO_INSTANT");
         parse.setField("field");
         parse.configure(new Properties(Collections.emptyMap()));
-        Event event = new Event();
+        Event event = Tools.getEvent();
         event.put("field", DateTimeFormatter.ISO_INSTANT.format(ZonedDateTime.now()));
         parse.process(event);
         assertTrue("date not parsed", event.get("field") instanceof Date);
@@ -34,7 +35,7 @@ public class TestDateParser {
         parse.setPattern("yyyy-MM-dd'T'HH:m:ss.SSSSSSXXX");
         parse.setField("field");
         parse.configure(new Properties(Collections.emptyMap()));
-        Event event = new Event();
+        Event event = Tools.getEvent();
         event.put("field", "1970-01-01T00:00:00.000000+01:00");
         parse.process(event);
         Date date = (Date) event.get("field");
@@ -48,7 +49,7 @@ public class TestDateParser {
         parse.setTimezone("Z");
         parse.setField("field");
         parse.configure(new Properties(Collections.emptyMap()));
-        Event event = new Event();
+        Event event = Tools.getEvent();
         event.put("field", "1970-01-01T00:00:00");
         parse.process(event);
         Date date = (Date) event.get("field");
@@ -60,7 +61,7 @@ public class TestDateParser {
         DateParser parse = new DateParser();
         parse.setField("field");
         parse.configure(new Properties(Collections.emptyMap()));
-        Event event = new Event();
+        Event event = Tools.getEvent();
         event.put("field", "Tue, 3 Jun 2008 11:05:30 GMT");
         parse.process(event);
         Assert.assertTrue("date not parsed", event.get("field") instanceof Date);

@@ -8,12 +8,13 @@ import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.util.Arrays;
 import java.util.Iterator;
+import java.util.concurrent.BlockingQueue;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import loghub.Event;
-import loghub.NamedArrayBlockingQueue;
+import loghub.Pipeline;
 import loghub.Receiver;
 import loghub.configuration.Beans;
 
@@ -25,8 +26,8 @@ public class Udp extends Receiver {
     private int port = 0;
     private String listen = "0.0.0.0";
 
-    public Udp(NamedArrayBlockingQueue outQueue) {
-        super(outQueue);
+    public Udp(BlockingQueue<Event> outQueue, Pipeline processors) {
+        super(outQueue, processors);
     }
 
     @Override

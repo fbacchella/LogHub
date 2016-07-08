@@ -2,6 +2,7 @@ package loghub.receivers;
 
 import java.nio.channels.ClosedSelectorException;
 import java.util.Iterator;
+import java.util.concurrent.BlockingQueue;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -10,7 +11,7 @@ import org.zeromq.ZMQ.Socket;
 import org.zeromq.ZMQException;
 
 import loghub.Event;
-import loghub.NamedArrayBlockingQueue;
+import loghub.Pipeline;
 import loghub.Receiver;
 import loghub.SmartContext;
 import loghub.configuration.Beans;
@@ -26,8 +27,8 @@ public class ZMQ extends Receiver {
     private ZMQHelper.Type type = ZMQHelper.Type.SUB;
     private int hwm = 1000;
 
-    public ZMQ(NamedArrayBlockingQueue outQueue) {
-        super(outQueue);
+    public ZMQ(BlockingQueue<Event> outQueue, Pipeline processors) {
+        super(outQueue, processors);
     }
 
     @Override

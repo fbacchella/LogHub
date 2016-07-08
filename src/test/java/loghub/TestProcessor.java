@@ -31,7 +31,7 @@ public class TestProcessor {
     
     @Test
     public void testIf() {
-        Event e = new Event();
+        Event e = new EventInstance();
 
         Processor p = new Identity();
         

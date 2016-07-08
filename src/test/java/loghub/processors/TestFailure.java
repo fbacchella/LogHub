@@ -6,6 +6,7 @@ import loghub.Event;
 import loghub.EventWrapper;
 import loghub.Processor;
 import loghub.ProcessorException;
+import loghub.Tools;
 
 public class TestFailure {
 
@@ -25,7 +26,7 @@ public class TestFailure {
 
         };
 
-        EventWrapper event = new EventWrapper(new Event());
+        Event event = Tools.getEvent();
 
         event.setProcessor(p);
 

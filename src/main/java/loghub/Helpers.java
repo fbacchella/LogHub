@@ -17,6 +17,7 @@ import java.util.Collections;
 import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.BlockingQueue;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -177,7 +178,7 @@ public final class Helpers {
         }
     }
 
-    public static Thread QueueProxy(String name, NamedArrayBlockingQueue inQueue, NamedArrayBlockingQueue outQueue, Actor onerror) {
+    public static Thread QueueProxy(String name, BlockingQueue<Event> inQueue, BlockingQueue<Event> outQueue, Actor onerror) {
         Thread t = new Thread() {
             @Override
             public void run() {

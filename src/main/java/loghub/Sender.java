@@ -1,15 +1,17 @@
 package loghub;
 
+import java.util.concurrent.BlockingQueue;
+
 import loghub.configuration.Beans;
 import loghub.configuration.Properties;
 
 @Beans({"encoder"})
 public abstract class Sender extends Thread {
 
-    private final NamedArrayBlockingQueue inQueue;
+    private final BlockingQueue<Event> inQueue;
     private Encoder encoder;
 
-    public Sender(NamedArrayBlockingQueue inQueue) {
+    public Sender(BlockingQueue<Event> inQueue) {
         setDaemon(true);
         setName("sender-" + getSenderName());
         this.inQueue = inQueue;

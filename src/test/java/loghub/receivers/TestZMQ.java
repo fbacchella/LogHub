@@ -1,6 +1,8 @@
 package loghub.receivers;
 
 import java.io.IOException;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -15,10 +17,8 @@ import org.zeromq.ZMQ.Socket;
 import loghub.ContextRule;
 import loghub.Event;
 import loghub.LogUtils;
-import loghub.NamedArrayBlockingQueue;
 import loghub.Tools;
 import loghub.decoders.StringCodec;
-import loghub.receivers.ZMQ;
 import zmq.ZMQHelper.Method;
 import zmq.ZMQHelper.Type;
 
@@ -40,8 +40,8 @@ public class TestZMQ {
     @Test(timeout=500)
     public void testone() throws InterruptedException {
         Socket sender = tctxt.ctx.newSocket(Method.BIND, Type.PUB, "inproc://listener1");
-        NamedArrayBlockingQueue receiver = new NamedArrayBlockingQueue("out.listener1");
-        ZMQ r = new ZMQ(receiver);
+        BlockingQueue<Event> receiver = new ArrayBlockingQueue<>(1);
+        ZMQ r = new ZMQ(receiver, null);
         r.setListen("inproc://listener1");
         r.setDecoder(new StringCodec());
         r.setMethod("CONNECT");
@@ -57,8 +57,8 @@ public class TestZMQ {
     @Ignore
     @Test(timeout=500)
     public void testtwo() throws InterruptedException {
-        NamedArrayBlockingQueue receiver = new NamedArrayBlockingQueue("out.listener1");
-        ZMQ r = new ZMQ(receiver);
+        BlockingQueue<Event> receiver = new ArrayBlockingQueue<>(1);
+        ZMQ r = new ZMQ(receiver, null);
         r.setListen("inproc://listener1");
         r.setDecoder(new StringCodec());
         r.start();

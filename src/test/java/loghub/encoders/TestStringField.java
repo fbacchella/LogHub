@@ -30,7 +30,7 @@ public class TestStringField {
         StringField encoder = new StringField();
         encoder.setCharset("UTF-16");
         encoder.setFormat("${K1}: ${K2%02d}");
-        Event e = new Event();
+        Event e = Tools.getEvent();
         e.put("K1", "V1");
         e.put("K2", 2);
 

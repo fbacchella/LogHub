@@ -6,13 +6,13 @@ import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
+import java.util.concurrent.BlockingQueue;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import loghub.Event;
-import loghub.NamedArrayBlockingQueue;
 import loghub.Sender;
 import loghub.configuration.Beans;
 import loghub.configuration.Properties;
@@ -27,7 +27,7 @@ public class Udp extends Sender {
     DatagramSocket socket;
     InetAddress IPAddress;
 
-    public Udp(NamedArrayBlockingQueue inQueue) {
+    public Udp(BlockingQueue<Event> inQueue) {
         super(inQueue);
     }
 

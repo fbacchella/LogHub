@@ -9,7 +9,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -18,6 +17,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 
@@ -28,24 +29,21 @@ import org.antlr.v4.runtime.tree.ParseTreeWalker;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import loghub.Event;
 import loghub.Helpers.ThrowingConsumer;
 import loghub.Helpers.ThrowingFunction;
 import loghub.Helpers.ThrowingPredicate;
-import loghub.NamedArrayBlockingQueue;
-import loghub.PipeStep;
 import loghub.Pipeline;
 import loghub.Processor;
-import loghub.PipelinePipeStep;
 import loghub.Receiver;
 import loghub.RouteLexer;
 import loghub.RouteParser;
 import loghub.Sender;
-import loghub.SubPipeline;
 import loghub.configuration.ConfigListener.Input;
 import loghub.configuration.ConfigListener.ObjectReference;
 import loghub.configuration.ConfigListener.Output;
-import loghub.processors.NamedSubPipeline;
 import loghub.processors.AnonymousSubPipeline;
+import loghub.processors.NamedSubPipeline;
 import loghub.processors.Test;
 
 public class Configuration {
@@ -75,6 +73,9 @@ public class Configuration {
     private List<Sender> senders;
     public Properties properties;
     private ClassLoader classLoader = Configuration.class.getClassLoader();
+    private BlockingQueue<Event> mainQueue;
+    private Map<String, BlockingQueue<Event>> outputQueues;
+    private int queuesDepth = 100;
 
     public Configuration() {
     }
@@ -127,13 +128,7 @@ public class Configuration {
                 throw new RuntimeException("can't load plugins: " + ex.getMessage(), ex);
             }
         }
-
-        newProperties.put(Properties.CLASSLOADERNAME, classLoader);
-        newProperties.put(Properties.NAMEDPIPELINES, namedPipeLine);
-        newProperties.put(Properties.FORMATTERS, conf.formatters);
-
-        properties = new Properties(newProperties);
-
+        
         // Generate all the named pipeline
         for(Entry<String, ConfigListener.PipenodesList> e: conf.pipelines.entrySet()) {
             String name = e.getKey(); 
@@ -143,6 +138,23 @@ public class Configuration {
         namedPipeLine = Collections.unmodifiableMap(namedPipeLine);
         pipelines = Collections.unmodifiableSet(pipelines);
 
+        //Prepare the processing queues
+        if(newProperties.containsKey("queueDepth")) {
+            queuesDepth = Integer.parseInt(newProperties.remove("queueDepth").toString());
+        }
+        mainQueue = new ArrayBlockingQueue<Event>(queuesDepth);
+        outputQueues = new HashMap<>(namedPipeLine.size());
+        namedPipeLine.keySet().stream().forEach( i-> outputQueues.put(i, new ArrayBlockingQueue<Event>(queuesDepth)));
+
+        newProperties.put(Properties.CLASSLOADERNAME, classLoader);
+        newProperties.put(Properties.NAMEDPIPELINES, namedPipeLine);
+        newProperties.put(Properties.FORMATTERS, conf.formatters);
+        newProperties.put(Properties.MAINQUEUE, mainQueue);
+        newProperties.put(Properties.OUTPUTQUEUE, outputQueues);
+        newProperties.put(Properties.QUEUESDEPTH, queuesDepth);
+
+        properties = new Properties(newProperties);
+
         // Fill the receivers list
         receivers = new ArrayList<>();
         for(Input i: conf.inputs) {
@@ -151,9 +163,8 @@ public class Configuration {
             }
             for(ConfigListener.ObjectDescription desc: i.receiver) {
                 Pipeline p = namedPipeLine.get(i.piperef);
-                ThrowingFunction<Class<Receiver>, Receiver> receiverConstructor = r -> {return r.getConstructor(NamedArrayBlockingQueue.class).newInstance(p.inQueue);};
+                ThrowingFunction<Class<Receiver>, Receiver> receiverConstructor = r -> {return r.getConstructor(BlockingQueue.class, Pipeline.class).newInstance(mainQueue, p);};
                 Receiver r = (Receiver) parseObjectDescription(desc, receiverConstructor);
-                //logger.debug("receiver {} destination point will be {}", () -> i, () -> namedPipeLine.get(i.piperef).inQueue);
                 receivers.add(r);
             }
             inputpipelines.add(i.piperef);
@@ -168,8 +179,8 @@ public class Configuration {
                 throw new RuntimeException("Invalid output, no source pipeline: " + o);
             }
             for(ConfigListener.ObjectDescription desc: o.sender) {
-                Pipeline p = namedPipeLine.get(o.piperef);
-                ThrowingFunction<Class<Sender>, Sender> senderConstructor = r -> {return r.getConstructor(NamedArrayBlockingQueue.class).newInstance(p.outQueue);};
+                BlockingQueue<Event> out = this.outputQueues.get(o.piperef);
+                ThrowingFunction<Class<Sender>, Sender> senderConstructor = r -> {return r.getConstructor(BlockingQueue.class).newInstance(out);};
                 Sender s = (Sender) parseObjectDescription(desc, senderConstructor);
                 //logger.debug("sender {} source point will be {}", () -> s, () -> namedPipeLine.get(o.piperef).outQueue);
                 senders.add(s);
@@ -183,13 +194,13 @@ public class Configuration {
     }
 
     private Pipeline parsePipeline(ConfigListener.PipenodesList desc, String currentPipeLineName, int depth, AtomicInteger subPipeCount) {
-        List<PipeStep[]> allSteps = new ArrayList<PipeStep[]>() {
+        List<Processor> allSteps = new ArrayList<Processor>() {
             @Override
             public String toString() {
                 StringBuilder buffer = new StringBuilder();
                 buffer.append("PipeList(");
-                for(PipeStep[] i: this) {
-                    buffer.append(Arrays.toString(i));
+                for(Processor i: this) {
+                    buffer.append(i);
                     buffer.append(", ");
                 }
                 buffer.setLength(buffer.length() - 2);
@@ -198,50 +209,10 @@ public class Configuration {
             }
         };
 
-        boolean newps = true;
-        int rank = 0;
-        PipeStep[] steps = null;
-        for(ConfigListener.Pipenode i: desc.processors) {
-            Processor t = getProcessor(i, currentPipeLineName, depth, subPipeCount);
-            int threads = t.getThreads();
-            if(threads > 0) {
-                newps = true;
-            } else {
-                threads = 1;
-            }
-            if(t instanceof SubPipeline) {
-                Pipeline sub = ((SubPipeline)t).getPipeline();
-                steps = new PipeStep[1];
-                steps[0] = new PipelinePipeStep(sub);
-                newps = true;
-            }
-            // Some kinds of processor needs a dedicated pipestep
-            else if(threads > 0 || t.getFailure() != null || t.getSuccess() != null || t instanceof Test) {
-                steps = doPipeSteps(t, currentPipeLineName, threads, depth, rank);
-                allSteps.add(steps);
-                newps = true;
-            }
-            else if(newps) {
-                steps = doPipeSteps(t, currentPipeLineName, threads, depth, rank);
-                allSteps.add(steps);
-                newps = false;
-            }
-            for(int j = 0; j < threads ; j++) {
-                steps[j].addProcessor(t);
-            } 
-        }
+        desc.processors.stream().map(i -> getProcessor(i, currentPipeLineName, depth, subPipeCount)).forEach(allSteps::add);
         Pipeline pipe = new Pipeline(allSteps, currentPipeLineName + (depth == 0 ? "" : "$" + subPipeCount.getAndIncrement()));
         pipelines.add(pipe);
         return pipe;
-    }
-    
-    private PipeStep[] doPipeSteps(Processor proc, String currentPipeLineName, int threads, int depth, int rank) {
-        PipeStep[] steps = new PipeStep[threads];
-        rank++;
-        for(int j =0; j < threads ; j++) {
-            steps[j] = new PipeStep(currentPipeLineName + "." + depth, rank, j + 1);
-        }
-        return steps;
     }
 
     private Processor getProcessor(ConfigListener.Pipenode i, String currentPipeLineName, int depth, AtomicInteger subPipeLine) {
@@ -391,5 +362,4 @@ public class Configuration {
     public Collection<Sender> getSenders() {
         return Collections.unmodifiableList(senders);
     }
-
 }

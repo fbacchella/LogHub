@@ -1,11 +1,12 @@
 package loghub.senders;
 
+import java.util.concurrent.BlockingQueue;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.zeromq.ZMQ.Socket;
 
 import loghub.Event;
-import loghub.NamedArrayBlockingQueue;
 import loghub.Sender;
 import loghub.SmartContext;
 import loghub.configuration.Beans;
@@ -24,7 +25,7 @@ public class ZMQ extends Sender {
     private Socket sendsocket;
     private final SmartContext ctx = SmartContext.getContext();
 
-    public ZMQ(NamedArrayBlockingQueue inQueue) {
+    public ZMQ(BlockingQueue<Event> inQueue) {
         super(inQueue);
     }
 

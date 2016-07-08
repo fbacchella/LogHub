@@ -6,6 +6,7 @@ import org.junit.Test;
 import loghub.Event;
 import loghub.Pipeline;
 import loghub.ProcessorException;
+import loghub.Tools;
 import loghub.configuration.Configuration;
 
 public class TestMapper {
@@ -21,7 +22,7 @@ public class TestMapper {
         for(Pipeline i: conf.pipelines) {
             i.startStream();
         }
-        Event sent = new Event();
+        Event sent = Tools.getEvent();
         sent.put("a", 1);
 
         conf.namedPipeLine.get("mapper").inQueue.offer(sent);

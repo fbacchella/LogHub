@@ -14,7 +14,6 @@ import org.zeromq.ZMQ.Socket;
 
 import loghub.ContextRule;
 import loghub.LogUtils;
-import loghub.Pipeline;
 import loghub.Receiver;
 import loghub.Sender;
 import loghub.SmartContext;
@@ -50,9 +49,6 @@ public class TestWithZMQ {
         logger.debug("pipelines: {}", conf.pipelines);
 
         logger.debug("receiver pipelines: {}", conf.inputpipelines);
-        for(Pipeline i: conf.pipelines) {
-            i.startStream();
-        }
         Thread.sleep(30);
         for(Receiver r: conf.getReceivers()) {
             r.start();

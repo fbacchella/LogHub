@@ -16,6 +16,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ThreadLocalRandom;
 
 import org.apache.http.HttpEntity;
@@ -46,7 +47,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import loghub.Event;
-import loghub.NamedArrayBlockingQueue;
 import loghub.Sender;
 import loghub.configuration.Properties;
 
@@ -79,7 +79,7 @@ public class ElasticSearch extends Sender {
     private URI[] routes;
 
 
-    public ElasticSearch(NamedArrayBlockingQueue inQueue) {
+    public ElasticSearch(BlockingQueue<Event> inQueue) {
         super(inQueue);
 
         // A runnable that will be affected to threads
