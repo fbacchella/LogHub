@@ -44,7 +44,7 @@ public class Properties extends HashMap<String, Object> {
     final static String QUEUESDEPTH = "__queuesdepth";
 
     public final ClassLoader classloader;
-    public Map<String, Pipeline> namedPipeLine;
+    public final Map<String, Pipeline> namedPipeLine;
     public final GroovyClassLoader groovyClassLoader;
     public final Map<String, VarFormatter> formatters;
     public final int jmxport;
@@ -74,20 +74,21 @@ public class Properties extends HashMap<String, Object> {
         }
 
         String locale = (String) properties.remove("locale");
-        if(locale != null) {
+        if (locale != null) {
             Locale l = Locale.forLanguageTag(locale);
             Locale.setDefault(l);
         }
 
         ClassLoader cl = (ClassLoader) properties.remove(CLASSLOADERNAME);
-        if(cl == null) {
+        if (cl == null) {
             cl = Properties.class.getClassLoader();
         }
         classloader = cl;
 
-        namedPipeLine = (Map<String, Pipeline>) properties.remove(NAMEDPIPELINES);
-        if(namedPipeLine != null) {
-            namedPipeLine = Collections.unmodifiableMap(namedPipeLine);
+
+        Map<String, Pipeline> namedPipeLineTemp = (Map<String, Pipeline>) properties.remove(NAMEDPIPELINES);
+        if (namedPipeLineTemp != null) {
+            namedPipeLine = Collections.unmodifiableMap(namedPipeLineTemp);
         } else {
             namedPipeLine = Collections.emptyMap();
         }
@@ -100,50 +101,50 @@ public class Properties extends HashMap<String, Object> {
 
         //buffer is here to make writing tests easier
         Map<String, String> buffer = (Map<String, String>) properties.remove(FORMATTERS);
-        if(buffer != null && buffer.size() > 0) {
-            Map<String, VarFormatter> formatters = new HashMap<>(buffer.size());
-            buffer.entrySet().stream().forEach(i -> formatters.put(i.getKey(), new VarFormatter(i.getValue())));
-            this.formatters = Collections.unmodifiableMap(formatters);
+        if (buffer != null && buffer.size() > 0) {
+            Map<String, VarFormatter> formattersMap = new HashMap<>(buffer.size());
+            buffer.entrySet().stream().forEach(i -> formattersMap.put(i.getKey(), new VarFormatter(i.getValue())));
+            formatters = Collections.unmodifiableMap(formattersMap);
         } else {
             formatters = Collections.emptyMap();
 
         }
 
         //Read the jmx configuration
-        Integer jmxport = (Integer) properties.get("jmx.port");
-        if(jmxport != null) {
+        Integer jmxport = (Integer) properties.remove("jmx.port");
+        if (jmxport != null) {
             this.jmxport = jmxport;
         } else {
             this.jmxport = -1;
         }
-        String jmxproto = (String) properties.get("jmx.protocol");
-        if(jmxproto != null) {
+        String jmxproto = (String) properties.remove("jmx.protocol");
+        if (jmxproto != null) {
             this.jmxproto = PROTOCOL.valueOf(jmxproto.toLowerCase());
         } else {
             this.jmxproto = Helper.defaultProto;
         }
-        String jmxlisten = (String) properties.get("jmx.listen");
-        if(jmxlisten != null) {
+        String jmxlisten = (String) properties.remove("jmx.listen");
+        if (jmxlisten != null) {
             this.jmxlisten = jmxlisten;
         } else {
             this.jmxlisten = "0.0.0.0";
         }
 
-        if(properties.containsKey("numWorkers")) {
-            numWorkers = (Integer) properties.get("numWorkers");
+        if (properties.containsKey("numWorkers")) {
+            numWorkers = (Integer) properties.remove("numWorkers");
         } else {
             numWorkers = Runtime.getRuntime().availableProcessors() * 2;
         }
 
-        if(this.jmxport > 0) {
+        if (this.jmxport > 0) {
             MBeanServer mBeanServer = ManagementFactory.getPlatformMBeanServer(); 
             ManagementService.registerMBeans(cacheManager, mBeanServer, false, false, false, true);
         }
 
         // Default values are for tests, so the build unusable queuing environment
-        queuesDepth = properties.containsKey(QUEUESDEPTH) ? (int) properties.get(QUEUESDEPTH) : 0;
-        mainQueue = properties.containsKey(QUEUESDEPTH) ? (BlockingQueue<Event>) properties.get(MAINQUEUE) : null;
-        outputQueues = properties.containsKey(QUEUESDEPTH) ? (Map<String, BlockingQueue<Event>>) properties.get(OUTPUTQUEUE) : null;
+        queuesDepth = properties.containsKey(QUEUESDEPTH) ? (int) properties.remove(QUEUESDEPTH) : 0;
+        mainQueue = properties.containsKey(QUEUESDEPTH) ? (BlockingQueue<Event>) properties.remove(MAINQUEUE) : null;
+        outputQueues = properties.containsKey(QUEUESDEPTH) ? (Map<String, BlockingQueue<Event>>) properties.remove(OUTPUTQUEUE) : null;
 
         super.putAll(properties);
     }
