@@ -8,7 +8,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 
-
 class EventWrapper extends Event {
     private final EventInstance event;
     private String[] path;
@@ -152,9 +151,18 @@ class EventWrapper extends Event {
     }
 
     @Override
-    public void inject(BlockingQueue<Event> blockingQueue) {
-        event.inject(blockingQueue);
+    public String getCurrentPipeline() {
+        return event.getCurrentPipeline();
     }
 
-    
+    @Override
+    public String getNextPipeline() {
+        return event.getNextPipeline();
+    }
+
+    @Override
+    public void process(Processor p) throws ProcessorException {
+        p.process(this);
+    }
+
 }

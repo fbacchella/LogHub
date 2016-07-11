@@ -16,18 +16,16 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import loghub.processors.NamedSubPipeline;
-
 class EventInstance extends Event {
 
     private final static Logger logger = LogManager.getLogger();
 
-
-    private final EventWrapper wevent;
+    private transient EventWrapper wevent;
     private final LinkedList<Processor> processors = new LinkedList<>();
+    private String currentPipeline;
+    private String nextPipeline;
 
     EventInstance() {
-        wevent = new EventWrapper(this);
     }
 
     /**
@@ -67,17 +65,12 @@ class EventInstance extends Event {
     }
 
     public Processor next() {
+        logger.debug("waiting processors {}", processors);
         try {
             Processor p = processors.pop();
-            wevent.setProcessor(p);
-            // We just remove the last processor
-            // If it's a named pipeline, it become the main pipeline
-            if (processors.size() == 0 && p instanceof NamedSubPipeline) {
-                NamedSubPipeline named = (NamedSubPipeline) p;
-                this.mainPipeline = named.getPipeline().getName();
-            }
             return p;
         } catch (NoSuchElementException e) {
+            wevent = null;
             return null;
         }
     }
@@ -104,17 +97,14 @@ class EventInstance extends Event {
      * @param event
      */
     public void inject(Pipeline pipeline, BlockingQueue<Event> mainqueue) {
-        mainPipeline = pipeline.getName();
+        currentPipeline = pipeline.getName();
+        nextPipeline = pipeline.nextPipeline;
         appendProcessors(pipeline.processors);
-        mainqueue.offer(this.wevent);
-    }
-
-    public void inject(BlockingQueue<Event> mainqueue) {
         mainqueue.offer(this);
     }
 
     private void inject(List<Processor> newProcessors, boolean append) {
-        ListIterator<Processor> i = newProcessors.listIterator(append ? newProcessors.size() : 0);
+        ListIterator<Processor> i = newProcessors.listIterator(append ? 0 : newProcessors.size());
         while(append ? i.hasNext() : i.hasPrevious()) {
             Processor p = append ? i.next() : i.previous();
             inject(p, append);
@@ -122,6 +112,7 @@ class EventInstance extends Event {
     }
 
     private void inject(Processor p, boolean append) {
+        logger.trace("inject processor {} at {}", () -> p, () -> append ? "end" : "start" );
         if (p instanceof SubPipeline) {
             SubPipeline sp = (SubPipeline) p;
             inject(sp.getPipeline().processors, append);
@@ -132,6 +123,23 @@ class EventInstance extends Event {
                 processors.addFirst(p);
             }
         }
+    }
+
+    public String getCurrentPipeline() {
+        return currentPipeline;
+    }
+
+    public String getNextPipeline() {
+        return nextPipeline;
+    }
+
+    @Override
+    public void process(Processor p) throws ProcessorException {
+        if (wevent == null) {
+            wevent = new EventWrapper(this);
+        }
+        wevent.setProcessor(p);
+        p.process(wevent);
     }
 
 }

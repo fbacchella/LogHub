@@ -11,10 +11,12 @@ public class Pipeline {
     private final String name;
 
     public final List<Processor> processors;
+    public final String nextPipeline;
 
-    public Pipeline(List<Processor> steps, String name) {
+    public Pipeline(List<Processor> steps, String name, String nextPipeline) {
         processors = Collections.unmodifiableList(new ArrayList<>(steps));
         this.name = name;
+        this.nextPipeline = nextPipeline;
     }
 
     public boolean configure(Properties properties) {

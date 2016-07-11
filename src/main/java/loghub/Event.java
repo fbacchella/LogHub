@@ -38,14 +38,14 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
         }
         return f.apply(current, key, value);
     }
-    
+
     /**
      * This method inject a new event in a pipeline as
      * a top processing pipeline. Not to be used for sub-processing pipeline
      * @param event
      */
     public abstract void inject(Pipeline pipeline, BlockingQueue<Event> mainqueue);
-    
+
     public abstract Event duplicate();
 
     public abstract Processor next();
@@ -58,10 +58,10 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
 
     public abstract void appendProcessors(List<Processor> p);
 
-    public String getMainPipeline() {
-        return mainPipeline;
-    }
+    public abstract String getCurrentPipeline();
 
-    public abstract void inject(BlockingQueue<Event> blockingQueue);
+    public abstract String getNextPipeline();
+
+    public abstract void process(Processor p) throws ProcessorException;
 
 }
