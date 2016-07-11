@@ -147,8 +147,8 @@ class EventWrapper extends Event {
     }
 
     @Override
-    public void inject(Pipeline pipeline, BlockingQueue<Event> mainqueue) {
-        event.inject(pipeline, mainqueue);
+    public boolean inject(Pipeline pipeline, BlockingQueue<Event> mainqueue) {
+        return event.inject(pipeline, mainqueue);
     }
 
     @Override

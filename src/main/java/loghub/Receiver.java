@@ -172,8 +172,7 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
     protected final void send(Event event) {
         logger.debug("new event: {}", event);
         Stats.received.incrementAndGet();
-        event.inject(pipeline, outQueue);
-        if(! outQueue.offer(event)) {
+        if(! event.inject(pipeline, outQueue)) {
             Stats.dropped.incrementAndGet();
             logger.error("send failed for {}, destination blocked", event);
         }

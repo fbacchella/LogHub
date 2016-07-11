@@ -32,39 +32,34 @@ public class EventsProcessor extends Thread {
             while (true) {
                 Event event = inQueue.take();
                 logger.trace("received {}", event);
-                try {
-                    Processor processor;
-                    while ((processor = event.next()) != null) {
-                        logger.trace("processing {}", processor);
-                        Thread.currentThread().setName(threadName + "-" + processor.getName());
-                        boolean dropped = process(event, processor);
-                        Thread.currentThread().setName(threadName);
-                        if(dropped) {
-                            logger.debug("dropped event {}", event);
-                            break;
-                        }
-                    }
-                    //No processor, processing finished
-                    //Detect if will send to another pipeline, or just wait for a sender to take it
-                    if (processor == null) {
-                        if (event.getNextPipeline() != null) {
-                            event.inject(namedPipelines.get(event.getNextPipeline()), inQueue);
-                        } else {
-                            outQueues.get(event.getCurrentPipeline()).put(event);
-                        }
-                    }
-                } catch (ProcessorException e) {
-                    logger.error("failed to process event {}: {}", event, e);
-                } finally {
+                Processor processor;
+                while ((processor = event.next()) != null) {
+                    logger.trace("processing {}", processor);
+                    Thread.currentThread().setName(threadName + "-" + processor.getName());
+                    boolean dropped = process(event, processor);
                     Thread.currentThread().setName(threadName);
-                } 
+                    if(dropped) {
+                        logger.debug("dropped event {}", event);
+                        break;
+                    }
+                }
+                //No processor, processing finished
+                //Detect if will send to another pipeline, or just wait for a sender to take it
+                if (processor == null) {
+                    if (event.getNextPipeline() != null) {
+                        event.inject(namedPipelines.get(event.getNextPipeline()), inQueue);
+                    } else {
+                        outQueues.get(event.getCurrentPipeline()).put(event);
+                    }
+                }
             }
         } catch (InterruptedException e) {
+            Thread.currentThread().setName(threadName);
             Thread.currentThread().interrupt();
         }
     }
 
-    boolean process(Event e, Processor p) throws ProcessorException {
+    boolean process(Event e, Processor p) {
         boolean dropped = false;
         boolean success = false;
         if (p instanceof Forker) {
@@ -77,6 +72,8 @@ public class EventsProcessor extends Thread {
                 try {
                     e.process(p);
                     success = true;
+                } catch (RuntimeProcessorException ex) {
+                    Stats.newError(ex);
                 } catch (ProcessorException ex) {
                     Stats.newError(ex);
                 } catch (Exception ex) {

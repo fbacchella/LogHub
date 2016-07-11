@@ -100,11 +100,11 @@ class EventInstance extends Event {
      * a top processing pipeline. Not to be used for sub-processing pipeline
      * @param event
      */
-    public void inject(Pipeline pipeline, BlockingQueue<Event> mainqueue) {
+    public boolean inject(Pipeline pipeline, BlockingQueue<Event> mainqueue) {
         currentPipeline = pipeline.getName();
         nextPipeline = pipeline.nextPipeline;
         appendProcessors(pipeline.processors);
-        mainqueue.offer(this);
+        return mainqueue.offer(this);
     }
 
     private void inject(List<Processor> newProcessors, boolean append) {
