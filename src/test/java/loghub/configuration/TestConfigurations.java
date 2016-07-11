@@ -12,6 +12,7 @@ import org.junit.Test;
 import loghub.Event;
 import loghub.EventsProcessor;
 import loghub.LogUtils;
+import loghub.ProcessorException;
 import loghub.Tools;
 
 public class TestConfigurations {
@@ -68,17 +69,25 @@ public class TestConfigurations {
         }
     }
 
-//    @Test(timeout=2000)
-//    public void testFork() throws InterruptedException {
-//        Configuration conf = Tools.loadConf("fork.conf");
-//
-//        Event sent = Tools.getEvent();
-//        sent.put("childs", new HashMap<String, Object>());
-//
-//        conf.namedPipeLine.get("main").inQueue.offer(sent);
-//        conf.namedPipeLine.get("main").outQueue.take();
-//        conf.namedPipeLine.get("forked").outQueue.take();
-//    }
+    @Test(timeout=2000)
+    public void testFork() throws InterruptedException, ProcessorException {
+        Properties conf = Tools.loadConf("fork.conf");
+        EventsProcessor ep = new EventsProcessor(conf.mainQueue, conf.outputQueues, conf.namedPipeLine);
+        ep.start();
+
+        try {
+            Event sent = Tools.getEvent();
+            sent.inject(conf.namedPipeLine.get("main"), conf.mainQueue);
+            Event forked = conf.outputQueues.get("forked").take();
+            Event initial = conf.outputQueues.get("main").take();
+            Assert.assertEquals(1, forked.size());
+            Assert.assertEquals(1, initial.size());
+            Assert.assertEquals(2, forked.get("b"));
+            Assert.assertEquals(1, initial.get("a"));
+        } finally {
+            ep.interrupt();
+        }
+    }
 
     @Test
     public void testComplexConf() {

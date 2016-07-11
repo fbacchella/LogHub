@@ -21,12 +21,11 @@ class EventInstance extends Event {
 
     private final static Logger logger = LogManager.getLogger();
 
-    private Date timestamp = new Date();
-
     private transient EventWrapper wevent;
-    private final LinkedList<Processor> processors = new LinkedList<>();
+    private transient LinkedList<Processor> processors = new LinkedList<>();
     private String currentPipeline;
     private String nextPipeline;
+    private Date timestamp = new Date();
 
     EventInstance() {
     }
@@ -49,7 +48,9 @@ class EventInstance extends Event {
             bos.close();
             byte[] byteData = bos.toByteArray();
             ByteArrayInputStream bais = new ByteArrayInputStream(byteData);
-            Event newEvent = (Event) new ObjectInputStream(bais).readObject();
+            EventInstance newEvent = (EventInstance) new ObjectInputStream(bais).readObject();
+            newEvent.processors = new LinkedList<>();
+            newEvent.wevent = null;
             return newEvent;
         } catch (NotSerializableException ex) {
             logger.info("Event copy failed: {}", ex.getMessage());
