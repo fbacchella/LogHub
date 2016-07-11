@@ -103,7 +103,16 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
                 wait = 0;
             }
         }
+        close();
     }
+    
+    /**
+     * This empty method is called if receiver thread is interrupted, it should be
+     * overridden for clean up.
+     */
+    public void close() {
+        
+    };
 
     /**
      * This method call startStream and return this as an iterator. 
@@ -149,10 +158,10 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
         content.entrySet().stream().forEach( i -> event.put(i.getKey(), i.getValue()));
         return event;
     }
-    
+
     protected final Event emptyEvent() {
         return new EventInstance();
-        
+
     }
 
     /**

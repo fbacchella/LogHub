@@ -25,6 +25,7 @@ public class Udp extends Receiver {
 
     private int port = 0;
     private String listen = "0.0.0.0";
+    DatagramSocket socket = null;
 
     public Udp(BlockingQueue<Event> outQueue, Pipeline processors) {
         super(outQueue, processors);
@@ -38,7 +39,7 @@ public class Udp extends Receiver {
     @Override
     public Iterator<Event> getIterator() {
         try {
-            DatagramSocket socket = new DatagramSocket(port, InetAddress.getByName(listen));
+            socket = new DatagramSocket(port, InetAddress.getByName(listen));
             // if port was 0, a random port was chosen, get it back, useful for tests
             port = socket.getLocalPort();
             final byte[] buffer = new byte[65536];
@@ -51,6 +52,7 @@ public class Udp extends Receiver {
                         socket.receive(packet);
                         return true;
                     } catch (IOException e) {
+                        logger.info("socket IO Exception: {}", e);
                         socket.close();
                         return false;
                     }
@@ -70,6 +72,12 @@ public class Udp extends Receiver {
             logger.error("Can't resolve listening address: {}", e.getMessage());
             return null;
         }
+    }
+
+    @Override
+    public void close() {
+        socket.close();
+        super.close();
     }
 
     public int getPort() {

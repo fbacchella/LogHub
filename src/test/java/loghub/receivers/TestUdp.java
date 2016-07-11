@@ -13,7 +13,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.Assert;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import loghub.Event;
@@ -30,13 +29,12 @@ public class TestUdp {
     static public void configure() throws IOException {
         Tools.configure();
         logger = LogManager.getLogger();
-        LogUtils.setLevel(logger, Level.TRACE, "loghub.SmartContext", "loghub.receivers.Udp", "loghub.Receiver");
+        LogUtils.setLevel(logger, Level.TRACE, "loghub.receivers.Udp", "loghub.Receiver");
     }
 
-    @Ignore
     @Test(timeout=500)
     public void testone() throws InterruptedException, IOException {
-        BlockingQueue<Event> receiver = new ArrayBlockingQueue<>(1);
+        BlockingQueue<Event> receiver = new ArrayBlockingQueue<>(10);
         Udp r = new Udp(receiver, new Pipeline(Collections.emptyList(), "testone", null));
         r.setListen(InetAddress.getLocalHost().getHostAddress());
         r.setDecoder(new StringCodec());
@@ -45,11 +43,22 @@ public class TestUdp {
             byte[] buf = "message".getBytes();
             InetAddress address = InetAddress.getLocalHost();
             DatagramPacket packet = new DatagramPacket(buf, buf.length, address, r.getPort());
-            packet.setPort(r.getPort());
-            send.send(packet);
+            try {
+                int port;
+                int count = 0;
+                while((port = r.getPort()) == 0 && count++ < 10) {
+                    Thread.sleep(10);
+                }
+                packet.setPort(port);
+                send.send(packet);
+            } catch (IOException e1) {
+                logger.error("IO exception on port {}", r.getPort());
+                throw e1;
+            }
         }
         Event e = receiver.take();
         r.interrupt();
         Assert.assertEquals("Missing message", "message", e.get("message"));
+        Assert.assertTrue(e.containsKey("host"));
     }
 }
