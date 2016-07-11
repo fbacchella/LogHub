@@ -132,6 +132,13 @@ public class SnmpTrap extends Receiver implements CommandResponder {
                 snmp.wait();
             }
         } catch (InterruptedException e) {
+            try {
+                snmp.close();
+            } catch (IOException e1) {
+                logger.error("Failure on snmp close: {}", e1);
+                logger.catching(e1);
+            }
+            Thread.currentThread().interrupt();
         }
     }
 

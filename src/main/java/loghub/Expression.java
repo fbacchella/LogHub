@@ -2,11 +2,16 @@ package loghub;
 
 import java.util.Map;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import groovy.lang.Binding;
 import groovy.lang.GroovyClassLoader;
 import groovy.lang.Script;
 
 public class Expression {
+
+    private static final Logger logger = LogManager.getLogger();
 
     private final String expression;
     private final Script groovyScript;
@@ -21,6 +26,7 @@ public class Expression {
     }
 
     public Object eval(Event event, Map<String, Object> variables) {
+        logger.trace("Evaluating script {} with formatters {}, event {} and variables {}", expression, formatters, event, variables);
         Binding groovyBinding = new Binding();
         variables.entrySet().stream()
         .forEach( i -> groovyBinding.setVariable(i.getKey(), i.getValue()));

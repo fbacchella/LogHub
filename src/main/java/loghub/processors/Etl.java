@@ -50,7 +50,7 @@ public abstract class Etl extends Processor {
         }
     }
 
-    public static class Assign extends Etl{
+    public static class Assign extends Etl {
         private String expression;
         private Expression script;
         @Override
@@ -134,7 +134,6 @@ public abstract class Etl extends Processor {
     }
 
     public abstract void process(Event event) throws ProcessorException; 
-
 
     @Override
     public String getName() {

@@ -49,11 +49,7 @@ public class Test extends Processor {
     public void process(Event event) throws ProcessorException {
         Boolean testResult = Boolean.TRUE.equals(ifClause.eval(event, Collections.emptyMap()));
         Processor nextTransformer = testResult ? thenTransformer : elseTransformer;
-        try {
-            nextTransformer.process(event);
-        } catch (ProcessorException e) {
-            throw new ProcessorException("test term failed to execute", e);
-        }
+        event.insertProcessor(nextTransformer);
     }
 
     @Override
