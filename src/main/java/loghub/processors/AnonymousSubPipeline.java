@@ -3,20 +3,13 @@ package loghub.processors;
 import loghub.Event;
 import loghub.Pipeline;
 import loghub.Processor;
+import loghub.ProcessorException;
 import loghub.SubPipeline;
+import loghub.configuration.Properties;
 
 public class AnonymousSubPipeline extends Processor implements SubPipeline {
 
     private Pipeline pipeline;
-
-    @Override
-    public void process(Event event) {
-        System.out.println("toto");
-//        //System.out.println(pipeline);
-//        //System.out.println(event);
-//        pipeline.inQueue.add(event);
-//        //System.out.println(pipeline.inQueue.peek());
-    }
 
     @Override
     public String getName() {
@@ -35,6 +28,17 @@ public class AnonymousSubPipeline extends Processor implements SubPipeline {
      */
     public void setPipeline(Pipeline pipeline) {
         this.pipeline = pipeline;
+    }
+
+    @Override
+    public void process(Event event) throws ProcessorException {
+        assert false;
+    }
+
+    @Override
+    public boolean configure(Properties properties) {
+        return pipeline.processors.stream().allMatch(i -> i.configure(properties)) &&
+                super.configure(properties);
     }
 
 }

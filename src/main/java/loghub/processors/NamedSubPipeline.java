@@ -19,11 +19,6 @@ public class NamedSubPipeline extends Processor implements SubPipeline {
     @Override
     public void process(Event event) {
         assert false;
-//        try {
-//            pipe.inQueue.put(event);
-//            pipe.outQueue.take();
-//        } catch (InterruptedException e) {
-//        }
     }
 
     @Override
