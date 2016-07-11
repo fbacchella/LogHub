@@ -4,11 +4,9 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import org.antlr.v4.runtime.ParserRuleContext;
 
@@ -40,7 +38,6 @@ import loghub.RouteParser.PropertyContext;
 import loghub.RouteParser.StringLiteralContext;
 import loghub.RouteParser.TestContext;
 import loghub.RouteParser.TestExpressionContext;
-import loghub.configuration.Configuration.PipeJoin;
 import loghub.processors.Drop;
 import loghub.processors.Etl;
 import loghub.processors.Forker;
@@ -89,6 +86,7 @@ class ConfigListener extends RouteBaseListener {
 
     static final class PipenodesList implements Pipenode {
         final List<Pipenode> processors = new ArrayList<>();
+        String nextPipelineName;
     }
 
     static final class Test implements Pipenode {
@@ -153,7 +151,6 @@ class ConfigListener extends RouteBaseListener {
     final List<Input> inputs = new ArrayList<>();
     final List<Output> outputs = new ArrayList<>();
     final Map<String, Object> properties = new HashMap<>();
-    final Set<PipeJoin> joins = new HashSet<>();
     final Map<String, String> formatters = new HashMap<>();
 
     private String currentPipeLineName = null;
@@ -266,8 +263,6 @@ class ConfigListener extends RouteBaseListener {
     public void exitPipeline(PipelineContext ctx) {
         FinalpiperefContext nextpipe = ctx.finalpiperef();
         if(nextpipe != null) {
-            PipeJoin join = new PipeJoin(currentPipeLineName, nextpipe.getText());
-            joins.add(join);
             // The PipeRefName was useless
             stack.pop();
         }
@@ -277,6 +272,9 @@ class ConfigListener extends RouteBaseListener {
         } else {
             // Empty pipeline, was not created in exitPipenodeList
             pipe = new PipenodesList();
+        }
+        if(nextpipe != null) {
+            pipe.nextPipelineName = nextpipe.getText();
         }
         pipelines.put(currentPipeLineName, pipe);
         currentPipeLineName = null;
@@ -534,8 +532,8 @@ class ConfigListener extends RouteBaseListener {
             expression = pre + " " + ctx.opm.getText() + " " + ctx.patternLiteral().getText();
         } else if (ctx.opb != null) {
             String opb = ctx.opb.getText();
-            // because of use of | as a pipe symbol, it can't be used for the binary or
-            // So for users simplicity and consistency, alre binary operators are prefixed by a '.'
+            // because of use of | as a pipe symbol, it can't be used for the binary 'or'
+            // So for users simplicity and consistency, all binary operators are prefixed by a '.'
             // but then it must be removed for groovy
             if(opb.length() == 2 && opb.startsWith(".")) {
                 opb = opb.substring(1);

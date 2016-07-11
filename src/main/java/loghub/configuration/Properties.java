@@ -3,6 +3,7 @@ package loghub.configuration;
 import java.lang.management.ManagementFactory;
 import java.time.DateTimeException;
 import java.time.ZoneId;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Locale;
@@ -22,6 +23,8 @@ import org.apache.logging.log4j.Logger;
 import groovy.lang.GroovyClassLoader;
 import loghub.Event;
 import loghub.Pipeline;
+import loghub.Receiver;
+import loghub.Sender;
 import loghub.VarFormatter;
 import loghub.jmx.Helper;
 import loghub.jmx.Helper.PROTOCOL;
@@ -36,15 +39,27 @@ public class Properties extends HashMap<String, Object> {
 
     private static final Logger logger = LogManager.getLogger();
 
-    final static String CLASSLOADERNAME = "__classloader";
-    final static String NAMEDPIPELINES = "__pipelines";
-    final static String FORMATTERS = "__formatters";
-    final static String MAINQUEUE = "__mainqueue";
-    final static String OUTPUTQUEUE = "__outputqueues";
-    final static String QUEUESDEPTH = "__queuesdepth";
+    enum PROPSNAMES {
+        CLASSLOADERNAME,
+        NAMEDPIPELINES,
+        FORMATTERS,
+        MAINQUEUE,
+        OUTPUTQUEUE,
+        QUEUESDEPTH,
+        PIPELINES,
+        RECEIVERS,
+        SENDERS;
+        @Override
+        public String toString() {
+            return "__" + super.toString();
+        }
+    };
 
     public final ClassLoader classloader;
     public final Map<String, Pipeline> namedPipeLine;
+    public final Collection<Pipeline> pipelines;
+    public final Collection<Receiver> receivers;
+    public final Collection<Sender> senders;
     public final GroovyClassLoader groovyClassLoader;
     public final Map<String, VarFormatter> formatters;
     public final int jmxport;
@@ -57,7 +72,6 @@ public class Properties extends HashMap<String, Object> {
 
     private final Timer timer = new Timer("loghubtimer", true);
     private final CacheManager cacheManager;
-
 
     @SuppressWarnings("unchecked")
     public Properties(Map<String, Object> properties) {
@@ -79,19 +93,19 @@ public class Properties extends HashMap<String, Object> {
             Locale.setDefault(l);
         }
 
-        ClassLoader cl = (ClassLoader) properties.remove(CLASSLOADERNAME);
+        ClassLoader cl = (ClassLoader) properties.remove(PROPSNAMES.CLASSLOADERNAME.toString());
         if (cl == null) {
             cl = Properties.class.getClassLoader();
         }
         classloader = cl;
 
+        namedPipeLine = properties.containsKey(PROPSNAMES.NAMEDPIPELINES.toString()) ? (Map<String, Pipeline>) properties.remove(PROPSNAMES.NAMEDPIPELINES.toString()) : Collections.emptyMap();
 
-        Map<String, Pipeline> namedPipeLineTemp = (Map<String, Pipeline>) properties.remove(NAMEDPIPELINES);
-        if (namedPipeLineTemp != null) {
-            namedPipeLine = Collections.unmodifiableMap(namedPipeLineTemp);
-        } else {
-            namedPipeLine = Collections.emptyMap();
-        }
+        pipelines = properties.containsKey(PROPSNAMES.PIPELINES.toString()) ? (Collection<Pipeline>) properties.remove(PROPSNAMES.PIPELINES.toString()) : Collections.emptyList();
+
+        receivers = properties.containsKey(PROPSNAMES.RECEIVERS.toString()) ? (Collection<Receiver>) properties.remove(PROPSNAMES.RECEIVERS.toString()) : Collections.emptyList();
+
+        senders = properties.containsKey(PROPSNAMES.SENDERS.toString()) ? (Collection<Sender>) properties.remove(PROPSNAMES.SENDERS.toString()) : Collections.emptyList();
 
         groovyClassLoader = new GroovyClassLoader(cl);
 
@@ -100,7 +114,7 @@ public class Properties extends HashMap<String, Object> {
                 );
 
         //buffer is here to make writing tests easier
-        Map<String, String> buffer = (Map<String, String>) properties.remove(FORMATTERS);
+        Map<String, String> buffer = (Map<String, String>) properties.remove(PROPSNAMES.FORMATTERS.toString());
         if (buffer != null && buffer.size() > 0) {
             Map<String, VarFormatter> formattersMap = new HashMap<>(buffer.size());
             buffer.entrySet().stream().forEach(i -> formattersMap.put(i.getKey(), new VarFormatter(i.getValue())));
@@ -130,21 +144,21 @@ public class Properties extends HashMap<String, Object> {
             this.jmxlisten = "0.0.0.0";
         }
 
+        if (this.jmxport > 0) {
+            MBeanServer mBeanServer = ManagementFactory.getPlatformMBeanServer(); 
+            ManagementService.registerMBeans(cacheManager, mBeanServer, false, false, false, true);
+        }
+
         if (properties.containsKey("numWorkers")) {
             numWorkers = (Integer) properties.remove("numWorkers");
         } else {
             numWorkers = Runtime.getRuntime().availableProcessors() * 2;
         }
 
-        if (this.jmxport > 0) {
-            MBeanServer mBeanServer = ManagementFactory.getPlatformMBeanServer(); 
-            ManagementService.registerMBeans(cacheManager, mBeanServer, false, false, false, true);
-        }
-
         // Default values are for tests, so the build unusable queuing environment
-        queuesDepth = properties.containsKey(QUEUESDEPTH) ? (int) properties.remove(QUEUESDEPTH) : 0;
-        mainQueue = properties.containsKey(QUEUESDEPTH) ? (BlockingQueue<Event>) properties.remove(MAINQUEUE) : null;
-        outputQueues = properties.containsKey(QUEUESDEPTH) ? (Map<String, BlockingQueue<Event>>) properties.remove(OUTPUTQUEUE) : null;
+        queuesDepth = properties.containsKey(PROPSNAMES.QUEUESDEPTH.toString()) ? (int) properties.remove(PROPSNAMES.QUEUESDEPTH.toString()) : 0;
+        mainQueue = properties.containsKey(PROPSNAMES.MAINQUEUE.toString()) ? (BlockingQueue<Event>) properties.remove(PROPSNAMES.MAINQUEUE.toString()) : null;
+        outputQueues = properties.containsKey(PROPSNAMES.OUTPUTQUEUE.toString()) ? (Map<String, BlockingQueue<Event>>) properties.remove(PROPSNAMES.OUTPUTQUEUE.toString()) : null;
 
         super.putAll(properties);
     }

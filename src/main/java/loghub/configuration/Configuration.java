@@ -48,45 +48,35 @@ import loghub.processors.Test;
 
 public class Configuration {
 
-    public static final class PipeJoin {
-        public final String inpipe;
-        public final String outpipe;
-        PipeJoin(String inpipe, String outpipe) {
-            this.inpipe = inpipe;
-            this.outpipe = outpipe;
-        }
-        @Override
-        public String toString() {
-            return inpipe + "->" + outpipe;
-        }
-    }
+    private static final int DEFAULTQUEUEDEPTH = 100;
 
     private static final Logger logger = LogManager.getLogger();
     private static final ThrowingFunction<Class<Object>, Object> emptyConstructor = i -> {return i.getConstructor().newInstance();};
 
-    public Map<String, Pipeline> namedPipeLine = null;
-    public Set<Pipeline> pipelines = new HashSet<>();
-    public Set<PipeJoin> joins = null;
-    private List<Receiver> receivers;
-    Set<String> inputpipelines = new HashSet<>();
-    Set<String> outputpipelines = new HashSet<>();
-    private List<Sender> senders;
-    public Properties properties;
-    private ClassLoader classLoader = Configuration.class.getClassLoader();
-    private BlockingQueue<Event> mainQueue;
-    private Map<String, BlockingQueue<Event>> outputQueues;
-    private int queuesDepth = 100;
 
-    public Configuration() {
+    private List<Receiver> receivers;
+    private Set<String> inputpipelines = new HashSet<>();
+    private Set<String> outputpipelines = new HashSet<>();
+    private List<Sender> senders;
+    private ClassLoader classLoader = Configuration.class.getClassLoader();
+
+    Configuration() {
     }
 
-    public void parse(String fileName) {
-        CharStream cs;
+    public static Properties parse(String fileName) {
         try {
-            cs = new ANTLRFileStream(fileName);
+            Configuration conf = new Configuration();
+            ConfigListener listener = conf.antlrparsing(fileName);
+            return conf.analyze(listener);
         } catch (IOException e) {
-            throw new RuntimeException(e.getMessage(), e);
+            throw new RuntimeException("Unreadable configuration file '"  + fileName + "': " + e.getMessage(), e);
+        } catch (ConfigException e) {
+            throw new RuntimeException("Error at " + e.getStartPost() + ": " + e.getMessage(), e);
         }
+    }
+
+    private ConfigListener antlrparsing(String fileName) throws IOException{
+        CharStream cs = new ANTLRFileStream(fileName);
 
         //Passing the input to the lexer to create tokens
         RouteLexer lexer = new RouteLexer(cs);
@@ -104,19 +94,20 @@ public class Configuration {
 
         ConfigListener conf = new ConfigListener();
         ParseTreeWalker walker = new ParseTreeWalker();
-        try {
-            walker.walk(conf, tree);
-        } catch (ConfigException e) {
-            throw new RuntimeException("Error at " + e.getStartPost() + ": " + e.getMessage(), e);
-        }
+        walker.walk(conf, tree);
+        return conf;
+    }
 
-        namedPipeLine = new HashMap<>(conf.pipelines.size());
+    private Properties analyze(ConfigListener conf) {
 
+        final Map<String, Object > newProperties = new HashMap<>(conf.properties.size() + Properties.PROPSNAMES.values().length);
+
+        // Resolvers properties found and and it to new properties
         Function<Object, Object> resolve = i -> ((i instanceof ConfigListener.ObjectWrapped) ? ((ConfigListener.ObjectWrapped) i).wrapped : 
             (i instanceof ConfigListener.ObjectReference) ? parseObjectDescription((ConfigListener.ObjectDescription) i, emptyConstructor) : i);
-
-        final Map<String, Object > newProperties = new HashMap<>(conf.properties.size());
         conf.properties.entrySet().stream().forEach( i-> newProperties.put(i.getKey(), resolve.apply(i.getValue())));
+
+        Map<String, Pipeline> namedPipeLine = new HashMap<>(conf.pipelines.size());
 
         // Neeeded because conf.properties store a lot of wrapped object, they needs to be resolved
         if(newProperties.containsKey("plugins") && newProperties.get("plugins") instanceof List) {
@@ -128,32 +119,31 @@ public class Configuration {
                 throw new RuntimeException("can't load plugins: " + ex.getMessage(), ex);
             }
         }
-        
+        newProperties.put(Properties.PROPSNAMES.CLASSLOADERNAME.toString(), classLoader);
+
+        Set<Pipeline> pipelines = new HashSet<>();
         // Generate all the named pipeline
         for(Entry<String, ConfigListener.PipenodesList> e: conf.pipelines.entrySet()) {
             String name = e.getKey(); 
             Pipeline p = parsePipeline(e.getValue(), name, 0, new AtomicInteger());
+            pipelines.add(p);
             namedPipeLine.put(name, p);
         }
+        newProperties.put(Properties.PROPSNAMES.PIPELINES.toString(), Collections.unmodifiableSet(pipelines));
         namedPipeLine = Collections.unmodifiableMap(namedPipeLine);
-        pipelines = Collections.unmodifiableSet(pipelines);
+        newProperties.put(Properties.PROPSNAMES.NAMEDPIPELINES.toString(), namedPipeLine);
 
-        //Prepare the processing queues
-        if(newProperties.containsKey("queueDepth")) {
-            queuesDepth = Integer.parseInt(newProperties.remove("queueDepth").toString());
-        }
-        mainQueue = new ArrayBlockingQueue<Event>(queuesDepth);
-        outputQueues = new HashMap<>(namedPipeLine.size());
+        //Find the queue depth
+        final int queuesDepth = newProperties.containsKey("queueDepth") ? (Integer) newProperties.remove("queueDepth") : DEFAULTQUEUEDEPTH;
+        newProperties.put(Properties.PROPSNAMES.QUEUESDEPTH.toString(), queuesDepth);
+
+        BlockingQueue<Event> mainQueue = new ArrayBlockingQueue<Event>(queuesDepth);
+        Map<String, BlockingQueue<Event>> outputQueues = new HashMap<>(namedPipeLine.size());
         namedPipeLine.keySet().stream().forEach( i-> outputQueues.put(i, new ArrayBlockingQueue<Event>(queuesDepth)));
 
-        newProperties.put(Properties.CLASSLOADERNAME, classLoader);
-        newProperties.put(Properties.NAMEDPIPELINES, namedPipeLine);
-        newProperties.put(Properties.FORMATTERS, conf.formatters);
-        newProperties.put(Properties.MAINQUEUE, mainQueue);
-        newProperties.put(Properties.OUTPUTQUEUE, outputQueues);
-        newProperties.put(Properties.QUEUESDEPTH, queuesDepth);
-
-        properties = new Properties(newProperties);
+        newProperties.put(Properties.PROPSNAMES.FORMATTERS.toString(), conf.formatters);
+        newProperties.put(Properties.PROPSNAMES.MAINQUEUE.toString(), mainQueue);
+        newProperties.put(Properties.PROPSNAMES.OUTPUTQUEUE.toString(), outputQueues);
 
         // Fill the receivers list
         receivers = new ArrayList<>();
@@ -171,6 +161,7 @@ public class Configuration {
         }
         inputpipelines = Collections.unmodifiableSet(inputpipelines);
         receivers = Collections.unmodifiableList(receivers);
+        newProperties.put(Properties.PROPSNAMES.RECEIVERS.toString(), receivers);
 
         // Fill the senders list
         senders = new ArrayList<>();
@@ -179,7 +170,7 @@ public class Configuration {
                 throw new RuntimeException("Invalid output, no source pipeline: " + o);
             }
             for(ConfigListener.ObjectDescription desc: o.sender) {
-                BlockingQueue<Event> out = this.outputQueues.get(o.piperef);
+                BlockingQueue<Event> out = outputQueues.get(o.piperef);
                 ThrowingFunction<Class<Sender>, Sender> senderConstructor = r -> {return r.getConstructor(BlockingQueue.class).newInstance(out);};
                 Sender s = (Sender) parseObjectDescription(desc, senderConstructor);
                 //logger.debug("sender {} source point will be {}", () -> s, () -> namedPipeLine.get(o.piperef).outQueue);
@@ -189,8 +180,9 @@ public class Configuration {
         }
         outputpipelines = Collections.unmodifiableSet(outputpipelines);
         senders = Collections.unmodifiableList(senders);
+        newProperties.put(Properties.PROPSNAMES.SENDERS.toString(), senders);
 
-        joins = Collections.unmodifiableSet(conf.joins);
+        return new Properties(newProperties);
     }
 
     private Pipeline parsePipeline(ConfigListener.PipenodesList desc, String currentPipeLineName, int depth, AtomicInteger subPipeCount) {
@@ -210,8 +202,7 @@ public class Configuration {
         };
 
         desc.processors.stream().map(i -> getProcessor(i, currentPipeLineName, depth, subPipeCount)).forEach(allSteps::add);
-        Pipeline pipe = new Pipeline(allSteps, currentPipeLineName + (depth == 0 ? "" : "$" + subPipeCount.getAndIncrement()));
-        pipelines.add(pipe);
+        Pipeline pipe = new Pipeline(allSteps, currentPipeLineName + (depth == 0 ? "" : "$" + subPipeCount.getAndIncrement()), desc.nextPipelineName);
         return pipe;
     }
 

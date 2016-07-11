@@ -10,6 +10,7 @@ import javax.management.NotCompliantMBeanException;
 import javax.management.remote.JMXConnectorServer;
 
 import loghub.configuration.Configuration;
+import loghub.configuration.Properties;
 import loghub.jmx.Helper;
 
 public class Start extends Thread {
@@ -26,39 +27,39 @@ public class Start extends Thread {
 
         setName("LogHub");
 
-        Configuration conf = new Configuration();
+        Properties props = Configuration.parse(configFile);
 
-        conf.parse(configFile);
+        props.pipelines.stream().forEach(i-> i.configure(props));
 
-        conf.pipelines.stream().forEach(i-> i.configure(conf.properties));
-
-        for(Sender s: conf.getSenders()) {
-            if(s.configure(conf.properties)) {
+        for (Sender s: props.senders) {
+            if (s.configure(props)) {
                 s.start();
             };
         }
 
-        for(Receiver r: conf.getReceivers()) {
-            if(r.configure(conf.properties)) {
+        for (Receiver r: props.receivers) {
+            if (r.configure(props)) {
                 r.start();
             }
         }
 
-        for(int i = 0; i < conf.properties.numWorkers; i++) {
-            Thread t = new EventsProcessor(conf.properties.mainQueue, conf.properties.outputQueues);
+        for (int i = 0; i < props.numWorkers; i++) {
+            Thread t = new EventsProcessor(props.mainQueue, props.outputQueues, props.namedPipeLine);
             t.setName("ProcessingThread" + i);
             t.setDaemon(true);
             t.start();
         }
 
         try {
-            int port = conf.properties.jmxport;
-            if(port > 0) {
+            int port = props.jmxport;
+            if (port > 0) {
                 @SuppressWarnings("unused")
-                JMXConnectorServer cs = Helper.start(conf.properties.jmxproto, conf.properties.jmxlisten, port);
+                JMXConnectorServer cs = Helper.start(props.jmxproto, props.jmxlisten, port);
                 Helper.register(loghub.jmx.Stats.class);
             }
-        } catch (IOException | NotBoundException | NotCompliantMBeanException | MalformedObjectNameException | InstanceAlreadyExistsException | MBeanRegistrationException | InstantiationException | IllegalAccessException e) {
+        } catch (IOException | NotBoundException | NotCompliantMBeanException | MalformedObjectNameException
+                | InstanceAlreadyExistsException | MBeanRegistrationException | InstantiationException
+                | IllegalAccessException e) {
             throw new RuntimeException("jmx configuration failed: " + e.getMessage(), e);
         }
 
@@ -68,6 +69,7 @@ public class Start extends Thread {
         try {
             Thread.currentThread().join();
         } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
         }
         SmartContext.terminate();
     }
