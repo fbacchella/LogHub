@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.io.NotSerializableException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.ListIterator;
@@ -19,6 +20,8 @@ import org.apache.logging.log4j.Logger;
 class EventInstance extends Event {
 
     private final static Logger logger = LogManager.getLogger();
+
+    private Date timestamp = new Date();
 
     private transient EventWrapper wevent;
     private final LinkedList<Processor> processors = new LinkedList<>();
@@ -140,6 +143,22 @@ class EventInstance extends Event {
         }
         wevent.setProcessor(p);
         p.process(wevent);
+    }
+
+    /**
+     * @return the timestamp
+     */
+    @Override
+    public Date getTimestamp() {
+        return timestamp;
+    }
+
+    /**
+     * @param timestamp the timestamp to set
+     */
+    @Override
+    public void setTimestamp(Date timestamp) {
+        this.timestamp = timestamp;
     }
 
 }

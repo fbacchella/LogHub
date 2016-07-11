@@ -79,7 +79,7 @@ public class DateParser extends FieldsProcessor {
                 Instant instant = Instant.from(ta);
                 Date date = Date.from(instant);
                 if(Event.TIMESTAMPKEY.equals(destination)) {
-                    event.timestamp = date;
+                    event.setTimestamp(date);
                 } else {
                     event.put(destination, date);
                 }

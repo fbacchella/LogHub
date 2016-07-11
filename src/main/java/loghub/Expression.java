@@ -31,7 +31,7 @@ public class Expression {
         variables.entrySet().stream()
         .forEach( i -> groovyBinding.setVariable(i.getKey(), i.getValue()));
         groovyBinding.setVariable("event", event);
-        groovyBinding.setVariable("@timestamp", event.timestamp);
+        groovyBinding.setVariable("@timestamp", event.getTimestamp());
         groovyBinding.setVariable("formatters", formatters);
         groovyScript.setBinding(groovyBinding);
         Object result = groovyScript.run();

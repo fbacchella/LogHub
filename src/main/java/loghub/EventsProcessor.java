@@ -37,9 +37,9 @@ public class EventsProcessor extends Thread {
                     while ((processor = event.next()) != null) {
                         logger.trace("processing {}", processor);
                         Thread.currentThread().setName(threadName + "-" + processor.getName());
-                        process(event, processor);
+                        boolean dropped = process(event, processor);
                         Thread.currentThread().setName(threadName);
-                        if(event.dropped) {
+                        if(dropped) {
                             logger.debug("dropped event {}", event);
                             break;
                         }
@@ -64,13 +64,14 @@ public class EventsProcessor extends Thread {
         }
     }
 
-    void process(Event e, Processor p) throws ProcessorException {
+    boolean process(Event e, Processor p) throws ProcessorException {
+        boolean dropped = false;
         boolean success = false;
         if (p instanceof Forker) {
             ((Forker) p).fork(e);
             success = true;
         } else if (p instanceof Drop) {
-            e.dropped = true;
+            dropped = true;
         } else {
             if (p.isprocessNeeded(e)) {
                 try {
@@ -81,7 +82,7 @@ public class EventsProcessor extends Thread {
                 } catch (Exception ex) {
                     logger.error("failed to transform event {} with unmanaged error: {}", e, ex.getMessage());
                     logger.throwing(Level.ERROR, ex);
-                    e.dropped = true;
+                    dropped = true;
                 }
             }
         }
@@ -93,6 +94,7 @@ public class EventsProcessor extends Thread {
         } else if (! success && failureProcessor != null) {
             e.insertProcessor(failureProcessor);
         }
+        return dropped;
     }
 
 }

@@ -11,8 +11,6 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
 
     public static final String TIMESTAMPKEY = "@timestamp";
 
-    public Date timestamp = new Date();
-    public boolean dropped = false;
     protected String mainPipeline;
 
     public Object applyAtPath(Helpers.TriFunction<Map<String, Object>, String, Object, Object> f, String[] path, Object value) {
@@ -64,4 +62,7 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
 
     public abstract void process(Processor p) throws ProcessorException;
 
+    public abstract Date getTimestamp();
+
+    public abstract void setTimestamp(Date timestamp);
 }

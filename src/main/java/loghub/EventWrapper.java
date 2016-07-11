@@ -3,6 +3,7 @@ package loghub;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -14,7 +15,7 @@ class EventWrapper extends Event {
 
     public EventWrapper(EventInstance event) {
         this.event = event;
-        this.timestamp = event.timestamp;
+        this.setTimestamp(event.getTimestamp());
     }
 
     public void setProcessor(Processor processor) {
@@ -58,7 +59,7 @@ class EventWrapper extends Event {
     @Override
     public Object get(Object key) {
         if(key instanceof String && "@timestamp".equals(key)) {
-            return timestamp;
+            return getTimestamp();
         } else {
             return action( ((i, j, k) -> i.get(j)), key.toString(), null);
         }
@@ -163,6 +164,16 @@ class EventWrapper extends Event {
     @Override
     public void process(Processor p) throws ProcessorException {
         p.process(this);
+    }
+
+    @Override
+    public Date getTimestamp() {
+        return event.getTimestamp();
+    }
+
+    @Override
+    public void setTimestamp(Date timestamp) {
+        event.setTimestamp(timestamp);
     }
 
 }

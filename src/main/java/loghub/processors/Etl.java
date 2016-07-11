@@ -31,7 +31,7 @@ public abstract class Etl extends Processor {
         public void process(Event event) throws ProcessorException {
             Object old = event.applyAtPath((i,j,k) -> i.remove(j), sourcePath, null);
             if(lvalue.length == 1 && Event.TIMESTAMPKEY.equals(lvalue[0]) && old instanceof Date) {
-                event.timestamp = (Date) old;
+                event.setTimestamp((Date) old);
                 event.applyAtPath((i,j,k) -> i.remove(j), lvalue, null);
             } else {
                 event.applyAtPath((i,j,k) -> i.put(j, k), lvalue, old, true);
@@ -57,7 +57,7 @@ public abstract class Etl extends Processor {
         public void process(Event event) throws ProcessorException {
             Object o = script.eval(event, Collections.emptyMap());
             if(lvalue.length == 1 && Event.TIMESTAMPKEY.equals(lvalue[0]) && o instanceof Date) {
-                event.timestamp = (Date) o;
+                event.setTimestamp((Date) o);
             } else {
                 event.applyAtPath((i,j,k) -> i.put(j, k), lvalue, o, true);
             }

@@ -202,8 +202,8 @@ public class ElasticSearch extends Sender {
     public boolean send(Event event) {
         Map<String, Object> esjson = new HashMap<>(event.size());
         esjson.putAll(event);
-        esjson.put("@timestamp", ISO8601.format(event.timestamp));
-        esjson.put("__index", ES_INDEX.format(event.timestamp));
+        esjson.put("@timestamp", ISO8601.format(event.getTimestamp()));
+        esjson.put("__index", ES_INDEX.format(event.getTimestamp()));
 
         boolean done = false;
         while(!done) {

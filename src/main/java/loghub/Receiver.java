@@ -145,7 +145,7 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
         EventInstance event = new EventInstance();
         Map<String, Object> content = decoder.decode(msg, offset, size);
         if( content.containsKey(Event.TIMESTAMPKEY) && (event.get(Event.TIMESTAMPKEY) instanceof Date)) {
-            event.timestamp = (Date) event.remove(Event.TIMESTAMPKEY);
+            event.setTimestamp((Date) event.remove(Event.TIMESTAMPKEY));
         }
         content.entrySet().stream().forEach( i -> event.put(i.getKey(), i.getValue()));
         return event;
