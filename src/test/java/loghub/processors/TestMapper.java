@@ -7,27 +7,22 @@ import loghub.Event;
 import loghub.Pipeline;
 import loghub.ProcessorException;
 import loghub.Tools;
-import loghub.configuration.Configuration;
+import loghub.configuration.Properties;
 
 public class TestMapper {
 
-    @Test(timeout=2000)
+    @Test
     public void test() throws ProcessorException, InterruptedException {
-        String conffile = getClass().getClassLoader().getResource("map.conf").getFile();
-        Configuration conf = new Configuration();
-        conf.parse(conffile);
-        for(Pipeline pipe: conf.pipelines) {
-            Assert.assertTrue("configuration failed", pipe.configure(conf.properties));
-        }
-        for(Pipeline i: conf.pipelines) {
-            i.startStream();
+        Properties conf = Tools.loadConf("map.conf");
+        for (Pipeline pipe: conf.pipelines) {
+            Assert.assertTrue("configuration failed", pipe.configure(conf));
         }
         Event sent = Tools.getEvent();
         sent.put("a", 1);
 
-        conf.namedPipeLine.get("mapper").inQueue.offer(sent);
-        Event received = conf.namedPipeLine.get("mapper").outQueue.take();
-        Assert.assertEquals("conversion not expected", "b", received.get("a"));
+        Tools.runProcessing(sent, conf.namedPipeLine.get("mapper"), conf);
+
+        Assert.assertEquals("conversion not expected", "b", sent.get("a"));
 
     }
 

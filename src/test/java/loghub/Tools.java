@@ -6,6 +6,7 @@ import java.util.Locale;
 import org.junit.Assert;
 
 import loghub.configuration.Configuration;
+import loghub.configuration.Properties;
 
 public class Tools {
 
@@ -16,24 +17,33 @@ public class Tools {
         LogUtils.configure();
     }
 
-    public static Configuration loadConf(String configname, boolean dostart) {
+    public static Properties loadConf(String configname, boolean dostart) {
         String conffile = Configuration.class.getClassLoader().getResource(configname).getFile();
-        Configuration conf = new Configuration();
-        conf.parse(conffile);
+        Properties props = Configuration.parse(conffile);
         
-        for(Pipeline pipe: conf.pipelines) {
-            Assert.assertTrue("configuration failed", pipe.configure(conf.properties));
+        for(Pipeline pipe: props.pipelines) {
+            Assert.assertTrue("configuration failed", pipe.configure(props));
         }
 
-        return conf;
+        return props;
     }
     
-    public static Configuration loadConf(String configname) {
+    public static Properties loadConf(String configname) {
         return loadConf(configname, true);
     }
 
     public static Event getEvent() {
         return new EventInstance();
+    }
+    
+    public static void runProcessing(Event sent, Pipeline pipe, Properties props) throws ProcessorException {
+        props.mainQueue.add(sent);
+        EventsProcessor ep = new EventsProcessor(props.mainQueue, props.outputQueues, props.namedPipeLine);
+        sent.inject(pipe, props.mainQueue);
+        Processor processor;
+        while ((processor = sent.next()) != null) {
+            ep.process(sent, processor);
+        }
     }
 
 }

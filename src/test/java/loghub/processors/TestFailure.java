@@ -3,7 +3,6 @@ package loghub.processors;
 import org.junit.Test;
 
 import loghub.Event;
-import loghub.EventWrapper;
 import loghub.Processor;
 import loghub.ProcessorException;
 import loghub.Tools;
@@ -28,9 +27,8 @@ public class TestFailure {
 
         Event event = Tools.getEvent();
 
-        event.setProcessor(p);
+        event.process(p);
 
-        p.process(event);
 
     }
 

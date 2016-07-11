@@ -10,7 +10,6 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import loghub.Event;
-import loghub.EventWrapper;
 import loghub.LogUtils;
 import loghub.Tools;
 import loghub.processors.ParseJson;
@@ -30,11 +29,10 @@ public class TestToJson {
 
     @Test
     public void test1() throws ProcessorException {
-        EventWrapper e = new EventWrapper(new Event());
+        Event e = Tools.getEvent();
         Processor t = new ParseJson();
-        e.setProcessor(t);
         e.put("message", "{\"a\": [ 1, 2.0 , 3.01 , {\"b\": true} ] }");
-        t.process(e);
+        e.process(t);
         @SuppressWarnings("unchecked")
         Collection<Object> a = (Collection<Object>) e.get("a");
         a.stream().forEach((i) -> logger.debug(i.getClass()));

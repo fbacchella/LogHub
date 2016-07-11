@@ -10,7 +10,6 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import loghub.Event;
-import loghub.EventWrapper;
 import loghub.LogUtils;
 import loghub.ProcessorException;
 import loghub.Tools;
@@ -30,11 +29,10 @@ public class TestUrlDecoders {
     public void testUrlDecoder() throws ProcessorException {
         DecodeUrl t = new DecodeUrl();
         t.setFields(new Object[] { "*" });
-        EventWrapper e = new EventWrapper(new Event());
-        e.setProcessor(t);
+        Event e = Tools.getEvent();
         e.put("q", "%22Paints%22+Oudalan");
         e.put("userAgent", "%2520");
-        t.process(e);
+        e.process(t);
         Assert.assertEquals("key 'q' invalid", "\"Paints\" Oudalan", e.get("q"));
         Assert.assertEquals("key 'userAgent' not found", "%20", e.get("userAgent"));
     }
@@ -44,11 +42,10 @@ public class TestUrlDecoders {
         DecodeUrl t = new DecodeUrl();
         t.setFields(new Object[] { "userAgent" });
         t.setLoop(true);
-        EventWrapper e = new EventWrapper(new Event());
-        e.setProcessor(t);
+        Event e = Tools.getEvent();
         e.put("q", "%22Paints%22+Oudalan");
         e.put("userAgent", "%2520");
-        t.process(e);
+        e.process(t);
         System.out.println(e);
         Assert.assertEquals("key 'q' invalid", "%22Paints%22+Oudalan", e.get("q"));
         Assert.assertEquals("key 'userAgent' not found", " ", e.get("userAgent"));

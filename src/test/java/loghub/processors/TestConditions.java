@@ -1,65 +1,76 @@
 package loghub.processors;
 
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
+import java.io.IOException;
 
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.junit.Assert;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import loghub.Event;
+import loghub.LogUtils;
+import loghub.ProcessorException;
 import loghub.Tools;
-import loghub.configuration.Configuration;
+import loghub.configuration.Properties;
 
 public class TestConditions {
 
-    @Test(timeout=2000)
-    public void testif() throws InterruptedException {
-        BlockingQueue<Event> mainqueue = new ArrayBlockingQueue(1);
-        Configuration conf = Tools.loadConf("conditions.conf");
+    private static Logger logger;
+
+    @BeforeClass
+    static public void configure() throws IOException {
+        Tools.configure();
+        logger = LogManager.getLogger();
+        LogUtils.setLevel(logger, Level.TRACE, "loghub.Expression");
+    }
+
+    @Test
+    public void testif() throws ProcessorException {
+        Properties conf = Tools.loadConf("conditions.conf");
+        Event sent = Tools.getEvent();
+        sent.put("a", "1");
+
+        Tools.runProcessing(sent, conf.namedPipeLine.get("ifpipe"), conf);
+
+        Assert.assertEquals("conversion not expected", String.class, sent.get("a").getClass());
+    }
+
+    @Test
+    public void testsuccess() throws ProcessorException {
+        Properties conf = Tools.loadConf("conditions.conf");
 
         Event sent = Tools.getEvent();
         sent.put("a", "1");
 
-        sent.inject(conf.namedPipeLine.get("ifpipe"), mainqueue);
-        Event received = mainqueue.take();
-        Assert.assertEquals("conversion not expected", String.class, received.get("a").getClass());
+        Tools.runProcessing(sent, conf.namedPipeLine.get("successpipe"), conf);
+
+        Assert.assertEquals("conversion not expected", "success", sent.get("test"));
     }
 
-    @Test(timeout=2000)
-    public void testsuccess() throws InterruptedException {
-        Configuration conf = Tools.loadConf("conditions.conf");
-
-        Event sent = Tools.getEvent();
-        sent.put("a", "1");
-
-        conf.namedPipeLine.get("successpipe").inQueue.offer(sent);
-        Event received = conf.namedPipeLine.get("successpipe").outQueue.take();
-        Assert.assertEquals("conversion not expected", "success", received.get("test"));
-    }
-
-    @Test(timeout=2000)
-    public void testfailure() throws InterruptedException {
-        Configuration conf = Tools.loadConf("conditions.conf");
+    @Test
+    public void testfailure() throws InterruptedException, ProcessorException {
+        Properties conf = Tools.loadConf("conditions.conf");
 
         Event sent = Tools.getEvent();
         sent.put("a", "a");
 
-        conf.namedPipeLine.get("failurepipe").inQueue.offer(sent);
-        Event received = conf.namedPipeLine.get("failurepipe").outQueue.take();
-        Assert.assertEquals("conversion not expected", "failure", received.get("test"));
+        Tools.runProcessing(sent, conf.namedPipeLine.get("failurepipe"), conf);
+
+        Assert.assertEquals("conversion not expected", "failure", sent.get("test"));
     }
 
-    @Test(timeout=2000)
-    public void testsubpipe() throws InterruptedException {
-        Configuration conf = Tools.loadConf("conditions.conf");
+    @Test
+    public void testsubpipe() throws InterruptedException, ProcessorException {
+        Properties conf = Tools.loadConf("conditions.conf");
 
         Event sent = Tools.getEvent();
         sent.put("a", "1");
 
-        conf.namedPipeLine.get("subpipe").inQueue.offer(sent);
-        Event received = conf.namedPipeLine.get("subpipe").outQueue.take();
-        System.out.println(received);
-        Assert.assertEquals("conversion not expected", "failure", received.get("test"));
+        Tools.runProcessing(sent, conf.namedPipeLine.get("subpipe"), conf);
+        Assert.assertEquals("sup pipeline not processed", 1, sent.get("b"));
+        Assert.assertEquals("sup pipeline not processed", 2, sent.get("c"));
     }
 
 }

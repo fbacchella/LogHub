@@ -1,74 +1,78 @@
 package loghub.processors;
 
+import java.io.IOException;
+
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.junit.Assert;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import loghub.Event;
+import loghub.EventsProcessor;
+import loghub.LogUtils;
 import loghub.Pipeline;
+import loghub.ProcessorException;
 import loghub.Tools;
-import loghub.configuration.Configuration;
+import loghub.configuration.Properties;
 
 public class TestTest {
 
-    private Configuration loadConf(String configname) {
-        String conffile = getClass().getClassLoader().getResource(configname).getFile();
-        Configuration conf = new Configuration();
-        conf.parse(conffile);
-        return conf;
+    private static Logger logger;
+
+    @BeforeClass
+    static public void configure() throws IOException {
+        Tools.configure();
+        logger = LogManager.getLogger();
+        LogUtils.setLevel(logger, Level.TRACE, "loghub.Event", "loghub.EventInstance");
     }
 
     @Test
-    public void testOK() throws InterruptedException {
-        Configuration conf = loadConf("testclause.conf");
+    public void testOK() throws InterruptedException, ProcessorException {
+        Properties conf = Tools.loadConf("testclause.conf");
         for(Pipeline pipe: conf.pipelines) {
-            Assert.assertTrue("configuration failed", pipe.configure(conf.properties));
+            Assert.assertTrue("configuration failed", pipe.configure(conf));
         }
-        for(Pipeline i: conf.pipelines) {
-            i.startStream();
-        }
-
         Event sent = Tools.getEvent();
         sent.put("a",1);
-
-        conf.namedPipeLine.get("main").inQueue.offer(sent);
-        Event received = conf.namedPipeLine.get("main").outQueue.take();
-        Assert.assertEquals("conversion not expected", 1, received.get("b"));
+        Tools.runProcessing(sent, conf.namedPipeLine.get("main"), conf);
+        Assert.assertEquals("conversion not expected", 1, sent.get("b"));
     }
-    
+
     @Test
-    public void testKO() throws InterruptedException {
-        Configuration conf = loadConf("testclause.conf");
+    public void testKO() throws ProcessorException, InterruptedException {
+        Properties conf = Tools.loadConf("testclause.conf");
         for(Pipeline pipe: conf.pipelines) {
-            Assert.assertTrue("configuration failed", pipe.configure(conf.properties));
-        }
-        for(Pipeline i: conf.pipelines) {
-            i.startStream();
+            Assert.assertTrue("configuration failed", pipe.configure(conf));
         }
 
         Event sent = Tools.getEvent();
         sent.put("a",2);
 
-        conf.namedPipeLine.get("main").inQueue.offer(sent);
-        Event received = conf.namedPipeLine.get("main").outQueue.take();
-        Assert.assertEquals("conversion not expected", 2, received.get("c"));
+        Tools.runProcessing(sent, conf.namedPipeLine.get("main"), conf);
+        Assert.assertEquals("conversion not expected", 2, sent.get("c"));
     }
-    
-    @Test
-    public void testSub() throws InterruptedException {
-        Configuration conf = loadConf("testclause.conf");
+
+    @Test(timeout=2000)
+    public void testSub() throws InterruptedException, ProcessorException {
+        Properties conf = Tools.loadConf("testclause.conf");
         for(Pipeline pipe: conf.pipelines) {
-            Assert.assertTrue("configuration failed", pipe.configure(conf.properties));
-        }
-        for(Pipeline i: conf.pipelines) {
-            i.startStream();
+            Assert.assertTrue("configuration failed", pipe.configure(conf));
         }
 
         Event sent = Tools.getEvent();
         sent.put("a",2);
 
-        conf.namedPipeLine.get("subpipe").inQueue.offer(sent);
-        Event received = conf.namedPipeLine.get("subpipe").outQueue.take();
+        conf.mainQueue.add(sent);
+        
+        EventsProcessor ep = new EventsProcessor(conf.mainQueue, conf.outputQueues, conf.namedPipeLine);
+        sent.inject(conf.namedPipeLine.get("subpipe"), conf.mainQueue);
+        ep.start();
+
+        Event received = conf.outputQueues.get("subpipe").take();
         Assert.assertEquals("conversion not expected", 2, received.get("d"));
+        ep.interrupt();
     }
 
 }

@@ -35,26 +35,23 @@ public class TestWithZMQ {
         LogUtils.setLevel(logger, Level.TRACE, "loghub.SmartContext", "loghub.PipeStep","loghub.Pipeline", "loghub.configuration.Configuration","loghub.receivers.ZMQ", "loghub.Receiver", "loghub.processors.Forker");
     }
 
-    private Configuration loadConf(String configname) {
+    private Properties loadConf(String configname) {
         String conffile = getClass().getClassLoader().getResource(configname).getFile();
-        Configuration conf = new Configuration();
-        conf.parse(conffile);
-        return conf;
+        return Configuration.parse(conffile);
     }
 
     @Ignore
     @Test(timeout=1000) 
     public void testSimpleInput() throws InterruptedException {
-        Configuration conf = loadConf("simpleinput.conf");
+        Properties conf = loadConf("simpleinput.conf");
         logger.debug("pipelines: {}", conf.pipelines);
 
-        logger.debug("receiver pipelines: {}", conf.inputpipelines);
         Thread.sleep(30);
-        for(Receiver r: conf.getReceivers()) {
+        for(Receiver r: conf.receivers) {
             r.start();
         }
         Thread.sleep(30);
-        for(Sender s: conf.getSenders()) {
+        for(Sender s: conf.senders) {
             s.start();
         }
         Thread.sleep(30);
@@ -67,10 +64,10 @@ public class TestWithZMQ {
         Assert.assertEquals("wrong send message", "something", new String(buffer));
         tctxt.ctx.close(sender);
         tctxt.ctx.close(out);
-        for(Receiver r: conf.getReceivers()) {
+        for(Receiver r: conf.receivers) {
             r.interrupt();
         }
-        for(Sender s: conf.getSenders()) {
+        for(Sender s: conf.senders) {
             s.interrupt();
         }
         SmartContext.terminate();

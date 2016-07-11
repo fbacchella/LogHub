@@ -37,7 +37,7 @@ public class TestUdp {
     @Test(timeout=500)
     public void testone() throws InterruptedException, IOException {
         BlockingQueue<Event> receiver = new ArrayBlockingQueue<>(1);
-        Udp r = new Udp(receiver, new Pipeline(Collections.emptyList(), "testone"));
+        Udp r = new Udp(receiver, new Pipeline(Collections.emptyList(), "testone", null));
         r.setListen(InetAddress.getLocalHost().getHostAddress());
         r.setDecoder(new StringCodec());
         r.start();
