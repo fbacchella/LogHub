@@ -48,11 +48,10 @@ public class TestTrap {
         SnmpTrap r = new SnmpTrap(receiver, new Pipeline(Collections.emptyList(), "testone", null));
         r.setPort(1162);
         r.configure(new Properties(Collections.emptyMap()));
-        r.start();
         List<String> content = r.smartPrint(new OID("1.0.8802.1.1.2.1.1.2.5"));
         Assert.assertEquals(1, content.size());
         Assert.assertEquals("lldpMessageTxHoldMultiplier", content.get(0));
-        r.interrupt();
+        r.close();
     }
 
     @Test()
