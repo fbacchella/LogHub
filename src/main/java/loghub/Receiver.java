@@ -74,8 +74,7 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
                         if(eventseen < 0) {
                             eventseen = 1;
                         }
-                        EventInstance event = new EventInstance();
-                        send(event);
+                        send(e);
                     }
                 }
             } catch (Exception e) {
