@@ -38,7 +38,7 @@ public class TestFieldsProcessor {
         Event e = Tools.getEvent();
         e.put("a", 1);
         e.put("b", 2);
-        p.process(e);
+        e.process(p);
         Assert.assertEquals("destination field wrong", 1, e.get("a_done"));
         Assert.assertEquals("destination field wrong", 2, e.get("b_done"));
     }

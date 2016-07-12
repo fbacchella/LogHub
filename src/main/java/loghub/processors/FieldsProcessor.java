@@ -22,9 +22,9 @@ public abstract class FieldsProcessor extends Processor {
 
     @Override
     public void process(Event event) throws ProcessorException {
-        if(patterns.length != 0) {
-            for(String f: new HashSet<>(event.keySet())) {
-                for(Pattern p: patterns) {
+        if (patterns.length != 0) {
+            for (String f: new HashSet<>(event.keySet())) {
+                for (Pattern p: patterns) {
                     if (p.matcher(f).matches() && event.containsKey(f) && event.get(f) != null) {
                         processMessage(event, f, getDestination(f));
                         // Processed, don't look for another matching pattern
@@ -33,14 +33,14 @@ public abstract class FieldsProcessor extends Processor {
                 }
             }
         } else {
-            if(event.containsKey(field) && event.get(field) != null) {
+            if (event.containsKey(field) && event.get(field) != null) {
                 processMessage(event, field, getDestination(field));
             }
         }
     }
     
     private final String getDestination(String field) {
-        if(destinationFormat == null) {
+        if (destinationFormat == null) {
             return field;
         } else {
             return destinationFormat.format(Collections.singletonMap("field", field));
@@ -53,7 +53,7 @@ public abstract class FieldsProcessor extends Processor {
 
     public void setFields(Object[] fields) {
         this.patterns = new Pattern[fields.length];
-        for(int i = 0; i < fields.length ; i++) {
+        for (int i = 0; i < fields.length ; i++) {
             this.patterns[i] = Helpers.convertGlobToRegex(fields[i].toString());
         }
     }
