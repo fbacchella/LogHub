@@ -310,9 +310,10 @@
                 </reportSets>
                 <configuration>
                     <links>
-                        <link>http://www.ehcache.org/apidocs/2.6.11/</link>
+                        <link>http://www.ehcache.org/apidocs/2.6.9/index.html</link>
                         <link>http://www.ehcache.org/apidocs/2.10/</link>
                         <link>http://docs.groovy-lang.org/latest/html/api/</link>
+                        <link>http://www.antlr.org/api/Java</link>
                     </links>
                     <detectLinks>true</detectLinks>
                     <keywords>true</keywords>

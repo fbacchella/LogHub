@@ -40,8 +40,10 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
     /**
      * This method inject a new event in a pipeline as
      * a top processing pipeline. Not to be used for sub-processing pipeline
-     * @param event
-     * @return 
+     * 
+     * @param pipeline the pipeline with the processes to inject 
+     * @param mainqueue the waiting queue
+     * @return
      */
     public abstract boolean inject(Pipeline pipeline, BlockingQueue<Event> mainqueue);
 
