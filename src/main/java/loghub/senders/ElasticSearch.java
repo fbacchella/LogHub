@@ -19,6 +19,7 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ThreadLocalRandom;
 
+import org.apache.http.Header;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHost;
 import org.apache.http.HttpVersion;
@@ -37,7 +38,6 @@ import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.apache.http.message.BasicHttpEntityEnclosingRequest;
 import org.apache.http.protocol.HttpContext;
-import org.apache.http.util.EntityUtils;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -83,27 +83,30 @@ public class ElasticSearch extends Sender {
         super(inQueue);
 
         // A runnable that will be affected to threads
-        // It consums event and send them as bulk
+        // It consumes event and send them as bulk
         publisher = new Runnable() {
             @Override
             public void run() {
                 try {
-                    while(! isInterrupted()) {
-                        synchronized(this) {
+                    while (!isInterrupted()) {
+                        synchronized (this) {
                             wait();
                         }
                         List<Map<String, Object>> waiting = new ArrayList<>();
                         Map<String, Object> o;
                         int i = 0;
-                        while((o = bulkqueue.poll()) != null && i < buffersize * 1.5) {
+                        while ((o = bulkqueue.poll()) != null && i < buffersize * 1.5) {
                             waiting.add(o);
                         }
-                        // It might received spurious notifications
-                        if(waiting.size() > 0) {
-                            bulkindex(waiting);
+                        // It might received spurious notifications, so send only when needed
+                        if (waiting.size() > 0) {
+                            Object response = bulkindex(waiting);
+                            logger.debug("response from ES: {}", response);
                         }
                     }
                 } catch (InterruptedException e) {
+                    close();
+                    Thread.currentThread().interrupt();
                 }
             }
         };
@@ -114,9 +117,9 @@ public class ElasticSearch extends Sender {
 
         // Uses URI parsing to read destination given by the user.
         routes = new URI[destinations.length];
-        for(int i = 0 ; i < destinations.length ; i++) {
+        for (int i = 0 ; i < destinations.length ; i++) {
             String temp = destinations[i];
-            if( ! temp.contains("//")) {
+            if ( !temp.contains("//")) {
                 temp = "//" + temp;
             }
             try {
@@ -124,7 +127,7 @@ public class ElasticSearch extends Sender {
                 int localport = port;
                 if ("http".equals(newEndPoint.getScheme()) && newEndPoint.getPort() <= 0) {
                     // if http was given, and not port specified, the user expected port 80
-                    localport = 80;
+                    localport = 9300;
                 }
                 routes[i] = new URI(
                         (newEndPoint.getScheme() != null  ? newEndPoint.getScheme() : "http"),
@@ -146,7 +149,7 @@ public class ElasticSearch extends Sender {
 
         // Create the senders threads and the common queue
         bulkqueue = new ArrayBlockingQueue<Map<String, Object>>(buffersize * 2);
-        for(int i = 1 ; i <= publisherThreads; i++) {
+        for (int i = 1 ; i <= publisherThreads ; i++) {
             Thread tp = new Thread(publisher);
             tp.setDaemon(true);
             tp.setName("ElasticSearchPublisher" + i);
@@ -196,6 +199,10 @@ public class ElasticSearch extends Sender {
     }
 
     public void close() {
+        synchronized (publisher) {
+            publisher.notify();
+            Thread.yield();
+        }
     }
 
     @Override
@@ -211,15 +218,15 @@ public class ElasticSearch extends Sender {
                 done = bulkqueue.add(esjson);
             } catch (IllegalStateException ex) {
                 // If queue full, launch a bulk publication
-                synchronized(publisher) {
+                synchronized (publisher) {
                     publisher.notify();
                     Thread.yield();
                 }
             }
         }
         // if queue reached publication size, publish
-        if(bulkqueue.size() > buffersize) {
-            synchronized(publisher) {
+        if (bulkqueue.size() > buffersize) {
+            synchronized (publisher) {
                 publisher.notify();
             }
         }
@@ -235,6 +242,9 @@ public class ElasticSearch extends Sender {
         try {
             for(Map<String, Object> doc: documents) {
                 try {
+                    if ( !doc.containsKey("type") || !doc.containsKey("__index")) {
+                        continue;
+                    }
                     settings.put("_type", doc.remove(type).toString());
                     settings.put("_index", doc.remove("__index").toString());
                     buffer.write(jsonmapper.writeValueAsBytes(action));
@@ -268,7 +278,6 @@ public class ElasticSearch extends Sender {
                 response = client.execute(host, request);
             } catch (ConnectionPoolTimeoutException e) {
                 logger.error("connection to {} timed out", host);
-                e.printStackTrace();
                 tryExecute++;
             } catch (HttpHostConnectException e) {
                 try {
@@ -290,20 +299,22 @@ public class ElasticSearch extends Sender {
                 tryExecute++;
             }
         } while (response == null && tryExecute < 5);
-        if(response == null) {
+        if (response == null) {
             return null;
         };
-        if(response.getStatusLine().getStatusCode()/10 == 20) {
-            EntityUtils.consumeQuietly(response.getEntity());
-            try {
-                response.close();
-            } catch (IOException e) {
+        int statusCode = response.getStatusLine().getStatusCode();
+        if (statusCode/10 != 20) {
+            if (statusCode/10 == 50) {
+                logger.error("Elastic Search server failing: {}", response.getStatusLine());
+                return null;
+            } else {
+                return null;
             }
-            return null;
         }
         HttpEntity resultBody = response.getEntity();
-        if(ContentType.APPLICATION_JSON.getMimeType().equals(response.getEntity().getContentType().getValue())) {
-            try(InputStream body = resultBody.getContent()) {
+        Header contentType = response.getEntity().getContentType();
+        if(contentType != null && ContentType.APPLICATION_JSON.getMimeType().equals(contentType.getValue())) {
+            try (InputStream body = resultBody.getContent()) {
                 @SuppressWarnings("unchecked")
                 T o = (T) json.get().readValue(body, Object.class);
                 return o;
