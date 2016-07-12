@@ -18,7 +18,6 @@ import org.apache.http.HttpException;
 import org.apache.http.HttpRequest;
 import org.apache.http.HttpResponse;
 import org.apache.http.config.SocketConfig;
-import org.apache.http.entity.ContentType;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.bootstrap.HttpServer;
 import org.apache.http.impl.bootstrap.ServerBootstrap;
@@ -110,8 +109,8 @@ public class TestElasticSearch {
                         }
                     }
                     response.setStatusCode(200);
-                    response.setHeader("Content-Type", ContentType.APPLICATION_JSON.getMimeType());
-                    response.setEntity(new StringEntity("{\"took\":7,\"items\":[{\"create\":{\"_index\":\"test\",\"_type\":\"type1\",\"_id\":\"1\",\"_version\":1}}]}"));
+                    response.setHeader("Content-Type", "application/json; charset=UTF-8");
+                    response.setEntity(new StringEntity("{\"took\":7,\"errors\":false,\"items\":[{\"create\":{\"_index\":\"test\",\"_type\":\"type1\",\"_id\":\"1\",\"_version\":1}}]}"));
                 }
             };
 

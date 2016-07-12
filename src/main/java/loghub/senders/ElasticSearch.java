@@ -2,7 +2,8 @@ package loghub.senders;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.Reader;
 import java.net.ConnectException;
 import java.net.SocketTimeoutException;
 import java.net.URI;
@@ -23,7 +24,6 @@ import org.apache.http.Header;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHost;
 import org.apache.http.HttpVersion;
-import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.HttpRequestRetryHandler;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -266,13 +266,14 @@ public class ElasticSearch extends Sender {
         CloseableHttpResponse response = null;
 
         int tryExecute = 0;
+        HttpHost host;
         do {
             URI tryURI = routes[ThreadLocalRandom.current().nextInt(routes.length)];
             BasicHttpEntityEnclosingRequest request = new BasicHttpEntityEnclosingRequest(
                     verb, tryURI.getPath() + path,
                     HttpVersion.HTTP_1_1);
             request.setEntity(content);
-            HttpHost host = new HttpHost(tryURI.getHost(),
+            host = new HttpHost(tryURI.getHost(),
                     tryURI.getPort());
             try {
                 response = client.execute(host, request);
@@ -291,45 +292,49 @@ public class ElasticSearch extends Sender {
                     logger.throwing(Level.DEBUG, e1);
                 }
                 tryExecute++;
-            } catch (ClientProtocolException e) {
-                e.printStackTrace();
-                tryExecute++;
             } catch (IOException e) {
-                e.printStackTrace();
                 tryExecute++;
+                logger.error("Comunication with {} failed: {}", host, e.getMessage());
             }
         } while (response == null && tryExecute < 5);
         if (response == null) {
+            logger.error("give up trying to connect to ElasticSearch");
             return null;
         };
         int statusCode = response.getStatusLine().getStatusCode();
         if (statusCode/10 != 20) {
-            if (statusCode/10 == 50) {
-                logger.error("Elastic Search server failing: {}", response.getStatusLine());
-                return null;
-            } else {
-                return null;
-            }
+            logger.error("{} failed: {}", host, response.getStatusLine());
         }
         HttpEntity resultBody = response.getEntity();
-        Header contentType = response.getEntity().getContentType();
-        if(contentType != null && ContentType.APPLICATION_JSON.getMimeType().equals(contentType.getValue())) {
-            try (InputStream body = resultBody.getContent()) {
+        Header contentTypeHeader = response.getEntity().getContentType();
+        String contentType = null;
+        String charset = Charset.defaultCharset().name();;
+        if(contentTypeHeader != null) {
+            String value = contentTypeHeader.getValue();
+            int pos = value.indexOf(';');
+            if(pos > 0) {
+                contentType = value.substring(0, value.indexOf(';')).trim();
+                charset = value.substring(value.indexOf(';') + 1, value.length()).replace("charset=", "").trim();
+            } else {
+                contentType = value;
+            }
+        }
+        if(contentType != null && ContentType.APPLICATION_JSON.getMimeType().equals(contentType)) {
+            try (Reader contentReader = new InputStreamReader(resultBody.getContent(), charset)) {
                 @SuppressWarnings("unchecked")
-                T o = (T) json.get().readValue(body, Object.class);
+                T o = (T) json.get().readValue(contentReader, Object.class);
                 return o;
             } catch (UnsupportedOperationException | IOException e) {
                 try {
                     response.close();
                 } catch (IOException e1) {
                 }
-                e.printStackTrace();
+                logger.error("error reading response content from {}: {}", host, e.getMessage());
                 return null;
             }
         } else {
+            logger.error("bad response content from {}: {}", host, contentTypeHeader.getValue());
             try {
-                content.writeTo(System.out);
-                resultBody.writeTo(System.out);
                 response.close();
             } catch (IOException e) {
             }
