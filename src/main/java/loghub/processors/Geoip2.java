@@ -68,10 +68,10 @@ public class Geoip2 extends FieldsProcessor {
             try {
                 ipInfo = Helpers.parseIpAddres((String) addr);
                 if(ipInfo == null) {
-                    throw new ProcessorException("can't read ip address " + addr, null);
+                    throw event.buildException("can't read ip address " + addr);
                 }
             } catch (UnknownHostException e) {
-                throw new ProcessorException("can't read ip address " + addr, e);
+                throw event.buildException("can't read ip address " + addr, e);
             }
         }
 
@@ -92,7 +92,7 @@ public class Geoip2 extends FieldsProcessor {
             case "GeoLite2-City": {
                 CityResponse response = reader.city(ipInfo);
                 if(response == null) {
-                    throw new ProcessorException("City not found for " + ipInfo.toString(), null);
+                    throw event.buildException("City not found for " + ipInfo.toString());
                 }
                 country = response.getCountry();
                 city = response.getCity();
@@ -108,7 +108,7 @@ public class Geoip2 extends FieldsProcessor {
             case "GeoLite2-Country": {
                 CountryResponse response = reader.country(ipInfo);
                 if(response == null) {
-                    throw new ProcessorException("Country not found for " + ipInfo.toString(), null);
+                    throw event.buildException("Country not found for " + ipInfo.toString());
                 }
                 country = response.getCountry();
                 continent = response.getContinent();
@@ -120,7 +120,7 @@ public class Geoip2 extends FieldsProcessor {
         } catch (AddressNotFoundException e) {
             // not an error, do nothing
         } catch (IOException | GeoIp2Exception e) {
-            throw new ProcessorException("can't read geoip database", e);
+            throw event.buildException("can't read geoip database", e);
         }
 
         Helpers.TriConsumer<String, Object, Map<String, Object>> resolve = (a,b,c) -> { if (b != null) {c.put(a, b);};};

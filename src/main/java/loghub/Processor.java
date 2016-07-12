@@ -74,7 +74,7 @@ public abstract class Processor {
         return ifsource;
     }
 
-    public boolean isprocessNeeded(Event event) {
+    public boolean isprocessNeeded(Event event) throws ProcessorException {
         if(ifexpression == null) {
             return true;
         } else {

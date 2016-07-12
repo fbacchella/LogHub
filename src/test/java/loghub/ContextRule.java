@@ -23,8 +23,8 @@ public class ContextRule implements TestRule {
                     base.evaluate();
                 } finally {
                     terminateRescue();
-                }                
-            }            
+                }
+            }
         };
     }
 

@@ -26,7 +26,7 @@ public class DecodeUrl extends FieldsProcessor {
             } while(again && count < 5);
             event.put(destination, message);
         } catch (UnsupportedEncodingException|java.lang.IllegalArgumentException e) {
-            throw new ProcessorException("unable to decode " + oldMessage, e);
+            throw event.buildException("unable to decode " + oldMessage, e);
         }
 
     }

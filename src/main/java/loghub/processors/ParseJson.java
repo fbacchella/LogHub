@@ -33,7 +33,7 @@ public class ParseJson extends FieldsProcessor {
                 event.put(destination, o);
             }
         } catch (IOException e) {
-            throw new ProcessorException("failed to parse json " + message, e);
+            throw event.buildException("failed to parse json " + message, e);
         }
     }
 

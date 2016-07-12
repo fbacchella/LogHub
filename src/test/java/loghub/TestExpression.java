@@ -11,7 +11,7 @@ import loghub.configuration.Properties;
 public class TestExpression {
 
     @Test
-    public void test1() throws InstantiationException, IllegalAccessException {
+    public void test1() throws InstantiationException, IllegalAccessException, ProcessorException {
         VarFormatter format = new VarFormatter("${value}");
         Map<String, VarFormatter> formatters = Collections.singletonMap("faaf", format);
         String expressionScript = "event.value == formatters.faaf.format(event)";
@@ -23,7 +23,7 @@ public class TestExpression {
     }
 
     @Test
-    public void test2() throws InstantiationException, IllegalAccessException {
+    public void test2() throws InstantiationException, IllegalAccessException, ProcessorException {
         VarFormatter format = new VarFormatter("${a.b}");
         Map<String, VarFormatter> formatters = Collections.singletonMap("faaf", format);
         String expressionScript = "event.a.b + formatters.faaf.format(event)";

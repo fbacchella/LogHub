@@ -58,12 +58,12 @@ public class SyslogPriority extends FieldsProcessor {
             try {
                 priority = Integer.parseInt((String) priorityObject);
             } catch (NumberFormatException e) {
-                throw new ProcessorException(field  + "is not a number: " + priorityObject.toString(), null);
+                throw event.buildException(field  + "is not a number: " + priorityObject.toString());
             }
         } else if ( priorityObject instanceof Number) {
             priority = ((Number) priorityObject).intValue();
         } else {
-            throw new ProcessorException(field  + "is not a priority: " + priorityObject.toString(), null);
+            throw event.buildException(field  + "is not a priority: " + priorityObject.toString());
         }
         int facility = (priority >> 3);
         if(facility > 24) {

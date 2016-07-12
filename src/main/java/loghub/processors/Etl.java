@@ -104,7 +104,7 @@ public abstract class Etl extends Processor {
                     }
                 }, lvalue, (Object) null, false);
             } catch (CompletionException e1) {
-                throw new ProcessorException("unable to convert from string to " + className, (Exception)e1.getCause());
+                throw event.buildException("unable to convert from string to " + className, (Exception)e1.getCause());
             }
         }
         @Override

@@ -162,4 +162,14 @@ class EventInstance extends Event {
         this.timestamp = timestamp;
     }
 
+    @Override
+    public ProcessorException buildException(String message) {
+        return new ProcessorException(this, message);
+    }
+
+    @Override
+    public ProcessorException buildException(String message, Exception root) {
+        return new ProcessorException(this, message, root);
+    }
+
 }

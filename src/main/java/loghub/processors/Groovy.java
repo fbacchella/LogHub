@@ -21,7 +21,7 @@ public class Groovy extends Processor  {
         try {
             groovyScript.run();
         } catch (Exception e) {
-            throw new ProcessorException("groovy script failed", e);
+            throw event.buildException("groovy script failed", e);
         }
     }
 

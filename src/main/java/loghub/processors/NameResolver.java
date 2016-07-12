@@ -79,7 +79,7 @@ public class NameResolver extends FieldsProcessor {
                 try {
                     addr = InetAddress.getByAddress(parts);
                 } catch (UnknownHostException e) {
-                    throw new ProcessorException("unknonw host " + addr, e);
+                    throw event.buildException("unknonw host " + parts, e);
                 }
             }
         }
@@ -129,7 +129,7 @@ public class NameResolver extends FieldsProcessor {
                     }
                 }
             } catch (IllegalArgumentException e) {
-                throw new ProcessorException("can't setup resolver " + addr, (Exception) e.getCause());
+                throw event.buildException("can't setup resolver " + addr, (Exception) e.getCause());
             } catch (NameNotFoundException | javax.naming.ServiceUnavailableException | javax.naming.CommunicationException ex) {
                 // Expected failure from DNS, don't care
                 // But keep a short negative cache to avoid flooding
@@ -137,7 +137,7 @@ public class NameResolver extends FieldsProcessor {
                 e.setTimeToLive(timeout * 5);
                 hostCache.put(e);
             } catch (NamingException e) {
-                throw new ProcessorException("unresolvable name " + addr, e);
+                throw event.buildException("unresolvable name " + addr, e);
             } 
         }
     }

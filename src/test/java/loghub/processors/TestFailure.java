@@ -15,7 +15,7 @@ public class TestFailure {
 
             @Override
             public void process(Event event) throws ProcessorException {
-                throw new ProcessorException("test failure", new RuntimeException("test failure"));
+                throw event.buildException("test failure", new RuntimeException("test failure"));
             }
 
             @Override
@@ -28,7 +28,6 @@ public class TestFailure {
         Event event = Tools.getEvent();
 
         event.process(p);
-
 
     }
 

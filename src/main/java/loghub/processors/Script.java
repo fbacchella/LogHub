@@ -42,7 +42,7 @@ public class Script extends Processor {
         try {
             inv.invokeFunction(settings.get("transform"), event);
         } catch (NoSuchMethodException | ScriptException e) {
-            throw new ProcessorException("unable to execute script " + script, e);
+            throw event.buildException("unable to execute script " + script, e);
         }
     }
 

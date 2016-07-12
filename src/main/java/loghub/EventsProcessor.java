@@ -68,19 +68,17 @@ public class EventsProcessor extends Thread {
         } else if (p instanceof Drop) {
             dropped = true;
         } else {
-            if (p.isprocessNeeded(e)) {
-                try {
+            try {
+                if (p.isprocessNeeded(e)) {
                     e.process(p);
                     success = true;
-                } catch (RuntimeProcessorException ex) {
-                    Stats.newError(ex);
-                } catch (ProcessorException ex) {
-                    Stats.newError(ex);
-                } catch (Exception ex) {
-                    logger.error("failed to transform event {} with unmanaged error: {}", e, ex.getMessage());
-                    logger.throwing(Level.ERROR, ex);
-                    dropped = true;
                 }
+            } catch (ProcessorException ex) {
+                Stats.newError(ex);
+            } catch (Exception ex) {
+                logger.error("failed to transform event {} with unmanaged error: {}", e, ex.getMessage());
+                logger.throwing(Level.ERROR, ex);
+                dropped = true;
             }
         }
         // After processing, check the failures and success processors

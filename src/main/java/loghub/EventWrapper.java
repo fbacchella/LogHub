@@ -176,4 +176,14 @@ class EventWrapper extends Event {
         event.setTimestamp(timestamp);
     }
 
+    @Override
+    public ProcessorException buildException(String message) {
+        return event.buildException(message);
+    }
+
+    @Override
+    public ProcessorException buildException(String message, Exception root) {
+        return event.buildException(message, root);
+    }
+
 }

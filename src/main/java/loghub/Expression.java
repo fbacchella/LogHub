@@ -7,6 +7,7 @@ import org.apache.logging.log4j.Logger;
 
 import groovy.lang.Binding;
 import groovy.lang.GroovyClassLoader;
+import groovy.lang.GroovyRuntimeException;
 import groovy.lang.Script;
 
 public class Expression {
@@ -25,7 +26,7 @@ public class Expression {
         this.formatters = formatters;
     }
 
-    public Object eval(Event event, Map<String, Object> variables) {
+    public Object eval(Event event, Map<String, Object> variables) throws ProcessorException {
         logger.trace("Evaluating script {} with formatters {}, event {} and variables {}", expression, formatters, event, variables);
         Binding groovyBinding = new Binding();
         variables.entrySet().stream()
@@ -34,8 +35,14 @@ public class Expression {
         groovyBinding.setVariable("@timestamp", event.getTimestamp());
         groovyBinding.setVariable("formatters", formatters);
         groovyScript.setBinding(groovyBinding);
-        Object result = groovyScript.run();
-        groovyScript.setBinding(new Binding());
+        Object result;
+        try {
+            result = groovyScript.run();
+        } catch (GroovyRuntimeException e) {
+            throw event.buildException(String.format("failed expression '%s': %s", expression, e.getMessage()));
+        } finally {
+            groovyScript.setBinding(new Binding());
+        }
         return result;
     }
 

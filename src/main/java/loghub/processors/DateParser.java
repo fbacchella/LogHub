@@ -90,7 +90,7 @@ public class DateParser extends FieldsProcessor {
             }
         }
         if(!converted) {
-            throw new ProcessorException("date string " + dateString + " not parsed", null);
+            throw event.buildException("date string " + dateString + " not parsed");
         }
 
     }

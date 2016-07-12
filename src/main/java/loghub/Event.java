@@ -68,4 +68,9 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
     public abstract Date getTimestamp();
 
     public abstract void setTimestamp(Date timestamp);
+
+    public abstract ProcessorException buildException(String message);
+
+    public abstract ProcessorException buildException(String message, Exception root);
+
 }

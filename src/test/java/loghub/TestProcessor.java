@@ -30,7 +30,7 @@ public class TestProcessor {
     }
     
     @Test
-    public void testIf() {
+    public void testIf() throws ProcessorException {
         Event e = new EventInstance();
 
         Processor p = new Identity();

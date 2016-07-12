@@ -32,7 +32,7 @@ public class Convert extends FieldsProcessor {
             Object o = BeansManager.ConstructFromString(clazz, event.get(field).toString());
             event.put(destination, o);
         } catch (InvocationTargetException e) {
-            throw new ProcessorException("unable to convert from string to " + className, (Exception)e.getCause());
+            throw event.buildException("unable to convert from string to " + className, (Exception)e.getCause());
         }
     }
 

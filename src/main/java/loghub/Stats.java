@@ -12,7 +12,7 @@ public final class Stats {
     public final static AtomicLong sent = new AtomicLong();
     public final static AtomicLong failed = new AtomicLong();
 
-    private final static Queue<ProcessorException> errors = new  ArrayBlockingQueue<ProcessorException>(100);
+    private final static Queue<ProcessorException> errors = new ArrayBlockingQueue<>(100);
 
     private Stats() {
     }
