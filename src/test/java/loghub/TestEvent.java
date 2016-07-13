@@ -27,7 +27,6 @@ public class TestEvent {
         e.applyAtPath((i, j, k) -> i.put(j, k), new String[]{"a", "b", "c"}, 1, true);
         e.put("d", 2);
         e.applyAtPath((i, j, k) -> i.put(j, k), new String[]{"e"}, 3, true);
-        System.out.println(e);
         Assert.assertEquals("wrong number of keys", 3, e.keySet().size());
         Assert.assertEquals("Didn't resolve the path correctly",  1, e.applyAtPath((i, j, k) -> i.get(j), new String[]{"a", "b", "c"}, null));
         Assert.assertEquals("Didn't resolve the path correctly",  1, e.applyAtPath((i, j, k) -> i.remove(j), new String[]{"a", "b", "c"}, null));

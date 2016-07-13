@@ -1,6 +1,11 @@
 package loghub.configuration;
 
+import java.io.File;
 import java.lang.management.ManagementFactory;
+import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URL;
 import java.time.DateTimeException;
 import java.time.ZoneId;
 import java.util.Collection;
@@ -19,6 +24,7 @@ import javax.management.MBeanServer;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.core.LoggerContext;
 
 import groovy.lang.GroovyClassLoader;
 import loghub.Event;
@@ -98,6 +104,24 @@ public class Properties extends HashMap<String, Object> {
             cl = Properties.class.getClassLoader();
         }
         classloader = cl;
+
+        URI log4JUri = null;
+        if (properties.containsKey("log4j.configURL")) {
+            String log4JUrlString = (String) properties.remove("log4j.configURL");
+            try {
+                log4JUri = new URL(log4JUrlString).toURI();
+            } catch (MalformedURLException | URISyntaxException e) {
+                logger.error("Invalid log4j URL");
+            }
+        } else if (properties.containsKey("log4j.configFile")) {
+            log4JUri = new File((String) properties.remove("log4j.configFile")).toURI();
+        }
+        if (log4JUri != null) {
+            LoggerContext ctx = (LoggerContext) LogManager.getContext(false);
+            ctx.setConfigLocation(log4JUri);
+            ctx.reconfigure();
+            logger.debug("log4j reconfigured");
+        }
 
         namedPipeLine = properties.containsKey(PROPSNAMES.NAMEDPIPELINES.toString()) ? (Map<String, Pipeline>) properties.remove(PROPSNAMES.NAMEDPIPELINES.toString()) : Collections.emptyMap();
 

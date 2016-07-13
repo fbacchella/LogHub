@@ -53,7 +53,6 @@ public class Configuration {
     private static final Logger logger = LogManager.getLogger();
     private static final ThrowingFunction<Class<Object>, Object> emptyConstructor = i -> {return i.getConstructor().newInstance();};
 
-
     private List<Receiver> receivers;
     private Set<String> inputpipelines = new HashSet<>();
     private Set<String> outputpipelines = new HashSet<>();
