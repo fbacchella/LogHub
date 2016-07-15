@@ -3,8 +3,6 @@ package loghub.processors;
 import java.util.Collections;
 
 import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import loghub.Event;
 import loghub.Expression;
@@ -13,8 +11,6 @@ import loghub.ProcessorException;
 import loghub.configuration.Properties;
 
 public class Test extends Processor {
-
-    private static final Logger logger = LogManager.getLogger();
 
     private Expression ifClause;
     private String ifClauseSource;

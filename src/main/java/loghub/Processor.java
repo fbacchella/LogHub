@@ -4,11 +4,17 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Optional;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.util.ReflectionUtil;
+
 import loghub.configuration.Beans;
 import loghub.configuration.Properties;
 
 @Beans({"threads"})
 public abstract class Processor {
+
+    protected final Logger logger;
 
     private int threads = -1;
     private String[] path = new String[]{};
@@ -18,6 +24,7 @@ public abstract class Processor {
     private String ifsource = null;
 
     public Processor() {
+        logger = LogManager.getLogger(ReflectionUtil.getCallerClass(2));
     }
 
     public boolean configure(Properties properties) {

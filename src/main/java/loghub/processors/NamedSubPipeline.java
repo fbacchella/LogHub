@@ -1,8 +1,5 @@
 package loghub.processors;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import loghub.Event;
 import loghub.Pipeline;
 import loghub.Processor;
@@ -10,8 +7,6 @@ import loghub.SubPipeline;
 import loghub.configuration.Properties;
 
 public class NamedSubPipeline extends Processor implements SubPipeline {
-
-    private static final Logger logger = LogManager.getLogger();
 
     private String pipeRef;
     private Pipeline pipe;

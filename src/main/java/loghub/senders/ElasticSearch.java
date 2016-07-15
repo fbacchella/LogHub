@@ -39,8 +39,6 @@ import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.apache.http.message.BasicHttpEntityEnclosingRequest;
 import org.apache.http.protocol.HttpContext;
 import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -51,8 +49,6 @@ import loghub.Sender;
 import loghub.configuration.Properties;
 
 public class ElasticSearch extends Sender {
-
-    private static final Logger logger = LogManager.getLogger();
 
     private static final JsonFactory factory = new JsonFactory();
     private static final ThreadLocal<ObjectMapper> json = new ThreadLocal<ObjectMapper>() {

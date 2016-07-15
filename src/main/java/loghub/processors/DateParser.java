@@ -10,16 +10,11 @@ import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import loghub.Event;
 import loghub.ProcessorException;
 import loghub.configuration.Properties;
 
 public class DateParser extends FieldsProcessor {
-
-    private static final Logger logger = LogManager.getLogger();
 
     private final static Map<String,DateTimeFormatter> NAMEDPATTERNS = new HashMap<String,DateTimeFormatter>(){{
         put("RFC_1123_DATE_TIME", DateTimeFormatter.RFC_1123_DATE_TIME);

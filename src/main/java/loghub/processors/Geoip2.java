@@ -14,8 +14,6 @@ import java.util.Locale;
 import java.util.Map;
 
 import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.maxmind.db.NodeCache;
@@ -51,7 +49,6 @@ public class Geoip2 extends FieldsProcessor {
         SUBDIVISION,
     };
 
-    private static final Logger logger = LogManager.getLogger();
     private static DatabaseReader reader;
 
     private Path datfilepath = null;

@@ -2,11 +2,17 @@ package loghub;
 
 import java.util.concurrent.BlockingQueue;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.util.ReflectionUtil;
+
 import loghub.configuration.Beans;
 import loghub.configuration.Properties;
 
 @Beans({"encoder"})
 public abstract class Sender extends Thread {
+
+    protected final Logger logger;
 
     private final BlockingQueue<Event> inQueue;
     private Encoder encoder;
@@ -15,6 +21,7 @@ public abstract class Sender extends Thread {
         setDaemon(true);
         setName("sender-" + getSenderName());
         this.inQueue = inQueue;
+        logger = LogManager.getLogger(ReflectionUtil.getCallerClass(2));
     }
 
     public boolean configure(Properties properties) {

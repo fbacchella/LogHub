@@ -18,8 +18,6 @@ import javax.script.ScriptEngineManager;
 import javax.script.ScriptException;
 
 import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import loghub.Event;
 import loghub.Processor;
@@ -30,7 +28,6 @@ import loghub.configuration.Properties;
 @Beans("script")
 public class Script extends Processor {
 
-    private static final Logger logger = LogManager.getLogger();
     private static ScriptEngineManager factory = null;
 
     private String script;

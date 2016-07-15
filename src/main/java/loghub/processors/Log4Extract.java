@@ -47,7 +47,6 @@ public class Log4Extract extends ObjectExtractor<LoggingEvent> {
         Date d = new Date(o.getTimeStamp());
         event.put(Event.TIMESTAMPKEY, d);
         event.put("message", o.getRenderedMessage());
-        System.out.println(event);
     }
 
     @Override

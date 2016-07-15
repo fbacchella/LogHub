@@ -14,8 +14,6 @@ import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.stream.Collectors;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.snmp4j.CommandResponder;
 import org.snmp4j.CommandResponderEvent;
 import org.snmp4j.MessageDispatcherImpl;
@@ -58,8 +56,6 @@ public class SnmpTrap extends Receiver implements CommandResponder {
     static {
         LogFactory.setLogFactory(new Log4j2LogFactory());
     }
-
-    private static final Logger logger = LogManager.getLogger();
 
     static final private byte TAG1 = (byte) 0x9f;
     static final private byte TAG_FLOAT = (byte) 0x78;

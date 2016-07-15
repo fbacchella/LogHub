@@ -5,8 +5,6 @@ import java.util.Iterator;
 import java.util.concurrent.BlockingQueue;
 
 import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.zeromq.ZMQ.Socket;
 import org.zeromq.ZMQException;
 
@@ -19,8 +17,6 @@ import zmq.ZMQHelper;
 
 @Beans({"method", "listen", "type", "hwm"})
 public class ZMQ extends Receiver {
-
-    private static final Logger logger = LogManager.getLogger();
 
     private ZMQHelper.Method method = ZMQHelper.Method.BIND;
     private String listen = "tcp://localhost:2120";

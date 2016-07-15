@@ -7,7 +7,7 @@ public class Log extends Processor {
 
     @Override
     public void process(Event event) {
-        System.out.println("received " + event);
+        logger.info("received {}", event);
     }
 
     @Override

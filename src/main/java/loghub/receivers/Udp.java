@@ -10,9 +10,6 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.concurrent.BlockingQueue;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import loghub.Event;
 import loghub.Pipeline;
 import loghub.Receiver;
@@ -20,8 +17,6 @@ import loghub.configuration.Beans;
 
 @Beans({"port", "listen"})
 public class Udp extends Receiver {
-
-    private static final Logger logger = LogManager.getLogger();
 
     private int port = 0;
     private String listen = "0.0.0.0";

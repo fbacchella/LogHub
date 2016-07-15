@@ -2,9 +2,6 @@ package loghub.processors;
 
 import java.lang.reflect.InvocationTargetException;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import loghub.Event;
 import loghub.ProcessorException;
 import loghub.configuration.BeansManager;
@@ -20,8 +17,6 @@ import loghub.configuration.Properties;
  *
  */
 public class Convert extends FieldsProcessor {
-
-    private static final Logger logger = LogManager.getLogger();
 
     private String className = "java.lang.String";
     private Class<?> clazz;

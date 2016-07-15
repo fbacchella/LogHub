@@ -12,8 +12,6 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import loghub.Event;
 import loghub.Helpers;
@@ -22,8 +20,6 @@ import oi.thekraken.grok.api.Match;
 import oi.thekraken.grok.api.exception.GrokException;
 
 public class Grok extends FieldsProcessor {
-
-    private static final Logger logger = LogManager.getLogger();
 
     private final oi.thekraken.grok.api.Grok grok;
     private String pattern;

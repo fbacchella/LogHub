@@ -5,8 +5,6 @@ import java.io.PrintStream;
 import java.util.concurrent.BlockingQueue;
 
 import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import loghub.Event;
 import loghub.Sender;
@@ -14,8 +12,6 @@ import loghub.configuration.Beans;
 
 @Beans("destination")
 public class Stdout extends Sender {
-
-    private static final Logger logger = LogManager.getLogger();
 
     PrintStream destination = System.out;
     

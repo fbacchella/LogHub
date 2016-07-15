@@ -8,6 +8,7 @@ import java.util.concurrent.BlockingQueue;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.util.ReflectionUtil;
 
 import loghub.configuration.Beans;
 import loghub.configuration.Properties;
@@ -15,7 +16,7 @@ import loghub.configuration.Properties;
 @Beans({"decoder"})
 public abstract class Receiver extends Thread implements Iterator<Event> {
 
-    private static final Logger logger = LogManager.getLogger();
+    protected final Logger logger;
 
     private final BlockingQueue<Event> outQueue;
     private final Pipeline pipeline;
@@ -26,6 +27,7 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
         setName("receiver-" + getReceiverName());
         this.outQueue = outQueue;
         this.pipeline = pipeline;
+        logger = LogManager.getLogger(ReflectionUtil.getCallerClass(2));
     }
 
     public boolean configure(Properties properties) {

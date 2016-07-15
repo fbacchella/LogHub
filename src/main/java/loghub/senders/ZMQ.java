@@ -2,8 +2,6 @@ package loghub.senders;
 
 import java.util.concurrent.BlockingQueue;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.zeromq.ZMQ.Socket;
 
 import loghub.Event;
@@ -14,9 +12,6 @@ import zmq.ZMQHelper;
 
 @Beans({"method", "destination", "type", "hwm"})
 public class ZMQ extends Sender {
-
-    @SuppressWarnings("unused")
-    private static final Logger logger = LogManager.getLogger();
 
     private ZMQHelper.Method method = ZMQHelper.Method.BIND;
     private String destination = "tcp://localhost:2120";

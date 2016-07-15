@@ -9,8 +9,6 @@ import java.net.UnknownHostException;
 import java.util.concurrent.BlockingQueue;
 
 import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import loghub.Event;
 import loghub.Sender;
@@ -19,8 +17,6 @@ import loghub.configuration.Properties;
 
 @Beans({"port", "destination"})
 public class Udp extends Sender {
-
-    private static final Logger logger = LogManager.getLogger();
 
     private int port = 0;
     private String destination = "127.0.0.1";
