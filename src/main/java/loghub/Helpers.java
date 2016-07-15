@@ -17,6 +17,7 @@ import java.util.Collections;
 import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
@@ -355,4 +356,13 @@ public final class Helpers {
     public static SimplifiedThread makeSimpleThread(Runnable r) {
         return new SimplifiedThread(r);
     }
+
+    public static Object putNotEmpty(Map<String, Object>i, String j, Object k){
+        if (k != null) {
+            return i.put(j, k);
+        } else {
+            return null;
+        }
+    }
+
 }

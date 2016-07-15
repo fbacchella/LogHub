@@ -14,8 +14,6 @@ import ua_parser.Parser;
 
 public class UserAgent extends FieldsProcessor {
 
-    private final static Helpers.TriConsumer<String, Object, Map<String, Object>> smartput = (a,b,c) -> { if (b != null) {c.put(a, b);};};
-
     private Parser uaParser;
     private int cacheSize = 1000;
 
@@ -25,23 +23,23 @@ public class UserAgent extends FieldsProcessor {
         Client c = uaParser.parse(userAgent);
 
         Map<String, Object> ua = new HashMap<>(3);
-        smartput.accept("device", c.device.family, ua);
+        Helpers.putNotEmpty(ua, "device", c.device.family);
 
         Map<String, Object> os =  new HashMap<>(5);
-        smartput.accept("family", c.os.family, os);
-        smartput.accept("major", c.os.major, os);
-        smartput.accept("minor", c.os.minor, os);
-        smartput.accept("patch", c.os.patch, os);
-        smartput.accept("patchMinor", c.os.patchMinor, os);
+        Helpers.putNotEmpty(os, "family", c.os.family);
+        Helpers.putNotEmpty(os, "major", c.os.major);
+        Helpers.putNotEmpty(os, "minor", c.os.minor);
+        Helpers.putNotEmpty(os, "patch", c.os.patch);
+        Helpers.putNotEmpty(os, "patchMinor", c.os.patchMinor);
         if(os.size() > 0) {
             ua.put("os", os);
         }
 
         Map<String, Object> agent =  new HashMap<>(4);
-        smartput.accept("family", c.userAgent.family, agent);
-        smartput.accept("major", c.userAgent.major, agent);
-        smartput.accept("minor", c.userAgent.minor, agent);
-        smartput.accept("patch", c.userAgent.patch, agent);
+        Helpers.putNotEmpty(agent, "family", c.userAgent.family);
+        Helpers.putNotEmpty(agent, "major", c.userAgent.major);
+        Helpers.putNotEmpty(agent, "minor", c.userAgent.minor);
+        Helpers.putNotEmpty(agent, "patch", c.userAgent.patch);
         if(agent.size() > 0) {
             ua.put("userAgent", agent);
         }

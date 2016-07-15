@@ -120,15 +120,13 @@ public class Geoip2 extends FieldsProcessor {
             throw event.buildException("can't read geoip database", e);
         }
 
-        Helpers.TriConsumer<String, Object, Map<String, Object>> resolve = (a,b,c) -> { if (b != null) {c.put(a, b);};};
-
         for(LocationType type: types) {
             switch(type) {
             case COUNTRY:
                 if(country != null) {
                     Map<String, Object> infos = new HashMap<>(2);
-                    resolve.accept("code", country.getIsoCode(), infos);
-                    resolve.accept("name", country.getNames().get(locale), infos);
+                    Helpers.putNotEmpty(infos, "code", country.getIsoCode());
+                    Helpers.putNotEmpty(infos, "name", country.getNames().get(locale));
                     if(infos.size() > 0) {
                         informations.put("country", infos);
                     }
@@ -137,8 +135,8 @@ public class Geoip2 extends FieldsProcessor {
             case REPRESENTEDCOUNTRY:
                 if(represented_country != null) {
                     Map<String, Object> infos = new HashMap<>(2);
-                    resolve.accept("code", represented_country.getIsoCode(), infos);
-                    resolve.accept("name", represented_country.getNames().get(locale), infos);
+                    Helpers.putNotEmpty(infos, "code", represented_country.getIsoCode());
+                    Helpers.putNotEmpty(infos, "name", represented_country.getNames().get(locale));
                     if(infos.size() > 0) {
                         informations.put("represented_country", infos);
                     }
@@ -147,8 +145,8 @@ public class Geoip2 extends FieldsProcessor {
             case REGISTREDCOUNTRY:
                 if(registred_country != null) {
                     Map<String, Object> infos = new HashMap<>(2);
-                    resolve.accept("code", registred_country.getIsoCode(), infos);
-                    resolve.accept("name", registred_country.getNames().get(locale), infos);
+                    Helpers.putNotEmpty(infos, "code", registred_country.getIsoCode());
+                    Helpers.putNotEmpty(infos, "name", registred_country.getNames().get(locale));
                     if(infos.size() > 0) {
                         informations.put("registred_country", infos);
                     }
@@ -156,32 +154,32 @@ public class Geoip2 extends FieldsProcessor {
                 break;
             case CITY: {
                 if(city != null) {
-                    resolve.accept("city", city.getNames().get(locale), informations);
+                    Helpers.putNotEmpty(informations, "city", city.getNames().get(locale));
                 }
                 break;
             }
             case LOCATION:
                 Map<String, Object> infos = new HashMap<>(10);
                 if(location != null) {
-                    resolve.accept("latitude", location.getLatitude(), infos);
-                    resolve.accept("longitude", location.getLongitude(), infos);
-                    resolve.accept("timezone", location.getTimeZone(), infos);
-                    resolve.accept("accuray_radius", location.getAccuracyRadius(), infos);
-                    resolve.accept("metro_code", location.getMetroCode(), infos);
-                    resolve.accept("average_income", location.getAverageIncome(), infos);
-                    resolve.accept("population_density", location.getPopulationDensity(), infos);
+                    Helpers.putNotEmpty(infos, "latitude", location.getLatitude());
+                    Helpers.putNotEmpty(infos, "longitude", location.getLongitude());
+                    Helpers.putNotEmpty(infos, "timezone", location.getTimeZone());
+                    Helpers.putNotEmpty(infos, "accuray_radius", location.getAccuracyRadius());
+                    Helpers.putNotEmpty(infos, "metro_code", location.getMetroCode());
+                    Helpers.putNotEmpty(infos, "average_income", location.getAverageIncome());
+                    Helpers.putNotEmpty(infos, "population_density", location.getPopulationDensity());
                     if(infos.size() > 0) {
                         informations.put("location", infos);
                     }
                 }
             case CONTINENT:
                 if(continent != null) {
-                    resolve.accept("continent", continent.getNames().get(locale), informations);
+                    Helpers.putNotEmpty(informations, "continent", continent.getNames().get(locale));
                 }
                 break;
             case POSTAL:
                 if(postal != null) {
-                    resolve.accept("postal", postal.getCode(), informations);
+                    Helpers.putNotEmpty(informations, "postal", postal.getCode());
                 }
                 break;
             case SUBDIVISION:
@@ -189,8 +187,8 @@ public class Geoip2 extends FieldsProcessor {
                     List<Map<String, Object>> all = new ArrayList<>(subdivision.size());
                     for(Subdivision sub: subdivision) {
                         Map<String, Object> subdivisioninfo = new HashMap<>(2);
-                        resolve.accept("code", sub.getIsoCode(), subdivisioninfo);
-                        resolve.accept("name", sub.getNames().get(locale), subdivisioninfo);
+                        Helpers.putNotEmpty(subdivisioninfo, "code", sub.getIsoCode());
+                        Helpers.putNotEmpty(subdivisioninfo, "name", sub.getNames().get(locale));
                         if(subdivisioninfo.size() > 0) {
                             all.add(subdivisioninfo);
                         }

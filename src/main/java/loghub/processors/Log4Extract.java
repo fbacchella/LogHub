@@ -8,30 +8,24 @@ import java.util.Map;
 import org.apache.log4j.spi.LoggingEvent;
 
 import loghub.Event;
-import loghub.Helpers.TriConsumer;
+import loghub.Helpers;
 
 public class Log4Extract extends ObjectExtractor<LoggingEvent> {
 
-    private static final TriConsumer<Event, String, String> assign = (i, j, k) -> {
-        if (k != null && !k.isEmpty()) {
-            i.put(j, k);
-        }
-    };
-
     @Override
     public void extract(Event event, LoggingEvent o) {
-        assign.accept(event, "path", o.getLoggerName());
-        assign.accept(event, "priority", o.getLevel().toString());
-        assign.accept(event, "logger_name", o.getLoggerName());
-        assign.accept(event, "thread", o.getThreadName());
+        Helpers.putNotEmpty(event, "path", o.getLoggerName());
+        Helpers.putNotEmpty(event, "priority", o.getLevel().toString());
+        Helpers.putNotEmpty(event, "logger_name", o.getLoggerName());
+        Helpers.putNotEmpty(event, "thread", o.getThreadName());
         o.getLocationInformation();
         if(o.getLocationInformation().fullInfo != null) {
-            assign.accept(event, "class", o.getLocationInformation().getClassName());
-            assign.accept(event, "file", o.getLocationInformation().getFileName());
-            assign.accept(event, "method", o.getLocationInformation().getMethodName());
-            assign.accept(event, "line", o.getLocationInformation().getLineNumber());
+            Helpers.putNotEmpty(event, "class", o.getLocationInformation().getClassName());
+            Helpers.putNotEmpty(event, "file", o.getLocationInformation().getFileName());
+            Helpers.putNotEmpty(event, "method", o.getLocationInformation().getMethodName());
+            Helpers.putNotEmpty(event, "line", o.getLocationInformation().getLineNumber());
         }
-        assign.accept(event, "NDC", o.getNDC());
+        Helpers.putNotEmpty(event, "NDC", o.getNDC());
         if(o.getThrowableStrRep() != null) {
             List<String> stack = new ArrayList<>();
             for(String l: o.getThrowableStrRep()) {
