@@ -77,7 +77,7 @@ public class EventsProcessor extends Thread {
                 Stats.newError(ex);
             } catch (Exception ex) {
                 logger.error("failed to transform event {} with unmanaged error: {}", e, ex.getMessage());
-                logger.throwing(Level.ERROR, ex);
+                logger.throwing(Level.DEBUG, ex);
                 dropped = true;
             }
         }

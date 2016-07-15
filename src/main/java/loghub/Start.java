@@ -9,11 +9,16 @@ import javax.management.MalformedObjectNameException;
 import javax.management.NotCompliantMBeanException;
 import javax.management.remote.JMXConnectorServer;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import loghub.configuration.Configuration;
 import loghub.configuration.Properties;
 import loghub.jmx.Helper;
 
 public class Start extends Thread {
+
+    private static final Logger logger = LogManager.getLogger();
 
     static public void main(final String[] args) {
         try {
@@ -34,12 +39,16 @@ public class Start extends Thread {
         for (Sender s: props.senders) {
             if (s.configure(props)) {
                 s.start();
+            } else {
+                logger.error("failed to start output {}", s.getName());
             };
         }
 
         for (Receiver r: props.receivers) {
             if (r.configure(props)) {
                 r.start();
+            } else {
+                logger.error("failed to start input {}", r.getName());
             }
         }
 

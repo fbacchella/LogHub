@@ -10,6 +10,15 @@ import loghub.configuration.Properties;
 
 public abstract class Decoder {
 
+    public static class DecodeException extends Exception {
+        public DecodeException(String message, Throwable cause) {
+            super(message, cause);
+        }
+        DecodeException(String message) {
+            super(message);
+        }
+    };
+
     protected final Logger logger;
     
     protected Decoder() {
@@ -20,9 +29,9 @@ public abstract class Decoder {
         return true;
     }
 
-    abstract public Map<String, Object> decode(byte[] msg, int offset, int length);
+    abstract public Map<String, Object> decode(byte[] msg, int offset, int length) throws DecodeException;
 
-    public Map<String, Object> decode(byte[] msg) {
+    public Map<String, Object> decode(byte[] msg) throws DecodeException{
         return decode(msg, 0, msg.length);
     }
 

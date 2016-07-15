@@ -5,6 +5,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.msgpack.core.MessagePackException;
 import org.msgpack.jackson.dataformat.MessagePackFactory;
 
 import com.fasterxml.jackson.core.JsonFactory;
@@ -34,7 +35,7 @@ public class Msgpack extends Decoder {
     private String field = "message";
 
     @Override
-    public Map<String, Object> decode(byte[] msg, int offset, int length) {
+    public Map<String, Object> decode(byte[] msg, int offset, int length) throws DecodeException {
         try {
             Object o = msgpack.get().readValue(msg, offset, length, Object.class);
             if(o instanceof Map) {
@@ -46,8 +47,10 @@ public class Msgpack extends Decoder {
             } else {
                 return Collections.singletonMap(field, o);
             }
+        } catch (MessagePackException e) {
+            throw new DecodeException("Can't parse msgpack serialization", e);
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            throw new DecodeException("Can't parse msgpack serialization", e);
         }
     }
 

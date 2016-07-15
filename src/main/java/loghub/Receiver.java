@@ -10,6 +10,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.util.ReflectionUtil;
 
+import loghub.Decoder.DecodeException;
 import loghub.configuration.Beans;
 import loghub.configuration.Properties;
 
@@ -69,8 +70,8 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
             };
             try {
                 for(Event e: stream) {
-                    logger.trace("new message received: {}", e);
                     if(e != null) {
+                        logger.trace("new message received: {}", e);
                         eventseen++;
                         //Wrap, but not a problem, just count as 1
                         if(eventseen < 0) {
@@ -97,6 +98,7 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
                         wait = wait * 2;
                         looptry = 0;
                     } catch (InterruptedException ex) {
+                        Thread.currentThread().interrupt();
                         break;
                     }
                 }
@@ -107,13 +109,13 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
         }
         close();
     }
-    
+
     /**
      * This empty method is called if receiver thread is interrupted, it should be
      * overridden for clean up.
      */
     public void close() {
-        
+
     };
 
     /**
@@ -148,16 +150,26 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
     }
 
     protected final Event decode(byte[] msg) {
-        return decode(msg, 0, msg.length);
+        return decode(msg, 0, msg != null ? msg.length : 0);
     }
 
     protected final Event decode(byte[] msg, int offset, int size) {
         EventInstance event = new EventInstance();
-        Map<String, Object> content = decoder.decode(msg, offset, size);
-        if( content.containsKey(Event.TIMESTAMPKEY) && (event.get(Event.TIMESTAMPKEY) instanceof Date)) {
-            event.setTimestamp((Date) event.remove(Event.TIMESTAMPKEY));
+        if ( msg == null || size == 0) {
+            logger.info("received null or empty event");
+        } else {
+            try {
+                Map<String, Object> content = decoder.decode(msg, offset, size);
+                if (content.containsKey(Event.TIMESTAMPKEY) && (event.get(Event.TIMESTAMPKEY) instanceof Date)) {
+                    event.setTimestamp((Date) event.remove(Event.TIMESTAMPKEY));
+                }
+                content.entrySet().stream().forEach( i -> event.put(i.getKey(), i.getValue()));
+            } catch (DecodeException e) {
+                logger.error("invalid message received: {}", e.getMessage());
+                logger.throwing(e.getCause() != null ? e.getCause() : e);
+                return null;
+            }
         }
-        content.entrySet().stream().forEach( i -> event.put(i.getKey(), i.getValue()));
         return event;
     }
 
