@@ -6,9 +6,9 @@ import org.zeromq.ZMQ.Socket;
 
 import loghub.Event;
 import loghub.Sender;
-import loghub.SmartContext;
 import loghub.configuration.Beans;
-import zmq.ZMQHelper;
+import loghub.zmq.SmartContext;
+import loghub.zmq.ZMQHelper;
 
 @Beans({"method", "destination", "type", "hwm"})
 public class ZMQ extends Sender {

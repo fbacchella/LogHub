@@ -7,19 +7,19 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.Assert;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.zeromq.ZMQ.Socket;
 
 import loghub.ContextRule;
+import loghub.Event;
 import loghub.LogUtils;
 import loghub.Receiver;
 import loghub.Sender;
-import loghub.SmartContext;
 import loghub.Tools;
-import zmq.ZMQHelper.Method;
-import zmq.ZMQHelper.Type;
+import loghub.zmq.SmartContext;
+import loghub.zmq.ZMQHelper.Method;
+import loghub.zmq.ZMQHelper.Type;
 
 public class TestWithZMQ {
 
@@ -32,34 +32,30 @@ public class TestWithZMQ {
     static public void configure() throws IOException {
         Tools.configure();
         logger = LogManager.getLogger();
-        LogUtils.setLevel(logger, Level.TRACE, "loghub.SmartContext", "loghub.PipeStep","loghub.Pipeline", "loghub.configuration.Configuration","loghub.receivers.ZMQ", "loghub.Receiver", "loghub.processors.Forker");
+        LogUtils.setLevel(logger, Level.TRACE, "loghub.zmq", "loghub.receivers.ZMQ");
     }
 
-    private Properties loadConf(String configname) {
-        String conffile = getClass().getClassLoader().getResource(configname).getFile();
-        return Configuration.parse(conffile);
-    }
-
-    @Ignore
-    @Test(timeout=1000) 
+    @Test(timeout=2000) 
     public void testSimpleInput() throws InterruptedException {
-        Properties conf = loadConf("simpleinput.conf");
+        Properties conf = Tools.loadConf("simpleinput.conf");
         logger.debug("pipelines: {}", conf.pipelines);
 
-        Thread.sleep(30);
         for(Receiver r: conf.receivers) {
+            Assert.assertTrue("failed to configure " + r, r.configure(conf));
             r.start();
         }
-        Thread.sleep(30);
         for(Sender s: conf.senders) {
+            Assert.assertTrue("failed to configure " + s, s.configure(conf));
             s.start();
         }
-        Thread.sleep(30);
         Socket out = tctxt.ctx.newSocket(Method.CONNECT, Type.SUB, "inproc://sender", 1, -1);
         out.subscribe(new byte[]{});
-        Socket sender = tctxt.ctx.newSocket(Method.CONNECT, Type.PUB, "inproc://listener1", 1, -1);
+        Socket sender = tctxt.ctx.newSocket(Method.CONNECT, Type.PUB, "inproc://listener", 1, -1);
         Thread.sleep(30);
         sender.send("something");
+        Thread.sleep(30);
+        Event received = conf.mainQueue.remove();
+        conf.outputQueues.get("main").add(received);
         byte[] buffer = out.recv();
         Assert.assertEquals("wrong send message", "something", new String(buffer));
         tctxt.ctx.close(sender);
@@ -70,7 +66,7 @@ public class TestWithZMQ {
         for(Sender s: conf.senders) {
             s.interrupt();
         }
-        SmartContext.terminate();
+        SmartContext.getContext().terminate();
     }
 
 }

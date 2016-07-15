@@ -1,16 +1,18 @@
-package zmq;
+package loghub.zmq;
 
 import java.io.IOException;
-import java.util.Collection;
+import java.net.SocketException;
+import java.nio.channels.ClosedByInterruptException;
+import java.nio.channels.ClosedChannelException;
 import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.util.Supplier;
 import org.zeromq.ZMQ;
-import org.zeromq.ZMQ.Socket;
 import org.zeromq.ZMQException;
 
-import loghub.SmartContext;
+import zmq.ZError;
 
 public class ZMQHelper {
 
@@ -114,74 +116,43 @@ public class ZMQHelper {
     private ZMQHelper() {
     }
 
-    @Deprecated
-    public static void terminate() {
-        SmartContext.terminate();
-    }
-
-    @Deprecated
-    public static Socket newSocket(Method method, Type type, String endpoint) {
-        return SmartContext.getContext().newSocket(method, type, endpoint);
-    }
-
-    @Deprecated
-    public static String getURL(Socket socket) {
-        return SmartContext.getContext().getURL(socket);
-    }
-
-    @Deprecated
-    public static Iterable<byte[]> read(final Socket receiver) throws IOException {
-        return SmartContext.getContext().read(receiver);
-    }
-
-    @Deprecated
-    public static void close(Socket socket) {
-        SmartContext.getContext().close(socket);
-    }
-
-    public static void logZMQException(Logger l, String prefix, RuntimeException e0) {
-        ERRNO errno = ERRNO.EOTHER;
-        String message;
-        try {
-            throw e0;
-        } catch (ZMQException e) {
-            errno = ERRNO.get(e.getErrorCode());
-            message = errno.toString(prefix, e, e);
-        } catch (zmq.ZError.CtxTerminatedException e) {
+    public static void logZMQException(Logger l, String prefix, RuntimeException e) {
+        final ERRNO errno;
+        Supplier<String> message;
+        if (e instanceof ZMQException.IOException || e instanceof ZError.IOException) {
+            IOException cause = (java.io.IOException) e.getCause();
+            errno = ERRNO.get(exccode(cause));
+            message = () -> errno.toString(prefix, e, e);
+        } else if (e instanceof ZError.CtxTerminatedException) {
             errno = ERRNO.ETERM;
-            message = errno.toString(prefix, e, new RuntimeException("Context terminated"));
-        } catch (zmq.ZError.IOException e) {
-            errno = ERRNO.get(ZError.exccode((java.io.IOException) e.getCause()));
-            message = errno.toString(prefix, e, e.getCause());
-        } catch (zmq.ZError.InstantiationException e) {
-            message =  errno.toString(prefix, e, e.getCause());
-        } catch (RuntimeException e) {
+            message = () -> errno.toString(prefix, e, new RuntimeException("Context terminated"));
+        } else if (e instanceof ZError.InstantiationException) {
+            errno = ERRNO.EOTHER;
+            message =  () -> errno.toString(prefix, e, e.getCause());
+        } else if (e instanceof ZMQException) {
+            errno = ERRNO.get(((ZMQException)e).getErrorCode());
+            message = () -> errno.toString(prefix, e, e);
+        } else {
             throw e;
         }
         switch(errno) {
+        case EINTR: l.debug(message); break;
         case ETERM: l.debug(message); break;
         case EOTHER: l.fatal(message); break;
         default: l.error(message); break;
         }
     }
 
-    @Deprecated
-    public static void proxy(final String name, final SocketInfo socketIn, final SocketInfo socketOut) {
-        SmartContext.getContext().proxy(name, socketIn, socketOut);
+    private static int exccode(java.io.IOException e) {
+        if (e instanceof SocketException) {
+            return ZError.ESOCKET;
+        } else if (e instanceof ClosedByInterruptException) {
+            return ZError.EINTR;
+        } else if (e instanceof ClosedChannelException) {
+            return ZError.ENOTCONN;
+        } else {
+            return ZError.EIOEXC;
+        }
     }
 
-    @Deprecated
-    public static void proxy(final String name, Socket socketIn, Socket socketOut) {
-        SmartContext.getContext().proxy(name, socketIn, socketOut);
-    }
-
-    @Deprecated
-    public static Collection<String> getSocketsList() {
-        return SmartContext.getContext().getSocketsList();
-    }
-
-    @Deprecated
-    public static byte[] recv(Socket pipe) {
-        return SmartContext.getContext().recv(pipe);
-    }
 }

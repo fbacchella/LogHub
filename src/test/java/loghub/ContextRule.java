@@ -6,6 +6,8 @@ import org.junit.rules.TestRule;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
 
+import loghub.zmq.SmartContext;
+
 public class ContextRule implements TestRule {
 
     private static final Logger logger = LogManager.getLogger();
@@ -29,18 +31,14 @@ public class ContextRule implements TestRule {
     }
 
     public void terminate() throws InterruptedException {
-        terminator = SmartContext.terminate();
-        terminator.join(2000);
+        SmartContext.getContext().terminate();
     }
 
     private void terminateRescue() {
         if(terminator == null) {
             try {
                 logger.debug("Terminating ZMQ manager");
-                terminator = SmartContext.terminate();
-                if(terminator != null) {
-                    terminator.join(500);
-                }
+                SmartContext.getContext().terminate();
             } catch (Exception e) {
                 e.printStackTrace();
             }

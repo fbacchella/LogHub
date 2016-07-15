@@ -10,8 +10,9 @@ import org.apache.logging.log4j.Logger;
 import org.junit.Test;
 import org.zeromq.ZMQ.Socket;
 
-import zmq.ZMQHelper.Method;
-import zmq.ZMQHelper.Type;
+import loghub.zmq.SmartContext;
+import loghub.zmq.ZMQHelper.Method;
+import loghub.zmq.ZMQHelper.Type;
 
 public class TestSmartContext {
 
@@ -65,7 +66,7 @@ public class TestSmartContext {
 
         context.close(in);
         context.close(out);
-        SmartContext.terminate();
+        SmartContext.getContext().terminate();
     }
 
 }

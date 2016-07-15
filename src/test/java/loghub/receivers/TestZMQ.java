@@ -19,8 +19,8 @@ import loghub.Event;
 import loghub.LogUtils;
 import loghub.Tools;
 import loghub.decoders.StringCodec;
-import zmq.ZMQHelper.Method;
-import zmq.ZMQHelper.Type;
+import loghub.zmq.ZMQHelper.Method;
+import loghub.zmq.ZMQHelper.Type;
 
 public class TestZMQ {
 

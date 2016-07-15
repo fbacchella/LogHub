@@ -46,7 +46,6 @@ public final class Helpers {
         void accept(S s, T t, U u);
     }
 
- 
     @FunctionalInterface
     public interface Actor {
         void act();
@@ -315,7 +314,7 @@ public final class Helpers {
             return null;
         }
     }
-    
+
     /**
      * Check if an Throwable is fatal hence should never be catched.
      * Thanks to superbaloo for the tips
@@ -331,4 +330,29 @@ public final class Helpers {
                 ;
     };
 
+    public static class SimplifiedThread {
+        public final Thread thread;
+        public SimplifiedThread(Runnable r) {
+            thread = new Thread(r);
+        }
+
+        public SimplifiedThread start() {
+            thread.start();
+            return this;
+        }
+
+        public final SimplifiedThread setName(String name) {
+            thread.setName(name);
+            return this;
+        }
+
+        public final SimplifiedThread setDaemon(boolean on) {
+            thread.setDaemon(on);
+            return this;
+        }
+    }
+
+    public static SimplifiedThread makeSimpleThread(Runnable r) {
+        return new SimplifiedThread(r);
+    }
 }
