@@ -23,7 +23,6 @@ import org.snmp4j.Snmp;
 import org.snmp4j.TransportMapping;
 import org.snmp4j.asn1.BER;
 import org.snmp4j.asn1.BERInputStream;
-import org.snmp4j.log.Log4jLogFactory;
 import org.snmp4j.log.LogFactory;
 import org.snmp4j.mp.MPv1;
 import org.snmp4j.mp.MPv2c;
@@ -51,12 +50,13 @@ import loghub.Pipeline;
 import loghub.Receiver;
 import loghub.configuration.Beans;
 import loghub.configuration.Properties;
+import loghub.snmp.Log4j2LogFactory;
 
 @Beans({"protocol", "port", "listen"})
 public class SnmpTrap extends Receiver implements CommandResponder {
 
     static {
-        LogFactory.setLogFactory(new Log4jLogFactory());
+        LogFactory.setLogFactory(new Log4j2LogFactory());
     }
 
     private static final Logger logger = LogManager.getLogger();
