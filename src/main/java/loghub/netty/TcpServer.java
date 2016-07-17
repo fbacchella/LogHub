@@ -4,17 +4,15 @@ import java.util.concurrent.BlockingQueue;
 
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ServerChannel;
+import io.netty.channel.socket.ServerSocketChannel;
+import io.netty.channel.socket.SocketChannel;
 import loghub.Event;
 import loghub.Pipeline;
 import loghub.configuration.Properties;
+import loghub.netty.TcpFactory.POLLER;
 
-public abstract class TcpServer<D> extends NettyServer<ServerFactory, ServerBootstrap,ServerChannel, D> {
-    
-    private enum POLLER {
-        NIO,
-        EPOLL,
-    }
-    
+public abstract class TcpServer<F> extends AbstractIpNettyServer<ServerFactory<ServerSocketChannel, SocketChannel>, ServerBootstrap,ServerChannel, ServerSocketChannel, SocketChannel, F> {
+
     private POLLER poller = POLLER.NIO;
 
     public TcpServer(BlockingQueue<Event> outQueue, Pipeline pipeline) {
@@ -22,13 +20,8 @@ public abstract class TcpServer<D> extends NettyServer<ServerFactory, ServerBoot
     }
 
     @Override
-    protected ServerFactory getFactory(Properties properties) {
-        switch (poller) {
-        case NIO:
-            return new TcpNioFactory();
-        default:
-            throw new UnsupportedOperationException();
-        }
+    protected ServerFactory<ServerSocketChannel, SocketChannel> getFactory(Properties properties) {
+        return new TcpFactory(poller);
     }
 
     public String getPoller() {

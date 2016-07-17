@@ -2,14 +2,14 @@ package loghub.netty;
 
 import io.netty.bootstrap.AbstractBootstrap;
 import io.netty.bootstrap.ServerBootstrap;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.ServerChannel;
-import io.netty.channel.socket.SocketChannel;
 
-public abstract class ServerFactory extends ComponentFactory<ServerBootstrap,ServerChannel> {
+public abstract class ServerFactory<D extends ServerChannel, E extends Channel> extends ComponentFactory<ServerBootstrap, ServerChannel, D, E> {
 
     private EventLoopGroup bossGroup;
     private EventLoopGroup workerGroup;
@@ -42,14 +42,18 @@ public abstract class ServerFactory extends ComponentFactory<ServerBootstrap,Ser
         return true;
     }
 
-    public void addChildhandlers(HandlersSource source) {
-        ChannelHandler handler = new ChannelInitializer<SocketChannel>() {
+    public void addChildhandlers(HandlersSource<D, E> source) {
+        ChannelHandler handler = new ChannelInitializer<E>() {
             @Override
-            public void initChannel(SocketChannel ch) throws Exception {
+            public void initChannel(E ch) throws Exception {
                 source.addChildHandlers(ch);
             }
         };
         bootstrap.childHandler(handler);
+    }
+
+    @Override
+    public void addHandlers(HandlersSource<D, E> source) {
     }
 
 }

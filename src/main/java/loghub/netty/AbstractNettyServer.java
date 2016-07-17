@@ -1,5 +1,6 @@
 package loghub.netty;
 
+import java.net.SocketAddress;
 import java.util.concurrent.BlockingQueue;
 
 import io.netty.bootstrap.AbstractBootstrap;
@@ -9,20 +10,20 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.SimpleChannelInboundHandler;
-import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.ByteToMessageDecoder;
 import loghub.Event;
 import loghub.Pipeline;
 import loghub.Receiver;
 import loghub.configuration.Properties;
 
-public abstract class NettyServer<A extends ComponentFactory<B,C>, B extends AbstractBootstrap<B,C>,C extends Channel, D> extends Receiver implements HandlersSource {
+public abstract class AbstractNettyServer<A extends ComponentFactory<B, C, D, E>, B extends AbstractBootstrap<B,C>,C extends Channel, D extends Channel, E extends Channel, F> extends Receiver implements HandlersSource<D, E> {
 
-    int port;
     private A factory;
     private int backlog = 128;
+    private AbstractBootstrap<B,C> bootstrap;
+    private ChannelFuture cf;
 
-    public NettyServer(BlockingQueue<Event> outQueue, Pipeline pipeline) {
+    public AbstractNettyServer(BlockingQueue<Event> outQueue, Pipeline pipeline) {
         super(outQueue, pipeline);
     }
 
@@ -34,6 +35,23 @@ public abstract class NettyServer<A extends ComponentFactory<B,C>, B extends Abs
     @Override
     public boolean configure(Properties properties) {
         factory = getFactory(properties);
+        SocketAddress address = getAddress();
+        bootstrap = factory.getBootStrap();
+        factory.group();
+        if (factory.withChildHandler()) {
+            factory.addChildhandlers(this);
+            bootstrap.option(ChannelOption.SO_BACKLOG, backlog);
+        } else {
+            factory.addHandlers(this);
+        }
+        // Bind and start to accept incoming connections.
+        try {
+            cf = bootstrap.bind(address).sync();
+            logger.debug("{} started", () -> getAddress());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return false;
+        }
         return super.configure(properties);
     }
 
@@ -41,25 +59,17 @@ public abstract class NettyServer<A extends ComponentFactory<B,C>, B extends Abs
 
     protected abstract ByteToMessageDecoder getNettyDecoder();
 
-    protected abstract void populate(Event event, ChannelHandlerContext ctx, D msg);
+    protected abstract void populate(Event event, ChannelHandlerContext ctx, F msg);
+
+    protected abstract SocketAddress getAddress();
 
     @Override
     public void run() {
         try {
-            AbstractBootstrap<?, ?> b = factory.getBootStrap();
-            factory.group();
-            if (factory.withChildHandler()) {
-                factory.addChildhandlers(this);
-            }
-            b.option(ChannelOption.SO_BACKLOG, backlog);
-
-            // Bind and start to accept incoming connections.
-            ChannelFuture f = b.bind(port).sync();
-
             // Wait until the server socket is closed.
             // In this example, this does not happen, but you can do that to gracefully
             // shut down your server.
-            f.channel().closeFuture().sync();
+            cf.channel().closeFuture().sync();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         } finally {
@@ -68,32 +78,24 @@ public abstract class NettyServer<A extends ComponentFactory<B,C>, B extends Abs
     }
 
     @Override
-    public void addChildHandlers(SocketChannel ch) {
+    public void addChildHandlers(E ch) {
         ch.pipeline().addLast(getNettyDecoder(), getSender());
     }
 
     @Override
-    public void addHandlers(SocketChannel ch) {
+    public void addHandlers(D ch) {
         // Default does nothing
     }
 
     protected ChannelInboundHandlerAdapter getSender() {
-        return new SimpleChannelInboundHandler<D>() {
+        return new SimpleChannelInboundHandler<F>() {
             @Override
-            protected void channelRead0(ChannelHandlerContext ctx, D msg) throws Exception {
+            protected void channelRead0(ChannelHandlerContext ctx, F msg) throws Exception {
                 Event event = emptyEvent();
                 populate(event, ctx, msg);
                 send(event);
             }
         };
-    }
-
-    public int getPort() {
-        return port;
-    }
-
-    public void setPort(int port) {
-        this.port = port;
     }
 
     public int getBacklog() {

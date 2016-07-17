@@ -1,16 +1,16 @@
 package loghub.netty;
 
-import io.netty.channel.Channel;
 import io.netty.channel.ChannelFactory;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.channel.socket.DatagramChannel;
 import io.netty.channel.socket.nio.NioDatagramChannel;
 
-public class UdpNioFactory extends ClientFactory {
+public class UdpNioFactory extends ClientFactory<DatagramChannel, DatagramChannel> {
 
-    private static final ChannelFactory<Channel> channelfactory = new ChannelFactory<Channel>() {
+    private static final ChannelFactory<DatagramChannel> channelfactory = new ChannelFactory<DatagramChannel>() {
         @Override 
-        public Channel newChannel() {
+        public DatagramChannel newChannel() {
             return new NioDatagramChannel();
         }
     };
@@ -21,7 +21,7 @@ public class UdpNioFactory extends ClientFactory {
     }
 
     @Override
-    public ChannelFactory<Channel> getInstance() {
+    public ChannelFactory<DatagramChannel> getInstance() {
         return channelfactory;
     }
 
