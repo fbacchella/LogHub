@@ -10,7 +10,6 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.SimpleChannelInboundHandler;
-import io.netty.handler.codec.ByteToMessageDecoder;
 import loghub.Event;
 import loghub.Pipeline;
 import loghub.Receiver;
@@ -57,7 +56,7 @@ public abstract class AbstractNettyServer<A extends ComponentFactory<B, C, D, E>
 
     protected abstract A getFactory(Properties properties);
 
-    protected abstract ByteToMessageDecoder getNettyDecoder();
+    protected abstract ChannelInboundHandlerAdapter getNettyDecoder();
 
     protected abstract void populate(Event event, ChannelHandlerContext ctx, F msg);
 
@@ -84,7 +83,7 @@ public abstract class AbstractNettyServer<A extends ComponentFactory<B, C, D, E>
 
     @Override
     public void addHandlers(D ch) {
-        // Default does nothing
+        ch.pipeline().addLast(getNettyDecoder(), getSender());
     }
 
     protected ChannelInboundHandlerAdapter getSender() {

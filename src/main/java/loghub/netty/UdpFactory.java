@@ -3,22 +3,21 @@ package loghub.netty;
 import io.netty.channel.ChannelFactory;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
-import io.netty.channel.socket.ServerSocketChannel;
-import io.netty.channel.socket.SocketChannel;
-import io.netty.channel.socket.nio.NioServerSocketChannel;
+import io.netty.channel.socket.DatagramChannel;
+import io.netty.channel.socket.nio.NioDatagramChannel;
 
-public class TcpFactory extends ServerFactory<ServerSocketChannel, SocketChannel> {
+public class UdpFactory extends ClientFactory<DatagramChannel, DatagramChannel> {
 
-    private static final ChannelFactory<ServerSocketChannel> niochannelfactory = new ChannelFactory<ServerSocketChannel>() {
+    private static final ChannelFactory<DatagramChannel> niochannelfactory = new ChannelFactory<DatagramChannel>() {
         @Override 
-        public ServerSocketChannel newChannel() {
-            return new NioServerSocketChannel();
+        public DatagramChannel newChannel() {
+            return new NioDatagramChannel();
         }
     };
 
     private final POLLER poller;
 
-    TcpFactory(POLLER poller) {
+    UdpFactory(POLLER poller) {
         this.poller = poller;
     }
 
@@ -33,7 +32,7 @@ public class TcpFactory extends ServerFactory<ServerSocketChannel, SocketChannel
     }
 
     @Override
-    public ChannelFactory<ServerSocketChannel> getInstance() {
+    public ChannelFactory<DatagramChannel> getInstance() {
         switch (poller) {
         case NIO:
             return niochannelfactory;

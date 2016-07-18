@@ -9,9 +9,8 @@ import io.netty.channel.socket.SocketChannel;
 import loghub.Event;
 import loghub.Pipeline;
 import loghub.configuration.Properties;
-import loghub.netty.TcpFactory.POLLER;
 
-public abstract class TcpServer<F> extends AbstractIpNettyServer<ServerFactory<ServerSocketChannel, SocketChannel>, ServerBootstrap,ServerChannel, ServerSocketChannel, SocketChannel, F> {
+public abstract class TcpServer<F> extends AbstractIpNettyServer<TcpFactory, ServerBootstrap, ServerChannel, ServerSocketChannel, SocketChannel, F> {
 
     private POLLER poller = POLLER.NIO;
 
@@ -20,7 +19,7 @@ public abstract class TcpServer<F> extends AbstractIpNettyServer<ServerFactory<S
     }
 
     @Override
-    protected ServerFactory<ServerSocketChannel, SocketChannel> getFactory(Properties properties) {
+    protected TcpFactory getFactory(Properties properties) {
         return new TcpFactory(poller);
     }
 
