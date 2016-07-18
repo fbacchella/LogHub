@@ -13,12 +13,12 @@ import io.netty.util.CharsetUtil;
 import loghub.Event;
 import loghub.Pipeline;
 
-public class LineServer extends TcpServer<ByteBuf> {
+public class LineReceiver extends TcpReceiver<ByteBuf> {
 
     private int maxLength = 256;
     private Charset charset= CharsetUtil.UTF_8;
 
-    public LineServer(BlockingQueue<Event> outQueue, Pipeline pipeline) {
+    public LineReceiver(BlockingQueue<Event> outQueue, Pipeline pipeline) {
         super(outQueue, pipeline);
     }
 
@@ -56,6 +56,18 @@ public class LineServer extends TcpServer<ByteBuf> {
      */
     public void setCharset(String charset) {
         this.charset = Charset.forName(charset);
+    }
+
+    @Override
+    protected TcpServer<ByteBuf> getServer() {
+        TcpServer<ByteBuf> server = new TcpServer<ByteBuf>(this);
+        server.setIpAddr((InetSocketAddress) getAddress());
+        return server;
+    }
+
+    @Override
+    public String getReceiverName() {
+        return null;
     }
 
 }

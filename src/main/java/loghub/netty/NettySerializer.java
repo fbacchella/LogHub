@@ -13,12 +13,13 @@ import loghub.Event;
 import loghub.Pipeline;
 import loghub.configuration.Properties;
 
-public class NettySerializer extends TcpServer<Object> {
+public class NettySerializer extends TcpReceiver<Object> {
 
     private ClassResolver resolver;
 
     public NettySerializer(BlockingQueue<Event> outQueue, Pipeline pipeline) {
         super(outQueue, pipeline);
+        // TODO Auto-generated constructor stub
     }
 
     @Override
@@ -40,6 +41,18 @@ public class NettySerializer extends TcpServer<Object> {
         if(addr instanceof InetSocketAddress) {
             event.put("host", ((InetSocketAddress) addr).getAddress());
         }
+    }
+
+    @Override
+    protected TcpServer<Object> getServer() {
+        TcpServer<Object> server = new TcpServer<Object>(this);
+        server.setIpAddr((InetSocketAddress) getAddress());
+        return server;
+    }
+
+    @Override
+    public String getReceiverName() {
+        return "NettySerializer/" + getAddress();
     }
 
 }

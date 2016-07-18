@@ -1,54 +1,40 @@
 package loghub.netty;
 
-import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
-import java.net.UnknownHostException;
-import java.util.concurrent.BlockingQueue;
 
 import io.netty.bootstrap.AbstractBootstrap;
 import io.netty.channel.Channel;
-import loghub.Event;
-import loghub.Pipeline;
 
 public abstract class AbstractIpNettyServer<A extends ComponentFactory<B, C, D, E>, B extends AbstractBootstrap<B,C>,C extends Channel, D extends Channel, E extends Channel, F> extends AbstractNettyServer<A, B, C, D, E, F> {
 
-    private int port;
-    private String host = null;
+    private InetSocketAddress addr;
+    protected POLLER poller = POLLER.NIO;
 
-    public AbstractIpNettyServer(BlockingQueue<Event> outQueue, Pipeline pipeline) {
-        super(outQueue, pipeline);
-    }
-
-    public int getPort() {
-        return port;
-    }
-
-    public void setPort(int port) {
-        this.port = port;
+    protected AbstractIpNettyServer(HandlersSource<D, E> source) {
+        super(source);
     }
 
     @Override
     protected SocketAddress getAddress() {
-        try {
-            return new InetSocketAddress(host !=null ? InetAddress.getByName(host) :null , port);
-        } catch (UnknownHostException e) {
-            return null;
-        }
+        return addr;
     }
 
-    /**
-     * @return the host
-     */
-    public String getHost() {
-        return host;
+    public InetSocketAddress getIpAddr() {
+        return addr;
     }
 
-    /**
-     * @param host the host to set
-     */
-    public void setHost(String host) {
-        this.host = host != null && !host.isEmpty() ? host : null;
+    public void setIpAddr(InetSocketAddress addr) {
+        this.addr = addr;
+    }
+
+    public String getPoller() {
+        return poller.toString();
+    }
+
+    public void setPoller(String poller) {
+        this.poller = POLLER.valueOf(poller);
     }
 
 }
+
