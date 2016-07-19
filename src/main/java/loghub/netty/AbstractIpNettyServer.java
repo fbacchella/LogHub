@@ -11,10 +11,6 @@ public abstract class AbstractIpNettyServer<A extends ComponentFactory<B, C, D, 
     private InetSocketAddress addr;
     protected POLLER poller = POLLER.NIO;
 
-    protected AbstractIpNettyServer(HandlersSource<D, E> source) {
-        super(source);
-    }
-
     @Override
     protected SocketAddress getAddress() {
         return addr;
@@ -37,4 +33,3 @@ public abstract class AbstractIpNettyServer<A extends ComponentFactory<B, C, D, 
     }
 
 }
-

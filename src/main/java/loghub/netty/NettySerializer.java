@@ -45,7 +45,7 @@ public class NettySerializer extends TcpReceiver<Object> {
 
     @Override
     protected TcpServer<Object> getServer() {
-        TcpServer<Object> server = new TcpServer<Object>(this);
+        TcpServer<Object> server = new TcpServer<Object>();
         server.setIpAddr((InetSocketAddress) getAddress());
         return server;
     }

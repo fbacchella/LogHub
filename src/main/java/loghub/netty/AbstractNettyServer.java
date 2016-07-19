@@ -18,15 +18,13 @@ public abstract class AbstractNettyServer<A extends ComponentFactory<B, C, D, E>
     private A factory;
     private int backlog = 128;
     private AbstractBootstrap<B,C> bootstrap;
-    private final HandlersSource<D, E> source;
     private SocketAddress address;
 
-    public AbstractNettyServer(HandlersSource<D, E> source) {
+    public AbstractNettyServer() {
         logger = LogManager.getLogger(ReflectionUtil.getCallerClass(2));
-        this.source = source;
     }
 
-    public ChannelFuture configure(Properties properties) {
+    public ChannelFuture configure(Properties properties, HandlersSource<D, E> source) {
         factory = getNewFactory(properties);
         address = getAddress();
         bootstrap = factory.getBootStrap();

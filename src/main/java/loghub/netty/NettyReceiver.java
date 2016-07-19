@@ -26,7 +26,7 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<A, B, C, D, E,
     @Override
     public boolean configure(Properties properties) {
         S server = getServer();
-        cf = server.configure(properties);
+        cf = server.configure(properties, this);
         return cf != null && super.configure(properties);
     }
 

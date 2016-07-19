@@ -8,10 +8,6 @@ import loghub.configuration.Properties;
 
 public class TcpServer<F> extends AbstractIpNettyServer<TcpFactory, ServerBootstrap, ServerChannel, ServerSocketChannel, SocketChannel, F> {
 
-    protected TcpServer(HandlersSource<ServerSocketChannel, SocketChannel> source) {
-        super(source);
-    }
-
     @Override
     protected TcpFactory getNewFactory(Properties properties) {
         return new TcpFactory(poller);

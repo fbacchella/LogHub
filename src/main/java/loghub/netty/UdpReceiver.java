@@ -15,11 +15,10 @@ import loghub.Pipeline;
 public abstract class UdpReceiver<F> extends NettyIpReceiver<UdpServer<F>, UdpFactory, Bootstrap, Channel, DatagramChannel, DatagramChannel, F> {
 
     private static Map<SocketAddress, UdpServer<?>> servers = new HashMap<>();
-    
+
     public UdpReceiver(BlockingQueue<Event> outQueue, Pipeline pipeline) {
         super(outQueue, pipeline);
     }
-
 
     @SuppressWarnings("unchecked")
     @Override
@@ -29,7 +28,7 @@ public abstract class UdpReceiver<F> extends NettyIpReceiver<UdpServer<F>, UdpFa
         if (servers.containsKey(addr)) {
             server = (UdpServer<F>) servers.get(addr);
         } else {
-            server = new UdpServer<F>(this);
+            server = new UdpServer<F>();
             server.setIpAddr((InetSocketAddress) addr);
             servers.put(addr, server);
         }

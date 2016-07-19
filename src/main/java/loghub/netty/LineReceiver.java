@@ -60,7 +60,7 @@ public class LineReceiver extends TcpReceiver<ByteBuf> {
 
     @Override
     protected TcpServer<ByteBuf> getServer() {
-        TcpServer<ByteBuf> server = new TcpServer<ByteBuf>(this);
+        TcpServer<ByteBuf> server = new TcpServer<ByteBuf>();
         server.setIpAddr((InetSocketAddress) getAddress());
         return server;
     }
