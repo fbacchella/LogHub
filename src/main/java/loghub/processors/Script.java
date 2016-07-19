@@ -12,6 +12,7 @@ import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.Map;
 
+import javax.activation.MimetypesFileTypeMap;
 import javax.script.Invocable;
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
@@ -27,6 +28,11 @@ import loghub.configuration.Properties;
 
 @Beans("script")
 public class Script extends Processor {
+
+    private static final MimetypesFileTypeMap mimeTypesMap = new MimetypesFileTypeMap();
+    static {
+        mimeTypesMap.addMimeTypes("application/python py");
+    }
 
     private static ScriptEngineManager factory = null;
 
@@ -51,28 +57,34 @@ public class Script extends Processor {
     @SuppressWarnings("unchecked")
     @Override
     public boolean configure(Properties properties) {
-        if( factory == null) {
-            factory = new ScriptEngineManager(properties.classloader);
+        synchronized (this) {
+            if(factory == null) {
+                factory = new ScriptEngineManager(properties.classloader);
+            }
         }
         try {
             Path scriptp = Paths.get(script);
-            String mimeType = Files.probeContentType(scriptp);
-            ScriptEngine engine;
-            if(mimeType != null) {
+            String mimeType = mimeTypesMap.getContentType(scriptp.toFile());
+            if (mimeType == null) {
+                mimeType = Files.probeContentType(scriptp);
+            }
+            ScriptEngine engine = null;
+            if (mimeType != null) {
                 engine = factory.getEngineByMimeType(mimeType);
-                logger.debug("script{} type is {}", script, mimeType);
-            } else {
+            }
+            if (engine == null) {
                 int p = script.lastIndexOf(".");
                 String extension = script.substring(p + 1);
                 engine = factory.getEngineByExtension(extension);
             }
             if(engine == null) {
                 logger.error("langage not found for script {}", script);
+                return false;
             }
-            logger.debug("script language is {}", () -> engine);
-            logger.debug("script language is {}", () -> engine.getFactory().getLanguageName());
+            final ScriptEngine logengine = engine;
+            logger.debug("script language is {}", () -> logengine.getFactory().getLanguageName());
             if( ! (engine instanceof Invocable)) {
-                logger.error("engine for langage {} is not invocable", () -> engine.getFactory().getLanguageName());
+                logger.error("engine for langage {} is not invocable", () -> logengine.getFactory().getLanguageName());
                 return false;
             }
             Reader r = getScriptReader();
