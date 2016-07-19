@@ -7,6 +7,9 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.codahale.metrics.Timer.Context;
+
+import loghub.configuration.Properties;
 import loghub.processors.Drop;
 import loghub.processors.Forker;
 
@@ -31,26 +34,33 @@ public class EventsProcessor extends Thread {
         try {
             while (true) {
                 Event event = inQueue.take();
-                logger.trace("received {}", event);
-                Processor processor;
-                while ((processor = event.next()) != null) {
-                    logger.trace("processing {}", processor);
-                    Thread.currentThread().setName(threadName + "-" + processor.getName());
-                    boolean dropped = process(event, processor);
-                    Thread.currentThread().setName(threadName);
-                    if(dropped) {
-                        logger.debug("dropped event {}", event);
-                        break;
+                try (Context timer = Properties.metrics.timer("Pipeline." + event.getCurrentPipeline() + ".timer").time()){
+                    logger.trace("received {}", event);
+                    Processor processor;
+                    while ((processor = event.next()) != null) {
+                        logger.trace("processing {}", processor);
+                        Thread.currentThread().setName(threadName + "-" + processor.getName());
+                        boolean dropped = process(event, processor);
+                        Thread.currentThread().setName(threadName);
+                        if(dropped) {
+                            logger.debug("dropped event {}", event);
+                            break;
+                        }
                     }
-                }
-                //No processor, processing finished
-                //Detect if will send to another pipeline, or just wait for a sender to take it
-                if (processor == null) {
-                    if (event.getNextPipeline() != null) {
-                        event.inject(namedPipelines.get(event.getNextPipeline()), inQueue);
-                    } else {
-                        outQueues.get(event.getCurrentPipeline()).put(event);
-                    }
+                    //No processor, processing finished
+                    //Detect if will send to another pipeline, or just wait for a sender to take it
+                    if(processor == null) {
+                        if(event.getNextPipeline() != null) {
+                            Pipeline next = namedPipelines.get(event.getNextPipeline());
+                            if(! event.inject(next, inQueue)) {
+                                Properties.metrics.meter("Pipeline." + next.getName() + ".blocked").mark();
+                            }
+                        } else {
+                            if(!outQueues.get(event.getCurrentPipeline()).offer(event)) {
+                                Properties.metrics.meter("Pipeline." + getName() + ".out.blocked").mark();
+                            }
+                        }
+                    } 
                 }
             }
         } catch (InterruptedException e) {

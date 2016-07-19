@@ -10,6 +10,8 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.util.ReflectionUtil;
 
+import com.codahale.metrics.Meter;
+
 import loghub.Decoder.DecodeException;
 import loghub.configuration.Beans;
 import loghub.configuration.Properties;
@@ -21,6 +23,7 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
 
     private final BlockingQueue<Event> outQueue;
     private final Pipeline pipeline;
+    private final Meter count;
     protected Decoder decoder;
 
     public Receiver(BlockingQueue<Event> outQueue, Pipeline pipeline){
@@ -29,6 +32,7 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
         this.outQueue = outQueue;
         this.pipeline = pipeline;
         logger = LogManager.getLogger(ReflectionUtil.getCallerClass(2));
+        count = Properties.metrics.meter(getName());
     }
 
     public boolean configure(Properties properties) {
@@ -184,10 +188,12 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
      * @param event
      */
     protected final void send(Event event) {
+        count.mark();
         logger.debug("new event: {}", event);
         Stats.received.incrementAndGet();
         if(! event.inject(pipeline, outQueue)) {
             Stats.dropped.incrementAndGet();
+            Properties.metrics.meter("Pipeline." + pipeline.getName() + ".blocked").mark();
             logger.error("send failed for {}, destination blocked", event);
         }
     }

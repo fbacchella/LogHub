@@ -20,6 +20,7 @@ public class HttpServer extends TcpServer<Object> implements HandlersSource<Serv
         p.addLast(new HttpObjectAggregator(1048576));
         p.addLast(new HttpResponseEncoder());
         p.addLast(new ResourceFiles());
+        p.addLast(new JmxProxy());
         p.addLast(new NotFound());
     }
 

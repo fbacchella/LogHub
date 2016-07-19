@@ -22,9 +22,12 @@ import java.util.function.BiFunction;
 
 import javax.management.MBeanServer;
 
+import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.LoggerContext;
+
+import com.codahale.metrics.MetricRegistry;
 
 import groovy.lang.GroovyClassLoader;
 import loghub.Event;
@@ -42,6 +45,8 @@ import net.sf.ehcache.management.ManagementService;
 import net.sf.ehcache.store.MemoryStoreEvictionPolicy;
 
 public class Properties extends HashMap<String, Object> {
+
+    public static final MetricRegistry metrics = new MetricRegistry();
 
     private static final Logger logger = LogManager.getLogger();
 

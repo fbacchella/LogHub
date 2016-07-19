@@ -140,6 +140,11 @@
             <artifactId>netty-all</artifactId>
             <version>4.1.2.Final</version>
         </dependency>
+        <dependency>
+            <groupId>io.dropwizard.metrics</groupId>
+            <artifactId>metrics-core</artifactId>
+            <version>3.1.0</version>
+        </dependency>
     </dependencies>
     <repositories>
         <repository>

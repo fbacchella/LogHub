@@ -14,6 +14,8 @@ import javax.management.remote.JMXConnectorServer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.codahale.metrics.JmxReporter;
+
 import loghub.configuration.Configuration;
 import loghub.configuration.Properties;
 import loghub.jmx.Helper;
@@ -66,12 +68,14 @@ public class Start extends Thread {
         }
 
         try {
+            Helper.register(loghub.jmx.Stats.class);
+            JmxReporter reporter = JmxReporter.forRegistry(Properties.metrics).build();
+            reporter.start();
             int port = props.jmxport;
             if (port > 0) {
                 @SuppressWarnings("unused")
                 JMXConnectorServer cs = Helper.start(props.jmxproto, props.jmxlisten, port);
             }
-            Helper.register(loghub.jmx.Stats.class);
         } catch (IOException | NotBoundException | NotCompliantMBeanException | MalformedObjectNameException
                 | InstanceAlreadyExistsException | MBeanRegistrationException | InstantiationException
                 | IllegalAccessException e) {
