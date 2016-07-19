@@ -1,7 +1,6 @@
 package loghub.jmx;
 
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.management.InstanceAlreadyExistsException;
 import javax.management.MBeanRegistrationException;
@@ -34,10 +33,11 @@ public interface Stats {
 
     default public String[] getErrors() {
         List<ProcessorException> errors = loghub.Stats.getErrors();
-        String[] errorsMessages = new String[errors.size()];
-        final AtomicInteger count = new AtomicInteger(0);
-        errors.stream().forEach( i -> { Throwable t = i.getCause() ; errorsMessages[count.getAndIncrement()] = "" + i.getMessage() + t != null ? ": " + t.getMessage() : "";});
-        return errorsMessages;
+        return errors.stream()
+        .map( i-> (Throwable) (i.getCause() != null ? i.getCause() :  i))
+        .map( i -> i.getMessage())
+        .toArray(String[]::new)
+        ;
     }
 
     public class StatsImpl extends BeanImplementation implements Stats {

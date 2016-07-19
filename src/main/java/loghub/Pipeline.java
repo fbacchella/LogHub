@@ -20,7 +20,7 @@ public class Pipeline {
     }
 
     public boolean configure(Properties properties) {
-        return processors.parallelStream().allMatch(i -> i.configure(properties));
+        return processors.stream().allMatch(i -> i.configure(properties));
     }
 
     @Override

@@ -11,8 +11,6 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
 
     public static final String TIMESTAMPKEY = "@timestamp";
 
-    protected String mainPipeline;
-
     public Object applyAtPath(Helpers.TriFunction<Map<String, Object>, String, Object, Object> f, String[] path, Object value) {
         return applyAtPath(f, path, value, false);
     }
