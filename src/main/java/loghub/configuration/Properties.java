@@ -75,6 +75,7 @@ public class Properties extends HashMap<String, Object> {
     public final BlockingQueue<Event> mainQueue;
     public final Map<String, BlockingQueue<Event>> outputQueues;
     public final int queuesDepth;
+    public final int httpPort;
 
     private final Timer timer = new Timer("loghubtimer", true);
     private final CacheManager cacheManager;
@@ -177,6 +178,12 @@ public class Properties extends HashMap<String, Object> {
             numWorkers = (Integer) properties.remove("numWorkers");
         } else {
             numWorkers = Runtime.getRuntime().availableProcessors() * 2;
+        }
+
+        if (properties.containsKey("http.port")) {
+            httpPort = (Integer) properties.remove("http.port");
+        } else {
+            httpPort = -1;
         }
 
         // Default values are for tests, so the build unusable queuing environment

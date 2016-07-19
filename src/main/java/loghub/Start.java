@@ -1,6 +1,8 @@
 package loghub;
 
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.rmi.NotBoundException;
 
 import javax.management.InstanceAlreadyExistsException;
@@ -15,6 +17,7 @@ import org.apache.logging.log4j.Logger;
 import loghub.configuration.Configuration;
 import loghub.configuration.Properties;
 import loghub.jmx.Helper;
+import loghub.netty.http.HttpServer;
 
 public class Start extends Thread {
 
@@ -23,8 +26,11 @@ public class Start extends Thread {
     static public void main(final String[] args) {
         try {
             new Start(args[0]).start();
+        } catch (NullPointerException e) {
+            e.printStackTrace();
         } catch (RuntimeException e) {
             System.out.println(e.getMessage());
+            e.printStackTrace();
         }
     }
 
@@ -64,12 +70,18 @@ public class Start extends Thread {
             if (port > 0) {
                 @SuppressWarnings("unused")
                 JMXConnectorServer cs = Helper.start(props.jmxproto, props.jmxlisten, port);
-                Helper.register(loghub.jmx.Stats.class);
             }
+            Helper.register(loghub.jmx.Stats.class);
         } catch (IOException | NotBoundException | NotCompliantMBeanException | MalformedObjectNameException
                 | InstanceAlreadyExistsException | MBeanRegistrationException | InstantiationException
                 | IllegalAccessException e) {
             throw new RuntimeException("jmx configuration failed: " + e.getMessage(), e);
+        }
+        
+        if (props.httpPort >= 0) {
+            HttpServer server = new HttpServer();
+            server.setIpAddr(new InetSocketAddress((InetAddress) null, props.httpPort));
+            server.configure(props);
         }
 
     }
