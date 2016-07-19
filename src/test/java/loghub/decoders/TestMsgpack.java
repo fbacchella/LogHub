@@ -1,5 +1,6 @@
 package loghub.decoders;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
@@ -11,11 +12,16 @@ import org.apache.logging.log4j.Logger;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.msgpack.core.MessagePack;
+import org.msgpack.core.MessagePacker;
 import org.msgpack.jackson.dataformat.MessagePackFactory;
+import org.msgpack.value.Value;
+import org.msgpack.value.ValueFactory;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import loghub.Decoder;
+import loghub.Decoder.DecodeException;
 import loghub.LogUtils;
 import loghub.Tools;
 
@@ -41,7 +47,7 @@ public class TestMsgpack {
     }
 
     @Test
-    public void testmap() throws IOException {
+    public void testmap() throws IOException, DecodeException {
         Decoder d = new Msgpack();
 
         Map<String, Object> e = d.decode(objectMapper.writeValueAsBytes(obj));
@@ -49,9 +55,39 @@ public class TestMsgpack {
         testContent(e);
     }
 
+    @Test
+    public void testmapsimple() throws IOException, DecodeException {
+        Decoder d = new Msgpack();
+
+        Map<Value, Value> destination = new HashMap<>();
+        destination.put(ValueFactory.newString("a"), ValueFactory.newString("0"));
+        destination.put(ValueFactory.newString("b"), ValueFactory.newInteger(1));
+        destination.put(ValueFactory.newString("c"), ValueFactory.newBoolean(false));
+        Value[] subdestination = new Value[4];
+        subdestination[0] = ValueFactory.newString("0");
+        subdestination[1] = ValueFactory.newInteger(1);
+        subdestination[2] = ValueFactory.newFloat(2.0);
+        subdestination[3] = ValueFactory.newNil();
+        destination.put(ValueFactory.newString("d"), ValueFactory.newArray(subdestination));
+
+        Value v = ValueFactory.newMap(destination);
+
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        MessagePacker packer = MessagePack.newDefaultPacker(out);
+
+        packer.packValue(v);
+        packer.close();
+        byte[] packed = out.toByteArray();
+
+        Map<String, Object> e = d.decode(packed);
+
+        testContent(e);
+    }
+
+
     @SuppressWarnings("unchecked")
     @Test
-    public void testother() throws IOException {
+    public void testother() throws IOException, DecodeException {
 
         byte[] bs = objectMapper.writeValueAsBytes(new Object[] {obj});
 
