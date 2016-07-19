@@ -6,8 +6,8 @@ import java.io.ObjectInputStream;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.apache.logging.log4j.Level;
-
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufInputStream;
 import loghub.Decoder;
 import loghub.configuration.Beans;
 
@@ -19,20 +19,35 @@ public class SerializedObject extends Decoder {
     private String objectFied = "objectClass";
 
     @Override
-    public Map<String, Object> decode(byte[] msg, int offset, int length) {
-        Map<String, Object> map = new HashMap<>();
+    public Map<String, Object> decode(byte[] msg, int offset, int length) throws DecodeException {
         try (ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(msg, offset, length))) {
+            return decodeStream(ois);
+        } catch (IOException e) {
+            throw new DecodeException("IO exception while reading ByteArrayInputStream: " + e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public Map<String, Object> decode(ByteBuf bbuf) throws DecodeException {
+        try (ObjectInputStream ois = new ObjectInputStream(new ByteBufInputStream(bbuf))) {
+            return decodeStream(ois);
+        } catch (IOException e) {
+            throw new DecodeException("IO exception while reading ByteArrayInputStream: " + e.getMessage(), e);
+        }
+    }
+
+    private Map<String, Object> decodeStream(ObjectInputStream ois) throws DecodeException {
+        Map<String, Object> map = new HashMap<>();
+        try {
             Object o = ois.readObject();
             map.put(field, o);
             if ( objectFied != null && !objectFied.isEmpty()) {
                 map.put(objectFied, o.getClass().getCanonicalName());
             }
         } catch (IOException e) {
-            logger.error("IO exception while reading ByteArrayInputStream: {}", e.getMessage());
-            logger.catching(Level.DEBUG, e);
+            throw new DecodeException("IO exception while reading ByteArrayInputStream: " + e.getMessage(), e);
         } catch (ClassNotFoundException e) {
-            logger.error("Unable to unserialize log4j event: {}", e.getMessage());
-            logger.catching(Level.DEBUG, e);
+            throw new DecodeException("Unable to unserialize log4j event: " + e.getMessage(), e);
         }
         return map;
     }

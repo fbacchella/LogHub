@@ -24,7 +24,7 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
     private final BlockingQueue<Event> outQueue;
     private final Pipeline pipeline;
     private final Meter count;
-    protected Decoder decoder;
+    protected Decoder decoder = null;
 
     public Receiver(BlockingQueue<Event> outQueue, Pipeline pipeline){
         setDaemon(true);

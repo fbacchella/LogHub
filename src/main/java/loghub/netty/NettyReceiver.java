@@ -16,8 +16,8 @@ import loghub.configuration.Properties;
 
 public abstract class NettyReceiver<S extends AbstractNettyServer<A, B, C, D, E, F>, A extends ComponentFactory<B, C, D, E>, B extends AbstractBootstrap<B,C>,C extends Channel, D extends Channel, E extends Channel, F> extends Receiver implements HandlersSource<D, E> {
 
-    ChannelFuture cf;
-    S server;
+    private ChannelFuture cf;
+    private S server;
 
     public NettyReceiver(BlockingQueue<Event> outQueue, Pipeline pipeline) {
         super(outQueue, pipeline);
@@ -25,18 +25,15 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<A, B, C, D, E,
 
     @Override
     public boolean configure(Properties properties) {
-        S server = getServer();
+        server = getServer();
         cf = server.configure(properties, this);
         return cf != null && super.configure(properties);
     }
-
 
     @Override
     public void run() {
         try {
             // Wait until the server socket is closed.
-            // In this example, this does not happen, but you can do that to gracefully
-            // shut down your server.
             cf.channel().closeFuture().sync();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();

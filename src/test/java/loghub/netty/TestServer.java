@@ -56,15 +56,29 @@ public class TestServer {
         }
     };
 
-    private static class TesterReceiver extends AbstractNettyServer<TesterFactory, ServerBootstrap, ServerChannel, LocalServerChannel, LocalChannel, ByteBuf> {
+    private static class TesterServer extends AbstractNettyServer<TesterFactory, ServerBootstrap, ServerChannel, LocalServerChannel, LocalChannel, ByteBuf> {
+
+        @Override
+        protected TesterFactory getNewFactory(Properties properties) {
+            return new TesterFactory();
+        }
+        @Override
+        protected SocketAddress getAddress() {
+            return new LocalAddress(TestServer.class.getCanonicalName());
+        }
+        @Override
+        public ChannelFuture configure(Properties properties, HandlersSource<LocalServerChannel, LocalChannel> source) {
+            logger.debug("server configured");
+            return super.configure(properties, source);
+        }
+        
+
+    }
+
+    private static class TesterReceiver extends NettyReceiver<TesterServer, TesterFactory, ServerBootstrap, ServerChannel, LocalServerChannel, LocalChannel, ByteBuf> {
 
         public TesterReceiver(BlockingQueue<Event> outQueue, Pipeline pipeline) {
             super(outQueue, pipeline);
-        }
-
-        @Override
-        protected TesterFactory getFactory(Properties properties) {
-            return new TesterFactory();
         }
 
         @Override
@@ -87,6 +101,16 @@ public class TestServer {
             return new LocalAddress(TestServer.class.getCanonicalName());
         }
 
+        @Override
+        protected TesterServer getServer() {
+            return new TesterServer();
+        }
+
+        @Override
+        public String getReceiverName() {
+            return "ReceiverTest";
+        }
+
     }
 
     private static Logger logger;
@@ -98,7 +122,7 @@ public class TestServer {
         LogUtils.setLevel(logger, Level.TRACE, "loghub.netty", "io.netty");
     }
 
-    @Test
+    @Test(timeout=2000)
     public void testSimple() throws InterruptedException {
         Properties empty = new Properties(Collections.emptyMap());
         BlockingQueue<Event> receiver = new ArrayBlockingQueue<>(1);

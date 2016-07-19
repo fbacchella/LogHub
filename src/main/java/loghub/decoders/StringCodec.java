@@ -4,6 +4,7 @@ import java.nio.charset.Charset;
 import java.util.Collections;
 import java.util.Map;
 
+import io.netty.buffer.ByteBuf;
 import loghub.Decoder;
 import loghub.configuration.Beans;
 
@@ -17,6 +18,11 @@ public class StringCodec extends Decoder {
     public Map<String, Object> decode(byte[] msg, int offset, int length) {
         String message = new String(msg, offset, length, charset);
         return Collections.singletonMap(field, message);
+    }
+
+    @Override
+    public Map<String, Object> decode(ByteBuf bbuf) {
+        return Collections.singletonMap(field, bbuf.toString(charset));
     }
 
     public String getCharset() {

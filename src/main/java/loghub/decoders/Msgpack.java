@@ -11,6 +11,8 @@ import org.msgpack.jackson.dataformat.MessagePackFactory;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufInputStream;
 import loghub.Decoder;
 import loghub.configuration.Beans;
 
@@ -38,6 +40,28 @@ public class Msgpack extends Decoder {
     public Map<String, Object> decode(byte[] msg, int offset, int length) throws DecodeException {
         try {
             Object o = msgpack.get().readValue(msg, offset, length, Object.class);
+            return decodeValue(o);
+        } catch (MessagePackException e) {
+            throw new DecodeException("Can't parse msgpack serialization", e);
+        } catch (IOException e) {
+            throw new DecodeException("Can't parse msgpack serialization", e);
+        }
+    }
+
+    @Override
+    public Map<String, Object> decode(ByteBuf bbuf) throws DecodeException {
+        try {
+            Object o = msgpack.get().readValue(new ByteBufInputStream(bbuf), Object.class);
+            return decodeValue(o);
+        } catch (MessagePackException e) {
+            throw new DecodeException("Can't parse msgpack serialization", e);
+        } catch (IOException e) {
+            throw new DecodeException("Can't parse msgpack serialization", e);
+        }
+    }
+
+    private Map<String, Object> decodeValue(Object o) throws DecodeException {
+        try {
             if(o instanceof Map) {
                 @SuppressWarnings("unchecked")
                 Map<Object, Object> map = (Map<Object, Object>) o;
@@ -49,8 +73,6 @@ public class Msgpack extends Decoder {
             }
         } catch (MessagePackException e) {
             throw new DecodeException("Can't parse msgpack serialization", e);
-        } catch (IOException e) {
-            throw new DecodeException("Can't parse msgpack serialization", e);
         }
     }
 
@@ -61,5 +83,4 @@ public class Msgpack extends Decoder {
     public void setField(String field) {
         this.field = field;
     }
-
 }
