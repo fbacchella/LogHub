@@ -34,10 +34,19 @@ public interface Stats {
     default public String[] getErrors() {
         List<ProcessorException> errors = loghub.Stats.getErrors();
         return errors.stream()
-        .map( i-> (Throwable) (i.getCause() != null ? i.getCause() :  i))
-        .map( i -> i.getMessage())
-        .toArray(String[]::new)
-        ;
+                .map( i-> (Throwable) (i.getCause() != null ? i.getCause() :  i))
+                .map( i -> i.getMessage())
+                .toArray(String[]::new)
+                ;
+    }
+
+    default public String[] getExceptions() {
+        List<Exception> errors = loghub.Stats.getExceptions();
+        return errors.stream()
+                .map( i-> (Throwable) (i.getCause() != null ? i.getCause() :  i))
+                .map( i -> i.getMessage())
+                .toArray(String[]::new)
+                ;
     }
 
     public class StatsImpl extends BeanImplementation implements Stats {

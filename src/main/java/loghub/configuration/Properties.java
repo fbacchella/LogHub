@@ -13,6 +13,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.TimeZone;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -27,6 +28,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.LoggerContext;
 
+import com.codahale.metrics.Gauge;
 import com.codahale.metrics.MetricRegistry;
 
 import groovy.lang.GroovyClassLoader;
@@ -59,7 +61,8 @@ public class Properties extends HashMap<String, Object> {
         QUEUESDEPTH,
         PIPELINES,
         RECEIVERS,
-        SENDERS;
+        SENDERS,
+        TOPPIPELINE;
         @Override
         public String toString() {
             return "__" + super.toString();
@@ -151,9 +154,16 @@ public class Properties extends HashMap<String, Object> {
             formatters = Collections.unmodifiableMap(formattersMap);
         } else {
             formatters = Collections.emptyMap();
-
         }
 
+        // Extracts all the top pipeline and generate metrics for them
+        Set<String> toppipelines = (Set<String>) properties.remove(PROPSNAMES.TOPPIPELINE.toString());
+        toppipelines.stream().forEach( i -> {
+            metrics.counter("Pipeline." + i + ".inflight");
+            metrics.timer("Pipeline." + i + ".timer");
+            metrics.meter("Pipeline." + i + ".blocked");
+            metrics.meter("Pipeline." + i + ".out.blocked");
+        });
         //Read the jmx configuration
         Integer jmxport = (Integer) properties.remove("jmx.port");
         if (jmxport != null) {
@@ -196,6 +206,27 @@ public class Properties extends HashMap<String, Object> {
         mainQueue = properties.containsKey(PROPSNAMES.MAINQUEUE.toString()) ? (BlockingQueue<Event>) properties.remove(PROPSNAMES.MAINQUEUE.toString()) : null;
         outputQueues = properties.containsKey(PROPSNAMES.OUTPUTQUEUE.toString()) ? (Map<String, BlockingQueue<Event>>) properties.remove(PROPSNAMES.OUTPUTQUEUE.toString()) : null;
 
+        metrics.register(
+                "EventWaiting.mainloop",
+                new Gauge<Integer>() {
+                    @Override
+                    public Integer getValue() {
+                        return mainQueue != null ? mainQueue.size() : 0;
+                    }
+                });
+
+        for(Map.Entry<String, BlockingQueue<Event>> i: outputQueues.entrySet()) {
+            final BlockingQueue<Event> queue = i.getValue();
+            final String name = i.getKey();
+            metrics.register(
+                    "EventWaiting.output." + name,
+                    new Gauge<Integer>() {
+                        @Override
+                        public Integer getValue() {
+                            return queue.size();
+                        }
+                    });
+        }
         super.putAll(properties);
     }
 

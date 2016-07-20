@@ -161,6 +161,8 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
         EventInstance event = new EventInstance();
         if ( msg == null || size == 0) {
             logger.info("received null or empty event");
+            event.end();
+            return null;
         } else {
             try {
                 Map<String, Object> content = decoder.decode(msg, offset, size);
@@ -170,7 +172,8 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
                 content.entrySet().stream().forEach( i -> event.put(i.getKey(), i.getValue()));
             } catch (DecodeException e) {
                 logger.error("invalid message received: {}", e.getMessage());
-                logger.throwing(e.getCause() != null ? e.getCause() : e);
+                logger.throwing(Level.DEBUG, e.getCause() != null ? e.getCause() : e);
+                event.end();
                 return null;
             }
         }
@@ -194,6 +197,7 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
         if(! event.inject(pipeline, outQueue)) {
             Stats.dropped.incrementAndGet();
             Properties.metrics.meter("Pipeline." + pipeline.getName() + ".blocked").mark();
+            event.end();
             logger.error("send failed for {}, destination blocked", event);
         }
     }

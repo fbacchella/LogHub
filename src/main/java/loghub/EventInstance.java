@@ -17,6 +17,11 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.codahale.metrics.Counter;
+import com.codahale.metrics.Timer.Context;
+
+import loghub.configuration.Properties;
+
 class EventInstance extends Event {
 
     private final static Logger logger = LogManager.getLogger();
@@ -26,8 +31,16 @@ class EventInstance extends Event {
     private String currentPipeline;
     private String nextPipeline;
     private Date timestamp = new Date();
+    private final Context timer = Properties.metrics.timer("Allevents.timer").time();
+    private final Counter inflight = Properties.metrics.counter("Allevents.inflight");
 
     EventInstance() {
+        inflight.inc();
+    }
+
+    public void end() {
+        timer.close();
+        inflight.dec();
     }
 
     /**

@@ -56,6 +56,8 @@ public class Configuration {
     private List<Receiver> receivers;
     private Set<String> inputpipelines = new HashSet<>();
     private Set<String> outputpipelines = new HashSet<>();
+    // Stores all the top level pipelines, that generate metrics
+    private final Set<String> topPipelines = new HashSet<>();
     private List<Sender> senders;
     private ClassLoader classLoader = Configuration.class.getClassLoader();
 
@@ -127,6 +129,9 @@ public class Configuration {
             Pipeline p = parsePipeline(e.getValue(), name, 0, new AtomicInteger());
             pipelines.add(p);
             namedPipeLine.put(name, p);
+            if (p.nextPipeline != null) {
+                topPipelines.add(p.nextPipeline);
+            }
         }
         newProperties.put(Properties.PROPSNAMES.PIPELINES.toString(), Collections.unmodifiableSet(pipelines));
         namedPipeLine = Collections.unmodifiableMap(namedPipeLine);
@@ -158,6 +163,7 @@ public class Configuration {
             }
             inputpipelines.add(i.piperef);
         }
+        topPipelines.addAll(inputpipelines);
         inputpipelines = Collections.unmodifiableSet(inputpipelines);
         receivers = Collections.unmodifiableList(receivers);
         newProperties.put(Properties.PROPSNAMES.RECEIVERS.toString(), receivers);
@@ -177,9 +183,12 @@ public class Configuration {
             }
             outputpipelines.add(o.piperef);
         }
+        topPipelines.addAll(outputpipelines);
         outputpipelines = Collections.unmodifiableSet(outputpipelines);
         senders = Collections.unmodifiableList(senders);
         newProperties.put(Properties.PROPSNAMES.SENDERS.toString(), senders);
+
+        newProperties.put(Properties.PROPSNAMES.TOPPIPELINE.toString(), Collections.unmodifiableSet(topPipelines));
 
         return new Properties(newProperties);
     }

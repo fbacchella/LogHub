@@ -186,4 +186,9 @@ class EventWrapper extends Event {
         return event.buildException(message, root);
     }
 
+    @Override
+    public void end() {
+        event.end();
+    }
+
 }

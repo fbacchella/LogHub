@@ -7,6 +7,7 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.codahale.metrics.Counter;
 import com.codahale.metrics.Timer.Context;
 
 import loghub.configuration.Properties;
@@ -31,9 +32,13 @@ public class EventsProcessor extends Thread {
     @Override
     public void run() {
         String threadName = Thread.currentThread().getName();
+        Counter gaugecounter = null;
+        Event event = null;
         try {
             while (true) {
-                Event event = inQueue.take();
+                event = inQueue.take();
+                gaugecounter = Properties.metrics.counter("Pipeline." + event.getCurrentPipeline() + ".inflight");
+                gaugecounter.inc();
                 try (Context timer = Properties.metrics.timer("Pipeline." + event.getCurrentPipeline() + ".timer").time()){
                     logger.trace("received {}", event);
                     Processor processor;
@@ -43,21 +48,32 @@ public class EventsProcessor extends Thread {
                         boolean dropped = process(event, processor);
                         Thread.currentThread().setName(threadName);
                         if(dropped) {
+                            gaugecounter.dec();
                             logger.debug("dropped event {}", event);
+                            event.end();
+                            event = null;
                             break;
                         }
                     }
                     //No processor, processing finished
                     //Detect if will send to another pipeline, or just wait for a sender to take it
                     if(processor == null) {
+                        gaugecounter.dec();
+                        gaugecounter = null;
                         if(event.getNextPipeline() != null) {
+                            // Send to another pipeline, loop in the main processing queue
                             Pipeline next = namedPipelines.get(event.getNextPipeline());
                             if(! event.inject(next, inQueue)) {
                                 Properties.metrics.meter("Pipeline." + next.getName() + ".blocked").mark();
+                                event.end();
+                                event = null;
                             }
                         } else {
+                            // Put in the output queue, where the wanting output will come to take it
                             if(!outQueues.get(event.getCurrentPipeline()).offer(event)) {
-                                Properties.metrics.meter("Pipeline." + getName() + ".out.blocked").mark();
+                                Properties.metrics.meter("Pipeline." + event.getCurrentPipeline() + ".out.blocked").mark();
+                                event.end();
+                                event = null;
                             }
                         }
                     } 
@@ -66,6 +82,13 @@ public class EventsProcessor extends Thread {
         } catch (InterruptedException e) {
             Thread.currentThread().setName(threadName);
             Thread.currentThread().interrupt();
+        }
+        if (gaugecounter != null) {
+            gaugecounter.dec();
+            gaugecounter = null;
+        }
+        if (event != null) {
+            event.end();
         }
     }
 
@@ -84,8 +107,11 @@ public class EventsProcessor extends Thread {
                     success = true;
                 }
             } catch (ProcessorException ex) {
+                Properties.metrics.counter("Pipeline." + e.getCurrentPipeline() + ".failure").inc();;
                 Stats.newError(ex);
             } catch (Exception ex) {
+                Properties.metrics.counter("Pipeline." + e.getCurrentPipeline() + ".exception").inc();
+                Stats.newException(ex);
                 logger.error("failed to transform event {} with unmanaged error: {}", e, ex.getMessage());
                 logger.throwing(Level.DEBUG, ex);
                 dropped = true;
