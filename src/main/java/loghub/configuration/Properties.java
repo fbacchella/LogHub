@@ -28,7 +28,12 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.LoggerContext;
 
+import com.codahale.metrics.Counter;
 import com.codahale.metrics.Gauge;
+import com.codahale.metrics.Histogram;
+import com.codahale.metrics.JmxReporter;
+import com.codahale.metrics.Meter;
+import com.codahale.metrics.Metric;
 import com.codahale.metrics.MetricRegistry;
 
 import groovy.lang.GroovyClassLoader;
@@ -47,8 +52,40 @@ import net.sf.ehcache.management.ManagementService;
 import net.sf.ehcache.store.MemoryStoreEvictionPolicy;
 
 public class Properties extends HashMap<String, Object> {
+    
+    public static final class MetricRegistryWrapper {
+        private MetricRegistry metrics = new MetricRegistry();
 
-    public static final MetricRegistry metrics = new MetricRegistry();
+        public Counter counter(String name) {
+            return metrics.counter(name);
+        }
+
+        public Histogram histogram(String name) {
+            return metrics.histogram(name);
+        }
+
+        public Meter meter(String name) {
+            return metrics.meter(name);
+        }
+
+        public com.codahale.metrics.Timer timer(String name) {
+            return metrics.timer(name);
+        }
+        
+        public void reset() {
+            metrics = new MetricRegistry();
+        }
+
+        public <T extends Metric> T register(String name, T metric) throws IllegalArgumentException {
+            return metrics.register(name, metric);
+        }
+        
+        public JmxReporter getJmxReporter() {
+            return JmxReporter.forRegistry(metrics).build();
+        }
+    };
+
+    public static final MetricRegistryWrapper metrics = new MetricRegistryWrapper();
 
     private static final Logger logger = LogManager.getLogger();
 
@@ -92,6 +129,8 @@ public class Properties extends HashMap<String, Object> {
     public Properties(Map<String, Object> properties) {
         super();
 
+        metrics.reset();
+        
         String tz = (String) properties.remove("timezone");
         try {
             if (tz != null) {
@@ -158,12 +197,14 @@ public class Properties extends HashMap<String, Object> {
 
         // Extracts all the top pipeline and generate metrics for them
         Set<String> toppipelines = (Set<String>) properties.remove(PROPSNAMES.TOPPIPELINE.toString());
-        toppipelines.stream().forEach( i -> {
-            metrics.counter("Pipeline." + i + ".inflight");
-            metrics.timer("Pipeline." + i + ".timer");
-            metrics.meter("Pipeline." + i + ".blocked");
-            metrics.meter("Pipeline." + i + ".out.blocked");
-        });
+        if (toppipelines != null) {
+            toppipelines.stream().forEach( i -> {
+                metrics.counter("Pipeline." + i + ".inflight");
+                metrics.timer("Pipeline." + i + ".timer");
+                metrics.meter("Pipeline." + i + ".blocked");
+                metrics.meter("Pipeline." + i + ".out.blocked");
+            });
+        }
         //Read the jmx configuration
         Integer jmxport = (Integer) properties.remove("jmx.port");
         if (jmxport != null) {
@@ -215,17 +256,19 @@ public class Properties extends HashMap<String, Object> {
                     }
                 });
 
-        for(Map.Entry<String, BlockingQueue<Event>> i: outputQueues.entrySet()) {
-            final BlockingQueue<Event> queue = i.getValue();
-            final String name = i.getKey();
-            metrics.register(
-                    "EventWaiting.output." + name,
-                    new Gauge<Integer>() {
-                        @Override
-                        public Integer getValue() {
-                            return queue.size();
-                        }
-                    });
+        if (outputQueues != null) {
+            for(Map.Entry<String, BlockingQueue<Event>> i: outputQueues.entrySet()) {
+                final BlockingQueue<Event> queue = i.getValue();
+                final String name = i.getKey();
+                metrics.register(
+                        "EventWaiting.output." + name,
+                        new Gauge<Integer>() {
+                            @Override
+                            public Integer getValue() {
+                                return queue.size();
+                            }
+                        });
+            }
         }
         super.putAll(properties);
     }
