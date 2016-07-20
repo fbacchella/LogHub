@@ -21,7 +21,7 @@ public class TestEvent {
         LogUtils.setLevel(logger, Level.TRACE, "loghub");
     }
 
-    @Test()
+    @Test
     public void TestPath() {
         Event e = Tools.getEvent();
         e.applyAtPath((i, j, k) -> i.put(j, k), new String[]{"a", "b", "c"}, 1, true);
@@ -32,6 +32,16 @@ public class TestEvent {
         Assert.assertEquals("Didn't resolve the path correctly",  1, e.applyAtPath((i, j, k) -> i.remove(j), new String[]{"a", "b", "c"}, null));
         Assert.assertEquals("Didn't resolve the path correctly",  2, e.applyAtPath((i, j, k) -> i.get(j), new String[]{"d"}, null) );
         Assert.assertEquals("Didn't resolve the path correctly",  3, e.get("e") );
+    }
+
+    @Test
+    public void TestForkable() {
+        Event e = Tools.getEvent();
+        e.put("key", "value");
+        Event e2 = e.duplicate();
+        Assert.assertEquals("cloned value not found", e.get("key"), e2.get("key"));
+        e.end();
+        e2.end();
     }
 
 }

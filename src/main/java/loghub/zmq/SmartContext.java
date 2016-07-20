@@ -43,7 +43,7 @@ public class SmartContext {
     }
 
     public static synchronized SmartContext getContext() {
-        if (instance == null) {
+        if (instance == null || !instance.running) {
             instance = new SmartContext();
             Thread terminator = Helpers.makeSimpleThread(() -> {
                 synchronized (SmartContext.class) {

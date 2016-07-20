@@ -31,8 +31,8 @@ class EventInstance extends Event {
     private String currentPipeline;
     private String nextPipeline;
     private Date timestamp = new Date();
-    private final Context timer = Properties.metrics.timer("Allevents.timer").time();
-    private final Counter inflight = Properties.metrics.counter("Allevents.inflight");
+    private transient Context timer = Properties.metrics.timer("Allevents.timer").time();
+    private transient Counter inflight = Properties.metrics.counter("Allevents.inflight");
 
     EventInstance() {
         inflight.inc();
@@ -183,6 +183,13 @@ class EventInstance extends Event {
     @Override
     public ProcessorException buildException(String message, Exception root) {
         return new ProcessorException(this, message, root);
+    }
+
+    private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+        in.defaultReadObject();
+
+        timer = Properties.metrics.timer("Allevents.timer").time();
+        inflight = Properties.metrics.counter("Allevents.inflight");
     }
 
 }
