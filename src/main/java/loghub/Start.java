@@ -69,7 +69,7 @@ public class Start extends Thread {
 
         try {
             Helper.register(loghub.jmx.Stats.class);
-            JmxReporter reporter = JmxReporter.forRegistry(Properties.metrics).build();
+            JmxReporter reporter = Properties.metrics.getJmxReporter();
             reporter.start();
             int port = props.jmxport;
             if (port > 0) {
@@ -81,7 +81,7 @@ public class Start extends Thread {
                 | IllegalAccessException e) {
             throw new RuntimeException("jmx configuration failed: " + e.getMessage(), e);
         }
-        
+
         if (props.httpPort >= 0) {
             HttpServer server = new HttpServer();
             server.setIpAddr(new InetSocketAddress((InetAddress) null, props.httpPort));
