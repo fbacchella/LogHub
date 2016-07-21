@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>LogHub: Dashboard</title>
+
+<style>
+@import url(/static/Lato:400,700.css);
+
+body {
+  background-color: white;
+  font-family: 'Lato', sans-serif;
+}
+
+.x.axis line {
+  shape-rendering: auto;
+}
+
+.line {
+  fill: #edf7ff;
+  stroke: #43a2ca;
+  stroke-width: 1.5px;
+}
+
+#metrics {
+  cell-spacing: 0px;
+  cell-padding: 0px;
+  border-collapse: collapse;
+}
+
+#metrics td {
+  margin: 0px;
+  padding: 0px 10px;
+}
+
+#metrics tr {
+  border-bottom: 2px solid #eee;
+}
+
+.counterbox {
+  text-align: center;
+}
+
+.counterdesc {
+  font-size: 20px;
+  color: #ef8a62;
+  text-align: right;
+  font-weight: 700;
+}
+
+.counteraddendum {
+  font-size: 15px;
+  height: 100%;
+  color: #666;
+  text-align: right;
+}
+
+.countertext {
+  font-size: 50px;
+  color: #43a2ca;
+  height: 65px;
+}
+
+.countertimescale {
+  color: #999;
+  font-variant: small-caps;
+}
+
+.axis {
+  font-size: 10px;
+  color: #999;
+}
+
+.axis path, .axis line {
+  fill: none;
+  stroke: #999;
+}
+
+.hidden {
+  display: none;
+}
+
+#version-info {
+  font-size: 15px;
+  color: #666;
+  float: right;
+}
+
+#update-link {
+  color: blue;
+}
+</style>
+
+<script src="d3.v2.min.js"></script>
+<script src="charts.js"></script>
+
+<table id="metrics">
+</table>
+
+<script>(function() {
+  // Formatting middleware that collapses small values to 0
+  function clampToZero(f, window) {
+    return function(n) {
+      return f(Math.abs(n) < window ? 0 : n);
+    };
+  };
+
+  // Parse URL arguments
+  function getParameter(paramName) {
+    var searchString = window.location.search.substring(1),
+        i, val, params = searchString.split("&");
+
+    for (i=0;i<params.length;i++) {
+      val = params[i].split("=");
+      if (val[0] == paramName) {
+        return unescape(val[1]);
+      }
+    }
+    return null;
+  };
+
+  var nHistorical = getParameter("nHistorical") || 60;
+  var pollingInterval = getParameter("pollingInterval") || 5000;
+  var width = getParameter("width") || 400;
+  var height = getParameter("height") || 60;
+  var options = {nHistorical: nHistorical,
+                 pollingInterval: pollingInterval,
+                 width: width,
+                 height: height,
+                 container: "#metrics"};
+
+  function getValueSnag(res) {
+      return res["Value"];
+  }
+
+  function getCountSnag(res) {
+      return res["Count"];
+  }
+
+  function getOneMinuteRate(res) {
+      return res["OneMinuteRate"];
+  }
+
+  function getPercentileSnag(res) {
+      return res["50thPercentile"] / 1000;
+  }
+
+  function get95PercentileSnag(res) {
+      return res["95thPercentile"] / 1000;
+  }
+
+  var metrics = [
+      {description: "JVM Heap",
+       addendum: "bytes",
+       url: "/jmx/java.lang:type=Memory",
+       format: d3.format(",.3s"),
+       snag: function(res) { return res["HeapMemoryUsage"]["used"]; }},
+       {description: "Event received",
+           addendum: "e/s",
+           url: "/jmx/metrics:name=Allevents.timer",
+           format: d3.format(",.2s"),
+           snag: getOneMinuteRate},
+      {description: "In flight",
+       addendum: "Event being processed",
+       url: "/jmx/metrics:name=Allevents.inflight",
+       format: d3.format(","),
+       snag: getCountSnag},
+      {description: "95% latency",
+       addendum: "s",
+       url: "/jmx/metrics:name=Allevents.timer",
+       format: d3.format(",.2s"),
+       snag: get95PercentileSnag},
+       {description: "Event waiting",
+           addendum: "In the processing loop",
+           url: "/jmx/metrics:name=EventWaiting.mainloop",
+           format: d3.format(","),
+           snag: getValueSnag}
+       ]
+
+  for (i = 0; i < metrics.length; i++) {
+      var metric = metrics[i];
+      counterAndSparkline(metric.description,
+                          metric.addendum,
+                          metric.url,
+                          metric.format,
+                          metric.snag,
+                          options);
+  }
+
+})()</script>
+

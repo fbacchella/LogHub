@@ -1,0 +1,47 @@
+package loghub.netty.http;
+
+import java.util.Date;
+
+import io.netty.channel.ChannelHandler;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.handler.codec.http.DefaultFullHttpResponse;
+import io.netty.handler.codec.http.FullHttpRequest;
+import io.netty.handler.codec.http.FullHttpResponse;
+import io.netty.handler.codec.http.HttpHeaderNames;
+import io.netty.handler.codec.http.HttpRequest;
+import io.netty.handler.codec.http.HttpResponseStatus;
+import io.netty.handler.codec.http.HttpVersion;
+
+public class RootRedirect extends HttpStreaming implements ChannelHandler {
+
+    @Override
+    public boolean acceptRequest(HttpRequest request) {
+        String uri = request.uri();
+        return uri.equals("/");
+    }
+
+    @Override
+    protected boolean processRequest(FullHttpRequest request, ChannelHandlerContext ctx) throws HttpRequestFailure {
+        FullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.MOVED_PERMANENTLY);
+        boolean keepAlive = addKeepAlive(request, response);
+        response.headers().set(HttpHeaderNames.LOCATION, "/static/index.html");
+        ctx.writeAndFlush(response);
+        return keepAlive;
+    }
+
+    @Override
+    protected String getContentType() {
+        throw new UnsupportedOperationException("No content type for redirect");
+    }
+
+    @Override
+    protected Date getContentDate() {
+        throw new UnsupportedOperationException("No date for redirect");
+    }
+
+    @Override
+    protected int getSize() {
+        return 0;
+    }
+
+}
