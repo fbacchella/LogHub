@@ -1,17 +1,19 @@
 package loghub.netty;
 
+import java.net.InetSocketAddress;
+
 import io.netty.channel.ChannelFactory;
 import io.netty.channel.EventLoopGroup;
+import io.netty.channel.ServerChannel;
 import io.netty.channel.nio.NioEventLoopGroup;
-import io.netty.channel.socket.ServerSocketChannel;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 
-public class TcpFactory extends ServerFactory<ServerSocketChannel, SocketChannel> {
+public class TcpFactory extends ServerFactory<SocketChannel, InetSocketAddress> {
 
-    private static final ChannelFactory<ServerSocketChannel> niochannelfactory = new ChannelFactory<ServerSocketChannel>() {
+    private static final ChannelFactory<ServerChannel> niochannelfactory = new ChannelFactory<ServerChannel>() {
         @Override 
-        public ServerSocketChannel newChannel() {
+        public ServerChannel newChannel() {
             return new NioServerSocketChannel();
         }
     };
@@ -33,7 +35,7 @@ public class TcpFactory extends ServerFactory<ServerSocketChannel, SocketChannel
     }
 
     @Override
-    public ChannelFactory<ServerSocketChannel> getInstance() {
+    public ChannelFactory<ServerChannel> getInstance() {
         switch (poller) {
         case NIO:
             return niochannelfactory;

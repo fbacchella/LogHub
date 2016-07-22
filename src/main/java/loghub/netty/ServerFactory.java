@@ -1,15 +1,22 @@
 package loghub.netty;
 
+import java.net.SocketAddress;
+
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import io.netty.bootstrap.AbstractBootstrap;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelInitializer;
-import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.ServerChannel;
 
-public abstract class ServerFactory<D extends ServerChannel, E extends Channel> extends ComponentFactory<ServerBootstrap, ServerChannel, D, E> {
+public abstract class ServerFactory<CC extends Channel, SA extends SocketAddress> extends ComponentFactory<ServerBootstrap, ServerChannel, SA> {
+
+    private static final Logger logger = LogManager.getLogger();
 
     private EventLoopGroup bossGroup;
     private EventLoopGroup workerGroup;
@@ -18,9 +25,7 @@ public abstract class ServerFactory<D extends ServerChannel, E extends Channel> 
     @Override
     public AbstractBootstrap<ServerBootstrap, ServerChannel> getBootStrap() {
         bootstrap = new ServerBootstrap();
-        bootstrap.childOption(ChannelOption.SO_KEEPALIVE, true);
         bootstrap.channelFactory(getInstance());
-        bootstrap.option(ChannelOption.TCP_NODELAY, true);
         return bootstrap;
     }
 
@@ -38,22 +43,23 @@ public abstract class ServerFactory<D extends ServerChannel, E extends Channel> 
     }
 
     @Override
-    public boolean withChildHandler() {
-        return true;
-    }
-
-    public void addChildhandlers(HandlersSource<D, E> source) {
-        ChannelHandler handler = new ChannelInitializer<E>() {
+    public void addChildhandlers(ChannelConsumer<ServerBootstrap, ServerChannel, SA> source) {
+        ChannelHandler handler = new ChannelInitializer<CC>() {
             @Override
-            public void initChannel(E ch) throws Exception {
-                source.addChildHandlers(ch);
+            public void initChannel(CC ch) throws Exception {
+                try {
+                    source.addHandlers(ch.pipeline());
+                } catch (Exception e) {
+                    logger.error("Netty handler failed: {}", e.getMessage());
+                    logger.throwing(Level.DEBUG, e);
+                }
             }
         };
         bootstrap.childHandler(handler);
     }
 
     @Override
-    public void addHandlers(HandlersSource<D, E> source) {
+    public void addHandlers(ChannelConsumer<ServerBootstrap, ServerChannel, SA> source) {
     }
 
 }

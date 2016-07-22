@@ -1,39 +1,33 @@
 package loghub.netty;
 
-import java.net.InetSocketAddress;
-import java.net.SocketAddress;
 import java.nio.charset.Charset;
 import java.util.concurrent.BlockingQueue;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.handler.codec.ByteToMessageDecoder;
 import io.netty.handler.codec.LineBasedFrameDecoder;
 import io.netty.util.CharsetUtil;
 import loghub.Event;
 import loghub.Pipeline;
+import loghub.configuration.Properties;
+import loghub.decoders.StringCodec;
 
-public class LineReceiver extends TcpReceiver<ByteBuf> {
+public class LineReceiver extends TcpReceiver {
 
     private int maxLength = 256;
     private Charset charset= CharsetUtil.UTF_8;
+    private String field = "message";
 
     public LineReceiver(BlockingQueue<Event> outQueue, Pipeline pipeline) {
         super(outQueue, pipeline);
     }
 
     @Override
-    protected ByteToMessageDecoder getNettyDecoder() {
-        return new LineBasedFrameDecoder(maxLength);
-    }
-
-    @Override
-    protected void populate(Event event, ChannelHandlerContext ctx, ByteBuf msg) {
-        event.put("message", msg.toString(charset));
-        SocketAddress addr = ctx.channel().remoteAddress();
-        if(addr instanceof InetSocketAddress) {
-            event.put("host", ((InetSocketAddress) addr).getAddress());
-        }
+    public boolean configure(Properties properties) {
+        splitter = new LineBasedFrameDecoder(maxLength);
+        StringCodec stringcodec = new StringCodec();
+        stringcodec.setCharset(charset.toString());
+        stringcodec.setField(field);
+        decoder = stringcodec;
+        return super.configure(properties);
     }
 
     public int getMaxLength() {
@@ -59,15 +53,22 @@ public class LineReceiver extends TcpReceiver<ByteBuf> {
     }
 
     @Override
-    protected TcpServer<ByteBuf> getServer() {
-        TcpServer<ByteBuf> server = new TcpServer<ByteBuf>();
-        server.setIpAddr((InetSocketAddress) getAddress());
-        return server;
+    public String getReceiverName() {
+        return "LineReceiver/" + getListenAddress();
     }
 
-    @Override
-    public String getReceiverName() {
-        return null;
+    /**
+     * @return the field
+     */
+    public String getField() {
+        return field;
+    }
+
+    /**
+     * @param field the field to set
+     */
+    public void setField(String field) {
+        this.field = field;
     }
 
 }

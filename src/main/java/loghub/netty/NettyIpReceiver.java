@@ -2,7 +2,7 @@ package loghub.netty;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.net.SocketAddress;
+
 import java.net.UnknownHostException;
 import java.util.concurrent.BlockingQueue;
 
@@ -10,23 +10,32 @@ import io.netty.bootstrap.AbstractBootstrap;
 import io.netty.channel.Channel;
 import loghub.Event;
 import loghub.Pipeline;
+import loghub.configuration.Properties;
 
-public abstract class NettyIpReceiver<S extends AbstractNettyServer<A, B, C, D, E, F>, A extends ComponentFactory<B, C, D, E>, B extends AbstractBootstrap<B,C>,C extends Channel, D extends Channel, E extends Channel, F> extends NettyReceiver<S, A, B, C, D, E, F> {
+public abstract class NettyIpReceiver<S extends AbstractNettyServer<CF, BS, BSC, SC, InetSocketAddress>, CF extends ComponentFactory<BS, BSC, InetSocketAddress>, BS extends AbstractBootstrap<BS,BSC>, BSC extends Channel, SC extends Channel, CC extends Channel, SM> extends NettyReceiver<S, CF, BS, BSC, SC, CC, InetSocketAddress, SM> {
 
     private int port;
     private String host = null;
+    private InetSocketAddress addr = null;
 
     public NettyIpReceiver(BlockingQueue<Event> outQueue, Pipeline pipeline) {
         super(outQueue, pipeline);
     }
 
     @Override
-    protected SocketAddress getAddress() {
+    public boolean configure(Properties properties) {
         try {
-            return new InetSocketAddress(host !=null ? InetAddress.getByName(host) :null , port);
+            addr = new InetSocketAddress(host !=null ? InetAddress.getByName(host) : null , port);
         } catch (UnknownHostException e) {
-            return null;
+            logger.error("Unknow host to bind: {}", host);
+            return false;
         }
+        return super.configure(properties);
+    }
+
+    @Override
+    public InetSocketAddress getListenAddress() {
+        return addr;
     }
 
     public int getPort() {
@@ -48,6 +57,7 @@ public abstract class NettyIpReceiver<S extends AbstractNettyServer<A, B, C, D, 
      * @param host the host to set
      */
     public void setHost(String host) {
+        // Ensure host is null if given empty string, to be resolved as "bind *" by InetSocketAddress;
         this.host = host != null && !host.isEmpty() ? host : null;
     }
 

@@ -4,41 +4,48 @@ import java.net.SocketAddress;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.util.ReflectionUtil;
 
 import io.netty.bootstrap.AbstractBootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelOption;
+import loghub.Helpers;
 import loghub.configuration.Properties;
 
-public abstract class AbstractNettyServer<A extends ComponentFactory<B, C, D, E>, B extends AbstractBootstrap<B,C>,C extends Channel, D extends Channel, E extends Channel, F> {
+/**
+ * @author fa4
+ *
+ * @param <CF>  ComponentFactory
+ * @param <BS>  BootStrap (Bootstrap, ServerBootstrap)
+ * @param <BSC> Bootstrap's channel (Channel or ServerChannel)
+ * @param <SC>  Server channel
+ * @param <CC>  Client channel
+ * @param <SA>  Socket Address
+ */
+public abstract class AbstractNettyServer<CF extends ComponentFactory<BS, BSC, SA>, BS extends AbstractBootstrap<BS, BSC>, BSC extends Channel, SC extends Channel, SA extends SocketAddress> {
 
     protected final Logger logger;
-    private A factory;
-    private int backlog = 128;
-    private AbstractBootstrap<B,C> bootstrap;
-    private SocketAddress address;
+    private CF factory;
+    private AbstractBootstrap<BS,BSC> bootstrap;
+    private SA address;
+    protected POLLER poller = POLLER.NIO;
 
     public AbstractNettyServer() {
-        logger = LogManager.getLogger(ReflectionUtil.getCallerClass(2));
+        logger = LogManager.getLogger(Helpers.getFistInitClass());
     }
 
-    public ChannelFuture configure(Properties properties, HandlersSource<D, E> source) {
+    @SuppressWarnings("unchecked")
+    public ChannelFuture configure(Properties properties, ChannelConsumer<BS, BSC, SA> consumer) {
+        address = consumer.getListenAddress();
         factory = getNewFactory(properties);
-        address = getAddress();
         bootstrap = factory.getBootStrap();
         factory.group();
-        if (factory.withChildHandler()) {
-            factory.addChildhandlers(source);
-            bootstrap.option(ChannelOption.SO_BACKLOG, backlog);
-        } else {
-            factory.addHandlers(source);
-        }
+        factory.addChildhandlers(consumer);
+        factory.addHandlers(consumer);
+        consumer.addOptions((BS) bootstrap);
         // Bind and start to accept incoming connections.
         try {
             ChannelFuture cf = bootstrap.bind(address).sync();
-            logger.debug("{} started", () -> getAddress());
+            logger.debug("started {} with consumer {} listening on {}", factory, consumer, address);
             return cf;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -46,20 +53,22 @@ public abstract class AbstractNettyServer<A extends ComponentFactory<B, C, D, E>
         }
     }
 
-    protected abstract A getNewFactory(Properties properties);
+    protected abstract CF getNewFactory(Properties properties);
 
-    protected abstract SocketAddress getAddress();
-
-    public int getBacklog() {
-        return backlog;
+    public SA getAddress() {
+        return address;
     }
 
-    public void setBacklog(int backlog) {
-        this.backlog = backlog;
+    public void finish() {
+        factory.finish();
     }
 
-    public A getFactory() {
-        return factory;
+    public String getPoller() {
+        return poller.toString();
+    }
+
+    public void setPoller(String poller) {
+        this.poller = POLLER.valueOf(poller);
     }
 
 }

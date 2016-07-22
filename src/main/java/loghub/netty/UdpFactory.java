@@ -1,14 +1,17 @@
 package loghub.netty;
 
+import java.net.InetSocketAddress;
+
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelFactory;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.DatagramChannel;
 import io.netty.channel.socket.nio.NioDatagramChannel;
 
-public class UdpFactory extends ClientFactory<DatagramChannel, DatagramChannel> {
+public class UdpFactory extends ClientFactory<Channel, InetSocketAddress> {
 
-    private static final ChannelFactory<DatagramChannel> niochannelfactory = new ChannelFactory<DatagramChannel>() {
+    private static final ChannelFactory<Channel> niochannelfactory = new ChannelFactory<Channel>() {
         @Override 
         public DatagramChannel newChannel() {
             return new NioDatagramChannel();
@@ -32,7 +35,7 @@ public class UdpFactory extends ClientFactory<DatagramChannel, DatagramChannel> 
     }
 
     @Override
-    public ChannelFactory<DatagramChannel> getInstance() {
+    public ChannelFactory<Channel> getInstance() {
         switch (poller) {
         case NIO:
             return niochannelfactory;

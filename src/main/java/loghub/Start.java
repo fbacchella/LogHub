@@ -1,8 +1,6 @@
 package loghub;
 
 import java.io.IOException;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
 import java.rmi.NotBoundException;
 
 import javax.management.InstanceAlreadyExistsException;
@@ -84,7 +82,7 @@ public class Start extends Thread {
 
         if (props.httpPort >= 0) {
             HttpServer server = new HttpServer();
-            server.setIpAddr(new InetSocketAddress((InetAddress) null, props.httpPort));
+            server.setPort(props.httpPort);
             server.configure(props);
         }
 
