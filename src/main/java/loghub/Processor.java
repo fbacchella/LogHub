@@ -6,7 +6,6 @@ import java.util.Optional;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.util.ReflectionUtil;
 
 import loghub.configuration.Beans;
 import loghub.configuration.Properties;
@@ -24,7 +23,7 @@ public abstract class Processor {
     private String ifsource = null;
 
     public Processor() {
-        logger = LogManager.getLogger(ReflectionUtil.getCallerClass(2));
+        logger = LogManager.getLogger(Helpers.getFistInitClass());
     }
 
     public boolean configure(Properties properties) {

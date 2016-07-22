@@ -365,4 +365,16 @@ public final class Helpers {
         }
     }
 
+    public static String getFistInitClass() {
+        StackTraceElement[] elements = new Throwable().getStackTrace();
+        String last ="";
+        for (int i = 1; i < elements.length ; i++) {
+            if (!"<init>".equals(elements[i].getMethodName())) {
+                break;
+            }
+            last = elements[i].getClassName();
+        }
+        return last;
+    }
+
 }

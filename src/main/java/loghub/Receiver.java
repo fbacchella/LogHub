@@ -8,7 +8,6 @@ import java.util.concurrent.BlockingQueue;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.util.ReflectionUtil;
 
 import com.codahale.metrics.Meter;
 
@@ -31,8 +30,8 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
         setName("receiver-" + getReceiverName());
         this.outQueue = outQueue;
         this.pipeline = pipeline;
-        logger = LogManager.getLogger(ReflectionUtil.getCallerClass(2));
         count = Properties.metrics.meter(getName());
+        logger = LogManager.getLogger(Helpers.getFistInitClass());
     }
 
     public boolean configure(Properties properties) {
