@@ -14,6 +14,7 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.ByteToMessageDecoder;
 import loghub.Event;
 import loghub.Pipeline;
+import loghub.netty.servers.TcpServer;
 
 public class TcpReceiver extends NettyIpReceiver<TcpServer, TcpFactory, ServerBootstrap, ServerChannel, ServerSocketChannel, SocketChannel, ByteBuf> {
 

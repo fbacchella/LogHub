@@ -11,6 +11,7 @@ import io.netty.channel.Channel;
 import loghub.Event;
 import loghub.Pipeline;
 import loghub.configuration.Properties;
+import loghub.netty.servers.AbstractNettyServer;
 
 public abstract class NettyIpReceiver<S extends AbstractNettyServer<CF, BS, BSC, SC, InetSocketAddress>, CF extends ComponentFactory<BS, BSC, InetSocketAddress>, BS extends AbstractBootstrap<BS,BSC>, BSC extends Channel, SC extends Channel, CC extends Channel, SM> extends NettyReceiver<S, CF, BS, BSC, SC, CC, InetSocketAddress, SM> {
 

@@ -17,7 +17,7 @@ import com.codahale.metrics.JmxReporter;
 import loghub.configuration.Configuration;
 import loghub.configuration.Properties;
 import loghub.jmx.Helper;
-import loghub.netty.http.HttpServer;
+import loghub.netty.http.AbstractHttpServer;
 
 public class Start extends Thread {
 
@@ -81,7 +81,7 @@ public class Start extends Thread {
         }
 
         if (props.httpPort >= 0) {
-            HttpServer server = new HttpServer();
+            AbstractHttpServer server = new DashboardHttpServer();
             server.setPort(props.httpPort);
             server.configure(props);
         }

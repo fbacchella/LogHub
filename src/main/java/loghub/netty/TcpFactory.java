@@ -8,6 +8,7 @@ import io.netty.channel.ServerChannel;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
+import loghub.netty.servers.ServerFactory;
 
 public class TcpFactory extends ServerFactory<SocketChannel, InetSocketAddress> {
 
@@ -20,7 +21,7 @@ public class TcpFactory extends ServerFactory<SocketChannel, InetSocketAddress> 
 
     private final POLLER poller;
 
-    TcpFactory(POLLER poller) {
+    public TcpFactory(POLLER poller) {
         this.poller = poller;
     }
 

@@ -20,7 +20,7 @@ public class UdpFactory extends ClientFactory<Channel, InetSocketAddress> {
 
     private final POLLER poller;
 
-    UdpFactory(POLLER poller) {
+    public UdpFactory(POLLER poller) {
         this.poller = poller;
     }
 

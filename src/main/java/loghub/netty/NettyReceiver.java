@@ -20,6 +20,7 @@ import loghub.Event;
 import loghub.Pipeline;
 import loghub.Receiver;
 import loghub.configuration.Properties;
+import loghub.netty.servers.AbstractNettyServer;
 
 public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, SC, SA>, CF extends ComponentFactory<BS, BSC, SA>, BS extends AbstractBootstrap<BS,BSC>,BSC extends Channel, SC extends Channel, CC extends Channel, SA extends SocketAddress, SM> extends Receiver implements ChannelConsumer<BS, BSC, SA> {
 

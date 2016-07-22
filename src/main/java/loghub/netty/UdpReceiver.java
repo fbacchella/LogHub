@@ -13,6 +13,7 @@ import io.netty.channel.socket.DatagramChannel;
 import io.netty.channel.socket.DatagramPacket;
 import loghub.Event;
 import loghub.Pipeline;
+import loghub.netty.servers.UdpServer;
 
 public class UdpReceiver extends NettyIpReceiver<UdpServer, UdpFactory, Bootstrap, Channel, DatagramChannel, Channel, DatagramPacket> {
 

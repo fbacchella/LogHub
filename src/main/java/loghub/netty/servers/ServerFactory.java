@@ -1,4 +1,4 @@
-package loghub.netty;
+package loghub.netty.servers;
 
 import java.net.SocketAddress;
 
@@ -13,6 +13,8 @@ import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.ServerChannel;
+import loghub.netty.ChannelConsumer;
+import loghub.netty.ComponentFactory;
 
 public abstract class ServerFactory<CC extends Channel, SA extends SocketAddress> extends ComponentFactory<ServerBootstrap, ServerChannel, SA> {
 
