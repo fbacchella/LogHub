@@ -39,6 +39,15 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
         }
     }
 
+    @Sharable
+    private class LogHubDecoder extends MessageToMessageDecoder<SM> {
+        @Override
+        protected void decode(ChannelHandlerContext ctx, SM msg, List<Object> out) throws Exception {
+            Map<String, Object> content = decoder.decode(getContent(msg));
+            out.add(content);
+        }
+    }
+
     private ChannelFuture cf;
     private S server;
     protected MessageToMessageDecoder<SM> nettydecoder;
@@ -52,13 +61,7 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
     public boolean configure(Properties properties) {
         // Prepare the Netty decoder, before it's used during server creation in #getServer()
         if (nettydecoder == null && decoder != null) {
-            nettydecoder = new MessageToMessageDecoder<SM>() {
-                @Override
-                protected void decode(ChannelHandlerContext ctx, SM msg, List<Object> out) throws Exception {
-                    Map<String, Object> content = decoder.decode(getContent(msg));
-                    out.add(content);
-                }
-            };
+            nettydecoder = new LogHubDecoder();
         }
         server = getServer();
         cf = server.configure(properties, this);

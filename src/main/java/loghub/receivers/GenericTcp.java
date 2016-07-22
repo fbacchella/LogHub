@@ -1,4 +1,4 @@
-package loghub.netty;
+package loghub.receivers;
 
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
@@ -14,15 +14,17 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.ByteToMessageDecoder;
 import loghub.Event;
 import loghub.Pipeline;
+import loghub.netty.NettyIpReceiver;
+import loghub.netty.TcpFactory;
 import loghub.netty.servers.TcpServer;
 
-public class TcpReceiver extends NettyIpReceiver<TcpServer, TcpFactory, ServerBootstrap, ServerChannel, ServerSocketChannel, SocketChannel, ByteBuf> {
+public abstract class GenericTcp extends NettyIpReceiver<TcpServer, TcpFactory, ServerBootstrap, ServerChannel, ServerSocketChannel, SocketChannel, ByteBuf> {
 
     protected ByteToMessageDecoder splitter;
     private final TcpServer server = new TcpServer();
     private int backlog = 16;
 
-    public TcpReceiver(BlockingQueue<Event> outQueue, Pipeline pipeline) {
+    public GenericTcp(BlockingQueue<Event> outQueue, Pipeline pipeline) {
         super(outQueue, pipeline);
     }
 
@@ -45,7 +47,7 @@ public class TcpReceiver extends NettyIpReceiver<TcpServer, TcpFactory, ServerBo
 
     @Override
     public String getReceiverName() {
-        return "TcpNettyReceiver";
+        return "TcpReceiver/" + getListenAddress();
     }
 
     @Override

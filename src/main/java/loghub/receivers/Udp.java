@@ -1,94 +1,56 @@
 package loghub.receivers;
 
-import java.io.IOException;
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.InetAddress;
-import java.net.SocketException;
-import java.net.UnknownHostException;
-import java.util.Arrays;
-import java.util.Iterator;
+import java.net.SocketAddress;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 
+import io.netty.bootstrap.Bootstrap;
+import io.netty.buffer.ByteBuf;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.socket.DatagramChannel;
+import io.netty.channel.socket.DatagramPacket;
 import loghub.Event;
 import loghub.Pipeline;
-import loghub.Receiver;
-import loghub.configuration.Beans;
+import loghub.netty.NettyIpReceiver;
+import loghub.netty.UdpFactory;
+import loghub.netty.servers.UdpServer;
 
-@Beans({"port", "listen"})
-public class Udp extends Receiver {
+public class Udp extends NettyIpReceiver<UdpServer, UdpFactory, Bootstrap, Channel, DatagramChannel, Channel, DatagramPacket> {
 
-    private int port = 0;
-    private String listen = "0.0.0.0";
-    DatagramSocket socket = null;
+    private static final Map<SocketAddress, UdpServer> servers = new HashMap<>();
 
-    public Udp(BlockingQueue<Event> outQueue, Pipeline processors) {
-        super(outQueue, processors);
+    public Udp(BlockingQueue<Event> outQueue, Pipeline pipeline) {
+        super(outQueue, pipeline);
+    }
+
+    @Override
+    protected UdpServer getServer() {
+        SocketAddress addr = getListenAddress();
+        UdpServer server = null;
+        if (servers.containsKey(addr)) {
+            server = servers.get(addr);
+        } else {
+            server = new UdpServer();
+            servers.put(addr, server);
+        }
+        return server;
+    }
+
+    @Override
+    protected void populate(Event event, ChannelHandlerContext ctx, Map<String, Object> msg) {
+        event.putAll(msg);
     }
 
     @Override
     public String getReceiverName() {
-        return "UDP";
+        return "UdpNettyReceiver/" + getListenAddress();
     }
 
     @Override
-    public Iterator<Event> getIterator() {
-        try {
-            socket = new DatagramSocket(port, InetAddress.getByName(listen));
-            // if port was 0, a random port was chosen, get it back, useful for tests
-            port = socket.getLocalPort();
-            final byte[] buffer = new byte[65536];
-            final DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
-            return new Iterator<Event>() {
-
-                @Override
-                public boolean hasNext() {
-                    try {
-                        socket.receive(packet);
-                        return true;
-                    } catch (IOException e) {
-                        logger.info("socket IO Exception: {}", e);
-                        socket.close();
-                        return false;
-                    }
-                }
-                @Override
-                public Event next() {
-                    Event event = decode(Arrays.copyOfRange(packet.getData(), 0, packet.getLength()));
-                    event.put("host", packet.getAddress());
-                    return event;
-                }
-
-            };
-        } catch (SocketException e) {
-            logger.error("Can't start listening socket '{}': {}", listen, e.getMessage());
-            return null;
-        } catch (UnknownHostException e) {
-            logger.error("Can't resolve listening address: {}", e.getMessage());
-            return null;
-        }
-    }
-
-    @Override
-    public void close() {
-        socket.close();
-        super.close();
-    }
-
-    public int getPort() {
-        return port;
-    }
-
-    public void setPort(int port) {
-        this.port = port;
-    }
-
-    public String getListen() {
-        return listen;
-    }
-
-    public void setListen(String listen) {
-        this.listen = listen;
+    protected ByteBuf getContent(DatagramPacket message) {
+        return message.content();
     }
 
 }

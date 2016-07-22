@@ -1,4 +1,4 @@
-package loghub.netty;
+package loghub.receivers;
 
 import java.nio.charset.Charset;
 import java.util.concurrent.BlockingQueue;
@@ -10,13 +10,13 @@ import loghub.Pipeline;
 import loghub.configuration.Properties;
 import loghub.decoders.StringCodec;
 
-public class LineReceiver extends TcpReceiver {
+public class TcpLinesStream extends GenericTcp {
 
     private int maxLength = 256;
     private Charset charset= CharsetUtil.UTF_8;
     private String field = "message";
 
-    public LineReceiver(BlockingQueue<Event> outQueue, Pipeline pipeline) {
+    public TcpLinesStream(BlockingQueue<Event> outQueue, Pipeline pipeline) {
         super(outQueue, pipeline);
     }
 
