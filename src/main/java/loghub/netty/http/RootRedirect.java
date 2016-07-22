@@ -2,8 +2,10 @@ package loghub.netty.http;
 
 import java.util.Date;
 
+import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelHandler.Sharable;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.FullHttpResponse;
@@ -12,7 +14,8 @@ import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 
-public class RootRedirect extends HttpStreaming implements ChannelHandler {
+@Sharable
+public class RootRedirect extends HttpRequestProcessing implements ChannelHandler {
 
     @Override
     public boolean acceptRequest(HttpRequest request) {
@@ -23,9 +26,10 @@ public class RootRedirect extends HttpStreaming implements ChannelHandler {
     @Override
     protected boolean processRequest(FullHttpRequest request, ChannelHandlerContext ctx) throws HttpRequestFailure {
         FullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.MOVED_PERMANENTLY);
-        boolean keepAlive = addKeepAlive(request, response);
+        boolean keepAlive = addKeepAlive(request, response, 0);
         response.headers().set(HttpHeaderNames.LOCATION, "/static/index.html");
-        ctx.writeAndFlush(response);
+        ChannelFuture redirectfutur = ctx.writeAndFlush(response);
+        addLogger(redirectfutur, request.method().name(), request.uri(), response.status().code(), "redirect");
         return keepAlive;
     }
 
@@ -37,11 +41,6 @@ public class RootRedirect extends HttpStreaming implements ChannelHandler {
     @Override
     protected Date getContentDate() {
         throw new UnsupportedOperationException("No date for redirect");
-    }
-
-    @Override
-    protected int getSize() {
-        return 0;
     }
 
 }

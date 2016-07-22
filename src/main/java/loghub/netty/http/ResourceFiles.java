@@ -18,7 +18,7 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.stream.ChunkedInput;
 import io.netty.handler.stream.ChunkedStream;
 
-public class ResourceFiles extends HttpStreaming {
+public class ResourceFiles extends HttpRequestProcessing {
 
     private static final MimetypesFileTypeMap mimeTypesMap = new MimetypesFileTypeMap();
     static {
@@ -29,7 +29,6 @@ public class ResourceFiles extends HttpStreaming {
     }
     private static final Path ROOT = Paths.get("/");
     
-    private int size;
     private String internalPath;
     private Date internalDate;
 
@@ -58,11 +57,11 @@ public class ResourceFiles extends HttpStreaming {
                 if (entry.isDirectory()) {
                     throw new HttpRequestFailure(HttpResponseStatus.FORBIDDEN, "Directory listing refused");
                 }
-                size = jarConnection.getContentLength();
+                int length = jarConnection.getContentLength();
                 internalPath = entry.getName();
                 internalDate = new Date(entry.getLastModifiedTime().toMillis());
                 ChunkedInput<ByteBuf> content = new ChunkedStream(jarConnection.getInputStream());
-                return writeResponse(ctx, request, content);
+                return writeResponse(ctx, request, content, length);
             } catch (IOException e) {
                 throw new HttpRequestFailure(HttpResponseStatus.INTERNAL_SERVER_ERROR, e.getMessage());
             }
@@ -74,13 +73,6 @@ public class ResourceFiles extends HttpStreaming {
     @Override
     protected String getContentType() {
         return mimeTypesMap.getContentType(internalPath);
-    }
-
-    /**
-     * @return the size
-     */
-    public int getSize() {
-        return size;
     }
 
     @Override

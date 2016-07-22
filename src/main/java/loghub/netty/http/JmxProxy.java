@@ -14,6 +14,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.management.InstanceNotFoundException;
 import javax.management.IntrospectionException;
+import javax.management.JMException;
 import javax.management.MBeanAttributeInfo;
 import javax.management.MBeanInfo;
 import javax.management.MBeanServer;
@@ -34,6 +35,7 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelHandler.Sharable;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpRequest;
@@ -41,15 +43,14 @@ import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.util.CharsetUtil;
 
-public class JmxProxy extends HttpStreaming {
+@Sharable
+public class JmxProxy extends HttpRequestProcessing {
 
     private static final Logger logger = LogManager.getLogger();
 
-    private final static MBeanServer server = ManagementFactory.getPlatformMBeanServer();
+    private static final MBeanServer server = ManagementFactory.getPlatformMBeanServer();
     private static final JsonFactory factory = new JsonFactory();
     private static final ThreadLocal<ObjectMapper> json = ThreadLocal.withInitial(() -> new ObjectMapper(factory).configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false));
-
-    private int size;
 
     @Override
     public boolean acceptRequest(HttpRequest request) {
@@ -59,31 +60,44 @@ public class JmxProxy extends HttpStreaming {
 
     @Override
     protected boolean processRequest(FullHttpRequest request, ChannelHandlerContext ctx) throws HttpRequestFailure {
-        String name = request.uri().replace("/jmx/", "");
+        String rawname = request.uri().replace("/jmx/", "");
+        String name;
         try {
-            name = URLDecoder.decode(name, "UTF-8");
+            name = URLDecoder.decode(rawname, "UTF-8");
+        } catch (UnsupportedEncodingException e) {
+            throw new HttpRequestFailure(HttpResponseStatus.NOT_FOUND, String.format("malformed object name '%s': %s", rawname, e.getMessage()));
+        }
+        try {
             Set<ObjectName> objectinstance = server.queryNames(new ObjectName(name), null);
             ObjectName found = objectinstance.stream().
                     findAny()
-                    .orElseThrow(() -> new HttpRequestFailure(HttpResponseStatus.NOT_FOUND, String.format("malformed object name '%s'", request.uri().replace("/jmx/", ""))));
+                    .orElseThrow(() -> new HttpRequestFailure(HttpResponseStatus.NOT_FOUND, String.format("malformed object name '%s'", name)));
             MBeanInfo info = server.getMBeanInfo(found);
             MBeanAttributeInfo[] attrInfo = info.getAttributes();
             Map<String, Object> mbeanmap = new HashMap<>(attrInfo.length);
-            Arrays.stream(attrInfo)
-            .map(i -> i.getName())
-            .forEach(i -> {
-                try {
-                    Object o = resolveAttribute(server.getAttribute(found, i));
-                    if (o != null) {
-                        mbeanmap.put(i, o);
+            try {
+                Arrays.stream(attrInfo)
+                .map(i -> i.getName())
+                .forEach(i -> {
+                    try {
+                        Object o = resolveAttribute(server.getAttribute(found, i));
+                        if (o != null) {
+                            mbeanmap.put(i, o);
+                        }
+                    } catch (JMException e) {
+                        String message = String.format("Failure reading attribue %s from %s: %s}", i, name, e.getMessage());
+                        logger.error(message);
+                        logger.debug(e);
+                        throw new RuntimeException(message);
                     }
-                } catch (Exception e) {
-                }
-            });
+                });
+            } catch (RuntimeException e) {
+                // Capture the JMException that might have been previously thrown, and transform it in an HTTP processing exception
+                throw new HttpRequestFailure(HttpResponseStatus.INTERNAL_SERVER_ERROR, e.getMessage());
+            }
             String serialized = json.get().writeValueAsString(mbeanmap);
             ByteBuf content = Unpooled.copiedBuffer(serialized + "\r\n", CharsetUtil.UTF_8);
-            size = content.readableBytes();
-            return writeResponse(ctx, request, content);
+            return writeResponse(ctx, request, content, content.readableBytes());
         } catch (MalformedObjectNameException e) {
             throw new HttpRequestFailure(BAD_REQUEST, String.format("malformed object name '%s': %s", name, e.getMessage()));
         } catch (IntrospectionException | ReflectionException | RuntimeException | JsonProcessingException e) {
@@ -93,8 +107,6 @@ public class JmxProxy extends HttpStreaming {
             }
             throw new HttpRequestFailure(BAD_REQUEST, String.format("malformed object content '%s': %s", name, e.getMessage()));
         } catch (InstanceNotFoundException e) {
-            throw new HttpRequestFailure(HttpResponseStatus.NOT_FOUND, String.format("malformed object name '%s': %s", name, e.getMessage()));
-        } catch (UnsupportedEncodingException e) {
             throw new HttpRequestFailure(HttpResponseStatus.NOT_FOUND, String.format("malformed object name '%s': %s", name, e.getMessage()));
         }
 
@@ -122,15 +134,9 @@ public class JmxProxy extends HttpStreaming {
         }
     }
 
-
     @Override
     protected String getContentType() {
         return "application/json; charset=utf-8";
-    }
-
-    @Override
-    protected int getSize() {
-        return size;
     }
 
     @Override

@@ -4,11 +4,13 @@ import java.util.Date;
 
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelHandler.Sharable;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
 
-public class NotFound extends HttpStreaming implements ChannelHandler {
+@Sharable
+public class NotFound extends HttpRequestProcessing implements ChannelHandler {
 
     @Override
     protected boolean processRequest(FullHttpRequest request, ChannelHandlerContext ctx) throws HttpRequestFailure {
@@ -23,11 +25,6 @@ public class NotFound extends HttpStreaming implements ChannelHandler {
     @Override
     protected Date getContentDate() {
         return null;
-    }
-
-    @Override
-    protected int getSize() {
-        return 0;
     }
 
     @Override

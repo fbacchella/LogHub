@@ -7,14 +7,18 @@ import static io.netty.handler.codec.http.HttpResponseStatus.METHOD_NOT_ALLOWED;
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 
+import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 import java.util.TimeZone;
+import java.util.function.Supplier;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
+import com.codahale.metrics.Timer.Context;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -36,8 +40,9 @@ import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.handler.stream.ChunkedInput;
 import io.netty.util.CharsetUtil;
+import loghub.configuration.Properties;
 
-public abstract class HttpStreaming extends SimpleChannelInboundHandler<FullHttpRequest> {
+public abstract class HttpRequestProcessing extends SimpleChannelInboundHandler<FullHttpRequest> {
 
     private static final Logger logger = LogManager.getLogger();
 
@@ -73,22 +78,29 @@ public abstract class HttpStreaming extends SimpleChannelInboundHandler<FullHttp
 
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, FullHttpRequest request) {
-        logger.debug("{} {}", () -> request.method(), () -> request.uri());
-        if (!request.decoderResult().isSuccess()) {
-            failure(ctx, request, BAD_REQUEST, "Can't decode request");
-            return;
-        }
-        if (request.method() != GET) {
-            failure(ctx, request, METHOD_NOT_ALLOWED, "Only GET allowed");
-            return;
-        }
-        try {
-            if (!processRequest(request, ctx)) {
-                // If keep-alive is off, close the connection once the content is fully written.
-                ctx.writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
+        Properties.metrics.counter("WebServer.inflight").inc();
+        try( Context tct = Properties.metrics.timer("WebServer.timer").time()) {
+            if (!request.decoderResult().isSuccess()) {
+                failure(ctx, request, BAD_REQUEST, "Can't decode request");
+                return;
             }
-        } catch (HttpRequestFailure e) {
-            failure(ctx, request, e.status, e.message);
+            if (request.method() != GET) {
+                failure(ctx, request, METHOD_NOT_ALLOWED, "Only GET allowed");
+                return;
+            }
+            try {
+                if (!processRequest(request, ctx)) {
+                    // If keep-alive is off, close the connection once the content is fully written.
+                    ctx.writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
+                } else {
+                    ctx.writeAndFlush(Unpooled.EMPTY_BUFFER);
+                }
+                Properties.metrics.meter("WebServer.status.200").mark();;
+            } catch (HttpRequestFailure e) {
+                failure(ctx, request, e.status, e.message);
+            }
+        } finally {
+            Properties.metrics.counter("WebServer.inflight").dec();
         }
     }
 
@@ -103,13 +115,6 @@ public abstract class HttpStreaming extends SimpleChannelInboundHandler<FullHttp
     protected abstract Date getContentDate();
 
     /**
-     * Return the size of the content or -1 if unknown
-     * 
-     * @return the size of the content
-     */
-    protected abstract int getSize();
-
-    /**
      * Can be used to add custom handlers to a response, call by {@link #writeResponse(ChannelHandlerContext, FullHttpRequest, ByteBuf)}.
      * So if processRequest don't call it, no handlers will be added
      * 
@@ -120,50 +125,68 @@ public abstract class HttpStreaming extends SimpleChannelInboundHandler<FullHttp
 
     }
 
-    protected boolean writeResponse(ChannelHandlerContext ctx, FullHttpRequest request, ChunkedInput<ByteBuf> content) {
-        return internalWriteResponse(ctx, request, new HttpChunkedInput(content, LastHttpContent.EMPTY_LAST_CONTENT));
-    }
-
-    protected boolean writeResponse(ChannelHandlerContext ctx, FullHttpRequest request, ByteBuf content) {
-        return internalWriteResponse(ctx, request, content);
-    }
-
-    private boolean internalWriteResponse(ChannelHandlerContext ctx, FullHttpRequest request, Object content) {
+    protected boolean writeResponse(ChannelHandlerContext ctx, FullHttpRequest request, ChunkedInput<ByteBuf> content, int length) {
         // Build the response object.
         HttpResponse response = new DefaultHttpResponse(HTTP_1_1, OK);
-        addContentDate(request, response);
-        boolean keepAlive = addKeepAlive(request, response);
-        addCustomHeaders(request, response);
-        // Write the initial line and the header.
-        ctx.write(response);
-        ChannelFuture sendFileFuture = ctx.writeAndFlush(content);
-        // Add a logging listener to the futur
-        sendFileFuture.addListener(new ChannelFutureListener() {
-            @Override
-            public void operationComplete(ChannelFuture future) throws Exception {
-                logger.info("{} {}: 200 transfer complete", () -> request.method(), () -> request.uri());
-            }
-        });
 
+        return internalWriteResponse(ctx, request, response, length, () -> {
+            HttpChunkedInput chunked = new HttpChunkedInput(content, LastHttpContent.EMPTY_LAST_CONTENT);
+            ctx.write(response);
+            return ctx.writeAndFlush(chunked);
+        });
+    }
+
+    protected boolean writeResponse(ChannelHandlerContext ctx, FullHttpRequest request, ByteBuf content, int length) {
+        // Build the response object.
+        HttpResponse response = new DefaultFullHttpResponse(HTTP_1_1, OK, content);
+        
+        return internalWriteResponse(ctx, request, response, length, () -> {
+            return ctx.writeAndFlush(response);
+        });
+    }
+
+    private boolean internalWriteResponse(ChannelHandlerContext ctx, FullHttpRequest request, HttpResponse response, int length, Supplier<ChannelFuture> sender) {
+        addContentDate(request, response);
+        addCustomHeaders(request, response);
+        boolean keepAlive = addKeepAlive(request, response, length);
+        ChannelFuture sendFileFuture = sender.get();
+        addLogger(sendFileFuture, request.method().name(), request.uri(), response.status().code(), "completed");
         return keepAlive;
     }
 
+    /**
+     * Used to log a status line when transfer is finished
+     * @param sendFuture
+     * @param method
+     * @param uri
+     * @param status
+     * @param message
+     */
+    protected void addLogger(ChannelFuture sendFuture, String method, String uri, int status, String message) {
+        sendFuture.addListener(new ChannelFutureListener() {
+            @Override
+            public void operationComplete(ChannelFuture future) throws Exception {
+                logger.info("{} {}: {} {}", method, uri, status, message);
+            }
+        });
+    }
 
-    protected boolean  addKeepAlive(HttpRequest request, HttpResponse response) {
+    protected boolean addKeepAlive(HttpRequest request, HttpResponse response, int length) {
         // Decide whether to close the connection or not.
         boolean keepAlive = HttpUtil.isKeepAlive(request);
+        if (length >= 0) {
+            // Add 'Content-Length' header only for a keep-alive connection.
+            response.headers().setInt(HttpHeaderNames.CONTENT_LENGTH, length);
+        } else {
+            // Unknown size, can't keep alive
+            keepAlive = false;
+        }
         if (keepAlive) {
-            int length = getSize();
-            if (length >= 0) {
-                // Add 'Content-Length' header only for a keep-alive connection.
-                response.headers().setInt(HttpHeaderNames.CONTENT_LENGTH, length);
-                // Add keep alive header as per:
-                // - http://www.w3.org/Protocols/HTTP/1.1/draft-ietf-http-v11-spec-01.html#Connection
-                response.headers().set(HttpHeaderNames.CONNECTION, HttpHeaderValues.KEEP_ALIVE);
-            } else {
-                // Unknown size, can't keep alive
-                keepAlive = false;
-            }
+            // Add keep alive header as per:
+            // - http://www.w3.org/Protocols/HTTP/1.1/draft-ietf-http-v11-spec-01.html#Connection
+            response.headers().set(HttpHeaderNames.CONNECTION, HttpHeaderValues.KEEP_ALIVE);
+        } else {
+            response.headers().set(HttpHeaderNames.CONNECTION, HttpHeaderValues.CLOSE);
         }
         return keepAlive;
     }
@@ -184,6 +207,7 @@ public abstract class HttpStreaming extends SimpleChannelInboundHandler<FullHttp
         response.headers().set(HttpHeaderNames.CONTENT_TYPE, "text/plain; charset=UTF-8");
         ChannelFuture sendFileFuture = ctx.writeAndFlush(response);
         sendFileFuture.addListener(ChannelFutureListener.CLOSE);
+        Properties.metrics.meter("WebServer.status." + status.code()).mark();;
     }
 
     @Override
@@ -191,13 +215,19 @@ public abstract class HttpStreaming extends SimpleChannelInboundHandler<FullHttp
         while(cause.getCause() != null) {
             cause = cause.getCause();
         }
-        logger.error("Internal server error");
-        logger.catching(Level.ERROR, cause);
+        //Network error, not a big deal
+        if ( cause instanceof IOException) {
+            logger.error("Network error: {}", cause.getMessage());
+        } else {
+            logger.error("Internal server error");
+            logger.catching(Level.ERROR, cause);
+        }
         FullHttpResponse response = new DefaultFullHttpResponse(
                 HTTP_1_1, INTERNAL_SERVER_ERROR, Unpooled.copiedBuffer("Critical internal server error\r\n", CharsetUtil.UTF_8));
         response.headers().set(HttpHeaderNames.CONNECTION, HttpHeaderValues.CLOSE);
         response.headers().set(HttpHeaderNames.CONTENT_TYPE, "text/plain; charset=UTF-8");
         ChannelFuture sendFileFuture = ctx.writeAndFlush(response);
         sendFileFuture.addListener(ChannelFutureListener.CLOSE);
+        Properties.metrics.meter("WebServer.status." + INTERNAL_SERVER_ERROR.code()).mark();;
     }
 }
