@@ -17,7 +17,6 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import com.codahale.metrics.Counter;
 import com.codahale.metrics.Timer.Context;
 
 import loghub.configuration.Properties;
@@ -32,15 +31,14 @@ class EventInstance extends Event {
     private String nextPipeline;
     private Date timestamp = new Date();
     private transient Context timer = Properties.metrics.timer("Allevents.timer").time();
-    private transient Counter inflight = Properties.metrics.counter("Allevents.inflight");
 
     EventInstance() {
-        inflight.inc();
+        Properties.metrics.counter("Allevents.inflight").inc();
     }
 
     public void end() {
         timer.close();
-        inflight.dec();
+        Properties.metrics.counter("Allevents.inflight").dec();
     }
 
     /**
@@ -189,7 +187,7 @@ class EventInstance extends Event {
         in.defaultReadObject();
 
         timer = Properties.metrics.timer("Allevents.timer").time();
-        inflight = Properties.metrics.counter("Allevents.inflight");
+        Properties.metrics.counter("Allevents.inflight").inc();
     }
 
 }

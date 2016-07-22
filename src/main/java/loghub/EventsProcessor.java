@@ -50,6 +50,7 @@ public class EventsProcessor extends Thread {
                         if(dropped) {
                             gaugecounter.dec();
                             logger.debug("dropped event {}", event);
+                            Properties.metrics.meter("Allevents.dropped");
                             event.end();
                             event = null;
                             break;

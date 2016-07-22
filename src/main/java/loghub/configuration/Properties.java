@@ -52,7 +52,7 @@ import net.sf.ehcache.management.ManagementService;
 import net.sf.ehcache.store.MemoryStoreEvictionPolicy;
 
 public class Properties extends HashMap<String, Object> {
-    
+
     public static final class MetricRegistryWrapper {
         private MetricRegistry metrics = new MetricRegistry();
 
@@ -71,7 +71,7 @@ public class Properties extends HashMap<String, Object> {
         public com.codahale.metrics.Timer timer(String name) {
             return metrics.timer(name);
         }
-        
+
         public void reset() {
             metrics = new MetricRegistry();
         }
@@ -79,7 +79,7 @@ public class Properties extends HashMap<String, Object> {
         public <T extends Metric> T register(String name, T metric) throws IllegalArgumentException {
             return metrics.register(name, metric);
         }
-        
+
         public JmxReporter getJmxReporter() {
             return JmxReporter.forRegistry(metrics).build();
         }
@@ -130,7 +130,7 @@ public class Properties extends HashMap<String, Object> {
         super();
 
         metrics.reset();
-        
+
         String tz = (String) properties.remove("timezone");
         try {
             if (tz != null) {
@@ -196,7 +196,7 @@ public class Properties extends HashMap<String, Object> {
         }
 
         // Extracts all the top pipeline and generate metrics for them
-        Set<String> toppipelines = (Set<String>) properties.remove(PROPSNAMES.TOPPIPELINE.toString());
+        final Set<String> toppipelines = (Set<String>) properties.remove(PROPSNAMES.TOPPIPELINE.toString());
         if (toppipelines != null) {
             toppipelines.stream().forEach( i -> {
                 metrics.counter("Pipeline." + i + ".inflight");
@@ -205,6 +205,8 @@ public class Properties extends HashMap<String, Object> {
                 metrics.meter("Pipeline." + i + ".out.blocked");
             });
         }
+        metrics.counter("Allevents.inflight");
+        metrics.timer("Allevents.timer");
         //Read the jmx configuration
         Integer jmxport = (Integer) properties.remove("jmx.port");
         if (jmxport != null) {
