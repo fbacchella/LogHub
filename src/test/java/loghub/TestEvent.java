@@ -1,6 +1,8 @@
 package loghub;
 
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -9,10 +11,25 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import loghub.configuration.Properties;
+
 public class TestEvent {
 
     private static Logger logger ;
 
+    private static class Looper extends Processor {
+
+        @Override
+        public void process(Event event) throws ProcessorException {
+            event.appendProcessor(this);
+        }
+
+        @Override
+        public String getName() {
+            return "Looper";
+        }
+
+    }
 
     @BeforeClass
     static public void configure() throws IOException {
@@ -42,6 +59,33 @@ public class TestEvent {
         Assert.assertEquals("cloned value not found", e.get("key"), e2.get("key"));
         e.end();
         e2.end();
+    }
+
+    @Test
+    public void TestLoop() {
+        Map<String, Object> conf = new HashMap<>();
+        conf.put("maxSteps", 5);
+        Properties props = new Properties(conf);
+        Event e = Tools.getEvent();
+        e.appendProcessor(new Looper());
+        EventsProcessor ep = new EventsProcessor(props.mainQueue, props.outputQueues, props.namedPipeLine, props.maxSteps);
+        //e.appendProcessor(p);
+        Processor processor;
+        int numsteps = 0;
+        int loop = 0;
+        while ((processor = e.next()) != null) {
+            logger.debug("doing step");
+            loop++;
+            if (ep.process(e, processor)) {
+                break;
+            };
+            Assert.assertTrue("Not counting processing", e.stepsCount() > numsteps);
+            Assert.assertTrue("Not stopping processing", e.stepsCount() <= props.maxSteps);
+            Assert.assertTrue("Not stopping processing", e.stepsCount() <= loop);
+            numsteps = e.stepsCount();
+        }
+        Assert.assertTrue("Breaking early", e.stepsCount() >= props.maxSteps);
+        e.end();
     }
 
 }

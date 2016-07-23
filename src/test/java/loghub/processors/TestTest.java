@@ -65,8 +65,8 @@ public class TestTest {
         sent.put("a",2);
 
         conf.mainQueue.add(sent);
-        
-        EventsProcessor ep = new EventsProcessor(conf.mainQueue, conf.outputQueues, conf.namedPipeLine);
+
+        EventsProcessor ep = new EventsProcessor(conf.mainQueue, conf.outputQueues, conf.namedPipeLine, conf.maxSteps);
         sent.inject(conf.namedPipeLine.get("subpipe"), conf.mainQueue);
         ep.start();
 

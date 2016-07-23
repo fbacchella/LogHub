@@ -52,7 +52,7 @@ public class TestConfigurations {
     @Test(timeout=2000) 
     public void testTwoPipe() throws InterruptedException {
         Properties conf = Tools.loadConf("twopipe.conf");
-        Thread t = new EventsProcessor(conf.mainQueue, conf.outputQueues, conf.namedPipeLine);
+        Thread t = new EventsProcessor(conf.mainQueue, conf.outputQueues, conf.namedPipeLine, conf.maxSteps);
         t.setDaemon(true);
         t.start();
 
@@ -72,7 +72,7 @@ public class TestConfigurations {
     @Test(timeout=2000)
     public void testFork() throws InterruptedException, ProcessorException {
         Properties conf = Tools.loadConf("fork.conf");
-        EventsProcessor ep = new EventsProcessor(conf.mainQueue, conf.outputQueues, conf.namedPipeLine);
+        EventsProcessor ep = new EventsProcessor(conf.mainQueue, conf.outputQueues, conf.namedPipeLine, conf.maxSteps);
         ep.start();
 
         try {

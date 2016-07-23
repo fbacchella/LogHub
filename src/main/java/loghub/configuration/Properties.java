@@ -121,6 +121,7 @@ public class Properties extends HashMap<String, Object> {
     public final Map<String, BlockingQueue<Event>> outputQueues;
     public final int queuesDepth;
     public final int httpPort;
+    public final int maxSteps;
 
     private final Timer timer = new Timer("loghubtimer", true);
     private final CacheManager cacheManager;
@@ -236,6 +237,12 @@ public class Properties extends HashMap<String, Object> {
             numWorkers = (Integer) properties.remove("numWorkers");
         } else {
             numWorkers = Runtime.getRuntime().availableProcessors() * 2;
+        }
+
+        if (properties.containsKey("maxSteps")) {
+            maxSteps = (Integer) properties.remove("maxSteps");
+        } else {
+            maxSteps = 128;
         }
 
         if (properties.containsKey("http.port")) {

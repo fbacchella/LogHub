@@ -191,4 +191,9 @@ class EventWrapper extends Event {
         event.end();
     }
 
+    @Override
+    public int stepsCount() {
+        return event.stepsCount();
+    }
+
 }

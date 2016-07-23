@@ -21,12 +21,14 @@ public class EventsProcessor extends Thread {
     private final BlockingQueue<Event> inQueue;
     private final Map<String, BlockingQueue<Event>> outQueues;
     private final Map<String,Pipeline> namedPipelines;
+    private final int maxSteps;
 
-    public EventsProcessor(BlockingQueue<Event> inQueue, Map<String, BlockingQueue<Event>> outQueues, Map<String,Pipeline> namedPipelines) {
+    public EventsProcessor(BlockingQueue<Event> inQueue, Map<String, BlockingQueue<Event>> outQueues, Map<String,Pipeline> namedPipelines, int maxSteps) {
         super();
         this.inQueue = inQueue;
         this.outQueues = outQueues;
         this.namedPipelines = namedPipelines;
+        this.maxSteps = maxSteps;
     }
 
     @Override
@@ -100,6 +102,9 @@ public class EventsProcessor extends Thread {
             ((Forker) p).fork(e);
             success = true;
         } else if (p instanceof Drop) {
+            dropped = true;
+        } else if (e.stepsCount() > maxSteps) {
+            logger.error("Too much steps for event {}, dropping", e);
             dropped = true;
         } else {
             try {

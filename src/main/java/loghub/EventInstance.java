@@ -31,6 +31,7 @@ class EventInstance extends Event {
     private String nextPipeline;
     private Date timestamp = new Date();
     private transient Context timer = Properties.metrics.timer("Allevents.timer").time();
+    private int stepsCount = 0;
 
     EventInstance() {
         Properties.metrics.counter("Allevents.inflight").inc();
@@ -80,6 +81,7 @@ class EventInstance extends Event {
     }
 
     public Processor next() {
+        stepsCount++;
         logger.debug("waiting processors {}", processors);
         try {
             Processor p = processors.pop();
@@ -188,6 +190,11 @@ class EventInstance extends Event {
 
         timer = Properties.metrics.timer("Allevents.timer").time();
         Properties.metrics.counter("Allevents.inflight").inc();
+    }
+
+    @Override
+    public int stepsCount() {
+        return stepsCount;
     }
 
 }

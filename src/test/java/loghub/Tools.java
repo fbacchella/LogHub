@@ -37,7 +37,7 @@ public class Tools {
     }
 
     public static void runProcessing(Event sent, Pipeline pipe, Properties props) throws ProcessorException {
-        EventsProcessor ep = new EventsProcessor(props.mainQueue, props.outputQueues, props.namedPipeLine);
+        EventsProcessor ep = new EventsProcessor(props.mainQueue, props.outputQueues, props.namedPipeLine, props.maxSteps);
         sent.inject(pipe, props.mainQueue);
         Processor processor;
         while ((processor = sent.next()) != null) {
