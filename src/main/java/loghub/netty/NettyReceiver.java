@@ -1,6 +1,5 @@
 package loghub.netty;
 
-import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.List;
 import java.util.Map;
@@ -10,12 +9,14 @@ import io.netty.bootstrap.AbstractBootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelHandler.Sharable;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.SimpleChannelInboundHandler;
-import io.netty.channel.ChannelHandler.Sharable;
 import io.netty.handler.codec.MessageToMessageDecoder;
+import io.netty.util.AttributeKey;
+import io.netty.util.ReferenceCounted;
 import loghub.Event;
 import loghub.Pipeline;
 import loghub.Receiver;
@@ -29,10 +30,9 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
         @Override
         protected void channelRead0(ChannelHandlerContext ctx, Map<String, Object> msg) throws Exception {
             Event event = emptyEvent();
-            SocketAddress addr = ctx.channel().remoteAddress();
-            if (addr instanceof InetSocketAddress) {
-                InetSocketAddress iaddr = (InetSocketAddress)addr;
-                event.put("host", iaddr.getAddress());
+            Object addr = ctx.channel().attr(SOURCEADDRESSATTRIBUTE).get();
+            if (addr != null) {
+                event.put("host", addr);
             }
             populate(event, ctx, msg);
             send(event);
@@ -48,10 +48,29 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
         }
     }
 
+    @Sharable
+    private class SourceAddressResolver extends MessageToMessageDecoder<SM> {
+        @Override
+        protected void decode(ChannelHandlerContext ctx, SM msg, List<Object> out) throws Exception {
+            //The message is not transformeed in this step, so don't decrease reference count
+            if (msg instanceof ReferenceCounted) {
+                ((ReferenceCounted) msg).retain();
+            }
+            Object address = ResolveSourceAddress(ctx, msg);
+            if(address != null) {
+                ctx.channel().attr(SOURCEADDRESSATTRIBUTE).set(address);
+            }
+            out.add(msg);
+        }
+    }
+
+    private static final AttributeKey<Object> SOURCEADDRESSATTRIBUTE = AttributeKey.newInstance("SourceAddressAttibute");
+
     private ChannelFuture cf;
     private S server;
     protected MessageToMessageDecoder<SM> nettydecoder;
     private final EventSender sender = new EventSender();
+    private final MessageToMessageDecoder<SM> resolver = new SourceAddressResolver();
 
     public NettyReceiver(BlockingQueue<Event> outQueue, Pipeline pipeline) {
         super(outQueue, pipeline);
@@ -72,8 +91,6 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
         return cf;
     }
 
-    protected abstract ByteBuf getContent(SM message);
-
     @Override
     public void run() {
         try {
@@ -88,8 +105,9 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
 
     @Override
     public void addHandlers(ChannelPipeline p) {
+        p.addLast("SourceResolver", resolver);
         p.addLast("MessageDecoder", getNettyDecoder());
-        p.addLast("Sender", getSender());
+        p.addLast("Sender", sender);
     }
 
     protected ChannelInboundHandlerAdapter getNettyDecoder() {
@@ -99,11 +117,13 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
         return nettydecoder;
     }
 
-    protected ChannelInboundHandlerAdapter getSender() {
-        return sender;
+    protected void populate(Event event, ChannelHandlerContext ctx, Map<String, Object> msg) {
+        event.putAll(msg);
     }
 
-    protected abstract void populate(Event event, ChannelHandlerContext ctx, Map<String, Object> msg);
+    protected abstract ByteBuf getContent(SM message);
+
+    protected abstract Object ResolveSourceAddress(ChannelHandlerContext ctx, SM message);
 
     public abstract SA getListenAddress();
 

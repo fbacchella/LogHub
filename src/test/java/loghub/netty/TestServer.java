@@ -3,7 +3,6 @@ package loghub.netty;
 import java.io.IOException;
 import java.net.SocketAddress;
 import java.util.Collections;
-import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
@@ -37,6 +36,8 @@ import loghub.Pipeline;
 import loghub.Tools;
 import loghub.configuration.Properties;
 import loghub.decoders.StringCodec;
+import loghub.netty.servers.AbstractNettyServer;
+import loghub.netty.servers.ServerFactory;
 
 public class TestServer {
     private static class TesterFactory extends ServerFactory<LocalChannel, LocalAddress> {
@@ -89,16 +90,6 @@ public class TestServer {
         }
 
         @Override
-        protected void populate(Event event, ChannelHandlerContext ctx, Map<String, Object> msg) {
-            logger.debug(msg);
-            SocketAddress addr = ctx.channel().remoteAddress();
-            if(addr instanceof LocalAddress) {
-                event.put("host", ((LocalAddress) addr).id());
-            }
-            event.putAll(msg);
-        }
-
-        @Override
         public void addHandlers(ChannelPipeline p) {
             p.addFirst("Splitter", new LineBasedFrameDecoder(256));
             super.addHandlers(p);
@@ -109,6 +100,16 @@ public class TestServer {
         protected ByteBuf getContent(Object message) {
             logger.debug(message);
             return (ByteBuf) message;
+        }
+
+        @Override
+        protected Object ResolveSourceAddress(ChannelHandlerContext ctx, Object message) {
+            SocketAddress addr = ctx.channel().remoteAddress();
+            if(addr instanceof LocalAddress) {
+                 return ((LocalAddress) addr).id();
+            } else {
+                return null;
+            }
         }
 
     }

@@ -2,7 +2,6 @@ package loghub.netty;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-
 import java.net.UnknownHostException;
 import java.util.concurrent.BlockingQueue;
 

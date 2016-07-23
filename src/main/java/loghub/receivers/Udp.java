@@ -39,11 +39,6 @@ public class Udp extends NettyIpReceiver<UdpServer, UdpFactory, Bootstrap, Chann
     }
 
     @Override
-    protected void populate(Event event, ChannelHandlerContext ctx, Map<String, Object> msg) {
-        event.putAll(msg);
-    }
-
-    @Override
     public String getReceiverName() {
         return "UdpNettyReceiver/" + getListenAddress();
     }
@@ -51,6 +46,11 @@ public class Udp extends NettyIpReceiver<UdpServer, UdpFactory, Bootstrap, Chann
     @Override
     protected ByteBuf getContent(DatagramPacket message) {
         return message.content();
+    }
+
+    @Override
+    protected Object ResolveSourceAddress(ChannelHandlerContext ctx, DatagramPacket message) {
+        return message.sender().getAddress();
     }
 
 }
