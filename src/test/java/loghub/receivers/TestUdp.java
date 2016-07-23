@@ -38,7 +38,7 @@ public class TestUdp {
     public void testone() throws InterruptedException, IOException {
         
         // Generate a locally binded random socket
-        DatagramSocket socket = new DatagramSocket(0, InetAddress.getByName("192.168.0.14"));
+        DatagramSocket socket = new DatagramSocket(0, InetAddress.getLocalHost());
         String hostname = socket.getLocalAddress().getHostAddress();
         int port = socket.getLocalPort();
         socket.close();
