@@ -4,9 +4,12 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Optional;
 
+import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.codehaus.groovy.control.CompilationFailedException;
 
+import loghub.Expression.ExpressionException;
 import loghub.configuration.Beans;
 import loghub.configuration.Properties;
 
@@ -30,8 +33,16 @@ public abstract class Processor {
         if(ifsource != null) {
             try {
                 ifexpression = new Expression(ifsource, properties.groovyClassLoader, properties.formatters);
-            } catch (InstantiationException | IllegalAccessException e) {
-                return false;
+            } catch (ExpressionException e) {
+                Throwable cause = e.getCause();
+                if (cause instanceof CompilationFailedException) {
+                    logger.error("invalid groovy expression {}: {}", ifsource, e.getMessage());
+                    return false;
+                } else {
+                    logger.error("Critical groovy error {}: {}", ifsource, e.getCause().getMessage());
+                    logger.throwing(Level.DEBUG, e.getCause());
+                    return false;
+                }
             }
         }
         if(success != null &&  ! success.configure(properties)) {

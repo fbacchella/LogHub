@@ -4,6 +4,7 @@ import java.util.Map;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.codehaus.groovy.control.CompilationFailedException;
 
 import groovy.lang.Binding;
 import groovy.lang.GroovyClassLoader;
@@ -12,21 +13,57 @@ import groovy.lang.Script;
 
 public class Expression {
 
+    /**
+     * Used to wrap some too generic or RuntimeException and catch it, to have a better management
+     * of expressions errors.
+     * @author Fabrice Bacchella
+     *
+     */
+    public static class ExpressionException extends Exception {
+        public ExpressionException(Throwable cause) {
+            super(cause);
+        }
+    };
+
     private static final Logger logger = LogManager.getLogger();
 
-    private final String expression;
-    private final Script groovyScript;
-    private Map<String, VarFormatter> formatters; 
+    private static final Binding EMPTYBIDDING = new Binding();
 
-    public Expression(String expression, GroovyClassLoader loader, Map<String, VarFormatter> formatters) throws InstantiationException, IllegalAccessException {
+    private final String expression;
+    private Map<String, VarFormatter> formatters;
+    private final ThreadLocal<Script> groovyScript;
+
+    @SuppressWarnings("unchecked")
+    public Expression(String expression, GroovyClassLoader loader, Map<String, VarFormatter> formatters) throws ExpressionException {
+        logger.debug("adding expression {}", expression);
         this.expression = expression;
-        @SuppressWarnings("unchecked")
-        Class<Script> groovyClass = loader.parseClass(expression);
-        groovyScript = groovyClass.newInstance();
+        Class<Script> groovyClass;
+        try {
+            groovyClass = loader.parseClass(expression);
+        } catch (CompilationFailedException e) {
+            throw new ExpressionException(e);
+        }
+        groovyScript = ThreadLocal.withInitial(() -> {
+            try {
+                return groovyClass.newInstance();
+            } catch (IllegalAccessException | InstantiationException e) {
+                throw new UnsupportedOperationException(e);
+            }
+        });
+        // Not a real null test, if it fails it will throw an UnsupportedOperationException
+        // Try to catch it early instead of for each event
+        // Just for too smart compiler
+        try {
+            if (groovyScript.get() == null) {
+                throw new ExpressionException(new NullPointerException());
+            }
+        } catch (UnsupportedOperationException e) {
+            throw new ExpressionException(e);
+        }
         this.formatters = formatters;
     }
 
-    public Object eval(Event event, Map<String, Object> variables) throws ProcessorException {
+    public synchronized Object eval(Event event, Map<String, Object> variables) throws ProcessorException {
         logger.trace("Evaluating script {} with formatters {}, event {} and variables {}", expression, formatters, event, variables);
         Binding groovyBinding = new Binding();
         variables.entrySet().stream()
@@ -34,16 +71,20 @@ public class Expression {
         groovyBinding.setVariable("event", event);
         groovyBinding.setVariable("@timestamp", event.getTimestamp());
         groovyBinding.setVariable("formatters", formatters);
-        groovyScript.setBinding(groovyBinding);
-        Object result;
+        Script localscript;
         try {
-            result = groovyScript.run();
+            localscript = groovyScript.get();
+        } catch (UnsupportedOperationException e) {
+            throw event.buildException(String.format("script compilation failed '%s': %s", expression, e.getCause().getMessage()));
+        }
+        localscript.setBinding(groovyBinding);
+        try {
+            return localscript.run();
         } catch (GroovyRuntimeException e) {
             throw event.buildException(String.format("failed expression '%s': %s", expression, e.getMessage()));
         } finally {
-            groovyScript.setBinding(new Binding());
+            localscript.setBinding(EMPTYBIDDING);
         }
-        return result;
     }
 
     /**

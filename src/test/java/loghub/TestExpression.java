@@ -1,17 +1,32 @@
 package loghub;
 
+import java.io.IOException;
 import java.util.Collections;
 import java.util.Map;
 
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.junit.Assert;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
+import loghub.Expression.ExpressionException;
 import loghub.configuration.Properties;
 
 public class TestExpression {
 
+    private static Logger logger ;
+
+    @BeforeClass
+    static public void configure() throws IOException {
+        Tools.configure();
+        logger = LogManager.getLogger();
+        LogUtils.setLevel(logger, Level.TRACE, "loghub.Expression", "loghub.VarFormatter");
+    }
+
     @Test
-    public void test1() throws InstantiationException, IllegalAccessException, ProcessorException {
+    public void test1() throws ExpressionException, ProcessorException {
         VarFormatter format = new VarFormatter("${value}");
         Map<String, VarFormatter> formatters = Collections.singletonMap("faaf", format);
         String expressionScript = "event.value == formatters.faaf.format(event)";
@@ -23,7 +38,7 @@ public class TestExpression {
     }
 
     @Test
-    public void test2() throws InstantiationException, IllegalAccessException, ProcessorException {
+    public void test2() throws ExpressionException, ProcessorException {
         VarFormatter format = new VarFormatter("${a.b}");
         Map<String, VarFormatter> formatters = Collections.singletonMap("faaf", format);
         String expressionScript = "event.a.b + formatters.faaf.format(event)";

@@ -11,6 +11,7 @@ import org.codehaus.groovy.control.CompilationFailedException;
 
 import loghub.Event;
 import loghub.Expression;
+import loghub.Expression.ExpressionException;
 import loghub.Processor;
 import loghub.ProcessorException;
 import loghub.configuration.BeansManager;
@@ -62,13 +63,16 @@ public abstract class Etl extends Processor {
         public boolean configure(Properties properties) {
             try {
                 script = new Expression(expression, properties.groovyClassLoader, properties.formatters);
-            } catch (CompilationFailedException e) {
-                logger.error("invalid groovy expression: {}", e.getMessage());
-                return false;
-            } catch (InstantiationException|IllegalAccessException e) {
-                logger.error("Critical groovy error: {}", e.getMessage());
-                logger.throwing(Level.DEBUG, e);
-                return false;
+            } catch (ExpressionException e) {
+                Throwable cause = e.getCause();
+                if (cause instanceof CompilationFailedException) {
+                    logger.error("invalid groovy expression: {}", e.getMessage());
+                    return false;
+                } else {
+                    logger.error("Critical groovy error: {}", e.getCause().getMessage());
+                    logger.throwing(Level.DEBUG, e.getCause());
+                    return false;
+                }
             }
             return super.configure(properties);
         }
