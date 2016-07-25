@@ -17,6 +17,7 @@ import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.MessageToMessageDecoder;
 import io.netty.util.AttributeKey;
 import io.netty.util.ReferenceCounted;
+import loghub.Decoder.DecodeException;
 import loghub.Event;
 import loghub.Pipeline;
 import loghub.Receiver;
@@ -42,16 +43,21 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
     @Sharable
     private class LogHubDecoder extends MessageToMessageDecoder<SM> {
         @Override
-        protected void decode(ChannelHandlerContext ctx, SM msg, List<Object> out) throws Exception {
-            Map<String, Object> content = decoder.decode(getContent(msg));
-            out.add(content);
+        protected void decode(ChannelHandlerContext ctx, SM msg, List<Object> out) {
+            try {
+                Map<String, Object> content = decoder.decode(getContent(msg));
+                out.add(content);
+            } catch (DecodeException e) {
+                manageDecodeException(e);
+                ctx.close();
+            }
         }
     }
 
     @Sharable
     private class SourceAddressResolver extends MessageToMessageDecoder<SM> {
         @Override
-        protected void decode(ChannelHandlerContext ctx, SM msg, List<Object> out) throws Exception {
+        protected void decode(ChannelHandlerContext ctx, SM msg, List<Object> out) {
             //The message is not transformeed in this step, so don't decrease reference count
             if (msg instanceof ReferenceCounted) {
                 ((ReferenceCounted) msg).retain();
@@ -64,6 +70,17 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
         }
     }
 
+    @Sharable
+    private class ExceptionHandler extends ChannelInboundHandlerAdapter {
+        @Override
+        public void exceptionCaught(ChannelHandlerContext ctx,
+                Throwable cause) {
+            logger.error("Unmannageded exception: {}", cause.getCause());
+            logger.debug(cause);
+            ctx.close();
+        }
+    }
+
     private static final AttributeKey<Object> SOURCEADDRESSATTRIBUTE = AttributeKey.newInstance("SourceAddressAttibute");
 
     private ChannelFuture cf;
@@ -71,6 +88,7 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
     protected MessageToMessageDecoder<SM> nettydecoder;
     private final EventSender sender = new EventSender();
     private final MessageToMessageDecoder<SM> resolver = new SourceAddressResolver();
+    private final ChannelInboundHandlerAdapter exceptionhandler = new ExceptionHandler();
 
     public NettyReceiver(BlockingQueue<Event> outQueue, Pipeline pipeline) {
         super(outQueue, pipeline);
@@ -108,6 +126,7 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
         p.addLast("SourceResolver", resolver);
         p.addLast("MessageDecoder", getNettyDecoder());
         p.addLast("Sender", sender);
+        p.addLast("ExceptionHandler", exceptionhandler);
     }
 
     protected ChannelInboundHandlerAdapter getNettyDecoder() {

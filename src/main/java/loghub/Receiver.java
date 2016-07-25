@@ -170,8 +170,7 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
                 }
                 content.entrySet().stream().forEach( i -> event.put(i.getKey(), i.getValue()));
             } catch (DecodeException e) {
-                logger.error("invalid message received: {}", e.getMessage());
-                logger.throwing(Level.DEBUG, e.getCause() != null ? e.getCause() : e);
+                manageDecodeException(e);
                 event.end();
                 return null;
             }
@@ -181,7 +180,11 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
 
     protected final Event emptyEvent() {
         return new EventInstance();
+    }
 
+    protected void manageDecodeException(DecodeException ex) {
+        logger.error("invalid message received: {}", ex.getMessage());
+        logger.throwing(Level.DEBUG, ex.getCause() != null ? ex.getCause() : ex);
     }
 
     /**
