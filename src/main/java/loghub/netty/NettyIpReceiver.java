@@ -25,7 +25,7 @@ public abstract class NettyIpReceiver<S extends AbstractNettyServer<CF, BS, BSC,
     @Override
     public boolean configure(Properties properties) {
         try {
-            addr = new InetSocketAddress(host !=null ? InetAddress.getByName(host) : null , port);
+            addr = new InetSocketAddress(host != null ? InetAddress.getByName(host) : null , port);
         } catch (UnknownHostException e) {
             logger.error("Unknow host to bind: {}", host);
             return false;

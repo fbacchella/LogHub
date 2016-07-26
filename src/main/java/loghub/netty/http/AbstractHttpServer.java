@@ -20,7 +20,7 @@ import loghub.netty.servers.TcpServer;
 public abstract class AbstractHttpServer extends TcpServer implements ChannelConsumer<ServerBootstrap, ServerChannel, InetSocketAddress> {
 
     private int port;
-    private InetAddress host = null;
+    private String host = null;
 
     public ChannelFuture configure(Properties properties) {
         return super.configure(properties, this);
@@ -45,7 +45,12 @@ public abstract class AbstractHttpServer extends TcpServer implements ChannelCon
 
     @Override
     public InetSocketAddress getListenAddress() {
-        return new InetSocketAddress(host, port);
+        try {
+            return new InetSocketAddress(host != null ? InetAddress.getByName(host) : null , port);
+        } catch (UnknownHostException e) {
+            logger.error("Unknow host to bind: {}", host);
+            return null;
+        }
     }
 
     /**
@@ -65,19 +70,13 @@ public abstract class AbstractHttpServer extends TcpServer implements ChannelCon
     /**
      * @return the host
      */
-    public InetAddress getHost() {
+    public String getHost() {
         return host;
     }
 
-    /**
-     * @param host the host to set
-     */
-    public void setHost(InetAddress host) {
-        this.host = host;
-    }
-
     public void setHost(String host) throws UnknownHostException {
-        this.host = InetAddress.getByName(host);
+        // Ensure host is null if given empty string, to be resolved as "bind *" by InetSocketAddress;
+        this.host = host != null && !host.isEmpty() ? host : null;
     }
 
 }

@@ -1,9 +1,7 @@
 package loghub.netty.http;
 
-import static io.netty.handler.codec.http.HttpMethod.GET;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
-import static io.netty.handler.codec.http.HttpResponseStatus.METHOD_NOT_ALLOWED;
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 
@@ -46,7 +44,7 @@ public abstract class HttpRequestProcessing extends SimpleChannelInboundHandler<
 
     private static final Logger logger = LogManager.getLogger();
 
-    class HttpRequestFailure extends Exception {
+    public class HttpRequestFailure extends Exception {
         public final HttpResponseStatus status;
         public final String message;
         public HttpRequestFailure(HttpResponseStatus status, String message) {
@@ -82,10 +80,6 @@ public abstract class HttpRequestProcessing extends SimpleChannelInboundHandler<
         try( Context tct = Properties.metrics.timer("WebServer.timer").time()) {
             if (!request.decoderResult().isSuccess()) {
                 failure(ctx, request, BAD_REQUEST, "Can't decode request");
-                return;
-            }
-            if (request.method() != GET) {
-                failure(ctx, request, METHOD_NOT_ALLOWED, "Only GET allowed");
                 return;
             }
             try {
@@ -139,7 +133,7 @@ public abstract class HttpRequestProcessing extends SimpleChannelInboundHandler<
     protected boolean writeResponse(ChannelHandlerContext ctx, FullHttpRequest request, ByteBuf content, int length) {
         // Build the response object.
         HttpResponse response = new DefaultFullHttpResponse(HTTP_1_1, OK, content);
-        
+
         return internalWriteResponse(ctx, request, response, length, () -> {
             return ctx.writeAndFlush(response);
         });

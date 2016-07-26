@@ -39,6 +39,9 @@ public abstract class AbstractNettyServer<CF extends ComponentFactory<BS, BSC, S
     @SuppressWarnings("unchecked")
     public ChannelFuture configure(Properties properties, ChannelConsumer<BS, BSC, SA> consumer) {
         address = consumer.getListenAddress();
+        if (address == null) {
+            return null;
+        }
         factory = getNewFactory(properties);
         bootstrap = factory.getBootStrap();
         factory.group();
