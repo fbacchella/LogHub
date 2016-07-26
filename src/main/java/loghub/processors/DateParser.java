@@ -1,10 +1,15 @@
 package loghub.processors;
 
 import java.time.DateTimeException;
-import java.time.Instant;
+import java.time.OffsetDateTime;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoField;
+import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAccessor;
+import java.time.temporal.TemporalField;
+import java.time.temporal.TemporalQueries;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Locale;
@@ -34,10 +39,16 @@ public class DateParser extends FieldsProcessor {
         put("ISO_OFFSET_DATE", DateTimeFormatter.ISO_OFFSET_DATE);
     }};
 
+    // A subset of temporal field that can be expect from some incomplete date time string
+    private final static TemporalField[] someTemporalFields = new TemporalField[] {
+            ChronoField.EPOCH_DAY, ChronoField.NANO_OF_DAY, ChronoField.MONTH_OF_YEAR, ChronoField.DAY_OF_YEAR, ChronoField.YEAR,
+            ChronoField.NANO_OF_SECOND, ChronoField.MICRO_OF_SECOND, ChronoField.INSTANT_SECONDS, ChronoField.MILLI_OF_SECOND,
+            ChronoField.OFFSET_SECONDS
+    };
     private String[] patternsStrings;
     private DateTimeFormatter[] patterns = NAMEDPATTERNS.values().toArray(new DateTimeFormatter[] {});
     private Locale locale = Locale.ENGLISH;
-    private ZoneId zone = null;
+    private ZoneId zone = ZoneId.systemDefault();
 
     @Override
     public boolean configure(Properties properties) {
@@ -63,16 +74,49 @@ public class DateParser extends FieldsProcessor {
         return super.configure(properties);
     }
 
+    /**
+     * Try to extract the date from the pattern.
+     * 
+     * If the pattern is incomplete (is missing some field like year or day), it will extract from
+     * current time
+     * @see loghub.processors.FieldsProcessor#processMessage(loghub.Event, java.lang.String, java.lang.String)
+     */
     @Override
     public void processMessage(Event event, String field, String destination)
             throws ProcessorException {
         String dateString = event.get(field).toString();
+        logger.debug("trying to parse {} from {}", dateString, field);
         boolean converted = false;
         for(DateTimeFormatter format: patterns) {
             try {
+                OffsetDateTime now;
+                // Parse the string, but don't expect a full result
                 TemporalAccessor ta = format.parse(dateString);
-                Instant instant = Instant.from(ta);
-                Date date = Date.from(instant);
+
+                // Try to resolve the time zone first
+                ZoneId zi = ta.query(TemporalQueries.zoneId());
+                ZoneOffset zo = ta.query(TemporalQueries.offset());
+                if ( zo != null) {
+                    now = OffsetDateTime.now(zo);
+                } else if ( zi != null) {
+                    now = OffsetDateTime.now(zi);
+                } else {
+                    now = OffsetDateTime.now(zone);
+                }
+
+                // We are rarely interested in sub second, drop it to don't have false value
+                now = now.truncatedTo(ChronoUnit.SECONDS);
+
+                // Ok now try some common fields, and it will resolve the real date of the event
+                for (TemporalField cf: someTemporalFields) {
+                    if (ta.isSupported(cf)) {
+                        logger.trace("{} {}", cf, ta.getLong(cf));
+                        now = now.with(cf, ta.getLong(cf));
+                    }
+                }
+                // We should have a complete OffsetDateTime now
+                logger.debug("Resolved to {}", now);
+                Date date = Date.from(now.toInstant());
                 if(Event.TIMESTAMPKEY.equals(destination)) {
                     event.setTimestamp(date);
                 } else {
@@ -81,11 +125,12 @@ public class DateParser extends FieldsProcessor {
                 converted = true;
                 break;
             } catch (DateTimeException e) {
+                logger.debug("failed to parse date {}: {}", () -> dateString, () -> e.getMessage());
                 //no problem, just wrong parser, keep going
             }
         }
         if(!converted) {
-            throw event.buildException("date string " + dateString + " not parsed");
+            throw event.buildException("date string '" + dateString + "' not parsed");
         }
 
     }
