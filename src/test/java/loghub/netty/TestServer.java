@@ -106,10 +106,15 @@ public class TestServer {
         protected Object ResolveSourceAddress(ChannelHandlerContext ctx, Object message) {
             SocketAddress addr = ctx.channel().remoteAddress();
             if(addr instanceof LocalAddress) {
-                 return ((LocalAddress) addr).id();
+                return ((LocalAddress) addr).id();
             } else {
                 return null;
             }
+        }
+
+        @Override
+        protected boolean closeonerror() {
+            return true;
         }
 
     }

@@ -53,4 +53,9 @@ public class Udp extends NettyIpReceiver<UdpServer, UdpFactory, Bootstrap, Chann
         return message.sender().getAddress();
     }
 
+    @Override
+    protected boolean closeonerror() {
+        return false;
+    }
+
 }

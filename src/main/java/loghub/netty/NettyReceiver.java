@@ -49,7 +49,9 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
                 out.add(content);
             } catch (DecodeException e) {
                 manageDecodeException(e);
-                ctx.close();
+                if (closeonerror()) {
+                    ctx.close();
+                }
             }
         }
     }
@@ -77,7 +79,9 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
                 Throwable cause) {
             logger.error("Unmannageded exception: {}", cause.getCause());
             logger.debug(cause);
-            ctx.close();
+            if (closeonerror()) {
+                ctx.close();
+            }
         }
     }
 
@@ -147,5 +151,7 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
     public abstract SA getListenAddress();
 
     protected abstract S getServer();
+
+    protected abstract boolean closeonerror();
 
 }

@@ -82,4 +82,9 @@ public abstract class GenericTcp extends NettyIpReceiver<TcpServer, TcpFactory, 
         }
     }
 
+    @Override
+    protected boolean closeonerror() {
+        return true;
+    }
+
 }
