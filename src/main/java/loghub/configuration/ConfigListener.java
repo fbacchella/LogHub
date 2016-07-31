@@ -20,6 +20,7 @@ import loghub.RouteParser.DropContext;
 import loghub.RouteParser.EtlContext;
 import loghub.RouteParser.ExpressionContext;
 import loghub.RouteParser.FinalpiperefContext;
+import loghub.RouteParser.FireContext;
 import loghub.RouteParser.FloatingPointLiteralContext;
 import loghub.RouteParser.ForkpiperefContext;
 import loghub.RouteParser.InputContext;
@@ -40,6 +41,7 @@ import loghub.RouteParser.TestContext;
 import loghub.RouteParser.TestExpressionContext;
 import loghub.processors.Drop;
 import loghub.processors.Etl;
+import loghub.processors.FireEvent;
 import loghub.processors.Forker;
 import loghub.processors.Mapper;
 import loghub.processors.AnonymousSubPipeline;
@@ -52,6 +54,7 @@ class ConfigListener extends RouteBaseListener {
         PipeNodeList,
         Array,
         Expression,
+        Fire,
         Etl,
         Map;
     };
@@ -433,14 +436,41 @@ class ConfigListener extends RouteBaseListener {
     }
 
     @Override
+    public void enterFire(FireContext ctx) {
+        stack.push(StackMarker.Fire);
+    }
+    
+    @Override
+    public void exitFire(FireContext ctx) {
+        ObjectDescription fire = new ObjectDescription(FireEvent.class.getName(), ctx);
+        Map<String, String> fields = new HashMap<>();
+        int count = ctx.eventVariable().size() - 1;
+        while(! StackMarker.Fire.equals(stack.peek()) ) {
+            Object o = stack.pop();
+            if(o instanceof ObjectWrapped) {
+                String lvalue = ctx.eventVariable().get(count--).getText();
+                lvalue = lvalue.substring(1, lvalue.length() - 1);
+                o = ((ObjectWrapped) o).wrapped;
+                fields.put(lvalue, (String) o);
+            } else if (o instanceof PipeRefName){
+                PipeRefName name = (PipeRefName) o;
+                fire.beans.put("destination", new ObjectWrapped(name.piperef));
+            } else {
+                throw new RuntimeException("invalid parsing");
+            }
+        }
+        fire.beans.put("fields", new ObjectWrapped(fields));
+        stack.pop();
+        stack.push(fire);
+    }
+
+    @Override
     public void enterEtl(EtlContext ctx) {
         stack.push(StackMarker.Etl);
     }
 
     @Override
     public void exitEtl(EtlContext ctx) {
-        String lvalue = ctx.eventVariable().get(0).getText();
-        lvalue = lvalue.substring(1, lvalue.length() - 1);
 
         ObjectDescription etl;
 
@@ -482,6 +512,8 @@ class ConfigListener extends RouteBaseListener {
         Object o = stack.pop();
         assert StackMarker.Etl.equals(o);
 
+        String lvalue = ctx.eventVariable().get(0).getText();
+        lvalue = lvalue.substring(1, lvalue.length() - 1);
         etl.beans.put("lvalue", new ConfigListener.ObjectWrapped(lvalue));
         stack.push(etl);
     }

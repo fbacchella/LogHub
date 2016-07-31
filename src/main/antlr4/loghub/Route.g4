@@ -16,6 +16,7 @@ pipenode
     : test
     | mapping
     | drop
+    | fire
     | etl
     | '(' pipenodeList ')'
     | '$' piperef
@@ -42,6 +43,10 @@ mapping
 
 drop: Drop;
 Drop: 'drop';
+
+fire
+    : 'fire' '|' '$' piperef '{' ( eventVariable '=' expression ';'? )* eventVariable '=' expression '}'
+    ;
 
 property: propertyName ':' beanValue;
 

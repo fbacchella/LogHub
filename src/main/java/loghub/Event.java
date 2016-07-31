@@ -10,6 +10,10 @@ import java.util.concurrent.BlockingQueue;
 public abstract class Event extends HashMap<String, Object> implements Serializable {
 
     public static final String TIMESTAMPKEY = "@timestamp";
+    
+    public static Event emptyEvent() {
+        return new EventInstance();
+    }
 
     public Object applyAtPath(Helpers.TriFunction<Map<String, Object>, String, Object, Object> f, String[] path, Object value) {
         return applyAtPath(f, path, value, false);
