@@ -109,7 +109,7 @@ public abstract class HttpRequestProcessing extends SimpleChannelInboundHandler<
     protected abstract Date getContentDate();
 
     /**
-     * Can be used to add custom handlers to a response, call by {@link #writeResponse(ChannelHandlerContext, FullHttpRequest, ByteBuf)}.
+     * Can be used to add custom handlers to a response, call by {@link #writeResponse(ChannelHandlerContext, FullHttpRequest, ByteBuf, int)}.
      * So if processRequest don't call it, no handlers will be added
      * 
      * @param request

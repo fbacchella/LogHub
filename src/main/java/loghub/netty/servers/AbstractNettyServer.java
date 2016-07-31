@@ -21,7 +21,6 @@ import loghub.netty.POLLER;
  * @param <BS>  BootStrap (Bootstrap, ServerBootstrap)
  * @param <BSC> Bootstrap's channel (Channel or ServerChannel)
  * @param <SC>  Server channel
- * @param <CC>  Client channel
  * @param <SA>  Socket Address
  */
 public abstract class AbstractNettyServer<CF extends ComponentFactory<BS, BSC, SA>, BS extends AbstractBootstrap<BS, BSC>, BSC extends Channel, SC extends Channel, SA extends SocketAddress> {

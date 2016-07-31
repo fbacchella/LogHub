@@ -92,8 +92,9 @@ public class BeansManager {
     /**
      * Extract a map of the beans of an class. Only the beans listed in the ProbeBean class will be return
      * @param c a class to extract beans from
+     * @param topClass the class to stop the introspection
      * @return a map of beans
-     * @throws InvocationTargetException
+     * @throws InvocationTargetException if one bean anotation don't map to a bean
      */
     static public Map<String, PropertyDescriptor> getBeanPropertiesMap(Class<?> c, Class<?> topClass) throws InvocationTargetException {
         Set<Beans> beansAnnotations = enumerateAnnotation(c, Beans.class, topClass);
@@ -112,7 +113,6 @@ public class BeansManager {
                 } catch (IntrospectionException e) {
                     throw new InvocationTargetException(e, "invalid bean " + beanName + " for " + c.getName());
                 }
-
             }
         }
         return beanProperties;
@@ -123,7 +123,7 @@ public class BeansManager {
      * @param searched the Class where the annotation is searched
      * @param annontationClass the annotation class
      * @param stop a class that will stop (included) the search 
-     * @return
+     * @return a set of enumeration of type T
      */
     static public <T extends Annotation> Set<T> enumerateAnnotation(Class<?> searched, Class<T> annontationClass, Class<?> stop) {
         Set<T> annotations =  new LinkedHashSet<T>();
