@@ -58,9 +58,6 @@ public class DateParser extends FieldsProcessor {
                 String patternString = patternsStrings[i];
                 try {
                     patterns[i] = NAMEDPATTERNS.containsKey(patternString) ? NAMEDPATTERNS.get(patternString) : DateTimeFormatter.ofPattern(patternString, locale);
-                    if(zone != null) {
-                        patterns[i] = patterns[i].withZone(zone);
-                    }
                 } catch (IllegalArgumentException e) {
                     logger.error("invalid date time pattern: " + patternString);
                     return false;
@@ -94,7 +91,7 @@ public class DateParser extends FieldsProcessor {
                 TemporalAccessor ta = format.parse(dateString);
 
                 // Try to resolve the time zone first
-                ZoneId zi = ta.query(TemporalQueries.zoneId());
+                ZoneId zi = ta.query(TemporalQueries.zone());
                 ZoneOffset zo = ta.query(TemporalQueries.offset());
                 if ( zo != null) {
                     now = OffsetDateTime.now(zo);
