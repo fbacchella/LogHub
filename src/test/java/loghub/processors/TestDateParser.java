@@ -90,17 +90,33 @@ public class TestDateParser {
     @Test
     public void testIncomplete() throws ProcessorException {
         DateParser parse = new DateParser();
-        parse.setPattern("MMM, dd HH:mm:ss");
+        parse.setPattern("MMM dd HH:mm:ss");
         parse.setTimezone("Z");
         parse.setField("field");
         parse.configure(new Properties(Collections.emptyMap()));
         Event event = Tools.getEvent();
-        event.put("field", "Jan, 01 00:00:01");
+        event.put("field", "Jul 26 16:40:22");
         parse.process(event);
         Date date = (Date) event.get("field");
         OffsetDateTime t = OffsetDateTime.ofInstant(date.toInstant(), ZoneId.of("GMT"));
         int year = OffsetDateTime.now().get(ChronoField.YEAR);
         Assert.assertEquals("date not parsed", year, t.getLong(ChronoField.YEAR));
+    }
+
+    @Test
+    public void testAgain() throws ProcessorException {
+        DateParser parse = new DateParser();
+        parse.setPattern("yyyy-MM-dd'T'HH:m:ss.SSSxx");
+        parse.setTimezone("CET");
+        parse.setField("field");
+        parse.configure(new Properties(Collections.emptyMap()));
+        Event event = Tools.getEvent();
+        event.put("field", "2016-08-04T18:57:37.238+0000");
+        parse.process(event);
+        Date date = (Date) event.get("field");
+        System.out.println(date);
+        OffsetDateTime t = OffsetDateTime.ofInstant(date.toInstant(), ZoneId.of("GMT"));
+        Assert.assertEquals("date not parsed", 18, t.getLong(ChronoField.HOUR_OF_DAY));
     }
 
 }
