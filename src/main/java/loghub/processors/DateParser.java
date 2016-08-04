@@ -41,9 +41,9 @@ public class DateParser extends FieldsProcessor {
 
     // A subset of temporal field that can be expect from some incomplete date time string
     private final static TemporalField[] someTemporalFields = new TemporalField[] {
+            ChronoField.OFFSET_SECONDS,
             ChronoField.EPOCH_DAY, ChronoField.NANO_OF_DAY, ChronoField.MONTH_OF_YEAR, ChronoField.DAY_OF_YEAR, ChronoField.YEAR,
             ChronoField.NANO_OF_SECOND, ChronoField.MICRO_OF_SECOND, ChronoField.INSTANT_SECONDS, ChronoField.MILLI_OF_SECOND,
-            ChronoField.OFFSET_SECONDS
     };
     private String[] patternsStrings;
     private DateTimeFormatter[] patterns = NAMEDPATTERNS.values().toArray(new DateTimeFormatter[] {});
