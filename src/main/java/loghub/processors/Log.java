@@ -87,14 +87,14 @@ public class Log extends Processor {
     }
 
     /**
-     * @return the expression
+     * @return the message
      */
     public String getMessage() {
         return message;
     }
 
     /**
-     * @param expression the expression to set
+     * @param message the expression to set
      */
     public void setMessage(String message) {
         this.message = message;
