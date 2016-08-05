@@ -17,6 +17,7 @@ pipenode
     | mapping
     | drop
     | fire
+    | log
     | etl
     | '(' pipenodeList ')'
     | '$' piperef
@@ -46,6 +47,19 @@ Drop: 'drop';
 
 fire
     : 'fire' '|' '$' piperef '{' ( eventVariable '=' expression ';'? )* eventVariable '=' expression '}'
+    ;
+
+log
+    : 'log' '(' message=StringLiteral ',' level ')'
+    ;
+
+level
+    : 'FATAL'
+    | 'ERROR'
+    | 'WARN'
+    | 'INFO'
+    | 'DEBUG'
+    | 'TRACE'
     ;
 
 property: propertyName ':' beanValue;

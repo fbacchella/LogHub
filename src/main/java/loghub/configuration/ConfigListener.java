@@ -26,6 +26,7 @@ import loghub.RouteParser.ForkpiperefContext;
 import loghub.RouteParser.InputContext;
 import loghub.RouteParser.InputObjectlistContext;
 import loghub.RouteParser.IntegerLiteralContext;
+import loghub.RouteParser.LogContext;
 import loghub.RouteParser.MapContext;
 import loghub.RouteParser.NullLiteralContext;
 import loghub.RouteParser.ObjectContext;
@@ -43,6 +44,7 @@ import loghub.processors.Drop;
 import loghub.processors.Etl;
 import loghub.processors.FireEvent;
 import loghub.processors.Forker;
+import loghub.processors.Log;
 import loghub.processors.Mapper;
 import loghub.processors.AnonymousSubPipeline;
 
@@ -462,6 +464,18 @@ class ConfigListener extends RouteBaseListener {
         fire.beans.put("fields", new ObjectWrapped(fields));
         stack.pop();
         stack.push(fire);
+    }
+
+    @Override
+    public void exitLog(LogContext ctx) {
+        ObjectDescription logger = new ObjectDescription(Log.class.getName(), ctx);
+        logger.beans.put("level", new ObjectWrapped(ctx.level().getText()));
+        logger.beans.put("pipeName", new ObjectWrapped(currentPipeLineName));
+        String message = ctx.message.getText();
+        message = message.substring(1, message.length() - 1);
+        logger.beans.put("message", new ObjectWrapped(message));
+
+        stack.push(logger);
     }
 
     @Override
