@@ -1,6 +1,8 @@
 package loghub.configuration;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.Reader;
 import java.lang.reflect.InvocationTargetException;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -22,12 +24,11 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 
+import org.antlr.v4.runtime.ANTLRInputStream;
 import org.antlr.v4.runtime.ANTLRFileStream;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.tree.ParseTreeWalker;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import loghub.Event;
 import loghub.Helpers.ThrowingConsumer;
@@ -50,7 +51,6 @@ public class Configuration {
 
     private static final int DEFAULTQUEUEDEPTH = 100;
 
-    private static final Logger logger = LogManager.getLogger();
     private static final ThrowingFunction<Class<Object>, Object> emptyConstructor = i -> {return i.getConstructor().newInstance();};
 
     private List<Receiver> receivers;
@@ -67,17 +67,41 @@ public class Configuration {
     public static Properties parse(String fileName) {
         try {
             Configuration conf = new Configuration();
-            ConfigListener listener = conf.antlrparsing(fileName);
-            return conf.analyze(listener);
+            return conf.runparsing(new ANTLRFileStream(fileName));
         } catch (IOException e) {
             throw new RuntimeException("Unreadable configuration file '"  + fileName + "': " + e.getMessage(), e);
+        }
+    }
+
+    public static Properties parse(InputStream is) {
+        try {
+            Configuration conf = new Configuration();
+            return conf.runparsing(new ANTLRInputStream());
+        } catch (IOException e) {
+            throw new RuntimeException("Unreadable stream input stream: " + e.getMessage(), e);
+        }
+    }
+
+    public static Properties parse(Reader r) {
+        try {
+            Configuration conf = new Configuration();
+            return conf.runparsing(new ANTLRInputStream(r));
+        } catch (IOException e) {
+            throw new RuntimeException("Unreadable reader: " + e.getMessage(), e);
+        }
+    }
+
+    private Properties runparsing(CharStream cs) throws IOException {
+        try {
+            Configuration conf = new Configuration();
+            ConfigListener listener = conf.antlrparsing(cs);
+            return conf.analyze(listener);
         } catch (ConfigException e) {
             throw new RuntimeException("Error at " + e.getStartPost() + ": " + e.getMessage(), e);
         }
     }
 
-    private ConfigListener antlrparsing(String fileName) throws IOException{
-        CharStream cs = new ANTLRFileStream(fileName);
+    private ConfigListener antlrparsing(CharStream cs) throws IOException{
 
         //Passing the input to the lexer to create tokens
         RouteLexer lexer = new RouteLexer(cs);
