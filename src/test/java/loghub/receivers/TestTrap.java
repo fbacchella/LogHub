@@ -38,28 +38,28 @@ public class TestTrap {
     static public void configure() throws IOException {
         Tools.configure();
         logger = LogManager.getLogger();
-        LogUtils.setLevel(logger, Level.TRACE, "loghub.SmartContext", "loghub.receivers.SnmpTrap", "loghub.Receiver");
+        LogUtils.setLevel(logger, Level.TRACE, "loghub.SmartContext", "loghub.receivers.SnmpTrap", "loghub.receivers");
         Configurator.setLevel("fr.jrds.SmiExtensions", Level.ERROR);
     }
 
-    @Test()
+    @Test
     public void testone() throws InterruptedException, IOException {
         BlockingQueue<Event> receiver = new ArrayBlockingQueue<>(1);
         SnmpTrap r = new SnmpTrap(receiver, new Pipeline(Collections.emptyList(), "testone", null));
-        r.setPort(1162);
-        r.configure(new Properties(Collections.emptyMap()));
+        r.setPort(0);
+        Assert.assertTrue("Failed to configure trap receiver", r.configure(new Properties(Collections.emptyMap())));;
         List<String> content = r.smartPrint(new OID("1.0.8802.1.1.2.1.1.2.5"));
         Assert.assertEquals(1, content.size());
         Assert.assertEquals("lldpMessageTxHoldMultiplier", content.get(0));
         r.close();
     }
 
-    @Test()
+    @Test
     public void testbig() throws InterruptedException, IOException {
         BlockingQueue<Event> receiver = new ArrayBlockingQueue<>(2);
         SnmpTrap r = new SnmpTrap(receiver, new Pipeline(Collections.emptyList(), "testbig", null));
-        r.setPort(1162);
-        r.configure(new Properties(Collections.emptyMap()));
+        r.setPort(0);
+        Assert.assertTrue(r.configure(new Properties(Collections.emptyMap())));
         r.start();
 
         CommandResponderEvent trapEvent = new CommandResponderEvent(new MessageDispatcherImpl(), new DefaultUdpTransportMapping(), new GenericAddress(), 0,0, null, 0, null, null, 0, null );
