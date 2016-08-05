@@ -22,7 +22,6 @@ public class Log extends Processor {
     private Expression expression;
     private Logger customLogger;
     private String pipeName;
-
     private Level level;
 
     @Override
