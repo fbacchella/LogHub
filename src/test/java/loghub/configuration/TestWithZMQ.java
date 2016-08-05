@@ -1,6 +1,7 @@
 package loghub.configuration;
 
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -35,7 +36,7 @@ public class TestWithZMQ {
         LogUtils.setLevel(logger, Level.TRACE, "loghub.zmq", "loghub.receivers.ZMQ");
     }
 
-    @Test(timeout=2000) 
+    @Test(timeout=3000) 
     public void testSimpleInput() throws InterruptedException {
         Properties conf = Tools.loadConf("simpleinput.conf");
         logger.debug("pipelines: {}", conf.pipelines);
@@ -51,10 +52,11 @@ public class TestWithZMQ {
         Socket out = tctxt.ctx.newSocket(Method.CONNECT, Type.SUB, "inproc://sender", 1, -1);
         out.subscribe(new byte[]{});
         Socket sender = tctxt.ctx.newSocket(Method.CONNECT, Type.PUB, "inproc://listener", 1, -1);
+        // Wait for ZMQ to be started
         Thread.sleep(30);
         sender.send("something");
-        Thread.sleep(30);
-        Event received = conf.mainQueue.remove();
+        Event received = conf.mainQueue.poll(1, TimeUnit.SECONDS);
+        Assert.assertNotNull("nothing received", received);
         conf.outputQueues.get("main").add(received);
         byte[] buffer = out.recv();
         Assert.assertEquals("wrong send message", "something", new String(buffer));
