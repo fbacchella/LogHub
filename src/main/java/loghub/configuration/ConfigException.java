@@ -5,7 +5,7 @@ import org.antlr.v4.runtime.Token;
 public class ConfigException extends RuntimeException {
     private final Token start;
     private final Token end;
-    ConfigException(String message, Token start, Token end, Exception e) {
+    ConfigException(String message, Token start, Token end, Throwable e) {
         super(message, e);
         this.start = start;
         this.end = end;

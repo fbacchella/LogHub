@@ -273,7 +273,7 @@ public class Configuration {
                 try {
                     BeansManager.beanSetter(object, i.getKey(), beanValue);
                 } catch (InvocationTargetException ex) {
-                    throw new ConfigException(String.format("Invalid bean '%s.%s': %s", desc.clazz, i.getKey(), ex.getCause()), desc.ctx.start, desc.ctx.stop, (Exception) ex.getCause());
+                    throw new ConfigException(String.format("Invalid bean '%s.%s': %s", desc.clazz, i.getKey(), ex.getCause()), desc.ctx.start, desc.ctx.stop, ex.getCause());
                 }
             }
             return object;
@@ -282,12 +282,11 @@ public class Configuration {
         } catch (ConfigException e) {
             throw e;
         } catch (RuntimeException | ExceptionInInitializerError e) {
-            Exception rootCause = ( Exception) e;
+            Throwable rootCause = e;
             if(rootCause.getCause() instanceof InvocationTargetException) {
                 rootCause = (InvocationTargetException) rootCause.getCause();
             }
-            logger.throwing(rootCause);
-            throw new ConfigException(String.format("Invalid class '%s': %s", desc.clazz, rootCause), desc.ctx.start, desc.ctx.stop);
+            throw new ConfigException(String.format("Invalid class '%s': %s", desc.clazz, rootCause.getMessage()), desc.ctx.start, desc.ctx.stop, rootCause);
         }
     }
 
