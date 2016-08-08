@@ -10,6 +10,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.PatternSyntaxException;
 
 import org.apache.logging.log4j.Level;
 
@@ -34,17 +35,17 @@ public class Grok extends FieldsProcessor {
         String line = (String) event.get(field);
         Match gm = grok.match(line);
         gm.captures();
-        if(! gm.isNull()) {
+        if (! gm.isNull()) {
             //Many bug in java grok, rebuild the matching manually
             Map<String, String> groups = gm.getMatch().namedGroups();
             Map<String, List<Object>> results = new HashMap<>();
-            for(Map.Entry<String, Object> e: gm.toMap().entrySet()) {
+            for (Map.Entry<String, Object> e: gm.toMap().entrySet()) {
                 //Dirty hack to filter non named regex
-                if(e.getKey().equals(e.getKey().toUpperCase())) {
+                if (e.getKey().equals(e.getKey().toUpperCase())) {
                     continue;
                 }
                 List<Object> values = new ArrayList<Object>();
-                if( reverseIndex.containsKey(e.getKey())) {
+                if ( reverseIndex.containsKey(e.getKey())) {
                     for(String subname: reverseIndex.get(e.getKey())) {
                         String subvalue = groups.get(subname);
                         if(subvalue != null) {
@@ -55,12 +56,12 @@ public class Grok extends FieldsProcessor {
                     results.put(e.getKey(), Collections.singletonList(e.getValue()));
                 }
                 // Don't keep empty matching
-                if(values.size() > 0) {
+                if (values.size() > 0) {
                     results.put(e.getKey(), values);
                 }
             }
-            for(Map.Entry<String, List<Object>> e: results.entrySet()) {
-                if(e.getValue().size() == 1) {
+            for (Map.Entry<String, List<Object>> e: results.entrySet()) {
+                if (e.getValue().size() == 1) {
                     // If only one value found, keep it
                     event.put(e.getKey(), e.getValue().get(0));
                 } else {
@@ -93,13 +94,13 @@ public class Grok extends FieldsProcessor {
             logger.error("unable to load patterns: {}", e.getMessage());
             logger.catching(Level.DEBUG, e);
             return false;
-        } catch (GrokException e) {
+        } catch (GrokException | PatternSyntaxException e) {
             logger.error("wrong pattern {}: {}", pattern, e.getMessage());
             logger.catching(Level.DEBUG, e);
             return false;
         }
-        for(Map.Entry<String, String> e: grok.getNamedRegexCollection().entrySet()) {
-            if( ! reverseIndex.containsKey(e.getValue())) {
+        for (Map.Entry<String, String> e: grok.getNamedRegexCollection().entrySet()) {
+            if ( ! reverseIndex.containsKey(e.getValue())) {
                 reverseIndex.put(e.getValue(), new ArrayList<String>());
             }
             reverseIndex.get(e.getValue()).add(e.getKey());
