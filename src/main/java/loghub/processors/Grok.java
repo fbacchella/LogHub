@@ -40,6 +40,11 @@ public class Grok extends FieldsProcessor {
             Map<String, String> groups = gm.getMatch().namedGroups();
             Map<String, List<Object>> results = new HashMap<>();
             for (Map.Entry<String, Object> e: gm.toMap().entrySet()) {
+                // . is a special field name, it mean a value to put back in the original field
+                if (".".equals(e.getKey())) {
+                    results.put(field, Collections.singletonList(e.getValue()));
+                    continue;
+                }
                 //Dirty hack to filter non named regex
                 if (e.getKey().equals(e.getKey().toUpperCase())) {
                     continue;
