@@ -64,25 +64,17 @@ public class Configuration {
     Configuration() {
     }
 
-    public static Properties parse(String fileName) {
-        try {
-            Configuration conf = new Configuration();
-            return conf.runparsing(new ANTLRFileStream(fileName));
-        } catch (IOException e) {
-            throw new RuntimeException("Unreadable configuration file '"  + fileName + "': " + e.getMessage(), e);
-        }
+    public static Properties parse(String fileName) throws IOException, ConfigException {
+        Configuration conf = new Configuration();
+        return conf.runparsing(new ANTLRFileStream(fileName));
     }
 
-    public static Properties parse(InputStream is) {
-        try {
-            Configuration conf = new Configuration();
-            return conf.runparsing(new ANTLRInputStream());
-        } catch (IOException e) {
-            throw new RuntimeException("Unreadable stream input stream: " + e.getMessage(), e);
-        }
+    public static Properties parse(InputStream is) throws IOException, ConfigException {
+        Configuration conf = new Configuration();
+        return conf.runparsing(new ANTLRInputStream());
     }
 
-    public static Properties parse(Reader r) {
+    public static Properties parse(Reader r) throws ConfigException {
         try {
             Configuration conf = new Configuration();
             return conf.runparsing(new ANTLRInputStream(r));
@@ -91,14 +83,10 @@ public class Configuration {
         }
     }
 
-    private Properties runparsing(CharStream cs) throws IOException {
-        try {
-            Configuration conf = new Configuration();
-            ConfigListener listener = conf.antlrparsing(cs);
-            return conf.analyze(listener);
-        } catch (ConfigException e) {
-            throw new RuntimeException("Error at " + e.getStartPost() + ": " + e.getMessage(), e);
-        }
+    private Properties runparsing(CharStream cs) throws IOException, ConfigException {
+        Configuration conf = new Configuration();
+        ConfigListener listener = conf.antlrparsing(cs);
+        return conf.analyze(listener);
     }
 
     private ConfigListener antlrparsing(CharStream cs) throws IOException{
@@ -123,13 +111,24 @@ public class Configuration {
         return conf;
     }
 
-    private Properties analyze(ConfigListener conf) {
+    private Properties analyze(ConfigListener conf) throws ConfigException {
 
         final Map<String, Object > newProperties = new HashMap<>(conf.properties.size() + Properties.PROPSNAMES.values().length);
 
         // Resolvers properties found and and it to new properties
-        Function<Object, Object> resolve = i -> ((i instanceof ConfigListener.ObjectWrapped) ? ((ConfigListener.ObjectWrapped) i).wrapped : 
-            (i instanceof ConfigListener.ObjectReference) ? parseObjectDescription((ConfigListener.ObjectDescription) i, emptyConstructor) : i);
+        Function<Object, Object> resolve;
+        try {
+            resolve = i -> {
+                try {
+                    return ((i instanceof ConfigListener.ObjectWrapped) ? ((ConfigListener.ObjectWrapped) i).wrapped : 
+                        (i instanceof ConfigListener.ObjectReference) ? parseObjectDescription((ConfigListener.ObjectDescription) i, emptyConstructor) : i);
+                } catch (ConfigException e) {
+                    throw new IllegalArgumentException(e);
+                }
+            };
+        } catch (IllegalArgumentException e) {
+            throw (ConfigException) e.getCause();
+        }
         conf.properties.entrySet().stream().forEach( i-> newProperties.put(i.getKey(), resolve.apply(i.getValue())));
 
         Map<String, Pipeline> namedPipeLine = new HashMap<>(conf.pipelines.size());
@@ -217,7 +216,7 @@ public class Configuration {
         return new Properties(newProperties);
     }
 
-    private Pipeline parsePipeline(ConfigListener.PipenodesList desc, String currentPipeLineName, int depth, AtomicInteger subPipeCount) {
+    private Pipeline parsePipeline(ConfigListener.PipenodesList desc, String currentPipeLineName, int depth, AtomicInteger subPipeCount) throws ConfigException {
         List<Processor> allSteps = new ArrayList<Processor>() {
             @Override
             public String toString() {
@@ -233,12 +232,22 @@ public class Configuration {
             }
         };
 
-        desc.processors.stream().map(i -> getProcessor(i, currentPipeLineName, depth, subPipeCount)).forEach(allSteps::add);
+        try {
+            desc.processors.stream().map(i -> {
+                try {
+                    return getProcessor(i, currentPipeLineName, depth, subPipeCount);
+                } catch (ConfigException e) {
+                    throw new IllegalArgumentException(e);
+                }
+            }).forEach(allSteps::add);
+        } catch (IllegalArgumentException e) {
+            throw (ConfigException) e.getCause();
+        }
         Pipeline pipe = new Pipeline(allSteps, currentPipeLineName + (depth == 0 ? "" : "$" + subPipeCount.getAndIncrement()), desc.nextPipelineName);
         return pipe;
     }
 
-    private Processor getProcessor(ConfigListener.Pipenode i, String currentPipeLineName, int depth, AtomicInteger subPipeLine) {
+    private Processor getProcessor(ConfigListener.Pipenode i, String currentPipeLineName, int depth, AtomicInteger subPipeLine) throws ConfigException {
         Processor t;
         if(i instanceof ConfigListener.ProcessorInstance) {
             ConfigListener.ProcessorInstance ti = (ConfigListener.ProcessorInstance) i;
@@ -269,11 +278,11 @@ public class Configuration {
         return t;
     }
 
-    private <T, C> T parseObjectDescription(ConfigListener.ObjectDescription desc, ThrowingFunction<Class<T>, T> constructor) {
+    private <T, C> T parseObjectDescription(ConfigListener.ObjectDescription desc, ThrowingFunction<Class<T>, T> constructor) throws ConfigException {
         return parseObjectDescription(desc, constructor, null, 0, null);
     }
 
-    private <T, C> T parseObjectDescription(ConfigListener.ObjectDescription desc, ThrowingFunction<Class<T>, T> constructor, String currentPipeLineName, int depth, AtomicInteger numSubpipe) {
+    private <T, C> T parseObjectDescription(ConfigListener.ObjectDescription desc, ThrowingFunction<Class<T>, T> constructor, String currentPipeLineName, int depth, AtomicInteger numSubpipe) throws ConfigException {
         try {
             @SuppressWarnings("unchecked")
             Class<T> clazz = (Class<T>) classLoader.loadClass(desc.clazz);

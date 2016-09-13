@@ -14,6 +14,7 @@ import org.apache.logging.log4j.Logger;
 
 import com.codahale.metrics.JmxReporter;
 
+import loghub.configuration.ConfigException;
 import loghub.configuration.Configuration;
 import loghub.configuration.Properties;
 import loghub.jmx.Helper;
@@ -31,10 +32,14 @@ public class Start extends Thread {
         } catch (RuntimeException e) {
             System.out.println(e.getMessage());
             e.printStackTrace();
+        } catch (IOException e) {
+            System.out.format("can't read configuration file %s: %s", args[0], e.getMessage());
+        } catch (ConfigException e) {
+            System.out.format("Error in configuration file %s at %s: %s", args[0], e.getStartPost(), e.getMessage());
         }
     }
 
-    public Start(String configFile) {
+    public Start(String configFile) throws ConfigException, IOException {
 
         setName("LogHub");
 

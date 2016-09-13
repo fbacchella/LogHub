@@ -5,6 +5,7 @@ import java.util.Locale;
 
 import org.junit.Assert;
 
+import loghub.configuration.ConfigException;
 import loghub.configuration.Configuration;
 import loghub.configuration.Properties;
 
@@ -17,7 +18,7 @@ public class Tools {
         LogUtils.configure();
     }
 
-    public static Properties loadConf(String configname, boolean dostart) {
+    public static Properties loadConf(String configname, boolean dostart) throws ConfigException, IOException {
         String conffile = Configuration.class.getClassLoader().getResource(configname).getFile();
         Properties props = Configuration.parse(conffile);
 
@@ -28,7 +29,7 @@ public class Tools {
         return props;
     }
 
-    public static Properties loadConf(String configname) {
+    public static Properties loadConf(String configname) throws ConfigException, IOException {
         return loadConf(configname, true);
     }
 

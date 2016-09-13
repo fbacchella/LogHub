@@ -15,6 +15,7 @@ import loghub.LogUtils;
 import loghub.Pipeline;
 import loghub.ProcessorException;
 import loghub.Tools;
+import loghub.configuration.ConfigException;
 import loghub.configuration.Properties;
 
 public class TestTest {
@@ -29,7 +30,7 @@ public class TestTest {
     }
 
     @Test
-    public void testOK() throws InterruptedException, ProcessorException {
+    public void testOK() throws InterruptedException, ProcessorException, ConfigException, IOException {
         Properties conf = Tools.loadConf("testclause.conf");
         for(Pipeline pipe: conf.pipelines) {
             Assert.assertTrue("configuration failed", pipe.configure(conf));
@@ -41,7 +42,7 @@ public class TestTest {
     }
 
     @Test
-    public void testKO() throws ProcessorException, InterruptedException {
+    public void testKO() throws ProcessorException, InterruptedException, ConfigException, IOException {
         Properties conf = Tools.loadConf("testclause.conf");
         for(Pipeline pipe: conf.pipelines) {
             Assert.assertTrue("configuration failed", pipe.configure(conf));
@@ -55,7 +56,7 @@ public class TestTest {
     }
 
     @Test(timeout=2000)
-    public void testSub() throws InterruptedException, ProcessorException {
+    public void testSub() throws InterruptedException, ProcessorException, ConfigException, IOException {
         Properties conf = Tools.loadConf("testclause.conf");
         for(Pipeline pipe: conf.pipelines) {
             Assert.assertTrue("configuration failed", pipe.configure(conf));

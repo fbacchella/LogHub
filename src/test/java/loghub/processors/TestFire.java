@@ -14,6 +14,7 @@ import loghub.LogUtils;
 import loghub.Pipeline;
 import loghub.ProcessorException;
 import loghub.Tools;
+import loghub.configuration.ConfigException;
 import loghub.configuration.Properties;
 
 public class TestFire {
@@ -28,7 +29,7 @@ public class TestFire {
     }
 
     @Test
-    public void test() throws ProcessorException, InterruptedException {
+    public void test() throws ProcessorException, InterruptedException, ConfigException, IOException {
         Properties conf = Tools.loadConf("fire.conf");
         for(Pipeline pipe: conf.pipelines) {
             Assert.assertTrue("configuration failed", pipe.configure(conf));

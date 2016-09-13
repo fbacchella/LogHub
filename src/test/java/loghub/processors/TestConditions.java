@@ -13,6 +13,7 @@ import loghub.Event;
 import loghub.LogUtils;
 import loghub.ProcessorException;
 import loghub.Tools;
+import loghub.configuration.ConfigException;
 import loghub.configuration.Properties;
 
 public class TestConditions {
@@ -27,7 +28,7 @@ public class TestConditions {
     }
 
     @Test
-    public void testif() throws ProcessorException {
+    public void testif() throws ProcessorException, ConfigException, IOException {
         Properties conf = Tools.loadConf("conditions.conf");
         Event sent = Tools.getEvent();
         sent.put("a", "1");
@@ -38,7 +39,7 @@ public class TestConditions {
     }
 
     @Test
-    public void testsuccess() throws ProcessorException {
+    public void testsuccess() throws ProcessorException, ConfigException, IOException {
         Properties conf = Tools.loadConf("conditions.conf");
 
         Event sent = Tools.getEvent();
@@ -50,7 +51,7 @@ public class TestConditions {
     }
 
     @Test
-    public void testfailure() throws InterruptedException, ProcessorException {
+    public void testfailure() throws InterruptedException, ProcessorException, ConfigException, IOException {
         Properties conf = Tools.loadConf("conditions.conf");
 
         Event sent = Tools.getEvent();
@@ -62,7 +63,7 @@ public class TestConditions {
     }
 
     @Test
-    public void testsubpipe() throws InterruptedException, ProcessorException {
+    public void testsubpipe() throws InterruptedException, ProcessorException, ConfigException, IOException {
         Properties conf = Tools.loadConf("conditions.conf");
 
         Event sent = Tools.getEvent();

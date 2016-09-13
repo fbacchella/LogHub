@@ -6,13 +6,14 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import loghub.Event;
+import loghub.configuration.ConfigException;
 import loghub.configuration.Configuration;
 import loghub.configuration.Properties;
 
 public class TestNsca {
 
     @Test
-    public void test() {
+    public void test() throws ConfigException {
 
         String conf= "pipeline[main] {} output $main | { loghub.senders.Nsca { password: \"password\", encryption: \"RIJNDAEL192\", nagiosServer: \"localhost\", largeMessageSupport: true, mapping: { \"level\": \"level\", \"service\": \"service\",  \"message\": \"message\",  \"host\": \"host\", } } }";
 

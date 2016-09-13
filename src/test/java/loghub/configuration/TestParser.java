@@ -58,14 +58,8 @@ public class TestParser {
         Assert.assertFalse(errListener.isFailed());
         ConfigListener conf = new ConfigListener();
         ParseTreeWalker walker = new ParseTreeWalker();
-        try {
-            walker.walk(conf, tree);
-        } catch (ConfigException e) {
-            logger.error("Error at " + e.getStartPost() + ": " + e.getMessage(), e);
-            Assert.fail("parsing failed");
-        }
+        walker.walk(conf, tree);
         Assert.assertEquals("stack not empty :" + conf.stack, 0, conf.stack.size());
-
         for(String s: new String[] {"oneref", "main", "groovy"}) {
             Assert.assertTrue("pipeline " + s + " not found", conf.pipelines.containsKey(s));
         }
@@ -92,12 +86,7 @@ public class TestParser {
         Assert.assertFalse(errListener.isFailed());
         ConfigListener conf = new ConfigListener();
         ParseTreeWalker walker = new ParseTreeWalker();
-        try {
-            walker.walk(conf, tree);
-        } catch (ConfigException e) {
-            logger.error("Error at " + e.getStartPost() + ": " + e.getMessage(), e);
-            Assert.fail("parsing failed");
-        }
+        walker.walk(conf, tree);
         Assert.assertEquals("stack not empty :" + conf.stack, 0, conf.stack.size());
         ConfigListener.PipenodesList main = conf.pipelines.get("main");
         ObjectDescription p = (ObjectDescription) main.processors.get(0);

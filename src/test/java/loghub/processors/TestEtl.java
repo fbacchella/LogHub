@@ -18,6 +18,7 @@ import loghub.LogUtils;
 import loghub.Pipeline;
 import loghub.ProcessorException;
 import loghub.Tools;
+import loghub.configuration.ConfigException;
 import loghub.configuration.Properties;
 
 public class TestEtl {
@@ -86,7 +87,7 @@ public class TestEtl {
     }
 
     @Test
-    public void test5() throws ProcessorException, InterruptedException {
+    public void test5() throws ProcessorException, InterruptedException, ConfigException, IOException {
         Properties conf = Tools.loadConf("etl.conf");
         for(Pipeline pipe: conf.pipelines) {
             Assert.assertTrue("configuration failed", pipe.configure(conf));
@@ -100,7 +101,7 @@ public class TestEtl {
     }
 
     @Test
-    public void test6() throws ProcessorException, InterruptedException {
+    public void test6() throws ProcessorException, InterruptedException, ConfigException, IOException {
         Properties conf = Tools.loadConf("etl.conf");
         for(Pipeline pipe: conf.pipelines) {
             Assert.assertTrue("configuration failed", pipe.configure(conf));

@@ -1,5 +1,7 @@
 package loghub.processors;
 
+import java.io.IOException;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -7,12 +9,13 @@ import loghub.Event;
 import loghub.Pipeline;
 import loghub.ProcessorException;
 import loghub.Tools;
+import loghub.configuration.ConfigException;
 import loghub.configuration.Properties;
 
 public class TestMapper {
 
     @Test
-    public void test() throws ProcessorException, InterruptedException {
+    public void test() throws ProcessorException, InterruptedException, ConfigException, IOException {
         Properties conf = Tools.loadConf("map.conf");
         for (Pipeline pipe: conf.pipelines) {
             Assert.assertTrue("configuration failed", pipe.configure(conf));

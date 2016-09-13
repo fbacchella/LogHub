@@ -37,7 +37,7 @@ public class TestWithZMQ {
     }
 
     @Test(timeout=3000) 
-    public void testSimpleInput() throws InterruptedException {
+    public void testSimpleInput() throws InterruptedException, ConfigException, IOException {
         Properties conf = Tools.loadConf("simpleinput.conf");
         logger.debug("pipelines: {}", conf.pipelines);
 

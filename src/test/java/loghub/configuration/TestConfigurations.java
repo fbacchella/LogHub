@@ -28,7 +28,7 @@ public class TestConfigurations {
     }
 
     @Test
-    public void testBuildPipeline() throws IOException, InterruptedException {
+    public void testBuildPipeline() throws IOException, InterruptedException, ConfigException {
         Properties conf = Tools.loadConf("simple.conf");
         Event sent = Tools.getEvent();
         logger.debug("pipelines: " + conf.pipelines);
@@ -39,7 +39,7 @@ public class TestConfigurations {
     }
 
     @Test
-    public void testBuildSubPipeline() throws IOException, InterruptedException {
+    public void testBuildSubPipeline() throws IOException, InterruptedException, ConfigException {
         Properties conf = Tools.loadConf("simple.conf");
         Event sent = Tools.getEvent();
 
@@ -51,7 +51,7 @@ public class TestConfigurations {
     }
 
     @Test
-    public void testTwoPipe() throws InterruptedException {
+    public void testTwoPipe() throws InterruptedException, ConfigException, IOException {
         Properties conf = Tools.loadConf("twopipe.conf");
         Thread t = new EventsProcessor(conf.mainQueue, conf.outputQueues, conf.namedPipeLine, conf.maxSteps);
         t.setDaemon(true);
@@ -71,7 +71,7 @@ public class TestConfigurations {
     }
 
     @Test
-    public void testFork() throws InterruptedException, ProcessorException {
+    public void testFork() throws InterruptedException, ProcessorException, ConfigException, IOException {
         Properties conf = Tools.loadConf("fork.conf");
         EventsProcessor ep = new EventsProcessor(conf.mainQueue, conf.outputQueues, conf.namedPipeLine, conf.maxSteps);
         ep.start();
@@ -91,7 +91,7 @@ public class TestConfigurations {
     }
 
     @Test
-    public void testComplexConf() {
+    public void testComplexConf() throws ConfigException, IOException {
         Properties conf = Tools.loadConf("test.conf", false);
         for(String plName: new String[]{"main", "oneref", "groovy"}) {
             Assert.assertTrue("pipeline '" + plName +"'not found", conf.namedPipeLine.containsKey(plName));
@@ -101,7 +101,7 @@ public class TestConfigurations {
     }
 
     @Test
-    public void testArray() {
+    public void testArray() throws ConfigException, IOException {
         Tools.loadConf("array.conf", false);
     }
 
