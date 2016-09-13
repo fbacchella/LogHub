@@ -2,14 +2,11 @@ package loghub.processors;
 
 import java.util.Collections;
 
-import org.apache.logging.log4j.Level;
-import org.codehaus.groovy.control.CompilationFailedException;
-
 import loghub.Event;
 import loghub.Expression;
+import loghub.Expression.ExpressionException;
 import loghub.Processor;
 import loghub.ProcessorException;
-import loghub.Expression.ExpressionException;
 import loghub.configuration.Properties;
 
 public class Test extends Processor {
@@ -62,15 +59,8 @@ public class Test extends Processor {
         try {
             ifClause = new Expression(ifClauseSource, properties.groovyClassLoader, properties.formatters);
         } catch (ExpressionException e) {
-            Throwable cause = e.getCause();
-            if (cause instanceof CompilationFailedException) {
-                logger.error("Groovy compilation failed for expression {}: {}", ifClauseSource, e.getMessage());
-                return false;
-            } else {
-                logger.error("Critical groovy error for expression {}: {}", ifClauseSource, e.getMessage());
-                logger.throwing(Level.DEBUG, e.getCause());
-                return false;
-            }
+            Expression.logError(e, ifClauseSource, logger);
+            return false;
         }
         return super.configure(properties);
     }

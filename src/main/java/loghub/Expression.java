@@ -2,6 +2,7 @@ package loghub;
 
 import java.util.Map;
 
+import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.codehaus.groovy.control.CompilationFailedException;
@@ -92,6 +93,16 @@ public class Expression {
      */
     public String getExpression() {
         return expression;
+    }
+
+    public static void logError(ExpressionException e, String source, Logger logger) {
+        Throwable cause = e.getCause();
+        if (cause instanceof CompilationFailedException) {
+            logger.error("Groovy compilation failed for expression {}: {}", source, e.getMessage());
+        } else {
+            logger.error("Critical groovy error for expression {}: {}", source, e.getMessage());
+            logger.throwing(Level.DEBUG, e.getCause());
+        }
     }
 
 }
