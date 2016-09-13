@@ -77,7 +77,8 @@ public class BeansManager {
                 }
                 setMethod.invoke(beanObject, newValue);
             } else {
-                throw new InvocationTargetException(new ClassCastException("unmanaged class " + beanValue), String.format("Unknown bean %s", beanName));
+                String message = String.format("can't assign bean %s.%s with argument type %s", beanObject.getClass().getName(), beanName, beanValue.getClass().getName());
+                throw new InvocationTargetException(new ClassCastException(message), String.format("Invalid bean %s", beanName));
             }
         } catch (IntrospectionException e) {
             throw new InvocationTargetException(e, "Unknown bean '" + beanName + "' for " + beanObject);
