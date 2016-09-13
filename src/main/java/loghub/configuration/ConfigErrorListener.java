@@ -11,6 +11,7 @@ public class ConfigErrorListener extends BaseErrorListener {
     private static final Logger logger = LogManager.getLogger();
 
     boolean failed = false;
+    ConfigException exception = null;
 
     public boolean isFailed() {
         return failed;
@@ -22,5 +23,6 @@ public class ConfigErrorListener extends BaseErrorListener {
             String msg, RecognitionException e) {
         logger.error("line {}@{}: {}", line, charPositionInLine, msg);
         failed = true;
+        exception = new ConfigException(String.format("line %d@%d: %s", line, charPositionInLine), line, charPositionInLine);
     }
 }

@@ -3,22 +3,28 @@ package loghub.configuration;
 import org.antlr.v4.runtime.Token;
 
 public class ConfigException extends Exception {
-    private final Token start;
-    private final Token end;
+    private final int startLine;
+    private final int startChar;
     ConfigException(String message, Token start, Token end, Throwable e) {
         super(message, e);
-        this.start = start;
-        this.end = end;
+        startLine = start.getLine();
+        startChar = start.getCharPositionInLine();
     }
+    
     ConfigException(String message, Token start, Token end) {
         super(message);
-        this.start = start;
-        this.end = end;
+        startLine = start.getLine();
+        startChar = start.getCharPositionInLine();
     }
+    
+    ConfigException(String message, int startLine, int startChar) {
+        super(message);
+        this.startLine = startLine;
+        this.startChar = startChar;
+    }
+    
     public String getStartPost() {
-        return "line " + start.getLine() + ":" + start.getCharPositionInLine();
+        return "line " + startLine + ":" + startChar;
     }
-    public String getStartEnd() {
-        return "line " + end.getLine() + ":" + end.getCharPositionInLine();
-    }
+
 };

@@ -84,7 +84,7 @@ public class Configuration {
         return conf.analyze(listener);
     }
 
-    private ConfigListener antlrparsing(CharStream cs) throws IOException{
+    private ConfigListener antlrparsing(CharStream cs) throws IOException, ConfigException{
 
         //Passing the input to the lexer to create tokens
         RouteLexer lexer = new RouteLexer(cs);
@@ -97,7 +97,7 @@ public class Configuration {
         parser.addErrorListener(errListener);
         loghub.RouteParser.ConfigurationContext tree = parser.configuration();
         if(errListener.failed) {
-            throw new RuntimeException("parsing failed");
+            throw errListener.exception;
         }
 
         ConfigListener conf = new ConfigListener();

@@ -1,5 +1,6 @@
 package loghub.senders;
 
+import java.io.IOException;
 import java.io.StringReader;
 
 import org.junit.Assert;
@@ -13,7 +14,7 @@ import loghub.configuration.Properties;
 public class TestNsca {
 
     @Test
-    public void test() throws ConfigException {
+    public void test() throws ConfigException, IOException {
 
         String conf= "pipeline[main] {} output $main | { loghub.senders.Nsca { password: \"password\", encryption: \"RIJNDAEL192\", nagiosServer: \"localhost\", largeMessageSupport: true, mapping: { \"level\": \"level\", \"service\": \"service\",  \"message\": \"message\",  \"host\": \"host\", } } }";
 
