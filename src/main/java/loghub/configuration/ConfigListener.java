@@ -11,7 +11,6 @@ import java.util.Map;
 import org.antlr.v4.runtime.ParserRuleContext;
 
 import loghub.RouteBaseListener;
-import loghub.RouteParser;
 import loghub.RouteParser.ArrayContext;
 import loghub.RouteParser.BeanContext;
 import loghub.RouteParser.BooleanLiteralContext;
@@ -47,7 +46,6 @@ import loghub.processors.Forker;
 import loghub.processors.Log;
 import loghub.processors.Mapper;
 import loghub.processors.Test;
-import loghub.processors.AnonymousSubPipeline;
 
 class ConfigListener extends RouteBaseListener {
 
@@ -213,7 +211,7 @@ class ConfigListener extends RouteBaseListener {
         ObjectReference beanValue = null;
         if(ctx.condition != null) {
             beanName = ctx.condition.getText();
-            beanValue = (ObjectReference) stack.pop();
+            beanValue = new ObjectWrapped(stack.pop());
         } else if (ctx.expression() != null) {
             beanName = "if";
             beanValue = (ObjectReference) stack.pop();
@@ -288,20 +286,15 @@ class ConfigListener extends RouteBaseListener {
     @Override
     public void exitPipenodeList(PipenodeListContext ctx) {
         PipenodesList pipe = new PipenodesList();
-        while( ! (stack.peek() instanceof StackMarker) ) {
-            Pipenode poped = (Pipenode)stack.pop();
-            pipe.processors.add(0, poped);
-        }
-        //Remove the marker
-        stack.pop();
-        if(RouteParser.RULE_pipenode == ctx.getParent().getRuleIndex()) {
-            ObjectWrapped pipeline = new ObjectWrapped(pipe);
-            ProcessorInstance sub = new ProcessorInstance(AnonymousSubPipeline.class.getName(), ctx);
-            sub.beans.put("pipeline", pipeline);
-            stack.push(sub);
-        } else {
-            stack.push(pipe);
-        }
+        Object o;
+        do {
+            o = stack.pop();
+            if (o instanceof Pipenode) {
+                pipe.processors.add(0, (Pipenode)o);
+            }
+            assert (StackMarker.PipeNodeList.equals(o)) || o instanceof Pipenode;
+        } while(! StackMarker.PipeNodeList.equals(o));
+        stack.push(pipe);
     }
 
     @Override

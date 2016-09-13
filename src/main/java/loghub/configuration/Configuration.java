@@ -24,8 +24,8 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 
-import org.antlr.v4.runtime.ANTLRInputStream;
 import org.antlr.v4.runtime.ANTLRFileStream;
+import org.antlr.v4.runtime.ANTLRInputStream;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.tree.ParseTreeWalker;
@@ -248,22 +248,23 @@ public class Configuration {
 
     private Processor getProcessor(ConfigListener.Pipenode i, String currentPipeLineName, int depth, AtomicInteger subPipeLine) throws ConfigException {
         Processor t;
-        if(i instanceof ConfigListener.ProcessorInstance) {
-            ConfigListener.ProcessorInstance ti = (ConfigListener.ProcessorInstance) i;
-            t = (Processor) parseObjectDescription(ti, emptyConstructor, currentPipeLineName, depth, subPipeLine);
-        } else if (i instanceof ConfigListener.PipeRef){
+        if (i instanceof ConfigListener.PipeRef){
             ConfigListener.PipeRef cpr = (ConfigListener.PipeRef) i;
             NamedSubPipeline pr = new NamedSubPipeline();
             pr.setPipeRef(cpr.pipename);
             t = pr;
         } else if (i instanceof ConfigListener.PipenodesList){
-            ConfigListener.PipenodesList pl = (ConfigListener.PipenodesList) i;
-            Pipeline pipe = parsePipeline(pl, currentPipeLineName, depth + 1, subPipeLine);
-            t = new AnonymousSubPipeline();
-            ((AnonymousSubPipeline) t).setPipeline(pipe);
-            assert false;
+            System.out.println("found a PipenodesList");
+            subPipeLine.incrementAndGet();
+            AnonymousSubPipeline subpipe = new AnonymousSubPipeline();
+            Pipeline p = parsePipeline((ConfigListener.PipenodesList)i, currentPipeLineName, depth, subPipeLine);
+            subpipe.setPipeline(p);
+            t = subpipe;
+        } else if (i instanceof ConfigListener.ProcessorInstance) {
+            ConfigListener.ProcessorInstance ti = (ConfigListener.ProcessorInstance) i;
+            t = (Processor) parseObjectDescription(ti, emptyConstructor, currentPipeLineName, depth, subPipeLine);
         } else {
-            throw new RuntimeException("unknown configuration element: " + i);
+            throw new RuntimeException("Unreachable code for " + i);
         }
         return t;
     }
@@ -283,13 +284,13 @@ public class Configuration {
                 Object beanValue;
                 if(ref instanceof ConfigListener.ObjectWrapped) {
                     beanValue = ((ConfigListener.ObjectWrapped) ref).wrapped;
-                    if(beanValue instanceof ConfigListener.PipenodesList) {
-                        assert currentPipeLineName != null;
-                        numSubpipe.incrementAndGet();
-                        beanValue = parsePipeline((ConfigListener.PipenodesList)beanValue, currentPipeLineName, depth, numSubpipe);
+                    if (beanValue instanceof ConfigListener.Pipenode) {
+                        beanValue = getProcessor((ConfigListener.Pipenode) beanValue, currentPipeLineName, depth, numSubpipe);
                     }
                 } else if (ref instanceof ConfigListener.ObjectDescription) {
                     beanValue = parseObjectDescription((ConfigListener.ObjectDescription) ref, emptyConstructor, currentPipeLineName, depth + 1, numSubpipe);
+                } else if (ref == null){
+                    beanValue = null;
                 } else {
                     throw new ConfigException(String.format("Invalid class '%s': %s", desc.clazz, ref.getClass().getCanonicalName()), desc.ctx.start, desc.ctx.stop);
                 }
