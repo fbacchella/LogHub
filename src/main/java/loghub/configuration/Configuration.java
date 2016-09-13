@@ -73,13 +73,9 @@ public class Configuration {
         return conf.runparsing(new ANTLRInputStream());
     }
 
-    public static Properties parse(Reader r) throws ConfigException {
-        try {
-            Configuration conf = new Configuration();
-            return conf.runparsing(new ANTLRInputStream(r));
-        } catch (IOException e) {
-            throw new RuntimeException("Unreadable reader: " + e.getMessage(), e);
-        }
+    public static Properties parse(Reader r) throws ConfigException, IOException {
+        Configuration conf = new Configuration();
+        return conf.runparsing(new ANTLRInputStream(r));
     }
 
     private Properties runparsing(CharStream cs) throws IOException, ConfigException {
