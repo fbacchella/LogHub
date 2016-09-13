@@ -45,7 +45,6 @@ import loghub.configuration.ConfigListener.ObjectReference;
 import loghub.configuration.ConfigListener.Output;
 import loghub.processors.AnonymousSubPipeline;
 import loghub.processors.NamedSubPipeline;
-import loghub.processors.Test;
 
 public class Configuration {
 
@@ -252,15 +251,6 @@ public class Configuration {
         if(i instanceof ConfigListener.ProcessorInstance) {
             ConfigListener.ProcessorInstance ti = (ConfigListener.ProcessorInstance) i;
             t = (Processor) parseObjectDescription(ti, emptyConstructor, currentPipeLineName, depth, subPipeLine);
-        } else if (i instanceof ConfigListener.Test){
-            ConfigListener.Test ti = (ConfigListener.Test) i;
-            Test test = new Test();
-            test.setTest(ti.test);
-            test.setThen(getProcessor(ti.True, currentPipeLineName, depth + 1, subPipeLine));
-            if(ti.False != null) {
-                test.setElse(getProcessor(ti.False, currentPipeLineName, depth + 1, subPipeLine));
-            }
-            t = test;
         } else if (i instanceof ConfigListener.PipeRef){
             ConfigListener.PipeRef cpr = (ConfigListener.PipeRef) i;
             NamedSubPipeline pr = new NamedSubPipeline();

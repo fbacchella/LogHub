@@ -46,6 +46,7 @@ import loghub.processors.FireEvent;
 import loghub.processors.Forker;
 import loghub.processors.Log;
 import loghub.processors.Mapper;
+import loghub.processors.Test;
 import loghub.processors.AnonymousSubPipeline;
 
 class ConfigListener extends RouteBaseListener {
@@ -92,12 +93,6 @@ class ConfigListener extends RouteBaseListener {
     static final class PipenodesList implements Pipenode {
         final List<Pipenode> processors = new ArrayList<>();
         String nextPipelineName;
-    }
-
-    static final class Test implements Pipenode {
-        String test;
-        Pipenode True;
-        Pipenode False;
     }
 
     static final class PipeRef implements Pipenode {
@@ -327,9 +322,8 @@ class ConfigListener extends RouteBaseListener {
 
     @Override
     public void exitTest(TestContext ctx) {
-        Test testTransformer = new Test();
+        ObjectDescription beanObject = new ObjectDescription(Test.class.getCanonicalName(), ctx);
         List<Pipenode> clauses = new ArrayList<>(2);
-
         Object o;
         do {
             o = stack.pop();
@@ -337,12 +331,14 @@ class ConfigListener extends RouteBaseListener {
                 Pipenode t = (Pipenode) o;
                 clauses.add(0, t);
             } else if(o instanceof ObjectWrapped) {
-                testTransformer.test = ((ObjectWrapped)o).wrapped.toString();
+                beanObject.put("test", (ObjectWrapped)o);
             }
         } while(! StackMarker.Test.equals(o));
-        testTransformer.True = clauses.get(0);
-        testTransformer.False = clauses.size() == 2 ? clauses.get(1) : null;
-        stack.push(testTransformer);
+        beanObject.put("then", new ObjectWrapped(clauses.get(0)));
+        if (clauses.size() == 2) {
+            beanObject.put("else",  new ObjectWrapped(clauses.get(1)));
+        }
+        stack.push(beanObject);
     }
 
     @Override
@@ -441,7 +437,7 @@ class ConfigListener extends RouteBaseListener {
     public void enterFire(FireContext ctx) {
         stack.push(StackMarker.Fire);
     }
-    
+
     @Override
     public void exitFire(FireContext ctx) {
         ObjectDescription fire = new ObjectDescription(FireEvent.class.getName(), ctx);
