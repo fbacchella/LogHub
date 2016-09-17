@@ -27,6 +27,8 @@ import loghub.RouteParser.InputObjectlistContext;
 import loghub.RouteParser.IntegerLiteralContext;
 import loghub.RouteParser.LogContext;
 import loghub.RouteParser.MapContext;
+import loghub.RouteParser.MergeArgumentContext;
+import loghub.RouteParser.MergeContext;
 import loghub.RouteParser.NullLiteralContext;
 import loghub.RouteParser.ObjectContext;
 import loghub.RouteParser.OutputContext;
@@ -45,6 +47,7 @@ import loghub.processors.FireEvent;
 import loghub.processors.Forker;
 import loghub.processors.Log;
 import loghub.processors.Mapper;
+import loghub.processors.Merge;
 import loghub.processors.Test;
 
 class ConfigListener extends RouteBaseListener {
@@ -223,6 +226,27 @@ class ConfigListener extends RouteBaseListener {
         assert (beanName != null);
         assert (beanValue != null);
         beanObject.put(beanName, beanValue);
+    }
+
+    @Override
+    public void exitMergeArgument(MergeArgumentContext ctx) {
+        String beanName = ctx.type.getText();
+        ObjectReference beanValue;
+        if ("onFire".equals(beanName) || "onTimeout".equals(beanName)) {
+            beanValue = new ObjectWrapped(stack.pop());
+        } else {
+            beanValue = (ObjectReference) stack.pop();
+        }
+        ObjectDescription beanObject = (ObjectDescription) stack.peek();
+        assert (beanName != null);
+        assert (beanValue != null);
+        beanObject.put(beanName, beanValue);
+    }
+
+    @Override
+    public void enterMerge(MergeContext ctx) {
+        ObjectReference beanObject = new ObjectDescription(Merge.class.getCanonicalName(), ctx);
+        stack.push(beanObject);
     }
 
     @Override

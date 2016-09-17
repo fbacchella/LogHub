@@ -14,6 +14,7 @@ pipenodeList :   pipenode (('+' forkpiperef)|('|' pipenode))*;
 forkpiperef: '$' Identifier;
 pipenode
     : test
+    | merge
     | mapping
     | drop
     | fire
@@ -38,6 +39,23 @@ beanValue: object | literal | array | map;
 finalpiperef: piperef;
 
 piperef:  Identifier;
+
+merge
+    : 'merge' '{' (mergeArgument (',' mergeArgument)*)? ','? '}'
+    ;
+
+mergeArgument
+    : type='if' ':' expression
+    | type='index' ':' stringLiteral
+    | type='seeds' ':' map
+    | type='doFire' ':' expression
+    | type='onFire' ':' pipenode
+    | type='onTimeout' ':' pipenode
+    | type='timeout' ':' (integerLiteral | floatingPointLiteral)
+    | type='forward' ':' booleanLiteral
+    ;
+
+
 mapping
     :   'map' eventVariable map
     ;
