@@ -112,6 +112,8 @@ public class EventsProcessor extends Thread {
                     e.process(p);
                     success = true;
                 }
+            } catch (ProcessorException.DroppedEventException ex) {
+                dropped = true;
             } catch (ProcessorException ex) {
                 Properties.metrics.counter("Pipeline." + e.getCurrentPipeline() + ".failure").inc();;
                 Stats.newError(ex);

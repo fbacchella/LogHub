@@ -2,6 +2,12 @@ package loghub;
 
 public class ProcessorException extends Exception {
 
+    public static class DroppedEventException extends ProcessorException {
+        public DroppedEventException(Event event) {
+            super(event, "dropped");
+        }
+    };
+
     private final Event event;
 
     ProcessorException(Event event, String message, Exception root) {
