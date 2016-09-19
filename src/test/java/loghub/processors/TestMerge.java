@@ -66,7 +66,7 @@ public class TestMerge {
 
     @Test(timeout=5000)
     public void testTimeout() throws Throwable {
-        String conf= "pipeline[main] { merge {index: \"${e%s}\", seeds: {\"a\": 0, \"b\": \",\", \"e\": null, \"c\": []}, onTimeout: $main, timeout: 1 }}";
+        String conf= "pipeline[main] { merge {index: \"${e%s}\", seeds: {\"a\": 0, \"b\": \",\", \"e\": 'c', \"c\": []}, onTimeout: $main, timeout: 1 }}";
 
         Properties p = Configuration.parse(new StringReader(conf));
         Assert.assertTrue(p.pipelines.stream().allMatch(i-> i.configure(p)));
@@ -86,7 +86,7 @@ public class TestMerge {
         e = p.mainQueue.element();
         Assert.assertEquals(String.class, e.get("b").getClass());
         Assert.assertEquals("2", e.get("b"));
-        Assert.assertEquals("5", e.get("e"));
+        Assert.assertEquals(1L, e.get("e"));
     }
 
 }
