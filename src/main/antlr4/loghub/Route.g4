@@ -64,7 +64,7 @@ drop: Drop;
 Drop: 'drop';
 
 fire
-    : 'fire' '|' '$' piperef '{' ( eventVariable '=' expression ';'? )* eventVariable '=' expression '}'
+    : 'fire' '|' '$' piperef '{' ( eventVariable '=' expression ';'? )* eventVariable '=' expression ';'? '}'
     ;
 
 log
@@ -146,7 +146,7 @@ matchOperator
 array: '[' (beanValue (',' beanValue)*)? ','? ']';
 
 map
-    : '{' literal ':' literal ( ',' ? literal ':' literal)* ','? '}'
+    : '{' (literal ':' beanValue ( ',' ? literal ':' beanValue)*)? ','? '}'
     ;
 
 eventVariable: '[' Identifier ('.' Identifier)* ']' ;
