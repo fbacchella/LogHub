@@ -23,6 +23,6 @@ public class ConfigErrorListener extends BaseErrorListener {
             String msg, RecognitionException e) {
         logger.error("line {}@{}: {}", line, charPositionInLine, msg);
         failed = true;
-        exception = new ConfigException(String.format("line %d@%d: %s", line, charPositionInLine), line, charPositionInLine);
+        exception = new ConfigException(String.format("line %d@%d: %s", line, charPositionInLine, msg), line, charPositionInLine);
     }
 }
