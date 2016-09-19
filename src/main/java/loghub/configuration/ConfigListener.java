@@ -186,8 +186,6 @@ class ConfigListener extends RouteBaseListener {
     @Override
     public void enterStringLiteral(StringLiteralContext ctx) {
         String content = ctx.StringLiteral().getText();
-        // remove "..." and parse escaped char
-        content = CharSupport.getStringFromGrammarStringLiteral(content);
         pushLiteral(ctx, content);
     }
 
@@ -485,7 +483,6 @@ class ConfigListener extends RouteBaseListener {
         logger.beans.put("level", new ObjectWrapped(ctx.level().getText()));
         logger.beans.put("pipeName", new ObjectWrapped(currentPipeLineName));
         String message = ctx.message.getText();
-        message = message.substring(1, message.length() - 1);
         logger.beans.put("message", new ObjectWrapped(message));
 
         stack.push(logger);
@@ -572,7 +569,6 @@ class ConfigListener extends RouteBaseListener {
         String expression = null;
         if(ctx.sl != null) {
             String format = ctx.sl.getText();
-            format = CharSupport.getStringFromGrammarStringLiteral(format);
             String key = "h_" + Integer.toHexString(format.hashCode());
             formatters.put(key, format);
             expression = "formatters." + key + ".format(event)";

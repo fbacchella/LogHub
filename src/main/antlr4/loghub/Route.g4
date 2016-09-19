@@ -401,8 +401,8 @@ booleanLiteral
 characterLiteral: CharacterLiteral;
 
 CharacterLiteral
-    :   '\'' SingleCharacter '\''
-    |   '\'' EscapeSequence '\''
+    :   '\'' SingleCharacter '\'' {setText( String.valueOf(getText().charAt(1)) );}
+    |   '\'' EscapeSequence '\''  {setText( loghub.configuration.CharSupport.getStringFromGrammarStringLiteral(getText()));}
     ;
 
 fragment
@@ -436,7 +436,7 @@ PatternFirstCharacter
     ;
 
 StringLiteral
-    :   '"' StringCharacter* '"'
+    :   '"' StringCharacter* '"' {setText( loghub.configuration.CharSupport.getStringFromGrammarStringLiteral(getText()));}
     ;
 
 
