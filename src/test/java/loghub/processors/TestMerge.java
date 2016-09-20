@@ -2,6 +2,7 @@ package loghub.processors;
 
 import java.io.IOException;
 import java.io.StringReader;
+import java.util.Date;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -28,9 +29,9 @@ public class TestMerge {
         LogUtils.setLevel(logger, Level.TRACE, "loghub.processors.Merge");
     }
 
-    @Test()
+    @Test
     public void test() throws Throwable {
-        String conf= "pipeline[main] { merge {index: \"${e%s}\", seeds: {\"a\": 0, \"b\": \",\", \"e\": null, \"c\": [], \"count\": 'c'}, doFire: [a] >= 2, onFire: $main, forward: false}}";
+        String conf= "pipeline[main] { merge {index: \"${e%s}\", seeds: {\"a\": 0, \"b\": \",\", \"d\": 0.0, \"e\": null, \"c\": [], \"count\": 'c', \"@timestamp\": '>'}, doFire: [a] >= 2, onFire: $main, forward: false}}";
 
         Properties p = Configuration.parse(new StringReader(conf));
         Assert.assertTrue(p.pipelines.stream().allMatch(i-> i.configure(p)));
@@ -40,6 +41,7 @@ public class TestMerge {
         } catch (ProcessorException.DroppedEventException e1) {
         }
         Event e = Event.emptyEvent();
+        e.setTimestamp(new Date(0));
         e.put("a", 1);
         e.put("b", 2);
         e.put("c", 3);
@@ -51,7 +53,10 @@ public class TestMerge {
         } catch (ProcessorException.DroppedEventException e1) {
             dropped = true;
         }
+        long timestamp = 0;
         try {
+            e.setTimestamp(new Date());
+            timestamp = e.getTimestamp().getTime();
             m.process(e);
         } catch (ProcessorException.DroppedEventException e1) {
             dropped = true;
@@ -59,19 +64,22 @@ public class TestMerge {
         e = p.mainQueue.remove();
         Assert.assertTrue(dropped);
         Assert.assertTrue(p.mainQueue.isEmpty());
-        Assert.assertEquals(String.class, e.get("b").getClass());
         Assert.assertEquals("2,2", e.get("b"));
+        Assert.assertEquals(8.0, (double) e.get("d"), 1e-5);
         Assert.assertEquals(null, e.get("e"));
+        Assert.assertEquals(timestamp, e.getTimestamp().getTime());
+
     }
 
     @Test(timeout=5000)
     public void testTimeout() throws Throwable {
-        String conf= "pipeline[main] { merge {index: \"${e%s}\", seeds: {\"a\": 0, \"b\": \",\", \"e\": 'c', \"c\": []}, onTimeout: $main, timeout: 1 }}";
+        String conf= "pipeline[main] { merge {index: \"${e%s}\", seeds: {\"a\": 0, \"b\": \",\", \"e\": 'c', \"c\": [], \"@timestamp\": null}, onTimeout: $main, timeout: 1 }}";
 
         Properties p = Configuration.parse(new StringReader(conf));
         Assert.assertTrue(p.pipelines.stream().allMatch(i-> i.configure(p)));
         Merge m = (Merge) p.namedPipeLine.get("main").processors.stream().findFirst().get();
         Event e = Event.emptyEvent();
+        e.setTimestamp(new Date(0));
         e.put("a", 1);
         e.put("b", 2);
         e.put("c", 3);
@@ -87,6 +95,41 @@ public class TestMerge {
         Assert.assertEquals(String.class, e.get("b").getClass());
         Assert.assertEquals("2", e.get("b"));
         Assert.assertEquals(1L, e.get("e"));
+        Assert.assertNotEquals(0L, e.getTimestamp().getTime());
+    }
+
+    @Test
+    public void testDefault() throws Throwable {
+        String conf= "pipeline[main] { merge {index: \"${e%s}\", doFire: true, default: null, onFire: $main, forward: true}}";
+
+        Properties p = Configuration.parse(new StringReader(conf));
+        Assert.assertTrue(p.pipelines.stream().allMatch(i-> i.configure(p)));
+        Merge m = (Merge) p.namedPipeLine.get("main").processors.stream().findFirst().get();
+        Event e = Event.emptyEvent();
+        e.setTimestamp(new Date(0));
+        e.put("a", 1);
+        e.put("b", 2);
+        e.put("c", 3);
+        e.put("d", '4');
+        e.put("e", "5");
+        boolean dropped = false;
+        try {
+            m.process(e);
+        } catch (ProcessorException.DroppedEventException e1) {
+            dropped = true;
+        }
+        try {
+            e.setTimestamp(new Date(1));
+            m.process(e);
+        } catch (ProcessorException.DroppedEventException e1) {
+            dropped = true;
+        }
+        e = p.mainQueue.remove();
+        Assert.assertFalse(dropped);
+        Assert.assertFalse(p.mainQueue.isEmpty());
+        Assert.assertEquals(0, e.keySet().size());
+        Assert.assertEquals(0L, e.getTimestamp().getTime());
+
     }
 
 }

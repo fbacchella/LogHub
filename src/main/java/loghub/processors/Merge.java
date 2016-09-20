@@ -10,6 +10,7 @@ import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
+import java.util.function.Function;
 
 import loghub.Event;
 import loghub.EventsRepository;
@@ -230,6 +231,13 @@ public class Merge extends Processor {
         }
     }
 
+    private static final Function<Event, Event> prepareEvent = i -> {
+        i.entrySet().forEach(j -> {
+            if (j.getValue() instanceof StringBuilder)  i.put(j.getKey(), j.getValue().toString());
+        });
+        return i;
+    };
+
     private String indexSource;
     private VarFormatter index;
 
@@ -253,7 +261,9 @@ public class Merge extends Processor {
             return false;
         }
         repository = new EventsRepository(properties);
-        cumulators = new ConcurrentHashMap<>(seeds.size());
+        cumulators = new ConcurrentHashMap<>(seeds.size() + 1);
+        // Default to timestamp is to keep the first
+        cumulators.put("@timestamp", Cumulator.FIRST.cumulate(null));
         defaultCumulator = Cumulator.getCumulator(defaultSeedName);
         for (Entry<String, Object> i: seeds.entrySet()) {
             cumulators.put(i.getKey(), Cumulator.getCumulator(i.getValue()));
@@ -291,23 +301,20 @@ public class Merge extends Processor {
         }
         logger.debug("key: {} for {}", eventKey, event);
         PausedEvent current = repository.getOrPause(eventKey, () -> {
-            return new PausedEvent(Event.emptyEvent())
+            PausedEvent pe = new PausedEvent(Event.emptyEvent())
                     .setTimeout(timeout, TimeUnit.SECONDS)
-                    .onTimeout(timeoutProcessor, i -> {
-                        i.setTimestamp(new Date());
-                        i.entrySet().forEach(j -> {
-                            if (j.getValue() instanceof StringBuilder)  i.put(j.getKey(), j.getValue().toString());
-                        });
-                        return i;
-                    })
-                    .onSuccess(fireProcessor, i -> {
-                        i.setTimestamp(new Date());
-                        i.entrySet().forEach(j -> {
-                            if (j.getValue() instanceof StringBuilder)  i.put(j.getKey(), j.getValue().toString());
-                        });
-                        return i;
-                    })
+                    .onTimeout(timeoutProcessor, prepareEvent)
+                    .onSuccess(fireProcessor, prepareEvent)
                     ;
+            // If the cumulators return a value, use it to initialize the new event time stamp
+            // A null seed will keep it the new event timestamp all way long
+            // '<' will keep the initial event timestamp
+            // '>' will use the last event timestamp
+            Object newTimestamp = cumulators.get("@timestamp").apply(event.getTimestamp(), pe.event.getTimestamp());
+            if (newTimestamp instanceof Date) {
+                pe.event.setTimestamp((Date)newTimestamp);
+            }
+            return pe;
         });
         synchronized (current) {
             for(Map.Entry<String, Object> i: event.entrySet()) {
@@ -315,8 +322,19 @@ public class Merge extends Processor {
                 Object last = current.event.get(key);
                 Object next = event.get(key);
                 BiFunction<Object, Object, Object> m =  cumulators.computeIfAbsent(key, j -> defaultCumulator);
-                current.event.put(i.getKey(), m.apply(last, next));
+                Object newValue = m.apply(last, next);
+                if (newValue != null) {
+                    current.event.put(i.getKey(), newValue);
+                }
             }
+            // And don't forget the date, look for the @timestamp cumulator
+            Date lastTimestamp = current.event.getTimestamp();
+            Date nextTimestamp = event.getTimestamp();
+            Object newTimestamp = cumulators.get("@timestamp").apply(lastTimestamp, nextTimestamp);
+            if (newTimestamp instanceof Date) {
+                current.event.setTimestamp((Date)newTimestamp);
+            }
+
             if (fire != null) {
                 Object dofire = fire.eval(current.event, Collections.emptyMap());
                 if(dofire instanceof Boolean && ((Boolean) dofire)) {

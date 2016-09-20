@@ -53,6 +53,7 @@ mergeArgument
     | type='onTimeout' ':' pipenode
     | type='timeout' ':' (integerLiteral | floatingPointLiteral)
     | type='forward' ':' booleanLiteral
+    | type='default' ':' beanValue
     ;
 
 
