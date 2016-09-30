@@ -32,7 +32,7 @@ public class Grok extends FieldsProcessor {
 
     @Override
     public void processMessage(Event event, String field, String destination) {
-        String line = (String) event.get(field);
+        String line = event.get(field).toString();
         Match gm = grok.match(line);
         gm.captures();
         if (! gm.isNull()) {
