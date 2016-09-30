@@ -44,7 +44,19 @@ public interface Stats {
         List<Exception> errors = loghub.Stats.getExceptions();
         return errors.stream()
                 .map( i-> (Throwable) (i.getCause() != null ? i.getCause() :  i))
-                .map( i -> i.getMessage())
+                .map( i -> {
+                    StringBuffer exceptionMessage = new StringBuffer();
+                    StackTraceElement[] stack = i.getStackTrace();
+                    if ( i instanceof NullPointerException) {
+                        exceptionMessage.append("NPE");
+                    } else {
+                        i.getMessage();
+                    }
+                    if (stack.length > 0) {
+                        exceptionMessage.append(String.format(" at %s.%s line %d", stack[0].getClassName(), stack[0].getMethodName(), stack[0].getLineNumber()));
+                    }
+                    return exceptionMessage.toString();
+                })
                 .toArray(String[]::new)
                 ;
     }
