@@ -34,7 +34,11 @@ bean
     |   (beanName ':' beanValue)
     ;
 
-beanName: Identifier;
+beanName
+    :'index' | 'seeds' | 'doFire' | 'onFire' | 'timeout' | 'forward' | 'default' | 'merge'
+    | Identifier
+    ;
+
 beanValue: object | literal | array | map;
 finalpiperef: piperef;
 
