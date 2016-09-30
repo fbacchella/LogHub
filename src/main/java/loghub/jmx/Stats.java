@@ -1,14 +1,10 @@
 package loghub.jmx;
 
-import java.util.List;
-
 import javax.management.InstanceAlreadyExistsException;
 import javax.management.MBeanRegistrationException;
 import javax.management.MXBean;
 import javax.management.MalformedObjectNameException;
 import javax.management.NotCompliantMBeanException;
-
-import loghub.ProcessorException;
 
 @MXBean
 @Implementation(loghub.jmx.Stats.StatsImpl.class)
@@ -32,8 +28,7 @@ public interface Stats {
     }
 
     default public String[] getErrors() {
-        List<ProcessorException> errors = loghub.Stats.getErrors();
-        return errors.stream()
+        return loghub.Stats.getErrors().stream()
                 .map( i-> (Throwable) (i.getCause() != null ? i.getCause() :  i))
                 .map( i -> i.getMessage())
                 .toArray(String[]::new)
@@ -41,21 +36,20 @@ public interface Stats {
     }
 
     default public String[] getExceptions() {
-        List<Exception> errors = loghub.Stats.getExceptions();
-        return errors.stream()
+        return loghub.Stats.getExceptions().stream()
                 .map( i-> (Throwable) (i.getCause() != null ? i.getCause() :  i))
                 .map( i -> {
-                    StringBuffer exceptionMessage = new StringBuffer();
+                    StringBuffer exceptionDetails = new StringBuffer();
+                    String exceptionMessage = i.getMessage();
+                    if ( exceptionMessage == null) {
+                        exceptionMessage = i.getClass().getSimpleName();
+                    }
+                    exceptionDetails.append(exceptionMessage);
                     StackTraceElement[] stack = i.getStackTrace();
-                    if ( i instanceof NullPointerException) {
-                        exceptionMessage.append("NPE");
-                    } else {
-                        i.getMessage();
-                    }
                     if (stack.length > 0) {
-                        exceptionMessage.append(String.format(" at %s.%s line %d", stack[0].getClassName(), stack[0].getMethodName(), stack[0].getLineNumber()));
+                        exceptionDetails.append(String.format(" at %s.%s line %d", stack[0].getClassName(), stack[0].getMethodName(), stack[0].getLineNumber()));
                     }
-                    return exceptionMessage.toString();
+                    return exceptionDetails.toString();
                 })
                 .toArray(String[]::new)
                 ;

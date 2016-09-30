@@ -1,7 +1,7 @@
 package loghub;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.atomic.AtomicLong;
@@ -17,6 +17,16 @@ public final class Stats {
     private final static Queue<Exception> exceptions = new ArrayBlockingQueue<>(100);
 
     private Stats() {
+    }
+
+    public static synchronized void reset() {
+        errors.clear();
+        exceptions.clear();
+        received.set(0);
+        dropped.set(0);
+        sent.set(0);
+        failed.set(0);
+        thrown.set(0);
     }
 
     public static synchronized void newError(ProcessorException e) {
@@ -39,12 +49,12 @@ public final class Stats {
         }
     }
 
-    public static synchronized List<ProcessorException> getErrors() {
-        return new ArrayList<>(errors);
+    public static synchronized Collection<ProcessorException> getErrors() {
+        return Collections.unmodifiableCollection(errors);
     }
 
-    public static List<Exception> getExceptions() {
-        return new ArrayList<>(exceptions);
+    public static Collection<Exception> getExceptions() {
+        return Collections.unmodifiableCollection(exceptions);
     }
 
 }
