@@ -17,6 +17,8 @@ import java.util.stream.Collectors;
 import org.snmp4j.CommandResponder;
 import org.snmp4j.CommandResponderEvent;
 import org.snmp4j.MessageDispatcherImpl;
+import org.snmp4j.PDU;
+import org.snmp4j.PDUv1;
 import org.snmp4j.Snmp;
 import org.snmp4j.TransportMapping;
 import org.snmp4j.asn1.BER;
@@ -56,6 +58,16 @@ public class SnmpTrap extends Receiver implements CommandResponder {
     static {
         LogFactory.setLogFactory(new Log4j2LogFactory());
     }
+
+    private static enum GENERICTRAP {
+        coldStart,
+        warmStart,
+        linkDown,
+        linkUp,
+        authenticationFailure,
+        egpNeighborLoss,
+        enterpriseSpecific
+    };
 
     static final private byte TAG1 = (byte) 0x9f;
     static final private byte TAG_FLOAT = (byte) 0x78;
@@ -146,9 +158,20 @@ public class SnmpTrap extends Receiver implements CommandResponder {
 
     @Override
     public void processPdu(CommandResponderEvent trap) {
-        @SuppressWarnings("unchecked")
-        Enumeration<VariableBinding> vbenum = (Enumeration<VariableBinding>) trap.getPDU().getVariableBindings().elements();
+        PDU pdu = trap.getPDU();
         Event event = emptyEvent();
+        if (pdu instanceof PDUv1) {
+            PDUv1 pduv1 = (PDUv1) pdu;
+            @SuppressWarnings("unchecked")
+            List<String> enterprise = (List<String>) convertVar(pduv1.getEnterprise());
+            event.put("enterprise", enterprise.get(0));
+            event.put("agent-addr", pduv1.getAgentAddress().getInetAddress());
+            event.put("generic-trap", GENERICTRAP.values()[pduv1.getGenericTrap()].toString());
+            event.put("specific-trap", pduv1.getSpecificTrap());
+            event.put("time-stamp", 1.0 * pduv1.getTimestamp() / 100.0);
+        }
+        @SuppressWarnings("unchecked")
+        Enumeration<VariableBinding> vbenum = (Enumeration<VariableBinding>) pdu.getVariableBindings().elements();
         Address addr = trap.getPeerAddress();
         if(addr instanceof IpAddress) {
             event.put("host", ((IpAddress)addr).getInetAddress());

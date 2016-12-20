@@ -2,6 +2,7 @@ package loghub.receivers;
 
 import java.io.IOException;
 import java.lang.reflect.Array;
+import java.net.InetAddress;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -18,7 +19,9 @@ import org.junit.Test;
 import org.snmp4j.CommandResponderEvent;
 import org.snmp4j.MessageDispatcherImpl;
 import org.snmp4j.PDU;
+import org.snmp4j.PDUv1;
 import org.snmp4j.smi.GenericAddress;
+import org.snmp4j.smi.IpAddress;
 import org.snmp4j.smi.OID;
 import org.snmp4j.smi.OctetString;
 import org.snmp4j.smi.VariableBinding;
@@ -78,6 +81,31 @@ public class TestTrap {
         Assert.assertEquals(3, Array.getLength(details.get("index")));
         Assert.assertEquals("localhost", details.get("value"));
         r.interrupt();
+    }
 
+    @Test
+    public void testtrapv1() throws InterruptedException, IOException {
+        BlockingQueue<Event> receiver = new ArrayBlockingQueue<>(2);
+        SnmpTrap r = new SnmpTrap(receiver, new Pipeline(Collections.emptyList(), "testbig", null));
+        r.setPort(0);
+        Assert.assertTrue(r.configure(new Properties(Collections.emptyMap())));
+        r.start();
+
+        CommandResponderEvent trapEvent = new CommandResponderEvent(new MessageDispatcherImpl(), new DefaultUdpTransportMapping(), new GenericAddress(), 0,0, null, 0, null, null, 0, null );
+        PDUv1 pdu = new PDUv1();
+        pdu.setEnterprise(new OID("1.3.6.1.6.3.1.1.4.1.0"));
+        pdu.setAgentAddress(new IpAddress());
+        pdu.setGenericTrap(1);
+        pdu.setSpecificTrap(0);
+        pdu.setTimestamp(10);
+        pdu.add(new VariableBinding(new OID("1.3.6.1.6.3.1.1.4.1.0"), new OctetString("lldpRemTablesChange")));
+        trapEvent.setPDU(pdu);
+        r.processPdu(trapEvent);
+        Event e = receiver.poll();
+        Assert.assertEquals(0.1, (Double)e.get("time-stamp"), 1e-10);
+        Assert.assertEquals("warmStart", e.get("generic-trap"));
+        Assert.assertEquals("snmpTrapOID", e.get("enterprise"));
+        Assert.assertEquals(InetAddress.getByName("0.0.0.0"), e.get("agent-addr"));
+        r.interrupt();
     }
 }
