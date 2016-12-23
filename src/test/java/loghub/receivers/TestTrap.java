@@ -84,7 +84,7 @@ public class TestTrap {
     }
 
     @Test
-    public void testtrapv1() throws InterruptedException, IOException {
+    public void testtrapv1Generic() throws InterruptedException, IOException {
         BlockingQueue<Event> receiver = new ArrayBlockingQueue<>(2);
         SnmpTrap r = new SnmpTrap(receiver, new Pipeline(Collections.emptyList(), "testbig", null));
         r.setPort(0);
@@ -93,10 +93,10 @@ public class TestTrap {
 
         CommandResponderEvent trapEvent = new CommandResponderEvent(new MessageDispatcherImpl(), new DefaultUdpTransportMapping(), new GenericAddress(), 0,0, null, 0, null, null, 0, null );
         PDUv1 pdu = new PDUv1();
-        pdu.setEnterprise(new OID("1.3.6.1.6.3.1.1.4.1.0"));
+        pdu.setEnterprise(new OID("1.3.6.1.4.1.232"));
         pdu.setAgentAddress(new IpAddress());
         pdu.setGenericTrap(1);
-        pdu.setSpecificTrap(0);
+        pdu.setSpecificTrap(6013);
         pdu.setTimestamp(10);
         pdu.add(new VariableBinding(new OID("1.3.6.1.6.3.1.1.4.1.0"), new OctetString("lldpRemTablesChange")));
         trapEvent.setPDU(pdu);
@@ -104,7 +104,35 @@ public class TestTrap {
         Event e = receiver.poll();
         Assert.assertEquals(0.1, (Double)e.get("time-stamp"), 1e-10);
         Assert.assertEquals("warmStart", e.get("generic-trap"));
-        Assert.assertEquals("snmpTrapOID", e.get("enterprise"));
+        Assert.assertEquals("compaq", e.get("enterprise"));
+        Assert.assertEquals(null, e.get("specific-trap"));
+        Assert.assertEquals("lldpRemTablesChange", e.get("snmpTrapOID"));
+        Assert.assertEquals(InetAddress.getByName("0.0.0.0"), e.get("agent-addr"));
+        r.interrupt();
+    }
+
+    @Test
+    public void testtrapv1Specific() throws InterruptedException, IOException {
+        BlockingQueue<Event> receiver = new ArrayBlockingQueue<>(2);
+        SnmpTrap r = new SnmpTrap(receiver, new Pipeline(Collections.emptyList(), "testbig", null));
+        r.setPort(0);
+        Assert.assertTrue(r.configure(new Properties(Collections.emptyMap())));
+        r.start();
+
+        CommandResponderEvent trapEvent = new CommandResponderEvent(new MessageDispatcherImpl(), new DefaultUdpTransportMapping(), new GenericAddress(), 0,0, null, 0, null, null, 0, null );
+        PDUv1 pdu = new PDUv1();
+        pdu.setEnterprise(new OID("1.3.6.1.4.1.232"));
+        pdu.setAgentAddress(new IpAddress());
+        pdu.setGenericTrap(6);
+        pdu.setSpecificTrap(6013);
+        pdu.setTimestamp(10);
+        trapEvent.setPDU(pdu);
+        r.processPdu(trapEvent);
+        Event e = receiver.poll();
+        Assert.assertEquals(0.1, (Double)e.get("time-stamp"), 1e-10);
+        Assert.assertEquals(null, e.get("generic-trap"));
+        Assert.assertEquals("compaq", e.get("enterprise"));
+        Assert.assertEquals("cpqHePostError", e.get("specific-trap"));
         Assert.assertEquals(InetAddress.getByName("0.0.0.0"), e.get("agent-addr"));
         r.interrupt();
     }

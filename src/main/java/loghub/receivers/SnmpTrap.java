@@ -166,8 +166,12 @@ public class SnmpTrap extends Receiver implements CommandResponder {
             List<String> enterprise = (List<String>) convertVar(pduv1.getEnterprise());
             event.put("enterprise", enterprise.get(0));
             event.put("agent-addr", pduv1.getAgentAddress().getInetAddress());
-            event.put("generic-trap", GENERICTRAP.values()[pduv1.getGenericTrap()].toString());
-            event.put("specific-trap", pduv1.getSpecificTrap());
+            if (pduv1.getGenericTrap() != PDUv1.ENTERPRISE_SPECIFIC) {
+                event.put("generic-trap", GENERICTRAP.values()[pduv1.getGenericTrap()].toString());
+            } else {
+                String resolved = mibtree.resolveTrapSpecific(pduv1.getEnterprise(), pduv1.getSpecificTrap());
+                event.put("specific-trap", resolved);
+            }
             event.put("time-stamp", 1.0 * pduv1.getTimestamp() / 100.0);
         }
         @SuppressWarnings("unchecked")
