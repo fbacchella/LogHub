@@ -102,12 +102,12 @@ public class TestTrap {
         trapEvent.setPDU(pdu);
         r.processPdu(trapEvent);
         Event e = receiver.poll();
-        Assert.assertEquals(0.1, (Double)e.get("time-stamp"), 1e-10);
-        Assert.assertEquals("warmStart", e.get("generic-trap"));
+        Assert.assertEquals(0.1, (Double)e.get("time_stamp"), 1e-10);
+        Assert.assertEquals("warmStart", e.get("generic_trap"));
         Assert.assertEquals("compaq", e.get("enterprise"));
-        Assert.assertEquals(null, e.get("specific-trap"));
+        Assert.assertEquals(null, e.get("specific_trap"));
         Assert.assertEquals("lldpRemTablesChange", e.get("snmpTrapOID"));
-        Assert.assertEquals(InetAddress.getByName("0.0.0.0"), e.get("agent-addr"));
+        Assert.assertEquals(InetAddress.getByName("0.0.0.0"), e.get("agent_addr"));
         r.interrupt();
     }
 
@@ -129,11 +129,11 @@ public class TestTrap {
         trapEvent.setPDU(pdu);
         r.processPdu(trapEvent);
         Event e = receiver.poll();
-        Assert.assertEquals(0.1, (Double)e.get("time-stamp"), 1e-10);
-        Assert.assertEquals(null, e.get("generic-trap"));
+        Assert.assertEquals(0.1, (Double)e.get("time_stamp"), 1e-10);
+        Assert.assertEquals(null, e.get("generic_trap"));
         Assert.assertEquals("compaq", e.get("enterprise"));
-        Assert.assertEquals("cpqHePostError", e.get("specific-trap"));
-        Assert.assertEquals(InetAddress.getByName("0.0.0.0"), e.get("agent-addr"));
+        Assert.assertEquals("cpqHePostError", e.get("specific_trap"));
+        Assert.assertEquals(InetAddress.getByName("0.0.0.0"), e.get("agent_addr"));
         r.interrupt();
     }
 }
