@@ -92,6 +92,8 @@ public class SnmpTrap extends Receiver implements CommandResponder {
         MultiThreadedMessageDispatcher dispatcher = new MultiThreadedMessageDispatcher(threadPool,
                 new MessageDispatcherImpl());
         dispatcher.addCommandResponder(this);
+        dispatcher.addMessageProcessingModel(new MPv1());
+        dispatcher.addMessageProcessingModel(new MPv2c());
         Address listenAddress = GenericAddress.parse(protocol + ":" + listen + "/" + port);
         TransportMapping<?> transport;
         try {
@@ -101,8 +103,6 @@ public class SnmpTrap extends Receiver implements CommandResponder {
             return false;
         }
         snmp = new Snmp(dispatcher, transport);
-        snmp.getMessageDispatcher().addMessageProcessingModel(new MPv1());
-        snmp.getMessageDispatcher().addMessageProcessingModel(new MPv2c());
         try {
             snmp.listen();
         } catch (IOException e) {
@@ -158,35 +158,41 @@ public class SnmpTrap extends Receiver implements CommandResponder {
 
     @Override
     public void processPdu(CommandResponderEvent trap) {
-        PDU pdu = trap.getPDU();
-        Event event = emptyEvent();
-        if (pdu instanceof PDUv1) {
-            PDUv1 pduv1 = (PDUv1) pdu;
-            @SuppressWarnings("unchecked")
-            List<String> enterprise = (List<String>) convertVar(pduv1.getEnterprise());
-            event.put("enterprise", enterprise.get(0));
-            event.put("agent_addr", pduv1.getAgentAddress().getInetAddress());
-            if (pduv1.getGenericTrap() != PDUv1.ENTERPRISE_SPECIFIC) {
-                event.put("generic_trap", GENERICTRAP.values()[pduv1.getGenericTrap()].toString());
-            } else {
-                String resolved = mibtree.resolveTrapSpecific(pduv1.getEnterprise(), pduv1.getSpecificTrap());
-                event.put("specific_trap", resolved);
+        try {
+            PDU pdu = trap.getPDU();
+            Event event = emptyEvent();
+            if (pdu instanceof PDUv1) {
+                PDUv1 pduv1 = (PDUv1) pdu;
+                @SuppressWarnings("unchecked")
+                List<String> enterprise = (List<String>) convertVar(pduv1.getEnterprise());
+                event.put("enterprise", enterprise.get(0));
+                event.put("agent_addr", pduv1.getAgentAddress().getInetAddress());
+                if (pduv1.getGenericTrap() != PDUv1.ENTERPRISE_SPECIFIC) {
+                    event.put("generic_trap", GENERICTRAP.values()[pduv1.getGenericTrap()].toString());
+                } else {
+                    String resolved = mibtree.resolveTrapSpecific(pduv1.getEnterprise(), pduv1.getSpecificTrap());
+                    event.put("specific_trap", resolved);
+                }
+                event.put("time_stamp", 1.0 * pduv1.getTimestamp() / 100.0);
             }
-            event.put("time_stamp", 1.0 * pduv1.getTimestamp() / 100.0);
+            @SuppressWarnings("unchecked")
+            Enumeration<VariableBinding> vbenum = (Enumeration<VariableBinding>) pdu.getVariableBindings().elements();
+            Address addr = trap.getPeerAddress();
+            if(addr instanceof IpAddress) {
+                event.put("host", ((IpAddress)addr).getInetAddress());
+            }
+            for(VariableBinding i: Collections.list(vbenum)) {
+                OID vbOID = i.getOid();
+                Object value = convertVar(i.getVariable());
+                smartPut(event, vbOID, value);
+            }
+            send(event);
+        } catch (Exception e) {
+            logger.error(e.getMessage());
+            logger.catching(e);
+        } finally {
+            trap.setProcessed(true);
         }
-        @SuppressWarnings("unchecked")
-        Enumeration<VariableBinding> vbenum = (Enumeration<VariableBinding>) pdu.getVariableBindings().elements();
-        Address addr = trap.getPeerAddress();
-        if(addr instanceof IpAddress) {
-            event.put("host", ((IpAddress)addr).getInetAddress());
-        }
-        for(VariableBinding i: Collections.list(vbenum)) {
-            OID vbOID = i.getOid();
-            Object value = convertVar(i.getVariable());
-            smartPut(event, vbOID, value);
-        }
-        trap.setProcessed(true);
-        send(event);
     }
 
     public List<String> smartPrint(OID oid) {
