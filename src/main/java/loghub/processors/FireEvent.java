@@ -43,12 +43,13 @@ public class FireEvent extends Processor {
     }
 
     @Override
-    public void process(Event event) throws ProcessorException {
+    public boolean process(Event event) throws ProcessorException {
         Event newEvent = Event.emptyEvent();
         for(Map.Entry<String, Expression> i: expressions.entrySet()) {
             newEvent.put(i.getKey(), i.getValue().eval(event, Collections.emptyMap()));
         }
         newEvent.inject(pipeDestination, mainQueue);
+        return true;
     }
 
     @Override

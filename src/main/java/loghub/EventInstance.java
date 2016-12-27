@@ -151,12 +151,12 @@ class EventInstance extends Event {
     }
 
     @Override
-    public void process(Processor p) throws ProcessorException {
+    public boolean process(Processor p) throws ProcessorException {
         if (wevent == null) {
             wevent = new EventWrapper(this);
         }
         wevent.setProcessor(p);
-        p.process(wevent);
+        return p.process(wevent);
     }
 
     /**

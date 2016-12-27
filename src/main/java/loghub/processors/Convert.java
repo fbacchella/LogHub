@@ -22,10 +22,11 @@ public class Convert extends FieldsProcessor {
     private Class<?> clazz;
 
     @Override
-    public void processMessage(Event event, String field, String destination) throws ProcessorException {
+    public boolean processMessage(Event event, String field, String destination) throws ProcessorException {
         try {
             Object o = BeansManager.ConstructFromString(clazz, event.get(field).toString());
             event.put(destination, o);
+            return true;
         } catch (InvocationTargetException e) {
             throw event.buildException("unable to convert from string to " + className, (Exception)e.getCause());
         }

@@ -10,7 +10,7 @@ import java.util.concurrent.BlockingQueue;
 public abstract class Event extends HashMap<String, Object> implements Serializable {
 
     public static final String TIMESTAMPKEY = "@timestamp";
-    
+
     public static Event emptyEvent() {
         return new EventInstance();
     }
@@ -65,7 +65,7 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
 
     public abstract String getNextPipeline();
 
-    public abstract void process(Processor p) throws ProcessorException;
+    public abstract boolean process(Processor p) throws ProcessorException;
 
     public abstract Date getTimestamp();
 

@@ -34,7 +34,7 @@ public class TestNameResolver {
         nr.configure(new Properties(Collections.emptyMap()));
         Event e = Tools.getEvent();
         e.put("host", InetAddress.getByName("127.0.0.1"));
-        nr.process(e);
+        Assert.assertTrue(nr.process(e));
         Assert.assertEquals("resolution failed", "localhost", e.get("fqdn"));
     }
 

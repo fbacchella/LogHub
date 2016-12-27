@@ -21,7 +21,7 @@ public class ParseJson extends FieldsProcessor {
     };
 
     @Override
-    public void processMessage(Event event, String field, String destination) throws ProcessorException {
+    public boolean processMessage(Event event, String field, String destination) throws ProcessorException {
         String message = event.get(field).toString();
         try {
             Object o = json.get().readValue(new StringReader(message), Object.class);
@@ -32,6 +32,7 @@ public class ParseJson extends FieldsProcessor {
             } else {
                 event.put(destination, o);
             }
+            return true;
         } catch (IOException e) {
             throw event.buildException("failed to parse json " + message, e);
         }

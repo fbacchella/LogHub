@@ -61,7 +61,7 @@ public class NameResolver extends FieldsProcessor {
     }
 
     @Override
-    public void processMessage(Event event, String field, String destination) throws ProcessorException {
+    public boolean processMessage(Event event, String field, String destination) throws ProcessorException {
         Object addr = event.get(field);
 
         String toresolv = null;
@@ -79,7 +79,7 @@ public class NameResolver extends FieldsProcessor {
                 try {
                     addr = InetAddress.getByAddress(parts);
                 } catch (UnknownHostException e) {
-                    throw event.buildException("unknonw host " + parts, e);
+                    throw event.buildException("invalid IP address " + addr, e);
                 }
             }
         }
@@ -108,7 +108,7 @@ public class NameResolver extends FieldsProcessor {
             if(o != null) {
                 event.put(destination, o);
             }
-            return;
+            return true;
         }
 
         //If a query was build, use it
@@ -128,18 +128,21 @@ public class NameResolver extends FieldsProcessor {
                         event.put(destination, value);
                     }
                 }
+                return true;
             } catch (IllegalArgumentException e) {
                 throw event.buildException("can't setup resolver " + addr, (Exception) e.getCause());
-            } catch (NameNotFoundException | javax.naming.ServiceUnavailableException | javax.naming.CommunicationException ex) {
+            } catch (NameNotFoundException ex) {
                 // Expected failure from DNS, don't care
                 // But keep a short negative cache to avoid flooding
                 Element e = new Element(toresolv, null);
                 e.setTimeToLive(timeout * 5);
                 hostCache.put(e);
+                return false;
             } catch (NamingException e) {
                 throw event.buildException("unresolvable name " + addr, e);
             } 
         }
+        return false;
     }
 
     @Override

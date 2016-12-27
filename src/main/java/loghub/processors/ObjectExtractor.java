@@ -17,14 +17,15 @@ public abstract class ObjectExtractor<T> extends Processor {
     }
 
     @Override
-    public void process(Event event) throws ProcessorException {
+    public boolean process(Event event) throws ProcessorException {
         Object o = event.remove(source);
         if (clazz.isAssignableFrom(o.getClass())) {
             @SuppressWarnings("unchecked")
             T type = (T) o;
             extract(event, type);
+            return true;
         } else {
-            logger.info("can't extract {} from {}",() -> getClassType(), () -> o.getClass());
+            throw event.buildException("can't extract "+  getClassType().getCanonicalName() + " from " + o.getClass().getCanonicalName());
         }
     }
 

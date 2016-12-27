@@ -21,9 +21,10 @@ public class TestFieldsProcessor {
         FieldsProcessor p = new FieldsProcessor() {
 
             @Override
-            public void processMessage(Event event, String field,
+            public boolean processMessage(Event event, String field,
                     String destination) throws ProcessorException {
                 event.put(destination, event.get(field));
+                return true;
             }
 
             @Override

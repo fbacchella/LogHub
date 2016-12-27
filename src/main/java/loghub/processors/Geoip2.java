@@ -56,7 +56,7 @@ public class Geoip2 extends FieldsProcessor {
     private String locale = "en";
 
     @Override
-    public void processMessage(Event event, String field, String destination) throws ProcessorException {
+    public boolean processMessage(Event event, String field, String destination) throws ProcessorException {
         Object addr = event.get(field);
         InetAddress ipInfo = null;
         if(addr instanceof InetAddress) {
@@ -115,7 +115,8 @@ public class Geoip2 extends FieldsProcessor {
             }
             }
         } catch (AddressNotFoundException e) {
-            // not an error, do nothing
+            // not an error, just return a failure
+            return false;
         } catch (IOException | GeoIp2Exception e) {
             throw event.buildException("can't read geoip database", e);
         }
@@ -201,6 +202,7 @@ public class Geoip2 extends FieldsProcessor {
             }
         }
         event.put(destination, informations);
+        return true;
     }
 
     @Override

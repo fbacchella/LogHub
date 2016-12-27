@@ -41,10 +41,11 @@ public class Test extends Processor {
     }
 
     @Override
-    public void process(Event event) throws ProcessorException {
+    public boolean process(Event event) throws ProcessorException {
         Boolean testResult = Boolean.TRUE.equals(ifClause.eval(event, Collections.emptyMap()));
         Processor nextTransformer = testResult ? thenTransformer : elseTransformer;
         event.insertProcessor(nextTransformer);
+        return testResult;
     }
 
     @Override

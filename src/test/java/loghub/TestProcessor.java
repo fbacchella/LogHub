@@ -15,7 +15,8 @@ public class TestProcessor {
         Processor p = new Processor() {
 
             @Override
-            public void process(Event event) {
+            public boolean process(Event event) {
+                return true;
             }
 
             @Override
@@ -28,29 +29,29 @@ public class TestProcessor {
         p.setPath("");
         Assert.assertEquals("Prefix don't match ", "", p.getPath());
     }
-    
+
     @Test
     public void testIf() throws ProcessorException {
         Event e = new EventInstance();
 
         Processor p = new Identity();
-        
+
         p.setIf("true");
         p.configure(new Properties(Collections.emptyMap()));
         Assert.assertTrue(p.isprocessNeeded(e));
-        
+
         p.setIf("false");
         p.configure(new Properties(Collections.emptyMap()));
         Assert.assertFalse(p.isprocessNeeded(e));
-        
+
         p.setIf("0");
         p.configure(new Properties(Collections.emptyMap()));
         Assert.assertFalse(p.isprocessNeeded(e));
-        
+
         p.setIf("1");
         p.configure(new Properties(Collections.emptyMap()));
         Assert.assertTrue(p.isprocessNeeded(e));
-        
+
         p.setIf("0.1");
         p.configure(new Properties(Collections.emptyMap()));
         Assert.assertTrue(p.isprocessNeeded(e));

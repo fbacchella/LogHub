@@ -6,7 +6,7 @@ import loghub.Processor;
 public class Drop extends Processor {
 
     @Override
-    public void process(Event event) {
+    public boolean process(Event event) {
         throw new UnsupportedOperationException("can't process wrapped event");
     }
 

@@ -109,14 +109,25 @@ public class EventsProcessor extends Thread {
         } else {
             try {
                 if (p.isprocessNeeded(e)) {
-                    e.process(p);
-                    success = true;
+                    success = e.process(p);
+                }
+                // After processing, check the failures and success processors
+                Processor failureProcessor = p.getFailure();
+                Processor successProcessor = p.getSuccess();
+                if (success && successProcessor != null) {
+                    e.insertProcessor(successProcessor);
+                } else if (! success && failureProcessor != null) {
+                    e.insertProcessor(failureProcessor);
                 }
             } catch (ProcessorException.DroppedEventException ex) {
                 dropped = true;
             } catch (ProcessorException ex) {
                 Properties.metrics.counter("Pipeline." + e.getCurrentPipeline() + ".failure").inc();;
                 Stats.newError(ex);
+                Processor exceptionProcessor = p.getException();
+                if (exceptionProcessor != null) {
+                    e.insertProcessor(exceptionProcessor);
+                }
             } catch (Exception ex) {
                 Properties.metrics.counter("Pipeline." + e.getCurrentPipeline() + ".exception").inc();
                 Stats.newException(ex);
@@ -124,14 +135,6 @@ public class EventsProcessor extends Thread {
                 logger.throwing(Level.DEBUG, ex);
                 dropped = true;
             }
-        }
-        // After processing, check the failures and success processors
-        Processor failureProcessor = p.getFailure();
-        Processor successProcessor = p.getSuccess();
-        if (success && successProcessor != null) {
-            e.insertProcessor(successProcessor);
-        } else if (! success && failureProcessor != null) {
-            e.insertProcessor(failureProcessor);
         }
         return dropped;
     }

@@ -31,8 +31,9 @@ public class AnonymousSubPipeline extends Processor implements SubPipeline {
     }
 
     @Override
-    public void process(Event event) throws ProcessorException {
+    public boolean process(Event event) throws ProcessorException {
         assert false;
+        return false;
     }
 
     @Override

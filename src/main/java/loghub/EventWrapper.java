@@ -162,8 +162,8 @@ class EventWrapper extends Event {
     }
 
     @Override
-    public void process(Processor p) throws ProcessorException {
-        p.process(this);
+    public boolean process(Processor p) throws ProcessorException {
+        return p.process(this);
     }
 
     @Override

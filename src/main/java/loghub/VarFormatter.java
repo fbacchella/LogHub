@@ -362,14 +362,14 @@ public class VarFormatter {
         }
     }
 
-    public String format(Map<String, Object> variables) {
+    public String format(Map<String, Object> variables) throws IllegalArgumentException {
         Object[] resolved = new Object[mapper.size()];
         for(Map.Entry<String, Integer> e: mapper.entrySet()) {
             String[] path = e.getKey().split("\\.");
             if(path.length == 1) {
                 // Only one element in the key, just use it
                 if(! variables.containsKey(e.getKey())) {
-                    throw new RuntimeException("invalid values for format key " + e.getKey());
+                    throw new IllegalArgumentException("invalid values for format key " + e.getKey());
                 }
                 resolved[e.getValue()] = variables.get(e.getKey());
             } else {
@@ -380,7 +380,7 @@ public class VarFormatter {
                     @SuppressWarnings("unchecked")
                     Map<String, Object> next = (Map<String, Object>) current.get(key);
                     if( next == null || ! (next instanceof Map) ) {
-                        throw new RuntimeException("invalid values for format key " + e.getKey());
+                        throw new IllegalArgumentException("invalid values for format key " + e.getKey());
                     }
                     current = next;
                     key = path[i + 1];

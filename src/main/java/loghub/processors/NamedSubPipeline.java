@@ -12,8 +12,9 @@ public class NamedSubPipeline extends Processor implements SubPipeline {
     private Pipeline pipe;
 
     @Override
-    public void process(Event event) {
+    public boolean process(Event event) {
         assert false;
+        return true;
     }
 
     @Override

@@ -21,6 +21,7 @@ public abstract class Processor {
     private Expression ifexpression = null;
     private Processor success = null;
     private Processor failure = null;
+    private Processor exception = null;
     private String ifsource = null;
 
     public Processor() {
@@ -36,16 +37,20 @@ public abstract class Processor {
                 return false;
             }
         }
-        if(success != null &&  ! success.configure(properties)) {
+        if(success != null && ! success.configure(properties)) {
             return false;
         }
-        if(failure != null &&  ! failure.configure(properties)) {
+        if(failure != null && ! failure.configure(properties)) {
+            return false;
+        }
+        if(exception != null && ! exception.configure(properties)) {
             return false;
         }
         return true;
     }
 
-    public abstract void process(Event event) throws ProcessorException;
+    public abstract boolean process(Event event) throws ProcessorException;
+
     public abstract String getName();
 
     public int getThreads() {
@@ -130,6 +135,20 @@ public abstract class Processor {
      */
     public void setSuccess(Processor success) {
         this.success = success;
+    }
+
+    /**
+     * @return the exception
+     */
+    public Processor getException() {
+        return exception;
+    }
+
+    /**
+     * @param success the success to set
+     */
+    public void setException(Processor exception) {
+        this.exception = exception;
     }
 
 }

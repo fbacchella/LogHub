@@ -66,7 +66,7 @@ public class TestGrok {
     @Test
     public void TestLoadPatterns5() throws ProcessorException {
         Grok grok = new Grok();
-        grok.setFields(new String[] {"localhost", "remotehost"});
+        grok.setFields(new String[] {"localhost", "remotehost", "host", "remotehostother"});
         grok.setPattern("%{HOSTNAME:.}\\.google\\.com");
 
         Properties props = new Properties(Collections.emptyMap());
@@ -76,8 +76,29 @@ public class TestGrok {
         Event e = Tools.getEvent();
         e.put("localhost", "127.0.0.1");
         e.put("remotehost", "www.google.com");
-        e.process(grok);
+        e.put("remotehostother", "www.google.com");
+        e.put("host", "www.yahoo.com");
+        boolean found = e.process(grok);
+        Assert.assertTrue("not notified on match", found);
         Assert.assertEquals("invalid FQDN matching", "www", e.get("remotehost"));
+        Assert.assertEquals("invalid FQDN matching", "127.0.0.1", e.get("localhost"));
+    }
+
+    @Test
+    public void TestFailure() throws ProcessorException {
+        Grok grok = new Grok();
+        grok.setFields(new String[] {"localhost", "remotehost", "host", "remotehostother"});
+        grok.setPattern("%{HOSTNAME:.}\\.google\\.com");
+
+        Properties props = new Properties(Collections.emptyMap());
+
+        Assert.assertTrue("Failed to configure grok", grok.configure(props));
+
+        Event e = Tools.getEvent();
+        e.put("localhost", "127.0.0.1");
+        e.put("host", "www.yahoo.com");
+        boolean found = e.process(grok);
+        Assert.assertFalse("not notified on missing match", found);
         Assert.assertEquals("invalid FQDN matching", "127.0.0.1", e.get("localhost"));
     }
 

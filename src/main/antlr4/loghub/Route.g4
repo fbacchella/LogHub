@@ -30,7 +30,7 @@ beansDescription:  ('{' (bean (',' bean)*)? ','? '}')? ;
 
 bean
     :   'if' ':' expression
-    |   condition=('success' | 'failure') ':' pipenode
+    |   condition=('success' | 'failure' | 'exception') ':' pipenode
     |   (beanName ':' beanValue)
     ;
 

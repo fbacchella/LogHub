@@ -31,7 +31,7 @@ public class Grok extends FieldsProcessor {
     }
 
     @Override
-    public void processMessage(Event event, String field, String destination) {
+    public boolean processMessage(Event event, String field, String destination) {
         String line = event.get(field).toString();
         Match gm = grok.match(line);
         gm.captures();
@@ -73,7 +73,9 @@ public class Grok extends FieldsProcessor {
                     event.put(e.getKey(), e.getValue());
                 }
             }
+            return true;
         }
+        return false;
     }
 
     public void setPattern(String pattern) {

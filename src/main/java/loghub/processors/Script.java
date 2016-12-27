@@ -41,9 +41,10 @@ public class Script extends Processor {
     private Map<String, String> settings = Collections.emptyMap();
 
     @Override
-    public void process(Event event) throws ProcessorException {
+    public boolean process(Event event) throws ProcessorException {
         try {
-            inv.invokeFunction(settings.get("transform"), event);
+            Object result = inv.invokeFunction(settings.get("transform"), event);
+            return Boolean.TRUE.equals(result);
         } catch (NoSuchMethodException | ScriptException e) {
             throw event.buildException("unable to execute script " + script, e);
         }

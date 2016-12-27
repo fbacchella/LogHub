@@ -79,7 +79,7 @@ public class DateParser extends FieldsProcessor {
      * @see loghub.processors.FieldsProcessor#processMessage(loghub.Event, java.lang.String, java.lang.String)
      */
     @Override
-    public void processMessage(Event event, String field, String destination)
+    public boolean processMessage(Event event, String field, String destination)
             throws ProcessorException {
         String dateString = event.get(field).toString();
         logger.debug("trying to parse {} from {}", dateString, field);
@@ -129,7 +129,7 @@ public class DateParser extends FieldsProcessor {
         if(!converted) {
             throw event.buildException("date string '" + dateString + "' not parsed");
         }
-
+        return converted;
     }
 
     @Override

@@ -288,16 +288,17 @@ public class Merge extends Processor {
     }
 
     @Override
-    public void process(Event event) throws ProcessorException {
+    public boolean process(Event event) throws ProcessorException {
         Object eventKey;
         try {
             eventKey = index.format(event);
-        } catch (Exception e) {
-            return;
+        } catch (IllegalArgumentException e) {
+            // index key not found, not to be merged
+            return false;
         }
         // If the key is null, can't use the event
         if (eventKey == null) {
-            return;
+            return false;
         }
         logger.debug("key: {} for {}", eventKey, event);
         PausedEvent current = repository.getOrPause(eventKey, () -> {
@@ -345,6 +346,7 @@ public class Merge extends Processor {
         if (! forward) {
             throw new ProcessorException.DroppedEventException(event);
         }
+        return true;
     }
 
     @Override

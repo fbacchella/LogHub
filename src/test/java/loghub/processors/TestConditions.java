@@ -59,6 +59,7 @@ public class TestConditions {
 
         Tools.runProcessing(sent, conf.namedPipeLine.get("failurepipe"), conf);
 
+        Assert.assertEquals("conversion not expected", "a", sent.get("a"));
         Assert.assertEquals("conversion not expected", "failure", sent.get("test"));
     }
 

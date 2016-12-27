@@ -25,7 +25,7 @@ public abstract class Etl extends Processor {
         private String source;
         private String[] sourcePath;
         @Override
-        public void process(Event event) throws ProcessorException {
+        public boolean process(Event event) throws ProcessorException {
             Object old = event.applyAtPath((i,j,k) -> i.remove(j), sourcePath, null);
             if(lvalue.length == 1 && Event.TIMESTAMPKEY.equals(lvalue[0]) && old instanceof Date) {
                 event.setTimestamp((Date) old);
@@ -33,6 +33,7 @@ public abstract class Etl extends Processor {
             } else {
                 event.applyAtPath((i,j,k) -> i.put(j, k), lvalue, old, true);
             }
+            return true;
         }
         @Override
         public boolean configure(Properties properties) {
@@ -51,13 +52,14 @@ public abstract class Etl extends Processor {
         private String expression;
         private Expression script;
         @Override
-        public void process(Event event) throws ProcessorException {
+        public boolean process(Event event) throws ProcessorException {
             Object o = script.eval(event, Collections.emptyMap());
             if(lvalue.length == 1 && Event.TIMESTAMPKEY.equals(lvalue[0]) && o instanceof Date) {
                 event.setTimestamp((Date) o);
             } else {
                 event.applyAtPath((i,j,k) -> i.put(j, k), lvalue, o, true);
             }
+            return true;
         }
         @Override
         public boolean configure(Properties properties) {
@@ -88,7 +90,7 @@ public abstract class Etl extends Processor {
         private String className = null;
         private Class<?> clazz;
         @Override
-        public void process(Event event) throws ProcessorException {
+        public boolean process(Event event) throws ProcessorException {
             try {
                 event.applyAtPath((i,j,k) -> {
                     try {
@@ -103,6 +105,7 @@ public abstract class Etl extends Processor {
                         throw new CompletionException(e);
                     }
                 }, lvalue, (Object) null, false);
+                return true;
             } catch (CompletionException e1) {
                 throw event.buildException("unable to convert from string to " + className, (Exception)e1.getCause());
             }
@@ -128,12 +131,13 @@ public abstract class Etl extends Processor {
 
     public static class Remove extends Etl{
         @Override
-        public void process(Event event) throws ProcessorException {
+        public boolean process(Event event) throws ProcessorException {
             event.applyAtPath((i,j,k) -> i.remove(j), lvalue, null);
+            return true;
         }
     }
 
-    public abstract void process(Event event) throws ProcessorException; 
+    public abstract boolean process(Event event) throws ProcessorException; 
 
     @Override
     public String getName() {

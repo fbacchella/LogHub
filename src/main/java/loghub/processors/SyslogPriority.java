@@ -50,7 +50,7 @@ public class SyslogPriority extends FieldsProcessor {
     private boolean resolve = true;
 
     @Override
-    public void processMessage(Event event, String field, String destination)
+    public boolean processMessage(Event event, String field, String destination)
             throws ProcessorException {
         Object priorityObject = event.get(field);
         int priority;
@@ -79,6 +79,7 @@ public class SyslogPriority extends FieldsProcessor {
             infos.put("severity", severity);
         }
         event.put(destination, infos);
+        return true;
 
     }
 

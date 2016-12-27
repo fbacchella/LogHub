@@ -11,19 +11,20 @@ public class Mapper extends Etl {
     private String field;
 
     @Override
-    public void process(Event event) throws ProcessorException {
+    public boolean process(Event event) throws ProcessorException {
         if(! event.containsKey(field)) {
-            return;
+            return false;
         }
         Object key = event.get(field);
         if(key == null) {
-            return;
+            return false;
         }
         Object value = map.get(key);
         if (value == null) {
-            return;
+            return false;
         }
         event.put(field, value);
+        return true;
     }
 
     @Override

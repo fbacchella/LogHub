@@ -20,8 +20,9 @@ public class TestEvent {
     private static class Looper extends Processor {
 
         @Override
-        public void process(Event event) throws ProcessorException {
+        public boolean process(Event event) throws ProcessorException {
             event.appendProcessor(this);
+            return true;
         }
 
         @Override

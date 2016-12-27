@@ -18,7 +18,7 @@ public class UserAgent extends FieldsProcessor {
     private int cacheSize = 1000;
 
     @Override
-    public void processMessage(Event event, String field, String destination) {
+    public boolean processMessage(Event event, String field, String destination) {
         String userAgent = event.get(field).toString();
         Client c = uaParser.parse(userAgent);
 
@@ -45,6 +45,8 @@ public class UserAgent extends FieldsProcessor {
         }
 
         event.put(destination, ua);
+        
+        return true;
     }
 
     @Override

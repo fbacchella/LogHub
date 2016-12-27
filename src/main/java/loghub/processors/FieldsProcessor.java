@@ -18,15 +18,16 @@ public abstract class FieldsProcessor extends Processor {
     private String[] fields = new String[] {};
     private Pattern[] patterns = new Pattern[]{};
 
-    public abstract void processMessage(Event event, String field, String destination) throws ProcessorException;
+    public abstract boolean processMessage(Event event, String field, String destination) throws ProcessorException;
 
     @Override
-    public void process(Event event) throws ProcessorException {
+    public boolean process(Event event) throws ProcessorException {
+        boolean success = false;
         if (patterns.length != 0) {
             for (String f: new HashSet<>(event.keySet())) {
                 for (Pattern p: patterns) {
                     if (p.matcher(f).matches() && event.containsKey(f) && event.get(f) != null) {
-                        processMessage(event, f, getDestination(f));
+                        success |= processMessage(event, f, getDestination(f));
                         // Processed, don't look for another matching pattern
                         break;
                     }
@@ -34,9 +35,10 @@ public abstract class FieldsProcessor extends Processor {
             }
         } else {
             if (event.containsKey(field) && event.get(field) != null) {
-                processMessage(event, field, getDestination(field));
+                success |= processMessage(event, field, getDestination(field));
             }
         }
+        return success;
     }
     
     private final String getDestination(String field) {

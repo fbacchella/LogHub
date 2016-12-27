@@ -12,7 +12,7 @@ public class DecodeUrl extends FieldsProcessor {
     private boolean loop = false;
 
     @Override
-    public void processMessage(Event event, String field, String destination) throws ProcessorException {
+    public boolean processMessage(Event event, String field, String destination) throws ProcessorException {
         String oldMessage = event.get(field).toString();
         try {
             String message = null;
@@ -25,7 +25,8 @@ public class DecodeUrl extends FieldsProcessor {
                 count ++;
             } while(again && count < 5);
             event.put(destination, message);
-        } catch (UnsupportedEncodingException|java.lang.IllegalArgumentException e) {
+            return true;
+        } catch (UnsupportedEncodingException | IllegalArgumentException e) {
             throw event.buildException("unable to decode " + oldMessage, e);
         }
 

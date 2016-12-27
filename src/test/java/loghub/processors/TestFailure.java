@@ -14,7 +14,7 @@ public class TestFailure {
         Processor p = new Processor() {
 
             @Override
-            public void process(Event event) throws ProcessorException {
+            public boolean process(Event event) throws ProcessorException {
                 throw event.buildException("test failure", new RuntimeException("test failure"));
             }
 

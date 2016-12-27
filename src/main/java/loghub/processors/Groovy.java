@@ -14,12 +14,12 @@ public class Groovy extends Processor  {
     private Script groovyScript;
 
     @Override
-    public void process(Event event) throws ProcessorException {
+    public boolean process(Event event) throws ProcessorException {
         Binding groovyBinding = new Binding();
         groovyBinding.setVariable("event", event);
         groovyScript.setBinding(groovyBinding);
         try {
-            groovyScript.run();
+            return Boolean.TRUE.equals(groovyScript.run());
         } catch (Exception e) {
             throw event.buildException("groovy script failed", e);
         }
