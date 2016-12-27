@@ -75,7 +75,7 @@ class EventWrapper extends Event {
         if(key instanceof String && "@timestamp".equals(key)) {
             return true;
         } else {
-            return (Boolean) action( ((i, j, k) -> i.containsKey(j)), key.toString(), null) == true;
+            return Boolean.TRUE.equals(action( ((i, j, k) -> i.containsKey(j)), key.toString(), null));
         }
     }
 
@@ -98,7 +98,7 @@ class EventWrapper extends Event {
     }
 
     public boolean containsValue(Object value) {
-        return (Boolean) action( ((i, j, k) -> i.containsValue(k)), null, null) == true;
+        return Boolean.TRUE.equals(action( ((i, j, k) -> i.containsValue(k)), null, null));
     }
 
     @SuppressWarnings("unchecked")
