@@ -126,9 +126,6 @@ public class DateParser extends FieldsProcessor {
                 //no problem, just wrong parser, keep going
             }
         }
-        if(!converted) {
-            throw event.buildException("date string '" + dateString + "' not parsed");
-        }
         return converted;
     }
 
