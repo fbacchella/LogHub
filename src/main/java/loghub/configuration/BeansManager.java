@@ -148,12 +148,12 @@ public class BeansManager {
      * Create an object providing the class and a String argument. So the class must have
      * a constructor taking only a string as an argument.
      * 
-     * It can manage native type and return an boxed object 
-     * @param <T>
-     * @param clazz
-     * @param value
-     * @return
-     * @throws InvocationTargetException 
+     * It can manage native type and return an boxed object
+     * @param <T> The value type
+     * @param clazz the class of the new object
+     * @param value the value as a string
+     * @return a convertion from String
+     * @throws InvocationTargetException if it fails to construct the value
      */
     @SuppressWarnings("unchecked")
     public static <T> T ConstructFromString(Class<T> clazz, String value) throws InvocationTargetException {

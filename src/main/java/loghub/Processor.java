@@ -145,7 +145,7 @@ public abstract class Processor {
     }
 
     /**
-     * @param success the success to set
+     * @param exception the success to set
      */
     public void setException(Processor exception) {
         this.exception = exception;
