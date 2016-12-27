@@ -34,7 +34,7 @@ public class TestVarExtractor {
         t.setParser("(?<name>[a-z]+)[=:](?<value>[^;]+);?");
         Event e = Tools.getEvent();
         e.put("message", "a=1;b:2;c");
-        e.process(t);
+        Assert.assertTrue(e.process(t));
         System.out.println(e);
         @SuppressWarnings("unchecked")
         Map<String, Object> sub = (Map<String, Object>) e.get("sub");
