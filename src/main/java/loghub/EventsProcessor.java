@@ -131,7 +131,13 @@ public class EventsProcessor extends Thread {
             } catch (Exception ex) {
                 Properties.metrics.counter("Pipeline." + e.getCurrentPipeline() + ".exception").inc();
                 Stats.newException(ex);
-                logger.error("failed to transform event {} with unmanaged error: {}", e, ex.getMessage());
+                String message;
+                if (ex instanceof NullPointerException) {
+                    message = "NullPointerException";
+                } else {
+                    message = ex.getMessage();
+                }
+                logger.error("failed to transform event {} with unmanaged error: {}", e, message);
                 logger.throwing(Level.DEBUG, ex);
                 dropped = true;
             }
