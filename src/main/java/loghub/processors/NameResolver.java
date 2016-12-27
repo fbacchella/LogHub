@@ -53,8 +53,10 @@ public class NameResolver extends FieldsProcessor {
     @Override
     public boolean configure(Properties properties) {
         CacheConfiguration config = properties.getDefaultCacheConfig("NameResolver", this)
+                .eternal(false)
                 .maxEntriesLocalHeap(cacheSize)
-                .timeToLiveSeconds(ttl);
+                .timeToLiveSeconds(ttl)
+                ;
 
         hostCache = properties.getCache(config);
         return super.configure(properties);
@@ -64,6 +66,7 @@ public class NameResolver extends FieldsProcessor {
     public boolean processMessage(Event event, String field, String destination) throws ProcessorException {
         Object addr = event.get(field);
 
+        InetAddress ipaddr = null;
         String toresolv = null;
 
         // If a string was given, convert it to a Inet?Address
@@ -77,20 +80,22 @@ public class NameResolver extends FieldsProcessor {
             }
             if(parts != null) {
                 try {
-                    addr = InetAddress.getByAddress(parts);
+                    ipaddr = InetAddress.getByAddress(parts);
                 } catch (UnknownHostException e) {
-                    throw event.buildException("invalid IP address " + addr, e);
+                    throw event.buildException("invalid IP address '" + addr + "': " + e.getMessage());
                 }
             }
+        } else if (addr instanceof InetAddress) {
+            ipaddr = (InetAddress) addr;
         }
 
-        if(addr instanceof Inet4Address) {
-            Inet4Address ipv4 = (Inet4Address) addr;
+        if(ipaddr instanceof Inet4Address) {
+            Inet4Address ipv4 = (Inet4Address) ipaddr;
             byte[] parts = ipv4.getAddress();
             // the & 0xFF is needed because bytes are signed bytes
             toresolv = String.format("%d.%d.%d.%d.in-addr.arpa.", parts[3] & 0xFF , parts[2] & 0xFF , parts[1] & 0xFF, parts[0] & 0xFF);
         } else if(addr instanceof Inet6Address) {
-            Inet6Address ipv6 = (Inet6Address) addr;
+            Inet6Address ipv6 = (Inet6Address) ipaddr;
             byte[] parts = ipv6.getAddress();
             StringBuilder buffer = new StringBuilder();
             for(int i = parts.length - 1; i >= 0; i--) {
@@ -130,7 +135,7 @@ public class NameResolver extends FieldsProcessor {
                 }
                 return true;
             } catch (IllegalArgumentException e) {
-                throw event.buildException("can't setup resolver " + addr, (Exception) e.getCause());
+                throw event.buildException("can't setup resolver for '" + addr + "':" + e.getCause().getMessage());
             } catch (NameNotFoundException ex) {
                 // Expected failure from DNS, don't care
                 // But keep a short negative cache to avoid flooding
@@ -139,7 +144,7 @@ public class NameResolver extends FieldsProcessor {
                 hostCache.put(e);
                 return false;
             } catch (NamingException e) {
-                throw event.buildException("unresolvable name " + addr, e);
+                throw event.buildException("unresolvable name '" + addr.toString() + "': " + e.getMessage());
             } 
         }
         return false;
