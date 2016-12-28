@@ -44,6 +44,7 @@ public class TestNameResolver {
         nr.setResolver("8.8.8.8");
         nr.setField("host");
         nr.setDestination("fqdn_${field%s}");
+        nr.setTimeout(5);
         nr.configure(new Properties(Collections.emptyMap()));
         Event e = Tools.getEvent();
         /// resolving a.root-servers.net.

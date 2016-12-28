@@ -31,8 +31,8 @@ public class NameResolver extends FieldsProcessor {
             Hashtable<String, String> env = new Hashtable<>();
             env.put("java.naming.factory.initial", "com.sun.jndi.dns.DnsContextFactory");
             env.put("java.naming.provider.url", url);
-            env.put("com.example.jndi.dns.timeout.initial", Integer.toString(timeout));
-            env.put("com.example.jndi.dns.timeout.retries", Integer.toString(retries));
+            env.put("com.sun.jndi.dns.timeout.initial", Integer.toString(timeout * 1000));
+            env.put("com.sun.jndi.dns.timeout.retries", Integer.toString(retries));
             try {
                 return new InitialDirContext(env);
             } catch (NamingException e) {
@@ -156,10 +156,24 @@ public class NameResolver extends FieldsProcessor {
     }
 
     /**
+     * @return the dns pseudo-URL of the resolvers
+     */
+    public String getResolversUrl() {
+        return url;
+    }
+
+    /**
+     * @param url the dns pseudo-URL of the resolvers
+     */
+    public void setResolversUrl(String url) {
+        this.url = url;
+    }
+
+    /**
      * @return the the IP of the resolver
      */
     public String getResolver() {
-        return url;
+        return url.replaceFirst(" .*", "").replace("dns://", "");
     }
 
     /**
@@ -196,5 +210,20 @@ public class NameResolver extends FieldsProcessor {
     public void setTtl(int ttl) {
         this.ttl = ttl;
     }
+
+    /**
+     * @return the timeout for queries in seconds
+     */
+    public int getTimeout() {
+        return timeout;
+    }
+
+    /**
+     * @param timeout The timeout for queries in seconds
+     */
+    public void setTimeout(int timeout) {
+        this.timeout = timeout;
+    }
+
 
 }
