@@ -88,6 +88,29 @@ public class SnmpTrap extends Receiver implements CommandResponder {
 
     @Override
     public boolean configure(Properties properties) {
+        if(mibtree == null) {
+            mibtree = new MibTree();
+        }
+
+        if(! reconfigured && properties.containsKey("oidfile")) {
+            reconfigured = true;
+            String oidfile = null;
+            try {
+                oidfile = (String) properties.get("oidfile");
+                InputStream is = new FileInputStream(oidfile);
+                mibtree.load(is);
+            } catch (ClassCastException e) {
+                logger.error("oidfile property is not a string");
+                return false;
+            } catch (FileNotFoundException e) {
+                logger.error("oidfile {} cant't be found", oidfile);
+                return false;
+            } catch (IOException e) {
+                logger.error("oidfile {} cant't be read: {}", oidfile, e.getMessage());
+                return false;
+            }
+        }
+
         threadPool = ThreadPool.create("Trap", 2);
         MultiThreadedMessageDispatcher dispatcher = new MultiThreadedMessageDispatcher(threadPool,
                 new MessageDispatcherImpl());
@@ -107,28 +130,6 @@ public class SnmpTrap extends Receiver implements CommandResponder {
             snmp.listen();
         } catch (IOException e) {
             logger.error("can't listen: {}", e.getMessage());
-        }
-        if(mibtree == null) {
-            mibtree = new MibTree();
-        }
-
-        if(! reconfigured && properties.containsKey("oidfile")) {
-            reconfigured = true;
-            String oidfile = null;
-            try {
-                oidfile = (String) properties.get("oidfile");
-                InputStream is = new FileInputStream(oidfile);
-                mibtree.load(is);
-            } catch (ClassCastException e) {
-                logger.error("oidfile property is not a string");
-                return false;
-            } catch (FileNotFoundException e) {
-                logger.error("oidfile {} cant't be found", oidfile);
-                return false;
-            } catch (IOException e) {
-                logger.error("oidfile {} cant't be read:{}", oidfile, e.getMessage());
-                return false;
-            }
         }
         return super.configure(properties);
     }
