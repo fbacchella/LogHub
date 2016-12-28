@@ -16,6 +16,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TimeZone;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ThreadLocalRandom;
@@ -41,8 +42,10 @@ import org.apache.http.protocol.HttpContext;
 import org.apache.logging.log4j.Level;
 
 import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 
 import loghub.Event;
 import loghub.Sender;
@@ -54,7 +57,9 @@ public class ElasticSearch extends Sender {
     private static final ThreadLocal<ObjectMapper> json = new ThreadLocal<ObjectMapper>() {
         @Override
         protected ObjectMapper initialValue() {
-            return new ObjectMapper(factory);
+            return new ObjectMapper(factory)
+                    .configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false)
+                    .configure(JsonGenerator.Feature.ESCAPE_NON_ASCII, true);
         }
     };
 
@@ -78,6 +83,7 @@ public class ElasticSearch extends Sender {
     public ElasticSearch(BlockingQueue<Event> inQueue) {
         super(inQueue);
 
+        ES_INDEX.setTimeZone(TimeZone.getTimeZone("UTC"));
         // A runnable that will be affected to threads
         // It consumes event and send them as bulk
         publisher = new Runnable() {
