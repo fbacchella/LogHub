@@ -19,11 +19,11 @@ public class Mapper extends Etl {
         if(key == null) {
             return false;
         }
-        Object value = map.get(key);
-        if (value == null) {
+        if (! map.containsKey(key)) {
             return false;
         }
-        event.put(field, value);
+        Object value = map.get(key);
+        event.applyAtPath((i,j,k) -> i.put(j, k), lvalue, value, true);
         return true;
     }
 
