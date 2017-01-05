@@ -2,6 +2,9 @@ package loghub;
 
 import java.io.IOException;
 import java.rmi.NotBoundException;
+import java.util.Arrays;
+import java.util.Iterator;
+import java.util.List;
 
 import javax.management.InstanceAlreadyExistsException;
 import javax.management.MBeanRegistrationException;
@@ -25,8 +28,33 @@ public class Start extends Thread {
     private static final Logger logger = LogManager.getLogger();
 
     static public void main(final String[] args) {
+
+        String configFile = null;
+        boolean test = false;
+
+        if (args.length > 0) {
+            List<String> argsList = Arrays.asList(args);
+            Iterator<String> i = argsList.iterator();
+            while (i.hasNext()) {
+                String arg = i.next();
+                if ("-c".equals(arg) || "--config".equals(arg)) {
+                    if (i.hasNext()) {
+                        configFile = i.next();
+                    }
+                }
+                else if ("-t".equals(arg) || "--test".equals(arg)) {
+                    test = true;;
+                } else {
+                    configFile = arg;
+                }
+            }
+        }
+
         try {
-            new Start(args[0]).start();
+            Properties props = Configuration.parse(configFile);
+            if (! test) {
+                new Start(props).start();
+            }
         } catch (NullPointerException e) {
             e.printStackTrace();
         } catch (RuntimeException e) {
@@ -37,13 +65,12 @@ public class Start extends Thread {
         } catch (ConfigException e) {
             System.out.format("Error in configuration file %s at %s: %s", args[0], e.getStartPost(), e.getMessage());
         }
+        
     }
 
-    public Start(String configFile) throws ConfigException, IOException {
+    public Start(Properties props) throws ConfigException, IOException {
 
         setName("LogHub");
-
-        Properties props = Configuration.parse(configFile);
 
         props.pipelines.stream().forEach(i-> i.configure(props));
 
