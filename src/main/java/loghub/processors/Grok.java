@@ -21,6 +21,8 @@ import oi.thekraken.grok.api.Match;
 import oi.thekraken.grok.api.exception.GrokException;
 
 public class Grok extends FieldsProcessor {
+    
+    public static String PATTERNSFOLDER = "patterns";
 
     private final oi.thekraken.grok.api.Grok grok;
     private String pattern;
@@ -95,7 +97,7 @@ public class Grok extends FieldsProcessor {
     public boolean configure(Properties properties) {
         Helpers.ThrowingConsumer<InputStream> grokloader = is -> grok.addPatternFromReader(new InputStreamReader(new BufferedInputStream(is)));
         try {
-            Helpers.readRessources(properties.classloader, "patterns", grokloader);
+            Helpers.readRessources(properties.classloader, PATTERNSFOLDER, grokloader);
             grok.compile(pattern);
         } catch (IOException | URISyntaxException e) {
             logger.error("unable to load patterns: {}", e.getMessage());

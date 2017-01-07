@@ -20,6 +20,7 @@ import com.codahale.metrics.JmxReporter;
 import loghub.configuration.ConfigException;
 import loghub.configuration.Configuration;
 import loghub.configuration.Properties;
+import loghub.configuration.TestGrokPatterns;
 import loghub.jmx.Helper;
 import loghub.netty.http.AbstractHttpServer;
 
@@ -31,6 +32,7 @@ public class Start extends Thread {
 
         String configFile = null;
         boolean test = false;
+        String grokPatterns = null;
 
         if (args.length > 0) {
             List<String> argsList = Arrays.asList(args);
@@ -41,13 +43,19 @@ public class Start extends Thread {
                     if (i.hasNext()) {
                         configFile = i.next();
                     }
-                }
-                else if ("-t".equals(arg) || "--test".equals(arg)) {
-                    test = true;;
+                } else if ("-t".equals(arg) || "--test".equals(arg)) {
+                    test = true;
+                } else if ("-g".equals(arg) || "--grok".equals(arg)) {
+                    grokPatterns = i.next();
                 } else {
                     configFile = arg;
                 }
             }
+        }
+
+        if (grokPatterns != null) {
+            TestGrokPatterns.check(grokPatterns);
+            System.exit(0);
         }
 
         try {
@@ -57,15 +65,18 @@ public class Start extends Thread {
             }
         } catch (NullPointerException e) {
             e.printStackTrace();
+            System.exit(1);
         } catch (RuntimeException e) {
-            System.out.println(e.getMessage());
             e.printStackTrace();
+            System.exit(1);
         } catch (IOException e) {
             System.out.format("can't read configuration file %s: %s", args[0], e.getMessage());
+            System.exit(1);
         } catch (ConfigException e) {
             System.out.format("Error in configuration file %s at %s: %s", args[0], e.getStartPost(), e.getMessage());
+            System.exit(1);
         }
-        
+
     }
 
     public Start(Properties props) throws ConfigException, IOException {
