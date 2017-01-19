@@ -196,4 +196,19 @@ class EventWrapper extends Event {
         return event.stepsCount();
     }
 
+    @Override
+    public boolean isTest() {
+        return event.isTest();
+    }
+
+    @Override
+    public void doMetric(Runnable metric) {
+        event.doMetric(metric);
+    }
+
+    @Override
+    public void drop() {
+        event.drop();
+    }
+
 }

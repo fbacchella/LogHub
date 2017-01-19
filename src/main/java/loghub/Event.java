@@ -15,6 +15,10 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
         return new EventInstance();
     }
 
+    public static Event emptyTestEvent() {
+        return new EventInstance(true);
+    }
+
     public Object applyAtPath(Helpers.TriFunction<Map<String, Object>, String, Object, Object> f, String[] path, Object value) {
         return applyAtPath(f, path, value, false);
     }
@@ -78,5 +82,11 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
     public abstract void end();
 
     public abstract int stepsCount();
+    
+    public abstract boolean isTest();
+    
+    public abstract void doMetric(Runnable metric);
+    
+    public abstract void drop();
 
 }

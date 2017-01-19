@@ -1,7 +1,9 @@
 package loghub;
 
+import java.io.Closeable;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -17,6 +19,20 @@ import loghub.processors.Forker;
 public class EventsProcessor extends Thread {
 
     private final static Logger logger = LogManager.getLogger();
+
+    private static class ContextWrapper implements Closeable, AutoCloseable {
+        private final Context timer;
+        ContextWrapper(Context timer) {
+            this.timer = timer;
+        }
+        @Override
+        public
+        void close() {
+            if (timer !=null) {
+                timer.close();
+            }
+        }
+    }
 
     private final BlockingQueue<Event> inQueue;
     private final Map<String, BlockingQueue<Event>> outQueues;
@@ -34,14 +50,16 @@ public class EventsProcessor extends Thread {
     @Override
     public void run() {
         String threadName = Thread.currentThread().getName();
-        Counter gaugecounter = null;
+        final AtomicReference<Counter> gaugecounter = new AtomicReference<>();
         Event event = null;
         try {
             while (true) {
                 event = inQueue.take();
-                gaugecounter = Properties.metrics.counter("Pipeline." + event.getCurrentPipeline() + ".inflight");
-                gaugecounter.inc();
-                try (Context timer = Properties.metrics.timer("Pipeline." + event.getCurrentPipeline() + ".timer").time()){
+                if (!event.isTest()) {
+                    gaugecounter.set(Properties.metrics.counter("Pipeline." + event.getCurrentPipeline() + ".inflight"));
+                    gaugecounter.get().inc();
+                }
+                try (ContextWrapper cw = new ContextWrapper(event.isTest() ? null : Properties.metrics.timer("Pipeline." + event.getCurrentPipeline() + ".timer").time())){
                     logger.trace("received {}", event);
                     Processor processor;
                     while ((processor = event.next()) != null) {
@@ -49,46 +67,55 @@ public class EventsProcessor extends Thread {
                         Thread.currentThread().setName(threadName + "-" + processor.getName());
                         boolean dropped = process(event, processor);
                         Thread.currentThread().setName(threadName);
-                        if(dropped) {
-                            gaugecounter.dec();
+                        if (dropped) {
                             logger.debug("dropped event {}", event);
-                            Properties.metrics.meter("Allevents.dropped");
-                            event.end();
+                            event.doMetric(() -> {
+                                gaugecounter.get().dec();
+                                Properties.metrics.meter("Allevents.dropped");
+                            });
+                            event.drop();
                             event = null;
                             break;
                         }
                     }
                     //No processor, processing finished
                     //Detect if will send to another pipeline, or just wait for a sender to take it
-                    if(processor == null) {
-                        gaugecounter.dec();
-                        gaugecounter = null;
-                        if(event.getNextPipeline() != null) {
+                    if (processor == null) {
+                        event.doMetric(() -> {
+                            gaugecounter.get().dec();
+                            gaugecounter.set(null);
+                        });
+                        // A test event, it will not be send to another pipeline
+                        if (event.isTest()) {
+                            logger.info("processed a test event");
+                            event.end();
+                        } else if (event.getNextPipeline() != null) {
                             // Send to another pipeline, loop in the main processing queue
                             Pipeline next = namedPipelines.get(event.getNextPipeline());
-                            if(! event.inject(next, inQueue)) {
+                            if (! event.inject(next, inQueue)) {
                                 Properties.metrics.meter("Pipeline." + next.getName() + ".blocked").mark();
                                 event.end();
                                 event = null;
                             }
                         } else {
                             // Put in the output queue, where the wanting output will come to take it
-                            if(!outQueues.get(event.getCurrentPipeline()).offer(event)) {
-                                Properties.metrics.meter("Pipeline." + event.getCurrentPipeline() + ".out.blocked").mark();
+                            if (!outQueues.get(event.getCurrentPipeline()).offer(event)) {
+                                final String currentPipeline = event.getCurrentPipeline();
+                                Properties.metrics.meter("Pipeline." + currentPipeline + ".out.blocked").mark();
                                 event.end();
                                 event = null;
                             }
                         }
-                    } 
+                    }
                 }
             }
         } catch (InterruptedException e) {
             Thread.currentThread().setName(threadName);
             Thread.currentThread().interrupt();
         }
-        if (gaugecounter != null) {
-            gaugecounter.dec();
-            gaugecounter = null;
+        if (gaugecounter.get() != null) {
+            gaugecounter.get().dec();
+            gaugecounter.set(null);
         }
         if (event != null) {
             event.end();
@@ -122,15 +149,19 @@ public class EventsProcessor extends Thread {
             } catch (ProcessorException.DroppedEventException ex) {
                 dropped = true;
             } catch (ProcessorException ex) {
-                Properties.metrics.counter("Pipeline." + e.getCurrentPipeline() + ".failure").inc();;
-                Stats.newError(ex);
+                e.doMetric(() -> {
+                    Properties.metrics.counter("Pipeline." + e.getCurrentPipeline() + ".failure").inc();
+                    Stats.newError(ex);
+                });
                 Processor exceptionProcessor = p.getException();
                 if (exceptionProcessor != null) {
                     e.insertProcessor(exceptionProcessor);
                 }
             } catch (Exception ex) {
-                Properties.metrics.counter("Pipeline." + e.getCurrentPipeline() + ".exception").inc();
-                Stats.newException(ex);
+                e.doMetric(() -> {
+                    Properties.metrics.counter("Pipeline." + e.getCurrentPipeline() + ".exception").inc();
+                    Stats.newException(ex);
+                });
                 String message;
                 if (ex instanceof NullPointerException) {
                     message = "NullPointerException";

@@ -10,6 +10,7 @@ import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.BlockingQueue;
 
@@ -30,27 +31,50 @@ class EventInstance extends Event {
     private String currentPipeline;
     private String nextPipeline;
     private Date timestamp = new Date();
-    private transient Context timer = Properties.metrics.timer("Allevents.timer").time();
+    private transient Context timer;
     private int stepsCount = 0;
+    private boolean test;
 
     EventInstance() {
-        Properties.metrics.counter("Allevents.inflight").inc();
+        this(false);
+    }
+
+    EventInstance(boolean test) {
+        this.test = test;
+        if (! test) {
+            Properties.metrics.counter("Allevents.inflight").inc();
+            timer = Properties.metrics.timer("Allevents.timer").time();
+        } else {
+            timer = null;
+        }
     }
 
     public void end() {
-        timer.close();
-        Properties.metrics.counter("Allevents.inflight").dec();
+        if(! test) {
+            timer.close();
+            Properties.metrics.counter("Allevents.inflight").dec();
+        } else {
+            synchronized(this) {
+                notify();
+            }
+        }
     }
 
     /**
      * Return a deep copy of the event.
-     * 
+     * <p>
      * It work by doing serialize/deserialize of the event. So a event must
      * only contains serializable object to make it works.
-     * 
+     * <p>
+     * It will not duplicate a test event
+     * <p>
      * @return a copy of this event, with a different key
      */
     public Event duplicate() {
+        //Don't fork test event
+        if (test) {
+            return null;
+        }
         try {
             ByteArrayOutputStream bos = new ByteArrayOutputStream();
             ObjectOutputStream oos = new ObjectOutputStream(bos);
@@ -188,13 +212,47 @@ class EventInstance extends Event {
     private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
         in.defaultReadObject();
 
-        timer = Properties.metrics.timer("Allevents.timer").time();
-        Properties.metrics.counter("Allevents.inflight").inc();
+        if (!test) {
+            timer = Properties.metrics.timer("Allevents.timer").time();
+            Properties.metrics.counter("Allevents.inflight").inc();
+        }
     }
 
     @Override
     public int stepsCount() {
         return stepsCount;
+    }
+
+    @Override
+    public boolean isTest() {
+        return test;
+    }
+
+    @Override
+    public void doMetric(Runnable metric) {
+        if (! test) {
+            metric.run();
+        }
+    }
+
+    @Override
+    public void drop() {
+        end();
+        if (test) {
+            clear();
+            put("_processing_dropped", Boolean.TRUE);
+        }
+    }
+
+    @Override
+    public void putAll(Map<? extends String, ? extends Object> m) {
+        super.putAll(m);
+        if (m.containsKey(Event.TIMESTAMPKEY)) {
+            if (m.get(Event.TIMESTAMPKEY) instanceof Date) {
+                timestamp = (Date) m.get(Event.TIMESTAMPKEY);
+            }
+            remove(Event.TIMESTAMPKEY);
+        }
     }
 
 }

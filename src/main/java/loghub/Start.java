@@ -20,6 +20,7 @@ import com.codahale.metrics.JmxReporter;
 import loghub.configuration.ConfigException;
 import loghub.configuration.Configuration;
 import loghub.configuration.Properties;
+import loghub.configuration.TestEventProcessing;
 import loghub.configuration.TestGrokPatterns;
 import loghub.jmx.Helper;
 import loghub.netty.http.AbstractHttpServer;
@@ -33,6 +34,7 @@ public class Start extends Thread {
         String configFile = null;
         boolean test = false;
         String grokPatterns = null;
+        String pipeLineTest = null;
 
         if (args.length > 0) {
             List<String> argsList = Arrays.asList(args);
@@ -47,6 +49,8 @@ public class Start extends Thread {
                     test = true;
                 } else if ("-g".equals(arg) || "--grok".equals(arg)) {
                     grokPatterns = i.next();
+                } else if ("-p".equals(arg) || "--pipeline".equals(arg)) {
+                    pipeLineTest = i.next();
                 } else {
                     configFile = arg;
                 }
@@ -55,6 +59,9 @@ public class Start extends Thread {
 
         if (grokPatterns != null) {
             TestGrokPatterns.check(grokPatterns);
+            System.exit(0);
+        } else if (pipeLineTest != null) {
+            TestEventProcessing.check(pipeLineTest, configFile);
             System.exit(0);
         }
 
