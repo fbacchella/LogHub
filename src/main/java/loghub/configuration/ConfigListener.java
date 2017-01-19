@@ -575,9 +575,9 @@ class ConfigListener extends RouteBaseListener {
         } else if (ctx.l != null) {
             expression = ctx.l.getText();
         } else if (ctx.ev != null) {
-            String ev = ctx.ev.getText();
-            ev = ev.substring(1, ev.length() - 1 );
-            expression = "event." + ev;
+            StringBuilder buffer = new StringBuilder("event");
+            ctx.ev.Identifier().stream().forEach(id -> buffer.append(".").append(id.getText()));
+            expression = buffer.toString();
         } else if (ctx.qi != null) {
             expression = ctx.qi.getText();
         } else if (ctx.opu != null) {

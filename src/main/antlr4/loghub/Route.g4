@@ -154,7 +154,7 @@ map
     : '{' (literal ':' beanValue ( ',' ? literal ':' beanValue)*)? ','? '}'
     ;
 
-eventVariable: '[' Identifier ('.' Identifier)* ']' ;
+eventVariable: '[' Identifier ( Identifier)* ']' ;
 
 propertyName
     :   Identifier | QualifiedIdentifier

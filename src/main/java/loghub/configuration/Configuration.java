@@ -250,7 +250,6 @@ public class Configuration {
             pr.setPipeRef(cpr.pipename);
             t = pr;
         } else if (i instanceof ConfigListener.PipenodesList){
-            System.out.println("found a PipenodesList");
             subPipeLine.incrementAndGet();
             AnonymousSubPipeline subpipe = new AnonymousSubPipeline();
             Pipeline p = parsePipeline((ConfigListener.PipenodesList)i, currentPipeLineName, depth, subPipeLine);
