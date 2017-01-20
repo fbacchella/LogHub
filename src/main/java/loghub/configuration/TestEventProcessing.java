@@ -42,7 +42,7 @@ public class TestEventProcessing {
                 Map<String, Object> eventMap = i.next();
                 Date eventDate = null;
                 if (eventMap.containsKey(Event.TIMESTAMPKEY) && eventMap.get(Event.TIMESTAMPKEY) instanceof String) {
-                    TemporalAccessor ta = DateTimeFormatter.ISO_INSTANT.parse((CharSequence) eventMap.remove(Event.TIMESTAMPKEY));
+                    TemporalAccessor ta = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:m:ss.SSSxx").parse((CharSequence) eventMap.remove(Event.TIMESTAMPKEY));
 
                     OffsetDateTime now;
                     // Try to resolve the time zone first
@@ -68,6 +68,7 @@ public class TestEventProcessing {
                     System.out.println(ev);
                 }
             }
+            Thread.currentThread().join();
         } catch (IOException e) {
             e.printStackTrace();
         } catch (ConfigException e) {
