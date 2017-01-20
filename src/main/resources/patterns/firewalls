@@ -4,7 +4,9 @@ NETSCREENSESSIONLOG %{SYSLOGTIMESTAMP:date} %{IPORHOST:device} %{IPORHOST}: NetS
 #== Cisco ASA ==
 CISCO_TAGGED_SYSLOG ^<%{POSINT:syslog_pri}>%{CISCOTIMESTAMP:timestamp}( %{SYSLOGHOST:sysloghost})? ?: %%{CISCOTAG:ciscotag}:
 CISCOTIMESTAMP %{MONTH} +%{MONTHDAY}(?: %{YEAR})? %{TIME}
-CISCOTAG [A-Z0-9]+-%{INT}-(?:[A-Z0-9_]+)
+CISCOTAG [-A-Z0-9_]+-%{INT}-(?:[A-Z0-9_]+)
++CISCODURATIONHOUR (?:[0-9]+)
++CISCODURATION (?!<[0-9])%{CISCODURATIONHOUR}:%{MINUTE}(?::%{SECOND})(?![0-9])
 # Common Particles
 CISCO_ACTION Built|Teardown|Deny|Denied|denied|requested|permitted|denied by ACL|discarded|est-allowed|Dropping|created|deleted
 CISCO_REASON Duplicate TCP SYN|Failed to locate egress interface|Invalid transport field|No matching connection|DNS Response|DNS Query|(?:%{WORD}\s*)*
@@ -28,10 +30,16 @@ CISCOFW105005 \((?:Primary|Secondary)\) Lost Failover communications with mate o
 CISCOFW105008 \((?:Primary|Secondary)\) Testing [Ii]nterface %{GREEDYDATA:interface_name}
 # ASA-1-105009
 CISCOFW105009 \((?:Primary|Secondary)\) Testing on [Ii]nterface %{GREEDYDATA:interface_name} (?:Passed|Failed)
-# ASA-2-106001
-CISCOFW106001 %{CISCO_DIRECTION:direction} %{WORD:protocol} connection %{CISCO_ACTION:action} from %{SRC_IP_PORT} to %{DST_IP_PORT} flags %{GREEDYDATA:tcp_flags} on interface %{GREEDYDATA:interface}
-# ASA-2-106006, ASA-2-106007, ASA-2-106010
-CISCOFW106006_106007_106010 %{CISCO_ACTION:action} %{CISCO_DIRECTION:direction} %{WORD:protocol} (?:from|src) %{SRC_IP_PORT}(\(%{DATA:src_fwuser}\))? (?:to|dst) %{DST_IP_PORT}(\(%{DATA:dst_fwuser}\))? (?:on interface %{DATA:interface}|due to %{CISCO_REASON:reason})
+# ASA-2-106001 inbound
+CISCOFW106001_1 (?<direction>Inbound) %{WORD:protocol} connection %{CISCO_ACTION:action} from %{IP:src_ip}/%{INT:src_port} to %{IP:dst_ip}/%{INT:dst_port} flags %{GREEDYDATA:tcp_flags} on interface %{GREEDYDATA:interface}
+# ASA-2-106001 outbound
+CISCOFW106001_2 (?<direction>Outbound) %{WORD:protocol} connection %{CISCO_ACTION:action} from %{IP:dst_ip}/%{INT:dst_port} to %{IP:src_ip}/%{INT:src_port} flags %{GREEDYDATA:tcp_flags} on interface %{GREEDYDATA:interface}
+# ASA-2-106006, ASA-2-106007 inbound
+CISCOFW106006_106007_1 %{CISCO_ACTION:action} (?<direction>inbound) %{WORD:protocol} from %{IP:src_ip}/%{INT:src_port}(\(%{DATA:src_fwuser}\))? to %{IP:dst_ip}/%{INT:dst_port}(\(%{DATA:dst_fwuser}\))? (?:on interface %{DATA:interface}|due to %{CISCO_REASON:reason})
+# ASA-2-106006, ASA-2-106007 outbound
+CISCOFW106006_106007_2 %{CISCO_ACTION:action} (?<direction>outbound) %{WORD:protocol} from %{IP:dst_ip}/%{INT:dst_port}(\(%{DATA:dst_fwuser}\))? to %{IP:src_ip}/%{INT:src_port}(\(%{DATA:src_fwuser}\))? (?:on interface %{DATA:interface}|due to %{CISCO_REASON:reason})
+# ASA-2-106010
+CISCOFW106010 %{CISCO_ACTION:action} %{CISCO_DIRECTION:direction} %{WORD:protocol} src %{IP:src_ip}/%{INT:src_port}(\(%{DATA:src_fwuser}\))? dst %{IP:dst_ip}/%{INT:dst_port}(\(%{DATA:dst_fwuser}\))?
 # ASA-3-106014
 CISCOFW106014 %{CISCO_ACTION:action} %{CISCO_DIRECTION:direction} %{WORD:protocol} src %{DATA:src_interface}:%{IP:src_ip}(\(%{DATA:src_fwuser}\))? dst %{DATA:dst_interface}:%{IP:dst_ip}(\(%{DATA:dst_fwuser}\))? \(type %{INT:icmp_type}, code %{INT:icmp_code}\)
 # ASA-6-106015
@@ -70,16 +78,20 @@ CISCOFW113008 AAA transaction status ACCEPT : user = %{GREEDYDATA:user}
 CISCOFW113009 AAA retrieved default group policy \(%{DATA:policy}\) for user = %{GREEDYDATA:user}
 # ASA-6-302010
 CISCOFW302010 %{INT:connection_count} in use, %{INT:connection_count_max} most used
-# ASA-6-302013, ASA-6-302014, ASA-6-302015, ASA-6-302016
-CISCOFW302013_302014_302015_302016 %{CISCO_ACTION:action}(?: %{CISCO_DIRECTION:direction})? %{WORD:protocol} connection %{INT:connection_id} for %{DATA:src_interface}:%{IP:src_ip}/%{INT:src_port}( \(%{IP:src_mapped_ip}/%{INT:src_mapped_port}\))?(\(%{DATA:src_fwuser}\))? to %{DATA:dst_interface}:%{IP:dst_ip}/%{INT:dst_port}( \(%{IP:dst_mapped_ip}/%{INT:dst_mapped_port}\))?(\(%{DATA:dst_fwuser}\))?( duration %{TIME:duration} bytes %{INT:bytes})?(?: %{CISCO_REASON:reason})?( \(%{DATA:user}\))?
-# ASA-6-302020, ASA-6-302021
-CISCOFW302020_302021 %{CISCO_ACTION:action}(?: %{CISCO_DIRECTION:direction})? %{WORD:protocol} connection for faddr %{IP:dst_ip}/%{INT:icmp_seq_num}(?:\(%{DATA:fwuser}\))? gaddr %{IP:src_xlated_ip}/%{INT:icmp_code_xlated} laddr %{IP:src_ip}/%{INT:icmp_code}( \(%{DATA:user}\))?
+# ASA-6-302013, ASA-6-302014, ASA-6-302015, ASA-6-302016 inbound
+CISCOFW302013_302014_302015_302016_1 %{CISCO_ACTION:action}(?: (?<direction>inbound))? %{WORD:protocol} connection %{INT:connection_id} for %{DATA:src_interface}:%{IP:src_ip}/%{INT:src_port}( \(%{IP:src_xlated_ip}/%{INT:src_xlated_port}\))?(\(%{DATA:src_fwuser}\))? to %{DATA:dst_interface}:%{IP:dst_ip}/%{INT:dst_port}( \(%{IP:dst_xlated_ip}/%{INT:dst_xlated_port}\))?(\(%{DATA:dst_fwuser}\))?( duration %{TIME:duration} bytes %{INT:bytes})?(?: %{CISCO_REASON:reason})?( \(%{DATA:user}\))?
+# ASA-6-302013, ASA-6-302014, ASA-6-302015, ASA-6-302016 outbound
+CISCOFW302013_302014_302015_302016_2 %{CISCO_ACTION:action}(?: (?<direction>outbound))? %{WORD:protocol} connection %{INT:connection_id} for %{DATA:dst_interface}:%{IP:dst_ip}/%{INT:dst_port}( \(%{IP:dst_xlated_ip}/%{INT:dst_xlated_port}\))?(\(%{DATA:dst_fwuser}\))? to %{DATA:src_interface}:%{IP:src_ip}/%{INT:src_port}( \(%{IP:src_xlated_ip}/%{INT:src_xlated_port}\))?(\(%{DATA:src_fwuser}\))?( duration %{TIME:duration} bytes %{INT:bytes})?(?: %{CISCO_REASON:reason})?( \(%{DATA:user}\))?
+# ASA-6-302020_302021 inbound
+CISCOFW302020_302021_1 %{CISCO_ACTION:action}(?: (?<direction>inbound))? %{WORD:protocol} connection for faddr %{IP:src_ip}/%{INT:icmp_seq_num}(?:\(%{DATA:fwuser}\))? gaddr %{IP:dst_xlated_ip}/%{INT:icmp_code_xlated} laddr %{IP:dst_ip}/%{INT:icmp_code}( \(%{DATA:user}\))?
+# ASA-6-302020_302021 outbound
+CISCOFW302020_302021_2 %{CISCO_ACTION:action}(?: (?<direction>outbound))? %{WORD:protocol} connection for faddr %{IP:dst_ip}/%{INT:icmp_seq_num}(?:\(%{DATA:fwuser}\))? gaddr %{IP:src_xlated_ip}/%{INT:icmp_code_xlated} laddr %{IP:src_ip}/%{INT:icmp_code}( \(%{DATA:user}\))?
 # ASA-6-303002
 CISCOFW303002 FTP connection from  %{SRC_ITF_IP_PORT} to %{DST_ITF_IP_PORT}, user %{GREEDYDATA:user} %{WORD:action} file %{GREEDYDATA:filename}
 # ASA-3-305006
 CISCOFW305006 %{DATA:translation_type} translation creation failed for %{NOTSPACE:protocol} src %{GREEDYDATA:src_interface}:%{IP:src_ip}(?:/%{INT:src_port})? dst %{GREEDYDATA:dst_interface}:%{IP:dst_ip}(?:/%{INT:dst_port})?(?: \(type %{INT:icmp_type}, code %{INT:icmp_code}\))?
 # ASA-6-305011
-CISCOFW305011 %{CISCO_ACTION:action} %{CISCO_XLATE_TYPE:xlate_type} %{WORD:protocol} translation from %{DATA:src_interface}:%{IP:src_ip}(/%{INT:src_port})?(\(%{DATA:src_fwuser}\))? to %{DATA:src_xlated_interface}:%{IP:src_xlated_ip}/%{DATA:src_xlated_port}
+CISCOFW305011 %{CISCO_ACTION:action} %{CISCO_XLATE_TYPE:xlate_type} %{WORD:protocol} translation from %{DATA:src_interface}:%{IP:src_ip}(/%{INT:src_port})?(\(%{DATA:src_fwuser}\))? to %{DATA:src_xlated_interface}:%{IP:src_xlated_ip}/%{INT:src_xlated_port}
 # ASA-3-313001, ASA-3-313004, ASA-3-313008
 CISCOFW313001_313004_313008 %{CISCO_ACTION:action} %{NOTSPACE:protocol} type=%{INT:icmp_type}, code=%{INT:icmp_code} from %{IP:src_ip} on interface %{DATA:interface}( to %{IP:dst_ip})?
 # ASA-4-313005
@@ -106,8 +118,10 @@ CISCOFW500004 %{CISCO_REASON:reason} for protocol=%{WORD:protocol}, from %{SRC_I
 CISCOFW502103 User priv level changed: Uname: %{NOTSPACE:user} From: %{INT:enable_prior_level} To: %{INT:enable_new_level}
 # ASA-6-602101
 CISCOFW602101 PMTU-D packet %{INT:bytes} bytes greater than effective mtu %{INT:mtu}, dest_addr=%{IP:dst_ip}, src_addr=%{IP:src_ip}, prot=%{NOTSPACE:protocol}
-# ASA-6-602303, ASA-6-602304
-CISCOFW602303_602304 %{WORD:protocol}: An %{CISCO_DIRECTION:direction} %{GREEDYDATA:tunnel_type} SA \(SPI= %{DATA:spi}\) between %{IP:src_ip} and %{IP:dst_ip} \(user= %{DATA:user}\) has been %{CISCO_ACTION:action}
+# ASA-6-602303, ASA-6-602304 inbound
+CISCOFW602303_602304_1 %{WORD:protocol}: An (?<direction>inbound) %{GREEDYDATA:tunnel_type} SA \(SPI= %{DATA:spi}\) between %{IP:src_ip} and %{IP:dst_ip} \(user= %{DATA:user}\) has been %{CISCO_ACTION:action}
+# ASA-6-602303, ASA-6-602304 outbound
+CISCOFW602303_602304_2 %{WORD:protocol}: An (?<direction>outbound) %{GREEDYDATA:tunnel_type} SA \(SPI= %{DATA:spi}\) between %{IP:dst_ip} and %{IP:dst_ip} \(user= %{DATA:user}\) has been %{CISCO_ACTION:action}
 # ASA-6-605005
 CISCOFW605005 Login permitted from %{SRC_IP_PORT} to %{NOTSPACE:dst_interface}:%{IP:dst_ip}/%{WORD:service} for user "%{USER:user}"
 # ASA-6-607001
