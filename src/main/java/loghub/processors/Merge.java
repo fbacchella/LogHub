@@ -1,6 +1,7 @@
 package loghub.processors;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
@@ -33,10 +34,28 @@ public class Merge extends Processor {
             }
         },
         LIST {
+            @SuppressWarnings("unchecked")
             @Override
             BiFunction<Object, Object, Object> cumulate(final Object seed) {
-                final List<Object> list = new ArrayList<Object>();
-                return (last, next) -> {if (next != null) list.add(next) ; return list;};
+                final List<Object> list;
+                if (seed == null) {
+                    list = new ArrayList<>();
+                } else if (seed.getClass().isArray()) {
+                    list = new ArrayList<>();
+                    Object[] seedArray = (Object[]) seed;
+                    list.addAll(Arrays.asList(seedArray));
+                } else if (seed instanceof List) {
+                    list = (List<Object>) seed;
+                } else {
+                    list = new ArrayList<>();
+                    list.add(seed);
+                }
+                return (last, next) -> {
+                    if (next != null) {
+                        list.add(next);
+                    }
+                    return list;
+                };
             }
         },
         AND {
@@ -94,13 +113,13 @@ public class Merge extends Processor {
         LAST {
             @Override
             BiFunction<Object, Object, Object> cumulate(Object seed) {
-                return (last, next) -> next;
+                return (last, next) -> next != null ? next : last;
             }
         },
         FIRST {
             @Override
             BiFunction<Object, Object, Object> cumulate(Object seed) {
-                return (last, next) -> last;
+                return (last, next) -> last != null ? last : next;
             }
         },
         DROP {
@@ -195,7 +214,9 @@ public class Merge extends Processor {
             }
         }
         static BiFunction<Object, Object, Object> getCumulator(Object o) {
-            if (o instanceof String) {
+            if (o == null) {
+                return Cumulator.DROP.cumulate(o);
+            } else if (o instanceof String) {
                 return Cumulator.STRING.cumulate(o);
             } else if (o instanceof Character) {
                 Character c = (Character) o;
@@ -221,10 +242,8 @@ public class Merge extends Processor {
                 return Cumulator.ADDFLOAT.cumulate(o);
             } else if ((o instanceof Float || o instanceof Double) && ((Number) o).longValue() == 1) {
                 return Cumulator.MULTIPLYFLOAT.cumulate(o);
-            } else if (o instanceof Collection || o instanceof Object[]) {
+            } else if (o instanceof Collection || o.getClass().isArray()) {
                 return Cumulator.LIST.cumulate(o);
-            } else if (o == null) {
-                return Cumulator.DROP.cumulate(o);
             } else {
                 return Cumulator.LIST.cumulate(o);
             }
@@ -233,7 +252,7 @@ public class Merge extends Processor {
 
     private static final Function<Event, Event> prepareEvent = i -> {
         i.entrySet().forEach(j -> {
-            if (j.getValue() instanceof StringBuilder)  i.put(j.getKey(), j.getValue().toString());
+            if (j.getValue() instanceof StringBuilder) i.put(j.getKey(), j.getValue().toString());
         });
         return i;
     };
@@ -244,8 +263,7 @@ public class Merge extends Processor {
     private String fireSource = null;
     private Expression fire = null;
 
-    private Object defaultSeedName;
-    private BiFunction<Object, Object, Object> defaultCumulator;
+    private Object defaultSeedType = new Object[]{};
 
     private Map<String, Object> seeds = Collections.emptyMap();
     private Map<String, BiFunction<Object, Object, Object>> cumulators;
@@ -264,7 +282,6 @@ public class Merge extends Processor {
         cumulators = new ConcurrentHashMap<>(seeds.size() + 1);
         // Default to timestamp is to keep the first
         cumulators.put("@timestamp", Cumulator.FIRST.cumulate(null));
-        defaultCumulator = Cumulator.getCumulator(defaultSeedName);
         for (Entry<String, Object> i: seeds.entrySet()) {
             cumulators.put(i.getKey(), Cumulator.getCumulator(i.getValue()));
         }
@@ -302,7 +319,7 @@ public class Merge extends Processor {
         }
         logger.debug("key: {} for {}", eventKey, event);
         PausedEvent current = repository.getOrPause(eventKey, () -> {
-            PausedEvent pe = new PausedEvent(Event.emptyEvent())
+            PausedEvent pe = new PausedEvent(event.isTest() ? Event.emptyTestEvent() : Event.emptyEvent())
                     .setTimeout(timeout, TimeUnit.SECONDS)
                     .onTimeout(timeoutProcessor, prepareEvent)
                     .onSuccess(fireProcessor, prepareEvent)
@@ -318,14 +335,15 @@ public class Merge extends Processor {
             return pe;
         });
         synchronized (current) {
+            logger.trace("merging {} in {}", event, current.event);
             for(Map.Entry<String, Object> i: event.entrySet()) {
                 String key = i.getKey();
                 Object last = current.event.get(key);
-                Object next = event.get(key);
-                BiFunction<Object, Object, Object> m =  cumulators.computeIfAbsent(key, j -> defaultCumulator);
+                Object next = i.getValue();
+                BiFunction<Object, Object, Object> m =  cumulators.computeIfAbsent(key, j -> Cumulator.getCumulator(defaultSeedType));
                 Object newValue = m.apply(last, next);
                 if (newValue != null) {
-                    current.event.put(i.getKey(), newValue);
+                    current.event.put(key, newValue);
                 }
             }
             // And don't forget the date, look for the @timestamp cumulator
@@ -426,14 +444,14 @@ public class Merge extends Processor {
      * @return the defaultSeed
      */
     public Object getDefault() {
-        return defaultSeedName;
+        return defaultSeedType;
     }
 
     /**
      * @param defaultSeed the defaultSeed to set
      */
     public void setDefault(Object defaultSeed) {
-        this.defaultSeedName = defaultSeed;
+        this.defaultSeedType = defaultSeed;
     }
 
 }
