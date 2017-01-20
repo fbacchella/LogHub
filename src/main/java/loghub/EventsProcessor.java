@@ -97,7 +97,7 @@ public class EventsProcessor extends Thread {
                                 event.end();
                                 event = null;
                             }
-                        } else {
+                        } else if (event.getCurrentPipeline() != null){
                             // Put in the output queue, where the wanting output will come to take it
                             if (!outQueues.get(event.getCurrentPipeline()).offer(event)) {
                                 final String currentPipeline = event.getCurrentPipeline();
@@ -105,6 +105,10 @@ public class EventsProcessor extends Thread {
                                 event.end();
                                 event = null;
                             }
+                        } else {
+                            logger.error("Miss-configured event droped: {}", event);
+                            event.drop();
+                            event = null;
                         }
                     }
                 }
