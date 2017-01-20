@@ -7,9 +7,14 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import loghub.configuration.Properties;
 
 public class EventsRepository {
+
+    private final static Logger logger = LogManager.getLogger();
 
     private final ScheduledThreadPoolExecutor processTimeout = new ScheduledThreadPoolExecutor(0);
     private final Map<Object, PausedEvent> pausestack = new ConcurrentHashMap<>();
@@ -42,6 +47,7 @@ public class EventsRepository {
         if (pe == null) {
             return true;
         }
+        logger.trace("Waking up event {}", pe.event);
         pe.event.insertProcessor(source.apply(pe));
         processTimeout.remove(pe);
         return mainQueue.offer(transform.apply(pe).apply(pe.event));
@@ -65,6 +71,11 @@ public class EventsRepository {
             }
             return paused;
         });
+    }
+
+    @Override
+    public String toString() {
+        return "EventsRepository [" + pausestack + "]";
     }
 
 }

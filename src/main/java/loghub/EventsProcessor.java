@@ -87,7 +87,7 @@ public class EventsProcessor extends Thread {
                         });
                         // A test event, it will not be send to another pipeline
                         if (event.isTest()) {
-                            logger.info("processed a test event");
+                            logger.info("processed a test event: {}", event);
                             event.end();
                         } else if (event.getNextPipeline() != null) {
                             // Send to another pipeline, loop in the main processing queue

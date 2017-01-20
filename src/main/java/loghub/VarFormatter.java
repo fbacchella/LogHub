@@ -27,6 +27,9 @@ import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 public class VarFormatter {
 
     private final static class Flags {
@@ -340,6 +343,8 @@ public class VarFormatter {
     private static final Pattern formatSpecifier = Pattern.compile("^(?<flag>[-#+ 0,(]*)?(?<length>\\d+)?(?:\\.(?<precision>\\d+))?(?:(?<istime>[tT])(?:\\<(?<tz>.*)\\>)?)?(?<conversion>[a-zA-Z%])(?::(?<locale>.*))?$");
     private static final String lineseparator = System.lineSeparator();
 
+    private static final Logger logger = LogManager.getLogger();
+
     private final Map<String, Integer> mapper = new LinkedHashMap<>();
     private final MessageFormat mf;
 
@@ -352,6 +357,7 @@ public class VarFormatter {
     }
 
     public VarFormatter(String format, Locale l) {
+        logger.debug("new format: {}", format);
         this.format = format;
         locale = l;
         List<String> formats = new ArrayList<>();

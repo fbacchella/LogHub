@@ -29,6 +29,7 @@ public abstract class Processor {
     }
 
     public boolean configure(Properties properties) {
+        logger.debug("configuring {}", this);
         if(ifsource != null) {
             try {
                 ifexpression = new Expression(ifsource, properties.groovyClassLoader, properties.formatters);

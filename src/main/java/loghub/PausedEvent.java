@@ -98,4 +98,9 @@ public final class PausedEvent implements Runnable {
         repository.timeout(key);
     }
 
+    @Override
+    public String toString() {
+        return "PausedEvent [event=" + event + ", key=" + key + "]";
+    }
+
 }
