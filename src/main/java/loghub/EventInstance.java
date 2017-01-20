@@ -71,10 +71,6 @@ class EventInstance extends Event {
      * @return a copy of this event, with a different key
      */
     public Event duplicate() {
-        //Don't fork test event
-        if (test) {
-            return null;
-        }
         try {
             ByteArrayOutputStream bos = new ByteArrayOutputStream();
             ObjectOutputStream oos = new ObjectOutputStream(bos);
