@@ -29,13 +29,15 @@ public class TestNameResolver {
     @Test
     public void test2() throws UnknownHostException, ProcessorException {
         NameResolver nr = new NameResolver();
+        nr.setResolver("8.8.8.8");
         nr.setField("host");
         nr.setDestination("fqdn");
         nr.configure(new Properties(Collections.emptyMap()));
         Event e = Tools.getEvent();
-        e.put("host", InetAddress.getByName("127.0.0.1"));
+        /// resolving a.root-servers.net.
+        e.put("host", InetAddress.getByName("198.41.0.4"));
         Assert.assertTrue(nr.process(e));
-        Assert.assertEquals("resolution failed", "localhost", e.get("fqdn"));
+        Assert.assertEquals("resolution failed", "a.root-servers.net", e.get("fqdn"));
     }
 
     @Test

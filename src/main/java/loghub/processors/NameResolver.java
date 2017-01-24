@@ -1,9 +1,5 @@
 package loghub.processors;
 
-import java.net.Inet4Address;
-import java.net.Inet6Address;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.util.Hashtable;
 
 import javax.naming.NameNotFoundException;
@@ -20,10 +16,8 @@ import loghub.configuration.Properties;
 import net.sf.ehcache.Cache;
 import net.sf.ehcache.Element;
 import net.sf.ehcache.config.CacheConfiguration;
-import sun.net.util.IPAddressUtil;
 
-@SuppressWarnings("restriction")
-public class NameResolver extends FieldsProcessor {
+public class NameResolver extends AbstractNameResolver {
 
     private ThreadLocal<DirContext> localContext = new ThreadLocal<DirContext>(){
         @Override
@@ -60,94 +54,6 @@ public class NameResolver extends FieldsProcessor {
 
         hostCache = properties.getCache(config);
         return super.configure(properties);
-    }
-
-    @Override
-    public boolean processMessage(Event event, String field, String destination) throws ProcessorException {
-        Object addr = event.get(field);
-
-        InetAddress ipaddr = null;
-        String toresolv = null;
-
-        // If a string was given, convert it to a Inet?Address
-        if(addr instanceof String) {
-            String ipstring = (String) addr;
-            byte[] parts = null;
-            if(IPAddressUtil.isIPv4LiteralAddress(ipstring)) {
-                parts = IPAddressUtil.textToNumericFormatV4(ipstring);
-            } else if(IPAddressUtil.isIPv6LiteralAddress(ipstring)) {
-                parts = IPAddressUtil.textToNumericFormatV6(ipstring);
-            }
-            if(parts != null) {
-                try {
-                    ipaddr = InetAddress.getByAddress(parts);
-                } catch (UnknownHostException e) {
-                    throw event.buildException("invalid IP address '" + addr + "': " + e.getMessage());
-                }
-            }
-        } else if (addr instanceof InetAddress) {
-            ipaddr = (InetAddress) addr;
-        }
-
-        if(ipaddr instanceof Inet4Address) {
-            Inet4Address ipv4 = (Inet4Address) ipaddr;
-            byte[] parts = ipv4.getAddress();
-            // the & 0xFF is needed because bytes are signed bytes
-            toresolv = String.format("%d.%d.%d.%d.in-addr.arpa.", parts[3] & 0xFF , parts[2] & 0xFF , parts[1] & 0xFF, parts[0] & 0xFF);
-        } else if(addr instanceof Inet6Address) {
-            Inet6Address ipv6 = (Inet6Address) ipaddr;
-            byte[] parts = ipv6.getAddress();
-            StringBuilder buffer = new StringBuilder();
-            for(int i = parts.length - 1; i >= 0; i--) {
-                buffer.append(String.format("%x.%x.", parts[i] & 0x0F, (parts[i] & 0xF0) >> 4));
-            }
-            buffer.append("ip6.arpa");
-            toresolv = buffer.toString();
-        }
-
-        Element cacheElement = hostCache.get(toresolv);
-
-        if(cacheElement != null && ! cacheElement.isExpired()) {
-            Object o = cacheElement.getObjectValue();
-            //Set only if it was not a negative cache
-            if(o != null) {
-                event.put(destination, o);
-            }
-            return true;
-        }
-
-        //If a query was build, use it
-        if (toresolv != null) {
-            try {
-                Attributes attrs = localContext.get().getAttributes(toresolv, new String[] { type });
-                for (NamingEnumeration<? extends Attribute> ae = attrs.getAll(); ae.hasMoreElements();) {
-                    Attribute attr = (Attribute) ae.next();
-                    if (attr.getID() != type) {
-                        continue;
-                    }
-                    Object o = attr.getAll().next();
-                    if (o != null) {
-                        String value = attr.getAll().next().toString();
-                        value = value.substring(0, value.length() - 1);
-                        hostCache.put(new Element(toresolv, value));
-                        event.put(destination, value);
-                    }
-                }
-                return true;
-            } catch (IllegalArgumentException e) {
-                throw event.buildException("can't setup resolver for '" + addr + "':" + e.getCause().getMessage());
-            } catch (NameNotFoundException ex) {
-                // Expected failure from DNS, don't care
-                // But keep a short negative cache to avoid flooding
-                Element e = new Element(toresolv, null);
-                e.setTimeToLive(timeout * 5);
-                hostCache.put(e);
-                return false;
-            } catch (NamingException e) {
-                throw event.buildException("unresolvable name '" + addr.toString() + "': " + e.getMessage());
-            } 
-        }
-        return false;
     }
 
     @Override
@@ -223,6 +129,48 @@ public class NameResolver extends FieldsProcessor {
      */
     public void setTimeout(int timeout) {
         this.timeout = timeout;
+    }
+
+    @Override
+    public boolean resolve(Event event, String query, String destination) throws ProcessorException {
+        Element cacheElement = hostCache.get(query);
+
+        if(cacheElement != null && ! cacheElement.isExpired()) {
+            Object o = cacheElement.getObjectValue();
+            //Set only if it was not a negative cache
+            if(o != null) {
+                event.put(destination, o);
+            }
+            return true;
+        }
+        try {
+            Attributes attrs = localContext.get().getAttributes(query, new String[] { type });
+            for (NamingEnumeration<? extends Attribute> ae = attrs.getAll(); ae.hasMoreElements();) {
+                Attribute attr = (Attribute) ae.next();
+                if (attr.getID() != type) {
+                    continue;
+                }
+                Object o = attr.getAll().next();
+                if (o != null) {
+                    String value = attr.getAll().next().toString();
+                    value = value.substring(0, value.length() - 1);
+                    hostCache.put(new Element(query, value));
+                    event.put(destination, value);
+                }
+            }
+            return true;
+        } catch (IllegalArgumentException e) {
+            throw event.buildException("can't setup resolver for '" + query + "':" + e.getCause().getMessage());
+        } catch (NameNotFoundException ex) {
+            // Expected failure from DNS, don't care
+            // But keep a short negative cache to avoid flooding
+            Element e = new Element(query, null);
+            e.setTimeToLive(timeout * 5);
+            hostCache.put(e);
+            return false;
+        } catch (NamingException e) {
+            throw event.buildException("unresolvable name '" + query + "': " + e.getMessage());
+        } 
     }
 
 
