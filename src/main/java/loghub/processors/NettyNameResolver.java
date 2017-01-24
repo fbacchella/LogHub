@@ -124,5 +124,4 @@ public class NettyNameResolver extends AbstractNameResolver implements AsyncProc
         super.setResolver(resolver);
     }
 
-
 }
