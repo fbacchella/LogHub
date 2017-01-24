@@ -1,9 +1,10 @@
 package loghub.processors;
 
 import loghub.Event;
+import loghub.Processor;
+import loghub.ProcessorException;
 
-public class Identity extends FieldsProcessor {
-
+public class Identity extends Processor {
 
     @Override
     public String getName() {
@@ -11,7 +12,7 @@ public class Identity extends FieldsProcessor {
     }
 
     @Override
-    public boolean processMessage(Event event, String field, String destination) {
+    public boolean process(Event event) throws ProcessorException {
         return true;
     }
 

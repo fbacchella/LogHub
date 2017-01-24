@@ -105,4 +105,17 @@ public class TestConfigurations {
         Tools.loadConf("array.conf", false);
     }
 
+    @Test
+    public void testSubPipeline() throws ProcessorException, InterruptedException, ConfigException, IOException {
+        Properties conf = Tools.loadConf("subpipeline.conf");
+        Event sent = Tools.getEvent();
+        sent.put("a", "1");
+        sent.put("b", "2");
+
+        Tools.runProcessing(sent, conf.namedPipeLine.get("main"), conf);
+        Event received = conf.mainQueue.remove();
+        Assert.assertEquals("Subpipeline not processed", 1, received.get("a"));
+        Assert.assertEquals("Subpipeline not processed", 2, received.get("b"));
+    }
+
 }

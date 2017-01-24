@@ -23,6 +23,7 @@ pipenode
     | '(' pipenodeList ')'
     | '$' piperef
     | object
+    | '{' pipenodeList? '}' 
     ;
 
 object: QualifiedIdentifier beansDescription ; 
