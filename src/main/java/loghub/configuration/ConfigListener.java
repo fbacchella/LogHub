@@ -111,7 +111,7 @@ class ConfigListener extends RouteBaseListener {
 
     static final class ObjectWrapped implements ObjectReference {
         final Object wrapped;
-        private ObjectWrapped(Object wrapped) {
+        ObjectWrapped(Object wrapped) {
             this.wrapped = wrapped;
         }
     }

@@ -15,22 +15,18 @@ import loghub.configuration.Beans;
 public abstract class FieldsProcessor extends Processor {
     private String field = "message";
     private VarFormatter destinationFormat = null;
-    private String[] fields = new String[] {};
-    private Pattern[] patterns = new Pattern[]{};
+    private String fields = null;
+    private Pattern patterns = null;
 
     public abstract boolean processMessage(Event event, String field, String destination) throws ProcessorException;
 
     @Override
     public boolean process(Event event) throws ProcessorException {
         boolean success = false;
-        if (patterns.length != 0) {
+        if (patterns != null) {
             for (String f: new HashSet<>(event.keySet())) {
-                for (Pattern p: patterns) {
-                    if (p.matcher(f).matches() && event.containsKey(f) && event.get(f) != null) {
-                        success |= processMessage(event, f, getDestination(f));
-                        // Processed, don't look for another matching pattern
-                        break;
-                    }
+                if (patterns.matcher(f).matches() && event.containsKey(f) && event.get(f) != null) {
+                    success |= processMessage(event, f, getDestination(f));
                 }
             }
         } else {
@@ -40,7 +36,7 @@ public abstract class FieldsProcessor extends Processor {
         }
         return success;
     }
-    
+
     private final String getDestination(String field) {
         if (destinationFormat == null) {
             return field;
@@ -49,15 +45,12 @@ public abstract class FieldsProcessor extends Processor {
         }
     }
 
-    public Object[] getFields() {
+    public String getFields() {
         return fields;
     }
 
-    public void setFields(Object[] fields) {
-        this.patterns = new Pattern[fields.length];
-        for (int i = 0; i < fields.length ; i++) {
-            this.patterns[i] = Helpers.convertGlobToRegex(fields[i].toString());
-        }
+    public void setFields(String fields) {
+        this.patterns = Helpers.convertGlobToRegex(fields);
     }
 
     public String getField() {

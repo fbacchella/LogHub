@@ -11,7 +11,7 @@ import loghub.ProcessorException;
 import loghub.Tools;
 
 /**
- * @author fa4
+ * @author Fabrice Bacchella
  *
  */
 public class TestFieldsProcessor {
@@ -35,7 +35,7 @@ public class TestFieldsProcessor {
         };
 
         p.setDestination("${field}_done");
-        p.setFields(new String[] {"a", "b"});
+        p.setFields("?");
         Event e = Tools.getEvent();
         e.put("a", 1);
         e.put("b", 2);

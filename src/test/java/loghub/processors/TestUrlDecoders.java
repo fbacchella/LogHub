@@ -28,7 +28,7 @@ public class TestUrlDecoders {
     @Test
     public void testUrlDecoder() throws ProcessorException {
         DecodeUrl t = new DecodeUrl();
-        t.setFields(new Object[] { "*" });
+        t.setFields("*");
         Event e = Tools.getEvent();
         e.put("q", "%22Paints%22+Oudalan");
         e.put("userAgent", "%2520");
@@ -40,13 +40,12 @@ public class TestUrlDecoders {
     @Test
     public void testUrlDecoderLoop() throws ProcessorException {
         DecodeUrl t = new DecodeUrl();
-        t.setFields(new Object[] { "userAgent" });
+        t.setFields("userAgent");
         t.setLoop(true);
         Event e = Tools.getEvent();
         e.put("q", "%22Paints%22+Oudalan");
         e.put("userAgent", "%2520");
         e.process(t);
-        System.out.println(e);
         Assert.assertEquals("key 'q' invalid", "%22Paints%22+Oudalan", e.get("q"));
         Assert.assertEquals("key 'userAgent' not found", " ", e.get("userAgent"));
     }
