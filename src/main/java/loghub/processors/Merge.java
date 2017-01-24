@@ -267,7 +267,7 @@ public class Merge extends Processor {
 
     private Map<String, Object> seeds = Collections.emptyMap();
     private Map<String, BiFunction<Object, Object, Object>> cumulators;
-    private EventsRepository repository = null;
+    private EventsRepository<String> repository = null;
     private Processor timeoutProcessor = null;
     private Processor fireProcessor = null;
     private int timeout;
@@ -278,7 +278,7 @@ public class Merge extends Processor {
         if (indexSource == null) {
             return false;
         }
-        repository = new EventsRepository(properties);
+        repository = new EventsRepository<String>(properties);
         cumulators = new ConcurrentHashMap<>(seeds.size() + 1);
         // Default to timestamp is to keep the first
         cumulators.put("@timestamp", Cumulator.FIRST.cumulate(null));
@@ -306,7 +306,7 @@ public class Merge extends Processor {
 
     @Override
     public boolean process(Event event) throws ProcessorException {
-        Object eventKey;
+        String eventKey;
         try {
             eventKey = index.format(event);
         } catch (IllegalArgumentException e) {
@@ -318,8 +318,8 @@ public class Merge extends Processor {
             return false;
         }
         logger.debug("key: {} for {}", eventKey, event);
-        PausedEvent current = repository.getOrPause(eventKey, () -> {
-            PausedEvent pe = new PausedEvent(event.isTest() ? Event.emptyTestEvent() : Event.emptyEvent())
+        PausedEvent<String> current = repository.getOrPause(eventKey, () -> {
+            PausedEvent<String> pe = new PausedEvent<String>(event.isTest() ? Event.emptyTestEvent() : Event.emptyEvent(), eventKey)
                     .setTimeout(timeout, TimeUnit.SECONDS)
                     .onTimeout(timeoutProcessor, prepareEvent)
                     .onSuccess(fireProcessor, prepareEvent)

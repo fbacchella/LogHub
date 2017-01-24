@@ -12,7 +12,9 @@ import org.apache.logging.log4j.Logger;
 import com.codahale.metrics.Counter;
 import com.codahale.metrics.Timer.Context;
 
+import io.netty.util.concurrent.Future;
 import loghub.configuration.Properties;
+import loghub.processors.FuturProcessor;
 import loghub.processors.Drop;
 import loghub.processors.Forker;
 
@@ -38,19 +40,21 @@ public class EventsProcessor extends Thread {
     private final Map<String, BlockingQueue<Event>> outQueues;
     private final Map<String,Pipeline> namedPipelines;
     private final int maxSteps;
+    private final AtomicReference<Counter> gaugecounter = new AtomicReference<>();
+    private final EventsRepository<Future<?>> evrepo;
 
-    public EventsProcessor(BlockingQueue<Event> inQueue, Map<String, BlockingQueue<Event>> outQueues, Map<String,Pipeline> namedPipelines, int maxSteps) {
+    public EventsProcessor(BlockingQueue<Event> inQueue, Map<String, BlockingQueue<Event>> outQueues, Map<String,Pipeline> namedPipelines, int maxSteps, EventsRepository<Future<?>> evrepo) {
         super();
         this.inQueue = inQueue;
         this.outQueues = outQueues;
         this.namedPipelines = namedPipelines;
         this.maxSteps = maxSteps;
+        this.evrepo = evrepo;
     }
 
     @Override
     public void run() {
         String threadName = Thread.currentThread().getName();
-        final AtomicReference<Counter> gaugecounter = new AtomicReference<>();
         Event event = null;
         try {
             while (true) {
@@ -65,15 +69,9 @@ public class EventsProcessor extends Thread {
                     while ((processor = event.next()) != null) {
                         logger.trace("processing {}", processor);
                         Thread.currentThread().setName(threadName + "-" + processor.getName());
-                        boolean dropped = process(event, processor);
+                        boolean endprocessing = process(event, processor);
                         Thread.currentThread().setName(threadName);
-                        if (dropped) {
-                            logger.debug("dropped event {}", event);
-                            event.doMetric(() -> {
-                                gaugecounter.get().dec();
-                                Properties.metrics.meter("Allevents.dropped");
-                            });
-                            event.drop();
+                        if (endprocessing) {
                             event = null;
                             break;
                         }
@@ -126,8 +124,10 @@ public class EventsProcessor extends Thread {
         }
     }
 
+    @SuppressWarnings("unchecked")
     boolean process(Event e, Processor p) {
         boolean dropped = false;
+        boolean endprocessing = false;
         boolean success = false;
         if (p instanceof Forker) {
             ((Forker) p).fork(e);
@@ -149,6 +149,35 @@ public class EventsProcessor extends Thread {
                     e.insertProcessor(successProcessor);
                 } else if (! success && failureProcessor != null) {
                     e.insertProcessor(failureProcessor);
+                }
+            } catch (ProcessorException.PausedEventException ex) {
+                // First check if the process will be able to manage the call back
+                if (p instanceof AsyncProcessor) {
+                    // A paused event was catch, create a custom FuturProcess for it that will be awaken when event come back
+                    Future<?> future = ex.getFuture();
+                    PausedEvent<Future<?>> paused = new PausedEvent<>(ex.getEvent(), future);
+                    paused = paused.onSuccess(p.getSuccess());
+                    paused = paused.onFailure(p.getFailure());
+                    paused = paused.onException(p.getException());
+
+                    //Create the processor that will process the call back processor
+                    @SuppressWarnings("rawtypes")
+                    AsyncProcessor ap = (AsyncProcessor ) p;
+                    @SuppressWarnings({ "rawtypes"})
+                    FuturProcessor<?> pauser = new FuturProcessor(future, paused, ap);
+                    ex.getEvent().insertProcessor(pauser);
+
+                    //Store the callback informations
+                    future.addListener((i) -> inQueue.put(ex.getEvent()));
+                    evrepo.pause(paused);
+                    endprocessing = true;
+                } else {
+                    Properties.metrics.counter("Pipeline." + e.getCurrentPipeline() + ".exception").inc();
+                    Exception cce = new ClassCastException("A not AsyncProcessor throws a asynchronous operation");
+                    Stats.newException(cce);
+                    logger.error("A not AsyncProcessor {} throws a asynchronous operation", p);
+                    logger.throwing(Level.DEBUG, cce);
+                    dropped = true;
                 }
             } catch (ProcessorException.DroppedEventException ex) {
                 dropped = true;
@@ -177,7 +206,15 @@ public class EventsProcessor extends Thread {
                 dropped = true;
             }
         }
-        return dropped;
+        if (dropped) {
+            logger.debug("dropped event {}", e);
+            e.doMetric(() -> {
+                gaugecounter.get().dec();
+                Properties.metrics.meter("Allevents.dropped");
+            });
+            e.drop();
+        }
+        return dropped || endprocessing;
     }
 
 }

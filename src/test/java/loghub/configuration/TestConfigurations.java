@@ -53,7 +53,7 @@ public class TestConfigurations {
     @Test
     public void testTwoPipe() throws InterruptedException, ConfigException, IOException {
         Properties conf = Tools.loadConf("twopipe.conf");
-        Thread t = new EventsProcessor(conf.mainQueue, conf.outputQueues, conf.namedPipeLine, conf.maxSteps);
+        Thread t = new EventsProcessor(conf.mainQueue, conf.outputQueues, conf.namedPipeLine, conf.maxSteps, conf.repository);
         t.setDaemon(true);
         t.start();
 
@@ -73,7 +73,7 @@ public class TestConfigurations {
     @Test
     public void testFork() throws InterruptedException, ProcessorException, ConfigException, IOException {
         Properties conf = Tools.loadConf("fork.conf");
-        EventsProcessor ep = new EventsProcessor(conf.mainQueue, conf.outputQueues, conf.namedPipeLine, conf.maxSteps);
+        EventsProcessor ep = new EventsProcessor(conf.mainQueue, conf.outputQueues, conf.namedPipeLine, conf.maxSteps, conf.repository);
         ep.start();
 
         try {

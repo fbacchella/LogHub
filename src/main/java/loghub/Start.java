@@ -101,7 +101,7 @@ public class Start extends Thread {
         }
 
         for (int i = 0; i < props.numWorkers; i++) {
-            Thread t = new EventsProcessor(props.mainQueue, props.outputQueues, props.namedPipeLine, props.maxSteps);
+            Thread t = new EventsProcessor(props.mainQueue, props.outputQueues, props.namedPipeLine, props.maxSteps, props.repository);
             t.setName("ProcessingThread" + i);
             t.setDaemon(true);
             t.start();

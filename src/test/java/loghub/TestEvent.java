@@ -67,9 +67,9 @@ public class TestEvent {
         Map<String, Object> conf = new HashMap<>();
         conf.put("maxSteps", 5);
         Properties props = new Properties(conf);
-        Event e = Tools.getEvent();
+        Event e = Event.emptyTestEvent();
         e.appendProcessor(new Looper());
-        EventsProcessor ep = new EventsProcessor(props.mainQueue, props.outputQueues, props.namedPipeLine, props.maxSteps);
+        EventsProcessor ep = new EventsProcessor(props.mainQueue, props.outputQueues, props.namedPipeLine, props.maxSteps, props.repository);
         //e.appendProcessor(p);
         Processor processor;
         int numsteps = 0;

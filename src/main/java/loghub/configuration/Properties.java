@@ -37,7 +37,9 @@ import com.codahale.metrics.Metric;
 import com.codahale.metrics.MetricRegistry;
 
 import groovy.lang.GroovyClassLoader;
+import io.netty.util.concurrent.Future;
 import loghub.Event;
+import loghub.EventsRepository;
 import loghub.Pipeline;
 import loghub.Receiver;
 import loghub.Sender;
@@ -122,6 +124,7 @@ public class Properties extends HashMap<String, Object> {
     public final int queuesDepth;
     public final int httpPort;
     public final int maxSteps;
+    public final EventsRepository<Future<?>> repository;
 
     private final Timer timer = new Timer("loghubtimer", true);
     private final CacheManager cacheManager;
@@ -279,6 +282,9 @@ public class Properties extends HashMap<String, Object> {
                         });
             }
         }
+
+        repository = new EventsRepository<Future<?>>(this);
+
         super.putAll(properties);
     }
 

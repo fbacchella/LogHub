@@ -27,7 +27,7 @@ public class TestEventProcessing {
 
             props.pipelines.stream().forEach(i-> i.configure(props));
 
-            Thread t = new EventsProcessor(props.mainQueue, props.outputQueues, props.namedPipeLine, props.maxSteps);
+            Thread t = new EventsProcessor(props.mainQueue, props.outputQueues, props.namedPipeLine, props.maxSteps, props.repository);
             t.setName("ProcessingThread");
             t.setDaemon(true);
             t.start();
