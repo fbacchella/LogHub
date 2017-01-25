@@ -9,6 +9,7 @@ import org.msgpack.core.MessagePackException;
 import org.msgpack.jackson.dataformat.MessagePackFactory;
 
 import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.netty.buffer.ByteBuf;
@@ -25,6 +26,8 @@ import loghub.configuration.Beans;
  */
 @Beans("field")
 public class Msgpack extends Decoder {
+
+    private static final TypeReference<Object> OBJECTREF = new TypeReference<Object>() { };
 
     private static final JsonFactory factory = new MessagePackFactory();
     private static final ThreadLocal<ObjectMapper> msgpack = new ThreadLocal<ObjectMapper>() {
@@ -51,7 +54,7 @@ public class Msgpack extends Decoder {
     @Override
     public Map<String, Object> decode(ByteBuf bbuf) throws DecodeException {
         try {
-            Object o = msgpack.get().readValue(new ByteBufInputStream(bbuf), Object.class);
+            Object o = msgpack.get().readValue(new ByteBufInputStream(bbuf), OBJECTREF);
             return decodeValue(o);
         } catch (MessagePackException e) {
             throw new DecodeException("Can't parse msgpack serialization", e);
