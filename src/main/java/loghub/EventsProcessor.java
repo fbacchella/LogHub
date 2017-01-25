@@ -168,7 +168,10 @@ public class EventsProcessor extends Thread {
                     ex.getEvent().insertProcessor(pauser);
 
                     //Store the callback informations
-                    future.addListener((i) -> inQueue.put(ex.getEvent()));
+                    future.addListener((i) -> {
+                        inQueue.put(ex.getEvent());
+                        evrepo.cancel(future);
+                    });
                     evrepo.pause(paused);
                     endprocessing = true;
                 } else {

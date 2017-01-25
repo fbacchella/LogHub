@@ -32,6 +32,12 @@ public class EventsRepository<KEY> {
         }
     }
 
+    public PausedEvent<KEY> cancel(KEY key) {
+        PausedEvent<KEY> pe = pausestack.remove(key);
+        processTimeout.remove(pe);
+        return pe;
+    }
+
     public boolean succed(KEY key) {
         return awake(key, i -> i.onSuccess, i -> i.successTransform);
     }
@@ -77,6 +83,10 @@ public class EventsRepository<KEY> {
             }
             return paused;
         });
+    }
+
+    public int waiting() {
+        return pausestack.size();
     }
 
     @Override

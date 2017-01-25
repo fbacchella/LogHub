@@ -28,6 +28,7 @@ public class TestNettyNameResolver {
 
         e = p.mainQueue.take();
         Assert.assertEquals("resolution not marked as failed", 1, e.get("failed"));
+        Assert.assertEquals("Still waiting events: " + p.repository, 0, p.repository.waiting());
 
     }
 
@@ -45,6 +46,7 @@ public class TestNettyNameResolver {
 
         e = p.mainQueue.take();
         Assert.assertEquals("resolution not marked as failed", 1, e.get("failed"));
+        Assert.assertEquals("Still waiting events: " + p.repository, 0, p.repository.waiting());
 
     }
 
@@ -61,6 +63,8 @@ public class TestNettyNameResolver {
 
         e = p.mainQueue.take();
         Assert.assertEquals("resolution failed", "a.root-servers.net", e.get("fqdn"));
+        Assert.assertEquals("Still waiting events: " + p.repository, 0, p.repository.waiting());
+
     }
 
     @Test(timeout=6000)
@@ -76,6 +80,8 @@ public class TestNettyNameResolver {
 
         e = p.mainQueue.take();
         Assert.assertEquals("resolution failed", "a.root-servers.net", e.get("fqdn"));
+        Assert.assertEquals("Still waiting events: " + p.repository, 0, p.repository.waiting());
+
     }
 
 
@@ -92,6 +98,7 @@ public class TestNettyNameResolver {
 
         e = p.mainQueue.take();
         Assert.assertEquals("resolution failed", "a.root-servers.net", e.get("fqdn_host"));
+        Assert.assertEquals("Still waiting events: " + p.repository, 0, p.repository.waiting());
 
     }
 
@@ -108,6 +115,7 @@ public class TestNettyNameResolver {
 
         e = p.mainQueue.take();
         Assert.assertEquals("resolution failed", "a.root-servers.net", e.get("fqdn_host"));
+        Assert.assertEquals("Still waiting events: " + p.repository, 0, p.repository.waiting());
 
     }
 }
