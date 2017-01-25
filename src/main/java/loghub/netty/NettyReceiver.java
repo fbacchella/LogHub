@@ -76,7 +76,10 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
     private class ExceptionHandler extends ChannelInboundHandlerAdapter {
         @Override
         public void exceptionCaught(ChannelHandlerContext ctx,
-                Throwable cause) {
+                Throwable cause) throws Error {
+            if (cause instanceof Error) {
+                throw (Error) cause;
+            }
             logger.error("Unmannageded exception: {}", cause.getMessage());
             logger.debug("details", cause);
             if (closeonerror()) {
