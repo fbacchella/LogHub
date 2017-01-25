@@ -7,11 +7,8 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import io.netty.channel.AddressedEnvelope;
-import io.netty.channel.ChannelFactory;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
-import io.netty.channel.socket.DatagramChannel;
-import io.netty.channel.socket.InternetProtocolFamily;
 import io.netty.channel.socket.nio.NioDatagramChannel;
 import io.netty.handler.codec.dns.DefaultDnsQuestion;
 import io.netty.handler.codec.dns.DnsPtrRecord;
@@ -20,11 +17,11 @@ import io.netty.handler.codec.dns.DnsRecord;
 import io.netty.handler.codec.dns.DnsRecordType;
 import io.netty.handler.codec.dns.DnsResponse;
 import io.netty.handler.codec.dns.DnsSection;
-import io.netty.resolver.HostsFileEntriesResolver;
-import io.netty.resolver.dns.DefaultDnsCache;
 import io.netty.resolver.dns.DnsNameResolver;
+import io.netty.resolver.dns.DnsNameResolverBuilder;
 import io.netty.resolver.dns.DnsNameResolverException;
 import io.netty.resolver.dns.DnsServerAddresses;
+import io.netty.util.concurrent.DefaultThreadFactory;
 import io.netty.util.concurrent.Future;
 import loghub.AsyncProcessor;
 import loghub.Event;
@@ -33,49 +30,32 @@ import loghub.configuration.Properties;
 
 public class NettyNameResolver extends AbstractNameResolver implements AsyncProcessor<AddressedEnvelope<DnsResponse,InetSocketAddress>> {
 
-    private static final EventLoopGroup evg = new NioEventLoopGroup();
+    private static final EventLoopGroup evg = new NioEventLoopGroup(1, new DefaultThreadFactory("dnsresolver"));
     private int timeout = 10;
-    private DnsServerAddresses resolverAddress = DnsServerAddresses.defaultAddresses();
     private DnsNameResolver resolver;
     private final Map<Event, String> destinations = new ConcurrentHashMap<>();
 
     @Override
     public boolean configure(Properties properties) {
-        if (resolverAddress == null) {
-            try {
-                resolverAddress = DnsServerAddresses.rotational(new InetSocketAddress(InetAddress.getByName(getResolver()), 53));
-            } catch (UnknownHostException e) {
-                logger.error("Unknown resolver '{}': {}", getResolver(), e.getMessage());
-                return false;
+        DnsNameResolverBuilder builder = new DnsNameResolverBuilder(evg.next())
+                .queryTimeoutMillis(timeout * 1000)
+                .channelType(NioDatagramChannel.class)
+                ;
+        try {
+            if (getResolver() != null) {
+                builder = builder.nameServerAddresses(DnsServerAddresses.rotational(new InetSocketAddress(InetAddress.getByName(getResolver()), 53)));
             }
+        } catch (UnknownHostException e) {
+            logger.error("Unknown resolver '{}': {}", getResolver(), e.getMessage());
+            return false;
         }
+        resolver = builder.build();
 
-        resolver = new DnsNameResolver(
-                evg.next(),
-                new ChannelFactory<DatagramChannel>() {
-                    @Override 
-                    public DatagramChannel newChannel() {
-                        return new NioDatagramChannel();
-                    }
-                },
-                resolverAddress,
-                new DefaultDnsCache(),
-                timeout * 1000,
-                new InternetProtocolFamily[] { InternetProtocolFamily.IPv4 },
-                true,
-                10,
-                false,
-                65535,
-                false,
-                HostsFileEntriesResolver.DEFAULT,
-                new String[]{},
-                0);
         return super.configure(properties);
     }
 
     @Override
     public String getName() {
-        // TODO Auto-generated method stub
         return null;
     }
 
@@ -120,12 +100,6 @@ public class NettyNameResolver extends AbstractNameResolver implements AsyncProc
 
     public void setTimeout(int timeout) {
         this.timeout = timeout;
-    }
-
-    @Override
-    public void setResolver(String resolver) {
-        resolverAddress = null;
-        super.setResolver(resolver);
     }
 
 }

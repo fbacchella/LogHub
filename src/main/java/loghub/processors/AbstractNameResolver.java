@@ -10,8 +10,8 @@ import loghub.Event;
 import loghub.ProcessorException;
 
 public abstract class AbstractNameResolver extends FieldsProcessor {
-    
-    String resolver;
+
+    String resolver = null;
 
     @Override
     public boolean processMessage(Event event, String field, String destination) throws ProcessorException {
@@ -62,12 +62,11 @@ public abstract class AbstractNameResolver extends FieldsProcessor {
 
     @Override
     public String getName() {
-        // TODO Auto-generated method stub
         return null;
     }
-    
+
     public abstract boolean resolve(Event event, String query, String destination) throws ProcessorException ;
-    
+
     /**
      * @return the the IP of the resolver
      */
