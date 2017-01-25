@@ -40,7 +40,6 @@ public class EventsProcessor extends Thread {
     private final Map<String, BlockingQueue<Event>> outQueues;
     private final Map<String,Pipeline> namedPipelines;
     private final int maxSteps;
-    private final AtomicReference<Counter> gaugecounter = new AtomicReference<>();
     private final EventsRepository<Future<?>> evrepo;
 
     public EventsProcessor(BlockingQueue<Event> inQueue, Map<String, BlockingQueue<Event>> outQueues, Map<String,Pipeline> namedPipelines, int maxSteps, EventsRepository<Future<?>> evrepo) {
@@ -54,6 +53,7 @@ public class EventsProcessor extends Thread {
 
     @Override
     public void run() {
+        final AtomicReference<Counter> gaugecounter = new AtomicReference<>();
         String threadName = Thread.currentThread().getName();
         Event event = null;
         try {
@@ -69,16 +69,25 @@ public class EventsProcessor extends Thread {
                     while ((processor = event.next()) != null) {
                         logger.trace("processing {}", processor);
                         Thread.currentThread().setName(threadName + "-" + processor.getName());
-                        boolean endprocessing = process(event, processor);
+                        int processingstatus = process(event, processor);
                         Thread.currentThread().setName(threadName);
-                        if (endprocessing) {
+                        if (processingstatus > 0) {
+                            //It was a drop action
+                            if ((processingstatus & 2) == 2) {
+                                logger.debug("dropped event {}", event);
+                                event.doMetric(() -> {
+                                    gaugecounter.get().dec();
+                                    Properties.metrics.meter("Allevents.dropped");
+                                });
+                                event.drop();
+                            }
                             event = null;
                             break;
                         }
                     }
                     //No processor, processing finished
                     //Detect if will send to another pipeline, or just wait for a sender to take it
-                    if (processor == null) {
+                    if (event != null && processor == null) {
                         event.doMetric(() -> {
                             gaugecounter.get().dec();
                             gaugecounter.set(null);
@@ -125,13 +134,11 @@ public class EventsProcessor extends Thread {
     }
 
     @SuppressWarnings("unchecked")
-    boolean process(Event e, Processor p) {
+    int process(Event e, Processor p) {
         boolean dropped = false;
         boolean endprocessing = false;
-        boolean success = false;
         if (p instanceof Forker) {
             ((Forker) p).fork(e);
-            success = true;
         } else if (p instanceof Drop) {
             dropped = true;
         } else if (e.stepsCount() > maxSteps) {
@@ -139,6 +146,7 @@ public class EventsProcessor extends Thread {
             dropped = true;
         } else {
             try {
+                boolean success = false;
                 if (p.isprocessNeeded(e)) {
                     success = e.process(p);
                 }
@@ -209,15 +217,7 @@ public class EventsProcessor extends Thread {
                 dropped = true;
             }
         }
-        if (dropped) {
-            logger.debug("dropped event {}", e);
-            e.doMetric(() -> {
-                gaugecounter.get().dec();
-                Properties.metrics.meter("Allevents.dropped");
-            });
-            e.drop();
-        }
-        return dropped || endprocessing;
+        return (dropped ? 2 : 0) + (endprocessing ? 1 : 0);
     }
 
 }
