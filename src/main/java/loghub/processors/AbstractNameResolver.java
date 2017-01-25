@@ -5,8 +5,8 @@ import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 
-import io.netty.util.NetUtil;
 import loghub.Event;
+import loghub.Helpers;
 import loghub.ProcessorException;
 
 public abstract class AbstractNameResolver extends FieldsProcessor {
@@ -22,17 +22,10 @@ public abstract class AbstractNameResolver extends FieldsProcessor {
 
         // If a string was given, convert it to a Inet?Address
         if(addr instanceof String) {
-            String ipstring = (String) addr;
-            byte[] parts = null;
-            if(NetUtil.isValidIpV4Address(ipstring) || NetUtil.isValidIpV6Address(ipstring)) {
-                parts = NetUtil.createByteArrayFromIpAddressString(ipstring);
-            }
-            if(parts != null) {
-                try {
-                    ipaddr = InetAddress.getByAddress(parts);
-                } catch (UnknownHostException e) {
-                    throw event.buildException("invalid IP address '" + addr + "': " + e.getMessage());
-                }
+            try {
+                ipaddr = Helpers.parseIpAddres((String) addr);
+            } catch (UnknownHostException e) {
+                throw event.buildException("invalid IP address '" + addr + "': " + e.getMessage());
             }
         } else if (addr instanceof InetAddress) {
             ipaddr = (InetAddress) addr;
@@ -53,11 +46,16 @@ public abstract class AbstractNameResolver extends FieldsProcessor {
             toresolv = buffer.toString();
         }
 
-        //If a query was build, use it
         if (toresolv != null) {
+            //If a query was build, use it
             return resolve(event, toresolv, destination);
+        } else if(addr instanceof String) {
+            // if addr was a String, it's used a a hostname
+            event.put(destination, addr instanceof String);
+            return true;
+        } else {
+            return false;
         }
-        return false;
     }
 
     @Override

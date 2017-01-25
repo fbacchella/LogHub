@@ -5,6 +5,7 @@ import java.util.concurrent.ExecutionException;
 import io.netty.util.concurrent.Future;
 import loghub.AsyncProcessor;
 import loghub.Event;
+import loghub.Helpers;
 import loghub.PausedEvent;
 import loghub.Processor;
 import loghub.ProcessorException;
@@ -36,13 +37,12 @@ public class FuturProcessor<FI> extends Processor {
             content = future.get();
             return callback.process(event, content);
         } catch (ExecutionException e) {
-            // Don't try to manage Error, they are re-thrown directly
-            if (e.getCause() instanceof Exception) {
-                return callback.manageException(event, (Exception) e.getCause());
-            } else {
+            // Don't try to manage fatal errors, they are re-thrown directly
+            if (Helpers.isFatal(e.getCause())) {
                 throw (Error) e.getCause();
+            } else {
+                return callback.manageException(event, (Exception) e.getCause());
             }
-            
         } catch (InterruptedException e) {
             return false;
         }
@@ -50,7 +50,6 @@ public class FuturProcessor<FI> extends Processor {
 
     @Override
     public String getName() {
-        // TODO Auto-generated method stub
         return null;
     }
 }

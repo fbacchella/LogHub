@@ -19,6 +19,7 @@ import io.netty.util.AttributeKey;
 import io.netty.util.ReferenceCounted;
 import loghub.Decoder.DecodeException;
 import loghub.Event;
+import loghub.Helpers;
 import loghub.Pipeline;
 import loghub.Receiver;
 import loghub.configuration.Properties;
@@ -77,7 +78,7 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
         @Override
         public void exceptionCaught(ChannelHandlerContext ctx,
                 Throwable cause) throws Error {
-            if (cause instanceof Error) {
+            if (Helpers.isFatal(cause)) {
                 throw (Error) cause;
             }
             logger.error("Unmannageded exception: {}", cause.getMessage());

@@ -28,9 +28,8 @@ import java.util.jar.JarFile;
 import java.util.regex.Pattern;
 import java.util.stream.StreamSupport;
 
-import sun.net.util.IPAddressUtil;
+import io.netty.util.NetUtil;
 
-@SuppressWarnings("restriction")
 public final class Helpers {
 
     private Helpers() {
@@ -304,12 +303,8 @@ public final class Helpers {
 
     public static InetAddress parseIpAddres(String ipstring) throws UnknownHostException{
         byte[] parts = null;
-        if(IPAddressUtil.isIPv4LiteralAddress(ipstring)) {
-            parts = IPAddressUtil.textToNumericFormatV4(ipstring);
-        } else if(IPAddressUtil.isIPv6LiteralAddress(ipstring)) {
-            parts = IPAddressUtil.textToNumericFormatV6(ipstring);
-        }
-        if(parts != null) {
+        if(NetUtil.isValidIpV4Address(ipstring) || NetUtil.isValidIpV6Address(ipstring)) {
+            parts = NetUtil.createByteArrayFromIpAddressString(ipstring);
             return InetAddress.getByAddress(parts);
         } else {
             return null;
