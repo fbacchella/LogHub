@@ -89,15 +89,19 @@ public class NettyNameResolver extends AbstractNameResolver implements AsyncProc
 
     @Override
     public boolean process(Event ev, AddressedEnvelope<DnsResponse, InetSocketAddress> enveloppe) throws ProcessorException {
-        String destination = destinations.remove(ev);
-        DnsRecord rr = enveloppe.content().recordAt((DnsSection.ANSWER));
-        if (rr !=null && rr instanceof DnsPtrRecord) {
-            DnsPtrRecord ptr = (DnsPtrRecord) rr;
-            // DNS responses end the query with a ., substring removes it.
-            ev.put(destination, ptr.hostname().substring(0, ptr.hostname().length() - 1));
-            return true;
-        } else {
-            return false;
+        try {
+            String destination = destinations.remove(ev);
+            DnsRecord rr = enveloppe.content().recordAt((DnsSection.ANSWER));
+            if(rr != null && rr instanceof DnsPtrRecord) {
+                DnsPtrRecord ptr = (DnsPtrRecord) rr;
+                // DNS responses end the query with a ., substring removes it.
+                ev.put(destination, ptr.hostname().substring(0, ptr.hostname().length() - 1));
+                return true;
+            } else {
+                return false;
+            } 
+        } finally {
+            enveloppe.release();
         }
     }
 
