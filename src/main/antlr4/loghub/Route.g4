@@ -36,7 +36,7 @@ bean
     ;
 
 beanName
-    :'index' | 'seeds' | 'doFire' | 'onFire' | 'timeout' | 'forward' | 'default' | 'merge'
+    :'index' | 'seeds' | 'doFire' | 'onFire' | 'timeout' | 'forward' | 'default' | 'merge' | 'inPipeline'
     | Identifier
     ;
 
@@ -59,6 +59,7 @@ mergeArgument
     | type='timeout' ':' (integerLiteral | floatingPointLiteral)
     | type='forward' ':' booleanLiteral
     | type='default' ':' beanValue
+    | type='inPipeline' ':' stringLiteral
     ;
 
 

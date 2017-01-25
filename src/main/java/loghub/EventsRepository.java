@@ -19,9 +19,11 @@ public class EventsRepository<KEY> {
     private final ScheduledThreadPoolExecutor processTimeout = new ScheduledThreadPoolExecutor(0);
     private final Map<KEY, PausedEvent<KEY>> pausestack = new ConcurrentHashMap<>();
     private final BlockingQueue<Event> mainQueue;
+    private final Map<String, Pipeline> pipelines;
 
     public EventsRepository(Properties properties) {
         mainQueue = properties.mainQueue;
+        pipelines = properties.namedPipeLine;
     }
 
     public void pause(PausedEvent<KEY> paused) {
@@ -62,7 +64,7 @@ public class EventsRepository<KEY> {
         logger.trace("Waking up event {}", pe.event);
         pe.event.insertProcessor(source.apply(pe));
         processTimeout.remove(pe);
-        return mainQueue.offer(transform.apply(pe).apply(pe.event));
+        return transform.apply(pe).apply(pe.event).inject(pipelines.get(pe.pipeline), mainQueue);
     }
 
     public Event get(KEY key) {

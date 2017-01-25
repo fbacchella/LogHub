@@ -22,12 +22,14 @@ public final class PausedEvent<KEY> implements Runnable {
     public final Function<Event, Event> failureTransform;
     public final Function<Event, Event> timeoutTransform;
     public final Function<Event, Event> exceptionTransform;
+    public final String pipeline;
 
     private PausedEvent(Event event, KEY key,
             Processor onSuccess, Processor onFailure, Processor onTimeout, Processor onException,
             Function<Event, Event> successTransform, Function<Event, Event> failureTransform, Function<Event, Event> timeoutTransform, Function<Event, Event> exceptionTransform,
             long duration, TimeUnit unit,
-            EventsRepository<KEY> repository) {
+            EventsRepository<KEY> repository,
+            String pipeline) {
         this.event = event;
         this.key = key;
         this.onSuccess = onSuccess;
@@ -41,6 +43,7 @@ public final class PausedEvent<KEY> implements Runnable {
         this.failureTransform = failureTransform;
         this.timeoutTransform = timeoutTransform;
         this.exceptionTransform = exceptionTransform;
+        this.pipeline = pipeline;
     }
 
     public PausedEvent(Event event, KEY key) {
@@ -53,54 +56,59 @@ public final class PausedEvent<KEY> implements Runnable {
         unit = null;
         duration = -1;
         repository = null;
-        this.successTransform = i -> i;
-        this.failureTransform = i -> i;
-        this.timeoutTransform = i -> i;
-        this.exceptionTransform = i -> i;
+        successTransform = i -> i;
+        failureTransform = i -> i;
+        timeoutTransform = i -> i;
+        exceptionTransform = i -> i;
+        pipeline = null;
     }
 
     public final PausedEvent<KEY> setKey(KEY key) {
-        return new PausedEvent<KEY>(event, key, onSuccess, onFailure, onTimeout, onException, successTransform, failureTransform, timeoutTransform, exceptionTransform, duration, unit, repository);
+        return new PausedEvent<KEY>(event, key, onSuccess, onFailure, onTimeout, onException, successTransform, failureTransform, timeoutTransform, exceptionTransform, duration, unit, repository, pipeline);
     }
 
     public final PausedEvent<KEY> onSuccess(Processor onSuccess) {
-        return new PausedEvent<KEY>(event, key, onSuccess, onFailure, onTimeout, onException, successTransform, failureTransform, timeoutTransform, exceptionTransform, duration, unit, repository);
+        return new PausedEvent<KEY>(event, key, onSuccess, onFailure, onTimeout, onException, successTransform, failureTransform, timeoutTransform, exceptionTransform, duration, unit, repository, pipeline);
     }
 
     public final PausedEvent<KEY> onSuccess(Processor onSuccess, Function<Event, Event> successTransform) {
-        return new PausedEvent<KEY>(event, key, onSuccess, onFailure, onTimeout, onException, successTransform, failureTransform, timeoutTransform, exceptionTransform, duration, unit, repository);
+        return new PausedEvent<KEY>(event, key, onSuccess, onFailure, onTimeout, onException, successTransform, failureTransform, timeoutTransform, exceptionTransform, duration, unit, repository, pipeline);
     }
 
     public final PausedEvent<KEY> onFailure(Processor onFailure) {
-        return new PausedEvent<KEY>(event, key, onSuccess, onFailure, onTimeout, onException, successTransform, failureTransform, timeoutTransform, exceptionTransform, duration, unit, repository);
+        return new PausedEvent<KEY>(event, key, onSuccess, onFailure, onTimeout, onException, successTransform, failureTransform, timeoutTransform, exceptionTransform, duration, unit, repository, pipeline);
     }
 
     public final PausedEvent<KEY> onFailure(Processor onFailure, Function<Event, Event> failureTransform) {
-        return new PausedEvent<KEY>(event, key, onSuccess, onFailure, onTimeout, onException, successTransform, failureTransform, timeoutTransform, exceptionTransform, duration, unit, repository);
+        return new PausedEvent<KEY>(event, key, onSuccess, onFailure, onTimeout, onException, successTransform, failureTransform, timeoutTransform, exceptionTransform, duration, unit, repository, pipeline);
     }
 
     public final PausedEvent<KEY> onTimeout(Processor onTimeout) {
-        return new PausedEvent<KEY>(event, key, onSuccess, onFailure, onTimeout, onException, successTransform, failureTransform, timeoutTransform, exceptionTransform, duration, unit, repository);
+        return new PausedEvent<KEY>(event, key, onSuccess, onFailure, onTimeout, onException, successTransform, failureTransform, timeoutTransform, exceptionTransform, duration, unit, repository, pipeline);
     }
 
     public final PausedEvent<KEY> onTimeout(Processor onTimeout, Function<Event, Event> timeoutTransform) {
-        return new PausedEvent<KEY>(event, key, onSuccess, onFailure, onTimeout, onException, successTransform, failureTransform, timeoutTransform, exceptionTransform, duration, unit, repository);
+        return new PausedEvent<KEY>(event, key, onSuccess, onFailure, onTimeout, onException, successTransform, failureTransform, timeoutTransform, exceptionTransform, duration, unit, repository, pipeline);
     }
 
     public final PausedEvent<KEY> onException(Processor onException) {
-        return new PausedEvent<KEY>(event, key, onSuccess, onFailure, onTimeout, onException, successTransform, failureTransform, timeoutTransform, exceptionTransform, duration, unit, repository);
+        return new PausedEvent<KEY>(event, key, onSuccess, onFailure, onTimeout, onException, successTransform, failureTransform, timeoutTransform, exceptionTransform, duration, unit, repository, pipeline);
     }
 
     public final PausedEvent<KEY> onException(Processor onException, Function<Event, Event> exceptionTransform) {
-        return new PausedEvent<KEY>(event, key, onSuccess, onFailure, onTimeout, onException, successTransform, failureTransform, timeoutTransform, exceptionTransform, duration, unit, repository);
+        return new PausedEvent<KEY>(event, key, onSuccess, onFailure, onTimeout, onException, successTransform, failureTransform, timeoutTransform, exceptionTransform, duration, unit, repository, pipeline);
     }
 
     final PausedEvent<KEY> setRepository(EventsRepository<KEY> repository) {
-        return new PausedEvent<KEY>(event, key, onSuccess, onFailure, onTimeout, onException, successTransform, failureTransform, timeoutTransform, exceptionTransform, duration, unit, repository);
+        return new PausedEvent<KEY>(event, key, onSuccess, onFailure, onTimeout, onException, successTransform, failureTransform, timeoutTransform, exceptionTransform, duration, unit, repository, pipeline);
     }
 
     public final PausedEvent<KEY> setTimeout(long duration, TimeUnit unit) {
-        return new PausedEvent<KEY>(event, key, onSuccess, onFailure, onTimeout, onException, successTransform, failureTransform, timeoutTransform, exceptionTransform, duration, unit, repository);
+        return new PausedEvent<KEY>(event, key, onSuccess, onFailure, onTimeout, onException, successTransform, failureTransform, timeoutTransform, exceptionTransform, duration, unit, repository, pipeline);
+    }
+
+    public final PausedEvent<KEY> setPipeline(String pipeline) {
+        return new PausedEvent<KEY>(event, key, onSuccess, onFailure, onTimeout, onException, successTransform, failureTransform, timeoutTransform, exceptionTransform, duration, unit, repository, pipeline);
     }
 
     /**

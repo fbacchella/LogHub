@@ -11,6 +11,10 @@ import java.time.temporal.TemporalQueries;
 import java.util.Date;
 import java.util.Map;
 
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.core.LoggerContext;
+
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.databind.MappingIterator;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -22,6 +26,10 @@ import loghub.EventsProcessor;
 public class TestEventProcessing {
 
     public static void check(String pipeLineTest, String configFile) {
+
+        LoggerContext ctx = (LoggerContext) LogManager.getContext(false);
+        ctx.getLogger("loghub.eventtester").setLevel(Level.TRACE);
+
         try {
             Properties props = Configuration.parse(configFile);
 
@@ -63,18 +71,14 @@ public class TestEventProcessing {
                     ev.setTimestamp(eventDate);
                 }
                 ev.inject(props.namedPipeLine.get(pipeLineTest), props.mainQueue);
-                synchronized(ev) {
-                    ev.wait();
-                    System.out.println(ev);
-                }
             }
+
             Thread.currentThread().join();
         } catch (IOException e) {
             e.printStackTrace();
         } catch (ConfigException e) {
             e.printStackTrace();
         } catch (InterruptedException e) {
-            // TODO Auto-generated catch block
             e.printStackTrace();
         }
 

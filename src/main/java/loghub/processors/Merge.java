@@ -268,10 +268,11 @@ public class Merge extends Processor {
     private Map<String, Object> seeds = Collections.emptyMap();
     private Map<String, BiFunction<Object, Object, Object>> cumulators;
     private EventsRepository<String> repository = null;
-    private Processor timeoutProcessor = null;
-    private Processor fireProcessor = null;
-    private int timeout;
+    private Processor timeoutProcessor = new Identity();
+    private Processor fireProcessor = new Identity();
+    private int timeout = Integer.MAX_VALUE;
     private boolean forward;
+    private String nextPipeline;
 
     @Override
     public boolean configure(Properties properties) {
@@ -301,6 +302,9 @@ public class Merge extends Processor {
         if (timeoutProcessor != null && ! timeoutProcessor.configure(properties)) {
             return false;
         }
+        if (nextPipeline == null) {
+            return false;
+        }
         return super.configure(properties);
     }
 
@@ -320,9 +324,9 @@ public class Merge extends Processor {
         logger.debug("key: {} for {}", eventKey, event);
         PausedEvent<String> current = repository.getOrPause(eventKey, () -> {
             PausedEvent<String> pe = new PausedEvent<String>(event.isTest() ? Event.emptyTestEvent() : Event.emptyEvent(), eventKey)
-                    .setTimeout(timeout, TimeUnit.SECONDS)
-                    .onTimeout(timeoutProcessor, prepareEvent)
+                    .setTimeout(timeout, TimeUnit.SECONDS).onTimeout(timeoutProcessor, prepareEvent)
                     .onSuccess(fireProcessor, prepareEvent)
+                    .setPipeline(nextPipeline)
                     ;
             // If the cumulators return a value, use it to initialize the new event time stamp
             // A null seed will keep it the new event timestamp all way long
@@ -452,6 +456,20 @@ public class Merge extends Processor {
      */
     public void setDefault(Object defaultSeed) {
         this.defaultSeedType = defaultSeed;
+    }
+
+    /**
+     * @return the pipeline that will process the event
+     */
+    public String getInPipeline() {
+        return nextPipeline;
+    }
+
+    /**
+     * @param nextPipeline the pipeline that will process the event
+     */
+    public void setInPipeline(String nextPipeline) {
+        this.nextPipeline = nextPipeline;
     }
 
 }

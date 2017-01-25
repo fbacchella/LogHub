@@ -92,18 +92,19 @@ public class EventsProcessor extends Thread {
                             gaugecounter.get().dec();
                             gaugecounter.set(null);
                         });
-                        // A test event, it will not be send to another pipeline
-                        if (event.isTest()) {
-                            logger.info("processed a test event: {}", event);
-                            event.end();
-                        } else if (event.getNextPipeline() != null) {
+                        if (event.getNextPipeline() != null) {
                             // Send to another pipeline, loop in the main processing queue
                             Pipeline next = namedPipelines.get(event.getNextPipeline());
                             if (! event.inject(next, inQueue)) {
-                                Properties.metrics.meter("Pipeline." + next.getName() + ".blocked").mark();
+                                event.doMetric(() -> Properties.metrics.meter("Pipeline." + next.getName() + ".blocked").mark());
                                 event.end();
                                 event = null;
                             }
+                        } else if (event.isTest()) {
+                            // A test event, it will not be send to another pipeline
+                            // Checked after pipeline forwarding, but before output sending
+                            LogManager.getLogger("loghub.eventtester").info("processed a test event: {}", event);
+                            event.end();
                         } else if (event.getCurrentPipeline() != null){
                             // Put in the output queue, where the wanting output will come to take it
                             if (!outQueues.get(event.getCurrentPipeline()).offer(event)) {

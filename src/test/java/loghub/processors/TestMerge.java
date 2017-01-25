@@ -31,7 +31,7 @@ public class TestMerge {
 
     @Test
     public void test() throws Throwable {
-        String conf= "pipeline[main] { merge {index: \"${e%s}\", seeds: {\"a\": 0, \"b\": \",\", \"d\": 0.0, \"e\": null, \"c\": [], \"count\": 'c', \"@timestamp\": '>'}, doFire: [a] >= 2, onFire: $main, forward: false}}";
+        String conf= "pipeline[main] { merge {index: \"${e%s}\", seeds: {\"a\": 0, \"b\": \",\", \"d\": 0.0, \"e\": null, \"c\": [], \"count\": 'c', \"@timestamp\": '>'}, doFire: [a] >= 2, inPipeline: \"main\", forward: false}}";
 
         Properties p = Configuration.parse(new StringReader(conf));
         Assert.assertTrue(p.pipelines.stream().allMatch(i-> i.configure(p)));
@@ -57,10 +57,11 @@ public class TestMerge {
         try {
             e.setTimestamp(new Date());
             timestamp = e.getTimestamp().getTime();
-            m.process(e);
+            Assert.assertTrue(m.process(e));
         } catch (ProcessorException.DroppedEventException e1) {
             dropped = true;
         }
+        Thread.yield();
         e = p.mainQueue.remove();
         Assert.assertTrue(dropped);
         Assert.assertTrue(p.mainQueue.isEmpty());
@@ -73,7 +74,7 @@ public class TestMerge {
 
     @Test(timeout=5000)
     public void testTimeout() throws Throwable {
-        String conf= "pipeline[main] { merge {index: \"${e%s}\", seeds: {\"a\": 0, \"b\": \",\", \"e\": 'c', \"c\": [], \"@timestamp\": null}, onTimeout: $main, timeout: 1 }}";
+        String conf= "pipeline[main] { merge {index: \"${e%s}\", seeds: {\"a\": 0, \"b\": \",\", \"e\": 'c', \"c\": [], \"@timestamp\": null}, inPipeline: \"main\", timeout: 1 }}";
 
         Properties p = Configuration.parse(new StringReader(conf));
         Assert.assertTrue(p.pipelines.stream().allMatch(i-> i.configure(p)));
@@ -100,7 +101,7 @@ public class TestMerge {
 
     @Test
     public void testDefault() throws Throwable {
-        String conf= "pipeline[main] { merge {index: \"${e%s}\", doFire: true, default: null, onFire: $main, forward: true}}";
+        String conf= "pipeline[main] { merge {index: \"${e%s}\", doFire: true, default: null, onFire: $main, forward: true, inPipeline: \"main\"}}";
 
         Properties p = Configuration.parse(new StringReader(conf));
         Assert.assertTrue(p.pipelines.stream().allMatch(i-> i.configure(p)));
