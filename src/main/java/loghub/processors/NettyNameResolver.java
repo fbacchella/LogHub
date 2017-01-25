@@ -34,7 +34,7 @@ import loghub.configuration.Properties;
 public class NettyNameResolver extends AbstractNameResolver implements AsyncProcessor<AddressedEnvelope<DnsResponse,InetSocketAddress>> {
 
     private static final EventLoopGroup evg = new NioEventLoopGroup();
-    private int timeout = 1;
+    private int timeout = 10;
     private DnsServerAddresses resolverAddress = DnsServerAddresses.defaultAddresses();
     private DnsNameResolver resolver;
     private final Map<Event, String> destinations = new ConcurrentHashMap<>();
