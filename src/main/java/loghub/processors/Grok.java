@@ -6,30 +6,27 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.PatternSyntaxException;
 
 import org.apache.logging.log4j.Level;
 
+import io.thekraken.grok.api.Match;
+import io.thekraken.grok.api.exception.GrokException;
 import loghub.Event;
 import loghub.Helpers;
 import loghub.configuration.Properties;
-import oi.thekraken.grok.api.Match;
-import oi.thekraken.grok.api.exception.GrokException;
 
 public class Grok extends FieldsProcessor {
-    
+
     public static String PATTERNSFOLDER = "patterns";
 
-    private final oi.thekraken.grok.api.Grok grok;
+    private final io.thekraken.grok.api.Grok grok;
     private String pattern;
-    private final Map<String, List<String>> reverseIndex = new HashMap<>();
 
     public Grok() {
-        grok = new oi.thekraken.grok.api.Grok();
+        grok = new io.thekraken.grok.api.Grok();
     }
 
     @Override
@@ -38,41 +35,34 @@ public class Grok extends FieldsProcessor {
         Match gm = grok.match(line);
         gm.captures();
         if (! gm.isNull()) {
-            //Many bug in java grok, rebuild the matching manually
-            Map<String, String> groups = gm.getMatch().namedGroups();
-            Map<String, List<Object>> results = new HashMap<>();
+            //Results from grok needs to be cleaned
             for (Map.Entry<String, Object> e: gm.toMap().entrySet()) {
+                String destinationField = e.getKey();
+
                 // . is a special field name, it mean a value to put back in the original field
                 if (".".equals(e.getKey())) {
-                    results.put(field, Collections.singletonList(e.getValue()));
-                    continue;
+                    destinationField = field ;
                 }
                 //Dirty hack to filter non named regex
-                if (e.getKey().equals(e.getKey().toUpperCase())) {
+                if (e.getKey().equals(e.getKey().toUpperCase()) && ! ".".equals(e.getKey())) {
                     continue;
                 }
-                List<Object> values = new ArrayList<Object>();
-                if ( reverseIndex.containsKey(e.getKey())) {
-                    for(String subname: reverseIndex.get(e.getKey())) {
-                        String subvalue = groups.get(subname);
-                        if(subvalue != null) {
-                            values.add(subvalue);
-                        }
+                if (e.getValue() == null) {
+                    continue;
+                }
+                if (e.getValue() instanceof List) {
+                    List<?> listvalue = (List<?>) e.getValue();
+                    List<Object> newvalues = new ArrayList<>();
+                    listvalue.stream().filter( i -> i != null).forEach(newvalues::add);
+                    if (newvalues.size() == 0) {
+                        continue;
+                    } else if (newvalues.size() == 1) {
+                        event.put(destinationField, newvalues.get(0));
+                    } else {
+                        event.put(destinationField, newvalues);
                     }
                 } else {
-                    results.put(e.getKey(), Collections.singletonList(e.getValue()));
-                }
-                // Don't keep empty matching
-                if (values.size() > 0) {
-                    results.put(e.getKey(), values);
-                }
-            }
-            for (Map.Entry<String, List<Object>> e: results.entrySet()) {
-                if (e.getValue().size() == 1) {
-                    // If only one value found, keep it
-                    event.put(e.getKey(), e.getValue().get(0));
-                } else {
-                    event.put(e.getKey(), e.getValue());
+                    event.put(destinationField, e.getValue());
                 }
             }
             return true;
@@ -107,12 +97,6 @@ public class Grok extends FieldsProcessor {
             logger.error("wrong pattern {}: {}", pattern, e.getMessage());
             logger.catching(Level.DEBUG, e);
             return false;
-        }
-        for (Map.Entry<String, String> e: grok.getNamedRegexCollection().entrySet()) {
-            if ( ! reverseIndex.containsKey(e.getValue())) {
-                reverseIndex.put(e.getValue(), new ArrayList<String>());
-            }
-            reverseIndex.get(e.getValue()).add(e.getKey());
         }
         return super.configure(properties);
     }
