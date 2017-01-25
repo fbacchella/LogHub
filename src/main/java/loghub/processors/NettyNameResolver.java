@@ -17,6 +17,7 @@ import io.netty.handler.codec.dns.DnsRecord;
 import io.netty.handler.codec.dns.DnsRecordType;
 import io.netty.handler.codec.dns.DnsResponse;
 import io.netty.handler.codec.dns.DnsSection;
+import io.netty.resolver.dns.DefaultDnsCache;
 import io.netty.resolver.dns.DnsNameResolver;
 import io.netty.resolver.dns.DnsNameResolverBuilder;
 import io.netty.resolver.dns.DnsNameResolverException;
@@ -39,6 +40,7 @@ public class NettyNameResolver extends AbstractNameResolver implements AsyncProc
     public boolean configure(Properties properties) {
         DnsNameResolverBuilder builder = new DnsNameResolverBuilder(evg.next())
                 .queryTimeoutMillis(timeout * 1000)
+                .resolveCache(new DefaultDnsCache(timeout * 1000, 3600000, timeout * 1000))
                 .channelType(NioDatagramChannel.class)
                 ;
         try {
