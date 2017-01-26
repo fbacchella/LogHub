@@ -94,7 +94,7 @@ public class Merge extends Processor {
                         if (newmap.containsKey(k)) {
                             Object oldValue = newmap.get(k);
                             if (oldValue instanceof List) {
-                                ((List<Object>) oldValue).add(k);
+                                ((List<Object>) oldValue).add(v);
                             } else if (oldValue instanceof Map && v instanceof Map){
                                 object2Map(oldValue).putAll(object2Map(v));
                             } else {
