@@ -29,32 +29,40 @@ public class Merge extends Processor {
         STRING {
             @Override
             BiFunction<Object, Object, Object> cumulate(final Object seed) {
-                final StringBuilder builder = new StringBuilder();
-                return (last, next) -> builder.length() == 0 ? builder.append(next) : builder.append(seed).append(next);
+                final String stringSeed = seed == null ? "" : seed.toString();
+                return (last, next) -> last == null ? new StringBuilder().append(next).toString() : new StringBuilder(last.toString()).append(stringSeed).append(next).toString();
             }
         },
         LIST {
             @SuppressWarnings("unchecked")
+            // This method can return the source unmodified
+            // Modifing the returned object must be done with care
+            private List<Object> object2list(Object source) {
+                List<Object> newList;
+                if (source == null) {
+                    return new ArrayList<>();
+                } else if (source instanceof List) {
+                    return (List<Object>) source;
+                } else if (source.getClass().isArray()) {
+                    newList = new ArrayList<>();
+                    Object[] seedArray = (Object[]) source;
+                    newList.addAll(Arrays.asList(seedArray));
+                } else {
+                    newList = new ArrayList<>();
+                    newList.add(source);
+                }
+                return newList;
+            }
             @Override
             BiFunction<Object, Object, Object> cumulate(final Object seed) {
-                final List<Object> list;
-                if (seed == null) {
-                    list = new ArrayList<>();
-                } else if (seed.getClass().isArray()) {
-                    list = new ArrayList<>();
-                    Object[] seedArray = (Object[]) seed;
-                    list.addAll(Arrays.asList(seedArray));
-                } else if (seed instanceof List) {
-                    list = (List<Object>) seed;
-                } else {
-                    list = new ArrayList<>();
-                    list.add(seed);
-                }
+                final List<Object> listSeed = object2list(seed);
                 return (last, next) -> {
-                    if (next != null) {
-                        list.add(next);
+                    List<Object> newList = object2list(last);
+                    if (last == null) {
+                        newList.addAll(listSeed);
                     }
-                    return list;
+                    newList.addAll(object2list(next));
+                    return newList;
                 };
             }
         },
