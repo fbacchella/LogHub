@@ -5,7 +5,7 @@ import java.util.function.Function;
 
 import loghub.processors.Identity;
 
-public final class PausedEvent<KEY> implements Runnable {
+public final class PausedEvent<KEY> {
 
     private static final Processor DONOTHING = new Identity();
 
@@ -109,15 +109,6 @@ public final class PausedEvent<KEY> implements Runnable {
 
     public final PausedEvent<KEY> setPipeline(String pipeline) {
         return new PausedEvent<KEY>(event, key, onSuccess, onFailure, onTimeout, onException, successTransform, failureTransform, timeoutTransform, exceptionTransform, duration, unit, repository, pipeline);
-    }
-
-    /**
-     * Run on event timeout
-     * @see java.lang.Runnable#run()
-     */
-    @Override
-    public final void run() {
-        repository.timeout(key);
     }
 
     @Override
