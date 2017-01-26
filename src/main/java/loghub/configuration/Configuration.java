@@ -110,7 +110,7 @@ public class Configuration {
 
     private Properties analyze(ConfigListener conf) throws ConfigException {
 
-        final Map<String, Object > newProperties = new HashMap<>(conf.properties.size() + Properties.PROPSNAMES.values().length);
+        final Map<String, Object> newProperties = new HashMap<String, Object>(conf.properties.size() + Properties.PROPSNAMES.values().length + System.getProperties().size());
 
         // Resolvers properties found and and it to new properties
         Function<Object, Object> resolve;
@@ -210,6 +210,11 @@ public class Configuration {
 
         newProperties.put(Properties.PROPSNAMES.TOPPIPELINE.toString(), Collections.unmodifiableSet(topPipelines));
 
+        // Allows the system properties to override any properties given in the configuration file
+        // But only if they are not some of the special internal properties
+        Set<String> privatepropsnames = new HashSet<>(Properties.PROPSNAMES.values().length);
+        Arrays.stream(Properties.PROPSNAMES.values()).forEach(i -> privatepropsnames.add(i.toString()));;
+        System.getProperties().entrySet().stream().filter(i -> ! privatepropsnames.contains(i)).forEach(i -> newProperties.put(i.getKey().toString(), i.getValue()));
         return new Properties(newProperties);
     }
 
