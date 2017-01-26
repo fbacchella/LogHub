@@ -2,7 +2,10 @@ package loghub.processors;
 
 import java.io.IOException;
 import java.io.StringReader;
+import java.util.Collections;
 import java.util.Date;
+import java.util.List;
+import java.util.Map;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -29,9 +32,10 @@ public class TestMerge {
         LogUtils.setLevel(logger, Level.TRACE, "loghub.processors.Merge");
     }
 
+    @SuppressWarnings("rawtypes")
     @Test
     public void test() throws Throwable {
-        String conf= "pipeline[main] { merge {index: \"${e%s}\", seeds: {\"a\": 0, \"b\": \",\", \"d\": 0.0, \"e\": null, \"c\": [], \"count\": 'c', \"@timestamp\": '>'}, doFire: [a] >= 2, inPipeline: \"main\", forward: false}}";
+        String conf= "pipeline[main] { merge {index: \"${e%s}\", seeds: {\"a\": 0, \"b\": \",\", \"d\": 0.0, \"e\": null, \"c\": [], \"count\": 'c', \"@timestamp\": '>', \"f\": {}}, doFire: [a] >= 2, inPipeline: \"main\", forward: false}}";
 
         Properties p = Configuration.parse(new StringReader(conf));
         Assert.assertTrue(p.pipelines.stream().allMatch(i-> i.configure(p)));
@@ -47,6 +51,7 @@ public class TestMerge {
         e.put("c", 3);
         e.put("d", 4);
         e.put("e", "5");
+        e.put("f", Collections.singletonMap(".f", 1));
         boolean dropped = false;
         try {
             m.process(e);
@@ -56,6 +61,7 @@ public class TestMerge {
         long timestamp = 0;
         try {
             e.setTimestamp(new Date());
+            e.put("f", Collections.singletonMap(".f", "2"));
             timestamp = e.getTimestamp().getTime();
             Assert.assertTrue(m.process(e));
         } catch (ProcessorException.DroppedEventException e1) {
@@ -68,6 +74,8 @@ public class TestMerge {
         Assert.assertEquals("2,2", e.get("b"));
         Assert.assertEquals(8.0, (double) e.get("d"), 1e-5);
         Assert.assertEquals(null, e.get("e"));
+        Assert.assertTrue(e.get("f") instanceof Map);
+        Assert.assertTrue(((Map)e.get("f")).get(".f") instanceof List);
         Assert.assertEquals(timestamp, e.getTimestamp().getTime());
 
     }

@@ -5,6 +5,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -63,6 +64,50 @@ public class Merge extends Processor {
                     }
                     newList.addAll(object2list(next));
                     return newList;
+                };
+            }
+        },
+        MAP {
+            // This method can return the source unmodified
+            // Modifing the returned object must be done with care
+            @SuppressWarnings("unchecked")
+            private Map<Object, Object> object2Map(Object source) {
+                if (source == null) {
+                    return new HashMap<Object, Object>();
+                } else if (source instanceof Map) {
+                    return (Map<Object, Object>) source;
+                } else {
+                    // Can't fill a map with a single value, a key is needed
+                    return new HashMap<Object, Object>();
+                }
+            }
+            @SuppressWarnings("unchecked")
+            @Override
+            BiFunction<Object, Object, Object> cumulate(Object seed) {
+                final Map<Object, Object> mapseed = object2Map(seed);
+                return (last, next) -> {
+                    Map<Object, Object> newmap = object2Map(last);
+                    if (last == null) {
+                        newmap.putAll(mapseed);
+                    }
+                    object2Map(next).forEach((k, v) -> {
+                        if (newmap.containsKey(k)) {
+                            Object oldValue = newmap.get(k);
+                            if (oldValue instanceof List) {
+                                ((List<Object>) oldValue).add(k);
+                            } else if (oldValue instanceof Map && v instanceof Map){
+                                object2Map(oldValue).putAll(object2Map(v));
+                            } else {
+                                List<Object> newValue = new ArrayList<>();
+                                newValue.add(oldValue);
+                                newValue.add(v);
+                                newmap.put(k, newValue);
+                            }
+                        } else {
+                            newmap.put(k, v);
+                        }
+                    });
+                    return newmap;
                 };
             }
         },
@@ -252,6 +297,8 @@ public class Merge extends Processor {
                 return Cumulator.MULTIPLYFLOAT.cumulate(o);
             } else if (o instanceof Collection || o.getClass().isArray()) {
                 return Cumulator.LIST.cumulate(o);
+            } else if (o instanceof Map ) {
+                return Cumulator.MAP.cumulate(o);
             } else {
                 return Cumulator.LIST.cumulate(o);
             }
