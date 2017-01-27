@@ -5,6 +5,7 @@ import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 
 import io.netty.channel.AddressedEnvelope;
 import io.netty.channel.EventLoopGroup;
@@ -74,7 +75,7 @@ public class NettyNameResolver extends AbstractNameResolver implements AsyncProc
         try {
             String destination = destinations.remove(ev);
             DnsRecord rr = enveloppe.content().recordAt((DnsSection.ANSWER));
-            if(rr != null && rr instanceof DnsPtrRecord) {
+            if (rr != null && rr instanceof DnsPtrRecord) {
                 DnsPtrRecord ptr = (DnsPtrRecord) rr;
                 // DNS responses end the query with a ., substring removes it.
                 ev.put(destination, ptr.hostname().substring(0, ptr.hostname().length() - 1));
@@ -102,6 +103,25 @@ public class NettyNameResolver extends AbstractNameResolver implements AsyncProc
 
     public void setTimeout(int timeout) {
         this.timeout = timeout;
+    }
+
+    /**
+     * Used by test to warm up the cache
+     * @param query
+     * @param type
+     * @return
+     * @throws Throwable
+     */
+    DnsRecord warmUp(String query, DnsRecordType type) throws Throwable {
+        try {
+            DnsQuestion dnsquery = new DefaultDnsQuestion(query, type);
+            Future<AddressedEnvelope<DnsResponse, InetSocketAddress>> future = resolver.query(dnsquery);
+            AddressedEnvelope<DnsResponse, InetSocketAddress> enveloppe;
+            enveloppe = future.get();
+            return enveloppe.content().recordAt((DnsSection.ANSWER));
+        } catch (ExecutionException e) {
+            throw e.getCause();
+        }
     }
 
 }

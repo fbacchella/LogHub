@@ -7,6 +7,7 @@ import java.net.InetAddress;
 import org.junit.Assert;
 import org.junit.Test;
 
+import io.netty.handler.codec.dns.DnsRecordType;
 import loghub.Event;
 import loghub.ProcessorException;
 import loghub.Tools;
@@ -16,11 +17,11 @@ import loghub.configuration.Properties;
 public class TestNettyNameResolver {
 
     @Test(timeout=2000)
-    public void badresolvertimeout() throws ConfigException, IOException, ProcessorException, InterruptedException {
+    public void badresolvertimeout() throws Throwable {
 
         String conf= "pipeline[main] { loghub.processors.NettyNameResolver { resolver: \"169.254.1.1\",field: \"host\", destination: \"fqdn\", timeout: 1, failure: [failed]=1}}";
         Properties p = Tools.loadConf(new StringReader(conf));
-
+        //((NettyNameResolver )p.namedPipeLine.get("main").processors.get(0)).warmUp("1.0.0.10.in-addr.ptr", DnsRecordType.PTR);
         Event e = Tools.getEvent();
         e.put("host", InetAddress.getByName("10.0.0.1"));
 
@@ -33,10 +34,11 @@ public class TestNettyNameResolver {
     }
 
     @Test(timeout=6000)
-    public void badresolvernxdomain() throws ConfigException, IOException, ProcessorException, InterruptedException {
+    public void badresolvernxdomain() throws Throwable {
 
         String conf= "pipeline[main] { loghub.processors.NettyNameResolver { resolver: \"8.8.8.8\", field: \"host\", destination: \"fqdn\", failure: [failed]=1 }}";
         Properties p = Tools.loadConf(new StringReader(conf));
+        ((NettyNameResolver )p.namedPipeLine.get("main").processors.get(0)).warmUp("1.1.254.169.in-addr.ptr", DnsRecordType.PTR);
 
         Event e = Tools.getEvent();
         /// resolving an unresovable address.
@@ -51,9 +53,10 @@ public class TestNettyNameResolver {
     }
 
     @Test(timeout=6000)
-    public void arootasipv4addr() throws ConfigException, IOException, ProcessorException, InterruptedException {
-        String conf= "pipeline[main] { loghub.processors.NettyNameResolver { resolver: \"8.8.8.8\", field: \"host\", destination: \"fqdn\" }}";
+    public void arootasipv4addr() throws Throwable {
+        String conf = "pipeline[main] { loghub.processors.NettyNameResolver { resolver: \"8.8.8.8\", field: \"host\", destination: \"fqdn\" }}";
         Properties p = Tools.loadConf(new StringReader(conf));
+        ((NettyNameResolver )p.namedPipeLine.get("main").processors.get(0)).warmUp("4.0.41.198.in-addr.ptr", DnsRecordType.PTR);
 
         Event e = Tools.getEvent();
         /// resolving a.root-servers.net. in IPv4
@@ -68,9 +71,10 @@ public class TestNettyNameResolver {
     }
 
     @Test(timeout=6000)
-    public void arootasipv4string() throws ConfigException, IOException, ProcessorException, InterruptedException {
+    public void arootasipv4string() throws Throwable {
         String conf= "pipeline[main] { loghub.processors.NettyNameResolver { resolver: \"8.8.8.8\", field: \"host\", destination: \"fqdn\" }}";
         Properties p = Tools.loadConf(new StringReader(conf));
+        ((NettyNameResolver )p.namedPipeLine.get("main").processors.get(0)).warmUp("4.0.41.198.in-addr.ptr", DnsRecordType.PTR);
 
         Event e = Tools.getEvent();
         /// resolving a.root-servers.net. in IPv4
@@ -86,9 +90,10 @@ public class TestNettyNameResolver {
 
 
     @Test(timeout=6000)
-    public void arootasipv6addr() throws ProcessorException, InterruptedException, ConfigException, IOException {
+    public void arootasipv6addr() throws Throwable {
         String conf= "pipeline[main] { loghub.processors.NettyNameResolver { resolver: \"8.8.8.8\", field: \"host\", destination: \"fqdn_${field%s}\" }}";
         Properties p = Tools.loadConf(new StringReader(conf));
+        ((NettyNameResolver )p.namedPipeLine.get("main").processors.get(0)).warmUp("0.3.0.0.2.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.e.3.a.b.3.0.5.0.1.0.0.2.ip6.arpa", DnsRecordType.PTR);
 
         Event e = Tools.getEvent();
         /// resolving a.root-servers.net. in IPv6
