@@ -326,7 +326,7 @@ public class Merge extends Processor {
     private Processor timeoutProcessor = new Identity();
     private Processor fireProcessor = new Identity();
     private int timeout = Integer.MAX_VALUE;
-    private boolean forward;
+    private boolean forward = false;
     private String nextPipeline;
 
     @Override

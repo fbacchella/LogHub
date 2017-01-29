@@ -215,7 +215,7 @@ public class ElasticSearch extends Sender {
         esjson.put("__index", ES_INDEX.format(event.getTimestamp()));
 
         boolean done = false;
-        while(!done) {
+        while (!done) {
             try {
                 done = bulkqueue.add(esjson);
             } catch (IllegalStateException ex) {
