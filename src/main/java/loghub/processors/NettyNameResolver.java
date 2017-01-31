@@ -90,6 +90,7 @@ public class NettyNameResolver extends AbstractNameResolver implements AsyncProc
 
     @Override
     public boolean manageException(Event event, Exception ex) throws ProcessorException {
+        destinations.remove(event);
         if (ex instanceof DnsNameResolverException) {
             return false;
         } else {
