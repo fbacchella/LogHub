@@ -14,9 +14,10 @@ import com.codahale.metrics.Timer.Context;
 
 import io.netty.util.concurrent.Future;
 import loghub.configuration.Properties;
-import loghub.processors.FuturProcessor;
+import loghub.configuration.TestEventProcessing;
 import loghub.processors.Drop;
 import loghub.processors.Forker;
+import loghub.processors.FuturProcessor;
 
 public class EventsProcessor extends Thread {
 
@@ -103,7 +104,7 @@ public class EventsProcessor extends Thread {
                         } else if (event.isTest()) {
                             // A test event, it will not be send to another pipeline
                             // Checked after pipeline forwarding, but before output sending
-                            LogManager.getLogger("loghub.eventtester").info("processed a test event: {}", event);
+                            TestEventProcessing.log(event);
                             event.end();
                         } else if (event.getCurrentPipeline() != null){
                             // Put in the output queue, where the wanting output will come to take it
