@@ -43,6 +43,10 @@ public class Grok extends FieldsProcessor {
                 if (".".equals(e.getKey())) {
                     destinationField = field ;
                 }
+                //Dirty hack to filter non named regex
+                if (e.getKey().equals(e.getKey().toUpperCase()) && ! ".".equals(e.getKey())) {
+                    continue;
+                }
                 if (e.getValue() == null) {
                     continue;
                 }
@@ -84,7 +88,7 @@ public class Grok extends FieldsProcessor {
         Helpers.ThrowingConsumer<InputStream> grokloader = is -> grok.addPatternFromReader(new InputStreamReader(new BufferedInputStream(is)));
         try {
             Helpers.readRessources(properties.classloader, PATTERNSFOLDER, grokloader);
-            grok.compile(pattern, true);
+            grok.compile(pattern);
         } catch (IOException | URISyntaxException e) {
             logger.error("unable to load patterns: {}", e.getMessage());
             logger.catching(Level.DEBUG, e);
