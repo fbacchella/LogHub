@@ -8,15 +8,12 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import loghub.Expression.ExpressionException;
-import loghub.configuration.Beans;
 import loghub.configuration.Properties;
 
-@Beans({"threads"})
 public abstract class Processor {
 
     protected final Logger logger;
 
-    private int threads = -1;
     private String[] path = new String[]{};
     private Expression ifexpression = null;
     private Processor success = null;
@@ -52,14 +49,8 @@ public abstract class Processor {
 
     public abstract boolean process(Event event) throws ProcessorException;
 
-    public abstract String getName();
-
-    public int getThreads() {
-        return threads;
-    }
-
-    public void setThreads(int threads) {
-        this.threads = threads;
+    public String getName() {
+        return toString();
     }
 
     public String[] getPathArray() {
