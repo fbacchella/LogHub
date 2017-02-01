@@ -51,7 +51,7 @@ public abstract class AbstractNameResolver extends FieldsProcessor {
             return resolve(event, toresolv, destination);
         } else if(addr instanceof String) {
             // if addr was a String, it's used a a hostname
-            event.put(destination, addr instanceof String);
+            event.put(destination, addr);
             return true;
         } else {
             return false;
