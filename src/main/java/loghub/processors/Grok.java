@@ -6,6 +6,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.PatternSyntaxException;
@@ -24,9 +25,36 @@ public class Grok extends FieldsProcessor {
 
     private final io.thekraken.grok.api.Grok grok;
     private String pattern;
+    private Map<Object, Object> customPatterns = Collections.emptyMap();
 
     public Grok() {
         grok = new io.thekraken.grok.api.Grok();
+    }
+
+    @Override
+    public boolean configure(Properties properties) {
+        Helpers.ThrowingConsumer<InputStream> grokloader = is -> grok.addPatternFromReader(new InputStreamReader(new BufferedInputStream(is)));
+        try {
+            Helpers.readRessources(properties.classloader, PATTERNSFOLDER, grokloader);
+            customPatterns.forEach((k,v) -> {
+                try {
+                    grok.addPattern(k.toString(), v.toString());
+                } catch (GrokException e) {
+                    logger.warn("invalid grok pattern {}: {}", k, v);
+                }
+            });
+            // Switch to true when  https://github.com/thekrakken/java-grok/issues/61 is fixed
+            grok.compile(pattern, false);
+        } catch (IOException | URISyntaxException e) {
+            logger.error("unable to load patterns: {}", e.getMessage());
+            logger.catching(Level.DEBUG, e);
+            return false;
+        } catch (GrokException | PatternSyntaxException e) {
+            logger.error("wrong pattern {}: {}", pattern, e.getMessage());
+            logger.catching(Level.DEBUG, e);
+            return false;
+        }
+        return super.configure(properties);
     }
 
     @Override
@@ -43,7 +71,8 @@ public class Grok extends FieldsProcessor {
                 if (".".equals(e.getKey())) {
                     destinationField = field ;
                 }
-                //Dirty hack to filter non named regex
+                // Dirty hack to filter non named regex
+                // Needed until https://github.com/thekrakken/java-grok/issues/61 is fixed
                 if (e.getKey().equals(e.getKey().toUpperCase()) && ! ".".equals(e.getKey())) {
                     continue;
                 }
@@ -57,12 +86,12 @@ public class Grok extends FieldsProcessor {
                     if (newvalues.size() == 0) {
                         continue;
                     } else if (newvalues.size() == 1) {
-                        event.put(destinationField, newvalues.get(0));
+                        event.put(destinationField.intern(), newvalues.get(0));
                     } else {
-                        event.put(destinationField, newvalues);
+                        event.put(destinationField.intern(), newvalues);
                     }
                 } else {
-                    event.put(destinationField, e.getValue());
+                    event.put(destinationField.intern(), e.getValue());
                 }
             }
             return true;
@@ -83,22 +112,18 @@ public class Grok extends FieldsProcessor {
         return "grok";
     }
 
-    @Override
-    public boolean configure(Properties properties) {
-        Helpers.ThrowingConsumer<InputStream> grokloader = is -> grok.addPatternFromReader(new InputStreamReader(new BufferedInputStream(is)));
-        try {
-            Helpers.readRessources(properties.classloader, PATTERNSFOLDER, grokloader);
-            grok.compile(pattern);
-        } catch (IOException | URISyntaxException e) {
-            logger.error("unable to load patterns: {}", e.getMessage());
-            logger.catching(Level.DEBUG, e);
-            return false;
-        } catch (GrokException | PatternSyntaxException e) {
-            logger.error("wrong pattern {}: {}", pattern, e.getMessage());
-            logger.catching(Level.DEBUG, e);
-            return false;
-        }
-        return super.configure(properties);
+    /**
+     * @return the customPatterns
+     */
+    public Map<Object, Object> getCustomPatterns() {
+        return customPatterns;
+    }
+
+    /**
+     * @param customPatterns the customPatterns to set
+     */
+    public void setCustomPatterns(Map<Object, Object> customPatterns) {
+        this.customPatterns = customPatterns;
     }
 
 }
