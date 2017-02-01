@@ -32,13 +32,13 @@ public class VarExtractor extends FieldsProcessor {
             if(key != null && ! key.isEmpty()) {
                 if(value != null && ! value.isEmpty()) {
                     parsed = true;
-                    event.put(key, value);
+                    event.put(key.intern(), value.intern());
                 }
             }
             after = message.substring(m.end());
         }
         if(after != null && ! after.isEmpty()) {
-            event.put(destination, after);
+            event.put(destination, after.intern());
         } else {
             event.remove(field);
         }

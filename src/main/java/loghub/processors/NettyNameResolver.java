@@ -72,7 +72,7 @@ public class NettyNameResolver extends AbstractNameResolver implements FieldsPro
             if (rr != null && rr instanceof DnsPtrRecord) {
                 DnsPtrRecord ptr = (DnsPtrRecord) rr;
                 // DNS responses end the query with a ., substring removes it.
-                ev.put(destination, ptr.hostname().substring(0, ptr.hostname().length() - 1));
+                ev.put(destination, ptr.hostname().substring(0, ptr.hostname().length() - 1).intern());
                 return true;
             } else {
                 return false;

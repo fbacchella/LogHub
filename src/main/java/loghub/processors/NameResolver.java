@@ -153,7 +153,7 @@ public class NameResolver extends AbstractNameResolver {
                 Object o = attr.getAll().next();
                 if (o != null) {
                     String value = attr.getAll().next().toString();
-                    value = value.substring(0, value.length() - 1);
+                    value = value.substring(0, value.length() - 1).intern();
                     hostCache.put(new Element(query, value));
                     event.put(destination, value);
                 }

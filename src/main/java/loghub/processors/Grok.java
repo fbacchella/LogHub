@@ -52,8 +52,8 @@ public class Grok extends FieldsProcessor {
                 }
                 if (e.getValue() instanceof List) {
                     List<?> listvalue = (List<?>) e.getValue();
-                    List<Object> newvalues = new ArrayList<>();
-                    listvalue.stream().filter( i -> i != null).forEach(newvalues::add);
+                    List<String> newvalues = new ArrayList<>();
+                    listvalue.stream().filter( i -> i != null).map(i -> i.toString().intern()).forEach(newvalues::add);
                     if (newvalues.size() == 0) {
                         continue;
                     } else if (newvalues.size() == 1) {

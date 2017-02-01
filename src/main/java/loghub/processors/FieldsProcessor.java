@@ -144,7 +144,7 @@ public abstract class FieldsProcessor extends Processor {
         if (destinationFormat == null) {
             return srcField;
         } else {
-            return destinationFormat.format(Collections.singletonMap("field", srcField));
+            return destinationFormat.format(Collections.singletonMap("field", srcField)).intern();
         }
     }
 
