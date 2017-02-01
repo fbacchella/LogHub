@@ -7,8 +7,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.function.BiConsumer;
 
 import org.junit.Assert;
 
@@ -63,32 +63,54 @@ public class Tools {
             ep.process(sent, processor);
         }
     }
-    
+
     public static class ProcessingStatus {
-        BlockingQueue<Event> mainQueue;
-        List<Integer> status;
+        public BlockingQueue<Event> mainQueue;
+        public List<Integer> status;
+        public EventsRepository<Future<?>> repository;
         @Override
         public String toString() {
-            return mainQueue + " / " +  status;
+            return mainQueue + " / " +  status + " / " + repository;
         }
-        
+
     }
-    
+
     public static ProcessingStatus runProcessing(Event sent, String pipename, List<Processor> steps) throws ProcessorException {
-        BlockingQueue<Event> mainQueue = new ArrayBlockingQueue<Event>(100);
-        Map<String, BlockingQueue<Event>> outputQueues = Collections.emptyMap();
-        Pipeline pipe = new Pipeline(steps, pipename, null);
-        Map<String, Pipeline> namedPipeLine = Collections.singletonMap(pipename, pipe);
-        EventsRepository<Future<?>> repository = new EventsRepository<Future<?>>(mainQueue, namedPipeLine);
-        EventsProcessor ep = new EventsProcessor(mainQueue, outputQueues, namedPipeLine, 100, repository);
-        sent.inject(pipe, mainQueue);
-        Processor processor;
+        return runProcessing(sent, pipename, steps, (i,j) -> {});
+    }
+
+    public static ProcessingStatus runProcessing(Event sent, String pipename, List<Processor> steps, BiConsumer<Properties, List<Processor>> prepare) throws ProcessorException {
+        Properties props = new Properties(Collections.emptyMap());
         ProcessingStatus ps = new ProcessingStatus();
-        ps.mainQueue = mainQueue;
+        ps.mainQueue = props.mainQueue;
         ps.status = new ArrayList<>();
-        while ((processor = sent.next()) != null) {
-            int status = ep.process(sent, processor);
-            ps.status.add(status);
+        ps.repository = props.repository;
+        Pipeline pipe = new Pipeline(steps, pipename, null);
+
+        Map<String, Pipeline> namedPipeLine = Collections.singletonMap(pipename, pipe);
+        EventsProcessor ep = new EventsProcessor(props.mainQueue, props.outputQueues, namedPipeLine, 100, props.repository);
+        Processor processor;
+        steps.forEach( i -> Assert.assertTrue(i.configure(props)));
+        prepare.accept(props, steps);
+        sent.inject(pipe, props.mainQueue);
+        Event toprocess;
+        // Process all the events, will hang forever is it don't finish
+        try {
+            while ((toprocess = props.mainQueue.take()) != null) {
+                while ((processor = toprocess.next()) != null) {
+                    int status = ep.process(toprocess, processor);
+                    ps.status.add(status);
+                    if (status > 0) {
+                        toprocess = null;
+                        break;
+                    }
+                }
+                if (toprocess != null) {
+                    ps.mainQueue.put(toprocess);
+                    break;
+                }
+            }
+        } catch (InterruptedException e) {
         }
         return ps;
     }
