@@ -34,25 +34,31 @@ public class TestUdp {
         LogUtils.setLevel(logger, Level.TRACE, "loghub.receivers.Udp", "loghub.Receiver", "loghub.netty");
     }
 
-    @Test(timeout=1000)
-    public void testone() throws InterruptedException, IOException {
-        
+    private void testsend(int size) throws IOException, InterruptedException {
+
         // Generate a locally binded random socket
         DatagramSocket socket = new DatagramSocket(0, InetAddress.getLocalHost());
         String hostname = socket.getLocalAddress().getHostAddress();
         int port = socket.getLocalPort();
         socket.close();
         InetSocketAddress destaddr = new InetSocketAddress(hostname, port);
-        
+
         BlockingQueue<Event> receiver = new ArrayBlockingQueue<>(10);
         Udp r = new Udp(receiver, new Pipeline(Collections.emptyList(), "testone", null));
+        r.setBufferSize(size + 10);
         r.setHost(hostname);
         r.setPort(port);
         r.setDecoder(new StringCodec());
         Assert.assertTrue(r.configure(new Properties(Collections.emptyMap())));
         r.start();
+        int originalMessageSize = 0;
         try(DatagramSocket send = new DatagramSocket()) {
-            byte[] buf = "message".getBytes();
+            StringBuilder buffer = new StringBuilder();
+            while (buffer.length() <= size) {
+                buffer.append("message");
+            }
+            byte[] buf = buffer.toString().getBytes();
+            originalMessageSize = buffer.length();
             DatagramPacket packet = new DatagramPacket(buf, buf.length, destaddr);
             try {
                 logger.debug("Listening on {}", r.getListenAddress());
@@ -65,7 +71,18 @@ public class TestUdp {
         }
         Event e = receiver.take();
         r.interrupt();
-        Assert.assertEquals("Missing message", "message", e.get("message"));
+        Assert.assertTrue("Invalid message content", e.get("message").toString().startsWith("message"));
+        Assert.assertEquals("Invalid message size", originalMessageSize, e.get("message").toString().length());
         Assert.assertTrue("didn't find valid hosts informations", e.get("host") instanceof InetAddress);
+    }
+
+    @Test(timeout=1000)
+    public void testsmall() throws InterruptedException, IOException {
+        testsend(1500);
+    }
+
+    @Test(timeout=1000)
+    public void testbig() throws InterruptedException, IOException {
+        testsend(16384);
     }
 }

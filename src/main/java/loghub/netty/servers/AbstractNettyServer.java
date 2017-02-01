@@ -43,6 +43,7 @@ public abstract class AbstractNettyServer<CF extends ComponentFactory<BS, BSC, S
         }
         factory = getNewFactory(properties);
         bootstrap = factory.getBootStrap();
+        configureBootStrap(bootstrap);
         factory.group();
         factory.addChildhandlers(consumer);
         factory.addHandlers(consumer);
@@ -75,5 +76,9 @@ public abstract class AbstractNettyServer<CF extends ComponentFactory<BS, BSC, S
     public void setPoller(String poller) {
         this.poller = POLLER.valueOf(poller);
     }
+    
+    public void configureBootStrap(AbstractBootstrap<BS,BSC> bootstrap) {
+        
+    };
 
 }

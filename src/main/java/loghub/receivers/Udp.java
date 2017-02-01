@@ -21,6 +21,8 @@ public class Udp extends NettyIpReceiver<UdpServer, UdpFactory, Bootstrap, Chann
 
     private static final Map<SocketAddress, UdpServer> servers = new HashMap<>();
 
+    private int buffersize = -1;
+
     public Udp(BlockingQueue<Event> outQueue, Pipeline pipeline) {
         super(outQueue, pipeline);
     }
@@ -33,6 +35,9 @@ public class Udp extends NettyIpReceiver<UdpServer, UdpFactory, Bootstrap, Chann
             server = servers.get(addr);
         } else {
             server = new UdpServer();
+            if (buffersize > 0 ) {
+                server.setBuffersize(buffersize);
+            }
             servers.put(addr, server);
         }
         return server;
@@ -56,6 +61,20 @@ public class Udp extends NettyIpReceiver<UdpServer, UdpFactory, Bootstrap, Chann
     @Override
     protected boolean closeonerror() {
         return false;
+    }
+
+    /**
+     * @return the buffersize
+     */
+    public int getBufferSize() {
+        return buffersize;
+    }
+
+    /**
+     * @param buffersize the buffersize to set
+     */
+    public void setBufferSize(int buffersize) {
+        this.buffersize = buffersize;
     }
 
 }
