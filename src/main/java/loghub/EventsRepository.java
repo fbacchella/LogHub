@@ -29,10 +29,10 @@ public class EventsRepository<KEY> {
             t.setName("EventsRepository-timeoutmanager-" + counter.incrementAndGet());
             return t;
         }
-        
+
     };
     private static final HashedWheelTimer processTimeout = new HashedWheelTimer(tf);
-    
+
     private final Map<KEY, PausedEvent<KEY>> pausestack = new ConcurrentHashMap<>();
     private final Map<KEY, Timeout> waiting = new ConcurrentHashMap<>();
     private final BlockingQueue<Event> mainQueue;
@@ -58,9 +58,13 @@ public class EventsRepository<KEY> {
 
     public PausedEvent<KEY> cancel(KEY key) {
         PausedEvent<KEY> pe = pausestack.remove(key);
-        Timeout task = waiting.remove(pe.key);
-        if (task != null) {
-            task.cancel();
+        if (pe != null && pe.key != null) {
+            Timeout task = waiting.remove(pe.key);
+            if(task != null) {
+                task.cancel();
+            } 
+        } else {
+            logger.warn("removed illegal event with key {}", key);
         }
         return pe;
     }
