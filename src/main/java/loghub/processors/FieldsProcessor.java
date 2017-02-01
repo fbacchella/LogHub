@@ -36,7 +36,21 @@ public abstract class FieldsProcessor extends Processor {
             if (processing.hasNext()) {
                 event.insertProcessor(this);
             }
-            return FieldsProcessor.this.processMessage(event, toprocess, getDestination(toprocess));
+            if (event.get(toprocess) != null) {
+                return FieldsProcessor.this.processMessage(event, toprocess, getDestination(toprocess));
+            } else {
+                throw event.buildException("field " + toprocess + " vanished");
+            }
+        }
+
+        @Override
+        public String getName() {
+            return String.format("%s$FieldSubProcessor@%d", FieldsProcessor.this.getName(), hashCode());
+        }
+
+        @Override
+        public String[] getPathArray() {
+            return FieldsProcessor.this.getPathArray();
         }
 
     }
@@ -61,17 +75,22 @@ public abstract class FieldsProcessor extends Processor {
             return ap.manageException(event, e);
         }
 
+        @Override
+        public String getName() {
+            return String.format("%s$AsyncFieldSubProcessor@%d", FieldsProcessor.this.getName(), hashCode());
+        }
+
     }
 
     @Override
     public boolean process(Event event) throws ProcessorException {
         final Set<String> nextfields = new HashSet<>();
         if (patterns.length != 0) {
-            //Build a set of fields that needs to be process
-            for (String f: new HashSet<>(event.keySet())) {
+            //Build a set of fields that needs to be processed
+            for (String eventField: new HashSet<>(event.keySet())) {
                 for (Pattern p: patterns) {
-                    if (p.matcher(f).matches() && event.containsKey(f) && event.get(f) != null) {
-                        nextfields.add(f);
+                    if (p.matcher(eventField).matches() && event.get(eventField) != null) {
+                        nextfields.add(eventField);
                         break;
                     }
                 }
@@ -90,13 +109,15 @@ public abstract class FieldsProcessor extends Processor {
                 if (processing.hasNext()) {
                     event.insertProcessor(fieldProcessor);
                 }
+                throw new ProcessorException.IgnoredEventException(event);
+            } else {
+                return true;
             }
-            throw new ProcessorException.IgnoredEventException(event);
         } else {
             if (event.containsKey(field) && event.get(field) != null) {
                 return processMessage(event, field, getDestination(field));
             } else {
-                return false;
+                return true;
             }
         }
     }
