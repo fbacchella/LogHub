@@ -5,6 +5,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.msgpack.core.MessageInsufficientBufferException;
 import org.msgpack.core.MessagePackException;
 import org.msgpack.jackson.dataformat.MessagePackFactory;
 
@@ -15,7 +16,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufInputStream;
 import loghub.Decoder;
-import loghub.configuration.Beans;
 
 /**
  * This transformer parse a msgpack object. If it's a map, all the elements are
@@ -24,7 +24,6 @@ import loghub.configuration.Beans;
  * @author Fabrice Bacchella
  *
  */
-@Beans("field")
 public class Msgpack extends Decoder {
 
     private static final TypeReference<Object> OBJECTREF = new TypeReference<Object>() { };
@@ -44,6 +43,8 @@ public class Msgpack extends Decoder {
         try {
             Object o = msgpack.get().readValue(msg, offset, length, Object.class);
             return decodeValue(o);
+        } catch (MessageInsufficientBufferException e) {
+            throw new DecodeException("Reception buffer too small");
         } catch (MessagePackException e) {
             throw new DecodeException("Can't parse msgpack serialization", e);
         } catch (IOException e) {
@@ -56,6 +57,8 @@ public class Msgpack extends Decoder {
         try {
             Object o = msgpack.get().readValue(new ByteBufInputStream(bbuf), OBJECTREF);
             return decodeValue(o);
+        } catch (MessageInsufficientBufferException e) {
+            throw new DecodeException("Reception buffer too small");
         } catch (MessagePackException e) {
             throw new DecodeException("Can't parse msgpack serialization", e);
         } catch (IOException e) {
@@ -74,6 +77,8 @@ public class Msgpack extends Decoder {
             } else {
                 return Collections.singletonMap(field, o);
             }
+        } catch (MessageInsufficientBufferException e) {
+            throw new DecodeException("Reception buffer too small");
         } catch (MessagePackException e) {
             throw new DecodeException("Can't parse msgpack serialization", e);
         }
