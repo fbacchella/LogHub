@@ -2,10 +2,17 @@ package loghub;
 
 import java.io.IOException;
 import java.io.Reader;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 
 import org.junit.Assert;
 
+import io.netty.util.concurrent.Future;
 import loghub.configuration.ConfigException;
 import loghub.configuration.Configuration;
 import loghub.configuration.Properties;
@@ -55,6 +62,35 @@ public class Tools {
         while ((processor = sent.next()) != null) {
             ep.process(sent, processor);
         }
+    }
+    
+    public static class ProcessingStatus {
+        BlockingQueue<Event> mainQueue;
+        List<Integer> status;
+        @Override
+        public String toString() {
+            return mainQueue + " / " +  status;
+        }
+        
+    }
+    
+    public static ProcessingStatus runProcessing(Event sent, String pipename, List<Processor> steps) throws ProcessorException {
+        BlockingQueue<Event> mainQueue = new ArrayBlockingQueue<Event>(100);
+        Map<String, BlockingQueue<Event>> outputQueues = Collections.emptyMap();
+        Pipeline pipe = new Pipeline(steps, pipename, null);
+        Map<String, Pipeline> namedPipeLine = Collections.singletonMap(pipename, pipe);
+        EventsRepository<Future<?>> repository = new EventsRepository<Future<?>>(mainQueue, namedPipeLine);
+        EventsProcessor ep = new EventsProcessor(mainQueue, outputQueues, namedPipeLine, 100, repository);
+        sent.inject(pipe, mainQueue);
+        Processor processor;
+        ProcessingStatus ps = new ProcessingStatus();
+        ps.mainQueue = mainQueue;
+        ps.status = new ArrayList<>();
+        while ((processor = sent.next()) != null) {
+            int status = ep.process(sent, processor);
+            ps.status.add(status);
+        }
+        return ps;
     }
 
 }

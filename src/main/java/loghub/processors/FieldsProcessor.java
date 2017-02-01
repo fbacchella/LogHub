@@ -2,8 +2,11 @@ package loghub.processors;
 
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Set;
 import java.util.regex.Pattern;
 
+import loghub.AsyncProcessor;
 import loghub.Event;
 import loghub.Helpers;
 import loghub.Processor;
@@ -15,42 +18,106 @@ import loghub.configuration.Beans;
 public abstract class FieldsProcessor extends Processor {
     private String field = "message";
     private VarFormatter destinationFormat = null;
-    private String fields = null;
-    private Pattern patterns = null;
-
+    private String[] fields = new String[] {};
+    private Pattern[] patterns = new Pattern[]{};
     public abstract boolean processMessage(Event event, String field, String destination) throws ProcessorException;
+
+    private class FieldSubProcessor extends Processor {
+
+        final Iterator<String> processing;
+
+        FieldSubProcessor(Iterator<String> processing) {
+            this.processing = processing;
+        }
+
+        @Override
+        public boolean process(Event event) throws ProcessorException {
+            String toprocess = processing.next();
+            if (processing.hasNext()) {
+                event.insertProcessor(this);
+            }
+            return FieldsProcessor.this.processMessage(event, toprocess, getDestination(toprocess));
+        }
+
+    }
+
+    private class AsyncFieldSubProcessor extends FieldSubProcessor implements AsyncProcessor<Object> {
+
+        AsyncFieldSubProcessor(Iterator<String> processing) {
+            super(processing);
+        }
+
+        @Override
+        public boolean process(Event event, Object content) throws ProcessorException {
+            @SuppressWarnings("unchecked")
+            AsyncProcessor<Object> ap = (AsyncProcessor<Object>) FieldsProcessor.this;
+            return ap.process(event, content);
+        }
+
+        @Override
+        public boolean manageException(Event event, Exception e) throws ProcessorException {
+            @SuppressWarnings("unchecked")
+            AsyncProcessor<Object> ap = (AsyncProcessor<Object>) FieldsProcessor.this;
+            return ap.manageException(event, e);
+        }
+
+    }
 
     @Override
     public boolean process(Event event) throws ProcessorException {
-        boolean success = false;
-        if (patterns != null) {
+        final Set<String> nextfields = new HashSet<>();
+        if (patterns.length != 0) {
+            //Build a set of fields that needs to be process
             for (String f: new HashSet<>(event.keySet())) {
-                if (patterns.matcher(f).matches() && event.containsKey(f) && event.get(f) != null) {
-                    success |= processMessage(event, f, getDestination(f));
+                for (Pattern p: patterns) {
+                    if (p.matcher(f).matches() && event.containsKey(f) && event.get(f) != null) {
+                        nextfields.add(f);
+                        break;
+                    }
                 }
             }
+
+            // Add a sub processor that will loop on itself until fields are exhausted
+            if (nextfields.size() > 0) {
+                final Iterator<String> processing = nextfields.iterator();
+
+                Processor fieldProcessor;
+                if (this instanceof AsyncProcessor) {
+                    fieldProcessor = new AsyncFieldSubProcessor(processing);
+                } else {
+                    fieldProcessor = new FieldSubProcessor(processing);
+                }
+                if (processing.hasNext()) {
+                    event.insertProcessor(fieldProcessor);
+                }
+            }
+            throw new ProcessorException.IgnoredEventException(event);
         } else {
             if (event.containsKey(field) && event.get(field) != null) {
-                success |= processMessage(event, field, getDestination(field));
+                return processMessage(event, field, getDestination(field));
+            } else {
+                return false;
             }
         }
-        return success;
     }
 
-    private final String getDestination(String field) {
+    private final String getDestination(String srcField) {
         if (destinationFormat == null) {
-            return field;
+            return srcField;
         } else {
-            return destinationFormat.format(Collections.singletonMap("field", field));
+            return destinationFormat.format(Collections.singletonMap("field", srcField));
         }
     }
 
-    public String getFields() {
+    public Object[] getFields() {
         return fields;
     }
 
-    public void setFields(String fields) {
-        this.patterns = Helpers.convertGlobToRegex(fields);
+    public void setFields(Object[] fields) {
+        this.patterns = new Pattern[fields.length];
+        for (int i = 0; i < fields.length ; i++) {
+            this.patterns[i] = Helpers.convertGlobToRegex(fields[i].toString());
+        }
     }
 
     public String getField() {

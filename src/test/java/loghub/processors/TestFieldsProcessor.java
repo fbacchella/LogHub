@@ -3,6 +3,8 @@
  */
 package loghub.processors;
 
+import java.util.Collections;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -35,11 +37,11 @@ public class TestFieldsProcessor {
         };
 
         p.setDestination("${field}_done");
-        p.setFields("?");
+        p.setFields(new String[] {"a", "b"});
         Event e = Tools.getEvent();
         e.put("a", 1);
         e.put("b", 2);
-        e.process(p);
+        Tools.runProcessing(e, "main", Collections.singletonList(p));
         Assert.assertEquals("destination field wrong", 1, e.get("a_done"));
         Assert.assertEquals("destination field wrong", 2, e.get("b_done"));
     }

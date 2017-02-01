@@ -194,6 +194,8 @@ public class EventsProcessor extends Thread {
                 }
             } catch (ProcessorException.DroppedEventException ex) {
                 dropped = true;
+            } catch (ProcessorException.IgnoredEventException ex) {
+                // A do nothing event
             } catch (ProcessorException ex) {
                 e.doMetric(() -> {
                     Properties.metrics.counter("Pipeline." + e.getCurrentPipeline() + ".failure").inc();

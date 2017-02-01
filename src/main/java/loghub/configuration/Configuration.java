@@ -43,7 +43,6 @@ import loghub.RouteParser;
 import loghub.Sender;
 import loghub.configuration.ConfigListener.Input;
 import loghub.configuration.ConfigListener.ObjectReference;
-import loghub.configuration.ConfigListener.ObjectWrapped;
 import loghub.configuration.ConfigListener.Output;
 import loghub.processors.AnonymousSubPipeline;
 import loghub.processors.NamedSubPipeline;
@@ -241,7 +240,7 @@ public class Configuration {
                 } catch (ConfigException e) {
                     throw new IllegalArgumentException(e);
                 }
-            }).forEach(allSteps::addAll);
+            }).forEach(allSteps::add);
         } catch (IllegalArgumentException e) {
             throw (ConfigException) e.getCause();
         }
@@ -249,7 +248,7 @@ public class Configuration {
         return pipe;
     }
 
-    private List<Processor> getProcessor(ConfigListener.Pipenode i, String currentPipeLineName, int depth, AtomicInteger subPipeLine) throws ConfigException {
+    private Processor getProcessor(ConfigListener.Pipenode i, String currentPipeLineName, int depth, AtomicInteger subPipeLine) throws ConfigException {
         Processor t;
         if (i instanceof ConfigListener.PipeRef){
             ConfigListener.PipeRef cpr = (ConfigListener.PipeRef) i;
@@ -265,41 +264,11 @@ public class Configuration {
         } else if (i instanceof ConfigListener.ProcessorInstance) {
             ConfigListener.ProcessorInstance ti = (ConfigListener.ProcessorInstance) i;
 
-            // Check if the processor will be an instance of a FieldsProcessor and have the bean fields declared
-            boolean needsfields = ti.beans.containsKey("fields");
-            if (needsfields) {
-                try {
-                    Class<?> clazz = classLoader.loadClass(ti.clazz);
-                    needsfields = loghub.processors.FieldsProcessor.class.isAssignableFrom(clazz);
-                } catch (ClassNotFoundException e1) {
-                    needsfields = false;
-                }
-            }
-            if (needsfields) {
-                // Ok, generate many processor, one for each fields element
-
-                ConfigListener.ObjectWrapped wrapped = (ObjectWrapped) ti.beans.get("fields");
-                Object[] fields = (Object[]) wrapped.wrapped;
-                List<Processor> generated = new ArrayList<>(fields.length);
-                Arrays.stream(fields).map(j -> {
-                    ConfigListener.ProcessorInstance nti = new ConfigListener.ProcessorInstance(ti, ti.ctx);
-                    nti.beans.put("fields", new ConfigListener.ObjectWrapped(j));
-                    return nti;
-                }).map( j-> {
-                    try {
-                        return parseObjectDescription(ti, emptyConstructor, currentPipeLineName, depth, subPipeLine);
-                    } catch (ConfigException e) {
-                        return null;
-                    }
-                }).forEach( j -> generated.add((Processor)j));
-                return generated;
-            } else {
-                t = (Processor) parseObjectDescription(ti, emptyConstructor, currentPipeLineName, depth, subPipeLine);
-            }
+            t = (Processor) parseObjectDescription(ti, emptyConstructor, currentPipeLineName, depth, subPipeLine);
         } else {
             throw new RuntimeException("Unreachable code for " + i);
         }
-        return Collections.singletonList(t);
+        return t;
     }
 
     private <T, C> T parseObjectDescription(ConfigListener.ObjectDescription desc, ThrowingFunction<Class<T>, T> constructor) throws ConfigException {
@@ -318,16 +287,7 @@ public class Configuration {
                 if(ref instanceof ConfigListener.ObjectWrapped) {
                     beanValue = ((ConfigListener.ObjectWrapped) ref).wrapped;
                     if (beanValue instanceof ConfigListener.Pipenode) {
-                        List<Processor> proclist = getProcessor((ConfigListener.Pipenode) beanValue, currentPipeLineName, depth, numSubpipe);
-                        if (proclist.size() == 1) {
-                            beanValue = proclist.iterator().next();
-                        } else {
-                            Pipeline pl = new Pipeline(proclist, currentPipeLineName + "." + proclist.hashCode(), null);
-                            AnonymousSubPipeline asp = new AnonymousSubPipeline();
-                            asp.setPipeline(pl);
-                            beanValue = asp;
-
-                        }
+                        beanValue = getProcessor((ConfigListener.Pipenode) beanValue, currentPipeLineName, depth, numSubpipe);
                     }
                 } else if (ref instanceof ConfigListener.ObjectDescription) {
                     beanValue = parseObjectDescription((ConfigListener.ObjectDescription) ref, emptyConstructor, currentPipeLineName, depth + 1, numSubpipe);

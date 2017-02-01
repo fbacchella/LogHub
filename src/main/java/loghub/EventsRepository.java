@@ -43,6 +43,11 @@ public class EventsRepository<KEY> {
         pipelines = properties.namedPipeLine;
     }
 
+    public EventsRepository(BlockingQueue<Event> mainQueue, Map<String, Pipeline> pipelines) {
+        this.mainQueue = mainQueue;
+        this.pipelines = pipelines;
+    }
+
     public void pause(PausedEvent<KEY> paused) {
         PausedEvent<KEY> realpaused = paused.setRepository(this);
         pausestack.put(realpaused.key, realpaused);

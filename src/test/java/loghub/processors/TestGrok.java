@@ -66,7 +66,7 @@ public class TestGrok {
     @Test
     public void TestLoadPatterns5() throws ProcessorException {
         Grok grok = new Grok();
-        grok.setFields("localhost");
+        grok.setFields(new String[]{"localhost"});
         grok.setPattern("%{HOSTNAME:.}\\.google\\.com");
 
         Properties props = new Properties(Collections.emptyMap());
@@ -78,8 +78,7 @@ public class TestGrok {
         e.put("remotehost", "www.google.com");
         e.put("remotehostother", "www.google.com");
         e.put("host", "www.yahoo.com");
-        boolean found = e.process(grok);
-        Assert.assertFalse("not notified on match", found);
+        Tools.runProcessing(e, "main", Collections.singletonList(grok));
         Assert.assertEquals("invalid FQDN matching", "www.google.com", e.get("remotehost"));
         Assert.assertEquals("invalid FQDN matching", "127.0.0.1", e.get("localhost"));
     }
@@ -87,7 +86,7 @@ public class TestGrok {
     @Test
     public void TestLoadPatterns6() throws ProcessorException {
         Grok grok = new Grok();
-        grok.setFields("remotehost");
+        grok.setFields(new String[]{"remotehost"});
         grok.setPattern("%{HOSTNAME:.}\\.google\\.com");
 
         Properties props = new Properties(Collections.emptyMap());
@@ -99,15 +98,14 @@ public class TestGrok {
         e.put("remotehost", "www.google.com");
         e.put("remotehostother", "www.google.com");
         e.put("host", "www.yahoo.com");
-        boolean found = e.process(grok);
-        Assert.assertTrue("not notified on match", found);
+        Tools.runProcessing(e, "main", Collections.singletonList(grok));
         Assert.assertEquals("invalid FQDN matching", "www", e.get("remotehost"));
     }
 
     @Test
     public void TestLoadPatterns7() throws ProcessorException {
         Grok grok = new Grok();
-        grok.setFields("host");
+        grok.setFields(new String[]{"host"});
         grok.setPattern("%{HOSTNAME:.}\\.google\\.com");
 
         Properties props = new Properties(Collections.emptyMap());
@@ -119,8 +117,10 @@ public class TestGrok {
         e.put("remotehost", "www.google.com");
         e.put("remotehostother", "www.google.com");
         e.put("host", "www.yahoo.com");
-        boolean found = e.process(grok);
-        Assert.assertFalse("not notified on match", found);
+        Tools.ProcessingStatus ps = Tools.runProcessing(e, "main", Collections.singletonList(grok));
+        System.out.println(ps);
+        //boolean found = e.process(grok);
+        //Assert.assertFalse("not notified on match", found);
     }
 
 }

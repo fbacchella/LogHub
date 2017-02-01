@@ -10,6 +10,12 @@ public class ProcessorException extends Exception {
         }
     };
 
+    public static class IgnoredEventException extends ProcessorException {
+        public IgnoredEventException(Event event) {
+            super(event, "ignored");
+        }
+    };
+
     public static class PausedEventException extends ProcessorException {
         private final Future<?> future;
         public PausedEventException(Event event, Future<?> future) {

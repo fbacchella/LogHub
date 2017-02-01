@@ -1,6 +1,7 @@
 package loghub.processors;
 
 import java.io.IOException;
+import java.util.Collections;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -28,11 +29,11 @@ public class TestUrlDecoders {
     @Test
     public void testUrlDecoder() throws ProcessorException {
         DecodeUrl t = new DecodeUrl();
-        t.setFields("*");
+        t.setFields(new String[]{"*"});
         Event e = Tools.getEvent();
         e.put("q", "%22Paints%22+Oudalan");
         e.put("userAgent", "%2520");
-        e.process(t);
+        Tools.runProcessing(e, "main", Collections.singletonList(t));
         Assert.assertEquals("key 'q' invalid", "\"Paints\" Oudalan", e.get("q"));
         Assert.assertEquals("key 'userAgent' not found", "%20", e.get("userAgent"));
     }
@@ -40,12 +41,12 @@ public class TestUrlDecoders {
     @Test
     public void testUrlDecoderLoop() throws ProcessorException {
         DecodeUrl t = new DecodeUrl();
-        t.setFields("userAgent");
+        t.setFields(new String[]{"userAgent"});
         t.setLoop(true);
         Event e = Tools.getEvent();
         e.put("q", "%22Paints%22+Oudalan");
         e.put("userAgent", "%2520");
-        e.process(t);
+        Tools.runProcessing(e, "main", Collections.singletonList(t));
         Assert.assertEquals("key 'q' invalid", "%22Paints%22+Oudalan", e.get("q"));
         Assert.assertEquals("key 'userAgent' not found", " ", e.get("userAgent"));
     }
