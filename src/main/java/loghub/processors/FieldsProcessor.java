@@ -11,10 +11,9 @@ import loghub.Event;
 import loghub.Helpers;
 import loghub.Processor;
 import loghub.ProcessorException;
+import loghub.ProcessorException.IgnoredEventException;
 import loghub.VarFormatter;
-import loghub.configuration.Beans;
 
-@Beans({"field", "fields"})
 public abstract class FieldsProcessor extends Processor {
     private String field = "message";
     private VarFormatter destinationFormat = null;
@@ -22,9 +21,17 @@ public abstract class FieldsProcessor extends Processor {
     private Pattern[] patterns = new Pattern[]{};
     public abstract boolean processMessage(Event event, String field, String destination) throws ProcessorException;
 
+    public interface AsyncFieldsProcessor<FI> {
+        public abstract boolean process(Event event, FI content, String destination) throws ProcessorException;
+        public abstract boolean manageException(Event event, Exception e, String destination) throws ProcessorException;
+    }
+
     private class FieldSubProcessor extends Processor {
 
         final Iterator<String> processing;
+
+        // Will be used by AsyncFieldSubProcessor
+        protected String toprocess;
 
         FieldSubProcessor(Iterator<String> processing) {
             this.processing = processing;
@@ -32,7 +39,7 @@ public abstract class FieldsProcessor extends Processor {
 
         @Override
         public boolean process(Event event) throws ProcessorException {
-            String toprocess = processing.next();
+            toprocess = processing.next();
             if (processing.hasNext()) {
                 event.insertProcessor(this);
             }
@@ -64,15 +71,15 @@ public abstract class FieldsProcessor extends Processor {
         @Override
         public boolean process(Event event, Object content) throws ProcessorException {
             @SuppressWarnings("unchecked")
-            AsyncProcessor<Object> ap = (AsyncProcessor<Object>) FieldsProcessor.this;
-            return ap.process(event, content);
+            AsyncFieldsProcessor<Object> ap = (AsyncFieldsProcessor<Object>) FieldsProcessor.this;
+            return ap.process(event, content, getDestination(toprocess));
         }
 
         @Override
         public boolean manageException(Event event, Exception e) throws ProcessorException {
             @SuppressWarnings("unchecked")
-            AsyncProcessor<Object> ap = (AsyncProcessor<Object>) FieldsProcessor.this;
-            return ap.manageException(event, e);
+            AsyncFieldsProcessor<Object> ap = (AsyncFieldsProcessor<Object>) FieldsProcessor.this;
+            return ap.manageException(event, e, getDestination(toprocess));
         }
 
         @Override
@@ -84,8 +91,8 @@ public abstract class FieldsProcessor extends Processor {
 
     @Override
     public boolean process(Event event) throws ProcessorException {
-        final Set<String> nextfields = new HashSet<>();
         if (patterns.length != 0) {
+            Set<String> nextfields = new HashSet<>();
             //Build a set of fields that needs to be processed
             for (String eventField: new HashSet<>(event.keySet())) {
                 for (Pattern p: patterns) {
@@ -98,21 +105,17 @@ public abstract class FieldsProcessor extends Processor {
 
             // Add a sub processor that will loop on itself until fields are exhausted
             if (nextfields.size() > 0) {
-                final Iterator<String> processing = nextfields.iterator();
-
-                Processor fieldProcessor;
-                if (this instanceof AsyncProcessor) {
-                    fieldProcessor = new AsyncFieldSubProcessor(processing);
-                } else {
-                    fieldProcessor = new FieldSubProcessor(processing);
-                }
-                if (processing.hasNext()) {
-                    event.insertProcessor(fieldProcessor);
-                }
-                throw new ProcessorException.IgnoredEventException(event);
+                delegate(nextfields, event);
+                // never reached code
+                return false;
             } else {
                 return true;
             }
+        } else if (this instanceof AsyncFieldsProcessor) {
+            // Needed because only AsyncProcessor are allowed to pause
+            delegate(Collections.singleton(field), event);
+            // never reached code
+            return false;
         } else {
             if (event.containsKey(field) && event.get(field) != null) {
                 return processMessage(event, field, getDestination(field));
@@ -120,6 +123,21 @@ public abstract class FieldsProcessor extends Processor {
                 return true;
             }
         }
+    }
+
+    private void delegate(Set<String> nextfields, Event event) throws IgnoredEventException {
+        final Iterator<String> processing = nextfields.iterator();
+
+        Processor fieldProcessor;
+        if (this instanceof AsyncFieldsProcessor) {
+            fieldProcessor = new AsyncFieldSubProcessor(processing);
+        } else {
+            fieldProcessor = new FieldSubProcessor(processing);
+        }
+        if (processing.hasNext()) {
+            event.insertProcessor(fieldProcessor);
+        }
+        throw new ProcessorException.IgnoredEventException(event);
     }
 
     private final String getDestination(String srcField) {

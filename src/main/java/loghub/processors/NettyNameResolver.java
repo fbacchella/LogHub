@@ -3,8 +3,6 @@ package loghub.processors;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 
 import io.netty.channel.AddressedEnvelope;
@@ -25,17 +23,15 @@ import io.netty.resolver.dns.DnsNameResolverException;
 import io.netty.resolver.dns.DnsServerAddresses;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.netty.util.concurrent.Future;
-import loghub.AsyncProcessor;
 import loghub.Event;
 import loghub.ProcessorException;
 import loghub.configuration.Properties;
 
-public class NettyNameResolver extends AbstractNameResolver implements AsyncProcessor<AddressedEnvelope<DnsResponse,InetSocketAddress>> {
+public class NettyNameResolver extends AbstractNameResolver implements FieldsProcessor.AsyncFieldsProcessor<AddressedEnvelope<DnsResponse,InetSocketAddress>> {
 
     private static final EventLoopGroup evg = new NioEventLoopGroup(1, new DefaultThreadFactory("dnsresolver"));
     private int timeout = 10;
     private DnsNameResolver resolver;
-    private final Map<Event, String> destinations = new ConcurrentHashMap<>();
 
     @Override
     public boolean configure(Properties properties) {
@@ -66,14 +62,12 @@ public class NettyNameResolver extends AbstractNameResolver implements AsyncProc
     public boolean resolve(Event event, String query, String destination) throws ProcessorException {
         DnsQuestion dnsquery = new DefaultDnsQuestion(query, DnsRecordType.PTR);
         Future<AddressedEnvelope<DnsResponse, InetSocketAddress>> future = resolver.query(dnsquery);
-        destinations.put(event, destination);
         throw new ProcessorException.PausedEventException(event, future);
     }
 
     @Override
-    public boolean process(Event ev, AddressedEnvelope<DnsResponse, InetSocketAddress> enveloppe) throws ProcessorException {
+    public boolean process(Event ev, AddressedEnvelope<DnsResponse, InetSocketAddress> enveloppe, String destination) throws ProcessorException {
         try {
-            String destination = destinations.remove(ev);
             DnsRecord rr = enveloppe.content().recordAt((DnsSection.ANSWER));
             if (rr != null && rr instanceof DnsPtrRecord) {
                 DnsPtrRecord ptr = (DnsPtrRecord) rr;
@@ -89,8 +83,7 @@ public class NettyNameResolver extends AbstractNameResolver implements AsyncProc
     }
 
     @Override
-    public boolean manageException(Event event, Exception ex) throws ProcessorException {
-        destinations.remove(event);
+    public boolean manageException(Event event, Exception ex, String destination) throws ProcessorException {
         if (ex instanceof DnsNameResolverException) {
             return false;
         } else {
