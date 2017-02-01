@@ -9,5 +9,6 @@
     <Root level="warn">
       <AppenderRef ref="Console"/>
     </Root>
+    <Logger name="io.netty.resolver.dns.DnsNameResolver" level="error" />
   </Loggers>
 </Configuration>
