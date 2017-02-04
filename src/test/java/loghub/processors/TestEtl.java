@@ -29,13 +29,13 @@ public class TestEtl {
     static public void configure() throws IOException {
         Tools.configure();
         logger = LogManager.getLogger();
-        LogUtils.setLevel(logger, Level.TRACE, "loghub.Expression");
+        LogUtils.setLevel(logger, Level.TRACE, "loghub.Expression", "loghub.EventsProcessor");
     }
 
     @Test
     public void test1() throws ProcessorException {
         Etl.Assign etl = new Etl.Assign();
-        etl.setLvalue("a.b");
+        etl.setLvalue(new String[]{"a", "b"});
         etl.setExpression("event.c + 1");
         boolean done = etl.configure(new Properties(Collections.emptyMap()));
         Assert.assertTrue("configuration failed", done);
@@ -48,7 +48,7 @@ public class TestEtl {
     @Test
     public void test2() throws ProcessorException {
         Etl etl = new Etl.Remove();
-        etl.setLvalue("a");
+        etl.setLvalue(new String[]{"a"});
         boolean done = etl.configure(new Properties(Collections.emptyMap()));
         Assert.assertTrue("configuration failed", done);
         Event event = Tools.getEvent();
@@ -60,8 +60,8 @@ public class TestEtl {
     @Test
     public void test3() throws ProcessorException {
         Etl.Rename etl = new Etl.Rename();
-        etl.setLvalue("b");
-        etl.setSource("a");
+        etl.setLvalue(new String[]{"b"});
+        etl.setSource(new String[]{"a"});
         boolean done = etl.configure(new Properties(Collections.emptyMap()));
         Assert.assertTrue("configuration failed", done);
         Event event = Tools.getEvent();
@@ -73,7 +73,7 @@ public class TestEtl {
     @Test
     public void test4() throws ProcessorException {
         Etl.Assign etl = new Etl.Assign();
-        etl.setLvalue("a");
+        etl.setLvalue(new String[]{"a"});
         etl.setExpression("formatters.a.format(event)");
         Map<String, String> formats = Collections.singletonMap("a", "${@timestamp%t<GMT>H}");
         Map<String, Object> properties = new HashMap<>();
@@ -114,4 +114,19 @@ public class TestEtl {
 
     }
 
+    @Test
+    public void test7() throws ProcessorException, InterruptedException, ConfigException, IOException {
+        Properties conf = Tools.loadConf("etl.conf");
+        for(Pipeline pipe: conf.pipelines) {
+            Assert.assertTrue("configuration failed", pipe.configure(conf));
+        }
+        Event sent = Tools.getEvent();
+        Map<String, Object> b = new HashMap<>(1);
+        b.put("c", 1);
+        sent.put("b", b);
+
+        Tools.runProcessing(sent, conf.namedPipeLine.get("third"), conf);
+        Assert.assertEquals("conversion not expected", 1, sent.get("a"));
+
+    }
 }

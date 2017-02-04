@@ -1,7 +1,6 @@
 package loghub.processors;
 
 import java.lang.reflect.InvocationTargetException;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.concurrent.CompletionException;
@@ -22,7 +21,6 @@ public abstract class Etl extends Processor {
     protected String[] lvalue;
 
     public static class Rename extends Etl{
-        private String source;
         private String[] sourcePath;
         @Override
         public boolean process(Event event) throws ProcessorException {
@@ -37,14 +35,13 @@ public abstract class Etl extends Processor {
         }
         @Override
         public boolean configure(Properties properties) {
-            sourcePath = source.split("\\.");
             return super.configure(properties);
         }
-        public String getSource() {
-            return source;
+        public String[] getSource() {
+            return sourcePath;
         }
-        public void setSource(String source) {
-            this.source = source;
+        public void setSource(String[] source) {
+            this.sourcePath = source;
         }
     }
 
@@ -144,12 +141,12 @@ public abstract class Etl extends Processor {
         return null;
     }
 
-    public String getLvalue() {
-        return Arrays.asList(lvalue).toString();
+    public String[] getLvalue() {
+        return lvalue;
     }
 
-    public void setLvalue(String lvalue) {
-        this.lvalue = lvalue.split("\\.");
+    public void setLvalue(String[] lvalue) {
+        this.lvalue = lvalue;
     }
 
 }

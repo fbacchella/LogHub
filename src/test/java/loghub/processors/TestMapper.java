@@ -24,7 +24,6 @@ public class TestMapper {
         sent.put("a", 1);
 
         Tools.runProcessing(sent, conf.namedPipeLine.get("mapper1"), conf);
-        System.out.println(sent);
         Assert.assertEquals("conversion not expected", "b", sent.get("d"));
 
     }

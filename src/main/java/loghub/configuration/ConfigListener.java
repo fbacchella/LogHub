@@ -7,8 +7,10 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.antlr.v4.runtime.ParserRuleContext;
+import org.antlr.v4.runtime.tree.TerminalNode;
 
 import loghub.RouteBaseListener;
 import loghub.RouteParser.ArrayContext;
@@ -17,6 +19,7 @@ import loghub.RouteParser.BooleanLiteralContext;
 import loghub.RouteParser.CharacterLiteralContext;
 import loghub.RouteParser.DropContext;
 import loghub.RouteParser.EtlContext;
+import loghub.RouteParser.EventVariableContext;
 import loghub.RouteParser.ExpressionContext;
 import loghub.RouteParser.FinalpiperefContext;
 import loghub.RouteParser.FireContext;
@@ -493,6 +496,14 @@ class ConfigListener extends RouteBaseListener {
         stack.push(StackMarker.Etl);
     }
 
+    private String[] convertEventVariable(EventVariableContext ev) {
+        List<TerminalNode> path = ev.Identifier();
+        String [] pathString = new String[path.size()];
+        AtomicInteger indice = new AtomicInteger(0);
+        path.stream().forEach( i-> pathString[indice.getAndIncrement()] = i.getText());
+        return pathString;
+    }
+
     @Override
     public void exitEtl(EtlContext ctx) {
 
@@ -504,9 +515,7 @@ class ConfigListener extends RouteBaseListener {
         break;
         case("<"): {
             etl = new ObjectDescription(Etl.Rename.class.getName(), ctx);
-            String temp = ctx.eventVariable().get(1).getText();
-            temp = temp.substring(1, temp.length() -1);
-            etl.beans.put("source", new ObjectWrapped(temp));
+            etl.beans.put("source", new ObjectWrapped(convertEventVariable(ctx.eventVariable().get(1))));
             break;
         }
         case("="): {
@@ -524,9 +533,7 @@ class ConfigListener extends RouteBaseListener {
         case("@"): {
             etl = new ObjectDescription(Mapper.class.getName(), ctx);
             etl.beans.put("map", (ObjectReference) stack.pop());
-            String temp = ctx.eventVariable().get(1).getText();
-            temp = temp.substring(1, temp.length() -1);
-            etl.beans.put("field", new ConfigListener.ObjectWrapped(temp));
+            etl.beans.put("field", new ConfigListener.ObjectWrapped(convertEventVariable(ctx.eventVariable().get(1))));
             break;
         }
         default:
@@ -535,10 +542,7 @@ class ConfigListener extends RouteBaseListener {
         // Remove Etl marker
         Object o = stack.pop();
         assert StackMarker.Etl.equals(o);
-
-        String lvalue = ctx.eventVariable().get(0).getText();
-        lvalue = lvalue.substring(1, lvalue.length() - 1);
-        etl.beans.put("lvalue", new ConfigListener.ObjectWrapped(lvalue));
+        etl.beans.put("lvalue", new ConfigListener.ObjectWrapped(convertEventVariable(ctx.eventVariable().get(0))));
         stack.push(etl);
     }
 

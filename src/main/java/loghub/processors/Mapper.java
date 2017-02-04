@@ -8,21 +8,18 @@ import loghub.ProcessorException;
 public class Mapper extends Etl {
 
     private Map<Object, Object> map;
-    private String field;
+    private String field[];
 
     @Override
     public boolean process(Event event) throws ProcessorException {
-        if(! event.containsKey(field)) {
-            return false;
-        }
-        Object key = event.get(field);
+        Object key = event.applyAtPath((i,j,k) -> i.get(j), field, null);
         if(key == null) {
             return false;
         }
         if (! map.containsKey(key)) {
             return false;
         }
-        Object value = map.get(key);
+        Object value =  map.get(key);
         event.applyAtPath((i,j,k) -> i.put(j, k), lvalue, value, true);
         return true;
     }
@@ -49,14 +46,14 @@ public class Mapper extends Etl {
     /**
      * @return the field
      */
-    public String getField() {
+    public String[] getField() {
         return field;
     }
 
     /**
      * @param field the field to set
      */
-    public void setField(String field) {
+    public void setField(String[] field) {
         this.field = field;
     }
 
