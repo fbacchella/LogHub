@@ -14,5 +14,5 @@ public abstract class ComponentFactory<BS extends AbstractBootstrap<BS,BSC>, BSC
     public abstract void group();
     public abstract void finish();
     public abstract void addChildhandlers(ChannelConsumer<BS, BSC, SA> source);
-    public abstract void addHandlers(ChannelConsumer<BS, BSC, SA> source);
+    public void addHandlers(ChannelConsumer<BS, BSC, SA> source) { };
 }

@@ -10,6 +10,7 @@ import io.netty.bootstrap.AbstractBootstrap;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
+import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.ServerChannel;
@@ -56,12 +57,14 @@ public abstract class ServerFactory<CC extends Channel, SA extends SocketAddress
                     logger.throwing(Level.DEBUG, e);
                 }
             }
+
+            @Override
+            public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+                source.exception(ctx, cause);
+            }
+            
         };
         bootstrap.childHandler(handler);
-    }
-
-    @Override
-    public void addHandlers(ChannelConsumer<ServerBootstrap, ServerChannel, SA> source) {
     }
 
 }

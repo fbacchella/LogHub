@@ -50,7 +50,7 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
                 out.add(content);
             } catch (DecodeException e) {
                 manageDecodeException(e);
-                if (closeonerror()) {
+                if (closeOnError) {
                     ctx.close();
                 }
             }
@@ -83,7 +83,7 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
             }
             logger.error("Unmannageded exception: {}", cause.getMessage());
             logger.debug("details", cause);
-            if (closeonerror()) {
+            if (closeOnError) {
                 ctx.close();
             }
         }
@@ -97,15 +97,19 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
     private final EventSender sender = new EventSender();
     private final MessageToMessageDecoder<SM> resolver = new SourceAddressResolver();
     private final ChannelInboundHandlerAdapter exceptionhandler = new ExceptionHandler();
+    private final boolean selfDecoder;
+    private final boolean closeOnError;
 
     public NettyReceiver(BlockingQueue<Event> outQueue, Pipeline pipeline) {
         super(outQueue, pipeline);
+        selfDecoder = getClass().isAnnotationPresent(SelfDecoder.class);
+        closeOnError = getClass().isAnnotationPresent(CloseOnError.class);
     }
 
     @Override
     public boolean configure(Properties properties) {
         // Prepare the Netty decoder, before it's used during server creation in #getServer()
-        if (nettydecoder == null && decoder != null) {
+        if (! selfDecoder && nettydecoder == null && decoder != null) {
             nettydecoder = new LogHubDecoder();
         }
         server = getServer();
@@ -131,8 +135,10 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
 
     @Override
     public void addHandlers(ChannelPipeline p) {
-        p.addLast("SourceResolver", resolver);
-        p.addLast("MessageDecoder", getNettyDecoder());
+        p.addFirst("SourceResolver", resolver);
+        if (! selfDecoder) {
+            p.addLast("MessageDecoder", getNettyDecoder());
+        }
         p.addLast("Sender", sender);
         p.addLast("ExceptionHandler", exceptionhandler);
     }
@@ -156,6 +162,16 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
 
     protected abstract S getServer();
 
-    protected abstract boolean closeonerror();
+    @Override
+    public void close() {
+        try {
+            cf.channel().closeFuture().sync();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } finally {
+            server.getFactory().finish();
+        }
+        super.close();
+    }
 
 }

@@ -79,6 +79,10 @@ public abstract class AbstractNettyServer<CF extends ComponentFactory<BS, BSC, S
     
     public void configureBootStrap(AbstractBootstrap<BS,BSC> bootstrap) {
         
+    }
+
+    public CF getFactory() {
+        return factory;
     };
 
 }

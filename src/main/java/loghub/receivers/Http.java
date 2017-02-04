@@ -129,5 +129,4 @@ public class Http extends Receiver {
         this.host = host != null && !host.isEmpty() ? host : null;
     }
 
-
 }

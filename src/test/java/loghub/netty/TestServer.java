@@ -67,6 +67,7 @@ public class TestServer {
         }
     }
 
+    @CloseOnError
     private static class TesterReceiver extends NettyReceiver<TesterServer, TesterFactory, ServerBootstrap, ServerChannel, LocalServerChannel, LocalChannel, LocalAddress, Object> {
 
         public TesterReceiver(BlockingQueue<Event> outQueue, Pipeline pipeline) {
@@ -110,11 +111,6 @@ public class TestServer {
             } else {
                 return null;
             }
-        }
-
-        @Override
-        protected boolean closeonerror() {
-            return true;
         }
 
     }
