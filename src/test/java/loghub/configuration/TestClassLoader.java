@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Arrays;
 
 import org.junit.Assert;
 import org.junit.Rule;
@@ -23,7 +22,7 @@ public class TestClassLoader {
         String path2 = testFolder.newFolder().getCanonicalPath();
         Object[] pluginpath = new String[] { path1, path2};
         Path rpath = Files.createTempFile(Paths.get(path2), "toto", ".py");
-        ClassLoader cl = conf.doClassLoader(Arrays.asList(pluginpath));
+        ClassLoader cl = conf.doClassLoader(pluginpath);
         Assert.assertEquals("ressource not found", rpath.toString(), cl.getResource(rpath.getFileName().toString()).getFile());
     }
 }

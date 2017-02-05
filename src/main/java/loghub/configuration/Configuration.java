@@ -129,11 +129,9 @@ public class Configuration {
 
         Map<String, Pipeline> namedPipeLine = new HashMap<>(conf.pipelines.size());
 
-        // Neeeded because conf.properties store a lot of wrapped object, they needs to be resolved
-        if(newProperties.containsKey("plugins") && newProperties.get("plugins") instanceof List) {
+        if (newProperties.containsKey("plugins") && newProperties.get("plugins").getClass().isArray() ) {
             try {
-                @SuppressWarnings("unchecked")
-                List<Object> plugins = (List<Object>) newProperties.remove("plugins");
+                Object[] plugins = (Object[]) newProperties.remove("plugins");
                 classLoader = doClassLoader(plugins);
             } catch (IOException ex) {
                 throw new RuntimeException("can't load plugins: " + ex.getMessage(), ex);
@@ -316,15 +314,14 @@ public class Configuration {
         }
     }
 
-    ClassLoader doClassLoader(List<Object> pathElements) throws IOException {
+    ClassLoader doClassLoader(Object[] pathElements) throws IOException {
 
         final Collection<URL> urls = new ArrayList<URL>();
 
         // Needed for all the lambda that throws exception
         ThrowingPredicate<Path> filterReadable = i -> ! Files.isHidden(i);
         ThrowingConsumer<Path> toUrl = i -> urls.add(i.toUri().toURL());
-
-        pathElements.stream()
+        Arrays.stream(pathElements)
         .map(i -> Paths.get(i.toString()))
         .filter(i -> Files.isReadable(i))
         .filter(filterReadable)
@@ -349,7 +346,7 @@ public class Configuration {
         }
         urls.add(myself.toUri().toURL());
 
-        return new URLClassLoader(urls.toArray(new URL[] {}), getClass().getClassLoader()) {
+        return new URLClassLoader(urls.toArray(new URL[] {})) {
             @Override
             public String toString() {
                 return "Loghub's class loader";
