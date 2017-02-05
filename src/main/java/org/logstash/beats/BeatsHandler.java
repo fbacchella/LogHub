@@ -54,8 +54,8 @@ public class BeatsHandler extends SimpleChannelInboundHandler<Batch> {
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+        logger.debug("Exception: {}", cause.getMessage());
         messageListener.onException(ctx, cause);
-        logger.error("Exception: {}", cause.getMessage());
         ctx.close();
     }
 

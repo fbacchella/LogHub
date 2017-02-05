@@ -28,6 +28,7 @@ public class Beats extends GenericTcp {
     private final IMessageListener messageListener;
     private EventExecutorGroup idleExecutorGroup;
     private int clientInactivityTimeoutSeconds;
+    private int maxPayloadSize = 8192;
 
     public Beats(BlockingQueue<Event> outQueue, Pipeline pipeline) {
         super(outQueue, pipeline);
@@ -45,8 +46,8 @@ public class Beats extends GenericTcp {
             }
 
             @Override
-            public void onException(ChannelHandlerContext arg0, Throwable error) {
-                logger.error("Beats exception: {}", error.getCause());
+            public void onException(ChannelHandlerContext ctx, Throwable error) {
+                ctx.fireExceptionCaught(error);
             }
 
             @Override
@@ -64,7 +65,7 @@ public class Beats extends GenericTcp {
 
     @Override
     protected ByteToMessageDecoder getSplitter() {
-        return new BeatsParser();
+        return new BeatsParser(maxPayloadSize);
     }
 
     @Override
@@ -107,6 +108,20 @@ public class Beats extends GenericTcp {
 
     public void setClientInactivityTimeout(int clientInactivityTimeoutSeconds) {
         this.clientInactivityTimeoutSeconds = clientInactivityTimeoutSeconds;
+    }
+
+    /**
+     * @return the maxPayloadSize
+     */
+    public int getMaxPayloadSize() {
+        return maxPayloadSize;
+    }
+
+    /**
+     * @param maxPayloadSize the maxPayloadSize to set
+     */
+    public void setMaxPayloadSize(int maxPayloadSize) {
+        this.maxPayloadSize = maxPayloadSize;
     }
 
 }

@@ -10,13 +10,13 @@ import io.netty.handler.codec.ByteToMessageDecoder;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.zip.Inflater;
 import java.util.zip.InflaterOutputStream;
-
 
 public class BeatsParser extends ByteToMessageDecoder {
     public final static ObjectMapper MAPPER = new ObjectMapper().registerModule(new AfterburnerModule());
@@ -44,12 +44,18 @@ public class BeatsParser extends ByteToMessageDecoder {
     }
 
     private States currentState = States.READ_HEADER;
-    private int requiredBytes = 0;
+    private int requiredBytes = States.READ_HEADER.length;
     private long sequence = 0;
+    private final int maxPayloadSize;
+
+    public BeatsParser(int maxPayloadSize) {
+        super();
+        this.maxPayloadSize = maxPayloadSize;
+    }
 
     @Override
-    protected void decode(ChannelHandlerContext ctx, ByteBuf in, List<Object> out) throws Exception {
-        if(!hasEnoughBytes(in)) {
+    protected void decode(ChannelHandlerContext ctx, ByteBuf in, List<Object> out) throws IOException {
+        if (!hasEnoughBytes(in)) {
             return;
         }
 
@@ -119,29 +125,29 @@ public class BeatsParser extends ByteToMessageDecoder {
             // Lumberjack version 1 protocol, which use the Key:Value format.
             logger.debug("Running: READ_DATA_FIELDS");
             sequence = in.readUnsignedInt();
-            long fieldsCount = in.readUnsignedInt();
+            int fieldsCount = (int) in.readUnsignedInt();
             int count = 0;
 
-            if (fieldsCount > Integer.MAX_VALUE) {
+            if (fieldsCount <= 0) {
                 throw new InvalidFrameProtocolException("Invalid number of fields, received: " + fieldsCount);
             }
 
             Map<String, String> dataMap = new HashMap<>((int)fieldsCount);
 
             while(count < fieldsCount) {
-                long fieldLength = in.readUnsignedInt();
-                if(fieldLength > in.readableBytes()) {
+                int fieldLength = (int) in.readUnsignedInt();
+                if (fieldLength > in.readableBytes() || fieldLength <= 0) {
                     throw new InvalidFrameProtocolException("Invalid field length, received: " + fieldLength);
                 }
-                ByteBuf fieldBuf = in.readBytes((int)fieldLength);
+                ByteBuf fieldBuf = in.readBytes(fieldLength);
                 String field = fieldBuf.toString(UTF8);
                 fieldBuf.release();
 
-                long dataLength = in.readUnsignedInt();
-                if(dataLength > in.readableBytes()) {
+                int dataLength = (int) in.readUnsignedInt();
+                if(dataLength > in.readableBytes() || dataLength <= 0) {
                     throw new InvalidFrameProtocolException("Invalid data length length, received: " + dataLength);
                 }
-                ByteBuf dataBuf = in.readBytes((int)dataLength);
+                ByteBuf dataBuf = in.readBytes(dataLength);
                 String data = dataBuf.toString(UTF8);
                 dataBuf.release();
 
@@ -166,26 +172,27 @@ public class BeatsParser extends ByteToMessageDecoder {
             logger.debug("Running: READ_JSON_HEADER");
 
             sequence = in.readUnsignedInt();
-            long jsonPayloadSize = in.readUnsignedInt();
-            if(jsonPayloadSize  > in.readableBytes() || jsonPayloadSize == 0) {
+            // Overflow will return a negative value
+            int jsonPayloadSize = (int) in.readUnsignedInt();
+            if (jsonPayloadSize <= 0) {
                 throw new InvalidFrameProtocolException("Invalid json length, received: " + jsonPayloadSize);
             }
 
-            transition(States.READ_JSON, (int)jsonPayloadSize);
+            transition(States.READ_JSON, jsonPayloadSize);
             break;
         }
         case READ_COMPRESSED_FRAME_HEADER: {
             logger.debug("Running: READ_COMPRESSED_FRAME_HEADER");
             
-            long compressedPayloadSize = in.readUnsignedInt();
-            if(compressedPayloadSize  > in.readableBytes() || compressedPayloadSize == 0) {
+            // Overflow will return a negative value
+            int compressedPayloadSize = (int) in.readUnsignedInt();
+            if (compressedPayloadSize <= 0) {
                 throw new InvalidFrameProtocolException("Invalid compressed paylog length, received: " + compressedPayloadSize);
             }
 
-            transition(States.READ_COMPRESSED_FRAME, (int)compressedPayloadSize);
+            transition(States.READ_COMPRESSED_FRAME, compressedPayloadSize);
             break;
         }
-
         case READ_COMPRESSED_FRAME: {
             logger.debug("Running: READ_COMPRESSED_FRAME");
             // Use the compressed size as the safe start for the buffer.
@@ -234,12 +241,15 @@ public class BeatsParser extends ByteToMessageDecoder {
         return in.readableBytes() >= requiredBytes;
     }
 
-    private void transition(States next) {
+    private void transition(States next) throws InvalidFrameProtocolException {
         transition(next, next.length);
     }
 
-    private void transition(States nextState, int requiredBytes) {
+    private void transition(States nextState, int requiredBytes) throws InvalidFrameProtocolException {
         logger.debug("Transition, from: {}, to: {}, requiring ()  bytes", currentState, nextState, requiredBytes);
+        if (requiredBytes > maxPayloadSize) {
+            throw new InvalidFrameProtocolException("Oversized payload: " + requiredBytes);
+        }
         this.currentState = nextState;
         this.requiredBytes = requiredBytes;
     }
@@ -250,7 +260,7 @@ public class BeatsParser extends ByteToMessageDecoder {
         batch = new Batch();
     }
 
-    public class InvalidFrameProtocolException extends Exception {
+    public class InvalidFrameProtocolException extends IOException {
         InvalidFrameProtocolException(String message) {
             super(message);
         }
