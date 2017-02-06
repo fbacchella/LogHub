@@ -15,8 +15,8 @@ import loghub.configuration.Properties;
 
 public class FireEvent extends Processor {
 
-    private Map<String, String> fields;
-    private Map<String, Expression> expressions;
+    private Map<String[], String> fields;
+    private Map<String[], Expression> expressions;
     private String destination;
     private Pipeline pipeDestination;
     private BlockingQueue<Event> mainQueue;
@@ -24,7 +24,7 @@ public class FireEvent extends Processor {
     @Override
     public boolean configure(Properties properties) {
         expressions = new HashMap<>(fields.size());
-        for(Map.Entry<String, String> i: fields.entrySet()) {
+        for(Map.Entry<String[], String> i: fields.entrySet()) {
             try {
                 Expression ex = new Expression(i.getValue(), properties.groovyClassLoader, properties.formatters);
                 expressions.put(i.getKey(), ex);
@@ -45,8 +45,9 @@ public class FireEvent extends Processor {
     @Override
     public boolean process(Event event) throws ProcessorException {
         Event newEvent = Event.emptyEvent();
-        for(Map.Entry<String, Expression> i: expressions.entrySet()) {
-            newEvent.put(i.getKey(), i.getValue().eval(event, Collections.emptyMap()));
+        for(Map.Entry<String[], Expression> e: expressions.entrySet()) {
+            Object value = e.getValue().eval(event, Collections.emptyMap());
+            newEvent.applyAtPath( (i, j, k) -> i.put(j, k), e.getKey(), value);
         }
         newEvent.inject(pipeDestination, mainQueue);
         return true;
@@ -60,14 +61,14 @@ public class FireEvent extends Processor {
     /**
      * @return the fields
      */
-    public Map<String, String> getFields() {
+    public Map<String[], String> getFields() {
         return fields;
     }
 
     /**
      * @param fields the fields to set
      */
-    public void setFields(Map<String, String> fields) {
+    public void setFields(Map<String[], String> fields) {
         this.fields = fields;
     }
 

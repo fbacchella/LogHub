@@ -459,13 +459,12 @@ class ConfigListener extends RouteBaseListener {
     @Override
     public void exitFire(FireContext ctx) {
         ObjectDescription fire = new ObjectDescription(FireEvent.class.getName(), ctx);
-        Map<String, String> fields = new HashMap<>();
+        Map<String[], String> fields = new HashMap<>();
         int count = ctx.eventVariable().size() - 1;
         while(! StackMarker.Fire.equals(stack.peek()) ) {
             Object o = stack.pop();
             if(o instanceof ObjectWrapped) {
-                String lvalue = ctx.eventVariable().get(count--).getText();
-                lvalue = lvalue.substring(1, lvalue.length() - 1);
+                String[] lvalue = convertEventVariable(ctx.eventVariable().get(count--));
                 o = ((ObjectWrapped) o).wrapped;
                 fields.put(lvalue, (String) o);
             } else if (o instanceof PipeRefName){

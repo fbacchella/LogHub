@@ -71,7 +71,7 @@ drop: Drop;
 Drop: 'drop';
 
 fire
-    : 'fire' '|' '$' piperef '{' ( eventVariable '=' expression ';'? )* eventVariable '=' expression ';'? '}'
+    : 'fire' '{' ( eventVariable '=' expression ';'? )* eventVariable '=' expression ';'? '}' '>' '$' piperef 
     ;
 
 log
