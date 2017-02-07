@@ -96,7 +96,7 @@ public abstract class FieldsProcessor extends Processor {
             //Build a set of fields that needs to be processed
             for (String eventField: new HashSet<>(event.keySet())) {
                 for (Pattern p: patterns) {
-                    if (p.matcher(eventField).matches() && event.get(eventField) != null) {
+                    if (p.matcher(eventField).matches()) {
                         nextfields.add(eventField);
                         break;
                     }
@@ -109,7 +109,7 @@ public abstract class FieldsProcessor extends Processor {
                 // never reached code
                 return false;
             } else {
-                return true;
+                throw new ProcessorException.IgnoredEventException(event);
             }
         } else if (this instanceof AsyncFieldsProcessor) {
             // Needed because only AsyncProcessor are allowed to pause
@@ -117,10 +117,10 @@ public abstract class FieldsProcessor extends Processor {
             // never reached code
             return false;
         } else {
-            if (event.containsKey(field) && event.get(field) != null) {
+            if (event.containsKey(field)) {
                 return processMessage(event, field, getDestination(field));
             } else {
-                return true;
+                throw new ProcessorException.IgnoredEventException(event);
             }
         }
     }

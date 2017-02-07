@@ -75,4 +75,18 @@ public class TestConditions {
         Assert.assertEquals("sup pipeline not processed", 2, sent.get("c"));
     }
 
+    @Test
+    public void testignored() throws InterruptedException, ProcessorException, ConfigException, IOException {
+        Properties conf = Tools.loadConf("conditions.conf");
+
+        Event sent = Tools.getEvent();
+        sent.put("z", "1");
+
+        Tools.runProcessing(sent, conf.namedPipeLine.get("ignore"), conf);
+        Assert.assertEquals("success was called", null, sent.get("b"));
+        Assert.assertEquals("failure was called", null, sent.get("c"));
+        Assert.assertEquals("exception was called", null, sent.get("d"));
+        Assert.assertEquals("Event was processed, when it should not have been", "1", sent.get("z"));
+    }
+
 }
