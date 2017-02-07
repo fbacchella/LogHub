@@ -23,6 +23,9 @@ public class VarExtractor extends FieldsProcessor {
     @Override
     public boolean processMessage(Event event, String field, String destination ) {
         boolean parsed = false;
+        if (event.get(field) == null) {
+            return false;
+        }
         String message = event.get(field).toString();
         String after = message;
         Matcher m = parser.matcher(message);
