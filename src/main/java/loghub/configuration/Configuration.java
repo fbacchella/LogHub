@@ -112,19 +112,10 @@ public class Configuration {
         final Map<String, Object> newProperties = new HashMap<String, Object>(conf.properties.size() + Properties.PROPSNAMES.values().length + System.getProperties().size());
 
         // Resolvers properties found and and it to new properties
-        Function<Object, Object> resolve;
-        try {
-            resolve = i -> {
-                try {
-                    return ((i instanceof ConfigListener.ObjectWrapped) ? ((ConfigListener.ObjectWrapped) i).wrapped : 
-                        (i instanceof ConfigListener.ObjectReference) ? parseObjectDescription((ConfigListener.ObjectDescription) i, emptyConstructor) : i);
-                } catch (ConfigException e) {
-                    throw new IllegalArgumentException(e);
-                }
-            };
-        } catch (IllegalArgumentException e) {
-            throw (ConfigException) e.getCause();
-        }
+        Function<Object, Object> resolve = i -> {
+            return ((i instanceof ConfigListener.ObjectWrapped) ? ((ConfigListener.ObjectWrapped) i).wrapped : 
+                (i instanceof ConfigListener.ObjectReference) ? parseObjectDescription((ConfigListener.ObjectDescription) i, emptyConstructor) : i);
+        };
         conf.properties.entrySet().stream().forEach( i-> newProperties.put(i.getKey(), resolve.apply(i.getValue())));
 
         Map<String, Pipeline> namedPipeLine = new HashMap<>(conf.pipelines.size());
@@ -231,17 +222,9 @@ public class Configuration {
             }
         };
 
-        try {
-            desc.processors.stream().map(i -> {
-                try {
-                    return getProcessor(i, currentPipeLineName, depth, subPipeCount);
-                } catch (ConfigException e) {
-                    throw new IllegalArgumentException(e);
-                }
-            }).forEach(allSteps::add);
-        } catch (IllegalArgumentException e) {
-            throw (ConfigException) e.getCause();
-        }
+        desc.processors.stream().map(i -> {
+            return getProcessor(i, currentPipeLineName, depth, subPipeCount);
+        }).forEach(allSteps::add);
         Pipeline pipe = new Pipeline(allSteps, currentPipeLineName + (depth == 0 ? "" : "$" + subPipeCount.getAndIncrement()), desc.nextPipelineName);
         return pipe;
     }
