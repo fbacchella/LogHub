@@ -43,7 +43,7 @@ public class ZMQ extends Receiver {
                 listeningSocket.subscribe(new byte[] {});
             }
         } catch (org.zeromq.ZMQException e) {
-            ZMQHelper.logZMQException(logger, "failed to start ZMQ input: ", e);
+            ZMQHelper.logZMQException(logger, "failed to start ZMQ input " + listen + ":", e);
             logger.catching(Level.DEBUG, e.getCause());
             listeningSocket = null;
             return false;

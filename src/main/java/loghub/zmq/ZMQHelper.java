@@ -7,6 +7,7 @@ import java.nio.channels.ClosedChannelException;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.util.Supplier;
 import org.zeromq.ZMQ;
@@ -31,8 +32,8 @@ public class ZMQHelper {
     private final static Map<Integer, ERRNO> map = new HashMap<>();
 
     public enum ERRNO {
-        EOTHER(-1),
-        EINTR(ZError.EINTR),
+        EOTHER(-1, Level.FATAL),
+        EINTR(ZError.EINTR, Level.DEBUG),
         EACCESS(ZError.EACCESS),
         EFAULT(ZError.EFAULT),
         EINVAL(ZError.EINVAL),
@@ -50,10 +51,10 @@ public class ZMQHelper {
         EHOSTUNREACH(ZError.EHOSTUNREACH),
         EFSM(ZError.EFSM),
         ENOCOMPATPROTO(ZError.ENOCOMPATPROTO),
-        ETERM(ZError.ETERM) {
-            public String toString(String context, Exception exceptionToClass, Throwable exceptionToMessage) {
-                return String.format("[%s] %s: %s", context, exceptionToClass.getClass().getCanonicalName(), toStringMessage());
-            }            
+        ETERM(ZError.ETERM, Level.DEBUG) {
+            public String toString(String prefix, Exception exceptionToClass, Throwable exceptionToMessage) {
+                return String.format("%s [%s] %s", prefix, exceptionToClass.getClass().getCanonicalName(), toStringMessage());
+            }
         },
         EMTHREAD(ZError.EMTHREAD),
         EIOEXC(ZError.EIOEXC),
@@ -61,8 +62,15 @@ public class ZMQHelper {
         EMFILE(ZError.EMFILE);
 
         public final int code;
+        public final Level level;
+
         ERRNO(int code) {
+            this(code, Level.ERROR);
+        }
+
+        ERRNO(int code, Level level) {
             this.code = code;
+            this.level = level;
             map.put(code, this);
         }
 
@@ -71,9 +79,13 @@ public class ZMQHelper {
         }
         public String toStringMessage() {
             return ZError.toString(code);
-        }            
-        public String toString(String context, Exception exceptionToClass, Throwable exceptionToMessage) {
-            return String.format("[%s] %s %s", context, toStringMessage(), exceptionToMessage);
+        }
+        public String toString(String prefix, Exception exceptionToClass, Throwable exceptionToMessage) {
+            return String.format("%s [%s] %s", prefix, toStringMessage(), exceptionToMessage);
+        }
+
+        public String toString(String prefix, RuntimeException e) {
+            return String.format("%s %s", prefix, toStringMessage());
         }
     }
 
@@ -117,12 +129,12 @@ public class ZMQHelper {
     }
 
     public static void logZMQException(Logger l, String prefix, RuntimeException e) {
-        final ERRNO errno;
+        ERRNO errno;
         Supplier<String> message;
         if (e instanceof ZMQException.IOException || e instanceof ZError.IOException) {
             IOException cause = (java.io.IOException) e.getCause();
             errno = ERRNO.get(exccode(cause));
-            message = () -> errno.toString(prefix, e, e);
+            message = () -> errno.toString(prefix, e);
         } else if (e instanceof ZError.CtxTerminatedException) {
             errno = ERRNO.ETERM;
             message = () -> errno.toString(prefix, e, new RuntimeException("Context terminated"));
@@ -131,16 +143,11 @@ public class ZMQHelper {
             message =  () -> errno.toString(prefix, e, e.getCause());
         } else if (e instanceof ZMQException) {
             errno = ERRNO.get(((ZMQException)e).getErrorCode());
-            message = () -> errno.toString(prefix, e, e);
+            message = () -> errno.toString(prefix, e);
         } else {
             throw e;
         }
-        switch(errno) {
-        case EINTR: l.debug(message); break;
-        case ETERM: l.debug(message); break;
-        case EOTHER: l.fatal(message); break;
-        default: l.error(message); break;
-        }
+        l.log(errno.level, message);
     }
 
     private static int exccode(java.io.IOException e) {
