@@ -27,6 +27,12 @@ import loghub.netty.http.AbstractHttpServer;
 
 public class Start extends Thread {
 
+    // To be executed before LogManager.getLogger() to ensure that log4j2 will use the basis context selector
+    // Not the smart one for web app.
+    static {
+        System.setProperty("Log4jContextSelector", "org.apache.logging.log4j.core.selector.BasicContextSelector");
+    }
+
     private static final Logger logger = LogManager.getLogger();
 
     static public void main(final String[] args) {
