@@ -438,7 +438,7 @@ PatternCharacter
 
 fragment
 PatternFirstCharacter
-    :   ~[/\*\\]
+    :   ~[/*\\]
     |   EscapeSequence
     ;
 
