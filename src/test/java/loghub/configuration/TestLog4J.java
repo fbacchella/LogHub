@@ -1,6 +1,7 @@
 package loghub.configuration;
 
 import java.io.IOException;
+import java.io.StringReader;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
@@ -9,7 +10,6 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.LoggerContext;
-import org.apache.logging.log4j.core.appender.CountingNoOpAppender;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -29,18 +29,17 @@ public class TestLog4J {
     }
 
     @Test
-    public void testlog4j() {
+    public void testlog4j() throws ConfigException, IOException {
         Map<String, Object> props = new HashMap<>();
         URL xmlfile = getClass().getClassLoader().getResource("testlog4j.xml");
-        System.out.println(xmlfile);
+        logger.debug("log4j2 configuration file is {}", xmlfile);
+        String configFile = String.format("log4j.configURL: \"%s\"", xmlfile);
         props.put("log4j.configURL", xmlfile.toString());
         @SuppressWarnings("unused")
-        Properties lhprops = new Properties(props);
-        LoggerContext ctx = (LoggerContext) LogManager.getContext(false);
+        Properties lhprops =  Tools.loadConf(new StringReader(configFile));
+        LoggerContext ctx = (LoggerContext) LogManager.getContext(true);
         org.apache.logging.log4j.core.config.Configuration conf = ctx.getConfiguration();
         Assert.assertNotNull("TestConsole appender not found", conf.getAppender("TestConsole"));
-        CountingNoOpAppender counting = conf.getAppender("counting");
-        Assert.assertTrue("not enough logs", counting.getCount() >= 1);
     }
 
 }
