@@ -4,12 +4,17 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.antlr.v4.runtime.IntStream;
+import org.antlr.v4.runtime.Parser;
 import org.antlr.v4.runtime.ParserRuleContext;
+import org.antlr.v4.runtime.RecognitionException;
 import org.antlr.v4.runtime.tree.TerminalNode;
 
 import loghub.RouteBaseListener;
@@ -122,10 +127,12 @@ class ConfigListener extends RouteBaseListener {
     static class ObjectDescription implements ObjectReference, Iterable<String> {
         final ParserRuleContext ctx;
         final String clazz;
+        final IntStream stream;
         Map<String, ObjectReference> beans = new HashMap<>();
-        ObjectDescription(String clazz, ParserRuleContext ctx) {
+        ObjectDescription(IntStream stream, String clazz, ParserRuleContext ctx) {
             this.clazz = clazz;
             this.ctx = ctx;
+            this.stream = stream;
         }
         ObjectReference get(String name) {
             return beans.get(name);
@@ -140,11 +147,11 @@ class ConfigListener extends RouteBaseListener {
     };
 
     static final class ProcessorInstance extends ObjectDescription implements Pipenode {
-        ProcessorInstance(String clazz, ParserRuleContext ctx) {
-            super(clazz, ctx);
+        ProcessorInstance(IntStream stream, String clazz, ParserRuleContext ctx) {
+            super(stream, clazz, ctx);
         }
-        ProcessorInstance(ObjectDescription object, ParserRuleContext ctx) {
-            super(object.clazz, ctx);
+        ProcessorInstance(IntStream stream, ObjectDescription object, ParserRuleContext ctx) {
+            super(stream, object.clazz, ctx);
             this.beans = object.beans;
         }
     };
@@ -159,6 +166,11 @@ class ConfigListener extends RouteBaseListener {
 
     private String currentPipeLineName = null;
     private int expressionDepth = 0;
+
+    private Set<String> lockedProperties = new HashSet<>();
+    
+    Parser parser;
+    IntStream stream;
 
     @Override
     public void enterPiperef(PiperefContext ctx) {
@@ -246,14 +258,14 @@ class ConfigListener extends RouteBaseListener {
 
     @Override
     public void enterMerge(MergeContext ctx) {
-        ObjectReference beanObject = new ObjectDescription(Merge.class.getCanonicalName(), ctx);
+        ObjectReference beanObject = new ObjectDescription(this.stream , Merge.class.getCanonicalName(), ctx);
         stack.push(beanObject);
     }
 
     @Override
     public void enterObject(ObjectContext ctx) {
         String qualifiedName = ctx.QualifiedIdentifier().getText();
-        ObjectReference beanObject = new ObjectDescription(qualifiedName, ctx);
+        ObjectReference beanObject = new ObjectDescription(this.stream , qualifiedName, ctx);
         stack.push(beanObject);
     }
 
@@ -262,7 +274,7 @@ class ConfigListener extends RouteBaseListener {
         Object o = stack.pop();
         if( ! (o instanceof Pipenode) ) {
             ObjectDescription object = (ObjectDescription) o;
-            ProcessorInstance ti = new ProcessorInstance(object, ctx);
+            ProcessorInstance ti = new ProcessorInstance(this.stream , object, ctx);
             stack.push(ti);
         } else {
             stack.push(o);
@@ -271,9 +283,9 @@ class ConfigListener extends RouteBaseListener {
 
     @Override
     public void exitForkpiperef(ForkpiperefContext ctx) {
-        ObjectDescription beanObject = new ObjectDescription(Forker.class.getCanonicalName(), ctx);
+        ObjectDescription beanObject = new ObjectDescription(this.stream , Forker.class.getCanonicalName(), ctx);
         beanObject.put("destination", new ObjectWrapped(ctx.Identifier().getText()));
-        ProcessorInstance ti = new ProcessorInstance(beanObject, ctx);
+        ProcessorInstance ti = new ProcessorInstance(this.stream , beanObject, ctx);
         stack.push(ti);
     }
 
@@ -340,7 +352,7 @@ class ConfigListener extends RouteBaseListener {
 
     @Override
     public void exitTest(TestContext ctx) {
-        ObjectDescription beanObject = new ObjectDescription(Test.class.getCanonicalName(), ctx);
+        ObjectDescription beanObject = new ObjectDescription(this.stream, Test.class.getCanonicalName(), ctx);
         List<Pipenode> clauses = new ArrayList<>(2);
         Object o;
         do {
@@ -423,7 +435,12 @@ class ConfigListener extends RouteBaseListener {
     public void exitProperty(PropertyContext ctx) {
         Object value = stack.pop();
         String key = ctx.propertyName().getText();
-        properties.put(key, value);
+        // Avoid reprocess already processed properties
+        if (!lockedProperties.contains(key)) {
+            properties.put(key, value);
+        } else {
+            throw new RecognitionException("redefined property", parser, stream, ctx);
+        }
     }
 
     @Override
@@ -447,7 +464,7 @@ class ConfigListener extends RouteBaseListener {
 
     @Override
     public void exitDrop(DropContext ctx) {
-        ObjectDescription drop = new ObjectDescription(Drop.class.getCanonicalName(), ctx);
+        ObjectDescription drop = new ObjectDescription(this.stream, Drop.class.getCanonicalName(), ctx);
         stack.push(drop);
     }
 
@@ -458,7 +475,7 @@ class ConfigListener extends RouteBaseListener {
 
     @Override
     public void exitFire(FireContext ctx) {
-        ObjectDescription fire = new ObjectDescription(FireEvent.class.getName(), ctx);
+        ObjectDescription fire = new ObjectDescription(this.stream, FireEvent.class.getName(), ctx);
         Map<String[], String> fields = new HashMap<>();
         int count = ctx.eventVariable().size() - 1;
         while(! StackMarker.Fire.equals(stack.peek()) ) {
@@ -471,7 +488,7 @@ class ConfigListener extends RouteBaseListener {
                 PipeRefName name = (PipeRefName) o;
                 fire.beans.put("destination", new ObjectWrapped(name.piperef));
             } else {
-                throw new RuntimeException("invalid parsing");
+                throw new RecognitionException("invalid fire argument: " + o.toString(), parser, stream, ctx);
             }
         }
         fire.beans.put("fields", new ObjectWrapped(fields));
@@ -481,7 +498,7 @@ class ConfigListener extends RouteBaseListener {
 
     @Override
     public void exitLog(LogContext ctx) {
-        ObjectDescription logger = new ObjectDescription(Log.class.getName(), ctx);
+        ObjectDescription logger = new ObjectDescription(this.stream, Log.class.getName(), ctx);
         logger.beans.put("level", new ObjectWrapped(ctx.level().getText()));
         logger.beans.put("pipeName", new ObjectWrapped(currentPipeLineName));
         String message = ctx.message.getText();
@@ -510,33 +527,33 @@ class ConfigListener extends RouteBaseListener {
 
         switch(ctx.op.getText()) {
         case("-"):
-            etl = new ObjectDescription(Etl.Remove.class.getName(), ctx);
+            etl = new ObjectDescription(this.stream, Etl.Remove.class.getName(), ctx);
         break;
         case("<"): {
-            etl = new ObjectDescription(Etl.Rename.class.getName(), ctx);
+            etl = new ObjectDescription(this.stream, Etl.Rename.class.getName(), ctx);
             etl.beans.put("source", new ObjectWrapped(convertEventVariable(ctx.eventVariable().get(1))));
             break;
         }
         case("="): {
-            etl = new ObjectDescription(Etl.Assign.class.getName(), ctx);
+            etl = new ObjectDescription(this.stream, Etl.Assign.class.getName(), ctx);
             ObjectWrapped expression = (ObjectWrapped) stack.pop();
             etl.beans.put("expression", expression);
             break;
         }
         case("("): {
-            etl = new ObjectDescription(Etl.Convert.class.getName(), ctx);
+            etl = new ObjectDescription(this.stream, Etl.Convert.class.getName(), ctx);
             ObjectWrapped className = new ObjectWrapped(ctx.QualifiedIdentifier().getText());
             etl.beans.put("className", className);
             break;
         }
         case("@"): {
-            etl = new ObjectDescription(Mapper.class.getName(), ctx);
+            etl = new ObjectDescription(this.stream, Mapper.class.getName(), ctx);
             etl.beans.put("map", (ObjectReference) stack.pop());
             etl.beans.put("field", new ConfigListener.ObjectWrapped(convertEventVariable(ctx.eventVariable().get(1))));
             break;
         }
         default:
-            throw new RuntimeException("invalid parsing");
+            throw new RecognitionException("invalid operator " + ctx.op.getText(), parser, stream, ctx);
         }
         // Remove Etl marker
         Object o = stack.pop();
@@ -609,6 +626,13 @@ class ConfigListener extends RouteBaseListener {
         } else {
             stack.push(expression);
         }
+    }
+
+    /**
+     * @param topLevelConfigFile the topLevelConfigFile to set
+     */
+    public void lockProperty(String property) {
+        lockedProperties.add(property);
     }
 
 }

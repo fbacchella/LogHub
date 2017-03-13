@@ -1,20 +1,11 @@
 package loghub.configuration;
 
-import java.io.File;
 import java.lang.management.ManagementFactory;
-import java.net.MalformedURLException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.net.URL;
-import java.time.DateTimeException;
-import java.time.ZoneId;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import java.util.TimeZone;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.UUID;
@@ -136,44 +127,19 @@ public class Properties extends HashMap<String, Object> {
 
         metrics.reset();
 
-        String tz = (String) properties.remove("timezone");
-        try {
-            if (tz != null) {
-                ZoneId id = ZoneId.of(tz);
-                TimeZone.setDefault(TimeZone.getTimeZone(id));
-            }
-        } catch (DateTimeException e) {
-            logger.error("Invalid timezone {}: {}", tz, e.getMessage());
-        }
-
-        String locale = (String) properties.remove("locale");
-        if (locale != null) {
-            Locale l = Locale.forLanguageTag(locale);
-            Locale.setDefault(l);
-        }
-
         ClassLoader cl = (ClassLoader) properties.remove(PROPSNAMES.CLASSLOADERNAME.toString());
         if (cl == null) {
             cl = Properties.class.getClassLoader();
         }
         classloader = cl;
 
-        URI log4JUri = null;
-        if (properties.containsKey("log4j.configURL")) {
-            String log4JUrlString = (String) properties.remove("log4j.configURL");
-            try {
-                log4JUri = new URL(log4JUrlString).toURI();
-            } catch (MalformedURLException | URISyntaxException e) {
-                logger.error("Invalid log4j URL");
-            }
-        } else if (properties.containsKey("log4j.configFile")) {
-            log4JUri = new File((String) properties.remove("log4j.configFile")).toURI();
-        }
-        if (log4JUri != null) {
+
+        if (properties.containsKey("log4j.defaultlevel")) {
+            String levelname = (String) properties.remove("log4j.defaultlevel");
+            Level log4jlevel = Level.getLevel(levelname);
             LoggerContext ctx = (LoggerContext) LogManager.getContext(false);
-            ctx.setConfigLocation(log4JUri);
-            ctx.reconfigure();
-            logger.debug("log4j reconfigured");
+            ctx.getConfiguration().getLoggers().forEach( (i, j) -> j.setLevel(log4jlevel));
+            ctx.updateLoggers();
         }
 
         namedPipeLine = properties.containsKey(PROPSNAMES.NAMEDPIPELINES.toString()) ? (Map<String, Pipeline>) properties.remove(PROPSNAMES.NAMEDPIPELINES.toString()) : Collections.emptyMap();

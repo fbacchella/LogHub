@@ -1,15 +1,20 @@
 package loghub.configuration;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
 import java.lang.reflect.InvocationTargetException;
 import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.DateTimeException;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -17,19 +22,27 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.TimeZone;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 import org.antlr.v4.runtime.ANTLRFileStream;
 import org.antlr.v4.runtime.ANTLRInputStream;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CommonTokenStream;
+import org.antlr.v4.runtime.ParserRuleContext;
+import org.antlr.v4.runtime.RecognitionException;
 import org.antlr.v4.runtime.tree.ParseTreeWalker;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.core.LoggerContext;
 
 import loghub.Event;
 import loghub.Helpers.ThrowingConsumer;
@@ -40,6 +53,10 @@ import loghub.Processor;
 import loghub.Receiver;
 import loghub.RouteLexer;
 import loghub.RouteParser;
+import loghub.RouteParser.ArrayContext;
+import loghub.RouteParser.BeanValueContext;
+import loghub.RouteParser.LiteralContext;
+import loghub.RouteParser.PropertyContext;
 import loghub.Sender;
 import loghub.configuration.ConfigListener.Input;
 import loghub.configuration.ConfigListener.ObjectReference;
@@ -48,6 +65,8 @@ import loghub.processors.AnonymousSubPipeline;
 import loghub.processors.NamedSubPipeline;
 
 public class Configuration {
+
+    private static final Logger logger = LogManager.getLogger();
 
     private static final int DEFAULTQUEUEDEPTH = 100;
 
@@ -79,13 +98,176 @@ public class Configuration {
         return conf.runparsing(new ANTLRInputStream(r));
     }
 
-    private Properties runparsing(CharStream cs) throws IOException, ConfigException {
-        Configuration conf = new Configuration();
-        ConfigListener listener = conf.antlrparsing(cs);
-        return conf.analyze(listener);
+    private Properties runparsing(CharStream cs) throws ConfigException {
+        try {
+            Map<String, PropertyContext> propertiesContext = new HashMap<>();
+            ConfigListener conflistener = new ConfigListener();
+            ParseTreeWalker walker = new ParseTreeWalker();
+
+            RouteParser.ConfigurationContext tree = getTree(cs, conflistener);
+            Set<String> lockedProperties = resolveProperties(tree, conflistener, propertiesContext);
+            walker.walk(conflistener, tree);
+
+            Consumer<String> parseSubFile = fileName -> {
+                try {
+                    CharStream localcs = new ANTLRFileStream(fileName);
+                    RouteParser.ConfigurationContext localtree = getTree(localcs, conflistener);
+                    lockedProperties.forEach( i -> conflistener.lockProperty(i));
+                    resolveProperties(localtree, conflistener, propertiesContext);
+                    walker.walk(conflistener, localtree);
+                } catch (IOException e) {
+                    throw new ConfigException(e.getMessage(), fileName, e);
+                }
+            };
+
+            if (propertiesContext.containsKey("includes")) {
+                Arrays.stream(getStringOrArrayLitteral(propertiesContext.remove("includes").beanValue()))
+                .forEach( sourceName -> {
+                    Path sourcePath = Paths.get(sourceName);
+                    if (Files.isRegularFile(sourcePath)) {
+                        parseSubFile.accept(sourceName);
+                    } else if (Files.isDirectory(sourcePath)) {
+                        try {
+                            Files.list(sourcePath).forEach( i -> parseSubFile.accept(i.toString()));
+                        } catch (IOException e) {
+                            throw new ConfigException(e.getMessage(), sourceName, e);
+                        }
+                    }
+                });
+            }
+            return analyze(conflistener);
+        } catch (RecognitionException e) {
+            if (e.getCtx() instanceof ParserRuleContext) {
+                ParserRuleContext ctx = (ParserRuleContext) e.getCtx();
+                throw new ConfigException(e.getMessage(), e.getInputStream().getSourceName(), ctx.start, e);
+            } else {
+                throw e;
+            }
+        }
     }
 
-    private ConfigListener antlrparsing(CharStream cs) throws IOException, ConfigException{
+    private Set<String> resolveProperties(RouteParser.ConfigurationContext tree, ConfigListener conflistener, Map<String, PropertyContext> propertiesContext) throws ConfigException {
+
+        Set<String> lockedProperties = new HashSet<>();
+
+        tree.property().forEach( pc -> propertiesContext.put(pc.propertyName().getText(), pc) );
+
+        if (propertiesContext.containsKey("locale")) {
+            String localString = getStringLitteral(propertiesContext.remove("locale").beanValue());
+            if (localString != null) {
+                logger.debug("setting locale to {}", localString);
+                Locale l = Locale.forLanguageTag(localString);
+                Locale.setDefault(l);
+                lockedProperties.add("locale");
+            }
+        }
+
+        if (propertiesContext.containsKey("timezone")) {
+            String tz = getStringLitteral(propertiesContext.remove("timezone").beanValue());
+            if (tz != null) {
+                try {
+                    logger.debug("setting time zone to {}", tz);
+                    ZoneId id = ZoneId.of(tz);
+                    TimeZone.setDefault(TimeZone.getTimeZone(id));
+                } catch (DateTimeException e) {
+                    logger.error("Invalid timezone {}: {}", tz, e.getMessage());
+                }
+                lockedProperties.add("timezone");
+            }
+        }
+
+        // resolve the plugins property to define the class loader
+        if (propertiesContext.containsKey("plugins")) {
+            PropertyContext pc = propertiesContext.remove("plugins");
+            String[] path = getStringOrArrayLitteral(pc.beanValue());
+            if(path.length > 0) {
+                try {
+                    logger.debug("Looking for plugins in {}", (Object[])path);
+                    classLoader = doClassLoader(path);
+                } catch (IOException ex) {
+                    throw new ConfigException("can't load plugins: " + ex.getMessage(), conflistener.stream.getSourceName(), pc.start, ex);
+                } 
+            }
+        }
+        lockedProperties.add("plugins");
+
+        // resolve some top level log4j properties
+        URI log4JUri = null;
+        PropertyContext pc = null;
+        if (propertiesContext.containsKey("log4j.configURL")) {
+            pc = propertiesContext.remove("log4j.configURL");
+            try {
+                log4JUri = getLitteral(pc.beanValue(), i -> i.stringLiteral().getText(), j -> {
+                    try {
+                        return new URL(j).toURI();
+                    } catch (MalformedURLException | URISyntaxException e) {
+                        throw new RuntimeException(e);
+                    }
+                });
+                logger.debug("Configured log4j URL to {}", log4JUri);
+            } catch (RuntimeException e) {
+                logger.error("Invalid log4j URL");
+            }
+        } else if (propertiesContext.containsKey("log4j.configFile")) {
+            pc = propertiesContext.remove("log4j.configFile");
+            log4JUri = getLitteral(pc.beanValue(), i -> i.stringLiteral().getText(), j -> {
+                return new File(j).toURI();
+            });
+            logger.debug("Configured log4j URL to {}", log4JUri);
+        }
+        if (log4JUri != null) {
+            // Try to read the log4j configuration, because log4j2 intercept possible exceptions and don't forward them
+            try(InputStream is = log4JUri.toURL().openStream()) {
+                int toread  = 0;
+                while ((toread = is.available()) != 0) {
+                    is.skip(toread);
+                }
+            } catch (IOException e) {
+                throw new ConfigException(e.getMessage(), conflistener.stream.getSourceName(), pc.start, e);
+            }
+            LoggerContext ctx = (LoggerContext) LogManager.getContext(classLoader, true);
+            // Possible exception are already catched (I hope)
+            ctx.setConfigLocation(log4JUri);
+            logger.debug("log4j reconfigured");
+        }
+        lockedProperties.add("log4j.configURL");
+        lockedProperties.add("log4j.configFile");
+
+        return lockedProperties;
+    }
+
+    private String getStringLitteral(BeanValueContext beanValue) {
+        return getLitteral(beanValue, i -> i.stringLiteral().getText(), j -> j);
+    }
+
+    private String[] getStringOrArrayLitteral(BeanValueContext beanValue) {
+        ArrayContext ac = beanValue.array();
+
+        String contentString;
+        if (ac != null) {
+            return ac.beanValue().stream().map( i -> i.getText()).toArray(String[]::new);
+        } else if ((contentString = getStringLitteral(beanValue)) != null) {
+            return new String[] {contentString};
+        } else {
+            return new String[] {};
+        }
+
+    }
+
+    private <T> T getLitteral(BeanValueContext beanValue, Function<LiteralContext, String> read, Function<String, T> convert) {
+        if (beanValue != null) {
+            LiteralContext lc = beanValue.literal();
+            if (lc != null) {
+                String content = read.apply(lc);
+                if (content != null) {
+                    return convert.apply(content);
+                }
+            }
+        }
+        return null;
+    }
+
+    private RouteParser.ConfigurationContext getTree(CharStream cs, ConfigListener conflistener) throws ConfigException {
 
         //Passing the input to the lexer to create tokens
         RouteLexer lexer = new RouteLexer(cs);
@@ -93,18 +275,14 @@ public class Configuration {
         CommonTokenStream tokens = new CommonTokenStream(lexer);
         //Passing the tokens to the parser to create the parse tree.
         RouteParser parser = new RouteParser(tokens);
+        conflistener.parser = parser;
+        conflistener.stream = cs;
         parser.removeErrorListeners();
         ConfigErrorListener errListener = new ConfigErrorListener();
         parser.addErrorListener(errListener);
-        loghub.RouteParser.ConfigurationContext tree = parser.configuration();
-        if(errListener.failed) {
-            throw errListener.exception;
-        }
+        RouteParser.ConfigurationContext tree = parser.configuration();
+        return tree;
 
-        ConfigListener conf = new ConfigListener();
-        ParseTreeWalker walker = new ParseTreeWalker();
-        walker.walk(conf, tree);
-        return conf;
     }
 
     private Properties analyze(ConfigListener conf) throws ConfigException {
@@ -120,14 +298,6 @@ public class Configuration {
 
         Map<String, Pipeline> namedPipeLine = new HashMap<>(conf.pipelines.size());
 
-        if (newProperties.containsKey("plugins") && newProperties.get("plugins").getClass().isArray() ) {
-            try {
-                Object[] plugins = (Object[]) newProperties.remove("plugins");
-                classLoader = doClassLoader(plugins);
-            } catch (IOException ex) {
-                throw new RuntimeException("can't load plugins: " + ex.getMessage(), ex);
-            }
-        }
         newProperties.put(Properties.PROPSNAMES.CLASSLOADERNAME.toString(), classLoader);
 
         Set<Pipeline> pipelines = new HashSet<>();
