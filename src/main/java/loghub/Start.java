@@ -74,13 +74,13 @@ public class Start extends Thread {
             e.printStackTrace();
             System.exit(1);
         } catch (ConfigException e) {
-            System.out.format("Error in configuration file %s at %s: %s", args[0], e.getStartPost(), e.getMessage());
+            System.out.format("Error in %s: %s\n", e.getLocation(), e.getMessage());
             System.exit(1);
         } catch (RuntimeException e) {
             e.printStackTrace();
             System.exit(1);
         } catch (IOException e) {
-            System.out.format("can't read configuration file %s: %s", args[0], e.getMessage());
+            System.out.format("can't read configuration file %s: %s\n", args[0], e.getMessage());
             System.exit(1);
         }
 

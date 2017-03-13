@@ -275,17 +275,17 @@ public class Configuration {
                 } else if (ref == null){
                     beanValue = null;
                 } else {
-                    throw new ConfigException(String.format("Invalid class '%s': %s", desc.clazz, ref.getClass().getCanonicalName()), desc.ctx.start, desc.ctx.stop);
+                    throw new ConfigException(String.format("Invalid class '%s': %s", desc.clazz, ref.getClass().getCanonicalName()), desc.stream.getSourceName(), desc.ctx.start);
                 }
                 try {
                     BeansManager.beanSetter(object, i.getKey(), beanValue);
                 } catch (InvocationTargetException ex) {
-                    throw new ConfigException(String.format("Invalid bean '%s.%s': %s", desc.clazz, i.getKey(), ex.getCause()), desc.ctx.start, desc.ctx.stop, ex.getCause());
+                    throw new ConfigException(String.format("Invalid bean '%s.%s': %s", desc.clazz, i.getKey(), ex.getCause()), desc.stream.getSourceName(), desc.ctx.start, ex.getCause());
                 }
             }
             return object;
         } catch (ClassNotFoundException e) {
-            throw new ConfigException(String.format("Unknown class '%s'", desc.clazz), desc.ctx.start, desc.ctx.stop);
+            throw new ConfigException(String.format("Unknown class '%s'", desc.clazz), desc.stream.getSourceName(), desc.ctx.start);
         } catch (ConfigException e) {
             throw e;
         } catch (RuntimeException | ExceptionInInitializerError e) {
@@ -293,7 +293,7 @@ public class Configuration {
             if(rootCause.getCause() instanceof InvocationTargetException) {
                 rootCause = (InvocationTargetException) rootCause.getCause();
             }
-            throw new ConfigException(String.format("Invalid class '%s': %s", desc.clazz, rootCause.getMessage()), desc.ctx.start, desc.ctx.stop, rootCause);
+            throw new ConfigException(String.format("Invalid class '%s': %s", desc.clazz, rootCause.getMessage()), desc.stream.getSourceName(), desc.ctx.start, rootCause);
         }
     }
 

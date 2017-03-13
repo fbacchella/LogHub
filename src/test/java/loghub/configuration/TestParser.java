@@ -55,7 +55,6 @@ public class TestParser {
         parser.addErrorListener(errListener);
         loghub.RouteParser.ConfigurationContext tree = parser.configuration(); // begin parsing at init rule
 
-        Assert.assertFalse(errListener.isFailed());
         ConfigListener conf = new ConfigListener();
         ParseTreeWalker walker = new ParseTreeWalker();
         walker.walk(conf, tree);
@@ -83,7 +82,6 @@ public class TestParser {
         parser.addErrorListener(errListener);
         loghub.RouteParser.ConfigurationContext tree = parser.configuration(); // begin parsing at init rule
 
-        Assert.assertFalse(errListener.isFailed());
         ConfigListener conf = new ConfigListener();
         ParseTreeWalker walker = new ParseTreeWalker();
         walker.walk(conf, tree);
