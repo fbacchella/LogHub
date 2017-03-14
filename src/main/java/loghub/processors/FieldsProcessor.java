@@ -43,7 +43,7 @@ public abstract class FieldsProcessor extends Processor {
             if (processing.hasNext()) {
                 event.insertProcessor(this);
             }
-            if (event.get(toprocess) != null) {
+            if (event.containsKey(toprocess)) {
                 return FieldsProcessor.this.processMessage(event, toprocess, getDestination(toprocess));
             } else {
                 throw event.buildException("field " + toprocess + " vanished");
