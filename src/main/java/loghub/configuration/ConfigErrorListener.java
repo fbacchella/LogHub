@@ -15,6 +15,14 @@ public class ConfigErrorListener extends BaseErrorListener {
             Object offendingSymbol, int line, int charPositionInLine,
             String msg, RecognitionException e) {
         logger.error("line {}@{}: {}", line, charPositionInLine, msg);
-        throw new ConfigException(msg, e.getInputStream().getSourceName(), line, charPositionInLine);
+        String sourceFileName;
+        if (e != null) {
+            sourceFileName = e.getInputStream().getSourceName();
+        } else if (recognizer != null) {
+            sourceFileName = recognizer.getInputStream().getSourceName();
+        } else {
+            sourceFileName = "UNKNOWN FILE";
+        }
+        throw new ConfigException(msg, sourceFileName, line, charPositionInLine);
     }
 }
