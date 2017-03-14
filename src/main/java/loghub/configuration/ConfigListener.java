@@ -513,11 +513,15 @@ class ConfigListener extends RouteBaseListener {
     }
 
     private String[] convertEventVariable(EventVariableContext ev) {
-        List<TerminalNode> path = ev.Identifier();
-        String [] pathString = new String[path.size()];
-        AtomicInteger indice = new AtomicInteger(0);
-        path.stream().forEach( i-> pathString[indice.getAndIncrement()] = i.getText());
-        return pathString;
+        if (ev.key != null) {
+            return new String[] { ev.key.getText() };
+        } else {
+            List<TerminalNode> path = ev.Identifier();
+            String [] pathString = new String[path.size()];
+            AtomicInteger indice = new AtomicInteger(0);
+            path.stream().forEach( i-> pathString[indice.getAndIncrement()] = i.getText());
+            return pathString;
+        }
     }
 
     @Override

@@ -157,7 +157,7 @@ map
     : '{' (literal ':' beanValue ( ',' ? literal ':' beanValue)*)? ','? '}'
     ;
 
-eventVariable: '[' Identifier ( Identifier)* ']' ;
+eventVariable: '[' (key='@timestamp' | (Identifier ( Identifier)*)) ']' ;
 
 propertyName
     :   Identifier | QualifiedIdentifier
