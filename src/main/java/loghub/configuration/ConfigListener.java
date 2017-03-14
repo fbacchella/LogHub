@@ -619,6 +619,9 @@ class ConfigListener extends RouteBaseListener {
         } else if (ctx.e3 != null) {
             Object subexpression = stack.pop();
             expression = "(" + subexpression + ")";
+        } else if (ctx.newclass != null) {
+            Object subexpression = stack.pop();
+            expression = String.format("new %s(%s)", ctx.newclass.getText(), subexpression);
         }
         expressionDepth--;
         if(expressionDepth == 0) {

@@ -107,6 +107,7 @@ expression
     |   ev = eventVariable
     |   qi = QualifiedIdentifier
     |   opu = unaryOperator e2 = expression
+    |   'new' newclass = (QualifiedIdentifier | Identifier) '(' expression ')'
     |   e1 = expression opb=binaryOperator e2=expression
     |   e1 = expression opm=matchOperator patternLiteral
     |   '(' e3 = expression ')'
