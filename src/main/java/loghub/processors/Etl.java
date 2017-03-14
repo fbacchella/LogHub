@@ -99,7 +99,7 @@ public abstract class Etl extends Processor {
                             return i.put(j, o);
                         }
                     } catch (InvocationTargetException e) {
-                        throw new CompletionException(e);
+                        throw new CompletionException(e.getCause());
                     }
                 }, lvalue, (Object) null, false);
                 return true;

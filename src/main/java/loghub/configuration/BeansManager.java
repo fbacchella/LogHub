@@ -198,7 +198,7 @@ public class BeansManager {
         } catch (IllegalAccessException e) {
             throw new InvocationTargetException(e, clazz.getName());
         } catch (InvocationTargetException e) {
-            throw new InvocationTargetException(e, clazz.getName());
+            throw e;
         }
     }
 
