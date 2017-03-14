@@ -26,6 +26,9 @@ public class UserAgent extends FieldsProcessor {
 
     @Override
     public boolean processMessage(Event event, String field, String destination) {
+        if (event.get(field) == null) {
+            return false;
+        }
         String userAgent = event.get(field).toString();
         Client c = uaParser.parse(userAgent);
 
