@@ -92,6 +92,7 @@ public class TestParser {
         Assert.assertTrue(((ObjectWrapped)p.beans.get("boolean")).wrapped instanceof Boolean);
         Assert.assertTrue(((ObjectWrapped)p.beans.get("int")).wrapped instanceof Integer);
         Assert.assertTrue(((ObjectWrapped)p.beans.get("double")).wrapped instanceof Double);
+        Assert.assertArrayEquals(new Object[]{"0", 1, 1.0, true}, (Object[]) ((ObjectWrapped)p.beans.get("array")).wrapped);
     }
 
 }

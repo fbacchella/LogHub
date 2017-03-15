@@ -456,7 +456,7 @@ class ConfigListener extends RouteBaseListener {
             if(o instanceof ObjectWrapped) {
                 o = ((ObjectWrapped) o).wrapped;
             }
-            array.add(o);
+            array.add(0, o);
         }
         stack.pop();
         stack.push(new ObjectWrapped(array.toArray()));
