@@ -59,7 +59,7 @@ public class Grok extends FieldsProcessor {
 
     @Override
     public boolean processMessage(Event event, String field, String destination) {
-        if (! event.containsKey("field")) {
+        if (! event.containsKey(field)) {
             return false;
         }
         String line = event.get(field).toString();
