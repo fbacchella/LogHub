@@ -3,6 +3,7 @@ USER %{USERNAME}
 EMAILLOCALPART [a-zA-Z][a-zA-Z0-9_.+-=:]+
 EMAILADDRESS %{EMAILLOCALPART}@%{HOSTNAME}
 HTTPDUSER %{EMAILADDRESS}|%{USER}
+KRBPRINCIPAL (?:%{WORD}/)?%{EMAILADDRESS}
 INT (?:[+-]?(?:[0-9]+))
 BASE10NUM (?<![0-9.+-])(?>[+-]?(?:(?:[0-9]+(?:\.[0-9]+)?)|(?:\.[0-9]+)))
 NUMBER (?:%{BASE10NUM})
