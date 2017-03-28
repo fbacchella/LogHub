@@ -44,7 +44,7 @@ import org.snmp4j.util.MultiThreadedMessageDispatcher;
 import org.snmp4j.util.ThreadPool;
 
 import fr.jrds.SmiExtensions.MibTree;
-import fr.jrds.SmiExtensions.objects.ObjectInfos;
+import fr.jrds.SmiExtensions.objects.OidInfos;
 import loghub.Event;
 import loghub.Pipeline;
 import loghub.Receiver;
@@ -201,12 +201,12 @@ public class SnmpTrap extends Receiver implements CommandResponder {
     }
 
     private void smartPut(Event e, OID oid, Object value) {
-        ObjectInfos found = mibtree.searchInfos(oid);
+        OidInfos found = mibtree.searchInfos(oid);
         if(found == null) {
             e.put(oid.toDottedString(), value);
         }
         else {
-            ObjectInfos parent = mibtree.getParent(found.getOidElements());
+            OidInfos parent = mibtree.getParent(found.getOidElements());
             if(parent != null && parent.isIndex()) {
                 Map<String, Object> valueMap = new HashMap<>(3);
                 Object[] resolved = mibtree.parseIndexOID(oid);
