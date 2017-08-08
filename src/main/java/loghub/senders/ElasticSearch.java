@@ -214,22 +214,23 @@ public class ElasticSearch extends Sender {
         esjson.put("@timestamp", ISO8601.format(event.getTimestamp()));
         esjson.put("__index", ES_INDEX.format(event.getTimestamp()));
 
-        boolean done = false;
-        while (!done) {
-            try {
-                done = bulkqueue.add(esjson);
-            } catch (IllegalStateException ex) {
-                // If queue full, launch a bulk publication
-                synchronized (publisher) {
-                    publisher.notify();
-                    Thread.yield();
+        int tryoffer = 10;
+        while ( ! bulkqueue.offer(esjson) && tryoffer-- != 0) {
+            // If queue full, launch a bulk publication
+            synchronized (bulkqueue) {
+                bulkqueue.notify();
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException e) {
+                    tryoffer = 0;
+                    Thread.currentThread().interrupt();
                 }
             }
         }
-        // if queue reached publication size, publish
-        if (bulkqueue.size() > buffersize) {
-            synchronized (publisher) {
-                publisher.notify();
+        // if queue reached publication size or offer failed, publish
+        if (bulkqueue.size() > buffersize || tryoffer == 0) {
+            synchronized (bulkqueue) {
+                bulkqueue.notify();
             }
         }
         return true;
