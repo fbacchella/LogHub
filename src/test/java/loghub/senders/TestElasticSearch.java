@@ -144,7 +144,7 @@ public class TestElasticSearch {
     public void testSend() throws InterruptedException {
         int count = 60;
         ElasticSearch es = new ElasticSearch(new ArrayBlockingQueue<>(count));
-        es.setDestinations(new String[]{"localhost:15716", });
+        es.setDestinations(new String[]{"http://localhost:15716", });
         es.setTimeout(1);
         es.setBuffersize(10);
         es.configure(new Properties(Collections.emptyMap()));
@@ -154,7 +154,7 @@ public class TestElasticSearch {
             ev.put("type", "junit");
             ev.put("value", "atest" + i);
             ev.setTimestamp(new Date(0));
-            es.send(ev);
+            Assert.assertTrue(es.send(ev));
             Thread.sleep(1);
         }
         es.close();
