@@ -1,15 +1,31 @@
-NEXUSTIMESTAMP %{YEAR} %{SYSLOGTIMESTAMP}
+# Syslog Dates: Month Day HH:MM:SS
+SYSLOGTIMESTAMP %{MONTH} +%{MONTHDAY} %{TIME}
 
-PRINTUSASCII [!-~]
+PROG [\x21-\x5a\x5c\x5e-\x7e]+
+
+#== Cisco syslog ==
+CISCOTIMESTAMP %{MONTH} +%{MONTHDAY}(?: %{YEAR})? %{TIME}
+NEXUSTIMESTAMP %{YEAR} %{SYSLOGTIMESTAMP}
+CISCOTAG [-A-Z0-9_]+-%{INT}-(?:[A-Z0-9_]+)
+
+SYSLOGPAMSESSION %{SYSLOGBASE} (?=%{GREEDYDATA:message})%{WORD:pam_module}\(%{DATA:pam_caller}\): session %{WORD:pam_session_state} for user %{USERNAME:username}(?: by %{GREEDYDATA:pam_by})?
+
+CRON_ACTION [A-Z ]+
+CRONLOG %{SYSLOGBASE} \(%{USER:user}\) %{CRON_ACTION:action} \(%{DATA:message}\)
+
+SYSLOGPROG %{PROG:program}(?:\[%{POSINT:pid}\])?
+SYSLOGHOST %{IPORHOST}
+SYSLOGFACILITY <%{NONNEGINT:facility}.%{NONNEGINT:priority}>
+
+# IETF 5424 syslog(8) format (see http://www.rfc-editor.org/info/rfc5424)
 SYSLOG5424_APPNAME (?:%{PRINTUSASCII}{1,48})
 SYSLOG5424_PROCID (?:%{PRINTUSASCII}{1,128})
 SYSLOG5424_MSGID (?:%{PRINTUSASCII}{1,32})
 SYSLOG5424SD_PARAMS (?: +%{PRINTUSASCII}+?="%{DATA}")+
-SYSLOG5424SD_EXTENDED \[%{NOTSPACE:syslog5424_sdid}%{SYSLOG5424SD_PARAMS:syslog5424_sdparams}\]+
-BOM \xEF\xBB\xBF
-
+SYSLOG5424SD_EXTENDED \[%{NOTSPACE:syslog5424_sdid}%{SYSLOG5424SD_PARAMS:syslog5424_sdparams}\]
 # the extra (- +)? is a bug in RHEL7s rsyslog
 SYSLOG5424_HEADER %{NONNEGINT:syslog5424_ver} +(?:%{TIMESTAMP_ISO8601:timestamp8601}|-) +(?:%{HOSTNAME:logsource}|-) +(?:%{SYSLOG5424_APPNAME:program}|-) +(?:%{SYSLOG5424_PROCID:pid}|-)? *(?:%{SYSLOG5424_MSGID:syslog5424_msgid}|-)(?: +-)?
+
 SYSLOG3164_HEADER (?:%{SYSLOGTIMESTAMP:timestamp}|%{TIMESTAMP_ISO8601:timestamp8601}) (?:%{SYSLOGFACILITY} )?%{SYSLOGHOST:logsource} +%{SYSLOGPROG}:
 SYSLOGF5_HEADER %{SYSLOGTIMESTAMP:timestamp} %{SYSLOGHOST:logsource} %{LOGLEVEL:f5loglevel} %{PROG:program}(\[%{POSINT:pid}\])?:
 SYSLOGNEXUS_HEADER : +%{NEXUSTIMESTAMP:nexustimestamp} UTC:(?: +%%{CISCOTAG:ciscotag}:)?
