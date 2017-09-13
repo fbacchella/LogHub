@@ -71,6 +71,6 @@ BOMUTF16LE (?:\xFF\xFE)
 BOMUTF32BE (?:\x00\x00\xFE\xFF)
 BOMUTF32LE (?:\xFF\xFE\x00\x00)
 BOMSCSU    (?:\x0E\xFE\xFF)
-BOMUTF7    (?:\x2B\x2\xF76(?:\x38|\x39|\x2B\x2F)
+BOMUTF7    (?:\x2B\x2F\x76(?:\x38|\x39|\x2B\x2F))
 
 BOM         (?:%{BOMUTF8}|%{BOMUTF16BE}|%{BOMUTF16LE}|%{BOMUTF32BE}|%{BOMSCSU}|%{BOMUTF7})
