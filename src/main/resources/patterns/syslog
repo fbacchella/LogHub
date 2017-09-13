@@ -1,10 +1,10 @@
 # Syslog Dates: Month Day HH:MM:SS
-SYSLOGTIMESTAMP %{MONTH} +%{MONTHDAY} %{TIME}
+SYSLOGTIMESTAMP %{MONTH} +%{MONTHDAY} %{TIME}(?: %{TZ})?
 
 PROG [\x21-\x5a\x5c\x5e-\x7e]+
 
 #== Cisco syslog ==
-CISCOTIMESTAMP %{MONTH} +%{MONTHDAY}(?: %{YEAR})? %{TIME}
+CISCOTIMESTAMP %{MONTH} +%{MONTHDAY}(?: %{YEAR})? %{TIME}(?: %{TZ})?
 NEXUSTIMESTAMP %{YEAR} %{SYSLOGTIMESTAMP}
 CISCOTAG [-A-Z0-9_]+-%{INT}-(?:[A-Z0-9_]+)
 
