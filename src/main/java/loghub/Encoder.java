@@ -2,7 +2,7 @@ package loghub;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.util.ReflectionUtil;
+import org.apache.logging.log4j.util.StackLocator;
 
 import loghub.configuration.Beans;
 import loghub.configuration.Properties;
@@ -10,12 +10,14 @@ import loghub.configuration.Properties;
 @Beans({"field"})
 public abstract class Encoder {
 
+    private static final StackLocator stacklocator = StackLocator.getInstance();
+
     protected final Logger logger;
 
     protected String field;
-    
+
     protected Encoder() {
-        logger = LogManager.getLogger(ReflectionUtil.getCallerClass(2));
+        logger = LogManager.getLogger(stacklocator.getCallerClass(2));
     }
 
     public boolean configure(Properties properties) {

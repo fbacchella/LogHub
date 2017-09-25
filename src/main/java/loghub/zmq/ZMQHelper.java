@@ -131,7 +131,7 @@ public class ZMQHelper {
     public static void logZMQException(Logger l, String prefix, RuntimeException e) {
         ERRNO errno;
         Supplier<String> message;
-        if (e instanceof ZMQException.IOException || e instanceof ZError.IOException) {
+        if (e instanceof ZError.IOException) {
             IOException cause = (java.io.IOException) e.getCause();
             errno = ERRNO.get(exccode(cause));
             message = () -> errno.toString(prefix, e);

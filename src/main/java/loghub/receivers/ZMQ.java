@@ -36,7 +36,7 @@ public class ZMQ extends Receiver {
     public boolean configure(Properties properties) {
         try {
             listeningSocket = ctx.newSocket(method, type, listen);
-            listeningSocket.setDelayAttachOnConnect(true);
+            listeningSocket.setImmediate(false);
             listeningSocket.setReceiveTimeOut(-1);
             listeningSocket.setHWM(hwm);
             if(type == ZMQHelper.Type.SUB){
@@ -77,7 +77,7 @@ public class ZMQ extends Receiver {
                     return decode(msg);
                 } catch (ClosedSelectorException|zmq.ZError.CtxTerminatedException e) {
                     return null;
-                } catch (ZMQException|ZMQException.IOException|zmq.ZError.IOException|zmq.ZError.InstantiationException e) {
+                } catch (ZMQException|zmq.ZError.IOException|zmq.ZError.InstantiationException e) {
                     ZMQHelper.logZMQException(logger, "recv", e);
                     logger.catching(Level.DEBUG, e.getCause());
                     ctx.close(listeningSocket);

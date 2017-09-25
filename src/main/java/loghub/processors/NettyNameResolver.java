@@ -20,7 +20,7 @@ import io.netty.resolver.dns.DefaultDnsCache;
 import io.netty.resolver.dns.DnsNameResolver;
 import io.netty.resolver.dns.DnsNameResolverBuilder;
 import io.netty.resolver.dns.DnsNameResolverException;
-import io.netty.resolver.dns.DnsServerAddresses;
+import io.netty.resolver.dns.SingletonDnsServerAddressStreamProvider;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.netty.util.concurrent.Future;
 import loghub.Event;
@@ -42,7 +42,8 @@ public class NettyNameResolver extends AbstractNameResolver implements FieldsPro
                 ;
         try {
             if (getResolver() != null) {
-                builder = builder.nameServerAddresses(DnsServerAddresses.rotational(new InetSocketAddress(InetAddress.getByName(getResolver()), 53)));
+                InetSocketAddress resolverAddr = new InetSocketAddress(InetAddress.getByName(getResolver()), 53);
+                builder = builder.nameServerProvider(new SingletonDnsServerAddressStreamProvider(resolverAddr));
             }
         } catch (UnknownHostException e) {
             logger.error("Unknown resolver '{}': {}", getResolver(), e.getMessage());
