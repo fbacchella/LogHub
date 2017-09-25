@@ -65,7 +65,7 @@ public class SmartContext {
         return running;
     }
 
-    public Socket newSocket(Method method, Type type, String endpoint, long hwm, int timeout) {
+    public Socket newSocket(Method method, Type type, String endpoint, int hwm, int timeout) {
         Socket socket = context.socket(type.type);
         socket.setRcvHWM(hwm);
         socket.setSndHWM(hwm);
@@ -93,7 +93,7 @@ public class SmartContext {
                 }
                 socket.setLinger(0);
                 socket.close();
-            } catch (ZMQException|ZMQException.IOException|zmq.ZError.IOException|zmq.ZError.CtxTerminatedException|zmq.ZError.InstantiationException e) {
+            } catch (ZMQException|zmq.ZError.IOException|zmq.ZError.CtxTerminatedException|zmq.ZError.InstantiationException e) {
                 ZMQHelper.logZMQException(logger, "close " + sockets.get(socket), e);
             } catch (java.nio.channels.ClosedSelectorException e) {
                 logger.debug("in close: " + e);
@@ -116,7 +116,7 @@ public class SmartContext {
                 try {
                     logger.trace("will terminate");
                     instance.context.term();
-                } catch (ZMQException | ZMQException.IOException | zmq.ZError.IOException | zmq.ZError.CtxTerminatedException | zmq.ZError.InstantiationException e) {
+                } catch (ZMQException | zmq.ZError.IOException | zmq.ZError.CtxTerminatedException | zmq.ZError.InstantiationException e) {
                     ZMQHelper.logZMQException(logger, "terminate", e);
                 } catch (java.nio.channels.ClosedSelectorException e) {
                     logger.error("closed selector:" + e.getMessage());
@@ -141,7 +141,7 @@ public class SmartContext {
                         logger.debug("forgotten socket: {}", () -> instance.sockets.get(s));
                         instance.close(s);
                     }
-                } catch (ZMQException | ZMQException.IOException | zmq.ZError.IOException | zmq.ZError.CtxTerminatedException | zmq.ZError.InstantiationException e) {
+                } catch (ZMQException | zmq.ZError.IOException | zmq.ZError.CtxTerminatedException | zmq.ZError.InstantiationException e) {
                     ZMQHelper.logZMQException(logger, "close " + instance.sockets.get(s), e);
                 } catch (java.nio.channels.ClosedSelectorException e) {
                     logger.error("in close: " + e);
@@ -167,7 +167,7 @@ public class SmartContext {
             return socket.recv();
         } catch (java.nio.channels.ClosedSelectorException e ) {
             throw e;
-        } catch (ZMQException|ZMQException.IOException|zmq.ZError.IOException|zmq.ZError.CtxTerminatedException|zmq.ZError.InstantiationException e ) {
+        } catch (ZMQException | zmq.ZError.IOException|zmq.ZError.CtxTerminatedException|zmq.ZError.InstantiationException e ) {
             ZMQHelper.logZMQException(logger, "recv", e);
             close(socket);
             throw e;
