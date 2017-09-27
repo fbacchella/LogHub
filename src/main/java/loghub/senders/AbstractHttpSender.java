@@ -10,9 +10,12 @@ import java.net.ConnectException;
 import java.net.MalformedURLException;
 import java.net.SocketTimeoutException;
 import java.net.URL;
+import java.nio.CharBuffer;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ThreadLocalRandom;
@@ -34,6 +37,7 @@ import org.apache.http.config.ConnectionConfig;
 import org.apache.http.config.SocketConfig;
 import org.apache.http.conn.ConnectionPoolTimeoutException;
 import org.apache.http.conn.HttpHostConnectException;
+import org.apache.http.entity.ByteArrayEntity;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
@@ -48,6 +52,53 @@ import loghub.Sender;
 import loghub.configuration.Properties;
 
 public abstract class AbstractHttpSender extends Sender {
+
+    protected class HttpRequest {
+        private String verb = "GET";
+        private HttpVersion httpVersion = HttpVersion.HTTP_1_1;
+        private URL url = null;
+        private final Map<String, String> headers = new HashMap<>();
+        private HttpEntity content = null;
+        public String getVerb() {
+            return verb;
+        }
+        public void setVerb(String verb) {
+            this.verb = verb.toUpperCase().intern();
+        }
+        public String getHttpVersion() {
+            return httpVersion.toString();
+        }
+        public void setHttpVersion(int major, int minor) {
+            this.httpVersion = (HttpVersion) httpVersion.forVersion(major, minor);
+        }
+        public URL getUrl() {
+            return url;
+        }
+        public void setUrl(URL url) {
+            this.url = url;
+        }
+        public void addHeader(String header, String value) {
+            headers.put(header, value);
+        }
+        public void clearHeaders() {
+            headers.clear();
+        }
+        public void setContent(byte[] content) {
+            this.content = new ByteArrayEntity(content);
+        }
+        public void setTypeAndContent(String mimeType, Charset charset, Reader content) throws IOException {
+            StringBuilder buffer = new StringBuilder();
+            CharBuffer cbuffer = CharBuffer.allocate(4096);
+            while(content.read(cbuffer) >= 0) {
+                buffer.append(cbuffer.array());
+                cbuffer.clear();
+            }
+            EntityBuilder builder = EntityBuilder.create()
+                    .setText(buffer.toString())
+                    .setContentType(org.apache.http.entity.ContentType.create(mimeType, charset));
+            this.content = encodeContent(builder).build();
+        }
+    }
 
     protected enum ContentType {
         APPLICATION_OCTET_STREAM (org.apache.http.entity.ContentType.APPLICATION_OCTET_STREAM ),
@@ -67,16 +118,18 @@ public abstract class AbstractHttpSender extends Sender {
 
     };
 
-    protected class Response implements Closeable {
+    protected class HttpResponse implements Closeable {
         private final HttpHost host;
         private final CloseableHttpResponse response;
-        public Response(HttpHost host, CloseableHttpResponse response) {
+        private HttpResponse(HttpHost host, CloseableHttpResponse response) {
             super();
             this.host = host;
             this.response = response;
         }
-        public String getContentType() {
-            return response.getEntity().getContentType().getValue();
+        public String getMimeType() {
+            HttpEntity resultBody = response.getEntity();
+            org.apache.http.entity.ContentType ct = org.apache.http.entity.ContentType.get(resultBody);
+            return ct.getMimeType();
         }
         public String getHost() {
             return host.toURI();
@@ -86,6 +139,21 @@ public abstract class AbstractHttpSender extends Sender {
                 response.close();
             } catch (IOException e) {
             }
+        }
+        public Reader getContentReader() throws IOException {
+            HttpEntity resultBody = response.getEntity();
+            org.apache.http.entity.ContentType ct = org.apache.http.entity.ContentType.get(resultBody);
+            Charset charset = ct.getCharset();
+            if (charset == null) {
+                charset = Charset.defaultCharset();
+            }
+            return new InputStreamReader(resultBody.getContent(), charset);
+        }
+        public int getStatus() {
+            return response.getStatusLine().getStatusCode();
+        }
+        public String getStatusMessage() {
+            return response.getStatusLine().getReasonPhrase();
         }
     }
 
@@ -315,7 +383,7 @@ public abstract class AbstractHttpSender extends Sender {
             URL tryURL = endPoints[ThreadLocalRandom.current().nextInt(endPoints.length)];
             String verb = getVerb(tryURL);
             String path = getPath(tryURL);
-            RequestLine requestLine = new BasicRequestLine(verb, path,  HttpVersion.HTTP_1_1);
+            RequestLine requestLine = new BasicRequestLine(verb, path, HttpVersion.HTTP_1_1);
             BasicHttpEntityEnclosingRequest request = new BasicHttpEntityEnclosingRequest(requestLine);
             request.setEntity(content);
             host = new HttpHost(tryURL.getHost(),
@@ -351,12 +419,12 @@ public abstract class AbstractHttpSender extends Sender {
         if (statusClass != 200) {
             logger.error("{} failed: {}", host, response.getStatusLine());
         }
-        return scanContent(new Response(host, response));
+        return scanContent(new HttpResponse(host, response));
     }
 
-    protected abstract <T> T scanContent(Response resp);
+    protected abstract <T> T scanContent(HttpResponse resp);
 
-    protected Reader getSmartContentReader(Response resp, ContentType expectedContentType) throws UnsupportedEncodingException, UnsupportedOperationException, IOException {
+    protected Reader getSmartContentReader(HttpResponse resp, ContentType expectedContentType) throws UnsupportedEncodingException, UnsupportedOperationException, IOException {
         HttpEntity resultBody = resp.response.getEntity();
         Header contentTypeHeader = resultBody.getContentType();
         String contentType = null;
@@ -377,6 +445,53 @@ public abstract class AbstractHttpSender extends Sender {
             throw new IllegalStateException("Not expected content type");
         }
     }
+
+    protected HttpResponse doRequest(HttpRequest therequest) {
+        CloseableHttpResponse response = null;
+        HttpClientContext context = HttpClientContext.create();
+        if (credsProvider != null) {
+            context.setCredentialsProvider(credsProvider);
+        }
+
+        int tryExecute = 0;
+        HttpHost host;
+        do {
+            RequestLine requestLine = new BasicRequestLine(therequest.verb, therequest.url.getPath(), therequest.httpVersion);
+            BasicHttpEntityEnclosingRequest request = new BasicHttpEntityEnclosingRequest(requestLine);
+            if (therequest.content != null) {
+                request.setEntity(therequest.content);
+            }
+            therequest.headers.forEach((i,j) -> request.addHeader(i, j));
+            host = new HttpHost(therequest.url.getHost(),
+                    therequest.url.getPort());
+            try {
+                response = client.execute(host, request, context);
+            } catch (ConnectionPoolTimeoutException e) {
+                logger.error("connection to {} timed out", host);
+                tryExecute++;
+            } catch (HttpHostConnectException e) {
+                try {
+                    throw e.getCause();
+                } catch (ConnectException e1) {
+                    logger.error("connection to {} refused", host);
+                } catch (SocketTimeoutException e1) {
+                    logger.error("slow response from {}", host);
+                } catch (Throwable e1) {
+                    logger.error("connection to {} failed: {}", host, e1.getMessage());
+                    logger.throwing(Level.DEBUG, e1);
+                }
+                tryExecute++;
+            } catch (IOException e) {
+                tryExecute++;
+                logger.error("Comunication with {} failed: {}", host, e.getMessage());
+            }
+        } while (response == null && tryExecute < 5);
+        if (response == null) {
+            logger.error("give up trying to connect to " + getPublishName());
+            return null;
+        };
+        return new HttpResponse(host, response);
+    };
 
     /**
      * @return the destinations
