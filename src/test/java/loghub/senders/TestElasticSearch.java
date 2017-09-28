@@ -17,19 +17,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.http.HttpException;
 import org.apache.http.HttpRequest;
 import org.apache.http.HttpResponse;
-import org.apache.http.config.SocketConfig;
 import org.apache.http.entity.StringEntity;
-import org.apache.http.impl.bootstrap.HttpServer;
-import org.apache.http.impl.bootstrap.ServerBootstrap;
 import org.apache.http.message.BasicHttpEntityEnclosingRequest;
 import org.apache.http.protocol.HttpContext;
-import org.apache.http.protocol.HttpProcessor;
-import org.apache.http.protocol.HttpProcessorBuilder;
 import org.apache.http.protocol.HttpRequestHandler;
-import org.apache.http.protocol.ResponseConnControl;
-import org.apache.http.protocol.ResponseContent;
-import org.apache.http.protocol.ResponseDate;
-import org.apache.http.protocol.ResponseServer;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -44,6 +35,7 @@ import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import loghub.Event;
+import loghub.HttpTestServer;
 import loghub.LogUtils;
 import loghub.Tools;
 import loghub.configuration.Properties;
@@ -72,73 +64,44 @@ public class TestElasticSearch {
     AtomicInteger received = new AtomicInteger();
     AssertionError failure = null;
 
-    @Rule
-    public ExternalResource resource = new ExternalResource() {
-
-        HttpServer server;
+    HttpRequestHandler requestHandler = new HttpRequestHandler() {
         @Override
-        protected void before() throws Throwable {
-            HttpRequestHandler requestHandler = new HttpRequestHandler() {
-                @Override
-                public void handle(HttpRequest request, HttpResponse response, HttpContext context) throws HttpException, IOException {
-                    if(request instanceof BasicHttpEntityEnclosingRequest) {
-                        BasicHttpEntityEnclosingRequest jsonrequest = (BasicHttpEntityEnclosingRequest) request;
-                        InputStream is = jsonrequest.getEntity().getContent();
-                        BufferedReader r = new BufferedReader(new InputStreamReader(is));
-                        String line;
-                        while((line = r.readLine()) != null) {
-                            @SuppressWarnings("unchecked")
-                            Map<String, Object> meta = json.get().readValue(line, Map.class);
-                            @SuppressWarnings("unchecked")
-                            Map<String, Object> data = json.get().readValue(r.readLine(), Map.class);
-                            logger.debug("meta send: {}", meta);
-                            logger.debug("data send: {}", data);
-                            try {
-                                Assert.assertTrue("index missing", meta.containsKey("index"));
-                                @SuppressWarnings("unchecked")
-                                Map<String, String> indexinfo = (Map<String, String>) meta.get("index");
-                                Assert.assertEquals("logstash-1970.01.01", indexinfo.get("_index"));
-                                Assert.assertEquals("junit", indexinfo.get("_type"));
-                                Assert.assertTrue("timestamp missing", data.containsKey("@timestamp"));
-                                Assert.assertEquals("1970-01-01T00:00:00.000+0000", data.get("@timestamp"));
-                            } catch (AssertionError e) {
-                                failure = e;
-                                break;
-                            }
-                            received.incrementAndGet();
-                        }
+        public void handle(HttpRequest request, HttpResponse response, HttpContext context) throws HttpException, IOException {
+            if(request instanceof BasicHttpEntityEnclosingRequest) {
+                BasicHttpEntityEnclosingRequest jsonrequest = (BasicHttpEntityEnclosingRequest) request;
+                InputStream is = jsonrequest.getEntity().getContent();
+                BufferedReader r = new BufferedReader(new InputStreamReader(is));
+                String line;
+                while((line = r.readLine()) != null) {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> meta = json.get().readValue(line, Map.class);
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> data = json.get().readValue(r.readLine(), Map.class);
+                    logger.debug("meta send: {}", meta);
+                    logger.debug("data send: {}", data);
+                    try {
+                        Assert.assertTrue("index missing", meta.containsKey("index"));
+                        @SuppressWarnings("unchecked")
+                        Map<String, String> indexinfo = (Map<String, String>) meta.get("index");
+                        Assert.assertEquals("logstash-1970.01.01", indexinfo.get("_index"));
+                        Assert.assertEquals("junit", indexinfo.get("_type"));
+                        Assert.assertTrue("timestamp missing", data.containsKey("@timestamp"));
+                        Assert.assertEquals("1970-01-01T00:00:00.000+0000", data.get("@timestamp"));
+                    } catch (AssertionError e) {
+                        failure = e;
+                        break;
                     }
-                    response.setStatusCode(200);
-                    response.setHeader("Content-Type", "application/json; charset=UTF-8");
-                    response.setEntity(new StringEntity("{\"took\":7,\"errors\":false,\"items\":[{\"create\":{\"_index\":\"test\",\"_type\":\"type1\",\"_id\":\"1\",\"_version\":1}}]}"));
+                    received.incrementAndGet();
                 }
-            };
-
-            HttpProcessor httpProcessor = HttpProcessorBuilder.create()
-                    .add(new ResponseDate())
-                    .add(new ResponseServer("MyServer-HTTP/1.1"))
-                    .add(new ResponseContent())
-                    .add(new ResponseConnControl())
-                    .build();
-            SocketConfig socketConfig = SocketConfig.custom()
-                    .setSoTimeout(15000)
-                    .setTcpNoDelay(true)
-                    .build();
-            server = ServerBootstrap.bootstrap()
-                    .setListenerPort(15716)
-                    .setHttpProcessor(httpProcessor)
-                    .setSocketConfig(socketConfig)
-                    .registerHandler("/_bulk", requestHandler)
-                    .create();
-            server.start();
+            }
+            response.setStatusCode(200);
+            response.setHeader("Content-Type", "application/json; charset=UTF-8");
+            response.setEntity(new StringEntity("{\"took\":7,\"errors\":false,\"items\":[{\"create\":{\"_index\":\"test\",\"_type\":\"type1\",\"_id\":\"1\",\"_version\":1}}]}"));
         }
-
-        @Override
-        protected void after() {
-            server.stop();
-        }
-
     };
+
+    @Rule
+    public ExternalResource resource = new HttpTestServer(false, 15716, new HttpTestServer.HandlerInfo("/_bulk", requestHandler));
 
     @Test
     public void testSend() throws InterruptedException {
