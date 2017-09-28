@@ -102,11 +102,17 @@ public class ElasticSearch extends AbstractHttpSender {
                         HttpRequest gettemplate = new HttpRequest();
                         gettemplate.setUrl(newEndPoint);
                         HttpResponse response = doRequest(gettemplate);
+                        if (response == null) {
+                            continue;
+                        }
                         try {
                             boolean needsrefresh = response.getStatus() == 404;
-                            if (!needsrefresh ) {
+                            int status = response.getStatus();
+                            if (!needsrefresh && (status - status % 100) == 200) {
                                 String currenttemplate = json.get().readTree(response.getContentReader()).toString();
                                 needsrefresh = ! currenttemplate.equals(wantedtemplate);
+                            } else {
+                                break;
                             }
                             if (needsrefresh) {
                                 HttpRequest puttemplate = new HttpRequest();
@@ -114,7 +120,7 @@ public class ElasticSearch extends AbstractHttpSender {
                                 puttemplate.setUrl(newEndPoint);
                                 puttemplate.setTypeAndContent("application/json", Charset.forName("UTF-8"), new StringReader(wantedtemplate));
                                 response = doRequest(puttemplate);
-                                int status = response.getStatus();
+                                status = response.getStatus();
                                 if ((status - status % 100) != 200 && "application/json".equals(response.getMimeType())) {
                                     System.out.println(json.get().readTree(response.getContentReader()).toString());
                                 } else {
@@ -123,7 +129,12 @@ public class ElasticSearch extends AbstractHttpSender {
                                 }
                                 break;
                             }
+                        } catch (JsonProcessingException e) {
+                            logger.error("Can't read ElasticSearch response: {}", e.getMessage());
+                            logger.catching(Level.ERROR, e);
                         } catch (IOException e) {
+                            logger.error("Can't update template definition: {}", e.getMessage());
+                            logger.catching(Level.ERROR, e);
                         }
                     } catch (MalformedURLException e) {
                     }
