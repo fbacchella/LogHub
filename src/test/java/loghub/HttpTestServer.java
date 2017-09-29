@@ -4,6 +4,8 @@ import java.util.AbstractMap;
 import java.util.Arrays;
 import java.util.Map;
 
+import javax.net.ssl.SSLContext;
+
 import org.apache.http.config.SocketConfig;
 import org.apache.http.impl.bootstrap.HttpServer;
 import org.apache.http.impl.bootstrap.ServerBootstrap;
@@ -17,7 +19,7 @@ import org.apache.http.protocol.ResponseServer;
 import org.junit.rules.ExternalResource;
 
 public class HttpTestServer extends ExternalResource {
-    
+
     public static class HandlerInfo extends AbstractMap.SimpleImmutableEntry<String, HttpRequestHandler> {
         public HandlerInfo(String key, HttpRequestHandler value) {
             super(key, value);
@@ -26,11 +28,11 @@ public class HttpTestServer extends ExternalResource {
 
     private HttpServer server;
     private final Map.Entry<String, HttpRequestHandler>[] handlers;
-    private boolean ssl;
+    private SSLContext ssl;
     private int port;
 
     @SafeVarargs
-    public HttpTestServer(boolean ssl, int port, HandlerInfo... handlers) {
+    public HttpTestServer(SSLContext ssl, int port, HandlerInfo... handlers) {
         this.handlers = Arrays.copyOf(handlers, handlers.length);
         this.ssl = ssl;
         this.port = port;
@@ -38,12 +40,12 @@ public class HttpTestServer extends ExternalResource {
 
     @Override
     protected void before() throws Throwable {
-        HttpProcessor httpProcessor = HttpProcessorBuilder.create()
+        HttpProcessorBuilder builder = HttpProcessorBuilder.create()
                 .add(new ResponseDate())
                 .add(new ResponseServer("MyServer-HTTP/1.1"))
                 .add(new ResponseContent())
-                .add(new ResponseConnControl())
-                .build();
+                .add(new ResponseConnControl());
+        HttpProcessor httpProcessor = builder.build();
         SocketConfig socketConfig = SocketConfig.custom()
                 .setSoTimeout(15000)
                 .setTcpNoDelay(true)
@@ -52,6 +54,9 @@ public class HttpTestServer extends ExternalResource {
                 .setListenerPort(port)
                 .setHttpProcessor(httpProcessor)
                 .setSocketConfig(socketConfig);
+        if (ssl != null) {
+            bootstrap.setSslContext(ssl);
+        }
         Arrays.stream(handlers).forEach(i -> bootstrap.registerHandler(i.getKey(), i.getValue()));
         server =  bootstrap.create();
         server.start();

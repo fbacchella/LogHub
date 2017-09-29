@@ -12,8 +12,10 @@ import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.function.BiFunction;
+import java.util.stream.Collectors;
 
 import javax.management.MBeanServer;
+import javax.net.ssl.SSLContext;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -38,6 +40,7 @@ import loghub.Sender;
 import loghub.VarFormatter;
 import loghub.jmx.Helper;
 import loghub.jmx.Helper.PROTOCOL;
+import loghub.ssl.ContextLoader;
 import net.sf.ehcache.Cache;
 import net.sf.ehcache.CacheManager;
 import net.sf.ehcache.config.CacheConfiguration;
@@ -117,6 +120,7 @@ public class Properties extends HashMap<String, Object> {
     public final int httpPort;
     public final int maxSteps;
     public final EventsRepository<Future<?>> repository;
+    public final SSLContext ssl;
 
     private final Timer timer = new Timer("loghubtimer", true);
     private final CacheManager cacheManager;
@@ -220,6 +224,8 @@ public class Properties extends HashMap<String, Object> {
         } else {
             httpPort = -1;
         }
+
+        ssl = ContextLoader.build(entrySet().stream().filter(i -> i.getKey().startsWith("ssl.")).collect(Collectors.toMap( i -> i.getKey().substring(4), j -> j.getValue())));
 
         // Default values are for tests, so the build unusable queuing environment
         queuesDepth = properties.containsKey(PROPSNAMES.QUEUESDEPTH.toString()) ? (int) properties.remove(PROPSNAMES.QUEUESDEPTH.toString()) : 0;

@@ -12,6 +12,7 @@ import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.nio.CharBuffer;
 import java.nio.charset.Charset;
+import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -34,9 +35,14 @@ import org.apache.http.client.entity.EntityBuilder;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.protocol.HttpClientContext;
 import org.apache.http.config.ConnectionConfig;
+import org.apache.http.config.Registry;
+import org.apache.http.config.RegistryBuilder;
 import org.apache.http.config.SocketConfig;
 import org.apache.http.conn.ConnectionPoolTimeoutException;
 import org.apache.http.conn.HttpHostConnectException;
+import org.apache.http.conn.socket.ConnectionSocketFactory;
+import org.apache.http.conn.socket.PlainConnectionSocketFactory;
+import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
 import org.apache.http.entity.ByteArrayEntity;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -45,6 +51,7 @@ import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.apache.http.message.BasicHttpEntityEnclosingRequest;
 import org.apache.http.message.BasicRequestLine;
 import org.apache.http.protocol.HttpContext;
+import org.apache.http.util.VersionInfo;
 import org.apache.logging.log4j.Level;
 
 import loghub.Event;
@@ -172,7 +179,7 @@ public abstract class AbstractHttpSender extends Sender {
     private int timeout = 2;
     private String login = null;
     private String password = null;
-    CredentialsProvider credsProvider = null;
+    private CredentialsProvider credsProvider = null;
 
     private CloseableHttpClient client = null;
     private ArrayBlockingQueue<Event> bulkqueue;
@@ -256,7 +263,15 @@ public abstract class AbstractHttpSender extends Sender {
 
         // The HTTP connection management
         HttpClientBuilder builder = HttpClientBuilder.create();
-        PoolingHttpClientConnectionManager cm = new PoolingHttpClientConnectionManager();
+        builder.setUserAgent(VersionInfo.getUserAgent("LogHub-HttpClient",
+                "org.apache.http.client", HttpClientBuilder.class));
+
+        // Set the Configuration manager
+        Registry<ConnectionSocketFactory> registry = RegistryBuilder.<ConnectionSocketFactory>create()
+                .register("http", PlainConnectionSocketFactory.getSocketFactory())
+                .register("https", new SSLConnectionSocketFactory(properties.ssl))
+                .build();
+        PoolingHttpClientConnectionManager cm = new PoolingHttpClientConnectionManager(registry);
         cm.setDefaultMaxPerRoute(2);
         cm.setMaxTotal( 2 * publisherThreads);
         cm.setValidateAfterInactivity(timeout * 1000);
@@ -276,6 +291,7 @@ public abstract class AbstractHttpSender extends Sender {
                 .setCharset(getConnectionCharset())
                 .build());
         builder.disableCookieManagement();
+
         builder.setRetryHandler(new HttpRequestRetryHandler() {
             @Override
             public boolean retryRequest(IOException exception,
@@ -283,6 +299,7 @@ public abstract class AbstractHttpSender extends Sender {
                 return false;
             }
         });
+
         client = builder.build();
 
         if (login != null && password != null) {
@@ -447,6 +464,7 @@ public abstract class AbstractHttpSender extends Sender {
     }
 
     protected HttpResponse doRequest(HttpRequest therequest) {
+
         CloseableHttpResponse response = null;
         HttpClientContext context = HttpClientContext.create();
         if (credsProvider != null) {
@@ -463,27 +481,39 @@ public abstract class AbstractHttpSender extends Sender {
             }
             therequest.headers.forEach((i,j) -> request.addHeader(i, j));
             host = new HttpHost(therequest.url.getHost(),
-                    therequest.url.getPort());
+                    therequest.url.getPort(),
+                    therequest.url.getProtocol());
             try {
                 response = client.execute(host, request, context);
             } catch (ConnectionPoolTimeoutException e) {
-                logger.error("connection to {} timed out", host);
+                logger.error("Connection to {} timed out", host);
                 tryExecute++;
             } catch (HttpHostConnectException e) {
                 try {
                     throw e.getCause();
                 } catch (ConnectException e1) {
-                    logger.error("connection to {} refused", host);
+                    logger.error("Connection to {} refused", host);
                 } catch (SocketTimeoutException e1) {
-                    logger.error("slow response from {}", host);
+                    logger.error("Slow response from {}", host);
                 } catch (Throwable e1) {
-                    logger.error("connection to {} failed: {}", host, e1.getMessage());
+                    logger.error("Connection to {} failed: {}", host, e1.getMessage());
                     logger.throwing(Level.DEBUG, e1);
                 }
                 tryExecute++;
             } catch (IOException e) {
+                Throwable rootCause = e;
+                while (rootCause.getCause() != null){
+                    rootCause = rootCause.getCause();
+                };
+                // A TLS exception, will not help to retry
+                if (rootCause instanceof GeneralSecurityException) {
+                    logger.error("Secure comunication with {} failed: {}", host, rootCause.getMessage());
+                    logger.throwing(Level.DEBUG, rootCause);
+                    break;
+                }
                 tryExecute++;
                 logger.error("Comunication with {} failed: {}", host, e.getMessage());
+                logger.throwing(Level.DEBUG, e);
             }
         } while (response == null && tryExecute < 5);
         if (response == null) {
