@@ -62,7 +62,7 @@ import loghub.HttpTestServer;
 import loghub.LogUtils;
 import loghub.Tools;
 
-public class HttpSsl {
+public class TestHttpSsl {
 
     private static Logger logger;
 
