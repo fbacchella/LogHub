@@ -16,6 +16,8 @@ import org.antlr.v4.runtime.Parser;
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.RecognitionException;
 import org.antlr.v4.runtime.tree.TerminalNode;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import loghub.RouteBaseListener;
 import loghub.RouteParser.ArrayContext;
@@ -59,6 +61,8 @@ import loghub.processors.Merge;
 import loghub.processors.Test;
 
 class ConfigListener extends RouteBaseListener {
+
+    private static final Logger logger = LogManager.getLogger();
 
     private static enum StackMarker {
         Test,
@@ -168,7 +172,7 @@ class ConfigListener extends RouteBaseListener {
     private int expressionDepth = 0;
 
     private Set<String> lockedProperties = new HashSet<>();
-    
+
     Parser parser;
     IntStream stream;
 
@@ -312,6 +316,7 @@ class ConfigListener extends RouteBaseListener {
             pipe.nextPipelineName = nextpipe.getText();
         }
         pipelines.put(currentPipeLineName, pipe);
+        logger.debug("Adding new pipeline {}", currentPipeLineName);
         currentPipeLineName = null;
     }
 
@@ -414,6 +419,7 @@ class ConfigListener extends RouteBaseListener {
         }
         Output output = new Output(senders, piperef.piperef);
         outputs.add(output);
+        logger.debug("adding new output {}", output);
     }
 
     @Override
@@ -429,6 +435,7 @@ class ConfigListener extends RouteBaseListener {
         List<ObjectDescription> receivers = (List<ObjectDescription>) stack.pop();
         Input input = new Input(receivers, piperef.piperef);
         inputs.add(input);
+        logger.debug("adding new input {}", input);
     }
 
     @Override

@@ -86,7 +86,7 @@ public class Start extends Thread {
             e.printStackTrace();
             System.exit(1);
         } catch (IOException e) {
-            System.out.format("can't read configuration file %s: %s\n", args[0], e.getMessage());
+            System.out.format("can't read configuration file %s: %s\n", configFile, e.getMessage());
             System.exit(1);
         }
 

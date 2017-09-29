@@ -122,7 +122,7 @@ public class DateParser extends FieldsProcessor {
                 converted = true;
                 break;
             } catch (DateTimeException e) {
-                logger.debug("failed to parse date {}: {}", () -> dateString, () -> e.getMessage());
+                logger.debug("failed to parse date with pattern {}: {}", () -> format.toString(), () -> e.getMessage());
                 //no problem, just wrong parser, keep going
             }
         }

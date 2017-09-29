@@ -36,7 +36,7 @@ public class Expression {
 
     @SuppressWarnings("unchecked")
     public Expression(String expression, GroovyClassLoader loader, Map<String, VarFormatter> formatters) throws ExpressionException {
-        logger.debug("adding expression {}", expression);
+        logger.trace("adding expression {}", expression);
         this.expression = expression;
         Class<Script> groovyClass;
         try {

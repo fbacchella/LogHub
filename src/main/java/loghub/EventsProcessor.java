@@ -197,6 +197,8 @@ public class EventsProcessor extends Thread {
             } catch (ProcessorException.IgnoredEventException ex) {
                 // A do nothing event
             } catch (ProcessorException ex) {
+                logger.debug("got a processor exception");
+                logger.catching(Level.DEBUG, ex);
                 e.doMetric(() -> {
                     Properties.metrics.counter("Pipeline." + e.getCurrentPipeline() + ".failure").inc();
                     Stats.newError(ex);

@@ -1,5 +1,6 @@
 package loghub;
 
+import java.io.IOException;
 import java.time.ZonedDateTime;
 import java.util.Collections;
 import java.util.Date;
@@ -7,10 +8,24 @@ import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.core.config.Configurator;
 import org.junit.Assert;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 public class TestVarFormatter {
+
+    private static final Logger logger = LogManager.getLogger();
+
+    @BeforeClass
+    static public void configure() throws IOException {
+        Tools.configure();
+        LogUtils.setLevel(logger, Level.TRACE, "loghub.Expression");
+        Configurator.setLevel("loghub.VarFormatter", Level.DEBUG);
+    }
 
     private void checkFormat(Object value, String format, boolean fail) {
         Map<String, Object> values = Collections.singletonMap("var", value);
@@ -28,7 +43,7 @@ public class TestVarFormatter {
             if(! fail && ! printf.equals(formatter) ) {
                 System.out.println("mismatch for " + format + " at locale " + l.toLanguageTag() + " " + printf + " " + formatter);
             } else {
-                Assert.assertEquals("mismatch for " + format + " at locale " + l.toLanguageTag(), printf, formatter );                
+                Assert.assertEquals("mismatch for " + format + " at locale " + l.toLanguageTag(), printf, formatter );
             }
         }
     }
@@ -121,29 +136,6 @@ public class TestVarFormatter {
         String printf = String.format(l, "%010d", 1);
         String formatter = vf.format(values);
         Assert.assertEquals("mismatch for time zone parsing" , printf, formatter );
-    }
-
-    @Test
-    public void testSpeed() {
-        Object value = Math.PI * 1e6;
-        Map<String, Object> values = Collections.singletonMap("var", value);
-
-        Date start = new Date();
-
-        start = new Date();
-        for(int i = 0 ; i < 1000000 ; i++) {
-            @SuppressWarnings("unused")
-            String a = String.format("% 10.2f",  value);
-        }
-        System.out.println(new Date().getTime() - start.getTime());
-
-        start = new Date();
-        VarFormatter vf0 = new VarFormatter("${var% 10.2f}", Locale.getDefault());
-        for(int i = 0 ; i < 1000000 ; i++) {
-            @SuppressWarnings("unused")
-            String a = vf0.format(values);
-        }
-        System.out.println(new Date().getTime() - start.getTime());
     }
 
     @Test

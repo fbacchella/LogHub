@@ -357,7 +357,7 @@ public class VarFormatter {
     }
 
     public VarFormatter(String format, Locale l) {
-        logger.debug("new format: {}", format);
+        logger.trace("new format: {}", format);
         this.format = format;
         locale = l;
         List<String> formats = new ArrayList<>();

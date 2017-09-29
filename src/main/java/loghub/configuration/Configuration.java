@@ -110,6 +110,7 @@ public class Configuration {
 
             Consumer<String> parseSubFile = fileName -> {
                 try {
+                    logger.debug("parsing {}", fileName);
                     CharStream localcs = new ANTLRFileStream(fileName);
                     RouteParser.ConfigurationContext localtree = getTree(localcs, conflistener);
                     lockedProperties.forEach( i -> conflistener.lockProperty(i));
@@ -466,6 +467,16 @@ public class Configuration {
             throw new ConfigException(String.format("Invalid class '%s': %s", desc.clazz, rootCause.getMessage()), desc.stream.getSourceName(), desc.ctx.start, rootCause);
         }
     }
+    
+    private static final class LogHubClassloader extends URLClassLoader {
+        public LogHubClassloader(URL[] urls) {
+            super(urls);
+        }
+        @Override
+        public String toString() {
+            return "Loghub's class loader";
+        }
+    };
 
     ClassLoader doClassLoader(Object[] pathElements) throws IOException {
 
@@ -499,12 +510,7 @@ public class Configuration {
         }
         urls.add(myself.toUri().toURL());
 
-        return new URLClassLoader(urls.toArray(new URL[] {})) {
-            @Override
-            public String toString() {
-                return "Loghub's class loader";
-            }
-        };
+        return new LogHubClassloader(urls.toArray(new URL[] {}));
     }
 
     private Path locateResourcefile(String ressource) {
