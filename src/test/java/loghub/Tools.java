@@ -2,6 +2,7 @@ package loghub;
 
 import java.io.IOException;
 import java.io.Reader;
+import java.net.ServerSocket;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -113,6 +114,25 @@ public class Tools {
         } catch (InterruptedException e) {
         }
         return ps;
+    }
+
+    public static int tryGetPort() {
+        ServerSocket ss = null;
+        try {
+            ss = new ServerSocket(0);
+            ss.setReuseAddress(true);
+            return ss.getLocalPort();
+        } catch (IOException e) {
+            return -1;
+        } finally {
+            if (ss != null) {
+                try {
+                    ss.close();
+                } catch (IOException e) {
+                    /* should not be thrown */
+                }
+            }
+        }
     }
 
 }

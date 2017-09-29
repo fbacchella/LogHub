@@ -56,7 +56,7 @@ public class TestElasticSearch {
     static public void configure() throws IOException {
         Tools.configure();
         logger = LogManager.getLogger();
-        LogUtils.setLevel(logger, Level.TRACE, "loghub.senders.ElasticSearch", "org");
+        LogUtils.setLevel(logger, Level.TRACE, "loghub.senders.ElasticSearch", "loghub.HttpTestServer");
         Configurator.setLevel("org", Level.ERROR);
         TimeZone.setDefault(TimeZone.getTimeZone("GMT"));
     }
@@ -100,14 +100,17 @@ public class TestElasticSearch {
         }
     };
 
+
+    private final int serverPort = Tools.tryGetPort();
+
     @Rule
-    public ExternalResource resource = new HttpTestServer(null, 15716, new HttpTestServer.HandlerInfo("/_bulk", requestHandler));
+    public ExternalResource resource = new HttpTestServer(null, serverPort, new HttpTestServer.HandlerInfo("/_bulk", requestHandler));
 
     @Test
     public void testSend() throws InterruptedException {
         int count = 60;
         ElasticSearch es = new ElasticSearch(new ArrayBlockingQueue<>(count));
-        es.setDestinations(new String[]{"http://localhost:15716", });
+        es.setDestinations(new String[]{"http://localhost:" + serverPort, });
         es.setTimeout(1);
         es.setBuffersize(10);
         es.configure(new Properties(Collections.emptyMap()));

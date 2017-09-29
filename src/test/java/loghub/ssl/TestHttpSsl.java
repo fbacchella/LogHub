@@ -70,7 +70,7 @@ public class TestHttpSsl {
     static public void configure() throws IOException {
         Tools.configure();
         logger = LogManager.getLogger();
-        LogUtils.setLevel(logger, Level.TRACE, "loghub.ssl");
+        LogUtils.setLevel(logger, Level.TRACE, "loghub.ssl", "loghub.HttpTestServer");
         Configurator.setLevel("org", Level.WARN);
     }
 
@@ -87,15 +87,6 @@ public class TestHttpSsl {
         }
     };
 
-    private static final URL theurl;
-    static {
-        try {
-            theurl = new URL("https://localhost:15716/");
-        } catch (MalformedURLException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
     Supplier<SSLContext> getContext = () -> {
         Map<String, Object> properties = new HashMap<>();
         properties.put("context", "TLSv1.2");
@@ -105,8 +96,19 @@ public class TestHttpSsl {
         return newCtxt;
     };
 
+    private final int serverPort = Tools.tryGetPort();
+
     @Rule
-    public ExternalResource resource = new HttpTestServer(getContext.get(), 15716, new HttpTestServer.HandlerInfo("/", requestHandler));
+    public ExternalResource resource = new HttpTestServer(getContext.get(), serverPort, new HttpTestServer.HandlerInfo("/", requestHandler));
+
+    private final URL theurl;
+    {
+        try {
+            theurl = new URL(String.format("https://localhost:%d/", serverPort));
+        } catch (MalformedURLException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
     private static final HostnameVerifier localhostVerifier = new HostnameVerifier() {
         @Override
