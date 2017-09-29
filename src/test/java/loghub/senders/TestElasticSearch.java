@@ -83,7 +83,7 @@ public class TestElasticSearch {
                         Assert.assertTrue("index missing", meta.containsKey("index"));
                         @SuppressWarnings("unchecked")
                         Map<String, String> indexinfo = (Map<String, String>) meta.get("index");
-                        Assert.assertEquals("logstash-1970.01.01", indexinfo.get("_index"));
+                        Assert.assertEquals("loghub-1970.01.01", indexinfo.get("_index"));
                         Assert.assertEquals("junit", indexinfo.get("_type"));
                         Assert.assertTrue("timestamp missing", data.containsKey("@timestamp"));
                         Assert.assertEquals("1970-01-01T00:00:00.000+0000", data.get("@timestamp"));
@@ -101,7 +101,7 @@ public class TestElasticSearch {
     };
 
     @Rule
-    public ExternalResource resource = new HttpTestServer(false, 15716, new HttpTestServer.HandlerInfo("/_bulk", requestHandler));
+    public ExternalResource resource = new HttpTestServer(null, 15716, new HttpTestServer.HandlerInfo("/_bulk", requestHandler));
 
     @Test
     public void testSend() throws InterruptedException {
