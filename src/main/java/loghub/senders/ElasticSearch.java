@@ -1,14 +1,11 @@
 package loghub.senders;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
-import java.io.StringReader;
 import java.io.UncheckedIOException;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.nio.charset.Charset;
 import java.nio.file.Paths;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
@@ -28,6 +25,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 
+import io.netty.util.CharsetUtil;
 import loghub.Event;
 import loghub.configuration.Properties;
 
@@ -93,11 +91,9 @@ public class ElasticSearch extends AbstractHttpSender {
                 logger.error("Can't load template definition: {}", e1.getMessage());
                 logger.catching(Level.DEBUG, e1);
             }
-            System.out.println(templatePath);
             if (wantedtemplate != null) {
-                for (String destination: getDestinations()) {
+                for (URL newEndPoint: endPoints) {
                     try {
-                        URL newEndPoint = new URL(destination);
                         newEndPoint = new URL(newEndPoint.getProtocol(), newEndPoint.getHost(), newEndPoint.getPort(), newEndPoint.getFile() + "/_template/" + templateName);
                         HttpRequest gettemplate = new HttpRequest();
                         gettemplate.setUrl(newEndPoint);
@@ -118,7 +114,7 @@ public class ElasticSearch extends AbstractHttpSender {
                                 HttpRequest puttemplate = new HttpRequest();
                                 puttemplate.setVerb("PUT");
                                 puttemplate.setUrl(newEndPoint);
-                                puttemplate.setTypeAndContent("application/json", Charset.forName("UTF-8"), new StringReader(wantedtemplate));
+                                puttemplate.setTypeAndContent("application/json", CharsetUtil.UTF_8, wantedtemplate.getBytes(CharsetUtil.UTF_8));
                                 response = doRequest(puttemplate);
                                 status = response.getStatus();
                                 if ((status - status % 100) != 200 && "application/json".equals(response.getMimeType())) {
@@ -147,49 +143,61 @@ public class ElasticSearch extends AbstractHttpSender {
     }
 
 
+    @Override
+    protected Object flush(List<Event> documents) throws IOException {
+        HttpRequest request = new HttpRequest();
+        request.setTypeAndContent("application/json", CharsetUtil.UTF_8, putContent(documents));
+        request.setVerb("POST");
+        for (URL newEndPoint: endPoints) {
+            request.setUrl(new URL(newEndPoint, "_bulk"));
+            HttpResponse resp = doRequest(request);
+            if (resp.isFailed()) {
+                continue;
+            }
+            Object theresponse = scanContent(resp);
+            if (theresponse != null) {
+                return theresponse;
+            }
+        }
+        return "failed";
+    }
 
-    protected void putContent(List<Event> documents, ByteArrayOutputStream buffer) {
+    protected byte[] putContent(List<Event> documents) {
+        StringBuilder builder = new StringBuilder();
         Map<String, String> settings = new HashMap<>(2);
         Map<String, Object> action = Collections.singletonMap("index", settings);
+        Map<String, Object> esjson = new HashMap<>();
         ObjectMapper jsonmapper = json.get();
-        documents.stream().map( e -> {
-            Map<String, Object> esjson = new HashMap<>(e.size());
+        for(Event e: documents) {
+            if (! e.containsKey(type)) {
+                continue;
+            }
+            esjson.clear();
             esjson.putAll(e);
             esjson.put("@timestamp", ISO8601.get().format(e.getTimestamp()));
             esjson.put("__index", esIndex.get().format(e.getTimestamp()));
-            return esjson;
-        })
-        .filter( i -> i.containsKey(type))
-        .forEach( i -> {
+            settings.put("_type", esjson.remove(type).toString());
+            settings.put("_index", esjson.remove("__index").toString());
             try {
-                settings.put("_type", i.remove(type).toString());
-                settings.put("_index", i.remove("__index").toString());
-                buffer.write(jsonmapper.writeValueAsBytes(action));
-                buffer.write("\n".getBytes());
-                buffer.write(jsonmapper.writeValueAsBytes(i));
-                buffer.write("\n".getBytes());
-            } catch (JsonProcessingException e) {
-            } catch (IOException e1) {
-                // Unreachable exception, no IO exception on ByteArrayOutputStream
+                builder.append(jsonmapper.writeValueAsString(action));
+                builder.append("\n");
+                builder.append(jsonmapper.writeValueAsString(esjson));
+                builder.append("\n");
+            } catch (JsonProcessingException ex) {
             }
-        });
-
-        try {
-            buffer.flush();
-        } catch (IOException e1) {
         }
+        return builder.toString().getBytes(CharsetUtil.UTF_8);
     }
 
-    @Override
-    protected <T> T scanContent(HttpResponse resp) {
-        try (Reader contentReader = getSmartContentReader(resp, ContentType.APPLICATION_JSON)) {
-            @SuppressWarnings("unchecked")
-            T o = (T) json.get().readValue(contentReader, Object.class);
-            return o;
-        } catch (IllegalStateException e) {
+    private Object scanContent(HttpResponse resp) {
+        if (! "application/json".equalsIgnoreCase(resp.getMimeType())) {
             logger.error("bad response content from {}: {}", resp.getHost(), resp.getMimeType());
             resp.close();
             return null;
+        }
+        try (Reader contentReader = resp.getContentReader()) {
+            Object o = json.get().readValue(contentReader, Object.class);
+            return o;
         } catch (UnsupportedOperationException | IOException e) {
             resp.close();
             logger.error("error reading response content from {}: {}", resp.getHost(), e.getMessage());
@@ -219,26 +227,6 @@ public class ElasticSearch extends AbstractHttpSender {
     @Override
     protected String getPublishName() {
         return "ElasticSearch";
-    }
-
-    @Override
-    protected Charset getConnectionCharset() {
-        return Charset.forName("UTF-8");
-    }
-
-    @Override
-    protected ContentType getContentType() {
-        return ContentType.APPLICATION_JSON;
-    }
-
-    @Override
-    protected String getVerb(URL tryUrl) {
-        return "POST";
-    }
-
-    @Override
-    protected String getPath(URL tryUrl) {
-        return tryUrl.getPath() + "/_bulk";
     }
 
     /**

@@ -1,16 +1,13 @@
 package loghub.senders;
 
-import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
-import java.io.UnsupportedEncodingException;
 import java.net.ConnectException;
 import java.net.MalformedURLException;
 import java.net.SocketTimeoutException;
 import java.net.URL;
-import java.nio.CharBuffer;
 import java.nio.charset.Charset;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
@@ -19,9 +16,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ThreadLocalRandom;
 
-import org.apache.http.Header;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHost;
 import org.apache.http.HttpVersion;
@@ -93,17 +88,11 @@ public abstract class AbstractHttpSender extends Sender {
         public void setContent(byte[] content) {
             this.content = new ByteArrayEntity(content);
         }
-        public void setTypeAndContent(String mimeType, Charset charset, Reader content) throws IOException {
-            StringBuilder buffer = new StringBuilder();
-            CharBuffer cbuffer = CharBuffer.allocate(4096);
-            while(content.read(cbuffer) >= 0) {
-                buffer.append(cbuffer.array());
-                cbuffer.clear();
-            }
+        public void setTypeAndContent(String mimeType, Charset charset, byte[] content) throws IOException {
             EntityBuilder builder = EntityBuilder.create()
-                    .setText(buffer.toString())
+                    .setBinary(content)
                     .setContentType(org.apache.http.entity.ContentType.create(mimeType, charset));
-            this.content = encodeContent(builder).build();
+            this.content = builder.build();
         }
     }
 
@@ -128,10 +117,15 @@ public abstract class AbstractHttpSender extends Sender {
     protected class HttpResponse implements Closeable {
         private final HttpHost host;
         private final CloseableHttpResponse response;
-        private HttpResponse(HttpHost host, CloseableHttpResponse response) {
+        private final IOException socketException;
+        private final GeneralSecurityException sslexception;
+
+        private HttpResponse(HttpHost host, CloseableHttpResponse response, IOException socketException, GeneralSecurityException sslexception) {
             super();
             this.host = host;
             this.response = response;
+            this.socketException = socketException;
+            this.sslexception = sslexception;
         }
         public String getMimeType() {
             HttpEntity resultBody = response.getEntity();
@@ -162,20 +156,23 @@ public abstract class AbstractHttpSender extends Sender {
         public String getStatusMessage() {
             return response.getStatusLine().getReasonPhrase();
         }
-    }
-
-    private static final ThreadLocal<ByteArrayOutputStream> bytBufferPool = new ThreadLocal<ByteArrayOutputStream>() {
-        @Override
-        protected ByteArrayOutputStream initialValue() {
-            return new ByteArrayOutputStream();
+        public boolean isFailed() {
+            return socketException != null || sslexception != null;
         }
-    };
+        public IOException getSocketException() {
+            return socketException;
+        }
+        public GeneralSecurityException getSslexception() {
+            return sslexception;
+        }
+    }
 
     // Beans
     private String[] destinations;
     private int buffersize = 20;
     private int publisherThreads = 2;
     private int port = -1;
+    private String protocol = "http";
     private int timeout = 2;
     private String login = null;
     private String password = null;
@@ -184,7 +181,7 @@ public abstract class AbstractHttpSender extends Sender {
     private CloseableHttpClient client = null;
     private ArrayBlockingQueue<Event> bulkqueue;
     protected final Runnable publisher;
-    private URL[] endPoints;
+    protected URL[] endPoints;
 
     public AbstractHttpSender(BlockingQueue<Event> inQueue) {
         super(inQueue);
@@ -208,7 +205,7 @@ public abstract class AbstractHttpSender extends Sender {
                             }
                             // It might received spurious notifications, so send only when needed
                             if (waiting.size() > 0) {
-                                Object response = bulkindex(waiting);
+                                Object response = flush(waiting);
                                 logger.debug("response from http server: {}", response);
                             }
                         } catch (Exception e) {
@@ -238,7 +235,7 @@ public abstract class AbstractHttpSender extends Sender {
                 URL newEndPoint = new URL(temp);
                 int localport = port;
                 endPoints[i] = new URL(
-                        (newEndPoint.getProtocol() != null  ? newEndPoint.getProtocol() : "http"),
+                        (newEndPoint.getProtocol() != null ? newEndPoint.getProtocol() : protocol),
                         (newEndPoint.getHost() != null ? newEndPoint.getHost() : "localhost"),
                         (newEndPoint.getPort() > 0 ? newEndPoint.getPort() : localport),
                         (newEndPoint.getPath() != null ? newEndPoint.getPath() : "")
@@ -288,7 +285,6 @@ public abstract class AbstractHttpSender extends Sender {
                 .setSoTimeout(timeout * 1000)
                 .build());
         builder.setDefaultConnectionConfig(ConnectionConfig.custom()
-                .setCharset(getConnectionCharset())
                 .build());
         builder.disableCookieManagement();
 
@@ -335,8 +331,6 @@ public abstract class AbstractHttpSender extends Sender {
         }
     }
 
-    protected abstract Charset getConnectionCharset();
-
     protected abstract String getPublishName();
 
     @Override
@@ -365,103 +359,7 @@ public abstract class AbstractHttpSender extends Sender {
         return true;
     }
 
-    protected abstract void putContent(List<Event> documents, ByteArrayOutputStream buffer);
-    protected abstract ContentType getContentType();
-    protected EntityBuilder encodeContent(EntityBuilder builder) {
-        return builder;
-    }
-
-    protected <T> T bulkindex(List<Event> documents) {
-        ByteArrayOutputStream buffer = bytBufferPool.get();
-        buffer.reset();
-        putContent(documents, buffer);
-
-        EntityBuilder builder = EntityBuilder.create()
-                .setBinary(buffer.toByteArray())
-                .setContentType(getContentType().realType);
-        HttpEntity content = encodeContent(builder).build();
-        buffer.reset();
-        return doQuery(content);
-    }
-
-    protected abstract String getVerb(URL tryUrl);
-    protected abstract String getPath(URL tryUrl);
-
-    private <T> T doQuery(HttpEntity content) {
-        CloseableHttpResponse response = null;
-        HttpClientContext context = HttpClientContext.create();
-        if (credsProvider != null) {
-            context.setCredentialsProvider(credsProvider);
-        }
-
-        int tryExecute = 0;
-        HttpHost host;
-        do {
-            URL tryURL = endPoints[ThreadLocalRandom.current().nextInt(endPoints.length)];
-            String verb = getVerb(tryURL);
-            String path = getPath(tryURL);
-            RequestLine requestLine = new BasicRequestLine(verb, path, HttpVersion.HTTP_1_1);
-            BasicHttpEntityEnclosingRequest request = new BasicHttpEntityEnclosingRequest(requestLine);
-            request.setEntity(content);
-            host = new HttpHost(tryURL.getHost(),
-                    tryURL.getPort());
-            try {
-                response = client.execute(host, request, context);
-            } catch (ConnectionPoolTimeoutException e) {
-                logger.error("connection to {} timed out", host);
-                tryExecute++;
-            } catch (HttpHostConnectException e) {
-                try {
-                    throw e.getCause();
-                } catch (ConnectException e1) {
-                    logger.error("connection to {} refused", host);
-                } catch (SocketTimeoutException e1) {
-                    logger.error("slow response from {}", host);
-                } catch (Throwable e1) {
-                    logger.error("connection to {} failed: {}", host, e1.getMessage());
-                    logger.throwing(Level.DEBUG, e1);
-                }
-                tryExecute++;
-            } catch (IOException e) {
-                tryExecute++;
-                logger.error("Comunication with {} failed: {}", host, e.getMessage());
-            }
-        } while (response == null && tryExecute < 5);
-        if (response == null) {
-            logger.error("give up trying to connect to " + getPublishName());
-            return null;
-        };
-        int statusCode = response.getStatusLine().getStatusCode();
-        int statusClass = statusCode - statusCode % 100;
-        if (statusClass != 200) {
-            logger.error("{} failed: {}", host, response.getStatusLine());
-        }
-        return scanContent(new HttpResponse(host, response));
-    }
-
-    protected abstract <T> T scanContent(HttpResponse resp);
-
-    protected Reader getSmartContentReader(HttpResponse resp, ContentType expectedContentType) throws UnsupportedEncodingException, UnsupportedOperationException, IOException {
-        HttpEntity resultBody = resp.response.getEntity();
-        Header contentTypeHeader = resultBody.getContentType();
-        String contentType = null;
-        String charset = Charset.defaultCharset().name();;
-        if(contentTypeHeader != null) {
-            String value = contentTypeHeader.getValue();
-            int pos = value.indexOf(';');
-            if(pos > 0) {
-                contentType = value.substring(0, value.indexOf(';')).trim();
-                charset = value.substring(value.indexOf(';') + 1, value.length()).replace("charset=", "").trim();
-            } else {
-                contentType = value;
-            }
-        }
-        if(contentType != null && expectedContentType.realType.getMimeType().equals(contentType)) {
-            return new InputStreamReader(resultBody.getContent(), charset);
-        } else {
-            throw new IllegalStateException("Not expected content type");
-        }
-    }
+    protected abstract Object flush(List<Event> documents) throws IOException;
 
     protected HttpResponse doRequest(HttpRequest therequest) {
 
@@ -471,56 +369,57 @@ public abstract class AbstractHttpSender extends Sender {
             context.setCredentialsProvider(credsProvider);
         }
 
-        int tryExecute = 0;
         HttpHost host;
-        do {
-            RequestLine requestLine = new BasicRequestLine(therequest.verb, therequest.url.getPath(), therequest.httpVersion);
-            BasicHttpEntityEnclosingRequest request = new BasicHttpEntityEnclosingRequest(requestLine);
-            if (therequest.content != null) {
-                request.setEntity(therequest.content);
-            }
-            therequest.headers.forEach((i,j) -> request.addHeader(i, j));
-            host = new HttpHost(therequest.url.getHost(),
-                    therequest.url.getPort(),
-                    therequest.url.getProtocol());
+        RequestLine requestLine = new BasicRequestLine(therequest.verb, therequest.url.getPath(), therequest.httpVersion);
+        BasicHttpEntityEnclosingRequest request = new BasicHttpEntityEnclosingRequest(requestLine);
+        if (therequest.content != null) {
+            request.setEntity(therequest.content);
+        }
+        therequest.headers.forEach((i,j) -> request.addHeader(i, j));
+        host = new HttpHost(therequest.url.getHost(),
+                therequest.url.getPort(),
+                therequest.url.getProtocol());
+        try {
+            response = client.execute(host, request, context);
+        } catch (ConnectionPoolTimeoutException e) {
+            logger.error("Connection to {} timed out", host);
+            return new HttpResponse(host, null, e, null);
+        } catch (HttpHostConnectException e) {
+            String message = "";
             try {
-                response = client.execute(host, request, context);
-            } catch (ConnectionPoolTimeoutException e) {
-                logger.error("Connection to {} timed out", host);
-                tryExecute++;
-            } catch (HttpHostConnectException e) {
-                try {
-                    throw e.getCause();
-                } catch (ConnectException e1) {
-                    logger.error("Connection to {} refused", host);
-                } catch (SocketTimeoutException e1) {
-                    logger.error("Slow response from {}", host);
-                } catch (Throwable e1) {
-                    logger.error("Connection to {} failed: {}", host, e1.getMessage());
-                    logger.throwing(Level.DEBUG, e1);
-                }
-                tryExecute++;
-            } catch (IOException e) {
-                Throwable rootCause = e;
-                while (rootCause.getCause() != null){
-                    rootCause = rootCause.getCause();
-                };
-                // A TLS exception, will not help to retry
-                if (rootCause instanceof GeneralSecurityException) {
-                    logger.error("Secure comunication with {} failed: {}", host, rootCause.getMessage());
-                    logger.throwing(Level.DEBUG, rootCause);
-                    break;
-                }
-                tryExecute++;
-                logger.error("Comunication with {} failed: {}", host, e.getMessage());
-                logger.throwing(Level.DEBUG, e);
+                throw e.getCause();
+            } catch (ConnectException e1) {
+                message = String.format("Connection to %s refused", host);
+            } catch (SocketTimeoutException e1) {
+                message = String.format("Slow response from %s", host);
+            } catch (Throwable e1) {
+                message = String.format("Connection to %s failed: %s", host, e1.getMessage());
+                logger.catching(Level.DEBUG, e1);
             }
-        } while (response == null && tryExecute < 5);
+            logger.error(message);
+            logger.catching(Level.DEBUG, e.getCause());
+            return new HttpResponse(host, null, e, null);
+        } catch (IOException e) {
+            Throwable rootCause = e;
+            while (rootCause.getCause() != null){
+                rootCause = rootCause.getCause();
+            };
+            // A TLS exception, will not help to retry
+            if (rootCause instanceof GeneralSecurityException) {
+                logger.error("Secure comunication with {} failed: {}", host, rootCause.getMessage());
+                logger.catching(Level.DEBUG, rootCause);
+                return new HttpResponse(host, null, null, (GeneralSecurityException) rootCause);
+            } else {
+                logger.error("Comunication with {} failed: {}", host, e.getMessage());
+                logger.catching(Level.DEBUG, e);
+                return new HttpResponse(host, null, e, null);
+            }
+        }
         if (response == null) {
             logger.error("give up trying to connect to " + getPublishName());
             return null;
         };
-        return new HttpResponse(host, response);
+        return new HttpResponse(host, response, null, null);
     };
 
     /**
@@ -589,6 +488,20 @@ public abstract class AbstractHttpSender extends Sender {
 
     public void setPassword(String password) {
         this.password = password;
+    }
+
+    /**
+     * @return the protocol
+     */
+    public String getProtocol() {
+        return protocol;
+    }
+
+    /**
+     * @param protocol the protocol to set
+     */
+    public void setProtocol(String protocol) {
+        this.protocol = protocol;
     }
 
 }
