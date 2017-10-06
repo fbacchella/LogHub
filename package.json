@@ -1,0 +1,9 @@
+{
+  "name": "LogHub",
+  "version": "0.0.1-SNAPSHOT",
+  "main": "index.js",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "patternfly": "^3.27.6"
+  }
+}

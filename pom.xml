@@ -133,7 +133,7 @@
         </dependency>
         <dependency>
             <groupId>fr.jrds</groupId>
-            <artifactId>SmiExtensions</artifactId>
+            <artifactId>snmpcodec</artifactId>
             <version>0.0.1-SNAPSHOT</version>
         </dependency>
         <dependency>
@@ -195,6 +195,28 @@
     </repositories>
     <build>
         <plugins>
+            <plugin>
+                <groupId>ro.isdc.wro4j</groupId>
+                <artifactId>wro4j-maven-plugin</artifactId>
+                <version>1.8.0</version>
+                <executions>
+                    <execution>
+                        <phase>compile</phase>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <wroFile>wro.xml</wroFile>
+                    <targetGroups>all</targetGroups>
+                    <minimize>true</minimize>
+                    <extraConfigFile>wro.properties</extraConfigFile>
+                    <destinationFolder>target/classes/static/</destinationFolder>
+                    <contextFolder>node_modules</contextFolder>
+                    <ignoreMissingResources>false</ignoreMissingResources>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
