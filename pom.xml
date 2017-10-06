@@ -20,6 +20,7 @@
         <javadoc>2.10.3</javadoc>
         <ehcache>2.10.4</ehcache>
         <jackson>2.9.1</jackson>
+        <webappdirectory>${project.basedir}/src/main/webapp</webappdirectory>
     </properties>
 
     <dependencies>
@@ -208,12 +209,12 @@
                     </execution>
                 </executions>
                 <configuration>
-                    <wroFile>wro.xml</wroFile>
+                    <wroFile>${webappdirectory}/wro.xml</wroFile>
                     <targetGroups>all</targetGroups>
                     <minimize>true</minimize>
-                    <extraConfigFile>wro.properties</extraConfigFile>
-                    <destinationFolder>target/classes/static/</destinationFolder>
-                    <contextFolder>node_modules</contextFolder>
+                    <extraConfigFile>${webappdirectory}/wro.properties</extraConfigFile>
+                    <destinationFolder>${project.build.outputDirectory}/static</destinationFolder>
+                    <contextFolder>${webappdirectory}/node_modules</contextFolder>
                     <ignoreMissingResources>false</ignoreMissingResources>
                 </configuration>
             </plugin>
