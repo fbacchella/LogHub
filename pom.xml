@@ -21,6 +21,7 @@
         <ehcache>2.10.4</ehcache>
         <jackson>2.9.1</jackson>
         <webappdirectory>${project.basedir}/src/main/webapp</webappdirectory>
+        <node_modules>${webappdirectory}/node_modules</node_modules>
     </properties>
 
     <dependencies>
@@ -196,6 +197,41 @@
     </repositories>
     <build>
         <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-resources-plugin</artifactId>
+                <version>3.0.2</version>
+                <executions>
+                    <execution>
+                        <id>copy-resources</id>
+                        <!-- here the phase you need -->
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>copy-resources</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${project.build.outputDirectory}/static/</outputDirectory>
+                            <resources>
+                                <resource>
+                                    <directory>${node_modules}/patternfly/dist</directory>
+                                </resource>
+                                <resource>
+                                    <directory>${node_modules}/eonasdan-bootstrap-datetimepicker/docs/theme</directory>
+                                </resource>
+                                <resource>
+                                    <directory>${node_modules}/bootstrap-datepicker/dist</directory>
+                                </resource>
+                                <resource>
+                                    <directory>${node_modules}/jquery/dist</directory>
+                                </resource>
+                                <resource>
+                                    <directory>${node_modules}/bootstrap/dist</directory>
+                                </resource>
+                            </resources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <groupId>ro.isdc.wro4j</groupId>
                 <artifactId>wro4j-maven-plugin</artifactId>

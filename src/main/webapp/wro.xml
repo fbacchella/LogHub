@@ -2,7 +2,25 @@
 
 <groups xmlns="http://www.isdc.ro/wro">
     <group name='all'>
-        <css>/**.css</css>
-        <js>/**.js</js>
+        <css>/bootstrap/dist/**.css</css>
+        <css>/bootstrap-datepicker/dist/**.css</css>
+        <css>/bootstrap-select/dist/**.css</css>
+        <css>/bootstrap-select/docs/docs/dist/**.css</css>
+        <css>/bootstrap-switch/dist/**.css</css>
+        <css>/bootstrap-touchspin/dist/**.css</css>
+        <css>/patternfly/dist/**.css</css>
+        <css>/patternfly-bootstrap-treeview/dist/**.css</css>
+
+        <js>/bootstrap/dist/**.js</js>
+        <js>/bootstrap-datepicker/dist/**.js</js>
+        <js>/bootstrap-select/dist/**.js</js>
+        <js>/bootstrap-select/docs/docs/dist/**.js</js>
+        <js>/bootstrap-switch/dist/**.js</js>
+        <js>/bootstrap-touchspin/dist/**.js</js>
+        <js>/jquery/dist/**.js</js>
+        <js>/jquery/external/sizzle/dist/**.js</js>
+        <js>/jquery-match-height/dist/**.js</js>
+        <js>/patternfly/dist/**.js</js>
+        <js>/patternfly-bootstrap-treeview/dist/**.js</js>
     </group>
 </groups>
