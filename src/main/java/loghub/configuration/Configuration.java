@@ -461,13 +461,13 @@ public class Configuration {
             throw e;
         } catch (RuntimeException | ExceptionInInitializerError e) {
             Throwable rootCause = e;
-            if(rootCause.getCause() instanceof InvocationTargetException) {
-                rootCause = (InvocationTargetException) rootCause.getCause();
+            if (e.getCause() != null) {
+                rootCause = e.getCause();
             }
             throw new ConfigException(String.format("Invalid class '%s': %s", desc.clazz, rootCause.getMessage()), desc.stream.getSourceName(), desc.ctx.start, rootCause);
         }
     }
-    
+
     private static final class LogHubClassloader extends URLClassLoader {
         public LogHubClassloader(URL[] urls) {
             super(urls);
