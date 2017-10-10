@@ -373,7 +373,7 @@ public class Configuration {
         // But only if they are not some of the special internal properties
         Set<String> privatepropsnames = new HashSet<>(Properties.PROPSNAMES.values().length);
         Arrays.stream(Properties.PROPSNAMES.values()).forEach(i -> privatepropsnames.add(i.toString()));;
-        System.getProperties().entrySet().stream().filter(i -> ! privatepropsnames.contains(i)).forEach(i -> newProperties.put(i.getKey().toString(), i.getValue()));
+        System.getProperties().entrySet().stream().filter(i -> ! privatepropsnames.contains(i.getKey())).forEach(i -> newProperties.put(i.getKey().toString(), i.getValue()));
         return new Properties(newProperties);
     }
 
