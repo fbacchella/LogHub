@@ -66,6 +66,8 @@ public class BeansManager {
                 setMethod.invoke(beanObject, argInstance);
             } else if (beanValue instanceof Number){
                 setMethod.invoke(beanObject, beanValue);
+            } else if (beanValue instanceof Boolean){
+                setMethod.invoke(beanObject, (Boolean)beanValue.equals(Boolean.TRUE));
             } else if(setArgType.isArray() && beanValue.getClass().isArray()) {
                 // In case of an array, try a crude conversion, expect that type cast is possible
                 // for every element
