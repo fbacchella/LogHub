@@ -23,10 +23,10 @@ import loghub.netty.POLLER;
  * @param <SC>  Server channel
  * @param <SA>  Socket Address
  */
-public abstract class AbstractNettyServer<SF extends ServerFactory<BSC, SA>, BSC extends ServerChannel, SC extends Channel, SA extends SocketAddress> {
+public abstract class AbstractNettyServer<SF extends ServerFactory<SC, SA>, SC extends ServerChannel, CC extends Channel, SA extends SocketAddress> {
 
     protected final Logger logger;
-    private ServerFactory<BSC, SA> factory;
+    private ServerFactory<SC, SA> factory;
     private ServerBootstrap bootstrap;
     private SA address;
     protected POLLER poller = POLLER.NIO;
@@ -58,7 +58,7 @@ public abstract class AbstractNettyServer<SF extends ServerFactory<BSC, SA>, BSC
         }
     }
 
-    protected abstract ServerFactory<BSC, SA> getNewFactory(Properties properties);
+    protected abstract ServerFactory<SC, SA> getNewFactory(Properties properties);
 
     public SA getAddress() {
         return address;
@@ -80,7 +80,7 @@ public abstract class AbstractNettyServer<SF extends ServerFactory<BSC, SA>, BSC
 
     }
 
-    public ServerFactory<BSC, SA> getFactory() {
+    public ServerFactory<SC, SA> getFactory() {
         return factory;
     };
 

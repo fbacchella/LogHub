@@ -27,7 +27,7 @@ import loghub.configuration.Properties;
 import loghub.netty.servers.AbstractNettyServer;
 import loghub.netty.servers.ServerFactory;
 
-public abstract class NettyReceiver<S extends AbstractNettyServer<SF, BSC, SC, SA>, SF extends ServerFactory<BSC, SA>, BSC extends ServerChannel, SC extends Channel, SA extends SocketAddress, SM> extends Receiver implements ChannelConsumer<ServerBootstrap, ServerChannel, SA> {
+public abstract class NettyReceiver<S extends AbstractNettyServer<SF, SC, CC, SA>, SF extends ServerFactory<SC, SA>, SC extends ServerChannel, CC extends Channel, SA extends SocketAddress, SM> extends Receiver implements ChannelConsumer<ServerBootstrap, ServerChannel, SA> {
 
     @Sharable
     private class EventSender extends SimpleChannelInboundHandler<Map<String, Object>> {

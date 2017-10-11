@@ -10,10 +10,10 @@ import io.netty.channel.socket.SocketChannel;
 import loghub.Event;
 import loghub.Pipeline;
 import loghub.configuration.Properties;
-import loghub.netty.servers.AbstractIpNettyServer;
 import loghub.netty.servers.ServerFactory;
+import loghub.netty.servers.TcpServer;
 
-public abstract class NettyIpReceiver<SM> extends NettyReceiver<AbstractIpNettyServer, ServerFactory<ServerSocketChannel, InetSocketAddress>, ServerSocketChannel, SocketChannel, InetSocketAddress, SM> {
+public abstract class NettyIpReceiver<SM> extends NettyReceiver<TcpServer, ServerFactory<ServerSocketChannel, InetSocketAddress>, ServerSocketChannel, SocketChannel, InetSocketAddress, SM> {
 
     private int port;
     private String host = null;

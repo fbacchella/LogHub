@@ -9,17 +9,13 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
-import io.netty.channel.ServerChannel;
-import io.netty.channel.socket.ServerSocketChannel;
-import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.ByteToMessageDecoder;
 import loghub.Event;
 import loghub.Pipeline;
 import loghub.netty.NettyIpReceiver;
-import loghub.netty.servers.TcpFactory;
 import loghub.netty.servers.TcpServer;
 
-public abstract class GenericTcp extends NettyIpReceiver<TcpServer, TcpFactory, ServerBootstrap, ServerChannel, ServerSocketChannel, SocketChannel, ByteBuf> {
+public abstract class GenericTcp extends NettyIpReceiver<ByteBuf> {
 
     private final TcpServer server = new TcpServer();
     private int backlog = 16;

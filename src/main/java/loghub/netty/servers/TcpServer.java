@@ -2,8 +2,6 @@ package loghub.netty.servers;
 
 import java.net.InetSocketAddress;
 
-import io.netty.bootstrap.ServerBootstrap;
-import io.netty.channel.ServerChannel;
 import io.netty.channel.socket.ServerSocketChannel;
 import io.netty.channel.socket.SocketChannel;
 import loghub.configuration.Properties;
