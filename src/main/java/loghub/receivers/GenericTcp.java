@@ -16,7 +16,7 @@ import io.netty.handler.codec.ByteToMessageDecoder;
 import loghub.Event;
 import loghub.Pipeline;
 import loghub.netty.NettyIpReceiver;
-import loghub.netty.TcpFactory;
+import loghub.netty.servers.TcpFactory;
 import loghub.netty.servers.TcpServer;
 
 public abstract class GenericTcp extends NettyIpReceiver<TcpServer, TcpFactory, ServerBootstrap, ServerChannel, ServerSocketChannel, SocketChannel, ByteBuf> {

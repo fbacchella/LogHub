@@ -1,21 +1,19 @@
-package loghub.netty.servers;
+package loghub.netty.client;
 
 import java.net.SocketAddress;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import io.netty.bootstrap.ServerBootstrap;
+import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
-import io.netty.channel.ServerChannel;
 import loghub.Helpers;
 import loghub.configuration.Properties;
 import loghub.netty.ChannelConsumer;
-import loghub.netty.POLLER;
 
 /**
- * @author fa4
+ * @author Fabrice Bacchella
  *
  * @param <CF>  ComponentFactory
  * @param <BS>  BootStrap (Bootstrap, ServerBootstrap)
@@ -23,19 +21,18 @@ import loghub.netty.POLLER;
  * @param <SC>  Server channel
  * @param <SA>  Socket Address
  */
-public abstract class AbstractNettyServer<SF extends ServerFactory<BSC, SA>, BSC extends ServerChannel, SC extends Channel, SA extends SocketAddress> {
+public abstract class AbstractNettyClient<CF extends ClientFactory<CC, SA>, CC extends Channel, SA extends SocketAddress> {
 
     protected final Logger logger;
-    private ServerFactory<BSC, SA> factory;
-    private ServerBootstrap bootstrap;
+    private CF factory;
+    private Bootstrap bootstrap;
     private SA address;
-    protected POLLER poller = POLLER.NIO;
 
-    public AbstractNettyServer() {
+    public AbstractNettyClient() {
         logger = LogManager.getLogger(Helpers.getFistInitClass());
     }
 
-    public ChannelFuture configure(Properties properties, ChannelConsumer<ServerBootstrap, ServerChannel, SA> consumer) {
+    public ChannelFuture configure(Properties properties, ChannelConsumer<Bootstrap, Channel, SA> consumer) {
         address = consumer.getListenAddress();
         if (address == null) {
             return null;
@@ -49,7 +46,7 @@ public abstract class AbstractNettyServer<SF extends ServerFactory<BSC, SA>, BSC
         consumer.addOptions(bootstrap);
         // Bind and start to accept incoming connections.
         try {
-            ChannelFuture cf = bootstrap.bind(address).sync();
+            ChannelFuture cf = bootstrap.connect(address).sync();
             logger.debug("started {} with consumer {} listening on {}", factory, consumer, address);
             return cf;
         } catch (InterruptedException e) {
@@ -58,29 +55,20 @@ public abstract class AbstractNettyServer<SF extends ServerFactory<BSC, SA>, BSC
         }
     }
 
-    protected abstract ServerFactory<BSC, SA> getNewFactory(Properties properties);
+    protected abstract CF getNewFactory(Properties properties);
 
     public SA getAddress() {
         return address;
     }
 
     public void finish() {
-        factory.finish();
     }
 
-    public String getPoller() {
-        return poller.toString();
-    }
-
-    public void setPoller(String poller) {
-        this.poller = POLLER.valueOf(poller);
-    }
-
-    public void configureBootStrap(ServerBootstrap bootstrap) {
+    public void configureBootStrap(Bootstrap bootstrap) {
 
     }
 
-    public ServerFactory<BSC, SA> getFactory() {
+    public ClientFactory<CC, SA> getFactory() {
         return factory;
     };
 

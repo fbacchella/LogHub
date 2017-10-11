@@ -6,7 +6,6 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import io.netty.bootstrap.AbstractBootstrap;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
@@ -26,7 +25,7 @@ public abstract class ServerFactory<CC extends Channel, SA extends SocketAddress
     private ServerBootstrap bootstrap;
 
     @Override
-    public AbstractBootstrap<ServerBootstrap, ServerChannel> getBootStrap() {
+    public ServerBootstrap getBootStrap() {
         bootstrap = new ServerBootstrap();
         bootstrap.channelFactory(getInstance());
         return bootstrap;

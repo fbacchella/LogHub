@@ -5,14 +5,15 @@ import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.util.concurrent.BlockingQueue;
 
-import io.netty.bootstrap.AbstractBootstrap;
-import io.netty.channel.Channel;
+import io.netty.channel.socket.ServerSocketChannel;
+import io.netty.channel.socket.SocketChannel;
 import loghub.Event;
 import loghub.Pipeline;
 import loghub.configuration.Properties;
-import loghub.netty.servers.AbstractNettyServer;
+import loghub.netty.servers.AbstractIpNettyServer;
+import loghub.netty.servers.ServerFactory;
 
-public abstract class NettyIpReceiver<S extends AbstractNettyServer<CF, BS, BSC, SC, InetSocketAddress>, CF extends ComponentFactory<BS, BSC, InetSocketAddress>, BS extends AbstractBootstrap<BS,BSC>, BSC extends Channel, SC extends Channel, CC extends Channel, SM> extends NettyReceiver<S, CF, BS, BSC, SC, CC, InetSocketAddress, SM> {
+public abstract class NettyIpReceiver<SM> extends NettyReceiver<AbstractIpNettyServer, ServerFactory<ServerSocketChannel, InetSocketAddress>, ServerSocketChannel, SocketChannel, InetSocketAddress, SM> {
 
     private int port;
     private String host = null;

@@ -1,4 +1,4 @@
-package loghub.netty;
+package loghub.netty.client;
 
 import java.net.SocketAddress;
 
@@ -6,12 +6,13 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import io.netty.bootstrap.AbstractBootstrap;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.EventLoopGroup;
+import loghub.netty.ChannelConsumer;
+import loghub.netty.ComponentFactory;
 
 public abstract class ClientFactory<CC extends Channel, SA extends SocketAddress> extends ComponentFactory<Bootstrap, Channel, SA> {
 
@@ -21,7 +22,7 @@ public abstract class ClientFactory<CC extends Channel, SA extends SocketAddress
     private Bootstrap bootstrap;
 
     @Override
-    public AbstractBootstrap<Bootstrap, Channel> getBootStrap() {
+    public Bootstrap getBootStrap() {
         bootstrap = new Bootstrap();
         bootstrap.channelFactory(getInstance());
         return bootstrap;

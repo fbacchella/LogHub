@@ -1,4 +1,4 @@
-package loghub.netty;
+package loghub.netty.client;
 
 import java.net.InetSocketAddress;
 
@@ -6,22 +6,22 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelFactory;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
-import io.netty.channel.socket.DatagramChannel;
-import io.netty.channel.socket.nio.NioDatagramChannel;
-import loghub.netty.client.ClientFactory;
+import io.netty.channel.socket.SocketChannel;
+import io.netty.channel.socket.nio.NioSocketChannel;
+import loghub.netty.POLLER;
 
-public class UdpFactory extends ClientFactory<Channel, InetSocketAddress> {
+public class TcpFactory extends ClientFactory<SocketChannel, InetSocketAddress> {
 
     private static final ChannelFactory<Channel> niochannelfactory = new ChannelFactory<Channel>() {
         @Override 
-        public DatagramChannel newChannel() {
-            return new NioDatagramChannel();
+        public SocketChannel newChannel() {
+            return new NioSocketChannel();
         }
     };
 
     private final POLLER poller;
 
-    public UdpFactory(POLLER poller) {
+    public TcpFactory(POLLER poller) {
         this.poller = poller;
     }
 

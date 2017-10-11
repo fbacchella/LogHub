@@ -10,7 +10,7 @@ import io.netty.channel.EventLoopGroup;
 public abstract class ComponentFactory<BS extends AbstractBootstrap<BS,BSC>, BSC extends Channel, SA extends SocketAddress> {
     public abstract EventLoopGroup getEventLoopGroup();
     public abstract ChannelFactory<BSC> getInstance();
-    public abstract AbstractBootstrap<BS,BSC> getBootStrap();
+    public abstract BS getBootStrap();
     public abstract void group();
     public abstract void finish();
     public abstract void addChildhandlers(ChannelConsumer<BS, BSC, SA> source);

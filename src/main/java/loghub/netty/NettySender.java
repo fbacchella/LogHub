@@ -5,7 +5,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 
-import io.netty.bootstrap.ServerBootstrap;
+import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
@@ -13,7 +13,6 @@ import io.netty.channel.ChannelHandler.Sharable;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelPipeline;
-import io.netty.channel.ServerChannel;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.MessageToMessageDecoder;
 import io.netty.util.AttributeKey;
@@ -24,10 +23,10 @@ import loghub.Helpers;
 import loghub.Pipeline;
 import loghub.Receiver;
 import loghub.configuration.Properties;
-import loghub.netty.servers.AbstractNettyServer;
-import loghub.netty.servers.ServerFactory;
+import loghub.netty.client.AbstractNettyClient;
+import loghub.netty.client.ClientFactory;
 
-public abstract class NettyReceiver<S extends AbstractNettyServer<SF, BSC, SC, SA>, SF extends ServerFactory<BSC, SA>, BSC extends ServerChannel, SC extends Channel, SA extends SocketAddress, SM> extends Receiver implements ChannelConsumer<ServerBootstrap, ServerChannel, SA> {
+public abstract class NettySender<S extends AbstractNettyClient<CF, CC, SA>, CF extends ClientFactory<CC, SA>, CC extends Channel, SA extends SocketAddress, SM> extends Receiver implements ChannelConsumer<Bootstrap, Channel, SA> {
 
     @Sharable
     private class EventSender extends SimpleChannelInboundHandler<Map<String, Object>> {
@@ -102,7 +101,7 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<SF, BSC, SC, S
     private final boolean selfDecoder;
     private final boolean closeOnError;
 
-    public NettyReceiver(BlockingQueue<Event> outQueue, Pipeline pipeline) {
+    public NettySender(BlockingQueue<Event> outQueue, Pipeline pipeline) {
         super(outQueue, pipeline);
         selfDecoder = getClass().isAnnotationPresent(SelfDecoder.class);
         closeOnError = getClass().isAnnotationPresent(CloseOnError.class);

@@ -11,7 +11,7 @@ import io.netty.channel.socket.DatagramChannel;
 import loghub.configuration.Properties;
 import loghub.netty.UdpFactory;
 
-public class UdpServer extends AbstractNettyServer<UdpFactory, Bootstrap, Channel, DatagramChannel, InetSocketAddress> {
+public class UdpServer extends AbstractIpNettyServer<UdpFactory, DatagramChannel> {
 
     private int buffersize = -1;
 

@@ -1,4 +1,4 @@
-package loghub.netty;
+package loghub.netty.servers;
 
 import java.net.InetSocketAddress;
 
@@ -6,11 +6,11 @@ import io.netty.channel.ChannelFactory;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.ServerChannel;
 import io.netty.channel.nio.NioEventLoopGroup;
-import io.netty.channel.socket.SocketChannel;
+import io.netty.channel.socket.ServerSocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
-import loghub.netty.servers.ServerFactory;
+import loghub.netty.POLLER;
 
-public class TcpFactory extends ServerFactory<SocketChannel, InetSocketAddress> {
+public class TcpFactory extends ServerFactory<ServerSocketChannel, InetSocketAddress> {
 
     private static final ChannelFactory<ServerChannel> niochannelfactory = new ChannelFactory<ServerChannel>() {
         @Override 
