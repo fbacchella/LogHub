@@ -24,7 +24,11 @@ public abstract class Sender extends Thread {
     }
 
     public boolean configure(Properties properties) {
-        return true;
+        if (encoder != null) {
+            return encoder.configure(properties, this);
+        } else {
+            return true;
+        }
     }
 
     public abstract boolean send(Event e);

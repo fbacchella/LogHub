@@ -20,7 +20,7 @@ public abstract class Encoder {
         logger = LogManager.getLogger(stacklocator.getCallerClass(2));
     }
 
-    public boolean configure(Properties properties) {
+    public boolean configure(Properties properties, Sender sender) {
         return true;
     }
 

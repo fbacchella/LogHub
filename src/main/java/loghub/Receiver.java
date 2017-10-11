@@ -35,7 +35,11 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
     }
 
     public boolean configure(Properties properties) {
-        return true;
+        if (decoder != null) {
+            return decoder.configure(properties, this);
+        } else {
+            return true;
+        }
     }
 
     /**
