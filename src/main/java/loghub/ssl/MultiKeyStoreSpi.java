@@ -37,6 +37,7 @@ import java.util.regex.Pattern;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import loghub.Helpers;
 import loghub.ssl.MultiKeyStore.SubKeyStore;
 
 public class MultiKeyStoreSpi extends KeyStoreSpi {
@@ -357,25 +358,41 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
                     break;
                 }
             }
-        } else if (path.toLowerCase().endsWith(".p12")) {
-            loadKeystore("PKCS12", path, password);
-        } else if (path.toLowerCase().endsWith(".pfx")) {
-            loadKeystore("PKCS12", path, password);
-        } else if (path.toLowerCase().endsWith(".jks")) {
-            loadKeystore("jks", path, password);
-        } else if (path.toLowerCase().endsWith(".jceks")) {
-            loadKeystore("jceks", path, password);
         } else if (path.toLowerCase().endsWith(".policy")) {
             logger.trace("Loading domaine store {}", path);
             DomainLoadStoreParameter params = new DomainLoadStoreParameter(URI.create(path), Collections.singletonMap("password", new KeyStore.PasswordProtection(password.toCharArray())));
             KeyStore ks = KeyStore.getInstance("DKS");
             ks.load(params);
-        } else if (path.toLowerCase().endsWith(".pem")) {
-            loadPem(path);
-        } else if (path.toLowerCase().endsWith(".crt")) {
-            loadPem(path);
         } else {
-            throw new NoSuchAlgorithmException("Not managed file '" + path +"'");
+            switch(Helpers.getMimeType(path)) {
+            case "application/x-pkcs12":
+                loadKeystore("PKCS12", path, password);
+                break;
+            case "application/x-java-keystore":
+                loadKeystore("JKS", path, password);
+                break;
+            case "application/x-java-jce-keystore":
+                loadKeystore("JCEKS", path, password);
+                break;
+            case "application/x-java-bc-keystore":
+                loadKeystore("BKS", path, password);
+                break;
+            case "application/x-java-bc-uber-keystore":
+                loadKeystore(" Keystore.UBER", path, password);
+                break;
+            case "application/x-pem-file":
+                loadPem(path);
+                break;
+            case "application/pkix-cert":
+                String alias = encoder.encodeToString(digest.digest(path.getBytes()));
+                Certificate cert = cf.generateCertificate(new FileInputStream(path));
+                KeyStore.TrustedCertificateEntry entry = new KeyStore.TrustedCertificateEntry(cert);
+                digest.reset();
+                stores.get(0).setEntry(alias, entry, null);
+                break;
+            default:
+                throw new NoSuchAlgorithmException("Not managed file '" + path +"'");
+            }
         }
     }
 

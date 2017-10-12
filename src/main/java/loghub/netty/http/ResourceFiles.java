@@ -8,8 +8,6 @@ import java.nio.file.Paths;
 import java.util.Date;
 import java.util.jar.JarEntry;
 
-import javax.activation.MimetypesFileTypeMap;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.FullHttpRequest;
@@ -17,16 +15,10 @@ import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.stream.ChunkedInput;
 import io.netty.handler.stream.ChunkedStream;
+import loghub.Helpers;
 
 public class ResourceFiles extends HttpRequestProcessing {
 
-    private static final MimetypesFileTypeMap mimeTypesMap = new MimetypesFileTypeMap();
-    static {
-        mimeTypesMap.addMimeTypes("text/css                                        css");
-        mimeTypesMap.addMimeTypes("text/javascript                                 js");
-        mimeTypesMap.addMimeTypes("application/json                                json");
-        mimeTypesMap.addMimeTypes("text/html                                       html htm");
-    }
     private static final Path ROOT = Paths.get("/");
     
     private String internalPath;
@@ -72,7 +64,7 @@ public class ResourceFiles extends HttpRequestProcessing {
 
     @Override
     protected String getContentType() {
-        return mimeTypesMap.getContentType(internalPath);
+        return Helpers.getMimeType(internalPath);
     }
 
     @Override

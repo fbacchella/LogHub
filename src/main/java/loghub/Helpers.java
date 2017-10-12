@@ -28,6 +28,8 @@ import java.util.jar.JarFile;
 import java.util.regex.Pattern;
 import java.util.stream.StreamSupport;
 
+import javax.activation.MimetypesFileTypeMap;
+
 import io.netty.util.NetUtil;
 
 public final class Helpers {
@@ -370,6 +372,11 @@ public final class Helpers {
             last = elements[i].getClassName();
         }
         return last;
+    }
+
+    private static final MimetypesFileTypeMap mimeTypesMap = new MimetypesFileTypeMap();
+    public static String getMimeType(String file) {
+        return mimeTypesMap.getContentType(file);
     }
 
 }
