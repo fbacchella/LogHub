@@ -133,7 +133,7 @@
         </dependency>
         <dependency>
             <groupId>fr.jrds</groupId>
-            <artifactId>SmiExtensions</artifactId>
+            <artifactId>snmpcodec</artifactId>
             <version>0.0.1-SNAPSHOT</version>
         </dependency>
         <dependency>

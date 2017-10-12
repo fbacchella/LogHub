@@ -1,19 +1,14 @@
 package loghub.receivers;
 
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.ByteBuffer;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
-import java.util.stream.Collectors;
 
+import org.apache.logging.log4j.Level;
 import org.snmp4j.CommandResponder;
 import org.snmp4j.CommandResponderEvent;
 import org.snmp4j.MessageDispatcherImpl;
@@ -43,8 +38,7 @@ import org.snmp4j.transport.DefaultUdpTransportMapping;
 import org.snmp4j.util.MultiThreadedMessageDispatcher;
 import org.snmp4j.util.ThreadPool;
 
-import fr.jrds.SmiExtensions.MibTree;
-import fr.jrds.SmiExtensions.objects.OidInfos;
+import fr.jrds.snmpcodec.OIDFormatter;
 import loghub.Event;
 import loghub.Pipeline;
 import loghub.Receiver;
@@ -80,7 +74,7 @@ public class SnmpTrap extends Receiver implements CommandResponder {
     private String protocol = "udp";
     private int port = 162;
     private String listen = "0.0.0.0";
-    private MibTree mibtree = null;
+    private OIDFormatter formatter = null;
 
     public SnmpTrap(BlockingQueue<Event> outQueue, Pipeline processors) {
         super(outQueue, processors);
@@ -88,29 +82,20 @@ public class SnmpTrap extends Receiver implements CommandResponder {
 
     @Override
     public boolean configure(Properties properties) {
-        if(mibtree == null) {
-            mibtree = new MibTree();
-        }
-
-        if(! reconfigured && properties.containsKey("oidfile")) {
+        if(! reconfigured && properties.containsKey("mibdirs")) {
             reconfigured = true;
-            String oidfile = null;
+            String[] mibdirs = null;
             try {
-                oidfile = (String) properties.get("oidfile");
-                InputStream is = new FileInputStream(oidfile);
-                mibtree.load(is);
+                mibdirs = (String[]) properties.get("mibdirs");
+                formatter = OIDFormatter.register(mibdirs);
             } catch (ClassCastException e) {
-                logger.error("oidfile property is not a string");
-                return false;
-            } catch (FileNotFoundException e) {
-                logger.error("oidfile {} cant't be found", oidfile);
-                return false;
-            } catch (IOException e) {
-                logger.error("oidfile {} cant't be read: {}", oidfile, e.getMessage());
+                logger.error("mibdirs property is not a string array");
+                logger.catching(Level.DEBUG, e.getCause());
                 return false;
             }
+        } else {
+            formatter = OIDFormatter.register();
         }
-
         threadPool = ThreadPool.create("Trap", 2);
         MultiThreadedMessageDispatcher dispatcher = new MultiThreadedMessageDispatcher(threadPool,
                 new MessageDispatcherImpl());
@@ -164,14 +149,13 @@ public class SnmpTrap extends Receiver implements CommandResponder {
             Event event = emptyEvent();
             if (pdu instanceof PDUv1) {
                 PDUv1 pduv1 = (PDUv1) pdu;
-                @SuppressWarnings("unchecked")
-                List<String> enterprise = (List<String>) convertVar(pduv1.getEnterprise());
-                event.put("enterprise", enterprise.get(0));
+                String enterprise = (String) convertVar(pduv1.getEnterprise());
+                event.put("enterprise", enterprise);
                 event.put("agent_addr", pduv1.getAgentAddress().getInetAddress());
                 if (pduv1.getGenericTrap() != PDUv1.ENTERPRISE_SPECIFIC) {
                     event.put("generic_trap", GENERICTRAP.values()[pduv1.getGenericTrap()].toString());
                 } else {
-                    String resolved = mibtree.resolveTrapSpecific(pduv1.getEnterprise(), pduv1.getSpecificTrap());
+                    String resolved = formatter.format(pduv1.getEnterprise(), new Integer32(pduv1.getSpecificTrap()), true);
                     event.put("specific_trap", resolved);
                 }
                 event.put("time_stamp", 1.0 * pduv1.getTimestamp() / 100.0);
@@ -196,38 +180,17 @@ public class SnmpTrap extends Receiver implements CommandResponder {
         }
     }
 
-    public List<String> smartPrint(OID oid) {
-        return Arrays.stream(mibtree.parseIndexOID(oid)).map( i-> i.toString()).collect(Collectors.toList());
-    }
-
     private void smartPut(Event e, OID oid, Object value) {
-        OidInfos found = mibtree.searchInfos(oid);
-        if(found == null) {
-            e.put(oid.toDottedString(), value);
-        }
-        else {
-            OidInfos parent = mibtree.getParent(found.getOidElements());
-            if(parent != null && parent.isIndex()) {
-                Map<String, Object> valueMap = new HashMap<>(3);
-                Object[] resolved = mibtree.parseIndexOID(oid);
-                valueMap.put("index", Arrays.copyOfRange(resolved, 1, resolved.length));
-                valueMap.put("value", value);
-                e.put(found.getName(), valueMap);
-            } else {
-                int oidCompare = found.compareTo(oid);
-                if (oidCompare == 0 || (-oidCompare == oid.size() && oid.last() == 0)) {
-                    // if found exactly or was suffixed by .0, put the value directly
-                    e.put(found.getName(), value);
-                } else { // found OID is shorter than request OID
-                    OID foundOID = found.getOID();
-                    int[] suffixes = Arrays.copyOfRange(oid.getValue(), foundOID.size(), oid.size());
-                    Map<String, Object> valueMap = new HashMap<>(2);
-                    // Put suboid only if it's not .0
-                    valueMap.put("suboid", new OID(suffixes));
-                    valueMap.put("value", value);
-                    e.put(found.getName(), valueMap);
-                }
-            }
+        Map<String, Object> oidindex = formatter.store.parseIndexOID(oid.getValue());
+        if (oidindex.size() <= 1) {
+            e.put(oid.format(), value);
+        } else {
+            String tableName = oidindex.keySet().stream().findFirst().get();
+            Object rowName = oidindex.remove(tableName);
+            Map<String, Object> valueMap = new HashMap<>(2);
+            valueMap.put("index", oidindex);
+            valueMap.put("value", value);
+            e.put(rowName.toString(), valueMap);
         }
     }
 
@@ -265,8 +228,17 @@ public class SnmpTrap extends Receiver implements CommandResponder {
                 return var.toString();
             case BER.NULL:
                 return null;
-            case BER.OID:
-                return smartPrint( (OID) var );
+            case BER.OID: {
+                OID oid = (OID) var;
+                Map<String, Object> parsed = formatter.store.parseIndexOID(oid.getValue());
+                // If an empty map was return or a single entry map, it's not an table entry, just format the OID
+                if (parsed.size() <= 1) {
+                    return oid.format();
+                } else {
+                    return parsed;
+                }
+
+            }
             case BER.IPADDRESS:
                 return ((IpAddress)var).getInetAddress();
             case BER.COUNTER32:
