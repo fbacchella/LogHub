@@ -1,0 +1,29 @@
+text/css                            css
+text/javascript                     js
+application/xml                     xml xsl
+application/json                    json
+
+# See http://pki-tutorial.readthedocs.io/en/latest/mime.html#file-types for explanations
+application/pkcs8                   p8  key
+application/pkcs10                  p10 csr
+application/pkix-cert               cer crt der
+application/pkix-crl                crl
+application/pkcs7-mime              p7c
+# Netscape version of application/pkix-cert
+# application/x-x509-ca-cert          crt der
+# application/x-x509-user-cert        crt
+application/x-pkcs7-crl             crl
+application/x-pem-file              pem
+application/x-pkcs12                p12 pfx
+application/x-pkcs7-certificates    p7b spc
+application/x-pkcs7-certreqresp     p7r
+application/x-java-keystore         jks
+application/x-java-jce-keystore     jceks
+application/x-java-bc-keystore      bks
+application/x-java-bc-uber-keystore ubr
+font/ttf                            ttf
+font/woff                           woff
+font/woff2                          woff2
+
+image/svg+xml                       svg
+image/x-ico                         ico
