@@ -5,6 +5,7 @@ import java.net.UnknownHostException;
 import java.util.Collections;
 
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import loghub.Event;
@@ -14,6 +15,7 @@ import loghub.configuration.Properties;
 
 public class TestNameResolver {
 
+    @Ignore
     @Test
     public void test1() throws UnknownHostException, ProcessorException {
         NameResolver nr = new NameResolver();
@@ -52,7 +54,6 @@ public class TestNameResolver {
         /// resolving a.root-servers.net.
         e.put("host", InetAddress.getByName("2001:503:ba3e::2:30"));
         nr.process(e);
-        System.out.println(e);
         Assert.assertEquals("resolution failed", "a.root-servers.net", e.get("fqdn_host"));
     }
 }
