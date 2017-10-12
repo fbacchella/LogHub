@@ -417,7 +417,8 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
                 } else if (matcher.group("end") != null){
                     try {
                         byte[] content = decoder.decode(buffer.toString());
-                        String alias = encoder.encodeToString(digest.digest(content));
+                        String alias = encoder.encodeToString(filename.getBytes());
+                        digest.reset();
                         // If object already seen, don't add it again
                         if (stores.get(0).containsAlias(alias)) {
                             continue;
@@ -425,7 +426,6 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
                         if (matcher.group("cert") != null) {
                             Certificate cert = cf.generateCertificate(new ByteArrayInputStream(content));
                             KeyStore.TrustedCertificateEntry entry = new KeyStore.TrustedCertificateEntry(cert);
-                            digest.reset();
                             stores.get(0).setEntry(alias, entry, null);
                         }
                     } catch (CertificateException e) {
