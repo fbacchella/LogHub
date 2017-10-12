@@ -111,7 +111,6 @@ public abstract class AbstractHttpSender extends Sender {
         public String toString() {
             return realType.toString();
         }
-
     };
 
     protected class HttpResponse implements Closeable {

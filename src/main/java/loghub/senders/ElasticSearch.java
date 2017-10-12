@@ -102,15 +102,18 @@ public class ElasticSearch extends AbstractHttpSender {
                             continue;
                         }
                         try {
-                            boolean needsrefresh = response.getStatus() == 404;
                             int status = response.getStatus();
-                            if (!needsrefresh && (status - status % 100) == 200) {
+                            boolean needsrefresh;
+                            if (status == 404) {
+                                needsrefresh = true;
+                            } else  if ((status - status % 100) == 200) {
                                 String currenttemplate = json.get().readTree(response.getContentReader()).toString();
                                 needsrefresh = ! currenttemplate.equals(wantedtemplate);
                             } else {
                                 break;
                             }
                             if (needsrefresh) {
+                                logger.warn("Template {} needs to be refreshed", templateName);
                                 HttpRequest puttemplate = new HttpRequest();
                                 puttemplate.setVerb("PUT");
                                 puttemplate.setUrl(newEndPoint);
@@ -160,7 +163,7 @@ public class ElasticSearch extends AbstractHttpSender {
         request.setTypeAndContent("application/json", CharsetUtil.UTF_8, putContent(documents));
         request.setVerb("POST");
         for (URL newEndPoint: endPoints) {
-            request.setUrl(new URL(newEndPoint, "_bulk"));
+            request.setUrl(new URL(newEndPoint, newEndPoint.getPath() + "/_bulk"));
             HttpResponse resp = doRequest(request);
             if (resp.isConnexionFailed()) {
                 continue;
