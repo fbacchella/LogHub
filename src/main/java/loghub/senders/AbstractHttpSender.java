@@ -156,7 +156,7 @@ public abstract class AbstractHttpSender extends Sender {
         public String getStatusMessage() {
             return response.getStatusLine().getReasonPhrase();
         }
-        public boolean isFailed() {
+        public boolean isConnexionFailed() {
             return socketException != null || sslexception != null;
         }
         public IOException getSocketException() {
