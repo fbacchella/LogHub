@@ -16,6 +16,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import loghub.Encoder;
 import loghub.Event;
+import loghub.Sender;
+import loghub.configuration.Properties;
 
 public class Gelf extends Encoder {
 
@@ -37,6 +39,11 @@ public class Gelf extends Encoder {
     private boolean stream = false;
     private String shortmessagefield = "shortmessage";
     private String fullmessagefield = null;
+
+    @Override
+    public boolean configure(Properties properties, Sender sender) {
+        return super.configure(properties, sender);
+    }
 
     @Override
     public byte[] encode(Event event) {
@@ -83,15 +90,6 @@ public class Gelf extends Encoder {
     public void setCompressed(Boolean compressed) {
         this.compressed = compressed;
         this.stream = compressed ? false : this.stream;
-    }
-
-    public Boolean isStream() {
-        return stream;
-    }
-
-    public void setStream(Boolean stream) {
-        this.stream = stream;
-        this.compressed = stream ? false: this.compressed;
     }
 
     public String getShortmessagefield() {
