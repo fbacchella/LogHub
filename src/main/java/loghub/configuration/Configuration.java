@@ -33,9 +33,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-import org.antlr.v4.runtime.ANTLRFileStream;
-import org.antlr.v4.runtime.ANTLRInputStream;
 import org.antlr.v4.runtime.CharStream;
+import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.RecognitionException;
@@ -85,17 +84,17 @@ public class Configuration {
 
     public static Properties parse(String fileName) throws IOException, ConfigException {
         Configuration conf = new Configuration();
-        return conf.runparsing(new ANTLRFileStream(fileName));
+        return conf.runparsing(CharStreams.fromFileName(fileName));
     }
 
     public static Properties parse(InputStream is) throws IOException, ConfigException {
         Configuration conf = new Configuration();
-        return conf.runparsing(new ANTLRInputStream(is));
+        return conf.runparsing(CharStreams.fromStream(is));
     }
 
     public static Properties parse(Reader r) throws ConfigException, IOException {
         Configuration conf = new Configuration();
-        return conf.runparsing(new ANTLRInputStream(r));
+        return conf.runparsing(CharStreams.fromReader(r));
     }
 
     private Properties runparsing(CharStream cs) throws ConfigException {
@@ -111,7 +110,7 @@ public class Configuration {
             Consumer<String> parseSubFile = fileName -> {
                 try {
                     logger.debug("parsing {}", fileName);
-                    CharStream localcs = new ANTLRFileStream(fileName);
+                    CharStream localcs = CharStreams.fromFileName(fileName);
                     RouteParser.ConfigurationContext localtree = getTree(localcs, conflistener);
                     lockedProperties.forEach( i -> conflistener.lockProperty(i));
                     resolveProperties(localtree, conflistener, propertiesContext);
