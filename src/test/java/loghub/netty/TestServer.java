@@ -154,7 +154,6 @@ public class TestServer {
         r.getChannelFuture().sync();
         sent[0].sync();
         f.channel().close();
-
         // Wait until the connection is closed.
         f.channel().closeFuture().sync();
 

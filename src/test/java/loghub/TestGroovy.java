@@ -23,6 +23,7 @@ public class TestGroovy {
         groovyScript.setBinding(groovyBinding);
         System.out.println(groovyScript.run().getClass());
     }
+
     @SuppressWarnings("unchecked")
     @Test
     public void testGroovy2() throws InstantiationException, IllegalAccessException, NoSuchMethodException, SecurityException, IllegalArgumentException, InvocationTargetException, IOException {
