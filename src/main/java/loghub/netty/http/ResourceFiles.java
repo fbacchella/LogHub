@@ -31,26 +31,25 @@ public class ResourceFiles extends HttpRequestProcessing {
     
     private String internalPath;
     private Date internalDate;
+    private URL resourceUrl;
 
     @Override
     public boolean acceptRequest(HttpRequest request) {
-        String uri = request.uri();
-        return uri.startsWith("/static");
+        String name = "static/" + ROOT.relativize(
+                Paths.get(request.uri())
+                .normalize()
+                ).toString();
+        resourceUrl = getClass().getClassLoader().getResource(name);
+        if (resourceUrl == null) {
+            return false;
+        } else {
+            return true;
+        }
     }
 
     @Override
     protected boolean processRequest(FullHttpRequest request, ChannelHandlerContext ctx) throws HttpRequestFailure {
-        String name = ROOT.relativize(
-                Paths.get(request.uri())
-                .normalize()
-                ).toString();
-        if (! name.startsWith("static/")) {
-            throw new HttpRequestFailure(HttpResponseStatus.FORBIDDEN, "Access to " + name + " forbiden");
-        }
-        URL resourceUrl = getClass().getClassLoader().getResource(name);
-        if (resourceUrl == null) {
-            throw new HttpRequestFailure(HttpResponseStatus.NOT_FOUND, request.uri() + " not found");
-        } else if ("jar".equals(resourceUrl.getProtocol())) {
+        if ("jar".equals(resourceUrl.getProtocol())) {
             try {
                 JarURLConnection jarConnection = (JarURLConnection)resourceUrl.openConnection();
                 JarEntry entry = jarConnection.getJarEntry();
