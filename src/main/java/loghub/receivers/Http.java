@@ -35,9 +35,9 @@ public class Http extends Receiver {
 
         @Override
         protected boolean processRequest(FullHttpRequest request, ChannelHandlerContext ctx) throws HttpRequestFailure {
-            Event e = Http.this.emptyEvent();
+            Event e = Http.this.emptyEvent(Http.this.getConnectionContext(ctx));
             try {
-                Map<String, Object> result = Http.this.decoder.decode(request.content());
+                Map<String, Object> result = Http.this.decoder.decode(e.getConnectionContext(), request.content());
                 e.putAll(result);
                 Http.this.send(e);
                 ByteBuf content = Unpooled.copiedBuffer("{'decoded': true}\r\n", CharsetUtil.UTF_8);
