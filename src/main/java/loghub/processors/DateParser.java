@@ -129,11 +129,6 @@ public class DateParser extends FieldsProcessor {
         return converted;
     }
 
-    @Override
-    public String getName() {
-        return null;
-    }
-
     /**
      * @return the pattern
      */
