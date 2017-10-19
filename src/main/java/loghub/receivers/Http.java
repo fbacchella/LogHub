@@ -11,6 +11,7 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandler.Sharable;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
+import io.netty.handler.codec.ByteToMessageDecoder;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
@@ -18,12 +19,11 @@ import io.netty.util.CharsetUtil;
 import loghub.Decoder.DecodeException;
 import loghub.Event;
 import loghub.Pipeline;
-import loghub.Receiver;
 import loghub.configuration.Properties;
 import loghub.netty.http.AbstractHttpServer;
 import loghub.netty.http.HttpRequestProcessing;
 
-public class Http extends Receiver {
+public class Http extends GenericTcp {
 
     @Sharable
     private class PostHandler extends HttpRequestProcessing {
@@ -74,6 +74,7 @@ public class Http extends Receiver {
 
     public Http(BlockingQueue<Event> outQueue, Pipeline pipeline) {
         super(outQueue, pipeline);
+        setServer(webserver);
     }
 
     @Override
@@ -127,6 +128,11 @@ public class Http extends Receiver {
     public void setHost(String host) {
         // Ensure host is null if given empty string, to be resolved as "bind *" by InetSocketAddress;
         this.host = host != null && !host.isEmpty() ? host : null;
+    }
+
+    @Override
+    protected ByteToMessageDecoder getSplitter() {
+        return null;
     }
 
 }

@@ -21,11 +21,16 @@ import loghub.netty.servers.TcpServer;
 
 public abstract class GenericTcp extends NettyIpReceiver<TcpServer, TcpFactory, ServerBootstrap, ServerChannel, ServerSocketChannel, SocketChannel, ByteBuf> {
 
-    private final TcpServer server = new TcpServer();
+    private TcpServer server;
     private int backlog = 16;
 
     public GenericTcp(BlockingQueue<Event> outQueue, Pipeline pipeline) {
         super(outQueue, pipeline);
+        server = new TcpServer();
+    }
+
+    protected void setServer(TcpServer server) {
+        this.server = server;
     }
 
     @Override
@@ -35,7 +40,10 @@ public abstract class GenericTcp extends NettyIpReceiver<TcpServer, TcpFactory, 
 
     @Override
     public void addHandlers(ChannelPipeline pipe) {
-        pipe.addFirst("Splitter", getSplitter());
+        ByteToMessageDecoder splitter =  getSplitter();
+        if (splitter != null) {
+            pipe.addFirst("Splitter", getSplitter());
+        }
         super.addHandlers(pipe);
     }
 
