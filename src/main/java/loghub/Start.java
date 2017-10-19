@@ -80,7 +80,11 @@ public class Start extends Thread {
             e.printStackTrace();
             System.exit(1);
         } catch (ConfigException e) {
-            System.out.format("Error in %s: %s\n", e.getLocation(), e.getMessage());
+            Throwable t = e;
+            if (e.getCause() != null) {
+                t = e.getCause();
+            }
+            System.out.format("Error in %s: %s\n", e.getLocation(), t.getMessage());
             System.exit(1);
         } catch (RuntimeException e) {
             e.printStackTrace();
