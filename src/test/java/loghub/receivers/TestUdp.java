@@ -35,9 +35,8 @@ public class TestUdp {
     }
 
     private void testsend(int size) throws IOException, InterruptedException {
-
         // Generate a locally binded random socket
-        DatagramSocket socket = new DatagramSocket(0, InetAddress.getLocalHost());
+        DatagramSocket socket = new DatagramSocket(0, InetAddress.getLoopbackAddress());
         String hostname = socket.getLocalAddress().getHostAddress();
         int port = socket.getLocalPort();
         socket.close();
@@ -85,4 +84,5 @@ public class TestUdp {
     public void testbig() throws InterruptedException, IOException {
         testsend(16384);
     }
+
 }
