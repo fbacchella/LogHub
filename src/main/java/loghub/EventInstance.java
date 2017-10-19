@@ -34,13 +34,15 @@ class EventInstance extends Event {
     private transient Context timer;
     private int stepsCount = 0;
     private boolean test;
+    private final ConnectionContext ctx;
 
-    EventInstance() {
-        this(false);
+    EventInstance(ConnectionContext ctx) {
+        this(ctx, false);
     }
 
-    EventInstance(boolean test) {
+    EventInstance(ConnectionContext ctx, boolean test) {
         this.test = test;
+        this.ctx = ctx;
         if (! test) {
             Properties.metrics.counter("Allevents.inflight").inc();
             timer = Properties.metrics.timer("Allevents.timer").time();
@@ -249,6 +251,11 @@ class EventInstance extends Event {
             }
             remove(Event.TIMESTAMPKEY);
         }
+    }
+
+    @Override
+    public ConnectionContext getConnectionContext() {
+        return ctx;
     }
 
 }

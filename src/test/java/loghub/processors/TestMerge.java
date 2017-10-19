@@ -14,6 +14,7 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import loghub.ConnectionContext;
 import loghub.Event;
 import loghub.LogUtils;
 import loghub.ProcessorException;
@@ -41,10 +42,10 @@ public class TestMerge {
         Assert.assertTrue(p.pipelines.stream().allMatch(i-> i.configure(p)));
         Merge m = (Merge) p.namedPipeLine.get("main").processors.stream().findFirst().get();
         try {
-            m.process(Event.emptyEvent());
+            m.process(Event.emptyEvent(ConnectionContext.EMPTY));
         } catch (ProcessorException.DroppedEventException e1) {
         }
-        Event e = Event.emptyEvent();
+        Event e = Event.emptyEvent(ConnectionContext.EMPTY);
         e.setTimestamp(new Date(0));
         e.put("a", 1);
         e.put("b", 2);
@@ -87,7 +88,7 @@ public class TestMerge {
         Properties p = Configuration.parse(new StringReader(conf));
         Assert.assertTrue(p.pipelines.stream().allMatch(i-> i.configure(p)));
         Merge m = (Merge) p.namedPipeLine.get("main").processors.stream().findFirst().get();
-        Event e = Event.emptyEvent();
+        Event e = Event.emptyEvent(ConnectionContext.EMPTY);
         e.setTimestamp(new Date(0));
         e.put("a", 1);
         e.put("b", 2);
@@ -114,7 +115,7 @@ public class TestMerge {
         Properties p = Configuration.parse(new StringReader(conf));
         Assert.assertTrue(p.pipelines.stream().allMatch(i-> i.configure(p)));
         Merge m = (Merge) p.namedPipeLine.get("main").processors.stream().findFirst().get();
-        Event e = Event.emptyEvent();
+        Event e = Event.emptyEvent(ConnectionContext.EMPTY);
         e.setTimestamp(new Date(0));
         e.put("a", 1);
         e.put("b", 2);

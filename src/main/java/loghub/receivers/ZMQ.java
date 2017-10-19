@@ -9,6 +9,7 @@ import org.apache.logging.log4j.Level;
 import org.zeromq.ZMQ.Socket;
 import org.zeromq.ZMQException;
 
+import loghub.ConnectionContext;
 import loghub.Event;
 import loghub.Pipeline;
 import loghub.Receiver;
@@ -73,8 +74,9 @@ public class ZMQ extends Receiver {
             @Override
             public Event next() {
                 try {
+                    listeningSocket.base();
                     byte[] msg = generator.next();
-                    return decode(msg);
+                    return decode(ConnectionContext.EMPTY, msg);
                 } catch (ClosedSelectorException|zmq.ZError.CtxTerminatedException e) {
                     return null;
                 } catch (ZMQException|zmq.ZError.IOException|zmq.ZError.InstantiationException e) {

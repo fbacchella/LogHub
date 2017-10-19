@@ -4,6 +4,7 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Collections;
@@ -35,6 +36,7 @@ import org.snmp4j.smi.OID;
 import org.snmp4j.smi.OctetString;
 import org.snmp4j.smi.Opaque;
 import org.snmp4j.smi.TimeTicks;
+import org.snmp4j.smi.TransportIpAddress;
 import org.snmp4j.smi.UdpAddress;
 import org.snmp4j.smi.UnsignedInteger32;
 import org.snmp4j.smi.Variable;
@@ -45,7 +47,9 @@ import org.snmp4j.util.ThreadPool;
 
 import fr.jrds.SmiExtensions.MibTree;
 import fr.jrds.SmiExtensions.objects.OidInfos;
+import loghub.ConnectionContext;
 import loghub.Event;
+import loghub.IpConnectionContext;
 import loghub.Pipeline;
 import loghub.Receiver;
 import loghub.configuration.Beans;
@@ -156,12 +160,24 @@ public class SnmpTrap extends Receiver implements CommandResponder {
         }
         super.close();
     }
+    
+    private InetSocketAddress getSA(TransportIpAddress tia) {
+        return new InetSocketAddress(tia.getInetAddress(), tia.getPort());
+    }
 
     @Override
     public void processPdu(CommandResponderEvent trap) {
         try {
             PDU pdu = trap.getPDU();
-            Event event = emptyEvent();
+            Address localaddr = trap.getTransportMapping().getListenAddress();
+            Address remoteaddr = trap.getPeerAddress();
+            ConnectionContext ctx = ConnectionContext.EMPTY;
+            if (localaddr instanceof TransportIpAddress && remoteaddr instanceof TransportIpAddress ) {
+                InetSocketAddress localinetaddr = getSA((TransportIpAddress) localaddr);
+                InetSocketAddress remoteinetaddr = getSA((TransportIpAddress) remoteaddr);
+                ctx = new IpConnectionContext(localinetaddr, remoteinetaddr, null);
+            }
+            Event event = emptyEvent(ctx);
             if (pdu instanceof PDUv1) {
                 PDUv1 pduv1 = (PDUv1) pdu;
                 @SuppressWarnings("unchecked")

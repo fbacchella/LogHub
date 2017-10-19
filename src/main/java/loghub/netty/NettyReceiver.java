@@ -17,6 +17,7 @@ import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.MessageToMessageDecoder;
 import io.netty.util.AttributeKey;
 import io.netty.util.ReferenceCounted;
+import loghub.ConnectionContext;
 import loghub.Decoder.DecodeException;
 import loghub.Event;
 import loghub.Helpers;
@@ -31,7 +32,8 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
     private class EventSender extends SimpleChannelInboundHandler<Map<String, Object>> {
         @Override
         protected void channelRead0(ChannelHandlerContext ctx, Map<String, Object> msg) throws Exception {
-            Event event = emptyEvent();
+            ConnectionContext cctx = (ConnectionContext) ctx.channel().attr(CONNECTIONCONTEXTATTRIBUTE).get();
+            Event event = emptyEvent(cctx);
             Object addr = ctx.channel().attr(SOURCEADDRESSATTRIBUTE).get();
             if (addr != null) {
                 event.put("host", addr);
@@ -46,7 +48,9 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
         @Override
         protected void decode(ChannelHandlerContext ctx, SM msg, List<Object> out) {
             try {
-                Map<String, Object> content = decoder.decode(getContent(msg));
+                ConnectionContext cctx = getConnectionContext(ctx);
+                ctx.channel().attr(CONNECTIONCONTEXTATTRIBUTE).set(cctx);
+                Map<String, Object> content = decoder.decode(cctx, getContent(msg));
                 out.add(content);
             } catch (DecodeException e) {
                 manageDecodeException(e);
@@ -89,7 +93,8 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
         }
     }
 
-    private static final AttributeKey<Object> SOURCEADDRESSATTRIBUTE = AttributeKey.newInstance("SourceAddressAttibute");
+    private static final AttributeKey<Object> SOURCEADDRESSATTRIBUTE = AttributeKey.newInstance("SourceAddressAttribute");
+    private static final AttributeKey<Object> CONNECTIONCONTEXTATTRIBUTE = AttributeKey.newInstance("ConnectionContextAttribute");
 
     private ChannelFuture cf;
     private S server;
@@ -161,6 +166,8 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
     public abstract SA getListenAddress();
 
     protected abstract S getServer();
+
+    public abstract ConnectionContext getConnectionContext(ChannelHandlerContext ctx);
 
     @Override
     public void close() {

@@ -7,6 +7,7 @@ import java.util.Map;
 import org.xbill.DNS.Message;
 
 import io.netty.buffer.ByteBuf;
+import loghub.ConnectionContext;
 import loghub.Decoder;
 import loghub.configuration.Beans;
 
@@ -16,7 +17,7 @@ public class DnsDecoder extends Decoder {
     private String field = "message";
 
     @Override
-    public Map<String, Object> decode(byte[] msg, int offset, int length) throws DecodeException {
+    public Map<String, Object> decode(ConnectionContext connectionContext, byte[] msg, int offset, int length) throws DecodeException {
         try {
             Message m = new Message(msg);
             return Collections.singletonMap(getField(), m);
@@ -26,14 +27,14 @@ public class DnsDecoder extends Decoder {
     }
 
     @Override
-    public Map<String, Object> decode(ByteBuf bbuf) throws DecodeException {
+    public Map<String, Object> decode(ConnectionContext connectionContext, ByteBuf bbuf) throws DecodeException {
         if(bbuf.isDirect()) {
             int length = bbuf.readableBytes();
             byte[] buffer = new byte[length];
             bbuf.getBytes(bbuf.readerIndex(), buffer);
-            return decode(buffer);
+            return decode(connectionContext, buffer);
         } else {
-            return decode(bbuf.array());
+            return decode(connectionContext, bbuf.array());
         }
     }
 

@@ -8,6 +8,7 @@ import java.util.Map;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufInputStream;
+import loghub.ConnectionContext;
 import loghub.Decoder;
 import loghub.configuration.Beans;
 
@@ -19,7 +20,7 @@ public class SerializedObject extends Decoder {
     private String objectFied = "objectClass";
 
     @Override
-    public Map<String, Object> decode(byte[] msg, int offset, int length) throws DecodeException {
+    public Map<String, Object> decode(ConnectionContext ctx, byte[] msg, int offset, int length) throws DecodeException {
         try (ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(msg, offset, length))) {
             return decodeStream(ois);
         } catch (IOException e) {
@@ -28,7 +29,7 @@ public class SerializedObject extends Decoder {
     }
 
     @Override
-    public Map<String, Object> decode(ByteBuf bbuf) throws DecodeException {
+    public Map<String, Object> decode(ConnectionContext ctx, ByteBuf bbuf) throws DecodeException {
         try (ObjectInputStream ois = new ObjectInputStream(new ByteBufInputStream(bbuf))) {
             return decodeStream(ois);
         } catch (IOException e) {

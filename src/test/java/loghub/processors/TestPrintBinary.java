@@ -5,6 +5,7 @@ import java.util.Collections;
 import org.junit.Assert;
 import org.junit.Test;
 
+import loghub.ConnectionContext;
 import loghub.Event;
 import loghub.ProcessorException;
 import loghub.configuration.Properties;
@@ -28,7 +29,7 @@ public class TestPrintBinary {
         PrintBinary fs = new PrintBinary();
         fs.configure(new Properties(Collections.emptyMap()));
 
-        Event e = Event.emptyEvent();
+        Event e = Event.emptyEvent(ConnectionContext.EMPTY);
         e.put("binary", "14");
         fs.processMessage(e, "binary", "value");
         Assert.assertEquals("Bad decoding of bitfield", "0b1110", e.get("value"));

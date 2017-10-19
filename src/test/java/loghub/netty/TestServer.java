@@ -30,6 +30,7 @@ import io.netty.channel.local.LocalChannel;
 import io.netty.channel.local.LocalServerChannel;
 import io.netty.handler.codec.LineBasedFrameDecoder;
 import io.netty.util.CharsetUtil;
+import loghub.ConnectionContext;
 import loghub.Event;
 import loghub.LogUtils;
 import loghub.Pipeline;
@@ -111,6 +112,11 @@ public class TestServer {
             } else {
                 return null;
             }
+        }
+
+        @Override
+        public ConnectionContext getConnectionContext(ChannelHandlerContext ctx) {
+            return ConnectionContext.EMPTY;
         }
 
     }

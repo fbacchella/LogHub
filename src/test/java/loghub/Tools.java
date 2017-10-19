@@ -53,7 +53,7 @@ public class Tools {
     }
 
     public static Event getEvent() {
-        return new EventInstance();
+        return new EventInstance(ConnectionContext.EMPTY);
     }
 
     public static void runProcessing(Event sent, Pipeline pipe, Properties props) throws ProcessorException {

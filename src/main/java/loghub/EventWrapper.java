@@ -211,4 +211,9 @@ class EventWrapper extends Event {
         event.drop();
     }
 
+    @Override
+    public ConnectionContext getConnectionContext() {
+        return event.getConnectionContext();
+    }
+
 }

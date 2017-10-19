@@ -2,12 +2,16 @@ package loghub.netty;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.net.UnknownHostException;
 import java.util.concurrent.BlockingQueue;
 
 import io.netty.bootstrap.AbstractBootstrap;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelHandlerContext;
+import loghub.ConnectionContext;
 import loghub.Event;
+import loghub.IpConnectionContext;
 import loghub.Pipeline;
 import loghub.configuration.Properties;
 import loghub.netty.servers.AbstractNettyServer;
@@ -59,6 +63,21 @@ public abstract class NettyIpReceiver<S extends AbstractNettyServer<CF, BS, BSC,
     public void setHost(String host) {
         // Ensure host is null if given empty string, to be resolved as "bind *" by InetSocketAddress;
         this.host = host != null && !host.isEmpty() ? host : null;
+    }
+
+    @Override
+    public ConnectionContext getConnectionContext(ChannelHandlerContext ctx) {
+        InetSocketAddress remoteaddr = null;
+        InetSocketAddress localaddr = null;
+        SocketAddress remoteddr = ctx.channel().remoteAddress();
+        SocketAddress localddr = ctx.channel().localAddress();
+        if (remoteddr instanceof InetSocketAddress) {
+            remoteaddr = (InetSocketAddress)remoteddr;
+        }
+        if (localddr instanceof InetSocketAddress) {
+            remoteaddr = (InetSocketAddress)remoteddr;
+        }
+        return new IpConnectionContext(localaddr, remoteaddr, null);
     }
 
 }

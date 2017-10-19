@@ -20,6 +20,7 @@ import org.msgpack.value.ValueFactory;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import loghub.ConnectionContext;
 import loghub.Decoder;
 import loghub.Decoder.DecodeException;
 import loghub.LogUtils;
@@ -50,7 +51,7 @@ public class TestMsgpack {
     public void testmap() throws IOException, DecodeException {
         Decoder d = new Msgpack();
 
-        Map<String, Object> e = d.decode(objectMapper.writeValueAsBytes(obj));
+        Map<String, Object> e = d.decode(ConnectionContext.EMPTY, objectMapper.writeValueAsBytes(obj));
 
         testContent(e);
     }
@@ -79,7 +80,7 @@ public class TestMsgpack {
         packer.close();
         byte[] packed = out.toByteArray();
 
-        Map<String, Object> e = d.decode(packed);
+        Map<String, Object> e = d.decode(ConnectionContext.EMPTY, packed);
 
         testContent(e);
     }
@@ -93,7 +94,7 @@ public class TestMsgpack {
 
         Msgpack d = new Msgpack();
         d.setField("vector");
-        Map<String, Object> e = d.decode(bs);
+        Map<String, Object> e = d.decode(ConnectionContext.EMPTY, bs);
 
         List<Map<String, Object>> v = (List<Map<String, Object>>) e.get("vector");
         testContent(v.get(0));
