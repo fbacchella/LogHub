@@ -40,12 +40,13 @@ public class Http extends GenericTcp {
                 Map<String, Object> result = Http.this.decoder.decode(e.getConnectionContext(), request.content());
                 e.putAll(result);
                 Http.this.send(e);
-                ByteBuf content = Unpooled.copiedBuffer("{'decoded': true}\r\n", CharsetUtil.UTF_8);
-                return writeResponse(ctx, request, content, content.readableBytes());
             } catch (DecodeException e1) {
+                e.end();
                 logger.error("Can't decode content", e1);
                 throw new HttpRequestFailure(HttpResponseStatus.BAD_REQUEST, "Content invalid for decoder");
             }
+            ByteBuf content = Unpooled.copiedBuffer("{'decoded': true}\r\n", CharsetUtil.UTF_8);
+            return writeResponse(ctx, request, content, content.readableBytes());
         }
 
         @Override
