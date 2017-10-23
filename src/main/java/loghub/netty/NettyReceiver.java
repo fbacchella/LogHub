@@ -34,10 +34,6 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
         protected void channelRead0(ChannelHandlerContext ctx, Map<String, Object> msg) throws Exception {
             ConnectionContext cctx = (ConnectionContext) ctx.channel().attr(CONNECTIONCONTEXTATTRIBUTE).get();
             Event event = emptyEvent(cctx);
-            Object addr = ctx.channel().attr(SOURCEADDRESSATTRIBUTE).get();
-            if (addr != null) {
-                event.put("host", addr);
-            }
             populate(event, ctx, msg);
             send(event);
         }
@@ -48,8 +44,7 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
         @Override
         protected void decode(ChannelHandlerContext ctx, SM msg, List<Object> out) {
             try {
-                ConnectionContext cctx = getConnectionContext(ctx);
-                ctx.channel().attr(CONNECTIONCONTEXTATTRIBUTE).set(cctx);
+                ConnectionContext cctx = (ConnectionContext) ctx.channel().attr(CONNECTIONCONTEXTATTRIBUTE).get();
                 Map<String, Object> content = decoder.decode(cctx, getContent(msg));
                 out.add(content);
             } catch (DecodeException e) {
@@ -62,16 +57,14 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
     }
 
     @Sharable
-    private class SourceAddressResolver extends MessageToMessageDecoder<SM> {
+    private class ContextExtractor extends MessageToMessageDecoder<SM> {
         @Override
         protected void decode(ChannelHandlerContext ctx, SM msg, List<Object> out) {
+            ConnectionContext cctx = getConnectionContext(ctx, msg);
+            ctx.channel().attr(CONNECTIONCONTEXTATTRIBUTE).set(cctx);
             //The message is not transformeed in this step, so don't decrease reference count
             if (msg instanceof ReferenceCounted) {
                 ((ReferenceCounted) msg).retain();
-            }
-            Object address = ResolveSourceAddress(ctx, msg);
-            if(address != null) {
-                ctx.channel().attr(SOURCEADDRESSATTRIBUTE).set(address);
             }
             out.add(msg);
         }
@@ -93,14 +86,13 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
         }
     }
 
-    private static final AttributeKey<Object> SOURCEADDRESSATTRIBUTE = AttributeKey.newInstance("SourceAddressAttribute");
     private static final AttributeKey<Object> CONNECTIONCONTEXTATTRIBUTE = AttributeKey.newInstance("ConnectionContextAttribute");
 
     private ChannelFuture cf;
     private S server;
     protected MessageToMessageDecoder<SM> nettydecoder;
     private final EventSender sender = new EventSender();
-    private final MessageToMessageDecoder<SM> resolver = new SourceAddressResolver();
+    private final MessageToMessageDecoder<SM> extractor = new ContextExtractor();
     private final ChannelInboundHandlerAdapter exceptionhandler = new ExceptionHandler();
     private final boolean selfDecoder;
     private final boolean closeOnError;
@@ -140,7 +132,7 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
 
     @Override
     public void addHandlers(ChannelPipeline p) {
-        p.addFirst("SourceResolver", resolver);
+        p.addFirst("SourceResolver", extractor);
         if (! selfDecoder) {
             p.addLast("MessageDecoder", getNettyDecoder());
         }
@@ -161,13 +153,11 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
 
     protected abstract ByteBuf getContent(SM message);
 
-    protected abstract Object ResolveSourceAddress(ChannelHandlerContext ctx, SM message);
-
     public abstract SA getListenAddress();
 
     protected abstract S getServer();
 
-    public abstract ConnectionContext getConnectionContext(ChannelHandlerContext ctx);
+    public abstract ConnectionContext getConnectionContext(ChannelHandlerContext ctx, SM message);
 
     @Override
     public void close() {

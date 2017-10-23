@@ -35,7 +35,7 @@ public class Http extends GenericTcp {
 
         @Override
         protected boolean processRequest(FullHttpRequest request, ChannelHandlerContext ctx) throws HttpRequestFailure {
-            Event e = Http.this.emptyEvent(Http.this.getConnectionContext(ctx));
+            Event e = Http.this.emptyEvent(Http.this.getConnectionContext(ctx, null));
             try {
                 Map<String, Object> result = Http.this.decoder.decode(e.getConnectionContext(), request.content());
                 e.putAll(result);

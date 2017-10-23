@@ -43,6 +43,10 @@ class EventInstance extends Event {
     EventInstance(ConnectionContext ctx, boolean test) {
         this.test = test;
         this.ctx = ctx;
+        if (ctx instanceof IpConnectionContext) {
+            IpConnectionContext ipcc = (IpConnectionContext) ctx;
+            put("host", ipcc.getRemoteAddress().getAddress());
+        }
         if (! test) {
             Properties.metrics.counter("Allevents.inflight").inc();
             timer = Properties.metrics.timer("Allevents.timer").time();

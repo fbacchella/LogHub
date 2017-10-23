@@ -160,7 +160,7 @@ public class SnmpTrap extends Receiver implements CommandResponder {
         }
         super.close();
     }
-    
+
     private InetSocketAddress getSA(TransportIpAddress tia) {
         return new InetSocketAddress(tia.getInetAddress(), tia.getPort());
     }
@@ -194,10 +194,6 @@ public class SnmpTrap extends Receiver implements CommandResponder {
             }
             @SuppressWarnings("unchecked")
             Enumeration<VariableBinding> vbenum = (Enumeration<VariableBinding>) pdu.getVariableBindings().elements();
-            Address addr = trap.getPeerAddress();
-            if(addr instanceof IpAddress) {
-                event.put("host", ((IpAddress)addr).getInetAddress());
-            }
             for(VariableBinding i: Collections.list(vbenum)) {
                 OID vbOID = i.getOid();
                 Object value = convertVar(i.getVariable());

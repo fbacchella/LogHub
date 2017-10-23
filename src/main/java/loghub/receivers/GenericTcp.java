@@ -1,12 +1,9 @@
 package loghub.receivers;
 
-import java.net.InetSocketAddress;
-import java.net.SocketAddress;
 import java.util.concurrent.BlockingQueue;
 
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.ByteBuf;
-import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.ServerChannel;
@@ -78,17 +75,6 @@ public abstract class GenericTcp extends NettyIpReceiver<TcpServer, TcpFactory, 
      */
     public void setListenBacklog(int backlog) {
         this.backlog = backlog;
-    }
-
-    @Override
-    protected Object ResolveSourceAddress(ChannelHandlerContext ctx, ByteBuf message) {
-        SocketAddress remoteddr = ctx.channel().remoteAddress();
-        if (remoteddr instanceof InetSocketAddress) {
-            InetSocketAddress iaddr = (InetSocketAddress)remoteddr;
-            return iaddr.getAddress();
-        } else {
-            return null;
-        }
     }
 
 }

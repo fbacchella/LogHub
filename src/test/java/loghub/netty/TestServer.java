@@ -1,7 +1,6 @@
 package loghub.netty;
 
 import java.io.IOException;
-import java.net.SocketAddress;
 import java.util.Collections;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
@@ -102,16 +101,6 @@ public class TestServer {
         protected ByteBuf getContent(Object message) {
             logger.debug(message);
             return (ByteBuf) message;
-        }
-
-        @Override
-        protected Object ResolveSourceAddress(ChannelHandlerContext ctx, Object message) {
-            SocketAddress addr = ctx.channel().remoteAddress();
-            if(addr instanceof LocalAddress) {
-                return ((LocalAddress) addr).id();
-            } else {
-                return null;
-            }
         }
 
         @Override
