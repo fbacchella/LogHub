@@ -21,7 +21,7 @@ import loghub.zmq.ZMQHelper;
 @Beans({"method", "listen", "type", "hwm"})
 public class ZMQ extends Receiver {
 
-    private static final SmartContext ctx = SmartContext.getContext();
+    private final SmartContext ctx = SmartContext.getContext();
 
     private ZMQHelper.Method method = ZMQHelper.Method.BIND;
     private String listen = "tcp://localhost:2120";
@@ -74,7 +74,6 @@ public class ZMQ extends Receiver {
             @Override
             public Event next() {
                 try {
-                    listeningSocket.base();
                     byte[] msg = generator.next();
                     return decode(ConnectionContext.EMPTY, msg);
                 } catch (ClosedSelectorException|zmq.ZError.CtxTerminatedException e) {
