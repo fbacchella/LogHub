@@ -25,10 +25,10 @@ public class UdpFactory extends ClientFactory<Channel, InetSocketAddress> {
     }
 
     @Override
-    public EventLoopGroup getEventLoopGroup() {
+    public EventLoopGroup getEventLoopGroup(int threads) {
         switch (poller) {
         case NIO:
-            return new NioEventLoopGroup();
+            return new NioEventLoopGroup(threads);
         default:
             throw new UnsupportedOperationException();
         }

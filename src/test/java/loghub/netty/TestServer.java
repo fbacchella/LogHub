@@ -49,8 +49,8 @@ public class TestServer {
         };
 
         @Override
-        public EventLoopGroup getEventLoopGroup() {
-            return new DefaultEventLoopGroup();
+        public EventLoopGroup getEventLoopGroup( int threads) {
+            return new DefaultEventLoopGroup(threads);
         }
 
         @Override

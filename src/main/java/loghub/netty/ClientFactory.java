@@ -28,8 +28,8 @@ public abstract class ClientFactory<CC extends Channel, SA extends SocketAddress
     }
 
     @Override
-    public void group() {
-        workerGroup = getEventLoopGroup();
+    public void group(int threads) {
+        workerGroup = getEventLoopGroup(threads);
         bootstrap.group(workerGroup);
     }
 

@@ -30,6 +30,7 @@ public abstract class AbstractNettyServer<CF extends ComponentFactory<BS, BSC, S
     private AbstractBootstrap<BS,BSC> bootstrap;
     private SA address;
     protected POLLER poller = POLLER.NIO;
+    private int threads;
 
     public AbstractNettyServer() {
         logger = LogManager.getLogger(Helpers.getFistInitClass());
@@ -44,7 +45,7 @@ public abstract class AbstractNettyServer<CF extends ComponentFactory<BS, BSC, S
         factory = getNewFactory(properties);
         bootstrap = factory.getBootStrap();
         configureBootStrap(bootstrap);
-        factory.group();
+        factory.group(threads);
         factory.addChildhandlers(consumer);
         factory.addHandlers(consumer);
         consumer.addOptions((BS) bootstrap);
@@ -84,5 +85,13 @@ public abstract class AbstractNettyServer<CF extends ComponentFactory<BS, BSC, S
     public CF getFactory() {
         return factory;
     };
+
+    public int getThreads() {
+        return threads;
+    }
+
+    public void setThreads(int threads) {
+        this.threads = threads;
+    }
 
 }

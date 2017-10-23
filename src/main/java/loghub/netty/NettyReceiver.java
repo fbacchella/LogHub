@@ -96,7 +96,8 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
     private final ChannelInboundHandlerAdapter exceptionhandler = new ExceptionHandler();
     private final boolean selfDecoder;
     private final boolean closeOnError;
-
+    private int threads = 1;
+    
     public NettyReceiver(BlockingQueue<Event> outQueue, Pipeline pipeline) {
         super(outQueue, pipeline);
         selfDecoder = getClass().isAnnotationPresent(SelfDecoder.class);
@@ -110,6 +111,7 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
             nettydecoder = new LogHubDecoder();
         }
         server = getServer();
+        server.setThreads(threads);
         cf = server.configure(properties, this);
         return cf != null && super.configure(properties);
     }
@@ -169,6 +171,20 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
             server.getFactory().finish();
         }
         super.close();
+    }
+
+    /**
+     * @return the threads
+     */
+    public int getWorkersThreads() {
+        return threads;
+    }
+
+    /**
+     * @param threads the threads to set
+     */
+    public void setWorkersThreads(int threads) {
+        this.threads = threads;
     }
 
 }

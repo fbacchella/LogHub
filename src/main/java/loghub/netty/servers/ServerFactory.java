@@ -33,9 +33,9 @@ public abstract class ServerFactory<CC extends Channel, SA extends SocketAddress
     }
 
     @Override
-    public void group() {
-        bossGroup = getEventLoopGroup();
-        workerGroup = getEventLoopGroup();
+    public void group(int threads) {
+        bossGroup = getEventLoopGroup(threads);
+        workerGroup = getEventLoopGroup(threads);
         bootstrap.group(bossGroup, workerGroup);
     }
 
