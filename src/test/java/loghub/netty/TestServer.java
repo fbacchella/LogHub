@@ -104,7 +104,7 @@ public class TestServer {
         }
 
         @Override
-        public ConnectionContext getConnectionContext(ChannelHandlerContext ctx) {
+        public ConnectionContext getConnectionContext(ChannelHandlerContext ctx, Object message) {
             return ConnectionContext.EMPTY;
         }
 
