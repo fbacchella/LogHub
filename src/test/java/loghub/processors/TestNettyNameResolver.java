@@ -88,11 +88,10 @@ public class TestNettyNameResolver {
             i.setField("host");
             i.setDestination("fqdn");
             i.setTimeout(1);
-        } , e, "1.1.254.169.in-addr.ptr");
+        } , e, "1.1.254.169.in-addr.arpa");
 
         e = status.mainQueue.take();
         Assert.assertEquals("resolution not failed", null, e.get("fqdn"));
-        Assert.assertEquals("resolution not paused", 1, status.status.get(1).intValue());
         Assert.assertEquals("Queue not empty: " + status.mainQueue, 0, status.mainQueue.size());
         Assert.assertEquals("Still waiting events: " + status.repository, 0, status.repository.waiting());
     }
