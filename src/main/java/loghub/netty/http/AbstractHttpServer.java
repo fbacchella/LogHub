@@ -13,6 +13,7 @@ import io.netty.handler.codec.http.HttpContentCompressor;
 import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.stream.ChunkedWriteHandler;
+import io.netty.util.concurrent.DefaultThreadFactory;
 import loghub.configuration.Properties;
 import loghub.netty.ChannelConsumer;
 import loghub.netty.servers.TcpServer;
@@ -23,6 +24,7 @@ public abstract class AbstractHttpServer extends TcpServer implements ChannelCon
     private String host = null;
 
     public ChannelFuture configure(Properties properties) {
+        setThreadFactory(new DefaultThreadFactory("builtinhttpserver"));
         return super.configure(properties, this);
     }
 

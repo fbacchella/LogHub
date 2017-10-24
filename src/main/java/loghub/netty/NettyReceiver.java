@@ -114,7 +114,7 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
         }
         server = getServer();
         server.setWorkerThreads(threadsCount);
-        ThreadFactory tf = new DefaultThreadFactory(getName(), true);
+        ThreadFactory tf = new DefaultThreadFactory(getReceiverName(), true);
         server.setThreadFactory(tf);
         cf = server.configure(properties, this);
         return cf != null && super.configure(properties);
