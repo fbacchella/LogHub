@@ -1,6 +1,7 @@
 package loghub.netty;
 
 import java.net.InetSocketAddress;
+import java.util.concurrent.ThreadFactory;
 
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFactory;
@@ -25,10 +26,10 @@ public class UdpFactory extends ClientFactory<Channel, InetSocketAddress> {
     }
 
     @Override
-    public EventLoopGroup getEventLoopGroup(int threads) {
+    public EventLoopGroup getEventLoopGroup(int threads, ThreadFactory threadName) {
         switch (poller) {
         case NIO:
-            return new NioEventLoopGroup(threads);
+            return new NioEventLoopGroup(threads, threadName);
         default:
             throw new UnsupportedOperationException();
         }

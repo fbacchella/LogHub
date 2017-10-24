@@ -4,6 +4,7 @@ import java.net.SocketAddress;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ThreadFactory;
 
 import io.netty.bootstrap.AbstractBootstrap;
 import io.netty.buffer.ByteBuf;
@@ -17,6 +18,7 @@ import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.MessageToMessageDecoder;
 import io.netty.util.AttributeKey;
 import io.netty.util.ReferenceCounted;
+import io.netty.util.concurrent.DefaultThreadFactory;
 import loghub.ConnectionContext;
 import loghub.Decoder.DecodeException;
 import loghub.Event;
@@ -96,8 +98,8 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
     private final ChannelInboundHandlerAdapter exceptionhandler = new ExceptionHandler();
     private final boolean selfDecoder;
     private final boolean closeOnError;
-    private int threads = 1;
-    
+    private int threadsCount = 1;
+
     public NettyReceiver(BlockingQueue<Event> outQueue, Pipeline pipeline) {
         super(outQueue, pipeline);
         selfDecoder = getClass().isAnnotationPresent(SelfDecoder.class);
@@ -111,7 +113,9 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
             nettydecoder = new LogHubDecoder();
         }
         server = getServer();
-        server.setThreads(threads);
+        server.setWorkerThreads(threadsCount);
+        ThreadFactory tf = new DefaultThreadFactory(getName(), true);
+        server.setThreadFactory(tf);
         cf = server.configure(properties, this);
         return cf != null && super.configure(properties);
     }
@@ -176,15 +180,15 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
     /**
      * @return the threads
      */
-    public int getWorkersThreads() {
-        return threads;
+    public int getWorkerThreads() {
+        return threadsCount;
     }
 
     /**
      * @param threads the threads to set
      */
-    public void setWorkersThreads(int threads) {
-        this.threads = threads;
+    public void setWorkerThreads(int threads) {
+        this.threadsCount = threads;
     }
 
 }

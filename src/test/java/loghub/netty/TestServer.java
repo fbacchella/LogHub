@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ThreadFactory;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -49,8 +50,8 @@ public class TestServer {
         };
 
         @Override
-        public EventLoopGroup getEventLoopGroup( int threads) {
-            return new DefaultEventLoopGroup(threads);
+        public EventLoopGroup getEventLoopGroup(int threads, ThreadFactory threadFactory) {
+            return new DefaultEventLoopGroup(threads, threadFactory);
         }
 
         @Override

@@ -1,6 +1,7 @@
 package loghub.netty.servers;
 
 import java.net.SocketAddress;
+import java.util.concurrent.ThreadFactory;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -30,7 +31,8 @@ public abstract class AbstractNettyServer<CF extends ComponentFactory<BS, BSC, S
     private AbstractBootstrap<BS,BSC> bootstrap;
     private SA address;
     protected POLLER poller = POLLER.NIO;
-    private int threads;
+    private int threadsCount;
+    private ThreadFactory threadFactory;
 
     public AbstractNettyServer() {
         logger = LogManager.getLogger(Helpers.getFistInitClass());
@@ -45,7 +47,7 @@ public abstract class AbstractNettyServer<CF extends ComponentFactory<BS, BSC, S
         factory = getNewFactory(properties);
         bootstrap = factory.getBootStrap();
         configureBootStrap(bootstrap);
-        factory.group(threads);
+        factory.group(threadsCount, threadFactory);
         factory.addChildhandlers(consumer);
         factory.addHandlers(consumer);
         consumer.addOptions((BS) bootstrap);
@@ -86,12 +88,20 @@ public abstract class AbstractNettyServer<CF extends ComponentFactory<BS, BSC, S
         return factory;
     };
 
-    public int getThreads() {
-        return threads;
+    public int getWorkerThreads() {
+        return threadsCount;
     }
 
-    public void setThreads(int threads) {
-        this.threads = threads;
+    public void setWorkerThreads(int threads) {
+        this.threadsCount = threads;
+    }
+
+    public ThreadFactory getThreadFactory() {
+        return threadFactory;
+    }
+
+    public void setThreadFactory(ThreadFactory threadsFactory) {
+        this.threadFactory = threadsFactory;
     }
 
 }
