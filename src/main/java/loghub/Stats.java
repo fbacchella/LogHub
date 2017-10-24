@@ -13,7 +13,7 @@ public final class Stats {
     public final static AtomicLong failed = new AtomicLong();
     public final static AtomicLong thrown = new AtomicLong();
 
-    private final static Queue<ProcessorException> errors = new ArrayBlockingQueue<>(100);
+    private final static Queue<ProcessingException> errors = new ArrayBlockingQueue<>(100);
     private final static Queue<Exception> exceptions = new ArrayBlockingQueue<>(100);
 
     private Stats() {
@@ -29,7 +29,7 @@ public final class Stats {
         thrown.set(0);
     }
 
-    public static synchronized void newError(ProcessorException e) {
+    public static synchronized void newError(ProcessingException e) {
         failed.incrementAndGet();
         try {
             errors.add(e);
@@ -49,7 +49,7 @@ public final class Stats {
         }
     }
 
-    public static synchronized Collection<ProcessorException> getErrors() {
+    public static synchronized Collection<ProcessingException> getErrors() {
         return Collections.unmodifiableCollection(errors);
     }
 

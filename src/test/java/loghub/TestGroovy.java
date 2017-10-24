@@ -17,7 +17,7 @@ public class TestGroovy {
         GroovyShell groovyShell = new GroovyShell(getClass().getClassLoader());
         Script groovyScript = groovyShell.parse("event.a * 2");
         Binding groovyBinding = new Binding();
-        Event event = new EventInstance();
+        Event event = new EventInstance(ConnectionContext.EMPTY);
         event.put("a", 1);
         groovyBinding.setVariable("event", event);
         groovyScript.setBinding(groovyBinding);
@@ -33,7 +33,7 @@ public class TestGroovy {
             Class<Script> theParsedClass = groovyClassLoader.parseClass(script);
             Script groovyScript = theParsedClass.newInstance();
             Binding groovyBinding = new Binding();
-            Event event = new EventInstance();
+            Event event = new EventInstance(ConnectionContext.EMPTY);
             event.put("a", Collections.singletonMap("b", 1));
             groovyBinding.setVariable("event", event);
             groovyScript.setBinding(groovyBinding);

@@ -12,7 +12,6 @@ import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.Map;
 
-import javax.activation.MimetypesFileTypeMap;
 import javax.script.Invocable;
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
@@ -21,6 +20,7 @@ import javax.script.ScriptException;
 import org.apache.logging.log4j.Level;
 
 import loghub.Event;
+import loghub.Helpers;
 import loghub.Processor;
 import loghub.ProcessorException;
 import loghub.configuration.Beans;
@@ -28,11 +28,6 @@ import loghub.configuration.Properties;
 
 @Beans("script")
 public class Script extends Processor {
-
-    private static final MimetypesFileTypeMap mimeTypesMap = new MimetypesFileTypeMap();
-    static {
-        mimeTypesMap.addMimeTypes("application/python py");
-    }
 
     private static ScriptEngineManager factory = null;
 
@@ -65,7 +60,7 @@ public class Script extends Processor {
         }
         try {
             Path scriptp = Paths.get(script);
-            String mimeType = mimeTypesMap.getContentType(scriptp.toFile());
+            String mimeType = Helpers.getMimeType(scriptp.toString());
             if (mimeType == null) {
                 mimeType = Files.probeContentType(scriptp);
             }

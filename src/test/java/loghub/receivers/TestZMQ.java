@@ -1,15 +1,16 @@
 package loghub.receivers;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.function.Consumer;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.Assert;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.zeromq.ZMQ.Socket;
@@ -17,7 +18,9 @@ import org.zeromq.ZMQ.Socket;
 import loghub.ContextRule;
 import loghub.Event;
 import loghub.LogUtils;
+import loghub.Pipeline;
 import loghub.Tools;
+import loghub.configuration.Properties;
 import loghub.decoders.StringCodec;
 import loghub.zmq.ZMQHelper.Method;
 import loghub.zmq.ZMQHelper.Type;
@@ -36,16 +39,12 @@ public class TestZMQ {
         LogUtils.setLevel(logger, Level.TRACE, "loghub.SmartContext", "loghub.receivers.ZMQ", "loghub.Receiver");
     }
 
-    @Ignore
-    @Test(timeout=500)
-    public void testone() throws InterruptedException {
-        Socket sender = tctxt.ctx.newSocket(Method.BIND, Type.PUB, "inproc://listener1");
+    private void dotest(Consumer<ZMQ> configure, Socket sender) throws InterruptedException  {
         BlockingQueue<Event> receiver = new ArrayBlockingQueue<>(1);
-        ZMQ r = new ZMQ(receiver, null);
-        r.setListen("inproc://listener1");
+        ZMQ r = new ZMQ(receiver, new Pipeline(Collections.emptyList(), "testone", null));
+        configure.accept(r);
         r.setDecoder(new StringCodec());
-        r.setMethod("CONNECT");
-        r.setType("SUB");
+        Assert.assertTrue(r.configure(new Properties(Collections.emptyMap())));
         r.start();
         Thread.sleep(30);
         sender.send("message 1");
@@ -54,21 +53,22 @@ public class TestZMQ {
         tctxt.ctx.close(sender);
     }
 
-    @Ignore
+    @Test(timeout=500)
+    public void testone() throws InterruptedException {
+        Socket sender = tctxt.ctx.newSocket(Method.BIND, Type.PUB, "inproc://listener1");
+        dotest(r -> {
+            r.setListen("inproc://listener1");
+            r.setMethod("CONNECT");
+            r.setType("SUB");
+        }, sender);
+    }
+
     @Test(timeout=500)
     public void testtwo() throws InterruptedException {
-        BlockingQueue<Event> receiver = new ArrayBlockingQueue<>(1);
-        ZMQ r = new ZMQ(receiver, null);
-        r.setListen("inproc://listener1");
-        r.setDecoder(new StringCodec());
-        r.start();
-        Thread.sleep(30);
         Socket sender = tctxt.ctx.newSocket(Method.CONNECT, Type.PUB, "inproc://listener1");
-        Thread.sleep(30);
-        sender.send("message 1");
-        Event e = receiver.take();
-        Assert.assertEquals("Missing message", "message 1", e.get("message"));
-        tctxt.ctx.close(sender);
+        dotest(r -> {
+            r.setListen("inproc://listener1");
+        }, sender);
     }
 
 }

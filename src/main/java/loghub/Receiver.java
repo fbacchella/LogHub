@@ -156,19 +156,19 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
         return null;
     }
 
-    protected final Event decode(byte[] msg) {
-        return decode(msg, 0, msg != null ? msg.length : 0);
+    protected final Event decode(ConnectionContext ctx, byte[] msg) {
+        return decode(ctx, msg, 0, msg != null ? msg.length : 0);
     }
 
-    protected final Event decode(byte[] msg, int offset, int size) {
-        EventInstance event = new EventInstance();
+    protected final Event decode(ConnectionContext ctx, byte[] msg, int offset, int size) {
+        EventInstance event = new EventInstance(ctx);
         if ( msg == null || size == 0) {
             logger.info("received null or empty event");
             event.end();
             return null;
         } else {
             try {
-                Map<String, Object> content = decoder.decode(msg, offset, size);
+                Map<String, Object> content = decoder.decode(ctx, msg, offset, size);
                 if (content.containsKey(Event.TIMESTAMPKEY) && (event.get(Event.TIMESTAMPKEY) instanceof Date)) {
                     event.setTimestamp((Date) event.remove(Event.TIMESTAMPKEY));
                 }
@@ -182,8 +182,8 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
         return event;
     }
 
-    protected final Event emptyEvent() {
-        return new EventInstance();
+    protected final Event emptyEvent(ConnectionContext ctx) {
+        return new EventInstance(ctx);
     }
 
     protected void manageDecodeException(DecodeException ex) {

@@ -15,29 +15,96 @@ import io.netty.handler.codec.dns.DnsQuestion;
 import io.netty.handler.codec.dns.DnsRecord;
 import io.netty.handler.codec.dns.DnsRecordType;
 import io.netty.handler.codec.dns.DnsResponse;
+import io.netty.handler.codec.dns.DnsResponseCode;
 import io.netty.handler.codec.dns.DnsSection;
-import io.netty.resolver.dns.DefaultDnsCache;
 import io.netty.resolver.dns.DnsNameResolver;
 import io.netty.resolver.dns.DnsNameResolverBuilder;
 import io.netty.resolver.dns.DnsNameResolverException;
 import io.netty.resolver.dns.SingletonDnsServerAddressStreamProvider;
+import io.netty.util.ReferenceCounted;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.netty.util.concurrent.Future;
 import loghub.Event;
 import loghub.ProcessorException;
 import loghub.configuration.Properties;
+import net.sf.ehcache.Cache;
+import net.sf.ehcache.Element;
+import net.sf.ehcache.config.CacheConfiguration;
 
 public class NettyNameResolver extends AbstractNameResolver implements FieldsProcessor.AsyncFieldsProcessor<AddressedEnvelope<DnsResponse,InetSocketAddress>> {
+
+    private static class DnsCacheKey {
+        private final String query;
+        private final DnsRecordType type;
+        public DnsCacheKey(DnsQuestion query) {
+            this.query = query.name();
+            this.type = query.type();
+        }
+        @Override
+        public int hashCode() {
+            final int prime = 31;
+            int result = 1;
+            result = prime * result + ((query == null) ? 0 : query.hashCode());
+            result = prime * result + ((type == null) ? 0 : type.hashCode());
+            return result;
+        }
+        @Override
+        public boolean equals(Object obj) {
+            if(this == obj)
+                return true;
+            if(obj == null)
+                return false;
+            if(getClass() != obj.getClass())
+                return false;
+            DnsCacheKey other = (DnsCacheKey) obj;
+            if(query == null) {
+                if(other.query != null)
+                    return false;
+            } else if(!query.equals(other.query))
+                return false;
+            if(type == null) {
+                if(other.type != null)
+                    return false;
+            } else if(!type.equals(other.type))
+                return false;
+            return true;
+        }
+        @Override
+        public String toString() {
+            return "[" + query + " IN " + type.name() + "]";
+        }
+    }
+
+    private static class DnsCacheEntry {
+        final DnsRecord answserRr;
+        final DnsQuestion questionRr;
+        final DnsResponseCode code;
+
+        DnsCacheEntry(AddressedEnvelope<DnsResponse, InetSocketAddress> enveloppe) {
+            answserRr = enveloppe.content().recordAt((DnsSection.ANSWER));
+            questionRr = (DnsQuestion) enveloppe.content().recordAt((DnsSection.QUESTION));
+            code = enveloppe.content().code();
+            assert ! (answserRr instanceof ReferenceCounted);
+            assert ! (questionRr instanceof ReferenceCounted);
+            assert ! (code instanceof ReferenceCounted);
+        }
+
+        @Override
+        public String toString() {
+            return "DnsCacheEntry [questionRr=" + questionRr + ", answserRr=" + answserRr + ", code=" + code + "]";
+        }
+    }
 
     private static final EventLoopGroup evg = new NioEventLoopGroup(1, new DefaultThreadFactory("dnsresolver"));
     private int timeout = 10;
     private DnsNameResolver resolver;
+    private int cacheSize = 10000;
+    private Cache hostCache;
 
     @Override
     public boolean configure(Properties properties) {
         DnsNameResolverBuilder builder = new DnsNameResolverBuilder(evg.next())
                 .queryTimeoutMillis(timeout * 1000)
-                .resolveCache(new DefaultDnsCache(timeout * 1000, 3600000, timeout * 1000))
                 .channelType(NioDatagramChannel.class)
                 ;
         try {
@@ -51,17 +118,29 @@ public class NettyNameResolver extends AbstractNameResolver implements FieldsPro
         }
         resolver = builder.build();
 
-        return super.configure(properties);
-    }
+        CacheConfiguration config = properties.getDefaultCacheConfig("NameResolver", this)
+                .eternal(false)
+                .maxEntriesLocalHeap(cacheSize)
+                ;
 
-    @Override
-    public String getName() {
-        return null;
+        hostCache = properties.getCache(config);
+
+        return super.configure(properties);
     }
 
     @Override
     public boolean resolve(Event event, String query, String destination) throws ProcessorException {
         DnsQuestion dnsquery = new DefaultDnsQuestion(query, DnsRecordType.PTR);
+        Element e = hostCache.get(new DnsCacheKey(dnsquery));
+        if (e != null) {
+            DnsCacheEntry cached = (DnsCacheEntry) e.getObjectValue();
+            logger.trace("Cached response: {}", cached);
+            if (! e.isExpired()) {
+                return store(event, cached , destination);
+            } else {
+                hostCache.remove(cached);
+            }
+        }
         Future<AddressedEnvelope<DnsResponse, InetSocketAddress>> future = resolver.query(dnsquery);
         throw new ProcessorException.PausedEventException(event, future);
     }
@@ -69,17 +148,32 @@ public class NettyNameResolver extends AbstractNameResolver implements FieldsPro
     @Override
     public boolean process(Event ev, AddressedEnvelope<DnsResponse, InetSocketAddress> enveloppe, String destination) throws ProcessorException {
         try {
-            DnsRecord rr = enveloppe.content().recordAt((DnsSection.ANSWER));
-            if (rr != null && rr instanceof DnsPtrRecord) {
-                DnsPtrRecord ptr = (DnsPtrRecord) rr;
+            DnsResponse response = enveloppe.content();
+            DnsQuestion questionRr = (DnsQuestion) response.recordAt((DnsSection.QUESTION));
+            DnsRecord AnswerRr = enveloppe.content().recordAt((DnsSection.ANSWER));
+            DnsCacheEntry cached = new DnsCacheEntry(enveloppe);
+            // Default to 5s on failure, just to avoid wild loop
+            int ttl = response.code().intValue() == DnsResponseCode.NOERROR.intValue() ? (int) AnswerRr.timeToLive() : 5;
+            Element cacheElement = new Element(new DnsCacheKey(questionRr), cached, ttl / 2, ttl);
+            hostCache.put(cacheElement);
+            return store(ev, cached, destination);
+        } finally {
+            enveloppe.release();
+        }
+    }
+
+    private boolean store(Event ev, DnsCacheEntry value, String destination) {
+        if (value.answserRr != null) {
+            if (value.answserRr instanceof DnsPtrRecord) {
                 // DNS responses end the query with a ., substring removes it.
+                DnsPtrRecord ptr = (DnsPtrRecord) value.answserRr;
                 ev.put(destination, ptr.hostname().substring(0, ptr.hostname().length() - 1).intern());
                 return true;
             } else {
                 return false;
-            } 
-        } finally {
-            enveloppe.release();
+            }
+        } else {
+            return false;
         }
     }
 
@@ -101,6 +195,20 @@ public class NettyNameResolver extends AbstractNameResolver implements FieldsPro
     }
 
     /**
+     * @return the cacheSize
+     */
+    public int getCacheSize() {
+        return cacheSize;
+    }
+
+    /**
+     * @param cacheSize the cacheSize to set
+     */
+    public void setCacheSize(int cacheSize) {
+        this.cacheSize = cacheSize;
+    }
+
+    /**
      * Used by test to warm up the cache
      * @param query
      * @param type
@@ -108,14 +216,20 @@ public class NettyNameResolver extends AbstractNameResolver implements FieldsPro
      * @throws Throwable
      */
     DnsRecord warmUp(String query, DnsRecordType type) throws Throwable {
+        AddressedEnvelope<DnsResponse, InetSocketAddress> enveloppe = null;
         try {
             DnsQuestion dnsquery = new DefaultDnsQuestion(query, type);
             Future<AddressedEnvelope<DnsResponse, InetSocketAddress>> future = resolver.query(dnsquery);
-            AddressedEnvelope<DnsResponse, InetSocketAddress> enveloppe;
             enveloppe = future.get();
+            Element cachedEntry = new Element(new DnsCacheKey(dnsquery),new DnsCacheEntry(enveloppe));
+            hostCache.put(cachedEntry);
             return enveloppe.content().recordAt((DnsSection.ANSWER));
         } catch (ExecutionException e) {
             throw e.getCause();
+        } finally {
+            if (enveloppe != null) {
+                enveloppe.release();
+            }
         }
     }
 

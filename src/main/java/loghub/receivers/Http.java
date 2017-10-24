@@ -11,6 +11,7 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandler.Sharable;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
+import io.netty.handler.codec.ByteToMessageDecoder;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
@@ -18,12 +19,11 @@ import io.netty.util.CharsetUtil;
 import loghub.Decoder.DecodeException;
 import loghub.Event;
 import loghub.Pipeline;
-import loghub.Receiver;
 import loghub.configuration.Properties;
 import loghub.netty.http.AbstractHttpServer;
 import loghub.netty.http.HttpRequestProcessing;
 
-public class Http extends Receiver {
+public class Http extends GenericTcp {
 
     @Sharable
     private class PostHandler extends HttpRequestProcessing {
@@ -35,17 +35,18 @@ public class Http extends Receiver {
 
         @Override
         protected boolean processRequest(FullHttpRequest request, ChannelHandlerContext ctx) throws HttpRequestFailure {
-            Event e = Http.this.emptyEvent();
+            Event e = Http.this.emptyEvent(Http.this.getConnectionContext(ctx, null));
             try {
-                Map<String, Object> result = Http.this.decoder.decode(request.content());
+                Map<String, Object> result = Http.this.decoder.decode(e.getConnectionContext(), request.content());
                 e.putAll(result);
                 Http.this.send(e);
-                ByteBuf content = Unpooled.copiedBuffer("{'decoded': true}\r\n", CharsetUtil.UTF_8);
-                return writeResponse(ctx, request, content, content.readableBytes());
             } catch (DecodeException e1) {
+                e.end();
                 logger.error("Can't decode content", e1);
                 throw new HttpRequestFailure(HttpResponseStatus.BAD_REQUEST, "Content invalid for decoder");
             }
+            ByteBuf content = Unpooled.copiedBuffer("{'decoded': true}\r\n", CharsetUtil.UTF_8);
+            return writeResponse(ctx, request, content, content.readableBytes());
         }
 
         @Override
@@ -74,6 +75,7 @@ public class Http extends Receiver {
 
     public Http(BlockingQueue<Event> outQueue, Pipeline pipeline) {
         super(outQueue, pipeline);
+        setServer(webserver);
     }
 
     @Override
@@ -127,6 +129,11 @@ public class Http extends Receiver {
     public void setHost(String host) {
         // Ensure host is null if given empty string, to be resolved as "bind *" by InetSocketAddress;
         this.host = host != null && !host.isEmpty() ? host : null;
+    }
+
+    @Override
+    protected ByteToMessageDecoder getSplitter() {
+        return null;
     }
 
 }

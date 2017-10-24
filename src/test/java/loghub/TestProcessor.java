@@ -32,7 +32,7 @@ public class TestProcessor {
 
     @Test
     public void testIf() throws ProcessorException {
-        Event e = new EventInstance();
+        Event e = new EventInstance(ConnectionContext.EMPTY);
 
         Processor p = new Identity();
 

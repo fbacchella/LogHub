@@ -36,6 +36,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.SerializationFeature;
 
+import loghub.ConnectionContext;
 import loghub.Event;
 import loghub.EventsProcessor;
 
@@ -141,7 +142,7 @@ public class TestEventProcessing {
                     }
                     eventDate = Date.from(now.toInstant());
                 }
-                Event ev = Event.emptyTestEvent();
+                Event ev = Event.emptyTestEvent(ConnectionContext.EMPTY);
                 ev.putAll(eventMap);
                 if (eventDate != null) {
                     ev.setTimestamp(eventDate);
@@ -167,7 +168,7 @@ public class TestEventProcessing {
     }
 
     public static void setAppender() {
-        LoggerContext ctx = (LoggerContext) LogManager.getContext(false);
+        LoggerContext ctx = (LoggerContext) LogManager.getContext(true);
         org.apache.logging.log4j.core.config.Configuration config = ctx.getConfiguration();
         // If the event logger already exists, do nothing
         if (config.getLoggers().containsKey(LOGGERNAME)) {

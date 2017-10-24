@@ -196,8 +196,8 @@ public class EventsProcessor extends Thread {
                 dropped = true;
             } catch (ProcessorException.IgnoredEventException ex) {
                 // A do nothing event
-            } catch (ProcessorException ex) {
-                logger.debug("got a processor exception");
+            } catch (ProcessorException | UncheckedProcessingException ex) {
+                logger.debug("got a processing exception");
                 logger.catching(Level.DEBUG, ex);
                 e.doMetric(() -> {
                     Properties.metrics.counter("Pipeline." + e.getCurrentPipeline() + ".failure").inc();
@@ -212,11 +212,9 @@ public class EventsProcessor extends Thread {
                     Properties.metrics.counter("Pipeline." + e.getCurrentPipeline() + ".exception").inc();
                     Stats.newException(ex);
                 });
-                String message;
-                if (ex instanceof NullPointerException) {
-                    message = "NullPointerException";
-                } else {
-                    message = ex.getMessage();
+                String message= ex.getMessage();
+                if (message == null) {
+                    message = ex.getClass().getCanonicalName();
                 }
                 logger.error("failed to transform event {} with unmanaged error: {}", e, message);
                 logger.throwing(Level.DEBUG, ex);

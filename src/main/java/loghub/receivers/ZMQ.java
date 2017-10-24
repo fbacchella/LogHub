@@ -9,6 +9,7 @@ import org.apache.logging.log4j.Level;
 import org.zeromq.ZMQ.Socket;
 import org.zeromq.ZMQException;
 
+import loghub.ConnectionContext;
 import loghub.Event;
 import loghub.Pipeline;
 import loghub.Receiver;
@@ -20,7 +21,7 @@ import loghub.zmq.ZMQHelper;
 @Beans({"method", "listen", "type", "hwm"})
 public class ZMQ extends Receiver {
 
-    private static final SmartContext ctx = SmartContext.getContext();
+    private final SmartContext ctx = SmartContext.getContext();
 
     private ZMQHelper.Method method = ZMQHelper.Method.BIND;
     private String listen = "tcp://localhost:2120";
@@ -74,7 +75,7 @@ public class ZMQ extends Receiver {
             public Event next() {
                 try {
                     byte[] msg = generator.next();
-                    return decode(msg);
+                    return decode(ConnectionContext.EMPTY, msg);
                 } catch (ClosedSelectorException|zmq.ZError.CtxTerminatedException e) {
                     return null;
                 } catch (ZMQException|zmq.ZError.IOException|zmq.ZError.InstantiationException e) {

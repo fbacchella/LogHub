@@ -1,10 +1,10 @@
 package loghub.netty;
 
 import java.io.IOException;
-import java.net.SocketAddress;
 import java.util.Collections;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ThreadFactory;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -30,6 +30,7 @@ import io.netty.channel.local.LocalChannel;
 import io.netty.channel.local.LocalServerChannel;
 import io.netty.handler.codec.LineBasedFrameDecoder;
 import io.netty.util.CharsetUtil;
+import loghub.ConnectionContext;
 import loghub.Event;
 import loghub.LogUtils;
 import loghub.Pipeline;
@@ -49,8 +50,8 @@ public class TestServer {
         };
 
         @Override
-        public EventLoopGroup getEventLoopGroup() {
-            return new DefaultEventLoopGroup();
+        public EventLoopGroup getEventLoopGroup(int threads, ThreadFactory threadFactory) {
+            return new DefaultEventLoopGroup(threads, threadFactory);
         }
 
         @Override
@@ -104,13 +105,8 @@ public class TestServer {
         }
 
         @Override
-        protected Object ResolveSourceAddress(ChannelHandlerContext ctx, Object message) {
-            SocketAddress addr = ctx.channel().remoteAddress();
-            if(addr instanceof LocalAddress) {
-                return ((LocalAddress) addr).id();
-            } else {
-                return null;
-            }
+        public ConnectionContext getConnectionContext(ChannelHandlerContext ctx, Object message) {
+            return ConnectionContext.EMPTY;
         }
 
     }

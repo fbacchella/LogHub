@@ -30,17 +30,13 @@ public class ContextRule implements TestRule {
         };
     }
 
-    public void terminate() throws InterruptedException {
-        SmartContext.getContext().terminate();
-    }
-
     private void terminateRescue() {
         if(terminator == null) {
             try {
                 logger.debug("Terminating ZMQ manager");
                 SmartContext.getContext().terminate();
             } catch (Exception e) {
-                e.printStackTrace();
+                throw new RuntimeException("Failed to terminate ZMQ's context", e);
             }
             logger.debug("Test finished");
         }

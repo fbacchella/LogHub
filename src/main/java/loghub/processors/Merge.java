@@ -14,6 +14,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
+import loghub.ConnectionContext;
 import loghub.Event;
 import loghub.EventsRepository;
 import loghub.Expression;
@@ -378,7 +379,7 @@ public class Merge extends Processor {
         }
         logger.debug("key: {} for {}", eventKey, event);
         PausedEvent<String> current = repository.getOrPause(eventKey, () -> {
-            PausedEvent<String> pe = new PausedEvent<String>(event.isTest() ? Event.emptyTestEvent() : Event.emptyEvent(), eventKey)
+            PausedEvent<String> pe = new PausedEvent<String>(event.isTest() ? Event.emptyTestEvent(ConnectionContext.EMPTY) : Event.emptyEvent(ConnectionContext.EMPTY), eventKey)
                     .setTimeout(timeout, TimeUnit.SECONDS).onTimeout(timeoutProcessor, prepareEvent)
                     .onSuccess(fireProcessor, prepareEvent)
                     .setPipeline(nextPipeline)

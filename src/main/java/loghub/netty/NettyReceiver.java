@@ -4,6 +4,7 @@ import java.net.SocketAddress;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ThreadFactory;
 
 import io.netty.bootstrap.AbstractBootstrap;
 import io.netty.buffer.ByteBuf;
@@ -17,6 +18,8 @@ import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.MessageToMessageDecoder;
 import io.netty.util.AttributeKey;
 import io.netty.util.ReferenceCounted;
+import io.netty.util.concurrent.DefaultThreadFactory;
+import loghub.ConnectionContext;
 import loghub.Decoder.DecodeException;
 import loghub.Event;
 import loghub.Helpers;
@@ -31,11 +34,8 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
     private class EventSender extends SimpleChannelInboundHandler<Map<String, Object>> {
         @Override
         protected void channelRead0(ChannelHandlerContext ctx, Map<String, Object> msg) throws Exception {
-            Event event = emptyEvent();
-            Object addr = ctx.channel().attr(SOURCEADDRESSATTRIBUTE).get();
-            if (addr != null) {
-                event.put("host", addr);
-            }
+            ConnectionContext cctx = (ConnectionContext) ctx.channel().attr(CONNECTIONCONTEXTATTRIBUTE).get();
+            Event event = emptyEvent(cctx);
             populate(event, ctx, msg);
             send(event);
         }
@@ -46,7 +46,8 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
         @Override
         protected void decode(ChannelHandlerContext ctx, SM msg, List<Object> out) {
             try {
-                Map<String, Object> content = decoder.decode(getContent(msg));
+                ConnectionContext cctx = (ConnectionContext) ctx.channel().attr(CONNECTIONCONTEXTATTRIBUTE).get();
+                Map<String, Object> content = decoder.decode(cctx, getContent(msg));
                 out.add(content);
             } catch (DecodeException e) {
                 manageDecodeException(e);
@@ -58,16 +59,14 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
     }
 
     @Sharable
-    private class SourceAddressResolver extends MessageToMessageDecoder<SM> {
+    private class ContextExtractor extends MessageToMessageDecoder<SM> {
         @Override
         protected void decode(ChannelHandlerContext ctx, SM msg, List<Object> out) {
+            ConnectionContext cctx = getConnectionContext(ctx, msg);
+            ctx.channel().attr(CONNECTIONCONTEXTATTRIBUTE).set(cctx);
             //The message is not transformeed in this step, so don't decrease reference count
             if (msg instanceof ReferenceCounted) {
                 ((ReferenceCounted) msg).retain();
-            }
-            Object address = ResolveSourceAddress(ctx, msg);
-            if(address != null) {
-                ctx.channel().attr(SOURCEADDRESSATTRIBUTE).set(address);
             }
             out.add(msg);
         }
@@ -89,16 +88,17 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
         }
     }
 
-    private static final AttributeKey<Object> SOURCEADDRESSATTRIBUTE = AttributeKey.newInstance("SourceAddressAttibute");
+    private static final AttributeKey<Object> CONNECTIONCONTEXTATTRIBUTE = AttributeKey.newInstance("ConnectionContextAttribute");
 
     private ChannelFuture cf;
     private S server;
     protected MessageToMessageDecoder<SM> nettydecoder;
     private final EventSender sender = new EventSender();
-    private final MessageToMessageDecoder<SM> resolver = new SourceAddressResolver();
+    private final MessageToMessageDecoder<SM> extractor = new ContextExtractor();
     private final ChannelInboundHandlerAdapter exceptionhandler = new ExceptionHandler();
     private final boolean selfDecoder;
     private final boolean closeOnError;
+    private int threadsCount = 1;
 
     public NettyReceiver(BlockingQueue<Event> outQueue, Pipeline pipeline) {
         super(outQueue, pipeline);
@@ -113,6 +113,9 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
             nettydecoder = new LogHubDecoder();
         }
         server = getServer();
+        server.setWorkerThreads(threadsCount);
+        ThreadFactory tf = new DefaultThreadFactory(getReceiverName(), true);
+        server.setThreadFactory(tf);
         cf = server.configure(properties, this);
         return cf != null && super.configure(properties);
     }
@@ -135,7 +138,7 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
 
     @Override
     public void addHandlers(ChannelPipeline p) {
-        p.addFirst("SourceResolver", resolver);
+        p.addFirst("SourceResolver", extractor);
         if (! selfDecoder) {
             p.addLast("MessageDecoder", getNettyDecoder());
         }
@@ -156,11 +159,11 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
 
     protected abstract ByteBuf getContent(SM message);
 
-    protected abstract Object ResolveSourceAddress(ChannelHandlerContext ctx, SM message);
-
     public abstract SA getListenAddress();
 
     protected abstract S getServer();
+
+    public abstract ConnectionContext getConnectionContext(ChannelHandlerContext ctx, SM message);
 
     @Override
     public void close() {
@@ -172,6 +175,20 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
             server.getFactory().finish();
         }
         super.close();
+    }
+
+    /**
+     * @return the threads
+     */
+    public int getWorkerThreads() {
+        return threadsCount;
+    }
+
+    /**
+     * @param threads the threads to set
+     */
+    public void setWorkerThreads(int threads) {
+        this.threadsCount = threads;
     }
 
 }

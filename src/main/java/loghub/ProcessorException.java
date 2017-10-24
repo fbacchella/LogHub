@@ -2,7 +2,7 @@ package loghub;
 
 import io.netty.util.concurrent.Future;
 
-public class ProcessorException extends Exception {
+public class ProcessorException extends Exception implements ProcessingException {
 
     public static class DroppedEventException extends ProcessorException {
         public DroppedEventException(Event event) {

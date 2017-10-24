@@ -1,6 +1,7 @@
 package loghub.netty.servers;
 
 import java.net.SocketAddress;
+import java.util.concurrent.ThreadFactory;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -33,9 +34,9 @@ public abstract class ServerFactory<CC extends Channel, SA extends SocketAddress
     }
 
     @Override
-    public void group() {
-        bossGroup = getEventLoopGroup();
-        workerGroup = getEventLoopGroup();
+    public void group(int threads, ThreadFactory threadFactory) {
+        bossGroup = getEventLoopGroup(threads, threadFactory);
+        workerGroup = getEventLoopGroup(threads, threadFactory);
         bootstrap.group(bossGroup, workerGroup);
     }
 

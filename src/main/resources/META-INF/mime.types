@@ -27,3 +27,6 @@ font/woff2                          woff2
 
 image/svg+xml                       svg
 image/x-ico                         ico
+
+application/python                  py
+application/x-groovy                groovy

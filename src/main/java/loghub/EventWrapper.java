@@ -177,16 +177,6 @@ class EventWrapper extends Event {
     }
 
     @Override
-    public ProcessorException buildException(String message) {
-        return event.buildException(message);
-    }
-
-    @Override
-    public ProcessorException buildException(String message, Exception root) {
-        return event.buildException(message, root);
-    }
-
-    @Override
     public void end() {
         event.end();
     }
@@ -209,6 +199,16 @@ class EventWrapper extends Event {
     @Override
     public void drop() {
         event.drop();
+    }
+
+    @Override
+    public ConnectionContext getConnectionContext() {
+        return event.getConnectionContext();
+    }
+
+    @Override
+    protected Event getRealEvent() {
+        return event;
     }
 
 }

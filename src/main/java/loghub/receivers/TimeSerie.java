@@ -7,6 +7,7 @@ import java.util.Iterator;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.atomic.AtomicLong;
 
+import loghub.ConnectionContext;
 import loghub.Event;
 import loghub.Pipeline;
 import loghub.Receiver;
@@ -43,7 +44,7 @@ public class TimeSerie extends Receiver {
                 } catch (Exception e) {
                     throw new RuntimeException("can't push to buffer", e);
                 }
-                return decode(buffer.array());
+                return decode(ConnectionContext.EMPTY, buffer.array());
             }
 
         };
