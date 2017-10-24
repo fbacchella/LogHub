@@ -23,19 +23,24 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
         return applyAtPath(f, path, value, false);
     }
 
+    @SuppressWarnings("unchecked")
     public Object applyAtPath(Helpers.TriFunction<Map<String, Object>, String, Object, Object> f, String[] path, Object value, boolean create) {
         Map<String, Object> current = this;
         String key = path[0];
         for (int i = 0; i < path.length - 1; i++) {
-            @SuppressWarnings("unchecked")
-            Map<String, Object> next = (Map<String, Object>) current.get(key);
-            if ( next == null || ! (next instanceof Map) ) {
+            Object peekNext = current.get(key);
+            Map<String, Object> next;
+            if ( peekNext == null ) {
                 if (create) {
                     next = new HashMap<String, Object>();
                     current.put(path[i], next);
                 } else {
                     return null;
                 }
+            } else if ( ! (peekNext instanceof Map) ) {
+                throw new UncheckedProcessingException(getRealEvent(), "Can descend into " + key + ", it's not an object");
+            } else {
+                next = (Map<String, Object>) peekNext;
             }
             current = next;
             key = path[i + 1];
