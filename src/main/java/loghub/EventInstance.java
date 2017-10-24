@@ -201,16 +201,6 @@ class EventInstance extends Event {
         this.timestamp = timestamp;
     }
 
-    @Override
-    public ProcessorException buildException(String message) {
-        return new ProcessorException(this, message);
-    }
-
-    @Override
-    public ProcessorException buildException(String message, Exception root) {
-        return new ProcessorException(this, message, root);
-    }
-
     private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
         in.defaultReadObject();
 
@@ -260,6 +250,11 @@ class EventInstance extends Event {
     @Override
     public ConnectionContext getConnectionContext() {
         return ctx;
+    }
+
+    @Override
+    protected Event getRealEvent() {
+        return this;
     }
 
 }

@@ -43,6 +43,14 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
         return f.apply(current, key, value);
     }
 
+    public ProcessorException buildException(String message) {
+        return new ProcessorException(getRealEvent(), message);
+    }
+
+    public ProcessorException buildException(String message, Exception root) {
+        return new ProcessorException(getRealEvent(), message, root);
+    }
+
     /**
      * This method inject a new event in a pipeline as
      * a top processing pipeline. Not to be used for sub-processing pipeline
@@ -75,10 +83,6 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
 
     public abstract void setTimestamp(Date timestamp);
 
-    public abstract ProcessorException buildException(String message);
-
-    public abstract ProcessorException buildException(String message, Exception root);
-
     public abstract void end();
 
     public abstract int stepsCount();
@@ -90,5 +94,7 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
     public abstract void drop();
 
     public abstract ConnectionContext getConnectionContext();
+
+    protected abstract Event getRealEvent();
 
 }
