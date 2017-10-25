@@ -66,6 +66,8 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
      */
     public abstract boolean inject(Pipeline pipeline, BlockingQueue<Event> mainqueue);
 
+    public abstract boolean inject(Event master, BlockingQueue<Event> mainqueue);
+
     public abstract Event duplicate();
 
     public abstract Processor next();
@@ -100,6 +102,6 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
 
     public abstract ConnectionContext getConnectionContext();
 
-    protected abstract Event getRealEvent();
+    protected abstract EventInstance getRealEvent();
 
 }

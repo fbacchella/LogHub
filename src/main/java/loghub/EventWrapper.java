@@ -151,6 +151,10 @@ class EventWrapper extends Event {
         return event.inject(pipeline, mainqueue);
     }
 
+    public boolean inject(Event ev, BlockingQueue<Event> mainqueue) {
+        return event.inject(ev, mainqueue);
+    }
+
     @Override
     public String getCurrentPipeline() {
         return event.getCurrentPipeline();
@@ -207,7 +211,7 @@ class EventWrapper extends Event {
     }
 
     @Override
-    protected Event getRealEvent() {
+    protected EventInstance getRealEvent() {
         return event;
     }
 

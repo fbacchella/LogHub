@@ -146,6 +146,14 @@ class EventInstance extends Event {
         return mainqueue.offer(this);
     }
 
+    public boolean inject(Event ev, BlockingQueue<Event> mainqueue) {
+        EventInstance master = ev.getRealEvent();
+        currentPipeline = master.currentPipeline;
+        nextPipeline = master.nextPipeline;
+        appendProcessors(master.processors);
+        return mainqueue.offer(this);
+    }
+
     private void inject(List<Processor> newProcessors, boolean append) {
         ListIterator<Processor> i = newProcessors.listIterator(append ? 0 : newProcessors.size());
         while(append ? i.hasNext() : i.hasPrevious()) {
@@ -253,7 +261,7 @@ class EventInstance extends Event {
     }
 
     @Override
-    protected Event getRealEvent() {
+    protected EventInstance getRealEvent() {
         return this;
     }
 
