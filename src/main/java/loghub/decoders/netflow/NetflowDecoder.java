@@ -30,22 +30,20 @@ public class NetflowDecoder extends Decoder {
             switch (packet.getVersion()) {
             case 5:
                 Netflow5Packet packet5 = (Netflow5Packet) packet;
-                ev.put("netFlowVersion", packet5.getVersion());
                 ev.put("engine_type", packet5.getEngineType());
                 ev.put("sampling_interval", packet5.getSamplingInterval());
                 ev.put("sampling_mode", packet5.getSamplingMode());
                 ev.put("SysUptime", packet5.getSysUpTime());
                 break;
             case 9:
-                ev.put("netFlowVersion", packet.getVersion());
                 ev.put("SysUptime", ((Netflow9Packet)packet).getSysUpTime());
                 break;
             case 10:
-                ev.put("IPFIXVersion", packet.getVersion());
                 break;
             default:
                 throw new UnsupportedOperationException();
             }
+            ev.put("version", packet.getVersion());
             ev.put("records", packet.getRecords());
             return ev;
         }

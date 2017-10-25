@@ -14,6 +14,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import io.netty.buffer.ByteBuf;
+import loghub.decoders.netflow.TemplateBasePacket.TemplateType;
 
 public class Netflow5Packet implements NetflowPacket {
 
@@ -58,6 +59,7 @@ public class Netflow5Packet implements NetflowPacket {
             try {
                 Map<String, Object> record = new HashMap<>(20);
                 bbuf.readBytes(addrbuffer);
+                record.put("_type", TemplateType.Records.toString());
                 record.put("srcaddr", InetAddress.getByAddress(addrbuffer));
                 bbuf.readBytes(addrbuffer);
                 record.put("dstaddr", InetAddress.getByAddress(addrbuffer));

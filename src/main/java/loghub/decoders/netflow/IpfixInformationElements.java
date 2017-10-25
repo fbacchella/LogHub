@@ -20,9 +20,8 @@ import org.apache.commons.csv.CSVRecord;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.util.CharsetUtil;
-import loghub.VarFormatter;
 
-class IpfixInformationElements implements TemplateTypes {
+class IpfixInformationElements {
 
     static class Element{
         public final int elementId;
@@ -115,7 +114,6 @@ class IpfixInformationElements implements TemplateTypes {
         elements = Collections.unmodifiableMap(buildElements);
     }
 
-    @Override
     public String getName(int i) {
         return elements.containsKey(i) ? elements.get(i).name : Integer.toString(i);
     }
@@ -123,7 +121,6 @@ class IpfixInformationElements implements TemplateTypes {
     private static final ThreadLocal<byte[]> buffer4 = ThreadLocal.withInitial(() -> new byte[4]);
     private static final ThreadLocal<byte[]> buffer16 = ThreadLocal.withInitial(() -> new byte[16]);
 
-    @Override
     public Object getValue(int i, ByteBuf bbuf) {
         try {
             Element e = elements.get(i);
@@ -153,12 +150,6 @@ class IpfixInformationElements implements TemplateTypes {
                 buffer[0] = 0;
                 ByteBuf selectorBuffer = Unpooled.wrappedBuffer(buffer);
                 applicationId.put("SelectorID", readUnsignedNumValue(selectorBuffer));
-                //System.out.format("%d %s\n", buffer[0], Arrays.toString(buffer));
-                // Defined in RFC 6759, of type octetArray
-                //short classificationId = bbuf.readUnsignedByte();
-                //byte[] buffer = new byte[bbuf.readableBytes()];
-                //applicationId.put("ClassificationEngineID", classificationId);
-                //applicationId.put("SelectorID", buffer.length);
                 return applicationId;
             } else if ("octetArray".equals(e.type) || "Reserved".equals(e.name)) {
                 byte[] buffer = new byte[bbuf.readableBytes()];
@@ -173,8 +164,7 @@ class IpfixInformationElements implements TemplateTypes {
                 bbuf.readBytes(buffer);
                 return new String(buffer, CharsetUtil.UTF_8);
             } else {
-                System.out.println("    unmannage type: " + e.name);
-                return null;
+                throw new RuntimeException("unmannage type: " + e.name);
             }
         } catch (UnknownHostException e) {
             throw new UncheckedIOException(e);

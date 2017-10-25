@@ -13,7 +13,6 @@ import org.junit.Test;
 
 import io.netty.buffer.Unpooled;
 import loghub.Decoder;
-import loghub.Decoder.DecodeException;
 import loghub.IpConnectionContext;
 
 public class PacketsTest {
@@ -117,7 +116,8 @@ public class PacketsTest {
         });
         ;
     }
-    
+
+    @SuppressWarnings("unchecked")
     @Test
     public void testDecode() {
         Decoder nfd = new NetflowDecoder();
@@ -146,8 +146,13 @@ public class PacketsTest {
             try {
                 while(i.isReadable()) {
                     Map<String, Object> content = nfd.decode(dummyctx, i);
-                    Assert.assertTrue(content.containsKey("netFlowVersion") || content.containsKey("IPFIXVersion") );
+                    Assert.assertTrue(content.containsKey("version"));
                     Assert.assertTrue(content.containsKey("sequenceNumber"));
+                    Assert.assertTrue(content.containsKey("records"));
+                    ((List<Map<String, Object>>)content.get("records")).forEach( j -> Assert.assertTrue(j.containsKey("_type")));
+                    if (((Integer)content.get("version"))< 10) {
+                        Assert.assertTrue(content.containsKey("SysUptime"));
+                    }
                     System.out.println(content);
                 }
             } catch (Exception e) {

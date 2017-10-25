@@ -15,10 +15,10 @@ public class Netflow9Packet extends TemplateBasePacket implements NetflowPacket 
         hi.sysUpTime = Integer.toUnsignedLong(i.readInt());
         return hi;
     };
-    
+
     private final Duration sysUpTime;
-    
-    public Netflow9Packet(InetAddress remoteAddr, ByteBuf bbuf, TemplateTypes nf9types) {
+
+    public Netflow9Packet(InetAddress remoteAddr, ByteBuf bbuf, IpfixInformationElements nf9types) {
         super(remoteAddr, bbuf, headerreder, nf9types);
         sysUpTime = Duration.of(header.sysUpTime, ChronoUnit.MILLIS);
     }

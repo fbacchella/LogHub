@@ -51,8 +51,8 @@ public abstract class TemplateBasePacket implements NetflowPacket {
             return true;
         }
     }
-    
-    private enum TemplateType {
+
+    enum TemplateType {
         Records,
         Options
     };
@@ -112,11 +112,11 @@ public abstract class TemplateBasePacket implements NetflowPacket {
     protected final long sequenceNumber;
     protected final int length;
     protected final int count;
-    private final TemplateTypes types;
+    private final IpfixInformationElements types;
     private int recordseen = 0;
     private final List<Map<String, Object>> records = new ArrayList<>();
 
-    protected TemplateBasePacket(InetAddress remoteAddr, ByteBuf bbuf, Function<ByteBuf, HeaderInfo> headerreader, TemplateTypes types) {
+    protected TemplateBasePacket(InetAddress remoteAddr, ByteBuf bbuf, Function<ByteBuf, HeaderInfo> headerreader, IpfixInformationElements types) {
         this.types = types;
         short version = bbuf.readShort();
         if (version < 9) {
@@ -275,6 +275,7 @@ public abstract class TemplateBasePacket implements NetflowPacket {
                     Object value = types.getValue(type.intValue(), content);
                     logger.trace("    {} {} {}", types.getName(type.intValue()), fieldSize, value);
                     record.put(types.getName(type.intValue()), value);
+                    record.put("_type", tpl.type.toString());
                 } catch (IndexOutOfBoundsException e) {
                     throw new RuntimeException(String.format("reading outsing range: %d out of %d\n", fieldSize, bbuf.readableBytes()));
                 }

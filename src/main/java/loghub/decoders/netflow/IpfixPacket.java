@@ -12,7 +12,7 @@ public class IpfixPacket extends TemplateBasePacket implements NetflowPacket {
         hi.length =  Short.toUnsignedInt(i.readShort());
         return hi;
     };
-    
+
     public IpfixPacket(InetAddress remoteAddr, ByteBuf bbuf, IpfixInformationElements ipfixtypes) {
         super(remoteAddr, bbuf, headerreder, ipfixtypes);
     }

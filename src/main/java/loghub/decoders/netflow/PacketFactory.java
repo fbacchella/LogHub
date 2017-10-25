@@ -8,9 +8,8 @@ import io.netty.buffer.ByteBuf;
 import loghub.Decoder.DecodeException;
 
 public class PacketFactory {
-    
+
     private static final IpfixInformationElements ipfixtypes;
-    private static final Netflow9Types nf9types = new Netflow9Types();
     static {
         try {
             ipfixtypes = new IpfixInformationElements();
