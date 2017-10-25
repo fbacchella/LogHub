@@ -1,6 +1,8 @@
 package loghub.decoders.netflow;
 
-public class Netflow9Types {
+import io.netty.buffer.ByteBuf;
+
+public class Netflow9Types implements TemplateTypes {
 
     private static final String[] fieldNames = new String[] {
             null,
@@ -168,15 +170,21 @@ public class Netflow9Types {
             3,
     };
 
-    private Netflow9Types() {
+    public Netflow9Types() {
     }
 
-    public static String getName(int i) {
+    public String getName(int i) {
         return fieldNames[i];
     }
 
-    public static int getLength(int i) {
+    public int getLength(int i) {
         return fieldLength[i];
+    }
+
+    @Override
+    public Object getValue(int i, ByteBuf bbuf) {
+        // TODO Auto-generated method stub
+        return null;
     }
 
 }

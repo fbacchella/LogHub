@@ -1,14 +1,20 @@
 package loghub.decoders.netflow;
 
 import java.io.ByteArrayOutputStream;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
+import org.junit.Assert;
 import org.junit.Test;
 
 import io.netty.buffer.Unpooled;
+import loghub.Decoder;
 import loghub.Decoder.DecodeException;
+import loghub.IpConnectionContext;
 
 public class PacketsTest {
 
@@ -89,7 +95,7 @@ public class PacketsTest {
                 }
                 return out;
             } catch (Exception e) {
-                e.printStackTrace();
+                Assert.fail(e.getMessage());
                 return null;
             }
         })
@@ -98,21 +104,55 @@ public class PacketsTest {
         .forEach(i -> {
             try {
                 while(i.isReadable()) {
-                    packets.add(PacketFactory.parsePacket(i));
+                    packets.add(PacketFactory.parsePacket(InetAddress.getLocalHost(), i));
                 }
-            } catch (DecodeException e) {
-                e.printStackTrace();
             } catch (Exception e) {
-                e.printStackTrace();
+                Assert.fail(e.getMessage());
             }
         });
-
-        //        .filter(i -> i != null)
         packets
         .forEach(i -> {
             System.out.format("    %d %d %d %s %d\n", i.getVersion(), i.getLength(), i.getSequenceNumber(), i.getExportTime(), i.getId());
-            //i.getRecords().forEach(j -> System.out.format("        %s\n", j));
+            i.getRecords().forEach(j -> System.out.format("        %s\n", j));
         });
         ;
+    }
+    
+    @Test
+    public void testDecode() {
+        Decoder nfd = new NetflowDecoder();
+        IpConnectionContext dummyctx = new IpConnectionContext(new InetSocketAddress(0), new InetSocketAddress(0), null);
+        Arrays.stream(captures)
+        .map(i -> {System.out.println(i + ": "); return i;})
+        .map(i -> "/netflow/packets/" + i)
+        .map(i-> getClass().getResourceAsStream(i))
+        .filter(i -> i != null)
+        .map(i -> {
+            try {
+                ByteArrayOutputStream out = new ByteArrayOutputStream();
+                byte[] buffer = new byte[8*1024];
+                for (int length; (length = i.read(buffer)) != -1; ){
+                    out.write(buffer, 0, length);
+                }
+                return out;
+            } catch (Exception e) {
+                Assert.fail(e.getMessage());
+                return null;
+            }
+        })
+        .filter(i -> i != null)
+        .map(i -> Unpooled.wrappedBuffer(i.toByteArray()))
+        .forEach(i -> {
+            try {
+                while(i.isReadable()) {
+                    Map<String, Object> content = nfd.decode(dummyctx, i);
+                    Assert.assertTrue(content.containsKey("netFlowVersion") || content.containsKey("IPFIXVersion") );
+                    Assert.assertTrue(content.containsKey("sequenceNumber"));
+                    System.out.println(content);
+                }
+            } catch (Exception e) {
+                Assert.fail(e.getMessage());
+            }
+        });
     }
 }

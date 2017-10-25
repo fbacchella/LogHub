@@ -2,25 +2,32 @@ package loghub.decoders.netflow;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.time.Duration;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import io.netty.buffer.ByteBuf;
 
 public class Netflow5Packet implements NetflowPacket {
 
+    private static final Logger logger = LogManager.getLogger();
+
     private final int count;
-    @SuppressWarnings("unused")
-    private final long sysUpTime;
+    private final Duration sysUpTime;
     private final Instant exportTime;
     private final long sequenceNumber;
     private final int type;
     private final Integer id;
+    private final short sampling_interval;
+    private final byte sampling_mode;
     List<Map<String, Object>> records;
-
 
     public Netflow5Packet(ByteBuf bbuf) {
         //Skip version
@@ -29,7 +36,11 @@ public class Netflow5Packet implements NetflowPacket {
             throw new RuntimeException("Invalid version");
         }
         count = Short.toUnsignedInt(bbuf.readShort());
-        sysUpTime = Integer.toUnsignedLong(bbuf.readInt());
+        if (count > 0) {
+            logger.trace("{} records expected", count);
+        }
+        long sysUpTimeValue = Integer.toUnsignedLong(bbuf.readInt());
+        sysUpTime = Duration.of(sysUpTimeValue, ChronoUnit.MILLIS);
         long exportSecs = Integer.toUnsignedLong(bbuf.readInt());
         long exportNano = Integer.toUnsignedLong(bbuf.readInt());
         exportTime = Instant.ofEpochSecond(exportSecs, exportNano);
@@ -37,7 +48,9 @@ public class Netflow5Packet implements NetflowPacket {
         type = Byte.toUnsignedInt(bbuf.readByte());
         id = Byte.toUnsignedInt(bbuf.readByte());
         //Sampling interval
-        bbuf.readShort();
+        short sampling_interval_buffer = bbuf.readShort();
+        sampling_interval = (short) (sampling_interval_buffer & 0x3FF);
+        sampling_mode = (byte) (sampling_interval_buffer >> 14);
 
         records = new ArrayList<>(count);
         byte[] addrbuffer = new byte[4];
@@ -107,6 +120,31 @@ public class Netflow5Packet implements NetflowPacket {
     @Override
     public List<Map<String, Object>> getRecords() {
         return records;
+    }
+
+    /**
+     * @return the sampling_mode
+     */
+    public byte getSamplingMode() {
+        return sampling_mode;
+    }
+
+    /**
+     * @return the sampling_interval
+     */
+    public short getSamplingInterval() {
+        return sampling_interval;
+    }
+
+    /**
+     * @return the type
+     */
+    public int getEngineType() {
+        return type;
+    }
+
+    public Duration getSysUpTime() {
+        return sysUpTime;
     }
 
 }

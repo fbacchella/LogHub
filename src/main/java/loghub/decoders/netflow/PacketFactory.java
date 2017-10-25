@@ -1,14 +1,28 @@
 package loghub.decoders.netflow;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.net.InetAddress;
+
 import io.netty.buffer.ByteBuf;
 import loghub.Decoder.DecodeException;
 
 public class PacketFactory {
+    
+    private static final IpfixInformationElements ipfixtypes;
+    private static final Netflow9Types nf9types = new Netflow9Types();
+    static {
+        try {
+            ipfixtypes = new IpfixInformationElements();
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
 
     private PacketFactory() {
     }
 
-    public static NetflowPacket parsePacket(ByteBuf bbuf) throws DecodeException {
+    public static NetflowPacket parsePacket(InetAddress remoteAddr, ByteBuf bbuf) throws DecodeException {
         bbuf.markReaderIndex();
         short version = bbuf.readShort();
         bbuf.resetReaderIndex();
@@ -16,9 +30,9 @@ public class PacketFactory {
         case 5:
             return new Netflow5Packet(bbuf);
         case 9:
-            return new Netflow9Packet(bbuf);
+            return new Netflow9Packet(remoteAddr, bbuf, ipfixtypes);
         case 10:
-            return new IpfixPacket(bbuf);
+            return new IpfixPacket(remoteAddr, bbuf, ipfixtypes);
         default:
             throw new DecodeException("Unsupported netflow/IPFIX packet version: " + version);
         }
