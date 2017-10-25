@@ -1,6 +1,7 @@
-package loghub.decoders.netflow;
+package loghub.netflow;
 
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
@@ -8,14 +9,32 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.junit.Assert;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import io.netty.buffer.Unpooled;
 import loghub.Decoder;
 import loghub.IpConnectionContext;
+import loghub.LogUtils;
+import loghub.Tools;
+import loghub.netflow.NetflowDecoder;
+import loghub.netflow.NetflowPacket;
+import loghub.netflow.PacketFactory;
 
 public class PacketsTest {
+
+    private static Logger logger;
+
+    @BeforeClass
+    static public void configure() throws IOException {
+        Tools.configure();
+        logger = LogManager.getLogger();
+        LogUtils.setLevel(logger, Level.TRACE);
+    }
 
     private final static String[] captures = new String[] {
             "ipfix.dat",
@@ -81,7 +100,7 @@ public class PacketsTest {
     public void testParse() {
         final List<NetflowPacket> packets = new ArrayList<>();
         Arrays.stream(captures)
-        .map(i -> {System.out.println(i + ": "); return i;})
+        .map(i -> {logger.debug(i + ": "); return i;})
         .map(i -> "/netflow/packets/" + i)
         .map(i-> getClass().getResourceAsStream(i))
         .filter(i -> i != null)
@@ -111,8 +130,8 @@ public class PacketsTest {
         });
         packets
         .forEach(i -> {
-            System.out.format("    %d %d %d %s %d\n", i.getVersion(), i.getLength(), i.getSequenceNumber(), i.getExportTime(), i.getId());
-            i.getRecords().forEach(j -> System.out.format("        %s\n", j));
+            logger.debug("    {} {} {} {} {}\n", i.getVersion(), i.getLength(), i.getSequenceNumber(), i.getExportTime(), i.getId());
+            i.getRecords().forEach(j -> logger.debug("        {}\n", j));
         });
         ;
     }
@@ -123,7 +142,7 @@ public class PacketsTest {
         Decoder nfd = new NetflowDecoder();
         IpConnectionContext dummyctx = new IpConnectionContext(new InetSocketAddress(0), new InetSocketAddress(0), null);
         Arrays.stream(captures)
-        .map(i -> {System.out.println(i + ": "); return i;})
+        .map(i -> {logger.debug(i + ": "); return i;})
         .map(i -> "/netflow/packets/" + i)
         .map(i-> getClass().getResourceAsStream(i))
         .filter(i -> i != null)
@@ -153,7 +172,7 @@ public class PacketsTest {
                     if (((Integer)content.get("version"))< 10) {
                         Assert.assertTrue(content.containsKey("SysUptime"));
                     }
-                    System.out.println(content);
+                    logger.debug(content);
                 }
             } catch (Exception e) {
                 Assert.fail(e.getMessage());

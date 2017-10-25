@@ -1,4 +1,4 @@
-package loghub.decoders.netflow;
+package loghub.netflow;
 
 import java.net.InetAddress;
 import java.time.Duration;

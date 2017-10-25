@@ -1,4 +1,4 @@
-package loghub.decoders.netflow;
+package loghub.netflow;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -14,7 +14,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import io.netty.buffer.ByteBuf;
-import loghub.decoders.netflow.TemplateBasePacket.TemplateType;
+import loghub.netflow.TemplateBasePacket.TemplateType;
 
 public class Netflow5Packet implements NetflowPacket {
 
