@@ -275,7 +275,7 @@ public abstract class TemplateBasePacket implements NetflowPacket {
                     Object value = types.getValue(type.intValue(), content);
                     logger.trace("    {} {} {}", types.getName(type.intValue()), fieldSize, value);
                     record.put(types.getName(type.intValue()), value);
-                    record.put("_type", tpl.type.toString());
+                    record.put(PacketFactory.TYPEKEY, tpl.type);
                 } catch (IndexOutOfBoundsException e) {
                     throw new RuntimeException(String.format("reading outsing range: %d out of %d\n", fieldSize, bbuf.readableBytes()));
                 }

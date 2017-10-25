@@ -59,7 +59,7 @@ public class Netflow5Packet implements NetflowPacket {
             try {
                 Map<String, Object> record = new HashMap<>(20);
                 bbuf.readBytes(addrbuffer);
-                record.put("_type", TemplateType.Records.toString());
+                record.put(PacketFactory.TYPEKEY, TemplateType.Records);
                 record.put("srcaddr", InetAddress.getByAddress(addrbuffer));
                 bbuf.readBytes(addrbuffer);
                 record.put("dstaddr", InetAddress.getByAddress(addrbuffer));

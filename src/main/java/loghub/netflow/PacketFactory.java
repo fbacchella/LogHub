@@ -8,6 +8,8 @@ import io.netty.buffer.ByteBuf;
 import loghub.Decoder.DecodeException;
 
 public class PacketFactory {
+    
+    static public final String TYPEKEY = "_type";
 
     private static final IpfixInformationElements ipfixtypes;
     static {
