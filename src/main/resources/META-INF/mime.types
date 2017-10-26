@@ -2,6 +2,8 @@ text/css                            css
 text/javascript                     js
 application/xml                     xml xsl
 application/json                    json
+application/yaml                    yaml
+text/csv                            csv
 
 # See http://pki-tutorial.readthedocs.io/en/latest/mime.html#file-types for explanations
 application/pkcs8                   p8  key
