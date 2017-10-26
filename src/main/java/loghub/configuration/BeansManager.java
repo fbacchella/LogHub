@@ -161,32 +161,31 @@ public class BeansManager {
     public static <T> T ConstructFromString(Class<T> clazz, String value) throws InvocationTargetException {
         try {
             Constructor<T> c = null;
-            if(! clazz.isPrimitive() ) {
-                c = clazz.getConstructor(String.class);
+            if(clazz == Integer.TYPE || Integer.class.equals(clazz)) {
+                return (T) Integer.valueOf(value);
             }
-            else if(clazz == Integer.TYPE) {
-                c = (Constructor<T>) Integer.class.getConstructor(String.class);
+            else if(clazz == Double.TYPE || Integer.class.equals(clazz)) {
+                return (T) Double.valueOf(value);
             }
-            else if(clazz == Double.TYPE) {
-                c = (Constructor<T>) Double.class.getConstructor(String.class);
+            else if(clazz == Float.TYPE || Float.class.equals(clazz)) {
+                return (T) Float.valueOf(value);
             }
-            else if(clazz == Float.TYPE) {
-                c = (Constructor<T>)Float.class.getConstructor(String.class);
+            else if(clazz == Byte.TYPE || Byte.class.equals(clazz)) {
+                return (T) Byte.valueOf(value);
             }
-            else if(clazz == Byte.TYPE) {
-                c = (Constructor<T>) Byte.class.getConstructor(String.class);
+            else if(clazz == Long.TYPE || Long.class.equals(clazz)) {
+                return (T) Long.valueOf(value);
             }
-            else if(clazz == Long.TYPE) {
-                c = (Constructor<T>)Long.class.getConstructor(String.class);
+            else if(clazz == Short.TYPE || Short.class.equals(clazz)) {
+                return (T) Short.valueOf(value);
             }
-            else if(clazz == Short.TYPE) {
-                c = (Constructor<T>)Short.class.getConstructor(String.class);
-            }
-            else if(clazz == Boolean.TYPE) {
+            else if(clazz == Boolean.TYPE || Boolean.class.equals(clazz)) {
                 c = (Constructor<T>)Boolean.class.getConstructor(String.class);
             }
-            else if(clazz == Character.TYPE) {
+            else if(clazz == Character.TYPE || Character.class.equals(clazz)) {
                 c = (Constructor<T>) Character.class.getConstructor(String.class);
+            } else {
+                c = clazz.getConstructor(String.class);
             }
             return c.newInstance(value);
         } catch (SecurityException e) {

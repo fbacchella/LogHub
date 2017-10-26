@@ -193,7 +193,7 @@ class ConfigListener extends RouteBaseListener {
     @Override
     public void enterFloatingPointLiteral(FloatingPointLiteralContext ctx) {
         String content = ctx.FloatingPointLiteral().getText();
-        pushLiteral(ctx, new Double(content));
+        pushLiteral(ctx, Double.valueOf(content));
     }
 
     @Override
@@ -211,13 +211,13 @@ class ConfigListener extends RouteBaseListener {
     @Override
     public void enterIntegerLiteral(IntegerLiteralContext ctx) {
         String content = ctx.IntegerLiteral().getText();
-        pushLiteral(ctx, new Integer(content));
+        pushLiteral(ctx, Integer.valueOf(content));
     }
 
     @Override
     public void enterBooleanLiteral(BooleanLiteralContext ctx) {
         String content = ctx.getText();
-        pushLiteral(ctx, new Boolean(content));
+        pushLiteral(ctx, Boolean.valueOf(content));
     }
 
     @Override
