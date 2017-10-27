@@ -39,6 +39,7 @@ public class Start extends Thread {
 
         String configFile = null;
         boolean test = false;
+        boolean fulltest = false;
         String grokPatterns = null;
         String pipeLineTest = null;
 
@@ -53,6 +54,9 @@ public class Start extends Thread {
                     }
                 } else if ("-t".equals(arg) || "--test".equals(arg)) {
                     test = true;
+                } else if ("-T".equals(arg) || "--fulltest".equals(arg)) {
+                    test = true;
+                    fulltest = true;
                 } else if ("-g".equals(arg) || "--grok".equals(arg)) {
                     grokPatterns = i.next();
                 } else if ("-p".equals(arg) || "--pipeline".equals(arg)) {
@@ -73,8 +77,11 @@ public class Start extends Thread {
 
         try {
             Properties props = Configuration.parse(configFile);
-            if (! test) {
-                new Start(props).start();
+            if (!test) {
+                Start runner = new Start(props);
+                if (!fulltest) {
+                    runner.start();
+                }
             }
         } catch (NullPointerException e) {
             e.printStackTrace();
