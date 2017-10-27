@@ -48,6 +48,7 @@ import loghub.RouteParser.PipenodeContext;
 import loghub.RouteParser.PipenodeListContext;
 import loghub.RouteParser.PiperefContext;
 import loghub.RouteParser.PropertyContext;
+import loghub.RouteParser.SourcedefContext;
 import loghub.RouteParser.StringLiteralContext;
 import loghub.RouteParser.TestContext;
 import loghub.RouteParser.TestExpressionContext;
@@ -128,6 +129,15 @@ class ConfigListener extends RouteBaseListener {
         }
     }
 
+    static final class Source implements ObjectReference {
+        final String source;
+        final Map<String, ObjectDescription> sources;
+        Source(String source, Map<String, ObjectDescription> sources) {
+            this.source = source;
+            this.sources = sources;
+        }
+    }
+
     static class ObjectDescription implements ObjectReference, Iterable<String> {
         final ParserRuleContext ctx;
         final String clazz;
@@ -167,6 +177,7 @@ class ConfigListener extends RouteBaseListener {
     final List<Output> outputs = new ArrayList<>();
     final Map<String, Object> properties = new HashMap<>();
     final Map<String, String> formatters = new HashMap<>();
+    final Map<String, ObjectDescription> sources = new HashMap<>();
 
     private String currentPipeLineName = null;
     private int expressionDepth = 0;
@@ -451,6 +462,13 @@ class ConfigListener extends RouteBaseListener {
     }
 
     @Override
+    public void exitSourcedef(SourcedefContext ctx) {
+        String sourceName = ctx.Identifier().getText();
+        ObjectDescription source = (ObjectDescription) stack.pop();
+        sources.put(sourceName, source);
+    }
+
+    @Override
     public void enterArray(ArrayContext ctx) {
         stack.push(StackMarker.Array);
     }
@@ -580,14 +598,19 @@ class ConfigListener extends RouteBaseListener {
 
     @Override
     public void exitMap(MapContext ctx) {
-        Map<Object, Object> map = new HashMap<>();
-        Object o;
-        while((o = stack.pop()) != StackMarker.Map) { 
-            ObjectWrapped value = (ObjectWrapped) o;
-            ObjectWrapped key = (ObjectWrapped) stack.pop();
-            map.put(key.wrapped, value.wrapped);
-        };
-        stack.push(new ConfigListener.ObjectWrapped(map));
+        if (ctx.source() == null) {
+            Map<Object, Object> map = new HashMap<>();
+            Object o;
+            while((o = stack.pop()) != StackMarker.Map) { 
+                ObjectWrapped value = (ObjectWrapped) o;
+                ObjectWrapped key = (ObjectWrapped) stack.pop();
+                map.put(key.wrapped, value.wrapped);
+            };
+            stack.push(new ConfigListener.ObjectWrapped(map));
+        } else {
+            assert stack.pop() == ConfigListener.StackMarker.Map;
+            stack.push(new ConfigListener.Source(ctx.source().Identifier().getText(), sources));
+        }
     }
 
     @Override

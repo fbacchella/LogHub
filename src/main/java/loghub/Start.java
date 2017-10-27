@@ -100,6 +100,12 @@ public class Start extends Thread {
 
         setName("LogHub");
 
+        for (Source s: props.sources.values()) {
+            if ( ! s.configure(props)) {
+                logger.error("failed to start output {}", s.getName());
+            };
+        }
+
         props.pipelines.stream().forEach(i-> i.configure(props));
 
         for (Sender s: props.senders) {

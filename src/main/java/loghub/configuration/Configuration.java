@@ -57,6 +57,7 @@ import loghub.RouteParser.BeanValueContext;
 import loghub.RouteParser.LiteralContext;
 import loghub.RouteParser.PropertyContext;
 import loghub.Sender;
+import loghub.Source;
 import loghub.configuration.ConfigListener.Input;
 import loghub.configuration.ConfigListener.ObjectReference;
 import loghub.configuration.ConfigListener.Output;
@@ -76,6 +77,7 @@ public class Configuration {
     private Set<String> outputpipelines = new HashSet<>();
     // Stores all the top level pipelines, that generate metrics
     private final Set<String> topPipelines = new HashSet<>();
+    private Map<String, Source> sources = new HashMap<>();
     private List<Sender> senders;
     private ClassLoader classLoader = Configuration.class.getClassLoader();
 
@@ -296,6 +298,14 @@ public class Configuration {
         };
         conf.properties.entrySet().stream().forEach( i-> newProperties.put(i.getKey(), resolve.apply(i.getValue())));
 
+        // Resolve the sources
+        ThrowingFunction<Class<Source>, Source> sourceConstructor = i -> {return i.getConstructor().newInstance();};
+        conf.sources.forEach((name,sd) -> {
+            Source s = parseObjectDescription(sd, sourceConstructor);
+            s.setName(name);
+            sources.put(name, s);
+        });
+
         Map<String, Pipeline> namedPipeLine = new HashMap<>(conf.pipelines.size());
 
         newProperties.put(Properties.PROPSNAMES.CLASSLOADERNAME.toString(), classLoader);
@@ -367,6 +377,8 @@ public class Configuration {
         newProperties.put(Properties.PROPSNAMES.SENDERS.toString(), senders);
 
         newProperties.put(Properties.PROPSNAMES.TOPPIPELINE.toString(), Collections.unmodifiableSet(topPipelines));
+
+        newProperties.put(Properties.PROPSNAMES.SOURCES.toString(), Collections.unmodifiableMap(sources));
 
         // Allows the system properties to override any properties given in the configuration file
         // But only if they are not some of the special internal properties
@@ -442,6 +454,9 @@ public class Configuration {
                     }
                 } else if (ref instanceof ConfigListener.ObjectDescription) {
                     beanValue = parseObjectDescription((ConfigListener.ObjectDescription) ref, emptyConstructor, currentPipeLineName, depth + 1, numSubpipe);
+                } else if (ref instanceof ConfigListener.Source) {
+                    ConfigListener.Source source = (ConfigListener.Source) ref;
+                    beanValue = sources.get(source.source);
                 } else if (ref == null){
                     beanValue = null;
                 } else {

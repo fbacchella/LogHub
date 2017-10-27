@@ -4,7 +4,7 @@
 
 grammar Route;
 
-configuration: (pipeline|input|output|property)+ EOF;
+configuration: (pipeline|input|output|sources|property)+ EOF;
 pipeline: 'pipeline' '[' Identifier ']' '{' pipenodeList? '}' ( '|' '$' finalpiperef) ?;
 input: 'input' '{'  inputObjectlist '}' ('|' '$' piperef)?;
 output: 'output' ('$' piperef '|' )? '{' outputObjectlist '}';
@@ -27,7 +27,7 @@ pipenode
     ;
 
 object: QualifiedIdentifier beansDescription ; 
-beansDescription:  ('{' (bean (',' bean)*)? ','? '}')? ;
+beansDescription: ('{' (bean (',' bean)*)? ','? '}')? ;
 
 bean
     :   'if' ':' expression
@@ -151,16 +151,32 @@ matchOperator
     |   '==~'
     ;
 
-array: '[' (beanValue (',' beanValue)*)? ','? ']';
+array
+    : '[' (beanValue (',' beanValue)*)? ','? ']'
+    | source
+    ;
 
 map
     : '{' (literal ':' beanValue ( ',' ? literal ':' beanValue)*)? ','? '}'
+    | source
+    ;
+
+source
+    : '%' Identifier
     ;
 
 eventVariable: '[' (key='@timestamp' | (Identifier ( Identifier)*)) ']' ;
 
 propertyName
     :   Identifier | QualifiedIdentifier
+    ;
+    
+sources
+    : 'sources' ':'  sourcedef+
+    ;
+
+sourcedef
+    :  Identifier ':' object
     ;
 
 Identifier

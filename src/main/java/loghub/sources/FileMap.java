@@ -1,4 +1,4 @@
-package loghub.processors;
+package loghub.sources;
 
 import java.io.FileReader;
 import java.io.IOException;
@@ -8,13 +8,18 @@ import java.util.Map;
 
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVRecord;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
-import loghub.Event;
 import loghub.Helpers;
-import loghub.ProcessorException;
+import loghub.Source;
 import loghub.configuration.Properties;
 
-public class ExternalMap extends FieldsProcessor {
+public class FileMap extends HashMap<Object, Object> implements Source{
+
+    private static final Logger logger = LogManager.getLogger();
+    
+    private String name;
 
     private String mappingFile = null;
     private String key = null;
@@ -22,16 +27,24 @@ public class ExternalMap extends FieldsProcessor {
     private String csvFormat = "default";
     private int keyColumn = -1;
     private int valueColumn = -1;
-    private Map<Object, Object> map;
 
     @Override
     public boolean configure(Properties properties) {
+        Map<Object, Object> map = null;
+        if (mappingFile == null) {
+            logger.error("No mapping source defined");
+        }
         switch (Helpers.getMimeType(mappingFile)) {
         case "text/csv":
             map = mapFromCsv();
             break;
         }
-        return map!= null && super.configure(properties);
+        if (map != null) {
+            putAll(map);
+            return true;
+        } else {
+            return false;
+        }
     }
 
     private Map<Object, Object> mapFromCsv() {
@@ -81,27 +94,6 @@ public class ExternalMap extends FieldsProcessor {
         }
     }
 
-    @Override
-    public boolean processMessage(Event event, String field, String destination) throws ProcessorException {
-        // Yes same code than loghub.processors.Mapper, easier to copy than wrap
-        Object key = event.get(field);
-        if(key == null) {
-            return false;
-        }
-        // Map only uses integer as key, as parsing number only generate integer
-        // So ensure the the key is an integer
-        // Ignore float/double case, floating point key don't make sense
-        if (key instanceof Number && ! (key instanceof Integer) && ! (key instanceof Double) && ! (key instanceof Double)) {
-            key = Integer.valueOf(((Number) key).intValue());
-        }
-        if (! map.containsKey(key)) {
-            return false;
-        }
-        Object value =  map.get(key);
-        event.put(destination, value);
-        return true;
-    }
-
     public String getMappingFile() {
         return mappingFile;
     }
@@ -148,6 +140,14 @@ public class ExternalMap extends FieldsProcessor {
 
     public void setValueColumn(int valueColumn) {
         this.valueColumn = valueColumn;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
     }
 
 }
