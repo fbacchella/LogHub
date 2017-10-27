@@ -55,7 +55,6 @@ public class Start extends Thread {
                 } else if ("-t".equals(arg) || "--test".equals(arg)) {
                     test = true;
                 } else if ("-T".equals(arg) || "--fulltest".equals(arg)) {
-                    test = true;
                     fulltest = true;
                 } else if ("-g".equals(arg) || "--grok".equals(arg)) {
                     grokPatterns = i.next();

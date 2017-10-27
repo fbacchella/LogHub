@@ -96,8 +96,8 @@ public class TestConfigurations {
         for(String plName: new String[]{"main", "oneref", "groovy"}) {
             Assert.assertTrue("pipeline '" + plName +"'not found", conf.namedPipeLine.containsKey(plName));
         }
-        Assert.assertEquals("input not found", 1, conf.receivers.size());
-        Assert.assertEquals("ouput not found", 1, conf.senders.size());
+        Assert.assertEquals("input not found", 2, conf.receivers.size());
+        Assert.assertEquals("ouput not found", 2, conf.senders.size());
     }
 
     @Test
