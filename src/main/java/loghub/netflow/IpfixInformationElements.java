@@ -94,7 +94,7 @@ class IpfixInformationElements {
 
     }
 
-    // Downloaded from https://www.iana.org/assignments/ipfix/ipfix-information-elements.cs
+    // Downloaded from https://www.iana.org/assignments/ipfix/ipfix-information-elements.csv
     private static final String CSVSOURCE="ipfix-information-elements.csv";
     private static final Pattern RANGEPATTERN = Pattern.compile("\\d+-\\d+");
 

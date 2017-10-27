@@ -426,7 +426,6 @@ public class Configuration {
             t = subpipe;
         } else if (i instanceof ConfigListener.ProcessorInstance) {
             ConfigListener.ProcessorInstance ti = (ConfigListener.ProcessorInstance) i;
-
             t = (Processor) parseObjectDescription(ti, emptyConstructor, currentPipeLineName, depth, subPipeLine);
         } else {
             throw new RuntimeException("Unreachable code for " + i);
