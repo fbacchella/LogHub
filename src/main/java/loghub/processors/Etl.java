@@ -136,11 +136,6 @@ public abstract class Etl extends Processor {
 
     public abstract boolean process(Event event) throws ProcessorException; 
 
-    @Override
-    public String getName() {
-        return null;
-    }
-
     public String[] getLvalue() {
         return lvalue;
     }

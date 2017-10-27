@@ -206,11 +206,6 @@ public class Geoip2 extends FieldsProcessor {
     }
 
     @Override
-    public String getName() {
-        return null;
-    }
-
-    @Override
     public boolean configure(Properties properties) {
         Object datfile = properties.get("geoip2data");
         if(datfile != null) {

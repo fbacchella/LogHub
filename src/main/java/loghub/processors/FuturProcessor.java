@@ -48,8 +48,4 @@ public class FuturProcessor<FI> extends Processor {
         }
     }
 
-    @Override
-    public String getName() {
-        return null;
-    }
 }

@@ -24,11 +24,6 @@ public class Forker extends Processor {
         throw new UnsupportedOperationException("can't process wrapped event");
     }
 
-    @Override
-    public String getName() {
-        return null;
-    }
-
     public void fork(Event event) {
         Event newEvent = event.duplicate();
         if(newEvent == null) {

@@ -7,18 +7,14 @@ import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashSet;
-import java.util.Locale;
-import java.util.Map;
 import java.util.Set;
 
 public class BeansManager {
 
     private BeansManager() {
     }
+
     /**
      * Given an object, a bean name and a bean value, try to set the bean.
      * 
@@ -90,35 +86,6 @@ public class BeansManager {
         } catch (Exception e) {
             throw new InvocationTargetException(e, "invalid bean '" + beanName + "' for " + beanObject);
         }
-    }
-
-    /**
-     * Extract a map of the beans of an class. Only the beans listed in the ProbeBean class will be return
-     * @param c a class to extract beans from
-     * @param topClass the class to stop the introspection
-     * @return a map of beans
-     * @throws InvocationTargetException if one bean anotation don't map to a bean
-     */
-    static public Map<String, PropertyDescriptor> getBeanPropertiesMap(Class<?> c, Class<?> topClass) throws InvocationTargetException {
-        Set<Beans> beansAnnotations = enumerateAnnotation(c, Beans.class, topClass);
-        if(beansAnnotations.isEmpty())
-            return Collections.emptyMap();
-        Map<String, PropertyDescriptor> beanProperties = new HashMap<String, PropertyDescriptor>();
-        for(Beans annotation: beansAnnotations) {
-            for(String beanName: annotation.value()) {
-                //Bean already found, don't work on it again
-                if( beanProperties.containsKey(beanName)) {
-                    continue;
-                }
-                try {
-                    PropertyDescriptor bean = new PropertyDescriptor(beanName, c);
-                    beanProperties.put(bean.getName(), bean);
-                } catch (IntrospectionException e) {
-                    throw new InvocationTargetException(e, "invalid bean " + beanName + " for " + c.getName());
-                }
-            }
-        }
-        return beanProperties;
     }
 
     /**
@@ -201,24 +168,6 @@ public class BeansManager {
         } catch (InvocationTargetException e) {
             throw e;
         }
-    }
-
-    public static String capitalize(String name) {
-        if (name == null || name.length() == 0) {
-            return name;
-        }
-        return name.substring(0, 1).toUpperCase(Locale.ENGLISH) + name.substring(1);
-    }
-
-    public static Set<String> getBeans(Class<?> clazz) {
-        Set<Beans> beansAnnotations = enumerateAnnotation(clazz, Beans.class, Object.class);
-        Set<String> beans = new HashSet<>();
-        for(Beans annotation: beansAnnotations) {
-            for(String b: annotation.value()) {
-                beans.add(b);
-            }
-        }
-        return beans;
     }
 
 }

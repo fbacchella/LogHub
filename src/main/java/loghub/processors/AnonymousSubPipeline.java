@@ -11,11 +11,6 @@ public class AnonymousSubPipeline extends Processor implements SubPipeline {
 
     private Pipeline pipeline;
 
-    @Override
-    public String getName() {
-        return null;
-    }
-
     /**
      * @return the pipeline
      */

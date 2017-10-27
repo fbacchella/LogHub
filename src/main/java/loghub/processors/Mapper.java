@@ -30,11 +30,6 @@ public class Mapper extends Etl {
         return true;
     }
 
-    @Override
-    public String getName() {
-        return null;
-    }
-
     /**
      * @return the map
      */

@@ -18,7 +18,6 @@ import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.BlockingQueue;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -177,28 +176,6 @@ public final class Helpers {
                 throw new RuntimeException("cant load ressource at " + url);
             }
         }
-    }
-
-    public static Thread QueueProxy(String name, BlockingQueue<Event> inQueue, BlockingQueue<Event> outQueue, Actor onerror) {
-        Thread t = new Thread() {
-            @Override
-            public void run() {
-                while(true) {
-                    try {
-                        Event e = inQueue.take();
-                        if(! outQueue.offer(e)) {
-                            Stats.dropped.incrementAndGet();
-                            onerror.act();
-                        }
-                    } catch (InterruptedException e) {
-                        break;
-                    }
-                }
-            }
-        };
-        t.setDaemon(true);
-        t.setName(name);
-        return t;
     }
 
     /**
