@@ -37,7 +37,7 @@ bean
     ;
 
 beanName
-    :'index' | 'seeds' | 'doFire' | 'onFire' | 'timeout' | 'forward' | 'default' | 'merge' | 'inPipeline'
+    :'index' | 'seeds' | 'doFire' | 'onFire' | 'timeout' | 'forward' | 'default' | 'merge' | 'inPipeline' | 'path'
     | Identifier
     ;
 
