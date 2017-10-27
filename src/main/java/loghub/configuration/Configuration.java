@@ -478,7 +478,11 @@ public class Configuration {
             if (e.getCause() != null) {
                 rootCause = e.getCause();
             }
-            throw new ConfigException(String.format("Invalid class '%s': %s", desc.clazz, rootCause.getMessage()), desc.stream.getSourceName(), desc.ctx.start, rootCause);
+            String message = rootCause.getMessage();
+            if (message == null) {
+                message = rootCause.getClass().getSimpleName();
+            }
+            throw new ConfigException(String.format("Invalid class '%s': %s", desc.clazz, message), desc.stream.getSourceName(), desc.ctx.start, rootCause);
         }
     }
 
