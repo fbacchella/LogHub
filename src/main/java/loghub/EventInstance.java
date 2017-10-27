@@ -265,4 +265,9 @@ class EventInstance extends Event {
         return this;
     }
 
+    @Override
+    public Event unwrap() {
+        return this;
+    }
+
 }
