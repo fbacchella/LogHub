@@ -104,4 +104,6 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
 
     protected abstract EventInstance getRealEvent();
 
+    public abstract Event unwrap();
+
 }

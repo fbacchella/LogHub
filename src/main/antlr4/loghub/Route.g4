@@ -23,7 +23,8 @@ pipenode
     | '(' pipenodeList ')'
     | '$' piperef
     | object
-    | '{' pipenodeList? '}' 
+    | '{' pipenodeList? '}'
+    | path
     ;
 
 object: QualifiedIdentifier beansDescription ; 
@@ -97,6 +98,10 @@ etl
     | op='(' QualifiedIdentifier ')' eventVariable
     ;
 
+path
+    : 'path' eventVariable '(' pipenodeList ')'
+    ;
+ 
 test: testExpression '?' pipenode (':' pipenode)? ;
 
 testExpression: expression;

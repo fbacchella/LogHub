@@ -18,6 +18,8 @@ import loghub.configuration.TestEventProcessing;
 import loghub.processors.Drop;
 import loghub.processors.Forker;
 import loghub.processors.FuturProcessor;
+import loghub.processors.UnwrapEvent;
+import loghub.processors.WrapEvent;
 
 public class EventsProcessor extends Thread {
 
@@ -68,6 +70,13 @@ public class EventsProcessor extends Thread {
                     logger.trace("received {}", event);
                     Processor processor;
                     while ((processor = event.next()) != null) {
+                        if (processor instanceof WrapEvent) {
+                            event = new EventWrapper(event, processor.getPathArray());
+                            continue;
+                        } else if (processor instanceof UnwrapEvent) {
+                            event = event.unwrap();
+                            continue;
+                        }
                         logger.trace("processing {}", processor);
                         Thread.currentThread().setName(threadName + "-" + processor.getName());
                         int processingstatus = process(event, processor);

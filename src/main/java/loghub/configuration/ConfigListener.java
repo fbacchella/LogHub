@@ -43,6 +43,7 @@ import loghub.RouteParser.NullLiteralContext;
 import loghub.RouteParser.ObjectContext;
 import loghub.RouteParser.OutputContext;
 import loghub.RouteParser.OutputObjectlistContext;
+import loghub.RouteParser.PathContext;
 import loghub.RouteParser.PipelineContext;
 import loghub.RouteParser.PipenodeContext;
 import loghub.RouteParser.PipenodeListContext;
@@ -60,6 +61,8 @@ import loghub.processors.Log;
 import loghub.processors.Mapper;
 import loghub.processors.Merge;
 import loghub.processors.Test;
+import loghub.processors.UnwrapEvent;
+import loghub.processors.WrapEvent;
 
 class ConfigListener extends RouteBaseListener {
 
@@ -348,6 +351,21 @@ class ConfigListener extends RouteBaseListener {
             assert (StackMarker.PipeNodeList.equals(o)) || o instanceof Pipenode;
         } while(! StackMarker.PipeNodeList.equals(o));
         stack.push(pipe);
+    }
+
+    @Override
+    public void enterPath(PathContext ctx) {
+        ObjectDescription object = new ObjectDescription(stream, WrapEvent.class.getName(), ctx);
+        object.beans.put("pathArray", new ObjectWrapped(convertEventVariable(ctx.eventVariable())));
+        ProcessorInstance ti = new ProcessorInstance(stream , object, ctx);
+        stack.push(ti);
+    }
+
+    @Override
+    public void exitPath(PathContext ctx) {
+        ObjectDescription object = new ObjectDescription(stream, UnwrapEvent.class.getName(), ctx);
+        ProcessorInstance ti = new ProcessorInstance(stream , object, ctx);
+        stack.push(ti);
     }
 
     @Override
