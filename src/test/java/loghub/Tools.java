@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 
 import org.junit.Assert;
@@ -97,7 +98,7 @@ public class Tools {
         Event toprocess;
         // Process all the events, will hang forever is it don't finish
         try {
-            while ((toprocess = props.mainQueue.take()) != null) {
+            while ((toprocess = props.mainQueue.poll(5, TimeUnit.SECONDS)) != null) {
                 while ((processor = toprocess.next()) != null) {
                     int status = ep.process(toprocess, processor);
                     ps.status.add(status);
