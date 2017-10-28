@@ -42,6 +42,8 @@ public class Start extends Thread {
         boolean fulltest = false;
         String grokPatterns = null;
         String pipeLineTest = null;
+        boolean canexit = true;
+        int exitcode = 0;
 
         if (args.length > 0) {
             List<String> argsList = Arrays.asList(args);
@@ -60,6 +62,9 @@ public class Start extends Thread {
                     grokPatterns = i.next();
                 } else if ("-p".equals(arg) || "--pipeline".equals(arg)) {
                     pipeLineTest = i.next();
+                } else if (arg == null) {
+                    // A null in the argument, so it was called from inside a jvm, never exit
+                    canexit = false;
                 } else {
                     configFile = arg;
                 }
@@ -68,10 +73,10 @@ public class Start extends Thread {
 
         if (grokPatterns != null) {
             TestGrokPatterns.check(grokPatterns);
-            System.exit(0);
+            exitcode = 0;
         } else if (pipeLineTest != null) {
             TestEventProcessing.check(pipeLineTest, configFile);
-            System.exit(0);
+            exitcode = 0;
         }
 
         try {
@@ -81,6 +86,7 @@ public class Start extends Thread {
                 if (!fulltest) {
                     runner.start();
                     logger.warn("LogHub started");
+                    exitcode = 0;
                 }
             }
         } catch (ConfigException e) {
@@ -93,17 +99,21 @@ public class Start extends Thread {
                 message = t.getClass().getSimpleName();
             }
             System.out.format("Error in %s: %s\n", e.getLocation(), message);
-            System.exit(1);
+            exitcode = 1;
         } catch (IllegalStateException e) {
-            System.exit(1);
+            exitcode = 1;
         } catch (RuntimeException e) {
             e.printStackTrace();
-            System.exit(1);
+            exitcode = 1;
         } catch (IOException e) {
             System.out.format("can't read configuration file %s: %s\n", configFile, e.getMessage());
-            System.exit(1);
+            exitcode = 11;
         }
-
+        if (canexit) {
+            System.exit(exitcode);
+        } else if (exitcode != 0) {
+            throw new RuntimeException();
+        }
     }
 
     public Start(Properties props) throws ConfigException, IOException {

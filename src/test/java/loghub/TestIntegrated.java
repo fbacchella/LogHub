@@ -21,7 +21,7 @@ public class TestIntegrated {
     @Test(timeout=5000)
     public void runStart() throws ConfigException, IOException, InterruptedException {
         String conffile = Configuration.class.getClassLoader().getResource("test.conf").getFile();
-        Start.main(new String[] {"-c", conffile});
+        Start.main(new String[] {null, "-c", conffile});
         Thread.sleep(500);
         Socket sender = tctxt.ctx.newSocket(Method.CONNECT, Type.PUB, "inproc://listener");
         Socket receiver = tctxt.ctx.newSocket(Method.CONNECT, Type.SUB, "inproc://sender");
