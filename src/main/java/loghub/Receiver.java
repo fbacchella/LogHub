@@ -11,12 +11,28 @@ import org.apache.logging.log4j.Logger;
 
 import com.codahale.metrics.Meter;
 
+import io.netty.buffer.ByteBuf;
 import loghub.Decoder.DecodeException;
 import loghub.configuration.Beans;
 import loghub.configuration.Properties;
 
 @Beans({"decoder"})
 public abstract class Receiver extends Thread implements Iterator<Event> {
+    
+    /**
+     * Any receiver that does it's own decoding should set the decoder to this value durinc configuration
+     */
+    protected static final Decoder NULLDECODER = new Decoder() {
+        @Override
+        public Map<String, Object> decode(ConnectionContext connectionContext, byte[] msg, int offset, int length) throws DecodeException {
+            return null;
+        }
+        @Override
+        public Map<String, Object> decode(ConnectionContext ctx, ByteBuf bbuf) throws DecodeException {
+            return null;
+        }
+
+    };
 
     protected final Logger logger;
 
@@ -38,7 +54,8 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
         if (decoder != null) {
             return decoder.configure(properties, this);
         } else {
-            return true;
+            logger.error("Missing decoder");
+            return false;
         }
     }
 

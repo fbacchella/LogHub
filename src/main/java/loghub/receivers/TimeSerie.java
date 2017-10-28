@@ -11,6 +11,7 @@ import loghub.ConnectionContext;
 import loghub.Event;
 import loghub.Pipeline;
 import loghub.Receiver;
+import loghub.configuration.Properties;
 
 public class TimeSerie extends Receiver {
 
@@ -20,6 +21,12 @@ public class TimeSerie extends Receiver {
 
     public TimeSerie(BlockingQueue<Event> outQueue, Pipeline processors) {
         super(outQueue, processors);
+    }
+
+    @Override
+    public boolean configure(Properties properties) {
+        decoder = Receiver.NULLDECODER;
+        return super.configure(properties);
     }
 
     @Override

@@ -92,6 +92,7 @@ public class SnmpTrap extends Receiver implements CommandResponder {
 
     @Override
     public boolean configure(Properties properties) {
+        decoder = Receiver.NULLDECODER;
         if(mibtree == null) {
             mibtree = new MibTree();
         }
