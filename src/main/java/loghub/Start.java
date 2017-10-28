@@ -80,17 +80,21 @@ public class Start extends Thread {
                 Start runner = new Start(props);
                 if (!fulltest) {
                     runner.start();
+                    logger.warn("LogHub started");
                 }
             }
-        } catch (NullPointerException e) {
-            e.printStackTrace();
-            System.exit(1);
         } catch (ConfigException e) {
             Throwable t = e;
             if (e.getCause() != null) {
                 t = e.getCause();
             }
-            System.out.format("Error in %s: %s\n", e.getLocation(), t.getMessage());
+            String message = t.getMessage();
+            if (message == null) {
+                message = t.getClass().getSimpleName();
+            }
+            System.out.format("Error in %s: %s\n", e.getLocation(), message);
+            System.exit(1);
+        } catch (IllegalStateException e) {
             System.exit(1);
         } catch (RuntimeException e) {
             e.printStackTrace();
@@ -109,6 +113,7 @@ public class Start extends Thread {
         for (Source s: props.sources.values()) {
             if ( ! s.configure(props)) {
                 logger.error("failed to start output {}", s.getName());
+                throw new IllegalStateException();
             };
         }
 
@@ -119,6 +124,7 @@ public class Start extends Thread {
                 s.start();
             } else {
                 logger.error("failed to start output {}", s.getName());
+                throw new IllegalStateException();
             };
         }
 
@@ -134,6 +140,7 @@ public class Start extends Thread {
                 r.start();
             } else {
                 logger.error("failed to start input {}", r.getName());
+                throw new IllegalStateException();
             }
         }
 
