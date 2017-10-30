@@ -109,7 +109,7 @@ public class Start extends Thread {
             System.out.format("can't read configuration file %s: %s\n", configFile, e.getMessage());
             exitcode = 11;
         }
-        if (canexit) {
+        if (canexit && exitcode != 0) {
             System.exit(exitcode);
         } else if (exitcode != 0) {
             throw new RuntimeException();
