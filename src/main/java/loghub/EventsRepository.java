@@ -46,6 +46,7 @@ public class EventsRepository<KEY> {
     public void pause(PausedEvent<KEY> paused) {
         PausedEvent<KEY> realpaused = paused.setRepository(this);
         pausestack.put(realpaused.key, realpaused);
+        Properties.metrics.counter("paused").inc();
         if (realpaused.duration > 0 && realpaused.unit != null) {
             waiting.put(realpaused.key, processTimeout.newTimeout(i -> this.timeout(realpaused.key), realpaused.duration, realpaused.unit));
         }
@@ -53,6 +54,9 @@ public class EventsRepository<KEY> {
 
     public PausedEvent<KEY> cancel(KEY key) {
         PausedEvent<KEY> pe = pausestack.remove(key);
+        if (pe != null) {
+            Properties.metrics.counter("paused").dec();
+        }
         if (pe != null && pe.key != null) {
             Timeout task = waiting.remove(pe.key);
             if(task != null) {
@@ -85,6 +89,7 @@ public class EventsRepository<KEY> {
         if (pe == null) {
             return true;
         }
+        Properties.metrics.counter("paused").dec();
         Timeout task = waiting.remove(pe.key);
         if (task != null) {
             task.cancel();
@@ -110,6 +115,7 @@ public class EventsRepository<KEY> {
             if (paused.duration > 0 && paused.unit != null) {
                 waiting.put(key, processTimeout.newTimeout(j -> this.timeout(key), paused.duration, paused.unit));
             }
+            Properties.metrics.counter("paused").inc();
             return paused;
         });
     }

@@ -22,8 +22,9 @@ public abstract class FieldsProcessor extends Processor {
     public abstract boolean processMessage(Event event, String field, String destination) throws ProcessorException;
 
     public interface AsyncFieldsProcessor<FI> {
-        public abstract boolean process(Event event, FI content, String destination) throws ProcessorException;
-        public abstract boolean manageException(Event event, Exception e, String destination) throws ProcessorException;
+        public boolean process(Event event, FI content, String destination) throws ProcessorException;
+        public boolean manageException(Event event, Exception e, String destination) throws ProcessorException;
+        public int getTimeout();
     }
 
     private class FieldSubProcessor extends Processor {
@@ -64,8 +65,11 @@ public abstract class FieldsProcessor extends Processor {
 
     private class AsyncFieldSubProcessor extends FieldSubProcessor implements AsyncProcessor<Object> {
 
-        AsyncFieldSubProcessor(Iterator<String> processing) {
+        private final int timeout;
+        
+        AsyncFieldSubProcessor(Iterator<String> processing, int timeout) {
             super(processing);
+            this.timeout = timeout;
         }
 
         @Override
@@ -85,6 +89,11 @@ public abstract class FieldsProcessor extends Processor {
         @Override
         public String getName() {
             return String.format("%s$AsyncFieldSubProcessor@%d", FieldsProcessor.this.getName(), hashCode());
+        }
+
+        @Override
+        public int getTimeout() {
+            return timeout;
         }
 
     }
@@ -130,7 +139,7 @@ public abstract class FieldsProcessor extends Processor {
 
         Processor fieldProcessor;
         if (this instanceof AsyncFieldsProcessor) {
-            fieldProcessor = new AsyncFieldSubProcessor(processing);
+            fieldProcessor = new AsyncFieldSubProcessor(processing, ((AsyncFieldsProcessor<?>)this).getTimeout());
         } else {
             fieldProcessor = new FieldSubProcessor(processing);
         }
