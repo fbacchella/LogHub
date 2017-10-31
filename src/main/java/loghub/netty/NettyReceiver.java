@@ -64,7 +64,7 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
         protected void decode(ChannelHandlerContext ctx, SM msg, List<Object> out) {
             ConnectionContext cctx = getConnectionContext(ctx, msg);
             ctx.channel().attr(CONNECTIONCONTEXTATTRIBUTE).set(cctx);
-            //The message is not transformeed in this step, so don't decrease reference count
+            //The message is not transformed in this step, so don't decrease reference count
             if (msg instanceof ReferenceCounted) {
                 ((ReferenceCounted) msg).retain();
             }

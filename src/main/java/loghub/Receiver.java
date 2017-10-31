@@ -20,7 +20,7 @@ import loghub.configuration.Properties;
 public abstract class Receiver extends Thread implements Iterator<Event> {
     
     /**
-     * Any receiver that does it's own decoding should set the decoder to this value durinc configuration
+     * Any receiver that does it's own decoding should set the decoder to this value during configuration
      */
     protected static final Decoder NULLDECODER = new Decoder() {
         @Override
