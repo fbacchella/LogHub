@@ -38,19 +38,19 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
 
     private final BlockingQueue<Event> outQueue;
     private final Pipeline pipeline;
-    private final Meter count;
+    private Meter count;
     protected Decoder decoder = null;
 
     public Receiver(BlockingQueue<Event> outQueue, Pipeline pipeline){
         setDaemon(true);
-        setName("receiver-" + getReceiverName());
         this.outQueue = outQueue;
         this.pipeline = pipeline;
-        count = Properties.metrics.meter(getName());
         logger = LogManager.getLogger(Helpers.getFistInitClass());
     }
 
     public boolean configure(Properties properties) {
+        setName("receiver-" + getReceiverName());
+        count = Properties.metrics.meter("receiver." + getReceiverName());
         if (decoder != null) {
             return decoder.configure(properties, this);
         } else {
@@ -219,7 +219,7 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
         Stats.received.incrementAndGet();
         if(! event.inject(pipeline, outQueue)) {
             Stats.dropped.incrementAndGet();
-            Properties.metrics.meter("Pipeline." + pipeline.getName() + ".blocked").mark();
+            Properties.metrics.meter("Pipeline." + pipeline.getName() + ".blocked.in").mark();
             event.end();
             logger.error("send failed for {}, destination blocked", event);
         }

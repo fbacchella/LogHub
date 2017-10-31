@@ -179,8 +179,10 @@ public class Properties extends HashMap<String, Object> {
             toppipelines.stream().forEach( i -> {
                 metrics.counter("Pipeline." + i + ".inflight");
                 metrics.timer("Pipeline." + i + ".timer");
-                metrics.meter("Pipeline." + i + ".blocked");
-                metrics.meter("Pipeline." + i + ".out.blocked");
+                metrics.timer("Pipeline." + i + ".failed");
+                metrics.timer("Pipeline." + i + ".dropped");
+                metrics.meter("Pipeline." + i + ".blocked.in");
+                metrics.meter("Pipeline." + i + ".blocked.out");
             });
         }
         metrics.counter("Allevents.inflight");
