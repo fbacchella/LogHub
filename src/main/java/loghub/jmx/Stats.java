@@ -30,7 +30,7 @@ public interface Stats {
     default public String[] getErrors() {
         return loghub.Stats.getErrors().stream()
                 .map( i-> (Throwable) (i.getCause() != null ? i.getCause() :  i))
-                .map( i -> i.getMessage())
+                .map( i -> i.getClass().getSimpleName() + ":" + i.getMessage())
                 .toArray(String[]::new)
                 ;
     }
