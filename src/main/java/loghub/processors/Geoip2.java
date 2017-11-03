@@ -237,8 +237,14 @@ public class Geoip2 extends FieldsProcessor {
                 }
             } else {
                 try {
-                    InputStream embedded = new BufferedInputStream(properties.classloader.getResourceAsStream("GeoLite2-City.mmdb"));
-                    reader = new DatabaseReader.Builder(embedded).withCache(nc).build();
+                    InputStream is = properties.classloader.getResourceAsStream("GeoLite2-City.mmdb");
+                    if (is == null) {
+                        logger.error("Didn't find a default database");
+                        return false;
+                    } else {
+                        InputStream embedded = new BufferedInputStream(is);
+                        reader = new DatabaseReader.Builder(embedded).withCache(nc).build();
+                    }
                 } catch (IOException e) {
                     logger.error("Didn't find a default database");
                     logger.throwing(Level.DEBUG, e);
