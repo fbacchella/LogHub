@@ -95,6 +95,7 @@ public class NettyNameResolver extends AbstractNameResolver implements FieldsPro
         }
     }
 
+    private static final int NOERROR = DnsResponseCode.NOERROR.intValue();
     private static final EventLoopGroup evg = new NioEventLoopGroup(1, new DefaultThreadFactory("dnsresolver"));
     private int timeout = 10;
     private DnsNameResolver resolver;
@@ -150,10 +151,14 @@ public class NettyNameResolver extends AbstractNameResolver implements FieldsPro
         try {
             DnsResponse response = enveloppe.content();
             DnsQuestion questionRr = (DnsQuestion) response.recordAt((DnsSection.QUESTION));
-            DnsRecord AnswerRr = enveloppe.content().recordAt((DnsSection.ANSWER));
+            DnsRecord answerRr = enveloppe.content().recordAt((DnsSection.ANSWER));
+            if (answerRr == null && response.code().intValue() == NOERROR) {
+                // Not sure if ever happens, but it might explain some NPE in the ttl line later.
+                throw ev.buildException("no error in DNS query, but no answer in it");
+            }
             DnsCacheEntry cached = new DnsCacheEntry(enveloppe);
             // Default to 5s on failure, just to avoid wild loop
-            int ttl = response.code().intValue() == DnsResponseCode.NOERROR.intValue() ? (int) AnswerRr.timeToLive() : 5;
+            int ttl = response.code().intValue() == NOERROR ? (int) answerRr.timeToLive() : 5;
             Element cacheElement = new Element(makeKey(questionRr), cached, ttl / 2, ttl);
             hostCache.put(cacheElement);
             return store(ev, cached, destination);
