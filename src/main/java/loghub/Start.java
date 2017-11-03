@@ -1,6 +1,7 @@
 package loghub;
 
 import java.io.IOException;
+import java.lang.management.ManagementFactory;
 import java.rmi.NotBoundException;
 import java.util.Arrays;
 import java.util.Iterator;
@@ -8,9 +9,10 @@ import java.util.List;
 
 import javax.management.InstanceAlreadyExistsException;
 import javax.management.MBeanRegistrationException;
+import javax.management.MBeanServer;
 import javax.management.MalformedObjectNameException;
 import javax.management.NotCompliantMBeanException;
-import javax.management.remote.JMXConnectorServer;
+import javax.management.ObjectName;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -23,6 +25,8 @@ import loghub.configuration.Properties;
 import loghub.configuration.TestEventProcessing;
 import loghub.configuration.TestGrokPatterns;
 import loghub.jmx.Helper;
+import loghub.jmx.PipelineStat;
+import loghub.jmx.Stats;
 import loghub.netty.http.AbstractHttpServer;
 
 public class Start extends Thread {
@@ -155,17 +159,27 @@ public class Start extends Thread {
         }
 
         try {
-            Helper.register(loghub.jmx.Stats.class);
+            MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
+            mbs.registerMBean(new Stats.Implementation(), Stats.Implementation.NAME);
             JmxReporter reporter = Properties.metrics.getJmxReporter();
             reporter.start();
+            mbs.queryNames(ObjectName.getInstance("metrics", "name", "Pipeline.*.timer"), null).stream()
+            .map( i-> i.getKeyProperty("name"))
+            .map( i -> i.replaceAll("^Pipeline\\.(.*)\\.timer$", "$1"))
+            .forEach(
+                    i -> {
+                        try {
+                            mbs.registerMBean(new PipelineStat.Implementation(i), null);
+                        } catch (NotCompliantMBeanException | InstanceAlreadyExistsException | MBeanRegistrationException e) {
+                        }
+                    })
+            ;
             int port = props.jmxport;
             if (port > 0) {
-                @SuppressWarnings("unused")
-                JMXConnectorServer cs = Helper.start(props.jmxproto, props.jmxlisten, port);
+                Helper.start(props.jmxproto, props.jmxlisten, port);
             }
         } catch (IOException | NotBoundException | NotCompliantMBeanException | MalformedObjectNameException
-                | InstanceAlreadyExistsException | MBeanRegistrationException | InstantiationException
-                | IllegalAccessException e) {
+                | InstanceAlreadyExistsException | MBeanRegistrationException e) {
             throw new RuntimeException("jmx configuration failed: " + e.getMessage(), e);
         }
 

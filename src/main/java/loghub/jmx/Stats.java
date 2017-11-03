@@ -5,11 +5,11 @@ import javax.management.MBeanRegistrationException;
 import javax.management.MXBean;
 import javax.management.MalformedObjectNameException;
 import javax.management.NotCompliantMBeanException;
+import javax.management.ObjectName;
+import javax.management.StandardMBean;
 
 @MXBean
-@Implementation(loghub.jmx.Stats.StatsImpl.class)
 public interface Stats {
-    public final static String NAME = "loghub:type=stats";
 
     default public long getReceived() {
         return loghub.Stats.received.get();
@@ -41,7 +41,7 @@ public interface Stats {
                 .map( i -> {
                     StringBuffer exceptionDetails = new StringBuffer();
                     String exceptionMessage = i.getMessage();
-                    if ( exceptionMessage == null) {
+                    if (exceptionMessage == null) {
                         exceptionMessage = i.getClass().getSimpleName();
                     }
                     exceptionDetails.append(exceptionMessage);
@@ -55,16 +55,22 @@ public interface Stats {
                 ;
     }
 
-    public class StatsImpl extends BeanImplementation implements Stats {
-        public StatsImpl()
+    public class Implementation extends StandardMBean implements Stats {
+
+        public final static ObjectName NAME;
+        static {
+            try {
+                NAME = ObjectName.getInstance("loghub", "type", "stats");
+            } catch (MalformedObjectNameException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        public Implementation()
                 throws NotCompliantMBeanException, MalformedObjectNameException, InstanceAlreadyExistsException, MBeanRegistrationException {
             super(Stats.class);
         }
 
-        @Override
-        public String getName() {
-            return NAME;
-        }
     }
 
 }
