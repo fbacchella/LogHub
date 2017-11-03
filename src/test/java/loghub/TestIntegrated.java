@@ -58,7 +58,7 @@ public class TestIntegrated {
         Thread.sleep(500);
 
         MBeanServer mbs =  ManagementFactory.getPlatformMBeanServer(); 
-        Stats stats = JMX.newMBeanProxy(mbs, new ObjectName(Stats.NAME), Stats.class);
+        Stats stats = JMX.newMBeanProxy(mbs, Stats.Implementation.NAME, Stats.class);
 
         JmxTimerMBean allevents_timer = JMX.newMBeanProxy(mbs, new ObjectName("metrics:name=Allevents.timer"), JmxTimerMBean.class);
         JmxCounterMBean allevents_inflight = JMX.newMBeanProxy(mbs, new ObjectName("metrics:name=Allevents.inflight"), JmxCounterMBean.class);
