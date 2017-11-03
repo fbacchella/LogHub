@@ -131,7 +131,7 @@ public class NettyNameResolver extends AbstractNameResolver implements FieldsPro
     @Override
     public boolean resolve(Event event, String query, String destination) throws ProcessorException {
         DnsQuestion dnsquery = new DefaultDnsQuestion(query, DnsRecordType.PTR);
-        Element e = hostCache.get(new DnsCacheKey(dnsquery));
+        Element e = hostCache.get(makeKey(dnsquery));
         if (e != null) {
             DnsCacheEntry cached = (DnsCacheEntry) e.getObjectValue();
             logger.trace("Cached response: {}", cached);
@@ -154,7 +154,7 @@ public class NettyNameResolver extends AbstractNameResolver implements FieldsPro
             DnsCacheEntry cached = new DnsCacheEntry(enveloppe);
             // Default to 5s on failure, just to avoid wild loop
             int ttl = response.code().intValue() == DnsResponseCode.NOERROR.intValue() ? (int) AnswerRr.timeToLive() : 5;
-            Element cacheElement = new Element(new DnsCacheKey(questionRr), cached, ttl / 2, ttl);
+            Element cacheElement = new Element(makeKey(questionRr), cached, ttl / 2, ttl);
             hostCache.put(cacheElement);
             return store(ev, cached, destination);
         } finally {
@@ -175,6 +175,15 @@ public class NettyNameResolver extends AbstractNameResolver implements FieldsPro
         } else {
             return false;
         }
+    }
+
+    private DnsCacheKey makeKey(DnsQuestion query) {
+        DnsCacheKey trykey = new DnsCacheKey(query);
+        Element e = hostCache.get(trykey);
+        if (e != null) {
+            trykey = (DnsCacheKey) e.getObjectKey();
+        }
+        return trykey;
     }
 
     @Override
@@ -221,7 +230,7 @@ public class NettyNameResolver extends AbstractNameResolver implements FieldsPro
             DnsQuestion dnsquery = new DefaultDnsQuestion(query, type);
             Future<AddressedEnvelope<DnsResponse, InetSocketAddress>> future = resolver.query(dnsquery);
             enveloppe = future.get();
-            Element cachedEntry = new Element(new DnsCacheKey(dnsquery),new DnsCacheEntry(enveloppe));
+            Element cachedEntry = new Element(makeKey(dnsquery),new DnsCacheEntry(enveloppe));
             hostCache.put(cachedEntry);
             return enveloppe.content().recordAt((DnsSection.ANSWER));
         } catch (ExecutionException e) {
