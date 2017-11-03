@@ -152,13 +152,10 @@ public class NettyNameResolver extends AbstractNameResolver implements FieldsPro
             DnsResponse response = enveloppe.content();
             DnsQuestion questionRr = (DnsQuestion) response.recordAt((DnsSection.QUESTION));
             DnsRecord answerRr = enveloppe.content().recordAt((DnsSection.ANSWER));
-            if (answerRr == null && response.code().intValue() == NOERROR) {
-                // Not sure if ever happens, but it might explain some NPE in the ttl line later.
-                throw ev.buildException("no error in DNS query, but no answer in it");
-            }
             DnsCacheEntry cached = new DnsCacheEntry(enveloppe);
             // Default to 5s on failure, just to avoid wild loop
-            int ttl = response.code().intValue() == NOERROR ? (int) answerRr.timeToLive() : 5;
+            // Also check than the answerRR is not null, some servers are happy to return ok on failure
+            int ttl = (response.code().intValue() == NOERROR && answerRr != null) ? (int) answerRr.timeToLive() : 5;
             Element cacheElement = new Element(makeKey(questionRr), cached, ttl / 2, ttl);
             hostCache.put(cacheElement);
             return store(ev, cached, destination);
@@ -168,15 +165,11 @@ public class NettyNameResolver extends AbstractNameResolver implements FieldsPro
     }
 
     private boolean store(Event ev, DnsCacheEntry value, String destination) {
-        if (value.answserRr != null) {
-            if (value.answserRr instanceof DnsPtrRecord) {
-                // DNS responses end the query with a ., substring removes it.
-                DnsPtrRecord ptr = (DnsPtrRecord) value.answserRr;
-                ev.put(destination, ptr.hostname().substring(0, ptr.hostname().length() - 1).intern());
-                return true;
-            } else {
-                return false;
-            }
+        if (value.answserRr != null && value.answserRr instanceof DnsPtrRecord) {
+            // DNS responses end the query with a ., substring removes it.
+            DnsPtrRecord ptr = (DnsPtrRecord) value.answserRr;
+            ev.put(destination, ptr.hostname().substring(0, ptr.hostname().length() - 1).intern());
+            return true;
         } else {
             return false;
         }
