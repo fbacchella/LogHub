@@ -56,15 +56,13 @@ public class EventsRepository<KEY> {
         PausedEvent<KEY> pe = pausestack.remove(key);
         if (pe != null) {
             Properties.metrics.counter("paused").dec();
-        }
-        if (pe != null && pe.key != null) {
-            Timeout task = waiting.remove(pe.key);
-            if(task != null) {
-                task.cancel();
-            } 
         } else {
             logger.warn("removed illegal event with key {}", key);
         }
+        Timeout task = waiting.remove(key);
+        if(task != null) {
+            task.cancel();
+        } 
         return pe;
     }
 
@@ -86,14 +84,14 @@ public class EventsRepository<KEY> {
 
     private boolean awake(KEY key, Function<PausedEvent<KEY>, Processor> source, Function<PausedEvent<KEY>, Function<Event, Event>> transform) {
         PausedEvent<KEY> pe = pausestack.remove(key);
+        Timeout task = waiting.remove(key);
+        if (task  != null) {
+            task.cancel();
+        }
         if (pe == null) {
             return true;
         }
         Properties.metrics.counter("paused").dec();
-        Timeout task = waiting.remove(pe.key);
-        if (task != null) {
-            task.cancel();
-        }
         logger.trace("Waking up event {}", pe.event);
         pe.event.insertProcessor(source.apply(pe));
         return transform.apply(pe).apply(pe.event).inject(pipelines.get(pe.pipeline), mainQueue);
