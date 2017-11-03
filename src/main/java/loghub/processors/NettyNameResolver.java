@@ -105,7 +105,7 @@ public class NettyNameResolver extends AbstractNameResolver implements FieldsPro
     @Override
     public boolean configure(Properties properties) {
         DnsNameResolverBuilder builder = new DnsNameResolverBuilder(evg.next())
-                .queryTimeoutMillis(timeout * 1000)
+                .queryTimeoutMillis((timeout - 1) * 1000)
                 .channelType(NioDatagramChannel.class)
                 ;
         try {
