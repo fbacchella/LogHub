@@ -2,6 +2,8 @@ package loghub.snmp;
 
 import java.io.Serializable;
 import java.util.Iterator;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -152,14 +154,16 @@ public class Log4j2LogFactory extends LogFactory {
 
     };
 
+    private static final Map<Object, LogAdapter> adapters = new ConcurrentHashMap<>();
+
     @Override
     protected LogAdapter createLogger(@SuppressWarnings("rawtypes") Class c) {
-        return new Log4j2Adapter(c);
+        return adapters.computeIfAbsent(c,  i-> new Log4j2Adapter(c));
     }
 
     @Override
     protected LogAdapter createLogger(String className) {
-        return new Log4j2Adapter(className);
+        return adapters.computeIfAbsent(className,  i-> new Log4j2Adapter(className));
     }
 
 }
