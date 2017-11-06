@@ -35,6 +35,14 @@ public interface Stats {
                 ;
     }
 
+    default public String[] getDecodErrors() {
+        return loghub.Stats.getDecodeErrors().stream()
+                .map( i-> (Throwable) (i.getCause() != null ? i.getCause() :  i))
+                .map( i -> i.getClass().getSimpleName() + ":" + i.getMessage())
+                .toArray(String[]::new)
+                ;
+    }
+
     default public String[] getExceptions() {
         return loghub.Stats.getExceptions().stream()
                 .map( i-> (Throwable) (i.getCause() != null ? i.getCause() :  i))

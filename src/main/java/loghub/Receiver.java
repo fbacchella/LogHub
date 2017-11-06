@@ -204,6 +204,7 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
     }
 
     protected void manageDecodeException(DecodeException ex) {
+        Stats.newDecodError(ex);
         logger.error("invalid message received: {}", ex.getMessage());
         logger.throwing(Level.DEBUG, ex.getCause() != null ? ex.getCause() : ex);
     }
