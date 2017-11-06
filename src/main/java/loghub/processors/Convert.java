@@ -33,11 +33,6 @@ public class Convert extends FieldsProcessor {
     }
 
     @Override
-    public String getName() {
-        return null;
-    }
-
-    @Override
     public boolean configure(Properties properties) {
         try {
             clazz = properties.classloader.loadClass(className);

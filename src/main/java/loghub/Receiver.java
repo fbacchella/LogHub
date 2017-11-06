@@ -11,34 +11,51 @@ import org.apache.logging.log4j.Logger;
 
 import com.codahale.metrics.Meter;
 
+import io.netty.buffer.ByteBuf;
 import loghub.Decoder.DecodeException;
 import loghub.configuration.Beans;
 import loghub.configuration.Properties;
 
 @Beans({"decoder"})
 public abstract class Receiver extends Thread implements Iterator<Event> {
+    
+    /**
+     * Any receiver that does it's own decoding should set the decoder to this value during configuration
+     */
+    protected static final Decoder NULLDECODER = new Decoder() {
+        @Override
+        public Map<String, Object> decode(ConnectionContext connectionContext, byte[] msg, int offset, int length) throws DecodeException {
+            return null;
+        }
+        @Override
+        public Map<String, Object> decode(ConnectionContext ctx, ByteBuf bbuf) throws DecodeException {
+            return null;
+        }
+
+    };
 
     protected final Logger logger;
 
     private final BlockingQueue<Event> outQueue;
     private final Pipeline pipeline;
-    private final Meter count;
+    private Meter count;
     protected Decoder decoder = null;
 
     public Receiver(BlockingQueue<Event> outQueue, Pipeline pipeline){
         setDaemon(true);
-        setName("receiver-" + getReceiverName());
         this.outQueue = outQueue;
         this.pipeline = pipeline;
-        count = Properties.metrics.meter(getName());
         logger = LogManager.getLogger(Helpers.getFistInitClass());
     }
 
     public boolean configure(Properties properties) {
+        setName("receiver-" + getReceiverName());
+        count = Properties.metrics.meter("receiver." + getReceiverName());
         if (decoder != null) {
             return decoder.configure(properties, this);
         } else {
-            return true;
+            logger.error("Missing decoder");
+            return false;
         }
     }
 
@@ -156,19 +173,19 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
         return null;
     }
 
-    protected final Event decode(byte[] msg) {
-        return decode(msg, 0, msg != null ? msg.length : 0);
+    protected final Event decode(ConnectionContext ctx, byte[] msg) {
+        return decode(ctx, msg, 0, msg != null ? msg.length : 0);
     }
 
-    protected final Event decode(byte[] msg, int offset, int size) {
-        EventInstance event = new EventInstance();
+    protected final Event decode(ConnectionContext ctx, byte[] msg, int offset, int size) {
+        EventInstance event = new EventInstance(ctx);
         if ( msg == null || size == 0) {
             logger.info("received null or empty event");
             event.end();
             return null;
         } else {
             try {
-                Map<String, Object> content = decoder.decode(msg, offset, size);
+                Map<String, Object> content = decoder.decode(ctx, msg, offset, size);
                 if (content.containsKey(Event.TIMESTAMPKEY) && (event.get(Event.TIMESTAMPKEY) instanceof Date)) {
                     event.setTimestamp((Date) event.remove(Event.TIMESTAMPKEY));
                 }
@@ -182,11 +199,12 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
         return event;
     }
 
-    protected final Event emptyEvent() {
-        return new EventInstance();
+    protected final Event emptyEvent(ConnectionContext ctx) {
+        return new EventInstance(ctx);
     }
 
     protected void manageDecodeException(DecodeException ex) {
+        Stats.newDecodError(ex);
         logger.error("invalid message received: {}", ex.getMessage());
         logger.throwing(Level.DEBUG, ex.getCause() != null ? ex.getCause() : ex);
     }
@@ -202,7 +220,7 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
         Stats.received.incrementAndGet();
         if(! event.inject(pipeline, outQueue)) {
             Stats.dropped.incrementAndGet();
-            Properties.metrics.meter("Pipeline." + pipeline.getName() + ".blocked").mark();
+            Properties.metrics.meter("Pipeline." + pipeline.getName() + ".blocked.in").mark();
             event.end();
             logger.error("send failed for {}, destination blocked", event);
         }

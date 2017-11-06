@@ -7,9 +7,11 @@ import java.util.Iterator;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.atomic.AtomicLong;
 
+import loghub.ConnectionContext;
 import loghub.Event;
 import loghub.Pipeline;
 import loghub.Receiver;
+import loghub.configuration.Properties;
 
 public class TimeSerie extends Receiver {
 
@@ -19,6 +21,12 @@ public class TimeSerie extends Receiver {
 
     public TimeSerie(BlockingQueue<Event> outQueue, Pipeline processors) {
         super(outQueue, processors);
+    }
+
+    @Override
+    public boolean configure(Properties properties) {
+        decoder = Receiver.NULLDECODER;
+        return super.configure(properties);
     }
 
     @Override
@@ -43,7 +51,7 @@ public class TimeSerie extends Receiver {
                 } catch (Exception e) {
                     throw new RuntimeException("can't push to buffer", e);
                 }
-                return decode(buffer.array());
+                return decode(ConnectionContext.EMPTY, buffer.array());
             }
 
         };

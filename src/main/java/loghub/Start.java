@@ -1,6 +1,7 @@
 package loghub;
 
 import java.io.IOException;
+import java.lang.management.ManagementFactory;
 import java.rmi.NotBoundException;
 import java.util.Arrays;
 import java.util.Iterator;
@@ -8,9 +9,10 @@ import java.util.List;
 
 import javax.management.InstanceAlreadyExistsException;
 import javax.management.MBeanRegistrationException;
+import javax.management.MBeanServer;
 import javax.management.MalformedObjectNameException;
 import javax.management.NotCompliantMBeanException;
-import javax.management.remote.JMXConnectorServer;
+import javax.management.ObjectName;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -23,6 +25,8 @@ import loghub.configuration.Properties;
 import loghub.configuration.TestEventProcessing;
 import loghub.configuration.TestGrokPatterns;
 import loghub.jmx.Helper;
+import loghub.jmx.PipelineStat;
+import loghub.jmx.Stats;
 import loghub.netty.http.AbstractHttpServer;
 
 public class Start extends Thread {
@@ -39,8 +43,11 @@ public class Start extends Thread {
 
         String configFile = null;
         boolean test = false;
+        boolean fulltest = false;
         String grokPatterns = null;
         String pipeLineTest = null;
+        boolean canexit = true;
+        int exitcode = 0;
 
         if (args.length > 0) {
             List<String> argsList = Arrays.asList(args);
@@ -53,10 +60,15 @@ public class Start extends Thread {
                     }
                 } else if ("-t".equals(arg) || "--test".equals(arg)) {
                     test = true;
+                } else if ("-T".equals(arg) || "--fulltest".equals(arg)) {
+                    fulltest = true;
                 } else if ("-g".equals(arg) || "--grok".equals(arg)) {
                     grokPatterns = i.next();
                 } else if ("-p".equals(arg) || "--pipeline".equals(arg)) {
                     pipeLineTest = i.next();
+                } else if (arg == null) {
+                    // A null in the argument, so it was called from inside a jvm, never exit
+                    canexit = false;
                 } else {
                     configFile = arg;
                 }
@@ -65,36 +77,59 @@ public class Start extends Thread {
 
         if (grokPatterns != null) {
             TestGrokPatterns.check(grokPatterns);
-            System.exit(0);
+            exitcode = 0;
         } else if (pipeLineTest != null) {
             TestEventProcessing.check(pipeLineTest, configFile);
-            System.exit(0);
+            exitcode = 0;
         }
 
         try {
             Properties props = Configuration.parse(configFile);
-            if (! test) {
-                new Start(props).start();
+            if (!test) {
+                Start runner = new Start(props);
+                if (!fulltest) {
+                    runner.start();
+                    logger.warn("LogHub started");
+                    exitcode = 0;
+                }
             }
-        } catch (NullPointerException e) {
-            e.printStackTrace();
-            System.exit(1);
         } catch (ConfigException e) {
-            System.out.format("Error in %s: %s\n", e.getLocation(), e.getMessage());
-            System.exit(1);
+            Throwable t = e;
+            if (e.getCause() != null) {
+                t = e.getCause();
+            }
+            String message = t.getMessage();
+            if (message == null) {
+                message = t.getClass().getSimpleName();
+            }
+            System.out.format("Error in %s: %s\n", e.getLocation(), message);
+            exitcode = 1;
+        } catch (IllegalStateException e) {
+            exitcode = 1;
         } catch (RuntimeException e) {
             e.printStackTrace();
-            System.exit(1);
+            exitcode = 1;
         } catch (IOException e) {
             System.out.format("can't read configuration file %s: %s\n", configFile, e.getMessage());
-            System.exit(1);
+            exitcode = 11;
         }
-
+        if (canexit && exitcode != 0) {
+            System.exit(exitcode);
+        } else if (exitcode != 0) {
+            throw new RuntimeException();
+        }
     }
 
     public Start(Properties props) throws ConfigException, IOException {
 
         setName("LogHub");
+
+        for (Source s: props.sources.values()) {
+            if ( ! s.configure(props)) {
+                logger.error("failed to start output {}", s.getName());
+                throw new IllegalStateException();
+            };
+        }
 
         props.pipelines.stream().forEach(i-> i.configure(props));
 
@@ -103,6 +138,7 @@ public class Start extends Thread {
                 s.start();
             } else {
                 logger.error("failed to start output {}", s.getName());
+                throw new IllegalStateException();
             };
         }
 
@@ -118,21 +154,32 @@ public class Start extends Thread {
                 r.start();
             } else {
                 logger.error("failed to start input {}", r.getName());
+                throw new IllegalStateException();
             }
         }
 
         try {
-            Helper.register(loghub.jmx.Stats.class);
+            MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
+            mbs.registerMBean(new Stats.Implementation(), Stats.Implementation.NAME);
             JmxReporter reporter = Properties.metrics.getJmxReporter();
             reporter.start();
+            mbs.queryNames(ObjectName.getInstance("metrics", "name", "Pipeline.*.timer"), null).stream()
+            .map( i-> i.getKeyProperty("name"))
+            .map( i -> i.replaceAll("^Pipeline\\.(.*)\\.timer$", "$1"))
+            .forEach(
+                    i -> {
+                        try {
+                            mbs.registerMBean(new PipelineStat.Implementation(i), null);
+                        } catch (NotCompliantMBeanException | InstanceAlreadyExistsException | MBeanRegistrationException e) {
+                        }
+                    })
+            ;
             int port = props.jmxport;
             if (port > 0) {
-                @SuppressWarnings("unused")
-                JMXConnectorServer cs = Helper.start(props.jmxproto, props.jmxlisten, port);
+                Helper.start(props.jmxproto, props.jmxlisten, port);
             }
         } catch (IOException | NotBoundException | NotCompliantMBeanException | MalformedObjectNameException
-                | InstanceAlreadyExistsException | MBeanRegistrationException | InstantiationException
-                | IllegalAccessException e) {
+                | InstanceAlreadyExistsException | MBeanRegistrationException e) {
             throw new RuntimeException("jmx configuration failed: " + e.getMessage(), e);
         }
 

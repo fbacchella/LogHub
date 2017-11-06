@@ -58,11 +58,6 @@ public abstract class AbstractNameResolver extends FieldsProcessor {
         }
     }
 
-    @Override
-    public String getName() {
-        return null;
-    }
-
     public abstract boolean resolve(Event event, String query, String destination) throws ProcessorException ;
 
     /**

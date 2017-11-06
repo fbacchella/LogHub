@@ -16,9 +16,13 @@ import org.apache.http.protocol.ResponseConnControl;
 import org.apache.http.protocol.ResponseContent;
 import org.apache.http.protocol.ResponseDate;
 import org.apache.http.protocol.ResponseServer;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.junit.rules.ExternalResource;
 
 public class HttpTestServer extends ExternalResource {
+
+    private static Logger logger = LogManager.getLogger();
 
     public static class HandlerInfo extends AbstractMap.SimpleImmutableEntry<String, HttpRequestHandler> {
         public HandlerInfo(String key, HttpRequestHandler value) {
@@ -33,6 +37,7 @@ public class HttpTestServer extends ExternalResource {
 
     @SafeVarargs
     public HttpTestServer(SSLContext ssl, int port, HandlerInfo... handlers) {
+        logger.debug("Starting a test HTTP servers on port {}, protocol {}", () -> port, () -> ssl != null ? "https" : "http");
         this.handlers = Arrays.copyOf(handlers, handlers.length);
         this.ssl = ssl;
         this.port = port;

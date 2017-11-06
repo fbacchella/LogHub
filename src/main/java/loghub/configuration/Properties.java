@@ -37,6 +37,7 @@ import loghub.EventsRepository;
 import loghub.Pipeline;
 import loghub.Receiver;
 import loghub.Sender;
+import loghub.Source;
 import loghub.VarFormatter;
 import loghub.jmx.Helper;
 import loghub.jmx.Helper.PROTOCOL;
@@ -96,7 +97,8 @@ public class Properties extends HashMap<String, Object> {
         PIPELINES,
         RECEIVERS,
         SENDERS,
-        TOPPIPELINE;
+        TOPPIPELINE,
+        SOURCES;
         @Override
         public String toString() {
             return "__" + super.toString();
@@ -108,6 +110,7 @@ public class Properties extends HashMap<String, Object> {
     public final Collection<Pipeline> pipelines;
     public final Collection<Receiver> receivers;
     public final Collection<Sender> senders;
+    public final Map<String, Source> sources;
     public final GroovyClassLoader groovyClassLoader;
     public final Map<String, VarFormatter> formatters;
     public final int jmxport;
@@ -176,8 +179,10 @@ public class Properties extends HashMap<String, Object> {
             toppipelines.stream().forEach( i -> {
                 metrics.counter("Pipeline." + i + ".inflight");
                 metrics.timer("Pipeline." + i + ".timer");
-                metrics.meter("Pipeline." + i + ".blocked");
-                metrics.meter("Pipeline." + i + ".out.blocked");
+                metrics.meter("Pipeline." + i + ".failed");
+                metrics.meter("Pipeline." + i + ".dropped");
+                metrics.meter("Pipeline." + i + ".blocked.in");
+                metrics.meter("Pipeline." + i + ".blocked.out");
             });
         }
         metrics.counter("Allevents.inflight");
@@ -193,7 +198,7 @@ public class Properties extends HashMap<String, Object> {
         if (jmxproto != null) {
             this.jmxproto = PROTOCOL.valueOf(jmxproto.toLowerCase());
         } else {
-            this.jmxproto = Helper.defaultProto;
+            this.jmxproto = Helper.DEFAULTPROTOCOL;
         }
         String jmxlisten = (String) properties.remove("jmx.listen");
         if (jmxlisten != null) {
@@ -226,6 +231,8 @@ public class Properties extends HashMap<String, Object> {
         }
 
         ssl = ContextLoader.build(entrySet().stream().filter(i -> i.getKey().startsWith("ssl.")).collect(Collectors.toMap( i -> i.getKey().substring(4), j -> j.getValue())));
+
+        sources = (Map<String, Source>) properties.remove(PROPSNAMES.SOURCES.toString());
 
         // Default values are for tests, so the build unusable queuing environment
         queuesDepth = properties.containsKey(PROPSNAMES.QUEUESDEPTH.toString()) ? (int) properties.remove(PROPSNAMES.QUEUESDEPTH.toString()) : 0;

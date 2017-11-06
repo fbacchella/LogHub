@@ -10,6 +10,7 @@ import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
 
+import loghub.ConnectionContext;
 import loghub.Event;
 import loghub.configuration.Properties.PROPSNAMES;
 import loghub.processors.Grok;
@@ -41,7 +42,7 @@ public class TestGrokPatterns {
             String line;
 
             while((line = reader.readLine()) != null) {
-                Event ev = Event.emptyEvent();
+                Event ev = Event.emptyEvent(ConnectionContext.EMPTY);
                 ev.put("__source_message__", line);
                 boolean found = tester.processMessage(ev, "__source_message__", "");
                 if (!found) {

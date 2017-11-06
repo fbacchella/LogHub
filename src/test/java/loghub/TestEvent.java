@@ -11,6 +11,7 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import loghub.EventsProcessor.ProcessingStatus;
 import loghub.configuration.Properties;
 
 public class TestEvent {
@@ -67,7 +68,7 @@ public class TestEvent {
         Map<String, Object> conf = new HashMap<>();
         conf.put("maxSteps", 5);
         Properties props = new Properties(conf);
-        Event e = Event.emptyTestEvent();
+        Event e = Event.emptyTestEvent(ConnectionContext.EMPTY);
         e.appendProcessor(new Looper());
         EventsProcessor ep = new EventsProcessor(props.mainQueue, props.outputQueues, props.namedPipeLine, props.maxSteps, props.repository);
         //e.appendProcessor(p);
@@ -77,7 +78,7 @@ public class TestEvent {
         while ((processor = e.next()) != null) {
             logger.debug("doing step");
             loop++;
-            if (ep.process(e, processor) != 0) {
+            if (ep.process(e, processor) != ProcessingStatus.SUCCESS) {
                 break;
             };
             Assert.assertTrue("Not counting processing", e.stepsCount() > numsteps);

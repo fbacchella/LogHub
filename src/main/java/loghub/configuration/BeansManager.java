@@ -7,18 +7,14 @@ import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashSet;
-import java.util.Locale;
-import java.util.Map;
 import java.util.Set;
 
 public class BeansManager {
 
     private BeansManager() {
     }
+
     /**
      * Given an object, a bean name and a bean value, try to set the bean.
      * 
@@ -93,35 +89,6 @@ public class BeansManager {
     }
 
     /**
-     * Extract a map of the beans of an class. Only the beans listed in the ProbeBean class will be return
-     * @param c a class to extract beans from
-     * @param topClass the class to stop the introspection
-     * @return a map of beans
-     * @throws InvocationTargetException if one bean anotation don't map to a bean
-     */
-    static public Map<String, PropertyDescriptor> getBeanPropertiesMap(Class<?> c, Class<?> topClass) throws InvocationTargetException {
-        Set<Beans> beansAnnotations = enumerateAnnotation(c, Beans.class, topClass);
-        if(beansAnnotations.isEmpty())
-            return Collections.emptyMap();
-        Map<String, PropertyDescriptor> beanProperties = new HashMap<String, PropertyDescriptor>();
-        for(Beans annotation: beansAnnotations) {
-            for(String beanName: annotation.value()) {
-                //Bean already found, don't work on it again
-                if( beanProperties.containsKey(beanName)) {
-                    continue;
-                }
-                try {
-                    PropertyDescriptor bean = new PropertyDescriptor(beanName, c);
-                    beanProperties.put(bean.getName(), bean);
-                } catch (IntrospectionException e) {
-                    throw new InvocationTargetException(e, "invalid bean " + beanName + " for " + c.getName());
-                }
-            }
-        }
-        return beanProperties;
-    }
-
-    /**
      * Enumerate the hierarchy of annotation for a class, until a certain class type is reached
      * @param searched the Class where the annotation is searched
      * @param annontationClass the annotation class
@@ -161,32 +128,31 @@ public class BeansManager {
     public static <T> T ConstructFromString(Class<T> clazz, String value) throws InvocationTargetException {
         try {
             Constructor<T> c = null;
-            if(! clazz.isPrimitive() ) {
-                c = clazz.getConstructor(String.class);
+            if(clazz == Integer.TYPE || Integer.class.equals(clazz)) {
+                return (T) Integer.valueOf(value);
             }
-            else if(clazz == Integer.TYPE) {
-                c = (Constructor<T>) Integer.class.getConstructor(String.class);
+            else if(clazz == Double.TYPE || Integer.class.equals(clazz)) {
+                return (T) Double.valueOf(value);
             }
-            else if(clazz == Double.TYPE) {
-                c = (Constructor<T>) Double.class.getConstructor(String.class);
+            else if(clazz == Float.TYPE || Float.class.equals(clazz)) {
+                return (T) Float.valueOf(value);
             }
-            else if(clazz == Float.TYPE) {
-                c = (Constructor<T>)Float.class.getConstructor(String.class);
+            else if(clazz == Byte.TYPE || Byte.class.equals(clazz)) {
+                return (T) Byte.valueOf(value);
             }
-            else if(clazz == Byte.TYPE) {
-                c = (Constructor<T>) Byte.class.getConstructor(String.class);
+            else if(clazz == Long.TYPE || Long.class.equals(clazz)) {
+                return (T) Long.valueOf(value);
             }
-            else if(clazz == Long.TYPE) {
-                c = (Constructor<T>)Long.class.getConstructor(String.class);
+            else if(clazz == Short.TYPE || Short.class.equals(clazz)) {
+                return (T) Short.valueOf(value);
             }
-            else if(clazz == Short.TYPE) {
-                c = (Constructor<T>)Short.class.getConstructor(String.class);
-            }
-            else if(clazz == Boolean.TYPE) {
+            else if(clazz == Boolean.TYPE || Boolean.class.equals(clazz)) {
                 c = (Constructor<T>)Boolean.class.getConstructor(String.class);
             }
-            else if(clazz == Character.TYPE) {
+            else if(clazz == Character.TYPE || Character.class.equals(clazz)) {
                 c = (Constructor<T>) Character.class.getConstructor(String.class);
+            } else {
+                c = clazz.getConstructor(String.class);
             }
             return c.newInstance(value);
         } catch (SecurityException e) {
@@ -202,24 +168,6 @@ public class BeansManager {
         } catch (InvocationTargetException e) {
             throw e;
         }
-    }
-
-    public static String capitalize(String name) {
-        if (name == null || name.length() == 0) {
-            return name;
-        }
-        return name.substring(0, 1).toUpperCase(Locale.ENGLISH) + name.substring(1);
-    }
-
-    public static Set<String> getBeans(Class<?> clazz) {
-        Set<Beans> beansAnnotations = enumerateAnnotation(clazz, Beans.class, Object.class);
-        Set<String> beans = new HashSet<>();
-        for(Beans annotation: beansAnnotations) {
-            for(String b: annotation.value()) {
-                beans.add(b);
-            }
-        }
-        return beans;
     }
 
 }

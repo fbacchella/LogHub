@@ -58,4 +58,19 @@ public class TestMapper {
 
     }
 
+    @Test
+    public void test4() throws ProcessorException, InterruptedException, ConfigException, IOException {
+        Properties conf = Tools.loadConf("map.conf");
+        for (Pipeline pipe: conf.pipelines) {
+            Assert.assertTrue("configuration failed", pipe.configure(conf));
+        }
+        Event sent = Tools.getEvent();
+        sent.put("a", 2L);
+
+        Tools.runProcessing(sent, conf.namedPipeLine.get("mapper2"), conf);
+        System.out.println(sent);
+        Assert.assertEquals("conversion not expected", "c", sent.get("a"));
+
+    }
+
 }

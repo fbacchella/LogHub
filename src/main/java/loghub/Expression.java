@@ -9,7 +9,6 @@ import org.codehaus.groovy.control.CompilationFailedException;
 
 import groovy.lang.Binding;
 import groovy.lang.GroovyClassLoader;
-import groovy.lang.GroovyRuntimeException;
 import groovy.lang.Script;
 
 public class Expression {
@@ -81,7 +80,7 @@ public class Expression {
         localscript.setBinding(groovyBinding);
         try {
             return localscript.run();
-        } catch (GroovyRuntimeException e) {
+        } catch (Exception e) {
             throw event.buildException(String.format("failed expression '%s': %s", expression, e.getMessage()));
         } finally {
             localscript.setBinding(EMPTYBIDDING);

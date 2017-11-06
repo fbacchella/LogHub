@@ -1,5 +1,6 @@
 package loghub.receivers;
 
+import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.HashMap;
 import java.util.Map;
@@ -11,7 +12,9 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.socket.DatagramChannel;
 import io.netty.channel.socket.DatagramPacket;
+import loghub.ConnectionContext;
 import loghub.Event;
+import loghub.IpConnectionContext;
 import loghub.Pipeline;
 import loghub.netty.NettyIpReceiver;
 import loghub.netty.UdpFactory;
@@ -53,11 +56,6 @@ public class Udp extends NettyIpReceiver<UdpServer, UdpFactory, Bootstrap, Chann
         return message.content();
     }
 
-    @Override
-    protected Object ResolveSourceAddress(ChannelHandlerContext ctx, DatagramPacket message) {
-        return message.sender().getAddress();
-    }
-
     /**
      * @return the buffersize
      */
@@ -70,6 +68,13 @@ public class Udp extends NettyIpReceiver<UdpServer, UdpFactory, Bootstrap, Chann
      */
     public void setBufferSize(int buffersize) {
         this.buffersize = buffersize;
+    }
+
+    @Override
+    public ConnectionContext getConnectionContext(ChannelHandlerContext ctx, DatagramPacket message) {
+        InetSocketAddress remoteaddr = message.sender();
+        InetSocketAddress localaddr = message.recipient();
+        return new IpConnectionContext(localaddr, remoteaddr, null);
     }
 
 }

@@ -7,11 +7,16 @@ import java.util.List;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.junit.Assert;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import io.netty.handler.codec.dns.DnsRecordType;
 import loghub.Event;
+import loghub.LogUtils;
 import loghub.Processor;
 import loghub.ProcessorException;
 import loghub.Tools;
@@ -19,6 +24,15 @@ import loghub.configuration.ConfigException;
 import loghub.configuration.Properties;
 
 public class TestNettyNameResolver {
+
+    private static Logger logger;
+
+    @BeforeClass
+    static public void configure() throws IOException {
+        Tools.configure();
+        logger = LogManager.getLogger();
+        LogUtils.setLevel(logger, Level.TRACE, "loghub.processors.NettyNameResolver");
+    }
 
     private Tools.ProcessingStatus dorequest(Consumer<NettyNameResolver> setupProc, Event e, String... warmup) throws ProcessorException {
         NettyNameResolver proc = new NettyNameResolver();
@@ -28,8 +42,9 @@ public class TestNettyNameResolver {
         BiConsumer<Properties, List<Processor>> prepare = (i, j) -> {
             try {
                 for (String name: warmup) {
-                    if (name != null && ! name.isEmpty())
+                    if (name != null && ! name.isEmpty()) {
                         proc.warmUp(name, DnsRecordType.PTR);
+                    }
                 }
             } catch (Throwable e1) {
                 throw new RuntimeException(e1);
@@ -56,7 +71,7 @@ public class TestNettyNameResolver {
 
         e = status.mainQueue.take();
         Assert.assertEquals("resolution not failed", null, e.get("fqdn"));
-        Assert.assertEquals("resolution not paused", 1, status.status.get(1).intValue());
+        Assert.assertEquals("resolution not paused", "PAUSED", status.status.get(1));
         Assert.assertEquals("Queue not empty: " + status.mainQueue, 0, status.mainQueue.size());
         Assert.assertEquals("Still waiting events: " + status.repository, 0, status.repository.waiting());
 
@@ -73,11 +88,10 @@ public class TestNettyNameResolver {
             i.setField("host");
             i.setDestination("fqdn");
             i.setTimeout(1);
-        } , e, "1.1.254.169.in-addr.ptr");
+        } , e, "1.1.254.169.in-addr.arpa");
 
         e = status.mainQueue.take();
         Assert.assertEquals("resolution not failed", null, e.get("fqdn"));
-        Assert.assertEquals("resolution not paused", 1, status.status.get(1).intValue());
         Assert.assertEquals("Queue not empty: " + status.mainQueue, 0, status.mainQueue.size());
         Assert.assertEquals("Still waiting events: " + status.repository, 0, status.repository.waiting());
     }
@@ -92,13 +106,12 @@ public class TestNettyNameResolver {
         Tools.ProcessingStatus status = dorequest(i -> {
             i.setField("host");
             i.setDestination("fqdn");
-        } , e, "4.0.41.198.in-addr.ptr");
+        } , e, "4.0.41.198.in-addr.arpa");
 
         e = status.mainQueue.take();
         Assert.assertEquals("resolution failed", "a.root-servers.net", e.get("fqdn"));
         Assert.assertEquals("Queue not empty: " + status.mainQueue, 0, status.mainQueue.size());
         Assert.assertEquals("Still waiting events: " + status.repository, 0, status.repository.waiting());
-
     }
 
     @Test(timeout=6000)
@@ -111,7 +124,7 @@ public class TestNettyNameResolver {
         Tools.ProcessingStatus status = dorequest(i -> {
             i.setField("host");
             i.setDestination("fqdn");
-        } , e, "4.0.41.198.in-addr.ptr");
+        } , e, "4.0.41.198.in-addr.arpa");
 
         e = status.mainQueue.take();
         Assert.assertEquals("resolution failed", "a.root-servers.net", e.get("fqdn"));

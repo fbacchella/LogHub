@@ -21,10 +21,10 @@ import org.snmp4j.CommandResponderEvent;
 import org.snmp4j.MessageDispatcherImpl;
 import org.snmp4j.PDU;
 import org.snmp4j.PDUv1;
-import org.snmp4j.smi.GenericAddress;
 import org.snmp4j.smi.IpAddress;
 import org.snmp4j.smi.OID;
 import org.snmp4j.smi.OctetString;
+import org.snmp4j.smi.TransportIpAddress;
 import org.snmp4j.smi.VariableBinding;
 import org.snmp4j.transport.DefaultUdpTransportMapping;
 
@@ -68,8 +68,8 @@ public class TestTrap {
         props.put("mibdirs", new String[]{"/usr/share/snmp/mibs", "/tmp/mibs"});
         Assert.assertTrue(r.configure(new Properties(props)));
         r.start();
-        
-        CommandResponderEvent trapEvent = new CommandResponderEvent(new MessageDispatcherImpl(), new DefaultUdpTransportMapping(), new GenericAddress(), 0,0, null, 0, null, null, 0, null );
+
+        CommandResponderEvent trapEvent = new CommandResponderEvent(new MessageDispatcherImpl(), new DefaultUdpTransportMapping(), TransportIpAddress.parse("127.0.0.1/162"), 0,0, null, 0, null, null, 0, null );
         PDU pdu = new PDU();
         pdu.add(new VariableBinding(new OID("1.0.8802.1.1.2.1.4.1.1.8.207185300.2.15079"), new OctetString("vnet7")));
         pdu.add(new VariableBinding(new OID("1.0.8802.1.1.2.1.3.7.1.4.2"), new OctetString("eth0")));
@@ -98,7 +98,7 @@ public class TestTrap {
         Assert.assertTrue(r.configure(new Properties(props)));
         r.start();
 
-        CommandResponderEvent trapEvent = new CommandResponderEvent(new MessageDispatcherImpl(), new DefaultUdpTransportMapping(), new GenericAddress(), 0,0, null, 0, null, null, 0, null );
+        CommandResponderEvent trapEvent = new CommandResponderEvent(new MessageDispatcherImpl(), new DefaultUdpTransportMapping(), TransportIpAddress.parse("127.0.0.1/162"), 0,0, null, 0, null, null, 0, null );
         PDUv1 pdu = new PDUv1();
         pdu.setEnterprise(new OID("1.3.6.1.4.1.232"));
         pdu.setAgentAddress(new IpAddress());
@@ -128,7 +128,7 @@ public class TestTrap {
         Assert.assertTrue(r.configure(new Properties(props)));
         r.start();
 
-        CommandResponderEvent trapEvent = new CommandResponderEvent(new MessageDispatcherImpl(), new DefaultUdpTransportMapping(), new GenericAddress(), 0,0, null, 0, null, null, 0, null );
+        CommandResponderEvent trapEvent = new CommandResponderEvent(new MessageDispatcherImpl(), new DefaultUdpTransportMapping(), TransportIpAddress.parse("127.0.0.1/162"), 0,0, null, 0, null, null, 0, null );
         PDUv1 pdu = new PDUv1();
         pdu.setEnterprise(new OID("1.3.6.1.4.1.232"));
         pdu.setAgentAddress(new IpAddress());

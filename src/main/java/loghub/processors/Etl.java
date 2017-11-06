@@ -83,7 +83,7 @@ public abstract class Etl extends Processor {
         }
     }
 
-    public static class Convert extends Etl{
+    public static class Convert extends Etl {
         private String className = null;
         private Class<?> clazz;
         @Override
@@ -126,7 +126,7 @@ public abstract class Etl extends Processor {
     }
 
 
-    public static class Remove extends Etl{
+    public static class Remove extends Etl {
         @Override
         public boolean process(Event event) throws ProcessorException {
             event.applyAtPath((i,j,k) -> i.remove(j), lvalue, null);
@@ -135,11 +135,6 @@ public abstract class Etl extends Processor {
     }
 
     public abstract boolean process(Event event) throws ProcessorException; 
-
-    @Override
-    public String getName() {
-        return null;
-    }
 
     public String[] getLvalue() {
         return lvalue;

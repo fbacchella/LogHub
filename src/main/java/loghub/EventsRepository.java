@@ -43,14 +43,10 @@ public class EventsRepository<KEY> {
         pipelines = properties.namedPipeLine;
     }
 
-    public EventsRepository(BlockingQueue<Event> mainQueue, Map<String, Pipeline> pipelines) {
-        this.mainQueue = mainQueue;
-        this.pipelines = pipelines;
-    }
-
     public void pause(PausedEvent<KEY> paused) {
         PausedEvent<KEY> realpaused = paused.setRepository(this);
         pausestack.put(realpaused.key, realpaused);
+        Properties.metrics.counter("paused").inc();
         if (realpaused.duration > 0 && realpaused.unit != null) {
             waiting.put(realpaused.key, processTimeout.newTimeout(i -> this.timeout(realpaused.key), realpaused.duration, realpaused.unit));
         }
@@ -58,14 +54,15 @@ public class EventsRepository<KEY> {
 
     public PausedEvent<KEY> cancel(KEY key) {
         PausedEvent<KEY> pe = pausestack.remove(key);
-        if (pe != null && pe.key != null) {
-            Timeout task = waiting.remove(pe.key);
-            if(task != null) {
-                task.cancel();
-            } 
+        if (pe != null) {
+            Properties.metrics.counter("paused").dec();
         } else {
             logger.warn("removed illegal event with key {}", key);
         }
+        Timeout task = waiting.remove(key);
+        if(task != null) {
+            task.cancel();
+        } 
         return pe;
     }
 
@@ -87,13 +84,14 @@ public class EventsRepository<KEY> {
 
     private boolean awake(KEY key, Function<PausedEvent<KEY>, Processor> source, Function<PausedEvent<KEY>, Function<Event, Event>> transform) {
         PausedEvent<KEY> pe = pausestack.remove(key);
+        Timeout task = waiting.remove(key);
+        if (task  != null) {
+            task.cancel();
+        }
         if (pe == null) {
             return true;
         }
-        Timeout task = waiting.remove(pe.key);
-        if (task != null) {
-            task.cancel();
-        }
+        Properties.metrics.counter("paused").dec();
         logger.trace("Waking up event {}", pe.event);
         pe.event.insertProcessor(source.apply(pe));
         return transform.apply(pe).apply(pe.event).inject(pipelines.get(pe.pipeline), mainQueue);
@@ -115,6 +113,7 @@ public class EventsRepository<KEY> {
             if (paused.duration > 0 && paused.unit != null) {
                 waiting.put(key, processTimeout.newTimeout(j -> this.timeout(key), paused.duration, paused.unit));
             }
+            Properties.metrics.counter("paused").inc();
             return paused;
         });
     }

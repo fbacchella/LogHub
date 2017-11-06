@@ -2,8 +2,8 @@ package loghub.configuration;
 
 import java.io.IOException;
 
-import org.antlr.v4.runtime.ANTLRInputStream;
 import org.antlr.v4.runtime.CharStream;
+import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.tree.ParseTreeWalker;
 import org.apache.logging.log4j.Level;
@@ -13,6 +13,7 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import io.netty.util.CharsetUtil;
 import loghub.LogUtils;
 import loghub.RouteLexer;
 import loghub.RouteParser;
@@ -45,7 +46,7 @@ public class TestParser {
 
     @Test
     public void test2() throws IOException, InterruptedException {
-        CharStream cs = new ANTLRInputStream(getClass().getClassLoader().getResourceAsStream("test.conf"));
+        CharStream cs = CharStreams.fromStream(getClass().getClassLoader().getResourceAsStream("test.conf"), CharsetUtil.UTF_8);
         RouteLexer lexer = new RouteLexer(cs);
 
         CommonTokenStream tokens = new CommonTokenStream(lexer);
@@ -62,7 +63,7 @@ public class TestParser {
         for(String s: new String[] {"oneref", "main", "groovy"}) {
             Assert.assertTrue("pipeline " + s + " not found", conf.pipelines.containsKey(s));
         }
-        Assert.assertEquals("too much pipelines", 5, conf.pipelines.size());
+        Assert.assertEquals("too much pipelines", 6, conf.pipelines.size());
         Assert.assertEquals("too much inputs", 1, conf.inputs.size());
         Assert.assertEquals("too much outputs", 1, conf.outputs.size());
         for(String s: new String[] {"logfile", "plugins"}) {
@@ -72,7 +73,7 @@ public class TestParser {
 
     @Test
     public void testType() throws IOException {
-        CharStream cs = new ANTLRInputStream(getClass().getClassLoader().getResourceAsStream("types.conf"));
+        CharStream cs = CharStreams.fromStream(getClass().getClassLoader().getResourceAsStream("types.conf"), CharsetUtil.UTF_8);
         RouteLexer lexer = new RouteLexer(cs);
 
         CommonTokenStream tokens = new CommonTokenStream(lexer);

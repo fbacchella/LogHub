@@ -3,24 +3,17 @@ package loghub.jmx;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.rmi.NotBoundException;
+import java.util.HashMap;
+import java.util.Map;
 
-import javax.management.InstanceAlreadyExistsException;
-import javax.management.MBeanRegistrationException;
 import javax.management.MBeanServer;
-import javax.management.MalformedObjectNameException;
-import javax.management.NotCompliantMBeanException;
-import javax.management.ObjectName;
-import javax.management.remote.JMXConnectorFactory;
 import javax.management.remote.JMXConnectorServer;
 import javax.management.remote.JMXConnectorServerFactory;
 import javax.management.remote.JMXServiceURL;
 
-import loghub.Helpers;
-import loghub.configuration.BeansManager;
-
 public class Helper {
 
-    static final public PROTOCOL defaultProto = PROTOCOL.rmi;
+    static final public PROTOCOL DEFAULTPROTOCOL = PROTOCOL.rmi;
     public static enum PROTOCOL {
         rmi,
         jmxmp,
@@ -33,30 +26,25 @@ public class Helper {
 
         String path = "/";
         String protocolString = protocol.toString();
+        Map<String, Object> jmxenv = new HashMap<>();
         if (protocol == PROTOCOL.rmi) {
+            // If listen bound to a given ip, and jmx protocol is rmi, use it as the rmi's property hostname.
+            if (! "0.0.0.0".equals(host) && System.getProperty("java.rmi.server.hostname") == null) {
+                System.setProperty("java.rmi.server.hostname", host);
+                // Not sure if it's useful, hostname is resolve in sun.rmi.transport.tcp.TCPEndpoint, using InetAddress.getLocalHost() if 
+                // this property is not defined.
+                // But it might be hiding in other places
+                jmxenv.put("java.rmi.server.hostname", host);
+            }
             protocolString = "rmi";
             java.rmi.registry.LocateRegistry.createRegistry(port);
             path = "/jndi/rmi://" + host + ":" + port + "/jmxrmi";
         }
         url = new JMXServiceURL(protocolString, host, port, path);
         mbs = ManagementFactory.getPlatformMBeanServer();
-        cs = JMXConnectorServerFactory.newJMXConnectorServer(url, null, mbs);
+        cs = JMXConnectorServerFactory.newJMXConnectorServer(url, jmxenv, mbs);
         cs.start();
-        JMXServiceURL addr = cs.getAddress();
-        JMXConnectorFactory.connect(addr);
         return cs;
-    }
-
-    public static void register(Class<?>... beans) throws NotCompliantMBeanException, MalformedObjectNameException, InstanceAlreadyExistsException, MBeanRegistrationException, InstantiationException, IllegalAccessException {
-        MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
-        Helpers.ThrowingFunction<Implementation, BeanImplementation> instanciate = i-> i.value().newInstance();
-        Helpers.ThrowingConsumer<BeanImplementation> register = i -> mbs.registerMBean(i, new ObjectName(i.getName()));
-
-        for(Class<?> bean: beans) {
-            BeansManager.enumerateAnnotation(bean, Implementation.class, Object.class).stream()
-            .findFirst().map(instanciate)
-            .ifPresent(register);
-        }
     }
 
     private Helper() {};

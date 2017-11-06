@@ -53,6 +53,10 @@ public abstract class Processor {
         return toString();
     }
 
+    public void setPathArray(String[] path) {
+        this.path = path;
+    }
+
     public String[] getPathArray() {
         return path;
     }

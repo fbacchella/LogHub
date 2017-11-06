@@ -33,9 +33,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-import org.antlr.v4.runtime.ANTLRFileStream;
-import org.antlr.v4.runtime.ANTLRInputStream;
 import org.antlr.v4.runtime.CharStream;
+import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.RecognitionException;
@@ -58,6 +57,7 @@ import loghub.RouteParser.BeanValueContext;
 import loghub.RouteParser.LiteralContext;
 import loghub.RouteParser.PropertyContext;
 import loghub.Sender;
+import loghub.Source;
 import loghub.configuration.ConfigListener.Input;
 import loghub.configuration.ConfigListener.ObjectReference;
 import loghub.configuration.ConfigListener.Output;
@@ -77,6 +77,7 @@ public class Configuration {
     private Set<String> outputpipelines = new HashSet<>();
     // Stores all the top level pipelines, that generate metrics
     private final Set<String> topPipelines = new HashSet<>();
+    private Map<String, Source> sources = new HashMap<>();
     private List<Sender> senders;
     private ClassLoader classLoader = Configuration.class.getClassLoader();
 
@@ -85,17 +86,17 @@ public class Configuration {
 
     public static Properties parse(String fileName) throws IOException, ConfigException {
         Configuration conf = new Configuration();
-        return conf.runparsing(new ANTLRFileStream(fileName));
+        return conf.runparsing(CharStreams.fromFileName(fileName));
     }
 
     public static Properties parse(InputStream is) throws IOException, ConfigException {
         Configuration conf = new Configuration();
-        return conf.runparsing(new ANTLRInputStream(is));
+        return conf.runparsing(CharStreams.fromStream(is));
     }
 
     public static Properties parse(Reader r) throws ConfigException, IOException {
         Configuration conf = new Configuration();
-        return conf.runparsing(new ANTLRInputStream(r));
+        return conf.runparsing(CharStreams.fromReader(r));
     }
 
     private Properties runparsing(CharStream cs) throws ConfigException {
@@ -111,7 +112,7 @@ public class Configuration {
             Consumer<String> parseSubFile = fileName -> {
                 try {
                     logger.debug("parsing {}", fileName);
-                    CharStream localcs = new ANTLRFileStream(fileName);
+                    CharStream localcs = CharStreams.fromFileName(fileName);
                     RouteParser.ConfigurationContext localtree = getTree(localcs, conflistener);
                     lockedProperties.forEach( i -> conflistener.lockProperty(i));
                     resolveProperties(localtree, conflistener, propertiesContext);
@@ -297,6 +298,14 @@ public class Configuration {
         };
         conf.properties.entrySet().stream().forEach( i-> newProperties.put(i.getKey(), resolve.apply(i.getValue())));
 
+        // Resolve the sources
+        ThrowingFunction<Class<Source>, Source> sourceConstructor = i -> {return i.getConstructor().newInstance();};
+        conf.sources.forEach((name,sd) -> {
+            Source s = parseObjectDescription(sd, sourceConstructor);
+            s.setName(name);
+            sources.put(name, s);
+        });
+
         Map<String, Pipeline> namedPipeLine = new HashMap<>(conf.pipelines.size());
 
         newProperties.put(Properties.PROPSNAMES.CLASSLOADERNAME.toString(), classLoader);
@@ -369,6 +378,8 @@ public class Configuration {
 
         newProperties.put(Properties.PROPSNAMES.TOPPIPELINE.toString(), Collections.unmodifiableSet(topPipelines));
 
+        newProperties.put(Properties.PROPSNAMES.SOURCES.toString(), Collections.unmodifiableMap(sources));
+
         // Allows the system properties to override any properties given in the configuration file
         // But only if they are not some of the special internal properties
         Set<String> privatepropsnames = new HashSet<>(Properties.PROPSNAMES.values().length);
@@ -415,7 +426,6 @@ public class Configuration {
             t = subpipe;
         } else if (i instanceof ConfigListener.ProcessorInstance) {
             ConfigListener.ProcessorInstance ti = (ConfigListener.ProcessorInstance) i;
-
             t = (Processor) parseObjectDescription(ti, emptyConstructor, currentPipeLineName, depth, subPipeLine);
         } else {
             throw new RuntimeException("Unreachable code for " + i);
@@ -443,6 +453,9 @@ public class Configuration {
                     }
                 } else if (ref instanceof ConfigListener.ObjectDescription) {
                     beanValue = parseObjectDescription((ConfigListener.ObjectDescription) ref, emptyConstructor, currentPipeLineName, depth + 1, numSubpipe);
+                } else if (ref instanceof ConfigListener.Source) {
+                    ConfigListener.Source source = (ConfigListener.Source) ref;
+                    beanValue = sources.get(source.source);
                 } else if (ref == null){
                     beanValue = null;
                 } else {
@@ -464,7 +477,11 @@ public class Configuration {
             if (e.getCause() != null) {
                 rootCause = e.getCause();
             }
-            throw new ConfigException(String.format("Invalid class '%s': %s", desc.clazz, rootCause.getMessage()), desc.stream.getSourceName(), desc.ctx.start, rootCause);
+            String message = rootCause.getMessage();
+            if (message == null) {
+                message = rootCause.getClass().getSimpleName();
+            }
+            throw new ConfigException(String.format("Invalid class '%s': %s", desc.clazz, message), desc.stream.getSourceName(), desc.ctx.start, rootCause);
         }
     }
 

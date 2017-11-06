@@ -4,13 +4,13 @@
 
 grammar Route;
 
-configuration: (pipeline|input|output|property)+ EOF;
+configuration: (pipeline|input|output|sources|property)+ EOF;
 pipeline: 'pipeline' '[' Identifier ']' '{' pipenodeList? '}' ( '|' '$' finalpiperef) ?;
 input: 'input' '{'  inputObjectlist '}' ('|' '$' piperef)?;
 output: 'output' ('$' piperef '|' )? '{' outputObjectlist '}';
 inputObjectlist: (object (',' object)*)? ','?;
 outputObjectlist: (object (',' object)*)? ','?;
-pipenodeList :   pipenode (('+' forkpiperef)|('|' pipenode))*;
+pipenodeList: pipenode (('+' forkpiperef)|('|' pipenode))*;
 forkpiperef: '$' Identifier;
 pipenode
     : test
@@ -23,11 +23,12 @@ pipenode
     | '(' pipenodeList ')'
     | '$' piperef
     | object
-    | '{' pipenodeList? '}' 
+    | '{' pipenodeList? '}'
+    | path
     ;
 
 object: QualifiedIdentifier beansDescription ; 
-beansDescription:  ('{' (bean (',' bean)*)? ','? '}')? ;
+beansDescription: ('{' (bean (',' bean)*)? ','? '}')? ;
 
 bean
     :   'if' ':' expression
@@ -36,7 +37,7 @@ bean
     ;
 
 beanName
-    :'index' | 'seeds' | 'doFire' | 'onFire' | 'timeout' | 'forward' | 'default' | 'merge' | 'inPipeline'
+    :'index' | 'seeds' | 'doFire' | 'onFire' | 'timeout' | 'forward' | 'default' | 'merge' | 'inPipeline' | 'path'
     | Identifier
     ;
 
@@ -97,6 +98,10 @@ etl
     | op='(' QualifiedIdentifier ')' eventVariable
     ;
 
+path
+    : 'path' eventVariable '(' pipenodeList ')'
+    ;
+ 
 test: testExpression '?' pipenode (':' pipenode)? ;
 
 testExpression: expression;
@@ -151,16 +156,32 @@ matchOperator
     |   '==~'
     ;
 
-array: '[' (beanValue (',' beanValue)*)? ','? ']';
+array
+    : '[' (beanValue (',' beanValue)*)? ','? ']'
+    | source
+    ;
 
 map
     : '{' (literal ':' beanValue ( ',' ? literal ':' beanValue)*)? ','? '}'
+    | source
+    ;
+
+source
+    : '%' Identifier
     ;
 
 eventVariable: '[' (key='@timestamp' | (Identifier ( Identifier)*)) ']' ;
 
 propertyName
     :   Identifier | QualifiedIdentifier
+    ;
+    
+sources
+    : 'sources' ':'  sourcedef+
+    ;
+
+sourcedef
+    :  Identifier ':' object
     ;
 
 Identifier

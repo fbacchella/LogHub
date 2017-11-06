@@ -9,11 +9,13 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 
 import org.junit.Assert;
 
 import io.netty.util.concurrent.Future;
+import loghub.EventsProcessor;
 import loghub.configuration.ConfigException;
 import loghub.configuration.Configuration;
 import loghub.configuration.Properties;
@@ -53,7 +55,7 @@ public class Tools {
     }
 
     public static Event getEvent() {
-        return new EventInstance();
+        return new EventInstance(ConnectionContext.EMPTY);
     }
 
     public static void runProcessing(Event sent, Pipeline pipe, Properties props) throws ProcessorException {
@@ -67,7 +69,7 @@ public class Tools {
 
     public static class ProcessingStatus {
         public BlockingQueue<Event> mainQueue;
-        public List<Integer> status;
+        public List<String> status;
         public EventsRepository<Future<?>> repository;
         @Override
         public String toString() {
@@ -97,11 +99,11 @@ public class Tools {
         Event toprocess;
         // Process all the events, will hang forever is it don't finish
         try {
-            while ((toprocess = props.mainQueue.take()) != null) {
+            while ((toprocess = props.mainQueue.poll(5, TimeUnit.SECONDS)) != null) {
                 while ((processor = toprocess.next()) != null) {
-                    int status = ep.process(toprocess, processor);
-                    ps.status.add(status);
-                    if (status > 0) {
+                    EventsProcessor.ProcessingStatus status = ep.process(toprocess, processor);
+                    ps.status.add(status.name());
+                    if (status != loghub.EventsProcessor.ProcessingStatus.SUCCESS) {
                         toprocess = null;
                         break;
                     }

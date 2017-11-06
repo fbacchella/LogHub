@@ -43,11 +43,13 @@ import loghub.RouteParser.NullLiteralContext;
 import loghub.RouteParser.ObjectContext;
 import loghub.RouteParser.OutputContext;
 import loghub.RouteParser.OutputObjectlistContext;
+import loghub.RouteParser.PathContext;
 import loghub.RouteParser.PipelineContext;
 import loghub.RouteParser.PipenodeContext;
 import loghub.RouteParser.PipenodeListContext;
 import loghub.RouteParser.PiperefContext;
 import loghub.RouteParser.PropertyContext;
+import loghub.RouteParser.SourcedefContext;
 import loghub.RouteParser.StringLiteralContext;
 import loghub.RouteParser.TestContext;
 import loghub.RouteParser.TestExpressionContext;
@@ -59,6 +61,8 @@ import loghub.processors.Log;
 import loghub.processors.Mapper;
 import loghub.processors.Merge;
 import loghub.processors.Test;
+import loghub.processors.UnwrapEvent;
+import loghub.processors.WrapEvent;
 
 class ConfigListener extends RouteBaseListener {
 
@@ -128,6 +132,15 @@ class ConfigListener extends RouteBaseListener {
         }
     }
 
+    static final class Source implements ObjectReference {
+        final String source;
+        final Map<String, ObjectDescription> sources;
+        Source(String source, Map<String, ObjectDescription> sources) {
+            this.source = source;
+            this.sources = sources;
+        }
+    }
+
     static class ObjectDescription implements ObjectReference, Iterable<String> {
         final ParserRuleContext ctx;
         final String clazz;
@@ -167,6 +180,7 @@ class ConfigListener extends RouteBaseListener {
     final List<Output> outputs = new ArrayList<>();
     final Map<String, Object> properties = new HashMap<>();
     final Map<String, String> formatters = new HashMap<>();
+    final Map<String, ObjectDescription> sources = new HashMap<>();
 
     private String currentPipeLineName = null;
     private int expressionDepth = 0;
@@ -193,7 +207,7 @@ class ConfigListener extends RouteBaseListener {
     @Override
     public void enterFloatingPointLiteral(FloatingPointLiteralContext ctx) {
         String content = ctx.FloatingPointLiteral().getText();
-        pushLiteral(ctx, new Double(content));
+        pushLiteral(ctx, Double.valueOf(content));
     }
 
     @Override
@@ -211,13 +225,13 @@ class ConfigListener extends RouteBaseListener {
     @Override
     public void enterIntegerLiteral(IntegerLiteralContext ctx) {
         String content = ctx.IntegerLiteral().getText();
-        pushLiteral(ctx, new Integer(content));
+        pushLiteral(ctx, Integer.valueOf(content));
     }
 
     @Override
     public void enterBooleanLiteral(BooleanLiteralContext ctx) {
         String content = ctx.getText();
-        pushLiteral(ctx, new Boolean(content));
+        pushLiteral(ctx, Boolean.valueOf(content));
     }
 
     @Override
@@ -340,6 +354,21 @@ class ConfigListener extends RouteBaseListener {
     }
 
     @Override
+    public void enterPath(PathContext ctx) {
+        ObjectDescription object = new ObjectDescription(stream, WrapEvent.class.getName(), ctx);
+        object.beans.put("pathArray", new ObjectWrapped(convertEventVariable(ctx.eventVariable())));
+        ProcessorInstance ti = new ProcessorInstance(stream , object, ctx);
+        stack.push(ti);
+    }
+
+    @Override
+    public void exitPath(PathContext ctx) {
+        ObjectDescription object = new ObjectDescription(stream, UnwrapEvent.class.getName(), ctx);
+        ProcessorInstance ti = new ProcessorInstance(stream , object, ctx);
+        stack.push(ti);
+    }
+
+    @Override
     public void exitPiperef(PiperefContext ctx) {
         // In pipenode, part of a pipeline, expect to find a transformer, so transform the name to a PipeRef transformer
         // Other case the name is kept as is
@@ -448,6 +477,13 @@ class ConfigListener extends RouteBaseListener {
         } else {
             throw new RecognitionException("redefined property", parser, stream, ctx);
         }
+    }
+
+    @Override
+    public void exitSourcedef(SourcedefContext ctx) {
+        String sourceName = ctx.Identifier().getText();
+        ObjectDescription source = (ObjectDescription) stack.pop();
+        sources.put(sourceName, source);
     }
 
     @Override
@@ -580,14 +616,19 @@ class ConfigListener extends RouteBaseListener {
 
     @Override
     public void exitMap(MapContext ctx) {
-        Map<Object, Object> map = new HashMap<>();
-        Object o;
-        while((o = stack.pop()) != StackMarker.Map) { 
-            ObjectWrapped value = (ObjectWrapped) o;
-            ObjectWrapped key = (ObjectWrapped) stack.pop();
-            map.put(key.wrapped, value.wrapped);
-        };
-        stack.push(new ConfigListener.ObjectWrapped(map));
+        if (ctx.source() == null) {
+            Map<Object, Object> map = new HashMap<>();
+            Object o;
+            while((o = stack.pop()) != StackMarker.Map) { 
+                ObjectWrapped value = (ObjectWrapped) o;
+                ObjectWrapped key = (ObjectWrapped) stack.pop();
+                map.put(key.wrapped, value.wrapped);
+            };
+            stack.push(new ConfigListener.ObjectWrapped(map));
+        } else {
+            assert stack.pop() == ConfigListener.StackMarker.Map;
+            stack.push(new ConfigListener.Source(ctx.source().Identifier().getText(), sources));
+        }
     }
 
     @Override

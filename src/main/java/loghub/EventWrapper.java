@@ -10,12 +10,18 @@ import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 
 class EventWrapper extends Event {
-    private final EventInstance event;
+    private final Event event;
     private String[] path;
 
-    public EventWrapper(EventInstance event) {
+    public EventWrapper(Event event) {
         this.event = event;
         this.setTimestamp(event.getTimestamp());
+    }
+
+    public EventWrapper(Event event, String[] path) {
+        this.event = event;
+        this.setTimestamp(event.getTimestamp());
+        this.path = Arrays.copyOf(path, path.length + 1);
     }
 
     public void setProcessor(Processor processor) {
@@ -84,6 +90,7 @@ class EventWrapper extends Event {
         return event.toString();
     }
 
+    @Override
     public int size() {
         Integer size = (Integer) action( ((i, j, k) -> i.size()), null, null);
         return size != null ? size : 0;
@@ -151,6 +158,10 @@ class EventWrapper extends Event {
         return event.inject(pipeline, mainqueue);
     }
 
+    public boolean inject(Event ev, BlockingQueue<Event> mainqueue) {
+        return event.inject(ev, mainqueue);
+    }
+
     @Override
     public String getCurrentPipeline() {
         return event.getCurrentPipeline();
@@ -177,16 +188,6 @@ class EventWrapper extends Event {
     }
 
     @Override
-    public ProcessorException buildException(String message) {
-        return event.buildException(message);
-    }
-
-    @Override
-    public ProcessorException buildException(String message, Exception root) {
-        return event.buildException(message, root);
-    }
-
-    @Override
     public void end() {
         event.end();
     }
@@ -209,6 +210,21 @@ class EventWrapper extends Event {
     @Override
     public void drop() {
         event.drop();
+    }
+
+    @Override
+    public ConnectionContext getConnectionContext() {
+        return event.getConnectionContext();
+    }
+
+    @Override
+    protected EventInstance getRealEvent() {
+        return event.getRealEvent();
+    }
+
+    @Override
+    public Event unwrap() {
+        return event;
     }
 
 }

@@ -34,13 +34,19 @@ class EventInstance extends Event {
     private transient Context timer;
     private int stepsCount = 0;
     private boolean test;
+    private final ConnectionContext ctx;
 
-    EventInstance() {
-        this(false);
+    EventInstance(ConnectionContext ctx) {
+        this(ctx, false);
     }
 
-    EventInstance(boolean test) {
+    EventInstance(ConnectionContext ctx, boolean test) {
         this.test = test;
+        this.ctx = ctx;
+        if (ctx instanceof IpConnectionContext) {
+            IpConnectionContext ipcc = (IpConnectionContext) ctx;
+            put("host", ipcc.getRemoteAddress().getAddress());
+        }
         if (! test) {
             Properties.metrics.counter("Allevents.inflight").inc();
             timer = Properties.metrics.timer("Allevents.timer").time();
@@ -140,6 +146,14 @@ class EventInstance extends Event {
         return mainqueue.offer(this);
     }
 
+    public boolean inject(Event ev, BlockingQueue<Event> mainqueue) {
+        EventInstance master = ev.getRealEvent();
+        currentPipeline = master.currentPipeline;
+        nextPipeline = master.nextPipeline;
+        appendProcessors(master.processors);
+        return mainqueue.offer(this);
+    }
+
     private void inject(List<Processor> newProcessors, boolean append) {
         ListIterator<Processor> i = newProcessors.listIterator(append ? 0 : newProcessors.size());
         while(append ? i.hasNext() : i.hasPrevious()) {
@@ -195,16 +209,6 @@ class EventInstance extends Event {
         this.timestamp = timestamp;
     }
 
-    @Override
-    public ProcessorException buildException(String message) {
-        return new ProcessorException(this, message);
-    }
-
-    @Override
-    public ProcessorException buildException(String message, Exception root) {
-        return new ProcessorException(this, message, root);
-    }
-
     private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
         in.defaultReadObject();
 
@@ -249,6 +253,21 @@ class EventInstance extends Event {
             }
             remove(Event.TIMESTAMPKEY);
         }
+    }
+
+    @Override
+    public ConnectionContext getConnectionContext() {
+        return ctx;
+    }
+
+    @Override
+    protected EventInstance getRealEvent() {
+        return this;
+    }
+
+    @Override
+    public Event unwrap() {
+        return this;
     }
 
 }

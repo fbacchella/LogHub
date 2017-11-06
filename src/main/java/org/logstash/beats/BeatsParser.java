@@ -1,6 +1,5 @@
 package org.logstash.beats;
 
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.module.afterburner.AfterburnerModule;
 import io.netty.buffer.ByteBuf;
@@ -183,7 +182,7 @@ public class BeatsParser extends ByteToMessageDecoder {
         }
         case READ_COMPRESSED_FRAME_HEADER: {
             logger.debug("Running: READ_COMPRESSED_FRAME_HEADER");
-            
+
             // Overflow will return a negative value
             int compressedPayloadSize = (int) in.readUnsignedInt();
             if (compressedPayloadSize <= 0) {

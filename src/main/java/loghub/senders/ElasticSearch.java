@@ -98,27 +98,41 @@ public class ElasticSearch extends AbstractHttpSender {
                         HttpRequest gettemplate = new HttpRequest();
                         gettemplate.setUrl(newEndPoint);
                         HttpResponse response = doRequest(gettemplate);
-                        if (response == null) {
+                        if (response.isConnexionFailed()) {
                             continue;
                         }
                         try {
-                            boolean needsrefresh = response.getStatus() == 404;
                             int status = response.getStatus();
-                            if (!needsrefresh && (status - status % 100) == 200) {
+                            boolean needsrefresh;
+                            if (status == 404) {
+                                needsrefresh = true;
+                            } else  if ((status - status % 100) == 200) {
                                 String currenttemplate = json.get().readTree(response.getContentReader()).toString();
                                 needsrefresh = ! currenttemplate.equals(wantedtemplate);
                             } else {
                                 break;
                             }
                             if (needsrefresh) {
+                                logger.warn("Template {} needs to be refreshed", templateName);
                                 HttpRequest puttemplate = new HttpRequest();
                                 puttemplate.setVerb("PUT");
                                 puttemplate.setUrl(newEndPoint);
                                 puttemplate.setTypeAndContent("application/json", CharsetUtil.UTF_8, wantedtemplate.getBytes(CharsetUtil.UTF_8));
-                                response = doRequest(puttemplate);
-                                status = response.getStatus();
-                                if ((status - status % 100) != 200 && "application/json".equals(response.getMimeType())) {
-                                    System.out.println(json.get().readTree(response.getContentReader()).toString());
+                                HttpResponse response2 = doRequest(puttemplate);
+                                status = response2.getStatus();
+                                if ((status - status % 100) != 200 && "application/json".equals(response2.getMimeType())) {
+                                    logger.error("Failed to update template: {}", () -> {
+                                        try {
+                                            return json.get().readTree(response2.getContentReader()).toString();
+                                        } catch (IOException e) {
+                                            throw new UncheckedIOException(e);
+                                        }
+                                    });
+                                } else if ((status - status % 100) != 200) {
+                                    logger.error("Failing elastic search: {}/{}", 
+                                            () -> response2.getStatus(),
+                                            () -> response2.getStatusMessage()
+                                            );
                                 } else {
                                     configured = true;
                                     break;
@@ -149,9 +163,9 @@ public class ElasticSearch extends AbstractHttpSender {
         request.setTypeAndContent("application/json", CharsetUtil.UTF_8, putContent(documents));
         request.setVerb("POST");
         for (URL newEndPoint: endPoints) {
-            request.setUrl(new URL(newEndPoint, "_bulk"));
+            request.setUrl(new URL(newEndPoint, newEndPoint.getPath() + "/_bulk"));
             HttpResponse resp = doRequest(request);
-            if (resp.isFailed()) {
+            if (resp.isConnexionFailed()) {
                 continue;
             }
             Object theresponse = scanContent(resp);

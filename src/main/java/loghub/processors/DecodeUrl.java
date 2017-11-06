@@ -32,11 +32,6 @@ public class DecodeUrl extends FieldsProcessor {
 
     }
 
-    @Override
-    public String getName() {
-        return null;
-    }
-
     /**
      * @return the encoding
      */

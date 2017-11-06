@@ -1,6 +1,7 @@
 package loghub.receivers;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.Enumeration;
@@ -30,6 +31,7 @@ import org.snmp4j.smi.OID;
 import org.snmp4j.smi.OctetString;
 import org.snmp4j.smi.Opaque;
 import org.snmp4j.smi.TimeTicks;
+import org.snmp4j.smi.TransportIpAddress;
 import org.snmp4j.smi.UdpAddress;
 import org.snmp4j.smi.UnsignedInteger32;
 import org.snmp4j.smi.Variable;
@@ -39,7 +41,9 @@ import org.snmp4j.util.MultiThreadedMessageDispatcher;
 import org.snmp4j.util.ThreadPool;
 
 import fr.jrds.snmpcodec.OIDFormatter;
+import loghub.ConnectionContext;
 import loghub.Event;
+import loghub.IpConnectionContext;
 import loghub.Pipeline;
 import loghub.Receiver;
 import loghub.configuration.Beans;
@@ -142,11 +146,23 @@ public class SnmpTrap extends Receiver implements CommandResponder {
         super.close();
     }
 
+    private InetSocketAddress getSA(TransportIpAddress tia) {
+        return new InetSocketAddress(tia.getInetAddress(), tia.getPort());
+    }
+
     @Override
     public void processPdu(CommandResponderEvent trap) {
         try {
             PDU pdu = trap.getPDU();
-            Event event = emptyEvent();
+            Address localaddr = trap.getTransportMapping().getListenAddress();
+            Address remoteaddr = trap.getPeerAddress();
+            ConnectionContext ctx = ConnectionContext.EMPTY;
+            if (localaddr instanceof TransportIpAddress && remoteaddr instanceof TransportIpAddress ) {
+                InetSocketAddress localinetaddr = getSA((TransportIpAddress) localaddr);
+                InetSocketAddress remoteinetaddr = getSA((TransportIpAddress) remoteaddr);
+                ctx = new IpConnectionContext(localinetaddr, remoteinetaddr, null);
+            }
+            Event event = emptyEvent(ctx);
             if (pdu instanceof PDUv1) {
                 PDUv1 pduv1 = (PDUv1) pdu;
                 String enterprise = (String) convertVar(pduv1.getEnterprise());
@@ -162,10 +178,6 @@ public class SnmpTrap extends Receiver implements CommandResponder {
             }
             @SuppressWarnings("unchecked")
             Enumeration<VariableBinding> vbenum = (Enumeration<VariableBinding>) pdu.getVariableBindings().elements();
-            Address addr = trap.getPeerAddress();
-            if(addr instanceof IpAddress) {
-                event.put("host", ((IpAddress)addr).getInetAddress());
-            }
             for(VariableBinding i: Collections.list(vbenum)) {
                 OID vbOID = i.getOid();
                 Object value = convertVar(i.getVariable());
@@ -184,15 +196,15 @@ public class SnmpTrap extends Receiver implements CommandResponder {
         Map<String, Object> oidindex = formatter.store.parseIndexOID(oid.getValue());
         if (oidindex.size() <= 1) {
             e.put(oid.format(), value);
-        } else {
+            } else {
             String tableName = oidindex.keySet().stream().findFirst().get();
             Object rowName = oidindex.remove(tableName);
-            Map<String, Object> valueMap = new HashMap<>(2);
+                    Map<String, Object> valueMap = new HashMap<>(2);
             valueMap.put("index", oidindex);
-            valueMap.put("value", value);
+                    valueMap.put("value", value);
             e.put(rowName.toString(), valueMap);
-        }
-    }
+                }
+            }
 
     private Object convertVar(Variable var) {
         if(var == null) {
