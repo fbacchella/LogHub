@@ -198,17 +198,13 @@ public class Properties extends HashMap<String, Object> {
         if (jmxproto != null) {
             this.jmxproto = PROTOCOL.valueOf(jmxproto.toLowerCase());
         } else {
-            this.jmxproto = Helper.defaultProto;
+            this.jmxproto = Helper.DEFAULTPROTOCOL;
         }
         String jmxlisten = (String) properties.remove("jmx.listen");
         if (jmxlisten != null) {
             this.jmxlisten = jmxlisten;
         } else {
             this.jmxlisten = "0.0.0.0";
-        }
-        // If listen bound to a given ip, and jmx protocol is rmi, use it as the rmi's property hostname.
-        if ( this.jmxproto == PROTOCOL.rmi && ! "0.0.0.0".equals(this.jmxlisten) && System.getProperty("java.rmi.server.hostname") == null) {
-            System.setProperty("java.rmi.server.hostname", this.jmxlisten);
         }
 
         if (this.jmxport > 0) {
