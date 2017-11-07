@@ -2,6 +2,7 @@ package loghub.processors;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -17,12 +18,17 @@ public class ScanBinary extends FieldsProcessor {
 
     private Object[] bitsNames = new Object[0];
     private int[] fieldsLength = null;
+    private boolean asMap = false;
 
     @Override
     public boolean configure(Properties properties) {
         if (bitsNames == null || bitsNames.length == 0) {
             logger.error("Missing mandatory attribute bitsNames");
             return false;
+        }
+        if (asMap) {
+            fieldsLength = new int[bitsNames.length];
+            Arrays.fill(fieldsLength, 1);
         }
         return super.configure(properties);
     }
@@ -115,6 +121,20 @@ public class ScanBinary extends FieldsProcessor {
                 this.fieldsLength[i] = 0;
             }
         });
+    }
+
+    /**
+     * @return the asMap
+     */
+    public boolean isAsMap() {
+        return asMap;
+    }
+
+    /**
+     * @param asMap the asMap to set
+     */
+    public void setAsMap(boolean asMap) {
+        this.asMap = asMap;
     }
 
 }

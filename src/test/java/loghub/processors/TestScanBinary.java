@@ -1,7 +1,6 @@
 package loghub.processors;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
 
@@ -16,7 +15,7 @@ import loghub.Tools;
 import loghub.configuration.ConfigException;
 import loghub.configuration.Properties;
 
-public class TestPrintBinary {
+public class TestScanBinary {
 
     @Test
     public void simpleTestWithNames() throws ProcessorException {
@@ -33,16 +32,18 @@ public class TestPrintBinary {
     @Test
     public void simpleTestWithVariableLengthNames() throws ProcessorException {
         ScanBinary fs = new ScanBinary();
-        fs.setBitsNames(new String[] {"Busmaster I/O read", "Memory test", "Modem firmware", "Modem UART", "Serial port UART",
-                "Keyboard interface", "Battery interface", "NVRAM interface", "NVRAM write / read / verify",
-                "Video", "PCMCIA", "NIC", "Mouse interface", "CPLD", "SRAM", "EEPROM", "I2C"});
+        fs.setBitsNames(new String[] {"a", "b", "c"});
+        fs.setAsMap(true);
         fs.configure(new Properties(Collections.emptyMap()));
 
         Event e = Event.emptyEvent(ConnectionContext.EMPTY);
-        e.put("binary", "8192");
+        e.put("binary", 0b101);
         Assert.assertTrue(fs.processMessage(e, "binary", "value"));
-        Assert.assertArrayEquals("Bad decoding of bitfield", new String[] {"CPLD"}, (String[])e.get("value"));
-        System.out.println(Arrays.toString((Object[])e.get("value")));
+        @SuppressWarnings("unchecked")
+        Map<String, Number> value = (Map<String, Number>) e.get("value");
+        Assert.assertEquals(1, value.get("a").intValue());
+        Assert.assertEquals(0, value.get("b").intValue());
+        Assert.assertEquals(1, value.get("c").intValue());
     }
 
     @Test
