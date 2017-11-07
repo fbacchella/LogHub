@@ -1,11 +1,17 @@
 import java.text.DecimalFormatSymbols;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import loghub.VarFormatter;
 
 public class TestFormat {
+    
+    static Map<String,Set<String>> symbolsSet = new HashMap<>();
 
     static public void main(final String[] args) {
         
@@ -35,6 +41,9 @@ public class TestFormat {
 //        System.out.println(new Date().getTime() - start.getTime());
 
         //System.out.println(String.format("% 10.2f",  Math.PI * 1e6));
+        Arrays.stream(new String[] {"Currency", "CurrencySymbol", "DecimalSeparator", "Digit", "ExponentSeparator", "GroupingSeparator", "Infinity",
+                "InternationalCurrencySymbol", "MinusSign", "MonetaryDecimalSeparator", "NaN", "PatternSeparator", "Percent", "PerMill", "ZeroDigit"
+                }).forEach( i-> symbolsSet.put(i, new HashSet<>()));
         for(Locale l: Locale.getAvailableLocales()) {
 //            System.out.println(l.getDisplayName());
 //            System.out.println("    " + String.format(l, format, val));
@@ -42,6 +51,14 @@ public class TestFormat {
 //            System.out.println("    " + vf.format(values));
             dumpSymbols(l);
         }
+        symbolsSet.forEach( (i, j) -> {
+            System.out.println(i);
+            System.out.print("    ");
+            System.out.println(j.stream()
+            .map(k -> "'" + k + "'")
+            .collect(Collectors.joining(" ")));
+
+        });
 //        System.out.println(new DecimalFormat("#").format(Math.PI * 1e6));
 //        System.out.println(new DecimalFormat("#.###").format(12345.0123));
 //        System.out.println(new DecimalFormat("###E0.###").format(123456789 + 0.9876543210));
@@ -53,21 +70,21 @@ public class TestFormat {
     static private final void dumpSymbols(Locale l) {
         DecimalFormatSymbols symbols = DecimalFormatSymbols.getInstance(l);
         System.out.println(l.getDisplayName());
-        System.out.println("    Currency:" + symbols.getCurrency());
-        System.out.println("    CurrencySymbol:" + symbols.getCurrencySymbol());
-        System.out.println("    DecimalSeparator:" + symbols.getDecimalSeparator());
-        System.out.println("    Digit:" + symbols.getDigit());
-        System.out.println("    ExponentSeparator:" + symbols.getExponentSeparator());
-        System.out.println("    GroupingSeparator:" + symbols.getGroupingSeparator());
-        System.out.println("    Infinity:" + symbols.getInfinity());
-        System.out.println("    InternationalCurrencySymbol:" + symbols.getInternationalCurrencySymbol());
-        System.out.println("    MinusSign:" + symbols.getMinusSign());
-        System.out.println("    MonetaryDecimalSeparator:" + symbols.getMonetaryDecimalSeparator());
-        System.out.println("    NaN:" + symbols.getNaN());
-        System.out.println("    PatternSeparator:" + symbols.getPatternSeparator());
-        System.out.println("    Percent:" + symbols.getPercent());
-        System.out.println("    PerMill:" + symbols.getPerMill());
-        System.out.println("    ZeroDigit:" + symbols.getZeroDigit());
+        System.out.println("    Currency:" + symbols.getCurrency()); symbolsSet.get("Currency").add(symbols.getCurrency().toString());
+        System.out.println("    CurrencySymbol:" + symbols.getCurrencySymbol()); symbolsSet.get("CurrencySymbol").add(symbols.getCurrencySymbol());
+        System.out.println("    DecimalSeparator:" + symbols.getDecimalSeparator()); symbolsSet.get("DecimalSeparator").add("" + symbols.getDecimalSeparator());
+        System.out.println("    Digit:" + symbols.getDigit()); symbolsSet.get("Digit").add("" + symbols.getDigit());
+        System.out.println("    ExponentSeparator:" + symbols.getExponentSeparator()); symbolsSet.get("ExponentSeparator").add(symbols.getExponentSeparator());
+        System.out.println("    GroupingSeparator:" + symbols.getGroupingSeparator()); symbolsSet.get("GroupingSeparator").add("" + symbols.getGroupingSeparator());
+        System.out.println("    Infinity:" + symbols.getInfinity()); symbolsSet.get("Infinity").add("" + symbols.getInfinity());
+        System.out.println("    InternationalCurrencySymbol:" + symbols.getInternationalCurrencySymbol()); symbolsSet.get("InternationalCurrencySymbol").add(symbols.getInternationalCurrencySymbol());
+        System.out.println("    MinusSign:" + symbols.getMinusSign()); symbolsSet.get("MinusSign").add("" + symbols.getMinusSign());
+        System.out.println("    MonetaryDecimalSeparator:" + symbols.getMonetaryDecimalSeparator()); symbolsSet.get("MonetaryDecimalSeparator").add("" + symbols.getMonetaryDecimalSeparator());
+        System.out.println("    NaN:" + symbols.getNaN()); symbolsSet.get("NaN").add(symbols.getNaN());
+        System.out.println("    PatternSeparator:" + symbols.getPatternSeparator()); symbolsSet.get("PatternSeparator").add("" + symbols.getPatternSeparator());
+        System.out.println("    Percent:" + symbols.getPercent()); symbolsSet.get("Percent").add("" + symbols.getPercent());
+        System.out.println("    PerMill:" + symbols.getPerMill()); symbolsSet.get("PerMill").add("" + symbols.getPerMill());
+        System.out.println("    ZeroDigit:" + symbols.getZeroDigit()); symbolsSet.get("ZeroDigit").add("" + symbols.getZeroDigit());
        
     }
 }
