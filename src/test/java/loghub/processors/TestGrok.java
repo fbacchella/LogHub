@@ -1,10 +1,14 @@
 package loghub.processors;
 
 import java.util.Collections;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.junit.Assert;
 import org.junit.Test;
 
+import io.thekraken.grok.api.Match;
+import io.thekraken.grok.api.exception.GrokException;
 import loghub.Event;
 import loghub.ProcessorException;
 import loghub.Tools;
@@ -50,7 +54,8 @@ public class TestGrok {
     public void TestLoadPatterns3() throws ProcessorException {
         Grok grok = new Grok();
         grok.setField("message");
-        grok.setPattern("(?<message>fetching user_deny.db entry) for '%{USERNAME:imap_user}'");
+        grok.setCustomPatterns(Collections.singletonMap("FETCHING", "fetching user_deny.db entry"));
+        grok.setPattern("%{FETCHING:message} for '%{USERNAME:imap_user}'");
 
         Properties props = new Properties(Collections.emptyMap());
 
@@ -103,7 +108,7 @@ public class TestGrok {
     }
 
     @Test
-    public void TestLoadPatterns7() throws ProcessorException {
+    public void TestNoMatch() throws ProcessorException {
         Grok grok = new Grok();
         grok.setFields(new String[]{"host"});
         grok.setPattern("%{HOSTNAME:.}\\.google\\.com");
@@ -113,14 +118,29 @@ public class TestGrok {
         Assert.assertTrue("Failed to configure grok", grok.configure(props));
 
         Event e = Tools.getEvent();
-        e.put("localhost", "127.0.0.1");
-        e.put("remotehost", "www.google.com");
-        e.put("remotehostother", "www.google.com");
         e.put("host", "www.yahoo.com");
-        Tools.ProcessingStatus ps = Tools.runProcessing(e, "main", Collections.singletonList(grok));
-        System.out.println(ps);
-        //boolean found = e.process(grok);
-        //Assert.assertFalse("not notified on match", found);
+        Assert.assertFalse(grok.processMessage(e, "host", "host"));
+    }
+
+    // Will fails when issue https://github.com/thekrakken/java-grok/issues/64 is corrected
+    @Test
+    public void TestLoadPatterns8() throws GrokException {
+        String pattern = "(?<message>client id): (?<clientid>.*)";
+        String input = "client id: \"name\" \"Mac OS X Mail\" \"version\" \"10.2 (3259)\" \"os\" \"Mac OS X\" \"os-version\" \"10.12.3 (16D32)\" \"vendor\" \"Apple Inc.\"";
+
+        // Validate the search is good
+        Pattern p = Pattern.compile("(?<message>client id): (?<clientid>.*)");
+        Matcher m = p.matcher(input);
+        if (m.matches()) {
+            Assert.assertEquals("\"name\" \"Mac OS X Mail\" \"version\" \"10.2 (3259)\" \"os\" \"Mac OS X\" \"os-version\" \"10.12.3 (16D32)\" \"vendor\" \"Apple Inc.\"", m.group("clientid"));
+        }
+
+        io.thekraken.grok.api.Grok grok = new io.thekraken.grok.api.Grok();
+        grok.compile(pattern, false);
+
+        Match gm = grok.match(input);
+        gm.captures();
+        Assert.assertNotEquals(gm.toMap().get("clientid"), gm.getMatch().group("clientid"));
     }
 
 }

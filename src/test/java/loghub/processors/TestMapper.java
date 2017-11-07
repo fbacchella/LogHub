@@ -25,7 +25,6 @@ public class TestMapper {
 
         Tools.runProcessing(sent, conf.namedPipeLine.get("mapper1"), conf);
         Assert.assertEquals("conversion not expected", "b", sent.get("d"));
-
     }
 
     @Test
@@ -38,9 +37,7 @@ public class TestMapper {
         sent.put("a", 1);
 
         Tools.runProcessing(sent, conf.namedPipeLine.get("mapper2"), conf);
-        System.out.println(sent);
         Assert.assertEquals("conversion not expected", "b", sent.get("a"));
-
     }
 
     @Test
@@ -53,9 +50,7 @@ public class TestMapper {
         sent.put("a", 3);
 
         Tools.runProcessing(sent, conf.namedPipeLine.get("mapper2"), conf);
-        System.out.println(sent);
         Assert.assertEquals("conversion not expected", 3, sent.get("a"));
-
     }
 
     @Test
@@ -68,9 +63,7 @@ public class TestMapper {
         sent.put("a", 2L);
 
         Tools.runProcessing(sent, conf.namedPipeLine.get("mapper2"), conf);
-        System.out.println(sent);
         Assert.assertEquals("conversion not expected", "c", sent.get("a"));
-
     }
 
 }

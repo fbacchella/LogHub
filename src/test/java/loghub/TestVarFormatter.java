@@ -139,6 +139,30 @@ public class TestVarFormatter {
     }
 
     @Test
+    public void testSpeed() {
+        Object value = Math.PI * 1e6;
+        Map<String, Object> values = Collections.singletonMap("var", value);
+
+        Date start = new Date();
+
+        start = new Date();
+        for(int i = 0 ; i < 1000000 ; i++) {
+            @SuppressWarnings("unused")
+            String a = String.format("% 10.2f",  value);
+        }
+        long printf = new Date().getTime() - start.getTime();
+
+        start = new Date();
+        VarFormatter vf0 = new VarFormatter("${var% 10.2f}", Locale.getDefault());
+        for(int i = 0 ; i < 1000000 ; i++) {
+            @SuppressWarnings("unused")
+            String a = vf0.format(values);
+        }
+        long varformatter = new Date().getTime() - start.getTime();
+        Assert.assertTrue(varformatter < printf);
+    }
+
+    @Test
     public void testEscape() {
         Map<String, Object> values = Collections.singletonMap("var", 1);
         VarFormatter vf = new VarFormatter("a${}b{}c");
