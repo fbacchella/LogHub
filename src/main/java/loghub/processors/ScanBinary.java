@@ -109,7 +109,7 @@ public class ScanBinary extends FieldsProcessor {
     }
 
     /**
-     * @param fieldsLength the fieldsLength to set
+     * @param lengths the fieldsLength to set
      */
     public void setFieldsLength(Object[] lengths) {
         this.fieldsLength = new int[lengths.length];
