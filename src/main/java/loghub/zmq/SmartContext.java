@@ -111,7 +111,16 @@ public class SmartContext {
                 return;
             }
             running = false;
-            controller.send("KILL", 0);
+            try {
+                controller.send("KILL", 0);
+            } catch (ZMQException e) {
+                ZMQHelper.ERRNO error = ZMQHelper.ERRNO.get(e.getErrorCode());
+                if(error.level == Level.DEBUG) {
+                    logger.debug("terminating", e);
+                } else {
+                    throw e;
+                }
+            }
             Helpers.makeSimpleThread(() -> {
                 try {
                     logger.trace("will terminate");
