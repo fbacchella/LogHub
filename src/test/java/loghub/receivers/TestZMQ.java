@@ -36,7 +36,7 @@ public class TestZMQ {
     static public void configure() throws IOException {
         Tools.configure();
         logger = LogManager.getLogger();
-        LogUtils.setLevel(logger, Level.TRACE, "loghub.SmartContext", "loghub.receivers.ZMQ", "loghub.Receiver");
+        LogUtils.setLevel(logger, Level.TRACE, "loghub.SmartContext", "loghub.receivers.ZMQ", "loghub.Receiver", "loghub.ContextRule", "loghub.zmq.ZMQHelper");
     }
 
     private void dotest(Consumer<ZMQ> configure, Socket sender) throws InterruptedException  {
@@ -47,7 +47,7 @@ public class TestZMQ {
         Assert.assertTrue(r.configure(new Properties(Collections.emptyMap())));
         r.start();
         Thread.sleep(30);
-        sender.send("message 1");
+        Assert.assertTrue(sender.send("message 1"));
         Event e = receiver.take();
         Assert.assertEquals("Missing message", "message 1", e.get("message"));
         tctxt.ctx.close(sender);

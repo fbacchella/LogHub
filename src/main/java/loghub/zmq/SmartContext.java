@@ -147,7 +147,6 @@ public class SmartContext {
                     logger.error("in close: " + e);
                 } catch (Exception e) {
                     logger.error("in close: " + e);
-                } finally {
                 }
             }
         }

@@ -36,6 +36,7 @@ public class ContextRule implements TestRule {
                 logger.debug("Terminating ZMQ manager");
                 SmartContext.getContext().terminate();
             } catch (Exception e) {
+                logger.throwing(e);
                 throw new RuntimeException("Failed to terminate ZMQ's context", e);
             }
             logger.debug("Test finished");
