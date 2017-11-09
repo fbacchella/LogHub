@@ -113,13 +113,8 @@ public class SmartContext {
             running = false;
             try {
                 controller.send("KILL", 0);
-            } catch (ZMQException e) {
-                ZMQHelper.ERRNO error = ZMQHelper.ERRNO.get(e.getErrorCode());
-                if(error.level == Level.DEBUG) {
-                    logger.debug("terminating", e);
-                } else {
-                    throw e;
-                }
+            } catch (ZMQException|zmq.ZError.IOException|zmq.ZError.CtxTerminatedException|zmq.ZError.InstantiationException e) {
+                ZMQHelper.logZMQException(logger, "terminate", e);
             }
             Helpers.makeSimpleThread(() -> {
                 try {
