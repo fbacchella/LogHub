@@ -3,6 +3,7 @@ package loghub.receivers;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -86,11 +87,14 @@ public class SnmpTrap extends Receiver implements CommandResponder {
 
     @Override
     public boolean configure(Properties properties) {
+        decoder = Receiver.NULLDECODER;
         if(! reconfigured && properties.containsKey("mibdirs")) {
             reconfigured = true;
             String[] mibdirs = null;
             try {
-                mibdirs = (String[]) properties.get("mibdirs");
+                mibdirs = Arrays.stream((Object[]) properties.get("mibdirs"))
+                        .map( i -> i.toString())
+                        .toArray(String[]::new);
                 formatter = OIDFormatter.register(mibdirs);
             } catch (ClassCastException e) {
                 logger.error("mibdirs property is not a string array");
@@ -196,15 +200,15 @@ public class SnmpTrap extends Receiver implements CommandResponder {
         Map<String, Object> oidindex = formatter.store.parseIndexOID(oid.getValue());
         if (oidindex.size() <= 1) {
             e.put(oid.format(), value);
-            } else {
+        } else {
             String tableName = oidindex.keySet().stream().findFirst().get();
             Object rowName = oidindex.remove(tableName);
-                    Map<String, Object> valueMap = new HashMap<>(2);
+            Map<String, Object> valueMap = new HashMap<>(2);
             valueMap.put("index", oidindex);
-                    valueMap.put("value", value);
+            valueMap.put("value", value);
             e.put(rowName.toString(), valueMap);
-                }
-            }
+        }
+    }
 
     private Object convertVar(Variable var) {
         if(var == null) {
