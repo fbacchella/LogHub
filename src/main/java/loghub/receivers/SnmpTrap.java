@@ -196,11 +196,23 @@ public class SnmpTrap extends Receiver implements CommandResponder {
         }
     }
 
+
     private void smartPut(Event e, OID oid, Object value) {
         Map<String, Object> oidindex = formatter.store.parseIndexOID(oid.getValue());
-        if (oidindex.size() <= 1) {
+        if (oidindex.size() == 0) {
             e.put(oid.format(), value);
-        } else {
+        } else if (oidindex.size() == 1) {
+            Object indexvalue = oidindex.values().stream().findFirst().get();
+            // it's an array, so it's a unresolved index
+            if ( indexvalue.getClass().isArray()) {
+                Map<String, Object> valueMap = new HashMap<>(2);
+                valueMap.put("index", indexvalue);
+                valueMap.put("value", value);
+                e.put(oid.format(), valueMap);
+            } else {
+                e.put(oid.format(), value);
+            }
+        } else if (oidindex.size() > 1) {
             String tableName = oidindex.keySet().stream().findFirst().get();
             Object rowName = oidindex.remove(tableName);
             Map<String, Object> valueMap = new HashMap<>(2);
