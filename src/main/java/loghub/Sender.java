@@ -42,7 +42,7 @@ public abstract class Sender extends Thread {
                 if(send(event)) {
                     Stats.sent.incrementAndGet();
                 } else {
-                    Stats.dropped.incrementAndGet();
+                    Stats.failed.incrementAndGet();
                 }
                 event.end();
                 event = null;
