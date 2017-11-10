@@ -50,6 +50,7 @@ import org.apache.http.util.VersionInfo;
 import org.apache.logging.log4j.Level;
 
 import loghub.Event;
+import loghub.Helpers;
 import loghub.Sender;
 import loghub.configuration.Properties;
 
@@ -179,7 +180,7 @@ public abstract class AbstractHttpSender extends Sender {
 
     private CloseableHttpClient client = null;
     private ArrayBlockingQueue<Event> bulkqueue;
-    protected final Runnable publisher;
+    private final Runnable publisher;
     protected URL[] endPoints;
 
     public AbstractHttpSender(BlockingQueue<Event> inQueue) {
@@ -251,10 +252,10 @@ public abstract class AbstractHttpSender extends Sender {
         // Create the senders threads and the common queue
         bulkqueue = new ArrayBlockingQueue<Event>(buffersize * 2);
         for (int i = 1 ; i <= publisherThreads ; i++) {
-            Thread tp = new Thread(publisher);
-            tp.setDaemon(true);
-            tp.setName(getPublishName() + "Publisher" + i);
-            tp.start();
+            new Helpers.SimplifiedThreadRunnable(publisher)
+            .setDaemon(true)
+            .setName(getPublishName() + "Publisher" + i)
+            .start();
         }
 
         // The HTTP connection management
@@ -340,12 +341,12 @@ public abstract class AbstractHttpSender extends Sender {
             // If queue full, launch a bulk publication
             synchronized (publisher) {
                 publisher.notify();
-                try {
-                    Thread.sleep(100);
-                } catch (InterruptedException e) {
-                    tryoffer = 0;
-                    Thread.currentThread().interrupt();
-                }
+            }
+            try {
+                Thread.sleep(10);
+            } catch (InterruptedException e) {
+                tryoffer = 0;
+                Thread.currentThread().interrupt();
             }
         }
         // if queue reached publication size or offer failed, publish
@@ -355,7 +356,7 @@ public abstract class AbstractHttpSender extends Sender {
                 publisher.notify();
             }
         }
-        return true;
+        return tryoffer != 0;
     }
 
     protected abstract Object flush(List<Event> documents) throws IOException;
