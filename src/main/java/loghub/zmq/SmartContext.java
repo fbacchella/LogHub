@@ -7,6 +7,8 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Future;
+import java.util.concurrent.FutureTask;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -16,6 +18,7 @@ import org.zeromq.ZMQ.Context;
 import org.zeromq.ZMQ.Socket;
 
 import loghub.Helpers;
+import loghub.Helpers.SimplifiedThread;
 import loghub.zmq.ZMQHelper.Method;
 import loghub.zmq.ZMQHelper.Type;
 
@@ -45,7 +48,7 @@ public class SmartContext {
     public static synchronized SmartContext getContext() {
         if (instance == null || !instance.running) {
             instance = new SmartContext();
-            Thread terminator = Helpers.makeSimpleThread(() -> {
+            Thread terminator = new Helpers.SimplifiedThreadRunnable(() -> {
                 synchronized (SmartContext.class) {
                     if (instance != null) {
                         logger.debug("starting shutdown hook for ZMQ");
@@ -105,10 +108,10 @@ public class SmartContext {
         }
     }
 
-    public void terminate() {
+    public Future<Boolean> terminate() {
         synchronized (SmartContext.class) {
             if (!running) {
-                return;
+                return new FutureTask<Boolean>(() -> true);
             }
             running = false;
             try {
@@ -116,18 +119,20 @@ public class SmartContext {
             } catch (ZMQException|zmq.ZError.IOException|zmq.ZError.CtxTerminatedException|zmq.ZError.InstantiationException e) {
                 ZMQHelper.logZMQException(logger, "terminate", e);
             }
-            Helpers.makeSimpleThread(() -> {
+            SimplifiedThread<Boolean> terminator = new Helpers.SimplifiedThread<Boolean>(() -> {
                 try {
                     logger.trace("will terminate");
                     instance.context.term();
                 } catch (ZMQException | zmq.ZError.IOException | zmq.ZError.CtxTerminatedException | zmq.ZError.InstantiationException e) {
                     ZMQHelper.logZMQException(logger, "terminate", e);
-                } catch (java.nio.channels.ClosedSelectorException e) {
+                } catch (final java.nio.channels.ClosedSelectorException e) {
                     logger.error("closed selector:" + e.getMessage());
-                } catch (Exception e) {
+                } catch (final Exception e) {
                     logger.error("Unexpected error:" + e.getMessage());
+                    return false;
                 }
                 logger.trace("done terminate");
+                return true;
             }).setName("ZMQContextTerminator").setDaemon(false).start();
             // Now we've send termination signals, let other threads
             // some time to finish
@@ -153,6 +158,7 @@ public class SmartContext {
                     logger.error("in close: " + e);
                 }
             }
+            return terminator.task;
         }
     }
 
