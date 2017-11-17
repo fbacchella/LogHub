@@ -24,9 +24,28 @@ public class Convert extends FieldsProcessor {
     @Override
     public boolean processMessage(Event event, String field, String destination) throws ProcessorException {
         try {
-            Object o = BeansManager.ConstructFromString(clazz, event.get(field).toString());
+            Object o;
+            switch(className) {
+            case "java.lang.Integer":
+                o = Integer.valueOf(event.get(field).toString());
+                break;
+            case "java.lang.Byte" :
+                o = Byte.valueOf(event.get(field).toString());
+                break;
+            case "java.lang.Short":
+                o = Short.valueOf(event.get(field).toString());
+                break;
+            case "java.lang.Long":
+                o = Long.valueOf(event.get(field).toString());
+                break;
+            default:
+                o = BeansManager.ConstructFromString(clazz, event.get(field).toString());
+                break;
+            }
             event.put(destination, o);
             return true;
+        } catch (NumberFormatException e) {
+            throw event.buildException("unable to convert from string to " + className, e);
         } catch (InvocationTargetException e) {
             throw event.buildException("unable to convert from string to " + className, (Exception)e.getCause());
         }
