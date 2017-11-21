@@ -67,7 +67,6 @@ public class EventsProcessor extends Thread {
     @Override
     public void run() {
         final AtomicReference<Counter> gaugecounter = new AtomicReference<>();
-        String threadName = Thread.currentThread().getName();
         while (true) {
             Event event = null;
             try {
@@ -97,9 +96,7 @@ public class EventsProcessor extends Thread {
                         event = event.unwrap();
                         continue;
                     }
-                    Thread.currentThread().setName(threadName + "-" + processor.getName());
                     ProcessingStatus processingstatus = process(event, processor);
-                    Thread.currentThread().setName(threadName);
                     if (processingstatus != ProcessingStatus.SUCCESS) {
                         event.doMetric(() -> {
                             gaugecounter.get().dec();
