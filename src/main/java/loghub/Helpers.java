@@ -318,7 +318,7 @@ public final class Helpers {
                 public void run() {
                     task.run();
                 }
-                
+
             };
         }
 
@@ -337,7 +337,7 @@ public final class Helpers {
             return this;
         }
     }
-    
+
     public static class SimplifiedThreadRunnable extends SimplifiedThread<Object> {
         public SimplifiedThreadRunnable(Runnable r) {
             super(Executors.callable(r));
@@ -367,6 +367,29 @@ public final class Helpers {
     private static final MimetypesFileTypeMap mimeTypesMap = new MimetypesFileTypeMap();
     public static String getMimeType(String file) {
         return mimeTypesMap.getContentType(file);
+    }
+
+    /**
+     * It tries to extract a meaningfull message for any exception
+     * @param t
+     * @return
+     */
+    public static String resolveThrowableException(Throwable t) {
+        StringBuilder builder = new StringBuilder();
+        while(t.getCause() != null) {
+            String message = t.getMessage();
+            if (message == null) {
+                message = t.getClass().getSimpleName();
+            }
+            builder.append(message).append(": ");
+            t = t.getCause();
+        }
+        String message = t.getMessage();
+        if (message == null) {
+            message = t.getClass().getSimpleName();
+        }
+        builder.append(message);
+        return builder.toString();
     }
 
 }
