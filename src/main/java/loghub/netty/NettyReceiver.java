@@ -6,6 +6,8 @@ import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ThreadFactory;
 
+import org.apache.logging.log4j.Level;
+
 import io.netty.bootstrap.AbstractBootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
@@ -99,6 +101,7 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
     private final boolean selfDecoder;
     private final boolean closeOnError;
     private int threadsCount = 1;
+    private String poller = "NIO";
 
     public NettyReceiver(BlockingQueue<Event> outQueue, Pipeline pipeline) {
         super(outQueue, pipeline);
@@ -114,9 +117,15 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
         }
         server = getServer();
         server.setWorkerThreads(threadsCount);
+        server.setPoller(poller);
         ThreadFactory tf = new DefaultThreadFactory(getReceiverName(), true);
         server.setThreadFactory(tf);
-        cf = server.configure(properties, this);
+        try {
+            cf = server.configure(properties, this);
+        } catch (UnsatisfiedLinkError e) {
+            logger.error("Can't configure Netty server: {}", Helpers.resolveThrowableException(e));
+            logger.catching(Level.DEBUG, e);
+        }
         return cf != null && super.configure(properties);
     }
 
@@ -189,6 +198,20 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
      */
     public void setWorkerThreads(int threads) {
         this.threadsCount = threads;
+    }
+
+    /**
+     * @return the poller
+     */
+    public String getPoller() {
+        return poller;
+    }
+
+    /**
+     * @param poller the poller to set
+     */
+    public void setPoller(String poller) {
+        this.poller = poller;
     }
 
 }

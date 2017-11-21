@@ -6,6 +6,8 @@ import java.util.concurrent.ThreadFactory;
 import io.netty.channel.ChannelFactory;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.ServerChannel;
+import io.netty.channel.epoll.EpollEventLoopGroup;
+import io.netty.channel.epoll.EpollServerSocketChannel;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
@@ -20,6 +22,13 @@ public class TcpFactory extends ServerFactory<SocketChannel, InetSocketAddress> 
         }
     };
 
+    private static final ChannelFactory<ServerChannel> epollchannelfactory = new ChannelFactory<ServerChannel>() {
+        @Override 
+        public ServerChannel newChannel() {
+            return new EpollServerSocketChannel();
+        }
+    };
+
     private final POLLER poller;
 
     public TcpFactory(POLLER poller) {
@@ -31,6 +40,8 @@ public class TcpFactory extends ServerFactory<SocketChannel, InetSocketAddress> 
         switch (poller) {
         case NIO:
             return new NioEventLoopGroup(threads, threadFactory);
+        case EPOLL:
+            return new EpollEventLoopGroup(threads, threadFactory);
         default:
             throw new UnsupportedOperationException();
         }
@@ -41,6 +52,8 @@ public class TcpFactory extends ServerFactory<SocketChannel, InetSocketAddress> 
         switch (poller) {
         case NIO:
             return niochannelfactory;
+        case EPOLL:
+            return epollchannelfactory;
         default:
             throw new UnsupportedOperationException();
         }
