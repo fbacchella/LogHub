@@ -1,68 +1,96 @@
 package loghub.senders;
 
-import java.io.FileWriter;
 import java.io.IOException;
-import java.util.LinkedHashMap;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Map.Entry;
+import java.nio.ByteBuffer;
+import java.nio.channels.AsynchronousFileChannel;
+import java.nio.channels.CompletionHandler;
+import java.nio.channels.FileLock;
+import java.nio.channels.NonWritableChannelException;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicLong;
 
 import loghub.Event;
 import loghub.Sender;
-import loghub.configuration.Beans;
+import loghub.configuration.Properties;
 
-@Beans({"pattern", "local"})
 public class File extends Sender {
 
-    private final int CAPACITY = 10;
-
-    String pattern;
-    Locale locale = Locale.getDefault();
-
-    FileWriter destination;
-    Map<String, FileWriter> writers = new LinkedHashMap<String, FileWriter>() {
+    private final CompletionHandler<Integer, Object> handler = new CompletionHandler<Integer, Object>() {
 
         @Override
-        protected boolean removeEldestEntry(Entry<String, FileWriter> eldest) {
-            if(size() > CAPACITY ) {
-                try {
-                    eldest.getValue().flush();
-                    eldest.getValue().close();
-                } catch (IOException e) {
-                }
-            }
-            return true;
+        public void completed(Integer result, Object attachment) {
         }
+
+        @Override
+        public void failed(Throwable exc, Object attachment) {
+            String message = exc.getMessage();
+            if (message == null) {
+                message = exc.getClass().getSimpleName();
+            }
+            logger.error("error writing event to {}",fileName, message);
+        }
+
     };
+    private String fileName;
+
+    private AsynchronousFileChannel destination;
+    private AtomicLong position;
 
     public File(BlockingQueue<Event> inQueue) {
         super(inQueue);
     }
 
     @Override
-    public boolean send(Event e) {
+    public boolean configure(Properties properties) {
         try {
-            destination.write(e.toString());
+            destination = AsynchronousFileChannel.open(Paths.get(fileName), StandardOpenOption.WRITE, StandardOpenOption.CREATE);
+            try(FileLock l = destination.lock().get()) {
+                position = new AtomicLong(l.position());
+            }
+        } catch (InterruptedException | ExecutionException | IOException | UnsupportedOperationException e) {
+            String message = e.getMessage();
+            if (message == null) {
+                message = e.getClass().getSimpleName();
+            }
+            logger.error("error openening output file {}: {}", fileName, message);
+            return false;
+        }
+        return super.configure(properties);
+    }
+
+    @Override
+    public boolean send(Event event) {
+        try {
+            byte[] msg = getEncoder().encode(event);
+            long writepose = position.getAndAdd(msg.length);
+            destination.write(ByteBuffer.wrap(msg), writepose, null, handler);
             return true;
-        } catch (IOException e1) {
-            throw new RuntimeException(e1);
+        } catch (IllegalArgumentException | NonWritableChannelException e) {
+            logger.error("error writing event to {}: {}", fileName, e.getMessage());
+            return false;
         }
     }
 
     @Override
     public String getSenderName() {
-        return null;
+        return "File_" + fileName;
     }
 
-    public String getPattern() {
-        return pattern;
+    /**
+     * @return the fileName
+     */
+    public String getFileName() {
+        return fileName;
     }
 
-    public void setPattern(String pattern) throws IOException {
-        this.pattern = pattern;
-        java.io.File f = new java.io.File(pattern);
-        destination = new FileWriter(f, true);
+    /**
+     * @param fileName the fileName to set
+     */
+    public void setFileName(String fileName) {
+        this.fileName = fileName;
     }
 
 }
