@@ -11,7 +11,6 @@ import org.apache.logging.log4j.Level;
 import io.netty.bootstrap.AbstractBootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
-import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandler.Sharable;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
@@ -92,7 +91,6 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
 
     private static final AttributeKey<Object> CONNECTIONCONTEXTATTRIBUTE = AttributeKey.newInstance("ConnectionContextAttribute");
 
-    private ChannelFuture cf;
     private S server;
     protected MessageToMessageDecoder<SM> nettydecoder;
     private final EventSender sender = new EventSender();
@@ -121,23 +119,19 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
         ThreadFactory tf = new DefaultThreadFactory(getReceiverName(), true);
         server.setThreadFactory(tf);
         try {
-            cf = server.configure(properties, this);
+            return server.configure(properties, this) && super.configure(properties);
         } catch (UnsatisfiedLinkError e) {
             logger.error("Can't configure Netty server: {}", Helpers.resolveThrowableException(e));
             logger.catching(Level.DEBUG, e);
+            return false;
         }
-        return cf != null && super.configure(properties);
-    }
-
-    public ChannelFuture getChannelFuture() {
-        return cf;
     }
 
     @Override
     public void run() {
         try {
             // Wait until the server socket is closed.
-            cf.channel().closeFuture().sync();
+            server.close();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         } finally {
@@ -177,7 +171,7 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
     @Override
     public void close() {
         try {
-            cf.channel().closeFuture().sync();
+            server.close();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         } finally {

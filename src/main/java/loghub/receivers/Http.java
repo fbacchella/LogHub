@@ -7,7 +7,6 @@ import java.util.concurrent.BlockingQueue;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandler.Sharable;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
@@ -71,7 +70,6 @@ public class Http extends GenericTcp {
 
     private int port;
     private String host = null;
-    ChannelFuture cf = null;
 
     public Http(BlockingQueue<Event> outQueue, Pipeline pipeline) {
         super(outQueue, pipeline);
@@ -83,8 +81,7 @@ public class Http extends GenericTcp {
         try {
             webserver.setPort(this.getPort());
             webserver.setHost(this.getHost());
-            cf = webserver.configure(properties);
-            return super.configure(properties);
+            return webserver.configure(properties) && super.configure(properties);
         } catch (UnknownHostException e) {
             logger.error("Unknow host to bind: {}", host);
             return false;
@@ -93,14 +90,7 @@ public class Http extends GenericTcp {
 
     @Override
     public void run() {
-        try {
-            // Wait until the server socket is closed.
-            cf.channel().closeFuture().sync();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        } finally {
-            webserver.finish();
-        }
+        webserver.finish();
     }
 
     @Override

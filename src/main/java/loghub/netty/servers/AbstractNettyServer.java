@@ -8,7 +8,6 @@ import org.apache.logging.log4j.Logger;
 
 import io.netty.bootstrap.AbstractBootstrap;
 import io.netty.channel.Channel;
-import io.netty.channel.ChannelFuture;
 import loghub.Helpers;
 import loghub.configuration.Properties;
 import loghub.netty.ChannelConsumer;
@@ -39,10 +38,10 @@ public abstract class AbstractNettyServer<CF extends ComponentFactory<BS, BSC, S
     }
 
     @SuppressWarnings("unchecked")
-    public ChannelFuture configure(Properties properties, ChannelConsumer<BS, BSC, SA> consumer) {
+    public boolean configure(Properties properties, ChannelConsumer<BS, BSC, SA> consumer) {
         address = consumer.getListenAddress();
         if (address == null) {
-            return null;
+            return false;
         }
         factory = getNewFactory(properties);
         bootstrap = factory.getBootStrap();
@@ -51,16 +50,17 @@ public abstract class AbstractNettyServer<CF extends ComponentFactory<BS, BSC, S
         factory.addChildhandlers(consumer);
         factory.addHandlers(consumer);
         consumer.addOptions((BS) bootstrap);
-        // Bind and start to accept incoming connections.
+        logger.debug("started {} with consumer {} listening on {}", factory, consumer, address);
         try {
-            ChannelFuture cf = bootstrap.bind(address).sync();
-            logger.debug("started {} with consumer {} listening on {}", factory, consumer, address);
-            return cf;
+            return makeChannel(bootstrap, address);
         } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            return null;
+            return false;
         }
     }
+
+    protected abstract boolean makeChannel(AbstractBootstrap<BS,BSC> bootstrap, SA address) throws InterruptedException;
+
+    public abstract void close() throws InterruptedException;
 
     protected abstract CF getNewFactory(Properties properties);
 
@@ -79,9 +79,9 @@ public abstract class AbstractNettyServer<CF extends ComponentFactory<BS, BSC, S
     public void setPoller(String poller) {
         this.poller = POLLER.valueOf(poller);
     }
-    
+
     public void configureBootStrap(AbstractBootstrap<BS,BSC> bootstrap) {
-        
+
     }
 
     public CF getFactory() {

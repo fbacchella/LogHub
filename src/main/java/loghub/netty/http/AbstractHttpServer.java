@@ -5,7 +5,6 @@ import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 
 import io.netty.bootstrap.ServerBootstrap;
-import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.ServerChannel;
@@ -23,7 +22,7 @@ public abstract class AbstractHttpServer extends TcpServer implements ChannelCon
     private int port;
     private String host = null;
 
-    public ChannelFuture configure(Properties properties) {
+    public boolean configure(Properties properties) {
         setThreadFactory(new DefaultThreadFactory("builtinhttpserver"));
         return super.configure(properties, this);
     }

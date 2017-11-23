@@ -13,10 +13,12 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import io.netty.bootstrap.AbstractBootstrap;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelFactory;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
@@ -58,13 +60,31 @@ public class TestServer {
         public ChannelFactory<ServerChannel> getInstance() {
             return channelfactory;
         }
-
     };
 
     private static class TesterServer extends AbstractNettyServer<TesterFactory, ServerBootstrap, ServerChannel, LocalServerChannel, LocalAddress> {
+        Channel cf;
+
         @Override
         protected TesterFactory getNewFactory(Properties properties) {
             return new TesterFactory();
+        }
+
+        @Override
+        protected boolean makeChannel(AbstractBootstrap<ServerBootstrap, ServerChannel> bootstrap, LocalAddress address) throws InterruptedException {
+            // Bind and start to accept incoming connections.
+            try {
+                cf = bootstrap.bind(address).await().channel();
+                return true;
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return false;
+            }
+        }
+
+        @Override
+        public void close() throws InterruptedException {
+            cf.closeFuture().sync();
         }
     }
 
@@ -147,7 +167,6 @@ public class TestServer {
         // Start the client.
         ChannelFuture f = b.connect(new LocalAddress(TestServer.class.getCanonicalName())).sync();
         Thread.sleep(100);
-        r.getChannelFuture().sync();
         sent[0].sync();
         f.channel().close();
         // Wait until the connection is closed.
