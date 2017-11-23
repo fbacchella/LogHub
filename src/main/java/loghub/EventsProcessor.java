@@ -236,7 +236,7 @@ public class EventsProcessor extends Thread {
                 }
             } catch (ProcessorException.DroppedEventException ex) {
                 status = ProcessingStatus.DROPED;
-            } catch (ProcessorException.IgnoredEventException ex) {
+            } catch (IgnoredEventException ex) {
                 // A do nothing event
                 status = ProcessingStatus.SUCCESS;
             } catch (ProcessorException | UncheckedProcessingException ex) {

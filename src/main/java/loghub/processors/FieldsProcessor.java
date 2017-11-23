@@ -9,9 +9,9 @@ import java.util.regex.Pattern;
 import loghub.AsyncProcessor;
 import loghub.Event;
 import loghub.Helpers;
+import loghub.IgnoredEventException;
 import loghub.Processor;
 import loghub.ProcessorException;
-import loghub.ProcessorException.IgnoredEventException;
 import loghub.VarFormatter;
 
 public abstract class FieldsProcessor extends Processor {
@@ -66,7 +66,7 @@ public abstract class FieldsProcessor extends Processor {
     private class AsyncFieldSubProcessor extends FieldSubProcessor implements AsyncProcessor<Object> {
 
         private final int timeout;
-        
+
         AsyncFieldSubProcessor(Iterator<String> processing, int timeout) {
             super(processing);
             this.timeout = timeout;
@@ -118,7 +118,7 @@ public abstract class FieldsProcessor extends Processor {
                 // never reached code
                 return false;
             } else {
-                throw new ProcessorException.IgnoredEventException(event);
+                throw IgnoredEventException.INSTANCE;
             }
         } else if (this instanceof AsyncFieldsProcessor) {
             // Needed because only AsyncProcessor are allowed to pause
@@ -129,12 +129,12 @@ public abstract class FieldsProcessor extends Processor {
             if (event.containsKey(field)) {
                 return processMessage(event, field, getDestination(field));
             } else {
-                throw new ProcessorException.IgnoredEventException(event);
+                throw IgnoredEventException.INSTANCE;
             }
         }
     }
 
-    private void delegate(Set<String> nextfields, Event event) throws IgnoredEventException {
+    private void delegate(Set<String> nextfields, Event event) {
         final Iterator<String> processing = nextfields.iterator();
 
         Processor fieldProcessor;
@@ -146,7 +146,7 @@ public abstract class FieldsProcessor extends Processor {
         if (processing.hasNext()) {
             event.insertProcessor(fieldProcessor);
         }
-        throw new ProcessorException.IgnoredEventException(event);
+        throw IgnoredEventException.INSTANCE;
     }
 
     private final String getDestination(String srcField) {
