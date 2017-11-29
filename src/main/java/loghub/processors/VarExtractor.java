@@ -19,6 +19,7 @@ import loghub.configuration.Beans;
 public class VarExtractor extends FieldsProcessor {
 
     private Pattern parser = Pattern.compile("(?<name>\\p{Alnum}+)\\p{Space}?[=:]\\p{Space}?(?<value>[^;,:]+)[;,:]?");
+    ThreadLocal<Matcher> matchersGenerator = ThreadLocal.withInitial( () -> parser.matcher(""));
 
     @Override
     public boolean processMessage(Event event, String field, String destination ) {
@@ -28,7 +29,7 @@ public class VarExtractor extends FieldsProcessor {
         }
         String message = event.get(field).toString();
         String after = message;
-        Matcher m = parser.matcher(message);
+        Matcher m = matchersGenerator.get().reset(message);
         while(m.find()) {
             String key = m.group("name");
             String value = m.group("value");

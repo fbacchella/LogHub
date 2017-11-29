@@ -12,6 +12,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.StringJoiner;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.apache.commons.csv.CSVFormat;
@@ -104,8 +105,9 @@ class IpfixInformationElements {
         Reader in = new InputStreamReader(getClass().getClassLoader().getResourceAsStream(CSVSOURCE));
         Iterable<CSVRecord> records = CSVFormat.RFC4180.withFirstRecordAsHeader().parse(in);
         Map<Integer, Element> buildElements = new HashMap<>();
+        Matcher mtch = RANGEPATTERN.matcher("");
         for (CSVRecord record : records) {
-            if (RANGEPATTERN.matcher(record.get(0)).matches()) {
+            if (mtch.reset(record.get(0)).matches()) {
                 continue;
             }
             Element e = new Element(record.toMap());
