@@ -70,16 +70,16 @@ public class DeviceParser {
 
     protected static class DevicePattern {
         private static final Pattern SUBSTITUTIONS_PATTERN = Pattern.compile("\\$\\d");
-        private final Pattern pattern;
         private final String deviceReplacement;
+        private final ThreadLocal<Matcher> matchersource;
 
         public DevicePattern(Pattern pattern, String deviceReplacement) {
-            this.pattern = pattern;
             this.deviceReplacement = deviceReplacement;
+            this.matchersource = ThreadLocal.withInitial(() -> pattern.matcher(""));
         }
 
         public String match(String agentString) {
-            Matcher matcher = pattern.matcher(agentString);
+            Matcher matcher = matchersource.get().reset(agentString);
             if (!matcher.find()) {
                 return null;
             }

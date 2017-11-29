@@ -71,20 +71,20 @@ public class OSParser {
     }
 
     protected static class OSPattern {
-        private final Pattern pattern;
         private final String osReplacement, v1Replacement, v2Replacement, v3Replacement;
+        private final ThreadLocal<Matcher> matchersource;
 
         public OSPattern(Pattern pattern, String osReplacement, String v1Replacement, String v2Replacement, String v3Replacement) {
-            this.pattern = pattern;
             this.osReplacement = osReplacement;
             this.v1Replacement = v1Replacement;
             this.v2Replacement = v2Replacement;
             this.v3Replacement = v3Replacement;
+            this.matchersource = ThreadLocal.withInitial(() -> pattern.matcher(""));
         }
 
         public OS match(String agentString) {
             String family = null, v1 = null, v2 = null, v3 = null, v4 = null;
-            Matcher matcher = pattern.matcher(agentString);
+            Matcher matcher = matchersource.get().reset(agentString);
 
             if (!matcher.find()) {
                 return null;

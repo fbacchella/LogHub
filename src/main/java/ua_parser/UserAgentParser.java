@@ -70,11 +70,11 @@ public class UserAgentParser {
     }
 
     protected static class UAPattern {
-        private final Pattern pattern;
+        private final ThreadLocal<Matcher> matchersource;
         private final String familyReplacement, v1Replacement, v2Replacement;
 
         public UAPattern(Pattern pattern, String familyReplacement, String v1Replacement, String v2Replacement) {
-            this.pattern = pattern;
+            this.matchersource = ThreadLocal.withInitial(() -> pattern.matcher(""));
             this.familyReplacement = familyReplacement;
             this.v1Replacement = v1Replacement;
             this.v2Replacement = v2Replacement;
@@ -82,7 +82,7 @@ public class UserAgentParser {
 
         public UserAgent match(String agentString) {
             String family = null, v1 = null, v2 = null, v3 = null;
-            Matcher matcher = pattern.matcher(agentString);
+            Matcher matcher = matchersource.get().reset(agentString);
 
             if (!matcher.find()) {
                 return null;
