@@ -33,15 +33,15 @@ public class VarExtractor extends FieldsProcessor {
         while(m.find()) {
             String key = m.group("name");
             String value = m.group("value");
-            if(key != null && ! key.isEmpty()) {
-                if(value != null && ! value.isEmpty()) {
+            if (key != null && ! key.isEmpty()) {
+                if (value != null) {
                     parsed = true;
-                    event.put(key.intern(), value.intern());
+                    event.put(key, value);
                 }
             }
             after = message.substring(m.end());
         }
-        if(after != null && ! after.isEmpty()) {
+        if (after != null && ! after.isEmpty()) {
             event.put(destination, after.intern());
         } else {
             event.remove(field);
