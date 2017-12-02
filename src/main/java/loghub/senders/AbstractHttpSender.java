@@ -5,7 +5,6 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.net.ConnectException;
-import java.net.MalformedURLException;
 import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.nio.charset.Charset;
@@ -224,26 +223,7 @@ public abstract class AbstractHttpSender extends Sender {
     @Override
     public boolean configure(Properties properties) {
 
-        // Uses URI parsing to read destination given by the user.
-        endPoints = new URL[destinations.length];
-        for (int i = 0 ; i < destinations.length ; i++) {
-            String temp = destinations[i];
-            if ( !temp.contains("//")) {
-                temp = "//" + temp;
-            }
-            try {
-                URL newEndPoint = new URL(temp);
-                int localport = port;
-                endPoints[i] = new URL(
-                        (newEndPoint.getProtocol() != null ? newEndPoint.getProtocol() : protocol),
-                        (newEndPoint.getHost() != null ? newEndPoint.getHost() : "localhost"),
-                        (newEndPoint.getPort() > 0 ? newEndPoint.getPort() : localport),
-                        (newEndPoint.getPath() != null ? newEndPoint.getPath() : "")
-                        );
-            } catch (MalformedURLException e) {
-                logger.error("invalid destination {}: {}", destinations[i], e.getMessage());
-            }
-        }
+        endPoints = Helpers.stringsToUrl(destinations, port, protocol, logger);
 
         if(endPoints.length == 0) {
             return false;

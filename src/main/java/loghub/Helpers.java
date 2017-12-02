@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetAddress;
 import java.net.JarURLConnection;
+import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLConnection;
@@ -32,6 +33,8 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import javax.activation.MimetypesFileTypeMap;
+
+import org.apache.logging.log4j.Logger;
 
 import io.netty.util.NetUtil;
 
@@ -396,6 +399,31 @@ public final class Helpers {
         }
         builder.append(message);
         return builder.toString();
+    }
+
+    public static URL[] stringsToUrl(String[] destinations, int port, String protocol, Logger logger) {
+        // Uses URI parsing to read destination given by the user.
+        URL[] endPoints = new URL[destinations.length];
+        for (int i = 0 ; i < destinations.length ; i++) {
+            String temp = destinations[i];
+            if ( !temp.contains("//")) {
+                temp = protocol + "://" + temp;
+            }
+            try {
+                URL newEndPoint = new URL(temp);
+                System.out.println(newEndPoint);
+                int localport = port;
+                endPoints[i] = new URL(
+                        (newEndPoint.getProtocol() != null ? newEndPoint.getProtocol() : protocol),
+                        (newEndPoint.getHost() != null ? newEndPoint.getHost() : "localhost"),
+                        (newEndPoint.getPort() > 0 ? newEndPoint.getPort() : localport),
+                        (newEndPoint.getPath() != null ? newEndPoint.getPath() : "")
+                        );
+            } catch (MalformedURLException e) {
+                logger.error("invalid destination {}: {}", destinations[i], e.getMessage());
+            }
+        }
+        return endPoints;
     }
 
 }
