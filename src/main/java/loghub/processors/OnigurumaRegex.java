@@ -65,9 +65,9 @@ public class OnigurumaRegex extends FieldsProcessor {
         if (pattern_utf_8.numberOfCaptures() != pattern_utf_8.numberOfNames()) {
             logger.error("Can't have two captures with same name");
             return false;
+        } else {
+            return super.configure(properties);
         }
-
-        return true;
     }
 
     @Override
