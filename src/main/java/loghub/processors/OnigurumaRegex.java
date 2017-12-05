@@ -104,8 +104,10 @@ public class OnigurumaRegex extends FieldsProcessor {
                 int begin = region.beg[number];
                 int end = region.end[number];
                 String name = new String(e.name, e.nameP, e.nameEnd - e.nameP, cs);
-                String content = new String(line_bytes, begin, end - begin, cs);
-                event.put(name, content);
+                if (begin > 0) {
+                    String content = new String(line_bytes, begin, end - begin, cs);
+                    event.put(name, content);
+                }
             });
             return true;
         } else {
