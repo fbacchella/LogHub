@@ -90,7 +90,7 @@ public class OnigurumaRegex extends FieldsProcessor {
             line_bytes = line_ascii;
         } else {
             regex = pattern_utf_8;
-            byte[] line_utf_8 = patternSrc.getBytes(cs_utf_8);
+            byte[] line_utf_8 = line.getBytes(cs_utf_8);
             matcher = pattern_utf_8.matcher(line_utf_8);
             length = line_utf_8.length;
             cs = cs_utf_8;

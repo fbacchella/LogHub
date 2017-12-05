@@ -59,4 +59,22 @@ public class TestOnigurumaRegex {
         Assert.assertEquals("Should not have found the prefix", null, e.get("prefix"));
     }
 
+    @Test
+    public void TestUtf8() throws ProcessorException {
+        OnigurumaRegex grok = new OnigurumaRegex();
+        grok.setField("message");
+        grok.setPattern("<(?<syslog_pri>\\d+)>(?<message>.*)");
+
+        Properties props = new Properties(Collections.emptyMap());
+
+        Assert.assertTrue("Failed to configure grok", grok.configure(props));
+
+        Event e = Tools.getEvent();
+        e.put("message", "<15>a textà");
+        e.process(grok);
+
+        Assert.assertEquals("Didn't find the good syslog priority", "15", e.get("syslog_pri"));
+        Assert.assertEquals("Didn't find the good syslog message", "a textà", e.get("message"));
+    }
+
 }
