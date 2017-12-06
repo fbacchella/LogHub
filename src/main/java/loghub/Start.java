@@ -3,9 +3,6 @@ package loghub;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.rmi.NotBoundException;
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.List;
 
 import javax.management.InstanceAlreadyExistsException;
 import javax.management.MBeanRegistrationException;
@@ -17,6 +14,9 @@ import javax.management.ObjectName;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.beust.jcommander.JCommander;
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParameterException;
 import com.codahale.metrics.JmxReporter;
 
 import loghub.configuration.ConfigException;
@@ -31,6 +31,25 @@ import loghub.netty.http.AbstractHttpServer;
 
 public class Start extends Thread {
 
+    @Parameter(names = {"--configfile", "-c"}, description = "File")
+    String configFile = null;
+    @Parameter(names = {"--help", "-h"}, help = true)
+    private boolean help;
+
+    @Parameter(names = {"--test", "-t"}, description = "Test mode")
+    boolean test = false;
+
+    @Parameter(names = {"--fulltest", "-T"}, description = "Test mode")
+    boolean fulltest = false;
+
+    @Parameter(names = {"--stats", "-s"}, description = "Dump stats on exit")
+    boolean dumpstats = false;
+
+    String grokPatterns = null;
+    String pipeLineTest = null;
+    boolean canexit = true;
+    int exitcode = 0;
+
     // To be executed before LogManager.getLogger() to ensure that log4j2 will use the basis context selector
     // Not the smart one for web app.
     static {
@@ -40,40 +59,30 @@ public class Start extends Thread {
     private static final Logger logger = LogManager.getLogger();
 
     static public void main(final String[] args) {
+        Start main = new Start();
+        JCommander jcom = JCommander
+                .newBuilder()
+                .addObject(main)
+                .build();
 
-        String configFile = null;
-        boolean test = false;
-        boolean fulltest = false;
-        String grokPatterns = null;
-        String pipeLineTest = null;
-        boolean canexit = true;
-        int exitcode = 0;
-
-        if (args.length > 0) {
-            List<String> argsList = Arrays.asList(args);
-            Iterator<String> i = argsList.iterator();
-            while (i.hasNext()) {
-                String arg = i.next();
-                if ("-c".equals(arg) || "--config".equals(arg)) {
-                    if (i.hasNext()) {
-                        configFile = i.next();
-                    }
-                } else if ("-t".equals(arg) || "--test".equals(arg)) {
-                    test = true;
-                } else if ("-T".equals(arg) || "--fulltest".equals(arg)) {
-                    fulltest = true;
-                } else if ("-g".equals(arg) || "--grok".equals(arg)) {
-                    grokPatterns = i.next();
-                } else if ("-p".equals(arg) || "--pipeline".equals(arg)) {
-                    pipeLineTest = i.next();
-                } else if (arg == null) {
-                    // A null in the argument, so it was called from inside a jvm, never exit
-                    canexit = false;
-                } else {
-                    configFile = arg;
-                }
+        if (args != null) {
+            try {
+                jcom.parse(args);
+            } catch (ParameterException e) {
+                System.err.println(e.getMessage());
             }
+            if (main.help) {
+                jcom.usage();
+                System.exit(0);
+            }
+        } else {
+            // A null in the argument, so it was called from inside a jvm, never exit
+            main.canexit = false;
         }
+        main.configure();
+    }
+
+    private void configure() {
 
         if (grokPatterns != null) {
             TestGrokPatterns.check(grokPatterns);
@@ -82,13 +91,32 @@ public class Start extends Thread {
             TestEventProcessing.check(pipeLineTest, configFile);
             exitcode = 0;
         }
+        if (dumpstats) {
+            final long starttime = System.nanoTime();
+            Runtime.getRuntime().addShutdownHook(new Thread() {
+                @Override
+                public synchronized void start() {
+                    try {
+                        System.out.println("shutdown hook");
+                        long endtime = System.nanoTime();
+                        double runtime = ((double)(endtime - starttime)) / 1.0e9;
+                        System.out.format("received: %.2f/s\n", Stats.received.get() / runtime);
+                        System.out.format("dropped: %.2f/s\n", Stats.dropped.get() / runtime);
+                        System.out.format("sent: %.2f/s\n", Stats.sent.get() / runtime);
+                        System.out.format("failed: %.2f/s\n", Stats.failed.get() / runtime);
+                        System.out.format("thrown: %.2f/s\n", Stats.thrown.get() / runtime);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+            });
+        }
 
         try {
             Properties props = Configuration.parse(configFile);
             if (!test) {
-                Start runner = new Start(props);
                 if (!fulltest) {
-                    runner.start();
+                    launch(props);
                     logger.warn("LogHub started");
                     exitcode = 0;
                 }
@@ -120,7 +148,7 @@ public class Start extends Thread {
         }
     }
 
-    public Start(Properties props) throws ConfigException, IOException {
+    public void launch(Properties props) throws ConfigException, IOException {
 
         setName("LogHub");
 
