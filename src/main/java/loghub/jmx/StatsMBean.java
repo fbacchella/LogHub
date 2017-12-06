@@ -9,7 +9,7 @@ import javax.management.ObjectName;
 import javax.management.StandardMBean;
 
 @MXBean
-public interface Stats {
+public interface StatsMBean {
 
     default public long getReceived() {
         return loghub.Stats.received.get();
@@ -63,7 +63,7 @@ public interface Stats {
                 ;
     }
 
-    public class Implementation extends StandardMBean implements Stats {
+    public class Implementation extends StandardMBean implements StatsMBean {
 
         public final static ObjectName NAME;
         static {
@@ -76,7 +76,7 @@ public interface Stats {
 
         public Implementation()
                 throws NotCompliantMBeanException, MalformedObjectNameException, InstanceAlreadyExistsException, MBeanRegistrationException {
-            super(Stats.class);
+            super(StatsMBean.class);
         }
 
     }

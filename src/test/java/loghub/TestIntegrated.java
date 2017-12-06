@@ -32,7 +32,7 @@ import com.codahale.metrics.JmxReporter.JmxTimerMBean;
 
 import loghub.configuration.ConfigException;
 import loghub.configuration.Configuration;
-import loghub.jmx.Stats;
+import loghub.jmx.StatsMBean;
 import loghub.zmq.ZMQHelper.Method;
 import loghub.zmq.ZMQHelper.Type;
 
@@ -58,7 +58,7 @@ public class TestIntegrated {
         Thread.sleep(500);
 
         MBeanServer mbs =  ManagementFactory.getPlatformMBeanServer(); 
-        Stats stats = JMX.newMBeanProxy(mbs, Stats.Implementation.NAME, Stats.class);
+        StatsMBean stats = JMX.newMBeanProxy(mbs, StatsMBean.Implementation.NAME, StatsMBean.class);
 
         JmxTimerMBean allevents_timer = JMX.newMBeanProxy(mbs, new ObjectName("metrics:name=Allevents.timer"), JmxTimerMBean.class);
         JmxCounterMBean allevents_inflight = JMX.newMBeanProxy(mbs, new ObjectName("metrics:name=Allevents.inflight"), JmxCounterMBean.class);

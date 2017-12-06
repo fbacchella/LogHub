@@ -25,8 +25,8 @@ import loghub.configuration.Properties;
 import loghub.configuration.TestEventProcessing;
 import loghub.configuration.TestGrokPatterns;
 import loghub.jmx.Helper;
+import loghub.jmx.StatsMBean;
 import loghub.jmx.PipelineStat;
-import loghub.jmx.Stats;
 import loghub.netty.http.AbstractHttpServer;
 
 public class Start extends Thread {
@@ -188,7 +188,7 @@ public class Start extends Thread {
 
         try {
             MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
-            mbs.registerMBean(new Stats.Implementation(), Stats.Implementation.NAME);
+            mbs.registerMBean(new StatsMBean.Implementation(), StatsMBean.Implementation.NAME);
             JmxReporter reporter = Properties.metrics.getJmxReporter();
             reporter.start();
             mbs.queryNames(ObjectName.getInstance("metrics", "name", "Pipeline.*.timer"), null).stream()
