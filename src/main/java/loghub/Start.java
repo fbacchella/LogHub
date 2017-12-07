@@ -1,6 +1,9 @@
 package loghub;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.UnsupportedEncodingException;
 import java.lang.management.ManagementFactory;
 import java.rmi.NotBoundException;
 
@@ -28,6 +31,7 @@ import loghub.jmx.Helper;
 import loghub.jmx.StatsMBean;
 import loghub.jmx.PipelineStat;
 import loghub.netty.http.AbstractHttpServer;
+import loghub.processors.FieldsProcessor;
 
 public class Start extends Thread {
 
@@ -47,6 +51,9 @@ public class Start extends Thread {
 
     @Parameter(names = "--canexit", description = "Prevent call to System.exit(), for JUnit tests only", hidden = true)
     boolean canexit = true;
+
+    @Parameter(names = {"--testprocessor", "-p"}, description = "A field processor to test")
+    String testedprocessor = null;
 
     String grokPatterns = null;
     String pipeLineTest = null;
@@ -83,6 +90,10 @@ public class Start extends Thread {
 
     private void configure() {
 
+        if (testedprocessor != null) {
+            test = true;
+            dumpstats = false;
+        }
         if (grokPatterns != null) {
             TestGrokPatterns.check(grokPatterns);
             exitcode = 0;
@@ -118,6 +129,8 @@ public class Start extends Thread {
                     logger.warn("LogHub started");
                     exitcode = 0;
                 }
+            } else if (testedprocessor != null) {
+                testProcessor(props, testedprocessor);
             }
         } catch (ConfigException e) {
             Throwable t = e;
@@ -143,6 +156,31 @@ public class Start extends Thread {
             System.exit(exitcode);
         } else if (exitcode != 0) {
             throw new RuntimeException();
+        }
+    }
+
+    private void testProcessor(Properties props, String testedprocessor2) {
+        Processor p = props.identifiedProcessors.get(testedprocessor2);
+        if (p == null) {
+            System.err.println("Unidentified processor");
+        } else if (! (p instanceof FieldsProcessor)) {
+            System.err.println("Not a field processor");
+        } else {
+            p.configure(props);
+            FieldsProcessor fp = (FieldsProcessor) p;
+            Event ev = Event.emptyTestEvent(ConnectionContext.EMPTY);
+            try {
+                new BufferedReader(new InputStreamReader(System.in, "UTF-8")).lines().forEach( i -> {
+                    try {
+                        ev.put("message", i);
+                        fp.processMessage(ev, "message", "transformed_message");
+                        System.out.format("%s -> %s\n", i, ev);
+                    } catch (ProcessorException e) {
+                        System.err.println("Processing failed:" + e.getMessage());
+                    }
+                });
+            } catch (UnsupportedEncodingException e) {
+            }
         }
     }
 
