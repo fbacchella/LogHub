@@ -176,7 +176,7 @@ public class Start extends Thread {
 
         for (Source s: props.sources.values()) {
             if ( ! s.configure(props)) {
-                logger.error("failed to start output {}", s.getName());
+                logger.error("failed to start source {}", s.getName());
                 throw new IllegalStateException();
             };
         }
@@ -187,7 +187,7 @@ public class Start extends Thread {
             if (s.configure(props)) {
                 s.start();
             } else {
-                logger.error("failed to start output {}", s.getName());
+                logger.error("failed to configure output {}", s.getName());
                 throw new IllegalStateException();
             };
         }
@@ -203,7 +203,7 @@ public class Start extends Thread {
             if (r.configure(props)) {
                 r.start();
             } else {
-                logger.error("failed to start input {}", r.getName());
+                logger.error("failed to configure input {}", r.getName());
                 throw new IllegalStateException();
             }
         }
