@@ -111,7 +111,6 @@ public class TestEtl {
 
         Tools.runProcessing(sent, conf.namedPipeLine.get("second"), conf);
         Assert.assertEquals("conversion not expected", 1, sent.get("count"));
-
     }
 
     @Test
@@ -127,6 +126,18 @@ public class TestEtl {
 
         Tools.runProcessing(sent, conf.namedPipeLine.get("third"), conf);
         Assert.assertEquals("conversion not expected", 1, sent.get("a"));
+    }
 
+    @Test
+    public void test8() throws ProcessorException, InterruptedException, ConfigException, IOException {
+        Properties conf = Tools.loadConf("etl.conf");
+        for(Pipeline pipe: conf.pipelines) {
+            Assert.assertTrue("configuration failed", pipe.configure(conf));
+        }
+        Event sent = Tools.getEvent();
+        sent.setTimestamp(new Date(1));
+        Tools.runProcessing(sent, conf.namedPipeLine.get("timestamp"), conf);
+        Assert.assertEquals(new Date(0), sent.getTimestamp());
+        Assert.assertEquals(new Date(1), sent.get("reception_time"));
     }
 }

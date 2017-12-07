@@ -25,8 +25,13 @@ public abstract class Etl extends Processor {
         @Override
         public boolean process(Event event) throws ProcessorException {
             Object old = event.applyAtPath((i,j,k) -> i.remove(j), sourcePath, null);
-            if(lvalue.length == 1 && Event.TIMESTAMPKEY.equals(lvalue[0]) && old instanceof Date) {
-                event.setTimestamp((Date) old);
+            if(lvalue.length == 1 && Event.TIMESTAMPKEY.equals(lvalue[0]) ) {
+                if (old instanceof Date) {
+                    event.setTimestamp((Date) old);
+                } else if (old instanceof Number){
+                    Date newDate = new Date(((Number)old).longValue());
+                    event.setTimestamp(newDate);
+                }
                 event.applyAtPath((i,j,k) -> i.remove(j), lvalue, null);
             } else {
                 event.applyAtPath((i,j,k) -> i.put(j, k), lvalue, old, true);
@@ -51,8 +56,13 @@ public abstract class Etl extends Processor {
         @Override
         public boolean process(Event event) throws ProcessorException {
             Object o = script.eval(event, Collections.emptyMap());
-            if(lvalue.length == 1 && Event.TIMESTAMPKEY.equals(lvalue[0]) && o instanceof Date) {
-                event.setTimestamp((Date) o);
+            if(lvalue.length == 1 && Event.TIMESTAMPKEY.equals(lvalue[0])) {
+                if (o instanceof Date) {
+                    event.setTimestamp((Date) o);
+                } else if (o instanceof Number){
+                    Date newDate = new Date(((Number)o).longValue());
+                    event.setTimestamp(newDate);
+                }
             } else {
                 event.applyAtPath((i,j,k) -> i.put(j, k), lvalue, o, true);
             }

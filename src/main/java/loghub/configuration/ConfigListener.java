@@ -2,6 +2,7 @@ package loghub.configuration;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -19,6 +20,7 @@ import org.antlr.v4.runtime.tree.TerminalNode;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import loghub.Event;
 import loghub.RouteBaseListener;
 import loghub.RouteParser.ArrayContext;
 import loghub.RouteParser.BeanContext;
@@ -648,7 +650,13 @@ class ConfigListener extends RouteBaseListener {
             expression = ctx.l.getText();
         } else if (ctx.ev != null) {
             StringBuilder buffer = new StringBuilder("event");
-            ctx.ev.Identifier().stream().forEach(id -> buffer.append(".").append(id.getText()));
+            Arrays.stream(convertEventVariable(ctx.ev)).forEach( i-> {
+                if (Event.TIMESTAMPKEY.equals(i)) {
+                    buffer.append(".getTimestamp()");
+                } else {
+                    buffer.append(".").append(i);
+                }
+            });
             expression = buffer.toString();
         } else if (ctx.qi != null) {
             expression = ctx.qi.getText();
