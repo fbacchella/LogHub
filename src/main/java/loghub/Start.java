@@ -45,9 +45,11 @@ public class Start extends Thread {
     @Parameter(names = {"--stats", "-s"}, description = "Dump stats on exit")
     boolean dumpstats = false;
 
+    @Parameter(names = "--canexit", description = "Prevent call to System.exit(), for JUnit tests only", hidden = true)
+    boolean canexit = true;
+
     String grokPatterns = null;
     String pipeLineTest = null;
-    boolean canexit = true;
     int exitcode = 0;
 
     // To be executed before LogManager.getLogger() to ensure that log4j2 will use the basis context selector
@@ -65,19 +67,16 @@ public class Start extends Thread {
                 .addObject(main)
                 .build();
 
-        if (args != null) {
-            try {
-                jcom.parse(args);
-            } catch (ParameterException e) {
-                System.err.println(e.getMessage());
-            }
-            if (main.help) {
-                jcom.usage();
-                System.exit(0);
-            }
-        } else {
-            // A null in the argument, so it was called from inside a jvm, never exit
-            main.canexit = false;
+        // A null in the argument, so it was called from inside a jvm, never exit
+        main.canexit = false;
+        try {
+            jcom.parse(args);
+        } catch (ParameterException e) {
+            System.err.println(e.getMessage());
+        }
+        if (main.help) {
+            jcom.usage();
+            System.exit(0);
         }
         main.configure();
     }
@@ -97,7 +96,6 @@ public class Start extends Thread {
                 @Override
                 public synchronized void start() {
                     try {
-                        System.out.println("shutdown hook");
                         long endtime = System.nanoTime();
                         double runtime = ((double)(endtime - starttime)) / 1.0e9;
                         System.out.format("received: %.2f/s\n", Stats.received.get() / runtime);

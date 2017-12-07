@@ -54,7 +54,7 @@ public class TestIntegrated {
     public void runStart() throws ConfigException, IOException, InterruptedException, IntrospectionException, InstanceNotFoundException, MalformedObjectNameException, ReflectionException {
         loghub.Stats.reset();
         String conffile = Configuration.class.getClassLoader().getResource("test.conf").getFile();
-        Start.main(new String[] {null, "-c", conffile});
+        Start.main(new String[] {"--canexit", "-c", conffile});
         Thread.sleep(500);
 
         MBeanServer mbs =  ManagementFactory.getPlatformMBeanServer(); 
