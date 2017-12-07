@@ -26,7 +26,6 @@ import loghub.configuration.ConfigException;
 import loghub.configuration.Configuration;
 import loghub.configuration.Properties;
 import loghub.configuration.TestEventProcessing;
-import loghub.configuration.TestGrokPatterns;
 import loghub.jmx.Helper;
 import loghub.jmx.StatsMBean;
 import loghub.jmx.PipelineStat;
@@ -43,9 +42,6 @@ public class Start extends Thread {
     @Parameter(names = {"--test", "-t"}, description = "Test mode")
     boolean test = false;
 
-    @Parameter(names = {"--fulltest", "-T"}, description = "Test mode")
-    boolean fulltest = false;
-
     @Parameter(names = {"--stats", "-s"}, description = "Dump stats on exit")
     boolean dumpstats = false;
 
@@ -55,7 +51,6 @@ public class Start extends Thread {
     @Parameter(names = {"--testprocessor", "-p"}, description = "A field processor to test")
     String testedprocessor = null;
 
-    String grokPatterns = null;
     String pipeLineTest = null;
     int exitcode = 0;
 
@@ -74,8 +69,6 @@ public class Start extends Thread {
                 .addObject(main)
                 .build();
 
-        // A null in the argument, so it was called from inside a jvm, never exit
-        main.canexit = false;
         try {
             jcom.parse(args);
         } catch (ParameterException e) {
@@ -94,10 +87,7 @@ public class Start extends Thread {
             test = true;
             dumpstats = false;
         }
-        if (grokPatterns != null) {
-            TestGrokPatterns.check(grokPatterns);
-            exitcode = 0;
-        } else if (pipeLineTest != null) {
+        if (pipeLineTest != null) {
             TestEventProcessing.check(pipeLineTest, configFile);
             exitcode = 0;
         }
@@ -106,17 +96,13 @@ public class Start extends Thread {
             Runtime.getRuntime().addShutdownHook(new Thread() {
                 @Override
                 public synchronized void start() {
-                    try {
-                        long endtime = System.nanoTime();
-                        double runtime = ((double)(endtime - starttime)) / 1.0e9;
-                        System.out.format("received: %.2f/s\n", Stats.received.get() / runtime);
-                        System.out.format("dropped: %.2f/s\n", Stats.dropped.get() / runtime);
-                        System.out.format("sent: %.2f/s\n", Stats.sent.get() / runtime);
-                        System.out.format("failed: %.2f/s\n", Stats.failed.get() / runtime);
-                        System.out.format("thrown: %.2f/s\n", Stats.thrown.get() / runtime);
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
+                    long endtime = System.nanoTime();
+                    double runtime = ((double)(endtime - starttime)) / 1.0e9;
+                    System.out.format("received: %.2f/s\n", Stats.received.get() / runtime);
+                    System.out.format("dropped: %.2f/s\n", Stats.dropped.get() / runtime);
+                    System.out.format("sent: %.2f/s\n", Stats.sent.get() / runtime);
+                    System.out.format("failed: %.2f/s\n", Stats.failed.get() / runtime);
+                    System.out.format("thrown: %.2f/s\n", Stats.thrown.get() / runtime);
                 }
             });
         }
