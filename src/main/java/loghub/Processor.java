@@ -20,6 +20,7 @@ public abstract class Processor {
     private Processor failure = null;
     private Processor exception = null;
     private String ifsource = null;
+    private String id = null;
 
     public Processor() {
         logger = LogManager.getLogger(Helpers.getFistInitClass());
@@ -145,6 +146,14 @@ public abstract class Processor {
      */
     public void setException(Processor exception) {
         this.exception = exception;
+    }
+
+    public String getId() {
+        return id;
+    }
+
+    public void setId(String id) {
+        this.id = id;
     }
 
 }

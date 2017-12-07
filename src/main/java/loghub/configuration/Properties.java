@@ -35,6 +35,7 @@ import io.netty.util.concurrent.Future;
 import loghub.Event;
 import loghub.EventsRepository;
 import loghub.Pipeline;
+import loghub.Processor;
 import loghub.Receiver;
 import loghub.Sender;
 import loghub.Source;
@@ -108,6 +109,7 @@ public class Properties extends HashMap<String, Object> {
     public final ClassLoader classloader;
     public final Map<String, Pipeline> namedPipeLine;
     public final Collection<Pipeline> pipelines;
+    public final Map<String, Processor> identifiedProcessors;
     public final Collection<Receiver> receivers;
     public final Collection<Sender> senders;
     public final Map<String, Source> sources;
@@ -162,6 +164,15 @@ public class Properties extends HashMap<String, Object> {
         cacheManager = new CacheManager(new net.sf.ehcache.config.Configuration()
                 .name(UUID.randomUUID().toString())
                 );
+
+        Map<String, Processor> _identifiedProcessors = new HashMap<String, Processor>();
+        pipelines.forEach( i-> i.processors.forEach( j -> {
+            String id = j.getId();
+            if (id != null) {
+                _identifiedProcessors.put(id, j);
+            }
+        }));
+        identifiedProcessors = _identifiedProcessors.size() > 0 ? Collections.unmodifiableMap(_identifiedProcessors) : Collections.emptyMap();
 
         //buffer is here to make writing tests easier
         Map<String, String> buffer = (Map<String, String>) properties.remove(PROPSNAMES.FORMATTERS.toString());
