@@ -156,7 +156,6 @@ public class ElasticSearch extends AbstractHttpSender {
         return configured;
     }
 
-
     @Override
     protected Object flush(List<Event> documents) throws IOException {
         HttpRequest request = new HttpRequest();
@@ -183,21 +182,25 @@ public class ElasticSearch extends AbstractHttpSender {
         Map<String, Object> esjson = new HashMap<>();
         ObjectMapper jsonmapper = json.get();
         for(Event e: documents) {
-            if (! e.containsKey(type)) {
-                continue;
-            }
-            esjson.clear();
-            esjson.putAll(e);
-            esjson.put("@timestamp", ISO8601.get().format(e.getTimestamp()));
-            esjson.put("__index", esIndex.get().format(e.getTimestamp()));
-            settings.put("_type", esjson.remove(type).toString());
-            settings.put("_index", esjson.remove("__index").toString());
             try {
-                builder.append(jsonmapper.writeValueAsString(action));
-                builder.append("\n");
-                builder.append(jsonmapper.writeValueAsString(esjson));
-                builder.append("\n");
-            } catch (JsonProcessingException ex) {
+                if (! e.containsKey(type)) {
+                    continue;
+                }
+                esjson.clear();
+                esjson.putAll(e);
+                esjson.put("@timestamp", ISO8601.get().format(e.getTimestamp()));
+                esjson.put("__index", esIndex.get().format(e.getTimestamp()));
+                settings.put("_type", esjson.remove(type).toString());
+                settings.put("_index", esjson.remove("__index").toString());
+                try {
+                    builder.append(jsonmapper.writeValueAsString(action));
+                    builder.append("\n");
+                    builder.append(jsonmapper.writeValueAsString(esjson));
+                    builder.append("\n");
+                } catch (JsonProcessingException ex) {
+                }
+            } catch (java.lang.StackOverflowError ex) {
+                logger.error("Failed to serialized {}, infinite recursion", e);
             }
         }
         return builder.toString().getBytes(CharsetUtil.UTF_8);

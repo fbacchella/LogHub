@@ -10,11 +10,13 @@ import java.net.URL;
 import java.nio.charset.Charset;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ExecutionException;
 
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHost;
@@ -209,9 +211,10 @@ public abstract class AbstractHttpSender extends Sender {
                             }
                         } catch (Exception e) {
                             logger.error("Unexpected exception: {}", e.getMessage());
-                            logger.throwing(e);
+                            logger.catching(e);
                         }
                     }
+                    close();
                 } catch (InterruptedException e) {
                     close();
                     Thread.currentThread().interrupt();
@@ -219,6 +222,8 @@ public abstract class AbstractHttpSender extends Sender {
             }
         };
     }
+
+    private Helpers.SimplifiedThread<?>[] threads;
 
     @Override
     public boolean configure(Properties properties) {
@@ -231,11 +236,12 @@ public abstract class AbstractHttpSender extends Sender {
 
         // Create the senders threads and the common queue
         bulkqueue = new ArrayBlockingQueue<Event>(buffersize * 2);
+        threads = new Helpers.SimplifiedThread[publisherThreads];
         for (int i = 1 ; i <= publisherThreads ; i++) {
-            new Helpers.SimplifiedThreadRunnable(publisher)
-            .setDaemon(true)
-            .setName(getPublishName() + "Publisher" + i)
-            .start();
+            threads[i - 1] = new Helpers.SimplifiedThreadRunnable(publisher)
+                    .setDaemon(true)
+                    .setName(getPublishName() + "Publisher" + i)
+                    .start();
         }
 
         // The HTTP connection management
@@ -299,6 +305,7 @@ public abstract class AbstractHttpSender extends Sender {
     }
 
     public void close() {
+        logger.debug("Closing");
         try {
             while(bulkqueue.size() > 0) {
                 synchronized (publisher) {
@@ -308,6 +315,7 @@ public abstract class AbstractHttpSender extends Sender {
                 Thread.sleep(1);
             }
         } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
         }
     }
 
@@ -315,6 +323,19 @@ public abstract class AbstractHttpSender extends Sender {
 
     @Override
     public boolean send(Event event) {
+        Arrays.stream(threads)
+        .map( i -> i.task)
+        .filter( i -> i.isDone())
+        .forEach( i -> {
+            try {
+                logger.error("Thread stopped with {}", i.get());
+            } catch (InterruptedException e) {
+                // Just interrupted, no worry
+            } catch (ExecutionException e) {
+                // Good a exception ! What happened ?
+                logger.fatal("Publisher thread failed, because of {}", e.getCause());
+            }
+        });
         int tryoffer = 10;
         while ( ! bulkqueue.offer(event) && tryoffer-- != 0) {
             logger.debug("queue full, flush");
