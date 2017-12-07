@@ -110,11 +110,9 @@ public class Start extends Thread {
         try {
             Properties props = Configuration.parse(configFile);
             if (!test) {
-                if (!fulltest) {
-                    launch(props);
-                    logger.warn("LogHub started");
-                    exitcode = 0;
-                }
+                launch(props);
+                logger.warn("LogHub started");
+                exitcode = 0;
             } else if (testedprocessor != null) {
                 testProcessor(props, testedprocessor);
             }
