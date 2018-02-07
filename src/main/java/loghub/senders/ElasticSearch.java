@@ -92,7 +92,7 @@ public class ElasticSearch extends AbstractHttpSender {
                 throw new UncheckedIOException(e);
             }
         };
-        return doquery(request, "/_bulk", reader, Collections.emptyMap());
+        return doquery(request, "/_bulk", reader, Collections.emptyMap(), null);
     }
 
     protected byte[] putContent(List<Event> documents) {
@@ -151,7 +151,7 @@ public class ElasticSearch extends AbstractHttpSender {
                 return -1;
             }
         };
-        return doquery(null, "/", transform, Collections.emptyMap());
+        return doquery(null, "/", transform, Collections.emptyMap(), -1);
     }
 
     private Boolean checkTemplate(int major) {
@@ -195,8 +195,10 @@ public class ElasticSearch extends AbstractHttpSender {
                 String currenttemplate = templateNode.toString();
                 return ! currenttemplate.equals(wantedtemplate);
             };
-            boolean needsrefresh = doquery(null, "/_template/" + templateName, checkTemplate, Collections.singletonMap(404, node -> true));
-            if (needsrefresh) {
+            Boolean needsrefresh = doquery(null, "/_template/" + templateName, checkTemplate, Collections.singletonMap(404, node -> true), null);
+            if (needsrefresh == null) {
+                return false;
+            } else if (needsrefresh) {
                 HttpRequest puttemplate = new HttpRequest();
                 puttemplate.setVerb("PUT");
                 try {
@@ -205,7 +207,7 @@ public class ElasticSearch extends AbstractHttpSender {
                     logger.fatal("Can't build buffer: {}", e);
                     return false;
                 }
-                return doquery(puttemplate, "/_template/" + templateName, node -> true, Collections.emptyMap());
+                return doquery(puttemplate, "/_template/" + templateName, node -> true, Collections.emptyMap(), false);
             } else {
                 return true;
             }
@@ -214,7 +216,7 @@ public class ElasticSearch extends AbstractHttpSender {
         }
     }
 
-    private <T> T doquery(HttpRequest request, String filePart, Function<JsonNode, T> transform, Map<Integer, Function<JsonNode, T>> failureHandlers) {
+    private <T> T doquery(HttpRequest request, String filePart, Function<JsonNode, T> transform, Map<Integer, Function<JsonNode, T>> failureHandlers, T onFailure) {
         if (request == null) {
             request = new HttpRequest();
         }
@@ -224,7 +226,7 @@ public class ElasticSearch extends AbstractHttpSender {
                 request.setUrl(newEndPoint);
                 HttpResponse response = doRequest(request);
                 if (response.isConnexionFailed()) {
-                    return null;
+                    break;
                 }
                 int status = response.getStatus();
                 String responseMimeType = response.getMimeType();
@@ -250,7 +252,7 @@ public class ElasticSearch extends AbstractHttpSender {
                 logger.catching(Level.ERROR, e);
             }
         }
-        return null;
+        return onFailure;
     }
 
     @Override
