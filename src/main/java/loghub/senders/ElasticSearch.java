@@ -2,7 +2,6 @@ package loghub.senders;
 
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.Reader;
 import java.io.UncheckedIOException;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -15,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.TimeZone;
 import java.util.concurrent.BlockingQueue;
+import java.util.function.Function;
 import java.util.stream.Stream;
 
 import org.apache.logging.log4j.Level;
@@ -22,6 +22,7 @@ import org.apache.logging.log4j.Level;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 
@@ -46,114 +47,37 @@ public class ElasticSearch extends AbstractHttpSender {
     private String type = "type";
     private String indexformat = "'loghub-'yyyy.MM.dd";
     private String templateName = "loghub";
-    private URL templatePath = getClass().getResource("/estemplate.json");
+    private URL templatePath = null;
+    private boolean withTemplate = true;
 
-    private ThreadLocal<DateFormat> esIndex;
+    private ThreadLocal<DateFormat> esIndexFormat;
 
     public ElasticSearch(BlockingQueue<Event> inQueue) {
         super(inQueue);
-        setPort(9300);
+        setPort(9200);
     }
 
     @Override
     public boolean configure(Properties properties) {
-        boolean configured = false;
         if (super.configure(properties)) {
-            esIndex = ThreadLocal.withInitial( () -> {
+            esIndexFormat = ThreadLocal.withInitial( () -> {
                 DateFormat df = new SimpleDateFormat(indexformat);
                 df.setTimeZone(TimeZone.getTimeZone("UTC"));
                 return df;
             });
-            // Lets check for a template
-            String wantedtemplate;
-            try {
-                wantedtemplate = Stream.of(templatePath)
-                        .map( i -> {
-                            try {
-                                return i.openStream();
-                            } catch (IOException e) {
-                                throw new UncheckedIOException(e);
-                            }
-                        })
-                        .filter( i -> i != null)
-                        .map( i -> new InputStreamReader(i))
-                        .filter( i -> i != null)
-                        .map( i -> {
-                            try {
-                                return json.get().readTree(i).toString();
-                            } catch (IOException e) {
-                                throw new UncheckedIOException(e);
-                            }
-                        })
-                        .findFirst().orElseGet(() -> null);
-            } catch (UncheckedIOException e1) {
-                wantedtemplate = null;
-                logger.error("Can't load template definition: {}", e1.getMessage());
-                logger.catching(Level.DEBUG, e1);
+            // Check version
+            int major = checkMajorVersion();
+            if (major < 0) {
+                return false;
             }
-            if (wantedtemplate != null) {
-                for (URL newEndPoint: endPoints) {
-                    try {
-                        newEndPoint = new URL(newEndPoint.getProtocol(), newEndPoint.getHost(), newEndPoint.getPort(), newEndPoint.getFile() + "/_template/" + templateName);
-                        HttpRequest gettemplate = new HttpRequest();
-                        gettemplate.setUrl(newEndPoint);
-                        HttpResponse response = doRequest(gettemplate);
-                        if (response.isConnexionFailed()) {
-                            continue;
-                        }
-                        try {
-                            int status = response.getStatus();
-                            boolean needsrefresh;
-                            if (status == 404) {
-                                needsrefresh = true;
-                            } else  if ((status - status % 100) == 200) {
-                                String currenttemplate = json.get().readTree(response.getContentReader()).toString();
-                                needsrefresh = ! currenttemplate.equals(wantedtemplate);
-                            } else {
-                                break;
-                            }
-                            if (needsrefresh) {
-                                logger.warn("Template {} needs to be refreshed", templateName);
-                                HttpRequest puttemplate = new HttpRequest();
-                                puttemplate.setVerb("PUT");
-                                puttemplate.setUrl(newEndPoint);
-                                puttemplate.setTypeAndContent("application/json", CharsetUtil.UTF_8, wantedtemplate.getBytes(CharsetUtil.UTF_8));
-                                HttpResponse response2 = doRequest(puttemplate);
-                                status = response2.getStatus();
-                                if ((status - status % 100) != 200 && "application/json".equals(response2.getMimeType())) {
-                                    logger.error("Failed to update template: {}", () -> {
-                                        try {
-                                            return json.get().readTree(response2.getContentReader()).toString();
-                                        } catch (IOException e) {
-                                            throw new UncheckedIOException(e);
-                                        }
-                                    });
-                                } else if ((status - status % 100) != 200) {
-                                    logger.error("Failing elastic search: {}/{}", 
-                                            () -> response2.getStatus(),
-                                            () -> response2.getStatusMessage()
-                                            );
-                                } else {
-                                    configured = true;
-                                    break;
-                                }
-                                break;
-                            }
-                        } catch (JsonProcessingException e) {
-                            logger.error("Can't read ElasticSearch response: {}", e.getMessage());
-                            logger.catching(Level.ERROR, e);
-                        } catch (IOException e) {
-                            logger.error("Can't update template definition: {}", e.getMessage());
-                            logger.catching(Level.ERROR, e);
-                        }
-                    } catch (MalformedURLException e) {
-                    }
-                }
+            if (withTemplate) {
+                return checkTemplate(major);
             } else {
-                configured = true;
+                return true;
             }
+        } else {
+            return false;
         }
-        return configured;
     }
 
     @Override
@@ -161,18 +85,14 @@ public class ElasticSearch extends AbstractHttpSender {
         HttpRequest request = new HttpRequest();
         request.setTypeAndContent("application/json", CharsetUtil.UTF_8, putContent(documents));
         request.setVerb("POST");
-        for (URL newEndPoint: endPoints) {
-            request.setUrl(new URL(newEndPoint, newEndPoint.getPath() + "/_bulk"));
-            HttpResponse resp = doRequest(request);
-            if (resp.isConnexionFailed()) {
-                continue;
+        Function<JsonNode, Object> reader = node -> {
+            try {
+                return json.get().readerFor(Object.class).readValue(node);
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
             }
-            Object theresponse = scanContent(resp);
-            if (theresponse != null) {
-                return theresponse;
-            }
-        }
-        return "failed";
+        };
+        return doquery(request, "/_bulk", reader, Collections.emptyMap());
     }
 
     protected byte[] putContent(List<Event> documents) {
@@ -189,7 +109,7 @@ public class ElasticSearch extends AbstractHttpSender {
                 esjson.clear();
                 esjson.putAll(e);
                 esjson.put("@timestamp", ISO8601.get().format(e.getTimestamp()));
-                esjson.put("__index", esIndex.get().format(e.getTimestamp()));
+                esjson.put("__index", esIndexFormat.get().format(e.getTimestamp()));
                 settings.put("_type", esjson.remove(type).toString());
                 settings.put("_index", esjson.remove("__index").toString());
                 try {
@@ -206,20 +126,131 @@ public class ElasticSearch extends AbstractHttpSender {
         return builder.toString().getBytes(CharsetUtil.UTF_8);
     }
 
-    private Object scanContent(HttpResponse resp) {
-        if (! "application/json".equalsIgnoreCase(resp.getMimeType())) {
-            logger.error("bad response content from {}: {}", resp.getHost(), resp.getMimeType());
-            resp.close();
-            return null;
+    private int checkMajorVersion() {
+        Function<JsonNode,Integer> transform = node -> {
+            JsonNode version = node.get("version");
+            if (version == null) {
+                logger.error("Can't parse Elastic version: {}", node);
+                return -1;
+            }
+            JsonNode number = version.get("number");
+            if (number == null) {
+                logger.error("Can't parse Elastic version: {}", node);
+                return -1;
+            }
+            String versionString = number.asText();
+            String[] versionVector = versionString.split("\\.");
+            if (versionVector.length != 3) {
+                logger.error("Can't parse Elastic version: {}", versionString);
+                return -1;
+            }
+            try {
+                return Integer.parseInt(versionVector[0]);
+            } catch (NumberFormatException e) {
+                logger.error("Can't parse Elastic version: {}", versionString);
+                return -1;
+            }
+        };
+        return doquery(null, "/", transform, Collections.emptyMap());
+    }
+
+    private Boolean checkTemplate(int major) {
+        if (templatePath == null) {
+            templatePath = getClass().getResource("/estemplate." + major + ".json");
         }
-        try (Reader contentReader = resp.getContentReader()) {
-            Object o = json.get().readValue(contentReader, Object.class);
-            return o;
-        } catch (UnsupportedOperationException | IOException e) {
-            resp.close();
-            logger.error("error reading response content from {}: {}", resp.getHost(), e.getMessage());
-            return null;
+        // Lets check for a template
+        String wantedtemplate;
+        try {
+            wantedtemplate = Stream.of(templatePath)
+                    .filter( i -> i != null)
+                    .map( i -> {
+                        try {
+                            return i.openStream();
+                        } catch (IOException e) {
+                            throw new UncheckedIOException(e);
+                        }
+                    })
+                    .filter( i -> i != null)
+                    .map( i -> new InputStreamReader(i, CharsetUtil.UTF_8))
+                    .map( i -> {
+                        try {
+                            return json.get().readTree(i).toString();
+                        } catch (IOException e) {
+                            throw new UncheckedIOException(e);
+                        }
+                    })
+                    .findFirst().orElseGet(() -> null);
+        } catch (UncheckedIOException e) {
+            logger.error("Can't load template definition: {}", e.getMessage());
+            logger.catching(Level.DEBUG, e);
+            return false;
         }
+        if (wantedtemplate != null) {
+            Function<JsonNode, Boolean> checkTemplate = node -> {
+                JsonNode templateNode = node.get(templateName);
+                if (templateNode == null) {
+                    logger.error("Failed template search");
+                    return false;
+                }
+                String currenttemplate = templateNode.toString();
+                return ! currenttemplate.equals(wantedtemplate);
+            };
+            boolean needsrefresh = doquery(null, "/_template/" + templateName, checkTemplate, Collections.singletonMap(404, node -> true));
+            if (needsrefresh) {
+                HttpRequest puttemplate = new HttpRequest();
+                puttemplate.setVerb("PUT");
+                try {
+                    puttemplate.setTypeAndContent("application/json", CharsetUtil.UTF_8, wantedtemplate.getBytes(CharsetUtil.UTF_8));
+                } catch (IOException e) {
+                    logger.fatal("Can't build buffer: {}", e);
+                    return false;
+                }
+                return doquery(puttemplate, "/_template/" + templateName, node -> true, Collections.emptyMap());
+            } else {
+                return true;
+            }
+        } else {
+            return false;
+        }
+    }
+
+    private <T> T doquery(HttpRequest request, String filePart, Function<JsonNode, T> transform, Map<Integer, Function<JsonNode, T>> failureHandlers) {
+        if (request == null) {
+            request = new HttpRequest();
+        }
+        for (URL endPoint: endPoints) {
+            try {
+                URL newEndPoint = new URL(endPoint.getProtocol(), endPoint.getHost(), endPoint.getPort(), endPoint.getFile() + filePart);
+                request.setUrl(newEndPoint);
+                HttpResponse response = doRequest(request);
+                if (response.isConnexionFailed()) {
+                    return null;
+                }
+                int status = response.getStatus();
+                String responseMimeType = response.getMimeType();
+                if ((status - status % 100) == 200 && "application/json".equals(responseMimeType)) {
+                    JsonNode node = json.get().readTree(response.getContentReader());
+                    return transform.apply(node);
+                } else if ((status - status % 100) == 200 || (status - status % 100) == 500) {
+                    // Looks like this node is broken try another one
+                    logger.warn("Broken node: {}, returned '{} {}' {}", newEndPoint, status, response.getStatusMessage(), response.getMimeType());
+                    continue;
+                } else if (failureHandlers.containsKey(status) && "application/json".equals(responseMimeType)){
+                    JsonNode node = json.get().readTree(response.getContentReader());
+                    // Only ES failures can be handled
+                    return failureHandlers.get(status).apply(node);
+                } else {
+                    // Valid, but not good request, useless to try something else
+                    logger.error("Invalid query: {}, return '{} {}', {}", newEndPoint, status, response.getStatusMessage(), response.getMimeType());
+                    break;
+                }
+            } catch (MalformedURLException e) {
+            } catch (IOException | UncheckedIOException e) {
+                logger.error("Can't communicate with node {}:{}: {}", endPoint.getHost(), endPoint.getPort(), e.getMessage());
+                logger.catching(Level.ERROR, e);
+            }
+        }
+        return null;
     }
 
     @Override
@@ -282,11 +313,15 @@ public class ElasticSearch extends AbstractHttpSender {
     }
 
     /**
-     * @param templatePath the templatePath to set
+     * @param templatePath the templatePath to set, or null to prevent template use
      * @throws MalformedURLException 
      */
     public void setTemplatePath(String templatePath) throws MalformedURLException {
-        this.templatePath = Paths.get(templatePath).toUri().toURL();
+        if (templatePath == null) {
+            withTemplate = false;
+        } else {
+            this.templatePath = Paths.get(templatePath).toUri().toURL();
+        }
     }
 
 }

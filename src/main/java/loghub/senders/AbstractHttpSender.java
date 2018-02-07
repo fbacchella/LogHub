@@ -131,7 +131,11 @@ public abstract class AbstractHttpSender extends Sender {
         public String getMimeType() {
             HttpEntity resultBody = response.getEntity();
             org.apache.http.entity.ContentType ct = org.apache.http.entity.ContentType.get(resultBody);
-            return ct.getMimeType();
+            if (ct !=  null) {
+                return ct.getMimeType();
+            } else {
+                return "";
+            }
         }
         public String getHost() {
             return host.toURI();

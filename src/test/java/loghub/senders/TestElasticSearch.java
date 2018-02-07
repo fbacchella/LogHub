@@ -100,20 +100,40 @@ public class TestElasticSearch {
         }
     };
 
+    HttpRequestHandler versionHandler = new HttpRequestHandler() {
+        @Override
+        public void handle(HttpRequest request, HttpResponse response, HttpContext context) throws HttpException, IOException {
+            response.setStatusCode(200);
+            response.setHeader("Content-Type", "application/json; charset=UTF-8");
+            response.setEntity(new StringEntity("{\"version\": {\"number\": \"5.6.7\"} }"));
+        }
+    };
+
+    HttpRequestHandler templateHandler = new HttpRequestHandler() {
+        @Override
+        public void handle(HttpRequest request, HttpResponse response, HttpContext context) throws HttpException, IOException {
+            response.setStatusCode(200);
+            response.setHeader("Content-Type", "application/json; charset=UTF-8");
+            response.setEntity(new StringEntity("{\"loghub\": {} }"));
+        }
+    };
 
     private final int serverPort = Tools.tryGetPort();
 
     @Rule
-    public ExternalResource resource = new HttpTestServer(null, serverPort, new HttpTestServer.HandlerInfo("/es/_bulk", requestHandler));
+    public ExternalResource resource = new HttpTestServer(null, serverPort,
+                                                          new HttpTestServer.HandlerInfo("/_bulk", requestHandler),
+                                                          new HttpTestServer.HandlerInfo("/_template/loghub", templateHandler),
+                                                          new HttpTestServer.HandlerInfo("/", versionHandler));
 
     @Test
     public void testSend() throws InterruptedException {
-        int count = 60;
+        int count = 20;
         ElasticSearch es = new ElasticSearch(new ArrayBlockingQueue<>(count));
-        es.setDestinations(new String[]{"http://localhost:" + serverPort + "/es", });
+        es.setDestinations(new String[]{"http://localhost:" + serverPort, });
         es.setTimeout(1);
         es.setBuffersize(10);
-        es.configure(new Properties(Collections.emptyMap()));
+        Assert.assertTrue("Elastic configuration failed", es.configure(new Properties(Collections.emptyMap())));
         es.start();
         for (int i = 0 ; i < count ; i++) {
             Event ev = Tools.getEvent();
@@ -141,15 +161,14 @@ public class TestElasticSearch {
                 temp = "//" + temp;
             }
             URI newUrl = new URI(destinations[i]);
-            newUrl = new URI(
-                    (newUrl.getScheme() != null  ? newUrl.getScheme() : "thrift"),
-                    null,
-                    (newUrl.getHost() != null ? newUrl.getHost() : "localhost"),
-                    (newUrl.getPort() > 0 ? newUrl.getPort() : 9300),
-                    null,
-                    null,
-                    null
-                    );
+            newUrl = new URI( (newUrl.getScheme() != null  ? newUrl.getScheme() : "thrift"),
+                              null,
+                              (newUrl.getHost() != null ? newUrl.getHost() : "localhost"),
+                              (newUrl.getPort() > 0 ? newUrl.getPort() : 9300),
+                              null,
+                              null,
+                              null
+                              );
         }
     }
 
