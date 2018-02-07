@@ -411,7 +411,6 @@ public final class Helpers {
             }
             try {
                 URL newEndPoint = new URL(temp);
-                System.out.println(newEndPoint);
                 int localport = port;
                 endPoints[i] = new URL(
                         (newEndPoint.getProtocol() != null ? newEndPoint.getProtocol() : protocol),
