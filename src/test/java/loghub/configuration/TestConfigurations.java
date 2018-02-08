@@ -1,6 +1,7 @@
 package loghub.configuration;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.logging.log4j.Level;
@@ -15,6 +16,8 @@ import loghub.EventsProcessor;
 import loghub.LogUtils;
 import loghub.ProcessorException;
 import loghub.Tools;
+import loghub.processors.Identity;
+import loghub.processors.SyslogPriority;
 
 public class TestConfigurations {
 
@@ -136,6 +139,33 @@ public class TestConfigurations {
         Event received = conf.mainQueue.remove();
         Assert.assertEquals("Subpipeline not processed", 1, received.get("a"));
         Assert.assertEquals("Subpipeline not processed", 2, received.get("b"));
+    }
+
+    // Ensure that multi-fields processor don't access a success sub-pipeline
+    @Test
+    public void testBadFields1() {
+        SyslogPriority processor = new SyslogPriority();
+        processor.setSuccess(new Identity());
+        processor.setFields(new String[]{"a", "b"});
+        Assert.assertFalse(processor.configure(new Properties(Collections.emptyMap())));
+    }
+
+    // Ensure that multi-fields processor don't access a success sub-pipeline
+    @Test
+    public void testBadFields2() {
+        SyslogPriority processor = new SyslogPriority();
+        processor.setFailure(new Identity());
+        processor.setFields(new String[]{"a", "b"});
+        Assert.assertFalse(processor.configure(new Properties(Collections.emptyMap())));
+    }
+
+    // Ensure that multi-fields processor don't access a success sub-pipeline
+    @Test
+    public void testBadFields3() {
+        SyslogPriority processor = new SyslogPriority();
+        processor.setException(new Identity());
+        processor.setFields(new String[]{"a", "b"});
+        Assert.assertFalse(processor.configure(new Properties(Collections.emptyMap())));
     }
 
 }

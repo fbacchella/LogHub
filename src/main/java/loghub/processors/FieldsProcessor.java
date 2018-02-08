@@ -13,6 +13,7 @@ import loghub.IgnoredEventException;
 import loghub.Processor;
 import loghub.ProcessorException;
 import loghub.VarFormatter;
+import loghub.configuration.Properties;
 
 public abstract class FieldsProcessor extends Processor {
     private String field = "message";
@@ -96,6 +97,15 @@ public abstract class FieldsProcessor extends Processor {
             return timeout;
         }
 
+    }
+
+    @Override
+    public boolean configure(Properties properties) {
+        if ( (getFailure() != null || getSuccess() != null || getException() != null) && patterns.length > 0) {
+            logger.error("Will not run success or failure");
+            return false;
+        }
+        return super.configure(properties);
     }
 
     @Override
