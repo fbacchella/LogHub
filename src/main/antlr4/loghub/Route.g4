@@ -10,7 +10,11 @@ input: 'input' '{'  inputObjectlist '}' ('|' '$' piperef)?;
 output: 'output' ('$' piperef '|' )? '{' outputObjectlist '}';
 inputObjectlist: (object (',' object)*)? ','?;
 outputObjectlist: (object (',' object)*)? ','?;
-pipenodeList: pipenode (('+' forkpiperef)|('|' pipenode))* ('>' forwardpiperef)?;
+//pipenodeList: (pipenode (('+' forkpiperef)|('|' pipenode))*) | ( (pipenode (('+' forkpiperef)|('|' pipenode))*)? '>' forwardpiperef)?;
+pipenodeList: (pipenode (('+' forkpiperef)|('|' pipenode))*) ('>' forwardpiperef)?
+              |  ('>' forwardpiperef)
+              | ('+' forkpiperef)
+;
 forkpiperef: '$' Identifier;
 forwardpiperef: '$' Identifier;
 pipenode
