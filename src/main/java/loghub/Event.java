@@ -72,6 +72,8 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
 
     public abstract boolean inject(Event master, BlockingQueue<Event> mainqueue);
 
+    public abstract void finishPipeline();
+
     public abstract Event duplicate();
 
     public abstract Processor next();

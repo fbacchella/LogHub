@@ -162,6 +162,10 @@ class EventWrapper extends Event {
         return event.inject(ev, mainqueue);
     }
 
+    public void finishPipeline() {
+        event.finishPipeline();
+    }
+
     @Override
     public String getCurrentPipeline() {
         return event.getCurrentPipeline();

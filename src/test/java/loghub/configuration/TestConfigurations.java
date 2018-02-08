@@ -72,19 +72,39 @@ public class TestConfigurations {
 
     @Test
     public void testFork() throws InterruptedException, ProcessorException, ConfigException, IOException {
-        Properties conf = Tools.loadConf("fork.conf");
+        Properties conf = Tools.loadConf("forkforward.conf");
         EventsProcessor ep = new EventsProcessor(conf.mainQueue, conf.outputQueues, conf.namedPipeLine, conf.maxSteps, conf.repository);
         ep.start();
 
         try {
             Event sent = Tools.getEvent();
-            sent.inject(conf.namedPipeLine.get("main"), conf.mainQueue);
+            sent.inject(conf.namedPipeLine.get("mainfork"), conf.mainQueue);
             Event forked = conf.outputQueues.get("forked").poll(1, TimeUnit.SECONDS);
-            Event initial = conf.outputQueues.get("main").poll(1, TimeUnit.SECONDS);
+            Event initial = conf.outputQueues.get("mainfork").poll(1, TimeUnit.SECONDS);
             Assert.assertEquals(1, forked.size());
             Assert.assertEquals(1, initial.size());
             Assert.assertEquals(2, forked.get("b"));
             Assert.assertEquals(1, initial.get("a"));
+        } finally {
+            ep.interrupt();
+        }
+    }
+
+    @Test
+    public void testForward() throws InterruptedException, ProcessorException, ConfigException, IOException {
+        Properties conf = Tools.loadConf("forkforward.conf");
+        EventsProcessor ep = new EventsProcessor(conf.mainQueue, conf.outputQueues, conf.namedPipeLine, conf.maxSteps, conf.repository);
+        ep.start();
+
+        try {
+            Event sent = Tools.getEvent();
+            sent.inject(conf.namedPipeLine.get("mainforward"), conf.mainQueue);
+            Event forwarded = conf.outputQueues.get("forked").poll(1, TimeUnit.SECONDS);
+            Event initial = conf.outputQueues.get("mainforward").poll(1, TimeUnit.SECONDS);
+            Assert.assertEquals(1, forwarded.size());
+            Assert.assertNull(initial);
+            Assert.assertEquals(2, forwarded.get("b"));
+            Assert.assertNull(sent.get("a"));
         } finally {
             ep.interrupt();
         }

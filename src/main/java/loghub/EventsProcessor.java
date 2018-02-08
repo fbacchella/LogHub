@@ -18,6 +18,7 @@ import loghub.configuration.Properties;
 import loghub.configuration.TestEventProcessing;
 import loghub.processors.Drop;
 import loghub.processors.Forker;
+import loghub.processors.Forwarder;
 import loghub.processors.FuturProcessor;
 import loghub.processors.UnwrapEvent;
 import loghub.processors.WrapEvent;
@@ -179,6 +180,9 @@ public class EventsProcessor extends Thread {
         ProcessingStatus status = null;
         if (p instanceof Forker) {
             ((Forker) p).fork(e);
+            status = ProcessingStatus.SUCCESS;
+        } else if (p instanceof Forwarder) {
+            ((Forwarder) p).forward(e);
             status = ProcessingStatus.SUCCESS;
         } else if (p instanceof Drop) {
             status = ProcessingStatus.DROPED;

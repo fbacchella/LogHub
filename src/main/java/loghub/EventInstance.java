@@ -154,6 +154,10 @@ class EventInstance extends Event {
         return mainqueue.offer(this);
     }
 
+    public void finishPipeline() {
+        processors.clear();
+    }
+
     private void inject(List<Processor> newProcessors, boolean append) {
         ListIterator<Processor> i = newProcessors.listIterator(append ? 0 : newProcessors.size());
         while(append ? i.hasNext() : i.hasPrevious()) {

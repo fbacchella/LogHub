@@ -10,8 +10,9 @@ input: 'input' '{'  inputObjectlist '}' ('|' '$' piperef)?;
 output: 'output' ('$' piperef '|' )? '{' outputObjectlist '}';
 inputObjectlist: (object (',' object)*)? ','?;
 outputObjectlist: (object (',' object)*)? ','?;
-pipenodeList: pipenode (('+' forkpiperef)|('|' pipenode))*;
+pipenodeList: pipenode (('+' forkpiperef)|('|' pipenode))* ('>' forwardpiperef)?;
 forkpiperef: '$' Identifier;
+forwardpiperef: '$' Identifier;
 pipenode
     : test
     | merge

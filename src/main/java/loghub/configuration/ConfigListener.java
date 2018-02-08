@@ -34,6 +34,7 @@ import loghub.RouteParser.FinalpiperefContext;
 import loghub.RouteParser.FireContext;
 import loghub.RouteParser.FloatingPointLiteralContext;
 import loghub.RouteParser.ForkpiperefContext;
+import loghub.RouteParser.ForwardpiperefContext;
 import loghub.RouteParser.InputContext;
 import loghub.RouteParser.InputObjectlistContext;
 import loghub.RouteParser.IntegerLiteralContext;
@@ -62,6 +63,7 @@ import loghub.processors.Forker;
 import loghub.processors.Log;
 import loghub.processors.Mapper;
 import loghub.processors.Merge;
+import loghub.processors.Forwarder;
 import loghub.processors.Test;
 import loghub.processors.UnwrapEvent;
 import loghub.processors.WrapEvent;
@@ -304,6 +306,14 @@ class ConfigListener extends RouteBaseListener {
     @Override
     public void exitForkpiperef(ForkpiperefContext ctx) {
         ObjectDescription beanObject = new ObjectDescription(this.stream , Forker.class.getCanonicalName(), ctx);
+        beanObject.put("destination", new ObjectWrapped(ctx.Identifier().getText()));
+        ProcessorInstance ti = new ProcessorInstance(this.stream , beanObject, ctx);
+        stack.push(ti);
+    }
+
+    @Override
+    public void exitForwardpiperef(ForwardpiperefContext ctx) {
+        ObjectDescription beanObject = new ObjectDescription(this.stream , Forwarder.class.getCanonicalName(), ctx);
         beanObject.put("destination", new ObjectWrapped(ctx.Identifier().getText()));
         ProcessorInstance ti = new ProcessorInstance(this.stream , beanObject, ctx);
         stack.push(ti);
