@@ -32,7 +32,7 @@ import loghub.jmx.PipelineStat;
 import loghub.netty.http.AbstractHttpServer;
 import loghub.processors.FieldsProcessor;
 
-public class Start extends Thread {
+public class Start {
 
     @Parameter(names = {"--configfile", "-c"}, description = "File")
     String configFile = null;
@@ -170,8 +170,6 @@ public class Start extends Thread {
 
     public void launch(Properties props) throws ConfigException, IOException {
 
-        setName("LogHub");
-
         for (Source s: props.sources.values()) {
             if ( ! s.configure(props)) {
                 logger.error("failed to start source {}", s.getName());
@@ -193,7 +191,7 @@ public class Start extends Thread {
         for (int i = 0; i < props.numWorkers; i++) {
             Thread t = new EventsProcessor(props.mainQueue, props.outputQueues, props.namedPipeLine, props.maxSteps, props.repository);
             t.setName("ProcessingThread" + i);
-            t.setDaemon(true);
+            t.setDaemon(false);
             t.start();
         }
 
@@ -235,15 +233,6 @@ public class Start extends Thread {
             AbstractHttpServer server = new DashboardHttpServer();
             server.setPort(props.httpPort);
             server.configure(props);
-        }
-
-    }
-
-    public void run() {
-        try {
-            Thread.currentThread().join();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
         }
     }
 
