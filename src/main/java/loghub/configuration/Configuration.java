@@ -32,6 +32,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.regex.Pattern;
 
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
@@ -44,6 +45,7 @@ import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.LoggerContext;
 
 import loghub.Event;
+import loghub.Helpers;
 import loghub.Helpers.ThrowingConsumer;
 import loghub.Helpers.ThrowingFunction;
 import loghub.Helpers.ThrowingPredicate;
@@ -109,30 +111,48 @@ public class Configuration {
             Set<String> lockedProperties = resolveProperties(tree, conflistener, propertiesContext);
             walker.walk(conflistener, tree);
 
-            Consumer<String> parseSubFile = fileName -> {
+            Consumer<Path> parseSubFile = filePath -> {
                 try {
-                    logger.debug("parsing {}", fileName);
-                    CharStream localcs = CharStreams.fromFileName(fileName);
+                    if (Files.isHidden(filePath)) {
+                        return;
+                    }
+                    logger.debug("parsing {}", filePath);
+                    CharStream localcs = CharStreams.fromPath(filePath);
                     RouteParser.ConfigurationContext localtree = getTree(localcs, conflistener);
                     lockedProperties.forEach( i -> conflistener.lockProperty(i));
                     resolveProperties(localtree, conflistener, propertiesContext);
                     walker.walk(conflistener, localtree);
                 } catch (IOException e) {
-                    throw new ConfigException(e.getMessage(), fileName, e);
+                    throw new ConfigException(e.getMessage(), filePath.toString(), e);
                 }
             };
-
             if (propertiesContext.containsKey("includes")) {
                 Arrays.stream(getStringOrArrayLitteral(propertiesContext.remove("includes").beanValue()))
                 .forEach( sourceName -> {
                     Path sourcePath = Paths.get(sourceName);
                     if (Files.isRegularFile(sourcePath)) {
-                        parseSubFile.accept(sourceName);
+                        // A file is given
+                        parseSubFile.accept(sourcePath);
                     } else if (Files.isDirectory(sourcePath)) {
+                        // A directory is given
                         try {
-                            Files.list(sourcePath).forEach( i -> parseSubFile.accept(i.toString()));
+                            Files.list(sourcePath).forEach( i -> parseSubFile.accept(i));
                         } catch (IOException e) {
                             throw new ConfigException(e.getMessage(), sourceName, e);
+                        }
+                    } else {
+                        // It might be a directory/pattern
+                        Path patternPath = sourcePath.getFileName();
+                        Path parent = sourcePath.getParent();
+                        Pattern mask = Helpers.convertGlobToRegex(patternPath.toString());
+                        if (Files.isDirectory(parent)) {
+                            try {
+                                Files.list(parent)
+                                .filter( i-> mask.matcher(i.getFileName().toString()).matches())
+                                .forEach( i -> parseSubFile.accept(i));
+                            } catch (IOException e) {
+                                throw new ConfigException(e.getMessage(), sourceName, e);
+                            }
                         }
                     }
                 });

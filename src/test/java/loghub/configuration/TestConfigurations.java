@@ -1,6 +1,7 @@
 package loghub.configuration;
 
 import java.io.IOException;
+import java.io.StringReader;
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 
@@ -166,6 +167,13 @@ public class TestConfigurations {
         processor.setException(new Identity());
         processor.setFields(new String[]{"a", "b"});
         Assert.assertFalse(processor.configure(new Properties(Collections.emptyMap())));
+    }
+
+    @Test
+    public void testConfigurationWalkin() throws ConfigException, IOException {
+        String confile = "includes: \"" +  Configuration.class.getClassLoader().getResource("includes").getFile() + "/*.conf\"";
+        Properties props = Configuration.parse(new StringReader(confile));
+        Assert.assertTrue(props.namedPipeLine.containsKey("empty"));
     }
 
 }
