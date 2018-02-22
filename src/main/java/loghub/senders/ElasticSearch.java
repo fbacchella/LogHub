@@ -12,6 +12,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.TimeZone;
 import java.util.concurrent.BlockingQueue;
 import java.util.function.Function;
@@ -159,10 +160,9 @@ public class ElasticSearch extends AbstractHttpSender {
             templatePath = getClass().getResource("/estemplate." + major + ".json");
         }
         // Lets check for a template
-        String wantedtemplate;
+        Map<Object, Object> wantedtemplate;
         try {
             wantedtemplate = Stream.of(templatePath)
-                    .filter( i -> i != null)
                     .map( i -> {
                         try {
                             return i.openStream();
@@ -170,11 +170,12 @@ public class ElasticSearch extends AbstractHttpSender {
                             throw new UncheckedIOException(e);
                         }
                     })
-                    .filter( i -> i != null)
                     .map( i -> new InputStreamReader(i, CharsetUtil.UTF_8))
                     .map( i -> {
                         try {
-                            return json.get().readTree(i).toString();
+                            @SuppressWarnings("unchecked")
+                            Map<Object, Object> localtemplate = json.get().readValue(i, Map.class);
+                            return localtemplate;
                         } catch (IOException e) {
                             throw new UncheckedIOException(e);
                         }
@@ -185,34 +186,38 @@ public class ElasticSearch extends AbstractHttpSender {
             logger.catching(Level.DEBUG, e);
             return false;
         }
-        if (wantedtemplate != null) {
-            Function<JsonNode, Boolean> checkTemplate = node -> {
-                JsonNode templateNode = node.get(templateName);
-                if (templateNode == null) {
-                    logger.error("Failed template search");
-                    return false;
-                }
-                String currenttemplate = templateNode.toString();
-                return ! currenttemplate.equals(wantedtemplate);
-            };
-            Boolean needsrefresh = doquery(null, "/_template/" + templateName, checkTemplate, Collections.singletonMap(404, node -> true), null);
-            if (needsrefresh == null) {
-                return false;
-            } else if (needsrefresh) {
-                HttpRequest puttemplate = new HttpRequest();
-                puttemplate.setVerb("PUT");
-                try {
-                    puttemplate.setTypeAndContent("application/json", CharsetUtil.UTF_8, wantedtemplate.getBytes(CharsetUtil.UTF_8));
-                } catch (IOException e) {
-                    logger.fatal("Can't build buffer: {}", e);
-                    return false;
-                }
-                return doquery(puttemplate, "/_template/" + templateName, node -> true, Collections.emptyMap(), false);
-            } else {
-                return true;
-            }
-        } else {
+        if (wantedtemplate == null) {
             return false;
+        }
+        int wantedVersion = wantedtemplate.toString().hashCode();
+        wantedtemplate.put("version", wantedVersion);
+        Function<JsonNode, Boolean> checkTemplate = node -> {
+            try {
+                Map<?, ?> foundTemplate = json.get().treeToValue(node, Map.class);
+                Map<?, ?> templateMap = (Map<?, ?>) foundTemplate.get(templateName);
+                @SuppressWarnings("unchecked")
+                Optional<Integer> opt = (Optional<Integer>) Optional.ofNullable(templateMap.get("version"));
+                return opt.map(i-> i != wantedVersion).orElseGet(() -> true);
+            } catch (JsonProcessingException e) {
+                throw new UncheckedIOException(e);
+            }
+        };
+        Boolean needsrefresh = doquery(null, "/_template/" + templateName, checkTemplate, Collections.singletonMap(404, node -> true), null);
+        if (needsrefresh == null) {
+            return false;
+        } else if (needsrefresh) {
+            HttpRequest puttemplate = new HttpRequest();
+            puttemplate.setVerb("PUT");
+            try {
+                String jsonbody = json.get().writeValueAsString(wantedtemplate);
+                puttemplate.setTypeAndContent("application/json", CharsetUtil.UTF_8, jsonbody.getBytes(CharsetUtil.UTF_8));
+            } catch (IOException e) {
+                logger.fatal("Can't build buffer: {}", e);
+                return false;
+            }
+            return doquery(puttemplate, "/_template/" + templateName, node -> true, Collections.emptyMap(), false);
+        } else {
+            return true;
         }
     }
 
@@ -241,9 +246,13 @@ public class ElasticSearch extends AbstractHttpSender {
                     JsonNode node = json.get().readTree(response.getContentReader());
                     // Only ES failures can be handled
                     return failureHandlers.get(status).apply(node);
+                } else if ("application/json".equals(responseMimeType)){
+                    JsonNode node = json.get().readTree(response.getContentReader());
+                    logger.error("Invalid query: {} {}, return '{} {}'", request.getVerb(), newEndPoint, status, response.getStatusMessage());
+                    logger.debug("error body: {}", () -> node.toString());
                 } else {
                     // Valid, but not good request, useless to try something else
-                    logger.error("Invalid query: {}, return '{} {}', {}", newEndPoint, status, response.getStatusMessage(), response.getMimeType());
+                    logger.error("Invalid query: {} {}, return '{} {}', {}", request.getVerb(), newEndPoint, status, response.getStatusMessage(), responseMimeType);
                     break;
                 }
             } catch (MalformedURLException e) {
