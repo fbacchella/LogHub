@@ -195,8 +195,7 @@ public class ElasticSearch extends AbstractHttpSender {
             try {
                 Map<?, ?> foundTemplate = json.get().treeToValue(node, Map.class);
                 Map<?, ?> templateMap = (Map<?, ?>) foundTemplate.get(templateName);
-                @SuppressWarnings("unchecked")
-                Optional<Integer> opt = (Optional<Integer>) Optional.ofNullable(templateMap.get("version"));
+                Optional<Integer> opt = Optional.ofNullable((Integer)templateMap.get("version"));
                 return opt.map(i-> i != wantedVersion).orElseGet(() -> true);
             } catch (JsonProcessingException e) {
                 throw new UncheckedIOException(e);
