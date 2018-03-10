@@ -56,6 +56,7 @@ class EventInstance extends Event {
     }
 
     public void end() {
+        ctx.acknowledge();
         if(! test) {
             timer.close();
             Properties.metrics.counter("Allevents.inflight").dec();
@@ -77,6 +78,7 @@ class EventInstance extends Event {
      * @return a copy of this event, with a different key
      */
     public Event duplicate() {
+        ctx.acknowledge();
         try {
             ByteArrayOutputStream bos = new ByteArrayOutputStream();
             ObjectOutputStream oos = new ObjectOutputStream(bos);

@@ -15,6 +15,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.TimeZone;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
@@ -31,6 +32,7 @@ import io.netty.util.CharsetUtil;
 import loghub.Event;
 import loghub.configuration.Properties;
 
+@AsyncSender
 public class ElasticSearch extends AbstractHttpSender {
 
     private static final JsonFactory factory = new JsonFactory();
@@ -105,6 +107,7 @@ public class ElasticSearch extends AbstractHttpSender {
         for(Event e: documents) {
             try {
                 if (! e.containsKey(type)) {
+                    processStatus(e, CompletableFuture.completedFuture(false));
                     continue;
                 }
                 esjson.clear();
@@ -120,7 +123,9 @@ public class ElasticSearch extends AbstractHttpSender {
                     builder.append("\n");
                 } catch (JsonProcessingException ex) {
                 }
+                processStatus(e, CompletableFuture.completedFuture(true));
             } catch (java.lang.StackOverflowError ex) {
+                processStatus(e, CompletableFuture.completedFuture(false));
                 logger.error("Failed to serialized {}, infinite recursion", e);
             }
         }

@@ -37,6 +37,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import loghub.Event;
 import loghub.HttpTestServer;
 import loghub.LogUtils;
+import loghub.Stats;
 import loghub.Tools;
 import loghub.configuration.Properties;
 
@@ -149,6 +150,37 @@ public class TestElasticSearch {
             throw failure;
         }
         Assert.assertEquals(count, received.get());
+        logger.debug("event received: {}", received);
+    }
+
+    @Test
+    public void testSendInQueue() throws InterruptedException {
+        Stats.reset();
+        int count = 20;
+        ArrayBlockingQueue<Event> queue = new ArrayBlockingQueue<>(count - 1);
+        ElasticSearch es = new ElasticSearch(queue);
+        es.setDestinations(new String[]{"http://localhost:" + serverPort, });
+        es.setTimeout(1);
+        es.setBuffersize(10);
+        Assert.assertTrue("Elastic configuration failed", es.configure(new Properties(Collections.emptyMap())));
+        es.start();
+        for (int i = 0 ; i < count ; i++) {
+            Event ev = Tools.getEvent();
+            ev.put("type", "junit");
+            ev.put("value", "atest" + i);
+            ev.setTimestamp(new Date(0));
+            queue.add(ev);
+            Thread.sleep(1);
+        }
+        es.close();
+        Thread.sleep(1000);
+        if(failure != null) {
+            throw failure;
+        }
+        Assert.assertEquals(count, received.get());
+        Assert.assertEquals(count, Stats.sent.intValue());
+        Assert.assertEquals(0, Stats.failed.intValue());
+        Assert.assertEquals(0, Properties.metrics.counter("Allevents.inflight").getCount());
         logger.debug("event received: {}", received);
     }
 
