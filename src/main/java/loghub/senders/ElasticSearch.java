@@ -8,9 +8,9 @@ import java.net.URL;
 import java.nio.file.Paths;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.TimeZone;
@@ -84,7 +84,7 @@ public class ElasticSearch extends AbstractHttpSender {
     }
 
     @Override
-    protected Object flush(List<Event> documents) throws IOException {
+    protected Object flush(Collection<Event> documents) throws IOException {
         HttpRequest request = new HttpRequest();
         request.setTypeAndContent("application/json", CharsetUtil.UTF_8, putContent(documents));
         request.setVerb("POST");
@@ -98,7 +98,7 @@ public class ElasticSearch extends AbstractHttpSender {
         return doquery(request, "/_bulk", reader, Collections.emptyMap(), null);
     }
 
-    protected byte[] putContent(List<Event> documents) {
+    protected byte[] putContent(Collection<Event> documents) {
         StringBuilder builder = new StringBuilder();
         Map<String, String> settings = new HashMap<>(2);
         Map<String, Object> action = Collections.singletonMap("index", settings);

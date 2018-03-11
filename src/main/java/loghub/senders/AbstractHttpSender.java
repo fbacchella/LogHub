@@ -4,19 +4,22 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
+import java.io.UncheckedIOException;
 import java.net.ConnectException;
 import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.nio.charset.Charset;
 import java.security.GeneralSecurityException;
-import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Date;
 import java.util.HashMap;
-import java.util.List;
+import java.util.HashSet;
 import java.util.Map;
-import java.util.concurrent.ArrayBlockingQueue;
+import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHost;
@@ -99,6 +102,7 @@ public abstract class AbstractHttpSender extends Sender {
     }
 
     protected enum ContentType {
+
         APPLICATION_OCTET_STREAM (org.apache.http.entity.ContentType.APPLICATION_OCTET_STREAM ),
         APPLICATION_JSON(org.apache.http.entity.ContentType.APPLICATION_JSON),
         TEXT_XML(org.apache.http.entity.ContentType.TEXT_XML);
@@ -113,6 +117,7 @@ public abstract class AbstractHttpSender extends Sender {
         public String toString() {
             return realType.toString();
         }
+
     };
 
     protected class HttpResponse implements Closeable {
@@ -184,9 +189,13 @@ public abstract class AbstractHttpSender extends Sender {
     private CredentialsProvider credsProvider = null;
 
     private CloseableHttpClient client = null;
-    private ArrayBlockingQueue<Event> bulkqueue;
+    private Set<Event> batch;
+    private final Queue<Set<Event>> batches = new ConcurrentLinkedQueue<>();
     private final Runnable publisher;
     protected URL[] endPoints;
+    private volatile boolean closed = false;
+    private Thread[] threads;
+    private volatile long lastFlush = 0;
 
     public AbstractHttpSender(BlockingQueue<Event> inQueue) {
         super(inQueue);
@@ -196,38 +205,37 @@ public abstract class AbstractHttpSender extends Sender {
             @Override
             public void run() {
                 try {
-                    while (!isInterrupted()) {
+                    while (!isInterrupted() && ! closed) {
                         synchronized (this) {
                             wait();
-                            logger.debug("Publication initated");
+                            logger.debug("Flush initated");
                         }
-                        try {
-                            List<Event> waiting = new ArrayList<>();
-                            Event o;
-                            int i = 0;
-                            while ((o = bulkqueue.poll()) != null && i < buffersize * 1.5) {
-                                waiting.add(o);
+                        Set<Event> flushedBatch;
+                        while ((flushedBatch = batches.poll()) != null){
+                            if(flushedBatch.size() == 0) {
+                                continue;
+                            } else {
+                                lastFlush = new Date().getTime();
                             }
-                            // It might received spurious notifications, so send only when needed
-                            if (waiting.size() > 0) {
-                                Object response = flush(waiting);
+                            try {
+                                Object response = flush(flushedBatch);
                                 logger.debug("response from http server: {}", response);
+                            } catch (IOException | UncheckedIOException e) {
+                                logger.error("IO exception: {}", e.getMessage());
+                                logger.catching(Level.DEBUG, e);
+                            } catch (Exception e) {
+                                String message = Helpers.resolveThrowableException(e);
+                                logger.error("Unexpected exception: {}", message);
+                                logger.catching(e);
                             }
-                        } catch (Exception e) {
-                            logger.error("Unexpected exception: {}", e.getMessage());
-                            logger.catching(e);
                         }
                     }
-                    close();
                 } catch (InterruptedException e) {
-                    close();
                     Thread.currentThread().interrupt();
                 }
             }
         };
     }
-
-    private Helpers.SimplifiedThread<?>[] threads;
 
     @Override
     public boolean configure(Properties properties) {
@@ -239,13 +247,15 @@ public abstract class AbstractHttpSender extends Sender {
         }
 
         // Create the senders threads and the common queue
-        bulkqueue = new ArrayBlockingQueue<Event>(buffersize * 2);
-        threads = new Helpers.SimplifiedThread[publisherThreads];
+        batch = new HashSet<>(buffersize);
+        threads = new Thread[publisherThreads];
         for (int i = 1 ; i <= publisherThreads ; i++) {
-            threads[i - 1] = new Helpers.SimplifiedThreadRunnable(publisher)
-                    .setDaemon(true)
-                    .setName(getPublishName() + "Publisher" + i)
-                    .start();
+            String tname =  getPublishName() + "Publisher" + i;
+            threads[i - 1] = new Thread(publisher) {{
+                setDaemon(false);
+                setName(tname);
+                start();
+            }};
         }
 
         // The HTTP connection management
@@ -300,7 +310,12 @@ public abstract class AbstractHttpSender extends Sender {
         //Schedule a task to flush every 5 seconds
         Runnable flush = () -> {
             synchronized(publisher) {
-                publisher.notify();
+                long now = new Date().getTime();
+                if (( now - lastFlush) > 5000) {
+                    batches.add(batch);
+                    batch = new HashSet<>(buffersize);
+                    publisher.notify();
+                }
             }
         };
         properties.registerScheduledTask(getPublishName() + "Flusher" , flush, 5000);
@@ -310,61 +325,48 @@ public abstract class AbstractHttpSender extends Sender {
 
     public void close() {
         logger.debug("Closing");
-        try {
-            while(bulkqueue.size() > 0) {
-                synchronized (publisher) {
-                    logger.debug("Notify close, still {} events to send", bulkqueue.size());
-                    publisher.notify();
-                }
-                Thread.sleep(1);
-            }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
+        closed = true;
+        synchronized(publisher) {
+            batches.add(batch);
+            batch = new HashSet<>(buffersize);
+            publisher.notify();
         }
+        // Notify all publisher threads that publication is finished
+        synchronized (publisher) {
+            publisher.notifyAll();
+        }
+        Arrays.stream(threads).forEach(t -> {
+            try {
+                t.join(1000);
+            } catch (InterruptedException e) {
+                t.interrupt();
+            }
+        });
     }
 
     protected abstract String getPublishName();
 
     @Override
     public boolean send(Event event) {
-        Arrays.stream(threads)
-        .map( i -> i.task)
-        .filter( i -> i.isDone())
-        .forEach( i -> {
-            try {
-                logger.error("Thread stopped with {}", i.get());
-            } catch (InterruptedException e) {
-                // Just interrupted, no worry
-            } catch (ExecutionException e) {
-                // Good a exception ! What happened ?
-                logger.fatal("Publisher thread failed, because of {}", e.getCause());
-            }
-        });
-        int tryoffer = 10;
-        while ( ! bulkqueue.offer(event) && tryoffer-- != 0) {
-            logger.debug("queue full, flush");
-            // If queue full, launch a bulk publication
-            synchronized (publisher) {
+        if (closed) {
+            return false;
+        }
+        synchronized(publisher) {
+            batch.add(event);
+            if (batch.size() > buffersize) {
+                logger.debug("queue full, flush");
+                batches.add(batch);
+                batch = new HashSet<>(buffersize);
                 publisher.notify();
-            }
-            try {
-                Thread.sleep(10);
-            } catch (InterruptedException e) {
-                tryoffer = 0;
-                Thread.currentThread().interrupt();
+                if (batches.size() > publisherThreads) {
+                    logger.warn("Waiting flush batches, added flushing threads");
+                }
             }
         }
-        // if queue reached publication size or offer failed, publish
-        if (bulkqueue.size() > buffersize || tryoffer == 0) {
-            logger.debug("queue reach flush limit, flush");
-            synchronized (publisher) {
-                publisher.notify();
-            }
-        }
-        return tryoffer != 0;
+        return true;
     }
 
-    protected abstract Object flush(List<Event> documents) throws IOException;
+    protected abstract Object flush(Collection<Event> documents) throws IOException;
 
     protected HttpResponse doRequest(HttpRequest therequest) {
 
