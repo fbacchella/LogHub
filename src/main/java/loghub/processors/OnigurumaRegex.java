@@ -50,7 +50,9 @@ public class OnigurumaRegex extends FieldsProcessor {
 
     @Override
     public boolean configure(Properties properties) {
+        // Generate pattern using both ASCII and UTF-8
         byte[] patternSrc_ascii = getBytesAscii(patternSrc);
+        // the ascii pattern is generated only if the source pattern is pure ASCII
         if (patternSrc_ascii != null) {
             pattern_ascii = new org.joni.Regex(patternSrc_ascii, 0, patternSrc_ascii.length, Option.NONE, USASCIIEncoding.INSTANCE);
         } else {
@@ -72,19 +74,27 @@ public class OnigurumaRegex extends FieldsProcessor {
             return false;
         }
         String line = event.get(field).toString();
-        byte[] line_ascii = getBytesAscii(line);
         int length;
         Matcher matcher;
         Regex regex;
         Charset cs;
         byte[] line_bytes;
+        byte[] line_ascii;
+        // First check if it worth trying to generate ASCII line, only if a ASCII version of the pattern exists
+        if (pattern_ascii != null) {
+            line_ascii = getBytesAscii(line);
+        } else {
+            line_ascii = null;
+        }
         if (line_ascii != null) {
+            // Both ASCII line and pattern so try ASCII
             regex = pattern_ascii;
             matcher = pattern_ascii.matcher(line_ascii);
             length = line.length();
             cs = StandardCharsets.US_ASCII;
             line_bytes = line_ascii;
         } else {
+            // Either ASCII pattern or line is missing, fall back to UTF-8
             regex = pattern_utf_8;
             byte[] line_utf_8 = line.getBytes(StandardCharsets.UTF_8);
             matcher = pattern_utf_8.matcher(line_utf_8);
