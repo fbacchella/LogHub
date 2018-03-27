@@ -24,8 +24,8 @@ import loghub.configuration.Properties;
 public class OnigurumaRegex extends FieldsProcessor {
 
     private String patternSrc;
-    private Regex pattern_ascii;
-    private Regex pattern_utf_8;
+    private Regex patternAscii;
+    private Regex patternUtf8;
 
     private static final int BUFFERSIZE = 4096;
     private static final ThreadLocal<char[]> holder_ascii = ThreadLocal.withInitial(() -> new char[BUFFERSIZE]);
@@ -51,16 +51,16 @@ public class OnigurumaRegex extends FieldsProcessor {
     @Override
     public boolean configure(Properties properties) {
         // Generate pattern using both ASCII and UTF-8
-        byte[] patternSrc_ascii = getBytesAscii(patternSrc);
+        byte[] patternSrcBytesAscii = getBytesAscii(patternSrc);
         // the ascii pattern is generated only if the source pattern is pure ASCII
-        if (patternSrc_ascii != null) {
-            pattern_ascii = new org.joni.Regex(patternSrc_ascii, 0, patternSrc_ascii.length, Option.NONE, USASCIIEncoding.INSTANCE);
+        if (patternSrcBytesAscii != null) {
+            patternAscii = new Regex(patternSrcBytesAscii, 0, patternSrcBytesAscii.length, Option.NONE, USASCIIEncoding.INSTANCE);
         } else {
-            pattern_ascii = null;
+            patternAscii = null;
         }
-        byte[] patternSrc_utf_8 = patternSrc.getBytes(StandardCharsets.UTF_8);
-        pattern_utf_8 = new org.joni.Regex(patternSrc_utf_8, 0, patternSrc_utf_8.length, Option.NONE, UTF8Encoding.INSTANCE);
-        if (pattern_utf_8.numberOfCaptures() != pattern_utf_8.numberOfNames()) {
+        byte[] patternSrcBytesUtf8 = patternSrc.getBytes(StandardCharsets.UTF_8);
+        patternUtf8 = new Regex(patternSrcBytesUtf8, 0, patternSrcBytesUtf8.length, Option.NONE, UTF8Encoding.INSTANCE);
+        if (patternUtf8.numberOfCaptures() != patternUtf8.numberOfNames()) {
             logger.error("Can't have two captures with same name");
             return false;
         } else {
@@ -78,43 +78,47 @@ public class OnigurumaRegex extends FieldsProcessor {
         Matcher matcher;
         Regex regex;
         Charset cs;
-        byte[] line_bytes;
-        byte[] line_ascii;
+        byte[] lineBytes;
+        byte[] lineAscii;
         // First check if it worth trying to generate ASCII line, only if a ASCII version of the pattern exists
-        if (pattern_ascii != null) {
-            line_ascii = getBytesAscii(line);
+        if (patternAscii != null) {
+            lineAscii = getBytesAscii(line);
         } else {
-            line_ascii = null;
+            lineAscii = null;
         }
-        if (line_ascii != null) {
+        if (lineAscii != null) {
             // Both ASCII line and pattern so try ASCII
-            regex = pattern_ascii;
-            matcher = pattern_ascii.matcher(line_ascii);
+            regex = patternAscii;
+            matcher = patternAscii.matcher(lineAscii);
             length = line.length();
             cs = StandardCharsets.US_ASCII;
-            line_bytes = line_ascii;
+            lineBytes = lineAscii;
         } else {
             // Either ASCII pattern or line is missing, fall back to UTF-8
-            regex = pattern_utf_8;
-            byte[] line_utf_8 = line.getBytes(StandardCharsets.UTF_8);
-            matcher = pattern_utf_8.matcher(line_utf_8);
-            length = line_utf_8.length;
+            regex = patternUtf8;
+            byte[] lineBytesUtf8 = line.getBytes(StandardCharsets.UTF_8);
+            matcher = patternUtf8.matcher(lineBytesUtf8);
+            length = lineBytesUtf8.length;
             cs = StandardCharsets.UTF_8;
-            line_bytes = line_utf_8;
+            lineBytes = lineBytesUtf8;
         }
         int result = matcher.search(0, length, Option.DEFAULT);
         if (result != -1) {
             Region region = matcher.getEagerRegion();
-            Helpers.iteratorToStream(regex.namedBackrefIterator()).forEach( e -> {
-                int number = e.getBackRefs()[0];
-                int begin = region.beg[number];
-                int end = region.end[number];
-                String name = new String(e.name, e.nameP, e.nameEnd - e.nameP, cs);
-                if (begin >= 0) {
-                    String content = new String(line_bytes, begin, end - begin, cs);
-                    event.put(name, content);
-                }
-            });
+            // Test needed because regex.namedBackrefIterator() fails if there is no named patterns.
+            // See https://github.com/jruby/joni/issues/35
+            if (regex.numberOfNames() > 0) {
+                Helpers.iteratorToStream(regex.namedBackrefIterator()).forEach( e -> {
+                    int number = e.getBackRefs()[0];
+                    int begin = region.beg[number];
+                    int end = region.end[number];
+                    String name = new String(e.name, e.nameP, e.nameEnd - e.nameP, cs);
+                    if (begin >= 0) {
+                        String content = new String(lineBytes, begin, end - begin, cs);
+                        event.put(name, content);
+                    }
+                });
+            }
             return true;
         } else {
             return false;
