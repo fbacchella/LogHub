@@ -7,8 +7,10 @@ import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 
 import java.io.IOException;
 import java.text.SimpleDateFormat;
+import java.util.Collections;
 import java.util.Date;
 import java.util.Locale;
+import java.util.Map;
 import java.util.TimeZone;
 import java.util.function.Supplier;
 
@@ -37,6 +39,7 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.handler.stream.ChunkedInput;
+import io.netty.util.AsciiString;
 import io.netty.util.CharsetUtil;
 import loghub.configuration.Properties;
 
@@ -47,9 +50,16 @@ public abstract class HttpRequestProcessing extends SimpleChannelInboundHandler<
     public class HttpRequestFailure extends Exception {
         public final HttpResponseStatus status;
         public final String message;
+        public final Map<AsciiString, Object> additionHeaders;
+        public HttpRequestFailure(HttpResponseStatus status, String message, Map<AsciiString, Object> additionHeaders) {
+            this.status = status;
+            this.message = message;
+            this.additionHeaders = additionHeaders;
+        }
         public HttpRequestFailure(HttpResponseStatus status, String message) {
             this.status = status;
             this.message = message;
+            this.additionHeaders = Collections.emptyMap();
         }
     }
 
@@ -79,7 +89,7 @@ public abstract class HttpRequestProcessing extends SimpleChannelInboundHandler<
         Properties.metrics.counter("WebServer.inflight").inc();
         try( Context tct = Properties.metrics.timer("WebServer.timer").time()) {
             if (!request.decoderResult().isSuccess()) {
-                failure(ctx, request, BAD_REQUEST, "Can't decode request");
+                failure(ctx, request, BAD_REQUEST, "Can't decode request", Collections.emptyMap());
                 return;
             }
             try {
@@ -89,9 +99,9 @@ public abstract class HttpRequestProcessing extends SimpleChannelInboundHandler<
                 } else {
                     ctx.writeAndFlush(Unpooled.EMPTY_BUFFER);
                 }
-                Properties.metrics.meter("WebServer.status.200").mark();;
+                Properties.metrics.meter("WebServer.status.200").mark();
             } catch (HttpRequestFailure e) {
-                failure(ctx, request, e.status, e.message);
+                failure(ctx, request, e.status, e.message, e.additionHeaders);
             }
         } finally {
             Properties.metrics.counter("WebServer.inflight").dec();
@@ -141,6 +151,7 @@ public abstract class HttpRequestProcessing extends SimpleChannelInboundHandler<
 
     private boolean internalWriteResponse(ChannelHandlerContext ctx, FullHttpRequest request, HttpResponse response, int length, Supplier<ChannelFuture> sender) {
         addContentDate(request, response);
+        addContentType(request, response);
         addCustomHeaders(request, response);
         boolean keepAlive = addKeepAlive(request, response, length);
         ChannelFuture sendFileFuture = sender.get();
@@ -192,13 +203,21 @@ public abstract class HttpRequestProcessing extends SimpleChannelInboundHandler<
         }
     }
 
-    protected void failure(ChannelHandlerContext ctx, HttpRequest request, HttpResponseStatus status, String message) {
+    protected void addContentType(HttpRequest request, HttpResponse response) {
+        String contentType = getContentType();
+        if (contentType != null) {
+            response.headers().set(HttpHeaderNames.CONTENT_TYPE, contentType);
+        }
+    }
+
+    protected void failure(ChannelHandlerContext ctx, HttpRequest request, HttpResponseStatus status, String message, Map<AsciiString, Object> additionHeaders) {
         logger.warn("{} {}: {} transfer complete: {}", () -> request.method(), () -> request.uri(), () -> status.code(), () -> message);
         FullHttpResponse response = new DefaultFullHttpResponse(
                 HTTP_1_1, status, 
                 Unpooled.copiedBuffer(message + "\r\n", CharsetUtil.UTF_8));
         response.headers().set(HttpHeaderNames.CONNECTION, HttpHeaderValues.CLOSE);
         response.headers().set(HttpHeaderNames.CONTENT_TYPE, "text/plain; charset=UTF-8");
+        additionHeaders.entrySet().forEach( i-> response.headers().add(i.getKey(), i.getValue()));
         ChannelFuture sendFileFuture = ctx.writeAndFlush(response);
         sendFileFuture.addListener(ChannelFutureListener.CLOSE);
         Properties.metrics.meter("WebServer.status." + status.code()).mark();;
