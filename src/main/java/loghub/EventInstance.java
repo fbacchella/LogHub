@@ -121,26 +121,43 @@ class EventInstance extends Event {
     }
 
     public void insertProcessor(Processor p) {
-        inject(p, false);
+        addProcessor(p, false);
     }
 
     public void appendProcessor(Processor p) {
-        inject(p, true);
+        addProcessor(p, true);
     }
 
     public void insertProcessors(List<Processor> p) {
-        inject(p, false);
+        addProcessors(p, false);
     }
 
     public void appendProcessors(List<Processor> p) {
-        inject(p, true);
+        addProcessors(p, true);
     }
 
-    /**
-     * This method inject a new event in a pipeline as
-     * a top processing pipeline. Not to be used for sub-processing pipeline
-     * @param event
-     */
+    private void addProcessors(List<Processor> newProcessors, boolean append) {
+        ListIterator<Processor> i = newProcessors.listIterator(append ? 0 : newProcessors.size());
+        while(append ? i.hasNext() : i.hasPrevious()) {
+            Processor p = append ? i.next() : i.previous();
+            addProcessor(p, append);
+        }
+    }
+
+    private void addProcessor(Processor p, boolean append) {
+        logger.trace("inject processor {} at {}", () -> p, () -> append ? "end" : "start" );
+        if (p instanceof SubPipeline) {
+            SubPipeline sp = (SubPipeline) p;
+            addProcessors(sp.getPipeline().processors, append);
+        } else {
+            if (append) {
+                processors.add(p);
+            } else {
+                processors.addFirst(p);
+            }
+        }
+    }
+
     public boolean inject(Pipeline pipeline, BlockingQueue<Event> mainqueue) {
         currentPipeline = pipeline.getName();
         nextPipeline = pipeline.nextPipeline;
@@ -148,6 +165,13 @@ class EventInstance extends Event {
         return mainqueue.offer(this);
     }
 
+    /**
+     * This method inject a new event in a pipeline as
+     * a top processing pipeline. Not to be used for sub-processing pipeline
+     * @param event
+     * @return 
+     * @throws InterruptedException 
+     */
     public boolean inject(Event ev, BlockingQueue<Event> mainqueue) {
         EventInstance master = ev.getRealEvent();
         currentPipeline = master.currentPipeline;
@@ -158,28 +182,6 @@ class EventInstance extends Event {
 
     public void finishPipeline() {
         processors.clear();
-    }
-
-    private void inject(List<Processor> newProcessors, boolean append) {
-        ListIterator<Processor> i = newProcessors.listIterator(append ? 0 : newProcessors.size());
-        while(append ? i.hasNext() : i.hasPrevious()) {
-            Processor p = append ? i.next() : i.previous();
-            inject(p, append);
-        }
-    }
-
-    private void inject(Processor p, boolean append) {
-        logger.trace("inject processor {} at {}", () -> p, () -> append ? "end" : "start" );
-        if (p instanceof SubPipeline) {
-            SubPipeline sp = (SubPipeline) p;
-            inject(sp.getPipeline().processors, append);
-        } else {
-            if (append) {
-                processors.add(p);
-            } else {
-                processors.addFirst(p);
-            }
-        }
     }
 
     public String getCurrentPipeline() {
