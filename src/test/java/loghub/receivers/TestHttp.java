@@ -1,0 +1,190 @@
+package loghub.receivers;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.UncheckedIOException;
+import java.net.HttpURLConnection;
+import java.net.InetAddress;
+import java.net.ProtocolException;
+import java.net.ServerSocket;
+import java.net.URL;
+import java.util.Base64;
+import java.util.Collections;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
+import java.util.function.Consumer;
+
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.BeforeClass;
+import org.junit.Test;
+
+import loghub.Event;
+import loghub.LogUtils;
+import loghub.Pipeline;
+import loghub.Tools;
+import loghub.configuration.Properties;
+import loghub.decoders.StringCodec;
+
+public class TestHttp {
+
+
+    private static Logger logger;
+    private Http receiver = null;
+    private BlockingQueue<Event> queue;
+    private String hostname;
+    private int port;
+
+    @BeforeClass
+    static public void configure() throws IOException {
+        Tools.configure();
+        logger = LogManager.getLogger();
+        LogUtils.setLevel(logger, Level.TRACE, "loghub.receivers.Http", "loghub.Receiver", "loghub.netty", "loghub.EventsProcessor");
+    }
+
+    public void makeReceiver(Consumer<Http> prepare) throws IOException {
+        // Generate a locally binded random socket
+        ServerSocket socket = new ServerSocket(0, 10, InetAddress.getLoopbackAddress());
+        hostname = socket.getInetAddress().getHostAddress();
+        port = socket.getLocalPort();
+        socket.close();
+
+        queue = new ArrayBlockingQueue<>(1);
+        receiver = new Http(queue, new Pipeline(Collections.emptyList(), "testhttp", null));
+        receiver.setHost(hostname);
+        receiver.setPort(port);
+        receiver.setDecoder(new StringCodec());
+        prepare.accept(receiver);
+        Assert.assertTrue(receiver.configure(new Properties(Collections.emptyMap())));
+        receiver.start();
+    }
+
+    @After
+    public void clean() {
+        if (receiver != null) {
+            receiver.close();
+        }
+    }
+
+    private final String[] doRequest(URL destination, byte[] postDataBytes, Consumer<HttpURLConnection> prepare, int expected) throws IOException {
+        HttpURLConnection conn = (HttpURLConnection) destination.openConnection();
+        prepare.accept(conn);
+        if (postDataBytes.length > 0) {
+            conn.setRequestProperty("Content-Length", String.valueOf(postDataBytes.length));
+            conn.setDoOutput(true);
+            conn.getOutputStream().write(postDataBytes);
+        }
+        String[] result = new BufferedReader(new InputStreamReader(conn.getInputStream(), "UTF-8")).lines().toArray(String[]::new);
+        Assert.assertEquals(expected, conn.getResponseCode());
+        return result;
+    }
+
+    @Test
+    public void testHttpPostJson() throws IOException {
+        makeReceiver( i -> {});
+        doRequest(new URL("http", hostname, port, "/"),
+                "{\"a\": 1}".getBytes("UTF-8"),
+                i -> {
+                    try {
+                        i.setRequestMethod("PUT");
+                        i.setRequestProperty("Content-Type", "application/json");
+                    } catch (ProtocolException e1) {
+                        throw new UncheckedIOException(e1);
+                    }
+                }, 200);
+        Event e = queue.poll();
+        logger.debug(e.getClass());
+        Integer a = (Integer) e.get("a");
+        Assert.assertEquals(1, a.intValue());
+    }
+
+    @Test
+    public void testHttpGet() throws IOException {
+        makeReceiver( i -> {});
+        doRequest(new URL("http", hostname, port, "/?a=1"),
+                new byte[]{},
+                i -> {}, 200);
+
+        Event e = queue.poll();
+        logger.debug(e.getClass());
+        String a = (String) e.get("a");
+        Assert.assertEquals("1", a);
+    }
+
+    @Test
+    public void testHttpFull() throws IOException {
+        makeReceiver( i -> {});
+        try {
+            doRequest(new URL("http", hostname, port, "/?a=1"),
+                    new byte[]{},
+                    i -> {}, 200);
+            doRequest(new URL("http", hostname, port, "/?a=1"),
+                    new byte[]{},
+                    i -> {}, 200);
+            doRequest(new URL("http", hostname, port, "/?a=1"),
+                    new byte[]{},
+                    i -> {}, 200);
+            doRequest(new URL("http", hostname, port, "/?a=1"),
+                    new byte[]{},
+                    i -> {}, 200);
+            doRequest(new URL("http", hostname, port, "/?a=1"),
+                    new byte[]{},
+                    i -> {}, 200);
+        } catch (IOException e) {
+            Assert.assertEquals("Server returned HTTP response code: 429 for URL: http://127.0.0.1:" + receiver.getPort() + "/?a=1", e.getMessage());
+            return;
+        }
+    }
+
+    @Test
+    public void testHttpPostForm() throws IOException {
+        makeReceiver( i -> {});
+        doRequest(new URL("http", hostname, port, "/"),
+                "a=1&b=c%20d".getBytes("UTF-8"),
+                i -> {
+                    try {
+                        i.setRequestMethod("POST");
+                        i.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+                    } catch (ProtocolException e1) {
+                        throw new UncheckedIOException(e1);
+                    }
+                }, 200);
+        Event e = queue.poll();
+        logger.debug(e.getClass());
+        Assert.assertEquals("1", e.get("a"));
+        Assert.assertEquals("c d", e.get("b"));
+    }
+
+    @Test
+    public void testFailedAuthenticaiton() throws IOException {
+        try {
+            makeReceiver( i -> { i.setUser("user") ; i.setPassword("password");;});
+            doRequest(new URL("http", hostname, port, "/?a=1"),
+                    new byte[]{},
+                    i -> {}, 401);
+        } catch (IOException e) {
+            Assert.assertEquals("Server returned HTTP response code: 401 for URL: http://127.0.0.1:" + receiver.getPort() + "/?a=1", e.getMessage());
+            return;
+        }
+        Assert.fail();
+    }
+
+    @Test
+    public void testGoodAuthenticaiton() throws IOException {
+        makeReceiver( i -> { i.setUser("user") ; i.setPassword("password");});
+        URL dest = new URL("http://user:password@" + hostname + ":" + port + "/?a=1");
+        doRequest(dest,
+                new byte[]{},
+                i -> {
+                    String authStr = Base64.getEncoder().encodeToString("user:password".getBytes());
+                    i.setRequestProperty("Authorization", "Basic " + authStr);
+                }, 200);
+        Event e = queue.poll();
+        Assert.assertEquals("1", e.get("a"));
+    }
+
+}

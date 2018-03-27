@@ -1,9 +1,17 @@
 package loghub.receivers;
 
 import java.net.UnknownHostException;
+import java.nio.charset.Charset;
+import java.nio.charset.IllegalCharsetNameException;
+import java.nio.charset.StandardCharsets;
+import java.nio.charset.UnsupportedCharsetException;
+import java.util.Base64;
+import java.util.Collections;
 import java.util.Date;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
+import java.util.stream.Collectors;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -12,17 +20,24 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.ByteToMessageDecoder;
 import io.netty.handler.codec.http.FullHttpRequest;
+import io.netty.handler.codec.http.HttpHeaderNames;
+import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import io.netty.util.CharsetUtil;
+import io.netty.handler.codec.http.HttpUtil;
+import io.netty.handler.codec.http.QueryStringDecoder;
 import loghub.Decoder.DecodeException;
 import loghub.Event;
 import loghub.Pipeline;
+import loghub.ProcessorException;
 import loghub.configuration.Properties;
 import loghub.netty.http.AbstractHttpServer;
 import loghub.netty.http.HttpRequestProcessing;
+import loghub.processors.ParseJson;
 
 public class Http extends GenericTcp {
+
+    private static final ParseJson jsonParser = new ParseJson();
 
     @Sharable
     private class PostHandler extends HttpRequestProcessing {
@@ -34,17 +49,73 @@ public class Http extends GenericTcp {
 
         @Override
         protected boolean processRequest(FullHttpRequest request, ChannelHandlerContext ctx) throws HttpRequestFailure {
+            System.out.format("%s\n", request.headers().entries());
+            if (Http.this.encodedAuthentication != null) {
+                String authorization = request.headers().get(HttpHeaderNames.AUTHORIZATION);
+                System.out.format("%s, %s, %s %s\n", user, password, encodedAuthentication, authorization);
+                if (authorization == null) {
+                    throw new HttpRequestFailure(HttpResponseStatus.UNAUTHORIZED, "Authentication required", Collections.singletonMap(HttpHeaderNames.WWW_AUTHENTICATE, "Basic realm=\"loghub\""));
+                }
+            }
             Event e = Http.this.emptyEvent(Http.this.getConnectionContext(ctx, null));
             try {
-                Map<String, Object> result = Http.this.decoder.decode(e.getConnectionContext(), request.content());
-                e.putAll(result);
-                Http.this.send(e);
-            } catch (DecodeException e1) {
+                String mimeType = Optional.ofNullable(HttpUtil.getMimeType(request)).orElse("application/octet-stream").toString();
+                CharSequence encoding = Optional.ofNullable(HttpUtil.getCharsetAsSequence(request)).orElse("UTF-8");
+                if (request.method() == HttpMethod.GET) {
+                    mimeType = "application/query-string";
+                }
+                String message;
+                switch(mimeType) {
+                case "application/json":
+                case "text/plain": {
+                    Charset cs = Charset.forName(encoding.toString());
+                    message = request.content().toString(cs);
+                    break;
+                }
+                case "application/x-www-form-urlencoded": {
+                    Charset cs = Charset.forName(encoding.toString());
+                    message = "?" + request.content().toString(cs);
+                    break;
+                }
+                case "application/query-string":
+                    message = request.uri();
+                    break;
+                default:
+                    message = null;
+                }
+                switch(mimeType) {
+                case "application/x-www-form-urlencoded":
+                case "application/query-string": {
+                    QueryStringDecoder qsd = new QueryStringDecoder(message);
+                    Map<String, Object> result = qsd.parameters().entrySet().stream()
+                            .collect(Collectors.toMap(i -> i.getKey(), j -> {
+                                if (j.getValue().size() == 1) {
+                                    return (Object) j.getValue().get(0);
+                                } else {
+                                    return (Object) j.getValue();
+                                }
+                            }) );
+                    e.putAll(result);
+                    break;
+                }
+                case "application/json":
+                    e.put("__message__", message);
+                    jsonParser.processMessage(e, "__message__", "message");
+                    e.remove("__message__");
+                    break;
+                default:
+                    Map<String, Object> result = Http.this.decoder.decode(e.getConnectionContext(), request.content());
+                    e.putAll(result);
+                }
+                if (! Http.this.send(e)) {
+                    throw new HttpRequestFailure(HttpResponseStatus.TOO_MANY_REQUESTS, "Busy, try again");
+                };
+            } catch (DecodeException | ProcessorException | IllegalCharsetNameException | UnsupportedCharsetException e1) {
                 e.end();
                 logger.error("Can't decode content", e1);
                 throw new HttpRequestFailure(HttpResponseStatus.BAD_REQUEST, "Content invalid for decoder");
             }
-            ByteBuf content = Unpooled.copiedBuffer("{'decoded': true}\r\n", CharsetUtil.UTF_8);
+            ByteBuf content = Unpooled.copiedBuffer("{'decoded': true}\r\n", StandardCharsets.UTF_8);
             return writeResponse(ctx, request, content, content.readableBytes());
         }
 
@@ -55,7 +126,7 @@ public class Http extends GenericTcp {
 
         @Override
         protected Date getContentDate() {
-            return null;
+            return new Date();
         }
 
     };
@@ -70,6 +141,9 @@ public class Http extends GenericTcp {
 
     private int port;
     private String host = null;
+    private String user = null;
+    private String password = null;
+    private String encodedAuthentication = null;
 
     public Http(BlockingQueue<Event> outQueue, Pipeline pipeline) {
         super(outQueue, pipeline);
@@ -78,9 +152,13 @@ public class Http extends GenericTcp {
 
     @Override
     public boolean configure(Properties properties) {
+        if (user != null && password != null) {
+            String authString = user + ":" + password;
+            encodedAuthentication = Base64.getEncoder().encodeToString(authString.getBytes(StandardCharsets.UTF_8));
+        }
         try {
-            webserver.setPort(this.getPort());
-            webserver.setHost(this.getHost());
+            webserver.setPort(getPort());
+            webserver.setHost(getHost());
             return webserver.configure(properties) && super.configure(properties);
         } catch (UnknownHostException e) {
             logger.error("Unknow host to bind: {}", host);
@@ -124,6 +202,22 @@ public class Http extends GenericTcp {
     @Override
     protected ByteToMessageDecoder getSplitter() {
         return null;
+    }
+
+    public String getUser() {
+        return user;
+    }
+
+    public void setUser(String user) {
+        this.user = user;
+    }
+
+    public String getPassword() {
+        return password;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
     }
 
 }
