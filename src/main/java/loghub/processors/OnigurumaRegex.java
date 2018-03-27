@@ -1,6 +1,7 @@
 package loghub.processors;
 
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 
 import org.jcodings.specific.USASCIIEncoding;
 import org.jcodings.specific.UTF8Encoding;
@@ -22,13 +23,6 @@ import loghub.configuration.Properties;
  */
 public class OnigurumaRegex extends FieldsProcessor {
 
-    private static final Charset cs_utf_8;
-    private static final Charset cs_ascii;
-    static {
-        cs_utf_8 = UTF8Encoding.INSTANCE.getCharset();
-        cs_ascii = USASCIIEncoding.INSTANCE.getCharset();
-    }
-
     private String patternSrc;
     private Regex pattern_ascii;
     private Regex pattern_utf_8;
@@ -37,11 +31,13 @@ public class OnigurumaRegex extends FieldsProcessor {
     private static final ThreadLocal<char[]> holder_ascii = ThreadLocal.withInitial(() -> new char[BUFFERSIZE]);
     private static byte[] getBytesAscii(String searched) {
         int length = searched.length();
+        char[] buffer;
         if (length > BUFFERSIZE) {
-            return searched.getBytes(cs_ascii);
+            buffer = searched.toCharArray();
+        } else {
+            buffer = holder_ascii.get();
+            searched.getChars(0, length, buffer, 0);
         }
-        char[] buffer = holder_ascii.get();
-        searched.getChars(0, length, buffer, 0);
         byte b[] = new byte[length];
         for (int j = 0; j < length; j++) {
             if (buffer[j] > 127) {
@@ -60,7 +56,7 @@ public class OnigurumaRegex extends FieldsProcessor {
         } else {
             pattern_ascii = null;
         }
-        byte[] patternSrc_utf_8 = patternSrc.getBytes(cs_utf_8);
+        byte[] patternSrc_utf_8 = patternSrc.getBytes(StandardCharsets.UTF_8);
         pattern_utf_8 = new org.joni.Regex(patternSrc_utf_8, 0, patternSrc_utf_8.length, Option.NONE, UTF8Encoding.INSTANCE);
         if (pattern_utf_8.numberOfCaptures() != pattern_utf_8.numberOfNames()) {
             logger.error("Can't have two captures with same name");
@@ -86,14 +82,14 @@ public class OnigurumaRegex extends FieldsProcessor {
             regex = pattern_ascii;
             matcher = pattern_ascii.matcher(line_ascii);
             length = line.length();
-            cs = cs_ascii;
+            cs = StandardCharsets.US_ASCII;
             line_bytes = line_ascii;
         } else {
             regex = pattern_utf_8;
-            byte[] line_utf_8 = line.getBytes(cs_utf_8);
+            byte[] line_utf_8 = line.getBytes(StandardCharsets.UTF_8);
             matcher = pattern_utf_8.matcher(line_utf_8);
             length = line_utf_8.length;
-            cs = cs_utf_8;
+            cs = StandardCharsets.UTF_8;
             line_bytes = line_utf_8;
         }
         int result = matcher.search(0, length, Option.DEFAULT);
