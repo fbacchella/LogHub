@@ -15,10 +15,11 @@ import io.netty.buffer.ByteBuf;
 import loghub.Decoder.DecodeException;
 import loghub.configuration.Beans;
 import loghub.configuration.Properties;
+import loghub.receivers.Blocking;
 
 @Beans({"decoder"})
 public abstract class Receiver extends Thread implements Iterator<Event> {
-    
+
     /**
      * Any receiver that does it's own decoding should set the decoder to this value during configuration
      */
@@ -38,6 +39,7 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
 
     private final BlockingQueue<Event> outQueue;
     private final Pipeline pipeline;
+    private final boolean blocking;
     private Meter count;
     protected Decoder decoder = null;
 
@@ -46,6 +48,7 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
         this.outQueue = outQueue;
         this.pipeline = pipeline;
         logger = LogManager.getLogger(Helpers.getFistInitClass());
+        blocking = getClass().getAnnotation(Blocking.class) != null;
     }
 
     public boolean configure(Properties properties) {
@@ -140,7 +143,7 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
      */
     public void close() {
 
-    };
+    }
 
     /**
      * This method call startStream and return this as an iterator. 
@@ -214,15 +217,18 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
      * For listener that does asynchronous reception
      * @param event
      */
-    protected final void send(Event event) {
+    protected final boolean send(Event event) {
         count.mark();
         logger.debug("new event: {}", event);
         Stats.received.incrementAndGet();
-        if(! event.inject(pipeline, outQueue)) {
+        if(! event.inject(pipeline, outQueue, blocking)) {
             Stats.dropped.incrementAndGet();
             Properties.metrics.meter("Pipeline." + pipeline.getName() + ".blocked.in").mark();
             event.end();
             logger.error("send failed for {}, destination blocked", event);
+            return false;
+        } else {
+            return true;
         }
     }
 

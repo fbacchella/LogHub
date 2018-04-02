@@ -149,8 +149,8 @@ public class EventsProcessor extends Thread {
                     if (event.getNextPipeline() != null) {
                         // Send to another pipeline, loop in the main processing queue
                         Pipeline next = namedPipelines.get(event.getNextPipeline());
-                        if (! event.inject(next, inQueue)) {
-                            event.doMetric(() -> Properties.metrics.meter("Pipeline." + next.getName() + ".blocked.in").mark());
+                        if (! event.inject(next, inQueue, true)) {
+                            Stats.dropped.incrementAndGet();
                             event.end();
                         }
                     } else if (event.isTest()) {
@@ -160,10 +160,12 @@ public class EventsProcessor extends Thread {
                         event.end();
                     } else if (event.getCurrentPipeline() != null && outQueues.containsKey(event.getCurrentPipeline())){
                         // Put in the output queue, where the wanting output will come to take it
-                        if (!outQueues.get(event.getCurrentPipeline()).offer(event)) {
-                            String currentPipeline = event.getCurrentPipeline();
-                            Properties.metrics.meter("Pipeline." + currentPipeline + ".blocked.out").mark();
+                        try {
+                            outQueues.get(event.getCurrentPipeline()).put(event);
+                        } catch (InterruptedException e) {
+                            Stats.dropped.incrementAndGet();
                             event.end();
+                            Thread.currentThread().interrupt();
                         }
                     } else {
                         logger.error("Miss-configured event droped: {}", event);

@@ -158,19 +158,28 @@ class EventInstance extends Event {
         }
     }
 
-    public boolean inject(Pipeline pipeline, BlockingQueue<Event> mainqueue) {
+    /* (non-Javadoc)
+     * @see loghub.Event#inject(loghub.Pipeline, java.util.concurrent.BlockingQueue, boolean)
+     */
+    public boolean inject(Pipeline pipeline, BlockingQueue<Event> mainqueue, boolean blocking) {
         currentPipeline = pipeline.getName();
         nextPipeline = pipeline.nextPipeline;
         appendProcessors(pipeline.processors);
-        return mainqueue.offer(this);
+        if (blocking) {
+            try {
+                mainqueue.put(this);
+                return true;
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return false;
+            }
+        } else {
+            return mainqueue.offer(this);
+        }
     }
 
-    /**
-     * This method inject a new event in a pipeline as
-     * a top processing pipeline. Not to be used for sub-processing pipeline
-     * @param event
-     * @return 
-     * @throws InterruptedException 
+    /* (non-Javadoc)
+     * @see loghub.Event#inject(loghub.Event, java.util.concurrent.BlockingQueue)
      */
     public boolean inject(Event ev, BlockingQueue<Event> mainqueue) {
         EventInstance master = ev.getRealEvent();

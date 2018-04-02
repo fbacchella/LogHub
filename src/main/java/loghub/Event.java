@@ -66,9 +66,23 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
      * 
      * @param pipeline the pipeline with the processes to inject 
      * @param mainqueue the waiting queue
-     * @return
+     * @param blocking does it block or fails if the queue is full.
+     * @return true if event was injected in the pipeline.
      */
-    public abstract boolean inject(Pipeline pipeline, BlockingQueue<Event> mainqueue);
+    public abstract boolean inject(Pipeline pipeline, BlockingQueue<Event> mainqueue, boolean blocking);
+
+    /**
+     * This method inject a new event in a pipeline as
+     * a top processing pipeline. Not to be used for sub-processing pipeline.
+     * <p>It will not block if the queue is full</p>
+     * 
+     * @param pipeline
+     * @param mainqueue
+     * @return true if event was injected in the pipeline.
+     */
+    public boolean inject(Pipeline pipeline, BlockingQueue<Event> mainqueue) {
+        return inject(pipeline, mainqueue, false);
+    }
 
     public abstract boolean inject(Event master, BlockingQueue<Event> mainqueue);
 

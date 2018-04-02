@@ -26,7 +26,7 @@ public class Forwarder extends Processor {
 
     public void forward(Event event) {
         event.finishPipeline();
-        event.inject(pipeDestination, mainQueue);
+        event.inject(pipeDestination, mainQueue, true);
     }
 
     /**

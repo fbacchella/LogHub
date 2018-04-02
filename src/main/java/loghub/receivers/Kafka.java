@@ -28,6 +28,7 @@ import loghub.Helpers;
 import loghub.Pipeline;
 import loghub.Receiver;
 
+@Blocking
 public class Kafka extends Receiver {
 
     public static class KafkaContext implements ConnectionContext {
