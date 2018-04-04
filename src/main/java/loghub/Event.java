@@ -133,7 +133,7 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
      */
     @Override
     public boolean equals(Object o) {
-        return System.identityHashCode(this) == System.identityHashCode(0);
+        return System.identityHashCode(this) == System.identityHashCode(o);
     }
 
     @Override
