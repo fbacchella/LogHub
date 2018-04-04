@@ -8,7 +8,6 @@ import java.net.URL;
 import java.nio.file.Paths;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -84,9 +83,13 @@ public class ElasticSearch extends AbstractHttpSender {
     }
 
     @Override
-    protected Object flush(Collection<Event> documents) throws IOException {
+    protected Object flush(Batch documents) throws IOException {
         HttpRequest request = new HttpRequest();
-        request.setTypeAndContent("application/json", CharsetUtil.UTF_8, putContent(documents));
+        byte[] content = putContent(documents);
+        if (content == null) {
+            return null;
+        }
+        request.setTypeAndContent("application/json", CharsetUtil.UTF_8, content);
         request.setVerb("POST");
         Function<JsonNode, Object> reader = node -> {
             try {
@@ -98,18 +101,20 @@ public class ElasticSearch extends AbstractHttpSender {
         return doquery(request, "/_bulk", reader, Collections.emptyMap(), null);
     }
 
-    protected byte[] putContent(Collection<Event> documents) {
+    private byte[] putContent(Batch documents) {
         StringBuilder builder = new StringBuilder();
         Map<String, String> settings = new HashMap<>(2);
         Map<String, Object> action = Collections.singletonMap("index", settings);
         Map<String, Object> esjson = new HashMap<>();
         ObjectMapper jsonmapper = json.get();
+        int validEvents = 0;
         for(Event e: documents) {
             try {
                 if (! e.containsKey(type)) {
                     processStatus(e, CompletableFuture.completedFuture(false));
                     continue;
                 }
+                validEvents++;
                 esjson.clear();
                 esjson.putAll(e);
                 esjson.put("@timestamp", ISO8601.get().format(e.getTimestamp()));
@@ -122,6 +127,8 @@ public class ElasticSearch extends AbstractHttpSender {
                     builder.append(jsonmapper.writeValueAsString(esjson));
                     builder.append("\n");
                 } catch (JsonProcessingException ex) {
+                    logger.error("Failed to serialized {}: {}", e, ex.getMessage());
+                    logger.catching(Level.DEBUG, ex);
                 }
                 processStatus(e, CompletableFuture.completedFuture(true));
             } catch (java.lang.StackOverflowError ex) {
@@ -129,7 +136,11 @@ public class ElasticSearch extends AbstractHttpSender {
                 logger.error("Failed to serialized {}, infinite recursion", e);
             }
         }
-        return builder.toString().getBytes(CharsetUtil.UTF_8);
+        if (validEvents == 0) {
+            return null;
+        } else {
+            return builder.toString().getBytes(CharsetUtil.UTF_8);
+        }
     }
 
     private int checkMajorVersion() {

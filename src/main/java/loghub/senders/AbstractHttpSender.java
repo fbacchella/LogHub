@@ -10,14 +10,12 @@ import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.nio.charset.Charset;
 import java.security.GeneralSecurityException;
+import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Queue;
-import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -52,6 +50,8 @@ import org.apache.http.message.BasicRequestLine;
 import org.apache.http.protocol.HttpContext;
 import org.apache.http.util.VersionInfo;
 import org.apache.logging.log4j.Level;
+
+import com.codahale.metrics.Timer;
 
 import loghub.Event;
 import loghub.Helpers;
@@ -100,6 +100,16 @@ public abstract class AbstractHttpSender extends Sender {
             this.content = builder.build();
         }
     }
+
+    protected class Batch extends ArrayList<Event> {
+        Batch() {
+            super(buffersize);
+            Properties.metrics.counter("publisher." + getName() + ".activeBatches").inc();
+        }
+        public void finished() {
+            Properties.metrics.counter("publisher." + getName() + ".activeBatches").dec();
+        }
+    };
 
     protected enum ContentType {
 
@@ -184,13 +194,13 @@ public abstract class AbstractHttpSender extends Sender {
     private int port = -1;
     private String protocol = "http";
     private int timeout = 2;
-    private String login = null;
+    private String user = null;
     private String password = null;
     private CredentialsProvider credsProvider = null;
 
     private CloseableHttpClient client = null;
-    private Set<Event> batch;
-    private final Queue<Set<Event>> batches = new ConcurrentLinkedQueue<>();
+    private Batch batch;
+    private final Queue<Batch> batches = new ConcurrentLinkedQueue<>();
     private final Runnable publisher;
     protected URL[] endPoints;
     private volatile boolean closed = false;
@@ -210,16 +220,21 @@ public abstract class AbstractHttpSender extends Sender {
                             wait();
                             logger.debug("Flush initated");
                         }
-                        Set<Event> flushedBatch;
+                        Batch flushedBatch;
                         while ((flushedBatch = batches.poll()) != null){
+                            Properties.metrics.histogram("publisher." + getName() + ".batchesSize").update(flushedBatch.size());
                             if(flushedBatch.size() == 0) {
+                                flushedBatch.finished();
                                 continue;
                             } else {
                                 lastFlush = new Date().getTime();
                             }
+                            Timer.Context tctx = Properties.metrics.timer("publisher." + getName() + ".flushDuration").time();
                             try {
                                 Object response = flush(flushedBatch);
-                                logger.debug("response from http server: {}", response);
+                                if (response != null) {
+                                    logger.debug("response from http server: {}", response);
+                                }
                             } catch (IOException | UncheckedIOException e) {
                                 logger.error("IO exception: {}", e.getMessage());
                                 logger.catching(Level.DEBUG, e);
@@ -228,6 +243,8 @@ public abstract class AbstractHttpSender extends Sender {
                                 logger.error("Unexpected exception: {}", message);
                                 logger.catching(e);
                             }
+                            flushedBatch.finished();
+                            tctx.close();
                         }
                     }
                 } catch (InterruptedException e) {
@@ -247,7 +264,8 @@ public abstract class AbstractHttpSender extends Sender {
         }
 
         // Create the senders threads and the common queue
-        batch = new HashSet<>(buffersize);
+        batch = new Batch();
+
         threads = new Thread[publisherThreads];
         for (int i = 1 ; i <= publisherThreads ; i++) {
             String tname =  getPublishName() + "Publisher" + i;
@@ -273,6 +291,9 @@ public abstract class AbstractHttpSender extends Sender {
         cm.setMaxTotal( 2 * publisherThreads);
         cm.setValidateAfterInactivity(timeout * 1000);
         builder.setConnectionManager(cm);
+        if (properties.ssl != null) {
+            builder.setSSLContext(properties.ssl);
+        }
 
         builder.setDefaultRequestConfig(RequestConfig.custom()
                 .setConnectionRequestTimeout(timeout * 1000)
@@ -298,12 +319,12 @@ public abstract class AbstractHttpSender extends Sender {
 
         client = builder.build();
 
-        if (login != null && password != null) {
+        if (user != null && password != null) {
             credsProvider = new BasicCredentialsProvider();
             for(URL i: endPoints) {
                 credsProvider.setCredentials(
                         new AuthScope(i.getHost(), i.getPort()), 
-                        new UsernamePasswordCredentials(login, password));
+                        new UsernamePasswordCredentials(user, password));
             }
         }
 
@@ -313,7 +334,7 @@ public abstract class AbstractHttpSender extends Sender {
                 long now = new Date().getTime();
                 if (( now - lastFlush) > 5000) {
                     batches.add(batch);
-                    batch = new HashSet<>(buffersize);
+                    batch = new Batch();
                     publisher.notify();
                 }
             }
@@ -328,7 +349,7 @@ public abstract class AbstractHttpSender extends Sender {
         closed = true;
         synchronized(publisher) {
             batches.add(batch);
-            batch = new HashSet<>(buffersize);
+            batch = new Batch();
             publisher.notify();
         }
         // Notify all publisher threads that publication is finished
@@ -353,10 +374,10 @@ public abstract class AbstractHttpSender extends Sender {
         }
         synchronized(publisher) {
             batch.add(event);
-            if (batch.size() > buffersize) {
+            if (batch.size() >= buffersize) {
                 logger.debug("queue full, flush");
                 batches.add(batch);
-                batch = new HashSet<>(buffersize);
+                batch = new Batch();
                 publisher.notify();
                 if (batches.size() > publisherThreads) {
                     logger.warn("Waiting flush batches, added flushing threads");
@@ -366,7 +387,7 @@ public abstract class AbstractHttpSender extends Sender {
         return true;
     }
 
-    protected abstract Object flush(Collection<Event> documents) throws IOException;
+    protected abstract Object flush(Batch documents) throws IOException;
 
     protected HttpResponse doRequest(HttpRequest therequest) {
 
@@ -479,14 +500,28 @@ public abstract class AbstractHttpSender extends Sender {
      * @return the login
      */
     public String getLogin() {
-        return login;
+        return user;
     }
 
     /**
      * @param login the login to set
      */
     public void setLogin(String login) {
-        this.login = login;
+        this.user = login;
+    }
+
+    /**
+     * @return the login
+     */
+    public String getUser() {
+        return user;
+    }
+
+    /**
+     * @param login the login to set
+     */
+    public void setUser(String login) {
+        this.user = login;
     }
 
     public String getPassword() {
