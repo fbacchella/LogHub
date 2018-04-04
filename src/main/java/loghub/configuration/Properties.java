@@ -241,7 +241,7 @@ public class Properties extends HashMap<String, Object> {
             httpPort = -1;
         }
 
-        ssl = ContextLoader.build(entrySet().stream().filter(i -> i.getKey().startsWith("ssl.")).collect(Collectors.toMap( i -> i.getKey().substring(4), j -> j.getValue())));
+        ssl = ContextLoader.build(properties.entrySet().stream().filter(i -> i.getKey().startsWith("ssl.")).collect(Collectors.toMap( i -> i.getKey().substring(4), j -> j.getValue())));
 
         sources = (Map<String, Source>) properties.remove(PROPSNAMES.SOURCES.toString());
 

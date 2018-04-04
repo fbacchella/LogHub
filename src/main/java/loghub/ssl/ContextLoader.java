@@ -30,6 +30,7 @@ public class ContextLoader {
     }
 
     public static SSLContext build(Map<String, Object> properties) {
+        logger.debug("Configuring ssl context with {}", () -> properties);
         SSLContext newCtxt = null;
         try {
             String sslContextName = properties.getOrDefault("context", "TLS").toString();

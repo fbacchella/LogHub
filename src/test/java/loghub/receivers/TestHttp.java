@@ -160,7 +160,7 @@ public class TestHttp {
     }
 
     @Test
-    public void testFailedAuthenticaiton() throws IOException {
+    public void testFailedAuthentication1() throws IOException {
         try {
             makeReceiver( i -> { i.setUser("user") ; i.setPassword("password");;});
             doRequest(new URL("http", hostname, port, "/?a=1"),
@@ -174,9 +174,27 @@ public class TestHttp {
     }
 
     @Test
-    public void testGoodAuthenticaiton() throws IOException {
+    public void testFailedAuthentication2() throws IOException {
+        try {
+            makeReceiver( i -> { i.setUser("user") ; i.setPassword("password");;});
+            URL dest = new URL("http", hostname, port, "/?a=1");
+            doRequest(dest,
+                    new byte[]{},
+                    i -> {
+                        String authStr = Base64.getEncoder().encodeToString("user:badpassword".getBytes());
+                        i.setRequestProperty("Authorization", "Basic " + authStr);
+                    }, 401);
+        } catch (IOException e) {
+            Assert.assertEquals("Server returned HTTP response code: 401 for URL: http://127.0.0.1:" + receiver.getPort() + "/?a=1", e.getMessage());
+            return;
+        }
+        Assert.fail();
+    }
+
+    @Test
+    public void testGoodAuthentication() throws IOException {
         makeReceiver( i -> { i.setUser("user") ; i.setPassword("password");});
-        URL dest = new URL("http://user:password@" + hostname + ":" + port + "/?a=1");
+        URL dest = new URL("http", hostname, port, "/?a=1");
         doRequest(dest,
                 new byte[]{},
                 i -> {
