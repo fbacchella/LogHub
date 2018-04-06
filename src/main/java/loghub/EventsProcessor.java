@@ -44,7 +44,7 @@ public class EventsProcessor extends Thread {
         @Override
         public
         void close() {
-            if (timer !=null) {
+            if (timer != null) {
                 timer.close();
             }
         }

@@ -15,7 +15,6 @@ import loghub.configuration.Beans;
 @Beans({"field", "objectFied"})
 public class SerializedObject extends Decoder {
 
-
     private String field = "message";
     private String objectFied = "objectClass";
 
