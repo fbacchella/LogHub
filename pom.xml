@@ -144,7 +144,12 @@
         <dependency>
             <groupId>io.dropwizard.metrics</groupId>
             <artifactId>metrics-core</artifactId>
-            <version>3.2.6</version>
+            <version>4.0.0</version>
+        </dependency>
+        <dependency>
+            <groupId>io.dropwizard.metrics</groupId>
+            <artifactId>metrics-jmx</artifactId>
+            <version>4.0.0</version>
         </dependency>
         <dependency>
             <groupId>com.github.jsendnsca</groupId>

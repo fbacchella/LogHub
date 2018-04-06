@@ -25,10 +25,10 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.zeromq.ZMQ.Socket;
 
-import com.codahale.metrics.JmxReporter.JmxCounterMBean;
-import com.codahale.metrics.JmxReporter.JmxGaugeMBean;
-import com.codahale.metrics.JmxReporter.JmxMeterMBean;
-import com.codahale.metrics.JmxReporter.JmxTimerMBean;
+import com.codahale.metrics.jmx.JmxReporter.JmxCounterMBean;
+import com.codahale.metrics.jmx.JmxReporter.JmxGaugeMBean;
+import com.codahale.metrics.jmx.JmxReporter.JmxMeterMBean;
+import com.codahale.metrics.jmx.JmxReporter.JmxTimerMBean;
 
 import loghub.configuration.ConfigException;
 import loghub.configuration.Configuration;

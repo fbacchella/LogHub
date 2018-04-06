@@ -20,15 +20,15 @@ import org.apache.logging.log4j.Logger;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
-import com.codahale.metrics.JmxReporter;
+import com.codahale.metrics.jmx.JmxReporter;
 
 import loghub.configuration.ConfigException;
 import loghub.configuration.Configuration;
 import loghub.configuration.Properties;
 import loghub.configuration.TestEventProcessing;
 import loghub.jmx.Helper;
-import loghub.jmx.StatsMBean;
 import loghub.jmx.PipelineStat;
+import loghub.jmx.StatsMBean;
 import loghub.netty.http.AbstractHttpServer;
 import loghub.processors.FieldsProcessor;
 

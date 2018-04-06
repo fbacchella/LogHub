@@ -1,6 +1,5 @@
 package loghub;
 
-import java.io.Closeable;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -36,20 +35,6 @@ public class EventsProcessor extends Thread {
 
     private final static Logger logger = LogManager.getLogger();
 
-    private static class ContextWrapper implements Closeable, AutoCloseable {
-        private final Context timer;
-        ContextWrapper(Context timer) {
-            this.timer = timer;
-        }
-        @Override
-        public
-        void close() {
-            if (timer != null) {
-                timer.close();
-            }
-        }
-    }
-
     private final BlockingQueue<Event> inQueue;
     private final Map<String, BlockingQueue<Event>> outQueues;
     private final Map<String,Pipeline> namedPipelines;
@@ -82,7 +67,7 @@ public class EventsProcessor extends Thread {
                     gaugecounter.get().inc();
                 });
             }
-            try (ContextWrapper cw = new ContextWrapper(event.isTest() ? null : Properties.metrics.timer("Pipeline." + event.getCurrentPipeline() + ".timer").time())){
+            try (Context cw = event.isTest() ? null : Properties.metrics.timer("Pipeline." + event.getCurrentPipeline() + ".timer").time()){
                 { // Needed because eventtemp must be final
                     final Event eventtemp  = event;
                     logger.trace("received {} in {}", () -> eventtemp, () -> eventtemp.getCurrentPipeline());

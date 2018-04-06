@@ -8,9 +8,9 @@ import javax.management.NotCompliantMBeanException;
 import javax.management.ObjectName;
 import javax.management.StandardMBean;
 
-import com.codahale.metrics.JmxReporter.JmxCounterMBean;
-import com.codahale.metrics.JmxReporter.JmxMeterMBean;
-import com.codahale.metrics.JmxReporter.JmxTimerMBean;
+import com.codahale.metrics.jmx.JmxReporter.JmxCounterMBean;
+import com.codahale.metrics.jmx.JmxReporter.JmxMeterMBean;
+import com.codahale.metrics.jmx.JmxReporter.JmxTimerMBean;
 
 @MXBean
 public interface PipelineStat {
