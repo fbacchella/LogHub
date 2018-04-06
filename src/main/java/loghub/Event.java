@@ -62,7 +62,8 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
 
     /**
      * This method inject a new event in a pipeline as
-     * a top processing pipeline. Not to be used for sub-processing pipeline
+     * a top processing pipeline. Not to be used for sub-processing pipeline. It can only
+     * be used for a new event.
      * 
      * @param pipeline the pipeline with the processes to inject 
      * @param mainqueue the waiting queue
@@ -73,7 +74,8 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
 
     /**
      * This method inject a new event in a pipeline as
-     * a top processing pipeline. Not to be used for sub-processing pipeline.
+     * a top processing pipeline. Not to be used for sub-processing pipeline. It can only
+     * be used for a new event.
      * <p>It will not block if the queue is full</p>
      * 
      * @param pipeline
@@ -83,6 +85,14 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
     public boolean inject(Pipeline pipeline, BlockingQueue<Event> mainqueue) {
         return inject(pipeline, mainqueue, false);
     }
+
+    /**
+     * Refill this event with the content of this pipeline. Used when forwarding an event 
+     * to a another pipeline
+     * 
+     * @param pipeline
+     */
+    public abstract void refill(Pipeline pipeline);
 
     public abstract boolean inject(Event master, BlockingQueue<Event> mainqueue);
 

@@ -158,6 +158,13 @@ class EventInstance extends Event {
         }
     }
 
+    @Override
+    public void refill(Pipeline pipeline) {
+        currentPipeline = pipeline.getName();
+        nextPipeline = pipeline.nextPipeline;
+        appendProcessors(pipeline.processors);
+    }
+
     /* (non-Javadoc)
      * @see loghub.Event#inject(loghub.Pipeline, java.util.concurrent.BlockingQueue, boolean)
      */

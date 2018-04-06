@@ -87,56 +87,63 @@ public class EventsProcessor extends Thread {
                     final Event eventtemp  = event;
                     logger.trace("received {} in {}", () -> eventtemp, () -> eventtemp.getCurrentPipeline());
                 }
-                Processor processor;
-                while ((processor = event.next()) != null) {
+                Processor processor = event.next();
+                while (processor != null) {
                     logger.trace("processing with {}", processor);
                     if (processor instanceof WrapEvent) {
                         event = new EventWrapper(event, processor.getPathArray());
-                        continue;
                     } else if (processor instanceof UnwrapEvent) {
                         event = event.unwrap();
-                        continue;
+                    } else {
+                        ProcessingStatus processingstatus = process(event, processor);
+                        if (processingstatus != ProcessingStatus.SUCCESS) {
+                            event.doMetric(() -> {
+                                gaugecounter.get().dec();
+                                gaugecounter.set(null);
+                            });
+                            // Processing status was non null, so the event will not be processed any more
+                            // But it's needed to check why.
+                            String currentPipeline = event.getCurrentPipeline();
+                            switch (processingstatus) {
+                            case DROPED: {
+                                //It was a drop action
+                                logger.debug("dropped event {}", event);
+                                event.doMetric(() -> {
+                                    Properties.metrics.meter("Allevents.dropped");
+                                    Properties.metrics.meter("Pipeline." + currentPipeline + ".dropped").mark();
+                                });
+                                event.drop();
+                                break;
+                            }
+                            case FAILED: {
+                                //Processing failed critically (with an exception) and no recovery was attempted
+                                logger.debug("Failed event {}", event);
+                                event.doMetric(() -> {
+                                    Properties.metrics.meter("Allevents.failed");
+                                    Properties.metrics.meter("Pipeline." + currentPipeline + ".failed").mark();
+                                });
+                                event.end();
+                                break;
+                            }
+                            case PAUSED:
+                                //It's simply a paused event, nothing to worry
+                                break;
+                            case SUCCESS:
+                                // Unreachable code
+                                break;
+                            }
+                            // It was not a success, end the processing.
+                            event = null;
+                            break;
+                        }
                     }
-                    ProcessingStatus processingstatus = process(event, processor);
-                    if (processingstatus != ProcessingStatus.SUCCESS) {
-                        event.doMetric(() -> {
-                            gaugecounter.get().dec();
-                            gaugecounter.set(null);
-                        });
-                        // Processing status was non null, so the event will not be processed any more
-                        // But it's needed to check why.
-                        String currentPipeline = event.getCurrentPipeline();
-                        switch (processingstatus) {
-                        case DROPED: {
-                            //It was a drop action
-                            logger.debug("dropped event {}", event);
-                            event.doMetric(() -> {
-                                Properties.metrics.meter("Allevents.dropped");
-                                Properties.metrics.meter("Pipeline." + currentPipeline + ".dropped").mark();
-                            });
-                            event.drop();
-                            break;
-                        }
-                        case FAILED: {
-                            //Processing failed critically (with an exception) and no recovery was attempted
-                            logger.debug("Failed event {}", event);
-                            event.doMetric(() -> {
-                                Properties.metrics.meter("Allevents.failed");
-                                Properties.metrics.meter("Pipeline." + currentPipeline + ".failed").mark();
-                            });
-                            event.end();
-                            break;
-                        }
-                        case PAUSED:
-                            //It's simply a paused event, nothing to worry
-                            break;
-                        case SUCCESS:
-                            // Unreachable code
-                            break;
-                        }
-                        // It was not a success, end the processing.
-                        event = null;
-                        break;
+                    processor = event.next();
+                    // If next processor is null, refill the event
+                    while (processor == null && event.getNextPipeline() != null) {
+                        // Send to another pipeline, loop in the main processing queue
+                        Pipeline next = namedPipelines.get(event.getNextPipeline());
+                        event.refill(next);
+                        processor = event.next();
                     }
                 }
                 // Processing of the event is finished, what to do next with it ?
@@ -146,14 +153,7 @@ public class EventsProcessor extends Thread {
                         gaugecounter.get().dec();
                         gaugecounter.set(null);
                     });
-                    if (event.getNextPipeline() != null) {
-                        // Send to another pipeline, loop in the main processing queue
-                        Pipeline next = namedPipelines.get(event.getNextPipeline());
-                        if (! event.inject(next, inQueue, true)) {
-                            Stats.dropped.incrementAndGet();
-                            event.end();
-                        }
-                    } else if (event.isTest()) {
+                    if (event.isTest()) {
                         // A test event, it will not be send an output queue
                         // Checked after pipeline forwarding, but before output sending
                         TestEventProcessing.log(event);

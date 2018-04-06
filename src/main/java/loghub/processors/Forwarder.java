@@ -1,7 +1,5 @@
 package loghub.processors;
 
-import java.util.concurrent.BlockingQueue;
-
 import loghub.Event;
 import loghub.Pipeline;
 import loghub.Processor;
@@ -17,7 +15,6 @@ public class Forwarder extends Processor {
 
     private String destination;
     private Pipeline pipeDestination;
-    private BlockingQueue<Event> mainQueue;
 
     @Override
     public boolean process(Event event) {
@@ -26,7 +23,8 @@ public class Forwarder extends Processor {
 
     public void forward(Event event) {
         event.finishPipeline();
-        event.inject(pipeDestination, mainQueue, true);
+        event.refill(pipeDestination);
+
     }
 
     /**
@@ -50,7 +48,6 @@ public class Forwarder extends Processor {
             return false;
         }
         pipeDestination = properties.namedPipeLine.get(destination);
-        mainQueue = properties.mainQueue;
         return super.configure(properties);
     }
 
