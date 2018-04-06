@@ -104,10 +104,10 @@ public abstract class AbstractHttpSender extends Sender {
     protected class Batch extends ArrayList<Event> {
         Batch() {
             super(buffersize);
-            Properties.metrics.counter("publisher." + getName() + ".activeBatches").inc();
+            Properties.metrics.counter("sender." + getName() + ".activeBatches").inc();
         }
         public void finished() {
-            Properties.metrics.counter("publisher." + getName() + ".activeBatches").dec();
+            Properties.metrics.counter("sender." + getName() + ".activeBatches").dec();
         }
     };
 
@@ -222,14 +222,14 @@ public abstract class AbstractHttpSender extends Sender {
                         }
                         Batch flushedBatch;
                         while ((flushedBatch = batches.poll()) != null){
-                            Properties.metrics.histogram("publisher." + getName() + ".batchesSize").update(flushedBatch.size());
+                            Properties.metrics.histogram("sender." + getName() + ".batchesSize").update(flushedBatch.size());
                             if(flushedBatch.size() == 0) {
                                 flushedBatch.finished();
                                 continue;
                             } else {
                                 lastFlush = new Date().getTime();
                             }
-                            Timer.Context tctx = Properties.metrics.timer("publisher." + getName() + ".flushDuration").time();
+                            Timer.Context tctx = Properties.metrics.timer("sender." + getName() + ".flushDuration").time();
                             try {
                                 Object response = flush(flushedBatch);
                                 if (response != null) {

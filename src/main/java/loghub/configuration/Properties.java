@@ -12,9 +12,13 @@ import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.function.BiFunction;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import javax.management.MBeanServer;
+import javax.management.MalformedObjectNameException;
+import javax.management.ObjectName;
 import javax.net.ssl.SSLContext;
 
 import org.apache.logging.log4j.Level;
@@ -25,7 +29,9 @@ import org.apache.logging.log4j.core.LoggerContext;
 import com.codahale.metrics.Counter;
 import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Histogram;
+import com.codahale.metrics.jmx.DefaultObjectNameFactory;
 import com.codahale.metrics.jmx.JmxReporter;
+import com.codahale.metrics.jmx.ObjectNameFactory;
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.Metric;
 import com.codahale.metrics.MetricRegistry;
@@ -80,7 +86,28 @@ public class Properties extends HashMap<String, Object> {
         }
 
         public JmxReporter getJmxReporter() {
-            return JmxReporter.forRegistry(metrics).build();
+            ObjectNameFactory donf = new DefaultObjectNameFactory();
+            final Pattern pipepattern = Pattern.compile("([^\\.]+)\\.([^\\.]+)\\.(.*)");
+            return JmxReporter.forRegistry(metrics).createsObjectNamesWith(new ObjectNameFactory() {
+                @Override
+                public ObjectName createName(String type, String domain, String name) {
+                    Matcher m = pipepattern.matcher(name);
+                    if (m.matches()) {
+                        String service = m.group(1);
+                        String servicename = m.group(2);
+                        String metric = m.group(3);
+                        try {
+                            ObjectName on = new ObjectName(String.format("loghub:type=%s,servicename=%s,name=%s", service, servicename, metric));
+                            return on;
+                        } catch (MalformedObjectNameException e) {
+                            return donf.createName(type, domain, name);
+                        }
+                    } else {
+                        return donf.createName(type, domain, name);
+                    }
+                }
+                
+            }).build();
         }
     };
 
