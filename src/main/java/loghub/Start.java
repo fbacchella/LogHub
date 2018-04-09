@@ -12,7 +12,6 @@ import javax.management.MBeanRegistrationException;
 import javax.management.MBeanServer;
 import javax.management.MalformedObjectNameException;
 import javax.management.NotCompliantMBeanException;
-import javax.management.ObjectName;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -27,7 +26,6 @@ import loghub.configuration.Configuration;
 import loghub.configuration.Properties;
 import loghub.configuration.TestEventProcessing;
 import loghub.jmx.Helper;
-import loghub.jmx.PipelineStat;
 import loghub.jmx.StatsMBean;
 import loghub.netty.http.AbstractHttpServer;
 import loghub.processors.FieldsProcessor;
@@ -209,17 +207,6 @@ public class Start {
             mbs.registerMBean(new StatsMBean.Implementation(), StatsMBean.Implementation.NAME);
             JmxReporter reporter = Properties.metrics.getJmxReporter();
             reporter.start();
-            mbs.queryNames(ObjectName.getInstance("metrics", "name", "Pipeline.*.timer"), null).stream()
-            .map( i-> i.getKeyProperty("name"))
-            .map( i -> i.replaceAll("^Pipeline\\.(.*)\\.timer$", "$1"))
-            .forEach(
-                    i -> {
-                        try {
-                            mbs.registerMBean(new PipelineStat.Implementation(i), null);
-                        } catch (NotCompliantMBeanException | InstanceAlreadyExistsException | MBeanRegistrationException e) {
-                        }
-                    })
-            ;
             int port = props.jmxport;
             if (port > 0) {
                 Helper.start(props.jmxproto, props.jmxlisten, port);
