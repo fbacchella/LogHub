@@ -6,12 +6,17 @@ import java.io.IOException;
 import java.io.NotSerializableException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
+import java.util.Deque;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Queue;
 import java.util.concurrent.BlockingQueue;
 
 import org.apache.logging.log4j.Level;
@@ -20,6 +25,7 @@ import org.apache.logging.log4j.Logger;
 
 import com.codahale.metrics.Timer.Context;
 
+import loghub.PausingTimer.PausingContext;
 import loghub.configuration.Properties;
 
 class EventInstance extends Event {
@@ -28,13 +34,57 @@ class EventInstance extends Event {
 
     private transient EventWrapper wevent;
     private transient LinkedList<Processor> processors = new LinkedList<>();
+
+    private final transient Queue<PausingContext> timersStack = Collections.asLifoQueue(new ArrayDeque<PausingContext>());
+    private transient Deque<String> pipelineNames = new ArrayDeque<>();
+    private transient Context timer;
+
     private String currentPipeline;
     private String nextPipeline;
     private Date timestamp = new Date();
-    private transient Context timer;
     private int stepsCount = 0;
     private boolean test;
     private final ConnectionContext ctx;
+    private final Processor preSubpipline = new Processor() {
+        private String pipename = "__unknown__";
+        @Override
+        public boolean process(Event event) throws ProcessorException {
+            PausingContext previouspc = EventInstance.this.timersStack.peek();
+            if (previouspc != null) {
+                previouspc.pause();
+            }
+            pipename = pipelineNames.remove();
+            PausingContext newpc = (PausingContext) Properties.metrics.pausingTimer("Pipeline." + pipename + ".timer").time();
+            EventInstance.this.timersStack.add(newpc);
+            return true;
+        }
+
+        @Override
+        public String toString() {
+            return "Processor/preSubpipline/" + pipename;
+        }
+        
+    };
+    private final Processor postSubpipline = new Processor() {
+        @Override
+        public boolean process(Event event) throws ProcessorException {
+            try {
+                EventInstance.this.timersStack.remove().close();
+            } catch (NoSuchElementException e1) {
+                throw new ProcessorException(EventInstance.this, "Empty timer stack, bad state");
+            }
+            PausingContext previouspc = EventInstance.this.timersStack.peek();
+            if (previouspc != null) {
+                previouspc.restart();
+            }
+            return true;
+        }
+        @Override
+        public String toString() {
+            return "Processor/postSubpipline";
+        }
+        
+    };
 
     EventInstance(ConnectionContext ctx) {
         this(ctx, false);
@@ -148,7 +198,12 @@ class EventInstance extends Event {
         logger.trace("inject processor {} at {}", () -> p, () -> append ? "end" : "start" );
         if (p instanceof SubPipeline) {
             SubPipeline sp = (SubPipeline) p;
-            addProcessors(sp.getPipeline().processors, append);
+            pipelineNames.add(sp.getPipeline().getName());
+            List<Processor> newProcessors = new ArrayList<>(sp.getPipeline().processors.size() + 2);
+            newProcessors.add(preSubpipline);
+            newProcessors.addAll(sp.getPipeline().processors);
+            newProcessors.add(postSubpipline);
+            addProcessors(newProcessors, append);
         } else {
             if (append) {
                 processors.add(p);
@@ -161,8 +216,11 @@ class EventInstance extends Event {
     @Override
     public void refill(Pipeline pipeline) {
         currentPipeline = pipeline.getName();
+        pipelineNames.add(currentPipeline);
         nextPipeline = pipeline.nextPipeline;
+        appendProcessor(preSubpipline);
         appendProcessors(pipeline.processors);
+        appendProcessor(postSubpipline);
     }
 
     /* (non-Javadoc)
@@ -170,8 +228,11 @@ class EventInstance extends Event {
      */
     public boolean inject(Pipeline pipeline, BlockingQueue<Event> mainqueue, boolean blocking) {
         currentPipeline = pipeline.getName();
+        pipelineNames.add(currentPipeline);
         nextPipeline = pipeline.nextPipeline;
+        appendProcessor(preSubpipline);
         appendProcessors(pipeline.processors);
+        appendProcessor(postSubpipline);
         if (blocking) {
             try {
                 mainqueue.put(this);
@@ -197,6 +258,9 @@ class EventInstance extends Event {
     }
 
     public void finishPipeline() {
+        timersStack.forEach(i ->i.close());
+        timersStack.clear();
+        pipelineNames.clear();
         processors.clear();
     }
 

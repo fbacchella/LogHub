@@ -5,7 +5,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.UUID;
@@ -29,17 +28,18 @@ import org.apache.logging.log4j.core.LoggerContext;
 import com.codahale.metrics.Counter;
 import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Histogram;
-import com.codahale.metrics.jmx.DefaultObjectNameFactory;
-import com.codahale.metrics.jmx.JmxReporter;
-import com.codahale.metrics.jmx.ObjectNameFactory;
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.Metric;
 import com.codahale.metrics.MetricRegistry;
+import com.codahale.metrics.jmx.DefaultObjectNameFactory;
+import com.codahale.metrics.jmx.JmxReporter;
+import com.codahale.metrics.jmx.ObjectNameFactory;
 
 import groovy.lang.GroovyClassLoader;
 import io.netty.util.concurrent.Future;
 import loghub.Event;
 import loghub.EventsRepository;
+import loghub.PausingTimer;
 import loghub.Pipeline;
 import loghub.Processor;
 import loghub.Receiver;
@@ -75,6 +75,10 @@ public class Properties extends HashMap<String, Object> {
 
         public com.codahale.metrics.Timer timer(String name) {
             return metrics.timer(name);
+        }
+
+        public PausingTimer pausingTimer(String name) {
+            return (PausingTimer) metrics.timer(name, PausingTimer.pausingsupplier);
         }
 
         public void reset() {
@@ -154,7 +158,7 @@ public class Properties extends HashMap<String, Object> {
     public final EventsRepository<Future<?>> repository;
     public final SSLContext ssl;
 
-    private final Timer timer = new Timer("loghubtimer", true);
+    public final Timer timer = new Timer("loghubtimer", true);
     private final CacheManager cacheManager;
 
     @SuppressWarnings("unchecked")
@@ -211,18 +215,15 @@ public class Properties extends HashMap<String, Object> {
             formatters = Collections.emptyMap();
         }
 
-        // Extracts all the top pipeline and generate metrics for them
-        final Set<String> toppipelines = (Set<String>) properties.remove(PROPSNAMES.TOPPIPELINE.toString());
-        if (toppipelines != null) {
-            toppipelines.stream().forEach( i -> {
-                metrics.counter("Pipeline." + i + ".inflight");
-                metrics.timer("Pipeline." + i + ".timer");
-                metrics.meter("Pipeline." + i + ".failed");
-                metrics.meter("Pipeline." + i + ".dropped");
-                metrics.meter("Pipeline." + i + ".blocked.in");
-                metrics.meter("Pipeline." + i + ".blocked.out");
-            });
-        }
+        // Extracts all the named pipelines and generate metrics for them
+        namedPipeLine.keySet().stream().forEach( i -> {
+            metrics.counter("Pipeline." + i + ".inflight");
+            metrics.pausingTimer("Pipeline." + i + ".timer");
+            metrics.meter("Pipeline." + i + ".failed");
+            metrics.meter("Pipeline." + i + ".dropped");
+            metrics.meter("Pipeline." + i + ".blocked.in");
+            metrics.meter("Pipeline." + i + ".blocked.out");
+        });
         metrics.counter("Allevents.inflight");
         metrics.timer("Allevents.timer");
         //Read the jmx configuration

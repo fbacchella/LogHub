@@ -10,7 +10,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.codahale.metrics.Counter;
-import com.codahale.metrics.Timer.Context;
 
 import io.netty.util.concurrent.Future;
 import loghub.configuration.Properties;
@@ -67,98 +66,96 @@ public class EventsProcessor extends Thread {
                     gaugecounter.get().inc();
                 });
             }
-            try (Context cw = event.isTest() ? null : Properties.metrics.timer("Pipeline." + event.getCurrentPipeline() + ".timer").time()){
-                { // Needed because eventtemp must be final
-                    final Event eventtemp  = event;
-                    logger.trace("received {} in {}", () -> eventtemp, () -> eventtemp.getCurrentPipeline());
-                }
-                Processor processor = event.next();
-                while (processor != null) {
-                    logger.trace("processing with {}", processor);
-                    if (processor instanceof WrapEvent) {
-                        event = new EventWrapper(event, processor.getPathArray());
-                    } else if (processor instanceof UnwrapEvent) {
-                        event = event.unwrap();
-                    } else {
-                        ProcessingStatus processingstatus = process(event, processor);
-                        if (processingstatus != ProcessingStatus.SUCCESS) {
+            { // Needed because eventtemp must be final
+                final Event eventtemp  = event;
+                logger.trace("received {} in {}", () -> eventtemp, () -> eventtemp.getCurrentPipeline());
+            }
+            Processor processor = event.next();
+            while (processor != null) {
+                logger.trace("processing with {}", processor);
+                if (processor instanceof WrapEvent) {
+                    event = new EventWrapper(event, processor.getPathArray());
+                } else if (processor instanceof UnwrapEvent) {
+                    event = event.unwrap();
+                } else {
+                    ProcessingStatus processingstatus = process(event, processor);
+                    if (processingstatus != ProcessingStatus.SUCCESS) {
+                        event.doMetric(() -> {
+                            gaugecounter.get().dec();
+                            gaugecounter.set(null);
+                        });
+                        // Processing status was non null, so the event will not be processed any more
+                        // But it's needed to check why.
+                        String currentPipeline = event.getCurrentPipeline();
+                        switch (processingstatus) {
+                        case DROPED: {
+                            //It was a drop action
+                            logger.debug("dropped event {}", event);
                             event.doMetric(() -> {
-                                gaugecounter.get().dec();
-                                gaugecounter.set(null);
+                                Properties.metrics.meter("Allevents.dropped");
+                                Properties.metrics.meter("Pipeline." + currentPipeline + ".dropped").mark();
                             });
-                            // Processing status was non null, so the event will not be processed any more
-                            // But it's needed to check why.
-                            String currentPipeline = event.getCurrentPipeline();
-                            switch (processingstatus) {
-                            case DROPED: {
-                                //It was a drop action
-                                logger.debug("dropped event {}", event);
-                                event.doMetric(() -> {
-                                    Properties.metrics.meter("Allevents.dropped");
-                                    Properties.metrics.meter("Pipeline." + currentPipeline + ".dropped").mark();
-                                });
-                                event.drop();
-                                break;
-                            }
-                            case FAILED: {
-                                //Processing failed critically (with an exception) and no recovery was attempted
-                                logger.debug("Failed event {}", event);
-                                event.doMetric(() -> {
-                                    Properties.metrics.meter("Allevents.failed");
-                                    Properties.metrics.meter("Pipeline." + currentPipeline + ".failed").mark();
-                                });
-                                event.end();
-                                break;
-                            }
-                            case PAUSED:
-                                //It's simply a paused event, nothing to worry
-                                break;
-                            case SUCCESS:
-                                // Unreachable code
-                                break;
-                            }
-                            // It was not a success, end the processing.
-                            event = null;
+                            event.drop();
                             break;
                         }
-                    }
-                    processor = event.next();
-                    // If next processor is null, refill the event
-                    while (processor == null && event.getNextPipeline() != null) {
-                        // Send to another pipeline, loop in the main processing queue
-                        Pipeline next = namedPipelines.get(event.getNextPipeline());
-                        event.refill(next);
-                        processor = event.next();
-                    }
-                }
-                // Processing of the event is finished, what to do next with it ?
-                //Detect if will send to another pipeline, or just wait for a sender to take it
-                if (event != null) {
-                    event.doMetric(() -> {
-                        gaugecounter.get().dec();
-                        gaugecounter.set(null);
-                    });
-                    if (event.isTest()) {
-                        // A test event, it will not be send an output queue
-                        // Checked after pipeline forwarding, but before output sending
-                        TestEventProcessing.log(event);
-                        event.end();
-                    } else if (event.getCurrentPipeline() != null && outQueues.containsKey(event.getCurrentPipeline())){
-                        // Put in the output queue, where the wanting output will come to take it
-                        try {
-                            outQueues.get(event.getCurrentPipeline()).put(event);
-                        } catch (InterruptedException e) {
-                            Stats.dropped.incrementAndGet();
+                        case FAILED: {
+                            //Processing failed critically (with an exception) and no recovery was attempted
+                            logger.debug("Failed event {}", event);
+                            event.doMetric(() -> {
+                                Properties.metrics.meter("Allevents.failed");
+                                Properties.metrics.meter("Pipeline." + currentPipeline + ".failed").mark();
+                            });
                             event.end();
-                            Thread.currentThread().interrupt();
+                            break;
                         }
-                    } else {
-                        logger.error("Miss-configured event droped: {}", event);
-                        Properties.metrics.meter("Allevents.failed");
-                        event.end();
+                        case PAUSED:
+                            //It's simply a paused event, nothing to worry
+                            break;
+                        case SUCCESS:
+                            // Unreachable code
+                            break;
+                        }
+                        // It was not a success, end the processing.
+                        event = null;
+                        break;
                     }
-                    event = null;
                 }
+                processor = event.next();
+                // If next processor is null, refill the event
+                while (processor == null && event.getNextPipeline() != null) {
+                    // Send to another pipeline, loop in the main processing queue
+                    Pipeline next = namedPipelines.get(event.getNextPipeline());
+                    event.refill(next);
+                    processor = event.next();
+                }
+            }
+            // Processing of the event is finished, what to do next with it ?
+            //Detect if will send to another pipeline, or just wait for a sender to take it
+            if (event != null) {
+                event.doMetric(() -> {
+                    gaugecounter.get().dec();
+                    gaugecounter.set(null);
+                });
+                if (event.isTest()) {
+                    // A test event, it will not be send an output queue
+                    // Checked after pipeline forwarding, but before output sending
+                    TestEventProcessing.log(event);
+                    event.end();
+                } else if (event.getCurrentPipeline() != null && outQueues.containsKey(event.getCurrentPipeline())){
+                    // Put in the output queue, where the wanting output will come to take it
+                    try {
+                        outQueues.get(event.getCurrentPipeline()).put(event);
+                    } catch (InterruptedException e) {
+                        Stats.dropped.incrementAndGet();
+                        event.end();
+                        Thread.currentThread().interrupt();
+                    }
+                } else {
+                    logger.error("Miss-configured event droped: {}", event);
+                    Properties.metrics.meter("Allevents.failed");
+                    event.end();
+                }
+                event = null;
             }
         }
     }
