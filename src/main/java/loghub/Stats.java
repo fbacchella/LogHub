@@ -17,7 +17,7 @@ public final class Stats {
 
     private final static Queue<ProcessingException> errors = new ArrayBlockingQueue<>(100);
     private final static Queue<DecodeException> decodeErrors = new ArrayBlockingQueue<>(100);
-    private final static Queue<Exception> exceptions = new ArrayBlockingQueue<>(100);
+    private final static Queue<Throwable> exceptions = new ArrayBlockingQueue<>(100);
 
     private Stats() {
     }
@@ -52,7 +52,7 @@ public final class Stats {
         }
     }
 
-    public static synchronized void newException(Exception e) {
+    public static synchronized void newException(Throwable e) {
         thrown.incrementAndGet();
         try {
             exceptions.add(e);
@@ -70,7 +70,7 @@ public final class Stats {
         return Collections.unmodifiableCollection(decodeErrors);
     }
 
-    public static Collection<Exception> getExceptions() {
+    public static Collection<Throwable> getExceptions() {
         return Collections.unmodifiableCollection(exceptions);
     }
 

@@ -243,7 +243,12 @@ public class EventsProcessor extends Thread {
                 } else {
                     status = ProcessingStatus.FAILED;
                 }
-            } catch (Exception ex) {
+            } catch (Throwable ex) {
+                // We received a fatal exception
+                // Can't do nothing but die
+                if (Helpers.isFatal(ex)) {
+                    throw ex;
+                }
                 e.doMetric(() -> {
                     Properties.metrics.counter("Pipeline." + e.getCurrentPipeline() + ".exception").inc();
                     Stats.newException(ex);
@@ -251,9 +256,11 @@ public class EventsProcessor extends Thread {
                 String message= ex.getMessage();
                 if (message == null) {
                     message = ex.getClass().getCanonicalName();
+                } else {
+                    message = ex.getClass().getCanonicalName() + ": " + message;
                 }
-                logger.error("failed to transform event {} with unmanaged error: {}", e, message);
-                logger.throwing(Level.DEBUG, ex);
+                logger.error("failed to transform event {} with unmanaged error {}", e, message);
+                logger.catching(Level.DEBUG, ex);
                 status = ProcessingStatus.FAILED;
             }
         }
