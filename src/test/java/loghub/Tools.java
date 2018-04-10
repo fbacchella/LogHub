@@ -100,6 +100,7 @@ public class Tools {
         // Process all the events, will hang forever is it don't finish
         try {
             while ((toprocess = props.mainQueue.poll(5, TimeUnit.SECONDS)) != null) {
+                toprocess.startProcessing();
                 while ((processor = toprocess.next()) != null) {
                     EventsProcessor.ProcessingStatus status = ep.process(toprocess, processor);
                     ps.status.add(status.name());

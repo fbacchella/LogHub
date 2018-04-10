@@ -200,6 +200,11 @@ class EventWrapper extends Event {
     }
 
     @Override
+    public void startProcessing() {
+        event.startProcessing();
+    }
+
+    @Override
     public void end() {
         event.end();
     }
