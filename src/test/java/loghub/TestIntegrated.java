@@ -95,15 +95,15 @@ public class TestIntegrated {
         Thread.sleep(10);
 
         Set<ObjectName> metrics = mbs.queryNames(new ObjectName("metrics:*"), null);
+        metrics.addAll(mbs.queryNames(new ObjectName("loghub:*"), null));
         long blocked = 0;
 
         dumpstatus(mbs, metrics, i -> i.toString().startsWith("metrics:name=EventWaiting.") && i.toString().endsWith(".failed"), i -> (long)i.getValue(), JmxGaugeMBean.class);
-        dumpstatus(mbs, metrics, i -> i.toString().startsWith("metrics:name=Pipeline.") && i.toString().endsWith(".failed"), i -> i.getCount(), JmxMeterMBean.class);
-        dumpstatus(mbs, metrics, i -> i.toString().startsWith("metrics:name=Pipeline.") && i.toString().endsWith(".droped"), i -> i.getCount(), JmxMeterMBean.class);
-        blocked += dumpstatus(mbs, metrics, i -> i.toString().startsWith("metrics:name=Pipeline.") && i.toString().endsWith(".blocked.in"), i -> i.getCount(), JmxMeterMBean.class);
-        blocked += dumpstatus(mbs, metrics, i -> i.toString().startsWith("metrics:name=Pipeline.") && i.toString().endsWith(".blocked.out"), i -> i.getCount(), JmxMeterMBean.class);
-        dumpstatus(mbs, metrics, i -> i.toString().startsWith("metrics:name=Pipeline.") && i.toString().endsWith(".inflight"), i -> i.getCount(), JmxMeterMBean.class);
-
+        dumpstatus(mbs, metrics, i -> i.toString().startsWith("loghub:type=Pipeline,servicename=") && i.toString().endsWith(",name=failed"), i -> i.getCount(), JmxMeterMBean.class);
+        dumpstatus(mbs, metrics, i -> i.toString().startsWith("loghub:type=Pipeline,servicename=") && i.toString().endsWith(",name=droped"), i -> i.getCount(), JmxMeterMBean.class);
+        blocked += dumpstatus(mbs, metrics, i -> i.toString().startsWith("loghub:type=Pipeline,servicename=") && i.toString().endsWith(",name=blocked.in"), i -> i.getCount(), JmxMeterMBean.class);
+        blocked += dumpstatus(mbs, metrics, i -> i.toString().startsWith("loghub:type=Pipeline,servicename=") && i.toString().endsWith(",name=blocked.out"), i -> i.getCount(), JmxMeterMBean.class);
+        dumpstatus(mbs, metrics, i -> i.toString().startsWith("loghub:type=Pipeline,servicename=") && i.toString().endsWith(",name=inflight"), i -> i.getCount(), JmxMeterMBean.class);
         logger.debug("dropped: " + stats.getDropped());
         logger.debug("failed: " + stats.getFailed());
         logger.debug("received: " + stats.getReceived());

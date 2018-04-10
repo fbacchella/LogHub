@@ -92,15 +92,14 @@ public class Tools {
 
         Map<String, Pipeline> namedPipeLine = Collections.singletonMap(pipename, pipe);
         EventsProcessor ep = new EventsProcessor(props.mainQueue, props.outputQueues, namedPipeLine, 100, props.repository);
-        Processor processor;
         steps.forEach( i -> Assert.assertTrue(i.configure(props)));
         prepare.accept(props, steps);
         sent.inject(pipe, props.mainQueue);
         Event toprocess;
+        Processor processor;
         // Process all the events, will hang forever is it don't finish
         try {
             while ((toprocess = props.mainQueue.poll(5, TimeUnit.SECONDS)) != null) {
-                toprocess.startProcessing();
                 while ((processor = toprocess.next()) != null) {
                     EventsProcessor.ProcessingStatus status = ep.process(toprocess, processor);
                     ps.status.add(status.name());

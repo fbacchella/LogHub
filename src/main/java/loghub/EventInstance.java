@@ -6,7 +6,6 @@ import java.io.IOException;
 import java.io.NotSerializableException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.io.ObjectStreamException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -31,86 +30,10 @@ import loghub.configuration.Properties;
 
 class EventInstance extends Event {
 
-    private final static Processor preSubpipline = new Processor() {
-        @Override
-        public boolean process(Event event) throws ProcessorException {
-            MetricsContext current = EventInstance.mctx.get();
-            PausingContext previouspc = current.timersStack.peek();
-            if (previouspc != null) {
-                previouspc.pause();
-            }
-            String pipename = current.pipelineNames.remove();
-            PausingContext newpc = (PausingContext) Properties.metrics.pausingTimer("Pipeline." + pipename + ".timer").time();
-            current.timersStack.add(newpc);
-            System.out.format("%s %s\n", current.pipelineNames, current.timersStack);
-            return true;
-        }
-
-        @Override
-        public String getName() {
-            return "preSubpipline";
-        }
-
-        @Override
-        public String toString() {
-            return "preSubpipline";
-        }
-
-    };
-
-    private final static Processor postSubpipline = new Processor() {
-        @Override
-        public boolean process(Event event) throws ProcessorException {
-            MetricsContext current = EventInstance.mctx.get();
-            System.out.format("%s %s\n", current.pipelineNames, current.timersStack);
-            try {
-                current.timersStack.remove().close();
-            } catch (NoSuchElementException e1) {
-                throw new ProcessorException(current.instance, "Empty timer stack, bad state");
-            }
-            PausingContext previouspc = current.timersStack.peek();
-            if (previouspc != null) {
-                previouspc.restart();
-            }
-            return true;
-        }
-        
-        @Override
-        public String getName() {
-            return "postSubpipline";
-        }
-
-        @Override
-        public String toString() {
-            return "postSubpipline";
-        }
-
-    };
-
-    private final static class MetricsContext {
-        private EventInstance instance;
-        private final Queue<PausingContext> timersStack = Collections.asLifoQueue(new ArrayDeque<PausingContext>());
-        private final Deque<String> pipelineNames = new ArrayDeque<>();
-        /**
-         * Used when an event is associated to a EventsProcessor thread.
-         * It purges all stats.
-         * @param instance
-         */
-        public void associate(EventInstance instance) {
-            System.out.format("associate %s, %s %s %s\n", this, instance.hashCode(), timersStack, pipelineNames);
-            this.instance = instance;
-            this.timersStack.clear();
-            this.pipelineNames.clear();
-        }
-    }
-
     private final static Logger logger = LogManager.getLogger();
 
     private transient EventWrapper wevent;
-    private transient LinkedList<Processor> processors = new LinkedList<>();
-
-    private transient Context timer;
-    private static final ThreadLocal<MetricsContext> mctx = ThreadLocal.withInitial(() -> new MetricsContext());
+    private transient LinkedList<Processor> processors;
 
     private String currentPipeline;
     private String nextPipeline;
@@ -118,6 +41,14 @@ class EventInstance extends Event {
     private int stepsCount = 0;
     private boolean test;
     private final ConnectionContext ctx;
+
+    private transient Context timer;
+
+    // The context for exact pipeline timine
+    private transient Queue<PausingContext> timersStack;
+    private transient Deque<String> pipelineNames;
+    private transient Processor preSubpipline;
+    private transient Processor postSubpipline;
 
     EventInstance(ConnectionContext ctx) {
         this(ctx, false);
@@ -130,23 +61,76 @@ class EventInstance extends Event {
             IpConnectionContext ipcc = (IpConnectionContext) ctx;
             put("host", ipcc.getRemoteAddress().getAddress());
         }
-        if (! test) {
-            Properties.metrics.counter("Allevents.inflight").inc();
-            timer = Properties.metrics.timer("Allevents.timer").time();
-        } else {
-            timer = null;
-        }
+        // Initialize the transient objects
+        readResolve();
     }
 
     /**
      * Finish the cloning of the copy
      * Ensure than transient fields store the good values
      * @return
-     * @throws ObjectStreamException
      */
-    private Object readResolve() throws ObjectStreamException {
-        this.processors = new LinkedList<>();
-        this.wevent = null;
+    private Object readResolve() {
+        if (!test) {
+            timer = Properties.metrics.timer("Allevents.timer").time();
+            Properties.metrics.counter("Allevents.inflight").inc();
+        } else {
+            timer = null;
+        }
+        processors = new LinkedList<>();
+        wevent = null;
+        timersStack = Collections.asLifoQueue(new ArrayDeque<PausingContext>());
+        pipelineNames = new ArrayDeque<>();
+        preSubpipline = new Processor() {
+            @Override
+            public boolean process(Event event) throws ProcessorException {
+                PausingContext previouspc = timersStack.peek();
+                if (previouspc != null) {
+                    previouspc.pause();
+                }
+                String pipename = pipelineNames.remove();
+                PausingContext newpc = (PausingContext) Properties.metrics.pausingTimer("Pipeline." + pipename + ".timer").time();
+                timersStack.add(newpc);
+                return true;
+            }
+
+            @Override
+            public String getName() {
+                return "preSubpipline";
+            }
+
+            @Override
+            public String toString() {
+                return "preSubpipline";
+            }
+
+        };
+        postSubpipline = new Processor() {
+            @Override
+            public boolean process(Event event) throws ProcessorException {
+                try {
+                    timersStack.remove().close();
+                } catch (NoSuchElementException e1) {
+                    throw new ProcessorException(EventInstance.this, "Empty timer stack, bad state");
+                }
+                PausingContext previouspc = timersStack.peek();
+                if (previouspc != null) {
+                    previouspc.restart();
+                }
+                return true;
+            }
+
+            @Override
+            public String getName() {
+                return "postSubpipline";
+            }
+
+            @Override
+            public String toString() {
+                return "postSubpipline";
+            }
+
+        };
         return this;
     }
 
@@ -242,11 +226,11 @@ class EventInstance extends Event {
         logger.trace("inject processor {} at {}", () -> p, () -> append ? "end" : "start" );
         if (p instanceof SubPipeline) {
             SubPipeline sp = (SubPipeline) p;
-            EventInstance.mctx.get().pipelineNames.add(sp.getPipeline().getName());
+            pipelineNames.add(sp.getPipeline().getName());
             List<Processor> newProcessors = new ArrayList<>(sp.getPipeline().processors.size() + 2);
-            newProcessors.add(EventInstance.preSubpipline);
+            newProcessors.add(preSubpipline);
             newProcessors.addAll(sp.getPipeline().processors);
-            newProcessors.add(EventInstance.postSubpipline);
+            newProcessors.add(postSubpipline);
             addProcessors(newProcessors, append);
         } else {
             if (append) {
@@ -257,19 +241,10 @@ class EventInstance extends Event {
         }
     }
 
-    /* (non-Javadoc)
-     * @see loghub.Event#startProcessing()
-     */
-    @Override
-    public void startProcessing() {
-        EventInstance.mctx.get().associate(this);
-        EventInstance.mctx.get().pipelineNames.add(currentPipeline);
-    }
-
     @Override
     public void refill(Pipeline pipeline) {
         currentPipeline = pipeline.getName();
-        EventInstance.mctx.get().pipelineNames.add(currentPipeline);
+        pipelineNames.add(currentPipeline);
         nextPipeline = pipeline.nextPipeline;
         appendProcessor(preSubpipline);
         appendProcessors(pipeline.processors);
@@ -282,9 +257,10 @@ class EventInstance extends Event {
     public boolean inject(Pipeline pipeline, BlockingQueue<Event> mainqueue, boolean blocking) {
         currentPipeline = pipeline.getName();
         nextPipeline = pipeline.nextPipeline;
-        appendProcessor(EventInstance.preSubpipline);
+        pipelineNames.add(currentPipeline);
+        appendProcessor(preSubpipline);
         appendProcessors(pipeline.processors);
-        appendProcessor(EventInstance.postSubpipline);
+        appendProcessor(postSubpipline);
         if (blocking) {
             try {
                 mainqueue.put(this);
@@ -310,9 +286,9 @@ class EventInstance extends Event {
     }
 
     public void finishPipeline() {
-        EventInstance.mctx.get().timersStack.forEach(i ->i.close());
-        EventInstance.mctx.get().timersStack.clear();
-        EventInstance.mctx.get().pipelineNames.clear();
+        timersStack.forEach(i ->i.close());
+        timersStack.clear();
+        pipelineNames.clear();
         processors.clear();
     }
 
@@ -347,15 +323,6 @@ class EventInstance extends Event {
     @Override
     public void setTimestamp(Date timestamp) {
         this.timestamp = timestamp;
-    }
-
-    private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
-        in.defaultReadObject();
-
-        if (!test) {
-            timer = Properties.metrics.timer("Allevents.timer").time();
-            Properties.metrics.counter("Allevents.inflight").inc();
-        }
     }
 
     @Override

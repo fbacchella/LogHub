@@ -120,8 +120,6 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
 
     public abstract void setTimestamp(Date timestamp);
 
-    public abstract void startProcessing();
-
     public abstract void end();
 
     public abstract int stepsCount();

@@ -59,7 +59,6 @@ public class EventsProcessor extends Thread {
             } catch (InterruptedException e) {
                 break;
             }
-            event.startProcessing();
             { // Needed because eventtemp must be final
                 final Event eventtemp  = event;
                 event.doMetric(() -> {

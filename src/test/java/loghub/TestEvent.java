@@ -1,6 +1,7 @@
 package loghub;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -13,6 +14,7 @@ import org.junit.Test;
 
 import loghub.EventsProcessor.ProcessingStatus;
 import loghub.configuration.Properties;
+import loghub.processors.Identity;
 
 public class TestEvent {
 
@@ -58,6 +60,8 @@ public class TestEvent {
         Event e = Tools.getEvent();
         e.put("key", "value");
         Event e2 = e.duplicate();
+        Pipeline newPipe = new Pipeline(Collections.singletonList(new Identity()), "next", null);
+        e2.refill(newPipe);
         Assert.assertEquals("cloned value not found", e.get("key"), e2.get("key"));
         e.end();
         e2.end();

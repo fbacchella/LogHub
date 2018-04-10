@@ -71,7 +71,8 @@ public class TestNettyNameResolver {
 
         e = status.mainQueue.take();
         Assert.assertEquals("resolution not failed", null, e.get("fqdn"));
-        Assert.assertEquals("resolution not paused", "PAUSED", status.status.get(1));
+        // Check that the second processor executed was indeed paused
+        Assert.assertEquals("resolution not paused", "PAUSED", status.status.get(2));
         Assert.assertEquals("Queue not empty: " + status.mainQueue, 0, status.mainQueue.size());
         Assert.assertEquals("Still waiting events: " + status.repository, 0, status.repository.waiting());
 

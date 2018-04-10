@@ -87,7 +87,7 @@ public class TestConfigurations {
             Event initial = conf.outputQueues.get("mainfork").poll(1, TimeUnit.SECONDS);
             Assert.assertEquals(1, forked.size());
             Assert.assertEquals(1, initial.size());
-            Assert.assertEquals(2, forked.get("b"));
+            Assert.assertEquals(3, forked.get("b"));
             Assert.assertEquals(1, initial.get("a"));
         } finally {
             ep.interrupt();
@@ -107,7 +107,7 @@ public class TestConfigurations {
             Event initial = conf.outputQueues.get("mainforward").poll(1, TimeUnit.SECONDS);
             Assert.assertEquals(1, forwarded.size());
             Assert.assertNull(initial);
-            Assert.assertEquals(2, forwarded.get("b"));
+            Assert.assertEquals(3, forwarded.get("b"));
             Assert.assertNull(sent.get("a"));
         } finally {
             ep.interrupt();
