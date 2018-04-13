@@ -1,6 +1,7 @@
 package loghub.configuration;
 
 import java.io.IOException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.logging.log4j.Level;
@@ -37,7 +38,7 @@ public class TestWithZMQ {
     }
 
     @Test(timeout=3000) 
-    public void testSimpleInput() throws InterruptedException, ConfigException, IOException {
+    public void testSimpleInput() throws InterruptedException, ConfigException, IOException, ExecutionException {
         Properties conf = Tools.loadConf("simpleinput.conf");
         logger.debug("pipelines: {}", conf.pipelines);
 
@@ -62,6 +63,7 @@ public class TestWithZMQ {
         Assert.assertEquals("wrong send message", "something", new String(buffer));
         tctxt.ctx.close(sender);
         tctxt.ctx.close(out);
+        Assert.assertTrue(SmartContext.getContext().terminate().get());
         for(Receiver r: conf.receivers) {
             r.interrupt();
         }

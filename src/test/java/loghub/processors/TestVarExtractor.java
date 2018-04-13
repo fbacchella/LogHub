@@ -35,7 +35,6 @@ public class TestVarExtractor {
         Event e = Tools.getEvent();
         e.put("message", "a=1;b:2;c");
         Assert.assertTrue(e.process(t));
-        System.out.println(e);
         @SuppressWarnings("unchecked")
         Map<String, Object> sub = (Map<String, Object>) e.get("sub");
         Assert.assertEquals("key a not found", "1", sub.get("a"));
@@ -51,7 +50,6 @@ public class TestVarExtractor {
         Event e = Tools.getEvent();
         e.put("message", "a=1;b:2");
         e.process(t);
-        System.out.println(e);
         Assert.assertEquals("key a not found", "1", e.get("a"));
         Assert.assertEquals("key b found", "2", e.get("b"));
         Assert.assertNull("key message found", e.get("message"));

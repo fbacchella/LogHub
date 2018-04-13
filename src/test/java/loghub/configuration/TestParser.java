@@ -11,6 +11,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import io.netty.util.CharsetUtil;
@@ -32,6 +33,7 @@ public class TestParser {
         LogUtils.setLevel(logger, Level.TRACE, "loghub.SmartContext", "loghub.PipeStep","loghub.Pipeline", "loghub.configuration.Configuration");
     }
 
+    @Ignore
     @Test
     public void test1() throws Exception {
         org.antlr.v4.gui.TestRig.main(new String[] {

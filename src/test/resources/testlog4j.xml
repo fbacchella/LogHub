@@ -7,7 +7,6 @@
     </Appenders>
     <Loggers>
         <Root level="trace">
-            <AppenderRef ref="counting" />
             <AppenderRef ref="TestConsole" />
         </Root>
     </Loggers>

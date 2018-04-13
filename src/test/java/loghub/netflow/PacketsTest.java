@@ -33,7 +33,7 @@ public class PacketsTest {
     static public void configure() throws IOException {
         Tools.configure();
         logger = LogManager.getLogger();
-        LogUtils.setLevel(logger, Level.TRACE);
+        LogUtils.setLevel(logger, Level.TRACE, "loghub.netflow");
     }
 
     private final static String[] captures = new String[] {

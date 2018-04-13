@@ -136,5 +136,9 @@ public class Tools {
             }
         }
     }
+    
+    public static boolean isInMaven() {
+        return "true".equals(System.getProperty("maven.surefire", "false"));
+    }
 
 }

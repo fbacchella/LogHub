@@ -25,7 +25,6 @@ public class TestUserAgent {
         Event event = Tools.getEvent();
         event.put("User-Agent", uaString);
         Assert.assertTrue(ua.process(event));
-        System.out.println(event);
         Object family = event.applyAtPath((i, j, k) -> i.get(j), new String[] {"agent", "userAgent", "family"}, null, false);
         Assert.assertEquals("can't find user agent parsing", "Mobile Safari", family);
     }
