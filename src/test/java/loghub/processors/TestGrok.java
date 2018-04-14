@@ -1,14 +1,15 @@
 package loghub.processors;
 
 import java.util.Collections;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.junit.Assert;
 import org.junit.Test;
 
-import io.thekraken.grok.api.Match;
-import io.thekraken.grok.api.exception.GrokException;
+import io.krakens.grok.api.GrokCompiler;
+import io.krakens.grok.api.Match;
 import loghub.Event;
 import loghub.ProcessorException;
 import loghub.Tools;
@@ -124,23 +125,25 @@ public class TestGrok {
 
     // Will fails when issue https://github.com/thekrakken/java-grok/issues/64 is corrected
     @Test
-    public void TestLoadPatterns8() throws GrokException {
+    public void TestLoadPatterns8() {
         String pattern = "(?<message>client id): (?<clientid>.*)";
         String input = "client id: \"name\" \"Mac OS X Mail\" \"version\" \"10.2 (3259)\" \"os\" \"Mac OS X\" \"os-version\" \"10.12.3 (16D32)\" \"vendor\" \"Apple Inc.\"";
 
         // Validate the search is good
-        Pattern p = Pattern.compile("(?<message>client id): (?<clientid>.*)");
+        Pattern p = Pattern.compile(pattern);
         Matcher m = p.matcher(input);
         if (m.matches()) {
             Assert.assertEquals("\"name\" \"Mac OS X Mail\" \"version\" \"10.2 (3259)\" \"os\" \"Mac OS X\" \"os-version\" \"10.12.3 (16D32)\" \"vendor\" \"Apple Inc.\"", m.group("clientid"));
         }
 
-        io.thekraken.grok.api.Grok grok = new io.thekraken.grok.api.Grok();
-        grok.compile(pattern, false);
+        GrokCompiler grokCompiler = GrokCompiler.newInstance();
+        grokCompiler.registerDefaultPatterns();
+
+        io.krakens.grok.api.Grok grok = grokCompiler.compile(pattern, true);
 
         Match gm = grok.match(input);
-        gm.captures();
-        Assert.assertNotEquals(gm.toMap().get("clientid"), gm.getMatch().group("clientid"));
+        Map<String, Object> captures = gm.capture();
+        Assert.assertNotEquals(captures.get("clientid"), gm.getMatch().group("clientid"));
     }
 
 }
