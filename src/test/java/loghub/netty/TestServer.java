@@ -83,7 +83,7 @@ public class TestServer {
         }
 
         @Override
-        public void close() throws InterruptedException {
+        public void waitClose() throws InterruptedException {
             cf.closeFuture().sync();
         }
     }

@@ -127,7 +127,7 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
         ThreadFactory tf = new DefaultThreadFactory(getReceiverName(), true);
         server.setThreadFactory(tf);
         try {
-            return server.configure(properties, this) && super.configure(properties);
+            return server.configure(properties, getConsummer()) && super.configure(properties);
         } catch (UnsatisfiedLinkError e) {
             logger.error("Can't configure Netty server: {}", Helpers.resolveThrowableException(e));
             logger.catching(Level.DEBUG, e);
@@ -135,15 +135,23 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
         }
     }
 
+    /**
+     * Define the channel consumer that will provides and processes the pipeline. Default to the receiver itself
+     * @return
+     */
+    protected ChannelConsumer<BS, BSC, SA> getConsummer() {
+        return this;
+    }
+
     @Override
     public void run() {
         try {
             // Wait until the server socket is closed.
-            server.close();
+            server.waitClose();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         } finally {
-            server.finish();
+            close();
         }
     }
 
@@ -202,13 +210,7 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
 
     @Override
     public void close() {
-        try {
-            server.close();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        } finally {
-            server.getFactory().finish();
-        }
+        server.getFactory().finish();
         super.close();
     }
 

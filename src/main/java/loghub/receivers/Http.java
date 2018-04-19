@@ -1,5 +1,6 @@
 package loghub.receivers;
 
+import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.nio.charset.Charset;
 import java.nio.charset.IllegalCharsetNameException;
@@ -15,11 +16,13 @@ import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 import java.util.stream.Collectors;
 
+import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandler.Sharable;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
+import io.netty.channel.ServerChannel;
 import io.netty.handler.codec.ByteToMessageDecoder;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpHeaderNames;
@@ -33,6 +36,7 @@ import loghub.Event;
 import loghub.Pipeline;
 import loghub.ProcessorException;
 import loghub.configuration.Properties;
+import loghub.netty.ChannelConsumer;
 import loghub.netty.http.AbstractHttpServer;
 import loghub.netty.http.HttpRequestProcessing;
 import loghub.processors.ParseJson;
@@ -65,7 +69,6 @@ public class Http extends GenericTcp {
             } catch (GeneralSecurityException e2) {
                 throw new HttpRequestFailure(HttpResponseStatus.UNAUTHORIZED, "Bad authentication", Collections.singletonMap(HttpHeaderNames.WWW_AUTHENTICATE, "Basic realm=\"loghub\""));
             }
-            System.out.format("user %s %s\n", Http.this.encodedAuthentication, user);
             if (Http.this.encodedAuthentication != null && user == null) {
                 String authorization = request.headers().get(HttpHeaderNames.AUTHORIZATION);
                 if (authorization == null) {
@@ -159,13 +162,14 @@ public class Http extends GenericTcp {
         @Override
         public void addHandlers(ChannelPipeline p) {
             super.addHandlers(p);
-            Http.this.addSslHandler(p);
+            Http.this.addHandlers(p);
         }
 
         @Override
         public void addModelHandlers(ChannelPipeline p) {
             p.addLast("recepter", recepter);
         }
+
     };
 
     private int port;
@@ -175,7 +179,7 @@ public class Http extends GenericTcp {
     private String encodedAuthentication = null;
 
     public Http(BlockingQueue<Event> outQueue, Pipeline pipeline) {
-        super(outQueue, pipeline);
+        super(outQueue, pipeline, null);
         setServer(webserver);
     }
 
@@ -188,7 +192,7 @@ public class Http extends GenericTcp {
         try {
             webserver.setPort(getPort());
             webserver.setHost(getHost());
-            return webserver.configure(properties) && super.configure(properties);
+            return super.configure(properties);
         } catch (UnknownHostException e) {
             logger.error("Unknow host to bind: {}", host);
             return false;
@@ -196,8 +200,8 @@ public class Http extends GenericTcp {
     }
 
     @Override
-    public void run() {
-        webserver.finish();
+    public ChannelConsumer<ServerBootstrap, ServerChannel, InetSocketAddress> getConsummer() {
+        return webserver;
     }
 
     @Override

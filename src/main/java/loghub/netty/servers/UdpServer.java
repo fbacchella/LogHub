@@ -82,7 +82,7 @@ public class UdpServer extends AbstractNettyServer<UdpFactory, Bootstrap, Channe
     }
 
     @Override
-    public void close() throws InterruptedException {
+    public void waitClose() throws InterruptedException {
         channels.forEach(i -> {
             try {
                 i.closeFuture().sync();

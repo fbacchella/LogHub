@@ -12,6 +12,7 @@ import java.util.concurrent.BlockingQueue;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -32,6 +33,16 @@ public class TestUdp {
         Tools.configure();
         logger = LogManager.getLogger();
         LogUtils.setLevel(logger, Level.TRACE, "loghub.receivers.Udp", "loghub.Receiver", "loghub.netty");
+    }
+
+    Udp receiver;
+
+    @After
+    public void clean() {
+        if (receiver != null) {
+            receiver.interrupt();
+            receiver.close();
+        }
     }
 
     private void testsend(int size) throws IOException, InterruptedException {
@@ -69,7 +80,6 @@ public class TestUdp {
             }
         }
         Event e = receiver.take();
-        r.interrupt();
         Assert.assertTrue("Invalid message content", e.get("message").toString().startsWith("message"));
         Assert.assertEquals("Invalid message size", originalMessageSize, e.get("message").toString().length());
         Assert.assertTrue("didn't find valid hosts informations", e.get("host") instanceof InetAddress);

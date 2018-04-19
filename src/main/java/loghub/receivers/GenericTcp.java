@@ -26,6 +26,11 @@ public abstract class GenericTcp extends NettyIpReceiver<TcpServer, TcpFactory, 
         server = new TcpServer();
     }
 
+    public GenericTcp(BlockingQueue<Event> outQueue, Pipeline pipeline, TcpServer server) {
+        super(outQueue, pipeline);
+        this.server = server;
+    }
+
     protected void setServer(TcpServer server) {
         this.server = server;
     }

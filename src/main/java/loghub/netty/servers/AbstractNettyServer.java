@@ -56,7 +56,7 @@ public abstract class AbstractNettyServer<CF extends ComponentFactory<BS, BSC, S
 
     protected abstract boolean makeChannel(AbstractBootstrap<BS,BSC> bootstrap, SA address);
 
-    public abstract void close() throws InterruptedException;
+    public abstract void waitClose() throws InterruptedException;
 
     protected abstract CF getNewFactory(Properties properties);
 

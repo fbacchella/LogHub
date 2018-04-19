@@ -41,18 +41,18 @@ import loghub.ssl.ContextLoader;
 public class TestHttp {
 
     private static Logger logger;
-    private Http receiver = null;
-    private BlockingQueue<Event> queue;
-    private String hostname;
-    private int port;
 
     @BeforeClass
     static public void configure() throws IOException {
         Tools.configure();
         logger = LogManager.getLogger();
         LogUtils.setLevel(logger, Level.TRACE, "loghub.receivers.Http", "loghub.Receiver", "loghub.netty", "loghub.EventsProcessor", "loghub.ssl");
-        //System.setProperty("javax.net.debug", "ssl");
     }
+
+    private Http receiver = null;
+    private BlockingQueue<Event> queue;
+    private String hostname;
+    private int port;
 
     public void makeReceiver(Consumer<Http> prepare, Map<String, Object> propsMap) throws IOException {
         // Generate a locally binded random socket
@@ -74,14 +74,13 @@ public class TestHttp {
     @After
     public void clean() {
         if (receiver != null) {
+            receiver.interrupt();
             receiver.close();
         }
     }
 
     private final String[] doRequest(URL destination, byte[] postDataBytes, Consumer<HttpURLConnection> prepare, int expected) throws IOException {
-        System.out.println("get conn");
         HttpURLConnection conn = (HttpURLConnection) destination.openConnection();
-        System.out.println("got conn");
         if (conn instanceof HttpsURLConnection) {
             HttpsURLConnection cnx = (HttpsURLConnection) conn;
             cnx.setHostnameVerifier(new HostnameVerifier() {
@@ -191,7 +190,6 @@ public class TestHttp {
                     }
                 }, 200);
         Event e = queue.poll();
-        logger.debug(e.getClass());
         Assert.assertEquals("1", e.get("a"));
         Assert.assertEquals("c d", e.get("b"));
     }

@@ -22,9 +22,11 @@ public abstract class AbstractHttpServer extends TcpServer implements ChannelCon
     private int port;
     private String host = null;
 
-    public boolean configure(Properties properties) {
-        setThreadFactory(new DefaultThreadFactory("builtinhttpserver"));
-        return super.configure(properties, this);
+    @Override
+    public boolean configure(Properties properties, ChannelConsumer<ServerBootstrap, ServerChannel, InetSocketAddress> consumer) {
+        setThreadFactory(new DefaultThreadFactory("builtinhttpserver/" +
+                consumer.getListenAddress().getAddress().getHostAddress() + ":" + consumer.getListenAddress().getPort()));
+        return super.configure(properties, consumer);
     }
 
     @Override

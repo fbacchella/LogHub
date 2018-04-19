@@ -32,7 +32,7 @@ public class TcpServer extends AbstractNettyServer<TcpFactory, ServerBootstrap, 
     }
 
     @Override
-    public void close() throws InterruptedException {
+    public void waitClose() throws InterruptedException {
         cf.closeFuture().sync();
     }
 

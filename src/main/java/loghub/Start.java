@@ -27,7 +27,6 @@ import loghub.configuration.Properties;
 import loghub.configuration.TestEventProcessing;
 import loghub.jmx.Helper;
 import loghub.jmx.StatsMBean;
-import loghub.netty.http.AbstractHttpServer;
 import loghub.processors.FieldsProcessor;
 
 public class Start {
@@ -217,7 +216,7 @@ public class Start {
         }
 
         if (props.httpPort >= 0) {
-            AbstractHttpServer server = new DashboardHttpServer();
+            DashboardHttpServer server = new DashboardHttpServer();
             server.setPort(props.httpPort);
             server.configure(props);
         }
