@@ -31,10 +31,18 @@ import loghub.Receiver;
 @Blocking
 public class Kafka extends Receiver {
 
-    public static class KafkaContext implements ConnectionContext {
+    public static class KafkaContext extends ConnectionContext<Object> {
         public final String topic;
         KafkaContext(String topic) {
             this.topic = topic;
+        }
+        @Override
+        public Object getLocalAddress() {
+            return null;
+        }
+        @Override
+        public Object getRemoteAddress() {
+            return null;
         }
     }
 
@@ -82,7 +90,7 @@ public class Kafka extends Receiver {
                 continue;
             }
             for(ConsumerRecord<Long, byte[]> record: consumerRecords) {
-                ConnectionContext ctxt = new KafkaContext(record.topic());
+                KafkaContext ctxt = new KafkaContext(record.topic());
                 Event event = emptyEvent(ctxt);
                 if (record.timestampType() ==  TimestampType.CREATE_TIME) {
                     event.setTimestamp(new Date(record.timestamp()));

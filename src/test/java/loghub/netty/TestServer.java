@@ -43,6 +43,23 @@ import loghub.netty.servers.AbstractNettyServer;
 import loghub.netty.servers.ServerFactory;
 
 public class TestServer {
+    private static class LocalChannelConnectionContext extends ConnectionContext<LocalAddress> {
+        private final LocalAddress local;
+        private final LocalAddress remote;
+        private LocalChannelConnectionContext(LocalChannel channel) {
+            this.local = channel.localAddress();
+            this.remote = channel.remoteAddress();
+        }
+        @Override
+        public LocalAddress getLocalAddress() {
+            return local;
+        }
+        @Override
+        public LocalAddress getRemoteAddress() {
+            return remote;
+        }
+    };
+
     private static class TesterFactory extends ServerFactory<LocalChannel, LocalAddress> {
         private static final ChannelFactory<ServerChannel> channelfactory = new ChannelFactory<ServerChannel>() {
             @Override 
@@ -125,8 +142,8 @@ public class TestServer {
         }
 
         @Override
-        public ConnectionContext getConnectionContext(ChannelHandlerContext ctx, Object message) {
-            return ConnectionContext.EMPTY;
+        public ConnectionContext<LocalAddress> getConnectionContext(ChannelHandlerContext ctx, Object message) {
+            return new LocalChannelConnectionContext((LocalChannel) ctx.channel());
         }
 
     }

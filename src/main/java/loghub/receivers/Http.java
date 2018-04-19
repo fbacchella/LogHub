@@ -45,6 +45,52 @@ public class Http extends GenericTcp {
 
     private static final ParseJson jsonParser = new ParseJson();
 
+    public static final class HttpPrincipal implements Principal {
+        private final String user;
+        private final String realm;
+
+        HttpPrincipal(String user, String realm) {
+            this.user = user;
+            this.realm = realm;
+        }
+        @Override
+        public String getName() {
+            return user;
+        }
+        public String getRealm() {
+            return realm;
+        }
+        @Override
+        public int hashCode() {
+            final int prime = 31;
+            int result = 1;
+            result = prime * result + ((realm == null) ? 0 : realm.hashCode());
+            result = prime * result + ((user == null) ? 0 : user.hashCode());
+            return result;
+        }
+        @Override
+        public boolean equals(Object obj) {
+            if (this == obj)
+                return true;
+            if (obj == null)
+                return false;
+            if (getClass() != obj.getClass())
+                return false;
+            HttpPrincipal other = (HttpPrincipal) obj;
+            if (realm == null) {
+                if(other.realm != null)
+                    return false;
+            } else if (!realm.equals(other.realm))
+                return false;
+            if (user == null) {
+                if (other.user != null)
+                    return false;
+            } else if (!user.equals(other.user))
+                return false;
+            return true;
+        }
+    };
+
     @Sharable
     private class PostHandler extends HttpRequestProcessing {
 
@@ -60,29 +106,27 @@ public class Http extends GenericTcp {
 
         @Override
         protected boolean processRequest(FullHttpRequest request, ChannelHandlerContext ctx) throws HttpRequestFailure {
-            String user = null;
+            Principal peerPrincipal = null;
             try {
-                Principal p = Http.this.getSslPrincipal(Http.this.getSslSession(ctx));
-                if (p != null) {
-                    user = p.getName();
-                }
+                peerPrincipal = Http.this.getSslPrincipal(Http.this.getSslSession(ctx));
             } catch (GeneralSecurityException e2) {
                 throw new HttpRequestFailure(HttpResponseStatus.UNAUTHORIZED, "Bad authentication", Collections.singletonMap(HttpHeaderNames.WWW_AUTHENTICATE, "Basic realm=\"loghub\""));
             }
-            if (Http.this.encodedAuthentication != null && user == null) {
+            if (Http.this.encodedAuthentication != null && peerPrincipal == null) {
                 String authorization = request.headers().get(HttpHeaderNames.AUTHORIZATION);
                 if (authorization == null) {
                     throw new HttpRequestFailure(HttpResponseStatus.UNAUTHORIZED, "Authentication required", Collections.singletonMap(HttpHeaderNames.WWW_AUTHENTICATE, "Basic realm=\"loghub\""));
                 } else if (! Http.this.encodedAuthentication.equals(authorization)) {
                     throw new HttpRequestFailure(HttpResponseStatus.UNAUTHORIZED, "Bad authentication", Collections.singletonMap(HttpHeaderNames.WWW_AUTHENTICATE, "Basic realm=\"loghub\""));
                 } else {
-                    user = Http.this.user;
+                    peerPrincipal = new HttpPrincipal(Http.this.user, "loghub");
                 }
             }
-            if (Http.this.user != null && ! Http.this.user.equals(user)) {
-                logger.warn("failed authentication, expect {}, got {}", Http.this.user, user);
+            if (Http.this.user != null && peerPrincipal != null && ! Http.this.user.equals(peerPrincipal.getName())) {
+                logger.warn("failed authentication, expect {}, got {}", Http.this.user, peerPrincipal.getName());
                 throw new HttpRequestFailure(HttpResponseStatus.UNAUTHORIZED, "Bad authentication", Collections.singletonMap(HttpHeaderNames.WWW_AUTHENTICATE, "Basic realm=\"loghub\""));
             }
+            Http.this.savePrincipal(ctx, peerPrincipal);
             Event e = Http.this.emptyEvent(Http.this.getConnectionContext(ctx, null));
             try {
                 String mimeType = Optional.ofNullable(HttpUtil.getMimeType(request)).orElse("application/octet-stream").toString();

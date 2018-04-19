@@ -71,7 +71,7 @@ public class Udp extends NettyIpReceiver<UdpServer, UdpFactory, Bootstrap, Chann
     }
 
     @Override
-    public ConnectionContext getConnectionContext(ChannelHandlerContext ctx, DatagramPacket message) {
+    public ConnectionContext<InetSocketAddress> getConnectionContext(ChannelHandlerContext ctx, DatagramPacket message) {
         InetSocketAddress remoteaddr = message.sender();
         InetSocketAddress localaddr = message.recipient();
         return new IpConnectionContext(localaddr, remoteaddr, null);

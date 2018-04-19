@@ -66,7 +66,7 @@ public abstract class NettyIpReceiver<S extends AbstractNettyServer<CF, BS, BSC,
     }
 
     @Override
-    public ConnectionContext getConnectionContext(ChannelHandlerContext ctx, SM message) {
+    public ConnectionContext<InetSocketAddress> getConnectionContext(ChannelHandlerContext ctx, SM message) {
         InetSocketAddress remoteaddr = null;
         InetSocketAddress localaddr = null;
         SocketAddress remoteddr = ctx.channel().remoteAddress();

@@ -19,7 +19,7 @@ public class SerializedObject extends Decoder {
     private String objectFied = "objectClass";
 
     @Override
-    public Map<String, Object> decode(ConnectionContext ctx, byte[] msg, int offset, int length) throws DecodeException {
+    public Map<String, Object> decode(ConnectionContext<?> ctx, byte[] msg, int offset, int length) throws DecodeException {
         try (ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(msg, offset, length))) {
             return decodeStream(ois);
         } catch (IOException e) {
@@ -28,7 +28,7 @@ public class SerializedObject extends Decoder {
     }
 
     @Override
-    public Map<String, Object> decode(ConnectionContext ctx, ByteBuf bbuf) throws DecodeException {
+    public Map<String, Object> decode(ConnectionContext<?> ctx, ByteBuf bbuf) throws DecodeException {
         try (ObjectInputStream ois = new ObjectInputStream(new ByteBufInputStream(bbuf))) {
             return decodeStream(ois);
         } catch (IOException e) {

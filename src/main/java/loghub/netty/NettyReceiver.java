@@ -1,6 +1,7 @@
 package loghub.netty;
 
 import java.net.SocketAddress;
+import java.security.Principal;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
@@ -42,7 +43,7 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
     private class EventSender extends SimpleChannelInboundHandler<Map<String, Object>> {
         @Override
         protected void channelRead0(ChannelHandlerContext ctx, Map<String, Object> msg) throws Exception {
-            ConnectionContext cctx = (ConnectionContext) ctx.channel().attr(CONNECTIONCONTEXTATTRIBUTE).get();
+            ConnectionContext<?> cctx = ctx.channel().attr(CONNECTIONCONTEXTATTRIBUTE).get();
             Event event = emptyEvent(cctx);
             populate(event, ctx, msg);
             send(event);
@@ -54,7 +55,7 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
         @Override
         protected void decode(ChannelHandlerContext ctx, SM msg, List<Object> out) {
             try {
-                ConnectionContext cctx = (ConnectionContext) ctx.channel().attr(CONNECTIONCONTEXTATTRIBUTE).get();
+                ConnectionContext<?> cctx = ctx.channel().attr(CONNECTIONCONTEXTATTRIBUTE).get();
                 Map<String, Object> content = decoder.decode(cctx, getContent(msg));
                 out.add(content);
             } catch (DecodeException e) {
@@ -70,7 +71,7 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
     private class ContextExtractor extends MessageToMessageDecoder<SM> {
         @Override
         protected void decode(ChannelHandlerContext ctx, SM msg, List<Object> out) {
-            ConnectionContext cctx = getConnectionContext(ctx, msg);
+            ConnectionContext<?> cctx = getConnectionContext(ctx, msg);
             ctx.channel().attr(CONNECTIONCONTEXTATTRIBUTE).set(cctx);
             //The message is not transformed in this step, so don't decrease reference count
             if (msg instanceof ReferenceCounted) {
@@ -96,7 +97,7 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
         }
     }
 
-    private static final AttributeKey<Object> CONNECTIONCONTEXTATTRIBUTE = AttributeKey.newInstance("ConnectionContextAttribute");
+    private static final AttributeKey<ConnectionContext<?>> CONNECTIONCONTEXTATTRIBUTE = AttributeKey.newInstance(ConnectionContext.class.getName());
     private static final AttributeKey<SSLSession> sessattr = AttributeKey.newInstance(SSLSession.class.getName());
 
     private S server;
@@ -196,6 +197,12 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
         return ctx.channel().attr(sessattr).get();
     }
 
+    protected void savePrincipal(ChannelHandlerContext ctx, Principal p) {
+        if (p != null) {
+            ctx.channel().attr(CONNECTIONCONTEXTATTRIBUTE).get().setPrincipal(p);
+        }
+    }
+
     protected void populate(Event event, ChannelHandlerContext ctx, Map<String, Object> msg) {
         event.putAll(msg);
     }
@@ -206,7 +213,7 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
 
     protected abstract S getServer();
 
-    public abstract ConnectionContext getConnectionContext(ChannelHandlerContext ctx, SM message);
+    public abstract ConnectionContext<SA> getConnectionContext(ChannelHandlerContext ctx, SM message);
 
     @Override
     public void close() {

@@ -40,7 +40,7 @@ public class Msgpack extends Decoder {
     private String field = "message";
 
     @Override
-    public Map<String, Object> decode(ConnectionContext ctx, byte[] msg, int offset, int length) throws DecodeException {
+    public Map<String, Object> decode(ConnectionContext<?> ctx, byte[] msg, int offset, int length) throws DecodeException {
         try {
             Object o = msgpack.get().readValue(msg, offset, length, Object.class);
             return decodeValue(o);
@@ -54,7 +54,7 @@ public class Msgpack extends Decoder {
     }
 
     @Override
-    public Map<String, Object> decode(ConnectionContext ctx, ByteBuf bbuf) throws DecodeException {
+    public Map<String, Object> decode(ConnectionContext<?> ctx, ByteBuf bbuf) throws DecodeException {
         try {
             Object o = msgpack.get().readValue(new ByteBufInputStream(bbuf), OBJECTREF);
             return decodeValue(o);

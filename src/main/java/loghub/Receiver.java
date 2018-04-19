@@ -33,11 +33,11 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
      */
     protected static final Decoder NULLDECODER = new Decoder() {
         @Override
-        public Map<String, Object> decode(ConnectionContext connectionContext, byte[] msg, int offset, int length) throws DecodeException {
+        public Map<String, Object> decode(ConnectionContext<?> connectionContext, byte[] msg, int offset, int length) throws DecodeException {
             return null;
         }
         @Override
-        public Map<String, Object> decode(ConnectionContext ctx, ByteBuf bbuf) throws DecodeException {
+        public Map<String, Object> decode(ConnectionContext<?> ctx, ByteBuf bbuf) throws DecodeException {
             return null;
         }
 
@@ -196,11 +196,11 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
         return null;
     }
 
-    protected final Event decode(ConnectionContext ctx, byte[] msg) {
+    protected final Event decode(ConnectionContext<?> ctx, byte[] msg) {
         return decode(ctx, msg, 0, msg != null ? msg.length : 0);
     }
 
-    protected final Event decode(ConnectionContext ctx, byte[] msg, int offset, int size) {
+    protected final Event decode(ConnectionContext<?> ctx, byte[] msg, int offset, int size) {
         EventInstance event = new EventInstance(ctx);
         if ( msg == null || size == 0) {
             logger.info("received null or empty event");
@@ -222,7 +222,7 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
         return event;
     }
 
-    protected final Event emptyEvent(ConnectionContext ctx) {
+    protected final Event emptyEvent(ConnectionContext<?> ctx) {
         return new EventInstance(ctx);
     }
 

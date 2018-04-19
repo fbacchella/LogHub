@@ -16,13 +16,13 @@ public class StringCodec extends Decoder {
     private String field = "message";
 
     @Override
-    public Map<String, Object> decode(ConnectionContext ctx, byte[] msg, int offset, int length) {
+    public Map<String, Object> decode(ConnectionContext<?> ctx, byte[] msg, int offset, int length) {
         String message = new String(msg, offset, length, charset);
         return Collections.singletonMap(field, message);
     }
 
     @Override
-    public Map<String, Object> decode(ConnectionContext ctx, ByteBuf bbuf) {
+    public Map<String, Object> decode(ConnectionContext<?> ctx, ByteBuf bbuf) {
         return Collections.singletonMap(field, bbuf.toString(charset));
     }
 

@@ -40,7 +40,7 @@ class EventInstance extends Event {
     private Date timestamp = new Date();
     private int stepsCount = 0;
     private boolean test;
-    private final ConnectionContext ctx;
+    private final ConnectionContext<?> ctx;
 
     private transient Context timer;
 
@@ -50,11 +50,11 @@ class EventInstance extends Event {
     private transient Processor preSubpipline;
     private transient Processor postSubpipline;
 
-    EventInstance(ConnectionContext ctx) {
+    EventInstance(ConnectionContext<?> ctx) {
         this(ctx, false);
     }
 
-    EventInstance(ConnectionContext ctx, boolean test) {
+    EventInstance(ConnectionContext<?> ctx, boolean test) {
         this.test = test;
         this.ctx = ctx;
         if (ctx instanceof IpConnectionContext) {
@@ -363,7 +363,7 @@ class EventInstance extends Event {
     }
 
     @Override
-    public ConnectionContext getConnectionContext() {
+    public ConnectionContext<?> getConnectionContext() {
         return ctx;
     }
 

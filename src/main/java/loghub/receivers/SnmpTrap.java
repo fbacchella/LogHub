@@ -160,7 +160,7 @@ public class SnmpTrap extends Receiver implements CommandResponder {
             PDU pdu = trap.getPDU();
             Address localaddr = trap.getTransportMapping().getListenAddress();
             Address remoteaddr = trap.getPeerAddress();
-            ConnectionContext ctx = ConnectionContext.EMPTY;
+            ConnectionContext<?> ctx = ConnectionContext.EMPTY;
             if (localaddr instanceof TransportIpAddress && remoteaddr instanceof TransportIpAddress ) {
                 InetSocketAddress localinetaddr = getSA((TransportIpAddress) localaddr);
                 InetSocketAddress remoteinetaddr = getSA((TransportIpAddress) remoteaddr);

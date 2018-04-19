@@ -15,11 +15,11 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
 
     public static final String TIMESTAMPKEY = "@timestamp";
 
-    public static Event emptyEvent(ConnectionContext ctx) {
+    public static Event emptyEvent(ConnectionContext<?> ctx) {
         return new EventInstance(ctx);
     }
 
-    public static Event emptyTestEvent(ConnectionContext ctx) {
+    public static Event emptyTestEvent(ConnectionContext<?> ctx) {
         return new EventInstance(ctx, true);
     }
 
@@ -130,7 +130,7 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
 
     public abstract void drop();
 
-    public abstract ConnectionContext getConnectionContext();
+    public abstract ConnectionContext<?> getConnectionContext();
 
     protected abstract EventInstance getRealEvent();
 

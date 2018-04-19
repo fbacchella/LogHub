@@ -32,11 +32,11 @@ public abstract class Decoder {
         return true;
     }
 
-    abstract public Map<String, Object> decode(ConnectionContext connectionContext, byte[] msg, int offset, int length) throws DecodeException;
+    abstract public Map<String, Object> decode(ConnectionContext<?> connectionContext, byte[] msg, int offset, int length) throws DecodeException;
 
-    abstract public Map<String, Object> decode(ConnectionContext ctx, ByteBuf bbuf) throws DecodeException;
+    abstract public Map<String, Object> decode(ConnectionContext<?> ctx, ByteBuf bbuf) throws DecodeException;
 
-    public Map<String, Object> decode(ConnectionContext ctx, byte[] msg) throws DecodeException{
+    public Map<String, Object> decode(ConnectionContext<?> ctx, byte[] msg) throws DecodeException{
         return decode(ctx, msg, 0, msg.length);
     }
 

@@ -225,7 +225,7 @@ class EventWrapper extends Event {
     }
 
     @Override
-    public ConnectionContext getConnectionContext() {
+    public ConnectionContext<?> getConnectionContext() {
         return event.getConnectionContext();
     }
 
