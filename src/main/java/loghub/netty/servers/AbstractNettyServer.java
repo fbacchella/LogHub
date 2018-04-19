@@ -51,14 +51,10 @@ public abstract class AbstractNettyServer<CF extends ComponentFactory<BS, BSC, S
         factory.addHandlers(consumer);
         consumer.addOptions((BS) bootstrap);
         logger.debug("started {} with consumer {} listening on {}", factory, consumer, address);
-        try {
-            return makeChannel(bootstrap, address);
-        } catch (InterruptedException e) {
-            return false;
-        }
+        return makeChannel(bootstrap, address);
     }
 
-    protected abstract boolean makeChannel(AbstractBootstrap<BS,BSC> bootstrap, SA address) throws InterruptedException;
+    protected abstract boolean makeChannel(AbstractBootstrap<BS,BSC> bootstrap, SA address);
 
     public abstract void close() throws InterruptedException;
 

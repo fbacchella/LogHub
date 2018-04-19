@@ -2,7 +2,11 @@ package loghub.netty.servers;
 
 import java.net.InetSocketAddress;
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
+
+import org.apache.logging.log4j.Level;
 
 import io.netty.bootstrap.AbstractBootstrap;
 import io.netty.bootstrap.Bootstrap;
@@ -55,12 +59,20 @@ public class UdpServer extends AbstractNettyServer<UdpFactory, Bootstrap, Channe
     }
 
     @Override
-    protected boolean makeChannel(AbstractBootstrap<Bootstrap, Channel> bootstrap, InetSocketAddress address) throws InterruptedException {
+    protected boolean makeChannel(AbstractBootstrap<Bootstrap, Channel> bootstrap, InetSocketAddress address) {
         channels = new HashSet<>(getWorkerThreads());
         for (int i = 0 ; i < getWorkerThreads() ; ++i) {  
-            ChannelFuture future = bootstrap.bind(address).await();
+            ChannelFuture future = bootstrap.bind(address);
             channels.add(future.channel());
-            if (!future.isSuccess()) {
+            try {
+                future.get();
+            } catch (ExecutionException | InterruptedException e) {
+                if (e instanceof InterruptedException) {
+                    Thread.currentThread().interrupt();
+                }
+                String message = Optional.ofNullable(e.getCause().getMessage()).orElse(e.getCause().getClass().getCanonicalName());
+                logger.error("Failed to start listening on {}: {}", address, message);
+                logger.catching(Level.DEBUG, e.getCause());
                 channels.forEach(f -> f.close());
                 channels.clear();
                 return false;

@@ -71,7 +71,7 @@ public class TestServer {
         }
 
         @Override
-        protected boolean makeChannel(AbstractBootstrap<ServerBootstrap, ServerChannel> bootstrap, LocalAddress address) throws InterruptedException {
+        protected boolean makeChannel(AbstractBootstrap<ServerBootstrap, ServerChannel> bootstrap, LocalAddress address) {
             // Bind and start to accept incoming connections.
             try {
                 cf = bootstrap.bind(address).await().channel();
