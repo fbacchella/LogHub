@@ -4,7 +4,11 @@ import java.net.SocketAddress;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ThreadFactory;
+
+import javax.net.ssl.SSLEngine;
+import javax.net.ssl.SSLSession;
 
 import org.apache.logging.log4j.Level;
 
@@ -17,9 +21,12 @@ import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.MessageToMessageDecoder;
+import io.netty.handler.ssl.SslHandler;
 import io.netty.util.AttributeKey;
 import io.netty.util.ReferenceCounted;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import io.netty.util.concurrent.Future;
+import io.netty.util.concurrent.GenericFutureListener;
 import loghub.ConnectionContext;
 import loghub.Decoder.DecodeException;
 import loghub.Event;
@@ -90,6 +97,7 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
     }
 
     private static final AttributeKey<Object> CONNECTIONCONTEXTATTRIBUTE = AttributeKey.newInstance("ConnectionContextAttribute");
+    private static final AttributeKey<SSLSession> sessattr = AttributeKey.newInstance(SSLSession.class.getName());
 
     private S server;
     protected MessageToMessageDecoder<SM> nettydecoder;
@@ -139,9 +147,29 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
         }
     }
 
+    protected void addSslHandler(ChannelPipeline p) {
+        if (isWithSsl()) {
+            SSLEngine engine = getSslEngine();
+            SslHandler sslHandler = new SslHandler(engine);
+            p.addFirst("ssl", sslHandler);
+            Future<Channel> future = sslHandler.handshakeFuture();
+            future.addListener(new GenericFutureListener<Future<Channel>>() {
+                @Override
+                public void operationComplete(Future<Channel> future) throws Exception {
+                    try {
+                        future.get().attr(sessattr).set(sslHandler.engine().getSession());
+                    } catch (ExecutionException e) {
+                        logger.warn("Failed ssl connexion", e.getCause());
+                        logger.catching(Level.DEBUG, e.getCause());
+                    }
+                }});
+        }
+    }
+
     @Override
     public void addHandlers(ChannelPipeline p) {
         p.addFirst("SourceResolver", extractor);
+        addSslHandler(p);
         if (! selfDecoder) {
             p.addLast("MessageDecoder", getNettyDecoder());
         }
@@ -154,6 +182,10 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
             throw new NullPointerException("nettydecoder");
         }
         return nettydecoder;
+    }
+
+    protected SSLSession getSslSession(ChannelHandlerContext ctx) {
+        return ctx.channel().attr(sessattr).get();
     }
 
     protected void populate(Event event, ChannelHandlerContext ctx, Map<String, Object> msg) {

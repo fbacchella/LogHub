@@ -1,9 +1,17 @@
 package loghub;
 
+import java.security.GeneralSecurityException;
+import java.security.Principal;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
+
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLEngine;
+import javax.net.ssl.SSLPeerUnverifiedException;
+import javax.net.ssl.SSLSession;
+import javax.security.auth.login.FailedLoginException;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -35,7 +43,16 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
 
     };
 
+    public static enum ClientAuthentication {
+        REQUIRED,
+        WANTED,
+        NOTNEEDED,
+    };
     protected final Logger logger;
+
+    private boolean withSsl = false;
+    private SSLContext sslctx = null;
+    private ClientAuthentication sslclient = ClientAuthentication.NOTNEEDED;
 
     private final BlockingQueue<Event> outQueue;
     private final Pipeline pipeline;
@@ -54,6 +71,9 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
     public boolean configure(Properties properties) {
         setName("receiver-" + getReceiverName());
         count = Properties.metrics.meter("receiver." + getReceiverName());
+        if (withSsl) {
+            sslctx = properties.ssl;
+        }
         if (decoder != null) {
             return decoder.configure(properties, this);
         } else {
@@ -232,6 +252,39 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
         }
     }
 
+    protected Principal getSslPrincipal(SSLSession sess) throws GeneralSecurityException {
+        if (withSsl) {
+            try {
+                if (sslclient == ClientAuthentication.WANTED || sslclient == ClientAuthentication.REQUIRED) {
+                    return sess.getPeerPrincipal();
+                }
+            } catch (SSLPeerUnverifiedException e1) {
+                if (sslclient == ClientAuthentication.REQUIRED) {
+                    throw new FailedLoginException("Client authentication required but failed");
+                    //throw new HttpRequestFailure(HttpResponseStatus.UNAUTHORIZED, "Bad authentication", Collections.singletonMap(HttpHeaderNames.WWW_AUTHENTICATE, "Basic realm=\"loghub\""));
+                } else {
+                    return null;
+                }
+            }
+        }
+        return null;
+    }
+
+    protected SSLEngine getSslEngine() {
+        if (withSsl) {
+            SSLEngine engine = sslctx.createSSLEngine();
+            engine.setUseClientMode(false);
+            if(sslclient == ClientAuthentication.REQUIRED) {
+                engine.setNeedClientAuth(true);
+            } else if(sslclient == ClientAuthentication.WANTED) {
+                engine.setWantClientAuth(true);
+            }
+            return engine;
+        } else {
+            return null;
+        }
+    }
+
     public Decoder getDecoder() {
         return decoder;
     }
@@ -241,5 +294,33 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
     }
 
     public abstract String getReceiverName();
+
+    /**
+     * @return the withSsl
+     */
+    public boolean isWithSsl() {
+        return withSsl;
+    }
+
+    /**
+     * @param withSsl the withSsl to set
+     */
+    public void setWithSsl(boolean withSsl) {
+        this.withSsl = withSsl;
+    }
+
+    /**
+     * @return the sslclient
+     */
+    public String getSslClientAuthentication() {
+        return sslclient.name().toLowerCase();
+    }
+
+    /**
+     * @param sslclient the sslclient to set
+     */
+    public void setSslClientAuthentication(String sslclient) {
+        this.sslclient = ClientAuthentication.valueOf(sslclient.toUpperCase());
+    }
 
 }

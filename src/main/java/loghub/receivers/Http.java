@@ -5,6 +5,7 @@ import java.nio.charset.Charset;
 import java.nio.charset.IllegalCharsetNameException;
 import java.nio.charset.StandardCharsets;
 import java.nio.charset.UnsupportedCharsetException;
+import java.security.GeneralSecurityException;
 import java.security.Principal;
 import java.util.Base64;
 import java.util.Collections;
@@ -12,19 +13,10 @@ import java.util.Date;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
-
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLEngine;
-import javax.net.ssl.SSLPeerUnverifiedException;
-import javax.net.ssl.SSLSession;
-
-import org.apache.logging.log4j.Level;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler.Sharable;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
@@ -36,10 +28,6 @@ import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.QueryStringDecoder;
-import io.netty.handler.ssl.SslHandler;
-import io.netty.util.AttributeKey;
-import io.netty.util.concurrent.Future;
-import io.netty.util.concurrent.GenericFutureListener;
 import loghub.Decoder.DecodeException;
 import loghub.Event;
 import loghub.Pipeline;
@@ -52,14 +40,6 @@ import loghub.processors.ParseJson;
 public class Http extends GenericTcp {
 
     private static final ParseJson jsonParser = new ParseJson();
-
-    private static enum ClientAuthentication {
-        REQUIRED,
-        WANTED,
-        NOTNEEDED,
-    };
-
-    private static final AttributeKey<SSLSession> sessattr = AttributeKey.newInstance(SSLSession.class.getName());
 
     @Sharable
     private class PostHandler extends HttpRequestProcessing {
@@ -77,21 +57,15 @@ public class Http extends GenericTcp {
         @Override
         protected boolean processRequest(FullHttpRequest request, ChannelHandlerContext ctx) throws HttpRequestFailure {
             String user = null;
-            if (Http.this.withSsl) {
-                try {
-                    SSLSession sess = ctx.channel().attr(sessattr).get();
-                    if (Http.this.sslclient == ClientAuthentication.WANTED || Http.this.sslclient == ClientAuthentication.REQUIRED) {
-                        Principal p = sess.getPeerPrincipal();
-                        if (p != null) {
-                            user = p.getName();
-                        }
-                    }
-                } catch (SSLPeerUnverifiedException e1) {
-                    if (Http.this.sslclient == ClientAuthentication.REQUIRED) {
-                        throw new HttpRequestFailure(HttpResponseStatus.UNAUTHORIZED, "Bad authentication", Collections.singletonMap(HttpHeaderNames.WWW_AUTHENTICATE, "Basic realm=\"loghub\""));
-                    }
+            try {
+                Principal p = Http.this.getSslPrincipal(Http.this.getSslSession(ctx));
+                if (p != null) {
+                    user = p.getName();
                 }
+            } catch (GeneralSecurityException e2) {
+                throw new HttpRequestFailure(HttpResponseStatus.UNAUTHORIZED, "Bad authentication", Collections.singletonMap(HttpHeaderNames.WWW_AUTHENTICATE, "Basic realm=\"loghub\""));
             }
+            System.out.format("user %s %s\n", Http.this.encodedAuthentication, user);
             if (Http.this.encodedAuthentication != null && user == null) {
                 String authorization = request.headers().get(HttpHeaderNames.AUTHORIZATION);
                 if (authorization == null) {
@@ -184,29 +158,8 @@ public class Http extends GenericTcp {
     private final AbstractHttpServer webserver = new AbstractHttpServer() {
         @Override
         public void addHandlers(ChannelPipeline p) {
-            if (Http.this.sslctx != null) {
-                SSLEngine engine = Http.this.sslctx.createSSLEngine();
-                engine.setUseClientMode(false);
-                if (Http.this.sslclient == ClientAuthentication.REQUIRED) {
-                    engine.setNeedClientAuth(true);
-                } else if (Http.this.sslclient == ClientAuthentication.WANTED){
-                    engine.setWantClientAuth(true);
-                }
-                SslHandler sslHandler = new SslHandler(engine);
-                p.addFirst("ssl", sslHandler);
-                Future<Channel> future = sslHandler.handshakeFuture();
-                future.addListener(new GenericFutureListener<Future<Channel>>() {
-                    @Override
-                    public void operationComplete(Future<Channel> future) throws Exception {
-                        try {
-                            future.get().attr(sessattr).set(sslHandler.engine().getSession());
-                        } catch (ExecutionException e) {
-                            logger.warn("Failed ssl connexion", e.getMessage());
-                            logger.catching(Level.DEBUG, e);
-                        }
-                    }});
-            }
             super.addHandlers(p);
+            Http.this.addSslHandler(p);
         }
 
         @Override
@@ -220,9 +173,6 @@ public class Http extends GenericTcp {
     private String user = null;
     private String password = null;
     private String encodedAuthentication = null;
-    private boolean withSsl = false;
-    private SSLContext sslctx = null;
-    private ClientAuthentication sslclient = ClientAuthentication.NOTNEEDED;
 
     public Http(BlockingQueue<Event> outQueue, Pipeline pipeline) {
         super(outQueue, pipeline);
@@ -234,9 +184,6 @@ public class Http extends GenericTcp {
         if (user != null && password != null) {
             String authString = user + ":" + password;
             encodedAuthentication = "Basic " + Base64.getEncoder().encodeToString(authString.getBytes(StandardCharsets.UTF_8));
-        }
-        if (withSsl) {
-            sslctx = properties.ssl;
         }
         try {
             webserver.setPort(getPort());
@@ -308,34 +255,6 @@ public class Http extends GenericTcp {
 
     public void setDecoders(Object password) {
         System.out.println(password);
-    }
-
-    /**
-     * @return the withSsl
-     */
-    public boolean isWithSsl() {
-        return withSsl;
-    }
-
-    /**
-     * @param withSsl the withSsl to set
-     */
-    public void setWithSsl(boolean withSsl) {
-        this.withSsl = withSsl;
-    }
-
-    /**
-     * @return the sslclient
-     */
-    public String getSslClientAuthentication() {
-        return sslclient.name().toLowerCase();
-    }
-
-    /**
-     * @param sslclient the sslclient to set
-     */
-    public void setSslClientAuthentication(String sslclient) {
-        this.sslclient = ClientAuthentication.valueOf(sslclient.toUpperCase());
     }
 
 }

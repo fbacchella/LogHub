@@ -11,9 +11,16 @@ import java.net.ServerSocket;
 import java.net.URL;
 import java.util.Base64;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.function.Consumer;
+
+import javax.net.ssl.HostnameVerifier;
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSession;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -29,9 +36,9 @@ import loghub.Pipeline;
 import loghub.Tools;
 import loghub.configuration.Properties;
 import loghub.decoders.StringCodec;
+import loghub.ssl.ContextLoader;
 
 public class TestHttp {
-
 
     private static Logger logger;
     private Http receiver = null;
@@ -43,10 +50,11 @@ public class TestHttp {
     static public void configure() throws IOException {
         Tools.configure();
         logger = LogManager.getLogger();
-        LogUtils.setLevel(logger, Level.TRACE, "loghub.receivers.Http", "loghub.Receiver", "loghub.netty", "loghub.EventsProcessor");
+        LogUtils.setLevel(logger, Level.TRACE, "loghub.receivers.Http", "loghub.Receiver", "loghub.netty", "loghub.EventsProcessor", "loghub.ssl");
+        //System.setProperty("javax.net.debug", "ssl");
     }
 
-    public void makeReceiver(Consumer<Http> prepare) throws IOException {
+    public void makeReceiver(Consumer<Http> prepare, Map<String, Object> propsMap) throws IOException {
         // Generate a locally binded random socket
         ServerSocket socket = new ServerSocket(0, 10, InetAddress.getLoopbackAddress());
         hostname = socket.getInetAddress().getHostAddress();
@@ -59,7 +67,7 @@ public class TestHttp {
         receiver.setPort(port);
         receiver.setDecoder(new StringCodec());
         prepare.accept(receiver);
-        Assert.assertTrue(receiver.configure(new Properties(Collections.emptyMap())));
+        Assert.assertTrue(receiver.configure(new Properties(propsMap)));
         receiver.start();
     }
 
@@ -71,7 +79,21 @@ public class TestHttp {
     }
 
     private final String[] doRequest(URL destination, byte[] postDataBytes, Consumer<HttpURLConnection> prepare, int expected) throws IOException {
+        System.out.println("get conn");
         HttpURLConnection conn = (HttpURLConnection) destination.openConnection();
+        System.out.println("got conn");
+        if (conn instanceof HttpsURLConnection) {
+            HttpsURLConnection cnx = (HttpsURLConnection) conn;
+            cnx.setHostnameVerifier(new HostnameVerifier() {
+                public boolean verify(String hostname, SSLSession session) {
+                    return true;
+                }
+            });
+            Map<String, Object> properties = new HashMap<>();
+            properties.put("trusts", new String[] {getClass().getResource("/localhost.p12").getFile()});
+            SSLContext cssctx = ContextLoader.build(properties);
+            cnx.setSSLSocketFactory(cssctx.getSocketFactory());
+        }
         prepare.accept(conn);
         if (postDataBytes.length > 0) {
             conn.setRequestProperty("Content-Length", String.valueOf(postDataBytes.length));
@@ -85,7 +107,7 @@ public class TestHttp {
 
     @Test
     public void testHttpPostJson() throws IOException {
-        makeReceiver( i -> {});
+        makeReceiver( i -> {}, Collections.emptyMap());
         doRequest(new URL("http", hostname, port, "/"),
                 "{\"a\": 1}".getBytes("UTF-8"),
                 i -> {
@@ -104,7 +126,7 @@ public class TestHttp {
 
     @Test
     public void testHttpGet() throws IOException {
-        makeReceiver( i -> {});
+        makeReceiver( i -> {}, Collections.emptyMap());
         doRequest(new URL("http", hostname, port, "/?a=1"),
                 new byte[]{},
                 i -> {}, 200);
@@ -116,8 +138,23 @@ public class TestHttp {
     }
 
     @Test
+    public void testHttpsGet() throws IOException {
+        makeReceiver( i -> { i.setWithSsl(true);},
+                Collections.singletonMap("ssl.trusts", new String[] {getClass().getResource("/localhost.p12").getFile()})
+                );
+        doRequest(new URL("https", hostname, port, "/?a=1"),
+                new byte[]{},
+                i -> {}, 200);
+
+        Event e = queue.poll();
+        logger.debug(e.getClass());
+        String a = (String) e.get("a");
+        Assert.assertEquals("1", a);
+    }
+
+    @Test
     public void testHttpFull() throws IOException {
-        makeReceiver( i -> {});
+        makeReceiver( i -> {}, Collections.emptyMap());
         try {
             doRequest(new URL("http", hostname, port, "/?a=1"),
                     new byte[]{},
@@ -142,7 +179,7 @@ public class TestHttp {
 
     @Test
     public void testHttpPostForm() throws IOException {
-        makeReceiver( i -> {});
+        makeReceiver( i -> {}, Collections.emptyMap());
         doRequest(new URL("http", hostname, port, "/"),
                 "a=1&b=c%20d".getBytes("UTF-8"),
                 i -> {
@@ -162,7 +199,7 @@ public class TestHttp {
     @Test
     public void testFailedAuthentication1() throws IOException {
         try {
-            makeReceiver( i -> { i.setUser("user") ; i.setPassword("password");;});
+            makeReceiver( i -> { i.setUser("user") ; i.setPassword("password");}, Collections.emptyMap());
             doRequest(new URL("http", hostname, port, "/?a=1"),
                     new byte[]{},
                     i -> {}, 401);
@@ -176,7 +213,7 @@ public class TestHttp {
     @Test
     public void testFailedAuthentication2() throws IOException {
         try {
-            makeReceiver( i -> { i.setUser("user") ; i.setPassword("password");;});
+            makeReceiver( i -> { i.setUser("user") ; i.setPassword("password");}, Collections.emptyMap());
             URL dest = new URL("http", hostname, port, "/?a=1");
             doRequest(dest,
                     new byte[]{},
@@ -193,7 +230,7 @@ public class TestHttp {
 
     @Test
     public void testGoodAuthentication() throws IOException {
-        makeReceiver( i -> { i.setUser("user") ; i.setPassword("password");});
+        makeReceiver( i -> { i.setUser("user") ; i.setPassword("password");}, Collections.emptyMap());
         URL dest = new URL("http", hostname, port, "/?a=1");
         doRequest(dest,
                 new byte[]{},
