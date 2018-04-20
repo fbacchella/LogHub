@@ -85,6 +85,23 @@ public class TestExpressionParsing {
     }
 
     @Test
+    public void testUnary() throws ExpressionException, ProcessorException {
+        Assert.assertEquals("-2", evalExpression("~1").toString());
+        Assert.assertEquals("false", evalExpression("!1").toString());
+    }
+
+    @Test
+    public void testSubExpression() throws ExpressionException, ProcessorException {
+        Assert.assertEquals("12", evalExpression("(1 + 2) * 4").toString());
+    }
+
+    @Test
+    public void testNew() throws ExpressionException, ProcessorException {
+        Date newdate = (Date)evalExpression("new java.util.Date(1+2)");
+        Assert.assertEquals(new Date(3), newdate);
+    }
+
+    @Test
     public void testFormatterPath() throws ExpressionException, ProcessorException {
         String format = "${a.b%02d}";
         String formatHash = Integer.toHexString(format.hashCode());
