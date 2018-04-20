@@ -91,7 +91,7 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
         int eventseen = 0;
         int looptry = 0;
         int wait = 100;
-        while(! isInterrupted()) {
+        while (! isInterrupted()) {
             Iterable<Event> stream = new Iterable<Event>() {
                 @Override
                 public Iterator<Event> iterator() {
