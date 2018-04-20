@@ -142,7 +142,7 @@ public class TestServer {
         }
 
         @Override
-        public ConnectionContext<LocalAddress> getConnectionContext(ChannelHandlerContext ctx, Object message) {
+        public ConnectionContext<LocalAddress> getNewConnectionContext(ChannelHandlerContext ctx, Object message) {
             return new LocalChannelConnectionContext((LocalChannel) ctx.channel());
         }
 

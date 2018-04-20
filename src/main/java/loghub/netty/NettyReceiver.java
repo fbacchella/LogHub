@@ -71,8 +71,9 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
     private class ContextExtractor extends MessageToMessageDecoder<SM> {
         @Override
         protected void decode(ChannelHandlerContext ctx, SM msg, List<Object> out) {
-            ConnectionContext<?> cctx = getConnectionContext(ctx, msg);
-            ctx.channel().attr(CONNECTIONCONTEXTATTRIBUTE).set(cctx);
+            logger.traceEntry("decode {} {} {}", ctx, msg, out);
+            // Calls getConnectionContext to ensure that the attribute is present
+            getConnectionContext(ctx, msg);
             //The message is not transformed in this step, so don't decrease reference count
             if (msg instanceof ReferenceCounted) {
                 ((ReferenceCounted) msg).retain();
@@ -97,8 +98,8 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
         }
     }
 
-    private static final AttributeKey<ConnectionContext<?>> CONNECTIONCONTEXTATTRIBUTE = AttributeKey.newInstance(ConnectionContext.class.getName());
-    private static final AttributeKey<SSLSession> sessattr = AttributeKey.newInstance(SSLSession.class.getName());
+    protected static final AttributeKey<ConnectionContext<?>> CONNECTIONCONTEXTATTRIBUTE = AttributeKey.newInstance(ConnectionContext.class.getName());
+    protected static final AttributeKey<SSLSession> sessattr = AttributeKey.newInstance(SSLSession.class.getName());
 
     private S server;
     protected MessageToMessageDecoder<SM> nettydecoder;
@@ -213,7 +214,19 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
 
     protected abstract S getServer();
 
-    public abstract ConnectionContext<SA> getConnectionContext(ChannelHandlerContext ctx, SM message);
+    @SuppressWarnings("unchecked")
+    public ConnectionContext<SA> getConnectionContext(ChannelHandlerContext ctx, SM message) {
+        ConnectionContext<SA> cctx;
+        if (ctx.channel().hasAttr(CONNECTIONCONTEXTATTRIBUTE)) {
+            cctx = (ConnectionContext<SA>) ctx.channel().attr(CONNECTIONCONTEXTATTRIBUTE).get();
+        } else {
+            cctx = getNewConnectionContext(ctx, message);
+            ctx.channel().attr(CONNECTIONCONTEXTATTRIBUTE).set(cctx);
+        }
+        return cctx;
+    }
+
+    public abstract ConnectionContext<SA> getNewConnectionContext(ChannelHandlerContext ctx, SM message);
 
     @Override
     public void close() {
