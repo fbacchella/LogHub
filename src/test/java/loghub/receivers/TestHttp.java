@@ -138,7 +138,7 @@ public class TestHttp {
 
     @Test
     public void testHttpsGet() throws IOException {
-        makeReceiver( i -> { i.setWithSsl(true);},
+        makeReceiver( i -> { i.setWithSsl(true); i.setSslClientAuthentication("REQUIRED");},
                 Collections.singletonMap("ssl.trusts", new String[] {getClass().getResource("/localhost.p12").getFile()})
                 );
         doRequest(new URL("https", hostname, port, "/?a=1"),
@@ -149,6 +149,7 @@ public class TestHttp {
         logger.debug(e.getClass());
         String a = (String) e.get("a");
         Assert.assertEquals("1", a);
+        Assert.assertEquals("CN=localhost", e.getConnectionContext().getPrincipal().toString());
     }
 
     @Test
@@ -238,6 +239,7 @@ public class TestHttp {
                 }, 200);
         Event e = queue.poll();
         Assert.assertEquals("1", e.get("a"));
+        Assert.assertEquals("user", e.getConnectionContext().getPrincipal().toString());
     }
 
 }

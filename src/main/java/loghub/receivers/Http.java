@@ -89,6 +89,10 @@ public class Http extends GenericTcp {
                 return false;
             return true;
         }
+        @Override
+        public String toString() {
+            return user;
+        }
     };
 
     @Sharable
