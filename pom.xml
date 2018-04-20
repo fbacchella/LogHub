@@ -85,11 +85,6 @@
             <version>2.4.15</version>
         </dependency>
         <dependency>
-            <groupId>oi.krakens</groupId>
-            <artifactId>java-grok</artifactId>
-            <version>0.1.9-SNAPSHOT</version>
-        </dependency>
-        <dependency>
             <groupId>org.antlr</groupId>
             <artifactId>antlr4</artifactId>
             <version>${antlr}</version>
@@ -190,6 +185,11 @@
             <groupId>com.beust</groupId>
             <artifactId>jcommander</artifactId>
             <version>1.72</version>
+        </dependency>
+        <dependency>
+            <groupId>io.krakens</groupId>
+            <artifactId>java-grok</artifactId>
+            <version>0.1.9-SNAPSHOT</version>
         </dependency>
     </dependencies>
     <repositories>
