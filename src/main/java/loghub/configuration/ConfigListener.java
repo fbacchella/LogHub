@@ -9,14 +9,17 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
+import org.antlr.v4.runtime.CommonToken;
 import org.antlr.v4.runtime.IntStream;
 import org.antlr.v4.runtime.Parser;
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.RecognitionException;
-import org.antlr.v4.runtime.tree.TerminalNode;
+import org.antlr.v4.runtime.Token;
+import org.antlr.v4.runtime.tree.pattern.TokenTagToken;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -60,10 +63,10 @@ import loghub.processors.Drop;
 import loghub.processors.Etl;
 import loghub.processors.FireEvent;
 import loghub.processors.Forker;
+import loghub.processors.Forwarder;
 import loghub.processors.Log;
 import loghub.processors.Mapper;
 import loghub.processors.Merge;
-import loghub.processors.Forwarder;
 import loghub.processors.Test;
 import loghub.processors.UnwrapEvent;
 import loghub.processors.WrapEvent;
@@ -567,15 +570,18 @@ class ConfigListener extends RouteBaseListener {
         stack.push(StackMarker.Etl);
     }
 
+    private static final CommonToken NONE = new TokenTagToken("", Token.INVALID_TYPE);
+
     private String[] convertEventVariable(EventVariableContext ev) {
-        if (ev.key != null) {
+        String keyString = Optional.ofNullable(ev.key).orElse(NONE).getText();
+        if (Event.TIMESTAMPKEY.equals(keyString)) {
             return new String[] { ev.key.getText() };
         } else {
-            List<TerminalNode> path = ev.Identifier();
-            String [] pathString = new String[path.size()];
-            AtomicInteger indice = new AtomicInteger(0);
-            path.stream().forEach( i-> pathString[indice.getAndIncrement()] = i.getText());
-            return pathString;
+            List<String> path = ev.Identifier().stream().map(i -> i.getText()).collect(Collectors.toList());
+            if (Event.CONTEXTKEY.equals(keyString))
+                path.add(0, ev.key.getText());
+            path.stream().toArray(String[]::new);
+            return path.stream().toArray(String[]::new);
         }
     }
 
@@ -663,6 +669,8 @@ class ConfigListener extends RouteBaseListener {
             Arrays.stream(convertEventVariable(ctx.ev)).forEach( i-> {
                 if (Event.TIMESTAMPKEY.equals(i)) {
                     buffer.append(".getTimestamp()");
+                } else if (Event.CONTEXTKEY.equals(i)) {
+                    buffer.append(".getConnectionContext()");
                 } else {
                     buffer.append(".").append(i);
                 }

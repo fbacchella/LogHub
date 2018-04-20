@@ -175,7 +175,7 @@ source
     : '%' Identifier
     ;
 
-eventVariable: '[' (key='@timestamp' | (Identifier ( Identifier)*)) ']' ;
+eventVariable: '[' (key='@timestamp' | (key='@context' (Identifier ( Identifier)*))? | (Identifier ( Identifier)*)) ']' ;
 
 propertyName
     :   Identifier | QualifiedIdentifier

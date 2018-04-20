@@ -70,6 +70,7 @@ public class Expression {
         .forEach( i -> groovyBinding.setVariable(i.getKey(), i.getValue()));
         groovyBinding.setVariable("event", event);
         groovyBinding.setVariable("@timestamp", event.getTimestamp());
+        groovyBinding.setVariable("@context", event.getConnectionContext());
         groovyBinding.setVariable("formatters", formatters);
         Script localscript;
         try {

@@ -377,4 +377,24 @@ class EventInstance extends Event {
         return this;
     }
 
+    @Override
+    public Object get(Object key) {
+        if (Event.CONTEXTKEY.equals(key)) {
+            return ctx;
+        } else if (Event.TIMESTAMPKEY.equals(key)) {
+            return timestamp;
+        } else {
+            return super.get(key);
+        }
+    }
+
+    @Override
+    public boolean containsKey(Object key) {
+        if (Event.CONTEXTKEY.equals(key) || Event.TIMESTAMPKEY.equals(key)) {
+            return true;
+        } else {
+            return super.containsKey(key);
+        }
+    }
+
 }

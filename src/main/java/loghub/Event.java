@@ -14,6 +14,7 @@ import com.fasterxml.jackson.annotation.ObjectIdGenerators;
 public abstract class Event extends HashMap<String, Object> implements Serializable {
 
     public static final String TIMESTAMPKEY = "@timestamp";
+    public static final String CONTEXTKEY = "@context";
 
     public static Event emptyEvent(ConnectionContext<?> ctx) {
         return new EventInstance(ctx);
