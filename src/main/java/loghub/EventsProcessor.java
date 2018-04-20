@@ -52,7 +52,7 @@ public class EventsProcessor extends Thread {
     @Override
     public void run() {
         final AtomicReference<Counter> gaugecounter = new AtomicReference<>();
-        while (true) {
+        while (! isInterrupted()) {
             Event event = null;
             try {
                 event = inQueue.take();
