@@ -18,7 +18,7 @@ import loghub.configuration.Properties;
 
 public class EventsRepository<KEY> {
 
-    private final static Logger logger = LogManager.getLogger();
+    private static final Logger logger = LogManager.getLogger();
 
     private static final ThreadFactory tf = new ThreadFactory() {
         private final AtomicInteger counter = new AtomicInteger(0);
@@ -71,15 +71,15 @@ public class EventsRepository<KEY> {
     }
 
     public boolean failed(KEY key) {
-        return awake(key, (i) -> i.onFailure, i -> i.failureTransform);
+        return awake(key, i -> i.onFailure, i -> i.failureTransform);
     }
 
     public boolean timeout(KEY key) {
-        return awake(key, (i) -> i.onTimeout, i -> i.timeoutTransform);
+        return awake(key, i -> i.onTimeout, i -> i.timeoutTransform);
     }
 
     public boolean exception(KEY key) {
-        return awake(key, (i) -> i.onException, i -> i.exceptionTransform);
+        return awake(key, i -> i.onException, i -> i.exceptionTransform);
     }
 
     private boolean awake(KEY key, Function<PausedEvent<KEY>, Processor> source, Function<PausedEvent<KEY>, Function<Event, Event>> transform) {

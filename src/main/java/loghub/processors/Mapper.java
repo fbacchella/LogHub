@@ -19,7 +19,7 @@ public class Mapper extends Etl {
         // Map only uses integer as key, as parsing number only generate integer
         // So ensure the the key is an integer
         // Ignore float/double case, floating point key don't make sense
-        if (key instanceof Number && ! (key instanceof Integer) && ! (key instanceof Double) && ! (key instanceof Double)) {
+        if (key instanceof Number && ! (key instanceof Integer) && ! (key instanceof Double) && ! (key instanceof Float)) {
             key = Integer.valueOf(((Number) key).intValue());
         }
         if (! map.containsKey(key)) {

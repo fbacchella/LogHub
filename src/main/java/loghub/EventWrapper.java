@@ -59,7 +59,7 @@ class EventWrapper extends Event {
 
     @Override
     public void putAll(Map<? extends String, ? extends Object> m) {
-        m.entrySet().stream().forEach( i-> { put(i.getKey(), i.getValue()); } );
+        m.entrySet().stream().forEach( i->  put(i.getKey(), i.getValue()) );
     }
 
     @Override
@@ -96,19 +96,23 @@ class EventWrapper extends Event {
         return size != null ? size : 0;
     }
 
+    @Override
     public boolean isEmpty() {
         return (Boolean) action( ((i, j, k) -> i.isEmpty()), null, null) == true;
     }
 
+    @Override
     public void clear() {
         action( ((i, j, k) -> {i.clear(); return null;}), null, null);
     }
 
+    @Override
     public boolean containsValue(Object value) {
         return Boolean.TRUE.equals(action( ((i, j, k) -> i.containsValue(k)), null, null));
     }
 
     @SuppressWarnings("unchecked")
+    @Override
     public Set<String> keySet() {
         Object found = action( ((i, j, k) -> i.keySet()), null, null);
         if(found != null) {
@@ -119,6 +123,7 @@ class EventWrapper extends Event {
     }
 
     @SuppressWarnings("unchecked")
+    @Override
     public Collection<Object> values() {
         return (Collection<Object>) action( ((i, j, k) -> i.values()), null, null);
     }

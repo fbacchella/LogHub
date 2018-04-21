@@ -92,7 +92,7 @@ public class Start {
             final long starttime = System.nanoTime();
             Runtime.getRuntime().addShutdownHook(new Thread() {
                 @Override
-                public synchronized void start() {
+                public synchronized void run() {
                     long endtime = System.nanoTime();
                     double runtime = ((double)(endtime - starttime)) / 1.0e9;
                     System.out.format("received: %.2f/s\n", Stats.received.get() / runtime);

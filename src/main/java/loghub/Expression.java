@@ -23,7 +23,7 @@ public class Expression {
         public ExpressionException(Throwable cause) {
             super(cause);
         }
-    };
+    }
 
     private static final Logger logger = LogManager.getLogger();
 

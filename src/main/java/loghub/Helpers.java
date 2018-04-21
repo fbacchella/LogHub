@@ -176,8 +176,8 @@ public final class Helpers {
             }
             else if ("file".equals(url.getProtocol())) {
                 Path p = Paths.get(url.toURI());
-                if( Files.isDirectory(p)) {
-                    try(DirectoryStream<Path> ds = Files.newDirectoryStream(p)) {
+                if ( p.toFile().isDirectory()) {
+                    try (DirectoryStream<Path> ds = Files.newDirectoryStream(p)) {
                         for (Path entry: ds) {
                             InputStream is = new FileInputStream(entry.toFile());
                             reader.accept(is);
@@ -315,13 +315,13 @@ public final class Helpers {
                 // VirtualMachineError includes OutOfMemoryError and other fatal errors
                 (err instanceof VirtualMachineError || err instanceof InterruptedException || err instanceof ThreadDeath) ) 
                 ;
-    };
+    }
 
     public static class SimplifiedThread<T> {
         public final Thread thread;
         public final FutureTask<T> task;
         public SimplifiedThread(Callable<T> callable) {
-            task = new FutureTask<T>(callable);
+            task = new FutureTask<>(callable);
             thread = new Thread() {
                 @Override
                 public void run() {

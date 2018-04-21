@@ -37,7 +37,7 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
             Map<String, Object> next;
             if ( peekNext == null ) {
                 if (create) {
-                    next = new HashMap<String, Object>();
+                    next = new HashMap<>();
                     current.put(path[i], next);
                 } else {
                     return null;

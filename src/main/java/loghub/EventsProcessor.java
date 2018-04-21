@@ -32,7 +32,7 @@ public class EventsProcessor extends Thread {
         FAILED
     }
 
-    private final static Logger logger = LogManager.getLogger();
+    private static final Logger logger = LogManager.getLogger();
 
     private final BlockingQueue<Event> inQueue;
     private final Map<String, BlockingQueue<Event>> outQueues;
@@ -57,6 +57,7 @@ public class EventsProcessor extends Thread {
             try {
                 event = inQueue.take();
             } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
                 break;
             }
             { // Needed because eventtemp must be final
@@ -155,7 +156,6 @@ public class EventsProcessor extends Thread {
                     Properties.metrics.meter("Allevents.failed");
                     event.end();
                 }
-                event = null;
             }
         }
     }
@@ -208,7 +208,7 @@ public class EventsProcessor extends Thread {
                     ex.getEvent().insertProcessor(pauser);
 
                     //Store the callback informations
-                    future.addListener((i) -> {
+                    future.addListener(i -> {
                         inQueue.put(topause);
                         evrepo.cancel(future);
                     });
@@ -230,9 +230,7 @@ public class EventsProcessor extends Thread {
             } catch (ProcessorException | UncheckedProcessingException ex) {
                 logger.debug("got a processing exception");
                 logger.catching(Level.DEBUG, ex);
-                e.doMetric(() -> {
-                    Stats.newError(ex);
-                });
+                e.doMetric(() -> Stats.newError(ex));
                 Processor exceptionProcessor = p.getException();
                 if (exceptionProcessor != null) {
                     e.insertProcessor(exceptionProcessor);

@@ -5,6 +5,7 @@ import java.security.Principal;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.concurrent.BlockingQueue;
 
 import javax.net.ssl.SSLContext;
@@ -107,7 +108,7 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
                 @Override
                 public Iterator<Event> iterator() {
                     Iterator<Event> i = Receiver.this.getIterator();
-                    if(i == null) {
+                    if (i == null) {
                         return new Iterator<Event>() {
 
                             @Override
@@ -117,7 +118,7 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
 
                             @Override
                             public Event next() {
-                                return null;
+                                throw new NoSuchElementException();
                             }
 
                         };
@@ -127,8 +128,8 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
                 }
             };
             try {
-                for(Event e: stream) {
-                    if(e != null) {
+                for (Event e: stream) {
+                    if (e != null) {
                         logger.trace("new message received: {}", e);
                         eventseen++;
                         //Wrap, but not a problem, just count as 1
@@ -204,7 +205,7 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
 
     @Override
     public Event next() {
-        return null;
+        throw new NoSuchElementException();
     }
 
     protected final Event decode(ConnectionContext<?> ctx, byte[] msg) {

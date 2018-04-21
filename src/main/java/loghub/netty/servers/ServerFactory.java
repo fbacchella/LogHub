@@ -53,7 +53,7 @@ public abstract class ServerFactory<CC extends Channel, SA extends SocketAddress
             public void initChannel(CC ch) throws Exception {
                 try {
                     source.addHandlers(ch.pipeline());
-                } catch (Exception e) {
+                } catch (Throwable e) {
                     logger.error("Netty handler failed: {}", e.getMessage());
                     logger.throwing(Level.DEBUG, e);
                 }

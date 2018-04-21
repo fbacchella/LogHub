@@ -26,23 +26,24 @@ import loghub.configuration.Properties;
 
 public class DateParser extends FieldsProcessor {
 
-    private final static Map<String,DateTimeFormatter> NAMEDPATTERNS = new LinkedHashMap<String,DateTimeFormatter>(){{
-        put("ISO_DATE_TIME", DateTimeFormatter.ISO_DATE_TIME);
-        put("RFC_1123_DATE_TIME", DateTimeFormatter.RFC_1123_DATE_TIME);
-        put("BASIC_ISO_DATE", DateTimeFormatter.BASIC_ISO_DATE);
-        put("ISO_LOCAL_DATE", DateTimeFormatter.ISO_LOCAL_DATE);
-        put("ISO_OFFSET_DATE", DateTimeFormatter.ISO_OFFSET_DATE);
-        put("ISO_DATE", DateTimeFormatter.ISO_DATE);
-        put("ISO_LOCAL_TIME", DateTimeFormatter.ISO_LOCAL_TIME);
-        put("ISO_OFFSET_TIME", DateTimeFormatter.ISO_OFFSET_TIME);
-        put("ISO_TIME", DateTimeFormatter.ISO_TIME);
-        put("ISO_LOCAL_DATE_TIME", DateTimeFormatter.ISO_LOCAL_DATE_TIME);
-        put("ISO_OFFSET_DATE_TIME", DateTimeFormatter.ISO_OFFSET_DATE_TIME);
-        put("ISO_ZONED_DATE_TIME", DateTimeFormatter.ISO_ZONED_DATE_TIME);
-        put("ISO_WEEK_DATE", DateTimeFormatter.ISO_WEEK_DATE);
-        put("ISO_OFFSET_DATE", DateTimeFormatter.ISO_OFFSET_DATE);
-        put("ISO_INSTANT", DateTimeFormatter.ISO_INSTANT);
-    }};
+    private final static Map<String,DateTimeFormatter> NAMEDPATTERNS = new LinkedHashMap<String,DateTimeFormatter>();
+    static {
+        NAMEDPATTERNS.put("ISO_DATE_TIME", DateTimeFormatter.ISO_DATE_TIME);
+        NAMEDPATTERNS.put("RFC_1123_DATE_TIME", DateTimeFormatter.RFC_1123_DATE_TIME);
+        NAMEDPATTERNS.put("BASIC_ISO_DATE", DateTimeFormatter.BASIC_ISO_DATE);
+        NAMEDPATTERNS.put("ISO_LOCAL_DATE", DateTimeFormatter.ISO_LOCAL_DATE);
+        NAMEDPATTERNS.put("ISO_OFFSET_DATE", DateTimeFormatter.ISO_OFFSET_DATE);
+        NAMEDPATTERNS.put("ISO_DATE", DateTimeFormatter.ISO_DATE);
+        NAMEDPATTERNS.put("ISO_LOCAL_TIME", DateTimeFormatter.ISO_LOCAL_TIME);
+        NAMEDPATTERNS.put("ISO_OFFSET_TIME", DateTimeFormatter.ISO_OFFSET_TIME);
+        NAMEDPATTERNS.put("ISO_TIME", DateTimeFormatter.ISO_TIME);
+        NAMEDPATTERNS.put("ISO_LOCAL_DATE_TIME", DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+        NAMEDPATTERNS.put("ISO_OFFSET_DATE_TIME", DateTimeFormatter.ISO_OFFSET_DATE_TIME);
+        NAMEDPATTERNS.put("ISO_ZONED_DATE_TIME", DateTimeFormatter.ISO_ZONED_DATE_TIME);
+        NAMEDPATTERNS.put("ISO_WEEK_DATE", DateTimeFormatter.ISO_WEEK_DATE);
+        NAMEDPATTERNS.put("ISO_OFFSET_DATE", DateTimeFormatter.ISO_OFFSET_DATE);
+        NAMEDPATTERNS.put("ISO_INSTANT", DateTimeFormatter.ISO_INSTANT);
+    }
 
     // A subset of temporal field that can be expect from some incomplete date time string
     private final static TemporalField[] subSecondTemporalFields = new TemporalField[] {

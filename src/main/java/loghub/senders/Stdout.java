@@ -14,7 +14,7 @@ import loghub.configuration.Beans;
 public class Stdout extends Sender {
 
     PrintStream destination = System.out;
-    
+
     public Stdout(BlockingQueue<Event> inQueue) {
         super(inQueue);
     }
@@ -32,7 +32,7 @@ public class Stdout extends Sender {
             logger.throwing(Level.DEBUG, e);
             return false;
         }
-        
+
     }
 
     @Override
@@ -47,7 +47,7 @@ public class Stdout extends Sender {
     public void setDestination(String destination) {
         switch(destination){
         case "stdout": this.destination = System.out; break;
-        case "stderr": this.destination = System.out; break;
+        case "stderr": this.destination = System.err; break;
         }
     }
 

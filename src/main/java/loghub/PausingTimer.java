@@ -45,20 +45,14 @@ public class PausingTimer extends Timer {
             return duration;
         }
 
-    };
+    }
 
     @Override
     public Context time() {
         // Now way to extract clock, for the Timer, so it will rely on System.nanoTime()
         return new PausingContext();
     }
-    
-    public static final MetricSupplier<Timer> pausingsupplier = new MetricSupplier<Timer>() {
 
-        @Override
-        public PausingTimer newMetric() {
-            return new PausingTimer();
-        }
-    };
+    public static final MetricSupplier<Timer> pausingsupplier = () -> new PausingTimer();
 
 };

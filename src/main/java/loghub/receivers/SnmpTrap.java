@@ -202,23 +202,27 @@ public class SnmpTrap extends Receiver implements CommandResponder {
         if (oidindex.size() == 0) {
             e.put(oid.format(), value);
         } else if (oidindex.size() == 1) {
-            Object indexvalue = oidindex.values().stream().findFirst().get();
+            Object indexvalue = oidindex.values().stream().findFirst().orElse(null);
             // it's an array, so it's a unresolved index
             if ( indexvalue.getClass().isArray()) {
                 Map<String, Object> valueMap = new HashMap<>(2);
-                valueMap.put("index", indexvalue);
+                if (indexvalue != null) {
+                    valueMap.put("index", indexvalue);
+                }
                 valueMap.put("value", value);
                 e.put(oid.format(), valueMap);
             } else {
                 e.put(oid.format(), value);
             }
         } else if (oidindex.size() > 1) {
-            String tableName = oidindex.keySet().stream().findFirst().get();
-            Object rowName = oidindex.remove(tableName);
-            Map<String, Object> valueMap = new HashMap<>(2);
-            valueMap.put("index", oidindex);
-            valueMap.put("value", value);
-            e.put(rowName.toString(), valueMap);
+            String tableName = oidindex.keySet().stream().findFirst().orElse(null);
+            if (tableName != null) {
+                Object rowName = oidindex.remove(tableName);
+                Map<String, Object> valueMap = new HashMap<>(2);
+                valueMap.put("index", oidindex);
+                valueMap.put("value", value);
+                e.put(rowName.toString(), valueMap);
+            }
         }
     }
 

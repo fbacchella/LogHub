@@ -17,6 +17,7 @@ import java.time.temporal.TemporalQuery;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
+import java.util.Collections;
 import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -369,6 +370,9 @@ public class VarFormatter {
     }
 
     public String format(Map<String, Object> variables) throws IllegalArgumentException {
+        if (variables == null) {
+            variables = Collections.emptyMap();
+        }
         Object[] resolved = new Object[mapper.size()];
         for(Map.Entry<String, Integer> e: mapper.entrySet()) {
             String[] path = e.getKey().split("\\.");

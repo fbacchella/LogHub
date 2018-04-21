@@ -39,6 +39,7 @@ public class TimeSerie extends Receiver {
                     Thread.sleep((int)(1.0/frequency * 1000));
                     return true;
                 } catch (InterruptedException ex) {
+                    Thread.currentThread().interrupt();
                     return false;
                 }
             }

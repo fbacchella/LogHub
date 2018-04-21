@@ -13,7 +13,6 @@ public class LogUtils {
 
     static public void setLevel(Logger logger, Level level, String... allLoggers) {
         boolean inMaven = Tools.isInMaven();
-        inMaven = true;
         if (inMaven) {
             Configurator.setRootLevel(Level.OFF);
         } else {

@@ -30,7 +30,7 @@ import loghub.configuration.Properties;
 
 class EventInstance extends Event {
 
-    private final static Logger logger = LogManager.getLogger();
+    private static final Logger logger = LogManager.getLogger();
 
     private transient EventWrapper wevent;
     private transient LinkedList<Processor> processors;
@@ -168,8 +168,7 @@ class EventInstance extends Event {
             bos.close();
             byte[] byteData = bos.toByteArray();
             ByteArrayInputStream bais = new ByteArrayInputStream(byteData);
-            EventInstance newEvent = (EventInstance) new ObjectInputStream(bais).readObject();
-            return newEvent;
+            return (EventInstance) new ObjectInputStream(bais).readObject();
         } catch (NotSerializableException ex) {
             logger.info("Event copy failed: {}", ex.getMessage());
             logger.catching(Level.DEBUG, ex);
@@ -190,8 +189,7 @@ class EventInstance extends Event {
         stepsCount++;
         logger.debug("waiting processors {}", processors);
         try {
-            Processor p = processors.pop();
-            return p;
+            return processors.pop();
         } catch (NoSuchElementException e) {
             wevent = null;
             return null;
@@ -286,7 +284,7 @@ class EventInstance extends Event {
     }
 
     public void finishPipeline() {
-        timersStack.forEach(i ->i.close());
+        timersStack.forEach(PausingContext::close);
         timersStack.clear();
         pipelineNames.clear();
         processors.clear();

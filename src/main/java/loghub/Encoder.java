@@ -24,7 +24,7 @@ public abstract class Encoder {
         return true;
     }
 
-    abstract public byte[] encode(Event event);
+    public abstract byte[] encode(Event event);
 
     public String getField() {
         return field;

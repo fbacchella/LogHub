@@ -44,6 +44,7 @@ public class FuturProcessor<FI> extends Processor {
                 return callback.manageException(event, (Exception) e.getCause());
             }
         } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             return false;
         }
     }
