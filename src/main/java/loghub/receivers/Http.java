@@ -1,13 +1,16 @@
 package loghub.receivers;
 
+import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
+import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.IllegalCharsetNameException;
 import java.nio.charset.StandardCharsets;
 import java.nio.charset.UnsupportedCharsetException;
 import java.security.GeneralSecurityException;
 import java.security.Principal;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.Date;
@@ -15,6 +18,12 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 import java.util.stream.Collectors;
+
+import javax.security.auth.callback.Callback;
+import javax.security.auth.callback.CallbackHandler;
+import javax.security.auth.callback.NameCallback;
+import javax.security.auth.callback.PasswordCallback;
+import javax.security.auth.callback.UnsupportedCallbackException;
 
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.ByteBuf;
@@ -49,7 +58,7 @@ public class Http extends GenericTcp {
         private final String user;
         private final String realm;
 
-        HttpPrincipal(String user, String realm) {
+        public HttpPrincipal(String user, String realm) {
             this.user = user;
             this.realm = realm;
         }
@@ -113,19 +122,65 @@ public class Http extends GenericTcp {
             Principal peerPrincipal = null;
             try {
                 peerPrincipal = Http.this.getSslPrincipal(Http.this.getSslSession(ctx));
-            } catch (GeneralSecurityException e2) {
-                throw new HttpRequestFailure(HttpResponseStatus.UNAUTHORIZED, "Bad authentication", Collections.singletonMap(HttpHeaderNames.WWW_AUTHENTICATE, "Basic realm=\"loghub\""));
+            } catch (GeneralSecurityException e) {
+                throw new HttpRequestFailure(HttpResponseStatus.UNAUTHORIZED, "Bad SSL/TLS client authentication", Collections.singletonMap(HttpHeaderNames.WWW_AUTHENTICATE, "Basic realm=\"loghub\", charset=\"UTF-8\""));
             }
-            if (Http.this.encodedAuthentication != null && peerPrincipal == null) {
+            // Some authentication was defined but still not resolved
+            if((Http.this.withJaas() || Http.this.encodedAuthentication != null) && peerPrincipal == null) {
                 String authorization = request.headers().get(HttpHeaderNames.AUTHORIZATION);
-                if (authorization == null) {
-                    throw new HttpRequestFailure(HttpResponseStatus.UNAUTHORIZED, "Authentication required", Collections.singletonMap(HttpHeaderNames.WWW_AUTHENTICATE, "Basic realm=\"loghub\""));
-                } else if (! Http.this.encodedAuthentication.equals(authorization)) {
-                    throw new HttpRequestFailure(HttpResponseStatus.UNAUTHORIZED, "Bad authentication", Collections.singletonMap(HttpHeaderNames.WWW_AUTHENTICATE, "Basic realm=\"loghub\""));
+                // No authorization header, request one
+                if (authorization == null || authorization.isEmpty()) {
+                    throw new HttpRequestFailure(HttpResponseStatus.UNAUTHORIZED, "Authentication required", Collections.singletonMap(HttpHeaderNames.WWW_AUTHENTICATE, "Basic realm=\"loghub\", charset=\"UTF-8\""));
                 } else {
-                    peerPrincipal = new HttpPrincipal(Http.this.user, "loghub");
+                    if (! authorization.startsWith("BASIC ")) {
+                        throw new HttpRequestFailure(HttpResponseStatus.BAD_REQUEST, "Invalid authentication scheme", Collections.emptyMap());
+                    } else if (Http.this.encodedAuthentication != null && Http.this.encodedAuthentication.equals(authorization)) {
+                        // Try explicit login/password in the configuration
+                        peerPrincipal = new HttpPrincipal(Http.this.user, "loghub");
+                    } else  if (Http.this.withJaas()) {
+                        // Perhaps in jaas ?
+                        char[] content;
+                        try {
+                            byte[] decoded = Base64.getDecoder().decode(authorization.substring(6));
+                            content = StandardCharsets.UTF_8.decode(ByteBuffer.wrap(decoded)).array();
+                        } catch (IllegalArgumentException e) {
+                            logger.warn("Invalid authentication scheme: {}", e.getMessage());
+                            throw new HttpRequestFailure(HttpResponseStatus.BAD_REQUEST, "Invalid authentication scheme", Collections.emptyMap());
+                        }
+                        int sep = 0;
+                        for ( ; sep < content.length ; sep++) {
+                            if (content[sep] == ':') break;
+                        }
+                        String login = new String(content, 0, sep);
+                        char[] passwd = Arrays.copyOfRange(content, sep + 1, content.length);
+                        Arrays.fill(content, '\0');
+                        CallbackHandler cbHandler = new CallbackHandler() {
+                            @Override
+                            public void handle(Callback[] callbacks) throws IOException, UnsupportedCallbackException {
+                                for (Callback cb: callbacks) {
+                                    if (cb instanceof NameCallback) {
+                                        NameCallback nc = (NameCallback)cb;
+                                        nc.setName(login);
+                                    } else if (cb instanceof PasswordCallback) {
+                                        PasswordCallback pc = (PasswordCallback)cb;
+                                        pc.setPassword(passwd);
+                                    } else {
+                                        throw new UnsupportedCallbackException
+                                        (cb, "Unrecognized Callback");
+                                    }
+                                }
+                            }
+                        };
+                        peerPrincipal = Http.this.getJaasPrincipal(cbHandler);
+                        Arrays.fill(passwd, '\0');
+                    }
+                }
+                // No authentication accepted, fails
+                if (peerPrincipal == null) {
+                    throw new HttpRequestFailure(HttpResponseStatus.UNAUTHORIZED, "Bad authentication", Collections.singletonMap(HttpHeaderNames.WWW_AUTHENTICATE, "Basic realm=\"loghub\""));
                 }
             }
+            // If an explicit user was given, check that it match the resolved principal
             if (Http.this.user != null && peerPrincipal != null && ! Http.this.user.equals(peerPrincipal.getName())) {
                 logger.warn("failed authentication, expect {}, got {}", Http.this.user, peerPrincipal.getName());
                 throw new HttpRequestFailure(HttpResponseStatus.UNAUTHORIZED, "Bad authentication", Collections.singletonMap(HttpHeaderNames.WWW_AUTHENTICATE, "Basic realm=\"loghub\""));

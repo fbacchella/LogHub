@@ -1,6 +1,9 @@
 package loghub.configuration;
 
 import java.lang.management.ManagementFactory;
+import java.nio.file.Paths;
+import java.security.NoSuchAlgorithmException;
+import java.security.URIParameter;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -110,7 +113,7 @@ public class Properties extends HashMap<String, Object> {
                         return donf.createName(type, domain, name);
                     }
                 }
-                
+
             }).build();
         }
     };
@@ -157,6 +160,7 @@ public class Properties extends HashMap<String, Object> {
     public final int maxSteps;
     public final EventsRepository<Future<?>> repository;
     public final SSLContext ssl;
+    public final javax.security.auth.login.Configuration jaasConfig;
 
     public final Timer timer = new Timer("loghubtimer", true);
     private final CacheManager cacheManager;
@@ -172,7 +176,6 @@ public class Properties extends HashMap<String, Object> {
             cl = Properties.class.getClassLoader();
         }
         classloader = cl;
-
 
         if (properties.containsKey("log4j.defaultlevel")) {
             String levelname = (String) properties.remove("log4j.defaultlevel");
@@ -270,6 +273,18 @@ public class Properties extends HashMap<String, Object> {
         }
 
         ssl = ContextLoader.build(properties.entrySet().stream().filter(i -> i.getKey().startsWith("ssl.")).collect(Collectors.toMap( i -> i.getKey().substring(4), j -> j.getValue())));
+
+        javax.security.auth.login.Configuration jc = null;
+        if (properties.containsKey("jaasConfig")) {
+            String jaasConfigFilePath = (String) properties.remove("jaasConfig");
+            URIParameter cp = new URIParameter(Paths.get(jaasConfigFilePath).toUri());
+            try {
+                jc = javax.security.auth.login.Configuration.getInstance("JavaLoginConfig", cp);
+            } catch (NoSuchAlgorithmException e) {
+                throw new RuntimeException("JavaLoginConfig unavailable", e);
+            }
+        }
+        jaasConfig = jc;
 
         sources = (Map<String, Source>) properties.remove(PROPSNAMES.SOURCES.toString());
 
