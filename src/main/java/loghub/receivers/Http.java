@@ -14,6 +14,7 @@ import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.Date;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
@@ -132,7 +133,7 @@ public class Http extends GenericTcp {
                 if (authorization == null || authorization.isEmpty()) {
                     throw new HttpRequestFailure(HttpResponseStatus.UNAUTHORIZED, "Authentication required", Collections.singletonMap(HttpHeaderNames.WWW_AUTHENTICATE, "Basic realm=\"loghub\", charset=\"UTF-8\""));
                 } else {
-                    if (! authorization.startsWith("BASIC ")) {
+                    if (! authorization.toLowerCase(Locale.US).startsWith("basic ")) {
                         throw new HttpRequestFailure(HttpResponseStatus.BAD_REQUEST, "Invalid authentication scheme", Collections.emptyMap());
                     } else if (Http.this.encodedAuthentication != null && Http.this.encodedAuthentication.equals(authorization)) {
                         // Try explicit login/password in the configuration
