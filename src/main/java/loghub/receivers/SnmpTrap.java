@@ -204,11 +204,9 @@ public class SnmpTrap extends Receiver implements CommandResponder {
         } else if (oidindex.size() == 1) {
             Object indexvalue = oidindex.values().stream().findFirst().orElse(null);
             // it's an array, so it's a unresolved index
-            if ( indexvalue.getClass().isArray()) {
+            if ( indexvalue != null && indexvalue.getClass().isArray()) {
                 Map<String, Object> valueMap = new HashMap<>(2);
-                if (indexvalue != null) {
-                    valueMap.put("index", indexvalue);
-                }
+                valueMap.put("index", indexvalue);
                 valueMap.put("value", value);
                 e.put(oid.format(), valueMap);
             } else {
