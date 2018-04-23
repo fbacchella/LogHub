@@ -128,6 +128,10 @@ public class SmartContext {
         }
     }
 
+    public ZPoller getZPoller() {
+        return new ZPoller(context);
+    }
+
     public Iterable<byte[]> read(Socket receiver) throws IOException {
 
         @SuppressWarnings("resource")
@@ -151,8 +155,8 @@ public class SmartContext {
                                 zpoller.destroy();
                                 return false;
                             } else if (! SmartContext.this.running){
-                                    zpoller.destroy();
-                                    return false;
+                                zpoller.destroy();
+                                return false;
                             } else {
                                 return true;
                             }

@@ -2,6 +2,7 @@ package loghub.receivers;
 
 import java.io.IOException;
 import java.nio.channels.ClosedSelectorException;
+import java.nio.channels.SelectableChannel;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.concurrent.BlockingQueue;
@@ -9,19 +10,20 @@ import java.util.concurrent.BlockingQueue;
 import org.apache.logging.log4j.Level;
 import org.zeromq.ZMQ.Socket;
 import org.zeromq.ZMQException;
+import org.zeromq.ZPoller;
 
 import loghub.ConnectionContext;
 import loghub.Event;
 import loghub.Helpers;
 import loghub.Pipeline;
 import loghub.Receiver;
-import loghub.configuration.Beans;
 import loghub.configuration.Properties;
 import loghub.zmq.SmartContext;
 import loghub.zmq.ZMQHelper;
+import loghub.zmq.ZMQHelper.ERRNO;
 import zmq.socket.Sockets;
 
-@Beans({"method", "listen", "type", "hwm"})
+@Blocking
 public class ZMQ extends Receiver {
 
     private final SmartContext ctx = SmartContext.getContext();
@@ -53,6 +55,55 @@ public class ZMQ extends Receiver {
             return false;
         }
         return super.configure(properties);
+    }
+
+
+    @Override
+    public void run() {
+        long maxMsgSize = listeningSocket.getMaxMsgSize();
+        byte[] databuffer;
+        if (maxMsgSize > 0 && maxMsgSize < 65535) {
+            databuffer = new byte[(int) maxMsgSize];
+        } else {
+            databuffer = new byte[65535];
+        }
+        while (! isInterrupted() && ctx.isRunning()) {
+            try(ZPoller zpoller = ctx.getZPoller()) {
+                logger.trace("new poller: {}", zpoller);
+                zpoller.register(listeningSocket, new ZPoller.EventsHandler() {
+                    @Override
+                    public boolean events(Socket socket, int events) {
+                        if ((events & ZPoller.ERR) != 0) {
+                            ERRNO error = ZMQHelper.ERRNO.get(socket.errno());
+                            logger.log(error.level, "error with ZSocket {}: {}", ZMQ.this.listen, error.toStringMessage());
+                            return false;
+                        }
+                        while ((listeningSocket.getEvents() & ZPoller.IN) != 0) {
+                            int received = listeningSocket.recv(databuffer, 0, 65535, 0);
+                            if (received < 0) {
+                                ERRNO error = ZMQHelper.ERRNO.get(socket.errno());
+                                logger.log(error.level, "error with ZSocket {}: {}", ZMQ.this.listen, error.toStringMessage());
+                                return false;
+                            }
+                            Event event = decode(ConnectionContext.EMPTY, databuffer, 0, received);
+                            if (event != null) {
+                                send(event);
+                            }
+                        }
+                        return true;
+                    }
+                    @Override
+                    public boolean events(SelectableChannel channel, int events) {
+                        return false;
+                    }
+                });
+                zpoller.poll(-1);
+            } catch (IOException e) {
+                logger.error("Error polling ZSocket {}: {}", listen, e.getMessage());
+                logger.catching(Level.DEBUG, e);
+            };
+
+        }
     }
 
     @Override
