@@ -2,6 +2,7 @@ package loghub.configuration;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.security.Principal;
 import java.util.Collections;
 import java.util.Date;
 import java.util.Map;
@@ -29,6 +30,7 @@ import loghub.RouteParser.ExpressionContext;
 import loghub.Tools;
 import loghub.VarFormatter;
 import loghub.configuration.ConfigListener.ObjectWrapped;
+import loghub.receivers.Http;
 
 public class TestExpressionParsing {
 
@@ -136,8 +138,15 @@ public class TestExpressionParsing {
 
     @Test
     public void testContext() throws ExpressionException, ProcessorException {
+        String format = "user";
+        String formatHash = Integer.toHexString(format.hashCode());
+
         Event ev =  Event.emptyEvent(new IpConnectionContext(new InetSocketAddress("127.0.0.1", 35710), new InetSocketAddress("localhost", 80), null));
-        InetSocketAddress localAddr = (InetSocketAddress) evalExpression("[ @context localAddress]",ev);
+        Principal p = new Http.HttpPrincipal("user", "loghub");
+        ev.getConnectionContext().setPrincipal(p);
+        Object value = evalExpression("[ @context principal name ] == \"user\"", ev, Collections.singletonMap("h_" + formatHash, new VarFormatter(format)));
+        Assert.assertEquals(true, value);
+        InetSocketAddress localAddr = (InetSocketAddress) evalExpression("[ @context localAddress]", ev, Collections.singletonMap("h_" + formatHash, new VarFormatter(format)));
         Assert.assertEquals(35710, localAddr.getPort());
     }
 
