@@ -36,7 +36,7 @@ public class TestZMQ {
     static public void configure() throws IOException {
         Tools.configure();
         logger = LogManager.getLogger();
-        LogUtils.setLevel(logger, Level.TRACE, "loghub.SmartContext", "loghub.receivers.ZMQ", "loghub.Receiver", "loghub.ContextRule", "loghub.zmq.ZMQHelper");
+        LogUtils.setLevel(logger, Level.TRACE, "loghub.zmq", "loghub.receivers.ZMQ", "loghub.ContextRule");
     }
 
     private void dotest(Consumer<ZMQ> configure, Socket sender) throws InterruptedException  {

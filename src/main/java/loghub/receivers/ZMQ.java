@@ -73,17 +73,16 @@ public class ZMQ extends Receiver {
                 zpoller.register(listeningSocket, new ZPoller.EventsHandler() {
                     @Override
                     public boolean events(Socket socket, int events) {
+                        logger.trace("receiving {} on {}", events, socket);
                         if ((events & ZPoller.ERR) != 0) {
                             ERRNO error = ZMQHelper.ERRNO.get(socket.errno());
                             logger.log(error.level, "error with ZSocket {}: {}", ZMQ.this.listen, error.toStringMessage());
-                            return false;
                         }
                         while ((listeningSocket.getEvents() & ZPoller.IN) != 0) {
                             int received = listeningSocket.recv(databuffer, 0, 65535, 0);
                             if (received < 0) {
                                 ERRNO error = ZMQHelper.ERRNO.get(socket.errno());
                                 logger.log(error.level, "error with ZSocket {}: {}", ZMQ.this.listen, error.toStringMessage());
-                                return false;
                             }
                             Event event = decode(ConnectionContext.EMPTY, databuffer, 0, received);
                             if (event != null) {
@@ -94,15 +93,31 @@ public class ZMQ extends Receiver {
                     }
                     @Override
                     public boolean events(SelectableChannel channel, int events) {
-                        return false;
+                        logger.trace("receiving {} on {}", events, channel);
+                        return true;
                     }
                 });
-                zpoller.poll(-1);
+                zpoller.setGlobalHandler(new ZPoller.EventsHandler() {
+
+                    @Override
+                    public boolean events(Socket socket, int events) {
+                        logger.info("receiving {} on {}", events, socket);
+                        return true;
+                    }
+
+                    @Override
+                    public boolean events(SelectableChannel channel, int events) {
+                        logger.info("receiving {} on {}", events, channel);
+                        return true;
+                    }
+                    
+                });
+                while (! isInterrupted() && ctx.isRunning() && zpoller.poll(-1) > 0) {
+                }
             } catch (IOException e) {
                 logger.error("Error polling ZSocket {}: {}", listen, e.getMessage());
                 logger.catching(Level.DEBUG, e);
             };
-
         }
     }
 
