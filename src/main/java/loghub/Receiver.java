@@ -85,7 +85,10 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
         if (properties.jaasConfig == null || jaasName == null) {
             jaasName = null;
             jaasConfig = null;
+        } else if (jaasConfig.getAppConfigurationEntry(jaasName) == null){
+            throw new IllegalArgumentException(String.format("JAAS name '%s' not found", jaasName));
         }
+
         if (decoder != null) {
             return decoder.configure(properties, this);
         } else {
@@ -353,7 +356,12 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
      * @param sslclient the sslclient to set
      */
     public void setSslClientAuthentication(String sslclient) {
-        this.sslclient = ClientAuthentication.valueOf(sslclient.toUpperCase());
+        try {
+            this.sslclient = ClientAuthentication.valueOf(sslclient.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            logger.throwing(Level.DEBUG, e);
+            throw new IllegalArgumentException(String.format("'%s' is not a valide value", sslclient), e);
+        }
     }
 
     protected boolean withJaas() {

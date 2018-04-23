@@ -165,15 +165,14 @@ public class Http extends GenericTcp {
                                     } else if (cb instanceof PasswordCallback) {
                                         PasswordCallback pc = (PasswordCallback)cb;
                                         pc.setPassword(passwd);
+                                        Arrays.fill(passwd, '\0');
                                     } else {
-                                        throw new UnsupportedCallbackException
-                                        (cb, "Unrecognized Callback");
+                                        throw new UnsupportedCallbackException(cb, "Unrecognized Callback");
                                     }
                                 }
                             }
                         };
                         peerPrincipal = Http.this.getJaasPrincipal(cbHandler);
-                        Arrays.fill(passwd, '\0');
                     }
                 }
                 // No authentication accepted, fails
