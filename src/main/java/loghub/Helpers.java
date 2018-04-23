@@ -19,6 +19,7 @@ import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
 import java.util.concurrent.FutureTask;
@@ -423,6 +424,24 @@ public final class Helpers {
             }
         }
         return endPoints;
+    }
+    
+    @SuppressWarnings("rawtypes")
+    private static final Iterator EMTPYITERATOR = new Iterator() {
+        @Override
+        public boolean hasNext() {
+            return false;
+        }
+
+        @Override
+        public Event next() {
+            throw new NoSuchElementException();
+        }
+    };
+    
+    @SuppressWarnings("unchecked")
+    public static <T> Iterator<T> getEmptyIterator() {
+        return (Iterator<T>) EMTPYITERATOR;
     }
 
 }

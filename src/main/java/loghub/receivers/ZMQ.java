@@ -3,6 +3,7 @@ package loghub.receivers;
 import java.io.IOException;
 import java.nio.channels.ClosedSelectorException;
 import java.util.Iterator;
+import java.util.NoSuchElementException;
 import java.util.concurrent.BlockingQueue;
 
 import org.apache.logging.log4j.Level;
@@ -11,6 +12,7 @@ import org.zeromq.ZMQException;
 
 import loghub.ConnectionContext;
 import loghub.Event;
+import loghub.Helpers;
 import loghub.Pipeline;
 import loghub.Receiver;
 import loghub.configuration.Beans;
@@ -55,14 +57,14 @@ public class ZMQ extends Receiver {
     @Override
     protected Iterator<Event> getIterator() {
         if (listeningSocket == null || !ctx.isRunning()) {
-            return null;
+            return Helpers.getEmptyIterator();
         }
         final Iterator<byte[]> generator;
         try {
             generator = ctx.read(listeningSocket).iterator();
         } catch (IOException e) {
             logger.error("error starting to listen on {}: {}", listen, e.getMessage());
-            return null;
+            return Helpers.getEmptyIterator();
         }
         return new Iterator<Event>() {
 
@@ -77,13 +79,13 @@ public class ZMQ extends Receiver {
                     byte[] msg = generator.next();
                     return decode(ConnectionContext.EMPTY, msg);
                 } catch (ClosedSelectorException|zmq.ZError.CtxTerminatedException e) {
-                    return null;
+                    throw new NoSuchElementException();
                 } catch (ZMQException|zmq.ZError.IOException|zmq.ZError.InstantiationException e) {
                     ZMQHelper.logZMQException(logger, "recv", e);
                     logger.catching(Level.DEBUG, e.getCause());
                     ctx.close(listeningSocket);
                     listeningSocket = null;
-                    return null;
+                    throw new NoSuchElementException();
                 }
             }
 

@@ -112,19 +112,7 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
                 public Iterator<Event> iterator() {
                     Iterator<Event> i = Receiver.this.getIterator();
                     if (i == null) {
-                        return new Iterator<Event>() {
-
-                            @Override
-                            public boolean hasNext() {
-                                return false;
-                            }
-
-                            @Override
-                            public Event next() {
-                                throw new NoSuchElementException();
-                            }
-
-                        };
+                        return Helpers.getEmptyIterator();
                     } else {
                         return i;
                     }
