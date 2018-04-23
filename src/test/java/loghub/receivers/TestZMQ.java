@@ -23,7 +23,7 @@ import loghub.Tools;
 import loghub.configuration.Properties;
 import loghub.decoders.StringCodec;
 import loghub.zmq.ZMQHelper.Method;
-import loghub.zmq.ZMQHelper.Type;
+import zmq.socket.Sockets;
 
 public class TestZMQ {
 
@@ -55,7 +55,7 @@ public class TestZMQ {
 
     @Test(timeout=500)
     public void testone() throws InterruptedException {
-        Socket sender = tctxt.ctx.newSocket(Method.BIND, Type.PUB, "inproc://listener1");
+        Socket sender = tctxt.ctx.newSocket(Method.BIND, Sockets.PUB, "inproc://listener1");
         dotest(r -> {
             r.setListen("inproc://listener1");
             r.setMethod("CONNECT");
@@ -65,7 +65,7 @@ public class TestZMQ {
 
     @Test(timeout=500)
     public void testtwo() throws InterruptedException {
-        Socket sender = tctxt.ctx.newSocket(Method.CONNECT, Type.PUB, "inproc://listener1");
+        Socket sender = tctxt.ctx.newSocket(Method.CONNECT, Sockets.PUB, "inproc://listener1");
         dotest(r -> {
             r.setListen("inproc://listener1");
         }, sender);

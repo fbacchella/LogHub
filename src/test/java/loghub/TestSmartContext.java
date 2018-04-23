@@ -12,7 +12,7 @@ import org.zeromq.ZMQ.Socket;
 
 import loghub.zmq.SmartContext;
 import loghub.zmq.ZMQHelper.Method;
-import loghub.zmq.ZMQHelper.Type;
+import zmq.socket.Sockets;
 
 public class TestSmartContext {
 
@@ -25,15 +25,15 @@ public class TestSmartContext {
 
         final SmartContext context = SmartContext.getContext();
 
-        Socket out = context.newSocket(Method.BIND, Type.PUSH, "inproc://in.TestPipeStep", 1, -1);
-        Socket in = context.newSocket(Method.BIND, Type.PULL, "inproc://out.TestPipeStep", 1, -1);
+        Socket out = context.newSocket(Method.BIND, Sockets.PUSH, "inproc://in.TestPipeStep", 1, -1);
+        Socket in = context.newSocket(Method.BIND, Sockets.PULL, "inproc://out.TestPipeStep", 1, -1);
 
         final Thread forward = new Thread() {
 
             @Override
             public void run() {
-                Socket in = context.newSocket(Method.CONNECT, Type.PULL, "inproc://in.TestPipeStep", 1, -1);
-                Socket out = context.newSocket(Method.CONNECT, Type.PUSH, "inproc://out.TestPipeStep", 1, -1);
+                Socket in = context.newSocket(Method.CONNECT, Sockets.PULL, "inproc://in.TestPipeStep", 1, -1);
+                Socket out = context.newSocket(Method.CONNECT, Sockets.PUSH, "inproc://out.TestPipeStep", 1, -1);
                 try {
                     for(byte[] msg: context.read(in)){
                         logger.debug("one received");

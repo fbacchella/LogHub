@@ -9,13 +9,14 @@ import loghub.Sender;
 import loghub.configuration.Beans;
 import loghub.zmq.SmartContext;
 import loghub.zmq.ZMQHelper;
+import zmq.socket.Sockets;
 
 @Beans({"method", "destination", "type", "hwm"})
 public class ZMQ extends Sender {
 
     private ZMQHelper.Method method = ZMQHelper.Method.BIND;
     private String destination = "tcp://localhost:2120";
-    private ZMQHelper.Type type = ZMQHelper.Type.PUB;
+    private Sockets type = Sockets.PUB;
     private int hwm = 1000;
     private Socket sendsocket;
     private final SmartContext ctx = SmartContext.getContext();
@@ -60,7 +61,7 @@ public class ZMQ extends Sender {
     }
 
     public void setType(String type) {
-        this.type = ZMQHelper.Type.valueOf(type.trim().toUpperCase());
+        this.type = Sockets.valueOf(type.trim().toUpperCase());
     }
 
     @Override

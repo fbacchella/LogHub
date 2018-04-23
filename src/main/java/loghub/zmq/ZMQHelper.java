@@ -14,14 +14,15 @@ import org.zeromq.ZMQ;
 import org.zeromq.ZMQException;
 
 import zmq.ZError;
+import zmq.socket.Sockets;
 
 public class ZMQHelper {
 
     public static class SocketInfo {
         public final Method method;
-        public final Type type;
+        public final Sockets type;
         public final String endpoint;
-        public SocketInfo(Method method, Type type, String endpoint) {
+        public SocketInfo(Method method, Sockets type, String endpoint) {
             super();
             this.method = method;
             this.type = type;
@@ -110,19 +111,6 @@ public class ZMQHelper {
         };
         public abstract void act(ZMQ.Socket socket, String address);
         public abstract char getSymbol();
-    }
-
-    public enum Type {
-        PUSH(ZMQ.PUSH),
-        PULL(ZMQ.PULL),
-        PUB(ZMQ.PUB),
-        SUB(ZMQ.SUB),
-        DEALER(ZMQ.DEALER),
-        ROUTER(ZMQ.ROUTER);
-        public final int type;
-        Type(int type) {
-            this.type = type;
-        }
     }
 
     private ZMQHelper() {

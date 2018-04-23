@@ -1,12 +1,10 @@
 package loghub.zmq;
 
 import java.io.IOException;
-import java.nio.channels.Selector;
 import java.util.Iterator;
 import java.util.concurrent.Future;
 import java.util.concurrent.FutureTask;
 
-import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.zeromq.ZContext;
@@ -17,7 +15,7 @@ import org.zeromq.ZPoller;
 import loghub.Helpers;
 import loghub.Helpers.SimplifiedThread;
 import loghub.zmq.ZMQHelper.Method;
-import loghub.zmq.ZMQHelper.Type;
+import zmq.socket.Sockets;
 
 public class SmartContext {
 
@@ -51,8 +49,8 @@ public class SmartContext {
         return running;
     }
 
-    public Socket newSocket(Method method, Type type, String endpoint, int hwm, int timeout) {
-        Socket socket = context.createSocket(type.type);
+    public Socket newSocket(Method method, Sockets type, String endpoint, int hwm, int timeout) {
+        Socket socket = context.createSocket(type.ordinal());
         socket.setRcvHWM(hwm);
         socket.setSndHWM(hwm);
         socket.setSendTimeOut(timeout);
@@ -64,7 +62,7 @@ public class SmartContext {
         return socket;
     }
 
-    public Socket newSocket(Method method, Type type, String endpoint) {
+    public Socket newSocket(Method method, Sockets type, String endpoint) {
         // All socket have high hwm and are blocking
         return newSocket(method, type, endpoint, 1, -1);
     }
@@ -74,7 +72,7 @@ public class SmartContext {
             try {
                 logger.debug("close socket {}: {}", socket, socket);
                 socket.setLinger(0);
-                socket.close();
+                context.destroySocket(socket);
             } catch (ZMQException|zmq.ZError.IOException|zmq.ZError.CtxTerminatedException|zmq.ZError.InstantiationException e) {
                 ZMQHelper.logZMQException(logger, "close " + socket, e);
             } catch (java.nio.channels.ClosedSelectorException e) {
@@ -132,9 +130,8 @@ public class SmartContext {
 
     public Iterable<byte[]> read(Socket receiver) throws IOException {
 
-        final Selector selector =  Selector.open();
         @SuppressWarnings("resource")
-        final ZPoller zpoller = new ZPoller(selector);
+        ZPoller zpoller = new ZPoller(context);
         zpoller.register(receiver, ZPoller.POLLIN | ZPoller.POLLERR);
 
         return new Iterable<byte[]>() {
@@ -152,18 +149,16 @@ public class SmartContext {
                             if (zpoller.isError(receiver) || Thread.interrupted()) {
                                 logger.trace("received kill");
                                 zpoller.destroy();
-                                try {
-                                    selector.close();
-                                } catch (IOException e) {
-                                    logger.debug("Failed close because of {}", () -> e.getMessage());
-                                    logger.catching(Level.DEBUG, e);
-                                };
                                 return false;
+                            } else if (! SmartContext.this.running){
+                                    zpoller.destroy();
+                                    return false;
                             } else {
-                                return true && SmartContext.this.running;
+                                return true;
                             }
                         } catch (RuntimeException e) {
                             ZMQHelper.logZMQException(logger, "recv", e);
+                            zpoller.destroy();
                             return false;
                         }
                     }

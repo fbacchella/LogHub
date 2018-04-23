@@ -19,6 +19,7 @@ import loghub.configuration.Beans;
 import loghub.configuration.Properties;
 import loghub.zmq.SmartContext;
 import loghub.zmq.ZMQHelper;
+import zmq.socket.Sockets;
 
 @Beans({"method", "listen", "type", "hwm"})
 public class ZMQ extends Receiver {
@@ -27,7 +28,7 @@ public class ZMQ extends Receiver {
 
     private ZMQHelper.Method method = ZMQHelper.Method.BIND;
     private String listen = "tcp://localhost:2120";
-    private ZMQHelper.Type type = ZMQHelper.Type.SUB;
+    private Sockets type = Sockets.SUB;
     private int hwm = 1000;
     private Socket listeningSocket;
 
@@ -42,7 +43,7 @@ public class ZMQ extends Receiver {
             listeningSocket.setImmediate(false);
             listeningSocket.setReceiveTimeOut(-1);
             listeningSocket.setHWM(hwm);
-            if(type == ZMQHelper.Type.SUB){
+            if(type == Sockets.SUB){
                 listeningSocket.subscribe(new byte[] {});
             }
         } catch (org.zeromq.ZMQException e) {
@@ -127,7 +128,7 @@ public class ZMQ extends Receiver {
     }
 
     public void setType(String type) {
-        this.type = ZMQHelper.Type.valueOf(type.trim().toUpperCase());
+        this.type = Sockets.valueOf(type.trim().toUpperCase());
     }
 
     @Override

@@ -21,7 +21,7 @@ import loghub.Sender;
 import loghub.Tools;
 import loghub.zmq.SmartContext;
 import loghub.zmq.ZMQHelper.Method;
-import loghub.zmq.ZMQHelper.Type;
+import zmq.socket.Sockets;
 
 public class TestWithZMQ {
 
@@ -50,9 +50,9 @@ public class TestWithZMQ {
             Assert.assertTrue("failed to configure " + s, s.configure(conf));
             s.start();
         }
-        Socket out = tctxt.ctx.newSocket(Method.CONNECT, Type.SUB, "inproc://sender", 1, -1);
+        Socket out = tctxt.ctx.newSocket(Method.CONNECT, Sockets.SUB, "inproc://sender", 1, -1);
         out.subscribe(new byte[]{});
-        Socket sender = tctxt.ctx.newSocket(Method.CONNECT, Type.PUB, "inproc://listener", 1, -1);
+        Socket sender = tctxt.ctx.newSocket(Method.CONNECT, Sockets.PUB, "inproc://listener", 1, -1);
         // Wait for ZMQ to be started
         Thread.sleep(30);
         sender.send("something");

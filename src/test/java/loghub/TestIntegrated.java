@@ -34,7 +34,7 @@ import loghub.configuration.ConfigException;
 import loghub.configuration.Configuration;
 import loghub.jmx.StatsMBean;
 import loghub.zmq.ZMQHelper.Method;
-import loghub.zmq.ZMQHelper.Type;
+import zmq.socket.Sockets;
 
 public class TestIntegrated {
 
@@ -63,8 +63,8 @@ public class TestIntegrated {
         JmxTimerMBean allevents_timer = JMX.newMBeanProxy(mbs, new ObjectName("metrics:name=Allevents.timer"), JmxTimerMBean.class);
         JmxCounterMBean allevents_inflight = JMX.newMBeanProxy(mbs, new ObjectName("metrics:name=Allevents.inflight"), JmxCounterMBean.class);
 
-        Socket sender = tctxt.ctx.newSocket(Method.CONNECT, Type.PUB, "inproc://listener");
-        Socket receiver = tctxt.ctx.newSocket(Method.CONNECT, Type.PULL, "inproc://sender");
+        Socket sender = tctxt.ctx.newSocket(Method.CONNECT, Sockets.PUB, "inproc://listener");
+        Socket receiver = tctxt.ctx.newSocket(Method.CONNECT, Sockets.PULL, "inproc://sender");
         AtomicLong send = new AtomicLong();
         Thread t = new Thread() {
             @Override
