@@ -16,14 +16,13 @@ import org.apache.logging.log4j.Logger;
 import org.zeromq.ZMQ;
 import org.zeromq.ZMQ.Context;
 import org.zeromq.ZMQ.Socket;
+import org.zeromq.ZMQException;
+import org.zeromq.ZPoller;
 
 import loghub.Helpers;
 import loghub.Helpers.SimplifiedThread;
 import loghub.zmq.ZMQHelper.Method;
 import loghub.zmq.ZMQHelper.Type;
-
-import org.zeromq.ZMQException;
-import org.zeromq.ZPoller;
 
 public class SmartContext {
 
@@ -183,7 +182,6 @@ public class SmartContext {
         } catch (Exception e ) {
             logger.error("in recv: {}", e.getMessage());
             logger.error(e);
-            //close(socket);
             throw e;
         }
     }
@@ -218,6 +216,8 @@ public class SmartContext {
                                 try {
                                     selector.close();
                                 } catch (IOException e) {
+                                    logger.debug("Failed close because of {}", () -> e.getMessage());
+                                    logger.catching(Level.DEBUG, e);
                                 };
                                 return false;
                             } else {
