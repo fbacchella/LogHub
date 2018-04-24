@@ -14,7 +14,7 @@ public class ThreadBuilder<T> {
     private Runnable task;
     private String name = null;
     private Boolean daemon = null;
-    private Boolean shutdownHook = null;
+    private boolean shutdownHook = false;
 
     private ThreadBuilder() {
     }
