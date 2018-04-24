@@ -89,19 +89,19 @@ public class Start {
             exitcode = 0;
         }
         if (dumpstats) {
-            final long starttime = System.nanoTime();
-            Runtime.getRuntime().addShutdownHook(new Thread() {
-                @Override
-                public synchronized void run() {
-                    long endtime = System.nanoTime();
-                    double runtime = ((double)(endtime - starttime)) / 1.0e9;
-                    System.out.format("received: %.2f/s\n", Stats.received.get() / runtime);
-                    System.out.format("dropped: %.2f/s\n", Stats.dropped.get() / runtime);
-                    System.out.format("sent: %.2f/s\n", Stats.sent.get() / runtime);
-                    System.out.format("failed: %.2f/s\n", Stats.failed.get() / runtime);
-                    System.out.format("thrown: %.2f/s\n", Stats.thrown.get() / runtime);
-                }
-            });
+            long starttime = System.nanoTime();
+            ThreadBuilder.get()
+            .setShutdownHook(true)
+            .setRunnable(() -> {
+                long endtime = System.nanoTime();
+                double runtime = ((double)(endtime - starttime)) / 1.0e9;
+                System.out.format("received: %.2f/s\n", Stats.received.get() / runtime);
+                System.out.format("dropped: %.2f/s\n", Stats.dropped.get() / runtime);
+                System.out.format("sent: %.2f/s\n", Stats.sent.get() / runtime);
+                System.out.format("failed: %.2f/s\n", Stats.failed.get() / runtime);
+                System.out.format("thrown: %.2f/s\n", Stats.thrown.get() / runtime);
+            })
+            .build();
         }
 
         try {

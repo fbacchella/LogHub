@@ -20,9 +20,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.concurrent.Callable;
-import java.util.concurrent.Executors;
-import java.util.concurrent.FutureTask;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -318,42 +315,6 @@ public final class Helpers {
                 ;
     }
 
-    public static class SimplifiedThread<T> {
-        public final Thread thread;
-        public final FutureTask<T> task;
-        public SimplifiedThread(Callable<T> callable) {
-            task = new FutureTask<>(callable);
-            thread = new Thread() {
-                @Override
-                public void run() {
-                    task.run();
-                }
-
-            };
-        }
-
-        public SimplifiedThread<T> start() {
-            thread.start();
-            return this;
-        }
-
-        public final SimplifiedThread<T> setName(String name) {
-            thread.setName(name);
-            return this;
-        }
-
-        public final SimplifiedThread<T> setDaemon(boolean on) {
-            thread.setDaemon(on);
-            return this;
-        }
-    }
-
-    public static class SimplifiedThreadRunnable extends SimplifiedThread<Object> {
-        public SimplifiedThreadRunnable(Runnable r) {
-            super(Executors.callable(r));
-        }
-    }
-
     public static Object putNotEmpty(Map<String, Object>i, String j, Object k){
         if (k != null) {
             return i.put(j, k);
@@ -425,7 +386,7 @@ public final class Helpers {
         }
         return endPoints;
     }
-    
+
     @SuppressWarnings("rawtypes")
     private static final Iterator EMTPYITERATOR = new Iterator() {
         @Override
@@ -438,7 +399,7 @@ public final class Helpers {
             throw new NoSuchElementException();
         }
     };
-    
+
     @SuppressWarnings("unchecked")
     public static <T> Iterator<T> getEmptyIterator() {
         return (Iterator<T>) EMTPYITERATOR;

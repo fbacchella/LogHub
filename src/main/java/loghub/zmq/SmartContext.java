@@ -12,8 +12,7 @@ import org.zeromq.ZMQ.Socket;
 import org.zeromq.ZMQException;
 import org.zeromq.ZPoller;
 
-import loghub.Helpers;
-import loghub.Helpers.SimplifiedThread;
+import loghub.ThreadBuilder;
 import loghub.zmq.ZMQHelper.Method;
 import zmq.socket.Sockets;
 
@@ -29,18 +28,17 @@ public class SmartContext {
     public static synchronized SmartContext getContext() {
         if (instance == null || !instance.running) {
             instance = new SmartContext();
-            Thread terminator = new Helpers.SimplifiedThreadRunnable(() -> {
+            ThreadBuilder.get()
+            .setDaemon(false)
+            .setName("terminator")
+            .setRunnable(() -> {
                 synchronized (SmartContext.class) {
                     if (instance != null) {
                         logger.debug("starting shutdown hook for ZMQ");
                         instance.terminate();
-                        instance = null;
                     }
                 }
-            }).setDaemon(false)
-                    .setName("terminator")
-                    .thread;
-            Runtime.getRuntime().addShutdownHook(terminator) ;
+            }).setShutdownHook(true).build();
         }
         return instance;
     }
@@ -90,7 +88,7 @@ public class SmartContext {
                 return new FutureTask<Boolean>(() -> true);
             }
             running = false;
-            SimplifiedThread<Boolean> terminator = new Helpers.SimplifiedThread<Boolean>(() -> {
+            FutureTask<Boolean> terminator = new FutureTask<>(() -> {
                 try {
                     logger.trace("will terminate");
                     instance.context.close();
@@ -104,11 +102,12 @@ public class SmartContext {
                 }
                 logger.trace("done terminate");
                 return true;
-            }).setName("ZMQContextTerminator").setDaemon(false).start();
+            });
+            ThreadBuilder.get(Boolean.class).setName("ZMQContextTerminator").setCallable(terminator).setDaemon(false).build(true);
             // Now we've send termination signals, let other threads
             // some time to finish
             Thread.yield();
-            return terminator.task;
+            return terminator;
         }
     }
 

@@ -56,6 +56,7 @@ import com.codahale.metrics.Timer;
 import loghub.Event;
 import loghub.Helpers;
 import loghub.Sender;
+import loghub.ThreadBuilder;
 import loghub.configuration.Properties;
 
 public abstract class AbstractHttpSender extends Sender {
@@ -269,11 +270,11 @@ public abstract class AbstractHttpSender extends Sender {
         threads = new Thread[publisherThreads];
         for (int i = 1 ; i <= publisherThreads ; i++) {
             String tname =  getPublishName() + "Publisher" + i;
-            threads[i - 1] = new Thread(publisher) {{
-                setDaemon(false);
-                setName(tname);
-                start();
-            }};
+            threads[i - 1] = ThreadBuilder.get()
+                    .setRunnable(publisher)
+                    .setDaemon(false)
+                    .setName(tname)
+                    .build(true);
         }
 
         // The HTTP connection management

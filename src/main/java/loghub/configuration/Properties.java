@@ -48,6 +48,7 @@ import loghub.Processor;
 import loghub.Receiver;
 import loghub.Sender;
 import loghub.Source;
+import loghub.ThreadBuilder;
 import loghub.VarFormatter;
 import loghub.jmx.Helper;
 import loghub.jmx.Helper.PROTOCOL;
@@ -353,9 +354,11 @@ public class Properties extends HashMap<String, Object> {
     public void registerScheduledTask(String name, Runnable task, long period) {
         TimerTask collector = new TimerTask () {
             public void run() {
-                Thread taskexecution = new Thread(task, name);
-                taskexecution.setDaemon(true);
-                taskexecution.start();
+                ThreadBuilder.get()
+                .setDaemon(true)
+                .setName(name)
+                .setRunnable(task)
+                .build(true);
             }
         };
         timer.scheduleAtFixedRate(collector, period, period);
