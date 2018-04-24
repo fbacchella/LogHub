@@ -6,19 +6,18 @@ import org.zeromq.ZMQ.Socket;
 
 import loghub.Event;
 import loghub.Sender;
-import loghub.configuration.Beans;
+import loghub.configuration.Properties;
 import loghub.zmq.SmartContext;
 import loghub.zmq.ZMQHelper;
 import zmq.socket.Sockets;
 
-@Beans({"method", "destination", "type", "hwm"})
 public class ZMQ extends Sender {
 
     private ZMQHelper.Method method = ZMQHelper.Method.BIND;
     private String destination = "tcp://localhost:2120";
     private Sockets type = Sockets.PUB;
     private int hwm = 1000;
-    private Socket sendsocket;
+    private Socket sendsocket = null;
     private final SmartContext ctx = SmartContext.getContext();
 
     public ZMQ(BlockingQueue<Event> inQueue) {
@@ -26,10 +25,29 @@ public class ZMQ extends Sender {
     }
 
     @Override
+    public boolean configure(Properties properties) {
+        sendsocket = ctx.newSocket(method, type, destination);
+        return super.configure(properties);
+    }
+
+    @Override
     public boolean send(Event event) {
-        byte[] msg = getEncoder().encode(event);
-        sendsocket.send(msg);
-        return true;
+        if (sendsocket != null) {
+            byte[] msg = getEncoder().encode(event);
+            sendsocket.send(msg);
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    @Override
+    public void interrupt() {
+        if (sendsocket != null) {
+            ctx.close(sendsocket);
+            sendsocket = null;
+        }
+        super.interrupt();
     }
 
     public String getMethod() {
@@ -67,12 +85,6 @@ public class ZMQ extends Sender {
     @Override
     public String getSenderName() {
         return "ZMQ";
-    }
-
-    @Override
-    public synchronized void start() {
-        sendsocket = ctx.newSocket(method, type, destination);
-        super.start();
     }
 
 }
