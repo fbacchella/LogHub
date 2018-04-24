@@ -42,7 +42,7 @@ public abstract class Sender extends Thread {
     public abstract String getSenderName();
 
     public void run() {
-        while (true) {
+        while (! isInterrupted()) {
             Event event = null;
             try {
                 event = inQueue.take();
