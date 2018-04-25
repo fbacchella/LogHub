@@ -1,6 +1,5 @@
 package loghub.processors;
 
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -49,7 +48,7 @@ public class Log extends Processor {
             Map<String, Object> esjson = new HashMap<>(event.size());
             esjson.putAll(event);
             esjson.put("@timestamp", event.getTimestamp());
-            customLogger.log(level, expression.eval(event, Collections.emptyMap()));
+            customLogger.log(level, expression.eval(event));
         }
         return true;
     }

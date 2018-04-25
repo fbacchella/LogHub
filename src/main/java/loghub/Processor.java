@@ -1,7 +1,6 @@
 package loghub;
 
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Optional;
 
 import org.apache.logging.log4j.LogManager;
@@ -88,7 +87,7 @@ public abstract class Processor {
         if(ifexpression == null) {
             return true;
         } else {
-            Object status = ifexpression.eval(event, Collections.emptyMap());
+            Object status = ifexpression.eval(event);
             if(status == null) {
                 return false;
             } else if (status instanceof Boolean) {

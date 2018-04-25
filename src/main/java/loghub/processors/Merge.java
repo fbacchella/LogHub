@@ -415,7 +415,7 @@ public class Merge extends Processor {
             }
 
             if (fire != null) {
-                Object dofire = fire.eval(current.event, Collections.emptyMap());
+                Object dofire = fire.eval(current.event);
                 if(dofire instanceof Boolean && ((Boolean) dofire)) {
                     repository.succed(eventKey);
                 }

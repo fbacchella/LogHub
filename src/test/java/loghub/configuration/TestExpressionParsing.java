@@ -65,7 +65,7 @@ public class TestExpressionParsing {
 
     private Object evalExpression(String exp, Event ev, Map<String, VarFormatter> formats) throws ExpressionException, ProcessorException {
         Expression expression = new Expression(parseExpression(exp), new Properties(Collections.emptyMap()).groovyClassLoader, formats);
-        return expression.eval(ev, Collections.emptyMap());
+        return expression.eval(ev);
     }
 
     private Object evalExpression(String exp, Event ev) throws ExpressionException, ProcessorException {
@@ -73,7 +73,7 @@ public class TestExpressionParsing {
     }
 
     private Object evalExpression(String exp) throws ExpressionException, ProcessorException {
-        return evalExpression(exp, Tools.getEvent(), Collections.emptyMap());
+        return evalExpression(exp, Tools.getEvent());
     }
 
     @Test
@@ -105,20 +105,30 @@ public class TestExpressionParsing {
 
     @Test
     public void testFormatterPath() throws ExpressionException, ProcessorException {
-        String format = "${a.b%02d}";
+        String format = "${%02d}";
         String formatHash = Integer.toHexString(format.hashCode());
         Event ev =  Tools.getEvent();
-        ev.put("a", Collections.singletonMap("b", 1));
-        Assert.assertEquals("01", evalExpression("\"" + format + "\"", ev, Collections.singletonMap("h_" + formatHash, new VarFormatter(format))).toString());
+        ev.put("a", 1);
+        Assert.assertEquals("01", evalExpression("\"" + format + "\" [a]", ev, Collections.singletonMap("h_" + formatHash, new VarFormatter(format))).toString());
     }
 
     @Test
     public void testFormatterTimestamp() throws ExpressionException, ProcessorException {
-        String format = "${@timestamp%t<Europe/Paris>H}";
+        String format = "${%t<Europe/Paris>H}";
         String formatHash = Integer.toHexString(format.hashCode());
         Event ev =  Tools.getEvent();
         ev.setTimestamp(new Date(0));
-        Assert.assertEquals("01", evalExpression("\"" + format + "\"", ev, Collections.singletonMap("h_" + formatHash, new VarFormatter(format))).toString());
+        Assert.assertEquals("01", evalExpression("\"" + format + "\" [@timestamp] ", ev, Collections.singletonMap("h_" + formatHash, new VarFormatter(format))).toString());
+    }
+
+    @Test
+    public void testFormatterContextPrincipal() throws ExpressionException, ProcessorException {
+        String format = "${%s}";
+        String formatHash = Integer.toHexString(format.hashCode());
+        Event ev =  Tools.getEvent();
+        Principal p = new Http.HttpPrincipal("user", "loghub");
+        ev.getConnectionContext().setPrincipal(p);
+        Assert.assertEquals("user", evalExpression("\"" + format + "\" [@context principal]", ev, Collections.singletonMap("h_" + formatHash, new VarFormatter(format))).toString());
     }
 
     @Test

@@ -1,7 +1,5 @@
 package loghub.processors;
 
-import java.util.Collections;
-
 import loghub.Event;
 import loghub.Expression;
 import loghub.Expression.ExpressionException;
@@ -42,7 +40,7 @@ public class Test extends Processor {
 
     @Override
     public boolean process(Event event) throws ProcessorException {
-        Boolean testResult = Boolean.TRUE.equals(ifClause.eval(event, Collections.emptyMap()));
+        Boolean testResult = Boolean.TRUE.equals(ifClause.eval(event));
         Processor nextTransformer = testResult ? thenTransformer : elseTransformer;
         event.insertProcessor(nextTransformer);
         return testResult;

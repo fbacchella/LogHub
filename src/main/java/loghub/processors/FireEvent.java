@@ -1,6 +1,5 @@
 package loghub.processors;
 
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
@@ -47,7 +46,7 @@ public class FireEvent extends Processor {
     public boolean process(Event event) throws ProcessorException {
         Event newEvent = Event.emptyEvent(ConnectionContext.EMPTY);
         for(Map.Entry<String[], Expression> e: expressions.entrySet()) {
-            Object value = e.getValue().eval(event, Collections.emptyMap());
+            Object value = e.getValue().eval(event);
             newEvent.applyAtPath( (i, j, k) -> i.put(j, k), e.getKey(), value);
         }
         return newEvent.inject(pipeDestination, mainQueue);

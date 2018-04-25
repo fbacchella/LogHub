@@ -112,7 +112,7 @@ test: testExpression '?' pipenode (':' pipenode)? ;
 testExpression: expression;
 
 expression
-    :   sl = stringLiteral
+    :   sl = stringLiteral (e0 = expression)?
     |   l = literal
     |   ev = eventVariable
     |   qi = QualifiedIdentifier

@@ -63,14 +63,10 @@ public class Expression {
         this.formatters = formatters;
     }
 
-    public synchronized Object eval(Event event, Map<String, Object> variables) throws ProcessorException {
-        logger.trace("Evaluating script {} with formatters {}, event {} and variables {}", expression, formatters, event, variables);
+    public synchronized Object eval(Event event) throws ProcessorException {
+        logger.trace("Evaluating script {} with formatters {}", expression, formatters);
         Binding groovyBinding = new Binding();
-        variables.entrySet().stream()
-        .forEach( i -> groovyBinding.setVariable(i.getKey(), i.getValue()));
         groovyBinding.setVariable("event", event);
-        groovyBinding.setVariable("@timestamp", event.getTimestamp());
-        groovyBinding.setVariable("@context", event.getConnectionContext());
         groovyBinding.setVariable("formatters", formatters);
         Script localscript;
         try {

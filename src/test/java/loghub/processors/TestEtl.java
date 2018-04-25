@@ -74,8 +74,8 @@ public class TestEtl {
     public void test4() throws ProcessorException {
         Etl.Assign etl = new Etl.Assign();
         etl.setLvalue(new String[]{"a"});
-        etl.setExpression("formatters.a.format(event)");
-        Map<String, String> formats = Collections.singletonMap("a", "${@timestamp%t<GMT>H}");
+        etl.setExpression("formatters.a.format(event.getTimestamp())");
+        Map<String, String> formats = Collections.singletonMap("a", "${%t<GMT>H}");
         Map<String, Object> properties = new HashMap<>();
         properties.put("__FORMATTERS", formats);
         boolean done = etl.configure(new Properties(properties));

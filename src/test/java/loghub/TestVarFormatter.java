@@ -172,11 +172,9 @@ public class TestVarFormatter {
         Map<String, Object> values = new HashMap<String, Object>(){{
             put("a", 2);
             put("b", 1);
-            Object sub = (Map<String, ?>) Collections.singletonMap("d", 3);
-            put("c", sub);
         }};
-        VarFormatter vf = new VarFormatter("${b}${a}${c.d}");
-        Assert.assertEquals("mismatch for complex pattern" , "123", vf.format(values) );
+        VarFormatter vf = new VarFormatter("'${a}${}${b}'");
+        Assert.assertEquals("mismatch for complex pattern" , "'2${}1'", vf.format(values) );
     }
 
     @Test

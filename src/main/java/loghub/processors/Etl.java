@@ -1,7 +1,6 @@
 package loghub.processors;
 
 import java.lang.reflect.InvocationTargetException;
-import java.util.Collections;
 import java.util.Date;
 import java.util.concurrent.CompletionException;
 
@@ -55,7 +54,7 @@ public abstract class Etl extends Processor {
         private Expression script;
         @Override
         public boolean process(Event event) throws ProcessorException {
-            Object o = script.eval(event, Collections.emptyMap());
+            Object o = script.eval(event);
             if(lvalue.length == 1 && Event.TIMESTAMPKEY.equals(lvalue[0])) {
                 if (o instanceof Date) {
                     event.setTimestamp((Date) o);

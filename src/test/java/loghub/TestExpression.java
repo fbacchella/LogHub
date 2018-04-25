@@ -33,19 +33,19 @@ public class TestExpression {
         Expression expression = new Expression(expressionScript, new Properties(Collections.emptyMap()).groovyClassLoader, formatters);
         Event ev = Tools.getEvent();
         ev.put("value", "a");
-        Object o = expression.eval(ev, Collections.emptyMap());
+        Object o = expression.eval(ev);
         Assert.assertEquals("failed to parse expression", true, (Boolean)o);
     }
 
     @Test
     public void test2() throws ExpressionException, ProcessorException {
-        VarFormatter format = new VarFormatter("${a.b}");
+        VarFormatter format = new VarFormatter("${b}");
         Map<String, VarFormatter> formatters = Collections.singletonMap("faaf", format);
-        String expressionScript = "event.a.b + formatters.faaf.format(event)";
+        String expressionScript = "event.a.b + formatters.faaf.format(event.a)";
         Expression expression = new Expression(expressionScript, new Properties(Collections.emptyMap()).groovyClassLoader, formatters);
         Event ev = Tools.getEvent();
         ev.put("a", Collections.singletonMap("b", 1));
-        Object o = expression.eval(ev, Collections.emptyMap());
+        Object o = expression.eval(ev);
         Assert.assertEquals("failed to parse expression", "11", (String)o);
     }
 
