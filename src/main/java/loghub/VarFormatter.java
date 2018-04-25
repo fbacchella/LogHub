@@ -1,10 +1,12 @@
 package loghub;
 
+import java.text.DateFormatSymbols;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.text.FieldPosition;
 import java.text.Format;
 import java.text.MessageFormat;
+import java.text.NumberFormat;
 import java.text.ParsePosition;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -25,6 +27,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.TimeZone;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -195,98 +198,112 @@ public class VarFormatter {
     }
 
     private static final class ExtendedDateFormat extends Format {
-        private final ZoneId tz;
-        private final DecimalFormat nf;
-        private final DateTimeFormatter dtf;
-        private final ChronoField field;
-        private final TemporalQuery<Long> transform;
-        private final Function<String, String> transformResult;
-        private final Function<ZonedDateTime, TemporalAccessor> getDate;
+        private ZoneId tz;
+        private DecimalFormat nf = null;
+        private DateTimeFormatter dtf;
+        private ChronoField field;
+        private TemporalQuery<Long> transform;
+        private Function<String, String> transformResult;
+        private Function<ZonedDateTime, TemporalAccessor> getDate;
+        private Supplier<String[]> symbols = null;
+        private int calendarField = -1;
+        private Locale locale;
+        private Function<Calendar, String> calToStr;
         private ExtendedDateFormat(Locale l, char timeFormat, ZoneId tz, boolean isUpper) {
             this.tz = tz;
+            this.locale = l;
             String dtfPattern = null;
             String nfPattern = null;
-            ChronoField fieldTemp = null;
-            TemporalQuery<Long> transformTemp = null;
-            Function<String, String> transformResultTemp = isUpper ? i -> i.toUpperCase(l) : null ;
-            //dtf = DateTimeFormatter.ofPattern("" + timeFormat);
+            Function<DateFormatSymbols, String[]> tempSymbols = null;
+            transformResult = isUpper ? i -> i.toUpperCase(l) : null ;
             switch(timeFormat) {
-            // Hour of the day for the 24-hour clock, formatted as two digits with a leading zero as necessary i.e. 00 - 23.
-            case 'H': nfPattern = "00" ; fieldTemp = ChronoField.HOUR_OF_DAY ; break;
-            // Hour for the 12-hour clock, formatted as two digits with a leading zero as necessary, i.e. 01 - 12.
-            case 'I': nfPattern = "00" ; fieldTemp = ChronoField.CLOCK_HOUR_OF_AMPM ; break;
-            // Hour of the day for the 24-hour clock, i.e. 0 - 23.
-            case 'k': nfPattern = "##" ; fieldTemp = ChronoField.HOUR_OF_DAY ; break;
-            // Hour for the 12-hour clock, i.e. 1 - 12.
-            case 'l': nfPattern = "##" ; fieldTemp = ChronoField.CLOCK_HOUR_OF_AMPM ; break;
-            // Minute within the hour formatted as two digits with a leading zero as necessary, i.e. 00 - 59.
-            case 'M': nfPattern = "00" ; fieldTemp = ChronoField.MINUTE_OF_HOUR ; break;
-            // Seconds within the minute, formatted as two digits with a leading zero as necessary, i.e. 00 - 60 ("60" is a special value required to support leap seconds).
-            case 'S': nfPattern = "00" ; fieldTemp = ChronoField.SECOND_OF_MINUTE ; break;
-            // Millisecond within the second formatted as three digits with leading zeros as necessary, i.e. 000 - 999.
-            case 'L': nfPattern = "000" ; fieldTemp = ChronoField.MILLI_OF_SECOND ; break;
-            // Nanosecond within the second, formatted as nine digits with leading zeros as necessary, i.e. 000000000 - 999999999.
-            case 'N': nfPattern = "000000000" ; fieldTemp = ChronoField.NANO_OF_SECOND ; break;
-            // Locale-specific morning or afternoon marker in lower case, e.g."am" or "pm". Use of the conversion prefix 'T' forces this output to upper case.
-            case 'p': dtfPattern = "a" ; transformResultTemp = isUpper ? i -> i.toUpperCase(l) : i -> i.toLowerCase(l) ; break;
-            // RFC 822 style numeric time zone offset from GMT, e.g. -0800. This value will be adjusted as necessary for Daylight Saving Time. For long, Long, and Date the time zone used is the default time zone for this instance of the Java virtual machine.
-            case 'z': dtfPattern = "Z" ; break;
-            // A string representing the abbreviation for the time zone. This value will be adjusted as necessary for Daylight Saving Time. For long, Long, and Date the time zone used is the default time zone for this instance of the Java virtual machine. The Formatter's locale will supersede the locale of the argument (if any).
-            case 'Z': dtfPattern = "z" ; break;
-            // Seconds since the beginning of the epoch starting at 1 January 1970 00:00:00 UTC, i.e. Long.MIN_VALUE/1000 to Long.MAX_VALUE/1000.
-            case 's': nfPattern = "#" ; fieldTemp = ChronoField.INSTANT_SECONDS ; break;
-            // Milliseconds since the beginning of the epoch starting at 1 January 1970 00:00:00 UTC, i.e. Long.MIN_VALUE to Long.MAX_VALUE.
-            case 'Q': nfPattern = "#" ; transformTemp = i -> (i.getLong(ChronoField.INSTANT_SECONDS) * 1000 + i.getLong(ChronoField.MILLI_OF_SECOND)) ; break;
-            // Locale-specific full month name, e.g. "January", "February".
-            case 'B': dtfPattern = "MMMM" ; fieldTemp = ChronoField.MONTH_OF_YEAR ; break;
-            // Locale-specific abbreviated month name, e.g. "Jan", "Feb".
-            case 'b':
-                // Same as 'b'.
-            case 'h': dtfPattern = "MMM" ; break;
-            // Locale-specific full name of the day of the week, e.g. "Sunday", "Monday"
-            case 'A': dtfPattern = "EEEE" ; break;
-            // Locale-specific short name of the day of the week, e.g. "Sun", "Mon"
-            case 'a': dtfPattern = "EEE" ; break;
-            // Four-digit year divided by 100, formatted as two digits with leading zero as necessary, i.e. 00 - 99
-            case 'C': nfPattern = "00" ; fieldTemp = ChronoField.YEAR_OF_ERA ; transformTemp = i -> i.getLong(ChronoField.YEAR_OF_ERA) / 100 ; break;
+            case 'H': // Hour of the day for the 24-hour clock, formatted as two digits with a leading zero as necessary i.e. 00 - 23.
+                nfPattern = "00" ; field = ChronoField.HOUR_OF_DAY ; break;
+            case 'I': // Hour for the 12-hour clock, formatted as two digits with a leading zero as necessary, i.e. 01 - 12.
+                nfPattern = "00" ; field = ChronoField.CLOCK_HOUR_OF_AMPM ; break;
+            case 'k': // Hour of the day for the 24-hour clock, i.e. 0 - 23.
+                calToStr = i -> NumberFormat.getIntegerInstance(locale).format(i.get(Calendar.HOUR_OF_DAY)) ; break;
+            case 'l': // Hour for the 12-hour clock, i.e. 1 - 12.
+                calToStr = i ->  {
+                    int hour = i.get(Calendar.HOUR);
+                    return NumberFormat.getIntegerInstance(locale).format(hour > 12 ? hour - 12 : hour == 0 ? 12 : hour);
+                };
+                break;
+            case 'M': // Minute within the hour formatted as two digits with a leading zero as necessary, i.e. 00 - 59.
+                nfPattern = "00" ; field = ChronoField.MINUTE_OF_HOUR ; break;
+            case 'S': // Seconds within the minute, formatted as two digits with a leading zero as necessary, i.e. 00 - 60 ("60" is a special value required to support leap seconds).
+                nfPattern = "00" ; field = ChronoField.SECOND_OF_MINUTE ; break;
+            case 'L': // Millisecond within the second formatted as three digits with leading zeros as necessary, i.e. 000 - 999.
+                nfPattern = "000" ; field = ChronoField.MILLI_OF_SECOND ; break;
+            case 'N':// Nanosecond within the second, formatted as nine digits with leading zeros as necessary, i.e. 000000000 - 999999999.
+                nfPattern = "000000000" ; field = ChronoField.NANO_OF_SECOND ; break;
+            case 'p': // Locale-specific morning or afternoon marker in lower case, e.g."am" or "pm". Use of the conversion prefix 'T' forces this output to upper case.
+                calendarField = Calendar.AM_PM;
+                tempSymbols = i -> i.getAmPmStrings() ; transformResult = isUpper ? i -> i.toUpperCase(l) : i -> i.toLowerCase(l) ; break;
+            case 'z': // RFC 822 style numeric time zone offset from GMT, e.g. -0800. This value will be adjusted as necessary for Daylight Saving Time. For long, Long, and Date the time zone used is the default time zone for this instance of the Java virtual machine.
+                // There is no equivalent in DateTimeFormatter, rules from Format are too complicated to rewrite.
+                calToStr = i -> String.format(locale, "%tz", i);
+                break;
+            case 'Z': // A string representing the abbreviation for the time zone. This value will be adjusted as necessary for Daylight Saving Time. For long, Long, and Date the time zone used is the default time zone for this instance of the Java virtual machine. The Formatter's locale will supersede the locale of the argument (if any).
+                calToStr = i -> {
+                    Date d = i.getTime();
+                    TimeZone z = i.getTimeZone();
+                    return z.getDisplayName( z.inDaylightTime(d), TimeZone.SHORT, locale);
+                };
+                break;
+            case 's': // Seconds since the beginning of the epoch starting at 1 January 1970 00:00:00 UTC, i.e. Long.MIN_VALUE/1000 to Long.MAX_VALUE/1000.
+                // There is no equivalent in DateTimeFormatter, rules from Format are too complicated to rewrite.
+                calToStr = i -> String.format(locale, "%ts", i);
+                break ;
+            case 'Q': // Milliseconds since the beginning of the epoch starting at 1 January 1970 00:00:00 UTC, i.e. Long.MIN_VALUE to Long.MAX_VALUE.
+                // There is no equivalent in DateTimeFormatter, rules from Format are too complicated to rewrite.
+                calToStr = i -> String.format(locale, "%tQ", i);
+                break ;
+            case 'B': // Locale-specific full month name, e.g. "January", "February".
+                tempSymbols = i -> i.getMonths() ; calendarField = Calendar.MONTH ; break;
+            case 'b': // Locale-specific abbreviated month name, e.g. "Jan", "Feb", same as h.
+            case 'h': // Locale-specific abbreviated month name, e.g. "Jan", "Feb", same as b.
+                tempSymbols = i -> i.getShortMonths() ; calendarField = Calendar.MONTH ; break;
+            case 'A': // Locale-specific full name of the day of the week, e.g. "Sunday", "Monday"
+                tempSymbols = i -> i.getWeekdays(); calendarField = Calendar.DAY_OF_WEEK; break;
+            case 'a': // Locale-specific short name of the day of the week, e.g. "Sun", "Mon"
+                tempSymbols = i -> i.getShortWeekdays() ; calendarField = Calendar.DAY_OF_WEEK; break;
+                // Four-digit year divided by 100, formatted as two digits with leading zero as necessary, i.e. 00 - 99
+            case 'C': nfPattern = "00" ; field = ChronoField.YEAR_OF_ERA ; transform = i -> i.getLong(ChronoField.YEAR_OF_ERA) / 100 ; break;
             // Year, formatted as at least four digits with leading zeros as necessary, e.g. 0092 equals 92 CE for the Gregorian calendar.
-            case 'Y': nfPattern = "0000" ; fieldTemp = ChronoField.YEAR_OF_ERA; break;
+            case 'Y': nfPattern = "0000" ; field = ChronoField.YEAR_OF_ERA; break;
             // Last two digits of the year, formatted with leading zeros as necessary, i.e. 00 - 99.
-            case 'y': nfPattern = "00" ; fieldTemp = ChronoField.YEAR_OF_ERA; transformTemp = i -> i.getLong(ChronoField.YEAR_OF_ERA) % 100 ; break;
+            case 'y': nfPattern = "00" ; field = ChronoField.YEAR_OF_ERA; transform = i -> i.getLong(ChronoField.YEAR_OF_ERA) % 100 ; break;
             // Day of year, formatted as three digits with leading zeros as necessary, e.g. 001 - 366 for the Gregorian calendar.
-            case 'j': nfPattern = "000" ; fieldTemp = ChronoField.DAY_OF_YEAR ; break;
+            case 'j': nfPattern = "000" ; field = ChronoField.DAY_OF_YEAR ; break;
             // Month, formatted as two digits with leading zeros as necessary, i.e. 01 - 13.
-            case 'm': nfPattern = "00" ; fieldTemp = ChronoField.MONTH_OF_YEAR ; break;
+            case 'm': nfPattern = "00" ; field = ChronoField.MONTH_OF_YEAR ; break;
             // Day of month, formatted as two digits with leading zeros as necessary, i.e. 01 - 31
-            case 'd': nfPattern = "00" ; fieldTemp = ChronoField.DAY_OF_MONTH ; break;
-            // Day of month, formatted as two digits, i.e. 1 - 31.
-            case 'e': nfPattern = "##" ; fieldTemp = ChronoField.DAY_OF_MONTH ; break;
-            // Time formatted for the 24-hour clock as "%tH:%tM".
+            case 'd': nfPattern = "00" ; field = ChronoField.DAY_OF_MONTH ; break;
+            case 'e': // Day of month, formatted as two digits, i.e. 1 - 31.
+                calToStr = i -> NumberFormat.getIntegerInstance(locale).format(i.get(Calendar.DAY_OF_MONTH)) ; break ;
+                // Time formatted for the 24-hour clock as "%tH:%tM".
             case 'R': dtfPattern = "" ; break;
             // Time formatted for the 24-hour clock as "%tH:%tM:%tS".
             case 'T': dtfPattern = "" ; break;
             // Time formatted for the 12-hour clock as "%tI:%tM:%tS %Tp". The location of the morning or afternoon marker ('%Tp') may be locale-dependent.
             case 'r': dtfPattern = "" ; break;
             // Date formatted as "%tm/%td/%ty".
-            case 'D': dtfPattern = "" ; fieldTemp = ChronoField.HOUR_OF_DAY ; break;
+            case 'D': dtfPattern = "" ; field = ChronoField.HOUR_OF_DAY ; break;
             // ISO 8601 complete date formatted as "%tY-%tm-%td".
             case 'F': dtfPattern = "" ; break;
             // Date and time formatted as "%ta %tb %td %tT %tZ %tY", e.g. "Sun Jul 20 16:17:00 EDT 1969".
             case 'c': dtfPattern = "" ; break;
-            default: nfPattern = null ; dtfPattern = null ; fieldTemp = null;
+            default: nfPattern = null ; dtfPattern = null ; field = null;
             }
             if(nfPattern != null) {
                 nf = new DecimalFormat(nfPattern, DecimalFormatSymbols.getInstance(l));
-            } else {
-                nf = null;
-            }
-            field = fieldTemp;
-            transform = transformTemp;
-            transformResult = transformResultTemp;
-            if(dtfPattern != null) {
+            } else if (tempSymbols != null) {
+                final Function<DateFormatSymbols, String[]> finalSymbols = tempSymbols;
+                DateFormatSymbols dfs = DateFormatSymbols.getInstance(l);
+                symbols = () -> finalSymbols.apply(dfs); 
+            } else if (dtfPattern != null) {
                 dtf = DateTimeFormatter.ofPattern(dtfPattern, l);
-            } else {
-                dtf = null;
             }
 
             // Use the good calendar, as printf("%tY") does when given a date;
@@ -298,9 +315,23 @@ public class VarFormatter {
             default: getDate = i -> i; break;
             }
         }
-        @Override
-        public StringBuffer format(Object obj, StringBuffer toAppendTo,
-                FieldPosition pos) {
+
+        private Calendar getCalendar(Object obj) {
+            Calendar cal = Calendar.getInstance(TimeZone.getTimeZone(tz), locale);
+            if(obj instanceof Date) {
+                Date d = (Date) obj;
+                if (calendarField > 0 || calToStr != null) {
+                    cal.setTimeInMillis(d.getTime());
+                }
+            } else if (obj instanceof TemporalAccessor){
+                TemporalAccessor  timePoint = (TemporalAccessor) obj;
+                cal.setTimeInMillis(timePoint.getLong(ChronoField.INSTANT_SECONDS) * 1000L + timePoint.getLong(ChronoField.MILLI_OF_SECOND));
+            } else {
+                return null;
+            }
+            return cal;
+        }
+        private TemporalAccessor getTemporalAccessor(Object obj) {
             TemporalAccessor timePoint;
             if(obj instanceof Date) {
                 Date d = (Date) obj;
@@ -310,29 +341,40 @@ public class VarFormatter {
                 } else {
                     timePoint = temp;
                 }
-            } else if(obj instanceof TemporalAccessor){
+            } else if (obj instanceof TemporalAccessor){
                 timePoint = (TemporalAccessor) obj;
             } else {
+                return null;
+            }
+            return timePoint;
+        }
+
+        @Override
+        public StringBuffer format(Object obj, StringBuffer toAppendTo,
+                FieldPosition pos) {
+            if ( ! (obj instanceof Date) && ! (obj instanceof TemporalAccessor)) {
                 return toAppendTo;
             }
             String resulStr = "";
-            if(nf != null) {
+            if (calToStr != null) {
+                resulStr = calToStr.apply(getCalendar(obj));
+            } else if (symbols != null && calendarField > 0) {
+                resulStr = symbols.get()[getCalendar(obj).get(calendarField)];
+            } else if (nf != null) {
                 long value = 0;
                 if(transform != null) {
-                    value = transform.queryFrom(timePoint);
+                    value = transform.queryFrom(getTemporalAccessor(obj));
                 } else if (field != null){
-                    value = timePoint.getLong(field);
-
+                    value = getTemporalAccessor(obj).getLong(field);
                 }
                 resulStr = nf.format(value);
             } else if ( dtf != null) {
-                resulStr = dtf.format(timePoint);
+                resulStr = dtf.format(getTemporalAccessor(obj));
             }
             if(transformResult != null && resulStr != null ) {
                 resulStr = transformResult.apply(resulStr);
             }
-            toAppendTo.append(resulStr);
-            return toAppendTo;
+            return toAppendTo.append(resulStr);
         }
         @Override
         public Object parseObject(String source, ParsePosition pos) {

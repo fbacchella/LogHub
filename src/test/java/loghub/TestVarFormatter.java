@@ -30,20 +30,13 @@ public class TestVarFormatter {
     private void checkFormat(Object value, String format, boolean fail) {
         Map<String, Object> values = Collections.singletonMap("var", value);
         for(Locale l: Locale.getAvailableLocales()) {
-            if("%TA".equals(format) && "tr".equals(l.getLanguage()) ) {
-                // This test is skipped, the result is better than printf
-                continue;
-            }
-            if("und".equals(l.toLanguageTag())) {
-                continue;
-            }
             VarFormatter vf = new VarFormatter("${var" + format + "}", l);
             String printf = String.format(l, format, value);
             String formatter = vf.format(values);
             if(! fail && ! printf.equals(formatter) ) {
                 System.out.println("mismatch for " + format + " at locale " + l.toLanguageTag() + " " + printf + " " + formatter);
             } else {
-                Assert.assertEquals("mismatch for " + format + " at locale " + l.toLanguageTag(), printf, formatter );
+                Assert.assertEquals("mismatch for " + format + " at locale " + l.toLanguageTag() + " with " + value.getClass().getSimpleName(), printf, formatter );
             }
         }
     }
@@ -88,7 +81,7 @@ public class TestVarFormatter {
         checkFormat(date, "%tL");
         checkFormat(date, "%tN");
         checkFormat(date, "%tp");
-        //checkFormat(date, "%tz"); // Fails for a few locals
+        checkFormat(date, "%tz");
         checkFormat(date, "%tZ");
         checkFormat(date, "%ts");
         checkFormat(date, "%tQ");
