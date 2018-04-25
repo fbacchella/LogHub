@@ -160,7 +160,11 @@ public class TestVarFormatter {
         Map<String, Object> values = Collections.singletonMap("var", 1);
         VarFormatter vf = new VarFormatter("a${}b{}c");
         String formatter = vf.format(values);
-        Assert.assertEquals("mismatch for string escape" , "a${}b{}c", formatter );
+        Assert.assertEquals("mismatch for string escape", "a${}b{}c", formatter );
+
+        vf = new VarFormatter("a'c");
+        formatter = vf.format(values);
+        Assert.assertEquals("mismatch for string escape", "a'c", formatter );
     }
 
     @Test
@@ -174,6 +178,13 @@ public class TestVarFormatter {
         VarFormatter vf = new VarFormatter("${b}${a}${c.d}");
         Assert.assertEquals("mismatch for complex pattern" , "123", vf.format(values) );
     }
+
+    @Test
+    public void formatSimple() {
+        VarFormatter vf = new VarFormatter("${%d} ${%04d}");
+        Assert.assertEquals("mismatch for complex pattern", "123 0123", vf.format(123) );
+    }
+
 
     @Test(expected=RuntimeException.class)
     public void testError1() {

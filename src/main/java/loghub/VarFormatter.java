@@ -382,7 +382,7 @@ public class VarFormatter {
         }
     }
 
-    private static final Pattern varregexp = Pattern.compile("(?<before>.*?)(?:(?:\\$\\{(?<varname>(@?[\\w\\.-]+|\\$\\{\\}))(?:%(?<format>[^}]+))?\\})|(?<curlybrace>\\{\\}))(?<after>.*)");
+    private static final Pattern varregexp = Pattern.compile("^(?<before>.*?(?=(?:\\$\\{)|\\{|'))(?:\\$\\{(?<varname>@?[\\w\\.-]+)?(?<format>%[^}]+)?\\}|(?:(?<curlybraces>\\{\\})|(?<quote>')))(?<after>.*)$");
     private static final Pattern formatSpecifier = Pattern.compile("^(?<flag>[-#+ 0,(]*)?(?<length>\\d+)?(?:\\.(?<precision>\\d+))?(?:(?<istime>[tT])(?:\\<(?<tz>.*)\\>)?)?(?<conversion>[a-zA-Z%])(?::(?<locale>.*))?$");
     private static final String lineseparator = System.lineSeparator();
 
@@ -404,41 +404,49 @@ public class VarFormatter {
         this.format = format;
         locale = l;
         List<String> formats = new ArrayList<>();
+        // Convert the pattern to a MessageFormat which is compiled and be reused
         String pattern = findVariables(new StringBuilder(), format, mapper, 0, formats).toString();
-        mf = new MessageFormat(pattern);
+        mf = new MessageFormat(pattern, l);
         for(int i = 0; i < mf.getFormats().length; i++) {
             mf.setFormat(i, resolveFormat(formats.get(i)));
         }
     }
 
-    public String format(Map<String, Object> variables) throws IllegalArgumentException {
-        if (variables == null) {
+    @SuppressWarnings("unchecked")
+    public String format(Object arg) throws IllegalArgumentException {
+        Map<String, Object> variables;
+        if (arg instanceof Map) {
+            variables = (Map<String, Object>) arg;
+        } else {
             variables = Collections.emptyMap();
         }
         Object[] resolved = new Object[mapper.size()];
         for(Map.Entry<String, Integer> e: mapper.entrySet()) {
-            String[] path = e.getKey().split("\\.");
-            if(path.length == 1) {
-                // Only one element in the key, just use it
-                if(! variables.containsKey(e.getKey())) {
-                    throw new IllegalArgumentException("invalid values for format key " + e.getKey());
-                }
-                resolved[e.getValue()] = variables.get(e.getKey());
+            if (".".equals(e.getKey())) {
+                resolved[e.getValue()] = arg;
             } else {
-                // Recurse, variables written as "a.b.c" are paths in maps
-                Map<String, Object> current = variables;
-                String key = path[0];
-                for(int i = 0; i < path.length - 1; i++) {
-                    @SuppressWarnings("unchecked")
-                    Map<String, Object> next = (Map<String, Object>) current.get(key);
-                    if( next == null || ! (next instanceof Map) ) {
+                String[] path = e.getKey().split("\\.");
+                if(path.length == 1) {
+                    // Only one element in the key, just use it
+                    if(! variables.containsKey(e.getKey())) {
                         throw new IllegalArgumentException("invalid values for format key " + e.getKey());
                     }
-                    current = next;
-                    key = path[i + 1];
-                }
-                if(current != null) {
-                    resolved[e.getValue()] = current.get(key);
+                    resolved[e.getValue()] = variables.get(e.getKey());
+                } else {
+                    // Recurse, variables written as "a.b.c" are paths in maps
+                    Map<String, Object> current = variables;
+                    String key = path[0];
+                    for(int i = 0; i < path.length - 1; i++) {
+                        Map<String, Object> next = (Map<String, Object>) current.get(key);
+                        if( next == null || ! (next instanceof Map) ) {
+                            throw new IllegalArgumentException("invalid values for format key " + e.getKey());
+                        }
+                        current = next;
+                        key = path[i + 1];
+                    }
+                    if(current != null) {
+                        resolved[e.getValue()] = current.get(key);
+                    }
                 }
             }
         }
@@ -449,19 +457,30 @@ public class VarFormatter {
         Matcher m = varregexp.matcher(in);
         if(m.find()) {
             String before = m.group("before");
-            String format = m.group("format");
             String varname = m.group("varname");
+            String format = m.group("format");
+            String curlybraces = m.group("curlybraces");
+            String quote = m.group("quote");
             String after = m.group("after");
-            String curlybrace = m.group("curlybrace");
             buffer.append(before);
-            if(curlybrace != null) {
+            if (curlybraces != null) {
+                // Escape a {} pair
                 buffer.append("'{}'");
-            }
-            else if(varname != null && ! varname.isEmpty()) {
+            } else if (quote != null) {
+                // Escape a lone '
+                buffer.append("''");
+            } else if (varname == null && format == null) {
+                // Not really a find, put back and continue
+                buffer.append("$'{}'");
+            } else {
                 if(format == null || format.isEmpty()) {
-                    format = "s";
+                    format = "%s";
                 }
-                formats.add(format);
+                if(varname == null || varname.isEmpty()) {
+                    varname = ".";
+                }
+                // Remove the initial %
+                formats.add(format.substring(1));
                 if( ! mapper.containsKey(varname)) {
                     mapper.put(varname, last++);
                 }
