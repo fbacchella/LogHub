@@ -104,31 +104,46 @@ public class TestExpressionParsing {
     }
 
     @Test
-    public void testFormatterPath() throws ExpressionException, ProcessorException {
-        String format = "${%02d}";
+    public void testFormatterSimple() throws ExpressionException, ProcessorException {
+        String format = "${#1%02d}";
         String formatHash = Integer.toHexString(format.hashCode());
         Event ev =  Tools.getEvent();
         ev.put("a", 1);
-        Assert.assertEquals("01", evalExpression("\"" + format + "\" [a]", ev, Collections.singletonMap("h_" + formatHash, new VarFormatter(format))).toString());
+        Assert.assertEquals("01", evalExpression("\"" + format + "\"([a])", ev, Collections.singletonMap("h_" + formatHash, new VarFormatter(format))).toString());
+    }
+
+    @Test(expected=ProcessorException.class)
+    public void testFormatterFailed() throws ExpressionException, ProcessorException {
+        String format = "${#2%02d}";
+        String formatHash = Integer.toHexString(format.hashCode());
+        Event ev =  Tools.getEvent();
+        ev.put("a", 1);
+        try {
+            evalExpression("\"" + format + "\"([a])", ev, Collections.singletonMap("h_" + formatHash, new VarFormatter(format)));
+        } catch (ProcessorException e) {
+            Assert.assertTrue(e.getMessage().contains("index out of range"));
+            throw e;
+        }
     }
 
     @Test
     public void testFormatterTimestamp() throws ExpressionException, ProcessorException {
-        String format = "${%t<Europe/Paris>H}";
+        String format = "${#1%t<Europe/Paris>H}";
         String formatHash = Integer.toHexString(format.hashCode());
         Event ev =  Tools.getEvent();
         ev.setTimestamp(new Date(0));
-        Assert.assertEquals("01", evalExpression("\"" + format + "\" [@timestamp] ", ev, Collections.singletonMap("h_" + formatHash, new VarFormatter(format))).toString());
+        Assert.assertEquals("01", evalExpression("\"" + format + "\"([@timestamp])", ev, Collections.singletonMap("h_" + formatHash, new VarFormatter(format))).toString());
     }
 
     @Test
     public void testFormatterContextPrincipal() throws ExpressionException, ProcessorException {
-        String format = "${%s}";
+        String format = "${#1%s}-${#2%tY}.${#2%tm}.${#2%td}";
         String formatHash = Integer.toHexString(format.hashCode());
         Event ev =  Tools.getEvent();
+        ev.setTimestamp(new Date(0));
         Principal p = new Http.HttpPrincipal("user", "loghub");
         ev.getConnectionContext().setPrincipal(p);
-        Assert.assertEquals("user", evalExpression("\"" + format + "\" [@context principal]", ev, Collections.singletonMap("h_" + formatHash, new VarFormatter(format))).toString());
+        Assert.assertEquals("user-1970.01.01", evalExpression("\"" + format + "\" ([@context principal], [@timestamp])", ev, Collections.singletonMap("h_" + formatHash, new VarFormatter(format))).toString());
     }
 
     @Test

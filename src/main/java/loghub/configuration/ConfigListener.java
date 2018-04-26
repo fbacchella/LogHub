@@ -3,6 +3,7 @@ package loghub.configuration;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -33,6 +34,7 @@ import loghub.RouteParser.DropContext;
 import loghub.RouteParser.EtlContext;
 import loghub.RouteParser.EventVariableContext;
 import loghub.RouteParser.ExpressionContext;
+import loghub.RouteParser.ExpressionsListContext;
 import loghub.RouteParser.FinalpiperefContext;
 import loghub.RouteParser.FireContext;
 import loghub.RouteParser.FloatingPointLiteralContext;
@@ -81,6 +83,7 @@ class ConfigListener extends RouteBaseListener {
         PipeNodeList,
         Array,
         Expression,
+        ExpressionList,
         Fire,
         Etl,
         Map;
@@ -650,6 +653,22 @@ class ConfigListener extends RouteBaseListener {
     }
 
     @Override
+    public void enterExpressionsList(ExpressionsListContext ctx) {
+        stack.push(StackMarker.ExpressionList);
+    }
+
+    @Override
+    public void exitExpressionsList(ExpressionsListContext ctx) {
+        List<String> expressionsList = new ArrayList<>();
+        Object se;
+        while ((se = stack.pop()) != StackMarker.ExpressionList) {
+            expressionsList.add((String)se);
+        }
+        Collections.reverse(expressionsList);
+        stack.push(expressionsList.toString());
+    }
+
+    @Override
     public void enterExpression(ExpressionContext ctx) {
         expressionDepth++;
     }
@@ -662,7 +681,7 @@ class ConfigListener extends RouteBaseListener {
             String key = "h_" + Integer.toHexString(format.hashCode());
             formatters.put(key, format);
             String subexpression;
-            if (ctx.e0 != null) {
+            if (ctx.expressionsList() != null) {
                 subexpression = (String) stack.pop();
                 expression = String.format("formatters.%s.format(%s)", key, subexpression);
             } else {

@@ -112,7 +112,7 @@ test: testExpression '?' pipenode (':' pipenode)? ;
 testExpression: expression;
 
 expression
-    :   sl = stringLiteral (e0 = expression)?
+    :   sl = stringLiteral ( expressionsList )?
     |   l = literal
     |   ev = eventVariable
     |   qi = QualifiedIdentifier
@@ -122,7 +122,11 @@ expression
     |   e1 = expression opm=matchOperator patternLiteral
     |   '(' e3 = expression ')'
     ;
-    
+
+expressionsList
+    : '(' expression ( ','  expression )* ','? ')'
+    ;
+
 unaryOperator
     :   '~'
     |   '!'

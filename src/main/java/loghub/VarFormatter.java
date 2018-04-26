@@ -382,8 +382,9 @@ public class VarFormatter {
         }
     }
 
-    private static final Pattern varregexp = Pattern.compile("^(?<before>.*?(?=(?:\\$\\{)|\\{|'))(?:\\$\\{(?<varname>[\\w\\.-]+)?(?<format>%[^}]+)?\\}|(?:(?<curlybraces>\\{\\})|(?<quote>')))(?<after>.*)$");
+    private static final Pattern varregexp = Pattern.compile("^(?<before>.*?(?=(?:\\$\\{)|\\{|'))(?:\\$\\{(?<varname>#?[\\w\\.-]+)?(?<format>%[^}]+)?\\}|(?:(?<curlybraces>\\{\\})|(?<quote>')))(?<after>.*)$");
     private static final Pattern formatSpecifier = Pattern.compile("^(?<flag>[-#+ 0,(]*)?(?<length>\\d+)?(?:\\.(?<precision>\\d+))?(?:(?<istime>[tT])(?:\\<(?<tz>.*)\\>)?)?(?<conversion>[a-zA-Z%])(?::(?<locale>.*))?$");
+    private static final Pattern arrayIndex = Pattern.compile("#(?<index>\\d+)");
     private static final String lineseparator = System.lineSeparator();
 
     private static final Logger logger = LogManager.getLogger();
@@ -424,12 +425,24 @@ public class VarFormatter {
         for(Map.Entry<String, Integer> e: mapper.entrySet()) {
             if (".".equals(e.getKey())) {
                 resolved[e.getValue()] = arg;
-            } else {
-                if(! variables.containsKey(e.getKey())) {
-                    throw new IllegalArgumentException("invalid values for format key " + e.getKey());
-                }
-                resolved[e.getValue()] = variables.get(e.getKey());
+                continue;
             }
+            if (arg instanceof List) {
+                Matcher m = arrayIndex.matcher(e.getKey());
+                if (m.matches()) {
+                    int i = Integer.parseInt(m.group("index"));
+                    List<Object> l = (List<Object>) arg;
+                    if (i > l.size()) {
+                        throw new IllegalArgumentException("index out of range");
+                    }
+                    resolved[e.getValue()] = l.get(i - 1);
+                    continue;
+                }
+            }
+            if (! variables.containsKey(e.getKey())) {
+                throw new IllegalArgumentException("invalid values for format key " + e.getKey());
+            }
+            resolved[e.getValue()] = variables.get(e.getKey());
         }
         return mf.format(resolved, new StringBuffer(), new FieldPosition(0)).toString();
     }
