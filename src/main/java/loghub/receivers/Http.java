@@ -55,7 +55,7 @@ public class Http extends GenericTcp {
 
     private static final ParseJson jsonParser = new ParseJson();
 
-    public static final class HttpPrincipal implements Principal {
+    public static final class HttpPrincipal implements Principal, Serializable {
         private final String user;
         private final String realm;
 
