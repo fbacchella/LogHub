@@ -4,13 +4,15 @@ import java.io.Serializable;
 import java.security.Principal;
 
 public abstract class ConnectionContext<A> implements Serializable {
-
-    private static Principal EMPTYPRINCIPAL = new Principal() {
+    
+    private static class EmptyPrincipal implements Principal, Serializable {
         @Override
         public String getName() {
             return "";
         }
     };
+
+    private static Principal EMPTYPRINCIPAL = new EmptyPrincipal();
 
     public static final ConnectionContext<Object> EMPTY = new ConnectionContext<Object>() {
 
