@@ -70,7 +70,6 @@ public class TestWithZMQ {
         for(Sender s: conf.senders) {
             s.interrupt();
         }
-        SmartContext.getContext().terminate();
     }
 
 }

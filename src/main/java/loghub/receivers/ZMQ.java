@@ -1,20 +1,16 @@
 package loghub.receivers;
 
 import java.io.IOException;
-import java.nio.channels.ClosedSelectorException;
 import java.nio.channels.SelectableChannel;
-import java.util.Iterator;
-import java.util.NoSuchElementException;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ExecutionException;
 
 import org.apache.logging.log4j.Level;
 import org.zeromq.ZMQ.Socket;
-import org.zeromq.ZMQException;
 import org.zeromq.ZPoller;
 
 import loghub.ConnectionContext;
 import loghub.Event;
-import loghub.Helpers;
 import loghub.Pipeline;
 import loghub.Receiver;
 import loghub.configuration.Properties;
@@ -26,7 +22,7 @@ import zmq.socket.Sockets;
 @Blocking
 public class ZMQ extends Receiver {
 
-    private final SmartContext ctx = SmartContext.getContext();
+   private final SmartContext ctx = SmartContext.getContext();
 
     private ZMQHelper.Method method = ZMQHelper.Method.BIND;
     private String listen = "tcp://localhost:2120";
@@ -110,7 +106,7 @@ public class ZMQ extends Receiver {
                         logger.info("receiving {} on {}", events, channel);
                         return true;
                     }
-                    
+
                 });
                 while (! isInterrupted() && ctx.isRunning() && zpoller.poll(-1) > 0) {
                 }
@@ -121,45 +117,22 @@ public class ZMQ extends Receiver {
         }
     }
 
-    @Override
-    protected Iterator<Event> getIterator() {
-        if (listeningSocket == null || !ctx.isRunning()) {
-            return Helpers.getEmptyIterator();
-        }
-        final Iterator<byte[]> generator;
-        try {
-            generator = ctx.read(listeningSocket).iterator();
-        } catch (IOException e) {
-            logger.error("error starting to listen on {}: {}", listen, e.getMessage());
-            return Helpers.getEmptyIterator();
-        }
-        return new Iterator<Event>() {
-
-            @Override
-            public boolean hasNext() {
-                return ctx.isRunning() && generator.hasNext();
+    //@Override
+    public void nointerrupt() {
+        logger.trace("interrupt");
+        if (ctx.isRunning()) {
+            try {
+                logger.debug("terminate");
+                ctx.terminate().get();
+            } catch (InterruptedException e) {
+            } catch (ExecutionException e) {
+                logger.error("Failed interrupt: {}", e.getCause());
             }
-
-            @Override
-            public Event next() {
-                try {
-                    byte[] msg = generator.next();
-                    return decode(ConnectionContext.EMPTY, msg);
-                } catch (ClosedSelectorException|zmq.ZError.CtxTerminatedException e) {
-                    throw new NoSuchElementException();
-                } catch (ZMQException|zmq.ZError.IOException|zmq.ZError.InstantiationException e) {
-                    ZMQHelper.logZMQException(logger, "recv", e);
-                    logger.catching(Level.DEBUG, e.getCause());
-                    ctx.close(listeningSocket);
-                    listeningSocket = null;
-                    throw new NoSuchElementException();
-                }
-            }
-
-        };
+        }
+        super.interrupt();
     }
 
-    @Override
+     @Override
     public void close() {
         listeningSocket.close();
         super.close();

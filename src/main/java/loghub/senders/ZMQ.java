@@ -41,15 +41,6 @@ public class ZMQ extends Sender {
         }
     }
 
-    @Override
-    public void interrupt() {
-        if (sendsocket != null) {
-            ctx.close(sendsocket);
-            sendsocket = null;
-        }
-        super.interrupt();
-    }
-
     public String getMethod() {
         return method.toString();
     }

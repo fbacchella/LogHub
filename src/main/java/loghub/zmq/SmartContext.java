@@ -26,7 +26,7 @@ public class SmartContext {
     private volatile boolean running = true;
 
     public static synchronized SmartContext getContext() {
-        if (instance == null || !instance.running) {
+        if (instance == null) {
             instance = new SmartContext();
             ThreadBuilder.get()
             .setDaemon(false)
@@ -66,19 +66,17 @@ public class SmartContext {
     }
 
     public void close(Socket socket) {
-        synchronized(socket){
-            try {
-                logger.debug("close socket {}: {}", socket, socket);
-                socket.setLinger(0);
-                context.destroySocket(socket);
-            } catch (ZMQException|zmq.ZError.IOException|zmq.ZError.CtxTerminatedException|zmq.ZError.InstantiationException e) {
-                ZMQHelper.logZMQException(logger, "close " + socket, e);
-            } catch (java.nio.channels.ClosedSelectorException e) {
-                logger.debug("in close: " + e);
-            } catch (Exception e) {
-                logger.error("in close: " + e);
-            } finally {
-            }
+        try {
+            logger.debug("close socket {}: {}", socket, socket);
+            socket.setLinger(0);
+            context.destroySocket(socket);
+        } catch (ZMQException|zmq.ZError.IOException|zmq.ZError.CtxTerminatedException|zmq.ZError.InstantiationException e) {
+            ZMQHelper.logZMQException(logger, "close " + socket, e);
+        } catch (java.nio.channels.ClosedSelectorException e) {
+            logger.debug("in close: " + e);
+        } catch (Exception e) {
+            logger.error("in close: " + e);
+        } finally {
         }
     }
 
