@@ -8,6 +8,8 @@ import org.apache.logging.log4j.Logger;
 
 import io.netty.bootstrap.AbstractBootstrap;
 import io.netty.channel.Channel;
+import io.netty.util.internal.logging.InternalLoggerFactory;
+import io.netty.util.internal.logging.Log4J2LoggerFactory;
 import loghub.Helpers;
 import loghub.configuration.Properties;
 import loghub.netty.ChannelConsumer;
@@ -24,6 +26,10 @@ import loghub.netty.POLLER;
  * @param <SA>  Socket Address
  */
 public abstract class AbstractNettyServer<CF extends ComponentFactory<BS, BSC, SA>, BS extends AbstractBootstrap<BS, BSC>, BSC extends Channel, SC extends Channel, SA extends SocketAddress> {
+
+    static {
+        InternalLoggerFactory.setDefaultFactory(Log4J2LoggerFactory.INSTANCE);
+    }
 
     protected final Logger logger;
     private CF factory;
