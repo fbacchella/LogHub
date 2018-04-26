@@ -163,7 +163,7 @@ public class Properties extends HashMap<String, Object> {
     public final SSLContext ssl;
     public final javax.security.auth.login.Configuration jaasConfig;
 
-    public final Timer timer = new Timer("loghubtimer", true);
+    public static final Timer timer = new Timer("loghubtimer", true);
     private final CacheManager cacheManager;
 
     @SuppressWarnings("unchecked")
