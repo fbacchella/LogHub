@@ -1,7 +1,5 @@
 package loghub.zmq;
 
-import java.io.IOException;
-import java.util.Iterator;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.concurrent.FutureTask;
@@ -117,71 +115,8 @@ public class SmartContext {
         }
     }
 
-    public byte[] recv(Socket socket) {
-        try {
-            return socket.recv();
-        } catch (java.nio.channels.ClosedSelectorException e ) {
-            throw e;
-        } catch (ZMQException | zmq.ZError.IOException|zmq.ZError.CtxTerminatedException|zmq.ZError.InstantiationException e ) {
-            ZMQHelper.logZMQException(logger, "recv", e);
-            close(socket);
-            throw e;
-        } catch (Exception e ) {
-            logger.error("in recv: {}", e.getMessage());
-            logger.error(e);
-            throw e;
-        }
-    }
-
     public ZPoller getZPoller() {
         return new ZPoller(context);
-    }
-
-    public Iterable<byte[]> read(Socket receiver) throws IOException {
-
-        @SuppressWarnings("resource")
-        ZPoller zpoller = new ZPoller(context);
-        zpoller.register(receiver, ZPoller.POLLIN | ZPoller.POLLERR);
-
-        return new Iterable<byte[]>() {
-            @Override
-            public Iterator<byte[]> iterator() {
-                return new Iterator<byte[]>() {
-                    @Override
-                    public boolean hasNext() {
-                        try {
-                            if (!SmartContext.this.running) {
-                                return false;
-                            }
-                            logger.trace("waiting for next");
-                            zpoller.poll(-1L);
-                            if (zpoller.isError(receiver) || Thread.interrupted()) {
-                                logger.trace("received kill");
-                                zpoller.destroy();
-                                return false;
-                            } else if (! SmartContext.this.running){
-                                zpoller.destroy();
-                                return false;
-                            } else {
-                                return true;
-                            }
-                        } catch (RuntimeException e) {
-                            ZMQHelper.logZMQException(logger, "recv", e);
-                            zpoller.destroy();
-                            return false;
-                        }
-                    }
-                    @Override
-                    public byte[] next() {
-                        return receiver.recv();
-                    }
-                    @Override
-                    public void remove() {
-                        throw new java.lang.UnsupportedOperationException();
-                    }
-                };
-            }
-        };
     }
 
     public Socket[] getPair(String name) {
