@@ -14,7 +14,6 @@ public class ContextRule implements TestRule {
     private static final Logger logger = LogManager.getLogger();
 
     public final SmartContext ctx = SmartContext.getContext();
-    private Thread terminator = null;
 
     @Override
     public Statement apply(final Statement base, final Description description) {
@@ -32,16 +31,14 @@ public class ContextRule implements TestRule {
     }
 
     private void terminateRescue() {
-        if(terminator == null) {
-            try {
-                logger.debug("Terminating ZMQ manager");
-                Assert.assertTrue(SmartContext.getContext().terminate().get());
-            } catch (Exception e) {
-                logger.throwing(e);
-                throw new RuntimeException("Failed to terminate ZMQ's context", e);
-            }
-            logger.debug("Test finished");
+        try {
+            logger.debug("Terminating ZMQ manager");
+            Assert.assertTrue(SmartContext.getContext().terminate().get());
+        } catch (Exception e) {
+            logger.throwing(e);
+            throw new RuntimeException("Failed to terminate ZMQ's context", e);
         }
+        logger.debug("Test finished");
     }
 
 }

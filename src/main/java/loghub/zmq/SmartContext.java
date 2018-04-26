@@ -2,6 +2,7 @@ package loghub.zmq;
 
 import java.io.IOException;
 import java.util.Iterator;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.concurrent.FutureTask;
 
@@ -28,8 +29,9 @@ public class SmartContext {
     public static synchronized SmartContext getContext() {
         if (instance == null) {
             instance = new SmartContext();
+            logger.debug("New SmartContext instance");
             ThreadBuilder.get()
-            .setDaemon(false)
+            .setDaemon(true)
             .setName("terminator")
             .setRunnable(() -> {
                 synchronized (SmartContext.class) {
@@ -82,30 +84,34 @@ public class SmartContext {
 
     public Future<Boolean> terminate() {
         synchronized (SmartContext.class) {
-            if (!running) {
-                return new FutureTask<Boolean>(() -> true);
+            if (running) {
+                running = false;
+                FutureTask<Boolean> terminator = new FutureTask<>(() -> {
+                    synchronized (SmartContext.class) {
+                        try {
+                            instance.context.close();
+                        } catch (ZMQException | zmq.ZError.IOException | zmq.ZError.CtxTerminatedException | zmq.ZError.InstantiationException e) {
+                            ZMQHelper.logZMQException(logger, "terminate", e);
+                        } catch (final java.nio.channels.ClosedSelectorException e) {
+                            logger.error("closed selector:" + e.getMessage());
+                        } catch (final Exception e) {
+                            logger.error("Unexpected error:" + e.getMessage());
+                            return false;
+                        }
+                        SmartContext.instance = null;
+                        return true;
+                    }
+                });
+                ThreadBuilder.get(Boolean.class).setName("ZMQContextTerminator").setCallable(terminator).setDaemon(false).build(true);
+                // Now we've send termination signals, let other threads
+                // some time to finish
+                Thread.yield();
+                return terminator;
+            } else {
+                CompletableFuture<Boolean> done = new CompletableFuture<>();
+                done.complete(true);
+                return done;
             }
-            running = false;
-            FutureTask<Boolean> terminator = new FutureTask<>(() -> {
-                try {
-                    logger.trace("will terminate");
-                    instance.context.close();
-                } catch (ZMQException | zmq.ZError.IOException | zmq.ZError.CtxTerminatedException | zmq.ZError.InstantiationException e) {
-                    ZMQHelper.logZMQException(logger, "terminate", e);
-                } catch (final java.nio.channels.ClosedSelectorException e) {
-                    logger.error("closed selector:" + e.getMessage());
-                } catch (final Exception e) {
-                    logger.error("Unexpected error:" + e.getMessage());
-                    return false;
-                }
-                logger.trace("done terminate");
-                return true;
-            });
-            ThreadBuilder.get(Boolean.class).setName("ZMQContextTerminator").setCallable(terminator).setDaemon(false).build(true);
-            // Now we've send termination signals, let other threads
-            // some time to finish
-            Thread.yield();
-            return terminator;
         }
     }
 
@@ -176,4 +182,16 @@ public class SmartContext {
         };
     }
 
+    public Socket[] getPair(String name) {
+        String endPoint = "inproc://pair/" + name;
+        Socket socket1 = newSocket(Method.BIND, Sockets.PAIR, endPoint);
+        socket1.setLinger(0);
+        socket1.setHWM(1);
+
+        Socket socket2 = newSocket(Method.CONNECT, Sockets.PAIR, endPoint);
+        socket2.setLinger(0);
+        socket2.setHWM(1);
+
+        return new Socket[] {socket1, socket2};
+    }
 }

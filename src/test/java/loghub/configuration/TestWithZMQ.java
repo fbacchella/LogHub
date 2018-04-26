@@ -63,13 +63,13 @@ public class TestWithZMQ {
         Assert.assertEquals("wrong send message", "something", new String(buffer));
         tctxt.ctx.close(sender);
         tctxt.ctx.close(out);
-        Assert.assertTrue(SmartContext.getContext().terminate().get());
         for(Receiver r: conf.receivers) {
             r.stopReceiving();
         }
         for(Sender s: conf.senders) {
             s.stopSending();
         }
+        Assert.assertTrue(SmartContext.getContext().terminate().get());
     }
 
 }

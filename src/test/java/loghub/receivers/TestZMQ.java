@@ -55,20 +55,24 @@ public class TestZMQ {
 
     @Test(timeout=500)
     public void testone() throws InterruptedException {
-        Socket sender = tctxt.ctx.newSocket(Method.BIND, Sockets.PUB, "inproc://listener1");
-        dotest(r -> {
-            r.setListen("inproc://listener1");
-            r.setMethod("CONNECT");
-            r.setType("SUB");
-        }, sender);
+        try (Socket sender = tctxt.ctx.newSocket(Method.BIND, Sockets.PUB, "inproc://listener1")) {
+            dotest(r -> {
+                r.setListen("inproc://listener1");
+                r.setMethod("CONNECT");
+                r.setType("SUB");
+            }, sender);
+        };
     }
 
-    @Test(timeout=500)
+    @Test(timeout=5000)
     public void testtwo() throws InterruptedException {
-        Socket sender = tctxt.ctx.newSocket(Method.CONNECT, Sockets.PUB, "inproc://listener1");
-        dotest(r -> {
-            r.setListen("inproc://listener1");
-        }, sender);
+        try (Socket sender = tctxt.ctx.newSocket(Method.CONNECT, Sockets.PUB, "inproc://listener2")) {
+            dotest(r -> {
+                r.setListen("inproc://listener2");
+                r.setMethod("BIND");
+                r.setType("SUB");
+            }, sender);
+        };
     }
 
 }

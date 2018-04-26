@@ -19,6 +19,7 @@ public class ZMQ extends Sender {
     private int hwm = 1000;
     private Socket sendsocket = null;
     private final SmartContext ctx = SmartContext.getContext();
+    private volatile boolean running = false;
 
     public ZMQ(BlockingQueue<Event> inQueue) {
         super(inQueue);
@@ -31,12 +32,27 @@ public class ZMQ extends Sender {
     }
 
     @Override
+    public void run() {
+        running = true;
+        super.run();
+    }
+
+    @Override
+    public void stopSending() {
+        running = false;
+        super.stopSending();
+    }
+
+    @Override
     public boolean send(Event event) {
-        if (sendsocket != null) {
+        if (running && sendsocket != null) {
             byte[] msg = getEncoder().encode(event);
             sendsocket.send(msg);
             return true;
         } else {
+            if (sendsocket != null) {
+                ctx.close(sendsocket);
+            }
             return false;
         }
     }
