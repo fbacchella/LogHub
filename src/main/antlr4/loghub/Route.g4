@@ -46,7 +46,7 @@ beanName
     | Identifier
     ;
 
-beanValue: object | literal | array | map;
+beanValue: object | literal | array | map | expression;
 finalpiperef: piperef;
 
 piperef:  Identifier;
@@ -67,7 +67,6 @@ mergeArgument
     | type='default' ':' beanValue
     | type='inPipeline' ':' stringLiteral
     ;
-
 
 mapping
     :   'map' eventVariable map
