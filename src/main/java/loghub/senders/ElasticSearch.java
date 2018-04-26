@@ -29,6 +29,9 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 
 import io.netty.util.CharsetUtil;
 import loghub.Event;
+import loghub.Expression;
+import loghub.Expression.ExpressionException;
+import loghub.ProcessorException;
 import loghub.configuration.Properties;
 
 @AsyncSender
@@ -47,7 +50,11 @@ public class ElasticSearch extends AbstractHttpSender {
     private static final ThreadLocal<DateFormat> ISO8601 = ThreadLocal.withInitial( () -> new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ"));
     // Beans
     private String type = "type";
+    private String typeExpressionSrc = null;
+    private Expression typeExpression = null;
     private String indexformat = "'loghub-'yyyy.MM.dd";
+    private String indexExpressionSrc = null;
+    private Expression indexExpression = null;
     private String templateName = "loghub";
     private URL templatePath = null;
     private boolean withTemplate = true;
@@ -62,6 +69,21 @@ public class ElasticSearch extends AbstractHttpSender {
     @Override
     public boolean configure(Properties properties) {
         if (super.configure(properties)) {
+            // Used to log an possible failure
+            String processedSrc = null;
+            try {
+                if (typeExpressionSrc != null) {
+                    processedSrc = typeExpressionSrc;
+                    typeExpression = new Expression(typeExpressionSrc, properties.groovyClassLoader, properties.formatters);
+                }
+                if (indexExpressionSrc != null) {
+                    processedSrc = indexExpressionSrc;
+                    indexExpression = new Expression(indexExpressionSrc, properties.groovyClassLoader, properties.formatters);
+                }
+            } catch (ExpressionException e) {
+                Expression.logError(e, processedSrc, logger);
+                return false;
+            }
             esIndexFormat = ThreadLocal.withInitial( () -> {
                 DateFormat df = new SimpleDateFormat(indexformat);
                 df.setTimeZone(TimeZone.getTimeZone("UTC"));
@@ -118,9 +140,16 @@ public class ElasticSearch extends AbstractHttpSender {
                 esjson.clear();
                 esjson.putAll(e);
                 esjson.put("@timestamp", ISO8601.get().format(e.getTimestamp()));
-                esjson.put("__index", esIndexFormat.get().format(e.getTimestamp()));
-                settings.put("_type", esjson.remove(type).toString());
-                settings.put("_index", esjson.remove("__index").toString());
+                if (indexExpression != null) {
+                    settings.put("_index", indexExpression.eval(e).toString());
+                } else {
+                    settings.put("_index", esIndexFormat.get().format(e.getTimestamp()));
+                }
+                if (this.typeExpression != null) {
+                    settings.put("_type", typeExpression.eval(e).toString());
+                } else {
+                    settings.put("_type", esjson.remove(type).toString());
+                }
                 try {
                     builder.append(jsonmapper.writeValueAsString(action));
                     builder.append("\n");
@@ -133,7 +162,10 @@ public class ElasticSearch extends AbstractHttpSender {
                 processStatus(e, CompletableFuture.completedFuture(true));
             } catch (java.lang.StackOverflowError ex) {
                 processStatus(e, CompletableFuture.completedFuture(false));
-                logger.error("Failed to serialized {}, infinite recursion", e);
+                logger.error("Failed to serialized event '{}', infinite recursion", e);
+            } catch (ProcessorException e1) {
+                processStatus(e, CompletableFuture.completedFuture(false));
+                logger.error("Failed to determine index/type for event '{}'", e);
             }
         }
         if (validEvents == 0) {
@@ -298,6 +330,20 @@ public class ElasticSearch extends AbstractHttpSender {
         this.type = type;
     }
 
+    /**
+     * @return the type
+     */
+    public String getTypeX() {
+        return typeExpressionSrc;
+    }
+
+    /**
+     * @param typeExpression the type to set
+     */
+    public void setTypeX(String typeExpression) {
+        this.typeExpressionSrc = typeExpression;
+    }
+
     @Override
     protected String getPublishName() {
         return "ElasticSearch";
@@ -311,10 +357,17 @@ public class ElasticSearch extends AbstractHttpSender {
     }
 
     /**
-     * @param indexformat the indexformat to set
+     * @return the indexformat
      */
-    public void setIndexformat(String indexformat) {
-        this.indexformat = indexformat;
+    public String getIndexX() {
+        return indexExpressionSrc;
+    }
+
+    /**
+     * @param indexExpression the indexformat to set
+     */
+    public void setIndexX(String indexExpression) {
+        this.indexExpressionSrc = indexExpression;
     }
 
     /**
