@@ -3,6 +3,7 @@ package loghub;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.logging.log4j.Level;
@@ -33,6 +34,7 @@ public class EventsProcessor extends Thread {
     }
 
     private static final Logger logger = LogManager.getLogger();
+    private static final AtomicInteger id = new AtomicInteger();
 
     private final BlockingQueue<Event> inQueue;
     private final Map<String, BlockingQueue<Event>> outQueues;
@@ -41,12 +43,13 @@ public class EventsProcessor extends Thread {
     private final EventsRepository<Future<?>> evrepo;
 
     public EventsProcessor(BlockingQueue<Event> inQueue, Map<String, BlockingQueue<Event>> outQueues, Map<String,Pipeline> namedPipelines, int maxSteps, EventsRepository<Future<?>> evrepo) {
-        super();
         this.inQueue = inQueue;
         this.outQueues = outQueues;
         this.namedPipelines = namedPipelines;
         this.maxSteps = maxSteps;
         this.evrepo = evrepo;
+        setName("EventsProcessor/" + id.getAndIncrement());
+        setDaemon(false);
     }
 
     @Override
@@ -260,6 +263,10 @@ public class EventsProcessor extends Thread {
             }
         }
         return status;
+    }
+
+    public void stopProcessing() {
+        interrupt();
     }
 
 }

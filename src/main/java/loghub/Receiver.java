@@ -168,6 +168,10 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
 
     }
 
+    public void stopReceiving() {
+        interrupt();
+    }
+
     /**
      * This method call startStream and return this as an iterator. 
      * In this case, startStream will be called once and then hasNext and next will be used to iterate.

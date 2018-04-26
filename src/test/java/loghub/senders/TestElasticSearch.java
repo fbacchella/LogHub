@@ -144,6 +144,7 @@ public class TestElasticSearch {
             Assert.assertTrue(es.send(ev));
             Thread.sleep(1);
         }
+        es.stopSending();
         es.close();
         Thread.sleep(1000);
         if(failure != null) {

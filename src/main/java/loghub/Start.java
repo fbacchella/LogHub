@@ -6,6 +6,8 @@ import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
 import java.lang.management.ManagementFactory;
 import java.rmi.NotBoundException;
+import java.util.HashSet;
+import java.util.Set;
 
 import javax.management.InstanceAlreadyExistsException;
 import javax.management.MBeanRegistrationException;
@@ -185,13 +187,12 @@ public class Start {
             };
         }
 
+        Set<EventsProcessor> allep = new HashSet<>(props.numWorkers);
         for (int i = 0; i < props.numWorkers; i++) {
-            Thread t = new EventsProcessor(props.mainQueue, props.outputQueues, props.namedPipeLine, props.maxSteps, props.repository);
-            t.setName("ProcessingThread" + i);
-            t.setDaemon(false);
+            EventsProcessor t = new EventsProcessor(props.mainQueue, props.outputQueues, props.namedPipeLine, props.maxSteps, props.repository);
             t.start();
+            allep.add(t);
         }
-
         for (Receiver r: props.receivers) {
             if (r.configure(props)) {
                 r.start();
@@ -200,6 +201,18 @@ public class Start {
                 throw new IllegalStateException();
             }
         }
+
+        Runnable shutdown = () -> {
+            allep.forEach(i -> i.stopProcessing());
+            props.senders.forEach( i -> i.stopSending());
+            props.receivers.forEach( i -> i.stopReceiving());
+        };
+        ThreadBuilder.get()
+        .setDaemon(true)
+        .setRunnable(shutdown)
+        .setName("StopEventsProcessors")
+        .setShutdownHook(true)
+        .build();
 
         try {
             MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();

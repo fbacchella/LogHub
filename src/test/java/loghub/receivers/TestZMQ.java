@@ -50,7 +50,7 @@ public class TestZMQ {
         Assert.assertTrue(sender.send("message 1"));
         Event e = receiver.take();
         Assert.assertEquals("Missing message", "message 1", e.get("message"));
-        tctxt.ctx.close(sender);
+        r.stopReceiving();
     }
 
     @Test(timeout=500)

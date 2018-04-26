@@ -84,7 +84,7 @@ public class TestTrap {
         Map<String,?> details = (Map<String, ?>) e.get("lldpRemSysName");
         Assert.assertEquals(3, Array.getLength(details.get("index")));
         Assert.assertEquals("localhost", details.get("value"));
-        r.interrupt();
+        r.stopReceiving();
     }
 
     @Ignore
@@ -114,7 +114,7 @@ public class TestTrap {
         Assert.assertEquals(null, e.get("specific_trap"));
         Assert.assertEquals("lldpRemTablesChange", e.get("snmpTrapOID"));
         Assert.assertEquals(InetAddress.getByName("0.0.0.0"), e.get("agent_addr"));
-        r.interrupt();
+        r.stopReceiving();
     }
 
     @Ignore
@@ -143,6 +143,6 @@ public class TestTrap {
         Assert.assertEquals("compaq", e.get("enterprise"));
         Assert.assertEquals("cpqHePostError", e.get("specific_trap"));
         Assert.assertEquals(InetAddress.getByName("0.0.0.0"), e.get("agent_addr"));
-        r.interrupt();
+        r.stopReceiving();
     }
 }

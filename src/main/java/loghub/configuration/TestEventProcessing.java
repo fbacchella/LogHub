@@ -114,8 +114,6 @@ public class TestEventProcessing {
             props.pipelines.stream().forEach(i-> i.configure(props));
 
             Thread t = new EventsProcessor(props.mainQueue, props.outputQueues, props.namedPipeLine, props.maxSteps, props.repository);
-            t.setName("ProcessingThread");
-            t.setDaemon(true);
             t.start();
 
             ObjectMapper mapper = new ObjectMapper(factory);
@@ -151,7 +149,6 @@ public class TestEventProcessing {
             }
 
             Thread.currentThread().join();
-            //Thread.sleep(Long.MAX_VALUE);
         } catch (IOException e) {
             e.printStackTrace();
         } catch (ConfigException e) {

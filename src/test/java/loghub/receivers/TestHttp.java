@@ -74,7 +74,7 @@ public class TestHttp {
     @After
     public void clean() {
         if (receiver != null) {
-            receiver.interrupt();
+            receiver.stopReceiving();
             receiver.close();
         }
     }

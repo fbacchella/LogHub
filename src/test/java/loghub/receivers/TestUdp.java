@@ -40,7 +40,7 @@ public class TestUdp {
     @After
     public void clean() {
         if (receiver != null) {
-            receiver.interrupt();
+            receiver.stopReceiving();
             receiver.close();
         }
     }

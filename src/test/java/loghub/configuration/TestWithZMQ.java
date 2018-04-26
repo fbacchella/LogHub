@@ -65,10 +65,10 @@ public class TestWithZMQ {
         tctxt.ctx.close(out);
         Assert.assertTrue(SmartContext.getContext().terminate().get());
         for(Receiver r: conf.receivers) {
-            r.interrupt();
+            r.stopReceiving();
         }
         for(Sender s: conf.senders) {
-            s.interrupt();
+            s.stopSending();
         }
     }
 

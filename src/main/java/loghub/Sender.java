@@ -38,6 +38,11 @@ public abstract class Sender extends Thread {
         }
     }
 
+
+    public void stopSending() {
+        interrupt();
+    }
+
     public abstract boolean send(Event e);
     public abstract String getSenderName();
 
@@ -90,5 +95,4 @@ public abstract class Sender extends Thread {
     public void setEncoder(Encoder codec) {
         this.encoder = codec;
     }
-
 }
