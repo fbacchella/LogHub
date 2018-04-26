@@ -24,14 +24,14 @@ public class Forker extends Processor {
         throw new UnsupportedOperationException("can't process wrapped event");
     }
 
-    public void fork(Event event) {
+    public boolean fork(Event event) {
         Event newEvent = event.duplicate();
         if(newEvent == null) {
-            return;
+            return false;
         }
 
         newEvent.inject(pipeDestination, mainQueue);
-
+        return true;
     }
 
     /**

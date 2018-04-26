@@ -166,8 +166,11 @@ public class EventsProcessor extends Thread {
     ProcessingStatus process(Event e, Processor p) {
         ProcessingStatus status = null;
         if (p instanceof Forker) {
-            ((Forker) p).fork(e);
-            status = ProcessingStatus.SUCCESS;
+            if (((Forker) p).fork(e)) {
+                status = ProcessingStatus.SUCCESS;
+            } else {
+                status = ProcessingStatus.FAILED;
+            }
         } else if (p instanceof Forwarder) {
             ((Forwarder) p).forward(e);
             status = ProcessingStatus.SUCCESS;
