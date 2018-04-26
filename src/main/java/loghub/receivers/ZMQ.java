@@ -129,16 +129,18 @@ public class ZMQ extends Receiver {
 
     @Override
     public void stopReceiving() {
-        running = false;
-        stopPair[0].send(new byte[] {});
-        logger.debug("Listening stopped");
-        try {
-            // Wait for end of processing the stop
-            join();
-        } catch (InterruptedException e) {
-            interrupt();
+        if(running) {
+            running = false;
+            stopPair[0].send(new byte[] {});
+            logger.debug("Listening stopped");
+            try {
+                // Wait for end of processing the stop
+                join();
+            } catch (InterruptedException e) {
+                interrupt();
+            }
+            super.stopReceiving();
         }
-        super.stopReceiving();
     }
 
     @Override
