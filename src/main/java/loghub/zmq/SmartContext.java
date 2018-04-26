@@ -89,6 +89,7 @@ public class SmartContext {
                 FutureTask<Boolean> terminator = new FutureTask<>(() -> {
                     synchronized (SmartContext.class) {
                         try {
+                            logger.debug("Terminating ZMQ context");
                             instance.context.close();
                         } catch (ZMQException | zmq.ZError.IOException | zmq.ZError.CtxTerminatedException | zmq.ZError.InstantiationException e) {
                             ZMQHelper.logZMQException(logger, "terminate", e);
@@ -98,6 +99,7 @@ public class SmartContext {
                             logger.error("Unexpected error:" + e.getMessage());
                             return false;
                         }
+                        logger.trace("ZMQ context terminated");
                         SmartContext.instance = null;
                         return true;
                     }

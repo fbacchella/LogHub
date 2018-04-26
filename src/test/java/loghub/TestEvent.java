@@ -75,7 +75,6 @@ public class TestEvent {
         Event e = Event.emptyTestEvent(ConnectionContext.EMPTY);
         e.appendProcessor(new Looper());
         EventsProcessor ep = new EventsProcessor(props.mainQueue, props.outputQueues, props.namedPipeLine, props.maxSteps, props.repository);
-        //e.appendProcessor(p);
         Processor processor;
         int numsteps = 0;
         int loop = 0;

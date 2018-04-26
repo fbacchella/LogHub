@@ -30,6 +30,7 @@ public class TestNsca {
         ev.put("host", "host");
 
         sender.send(ev);
+        sender.stopSending();
 
     }
 }

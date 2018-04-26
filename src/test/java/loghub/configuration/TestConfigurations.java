@@ -58,7 +58,6 @@ public class TestConfigurations {
     public void testTwoPipe() throws InterruptedException, ConfigException, IOException {
         Properties conf = Tools.loadConf("twopipe.conf");
         Thread t = new EventsProcessor(conf.mainQueue, conf.outputQueues, conf.namedPipeLine, conf.maxSteps, conf.repository);
-        t.setDaemon(true);
         t.start();
 
         Event sent = Tools.getEvent();
