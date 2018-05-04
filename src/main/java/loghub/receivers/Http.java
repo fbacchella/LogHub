@@ -1,31 +1,17 @@
 package loghub.receivers;
 
-import java.io.IOException;
-import java.io.Serializable;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
-import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.IllegalCharsetNameException;
 import java.nio.charset.StandardCharsets;
 import java.nio.charset.UnsupportedCharsetException;
-import java.security.GeneralSecurityException;
 import java.security.Principal;
-import java.util.Arrays;
-import java.util.Base64;
-import java.util.Collections;
 import java.util.Date;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 import java.util.stream.Collectors;
-
-import javax.security.auth.callback.Callback;
-import javax.security.auth.callback.CallbackHandler;
-import javax.security.auth.callback.NameCallback;
-import javax.security.auth.callback.PasswordCallback;
-import javax.security.auth.callback.UnsupportedCallbackException;
 
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.ByteBuf;
@@ -36,9 +22,9 @@ import io.netty.channel.ChannelPipeline;
 import io.netty.channel.ServerChannel;
 import io.netty.handler.codec.ByteToMessageDecoder;
 import io.netty.handler.codec.http.FullHttpRequest;
-import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpRequest;
+import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.QueryStringDecoder;
@@ -49,64 +35,18 @@ import loghub.ProcessorException;
 import loghub.configuration.Properties;
 import loghub.netty.ChannelConsumer;
 import loghub.netty.http.AbstractHttpServer;
+import loghub.netty.http.AccessControl;
+import loghub.netty.http.HttpRequestFailure;
 import loghub.netty.http.HttpRequestProcessing;
+import loghub.netty.http.NoCache;
 import loghub.processors.ParseJson;
 
 public class Http extends GenericTcp {
 
     private static final ParseJson jsonParser = new ParseJson();
 
-    public static final class HttpPrincipal implements Principal, Serializable {
-        private final String user;
-        private final String realm;
-
-        public HttpPrincipal(String user, String realm) {
-            this.user = user;
-            this.realm = realm;
-        }
-        @Override
-        public String getName() {
-            return user;
-        }
-        public String getRealm() {
-            return realm;
-        }
-        @Override
-        public int hashCode() {
-            final int prime = 31;
-            int result = 1;
-            result = prime * result + ((realm == null) ? 0 : realm.hashCode());
-            result = prime * result + ((user == null) ? 0 : user.hashCode());
-            return result;
-        }
-        @Override
-        public boolean equals(Object obj) {
-            if (this == obj)
-                return true;
-            if (obj == null)
-                return false;
-            if (getClass() != obj.getClass())
-                return false;
-            HttpPrincipal other = (HttpPrincipal) obj;
-            if (realm == null) {
-                if(other.realm != null)
-                    return false;
-            } else if (!realm.equals(other.realm))
-                return false;
-            if (user == null) {
-                if (other.user != null)
-                    return false;
-            } else if (!user.equals(other.user))
-                return false;
-            return true;
-        }
-        @Override
-        public String toString() {
-            return user;
-        }
-    };
-
     @Sharable
+    @NoCache
     private class PostHandler extends HttpRequestProcessing {
 
         @Override
@@ -121,72 +61,6 @@ public class Http extends GenericTcp {
 
         @Override
         protected boolean processRequest(FullHttpRequest request, ChannelHandlerContext ctx) throws HttpRequestFailure {
-            Principal peerPrincipal = null;
-            try {
-                peerPrincipal = Http.this.getSslPrincipal(Http.this.getSslSession(ctx));
-            } catch (GeneralSecurityException e) {
-                throw new HttpRequestFailure(HttpResponseStatus.UNAUTHORIZED, "Bad SSL/TLS client authentication", Collections.singletonMap(HttpHeaderNames.WWW_AUTHENTICATE, "Basic realm=\"loghub\", charset=\"UTF-8\""));
-            }
-            // Some authentication was defined but still not resolved
-            if((Http.this.withJaas() || Http.this.encodedAuthentication != null) && peerPrincipal == null) {
-                String authorization = request.headers().get(HttpHeaderNames.AUTHORIZATION);
-                // No authorization header, request one
-                if (authorization == null || authorization.isEmpty()) {
-                    throw new HttpRequestFailure(HttpResponseStatus.UNAUTHORIZED, "Authentication required", Collections.singletonMap(HttpHeaderNames.WWW_AUTHENTICATE, "Basic realm=\"loghub\", charset=\"UTF-8\""));
-                } else {
-                    if (! authorization.toLowerCase(Locale.US).startsWith("basic ")) {
-                        throw new HttpRequestFailure(HttpResponseStatus.BAD_REQUEST, "Invalid authentication scheme", Collections.emptyMap());
-                    } else if (Http.this.encodedAuthentication != null && Http.this.encodedAuthentication.equals(authorization)) {
-                        // Try explicit login/password in the configuration
-                        peerPrincipal = new HttpPrincipal(Http.this.user, "loghub");
-                    } else  if (Http.this.withJaas()) {
-                        // Perhaps in jaas ?
-                        char[] content;
-                        try {
-                            byte[] decoded = Base64.getDecoder().decode(authorization.substring(6));
-                            content = StandardCharsets.UTF_8.decode(ByteBuffer.wrap(decoded)).array();
-                        } catch (IllegalArgumentException e) {
-                            logger.warn("Invalid authentication scheme: {}", e.getMessage());
-                            throw new HttpRequestFailure(HttpResponseStatus.BAD_REQUEST, "Invalid authentication scheme", Collections.emptyMap());
-                        }
-                        int sep = 0;
-                        for ( ; sep < content.length ; sep++) {
-                            if (content[sep] == ':') break;
-                        }
-                        String login = new String(content, 0, sep);
-                        char[] passwd = Arrays.copyOfRange(content, sep + 1, content.length);
-                        Arrays.fill(content, '\0');
-                        CallbackHandler cbHandler = new CallbackHandler() {
-                            @Override
-                            public void handle(Callback[] callbacks) throws IOException, UnsupportedCallbackException {
-                                for (Callback cb: callbacks) {
-                                    if (cb instanceof NameCallback) {
-                                        NameCallback nc = (NameCallback)cb;
-                                        nc.setName(login);
-                                    } else if (cb instanceof PasswordCallback) {
-                                        PasswordCallback pc = (PasswordCallback)cb;
-                                        pc.setPassword(passwd);
-                                    } else {
-                                        throw new UnsupportedCallbackException(cb, "Unrecognized Callback");
-                                    }
-                                }
-                            }
-                        };
-                        peerPrincipal = Http.this.getJaasPrincipal(cbHandler);
-                        Arrays.fill(passwd, '\0');
-                    }
-                }
-                // No authentication accepted, fails
-                if (peerPrincipal == null) {
-                    throw new HttpRequestFailure(HttpResponseStatus.UNAUTHORIZED, "Bad authentication", Collections.singletonMap(HttpHeaderNames.WWW_AUTHENTICATE, "Basic realm=\"loghub\""));
-                }
-            }
-            // If an explicit user was given, check that it match the resolved principal
-            if (Http.this.user != null && peerPrincipal != null && ! Http.this.user.equals(peerPrincipal.getName())) {
-                logger.warn("failed authentication, expect {}, got {}", Http.this.user, peerPrincipal.getName());
-                throw new HttpRequestFailure(HttpResponseStatus.UNAUTHORIZED, "Bad authentication", Collections.singletonMap(HttpHeaderNames.WWW_AUTHENTICATE, "Basic realm=\"loghub\""));
-            }
-            Http.this.savePrincipal(ctx, peerPrincipal);
             Event e = Http.this.emptyEvent(Http.this.getConnectionContext(ctx, null));
             try {
                 String mimeType = Optional.ofNullable(HttpUtil.getMimeType(request)).orElse("application/octet-stream").toString();
@@ -237,6 +111,10 @@ public class Http extends GenericTcp {
                     Map<String, Object> result = Http.this.decoder.decode(e.getConnectionContext(), request.content());
                     e.putAll(result);
                 }
+                Principal p = ctx.channel().attr(AccessControl.PRINCIPALATTRIBUTE).get();
+                if (p != null) {
+                    e.getConnectionContext().setPrincipal(p);
+                }
                 if (! Http.this.send(e)) {
                     throw new HttpRequestFailure(HttpResponseStatus.TOO_MANY_REQUESTS, "Busy, try again");
                 };
@@ -250,12 +128,12 @@ public class Http extends GenericTcp {
         }
 
         @Override
-        protected String getContentType() {
+        protected String getContentType(HttpRequest request, HttpResponse response) {
             return "application/json; charset=utf-8";
         }
 
         @Override
-        protected Date getContentDate() {
+        protected Date getContentDate(HttpRequest request, HttpResponse response) {
             return new Date();
         }
 
@@ -271,6 +149,10 @@ public class Http extends GenericTcp {
 
         @Override
         public void addModelHandlers(ChannelPipeline p) {
+            if (Http.this.authHandler != null) {
+                p.addLast("authentication", new AccessControl(Http.this.authHandler));
+                logger.debug("Added authentication");
+            }
             p.addLast("recepter", recepter);
         }
 
@@ -278,9 +160,6 @@ public class Http extends GenericTcp {
 
     private int port;
     private String host = null;
-    private String user = null;
-    private String password = null;
-    private String encodedAuthentication = null;
 
     public Http(BlockingQueue<Event> outQueue, Pipeline pipeline) {
         super(outQueue, pipeline, null);
@@ -289,10 +168,6 @@ public class Http extends GenericTcp {
 
     @Override
     public boolean configure(Properties properties) {
-        if (user != null && password != null) {
-            String authString = user + ":" + password;
-            encodedAuthentication = "Basic " + Base64.getEncoder().encodeToString(authString.getBytes(StandardCharsets.UTF_8));
-        }
         try {
             webserver.setPort(getPort());
             webserver.setHost(getHost());
@@ -339,22 +214,6 @@ public class Http extends GenericTcp {
     @Override
     protected ByteToMessageDecoder getSplitter() {
         return null;
-    }
-
-    public String getUser() {
-        return user;
-    }
-
-    public void setUser(String user) {
-        this.user = user;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
     }
 
     public Object getDecoders() {

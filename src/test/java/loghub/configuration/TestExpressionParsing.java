@@ -7,6 +7,8 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.Map;
 
+import javax.management.remote.JMXPrincipal;
+
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
@@ -141,9 +143,9 @@ public class TestExpressionParsing {
         String formatHash = Integer.toHexString(format.hashCode());
         Event ev =  Tools.getEvent();
         ev.setTimestamp(new Date(0));
-        Principal p = new Http.HttpPrincipal("user", "loghub");
+        Principal p = new JMXPrincipal("user");
         ev.getConnectionContext().setPrincipal(p);
-        Assert.assertEquals("user-1970.01.01", evalExpression("\"" + format + "\" ([@context principal], [@timestamp])", ev, Collections.singletonMap("h_" + formatHash, new VarFormatter(format))).toString());
+        Assert.assertEquals("user-1970.01.01", evalExpression("\"" + format + "\" ([@context principal name], [@timestamp])", ev, Collections.singletonMap("h_" + formatHash, new VarFormatter(format))).toString());
     }
 
     @Test
@@ -167,7 +169,7 @@ public class TestExpressionParsing {
         String formatHash = Integer.toHexString(format.hashCode());
 
         Event ev =  Event.emptyEvent(new IpConnectionContext(new InetSocketAddress("127.0.0.1", 35710), new InetSocketAddress("localhost", 80), null));
-        Principal p = new Http.HttpPrincipal("user", "loghub");
+        Principal p = new JMXPrincipal("user");
         ev.getConnectionContext().setPrincipal(p);
         Object value = evalExpression("[ @context principal name ] == \"user\"", ev, Collections.singletonMap("h_" + formatHash, new VarFormatter(format)));
         Assert.assertEquals(true, value);

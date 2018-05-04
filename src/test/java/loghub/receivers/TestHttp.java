@@ -239,7 +239,7 @@ public class TestHttp {
                 }, 200);
         Event e = queue.poll();
         Assert.assertEquals("1", e.get("a"));
-        Assert.assertEquals("user", e.getConnectionContext().getPrincipal().toString());
+        Assert.assertEquals("JMXPrincipal:  user", e.getConnectionContext().getPrincipal().toString());
     }
 
 }

@@ -34,16 +34,16 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelHandler.Sharable;
+import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.FullHttpRequest;
-import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.util.CharsetUtil;
 
 @Sharable
+@NoCache
 public class JmxProxy extends HttpRequestProcessing {
 
     private static final Logger logger = LogManager.getLogger();
@@ -135,20 +135,13 @@ public class JmxProxy extends HttpRequestProcessing {
     }
 
     @Override
-    protected String getContentType() {
+    protected String getContentType(HttpRequest request, HttpResponse response) {
         return "application/json; charset=utf-8";
     }
 
     @Override
-    protected Date getContentDate() {
+    protected Date getContentDate(HttpRequest request, HttpResponse response) {
         return null;
-    }
-
-    @Override
-    protected void addCustomHeaders(HttpRequest request, HttpResponse response) {
-        response.headers().add(HttpHeaderNames.CACHE_CONTROL, "private, max-age=0");
-        response.headers().add(HttpHeaderNames.EXPIRES, "-1");
-        super.addCustomHeaders(request, response);
     }
 
 }

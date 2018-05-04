@@ -1,13 +1,23 @@
 package loghub.netty.servers;
 
 import java.net.SocketAddress;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ThreadFactory;
 
+import javax.net.ssl.SSLEngine;
+import javax.net.ssl.SSLSession;
+
+import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import io.netty.bootstrap.AbstractBootstrap;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelPipeline;
+import io.netty.handler.ssl.SslHandler;
+import io.netty.util.AttributeKey;
+import io.netty.util.concurrent.Future;
+import io.netty.util.concurrent.GenericFutureListener;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import io.netty.util.internal.logging.Log4J2LoggerFactory;
 import loghub.Helpers;
@@ -30,6 +40,8 @@ public abstract class AbstractNettyServer<CF extends ComponentFactory<BS, BSC, S
     static {
         InternalLoggerFactory.setDefaultFactory(Log4J2LoggerFactory.INSTANCE);
     }
+
+    public static final AttributeKey<SSLSession> SSLSESSIONATTRIBUTE = AttributeKey.newInstance(SSLSession.class.getName());
 
     protected final Logger logger;
     private CF factory;
@@ -58,6 +70,22 @@ public abstract class AbstractNettyServer<CF extends ComponentFactory<BS, BSC, S
         consumer.addOptions((BS) bootstrap);
         logger.debug("started {} with consumer {} listening on {}", factory, consumer, address);
         return makeChannel(bootstrap, address);
+    }
+
+    public void addSslHandler(ChannelPipeline p, SSLEngine engine) {
+        SslHandler sslHandler = new SslHandler(engine);
+        p.addFirst("ssl", sslHandler);
+        Future<Channel> future = sslHandler.handshakeFuture();
+        future.addListener(new GenericFutureListener<Future<Channel>>() {
+            @Override
+            public void operationComplete(Future<Channel> future) throws Exception {
+                try {
+                    future.get().attr(SSLSESSIONATTRIBUTE).set(sslHandler.engine().getSession());
+                } catch (ExecutionException e) {
+                    logger.warn("Failed ssl connexion", e.getCause());
+                    logger.catching(Level.DEBUG, e.getCause());
+                }
+            }});
     }
 
     protected abstract boolean makeChannel(AbstractBootstrap<BS,BSC> bootstrap, SA address);

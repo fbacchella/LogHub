@@ -11,6 +11,7 @@ import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpRequest;
+import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 
@@ -34,12 +35,12 @@ public class RootRedirect extends HttpRequestProcessing implements ChannelHandle
     }
 
     @Override
-    protected String getContentType() {
+    protected String getContentType(HttpRequest request, HttpResponse response) {
         throw new UnsupportedOperationException("No content type for redirect");
     }
 
     @Override
-    protected Date getContentDate() {
+    protected Date getContentDate(HttpRequest request, HttpResponse response) {
         throw new UnsupportedOperationException("No date for redirect");
     }
 

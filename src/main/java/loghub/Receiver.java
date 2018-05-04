@@ -1,22 +1,12 @@
 package loghub;
 
-import java.security.GeneralSecurityException;
-import java.security.Principal;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.BlockingQueue;
 
-import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
-import javax.net.ssl.SSLPeerUnverifiedException;
-import javax.net.ssl.SSLSession;
-import javax.security.auth.callback.CallbackHandler;
-import javax.security.auth.login.Configuration;
-import javax.security.auth.login.FailedLoginException;
-import javax.security.auth.login.LoginContext;
-import javax.security.auth.login.LoginException;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -26,11 +16,9 @@ import com.codahale.metrics.Meter;
 
 import io.netty.buffer.ByteBuf;
 import loghub.Decoder.DecodeException;
-import loghub.configuration.Beans;
 import loghub.configuration.Properties;
 import loghub.receivers.Blocking;
 
-@Beans({"decoder"})
 public abstract class Receiver extends Thread implements Iterator<Event> {
 
     /**
@@ -48,18 +36,15 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
 
     };
 
-    public static enum ClientAuthentication {
-        REQUIRED,
-        WANTED,
-        NOTNEEDED,
-    };
     protected final Logger logger;
 
+    protected AuthenticationHandler authHandler = null;
     private boolean withSsl = false;
-    private SSLContext sslctx = null;
-    private ClientAuthentication sslclient = ClientAuthentication.NOTNEEDED;
+    protected SSLEngine engine = null;
+    private String sslclient = null;
     private String jaasName = null;
-    private Configuration jaasConfig = null;
+    private String user = null;
+    private String password = null;
 
     private final BlockingQueue<Event> outQueue;
     private final Pipeline pipeline;
@@ -79,16 +64,13 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
         setName("receiver-" + getReceiverName());
         count = Properties.metrics.meter("receiver." + getReceiverName());
         if (withSsl) {
-            sslctx = properties.ssl;
+            engine = properties.ssl.createSSLEngine();
+            engine.setUseClientMode(false);
         }
-        jaasConfig = properties.jaasConfig;
-        if (properties.jaasConfig == null || jaasName == null) {
-            jaasName = null;
-            jaasConfig = null;
-        } else if (jaasConfig.getAppConfigurationEntry(jaasName) == null){
-            throw new IllegalArgumentException(String.format("JAAS name '%s' not found", jaasName));
-        }
-
+        authHandler = AuthenticationHandler.getBuilder(properties)
+                .useSslEngine(engine).setSslClientAuthentication(sslclient).useSsl(withSsl)
+                .setLogin(user).setPassword(password != null ? password.toCharArray() : null)
+                .setJaasName(jaasName).build();
         if (decoder != null) {
             return decoder.configure(properties, this);
         } else {
@@ -259,60 +241,6 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
         }
     }
 
-    protected Principal getSslPrincipal(SSLSession sess) throws GeneralSecurityException {
-        if (withSsl) {
-            try {
-                if (sslclient == ClientAuthentication.WANTED || sslclient == ClientAuthentication.REQUIRED) {
-                    return sess.getPeerPrincipal();
-                }
-            } catch (SSLPeerUnverifiedException e1) {
-                if (sslclient == ClientAuthentication.REQUIRED) {
-                    throw new FailedLoginException("Client authentication required but failed");
-                    //throw new HttpRequestFailure(HttpResponseStatus.UNAUTHORIZED, "Bad authentication", Collections.singletonMap(HttpHeaderNames.WWW_AUTHENTICATE, "Basic realm=\"loghub\""));
-                } else {
-                    return null;
-                }
-            }
-        }
-        return null;
-    }
-
-    protected Principal getJaasPrincipal(CallbackHandler cb) {
-        LoginContext lc;
-        try {
-            lc = new LoginContext(jaasName, null,
-                    cb,
-                    jaasConfig);
-        } catch (LoginException e) {
-            logger.error("Unusable jaas profile {}: {}", jaasName, e.getMessage());
-            logger.catching(Level.DEBUG, e);
-            return null;
-        }
-        try {
-            lc.login();
-            return lc.getSubject().getPrincipals().stream().findFirst().orElse(null);
-        } catch (LoginException e) {
-            logger.error("Failed loging: {}", e.getMessage());
-            logger.catching(Level.DEBUG, e);
-            return null;
-        }
-    }
-
-    protected SSLEngine getSslEngine() {
-        if (withSsl) {
-            SSLEngine engine = sslctx.createSSLEngine();
-            engine.setUseClientMode(false);
-            if(sslclient == ClientAuthentication.REQUIRED) {
-                engine.setNeedClientAuth(true);
-            } else if(sslclient == ClientAuthentication.WANTED) {
-                engine.setWantClientAuth(true);
-            }
-            return engine;
-        } else {
-            return null;
-        }
-    }
-
     public Decoder getDecoder() {
         return decoder;
     }
@@ -341,19 +269,14 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
      * @return the sslclient
      */
     public String getSslClientAuthentication() {
-        return sslclient.name().toLowerCase();
+        return sslclient;
     }
 
     /**
      * @param sslclient the sslclient to set
      */
     public void setSslClientAuthentication(String sslclient) {
-        try {
-            this.sslclient = ClientAuthentication.valueOf(sslclient.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            logger.throwing(Level.DEBUG, e);
-            throw new IllegalArgumentException(String.format("'%s' is not a valide value", sslclient), e);
-        }
+        this.sslclient = sslclient;
     }
 
     protected boolean withJaas() {
@@ -366,6 +289,22 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
 
     public void setJaasName(String jaasName) {
         this.jaasName = jaasName;
+    }
+
+    public String getUser() {
+        return user;
+    }
+
+    public void setUser(String user) {
+        this.user = user;
+    }
+
+    public String getPassword() {
+        return password;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
     }
 
 }

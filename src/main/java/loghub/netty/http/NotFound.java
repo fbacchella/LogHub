@@ -7,6 +7,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelHandler.Sharable;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpRequest;
+import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 
 @Sharable
@@ -18,12 +19,12 @@ public class NotFound extends HttpRequestProcessing implements ChannelHandler {
     }
 
     @Override
-    protected String getContentType() {
+    protected String getContentType(HttpRequest request, HttpResponse response) {
         return null;
     }
 
     @Override
-    protected Date getContentDate() {
+    protected Date getContentDate(HttpRequest request, HttpResponse response) {
         return null;
     }
 

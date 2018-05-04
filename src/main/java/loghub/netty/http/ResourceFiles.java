@@ -12,6 +12,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpRequest;
+import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.stream.ChunkedInput;
 import io.netty.handler.stream.ChunkedStream;
@@ -63,12 +64,12 @@ public class ResourceFiles extends HttpRequestProcessing {
     }
 
     @Override
-    protected String getContentType() {
+    protected String getContentType(HttpRequest request, HttpResponse response) {
         return Helpers.getMimeType(internalPath);
     }
 
     @Override
-    public Date getContentDate() {
+    public Date getContentDate(HttpRequest request, HttpResponse response) {
         return internalDate;
     }
 

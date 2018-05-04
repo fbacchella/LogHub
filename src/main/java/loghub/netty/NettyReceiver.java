@@ -5,10 +5,8 @@ import java.security.Principal;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ThreadFactory;
 
-import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLSession;
 
 import org.apache.logging.log4j.Level;
@@ -22,12 +20,9 @@ import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.MessageToMessageDecoder;
-import io.netty.handler.ssl.SslHandler;
 import io.netty.util.AttributeKey;
 import io.netty.util.ReferenceCounted;
 import io.netty.util.concurrent.DefaultThreadFactory;
-import io.netty.util.concurrent.Future;
-import io.netty.util.concurrent.GenericFutureListener;
 import loghub.ConnectionContext;
 import loghub.Decoder.DecodeException;
 import loghub.Event;
@@ -35,6 +30,7 @@ import loghub.Helpers;
 import loghub.Pipeline;
 import loghub.Receiver;
 import loghub.configuration.Properties;
+import loghub.netty.http.AccessControl;
 import loghub.netty.servers.AbstractNettyServer;
 
 public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, SC, SA>, CF extends ComponentFactory<BS, BSC, SA>, BS extends AbstractBootstrap<BS,BSC>,BSC extends Channel, SC extends Channel, CC extends Channel, SA extends SocketAddress, SM> extends Receiver implements ChannelConsumer<BS, BSC, SA> {
@@ -99,7 +95,6 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
     }
 
     protected static final AttributeKey<ConnectionContext<?>> CONNECTIONCONTEXTATTRIBUTE = AttributeKey.newInstance(ConnectionContext.class.getName());
-    protected static final AttributeKey<SSLSession> sessattr = AttributeKey.newInstance(SSLSession.class.getName());
 
     private S server;
     protected MessageToMessageDecoder<SM> nettydecoder;
@@ -157,29 +152,12 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
         }
     }
 
-    protected void addSslHandler(ChannelPipeline p) {
-        if (isWithSsl()) {
-            SSLEngine engine = getSslEngine();
-            SslHandler sslHandler = new SslHandler(engine);
-            p.addFirst("ssl", sslHandler);
-            Future<Channel> future = sslHandler.handshakeFuture();
-            future.addListener(new GenericFutureListener<Future<Channel>>() {
-                @Override
-                public void operationComplete(Future<Channel> future) throws Exception {
-                    try {
-                        future.get().attr(sessattr).set(sslHandler.engine().getSession());
-                    } catch (ExecutionException e) {
-                        logger.warn("Failed ssl connexion", e.getCause());
-                        logger.catching(Level.DEBUG, e.getCause());
-                    }
-                }});
-        }
-    }
-
     @Override
     public void addHandlers(ChannelPipeline p) {
         p.addFirst("SourceResolver", extractor);
-        addSslHandler(p);
+        if (isWithSsl()) {
+            server.addSslHandler(p, engine);
+        }
         if (! selfDecoder) {
             p.addLast("MessageDecoder", getNettyDecoder());
         }
@@ -195,17 +173,15 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
     }
 
     protected SSLSession getSslSession(ChannelHandlerContext ctx) {
-        return ctx.channel().attr(sessattr).get();
-    }
-
-    protected void savePrincipal(ChannelHandlerContext ctx, Principal p) {
-        if (p != null) {
-            ctx.channel().attr(CONNECTIONCONTEXTATTRIBUTE).get().setPrincipal(p);
-        }
+        return ctx.channel().attr(AbstractNettyServer.SSLSESSIONATTRIBUTE).get();
     }
 
     protected void populate(Event event, ChannelHandlerContext ctx, Map<String, Object> msg) {
         event.putAll(msg);
+        Principal p = ctx.channel().attr(AccessControl.PRINCIPALATTRIBUTE).get();
+        if (p != null) {
+            event.getConnectionContext().setPrincipal(p);
+        }
     }
 
     protected abstract ByteBuf getContent(SM message);
