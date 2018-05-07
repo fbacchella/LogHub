@@ -3,10 +3,6 @@ package loghub.netty.servers;
 import java.net.SocketAddress;
 import java.util.concurrent.ThreadFactory;
 
-import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import io.netty.bootstrap.AbstractBootstrap;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
@@ -15,12 +11,11 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.ServerChannel;
+import loghub.Helpers;
 import loghub.netty.ChannelConsumer;
 import loghub.netty.ComponentFactory;
 
 public abstract class ServerFactory<CC extends Channel, SA extends SocketAddress> extends ComponentFactory<ServerBootstrap, ServerChannel, SA> {
-
-    private static final Logger logger = LogManager.getLogger();
 
     private EventLoopGroup bossGroup;
     private EventLoopGroup workerGroup;
@@ -51,19 +46,18 @@ public abstract class ServerFactory<CC extends Channel, SA extends SocketAddress
         ChannelHandler handler = new ChannelInitializer<CC>() {
             @Override
             public void initChannel(CC ch) throws Exception {
-                try {
-                    source.addHandlers(ch.pipeline());
-                } catch (Throwable e) {
-                    logger.error("Netty handler failed: {}", e.getMessage());
-                    logger.throwing(Level.DEBUG, e);
-                }
+                source.addHandlers(ch.pipeline());
             }
 
             @Override
             public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-                source.exception(ctx, cause);
+                if (Helpers.isFatal(cause)) {
+                    throw (Exception) cause;
+                } else {
+                    source.exception(ctx, cause);
+                }
             }
-            
+
         };
         bootstrap.childHandler(handler);
     }

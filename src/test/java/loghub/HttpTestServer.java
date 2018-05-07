@@ -1,42 +1,31 @@
 package loghub;
 
-import java.util.AbstractMap;
 import java.util.Arrays;
-import java.util.Map;
+import java.util.Collections;
 
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLEngine;
 
-import org.apache.http.config.SocketConfig;
-import org.apache.http.impl.bootstrap.HttpServer;
-import org.apache.http.impl.bootstrap.ServerBootstrap;
-import org.apache.http.protocol.HttpProcessor;
-import org.apache.http.protocol.HttpProcessorBuilder;
-import org.apache.http.protocol.HttpRequestHandler;
-import org.apache.http.protocol.ResponseConnControl;
-import org.apache.http.protocol.ResponseContent;
-import org.apache.http.protocol.ResponseDate;
-import org.apache.http.protocol.ResponseServer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.rules.ExternalResource;
+
+import io.netty.channel.ChannelPipeline;
+import loghub.configuration.Properties;
+import loghub.netty.http.AbstractHttpServer;
+import loghub.netty.http.HttpHandler;
 
 public class HttpTestServer extends ExternalResource {
 
     private static Logger logger = LogManager.getLogger();
 
-    public static class HandlerInfo extends AbstractMap.SimpleImmutableEntry<String, HttpRequestHandler> {
-        public HandlerInfo(String key, HttpRequestHandler value) {
-            super(key, value);
-        }
-    }
-
-    private HttpServer server;
-    private final Map.Entry<String, HttpRequestHandler>[] handlers;
+    private AbstractHttpServer server;
+    private final HttpHandler[] handlers;
     private SSLContext ssl;
     private int port;
 
     @SafeVarargs
-    public HttpTestServer(SSLContext ssl, int port, HandlerInfo... handlers) {
+    public HttpTestServer(SSLContext ssl, int port, HttpHandler... handlers) {
         logger.debug("Starting a test HTTP servers on port {}, protocol {}", () -> port, () -> ssl != null ? "https" : "http");
         this.handlers = Arrays.copyOf(handlers, handlers.length);
         this.ssl = ssl;
@@ -45,30 +34,30 @@ public class HttpTestServer extends ExternalResource {
 
     @Override
     protected void before() throws Throwable {
-        HttpProcessorBuilder builder = HttpProcessorBuilder.create()
-                .add(new ResponseDate())
-                .add(new ResponseServer("MyServer-HTTP/1.1"))
-                .add(new ResponseContent())
-                .add(new ResponseConnControl());
-        HttpProcessor httpProcessor = builder.build();
-        SocketConfig socketConfig = SocketConfig.custom()
-                .setSoTimeout(15000)
-                .setTcpNoDelay(true)
-                .build();
-        ServerBootstrap bootstrap = ServerBootstrap.bootstrap()
-                .setListenerPort(port)
-                .setHttpProcessor(httpProcessor)
-                .setSocketConfig(socketConfig);
-        if (ssl != null) {
-            bootstrap.setSslContext(ssl);
-        }
-        Arrays.stream(handlers).forEach(i -> bootstrap.registerHandler(i.getKey(), i.getValue()));
-        server =  bootstrap.create();
-        server.start();
+        server = new AbstractHttpServer() {
+
+            @Override
+            public void addHandlers(ChannelPipeline p) {
+                super.addHandlers(p);
+                if (ssl != null) {
+                    SSLEngine engine = ssl.createSSLEngine();
+                    engine.setUseClientMode(false);
+                    addSslHandler(p, engine);
+                }
+            }
+
+            @Override
+            public void addModelHandlers(ChannelPipeline p) {
+                Arrays.stream(handlers).forEach( i-> p.addLast(i));
+            }
+
+        };
+        server.setPort(this.port);
+        server.configure(new Properties(Collections.emptyMap()), server);
     }
 
     @Override
     protected void after() {
-        server.stop();
+        server.finish();
     }
 }

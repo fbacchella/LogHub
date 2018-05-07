@@ -2,11 +2,11 @@ package loghub.senders;
 
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
+import java.io.StringReader;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.Date;
 import java.util.Map;
@@ -14,13 +14,6 @@ import java.util.TimeZone;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.apache.http.HttpException;
-import org.apache.http.HttpRequest;
-import org.apache.http.HttpResponse;
-import org.apache.http.entity.StringEntity;
-import org.apache.http.message.BasicHttpEntityEnclosingRequest;
-import org.apache.http.protocol.HttpContext;
-import org.apache.http.protocol.HttpRequestHandler;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -34,12 +27,22 @@ import org.junit.rules.ExternalResource;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.handler.codec.http.FullHttpRequest;
+import io.netty.handler.codec.http.HttpRequest;
+import io.netty.handler.codec.http.HttpResponse;
+import io.netty.handler.codec.http.HttpResponseStatus;
+import io.netty.util.CharsetUtil;
 import loghub.Event;
 import loghub.HttpTestServer;
 import loghub.LogUtils;
 import loghub.Stats;
 import loghub.Tools;
 import loghub.configuration.Properties;
+import loghub.netty.http.HttpRequestFailure;
+import loghub.netty.http.HttpRequestProcessing;
 
 public class TestElasticSearch {
 
@@ -65,13 +68,12 @@ public class TestElasticSearch {
     AtomicInteger received = new AtomicInteger();
     AssertionError failure = null;
 
-    HttpRequestHandler requestHandler = new HttpRequestHandler() {
+    HttpRequestProcessing requestHandler = new HttpRequestProcessing( i -> i.startsWith("/_bulk"), "POST") {
+
         @Override
-        public void handle(HttpRequest request, HttpResponse response, HttpContext context) throws HttpException, IOException {
-            if(request instanceof BasicHttpEntityEnclosingRequest) {
-                BasicHttpEntityEnclosingRequest jsonrequest = (BasicHttpEntityEnclosingRequest) request;
-                InputStream is = jsonrequest.getEntity().getContent();
-                BufferedReader r = new BufferedReader(new InputStreamReader(is));
+        protected boolean processRequest(FullHttpRequest request, ChannelHandlerContext ctx) throws HttpRequestFailure {
+            try {
+                BufferedReader r = new BufferedReader(new StringReader(request.content().toString(StandardCharsets.UTF_8)));
                 String line;
                 while((line = r.readLine()) != null) {
                     @SuppressWarnings("unchecked")
@@ -94,28 +96,45 @@ public class TestElasticSearch {
                     }
                     received.incrementAndGet();
                 }
+                String result = "\"{\"took\":7,\"errors\":false,\"items\":[{\"create\":{\"_index\":\"test\",\"_type\":\"type1\",\"_id\":\"1\",\"_version\":1}}]}\"\r\n";
+                ByteBuf content = Unpooled.copiedBuffer(result, CharsetUtil.UTF_8);
+                return writeResponse(ctx, request, content, content.readableBytes());
+            } catch (IOException e) {
+                throw new HttpRequestFailure(HttpResponseStatus.BAD_REQUEST, "Busy, try again");
             }
-            response.setStatusCode(200);
-            response.setHeader("Content-Type", "application/json; charset=UTF-8");
-            response.setEntity(new StringEntity("{\"took\":7,\"errors\":false,\"items\":[{\"create\":{\"_index\":\"test\",\"_type\":\"type1\",\"_id\":\"1\",\"_version\":1}}]}"));
+        }
+
+        @Override
+        protected String getContentType(HttpRequest request, HttpResponse response) {
+            return "application/json; charset=UTF-8";
         }
     };
 
-    HttpRequestHandler versionHandler = new HttpRequestHandler() {
+    HttpRequestProcessing versionHandler = new HttpRequestProcessing( i -> i.equals("/")) {
+
         @Override
-        public void handle(HttpRequest request, HttpResponse response, HttpContext context) throws HttpException, IOException {
-            response.setStatusCode(200);
-            response.setHeader("Content-Type", "application/json; charset=UTF-8");
-            response.setEntity(new StringEntity("{\"version\": {\"number\": \"5.6.7\"} }"));
+        protected boolean processRequest(FullHttpRequest request, ChannelHandlerContext ctx) throws HttpRequestFailure {
+            ByteBuf content = Unpooled.copiedBuffer("{\"version\": {\"number\": \"5.6.7\"} }\r\n", CharsetUtil.UTF_8);
+            return writeResponse(ctx, request, content, content.readableBytes());
+        }
+
+        @Override
+        protected String getContentType(HttpRequest request, HttpResponse response) {
+            return "application/json; charset=UTF-8";
         }
     };
 
-    HttpRequestHandler templateHandler = new HttpRequestHandler() {
+    HttpRequestProcessing templateHandler = new HttpRequestProcessing( i-> i.startsWith("/_template/loghub"), "GET", "PUT") {
+
         @Override
-        public void handle(HttpRequest request, HttpResponse response, HttpContext context) throws HttpException, IOException {
-            response.setStatusCode(200);
-            response.setHeader("Content-Type", "application/json; charset=UTF-8");
-            response.setEntity(new StringEntity("{\"loghub\": {} }"));
+        protected boolean processRequest(FullHttpRequest request, ChannelHandlerContext ctx) throws HttpRequestFailure {
+            ByteBuf content = Unpooled.copiedBuffer("{\"loghub\": {} }\r\n", CharsetUtil.UTF_8);
+            return writeResponse(ctx, request, content, content.readableBytes());
+        }
+
+        @Override
+        protected String getContentType(HttpRequest request, HttpResponse response) {
+            return "application/json; charset=UTF-8";
         }
     };
 
@@ -123,12 +142,13 @@ public class TestElasticSearch {
 
     @Rule
     public ExternalResource resource = new HttpTestServer(null, serverPort,
-                                                          new HttpTestServer.HandlerInfo("/_bulk", requestHandler),
-                                                          new HttpTestServer.HandlerInfo("/_template/loghub", templateHandler),
-                                                          new HttpTestServer.HandlerInfo("/", versionHandler));
+            requestHandler,
+            templateHandler,
+            versionHandler);
 
     @Test
     public void testSend() throws InterruptedException {
+        received.set(0);
         int count = 20;
         ElasticSearch es = new ElasticSearch(new ArrayBlockingQueue<>(count));
         es.setDestinations(new String[]{"http://localhost:" + serverPort, });
@@ -157,11 +177,11 @@ public class TestElasticSearch {
     @Test
     public void testSendInQueue() throws InterruptedException {
         Stats.reset();
-        int count = 20;
-        ArrayBlockingQueue<Event> queue = new ArrayBlockingQueue<>(count - 1);
+        int count = 40;
+        ArrayBlockingQueue<Event> queue = new ArrayBlockingQueue<>(count /2);
         ElasticSearch es = new ElasticSearch(queue);
         es.setDestinations(new String[]{"http://localhost:" + serverPort, });
-        es.setTimeout(1);
+        es.setTimeout(5);
         es.setBuffersize(10);
         Assert.assertTrue("Elastic configuration failed", es.configure(new Properties(Collections.emptyMap())));
         es.start();
@@ -170,11 +190,12 @@ public class TestElasticSearch {
             ev.put("type", "junit");
             ev.put("value", "atest" + i);
             ev.setTimestamp(new Date(0));
-            queue.add(ev);
-            Thread.sleep(1);
+            queue.put(ev);
+            logger.debug("sent {}", ev);
         }
+        Thread.sleep(2000);
         es.close();
-        Thread.sleep(1000);
+        Thread.sleep(2000);
         if(failure != null) {
             throw failure;
         }
@@ -195,13 +216,13 @@ public class TestElasticSearch {
             }
             URI newUrl = new URI(destinations[i]);
             newUrl = new URI( (newUrl.getScheme() != null  ? newUrl.getScheme() : "thrift"),
-                              null,
-                              (newUrl.getHost() != null ? newUrl.getHost() : "localhost"),
-                              (newUrl.getPort() > 0 ? newUrl.getPort() : 9300),
-                              null,
-                              null,
-                              null
-                              );
+                    null,
+                    (newUrl.getHost() != null ? newUrl.getHost() : "localhost"),
+                    (newUrl.getPort() > 0 ? newUrl.getPort() : 9300),
+                    null,
+                    null,
+                    null
+                    );
         }
     }
 

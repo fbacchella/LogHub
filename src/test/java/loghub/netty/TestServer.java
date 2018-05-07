@@ -146,6 +146,11 @@ public class TestServer {
             return new LocalChannelConnectionContext((LocalChannel) ctx.channel());
         }
 
+        @Override
+        public void exception(ChannelHandlerContext ctx, Throwable cause) {
+            logger.catching(cause);
+        }
+
     }
 
     private static Logger logger;

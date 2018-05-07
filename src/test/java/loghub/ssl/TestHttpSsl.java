@@ -20,10 +20,7 @@ import javax.net.ssl.SSLPeerUnverifiedException;
 import javax.net.ssl.SSLSession;
 
 import org.apache.http.HttpEntity;
-import org.apache.http.HttpException;
 import org.apache.http.HttpHost;
-import org.apache.http.HttpRequest;
-import org.apache.http.HttpResponse;
 import org.apache.http.HttpVersion;
 import org.apache.http.RequestLine;
 import org.apache.http.client.config.RequestConfig;
@@ -37,15 +34,12 @@ import org.apache.http.config.SocketConfig;
 import org.apache.http.conn.socket.ConnectionSocketFactory;
 import org.apache.http.conn.socket.PlainConnectionSocketFactory;
 import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
-import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.apache.http.message.BasicHttpEntityEnclosingRequest;
 import org.apache.http.message.BasicRequestLine;
-import org.apache.http.protocol.HttpContext;
-import org.apache.http.protocol.HttpRequestHandler;
 import org.apache.http.util.EntityUtils;
 import org.apache.http.util.VersionInfo;
 import org.apache.logging.log4j.Level;
@@ -58,9 +52,16 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExternalResource;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.handler.codec.http.FullHttpRequest;
+import io.netty.util.CharsetUtil;
 import loghub.HttpTestServer;
 import loghub.LogUtils;
 import loghub.Tools;
+import loghub.netty.http.HttpRequestFailure;
+import loghub.netty.http.HttpRequestProcessing;
 
 public class TestHttpSsl {
 
@@ -74,16 +75,16 @@ public class TestHttpSsl {
         Configurator.setLevel("org", Level.WARN);
     }
 
-    HttpRequestHandler requestHandler = new HttpRequestHandler() {
+    HttpRequestProcessing requestHandler = new HttpRequestProcessing( i-> true) {
         @Override
-        public void handle(HttpRequest request, HttpResponse response, HttpContext context) throws HttpException, IOException {
-            if(request instanceof BasicHttpEntityEnclosingRequest) {
-                BasicHttpEntityEnclosingRequest jsonrequest = (BasicHttpEntityEnclosingRequest) request;
-                EntityUtils.consume(jsonrequest.getEntity());
-            }
-            response.setStatusCode(200);
-            response.setHeader("Content-Type", "application/json; charset=UTF-8");
-            response.setEntity(new StringEntity("{}"));
+        protected boolean processRequest(FullHttpRequest request, ChannelHandlerContext ctx) throws HttpRequestFailure {
+            ByteBuf content = Unpooled.copiedBuffer("\r\n", CharsetUtil.UTF_8);
+            return writeResponse(ctx, request, content, content.readableBytes());
+        }
+
+        @Override
+        protected String getContentType(io.netty.handler.codec.http.HttpRequest request, io.netty.handler.codec.http.HttpResponse response) {
+            return "application/json; charset=UTF-8";
         }
     };
 
@@ -99,7 +100,7 @@ public class TestHttpSsl {
     private final int serverPort = Tools.tryGetPort();
 
     @Rule
-    public ExternalResource resource = new HttpTestServer(getContext.get(), serverPort, new HttpTestServer.HandlerInfo("/", requestHandler));
+    public ExternalResource resource = new HttpTestServer(getContext.get(), serverPort, requestHandler);
 
     private final URL theurl;
     {
@@ -129,6 +130,7 @@ public class TestHttpSsl {
         cnx.connect();
         Assert.assertEquals("CN=localhost", cnx.getPeerPrincipal().getName());
         try(Scanner s = new Scanner(cnx.getInputStream())) {
+            System.out.println(s);
             s.skip(".*");
         }
     }
