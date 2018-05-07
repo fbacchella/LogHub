@@ -12,6 +12,7 @@ import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.ChannelPipelineException;
 import io.netty.channel.ServerChannel;
+import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpContentCompressor;
 import io.netty.handler.codec.http.HttpObjectAggregator;
@@ -26,6 +27,8 @@ import loghub.netty.ChannelConsumer;
 import loghub.netty.servers.TcpServer;
 
 public abstract class AbstractHttpServer extends TcpServer implements ChannelConsumer<ServerBootstrap, ServerChannel, InetSocketAddress> {
+
+    private final SimpleChannelInboundHandler<FullHttpRequest> NOTFOUND = new NotFound();
 
     private int port;
     private String host = null;
@@ -50,6 +53,7 @@ public abstract class AbstractHttpServer extends TcpServer implements ChannelCon
             logger.catching(Level.DEBUG, e);
             p.addAfter("HttpObjectAggregator", "BrokenConfigHandler", getFatalErrorHandler());
         }
+        p.addLast(NOTFOUND);
     }
 
     @Override
