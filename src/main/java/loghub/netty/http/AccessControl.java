@@ -15,10 +15,11 @@ import javax.security.auth.login.FailedLoginException;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpHeaderNames;
+import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.util.AttributeKey;
-import loghub.AuthenticationHandler;
 import loghub.netty.servers.AbstractNettyServer;
+import loghub.security.AuthenticationHandler;
 
 public class AccessControl extends HttpFilter {
 
@@ -28,6 +29,11 @@ public class AccessControl extends HttpFilter {
 
     public AccessControl(AuthenticationHandler authhandler) {
         this.authhandler = authhandler;
+    }
+
+    @Override
+    public boolean acceptRequest(HttpRequest request) {
+        return true;
     }
 
     @Override
@@ -66,6 +72,8 @@ public class AccessControl extends HttpFilter {
                     Arrays.fill(content, '\0');
                     peerPrincipal = authhandler.checkLoginPassword(login, passwd);
                     Arrays.fill(passwd, '\0');
+                } else {
+                    throw new HttpRequestFailure(HttpResponseStatus.BAD_REQUEST, "Invalid authentication scheme", Collections.emptyMap());
                 }
                 // Bad login/password
                 if (peerPrincipal == null) {

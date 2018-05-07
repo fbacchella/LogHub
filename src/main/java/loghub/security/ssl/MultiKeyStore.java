@@ -1,4 +1,4 @@
-package loghub.ssl;
+package loghub.security.ssl;
 
 import java.io.IOException;
 import java.security.KeyStore;

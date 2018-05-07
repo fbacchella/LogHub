@@ -36,7 +36,7 @@ import loghub.Pipeline;
 import loghub.Tools;
 import loghub.configuration.Properties;
 import loghub.decoders.StringCodec;
-import loghub.ssl.ContextLoader;
+import loghub.security.ssl.ContextLoader;
 
 public class TestHttp {
 

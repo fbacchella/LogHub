@@ -18,6 +18,7 @@ import io.netty.buffer.ByteBuf;
 import loghub.Decoder.DecodeException;
 import loghub.configuration.Properties;
 import loghub.receivers.Blocking;
+import loghub.security.AuthenticationHandler;
 
 public abstract class Receiver extends Thread implements Iterator<Event> {
 

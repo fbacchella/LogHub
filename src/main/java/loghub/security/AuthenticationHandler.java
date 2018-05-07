@@ -1,4 +1,4 @@
-package loghub;
+package loghub.security;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
@@ -25,7 +25,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import loghub.configuration.Properties;
-import loghub.ssl.ClientAuthentication;
+import loghub.security.ssl.ClientAuthentication;
 
 public class AuthenticationHandler {
 
@@ -49,9 +49,7 @@ public class AuthenticationHandler {
             sslctx = props.ssl;
         }
         public Builder useSsl() {
-            active = true;
-            withSsl = true;
-            return this;
+            return useSsl(true);
         }
         public Builder useSsl(boolean useSsl) {
             active = active || useSsl;
@@ -125,7 +123,7 @@ public class AuthenticationHandler {
     private final Configuration jaasConfig;
 
     private AuthenticationHandler(Builder builder) {
-        if(builder.withSsl) {
+        if (builder.withSsl) {
             this.sslclient = builder.sslclient;
             this.sslctx = builder.sslctx;
             builder.sslclient.configureEngine(builder.engine);
@@ -161,7 +159,7 @@ public class AuthenticationHandler {
 
     public Principal checkLoginPassword(String tryLogin, char[] tryPassword) {
         logger.trace("testing login {}", login);
-       if (login.equals(login) && Arrays.equals(password, tryPassword)) {
+        if (login.equals(login) && Arrays.equals(password, tryPassword)) {
             return new JMXPrincipal(login);
         } else {
             return checkJaas(tryLogin, tryPassword);

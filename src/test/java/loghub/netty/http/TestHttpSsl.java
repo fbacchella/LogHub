@@ -1,4 +1,4 @@
-package loghub.ssl;
+package loghub.netty.http;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
@@ -62,6 +62,7 @@ import loghub.LogUtils;
 import loghub.Tools;
 import loghub.netty.http.HttpRequestFailure;
 import loghub.netty.http.HttpRequestProcessing;
+import loghub.security.ssl.ContextLoader;
 
 public class TestHttpSsl {
 
@@ -75,7 +76,7 @@ public class TestHttpSsl {
         Configurator.setLevel("org", Level.WARN);
     }
 
-    HttpRequestProcessing requestHandler = new HttpRequestProcessing( i-> true) {
+    HttpRequestProcessing requestHandler = new HttpRequestProcessing(i-> true) {
         @Override
         protected boolean processRequest(FullHttpRequest request, ChannelHandlerContext ctx) throws HttpRequestFailure {
             ByteBuf content = Unpooled.copiedBuffer("\r\n", CharsetUtil.UTF_8);
