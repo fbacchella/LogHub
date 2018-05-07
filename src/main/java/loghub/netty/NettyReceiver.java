@@ -124,7 +124,7 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
         ThreadFactory tf = new DefaultThreadFactory(getReceiverName(), true);
         server.setThreadFactory(tf);
         try {
-            return server.configure(properties, getConsummer()) && super.configure(properties);
+            return server.configure(getConsummer()) && super.configure(properties);
         } catch (UnsatisfiedLinkError e) {
             logger.error("Can't configure Netty server: {}", Helpers.resolveThrowableException(e));
             logger.catching(Level.DEBUG, e);

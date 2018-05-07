@@ -83,7 +83,7 @@ public class TestServer {
         Channel cf;
 
         @Override
-        protected TesterFactory getNewFactory(Properties properties) {
+        protected TesterFactory getNewFactory() {
             return new TesterFactory();
         }
 

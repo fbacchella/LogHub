@@ -16,7 +16,6 @@ import io.netty.channel.ChannelOption;
 import io.netty.channel.FixedRecvByteBufAllocator;
 import io.netty.channel.epoll.EpollChannelOption;
 import io.netty.channel.socket.DatagramChannel;
-import loghub.configuration.Properties;
 import loghub.netty.POLLER;
 import loghub.netty.UdpFactory;
 
@@ -26,7 +25,7 @@ public class UdpServer extends AbstractNettyServer<UdpFactory, Bootstrap, Channe
     private Set<Channel> channels;
 
     @Override
-    protected UdpFactory getNewFactory(Properties properties) {
+    protected UdpFactory getNewFactory() {
         return new UdpFactory(poller);
     }
 

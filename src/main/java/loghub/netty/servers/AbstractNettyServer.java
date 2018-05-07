@@ -21,7 +21,6 @@ import io.netty.util.concurrent.GenericFutureListener;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import io.netty.util.internal.logging.Log4J2LoggerFactory;
 import loghub.Helpers;
-import loghub.configuration.Properties;
 import loghub.netty.ChannelConsumer;
 import loghub.netty.ComponentFactory;
 import loghub.netty.POLLER;
@@ -56,12 +55,12 @@ public abstract class AbstractNettyServer<CF extends ComponentFactory<BS, BSC, S
     }
 
     @SuppressWarnings("unchecked")
-    public boolean configure(Properties properties, ChannelConsumer<BS, BSC, SA> consumer) {
+    public boolean configure(ChannelConsumer<BS, BSC, SA> consumer) {
         address = consumer.getListenAddress();
         if (address == null) {
             return false;
         }
-        factory = getNewFactory(properties);
+        factory = getNewFactory();
         bootstrap = factory.getBootStrap();
         configureBootStrap(bootstrap);
         factory.group(threadsCount, threadFactory);
@@ -92,7 +91,7 @@ public abstract class AbstractNettyServer<CF extends ComponentFactory<BS, BSC, S
 
     public abstract void waitClose() throws InterruptedException;
 
-    protected abstract CF getNewFactory(Properties properties);
+    protected abstract CF getNewFactory();
 
     public SA getAddress() {
         return address;

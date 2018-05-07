@@ -64,14 +64,11 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
     public boolean configure(Properties properties) {
         setName("receiver-" + getReceiverName());
         count = Properties.metrics.meter("receiver." + getReceiverName());
-        if (withSsl) {
-            engine = properties.ssl.createSSLEngine();
-            engine.setUseClientMode(false);
-        }
-        authHandler = AuthenticationHandler.getBuilder(properties)
-                .useSslEngine(engine).setSslClientAuthentication(sslclient).useSsl(withSsl)
+        authHandler = AuthenticationHandler.getBuilder()
+                .setSslContext(properties.ssl).setSslClientAuthentication(sslclient).useSsl(withSsl)
                 .setLogin(user).setPassword(password != null ? password.toCharArray() : null)
-                .setJaasName(jaasName).build();
+                .setJaasName(jaasName)
+                .build();
         if (decoder != null) {
             return decoder.configure(properties, this);
         } else {

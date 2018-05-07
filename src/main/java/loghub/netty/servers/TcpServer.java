@@ -7,7 +7,6 @@ import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ServerChannel;
 import io.netty.channel.socket.ServerSocketChannel;
-import loghub.configuration.Properties;
 import loghub.netty.TcpFactory;
 
 public class TcpServer extends AbstractNettyServer<TcpFactory, ServerBootstrap, ServerChannel, ServerSocketChannel, InetSocketAddress> {
@@ -27,7 +26,7 @@ public class TcpServer extends AbstractNettyServer<TcpFactory, ServerBootstrap, 
     }
 
     @Override
-    protected TcpFactory getNewFactory(Properties properties) {
+    protected TcpFactory getNewFactory() {
         return new TcpFactory(poller);
     }
 

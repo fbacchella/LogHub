@@ -24,18 +24,16 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import loghub.configuration.Properties;
 import loghub.security.ssl.ClientAuthentication;
 
 public class AuthenticationHandler {
 
-    public static Builder getBuilder(Properties props) {
-        return new Builder(props);
+    public static Builder getBuilder() {
+        return new Builder();
     }
 
     public static class Builder {
         private ClientAuthentication sslclient = null;
-        private SSLContext sslctx;
         private String jaasName = null;
         private Configuration jaasConfig;
         private String login;
@@ -44,10 +42,9 @@ public class AuthenticationHandler {
         private boolean active = false;
         private SSLEngine engine;
 
-        private Builder(Properties props) {
-            jaasConfig = props.jaasConfig;
-            sslctx = props.ssl;
+        private Builder() {
         }
+
         public Builder useSsl() {
             return useSsl(true);
         }
@@ -68,14 +65,9 @@ public class AuthenticationHandler {
             }
             return this;
         }
-        public Builder useSslEngine(SSLEngine engine) {
-            this.engine = engine;
-            return this;
-        }
         public Builder setSslContext(SSLContext sslctx) {
-            active = active || (sslctx != null);
-            withSsl = withSsl || sslctx != null;
-            this.sslctx = sslctx;
+            engine = sslctx.createSSLEngine();
+            engine.setUseClientMode(false);
             return this;
         }
         public Builder setLogin(String login) {
@@ -86,6 +78,10 @@ public class AuthenticationHandler {
         public Builder setPassword(char[] password) {
             active = active || (password != null && password.length > 0);
             this.password = password;
+            return this;
+        }
+        public Builder setJaasConfig(Configuration jaasConfig) {
+            this.jaasConfig = jaasConfig;
             return this;
         }
         public Builder setJaasName(String jaasName) {
@@ -111,7 +107,6 @@ public class AuthenticationHandler {
     private static final Logger logger = LogManager.getLogger();
 
     // SSL authentication
-    private final SSLContext sslctx;
     private final ClientAuthentication sslclient;
 
     // Hard code login password
@@ -125,11 +120,9 @@ public class AuthenticationHandler {
     private AuthenticationHandler(Builder builder) {
         if (builder.withSsl) {
             this.sslclient = builder.sslclient;
-            this.sslctx = builder.sslctx;
             builder.sslclient.configureEngine(builder.engine);
         } else {
             this.sslclient = null;
-            this.sslctx = null;
         }
 
         this.login = builder.login;
@@ -141,7 +134,7 @@ public class AuthenticationHandler {
 
     public Principal checkSslClient(SSLSession sess) throws GeneralSecurityException {
         logger.trace("testing ssl client");
-        if (sslctx != null && sslclient != ClientAuthentication.NOTNEEDED) {
+        if (sslclient != ClientAuthentication.NOTNEEDED) {
             try {
                 if (sslclient == ClientAuthentication.WANTED || sslclient == ClientAuthentication.REQUIRED) {
                     return sess.getPeerPrincipal();

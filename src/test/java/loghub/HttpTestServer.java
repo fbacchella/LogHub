@@ -1,7 +1,6 @@
 package loghub;
 
 import java.util.Arrays;
-import java.util.Collections;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
@@ -11,7 +10,6 @@ import org.apache.logging.log4j.Logger;
 import org.junit.rules.ExternalResource;
 
 import io.netty.channel.ChannelPipeline;
-import loghub.configuration.Properties;
 import loghub.netty.http.AbstractHttpServer;
 import loghub.netty.http.HttpHandler;
 
@@ -53,7 +51,7 @@ public class HttpTestServer extends ExternalResource {
 
         };
         server.setPort(this.port);
-        server.configure(new Properties(Collections.emptyMap()), server);
+        server.configure(server);
     }
 
     @Override

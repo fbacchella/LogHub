@@ -22,7 +22,6 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.stream.ChunkedWriteHandler;
 import io.netty.util.concurrent.DefaultThreadFactory;
-import loghub.configuration.Properties;
 import loghub.netty.ChannelConsumer;
 import loghub.netty.servers.TcpServer;
 
@@ -34,10 +33,10 @@ public abstract class AbstractHttpServer extends TcpServer implements ChannelCon
     private String host = null;
 
     @Override
-    public boolean configure(Properties properties, ChannelConsumer<ServerBootstrap, ServerChannel, InetSocketAddress> consumer) {
+    public boolean configure(ChannelConsumer<ServerBootstrap, ServerChannel, InetSocketAddress> consumer) {
         setThreadFactory(new DefaultThreadFactory("builtinhttpserver/" +
                 consumer.getListenAddress().getAddress().getHostAddress() + ":" + consumer.getListenAddress().getPort()));
-        return super.configure(properties, consumer);
+        return super.configure(consumer);
     }
 
     @Override
