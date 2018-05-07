@@ -7,7 +7,6 @@ import java.nio.charset.IllegalCharsetNameException;
 import java.nio.charset.StandardCharsets;
 import java.nio.charset.UnsupportedCharsetException;
 import java.security.Principal;
-import java.util.Date;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
@@ -130,11 +129,6 @@ public class Http extends GenericTcp {
         @Override
         protected String getContentType(HttpRequest request, HttpResponse response) {
             return "application/json; charset=utf-8";
-        }
-
-        @Override
-        protected Date getContentDate(HttpRequest request, HttpResponse response) {
-            return new Date();
         }
 
     };

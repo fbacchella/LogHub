@@ -25,6 +25,7 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
+import io.netty.channel.ChannelHandler.Sharable;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.DefaultHttpResponse;
 import io.netty.handler.codec.http.FullHttpRequest;
@@ -42,6 +43,7 @@ import io.netty.util.AsciiString;
 import loghub.Helpers;
 import loghub.configuration.Properties;
 
+@Sharable
 public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
 
     protected final Logger logger;
@@ -58,9 +60,12 @@ public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRe
     }
 
     @Override
-    protected void channelRead0(ChannelHandlerContext ctx, FullHttpRequest request) {
-        logger.trace("channelRead0", request);
+    public boolean isSharable() {
+        return getClass().getAnnotation(NotSharable.class) == null && super.isSharable();
+    }
 
+    @Override
+    protected void channelRead0(ChannelHandlerContext ctx, FullHttpRequest request) {
         if (!request.decoderResult().isSuccess()) {
             failure(ctx, request, BAD_REQUEST, "Can't decode request", Collections.emptyMap());
             return;
@@ -165,7 +170,10 @@ public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRe
      * Return the origin date of the content, or null if irrelevant
      * @return the content date
      */
-    protected abstract Date getContentDate(HttpRequest request, HttpResponse response);
+    protected Date getContentDate(io.netty.handler.codec.http.HttpRequest request, io.netty.handler.codec.http.HttpResponse response) {
+        return new Date();
+    }
+
 
     protected void addContentDate(HttpRequest request, HttpResponse response) {
         Date contentDate = getContentDate(request, response);
@@ -174,7 +182,15 @@ public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRe
         }
     }
 
-    protected abstract String getContentType(HttpRequest request, HttpResponse response);
+    protected String getContentType(HttpRequest request, HttpResponse response) {
+        ContentType ct = getClass().getAnnotation(ContentType.class);
+        if ( ct != null) {
+            return ct.value();
+        } else {
+            return null;
+        }
+
+    }
 
     private void addContentType(HttpRequest request, HttpResponse response) {
         String contentType = getContentType(request, response);

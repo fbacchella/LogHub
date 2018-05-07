@@ -18,10 +18,11 @@ import io.netty.handler.stream.ChunkedInput;
 import io.netty.handler.stream.ChunkedStream;
 import loghub.Helpers;
 
+@NotSharable
 public class ResourceFiles extends HttpRequestProcessing {
 
     private static final Path ROOT = Paths.get("/");
-    
+
     private String internalPath;
     private Date internalDate;
 

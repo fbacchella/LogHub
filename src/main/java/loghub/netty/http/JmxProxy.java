@@ -6,7 +6,6 @@ import java.io.UnsupportedEncodingException;
 import java.lang.management.ManagementFactory;
 import java.net.URLDecoder;
 import java.util.Arrays;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -34,16 +33,14 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import io.netty.channel.ChannelHandler.Sharable;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpRequest;
-import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.util.CharsetUtil;
 
-@Sharable
 @NoCache
+@ContentType("application/json; charset=utf-8")
 public class JmxProxy extends HttpRequestProcessing {
 
     private static final Logger logger = LogManager.getLogger();
@@ -132,16 +129,6 @@ public class JmxProxy extends HttpRequestProcessing {
         } else {
             return o;
         }
-    }
-
-    @Override
-    protected String getContentType(HttpRequest request, HttpResponse response) {
-        return "application/json; charset=utf-8";
-    }
-
-    @Override
-    protected Date getContentDate(HttpRequest request, HttpResponse response) {
-        return null;
     }
 
 }
