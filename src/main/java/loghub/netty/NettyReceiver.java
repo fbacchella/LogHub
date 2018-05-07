@@ -165,6 +165,12 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
         p.addLast("ExceptionHandler", exceptionhandler);
     }
 
+    @Override
+    public void exception(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+        logger.error("Pipeline processing failed: {}", cause.getCause());
+        logger.catching(Level.DEBUG, cause);
+    }
+
     protected ChannelInboundHandlerAdapter getNettyDecoder() {
         if (nettydecoder == null) {
             throw new NullPointerException("nettydecoder");

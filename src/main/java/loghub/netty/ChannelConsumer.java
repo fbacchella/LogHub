@@ -10,6 +10,6 @@ import io.netty.channel.ChannelPipeline;
 public interface ChannelConsumer<BS extends AbstractBootstrap<BS, BSC>, BSC extends Channel, SA extends SocketAddress> {
     public void addHandlers(ChannelPipeline pipe);
     public default void addOptions(BS bootstrap) { }
-    public default void exception(ChannelHandlerContext ctx, Throwable cause) { }
+    public void exception(ChannelHandlerContext ctx, Throwable cause) throws Exception;
     public SA getListenAddress();
 }

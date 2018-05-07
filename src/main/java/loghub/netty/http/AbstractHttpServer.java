@@ -48,20 +48,32 @@ public abstract class AbstractHttpServer extends TcpServer implements ChannelCon
         } catch (ChannelPipelineException e) {
             logger.error("Invalid pipeline configuration: {}", e.getMessage());
             logger.catching(Level.DEBUG, e);
-            p.addAfter("HttpObjectAggregator", "BrokenConfigHandler", new HttpRequestProcessing() {
-
-                @Override
-                protected boolean processRequest(FullHttpRequest request, ChannelHandlerContext ctx) throws HttpRequestFailure {
-                    throw new HttpRequestFailure(HttpResponseStatus.SERVICE_UNAVAILABLE, "Unable to process request because of invalid configuration");
-                }
-
-                @Override
-                protected String getContentType(HttpRequest request, HttpResponse response) {
-                    return null;
-                }
-            });
+            p.addAfter("HttpObjectAggregator", "BrokenConfigHandler", getFatalErrorHandler());
         }
     }
+
+    @Override
+    public void exception(ChannelHandlerContext ctx, Throwable cause) {
+        logger.error("Unable to process query: {}", cause.getMessage());
+        logger.catching(Level.DEBUG, cause);
+        ctx.pipeline().addFirst(getFatalErrorHandler());
+    }
+
+    private HttpRequestProcessing getFatalErrorHandler() {
+        return new HttpRequestProcessing() {
+            @Override
+            public boolean acceptRequest(HttpRequest request) {
+                return true;
+            }
+            @Override
+            protected boolean processRequest(FullHttpRequest request, ChannelHandlerContext ctx) throws HttpRequestFailure {
+                throw new HttpRequestFailure(HttpResponseStatus.SERVICE_UNAVAILABLE, "Unable to process request because of invalid configuration");
+            }
+            @Override
+            protected String getContentType(HttpRequest request, HttpResponse response) {
+                return null;
+            }
+        };
     }
 
     public abstract void addModelHandlers(ChannelPipeline p);
