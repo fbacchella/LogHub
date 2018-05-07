@@ -4,12 +4,20 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 
+import org.apache.logging.log4j.Level;
+
 import io.netty.bootstrap.ServerBootstrap;
+import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
+import io.netty.channel.ChannelPipelineException;
 import io.netty.channel.ServerChannel;
+import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpContentCompressor;
 import io.netty.handler.codec.http.HttpObjectAggregator;
+import io.netty.handler.codec.http.HttpRequest;
+import io.netty.handler.codec.http.HttpResponse;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.stream.ChunkedWriteHandler;
 import io.netty.util.concurrent.DefaultThreadFactory;
@@ -31,11 +39,29 @@ public abstract class AbstractHttpServer extends TcpServer implements ChannelCon
 
     @Override
     public void addHandlers(ChannelPipeline p) {
-        p.addLast(new HttpServerCodec());
-        p.addLast(new HttpContentCompressor(9, 15, 8));
-        p.addLast(new ChunkedWriteHandler());
-        p.addLast(new HttpObjectAggregator(1048576));
-        addModelHandlers(p);
+        p.addLast("HttpServerCodec", new HttpServerCodec());
+        p.addLast("HttpContentCompressor", new HttpContentCompressor(9, 15, 8));
+        p.addLast("ChunkedWriteHandler", new ChunkedWriteHandler());
+        p.addLast("HttpObjectAggregator", new HttpObjectAggregator(1048576));
+        try {
+            addModelHandlers(p);
+        } catch (ChannelPipelineException e) {
+            logger.error("Invalid pipeline configuration: {}", e.getMessage());
+            logger.catching(Level.DEBUG, e);
+            p.addAfter("HttpObjectAggregator", "BrokenConfigHandler", new HttpRequestProcessing() {
+
+                @Override
+                protected boolean processRequest(FullHttpRequest request, ChannelHandlerContext ctx) throws HttpRequestFailure {
+                    throw new HttpRequestFailure(HttpResponseStatus.SERVICE_UNAVAILABLE, "Unable to process request because of invalid configuration");
+                }
+
+                @Override
+                protected String getContentType(HttpRequest request, HttpResponse response) {
+                    return null;
+                }
+            });
+        }
+    }
     }
 
     public abstract void addModelHandlers(ChannelPipeline p);
