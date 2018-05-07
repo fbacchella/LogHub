@@ -1,6 +1,7 @@
 package loghub.netty.http;
 
 import java.util.Date;
+import java.util.function.Predicate;
 
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.FullHttpRequest;
@@ -9,17 +10,16 @@ import io.netty.handler.codec.http.HttpResponse;
 
 public abstract class HttpFilter extends HttpHandler {
 
-    HttpFilter() {
+    public HttpFilter() {
         super(false);
     }
 
-    @Override
-    public final boolean acceptInboundMessage(Object msg) throws Exception {
-        return super.acceptInboundMessage(msg) && acceptRequest((HttpRequest)msg);
+    public HttpFilter(Predicate<String> urlFilter) {
+        super(false, urlFilter);
     }
 
-    public boolean acceptRequest(HttpRequest request) {
-        return true;
+    public HttpFilter(Predicate<String> urlFilter, String... method) {
+        super(false, urlFilter, method);
     }
 
     @Override
