@@ -18,7 +18,7 @@
         <log4j>2.11.0</log4j>
         <antlr>4.7.1</antlr>
         <javadoc>2.10.3</javadoc>
-        <ehcache>2.10.5</ehcache>
+        <ehcache>2.10.4</ehcache>
         <jackson>2.9.5</jackson>
     </properties>
 
