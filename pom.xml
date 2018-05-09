@@ -85,11 +85,6 @@
             <version>2.4.15</version>
         </dependency>
         <dependency>
-            <groupId>io.thekraken</groupId>
-            <artifactId>grok</artifactId>
-            <version>0.1.5</version>
-        </dependency>
-        <dependency>
             <groupId>org.antlr</groupId>
             <artifactId>antlr4</artifactId>
             <version>${antlr}</version>
@@ -195,6 +190,11 @@
             <groupId>com.auth0</groupId>
             <artifactId>java-jwt</artifactId>
             <version>3.3.0</version>
+        </dependency>
+        <dependency>
+            <groupId>io.krakens</groupId>
+            <artifactId>java-grok</artifactId>
+            <version>0.1.9</version>
         </dependency>
     </dependencies>
     <repositories>
