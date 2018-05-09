@@ -3,13 +3,14 @@ package loghub.receivers;
 import java.nio.charset.Charset;
 import java.util.concurrent.BlockingQueue;
 
-import io.netty.handler.codec.ByteToMessageDecoder;
+import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.LineBasedFrameDecoder;
 import io.netty.util.CharsetUtil;
 import loghub.Event;
 import loghub.Pipeline;
 import loghub.configuration.Properties;
 import loghub.decoders.StringCodec;
+import loghub.netty.GenericTcp;
 
 public class TcpLinesStream extends GenericTcp {
 
@@ -19,6 +20,12 @@ public class TcpLinesStream extends GenericTcp {
 
     public TcpLinesStream(BlockingQueue<Event> outQueue, Pipeline pipeline) {
         super(outQueue, pipeline);
+    }
+
+    @Override
+    public void addHandlers(ChannelPipeline pipe) {
+        pipe.addFirst("Splitter", new LineBasedFrameDecoder(maxLength));
+        super.addHandlers(pipe);
     }
 
     @Override
@@ -69,12 +76,6 @@ public class TcpLinesStream extends GenericTcp {
      */
     public void setField(String field) {
         this.field = field;
-    }
-
-    @Override
-    protected ByteToMessageDecoder getSplitter() {
-        // Needs a new instance each time, as LineBasedFrameDecoder is not shareable
-        return new LineBasedFrameDecoder(maxLength);
     }
 
 }

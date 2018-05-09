@@ -1,19 +1,15 @@
-package loghub.receivers;
+package loghub.netty;
 
 import java.util.concurrent.BlockingQueue;
 
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelOption;
-import io.netty.channel.ChannelPipeline;
 import io.netty.channel.ServerChannel;
 import io.netty.channel.socket.ServerSocketChannel;
 import io.netty.channel.socket.SocketChannel;
-import io.netty.handler.codec.ByteToMessageDecoder;
 import loghub.Event;
 import loghub.Pipeline;
-import loghub.netty.NettyIpReceiver;
-import loghub.netty.TcpFactory;
 import loghub.netty.servers.TcpServer;
 
 public abstract class GenericTcp extends NettyIpReceiver<TcpServer, TcpFactory, ServerBootstrap, ServerChannel, ServerSocketChannel, SocketChannel, ByteBuf> {
@@ -23,12 +19,10 @@ public abstract class GenericTcp extends NettyIpReceiver<TcpServer, TcpFactory, 
 
     public GenericTcp(BlockingQueue<Event> outQueue, Pipeline pipeline) {
         super(outQueue, pipeline);
-        server = new TcpServer();
     }
 
     public GenericTcp(BlockingQueue<Event> outQueue, Pipeline pipeline, TcpServer server) {
         super(outQueue, pipeline);
-        this.server = server;
     }
 
     protected void setServer(TcpServer server) {
@@ -38,22 +32,6 @@ public abstract class GenericTcp extends NettyIpReceiver<TcpServer, TcpFactory, 
     @Override
     protected TcpServer getServer() {
         return server;
-    }
-
-    @Override
-    public void addHandlers(ChannelPipeline pipe) {
-        ByteToMessageDecoder splitter =  getSplitter();
-        if (splitter != null) {
-            pipe.addFirst("Splitter", getSplitter());
-        }
-        super.addHandlers(pipe);
-    }
-
-    abstract protected ByteToMessageDecoder getSplitter();
-
-    @Override
-    public String getReceiverName() {
-        return "TcpReceiver/" + getListenAddress();
     }
 
     @Override

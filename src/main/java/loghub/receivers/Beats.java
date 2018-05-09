@@ -12,13 +12,13 @@ import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
-import io.netty.handler.codec.ByteToMessageDecoder;
 import io.netty.handler.timeout.IdleStateHandler;
 import io.netty.util.concurrent.DefaultEventExecutorGroup;
 import io.netty.util.concurrent.EventExecutorGroup;
 import loghub.Event;
 import loghub.Pipeline;
 import loghub.netty.CloseOnError;
+import loghub.netty.GenericTcp;
 import loghub.netty.SelfDecoder;
 
 @SelfDecoder
@@ -64,19 +64,15 @@ public class Beats extends GenericTcp {
     }
 
     @Override
-    protected ByteToMessageDecoder getSplitter() {
-        return new BeatsParser(maxPayloadSize);
-    }
-
-    @Override
     public void addHandlers(ChannelPipeline pipe) {
-        super.addHandlers(pipe);
+        pipe.addFirst("Splitter", new BeatsParser(maxPayloadSize));
         // From org.logstash.beats.Server
         // We have set a specific executor for the idle check, because the `beatsHandler` can be
         // blocked on the queue, this the idleStateHandler manage the `KeepAlive` signal.
         pipe.addBefore(idleExecutorGroup, "Splitter", "KeepAlive", new IdleStateHandler(clientInactivityTimeoutSeconds, 5, 0));
         pipe.addAfter("Splitter", "Acker", new AckEncoder());
         pipe.addAfter("Acker", "Handler", new BeatsHandler(messageListener));
+        super.addHandlers(pipe);
     }
 
     @Override
