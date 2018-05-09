@@ -53,7 +53,9 @@ public class AccessControl extends HttpFilter {
             String authorization = request.headers().get(HttpHeaderNames.AUTHORIZATION);
             if (authorization != null && ! authorization.isEmpty()) {
                 if ( authorization.toLowerCase(Locale.US).startsWith("bearer ")) {
-                    peerPrincipal = authhandler.checkJwt(authorization.substring(7));
+                    if (authhandler.isWithJwt()) {
+                        peerPrincipal = authhandler.checkJwt(authorization.substring(7));
+                    }
                 } else if ( authorization.toLowerCase(Locale.US).startsWith("basic ")) {
                     char[] content;
                     try {
@@ -77,7 +79,7 @@ public class AccessControl extends HttpFilter {
                 }
                 // Bad login/password
                 if (peerPrincipal == null) {
-                    throw new HttpRequestFailure(HttpResponseStatus.UNAUTHORIZED, "Bad authentication", Collections.singletonMap(HttpHeaderNames.WWW_AUTHENTICATE, "Basic realm=\"loghub\", charset=\\\"UTF-8\\\""));
+                    throw new HttpRequestFailure(HttpResponseStatus.UNAUTHORIZED, "Bad authentication", Collections.singletonMap(HttpHeaderNames.WWW_AUTHENTICATE, "Basic realm=\"loghub\", charset=\"UTF-8\""));
                 }
             }
         }

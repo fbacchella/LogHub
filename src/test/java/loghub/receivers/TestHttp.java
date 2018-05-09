@@ -13,10 +13,12 @@ import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.function.Consumer;
 
+import javax.management.remote.JMXPrincipal;
 import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
@@ -36,6 +38,7 @@ import loghub.Pipeline;
 import loghub.Tools;
 import loghub.configuration.Properties;
 import loghub.decoders.StringCodec;
+import loghub.security.JWTHandler;
 import loghub.security.ssl.ContextLoader;
 
 public class TestHttp {
@@ -232,7 +235,7 @@ public class TestHttp {
     }
 
     @Test
-    public void testGoodAuthentication() throws IOException {
+    public void testGoodPasswordAuthentication() throws IOException {
         makeReceiver( i -> { i.setUser("user") ; i.setPassword("password");}, Collections.emptyMap());
         URL dest = new URL("http", hostname, port, "/?a=1");
         doRequest(dest,
@@ -243,7 +246,26 @@ public class TestHttp {
                 }, 200);
         Event e = queue.poll();
         Assert.assertEquals("1", e.get("a"));
-        Assert.assertEquals("JMXPrincipal:  user", e.getConnectionContext().getPrincipal().toString());
+        Assert.assertEquals("user", e.getConnectionContext().getPrincipal().getName());
     }
 
+    @Test
+    public void testGoodJwtAuthentication() throws IOException {
+        Map<String, Object> props = new HashMap<>();
+        props.put("jwt.alg", "HMAC256");
+        String secret = UUID.randomUUID().toString();
+        props.put("jwt.secret", secret);
+        JWTHandler handler = JWTHandler.getBuilder().secret(secret).setAlg("HMAC256").build();
+        String jwtToken = handler.getToken(new JMXPrincipal("user"));
+        makeReceiver( i -> { i.setUseJwt(true); }, props);
+        URL dest = new URL("http", hostname, port, "/?a=1");
+        doRequest(dest,
+                new byte[]{},
+                i -> {
+                    i.setRequestProperty("Authorization", "Bearer " + jwtToken);
+                }, 200);
+        Event e = queue.poll();
+        Assert.assertEquals("1", e.get("a"));
+        Assert.assertEquals("user", e.getConnectionContext().getPrincipal().getName());
+    }
 }
