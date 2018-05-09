@@ -113,13 +113,18 @@ public class ElasticSearch extends AbstractHttpSender {
         }
         request.setTypeAndContent("application/json", CharsetUtil.UTF_8, content);
         request.setVerb("POST");
-        Function<JsonNode, Object> reader = node -> {
-            try {
-                return json.get().readerFor(Object.class).readValue(node);
-            } catch (IOException e) {
-                throw new UncheckedIOException(e);
-            }
-        };
+        Function<JsonNode, Object> reader;
+        try {
+            reader = node -> {
+                try {
+                    return json.get().readerFor(Object.class).readValue(node);
+                } catch (IOException e) {
+                    throw new UncheckedIOException(e);
+                }
+            };
+        } catch (UncheckedIOException e) {
+            throw e.getCause();
+        }
         return doquery(request, "/_bulk", reader, Collections.emptyMap(), null);
     }
 
@@ -134,6 +139,7 @@ public class ElasticSearch extends AbstractHttpSender {
             try {
                 if (! e.containsKey(type)) {
                     processStatus(e, CompletableFuture.completedFuture(false));
+                    logger.warn("No type field for event {}", e);
                     continue;
                 }
                 validEvents++;
