@@ -57,6 +57,7 @@ public class Start {
     // Not the smart one for web app.
     static {
         System.setProperty("Log4jContextSelector", "org.apache.logging.log4j.core.selector.BasicContextSelector");
+        System.setProperty("java.util.logging.manager", "org.apache.logging.log4j.jul.LogManager");
     }
 
     private static final Logger logger = LogManager.getLogger();

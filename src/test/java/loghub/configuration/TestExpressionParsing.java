@@ -32,7 +32,6 @@ import loghub.RouteParser.ExpressionContext;
 import loghub.Tools;
 import loghub.VarFormatter;
 import loghub.configuration.ConfigListener.ObjectWrapped;
-import loghub.receivers.Http;
 
 public class TestExpressionParsing {
 

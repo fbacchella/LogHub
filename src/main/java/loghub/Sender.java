@@ -69,7 +69,7 @@ public abstract class Sender extends Thread {
 
     public void processStatus(Event event, Future<Boolean> result) {
         try {
-            if(result.get()) {
+            if (result.get()) {
                 Stats.sent.incrementAndGet();
             } else {
                 Stats.failed.incrementAndGet();
