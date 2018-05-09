@@ -129,7 +129,7 @@ public class ZMQ extends Receiver {
 
     @Override
     public void stopReceiving() {
-        if(running) {
+        if (running && ctx.isRunning()) {
             running = false;
             stopPair[0].send(new byte[] {});
             logger.debug("Listening stopped");
