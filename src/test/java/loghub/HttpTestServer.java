@@ -3,7 +3,6 @@ package loghub;
 import java.util.Arrays;
 
 import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLEngine;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -53,13 +52,7 @@ public class HttpTestServer extends ExternalResource {
             }
 
         };
-        SSLEngine engine;
-        if (ssl != null) {
-            engine = ssl.createSSLEngine();
-        } else {
-            engine = null;
-        }
-        server = builder.setPort(this.port).setSslEngine(engine).build();
+        server = builder.setPort(this.port).setSSLContext(ssl).useSSL(ssl != null).build();
         server.configure(server);
     }
 

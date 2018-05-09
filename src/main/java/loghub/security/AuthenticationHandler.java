@@ -6,7 +6,6 @@ import java.security.Principal;
 import java.util.Arrays;
 
 import javax.management.remote.JMXPrincipal;
-import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLPeerUnverifiedException;
 import javax.net.ssl.SSLSession;
 import javax.security.auth.callback.Callback;
@@ -39,7 +38,6 @@ public class AuthenticationHandler {
         private String login;
         private char[] password;
         private boolean withSsl = false;
-        private SSLEngine engine;
         private boolean withJwt = false;
         private JWTHandler jwtHandler;
 
@@ -62,12 +60,7 @@ public class AuthenticationHandler {
                     logger.throwing(Level.DEBUG, e);
                     throw new IllegalArgumentException(String.format("'%s' is not a valide value", sslclient), e);
                 }
-                active = active || ! ClientAuthentication.NONE.equals(this.sslclient);
             }
-            return this;
-        }
-        public Builder setSslEngine(SSLEngine engine) {
-            this.engine = engine;
             return this;
         }
         public Builder setLogin(String login) {
@@ -127,7 +120,6 @@ public class AuthenticationHandler {
     private AuthenticationHandler(Builder builder) {
         if (builder.withSsl) {
             this.sslclient = builder.sslclient;
-            builder.sslclient.configureEngine(builder.engine);
         } else {
             this.sslclient = ClientAuthentication.NONE;
         }
@@ -231,10 +223,6 @@ public class AuthenticationHandler {
 
     public boolean isWithJwt() {
         return jwtHandler != null;
-    }
-
-    public boolean canAuthenticateClient() {
-        return sslclient != ClientAuthentication.NONE;
     }
 
     public ClientAuthentication getClientAuthentication() {

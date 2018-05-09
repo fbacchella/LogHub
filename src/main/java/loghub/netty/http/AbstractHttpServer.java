@@ -4,7 +4,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 
-import javax.net.ssl.SSLEngine;
+import javax.net.ssl.SSLContext;
 
 import org.apache.logging.log4j.Level;
 
@@ -24,17 +24,21 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.stream.ChunkedWriteHandler;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import loghub.Helpers;
 import loghub.netty.ChannelConsumer;
 import loghub.netty.servers.TcpServer;
 import loghub.security.AuthenticationHandler;
+import loghub.security.ssl.ClientAuthentication;
 
 public abstract class AbstractHttpServer extends TcpServer implements ChannelConsumer<ServerBootstrap, ServerChannel, InetSocketAddress> {
 
     public abstract static class Builder<S extends AbstractHttpServer> {
         private int port = -1;
         private String host = null;
-        private SSLEngine sslEngine = null;
+        private SSLContext sslctx = null;
         private AuthenticationHandler authHandler = null;
+        private boolean useSSL = false;
+        private ClientAuthentication sslClientAuthentication = ClientAuthentication.NONE;
         protected Builder() {
         }
 
@@ -46,8 +50,16 @@ public abstract class AbstractHttpServer extends TcpServer implements ChannelCon
             this.port = port;
             return this;
         }
-        public Builder<S> setSslEngine(SSLEngine sslEngine) {
-            this.sslEngine = sslEngine;
+        public Builder<S> setSSLContext(SSLContext sslctx) {
+            this.sslctx = sslctx;
+            return this;
+        }
+        public Builder<S> useSSL(boolean useSSL) {
+            this.useSSL = useSSL;
+            return this;
+        }
+        public Builder<S> setSSLClientAuthentication(ClientAuthentication sslClientAuthentication) {
+            this.sslClientAuthentication = sslClientAuthentication;
             return this;
         }
         public Builder<S> setAuthHandler(AuthenticationHandler authHandler) {
@@ -64,13 +76,13 @@ public abstract class AbstractHttpServer extends TcpServer implements ChannelCon
     private final AuthenticationHandler authHandler;
 
     protected AbstractHttpServer(Builder<?> builder) {
-        if (builder.sslEngine != null) {
-            setEngine(builder.sslEngine);
-        }
         port = builder.port;
         host = builder.host;
         authHandler = builder.authHandler;
-
+        if (builder.useSSL) {
+            setSSLContext(builder.sslctx);
+            setSslClientAuthentication(builder.sslClientAuthentication);
+        }
     }
 
     @Override
@@ -94,14 +106,14 @@ public abstract class AbstractHttpServer extends TcpServer implements ChannelCon
             p.addAfter("HttpObjectAggregator", "BrokenConfigHandler", getFatalErrorHandler());
         }
         p.addLast(NOTFOUND);
-        if (getEngine() != null) {
+        if (isWithSSL()) {
             addSslHandler(p, getEngine());
         }
     }
 
     @Override
     public void exception(ChannelHandlerContext ctx, Throwable cause) {
-        logger.error("Unable to process query: {}", cause.getMessage());
+        logger.error("Unable to process query: {}", Helpers.resolveThrowableException(cause));
         logger.catching(Level.DEBUG, cause);
         ctx.pipeline().addFirst(getFatalErrorHandler());
     }

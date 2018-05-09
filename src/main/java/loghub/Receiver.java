@@ -6,8 +6,6 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.BlockingQueue;
 
-import javax.net.ssl.SSLEngine;
-
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -42,7 +40,6 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
 
     private AuthenticationHandler authHandler = null;
     private boolean withSsl = false;
-    private SSLEngine engine = null;
     private String sslclient = ClientAuthentication.NONE.name();
     private String jaasName = null;
     private String user = null;
@@ -74,17 +71,10 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
         }
     }
 
-    protected SSLEngine getEngine(Properties properties) {
-        if (engine == null && withSsl) {
-            engine = properties.ssl.createSSLEngine();
-        }
-        return engine;
-    }
-
     protected AuthenticationHandler getAuthHandler(Properties properties) {
         if (authHandler == null) {
             authHandler = AuthenticationHandler.getBuilder()
-                    .setSslEngine(getEngine(properties)).setSslClientAuthentication(sslclient).useSsl(withSsl)
+                    .setSslClientAuthentication(sslclient).useSsl(withSsl)
                     .setLogin(user).setPassword(password != null ? password.toCharArray() : null)
                     .setJaasName(jaasName).setJaasConfig(properties.jaasConfig)
                     .setJwtHandler(useJwt ? properties.jwtHandler :null)
@@ -277,10 +267,6 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
      */
     public void setWithSsl(boolean withSsl) {
         this.withSsl = withSsl;
-    }
-
-    public SSLEngine getEngine() {
-        return engine;
     }
 
     /**

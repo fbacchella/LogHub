@@ -46,7 +46,7 @@ public class TestHttp {
     static public void configure() throws IOException {
         Tools.configure();
         logger = LogManager.getLogger();
-        LogUtils.setLevel(logger, Level.TRACE, "loghub.receivers.Http", "loghub.netty", "loghub.EventsProcessor", "loghub.security");
+        LogUtils.setLevel(logger, Level.TRACE, "loghub.receivers.Http", "loghub.netty", "loghub.EventsProcessor", "loghub.security", "loghub.netty.http");
     }
 
     private Http receiver = null;
@@ -150,6 +150,10 @@ public class TestHttp {
         String a = (String) e.get("a");
         Assert.assertEquals("1", a);
         Assert.assertEquals("CN=localhost", e.getConnectionContext().getPrincipal().toString());
+        // Test that ssl state is still good
+        doRequest(new URL("https", hostname, port, "/?a=1"),
+                new byte[]{},
+                i -> {}, 200);
     }
 
     @Test

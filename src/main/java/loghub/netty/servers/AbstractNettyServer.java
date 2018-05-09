@@ -4,6 +4,7 @@ import java.net.SocketAddress;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ThreadFactory;
 
+import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLSession;
 
@@ -24,6 +25,7 @@ import loghub.Helpers;
 import loghub.netty.ChannelConsumer;
 import loghub.netty.ComponentFactory;
 import loghub.netty.POLLER;
+import loghub.security.ssl.ClientAuthentication;
 
 /**
  * @author fa4
@@ -49,7 +51,8 @@ public abstract class AbstractNettyServer<CF extends ComponentFactory<BS, BSC, S
     protected POLLER poller = POLLER.NIO;
     private int threadsCount;
     private ThreadFactory threadFactory;
-    private SSLEngine engine = null;
+    private SSLContext sslctx = null;
+    private ClientAuthentication sslClientAuthentication = null;
 
     public AbstractNettyServer() {
         logger = LogManager.getLogger(Helpers.getFistInitClass());
@@ -135,12 +138,32 @@ public abstract class AbstractNettyServer<CF extends ComponentFactory<BS, BSC, S
     }
 
     public SSLEngine getEngine() {
+        SSLEngine engine = sslctx.createSSLEngine();
+        engine.setUseClientMode(false);
+        sslClientAuthentication.configureEngine(engine);
         return engine;
     }
 
-    public void setEngine(SSLEngine engine) {
-        this.engine = engine;
-        this.engine.setUseClientMode(false);
+    public void setSSLContext(SSLContext sslctx) {
+        this.sslctx = sslctx;
+    }
+
+    public boolean isWithSSL() {
+        return sslctx != null;
+    }
+
+    /**
+     * @return the sslClientAuthentication
+     */
+    public ClientAuthentication getSslClientAuthentication() {
+        return sslClientAuthentication;
+    }
+
+    /**
+     * @param sslClientAuthentication the sslClientAuthentication to set
+     */
+    public void setSslClientAuthentication(ClientAuthentication sslClientAuthentication) {
+        this.sslClientAuthentication = sslClientAuthentication;
     }
 
 }

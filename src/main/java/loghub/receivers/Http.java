@@ -37,6 +37,7 @@ import loghub.netty.http.HttpRequestProcessing;
 import loghub.netty.http.NoCache;
 import loghub.netty.http.RequestAccept;
 import loghub.processors.ParseJson;
+import loghub.security.ssl.ClientAuthentication;
 
 public class Http extends GenericTcp {
 
@@ -151,7 +152,7 @@ public class Http extends GenericTcp {
         webserver = new Builder()
                 .setAuthHandler(getAuthHandler(properties))
                 .setPort(getPort()).setHost(getHost())
-                .setSslEngine(getEngine(properties))
+                .setSSLContext(properties.ssl).useSSL(isWithSsl()).setSSLClientAuthentication(ClientAuthentication.valueOf(getSslClientAuthentication().toUpperCase()))
                 .build();
         setServer(webserver);
         return super.configure(properties);

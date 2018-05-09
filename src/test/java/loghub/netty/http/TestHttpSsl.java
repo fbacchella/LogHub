@@ -131,7 +131,6 @@ public class TestHttpSsl {
         cnx.connect();
         Assert.assertEquals("CN=localhost", cnx.getPeerPrincipal().getName());
         try(Scanner s = new Scanner(cnx.getInputStream())) {
-            System.out.println(s);
             s.skip(".*");
         }
     }

@@ -23,7 +23,6 @@ import javax.management.MBeanServer;
 import javax.management.MalformedObjectNameException;
 import javax.management.ObjectName;
 import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLEngine;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -336,26 +335,24 @@ public class Properties extends HashMap<String, Object> {
         if (port < 0) {
             return null;
         } else {
-            SSLEngine engine;
             boolean useSSL;
             String clientAuthentication;
             if (Boolean.TRUE.equals(collect.get("ssl"))) {
-                engine = this.ssl.createSSLEngine();
                 useSSL = true;
                 clientAuthentication = collect.compute("sslClientAuthentication", (i, j) -> j != null ? j : ClientAuthentication.NOTNEEDED).toString();
             } else {
-                engine = null;
                 useSSL = false;
                 clientAuthentication = ClientAuthentication.NONE.name();
             }
             AuthenticationHandler authHandler = AuthenticationHandler.getBuilder()
-                    .useSsl(useSSL).setSslEngine(engine).setSslClientAuthentication(clientAuthentication)
-                    .useJwt((Boolean) collect.compute("jwt", (i,j) -> Boolean.TRUE.equals(j))).setJwtHandler(this.jwtHandler)
-                    .setJaasName(collect.compute("jaasName", (i,j) -> j != null ? j : "").toString()).setJaasConfig(this.jaasConfig)
+                    .useSsl(useSSL).setSslClientAuthentication(clientAuthentication)
+                    .useJwt((Boolean) collect.compute("jwt", (i,j) -> Boolean.TRUE.equals(j))).setJwtHandler(jwtHandler)
+                    .setJaasName(collect.compute("jaasName", (i,j) -> j != null ? j : "").toString()).setJaasConfig(jaasConfig)
                     .build();
             return DashboardHttpServer.getBuilder()
                     .setPort(port)
-                    .setSslEngine(engine).setAuthHandler(authHandler);
+                    .setSSLContext(ssl).useSSL(useSSL)
+                    .setAuthHandler(authHandler);
         }
     }
 
