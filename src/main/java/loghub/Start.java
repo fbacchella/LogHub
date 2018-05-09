@@ -227,7 +227,9 @@ public class Start {
                 | InstanceAlreadyExistsException | MBeanRegistrationException e) {
             throw new RuntimeException("jmx configuration failed: " + e.getMessage(), e);
         }
-        props.dashboardBuilder.build();
+        if (props.dashboardBuilder != null) {
+            props.dashboardBuilder.build().start();
+        }
     }
 
 }

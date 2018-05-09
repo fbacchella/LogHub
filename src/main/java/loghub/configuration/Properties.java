@@ -161,7 +161,6 @@ public class Properties extends HashMap<String, Object> {
     public final BlockingQueue<Event> mainQueue;
     public final Map<String, BlockingQueue<Event>> outputQueues;
     public final int queuesDepth;
-    public final int httpPort;
     public final int maxSteps;
     public final EventsRepository<Future<?>> repository;
     public final SSLContext ssl;
@@ -273,17 +272,11 @@ public class Properties extends HashMap<String, Object> {
             maxSteps = 128;
         }
 
-        if (properties.containsKey("http.port")) {
-            httpPort = (Integer) properties.remove("http.port");
-        } else {
-            httpPort = -1;
-        }
-
         ssl = ContextLoader.build(properties.entrySet().stream().filter(i -> i.getKey().startsWith("ssl.")).collect(Collectors.toMap( i -> i.getKey().substring(4), j -> j.getValue())));
 
         jwtHandler = buildJwtAlgorithm(properties.entrySet().stream().filter(i -> i.getKey().startsWith("jwt.")).collect(Collectors.toMap( i -> i.getKey().substring(4), j -> j.getValue())));
 
-        dashboardBuilder = buildDashboad(properties.entrySet().stream().filter(i -> i.getKey().startsWith("http.")).collect(Collectors.toMap( i -> i.getKey().substring(4), j -> j.getValue())));
+        dashboardBuilder = buildDashboad(properties.entrySet().stream().filter(i -> i.getKey().startsWith("http.")).collect(Collectors.toMap( i -> i.getKey().substring(5), j -> j.getValue())));
 
         javax.security.auth.login.Configuration jc = null;
         if (properties.containsKey("jaasConfig")) {
@@ -334,31 +327,36 @@ public class Properties extends HashMap<String, Object> {
     }
 
     private Builder<DashboardHttpServer> buildDashboad(Map<Object, Object> collect) {
-        SSLEngine engine;
-        boolean useSSL;
-        String clientAuthentication;
-        if (Boolean.TRUE.equals(collect.get("ssl"))) {
-            engine = this.ssl.createSSLEngine();
-            useSSL = true;
-            clientAuthentication = collect.compute("sslClientAuthentication", (i, j) -> j != null ? j : ClientAuthentication.NOTNEEDED).toString();
+        int port = (Integer) collect.compute("port", (i,j) -> {
+            if (j != null && ! (j instanceof Integer)) {
+                throw new IllegalArgumentException("http dasbhoard port is not an integer");
+            }
+            return j != null ? j : -1;
+        });
+        if (port < 0) {
+            return null;
         } else {
-            engine = null;
-            useSSL = false;
-            clientAuthentication = ClientAuthentication.NONE.name();
+            SSLEngine engine;
+            boolean useSSL;
+            String clientAuthentication;
+            if (Boolean.TRUE.equals(collect.get("ssl"))) {
+                engine = this.ssl.createSSLEngine();
+                useSSL = true;
+                clientAuthentication = collect.compute("sslClientAuthentication", (i, j) -> j != null ? j : ClientAuthentication.NOTNEEDED).toString();
+            } else {
+                engine = null;
+                useSSL = false;
+                clientAuthentication = ClientAuthentication.NONE.name();
+            }
+            AuthenticationHandler authHandler = AuthenticationHandler.getBuilder()
+                    .useSsl(useSSL).setSslEngine(engine).setSslClientAuthentication(clientAuthentication)
+                    .useJwt((Boolean) collect.compute("jwt", (i,j) -> Boolean.TRUE.equals(j))).setJwtHandler(this.jwtHandler)
+                    .setJaasName(collect.compute("jaasName", (i,j) -> j != null ? j : "").toString()).setJaasConfig(this.jaasConfig)
+                    .build();
+            return DashboardHttpServer.getBuilder()
+                    .setPort(port)
+                    .setSslEngine(engine).setAuthHandler(authHandler);
         }
-        AuthenticationHandler authHandler = AuthenticationHandler.getBuilder()
-                .useSsl(useSSL).setSslEngine(engine).setSslClientAuthentication(clientAuthentication)
-                .useJwt((Boolean) collect.compute("jwt", (i,j) -> Boolean.TRUE.equals(j))).setJwtHandler(this.jwtHandler)
-                .setJaasName(collect.compute("jaasName", (i,j) -> j != null ? j : "").toString()).setJaasConfig(this.jaasConfig)
-                .build();
-        return DashboardHttpServer.getBuilder()
-                .setPort((Integer) collect.compute("port", (i,j) -> {
-                    if (j != null && ! (j instanceof Integer)) {
-                        throw new IllegalArgumentException("http dasbhoard port is not an integer");
-                    }
-                    return j != null ? j : -1;
-                }))
-                .setSslEngine(engine).setAuthHandler(authHandler);
     }
 
     private JWTHandler buildJwtAlgorithm(Map<String, Object> properties) {

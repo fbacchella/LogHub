@@ -41,6 +41,10 @@ public class DashboardHttpServer extends AbstractHttpServer {
         }
     }
 
+    public void start() {
+        configure(this);
+    }
+    
     @Override
     public void addModelHandlers(ChannelPipeline p) {
         p.addLast(ROOTREDIRECT);
