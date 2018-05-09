@@ -45,7 +45,7 @@ public class TestHttpJwt {
         String secret = UUID.randomUUID().toString();
         JWTHandler jwtHandler = JWTHandler.getBuilder().setAlg("HMAC256").secret(secret).build();
         AuthenticationHandler auhtHandler = AuthenticationHandler.getBuilder()
-                .setJwtHandler(jwtHandler)
+                .setJwtHandler(jwtHandler).useJwt(true)
                 .setLogin("user").setPassword("password".toCharArray())
                 .build();
         serverPort = Tools.tryGetPort();

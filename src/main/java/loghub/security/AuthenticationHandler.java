@@ -91,7 +91,7 @@ public class AuthenticationHandler {
         }
         public Builder useJwt(boolean useJwt) {
             active = active || useJwt;
-            withSsl = useJwt;
+            withJwt = useJwt;
             return this;
         }
         public Builder setJwtHandler(JWTHandler handler) {
@@ -152,7 +152,6 @@ public class AuthenticationHandler {
         } else {
             this.jwtHandler = null;
         }
-
     }
 
     public Principal checkSslClient(SSLSession sess) throws GeneralSecurityException {
