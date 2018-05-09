@@ -38,7 +38,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import loghub.Helpers;
-import loghub.ssl.MultiKeyStore.SubKeyStore;
+import loghub.security.ssl.MultiKeyStore.SubKeyStore;
 
 public class MultiKeyStoreSpi extends KeyStoreSpi {
 
