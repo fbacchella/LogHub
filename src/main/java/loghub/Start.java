@@ -227,12 +227,7 @@ public class Start {
                 | InstanceAlreadyExistsException | MBeanRegistrationException e) {
             throw new RuntimeException("jmx configuration failed: " + e.getMessage(), e);
         }
-
-        if (props.httpPort >= 0) {
-            DashboardHttpServer server = new DashboardHttpServer();
-            server.setPort(props.httpPort);
-            server.configure(props);
-        }
+        props.dashboardBuilder.build();
     }
 
 }

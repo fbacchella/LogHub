@@ -4,6 +4,8 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 
+import javax.net.ssl.SSLEngine;
+
 import org.apache.logging.log4j.Level;
 
 import io.netty.bootstrap.ServerBootstrap;
@@ -24,13 +26,52 @@ import io.netty.handler.stream.ChunkedWriteHandler;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import loghub.netty.ChannelConsumer;
 import loghub.netty.servers.TcpServer;
+import loghub.security.AuthenticationHandler;
 
 public abstract class AbstractHttpServer extends TcpServer implements ChannelConsumer<ServerBootstrap, ServerChannel, InetSocketAddress> {
 
+    public abstract static class Builder<S extends AbstractHttpServer> {
+        private int port = -1;
+        private String host = null;
+        private SSLEngine sslEngine = null;
+        private AuthenticationHandler authHandler = null;
+        protected Builder() {
+        }
+
+        public Builder<S> setHost(String host) {
+            this.host = host != null && !host.isEmpty() ? host : null;
+            return this;
+        }
+        public Builder<S> setPort(int port) {
+            this.port = port;
+            return this;
+        }
+        public Builder<S> setSslEngine(SSLEngine sslEngine) {
+            this.sslEngine = sslEngine;
+            return this;
+        }
+        public Builder<S> setAuthHandler(AuthenticationHandler authHandler) {
+            this.authHandler = authHandler;
+            return this;
+        }
+        public abstract S build();
+    }
+
     private final SimpleChannelInboundHandler<FullHttpRequest> NOTFOUND = new NotFound();
 
-    private int port;
-    private String host = null;
+    private final int port;
+    private final String host;
+    private final AuthenticationHandler authHandler;
+
+    protected AbstractHttpServer(Builder<?> builder) {
+        if (builder.sslEngine != null) {
+            setEngine(builder.sslEngine);
+        }
+        port = builder.port;
+        host = builder.host;
+        authHandler = builder.authHandler;
+
+    }
 
     @Override
     public boolean configure(ChannelConsumer<ServerBootstrap, ServerChannel, InetSocketAddress> consumer) {
@@ -53,6 +94,9 @@ public abstract class AbstractHttpServer extends TcpServer implements ChannelCon
             p.addAfter("HttpObjectAggregator", "BrokenConfigHandler", getFatalErrorHandler());
         }
         p.addLast(NOTFOUND);
+        if (getEngine() != null) {
+            addSslHandler(p, getEngine());
+        }
     }
 
     @Override
@@ -105,22 +149,14 @@ public abstract class AbstractHttpServer extends TcpServer implements ChannelCon
     }
 
     /**
-     * @param port the port to set
-     */
-    public void setPort(int port) {
-        this.port = port;
-    }
-
-    /**
      * @return the host
      */
     public String getHost() {
         return host;
     }
 
-    public void setHost(String host) throws UnknownHostException {
-        // Ensure host is null if given empty string, to be resolved as "bind *" by InetSocketAddress;
-        this.host = host != null && !host.isEmpty() ? host : null;
+    public AuthenticationHandler getAuthHandler() {
+        return authHandler;
     }
 
 }

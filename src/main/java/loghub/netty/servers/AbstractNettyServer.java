@@ -49,6 +49,7 @@ public abstract class AbstractNettyServer<CF extends ComponentFactory<BS, BSC, S
     protected POLLER poller = POLLER.NIO;
     private int threadsCount;
     private ThreadFactory threadFactory;
+    private SSLEngine engine = null;
 
     public AbstractNettyServer() {
         logger = LogManager.getLogger(Helpers.getFistInitClass());
@@ -131,6 +132,15 @@ public abstract class AbstractNettyServer<CF extends ComponentFactory<BS, BSC, S
 
     public void setThreadFactory(ThreadFactory threadsFactory) {
         this.threadFactory = threadsFactory;
+    }
+
+    public SSLEngine getEngine() {
+        return engine;
+    }
+
+    public void setEngine(SSLEngine engine) {
+        this.engine = engine;
+        this.engine.setUseClientMode(false);
     }
 
 }

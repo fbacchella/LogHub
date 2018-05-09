@@ -14,6 +14,7 @@ import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.function.BiFunction;
+import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -22,10 +23,10 @@ import javax.management.MBeanServer;
 import javax.management.MalformedObjectNameException;
 import javax.management.ObjectName;
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLEngine;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.LoggerContext;
 
 import com.codahale.metrics.Counter;
@@ -40,6 +41,7 @@ import com.codahale.metrics.jmx.ObjectNameFactory;
 
 import groovy.lang.GroovyClassLoader;
 import io.netty.util.concurrent.Future;
+import loghub.DashboardHttpServer;
 import loghub.Event;
 import loghub.EventsRepository;
 import loghub.PausingTimer;
@@ -52,6 +54,9 @@ import loghub.ThreadBuilder;
 import loghub.VarFormatter;
 import loghub.jmx.Helper;
 import loghub.jmx.Helper.PROTOCOL;
+import loghub.netty.http.AbstractHttpServer.Builder;
+import loghub.security.AuthenticationHandler;
+import loghub.security.JWTHandler;
 import loghub.security.ssl.ClientAuthentication;
 import loghub.security.ssl.ContextLoader;
 import net.sf.ehcache.Cache;
@@ -122,8 +127,6 @@ public class Properties extends HashMap<String, Object> {
 
     public static final MetricRegistryWrapper metrics = new MetricRegistryWrapper();
 
-    private static final Logger logger = LogManager.getLogger();
-
     enum PROPSNAMES {
         CLASSLOADERNAME,
         NAMEDPIPELINES,
@@ -163,6 +166,8 @@ public class Properties extends HashMap<String, Object> {
     public final EventsRepository<Future<?>> repository;
     public final SSLContext ssl;
     public final javax.security.auth.login.Configuration jaasConfig;
+    public final JWTHandler jwtHandler;
+    public final Builder<DashboardHttpServer> dashboardBuilder;
 
     public static final Timer timer = new Timer("loghubtimer", true);
     private final CacheManager cacheManager;
@@ -276,6 +281,10 @@ public class Properties extends HashMap<String, Object> {
 
         ssl = ContextLoader.build(properties.entrySet().stream().filter(i -> i.getKey().startsWith("ssl.")).collect(Collectors.toMap( i -> i.getKey().substring(4), j -> j.getValue())));
 
+        jwtHandler = buildJwtAlgorithm(properties.entrySet().stream().filter(i -> i.getKey().startsWith("jwt.")).collect(Collectors.toMap( i -> i.getKey().substring(4), j -> j.getValue())));
+
+        dashboardBuilder = buildDashboad(properties.entrySet().stream().filter(i -> i.getKey().startsWith("http.")).collect(Collectors.toMap( i -> i.getKey().substring(4), j -> j.getValue())));
+
         javax.security.auth.login.Configuration jc = null;
         if (properties.containsKey("jaasConfig")) {
             String jaasConfigFilePath = (String) properties.remove("jaasConfig");
@@ -322,6 +331,40 @@ public class Properties extends HashMap<String, Object> {
         repository = new EventsRepository<Future<?>>(this);
 
         super.putAll(properties);
+    }
+
+    private Builder<DashboardHttpServer> buildDashboad(Map<Object, Object> collect) {
+        SSLEngine engine;
+        boolean useSSL;
+        String clientAuthentication;
+        if (Boolean.TRUE.equals(collect.get("ssl"))) {
+            engine = this.ssl.createSSLEngine();
+            useSSL = true;
+            clientAuthentication = collect.compute("sslClientAuthentication", (i, j) -> j != null ? j : ClientAuthentication.NOTNEEDED).toString();
+        } else {
+            engine = null;
+            useSSL = false;
+            clientAuthentication = ClientAuthentication.NONE.name();
+        }
+        AuthenticationHandler authHandler = AuthenticationHandler.getBuilder()
+                .useSsl(useSSL).setSslEngine(engine).setSslClientAuthentication(clientAuthentication)
+                .useJwt((Boolean) collect.compute("jwt", (i,j) -> Boolean.TRUE.equals(j))).setJwtHandler(this.jwtHandler)
+                .setJaasName(collect.compute("jaasName", (i,j) -> j != null ? j : "").toString()).setJaasConfig(this.jaasConfig)
+                .build();
+        return DashboardHttpServer.getBuilder()
+                .setPort((Integer) collect.compute("port", (i,j) -> {
+                    if (j != null && ! (j instanceof Integer)) {
+                        throw new IllegalArgumentException("http dasbhoard port is not an integer");
+                    }
+                    return j != null ? j : -1;
+                }))
+                .setSslEngine(engine).setAuthHandler(authHandler);
+    }
+
+    private JWTHandler buildJwtAlgorithm(Map<String, Object> properties) {
+        Function<Object, String> stringOrNull = k -> (properties.get(k) != null ) ? properties.get(k) .toString() : null;
+        return JWTHandler.getBuilder()
+                .secret(stringOrNull.apply("secret")).setAlg(stringOrNull.apply("alg")).build();
     }
 
     public Cache getCache(int size, String name, Object parent) {

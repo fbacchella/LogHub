@@ -52,9 +52,9 @@ public class AccessControl extends HttpFilter {
         if (peerPrincipal == null) {
             String authorization = request.headers().get(HttpHeaderNames.AUTHORIZATION);
             if (authorization != null && ! authorization.isEmpty()) {
-                if (! authorization.toLowerCase(Locale.US).startsWith("basic ")) {
-                    throw new HttpRequestFailure(HttpResponseStatus.BAD_REQUEST, "Invalid authentication scheme", Collections.emptyMap());
-                } else {
+                if ( authorization.toLowerCase(Locale.US).startsWith("bearer ")) {
+                    peerPrincipal = authhandler.checkJwt(authorization.substring(7));
+                } else if ( authorization.toLowerCase(Locale.US).startsWith("basic ")) {
                     char[] content;
                     try {
                         byte[] decoded = Base64.getDecoder().decode(authorization.substring(6));

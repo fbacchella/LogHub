@@ -46,7 +46,7 @@ public class TestHttp {
     static public void configure() throws IOException {
         Tools.configure();
         logger = LogManager.getLogger();
-        LogUtils.setLevel(logger, Level.TRACE, "loghub.receivers.Http", "loghub.Receiver", "loghub.netty", "loghub.EventsProcessor", "loghub.ssl");
+        LogUtils.setLevel(logger, Level.TRACE, "loghub.receivers.Http", "loghub.netty", "loghub.EventsProcessor", "loghub.security");
     }
 
     private Http receiver = null;

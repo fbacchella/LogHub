@@ -156,7 +156,7 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
     public void addHandlers(ChannelPipeline p) {
         p.addFirst("SourceResolver", extractor);
         if (isWithSsl()) {
-            server.addSslHandler(p, engine);
+            server.addSslHandler(p, getEngine());
         }
         if (! selfDecoder) {
             p.addLast("MessageDecoder", getNettyDecoder());

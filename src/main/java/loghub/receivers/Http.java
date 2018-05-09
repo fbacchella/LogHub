@@ -1,7 +1,6 @@
 package loghub.receivers;
 
 import java.net.InetSocketAddress;
-import java.net.UnknownHostException;
 import java.nio.charset.Charset;
 import java.nio.charset.IllegalCharsetNameException;
 import java.nio.charset.StandardCharsets;
@@ -15,15 +14,11 @@ import java.util.stream.Collectors;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import io.netty.channel.ChannelHandler.Sharable;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.ServerChannel;
-import io.netty.handler.codec.ByteToMessageDecoder;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpMethod;
-import io.netty.handler.codec.http.HttpRequest;
-import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.QueryStringDecoder;
@@ -33,30 +28,24 @@ import loghub.Pipeline;
 import loghub.ProcessorException;
 import loghub.configuration.Properties;
 import loghub.netty.ChannelConsumer;
+import loghub.netty.GenericTcp;
 import loghub.netty.http.AbstractHttpServer;
 import loghub.netty.http.AccessControl;
+import loghub.netty.http.ContentType;
 import loghub.netty.http.HttpRequestFailure;
 import loghub.netty.http.HttpRequestProcessing;
 import loghub.netty.http.NoCache;
+import loghub.netty.http.RequestAccept;
 import loghub.processors.ParseJson;
 
 public class Http extends GenericTcp {
 
     private static final ParseJson jsonParser = new ParseJson();
 
-    @Sharable
     @NoCache
+    @RequestAccept(methods= {"GET", "PUT", "POST"})
+    @ContentType("application/json; charset=utf-8")
     private class PostHandler extends HttpRequestProcessing {
-
-        @Override
-        public boolean acceptRequest(HttpRequest request) {
-            int rmethodhash = request.method().hashCode();
-            if (HttpMethod.GET.hashCode() == rmethodhash || HttpMethod.PUT.hashCode() == rmethodhash || HttpMethod.POST.hashCode() == rmethodhash) {
-                return true;
-            } else {
-                return false;
-            }
-        }
 
         @Override
         protected boolean processRequest(FullHttpRequest request, ChannelHandlerContext ctx) throws HttpRequestFailure {
@@ -126,50 +115,46 @@ public class Http extends GenericTcp {
             return writeResponse(ctx, request, content, content.readableBytes());
         }
 
-        @Override
-        protected String getContentType(HttpRequest request, HttpResponse response) {
-            return "application/json; charset=utf-8";
-        }
-
     };
 
     private final PostHandler recepter = new PostHandler();
-    private final AbstractHttpServer webserver = new AbstractHttpServer() {
-        @Override
-        public void addHandlers(ChannelPipeline p) {
-            super.addHandlers(p);
-            Http.this.addHandlers(p);
+    private class HttpReceiverServer extends AbstractHttpServer {
+        protected HttpReceiverServer(Builder<?> builder) {
+            super(builder);
         }
 
         @Override
         public void addModelHandlers(ChannelPipeline p) {
-            if (Http.this.authHandler != null) {
-                p.addLast("authentication", new AccessControl(Http.this.authHandler));
+            if (getAuthHandler() != null) {
+                p.addLast("authentication", new AccessControl(getAuthHandler()));
                 logger.debug("Added authentication");
             }
             p.addLast("recepter", recepter);
         }
+    }
 
-    };
+    private class Builder extends AbstractHttpServer.Builder<HttpReceiverServer> {
+        @Override
+        public HttpReceiverServer build() {
+            return new HttpReceiverServer(this);
+        }
+    }
 
-    private int port;
-    private String host = null;
+    private HttpReceiverServer webserver;
 
     public Http(BlockingQueue<Event> outQueue, Pipeline pipeline) {
         super(outQueue, pipeline, null);
-        setServer(webserver);
     }
 
     @Override
     public boolean configure(Properties properties) {
-        try {
-            webserver.setPort(getPort());
-            webserver.setHost(getHost());
-            return super.configure(properties);
-        } catch (UnknownHostException e) {
-            logger.error("Unknow host to bind: {}", host);
-            return false;
-        }
+        webserver = new Builder()
+                .setAuthHandler(getAuthHandler(properties))
+                .setPort(getPort()).setHost(getHost())
+                .setSslEngine(getEngine(properties))
+                .build();
+        setServer(webserver);
+        return super.configure(properties);
     }
 
     @Override
@@ -180,34 +165,6 @@ public class Http extends GenericTcp {
     @Override
     public String getReceiverName() {
         return "HTTP/" + getPort();
-    }
-
-    public int getPort() {
-        return port;
-    }
-
-    public void setPort(int port) {
-        this.port = port;
-    }
-
-    /**
-     * @return the host
-     */
-    public String getHost() {
-        return host;
-    }
-
-    /**
-     * @param host the host to set
-     */
-    public void setHost(String host) {
-        // Ensure host is null if given empty string, to be resolved as "bind *" by InetSocketAddress;
-        this.host = host != null && !host.isEmpty() ? host : null;
-    }
-
-    @Override
-    protected ByteToMessageDecoder getSplitter() {
-        return null;
     }
 
     public Object getDecoders() {

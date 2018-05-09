@@ -19,6 +19,7 @@ import loghub.Decoder.DecodeException;
 import loghub.configuration.Properties;
 import loghub.receivers.Blocking;
 import loghub.security.AuthenticationHandler;
+import loghub.security.ssl.ClientAuthentication;
 
 public abstract class Receiver extends Thread implements Iterator<Event> {
 
@@ -39,13 +40,14 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
 
     protected final Logger logger;
 
-    protected AuthenticationHandler authHandler = null;
+    private AuthenticationHandler authHandler = null;
     private boolean withSsl = false;
-    protected SSLEngine engine = null;
-    private String sslclient = null;
+    private SSLEngine engine = null;
+    private String sslclient = ClientAuthentication.NONE.name();
     private String jaasName = null;
     private String user = null;
     private String password = null;
+    private boolean useJwt = false;
 
     private final BlockingQueue<Event> outQueue;
     private final Pipeline pipeline;
@@ -64,17 +66,31 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
     public boolean configure(Properties properties) {
         setName("receiver-" + getReceiverName());
         count = Properties.metrics.meter("receiver." + getReceiverName());
-        authHandler = AuthenticationHandler.getBuilder()
-                .setSslContext(properties.ssl).setSslClientAuthentication(sslclient).useSsl(withSsl)
-                .setLogin(user).setPassword(password != null ? password.toCharArray() : null)
-                .setJaasName(jaasName)
-                .build();
         if (decoder != null) {
             return decoder.configure(properties, this);
         } else {
             logger.error("Missing decoder");
             return false;
         }
+    }
+
+    protected SSLEngine getEngine(Properties properties) {
+        if (engine == null && withSsl) {
+            engine = properties.ssl.createSSLEngine();
+        }
+        return engine;
+    }
+
+    protected AuthenticationHandler getAuthHandler(Properties properties) {
+        if (authHandler == null) {
+            authHandler = AuthenticationHandler.getBuilder()
+                    .setSslEngine(getEngine(properties)).setSslClientAuthentication(sslclient).useSsl(withSsl)
+                    .setLogin(user).setPassword(password != null ? password.toCharArray() : null)
+                    .setJaasName(jaasName).setJaasConfig(properties.jaasConfig)
+                    .setJwtHandler(useJwt ? properties.jwtHandler :null)
+                    .build();
+        }
+        return authHandler;
     }
 
     /**
@@ -263,6 +279,10 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
         this.withSsl = withSsl;
     }
 
+    public SSLEngine getEngine() {
+        return engine;
+    }
+
     /**
      * @return the sslclient
      */
@@ -303,6 +323,20 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
 
     public void setPassword(String password) {
         this.password = password;
+    }
+
+    /**
+     * @return the useJwt
+     */
+    public boolean isUseJwt() {
+        return useJwt;
+    }
+
+    /**
+     * @param useJwt the useJwt to set
+     */
+    public void setUseJwt(boolean useJwt) {
+        this.useJwt = useJwt;
     }
 
 }

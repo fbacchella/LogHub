@@ -30,27 +30,36 @@ public class HttpTestServer extends ExternalResource {
         this.port = port;
     }
 
+    private class CustomServer extends AbstractHttpServer {
+
+        protected CustomServer(Builder<CustomServer> builder) {
+            super(builder);
+        }
+
+        @Override
+        public void addModelHandlers(ChannelPipeline p) {
+            Arrays.stream(handlers).forEach( i-> p.addLast(i));
+        }
+
+    }
+
     @Override
     protected void before() throws Throwable {
-        server = new AbstractHttpServer() {
+        AbstractHttpServer.Builder<CustomServer> builder = new AbstractHttpServer.Builder<CustomServer>() {
 
             @Override
-            public void addHandlers(ChannelPipeline p) {
-                super.addHandlers(p);
-                if (ssl != null) {
-                    SSLEngine engine = ssl.createSSLEngine();
-                    engine.setUseClientMode(false);
-                    addSslHandler(p, engine);
-                }
-            }
-
-            @Override
-            public void addModelHandlers(ChannelPipeline p) {
-                Arrays.stream(handlers).forEach( i-> p.addLast(i));
+            public CustomServer build() {
+                return new CustomServer(this);
             }
 
         };
-        server.setPort(this.port);
+        SSLEngine engine;
+        if (ssl != null) {
+            engine = ssl.createSSLEngine();
+        } else {
+            engine = null;
+        }
+        server = builder.setPort(this.port).setSslEngine(engine).build();
         server.configure(server);
     }
 

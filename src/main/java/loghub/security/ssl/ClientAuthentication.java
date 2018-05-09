@@ -21,6 +21,11 @@ public enum ClientAuthentication {
             engine.setNeedClientAuth(false);
             engine.setWantClientAuth(false);
         }
+    },
+    NONE {
+        @Override
+        public void configureEngine(SSLEngine engine) {
+        }
     };
     public abstract void configureEngine(SSLEngine engine);
 }
