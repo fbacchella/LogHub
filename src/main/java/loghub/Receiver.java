@@ -41,6 +41,7 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
     private AuthenticationHandler authHandler = null;
     private boolean withSsl = false;
     private String sslclient = ClientAuthentication.NONE.name();
+    private String sslKeyAlias = null;
     private String jaasName = null;
     private String user = null;
     private String password = null;
@@ -323,6 +324,14 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
      */
     public void setUseJwt(boolean useJwt) {
         this.useJwt = useJwt;
+    }
+
+    public String getSslKeyAlias() {
+        return sslKeyAlias;
+    }
+
+    public void setSSLKeyAlias(String sslKeyAlias) {
+        this.sslKeyAlias = sslKeyAlias;
     }
 
 }

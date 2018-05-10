@@ -38,6 +38,8 @@ import loghub.security.ssl.ClientAuthentication;
  */
 public abstract class AbstractNettyServer<CF extends ComponentFactory<BS, BSC, SA>, BS extends AbstractBootstrap<BS, BSC>, BSC extends Channel, SC extends Channel, SA extends SocketAddress> {
 
+    public static final int DEFINEDSSLALIAS=-2;
+
     static {
         InternalLoggerFactory.setDefaultFactory(Log4J2LoggerFactory.INSTANCE);
     }
@@ -52,6 +54,7 @@ public abstract class AbstractNettyServer<CF extends ComponentFactory<BS, BSC, S
     private int threadsCount;
     private ThreadFactory threadFactory;
     private SSLContext sslctx = null;
+    private String sslKeyAlias = null;
     private ClientAuthentication sslClientAuthentication = null;
 
     public AbstractNettyServer() {
@@ -138,7 +141,12 @@ public abstract class AbstractNettyServer<CF extends ComponentFactory<BS, BSC, S
     }
 
     public SSLEngine getEngine() {
-        SSLEngine engine = sslctx.createSSLEngine();
+        SSLEngine engine;
+        if (sslKeyAlias != null && ! sslKeyAlias.isEmpty()) {
+            engine = sslctx.createSSLEngine(sslKeyAlias, DEFINEDSSLALIAS);
+        } else {
+            engine = sslctx.createSSLEngine();
+        }
         engine.setUseClientMode(false);
         sslClientAuthentication.configureEngine(engine);
         return engine;
@@ -162,8 +170,16 @@ public abstract class AbstractNettyServer<CF extends ComponentFactory<BS, BSC, S
     /**
      * @param sslClientAuthentication the sslClientAuthentication to set
      */
-    public void setSslClientAuthentication(ClientAuthentication sslClientAuthentication) {
+    public void setSSLClientAuthentication(ClientAuthentication sslClientAuthentication) {
         this.sslClientAuthentication = sslClientAuthentication;
+    }
+
+    public String getSslKeyAlias() {
+        return sslKeyAlias;
+    }
+
+    public void setSSLKeyAlias(String sslKeyAlias) {
+        this.sslKeyAlias = sslKeyAlias;
     }
 
 }

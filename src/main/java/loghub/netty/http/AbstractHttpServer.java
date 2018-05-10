@@ -39,6 +39,7 @@ public abstract class AbstractHttpServer extends TcpServer implements ChannelCon
         private AuthenticationHandler authHandler = null;
         private boolean useSSL = false;
         private ClientAuthentication sslClientAuthentication = ClientAuthentication.NONE;
+        private String alias = null;
         protected Builder() {
         }
 
@@ -66,6 +67,10 @@ public abstract class AbstractHttpServer extends TcpServer implements ChannelCon
             this.authHandler = authHandler;
             return this;
         }
+        public Builder<S> setSSLKeyAlias(String alias) {
+            this.alias = alias;
+            return this;
+        }
         public abstract S build();
     }
 
@@ -81,7 +86,8 @@ public abstract class AbstractHttpServer extends TcpServer implements ChannelCon
         authHandler = builder.authHandler;
         if (builder.useSSL) {
             setSSLContext(builder.sslctx);
-            setSslClientAuthentication(builder.sslClientAuthentication);
+            setSSLClientAuthentication(builder.sslClientAuthentication);
+            setSSLKeyAlias(builder.alias );
         }
     }
 
