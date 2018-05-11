@@ -54,9 +54,7 @@ import loghub.VarFormatter;
 import loghub.jmx.Helper;
 import loghub.jmx.Helper.PROTOCOL;
 import loghub.netty.http.AbstractHttpServer.Builder;
-import loghub.security.AuthenticationHandler;
 import loghub.security.JWTHandler;
-import loghub.security.ssl.ClientAuthentication;
 import loghub.security.ssl.ContextLoader;
 import net.sf.ehcache.Cache;
 import net.sf.ehcache.CacheManager;
@@ -185,7 +183,7 @@ public class Properties extends HashMap<String, Object> {
         if (properties.containsKey("log4j.defaultlevel")) {
             String levelname = (String) properties.remove("log4j.defaultlevel");
             Level log4jlevel = Level.getLevel(levelname);
-            LoggerContext ctx = (LoggerContext) LogManager.getContext(false);
+            LoggerContext ctx = (LoggerContext) LogManager.getContext(classloader, true);
             ctx.getConfiguration().getLoggers().forEach( (i, j) -> j.setLevel(log4jlevel));
             ctx.updateLoggers();
         }
@@ -275,7 +273,7 @@ public class Properties extends HashMap<String, Object> {
 
         jwtHandler = buildJwtAlgorithm(properties.entrySet().stream().filter(i -> i.getKey().startsWith("jwt.")).collect(Collectors.toMap( i -> i.getKey().substring(4), j -> j.getValue())));
 
-        dashboardBuilder = buildDashboad(properties.entrySet().stream().filter(i -> i.getKey().startsWith("http.")).collect(Collectors.toMap( i -> i.getKey().substring(5), j -> j.getValue())));
+        dashboardBuilder = DashboardHttpServer.buildDashboad(properties.entrySet().stream().filter(i -> i.getKey().startsWith("http.")).collect(Collectors.toMap( i -> i.getKey().substring(5), j -> j.getValue())), this);
 
         javax.security.auth.login.Configuration jc = null;
         if (properties.containsKey("jaasConfig")) {
@@ -323,37 +321,6 @@ public class Properties extends HashMap<String, Object> {
         repository = new EventsRepository<Future<?>>(this);
 
         super.putAll(properties);
-    }
-
-    private Builder<DashboardHttpServer> buildDashboad(Map<Object, Object> collect) {
-        int port = (Integer) collect.compute("port", (i,j) -> {
-            if (j != null && ! (j instanceof Integer)) {
-                throw new IllegalArgumentException("http dasbhoard port is not an integer");
-            }
-            return j != null ? j : -1;
-        });
-        if (port < 0) {
-            return null;
-        } else {
-            boolean useSSL;
-            String clientAuthentication;
-            if (Boolean.TRUE.equals(collect.get("ssl"))) {
-                useSSL = true;
-                clientAuthentication = collect.compute("sslClientAuthentication", (i, j) -> j != null ? j : ClientAuthentication.NOTNEEDED).toString();
-            } else {
-                useSSL = false;
-                clientAuthentication = ClientAuthentication.NONE.name();
-            }
-            AuthenticationHandler authHandler = AuthenticationHandler.getBuilder()
-                    .useSsl(useSSL).setSslClientAuthentication(clientAuthentication)
-                    .useJwt((Boolean) collect.compute("jwt", (i,j) -> Boolean.TRUE.equals(j))).setJwtHandler(jwtHandler)
-                    .setJaasName(collect.compute("jaasName", (i,j) -> j != null ? j : "").toString()).setJaasConfig(jaasConfig)
-                    .build();
-            return DashboardHttpServer.getBuilder()
-                    .setPort(port)
-                    .setSSLContext(ssl).useSSL(useSSL)
-                    .setAuthHandler(authHandler);
-        }
     }
 
     private JWTHandler buildJwtAlgorithm(Map<String, Object> properties) {
