@@ -62,87 +62,90 @@ public class TestTrap {
     @Test
     public void testbig() throws InterruptedException, IOException {
         BlockingQueue<Event> receiver = new ArrayBlockingQueue<>(2);
-        SnmpTrap r = new SnmpTrap(receiver, new Pipeline(Collections.emptyList(), "testbig", null));
-        r.setPort(0);
-        Map<String, Object> props = new HashMap<>();
-        props.put("mibdirs", new String[]{"/usr/share/snmp/mibs", "/tmp/mibs"});
-        Assert.assertTrue(r.configure(new Properties(props)));
-        r.start();
+        try (SnmpTrap r = new SnmpTrap(receiver, new Pipeline(Collections.emptyList(), "testbig", null))) {
+            r.setPort(0);
+            Map<String, Object> props = new HashMap<>();
+            props.put("mibdirs", new String[]{"/usr/share/snmp/mibs", "/tmp/mibs"});
+            Assert.assertTrue(r.configure(new Properties(props)));
+            r.start();
 
-        CommandResponderEvent trapEvent = new CommandResponderEvent(new MessageDispatcherImpl(), new DefaultUdpTransportMapping(), TransportIpAddress.parse("127.0.0.1/162"), 0,0, null, 0, null, null, 0, null );
-        PDU pdu = new PDU();
-        pdu.add(new VariableBinding(new OID("1.0.8802.1.1.2.1.4.1.1.8.207185300.2.15079"), new OctetString("vnet7")));
-        pdu.add(new VariableBinding(new OID("1.0.8802.1.1.2.1.3.7.1.4.2"), new OctetString("eth0")));
-        pdu.add(new VariableBinding(new OID("1.0.8802.1.1.2.1.4.1.1.9.207185300.2.15079"), new OctetString("localhost")));
-        pdu.add(new VariableBinding(new OID("1.3.6.1.6.3.1.1.4.1"), new OctetString("lldpRemTablesChange")));
-        trapEvent.setPDU(pdu);
+            CommandResponderEvent trapEvent = new CommandResponderEvent(new MessageDispatcherImpl(), new DefaultUdpTransportMapping(), TransportIpAddress.parse("127.0.0.1/162"), 0,0, null, 0, null, null, 0, null );
+            PDU pdu = new PDU();
+            pdu.add(new VariableBinding(new OID("1.0.8802.1.1.2.1.4.1.1.8.207185300.2.15079"), new OctetString("vnet7")));
+            pdu.add(new VariableBinding(new OID("1.0.8802.1.1.2.1.3.7.1.4.2"), new OctetString("eth0")));
+            pdu.add(new VariableBinding(new OID("1.0.8802.1.1.2.1.4.1.1.9.207185300.2.15079"), new OctetString("localhost")));
+            pdu.add(new VariableBinding(new OID("1.3.6.1.6.3.1.1.4.1"), new OctetString("lldpRemTablesChange")));
+            trapEvent.setPDU(pdu);
 
-        r.processPdu(trapEvent);
-        Event e = receiver.poll();
-        logger.debug(e.getClass());
-        @SuppressWarnings("unchecked")
-        Map<String,?> details = (Map<String, ?>) e.get("lldpRemSysName");
-        Assert.assertEquals(3, Array.getLength(details.get("index")));
-        Assert.assertEquals("localhost", details.get("value"));
-        r.stopReceiving();
+            r.processPdu(trapEvent);
+            Event e = receiver.poll();
+            logger.debug(e.getClass());
+            @SuppressWarnings("unchecked")
+            Map<String,?> details = (Map<String, ?>) e.get("lldpRemSysName");
+            Assert.assertEquals(3, Array.getLength(details.get("index")));
+            Assert.assertEquals("localhost", details.get("value"));
+            r.stopReceiving();
+        }
     }
 
     @Ignore
     @Test
     public void testtrapv1Generic() throws InterruptedException, IOException {
         BlockingQueue<Event> receiver = new ArrayBlockingQueue<>(2);
-        SnmpTrap r = new SnmpTrap(receiver, new Pipeline(Collections.emptyList(), "testbig", null));
-        r.setPort(0);
-        Map<String, Object> props = new HashMap<>();
-        props.put("mibdirs", new String[]{"/usr/share/snmp/mibs", "/tmp/mibs"});
-        Assert.assertTrue(r.configure(new Properties(props)));
-        r.start();
+        try (SnmpTrap r = new SnmpTrap(receiver, new Pipeline(Collections.emptyList(), "testbig", null))) {
+            r.setPort(0);
+            Map<String, Object> props = new HashMap<>();
+            props.put("mibdirs", new String[]{"/usr/share/snmp/mibs", "/tmp/mibs"});
+            Assert.assertTrue(r.configure(new Properties(props)));
+            r.start();
 
-        CommandResponderEvent trapEvent = new CommandResponderEvent(new MessageDispatcherImpl(), new DefaultUdpTransportMapping(), TransportIpAddress.parse("127.0.0.1/162"), 0,0, null, 0, null, null, 0, null );
-        PDUv1 pdu = new PDUv1();
-        pdu.setEnterprise(new OID("1.3.6.1.4.1.232"));
-        pdu.setAgentAddress(new IpAddress());
-        pdu.setGenericTrap(1);
-        pdu.setTimestamp(10);
-        pdu.add(new VariableBinding(new OID("1.3.6.1.6.3.1.1.4.1"), new OctetString("lldpRemTablesChange")));
-        trapEvent.setPDU(pdu);
-        r.processPdu(trapEvent);
-        Event e = receiver.poll();
-        Assert.assertEquals(0.1, (Double)e.get("time_stamp"), 1e-10);
-        Assert.assertEquals("warmStart", e.get("generic_trap"));
-        Assert.assertEquals("compaq", e.get("enterprise"));
-        Assert.assertEquals(null, e.get("specific_trap"));
-        Assert.assertEquals("lldpRemTablesChange", e.get("snmpTrapOID"));
-        Assert.assertEquals(InetAddress.getByName("0.0.0.0"), e.get("agent_addr"));
-        r.stopReceiving();
+            CommandResponderEvent trapEvent = new CommandResponderEvent(new MessageDispatcherImpl(), new DefaultUdpTransportMapping(), TransportIpAddress.parse("127.0.0.1/162"), 0,0, null, 0, null, null, 0, null );
+            PDUv1 pdu = new PDUv1();
+            pdu.setEnterprise(new OID("1.3.6.1.4.1.232"));
+            pdu.setAgentAddress(new IpAddress());
+            pdu.setGenericTrap(1);
+            pdu.setTimestamp(10);
+            pdu.add(new VariableBinding(new OID("1.3.6.1.6.3.1.1.4.1"), new OctetString("lldpRemTablesChange")));
+            trapEvent.setPDU(pdu);
+            r.processPdu(trapEvent);
+            Event e = receiver.poll();
+            Assert.assertEquals(0.1, (Double)e.get("time_stamp"), 1e-10);
+            Assert.assertEquals("warmStart", e.get("generic_trap"));
+            Assert.assertEquals("compaq", e.get("enterprise"));
+            Assert.assertEquals(null, e.get("specific_trap"));
+            Assert.assertEquals("lldpRemTablesChange", e.get("snmpTrapOID"));
+            Assert.assertEquals(InetAddress.getByName("0.0.0.0"), e.get("agent_addr"));
+            r.stopReceiving();
+        }
     }
 
     @Ignore
     @Test
     public void testtrapv1Specific() throws InterruptedException, IOException {
         BlockingQueue<Event> receiver = new ArrayBlockingQueue<>(2);
-        SnmpTrap r = new SnmpTrap(receiver, new Pipeline(Collections.emptyList(), "testbig", null));
-        r.setPort(0);
-        Map<String, Object> props = new HashMap<>();
-        props.put("mibdirs", new String[]{"/usr/share/snmp/mibs", "/tmp/mibs"});
-        Assert.assertTrue(r.configure(new Properties(props)));
-        r.start();
+        try (SnmpTrap r = new SnmpTrap(receiver, new Pipeline(Collections.emptyList(), "testbig", null))) {
+            r.setPort(0);
+            Map<String, Object> props = new HashMap<>();
+            props.put("mibdirs", new String[]{"/usr/share/snmp/mibs", "/tmp/mibs"});
+            Assert.assertTrue(r.configure(new Properties(props)));
+            r.start();
 
-        CommandResponderEvent trapEvent = new CommandResponderEvent(new MessageDispatcherImpl(), new DefaultUdpTransportMapping(), TransportIpAddress.parse("127.0.0.1/162"), 0,0, null, 0, null, null, 0, null );
-        PDUv1 pdu = new PDUv1();
-        pdu.setEnterprise(new OID("1.3.6.1.4.1.232"));
-        pdu.setAgentAddress(new IpAddress());
-        pdu.setGenericTrap(6);
-        pdu.setSpecificTrap(6013);
-        pdu.setTimestamp(10);
-        trapEvent.setPDU(pdu);
-        r.processPdu(trapEvent);
-        Event e = receiver.poll();
-        Assert.assertEquals(0.1, (Double)e.get("time_stamp"), 1e-10);
-        Assert.assertEquals(null, e.get("generic_trap"));
-        Assert.assertEquals("compaq", e.get("enterprise"));
-        Assert.assertEquals("cpqHePostError", e.get("specific_trap"));
-        Assert.assertEquals(InetAddress.getByName("0.0.0.0"), e.get("agent_addr"));
-        r.stopReceiving();
+            CommandResponderEvent trapEvent = new CommandResponderEvent(new MessageDispatcherImpl(), new DefaultUdpTransportMapping(), TransportIpAddress.parse("127.0.0.1/162"), 0,0, null, 0, null, null, 0, null );
+            PDUv1 pdu = new PDUv1();
+            pdu.setEnterprise(new OID("1.3.6.1.4.1.232"));
+            pdu.setAgentAddress(new IpAddress());
+            pdu.setGenericTrap(6);
+            pdu.setSpecificTrap(6013);
+            pdu.setTimestamp(10);
+            trapEvent.setPDU(pdu);
+            r.processPdu(trapEvent);
+            Event e = receiver.poll();
+            Assert.assertEquals(0.1, (Double)e.get("time_stamp"), 1e-10);
+            Assert.assertEquals(null, e.get("generic_trap"));
+            Assert.assertEquals("compaq", e.get("enterprise"));
+            Assert.assertEquals("cpqHePostError", e.get("specific_trap"));
+            Assert.assertEquals(InetAddress.getByName("0.0.0.0"), e.get("agent_addr"));
+            r.stopReceiving();
+        }
     }
 }

@@ -1,5 +1,6 @@
 package loghub;
 
+import java.io.Closeable;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.Map;
@@ -19,7 +20,7 @@ import loghub.receivers.Blocking;
 import loghub.security.AuthenticationHandler;
 import loghub.security.ssl.ClientAuthentication;
 
-public abstract class Receiver extends Thread implements Iterator<Event> {
+public abstract class Receiver extends Thread implements Iterator<Event>, Closeable {
 
     /**
      * Any receiver that does it's own decoding should set the decoder to this value during configuration
@@ -148,13 +149,17 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
     }
 
     /**
-     * This empty method is called if receiver thread is interrupted, it should be
-     * overridden for clean up.
+     * This empty method is called when processing is stopped, it should be
+     * overridden for clean up and called by the receiving thread. It usually called
+     * as the last instruction of the {@link java.lang.Thread#run()} method
      */
     public void close() {
 
     }
 
+    /**
+     * This method is used when an external thread wants a receiver to stop.
+     */
     public void stopReceiving() {
         interrupt();
     }

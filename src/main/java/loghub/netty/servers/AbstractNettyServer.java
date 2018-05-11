@@ -104,7 +104,7 @@ public abstract class AbstractNettyServer<CF extends ComponentFactory<BS, BSC, S
         return address;
     }
 
-    public void finish() {
+    public void close() {
         factory.finish();
     }
 

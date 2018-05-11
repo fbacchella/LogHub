@@ -35,4 +35,14 @@ public class TcpServer extends AbstractNettyServer<TcpFactory, ServerBootstrap, 
         cf.closeFuture().sync();
     }
 
+    @Override
+    public void close() {
+        try {
+            cf.close().await();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        super.close();
+    }
+
 }

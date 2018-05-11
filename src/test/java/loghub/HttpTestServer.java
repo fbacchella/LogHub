@@ -58,6 +58,6 @@ public class HttpTestServer extends ExternalResource {
 
     @Override
     protected void after() {
-        server.finish();
+        server.close();
     }
 }

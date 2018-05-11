@@ -153,6 +153,12 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
     }
 
     @Override
+    public void stopReceiving() {
+        server.close();
+        super.stopReceiving();
+    }
+
+    @Override
     public void addHandlers(ChannelPipeline p) {
         p.addFirst("SourceResolver", extractor);
         if (server.isWithSSL()) {
@@ -212,7 +218,7 @@ public abstract class NettyReceiver<S extends AbstractNettyServer<CF, BS, BSC, S
 
     @Override
     public void close() {
-        server.getFactory().finish();
+        server.close();
         super.close();
     }
 

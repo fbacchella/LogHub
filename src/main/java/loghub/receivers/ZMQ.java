@@ -122,9 +122,7 @@ public class ZMQ extends Receiver {
                 logger.catching(Level.DEBUG, e);
             };
         }
-        ctx.close(listeningSocket);
-        ctx.close(stopPair[0]);
-        ctx.close(stopPair[1]);
+        close();
     }
 
     @Override
@@ -145,7 +143,11 @@ public class ZMQ extends Receiver {
 
     @Override
     public void close() {
-        listeningSocket.close();
+        if (ctx.isRunning()) {
+            ctx.close(listeningSocket);
+            ctx.close(stopPair[0]);
+            ctx.close(stopPair[1]);
+        }
         super.close();
     }
 

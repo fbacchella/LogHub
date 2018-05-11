@@ -110,7 +110,7 @@ public class TestHttpSsl {
     @After
     public void stopServer() {
         if (server != null) {
-            server.finish();
+            server.close();
         }
         server = null;
     }

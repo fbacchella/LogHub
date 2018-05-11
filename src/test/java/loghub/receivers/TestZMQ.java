@@ -41,16 +41,19 @@ public class TestZMQ {
 
     private void dotest(Consumer<ZMQ> configure, Socket sender) throws InterruptedException  {
         BlockingQueue<Event> receiver = new ArrayBlockingQueue<>(1);
-        ZMQ r = new ZMQ(receiver, new Pipeline(Collections.emptyList(), "testone", null));
-        configure.accept(r);
-        r.setDecoder(new StringCodec());
-        Assert.assertTrue(r.configure(new Properties(Collections.emptyMap())));
-        r.start();
-        Thread.sleep(30);
-        Assert.assertTrue(sender.send("message 1"));
-        Event e = receiver.take();
-        Assert.assertEquals("Missing message", "message 1", e.get("message"));
-        r.stopReceiving();
+        try (ZMQ r = new ZMQ(receiver, new Pipeline(Collections.emptyList(), "testone", null))) {
+            configure.accept(r);
+            r.setDecoder(new StringCodec());
+            Assert.assertTrue(r.configure(new Properties(Collections.emptyMap())));
+            logger.debug("before");
+            r.start();
+            Thread.sleep(30);
+            logger.debug("after");
+            Assert.assertTrue(sender.send("message 1"));
+            Event e = receiver.take();
+            Assert.assertEquals("Missing message", "message 1", e.get("message"));
+            r.stopReceiving();
+        }
     }
 
     @Test(timeout=500)

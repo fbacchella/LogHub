@@ -46,43 +46,46 @@ public class TestUdp {
     }
 
     private void testsend(int size) throws IOException, InterruptedException {
-        // Generate a locally binded random socket
-        DatagramSocket socket = new DatagramSocket(0, InetAddress.getLoopbackAddress());
-        String hostname = socket.getLocalAddress().getHostAddress();
-        int port = socket.getLocalPort();
-        socket.close();
-        InetSocketAddress destaddr = new InetSocketAddress(hostname, port);
-
         BlockingQueue<Event> receiver = new ArrayBlockingQueue<>(10);
         Udp r = new Udp(receiver, new Pipeline(Collections.emptyList(), "testone", null));
-        r.setBufferSize(size + 10);
-        r.setHost(hostname);
-        r.setPort(port);
-        r.setDecoder(new StringCodec());
-        Assert.assertTrue(r.configure(new Properties(Collections.emptyMap())));
-        r.start();
-        int originalMessageSize = 0;
-        try(DatagramSocket send = new DatagramSocket()) {
-            StringBuilder buffer = new StringBuilder();
-            while (buffer.length() <= size) {
-                buffer.append("message");
+        // Generate a locally binded random socket
+        try (DatagramSocket socket = new DatagramSocket(0, InetAddress.getLoopbackAddress())) {
+            String hostname = socket.getLocalAddress().getHostAddress();
+            int port = socket.getLocalPort();
+            socket.close();
+            InetSocketAddress destaddr = new InetSocketAddress(hostname, port);
+
+            r.setBufferSize(size + 10);
+            r.setHost(hostname);
+            r.setPort(port);
+            r.setDecoder(new StringCodec());
+            Assert.assertTrue(r.configure(new Properties(Collections.emptyMap())));
+            r.start();
+            int originalMessageSize = 0;
+            try(DatagramSocket send = new DatagramSocket()) {
+                StringBuilder buffer = new StringBuilder();
+                while (buffer.length() <= size) {
+                    buffer.append("message");
+                }
+                byte[] buf = buffer.toString().getBytes();
+                originalMessageSize = buffer.length();
+                DatagramPacket packet = new DatagramPacket(buf, buf.length, destaddr);
+                try {
+                    logger.debug("Listening on {}", r.getListenAddress());
+                    send.send(packet);
+                    logger.debug("One message sent to {}", packet.getAddress());
+                } catch (IOException e1) {
+                    logger.error("IO exception on port {}", r.getPort());
+                    throw e1;
+                }
             }
-            byte[] buf = buffer.toString().getBytes();
-            originalMessageSize = buffer.length();
-            DatagramPacket packet = new DatagramPacket(buf, buf.length, destaddr);
-            try {
-                logger.debug("Listening on {}", r.getListenAddress());
-                send.send(packet);
-                logger.debug("One message sent to {}", packet.getAddress());
-            } catch (IOException e1) {
-                logger.error("IO exception on port {}", r.getPort());
-                throw e1;
-            }
+            Event e = receiver.take();
+            Assert.assertTrue("Invalid message content", e.get("message").toString().startsWith("message"));
+            Assert.assertEquals("Invalid message size", originalMessageSize, e.get("message").toString().length());
+            Assert.assertTrue("didn't find valid hosts informations", e.get("host") instanceof InetAddress);
+        } finally {
+            r.close();
         }
-        Event e = receiver.take();
-        Assert.assertTrue("Invalid message content", e.get("message").toString().startsWith("message"));
-        Assert.assertEquals("Invalid message size", originalMessageSize, e.get("message").toString().length());
-        Assert.assertTrue("didn't find valid hosts informations", e.get("host") instanceof InetAddress);
     }
 
     @Test(timeout=1000)

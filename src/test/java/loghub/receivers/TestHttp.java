@@ -57,7 +57,7 @@ public class TestHttp {
     private String hostname;
     private int port;
 
-    public void makeReceiver(Consumer<Http> prepare, Map<String, Object> propsMap) throws IOException {
+    public Http makeReceiver(Consumer<Http> prepare, Map<String, Object> propsMap) throws IOException {
         // Generate a locally binded random socket
         ServerSocket socket = new ServerSocket(0, 10, InetAddress.getLoopbackAddress());
         hostname = socket.getInetAddress().getHostAddress();
@@ -72,6 +72,7 @@ public class TestHttp {
         prepare.accept(receiver);
         Assert.assertTrue(receiver.configure(new Properties(propsMap)));
         receiver.start();
+        return receiver;
     }
 
     @After
@@ -109,21 +110,22 @@ public class TestHttp {
 
     @Test
     public void testHttpPostJson() throws IOException {
-        makeReceiver( i -> {}, Collections.emptyMap());
-        doRequest(new URL("http", hostname, port, "/"),
-                "{\"a\": 1}".getBytes("UTF-8"),
-                i -> {
-                    try {
-                        i.setRequestMethod("PUT");
-                        i.setRequestProperty("Content-Type", "application/json");
-                    } catch (ProtocolException e1) {
-                        throw new UncheckedIOException(e1);
-                    }
-                }, 200);
-        Event e = queue.poll();
-        logger.debug(e.getClass());
-        Integer a = (Integer) e.get("a");
-        Assert.assertEquals(1, a.intValue());
+        try (Http receiver = makeReceiver( i -> {}, Collections.emptyMap())) {
+            doRequest(new URL("http", hostname, port, "/"),
+                    "{\"a\": 1}".getBytes("UTF-8"),
+                    i -> {
+                        try {
+                            i.setRequestMethod("PUT");
+                            i.setRequestProperty("Content-Type", "application/json");
+                        } catch (ProtocolException e1) {
+                            throw new UncheckedIOException(e1);
+                        }
+                    }, 200);
+            Event e = queue.poll();
+            logger.debug(e.getClass());
+            Integer a = (Integer) e.get("a");
+            Assert.assertEquals(1, a.intValue());
+        }
     }
 
     @Test

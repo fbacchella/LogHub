@@ -72,7 +72,7 @@ public class UdpServer extends AbstractNettyServer<UdpFactory, Bootstrap, Channe
                 String message = Optional.ofNullable(e.getCause().getMessage()).orElse(e.getCause().getClass().getCanonicalName());
                 logger.error("Failed to start listening on {}: {}", address, message);
                 logger.catching(Level.DEBUG, e.getCause());
-                channels.forEach(f -> f.close());
+                channels.forEach(Channel::close);
                 channels.clear();
                 return false;
             }
@@ -89,6 +89,12 @@ public class UdpServer extends AbstractNettyServer<UdpFactory, Bootstrap, Channe
                 Thread.currentThread().interrupt();
             }
         });
+    }
+
+    @Override
+    public void close() {
+        channels.stream().map(Channel::close);
+        super.close();
     }
 
 }

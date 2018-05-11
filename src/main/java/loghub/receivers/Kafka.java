@@ -122,11 +122,7 @@ public class Kafka extends Receiver {
             }
         }
         consumer.close();
-    }
-
-    @Override
-    public void close() {
-        super.close();
+        close();
     }
 
     public String[] getBrokers() {
