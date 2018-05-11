@@ -166,7 +166,7 @@ public class AuthenticationHandler {
 
     public Principal checkLoginPassword(String tryLogin, char[] tryPassword) {
         logger.trace("testing login {}", login);
-        if (login.equals(login) && Arrays.equals(password, tryPassword)) {
+        if (tryLogin.equals(login) && Arrays.equals(password, tryPassword)) {
             return new JMXPrincipal(login);
         } else if (! jaasName.isEmpty()){
             return checkJaas(tryLogin, tryPassword);
