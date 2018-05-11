@@ -273,8 +273,6 @@ public class Properties extends HashMap<String, Object> {
 
         jwtHandler = buildJwtAlgorithm(properties.entrySet().stream().filter(i -> i.getKey().startsWith("jwt.")).collect(Collectors.toMap( i -> i.getKey().substring(4), j -> j.getValue())));
 
-        dashboardBuilder = DashboardHttpServer.buildDashboad(properties.entrySet().stream().filter(i -> i.getKey().startsWith("http.")).collect(Collectors.toMap( i -> i.getKey().substring(5), j -> j.getValue())), this);
-
         javax.security.auth.login.Configuration jc = null;
         if (properties.containsKey("jaasConfig")) {
             String jaasConfigFilePath = (String) properties.remove("jaasConfig");
@@ -286,6 +284,8 @@ public class Properties extends HashMap<String, Object> {
             }
         }
         jaasConfig = jc;
+
+        dashboardBuilder = DashboardHttpServer.buildDashboad(properties.entrySet().stream().filter(i -> i.getKey().startsWith("http.")).collect(Collectors.toMap( i -> i.getKey().substring(5), j -> j.getValue())), this);
 
         sources = (Map<String, Source>) properties.remove(PROPSNAMES.SOURCES.toString());
 

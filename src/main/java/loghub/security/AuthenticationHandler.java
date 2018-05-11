@@ -165,7 +165,7 @@ public class AuthenticationHandler {
     }
 
     public Principal checkLoginPassword(String tryLogin, char[] tryPassword) {
-        logger.debug("testing login {}", login);
+        logger.debug("testing login {}", tryLogin);
         if (tryLogin.equals(login) && Arrays.equals(password, tryPassword)) {
             return new JMXPrincipal(login);
         } else if (jaasName != null){
@@ -176,7 +176,7 @@ public class AuthenticationHandler {
     }
 
     private Principal checkJaas(String tryLogin, char[] tryPassword) {
-        logger.debug("testing login {} with JAAS {}", login, jaasName);
+        logger.debug("testing login {} with JAAS {}", tryLogin, jaasName);
         CallbackHandler cbHandler = new CallbackHandler() {
             @Override
             public void handle(Callback[] callbacks) throws IOException, UnsupportedCallbackException {
