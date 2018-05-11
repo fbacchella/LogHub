@@ -136,7 +136,7 @@ public class AuthenticationHandler {
         } else if (builder.jaasConfig == null && (builder.jaasName != null && ! builder.jaasName.isEmpty())) {
             throw new IllegalArgumentException(String.format("Missing JAAS configuration"));
         } else {
-            this.jaasName = "";
+            this.jaasName = null;
             this.jaasConfig = null;
         }
         if (builder.withJwt) {
@@ -147,13 +147,13 @@ public class AuthenticationHandler {
     }
 
     public Principal checkSslClient(SSLSession sess) throws GeneralSecurityException {
-        logger.trace("testing ssl client");
+        logger.debug("testing ssl client authentication");
         if (sslclient != ClientAuthentication.NOTNEEDED) {
             try {
                 if (sslclient == ClientAuthentication.WANTED || sslclient == ClientAuthentication.REQUIRED) {
                     return sess.getPeerPrincipal();
                 }
-            } catch (SSLPeerUnverifiedException e1) {
+            } catch (SSLPeerUnverifiedException e) {
                 if (sslclient == ClientAuthentication.REQUIRED) {
                     throw new FailedLoginException("Client authentication required but failed");
                 } else {
@@ -165,10 +165,10 @@ public class AuthenticationHandler {
     }
 
     public Principal checkLoginPassword(String tryLogin, char[] tryPassword) {
-        logger.trace("testing login {}", login);
+        logger.debug("testing login {}", login);
         if (tryLogin.equals(login) && Arrays.equals(password, tryPassword)) {
             return new JMXPrincipal(login);
-        } else if (! jaasName.isEmpty()){
+        } else if (jaasName != null){
             return checkJaas(tryLogin, tryPassword);
         } else {
             return null;
@@ -176,6 +176,7 @@ public class AuthenticationHandler {
     }
 
     private Principal checkJaas(String tryLogin, char[] tryPassword) {
+        logger.debug("testing login {} with JAAS {}", login, jaasName);
         CallbackHandler cbHandler = new CallbackHandler() {
             @Override
             public void handle(Callback[] callbacks) throws IOException, UnsupportedCallbackException {
@@ -214,7 +215,12 @@ public class AuthenticationHandler {
     }
 
     public Principal checkJwt(String token) {
-        return this.jwtHandler.verifyToken(token);
+        if (jwtHandler != null) {
+            logger.debug("testing JWT token");
+            return jwtHandler.verifyToken(token);
+        } else {
+            return null;
+        }
     }
 
     public JWTHandler getJwtHandler() {
