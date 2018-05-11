@@ -141,7 +141,7 @@ public class TestHttp {
 
     @Test
     public void testHttpsGet() throws IOException {
-        makeReceiver( i -> { i.setWithSsl(true); i.setSslClientAuthentication("REQUIRED");},
+        makeReceiver( i -> { i.setWithSSL(true); i.setSSLClientAuthentication("REQUIRED");},
                 Collections.singletonMap("ssl.trusts", new String[] {getClass().getResource("/localhost.p12").getFile()})
                 );
         doRequest(new URL("https", hostname, port, "/?a=1"),

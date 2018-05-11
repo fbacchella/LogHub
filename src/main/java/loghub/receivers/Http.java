@@ -152,7 +152,7 @@ public class Http extends GenericTcp {
         webserver = new Builder()
                 .setAuthHandler(getAuthHandler(properties))
                 .setPort(getPort()).setHost(getHost())
-                .setSSLContext(properties.ssl).useSSL(isWithSsl()).setSSLClientAuthentication(ClientAuthentication.valueOf(getSslClientAuthentication().toUpperCase()))
+                .setSSLContext(properties.ssl).useSSL(isWithSSL()).setSSLClientAuthentication(ClientAuthentication.valueOf(getSSLClientAuthentication().toUpperCase()))
                 .build();
         setServer(webserver);
         return super.configure(properties);

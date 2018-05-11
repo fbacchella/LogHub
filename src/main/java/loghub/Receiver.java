@@ -259,28 +259,28 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
     /**
      * @return the withSsl
      */
-    public boolean isWithSsl() {
+    public boolean isWithSSL() {
         return withSsl;
     }
 
     /**
      * @param withSsl the withSsl to set
      */
-    public void setWithSsl(boolean withSsl) {
+    public void setWithSSL(boolean withSsl) {
         this.withSsl = withSsl;
     }
 
     /**
      * @return the sslclient
      */
-    public String getSslClientAuthentication() {
+    public String getSSLClientAuthentication() {
         return sslclient;
     }
 
     /**
      * @param sslclient the sslclient to set
      */
-    public void setSslClientAuthentication(String sslclient) {
+    public void setSSLClientAuthentication(String sslclient) {
         this.sslclient = sslclient;
     }
 
@@ -326,7 +326,7 @@ public abstract class Receiver extends Thread implements Iterator<Event> {
         this.useJwt = useJwt;
     }
 
-    public String getSslKeyAlias() {
+    public String getSSLKeyAlias() {
         return sslKeyAlias;
     }
 
