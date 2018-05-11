@@ -71,7 +71,6 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
     private final List<KeyStore> stores = new ArrayList<>();
 
     public MultiKeyStoreSpi() {
-        super();
         try {
             // An empty initial trust store, for loaded PEM
             KeyStore first = KeyStore.getInstance("JKS");
@@ -84,7 +83,7 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
 
     @Override
     public Key engineGetKey(String alias, char[] password) throws NoSuchAlgorithmException, UnrecoverableKeyException {
-        for( KeyStore ks: stores) {
+        for (KeyStore ks: stores) {
             try {
                 Key val = ks.getKey(alias, password);
                 if (val != null) {
@@ -98,7 +97,7 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
 
     @Override
     public Certificate[] engineGetCertificateChain(String alias) {
-        for( KeyStore ks: stores) {
+        for (KeyStore ks: stores) {
             try {
                 Certificate[] val = ks.getCertificateChain(alias);
                 if (val != null) {
@@ -112,7 +111,7 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
 
     @Override
     public Certificate engineGetCertificate(String alias) {
-        for( KeyStore ks: stores) {
+        for (KeyStore ks: stores) {
             try {
                 Certificate val = ks.getCertificate(alias);
                 if (val != null) {
@@ -127,7 +126,7 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
 
     @Override
     public Date engineGetCreationDate(String alias) {
-        for( KeyStore ks: stores) {
+        for (KeyStore ks: stores) {
             try {
                 Date val = ks.getCreationDate(alias);
                 if (val != null) {
@@ -154,7 +153,7 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
 
     @Override
     public void engineDeleteEntry(String alias) throws KeyStoreException {
-        for( KeyStore ks: stores) {
+        for (KeyStore ks: stores) {
             try {
                 if (ks.containsAlias(alias)) {
                     ks.deleteEntry(alias);
@@ -175,7 +174,7 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
         // The aliases enumerator is not usable (empty or null), find the next one
         // Find the next non empty KeyStore
         int kssize = 0;
-        while(iter.hasNext()) {
+        while (iter.hasNext()) {
             totry = iter.next();
             try {
                 kssize = totry.size();
@@ -228,7 +227,7 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
 
     @Override
     public boolean engineContainsAlias(String alias) {
-        for( KeyStore ks: stores) {
+        for (KeyStore ks: stores) {
             try {
                 boolean val = ks.containsAlias(alias);
                 if (val) {
@@ -244,7 +243,7 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
     @Override
     public int engineSize() {
         int size = 0;
-        for(KeyStore ks: stores) {
+        for (KeyStore ks: stores) {
             try {
                 size += ks.size();
             } catch (KeyStoreException e) {
@@ -256,7 +255,7 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
 
     @Override
     public boolean engineIsKeyEntry(String alias) {
-        for(KeyStore ks: stores) {
+        for (KeyStore ks: stores) {
             try {
                 boolean val = ks.isKeyEntry(alias);
                 if (val) {
@@ -271,7 +270,7 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
 
     @Override
     public boolean engineIsCertificateEntry(String alias) {
-        for(KeyStore ks: stores) {
+        for (KeyStore ks: stores) {
             try {
                 boolean val = ks.isCertificateEntry(alias);
                 if (val) {
@@ -287,7 +286,7 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
     @Override
     public String engineGetCertificateAlias(Certificate cert) {
         logger.traceEntry(() -> cert);
-        for(KeyStore ks: stores) {
+        for (KeyStore ks: stores) {
             try {
                 String val = ks.getCertificateAlias(cert);
                 if (val != null) {
@@ -331,7 +330,7 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
         if (password == null) {
             password = "";
         }
-        if("system".equals(path)) {
+        if ("system".equals(path)) {
             String operatingSystem = System.getProperty("os.name", "");
             KeyStore systemks = null;
             if (operatingSystem.startsWith("Mac")) {
@@ -378,7 +377,7 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
                 loadKeystore("BKS", path, password);
                 break;
             case "application/x-java-bc-uber-keystore":
-                loadKeystore(" Keystore.UBER", path, password);
+                loadKeystore("Keystore.UBER", path, password);
                 break;
             case "application/x-pem-file":
                 loadPem(path);
