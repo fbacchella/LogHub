@@ -38,8 +38,8 @@ It look like:
 
     pipeline[apache] { loghub.processors.Geoip { datfilepath:"/user/local/share/GeoIP/GeoIP.dat", locationfield:"location", threads:4 } }
     pipeline[main] {
-         loghub.processors.Log { threads: 2 } 
-        | event.logger_name == "jrds.starter.Timer" || event.info > 4 ? loghub.processors.Drop  : ( loghub.processors.ParseJson | loghub.processors.Groovy { script: "println event['logger_name']" } ) 
+         loghub.processors.Log { threads: 2 }
+        | event.logger_name == "jrds.starter.Timer" || event.info > 4 ? loghub.processors.Drop  : ( loghub.processors.ParseJson | loghub.processors.Groovy { script: "println event['logger_name']" } )
     }
     extensions: "/usr/share/loghub/plugins:/usr/share/loghub/scripts"
 

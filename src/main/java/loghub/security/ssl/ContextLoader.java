@@ -43,15 +43,15 @@ public class ContextLoader {
     }
 
     /**
-     * <p>Construct a {@link javax.net.ssl.SSLContext} using the given properties as a set of attribures that definies how it will be configure.<p/>
+     * <p>Construct a {@link javax.net.ssl.SSLContext} using the given properties as a set of attribures that definies how it will be configure.</p>
      * <p>The possible key ares</p>
      * <ul>
-     * <li>context: The SSL protocol to uses, as defined by {@link javax.net.ssl.SSLContext#getInstance(String protocol).</li>
+     * <li>context: The SSL protocol to uses, as defined by {@link javax.net.ssl.SSLContext#getInstance(String protocol)}.</li>
      * <li>trusts: a array of path to key store to use, they can be PEM encoded x509 files, java trust store or domain store configuration.</li>
      * <li>issuers: a array of issuers DN that can be used to validate SSL client certificates.</li>
      * </ul>
      * @param properties
-     * @return
+     * @return a SSL context build according to the given properties
      */
     public static SSLContext build(Map<String, Object> properties) {
         logger.debug("Configuring ssl context with {}", () -> properties);
