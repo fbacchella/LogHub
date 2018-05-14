@@ -22,6 +22,8 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.auth0.jwt.exceptions.JWTVerificationException;
+
 import loghub.security.ssl.ClientAuthentication;
 
 public class AuthenticationHandler {
@@ -166,7 +168,9 @@ public class AuthenticationHandler {
 
     public Principal checkLoginPassword(String tryLogin, char[] tryPassword) {
         logger.debug("testing login {}", tryLogin);
-        if (tryLogin.equals(login) && Arrays.equals(password, tryPassword)) {
+        if (":".equals(tryLogin) && isWithJwt()) {
+            return checkJwt(new String(tryPassword));
+        } else if (tryLogin.equals(login) && Arrays.equals(password, tryPassword)) {
             return new JMXPrincipal(login);
         } else if (jaasName != null){
             return checkJaas(tryLogin, tryPassword);
@@ -217,7 +221,13 @@ public class AuthenticationHandler {
     public Principal checkJwt(String token) {
         if (jwtHandler != null) {
             logger.debug("testing JWT token");
-            return jwtHandler.verifyToken(token);
+            try {
+                return jwtHandler.verifyToken(token);
+            } catch (JWTVerificationException e) {
+                logger.warn("Failed token {}: {}", token, e.getMessage());
+                logger.catching(Level.DEBUG, e);
+                return null;
+            }
         } else {
             return null;
         }

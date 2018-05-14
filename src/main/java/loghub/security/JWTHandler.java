@@ -17,6 +17,7 @@ import com.auth0.jwt.JWT;
 import com.auth0.jwt.JWTCreator;
 import com.auth0.jwt.JWTVerifier;
 import com.auth0.jwt.algorithms.Algorithm;
+import com.auth0.jwt.exceptions.JWTVerificationException;
 import com.auth0.jwt.interfaces.Claim;
 import com.auth0.jwt.interfaces.DecodedJWT;
 import com.auth0.jwt.interfaces.Header;
@@ -103,6 +104,10 @@ public class JWTHandler {
             this.alg = alg;
             return this;
         }
+        public Builder setIssuer(String issuer) {
+            this.issuer = issuer;
+            return this;
+        }
         public Builder secret(String secret) {
             active = active || (secret != null && ! secret.isEmpty());
             this.secret = secret;
@@ -162,7 +167,7 @@ public class JWTHandler {
         return builder.sign(alg);
     }
 
-    public JWTPrincipal verifyToken(String token) {
+    public JWTPrincipal verifyToken(String token) throws JWTVerificationException {
         if ( ! JWTREGEX.test(token)) {
             return null;
         }
