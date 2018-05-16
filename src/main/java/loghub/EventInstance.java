@@ -391,7 +391,6 @@ class EventInstance extends Event {
     public Object putMeta(String key, Object value) {
         return metas.put(key, value);
     }
-    }
 
     @Override
     public Object get(Object key) {
