@@ -151,7 +151,7 @@ public class TestHttpSsl {
         }
     }
 
-    @Test(expected=javax.net.ssl.SSLHandshakeException.class)
+    @Test(expected=IOException.class)
     public void TestClientAuthenticationFailed() throws NoSuchAlgorithmException, KeyStoreException, CertificateException, IOException, KeyManagementException {
         makeServer(Collections.emptyMap(), i -> i.setSSLClientAuthentication(ClientAuthentication.REQUIRED));
         HttpsURLConnection cnx = (HttpsURLConnection) theurl.openConnection();
