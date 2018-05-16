@@ -714,10 +714,15 @@ class ConfigListener extends RouteBaseListener {
         } else if (ctx.qi != null) {
             expression = ctx.qi.getText();
         } else if (ctx.opu != null) {
-            expression = ctx.opu.getText() + " " + stack.pop();
+            String opu = ctx.opu.getText();
+            opu = ".~".equals(opu) ? "~" : opu;
+            expression = opu + " " + stack.pop();
         } else if (ctx.opm != null) {
             Object pre = stack.pop();
             expression = pre + " " + ctx.opm.getText() + " " + ctx.patternLiteral().getText();
+            if ("=~".equals(ctx.opm.getText())) {
+                expression = String.format("(((%s)?:[])[0]?:[])", expression);
+            }
         } else if (ctx.opb != null) {
             String opb = ctx.opb.getText();
             // because of use of | as a pipe symbol, it can't be used for the binary 'or'
@@ -735,6 +740,9 @@ class ConfigListener extends RouteBaseListener {
         } else if (ctx.newclass != null) {
             Object subexpression = stack.pop();
             expression = String.format("new %s(%s)", ctx.newclass.getText(), subexpression);
+        } else if (ctx.arrayIndex != null) {
+            Object subexpression = stack.pop();
+            expression = String.format("%s[%s]", subexpression, ctx.arrayIndex.getText());
         }
         expressionDepth--;
         if(expressionDepth == 0) {

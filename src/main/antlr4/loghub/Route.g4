@@ -120,6 +120,7 @@ expression
     |   e1 = expression opb=binaryOperator e2=expression
     |   e1 = expression opm=matchOperator patternLiteral
     |   '(' e3 = expression ')'
+    |   expression '[' arrayIndex=IntegerLiteral ']'
     ;
 
 expressionsList
@@ -128,7 +129,10 @@ expressionsList
 
 unaryOperator
     :   '~'
+    |   '.~'
     |   '!'
+    |   '+'
+    |   '-'
     ;
 
 binaryOperator

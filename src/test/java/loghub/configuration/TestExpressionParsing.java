@@ -9,10 +9,6 @@ import java.util.Map;
 
 import javax.management.remote.JMXPrincipal;
 
-import org.antlr.v4.runtime.CharStream;
-import org.antlr.v4.runtime.CharStreams;
-import org.antlr.v4.runtime.CommonTokenStream;
-import org.antlr.v4.runtime.tree.ParseTreeWalker;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -26,15 +22,10 @@ import loghub.Expression.ExpressionException;
 import loghub.IpConnectionContext;
 import loghub.LogUtils;
 import loghub.ProcessorException;
-import loghub.RouteLexer;
-import loghub.RouteParser;
-import loghub.RouteParser.ExpressionContext;
 import loghub.Tools;
 import loghub.VarFormatter;
-import loghub.configuration.ConfigListener.ObjectWrapped;
 
 public class TestExpressionParsing {
-
 
     private static Logger logger ;
 
@@ -46,22 +37,7 @@ public class TestExpressionParsing {
     }
 
     private String parseExpression(String exp) {
-        CharStream cs = CharStreams.fromString(exp);
-        RouteLexer lexer = new RouteLexer(cs);
-
-        CommonTokenStream tokens = new CommonTokenStream(lexer);
-        RouteParser parser = new RouteParser(tokens);
-        parser.removeErrorListeners();
-        ConfigErrorListener errListener = new ConfigErrorListener();
-        parser.addErrorListener(errListener);
-
-        ExpressionContext tree = parser.expression();
-        ConfigListener conf = new ConfigListener();
-        ParseTreeWalker walker = new ParseTreeWalker();
-        walker.walk(conf, tree);
-        ObjectWrapped parsed = (ObjectWrapped) conf.stack.pop();
-        Assert.assertTrue(conf.stack.isEmpty());
-        return (String) parsed.wrapped;
+        return ConfigurationTools.unWrap(exp, i -> i.expression());
     }
 
     private Object evalExpression(String exp, Event ev, Map<String, VarFormatter> formats) throws ExpressionException, ProcessorException {
@@ -89,7 +65,8 @@ public class TestExpressionParsing {
 
     @Test
     public void testUnary() throws ExpressionException, ProcessorException {
-        Assert.assertEquals("-2", evalExpression("~1").toString());
+        Assert.assertEquals("2", evalExpression("-(-2)").toString());
+        Assert.assertEquals("-2", evalExpression(".~1").toString());
         Assert.assertEquals("false", evalExpression("!1").toString());
     }
 
@@ -160,6 +137,46 @@ public class TestExpressionParsing {
         ev.setTimestamp(new Date(0));
         Date ts = (Date) evalExpression("[ @timestamp ]",ev);
         Assert.assertEquals(0L, ts.getTime());
+    }
+
+    @Test
+    public void testMeta() throws ExpressionException, ProcessorException {
+        Event ev =  Tools.getEvent();
+        ev.putMeta("a", 1);
+        Number i = (Number) evalExpression("[ #a ]",ev);
+        Assert.assertEquals(1, i.intValue());
+    }
+
+    @Test
+    public void testArray() throws ExpressionException, ProcessorException {
+        Event ev =  Tools.getEvent();
+        ev.put("a", new Integer[] { 1, 2, 3});
+        Number i = (Number) evalExpression("[a][0]",ev);
+        Assert.assertEquals(1, i.intValue());
+    }
+
+    @Test
+    public void testPatternBoolean() throws ExpressionException, ProcessorException {
+        Event ev =  Tools.getEvent();
+        ev.put("a", "abc");
+        Boolean i = (Boolean) evalExpression("[a] ==~ /(a.)(.)/",ev);
+        Assert.assertEquals(true, i.booleanValue());
+    }
+
+    @Test
+    public void testPatternArray() throws ExpressionException, ProcessorException {
+        Event ev =  Tools.getEvent();
+        ev.put("a", "abc");
+        String i = (String) evalExpression("([a] =~ /(a.)(.)/)[2]",ev);
+        Assert.assertEquals("c", i);
+    }
+
+    @Test
+    public void testFailedPatternArray() throws ExpressionException, ProcessorException {
+        Event ev =  Tools.getEvent();
+        ev.put("a", "abc");
+        Object found = evalExpression("([a] =~ /d.*/)[2]",ev);
+        Assert.assertEquals(null, found);
     }
 
     @Test
