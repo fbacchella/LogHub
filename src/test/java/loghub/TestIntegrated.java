@@ -63,62 +63,63 @@ public class TestIntegrated {
         JmxTimerMBean allevents_timer = JMX.newMBeanProxy(mbs, new ObjectName("metrics:name=Allevents.timer"), JmxTimerMBean.class);
         JmxCounterMBean allevents_inflight = JMX.newMBeanProxy(mbs, new ObjectName("metrics:name=Allevents.inflight"), JmxCounterMBean.class);
 
-        Socket sender = tctxt.ctx.newSocket(Method.CONNECT, Sockets.PUSH, "inproc://listener");
-        sender.setHWM(200);
-        Socket receiver = tctxt.ctx.newSocket(Method.CONNECT, Sockets.PULL, "inproc://sender");
-        receiver.setHWM(200);
-        AtomicLong send = new AtomicLong();
-        Thread t = new Thread() {
-            @Override
-            public void run() {
-                try {
-                    for (int i=0 ; i < 100 && tctxt.ctx.isRunning() ; i++) {
-                        sender.send("message " + i);
-                        send.incrementAndGet();
-                        Thread.sleep(1);
+        try (Socket sender = tctxt.ctx.newSocket(Method.CONNECT, Sockets.PUSH, "inproc://listener");
+             Socket receiver = tctxt.ctx.newSocket(Method.CONNECT, Sockets.PULL, "inproc://sender");) {
+            sender.setHWM(200);
+            receiver.setHWM(200);
+            AtomicLong send = new AtomicLong();
+            Thread t = new Thread() {
+                @Override
+                public void run() {
+                    try {
+                        for (int i=0 ; i < 100 && tctxt.ctx.isRunning() ; i++) {
+                            sender.send("message " + i);
+                            send.incrementAndGet();
+                            Thread.sleep(1);
+                        }
+                    } catch (InterruptedException e) {
                     }
-                } catch (InterruptedException e) {
+                    logger.debug("All events sent");
                 }
-                logger.debug("All events sent");
-            }
-        };
-        t.start();
-        Pattern messagePattern = Pattern.compile("\\{\"a\":1,\"b\":\"google-public-dns-a\",\"message\":\"message \\d+\"\\}");
-        while(send.get() < 99 || allevents_inflight.getCount() != 0) {
-            logger.debug("send: {}, in flight: {}", send.get(), allevents_inflight.getCount());
-            while (receiver.getEvents() > 0) {
-                logger.debug("in flight: {}", allevents_inflight.getCount());
-                String content = receiver.recvStr();
-                Assert.assertTrue(messagePattern.matcher(content).find());
-                Thread.sleep(1);
             };
-            Thread.sleep(50);
-        }
-        Thread.sleep(10);
+            t.start();
+            Pattern messagePattern = Pattern.compile("\\{\"a\":1,\"b\":\"google-public-dns-a\",\"message\":\"message \\d+\"\\}");
+            while(send.get() < 99 || allevents_inflight.getCount() != 0) {
+                logger.debug("send: {}, in flight: {}", send.get(), allevents_inflight.getCount());
+                while (receiver.getEvents() > 0) {
+                    logger.debug("in flight: {}", allevents_inflight.getCount());
+                    String content = receiver.recvStr();
+                    Assert.assertTrue(messagePattern.matcher(content).find());
+                    Thread.sleep(1);
+                };
+                Thread.sleep(50);
+            }
+            Thread.sleep(10);
 
-        Set<ObjectName> metrics = mbs.queryNames(new ObjectName("metrics:*"), null);
-        metrics.addAll(mbs.queryNames(new ObjectName("loghub:*"), null));
-        long blocked = 0;
+            Set<ObjectName> metrics = mbs.queryNames(new ObjectName("metrics:*"), null);
+            metrics.addAll(mbs.queryNames(new ObjectName("loghub:*"), null));
+            long blocked = 0;
 
-        dumpstatus(mbs, metrics, i -> i.toString().startsWith("metrics:name=EventWaiting.") && i.toString().endsWith(".failed"), i -> (long)i.getValue(), JmxGaugeMBean.class);
-        dumpstatus(mbs, metrics, i -> i.toString().startsWith("loghub:type=Pipeline,servicename=") && i.toString().endsWith(",name=failed"), i -> i.getCount(), JmxMeterMBean.class);
-        dumpstatus(mbs, metrics, i -> i.toString().startsWith("loghub:type=Pipeline,servicename=") && i.toString().endsWith(",name=droped"), i -> i.getCount(), JmxMeterMBean.class);
-        blocked += dumpstatus(mbs, metrics, i -> i.toString().startsWith("loghub:type=Pipeline,servicename=") && i.toString().endsWith(",name=blocked.in"), i -> i.getCount(), JmxMeterMBean.class);
-        blocked += dumpstatus(mbs, metrics, i -> i.toString().startsWith("loghub:type=Pipeline,servicename=") && i.toString().endsWith(",name=blocked.out"), i -> i.getCount(), JmxMeterMBean.class);
-        dumpstatus(mbs, metrics, i -> i.toString().startsWith("loghub:type=Pipeline,servicename=") && i.toString().endsWith(",name=inflight"), i -> i.getCount(), JmxMeterMBean.class);
-        logger.debug("dropped: " + stats.getDropped());
-        logger.debug("failed: " + stats.getFailed());
-        logger.debug("received: " + stats.getReceived());
-        logger.debug("sent: " + stats.getSent());
-        logger.debug(Arrays.toString(stats.getErrors()));
-        logger.debug(Arrays.toString(stats.getExceptions()));
+            dumpstatus(mbs, metrics, i -> i.toString().startsWith("metrics:name=EventWaiting.") && i.toString().endsWith(".failed"), i -> (long)i.getValue(), JmxGaugeMBean.class);
+            dumpstatus(mbs, metrics, i -> i.toString().startsWith("loghub:type=Pipeline,servicename=") && i.toString().endsWith(",name=failed"), i -> i.getCount(), JmxMeterMBean.class);
+            dumpstatus(mbs, metrics, i -> i.toString().startsWith("loghub:type=Pipeline,servicename=") && i.toString().endsWith(",name=droped"), i -> i.getCount(), JmxMeterMBean.class);
+            blocked += dumpstatus(mbs, metrics, i -> i.toString().startsWith("loghub:type=Pipeline,servicename=") && i.toString().endsWith(",name=blocked.in"), i -> i.getCount(), JmxMeterMBean.class);
+            blocked += dumpstatus(mbs, metrics, i -> i.toString().startsWith("loghub:type=Pipeline,servicename=") && i.toString().endsWith(",name=blocked.out"), i -> i.getCount(), JmxMeterMBean.class);
+            dumpstatus(mbs, metrics, i -> i.toString().startsWith("loghub:type=Pipeline,servicename=") && i.toString().endsWith(",name=inflight"), i -> i.getCount(), JmxMeterMBean.class);
+            logger.debug("dropped: " + stats.getDropped());
+            logger.debug("failed: " + stats.getFailed());
+            logger.debug("received: " + stats.getReceived());
+            logger.debug("sent: " + stats.getSent());
+            logger.debug(Arrays.toString(stats.getErrors()));
+            logger.debug(Arrays.toString(stats.getExceptions()));
 
-        long received = stats.getReceived();
-        Assert.assertTrue(received > 95);
-        Assert.assertEquals(0L, allevents_inflight.getCount());
-        Assert.assertEquals(received, allevents_timer.getCount());
-        Assert.assertEquals(received, blocked + stats.getSent());
-
+            long received = stats.getReceived();
+            Assert.assertTrue(received > 95);
+            Assert.assertEquals(0L, allevents_inflight.getCount());
+            Assert.assertEquals(received, allevents_timer.getCount());
+            Assert.assertEquals(received, blocked + stats.getSent());
+        };
+        Start.shutdown();
     }
 
     private static <C> long dumpstatus(MBeanServer mbs, Set<ObjectName> metrics, Function<ObjectName, Boolean> filter, Function<C, Long> counter, Class<C> proxyClass) {

@@ -62,6 +62,9 @@ public class Start {
 
     private static final Logger logger = LogManager.getLogger();
 
+    // It's exported for tests
+    private static Thread shutdownAction;
+
     static public void main(final String[] args) {
         Start main = new Start();
         JCommander jcom = JCommander
@@ -208,12 +211,12 @@ public class Start {
             props.senders.forEach( i -> i.stopSending());
             props.receivers.forEach( i -> i.stopReceiving());
         };
-        ThreadBuilder.get()
-        .setDaemon(true)
-        .setRunnable(shutdown)
-        .setName("StopEventsProcessors")
-        .setShutdownHook(true)
-        .build();
+        shutdownAction = ThreadBuilder.get()
+                .setDaemon(true)
+                .setRunnable(shutdown)
+                .setName("StopEventsProcessors")
+                .setShutdownHook(true)
+                .build();
 
         try {
             MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
@@ -230,6 +233,12 @@ public class Start {
         }
         if (props.dashboardBuilder != null) {
             props.dashboardBuilder.build().start();
+        }
+    }
+
+    public static void shutdown() {
+        if (shutdownAction != null) {
+            shutdownAction.run();
         }
     }
 
