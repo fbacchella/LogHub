@@ -32,7 +32,7 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
     public Object applyAtPath(Helpers.TriFunction<Map<String, Object>, String, Object, Object> f, String[] path, Object value, boolean create) {
         Map<String, Object> current = this;
         String key = path[0];
-        if (key.startsWith("#")) {
+        if (key != null && key.startsWith("#")) {
             return f.apply(getMetas(), key.substring(1), value);
         } else {
             for (int i = 0; i < path.length - 1; i++) {
