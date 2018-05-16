@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.Deque;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.ListIterator;
@@ -38,6 +39,7 @@ class EventInstance extends Event {
     private String currentPipeline;
     private String nextPipeline;
     private Date timestamp = new Date();
+    private Map<String, Object> metas = new HashMap<>();
     private int stepsCount = 0;
     private boolean test;
     private final ConnectionContext<?> ctx;
@@ -373,6 +375,22 @@ class EventInstance extends Event {
     @Override
     public Event unwrap() {
         return this;
+    }
+
+    @Override
+    public Map<String, Object> getMetas() {
+        return metas;
+    }
+
+    @Override
+    public Object getMeta(String key) {
+        return metas.get(key);
+    }
+
+    @Override
+    public Object putMeta(String key, Object value) {
+        return metas.put(key, value);
+    }
     }
 
     @Override

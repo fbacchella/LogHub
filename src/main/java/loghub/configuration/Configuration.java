@@ -453,11 +453,11 @@ public class Configuration {
         return t;
     }
 
-    private <T, C> T parseObjectDescription(ConfigListener.ObjectDescription desc, ThrowingFunction<Class<T>, T> constructor) throws ConfigException {
+    <T, C> T parseObjectDescription(ConfigListener.ObjectDescription desc, ThrowingFunction<Class<T>, T> constructor) throws ConfigException {
         return parseObjectDescription(desc, constructor, null, 0, null);
     }
 
-    private <T, C> T parseObjectDescription(ConfigListener.ObjectDescription desc, ThrowingFunction<Class<T>, T> constructor, String currentPipeLineName, int depth, AtomicInteger numSubpipe) throws ConfigException {
+    <T, C> T parseObjectDescription(ConfigListener.ObjectDescription desc, ThrowingFunction<Class<T>, T> constructor, String currentPipeLineName, int depth, AtomicInteger numSubpipe) throws ConfigException {
         try {
             @SuppressWarnings("unchecked")
             Class<T> clazz = (Class<T>) classLoader.loadClass(desc.clazz);

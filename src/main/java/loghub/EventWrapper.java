@@ -244,4 +244,20 @@ class EventWrapper extends Event {
         return event;
     }
 
+
+    @Override
+    public Map<String, Object> getMetas() {
+        return event.getMetas();
+    }
+
+    @Override
+    public Object getMeta(String key) {
+        return event.get(key);
+    }
+
+    @Override
+    public Object putMeta(String key, Object value) {
+        return event.put(key, value);
+    }
+
 }

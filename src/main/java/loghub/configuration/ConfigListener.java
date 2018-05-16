@@ -579,6 +579,8 @@ class ConfigListener extends RouteBaseListener {
         String keyString = Optional.ofNullable(ev.key).orElse(NONE).getText();
         if (Event.TIMESTAMPKEY.equals(keyString)) {
             return new String[] { ev.key.getText() };
+        } else if (ev.MetaName() != null) {
+            return new String[] { ev.MetaName().getText() };
         } else {
             List<String> path = ev.Identifier().stream().map(i -> i.getText()).collect(Collectors.toList());
             if (Event.CONTEXTKEY.equals(keyString))
@@ -590,6 +592,12 @@ class ConfigListener extends RouteBaseListener {
 
     @Override
     public void exitEtl(EtlContext ctx) {
+
+        // Check that the lvalue (the destination) is not the context, it's read only
+        Token root = ctx.eventVariable(0).key;
+        if (root != null && Event.CONTEXTKEY.equals(root.getText())) {
+            throw new RecognitionException("Context can't be a lvalue for " + ctx.getText(), parser, stream, ctx);
+        }
 
         ObjectDescription etl;
 
@@ -689,6 +697,8 @@ class ConfigListener extends RouteBaseListener {
             }
         } else if (ctx.l != null) {
             expression = ctx.l.getText();
+        } else if (ctx.ev != null && ctx.ev.MetaName() != null) {
+            expression = "event.getMeta('" + ctx.ev.MetaName().getText().substring(1) + "')";
         } else if (ctx.ev != null) {
             StringBuilder buffer = new StringBuilder("event");
             Arrays.stream(convertEventVariable(ctx.ev)).forEach( i-> {

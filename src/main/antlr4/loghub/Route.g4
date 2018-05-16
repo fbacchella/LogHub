@@ -178,7 +178,7 @@ source
     : '%' Identifier
     ;
 
-eventVariable: '[' (key='@timestamp' | (key='@context' (Identifier ( Identifier)*))? | (Identifier ( Identifier)*)) ']' ;
+eventVariable: '[' (key='@timestamp' | (key='@context' (Identifier ( Identifier)*))? | MetaName | (Identifier ( Identifier)*)) ']' ;
 
 propertyName
     :   Identifier | QualifiedIdentifier
@@ -200,6 +200,10 @@ QualifiedIdentifier
     :   Identifier ('.' Identifier)+
     ;
     
+MetaName
+    : '#'  JavaLetter JavaLetterOrDigit*
+    ;
+
 fragment
 JavaLetter
     :   [a-zA-Z_] // these are the "java letters" below 0xFF

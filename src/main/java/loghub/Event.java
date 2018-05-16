@@ -32,26 +32,36 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
     public Object applyAtPath(Helpers.TriFunction<Map<String, Object>, String, Object, Object> f, String[] path, Object value, boolean create) {
         Map<String, Object> current = this;
         String key = path[0];
-        for (int i = 0; i < path.length - 1; i++) {
-            Object peekNext = current.get(key);
-            Map<String, Object> next;
-            if ( peekNext == null ) {
-                if (create) {
-                    next = new HashMap<>();
-                    current.put(path[i], next);
+        if (key.startsWith("#")) {
+            return f.apply(getMetas(), key.substring(1), value);
+        } else {
+            for (int i = 0; i < path.length - 1; i++) {
+                Object peekNext = current.get(key);
+                Map<String, Object> next;
+                if ( peekNext == null ) {
+                    if (create) {
+                        next = new HashMap<>();
+                        current.put(path[i], next);
+                    } else {
+                        return null;
+                    }
+                } else if ( ! (peekNext instanceof Map) ) {
+                    throw new UncheckedProcessingException(getRealEvent(), "Can descend into " + key + ", it's not an object");
                 } else {
-                    return null;
+                    next = (Map<String, Object>) peekNext;
                 }
-            } else if ( ! (peekNext instanceof Map) ) {
-                throw new UncheckedProcessingException(getRealEvent(), "Can descend into " + key + ", it's not an object");
-            } else {
-                next = (Map<String, Object>) peekNext;
+                current = next;
+                key = path[i + 1];
             }
-            current = next;
-            key = path[i + 1];
+            return f.apply(current, key, value);
         }
-        return f.apply(current, key, value);
     }
+
+    protected abstract Map<String, Object> getMetas();
+    
+    public abstract Object getMeta(String key);
+
+    public abstract Object putMeta(String key, Object value);
 
     public ProcessorException buildException(String message) {
         return new ProcessorException(getRealEvent(), message);
