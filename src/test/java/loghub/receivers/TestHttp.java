@@ -270,4 +270,26 @@ public class TestHttp {
         Assert.assertEquals("1", e.get("a"));
         Assert.assertEquals("user", e.getConnectionContext().getPrincipal().getName());
     }
+
+    @Test
+    public void testGoodJwtAuthenticationAsPassword() throws IOException {
+        Map<String, Object> props = new HashMap<>();
+        props.put("jwt.alg", "HMAC256");
+        String secret = UUID.randomUUID().toString();
+        props.put("jwt.secret", secret);
+        JWTHandler handler = JWTHandler.getBuilder().secret(secret).setAlg("HMAC256").build();
+        String jwtToken = handler.getToken(new JMXPrincipal("user"));
+        makeReceiver( i -> { i.setUseJwt(true); }, props);
+        URL dest = new URL("http", hostname, port, "/?a=1");
+        doRequest(dest,
+                new byte[]{},
+                i -> {
+                    String authStr = Base64.getEncoder().encodeToString((":" + jwtToken).getBytes());
+                    i.setRequestProperty("Authorization", "Basic " + authStr);
+                }, 200);
+        Event e = queue.poll();
+        Assert.assertEquals("1", e.get("a"));
+        Assert.assertEquals("user", e.getConnectionContext().getPrincipal().getName());
+    }
+
 }

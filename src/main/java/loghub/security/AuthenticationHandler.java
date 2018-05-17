@@ -168,7 +168,7 @@ public class AuthenticationHandler {
 
     public Principal checkLoginPassword(String tryLogin, char[] tryPassword) {
         logger.debug("testing login {}", tryLogin);
-        if (":".equals(tryLogin) && isWithJwt()) {
+        if ("".equals(tryLogin) && isWithJwt()) {
             return checkJwt(new String(tryPassword));
         } else if (tryLogin.equals(login) && Arrays.equals(password, tryPassword)) {
             return new JMXPrincipal(login);
