@@ -77,7 +77,7 @@ public class TestJwt {
         AuthenticationHandler authHandler = AuthenticationHandler.getBuilder().setJwtHandler(handler).useJwt(true).build();
         Principal p = new JMXPrincipal("user");
         String token = handler.getToken(p, i -> i.withClaim("unittest", true));
-        JWTPrincipal newp = (JWTPrincipal) authHandler.checkLoginPassword(":", token.toCharArray());
+        JWTPrincipal newp = (JWTPrincipal) authHandler.checkLoginPassword("", token.toCharArray());
         Assert.assertNotNull(newp);
         Assert.assertEquals("user", newp.getName());
         Assert.assertTrue(newp.getClaim("unittest").asBoolean());
