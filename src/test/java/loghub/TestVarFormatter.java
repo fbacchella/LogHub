@@ -35,6 +35,11 @@ public class TestVarFormatter {
             if ("tr".equals(l.getLanguage()) && "%TA".equals(format)) {
                 continue;
             }
+            // String.format don't handle well the Azerbaijan i (not i), like BAZAR ERTƏSI -> BAZAR ERTƏSİ
+            // So skip it
+            if ("az".equals(l.getLanguage()) && "%TA".equals(format)) {
+                continue;
+            }
             VarFormatter vf = new VarFormatter("${var" + format + "}", l);
             String printf = String.format(l, format, value);
             String formatter = vf.format(values);
