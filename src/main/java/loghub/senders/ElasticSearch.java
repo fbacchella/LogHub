@@ -143,7 +143,7 @@ public class ElasticSearch extends AbstractHttpSender {
                 esjson.put("@timestamp", ISO8601.get().format(e.getTimestamp()));
                 String indexvalue;
                 if (indexExpression != null) {
-                    indexvalue = Optional.ofNullable(indexExpression.eval(e)).orElse("").toString();
+                    indexvalue = Optional.ofNullable(indexExpression.eval(e)).map( i-> i.toString()).orElse(null);
                 } else {
                     indexvalue = esIndexFormat.get().format(e.getTimestamp());
                 }
@@ -156,7 +156,7 @@ public class ElasticSearch extends AbstractHttpSender {
                 }
                 String typevalue;
                 if (typeExpression != null) {
-                    typevalue = Optional.ofNullable(typeExpression.eval(e)).orElse("").toString();
+                    typevalue = Optional.ofNullable(typeExpression.eval(e)).map( i-> i.toString()).orElse(null);
                 } else {
                     typevalue = esjson.remove(type).toString();
                 }
