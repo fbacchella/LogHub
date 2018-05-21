@@ -171,6 +171,7 @@ public class ElasticSearch extends AbstractHttpSender {
                     builder.append("\n");
                     builder.append(jsonmapper.writeValueAsString(esjson));
                     builder.append("\n");
+                    validEvents++;
                 } catch (JsonProcessingException ex) {
                     logger.error("Failed to serialized {}: {}", e, ex.getMessage());
                     logger.catching(Level.DEBUG, ex);
@@ -183,7 +184,6 @@ public class ElasticSearch extends AbstractHttpSender {
                 processStatus(e, CompletableFuture.completedFuture(false));
                 logger.error("Failed to determine index/type for event '{}'", e);
             }
-            validEvents++;
         }
         if (validEvents == 0) {
             return new byte[] {};
