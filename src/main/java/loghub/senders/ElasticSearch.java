@@ -137,24 +137,35 @@ public class ElasticSearch extends AbstractHttpSender {
         int validEvents = 0;
         for(Event e: documents) {
             try {
-                if (! e.containsKey(type)) {
-                    processStatus(e, CompletableFuture.completedFuture(false));
-                    logger.warn("No type field for event {}", e);
-                    continue;
-                }
                 validEvents++;
                 esjson.clear();
                 esjson.putAll(e);
                 esjson.put("@timestamp", ISO8601.get().format(e.getTimestamp()));
+                String indexvalue;
                 if (indexExpression != null) {
-                    settings.put("_index", indexExpression.eval(e).toString());
+                    indexvalue = indexExpression.eval(e).toString();
                 } else {
-                    settings.put("_index", esIndexFormat.get().format(e.getTimestamp()));
+                    indexvalue = esIndexFormat.get().format(e.getTimestamp());
                 }
-                if (this.typeExpression != null) {
-                    settings.put("_type", typeExpression.eval(e).toString());
+                if (indexvalue == null || indexvalue.isEmpty()) {
+                    processStatus(e, CompletableFuture.completedFuture(false));
+                    logger.warn("No usable index name for event {}", e);
+                    continue;
                 } else {
-                    settings.put("_type", esjson.remove(type).toString());
+                    settings.put("_index", indexvalue);
+                }
+                String typevalue;
+                if (typeExpression != null) {
+                    typevalue = typeExpression.eval(e).toString();
+                } else {
+                    typevalue = esjson.remove(type).toString();
+                }
+                if (typevalue == null || typevalue.isEmpty()) {
+                    processStatus(e, CompletableFuture.completedFuture(false));
+                    logger.warn("No usable type for event {}", e);
+                    continue;
+                } else {
+                    settings.put("_type", typevalue);
                 }
                 try {
                     builder.append(jsonmapper.writeValueAsString(action));
