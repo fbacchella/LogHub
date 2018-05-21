@@ -73,8 +73,12 @@ public class TestElasticSearch {
 
         @Override
         protected boolean processRequest(FullHttpRequest request, ChannelHandlerContext ctx) throws HttpRequestFailure {
+            String body = request.content().toString(StandardCharsets.UTF_8);
+            if (body == null || body.length() == 0) {
+                throw new HttpRequestFailure(HttpResponseStatus.BAD_REQUEST, "Empty body");
+            }
             try {
-                BufferedReader r = new BufferedReader(new StringReader(request.content().toString(StandardCharsets.UTF_8)));
+                BufferedReader r = new BufferedReader(new StringReader(body));
                 String line;
                 while((line = r.readLine()) != null) {
                     @SuppressWarnings("unchecked")
@@ -203,6 +207,35 @@ public class TestElasticSearch {
             throw failure;
         }
         Assert.assertEquals(count, received.get());
+        logger.debug("event received: {}", received);
+    }
+
+    @Test
+    public void testEmptySend() throws InterruptedException {
+        received.set(0);
+        int count = 5;
+        ElasticSearch es = new ElasticSearch(new ArrayBlockingQueue<>(count));
+        es.setDestinations(new String[]{"http://localhost:" + serverPort, });
+        es.setTimeout(1);
+        es.setBuffersize(10);
+        es.setIndexX(ConfigurationTools.unWrap("[#index]", i -> i.expression()));
+        es.setTypeX(ConfigurationTools.unWrap("[#type]", i -> i.expression()));
+        Assert.assertTrue("Elastic configuration failed", es.configure(new Properties(Collections.emptyMap())));
+        es.start();
+        for (int i = 0 ; i < count ; i++) {
+            Event ev = Tools.getEvent();
+            ev.put("value", "atest" + i);
+            ev.setTimestamp(new Date(0));
+            Assert.assertTrue(es.send(ev));
+            Thread.sleep(1);
+        }
+        es.stopSending();
+        es.close();
+        Thread.sleep(1000);
+        if(failure != null) {
+            throw failure;
+        }
+        Assert.assertEquals(0, received.get());
         logger.debug("event received: {}", received);
     }
 

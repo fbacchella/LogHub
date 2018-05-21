@@ -108,7 +108,7 @@ public class ElasticSearch extends AbstractHttpSender {
     protected Object flush(Batch documents) throws IOException {
         HttpRequest request = new HttpRequest();
         byte[] content = putContent(documents);
-        if (content == null) {
+        if (content.length == 0) {
             return null;
         }
         request.setTypeAndContent("application/json", CharsetUtil.UTF_8, content);
@@ -137,7 +137,6 @@ public class ElasticSearch extends AbstractHttpSender {
         int validEvents = 0;
         for(Event e: documents) {
             try {
-                validEvents++;
                 esjson.clear();
                 esjson.putAll(e);
                 esjson.put("@timestamp", ISO8601.get().format(e.getTimestamp()));
@@ -184,9 +183,10 @@ public class ElasticSearch extends AbstractHttpSender {
                 processStatus(e, CompletableFuture.completedFuture(false));
                 logger.error("Failed to determine index/type for event '{}'", e);
             }
+            validEvents++;
         }
         if (validEvents == 0) {
-            return null;
+            return new byte[] {};
         } else {
             return builder.toString().getBytes(CharsetUtil.UTF_8);
         }
