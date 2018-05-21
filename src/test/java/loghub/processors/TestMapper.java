@@ -41,7 +41,7 @@ public class TestMapper {
     }
 
     @Test
-    public void test3() throws ProcessorException, InterruptedException, ConfigException, IOException {
+    public void testNotMapped() throws ProcessorException, InterruptedException, ConfigException, IOException {
         Properties conf = Tools.loadConf("map.conf");
         for (Pipeline pipe: conf.pipelines) {
             Assert.assertTrue("configuration failed", pipe.configure(conf));
@@ -63,6 +63,19 @@ public class TestMapper {
         sent.put("a", 2L);
 
         Tools.runProcessing(sent, conf.namedPipeLine.get("mapper2"), conf);
+        Assert.assertEquals("conversion not expected", "c", sent.get("a"));
+    }
+
+    @Test
+    public void testExpression() throws ProcessorException, InterruptedException, ConfigException, IOException {
+        Properties conf = Tools.loadConf("map.conf");
+        for (Pipeline pipe: conf.pipelines) {
+            Assert.assertTrue("configuration failed", pipe.configure(conf));
+        }
+        Event sent = Tools.getEvent();
+        sent.put("a", 2);
+
+        Tools.runProcessing(sent, conf.namedPipeLine.get("mapper3"), conf);
         Assert.assertEquals("conversion not expected", "c", sent.get("a"));
     }
 

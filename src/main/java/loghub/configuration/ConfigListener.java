@@ -625,7 +625,8 @@ class ConfigListener extends RouteBaseListener {
         case("@"): {
             etl = new ObjectDescription(this.stream, Mapper.class.getName(), ctx);
             etl.beans.put("map", (ObjectReference) stack.pop());
-            etl.beans.put("field", new ConfigListener.ObjectWrapped(convertEventVariable(ctx.eventVariable().get(1))));
+            ObjectWrapped expression = (ObjectWrapped) stack.pop();
+            etl.beans.put("expression", expression);
             break;
         }
         default:

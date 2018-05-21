@@ -2,21 +2,47 @@ package loghub.processors;
 
 import java.util.Map;
 
+import org.apache.logging.log4j.Level;
+import org.codehaus.groovy.control.CompilationFailedException;
+
 import loghub.Event;
+import loghub.Expression;
 import loghub.ProcessorException;
+import loghub.Expression.ExpressionException;
+import loghub.configuration.Properties;
 
 public class Mapper extends Etl {
 
     private Map<Object, Object> map;
-    private String field[];
+    private String expression;
+
+    private Expression script;
+
+    @Override
+    public boolean configure(Properties properties) {
+        try {
+            script = new Expression(expression, properties.groovyClassLoader, properties.formatters);
+        } catch (ExpressionException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof CompilationFailedException) {
+                logger.error("invalid groovy expression: {}", e.getMessage());
+                return false;
+            } else {
+                logger.error("Critical groovy error: {}", e.getCause().getMessage());
+                logger.throwing(Level.DEBUG, e.getCause());
+                return false;
+            }
+        }
+        return super.configure(properties);
+    }
 
     @Override
     public boolean process(Event event) throws ProcessorException {
-        Object key = event.applyAtPath((i,j,k) -> i.get(j), field, null);
+        Object key = script.eval(event);
         if(key == null) {
             return false;
         }
-        // Map only uses integer as key, as parsing number only generate integer
+        // Map only uses integer number as key, as parsing number only generate integer
         // So ensure the the key is an integer
         // Ignore float/double case, floating point key don't make sense
         if (key instanceof Number && ! (key instanceof Integer) && ! (key instanceof Double) && ! (key instanceof Float)) {
@@ -44,18 +70,11 @@ public class Mapper extends Etl {
         this.map = map;
     }
 
-    /**
-     * @return the field
-     */
-    public String[] getField() {
-        return field;
+    public String getExpression() {
+        return expression;
     }
-
-    /**
-     * @param field the field to set
-     */
-    public void setField(String[] field) {
-        this.field = field;
+    public void setExpression(String expression) {
+        this.expression = expression;
     }
 
 }
