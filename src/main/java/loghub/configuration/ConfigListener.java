@@ -693,7 +693,7 @@ class ConfigListener extends RouteBaseListener {
                 subexpression = (String) stack.pop();
                 expression = String.format("formatters.%s.format(%s)", key, subexpression);
             } else {
-                expression = '\'' + ctx.sl.getText() + '\'';
+                expression = '\"' + ctx.sl.getText() + '\"';
             }
         } else if (ctx.l != null) {
             expression = ctx.l.getText();

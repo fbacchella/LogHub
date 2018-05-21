@@ -233,6 +233,13 @@ public class TestEtl {
         Assert.assertTrue(ev.isEmpty());
     }
 
+    @Test
+    public void testMetaChar() throws ProcessorException {
+        Event ev =  RunEtl("[a] = \"\\\\\\\"'!\"", i -> {});
+        Assert.assertEquals("\"'!", ev.remove("a"));
+        Assert.assertTrue(ev.isEmpty());
+    }
+
     @Test(expected=RecognitionException.class)
     public void testContextReadOnly() throws ProcessorException {
         RunEtl("[@context principal] = 1", i -> {});
