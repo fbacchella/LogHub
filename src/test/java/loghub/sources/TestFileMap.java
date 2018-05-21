@@ -17,6 +17,7 @@ import loghub.ProcessorException;
 import loghub.Tools;
 import loghub.Tools.ProcessingStatus;
 import loghub.configuration.ConfigException;
+import loghub.configuration.ConfigurationTools;
 import loghub.configuration.Properties;
 import loghub.processors.Mapper;
 
@@ -50,7 +51,7 @@ public class TestFileMap {
         s.configure(null);
 
         Mapper p = new Mapper();
-        p.setField(new String[] {"type"});
+        p.setExpression(ConfigurationTools.unWrap("[type]", i -> i.expression()));
         p.setLvalue(new String[] {"type"});
         p.setMap(s);
 
