@@ -40,6 +40,7 @@ import loghub.HttpTestServer;
 import loghub.LogUtils;
 import loghub.Stats;
 import loghub.Tools;
+import loghub.configuration.ConfigurationTools;
 import loghub.configuration.Properties;
 import loghub.netty.http.HttpRequestFailure;
 import loghub.netty.http.HttpRequestProcessing;
@@ -159,6 +160,37 @@ public class TestElasticSearch {
         for (int i = 0 ; i < count ; i++) {
             Event ev = Tools.getEvent();
             ev.put("type", "junit");
+            ev.put("value", "atest" + i);
+            ev.setTimestamp(new Date(0));
+            Assert.assertTrue(es.send(ev));
+            Thread.sleep(1);
+        }
+        es.stopSending();
+        es.close();
+        Thread.sleep(1000);
+        if(failure != null) {
+            throw failure;
+        }
+        Assert.assertEquals(count, received.get());
+        logger.debug("event received: {}", received);
+    }
+
+    @Test
+    public void testWithExpression() throws InterruptedException {
+        received.set(0);
+        int count = 20;
+        ElasticSearch es = new ElasticSearch(new ArrayBlockingQueue<>(count));
+        es.setDestinations(new String[]{"http://localhost:" + serverPort, });
+        es.setTimeout(1);
+        es.setBuffersize(10);
+        es.setIndexX(ConfigurationTools.unWrap("[#index]", i -> i.expression()));
+        es.setTypeX(ConfigurationTools.unWrap("[#type]", i -> i.expression()));
+        Assert.assertTrue("Elastic configuration failed", es.configure(new Properties(Collections.emptyMap())));
+        es.start();
+        for (int i = 0 ; i < count ; i++) {
+            Event ev = Tools.getEvent();
+            ev.putMeta("type", "junit");
+            ev.putMeta("index", "loghub-1970.01.01");
             ev.put("value", "atest" + i);
             ev.setTimestamp(new Date(0));
             Assert.assertTrue(es.send(ev));
