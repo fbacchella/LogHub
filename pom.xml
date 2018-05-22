@@ -20,6 +20,8 @@
         <javadoc>2.10.3</javadoc>
         <ehcache>2.10.4</ehcache>
         <jackson>2.9.5</jackson>
+        <mainClass>loghub.Start</mainClass>
+        <uberjar.name>loghub</uberjar.name>
     </properties>
 
     <dependencies>
@@ -254,25 +256,49 @@
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-assembly-plugin</artifactId>
-                <version>2.6</version>
-                <configuration>
-                    <descriptorRefs>
-                        <descriptorRef>jar-with-dependencies</descriptorRef>
-                    </descriptorRefs>
-                    <archive>
-                        <manifest>
-                            <mainClass>loghub.Start</mainClass>
-                        </manifest>
-                    </archive>
-                </configuration>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.1.0</version>
                 <executions>
                     <execution>
-                        <id>simple-command</id>
                         <phase>package</phase>
                         <goals>
-                            <goal>attached</goal>
+                            <goal>shade</goal>
                         </goals>
+                        <configuration>
+                            <finalName>${uberjar.name}</finalName>
+                            <minimizeJar>true</minimizeJar>
+                            <transformers>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <mainClass>${mainClass}</mainClass>
+                                </transformer>
+                            </transformers>
+                            <filters>
+                                <filter>
+                                    <!-- Shading signed JARs will fail without this. http://stackoverflow.com/questions/999489/invalid-signature-file-when-attempting-to-run-a-jar -->
+                                    <artifact>*:*</artifact>
+                                    <excludes>
+                                        <exclude>META-INF/*.SF</exclude>
+                                        <exclude>META-INF/*.DSA</exclude>
+                                        <exclude>META-INF/*.RSA</exclude>
+                                    </excludes>
+                                </filter>
+                                <filter>
+                                    <artifact>io.krakens:java-grok</artifact>
+                                    <excludes>
+                                        <exclude>patterns/*</exclude>
+                                    </excludes>
+                                </filter>
+                                <filter>
+                                    <artifact>log4j:log4j</artifact>
+                                    <excludes>
+                                        <exclude>**/*</exclude>
+                                    </excludes>
+                                    <includes>
+                                        <include>org/apache/log4j/spi/LoggingEvent.class</include>
+                                    </includes>
+                                </filter>
+                            </filters>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>
