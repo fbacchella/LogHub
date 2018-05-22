@@ -94,7 +94,7 @@ public class TestEvent {
     }
 
     @Test
-    public void testWrapper() throws ProcessorException, ConfigException, IOException {
+    public void testWrapper() {
         Event event = Tools.getEvent();
         Event wrapped = new EventWrapper(event);
         wrapped.putMeta("a", 1);
