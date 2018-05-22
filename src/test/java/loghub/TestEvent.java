@@ -93,4 +93,19 @@ public class TestEvent {
         e.end();
     }
 
+    @Test
+    public void testWrapper() throws ProcessorException, ConfigException, IOException {
+        Event event = Tools.getEvent();
+        Event wrapped = new EventWrapper(event);
+        wrapped.putMeta("a", 1);
+        Assert.assertEquals(1, wrapped.getMeta("a"));
+        Assert.assertEquals(1, event.getMeta("a"));
+        event.putMeta("b", 2);
+        Assert.assertEquals(2, wrapped.getMeta("b"));
+        Assert.assertEquals(2, event.getMeta("b"));
+
+        Assert.assertEquals(2, wrapped.getMetas().size());
+        Assert.assertEquals(2, event.getMetas().size());
+    }
+
 }
