@@ -252,12 +252,12 @@ class EventWrapper extends Event {
 
     @Override
     public Object getMeta(String key) {
-        return event.get(key);
+        return event.getMeta(key);
     }
 
     @Override
     public Object putMeta(String key, Object value) {
-        return event.put(key, value);
+        return event.putMeta(key, value);
     }
 
 }
