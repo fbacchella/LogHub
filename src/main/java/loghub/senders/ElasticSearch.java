@@ -130,6 +130,7 @@ public class ElasticSearch extends AbstractHttpSender {
 
     private byte[] putContent(Batch documents) {
         StringBuilder builder = new StringBuilder();
+        StringBuilder eventbuilder = new StringBuilder();
         Map<String, String> settings = new HashMap<>(2);
         Map<String, Object> action = Collections.singletonMap("index", settings);
         Map<String, Object> esjson = new HashMap<>();
@@ -137,6 +138,7 @@ public class ElasticSearch extends AbstractHttpSender {
         int validEvents = 0;
         for(Event e: documents) {
             try {
+                eventbuilder.setLength(0);
                 esjson.clear();
                 esjson.putAll(e);
                 esjson.put("@timestamp", ISO8601.get().format(e.getTimestamp()));
@@ -166,23 +168,24 @@ public class ElasticSearch extends AbstractHttpSender {
                 } else {
                     settings.put("_type", typevalue);
                 }
-                try {
-                    builder.append(jsonmapper.writeValueAsString(action));
-                    builder.append("\n");
-                    builder.append(jsonmapper.writeValueAsString(esjson));
-                    builder.append("\n");
-                    validEvents++;
-                } catch (JsonProcessingException ex) {
-                    logger.error("Failed to serialized {}: {}", e, ex.getMessage());
-                    logger.catching(Level.DEBUG, ex);
-                }
+                eventbuilder.append(jsonmapper.writeValueAsString(action));
+                eventbuilder.append("\n");
+                eventbuilder.append(jsonmapper.writeValueAsString(esjson));
+                eventbuilder.append("\n");
+                builder.append(eventbuilder);
+                validEvents++;
                 processStatus(e, CompletableFuture.completedFuture(true));
             } catch (java.lang.StackOverflowError ex) {
                 processStatus(e, CompletableFuture.completedFuture(false));
-                logger.error("Failed to serialized event '{}', infinite recursion", e);
-            } catch (ProcessorException e1) {
+                logger.error("Failed to serialized event {}, infinite recursion", e);
+            } catch (ProcessorException ex) {
                 processStatus(e, CompletableFuture.completedFuture(false));
-                logger.error("Failed to determine index/type for event '{}'", e);
+                logger.error("Failed to determine index/type for event {}: {}", e, ex);
+                logger.catching(Level.DEBUG, ex);
+            } catch (JsonProcessingException ex) {
+                logger.error("Failed to serialized {}: {}", e, ex.getMessage());
+                logger.catching(Level.DEBUG, ex);
+                continue;
             }
         }
         if (validEvents == 0) {
