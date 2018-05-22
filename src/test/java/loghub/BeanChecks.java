@@ -14,6 +14,8 @@ import org.junit.Test;
 public class BeanChecks {
 
     private static Logger logger;
+    
+    private static final Class<? extends String[]> LSTRING = new String[] {}.getClass();
 
     private static class BeanInfo {
         private final String beanName;
@@ -74,6 +76,23 @@ public class BeanChecks {
                 ,BeanInfo.build("listen", String.class)
                 ,BeanInfo.build("type", String.class)
                 ,BeanInfo.build("hwm", Integer.TYPE)
+                );
+    }
+
+    @Test
+    public void test_loghub_senders_ElasticSearch() throws ClassNotFoundException, IntrospectionException {
+        beansCheck("loghub.senders.ElasticSearch"
+                ,BeanInfo.build("destinations", LSTRING)
+                ,BeanInfo.build("timeout", Integer.TYPE)
+                ,BeanInfo.build("threads", Integer.TYPE)
+                ,BeanInfo.build("buffersize", Integer.TYPE)
+                ,BeanInfo.build("indexX", String.class)
+                ,BeanInfo.build("indexformat", String.class)
+                ,BeanInfo.build("type", String.class)
+                ,BeanInfo.build("typeX", String.class)
+                ,BeanInfo.build("templatePath", String.class)
+                ,BeanInfo.build("login", String.class)
+                ,BeanInfo.build("password", String.class)
                 );
     }
 

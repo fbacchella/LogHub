@@ -376,6 +376,10 @@ public class ElasticSearch extends AbstractHttpSender {
         return indexformat;
     }
 
+    public void setIndexformat(String indexformat) {
+        this.indexformat = indexformat;
+    }
+
     /**
      * @return the indexformat
      */
