@@ -11,6 +11,8 @@ import loghub.Pipeline;
 import loghub.configuration.Properties;
 import loghub.decoders.StringCodec;
 import loghub.netty.GenericTcp;
+import loghub.netty.servers.TcpServer;
+import loghub.security.ssl.ClientAuthentication;
 
 public class TcpLinesStream extends GenericTcp {
 
@@ -30,6 +32,13 @@ public class TcpLinesStream extends GenericTcp {
 
     @Override
     public boolean configure(Properties properties) {
+        TcpServer server = new TcpServer();
+        if (isWithSSL()) {
+            server.setSSLClientAuthentication(ClientAuthentication.valueOf(getSSLClientAuthentication().toUpperCase()));
+            server.setSSLContext(properties.ssl);
+            server.setSSLKeyAlias(getSSLKeyAlias());
+        }
+        setServer(server);
         StringCodec stringcodec = new StringCodec();
         stringcodec.setCharset(charset.toString());
         stringcodec.setField(field);

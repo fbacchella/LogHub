@@ -79,6 +79,7 @@ public abstract class AbstractNettyServer<CF extends ComponentFactory<BS, BSC, S
     }
 
     public void addSslHandler(ChannelPipeline p, SSLEngine engine) {
+        logger.debug("adding an ssl handler on {}", p.channel());
         SslHandler sslHandler = new SslHandler(engine);
         p.addFirst("ssl", sslHandler);
         Future<Channel> future = sslHandler.handshakeFuture();
