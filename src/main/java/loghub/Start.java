@@ -8,6 +8,7 @@ import java.lang.management.ManagementFactory;
 import java.rmi.NotBoundException;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.management.InstanceAlreadyExistsException;
 import javax.management.MBeanRegistrationException;
@@ -180,14 +181,20 @@ public class Start {
             };
         }
 
-        props.pipelines.stream().forEach(i-> i.configure(props));
+        // Used to remember if configuration process succeded
+        AtomicBoolean failed = new AtomicBoolean(false);
+
+        props.pipelines.stream().forEach(i-> {
+            boolean pipeOk = i.configure(props);
+            failed.set(failed.get() || (! pipeOk));
+        });
 
         for (Sender s: props.senders) {
             if (s.configure(props)) {
                 s.start();
             } else {
                 logger.error("failed to configure output {}", s.getName());
-                throw new IllegalStateException();
+                failed.set(true);
             };
         }
 
@@ -202,8 +209,12 @@ public class Start {
                 r.start();
             } else {
                 logger.error("failed to configure input {}", r.getName());
-                throw new IllegalStateException();
+                failed.set(true);
             }
+        }
+
+        if (failed.get()) {
+            throw new IllegalStateException();
         }
 
         Runnable shutdown = () -> {
@@ -234,6 +245,7 @@ public class Start {
         if (props.dashboardBuilder != null) {
             props.dashboardBuilder.build().start();
         }
+
     }
 
     public static void shutdown() {
