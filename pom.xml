@@ -367,6 +367,18 @@
                         </goals>
                     </execution>
                 </executions>
+                <configuration>
+                    <links>
+                        <link>https://www.ehcache.org/apidocs/${ehcache}/</link>
+                        <link>https://docs.groovy-lang.org/latest/html/api/</link>
+                        <link>https://www.antlr.org/api/Java</link>
+                        <link>https://netty.io/4.0/api/</link>
+                        <link>https://www.snmp4j.org/doc/</link>
+                        <link>https://zeromq.github.io/jzmq/javadocs/</link>
+                        <link>https://logging.apache.org/log4j/2.0/log4j-api/apidocs</link>
+                    </links>
+                    <keywords>true</keywords>
+                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -416,12 +428,13 @@
                 </reportSets>
                 <configuration>
                     <links>
-                        <link>http://www.ehcache.org/apidocs/${ehcache}/</link>
-                        <link>http://docs.groovy-lang.org/latest/html/api/</link>
-                        <link>http://www.antlr.org/api/Java</link>
-                        <link>http://netty.io/4.0/api/</link>
-                        <link>http://www.snmp4j.org/doc/</link>
-                        <link>http://zeromq.github.io/jzmq/javadocs/</link>
+                        <link>https://www.ehcache.org/apidocs/${ehcache}/</link>
+                        <link>https://docs.groovy-lang.org/latest/html/api/</link>
+                        <link>https://www.antlr.org/api/Java</link>
+                        <link>https://netty.io/4.0/api/</link>
+                        <link>https://www.snmp4j.org/doc/</link>
+                        <link>https://zeromq.github.io/jzmq/javadocs/</link>
+                        <link>https://logging.apache.org/log4j/2.0/log4j-api/apidocs</link>
                     </links>
                     <keywords>true</keywords>
                 </configuration>
