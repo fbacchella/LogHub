@@ -50,19 +50,19 @@ public class TestWithZMQ {
             Assert.assertTrue("failed to configure " + s, s.configure(conf));
             s.start();
         }
-        Socket out = tctxt.ctx.newSocket(Method.CONNECT, Sockets.SUB, "inproc://sender", 1, -1);
-        out.subscribe(new byte[]{});
-        Socket sender = tctxt.ctx.newSocket(Method.CONNECT, Sockets.PUB, "inproc://listener", 1, -1);
-        // Wait for ZMQ to be started
-        Thread.sleep(30);
-        sender.send("something");
-        Event received = conf.mainQueue.poll(1, TimeUnit.SECONDS);
-        Assert.assertNotNull("nothing received", received);
-        conf.outputQueues.get("main").add(received);
-        byte[] buffer = out.recv();
-        Assert.assertEquals("wrong send message", "something", new String(buffer));
-        tctxt.ctx.close(sender);
-        tctxt.ctx.close(out);
+        try (Socket out = tctxt.ctx.newSocket(Method.CONNECT, Sockets.SUB, "inproc://sender", 1, -1);
+             Socket sender = tctxt.ctx.newSocket(Method.CONNECT, Sockets.PUB, "inproc://listener", 1, -1);
+        ) {
+            out.subscribe(new byte[]{});
+            // Wait for ZMQ to be started
+            Thread.sleep(30);
+            sender.send("something");
+            Event received = conf.mainQueue.poll(1, TimeUnit.SECONDS);
+            Assert.assertNotNull("nothing received", received);
+            conf.outputQueues.get("main").add(received);
+            byte[] buffer = out.recv();
+            Assert.assertEquals("wrong send message", "something", new String(buffer));
+        }
         for(Receiver r: conf.receivers) {
             r.stopReceiving();
         }
