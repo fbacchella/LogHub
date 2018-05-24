@@ -125,6 +125,15 @@ public class TestExpressionParsing {
     }
 
     @Test
+    public void testFormatterEvent() throws ExpressionException, ProcessorException {
+        String format = "${a}";
+        String formatHash = Integer.toHexString(format.hashCode());
+        Event ev =  Tools.getEvent();
+        ev.put("a", 1);
+        Assert.assertEquals("1", evalExpression("\"" + format + "\"", ev, Collections.singletonMap("h_" + formatHash, new VarFormatter(format))).toString());
+    }
+
+    @Test
     public void testEventPath() throws ExpressionException, ProcessorException {
         Event ev =  Tools.getEvent();
         ev.put("a", Collections.singletonMap("b", "c"));
