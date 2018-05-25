@@ -31,6 +31,63 @@ import loghub.configuration.Properties;
 
 class EventInstance extends Event {
 
+    static private final class PreSubpipline extends Processor {
+        @Override
+        public boolean process(Event event) throws ProcessorException {
+            PausingContext previouspc = event.getRealEvent().timersStack.peek();
+            if (previouspc != null) {
+                previouspc.pause();
+            }
+            String pipename = event.getRealEvent().pipelineNames.remove();
+            PausingContext newpc = (PausingContext) Properties.metrics.pausingTimer("Pipeline." + pipename + ".timer").time();
+            event.getRealEvent().timersStack.add(newpc);
+            return true;
+        }
+
+        @Override
+        public String getName() {
+            return "preSubpipline";
+        }
+
+        @Override
+        public String toString() {
+            return "preSubpipline";
+        }
+    }
+
+    static private final class PostSubpipline extends Processor {
+        @Override
+        public boolean process(Event event) throws ProcessorException {
+            try {
+                event.getRealEvent().timersStack.remove().close();
+            } catch (NoSuchElementException e1) {
+                throw new ProcessorException(event.getRealEvent(), "Empty timer stack, bad state");
+            }
+            PausingContext previouspc = event.getRealEvent().timersStack.peek();
+            if (previouspc != null) {
+                previouspc.restart();
+            }
+            return true;
+        }
+
+        @Override
+        public String getName() {
+            return "postSubpipline";
+        }
+
+        @Override
+        public String toString() {
+            return "postSubpipline";
+        }
+    }
+
+    static private final PreSubpipline preSubpipline = new PreSubpipline();
+    static private final PostSubpipline postSubpipline = new PostSubpipline();
+    
+    static boolean configure(Properties props) {
+        return postSubpipline.configure(props) && preSubpipline.configure(props);
+    }
+
     private static final Logger logger = LogManager.getLogger();
 
     private transient EventWrapper wevent;
@@ -39,7 +96,7 @@ class EventInstance extends Event {
     private String currentPipeline;
     private String nextPipeline;
     private Date timestamp = new Date();
-    private Map<String, Object> metas = new HashMap<>();
+    private final Map<String, Object> metas = new HashMap<>();
     private int stepsCount = 0;
     private boolean test;
     private final ConnectionContext<?> ctx;
@@ -49,8 +106,6 @@ class EventInstance extends Event {
     // The context for exact pipeline timine
     private transient Queue<PausingContext> timersStack;
     private transient Deque<String> pipelineNames;
-    private transient Processor preSubpipline;
-    private transient Processor postSubpipline;
 
     EventInstance(ConnectionContext<?> ctx) {
         this(ctx, false);
@@ -83,56 +138,6 @@ class EventInstance extends Event {
         wevent = null;
         timersStack = Collections.asLifoQueue(new ArrayDeque<PausingContext>());
         pipelineNames = new ArrayDeque<>();
-        preSubpipline = new Processor() {
-            @Override
-            public boolean process(Event event) throws ProcessorException {
-                PausingContext previouspc = timersStack.peek();
-                if (previouspc != null) {
-                    previouspc.pause();
-                }
-                String pipename = pipelineNames.remove();
-                PausingContext newpc = (PausingContext) Properties.metrics.pausingTimer("Pipeline." + pipename + ".timer").time();
-                timersStack.add(newpc);
-                return true;
-            }
-
-            @Override
-            public String getName() {
-                return "preSubpipline";
-            }
-
-            @Override
-            public String toString() {
-                return "preSubpipline";
-            }
-
-        };
-        postSubpipline = new Processor() {
-            @Override
-            public boolean process(Event event) throws ProcessorException {
-                try {
-                    timersStack.remove().close();
-                } catch (NoSuchElementException e1) {
-                    throw new ProcessorException(EventInstance.this, "Empty timer stack, bad state");
-                }
-                PausingContext previouspc = timersStack.peek();
-                if (previouspc != null) {
-                    previouspc.restart();
-                }
-                return true;
-            }
-
-            @Override
-            public String getName() {
-                return "postSubpipline";
-            }
-
-            @Override
-            public String toString() {
-                return "postSubpipline";
-            }
-
-        };
         return this;
     }
 
