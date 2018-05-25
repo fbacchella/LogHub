@@ -288,8 +288,8 @@ public abstract class AbstractHttpSender extends Sender {
                 .register("https", new SSLConnectionSocketFactory(properties.ssl))
                 .build();
         PoolingHttpClientConnectionManager cm = new PoolingHttpClientConnectionManager(registry);
-        cm.setDefaultMaxPerRoute(2);
-        cm.setMaxTotal( 2 * publisherThreads);
+        cm.setMaxTotal(publisherThreads + 1);
+        cm.setDefaultMaxPerRoute(publisherThreads + 1);
         cm.setValidateAfterInactivity(timeout * 1000);
         builder.setConnectionManager(cm);
         if (properties.ssl != null) {
@@ -411,7 +411,7 @@ public abstract class AbstractHttpSender extends Sender {
         try {
             response = client.execute(host, request, context);
         } catch (ConnectionPoolTimeoutException e) {
-            logger.error("Connection to {} timed out", host);
+            logger.error("All connections to {} used.", host);
             return new HttpResponse(host, null, e, null);
         } catch (HttpHostConnectException e) {
             String message = "";

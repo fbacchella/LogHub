@@ -8,6 +8,7 @@ import java.net.URL;
 import java.nio.file.Paths;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -31,6 +32,7 @@ import io.netty.util.CharsetUtil;
 import loghub.Event;
 import loghub.Expression;
 import loghub.Expression.ExpressionException;
+import loghub.Helpers;
 import loghub.ProcessorException;
 import loghub.configuration.Properties;
 
@@ -60,6 +62,7 @@ public class ElasticSearch extends AbstractHttpSender {
     private boolean withTemplate = true;
 
     private ThreadLocal<DateFormat> esIndexFormat;
+    private ThreadLocal<URL[]> UrlArrayCopy;
 
     public ElasticSearch(BlockingQueue<Event> inQueue) {
         super(inQueue);
@@ -69,6 +72,7 @@ public class ElasticSearch extends AbstractHttpSender {
     @Override
     public boolean configure(Properties properties) {
         if (super.configure(properties)) {
+            UrlArrayCopy = ThreadLocal.withInitial(() -> Arrays.copyOf(endPoints, endPoints.length));
             // Used to log an possible failure
             String processedSrc = null;
             try {
@@ -292,7 +296,9 @@ public class ElasticSearch extends AbstractHttpSender {
         if (request == null) {
             request = new HttpRequest();
         }
-        for (URL endPoint: endPoints) {
+        URL[] localendPoints = UrlArrayCopy.get();
+        Helpers.shuffleArray(localendPoints);
+        for (URL endPoint: localendPoints) {
             try {
                 URL newEndPoint = new URL(endPoint.getProtocol(), endPoint.getHost(), endPoint.getPort(), endPoint.getFile() + filePart);
                 request.setUrl(newEndPoint);
@@ -325,7 +331,7 @@ public class ElasticSearch extends AbstractHttpSender {
             } catch (MalformedURLException e) {
             } catch (IOException | UncheckedIOException e) {
                 logger.error("Can't communicate with node {}:{}: {}", endPoint.getHost(), endPoint.getPort(), e.getMessage());
-                logger.catching(Level.ERROR, e);
+                logger.catching(Level.DEBUG, e);
             }
         }
         return onFailure;
