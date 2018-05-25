@@ -699,7 +699,7 @@ class ConfigListener extends RouteBaseListener {
         } else if (ctx.l != null) {
             expression = ctx.l.getText();
         } else if (ctx.ev != null && ctx.ev.MetaName() != null) {
-            expression = "event.getMeta('" + ctx.ev.MetaName().getText().substring(1) + "')";
+            expression = "event.getMeta(\"" + ctx.ev.MetaName().getText().substring(1) + "\")";
         } else if (ctx.ev != null) {
             StringBuilder buffer = new StringBuilder("event");
             Arrays.stream(convertEventVariable(ctx.ev)).forEach( i-> {

@@ -37,8 +37,11 @@ public class TestEtl {
     }
 
     private Event RunEtl(String exp, Consumer<Event> filer) throws ProcessorException {
-        Etl e =  ConfigurationTools.buildFromFragment(exp, i -> i.etl());
-        e.configure(new Properties(Collections.emptyMap()));
+        Map<String, String> formatters = new HashMap<>();
+        Etl e =  ConfigurationTools.buildFromFragment(exp, i -> i.etl(), formatters);
+        Map<String, Object> settings = new HashMap<>(1);
+        settings.put("__FORMATTERS", formatters);
+        e.configure(new Properties(settings));
         Event ev = Event.emptyEvent(ConnectionContext.EMPTY);
         filer.accept(ev);
         Assert.assertTrue(e.process(ev));
@@ -206,10 +209,17 @@ public class TestEtl {
     }
 
     @Test
-    public void testMetaToValue() throws ProcessorException {
+    public void testMetaToValueMove() throws ProcessorException {
         Event ev =  RunEtl("[a] < [#b]", i -> i.putMeta("b", 1));
         Assert.assertEquals(1, ev.get("a"));
         Assert.assertEquals(null, ev.getMeta("b"));
+    }
+
+    @Test
+    public void testMetaToValueAssign() throws ProcessorException {
+        Event ev =  RunEtl("[a] = [#b]", i -> i.putMeta("b", 1));
+        Assert.assertEquals(1, ev.get("a"));
+        Assert.assertEquals(1, ev.getMeta("b"));
     }
 
     @Test
@@ -234,8 +244,21 @@ public class TestEtl {
     }
 
     @Test
+    public void testFormatMeta() throws ProcessorException {
+        Event ev =  RunEtl("[a]=\"${#1%s} ${#2%s}\"([#type], [type])", i -> {i.putMeta("type", 1);i.put("type", 2);} );
+        Assert.assertEquals("1 2", ev.get("a"));
+    }
+
+    @Test
+    public void testCastComplex() throws ProcessorException {
+        Event ev =  RunEtl("[ #principal ] = ([ #principal ] =~ /([^@]+)(@.*)?/ )[1]", i -> i.putMeta("principal", "nobody"));
+        Assert.assertEquals("nobody", ev.getMeta("principal"));
+        Assert.assertTrue(ev.isEmpty());
+    }
+
+    @Test
     public void testMetaChar() throws ProcessorException {
-        Event ev =  RunEtl("[a] = \"\\\\\\\"'!\"", i -> {});
+        Event ev =  RunEtl("[a] = \"\\\"'!\"", i -> {});
         Assert.assertEquals("\"'!", ev.remove("a"));
         Assert.assertTrue(ev.isEmpty());
     }

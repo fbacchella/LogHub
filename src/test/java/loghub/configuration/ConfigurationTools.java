@@ -1,5 +1,7 @@
 package loghub.configuration;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.function.Function;
 
 import org.antlr.v4.runtime.CharStream;
@@ -21,10 +23,14 @@ public class ConfigurationTools {
     }
 
     public static Object parseFragment(String fragment, Function<RouteParser, ? extends ParserRuleContext> extractor) {
-        return ConfigurationTools.parseFragment(CharStreams.fromString(fragment), extractor);
+        return ConfigurationTools.parseFragment(CharStreams.fromString(fragment), extractor, new HashMap<>());
     }
 
-    public static <T extends ParserRuleContext> Object parseFragment(CharStream fragment, Function<RouteParser, T> extractor) {
+    public static Object parseFragment(String fragment, Function<RouteParser, ? extends ParserRuleContext> extractor, Map<String, String> formatters) {
+        return ConfigurationTools.parseFragment(CharStreams.fromString(fragment), extractor, formatters);
+    }
+
+    public static <T extends ParserRuleContext> Object parseFragment(CharStream fragment, Function<RouteParser, T> extractor, Map<String, String> formatters) {
         RouteLexer lexer = new RouteLexer(fragment);
 
         CommonTokenStream tokens = new CommonTokenStream(lexer);
@@ -39,11 +45,21 @@ public class ConfigurationTools {
         walker.walk(conf, tree);
         Object o = conf.stack.pop();
         Assert.assertTrue(conf.stack.isEmpty());
+        formatters.putAll(conf.formatters);
         return o;
     }
 
     public static <T> T buildFromFragment(String fragment, Function<RouteParser, ? extends ParserRuleContext> extractor) {
         ObjectDescription parsed = (ObjectDescription) ConfigurationTools.parseFragment(fragment,  extractor);
+
+        ThrowingFunction<Class<T>, T> emptyConstructor = i -> {return i.getConstructor().newInstance();};
+
+        Configuration c = new Configuration();
+        return c.parseObjectDescription(parsed, emptyConstructor);
+    }
+
+    public static <T> T buildFromFragment(String fragment, Function<RouteParser, ? extends ParserRuleContext> extractor, Map<String, String> formatters) {
+        ObjectDescription parsed = (ObjectDescription) ConfigurationTools.parseFragment(fragment,  extractor, formatters);
 
         ThrowingFunction<Class<T>, T> emptyConstructor = i -> {return i.getConstructor().newInstance();};
 
