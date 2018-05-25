@@ -259,7 +259,7 @@ public class Configuration {
     }
 
     private String getStringLitteral(BeanValueContext beanValue) {
-        return getLitteral(beanValue, i -> i.stringLiteral().getText(), j -> j);
+        return getLitteral(beanValue, i -> beanValue.literal().getText(), j -> j);
     }
 
     private String[] getStringOrArrayLitteral(BeanValueContext beanValue) {

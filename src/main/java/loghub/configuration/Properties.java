@@ -165,7 +165,7 @@ public class Properties extends HashMap<String, Object> {
     public final JWTHandler jwtHandler;
     public final Builder<DashboardHttpServer> dashboardBuilder;
 
-    public static final Timer timer = new Timer("loghubtimer", true);
+    public final Timer timer = new Timer("loghubtimer", true);
     private final CacheManager cacheManager;
 
     @SuppressWarnings("unchecked")

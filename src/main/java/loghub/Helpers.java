@@ -163,7 +163,7 @@ public final class Helpers {
             URLConnection cnx = url.openConnection();
             if (cnx instanceof JarURLConnection) {
                 JarURLConnection jarcnx = (JarURLConnection) cnx;
-                final JarFile jarfile = jarcnx.getJarFile();
+                JarFile jarfile = jarcnx.getJarFile();
 
                 Helpers.ThrowingFunction<JarEntry, InputStream> openner = i-> jarfile.getInputStream(i);
 

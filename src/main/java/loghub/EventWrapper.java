@@ -13,12 +13,12 @@ class EventWrapper extends Event {
     private final Event event;
     private String[] path;
 
-    public EventWrapper(Event event) {
+    EventWrapper(Event event) {
         this.event = event;
         this.setTimestamp(event.getTimestamp());
     }
 
-    public EventWrapper(Event event, String[] path) {
+    EventWrapper(Event event, String[] path) {
         this.event = event;
         this.setTimestamp(event.getTimestamp());
         this.path = Arrays.copyOf(path, path.length + 1);

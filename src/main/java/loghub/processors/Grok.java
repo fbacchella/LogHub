@@ -27,14 +27,9 @@ public class Grok extends FieldsProcessor {
     private String pattern;
     private Map<Object, Object> customPatterns = Collections.emptyMap();
 
-    public Grok() {
-
-    }
-
     @Override
     public boolean configure(Properties properties) {
         GrokCompiler grokCompiler = GrokCompiler.newInstance();
-        grokCompiler.registerDefaultPatterns();
 
         Helpers.ThrowingConsumer<InputStream> grokloader = is -> grokCompiler.register(new InputStreamReader(new BufferedInputStream(is)));
         try {
