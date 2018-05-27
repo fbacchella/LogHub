@@ -1,6 +1,5 @@
 package loghub.receivers;
 
-import java.net.InetSocketAddress;
 import java.nio.charset.Charset;
 import java.nio.charset.IllegalCharsetNameException;
 import java.nio.charset.StandardCharsets;
@@ -11,12 +10,10 @@ import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 import java.util.stream.Collectors;
 
-import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
-import io.netty.channel.ServerChannel;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpResponseStatus;
@@ -27,8 +24,7 @@ import loghub.Event;
 import loghub.Pipeline;
 import loghub.ProcessorException;
 import loghub.configuration.Properties;
-import loghub.netty.ChannelConsumer;
-import loghub.netty.GenericTcp;
+import loghub.netty.AbstractTcpReceiver;
 import loghub.netty.http.AbstractHttpServer;
 import loghub.netty.http.AccessControl;
 import loghub.netty.http.ContentType;
@@ -36,10 +32,10 @@ import loghub.netty.http.HttpRequestFailure;
 import loghub.netty.http.HttpRequestProcessing;
 import loghub.netty.http.NoCache;
 import loghub.netty.http.RequestAccept;
+import loghub.netty.servers.AbstractNettyServer;
 import loghub.processors.ParseJson;
-import loghub.security.ssl.ClientAuthentication;
 
-public class Http extends GenericTcp {
+public class Http extends AbstractTcpReceiver<Http, Http.HttpReceiverServer, Http.HttpReceiverServer.Builder> {
 
     private static final ParseJson jsonParser = new ParseJson();
 
@@ -81,13 +77,13 @@ public class Http extends GenericTcp {
                 case "application/query-string": {
                     QueryStringDecoder qsd = new QueryStringDecoder(message);
                     Map<String, Object> result = qsd.parameters().entrySet().stream()
-                            .collect(Collectors.toMap(i -> i.getKey(), j -> {
-                                if (j.getValue().size() == 1) {
-                                    return (Object) j.getValue().get(0);
-                                } else {
-                                    return (Object) j.getValue();
-                                }
-                            }) );
+                                    .collect(Collectors.toMap(i -> i.getKey(), j -> {
+                                        if (j.getValue().size() == 1) {
+                                            return (Object) j.getValue().get(0);
+                                        } else {
+                                            return (Object) j.getValue();
+                                        }
+                                    }) );
                     e.putAll(result);
                     break;
                 }
@@ -100,7 +96,7 @@ public class Http extends GenericTcp {
                     Map<String, Object> result = Http.this.decoder.decode(e.getConnectionContext(), request.content());
                     e.putAll(result);
                 }
-                Principal p = ctx.channel().attr(AccessControl.PRINCIPALATTRIBUTE).get();
+                Principal p = ctx.channel().attr(AbstractNettyServer.PRINCIPALATTRIBUTE).get();
                 if (p != null) {
                     e.getConnectionContext().setPrincipal(p);
                 }
@@ -118,10 +114,24 @@ public class Http extends GenericTcp {
 
     };
 
-    private final PostHandler recepter = new PostHandler();
-    private class HttpReceiverServer extends AbstractHttpServer {
-        protected HttpReceiverServer(Builder<?> builder) {
+    protected static class HttpReceiverServer extends AbstractHttpServer<HttpReceiverServer, HttpReceiverServer.Builder> {
+
+        protected static class Builder extends AbstractHttpServer.Builder<HttpReceiverServer, Builder> {
+            PostHandler recepter;
+            Builder setPostHandler(PostHandler recepter) {
+                this.recepter = recepter;
+                return this;
+            }
+            @Override
+            public HttpReceiverServer build() {
+                return new HttpReceiverServer(this);
+            }
+        }
+
+        final PostHandler recepter;
+        protected HttpReceiverServer(Builder builder) {
             super(builder);
+            this.recepter = builder.recepter;
         }
 
         @Override
@@ -134,34 +144,39 @@ public class Http extends GenericTcp {
         }
     }
 
-    private class Builder extends AbstractHttpServer.Builder<HttpReceiverServer> {
-        @Override
-        public HttpReceiverServer build() {
-            return new HttpReceiverServer(this);
-        }
-    }
-
-    private HttpReceiverServer webserver;
-
     public Http(BlockingQueue<Event> outQueue, Pipeline pipeline) {
-        super(outQueue, pipeline, null);
+        super(outQueue, pipeline);
     }
 
     @Override
-    public boolean configure(Properties properties) {
-        webserver = new Builder()
-                .setAuthHandler(getAuthHandler(properties))
-                .setPort(getPort()).setHost(getHost())
-                .setSSLContext(properties.ssl).useSSL(isWithSSL()).setSSLClientAuthentication(ClientAuthentication.valueOf(getSSLClientAuthentication().toUpperCase()))
-                .build();
-        setServer(webserver);
-        return super.configure(properties);
+    protected HttpReceiverServer.Builder getServerBuilder() {
+        return new HttpReceiverServer.Builder();
     }
 
     @Override
-    public ChannelConsumer<ServerBootstrap, ServerChannel, InetSocketAddress> getConsummer() {
-        return webserver;
+    public boolean configure(Properties properties, HttpReceiverServer.Builder builder) {
+        builder.setPostHandler(new PostHandler());
+        return super.configure(properties, builder);
     }
+
+    //
+    //    @Override
+    //    public ConnectionContext getConnectionContext(ChannelHandlerContext ctx, ByteBuf message) {
+    //        System.out.println(ctx);
+    //        System.out.println(message);
+    //        SSLSession sess = this.getSslSession(ctx);
+    //        SocketChannel channel = (SocketChannel) ctx.channel();
+    //        System.out.println("sess " + sess);
+    //        System.out.println("channel " + ctx.channel().getClass());
+    //        return super.getConnectionContext(ctx, message);
+    //    }
+    //
+    //    @Override
+    //    public void run() {
+    //        logger.debug("running");
+    //        webserver.finish();
+    //        logger.debug("runned");
+    //    }
 
     @Override
     public String getReceiverName() {

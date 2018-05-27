@@ -17,13 +17,12 @@ import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import io.netty.util.AttributeKey;
-import loghub.netty.servers.AbstractNettyServer;
+import loghub.netty.servers.NettyIpServer;
 import loghub.security.AuthenticationHandler;
 
-public class AccessControl extends HttpFilter {
+import static loghub.netty.servers.AbstractNettyServer.PRINCIPALATTRIBUTE;
 
-    public static final AttributeKey<Principal> PRINCIPALATTRIBUTE = AttributeKey.newInstance(Principal.class.getName());
+public class AccessControl extends HttpFilter {
 
     private final AuthenticationHandler authhandler;
 
@@ -40,7 +39,7 @@ public class AccessControl extends HttpFilter {
     protected void filter(FullHttpRequest request, ChannelHandlerContext ctx) throws HttpRequestFailure {
         Principal peerPrincipal = null;
         try {
-            SSLSession sess = ctx.channel().attr(AbstractNettyServer.SSLSESSIONATTRIBUTE).get();
+            SSLSession sess = ctx.channel().attr(NettyIpServer.SSLSESSIONATTRIBUTE).get();
             if (sess != null) {
                 peerPrincipal = authhandler.checkSslClient(sess);
             }

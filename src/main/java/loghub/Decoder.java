@@ -20,6 +20,15 @@ public abstract class Decoder {
         }
     }
 
+    public static class RuntimeDecodeException extends RuntimeException {
+        public RuntimeDecodeException(String message, Throwable cause) {
+            super(message, cause);
+        }
+        public RuntimeDecodeException(String message) {
+            super(message);
+        }
+    }
+
     private static final StackLocator stacklocator = StackLocator.getInstance();
 
     protected final Logger logger;

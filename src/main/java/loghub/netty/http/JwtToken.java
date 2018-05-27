@@ -11,6 +11,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.util.CharsetUtil;
+import loghub.netty.servers.AbstractNettyServer;
 import loghub.security.JWTHandler;
 
 @NoCache
@@ -26,7 +27,7 @@ public class JwtToken extends HttpRequestProcessing {
 
     @Override
     protected boolean processRequest(FullHttpRequest request, ChannelHandlerContext ctx) throws HttpRequestFailure {
-        Principal p = ctx.channel().attr(AccessControl.PRINCIPALATTRIBUTE).get();
+        Principal p = ctx.channel().attr(AbstractNettyServer.PRINCIPALATTRIBUTE).get();
         try {
             String token = alg.getToken(p);
             ByteBuf content = Unpooled.copiedBuffer(token + "\r\n", CharsetUtil.UTF_8);

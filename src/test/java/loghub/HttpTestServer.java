@@ -16,7 +16,7 @@ public class HttpTestServer extends ExternalResource {
 
     private static Logger logger = LogManager.getLogger();
 
-    private AbstractHttpServer server;
+    private AbstractHttpServer<?, ?> server;
     private final HttpHandler[] handlers;
     private SSLContext ssl;
     private int port;
@@ -29,35 +29,36 @@ public class HttpTestServer extends ExternalResource {
         this.port = port;
     }
 
-    private class CustomServer extends AbstractHttpServer {
-
-        protected CustomServer(Builder<CustomServer> builder) {
-            super(builder);
-        }
-
-        @Override
-        public void addModelHandlers(ChannelPipeline p) {
-            Arrays.stream(handlers).forEach( i-> p.addLast(i));
-        }
-
-    }
-
-    @Override
-    protected void before() throws Throwable {
-        AbstractHttpServer.Builder<CustomServer> builder = new AbstractHttpServer.Builder<CustomServer>() {
-
+    private static class CustomServer extends AbstractHttpServer<CustomServer, CustomServer.Builder> {
+        private static class Builder extends AbstractHttpServer.Builder<CustomServer, CustomServer.Builder> {
+            HttpHandler[] handlers = null;
             @Override
             public CustomServer build() {
                 return new CustomServer(this);
             }
+        }
+        private final HttpHandler[] handlers;
+        protected CustomServer(CustomServer.Builder builder) {
+            super(builder);
+            this.handlers = builder.handlers;
+        }
+        @Override
+        public void addModelHandlers(ChannelPipeline p) {
+            Arrays.stream(handlers).forEach( i-> p.addLast(i));
+        }
+    }
 
-        };
-        server = builder.setPort(this.port).setSSLContext(ssl).useSSL(ssl != null).build();
-        server.configure(server);
+    @Override
+    protected void before() throws Throwable {
+        CustomServer.Builder builder = new CustomServer.Builder();
+        builder.handlers = handlers;
+        server = builder.setPort(port).setSSLContext(ssl).useSSL(ssl != null).build();
+        server.configure();
     }
 
     @Override
     protected void after() {
         server.close();
     }
+
 }

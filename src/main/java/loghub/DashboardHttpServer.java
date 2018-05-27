@@ -15,13 +15,13 @@ import loghub.netty.http.TokenFilter;
 import loghub.security.AuthenticationHandler;
 import loghub.security.ssl.ClientAuthentication;
 
-public class DashboardHttpServer extends AbstractHttpServer {
+public class DashboardHttpServer extends AbstractHttpServer<DashboardHttpServer, DashboardHttpServer.Builder> {
 
-    public static Builder getBuilder() {
-        return new Builder();
+    public static DashboardHttpServer.Builder getBuilder() {
+        return new DashboardHttpServer.Builder();
     }
 
-    public static class Builder extends AbstractHttpServer.Builder<DashboardHttpServer> {
+    public static class Builder extends AbstractHttpServer.Builder<DashboardHttpServer, DashboardHttpServer.Builder> {
         @Override
         public DashboardHttpServer build() {
             return new DashboardHttpServer(this);
@@ -60,7 +60,7 @@ public class DashboardHttpServer extends AbstractHttpServer {
         }
     }
 
-    public static AbstractHttpServer.Builder<DashboardHttpServer> buildDashboad(Map<Object, Object> collect, Properties props) {
+    public static DashboardHttpServer.Builder buildDashboad(Map<Object, Object> collect, Properties props) {
         int port = (Integer) collect.compute("port", (i,j) -> {
             if (j != null && ! (j instanceof Integer)) {
                 throw new IllegalArgumentException("http dasbhoard port is not an integer");
@@ -87,7 +87,7 @@ public class DashboardHttpServer extends AbstractHttpServer {
                     .useJwt((Boolean) collect.compute("jwt", (i,j) -> Boolean.TRUE.equals(j))).setJwtHandler(props.jwtHandler)
                     .setJaasName(collect.compute("jaasName", (i,j) -> j != null ? j : "").toString()).setJaasConfig(props.jaasConfig)
                     .build();
-            return DashboardHttpServer.getBuilder()
+            return getBuilder()
                     .setPort(port)
                     .setSSLContext(props.ssl).useSSL(useSSL).setSSLKeyAlias(sslKeyalias)
                     .setAuthHandler(authHandler);

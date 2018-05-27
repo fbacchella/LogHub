@@ -3,7 +3,6 @@ package loghub.netty.servers;
 import java.net.SocketAddress;
 import java.util.concurrent.ThreadFactory;
 
-import io.netty.bootstrap.AbstractBootstrap;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
@@ -22,7 +21,7 @@ public abstract class ServerFactory<CC extends Channel, SA extends SocketAddress
     private ServerBootstrap bootstrap;
 
     @Override
-    public AbstractBootstrap<ServerBootstrap, ServerChannel> getBootStrap() {
+    public ServerBootstrap getBootStrap() {
         bootstrap = new ServerBootstrap();
         bootstrap.channelFactory(getInstance());
         return bootstrap;
@@ -42,10 +41,11 @@ public abstract class ServerFactory<CC extends Channel, SA extends SocketAddress
     }
 
     @Override
-    public void addChildhandlers(ChannelConsumer<ServerBootstrap, ServerChannel, SA> source) {
+    public void addChildhandlers(ChannelConsumer<ServerBootstrap, ServerChannel> source, AbstractNettyServer<?, ServerBootstrap, ServerChannel, ?, SA, ?, ?> server) {
         ChannelHandler handler = new ChannelInitializer<CC>() {
             @Override
             public void initChannel(CC ch) throws Exception {
+                server.addHandlers(ch.pipeline());
                 source.addHandlers(ch.pipeline());
             }
 

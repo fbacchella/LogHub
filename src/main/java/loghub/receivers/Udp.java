@@ -1,9 +1,6 @@
 package loghub.receivers;
 
 import java.net.InetSocketAddress;
-import java.net.SocketAddress;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 
 import io.netty.bootstrap.Bootstrap;
@@ -16,13 +13,24 @@ import loghub.ConnectionContext;
 import loghub.Event;
 import loghub.IpConnectionContext;
 import loghub.Pipeline;
+import loghub.configuration.Properties;
+import loghub.netty.AbstractChannelConsumer;
+import loghub.netty.ConsumerProvider;
 import loghub.netty.NettyIpReceiver;
 import loghub.netty.UdpFactory;
 import loghub.netty.servers.UdpServer;
+import loghub.netty.servers.UdpServer.Builder;
 
-public class Udp extends NettyIpReceiver<UdpServer, UdpFactory, Bootstrap, Channel, DatagramChannel, Channel, DatagramPacket> {
-
-    private static final Map<SocketAddress, UdpServer> servers = new HashMap<>();
+public class Udp extends NettyIpReceiver<Udp,
+                                         UdpServer,
+                                         UdpServer.Builder,
+                                         UdpFactory, 
+                                         Bootstrap,
+                                         Channel,
+                                         DatagramChannel,
+                                         Channel,
+                                         DatagramPacket
+                                         > implements ConsumerProvider<Udp, Bootstrap, Channel> {
 
     private int buffersize = -1;
 
@@ -31,19 +39,14 @@ public class Udp extends NettyIpReceiver<UdpServer, UdpFactory, Bootstrap, Chann
     }
 
     @Override
-    protected UdpServer getServer() {
-        SocketAddress addr = getListenAddress();
-        UdpServer server = null;
-        if (servers.containsKey(addr)) {
-            server = servers.get(addr);
-        } else {
-            server = new UdpServer();
-            if (buffersize > 0 ) {
-                server.setBuffersize(buffersize);
-            }
-            servers.put(addr, server);
-        }
-        return server;
+    protected Builder getServerBuilder() {
+        return UdpServer.getBuilder();
+    }
+
+    @Override
+    public final boolean configure(Properties properties, UdpServer.Builder builder) {
+        builder.setBufferSize(buffersize);
+        return super.configure(properties, builder);
     }
 
     @Override
@@ -52,29 +55,34 @@ public class Udp extends NettyIpReceiver<UdpServer, UdpFactory, Bootstrap, Chann
     }
 
     @Override
-    protected ByteBuf getContent(DatagramPacket message) {
+    public ByteBuf getContent(DatagramPacket message) {
         return message.content();
     }
 
     /**
      * @return the buffersize
      */
-    public int getBufferSize() {
+     public int getBufferSize() {
         return buffersize;
     }
 
     /**
      * @param buffersize the buffersize to set
      */
-    public void setBufferSize(int buffersize) {
-        this.buffersize = buffersize;
-    }
+     public void setBufferSize(int buffersize) {
+         this.buffersize = buffersize;
+     }
 
-    @Override
-    public ConnectionContext<InetSocketAddress> getNewConnectionContext(ChannelHandlerContext ctx, DatagramPacket message) {
-        InetSocketAddress remoteaddr = message.sender();
-        InetSocketAddress localaddr = message.recipient();
-        return new IpConnectionContext(localaddr, remoteaddr, null);
-    }
+     @Override
+     public ConnectionContext<InetSocketAddress> getNewConnectionContext(ChannelHandlerContext ctx, DatagramPacket message) {
+         InetSocketAddress remoteaddr = message.sender();
+         InetSocketAddress localaddr = message.recipient();
+         return new IpConnectionContext(localaddr, remoteaddr, null);
+     }
+
+     @Override
+     public AbstractChannelConsumer<Udp, Bootstrap, Channel, DatagramPacket> getConsumer() {
+         return new AbstractChannelConsumer<Udp, Bootstrap, Channel, DatagramPacket>(this);
+     }
 
 }

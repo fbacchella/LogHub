@@ -1,6 +1,5 @@
 package loghub.netty;
 
-import java.net.InetSocketAddress;
 import java.util.concurrent.ThreadFactory;
 
 import io.netty.channel.Channel;
@@ -12,7 +11,7 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.DatagramChannel;
 import io.netty.channel.socket.nio.NioDatagramChannel;
 
-public class UdpFactory extends ClientFactory<Channel, InetSocketAddress> {
+public class UdpFactory extends IpClientFactory<Channel> {
 
     private static final ChannelFactory<Channel> niochannelfactory = new ChannelFactory<Channel>() {
         @Override 

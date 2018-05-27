@@ -3,18 +3,24 @@ package loghub.receivers;
 import java.nio.charset.Charset;
 import java.util.concurrent.BlockingQueue;
 
+import io.netty.bootstrap.ServerBootstrap;
+import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelPipeline;
+import io.netty.channel.ServerChannel;
 import io.netty.handler.codec.LineBasedFrameDecoder;
 import io.netty.util.CharsetUtil;
 import loghub.Event;
 import loghub.Pipeline;
 import loghub.configuration.Properties;
 import loghub.decoders.StringCodec;
-import loghub.netty.GenericTcp;
+import loghub.netty.AbstractChannelConsumer;
+import loghub.netty.AbstractTcpReceiver;
+import loghub.netty.ChannelConsumer;
+import loghub.netty.ConsumerProvider;
 import loghub.netty.servers.TcpServer;
-import loghub.security.ssl.ClientAuthentication;
+import loghub.netty.servers.TcpServer.Builder;
 
-public class TcpLinesStream extends GenericTcp {
+public class TcpLinesStream extends AbstractTcpReceiver<TcpLinesStream, TcpServer, TcpServer.Builder> implements ConsumerProvider<TcpLinesStream, ServerBootstrap, ServerChannel> {
 
     private int maxLength = 256;
     private Charset charset= CharsetUtil.UTF_8;
@@ -25,25 +31,28 @@ public class TcpLinesStream extends GenericTcp {
     }
 
     @Override
-    public void addHandlers(ChannelPipeline pipe) {
-        pipe.addFirst("Splitter", new LineBasedFrameDecoder(maxLength));
-        super.addHandlers(pipe);
+    public ChannelConsumer<ServerBootstrap, ServerChannel> getConsumer() {
+        return new AbstractChannelConsumer<TcpLinesStream, ServerBootstrap, ServerChannel, ByteBuf>(this) {
+            @Override
+            public void addHandlers(ChannelPipeline pipe) {
+                super.addHandlers(pipe);
+                pipe.addBefore("MessageDecoder", "Splitter", new LineBasedFrameDecoder(maxLength));
+            }
+        };
     }
 
     @Override
-    public boolean configure(Properties properties) {
-        TcpServer server = new TcpServer();
-        if (isWithSSL()) {
-            server.setSSLClientAuthentication(ClientAuthentication.valueOf(getSSLClientAuthentication().toUpperCase()));
-            server.setSSLContext(properties.ssl);
-            server.setSSLKeyAlias(getSSLKeyAlias());
-        }
-        setServer(server);
+    protected Builder getServerBuilder() {
+        return TcpServer.getBuilder();
+    }
+
+    @Override
+    public boolean configure(Properties properties, TcpServer.Builder builder) {
         StringCodec stringcodec = new StringCodec();
         stringcodec.setCharset(charset.toString());
         stringcodec.setField(field);
         decoder = stringcodec;
-        return super.configure(properties);
+        return super.configure(properties, builder);
     }
 
     public int getMaxLength() {

@@ -38,7 +38,7 @@ public class TestTcpLinesStream {
     static public void configure() throws IOException {
         Tools.configure();
         logger = LogManager.getLogger();
-        LogUtils.setLevel(logger, Level.TRACE, "loghub.receivers.TcpLinesStream", "loghub.netty", "loghub.EventsProcessor");
+        LogUtils.setLevel(logger, Level.TRACE, "loghub.receivers.TcpLinesStream", "loghub.netty", "loghub.EventsProcessor", "io");
     }
 
     private TcpLinesStream receiver;
@@ -55,7 +55,7 @@ public class TestTcpLinesStream {
                 os.flush();
             }
             Event e = queue.poll(1, TimeUnit.SECONDS);
-            logger.debug(e.getClass());
+            Assert.assertNotNull(e);
             String message = (String) e.get("message");
             Assert.assertEquals("LogHub", message);
         } catch (IOException | InterruptedException | RuntimeException e) {
@@ -70,8 +70,8 @@ public class TestTcpLinesStream {
     public void testSSL() throws IOException, InterruptedException {
         try {
             makeReceiver( i -> { i.setWithSSL(true); i.setSSLClientAuthentication("REQUIRED");},
-                    Collections.singletonMap("ssl.trusts", new String[] {getClass().getResource("/localhost.p12").getFile()})
-                    );
+                          Collections.singletonMap("ssl.trusts", new String[] {getClass().getResource("/localhost.p12").getFile()})
+                            );
             Map<String, Object> properties = new HashMap<>();
             properties.put("trusts", new String[] {getClass().getResource("/localhost.p12").getFile()});
             SSLContext cssctx = ContextLoader.build(properties);

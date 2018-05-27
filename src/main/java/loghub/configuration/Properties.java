@@ -53,7 +53,6 @@ import loghub.ThreadBuilder;
 import loghub.VarFormatter;
 import loghub.jmx.Helper;
 import loghub.jmx.Helper.PROTOCOL;
-import loghub.netty.http.AbstractHttpServer.Builder;
 import loghub.security.JWTHandler;
 import loghub.security.ssl.ContextLoader;
 import net.sf.ehcache.Cache;
@@ -163,7 +162,7 @@ public class Properties extends HashMap<String, Object> {
     public final SSLContext ssl;
     public final javax.security.auth.login.Configuration jaasConfig;
     public final JWTHandler jwtHandler;
-    public final Builder<DashboardHttpServer> dashboardBuilder;
+    public final DashboardHttpServer.Builder dashboardBuilder;
 
     public final Timer timer = new Timer("loghubtimer", true);
     private final CacheManager cacheManager;

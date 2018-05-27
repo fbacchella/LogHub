@@ -7,12 +7,12 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import io.netty.bootstrap.AbstractBootstrap;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.EventLoopGroup;
+import loghub.netty.servers.AbstractNettyServer;
 
 public abstract class ClientFactory<CC extends Channel, SA extends SocketAddress> extends ComponentFactory<Bootstrap, Channel, SA> {
 
@@ -22,7 +22,7 @@ public abstract class ClientFactory<CC extends Channel, SA extends SocketAddress
     private Bootstrap bootstrap;
 
     @Override
-    public AbstractBootstrap<Bootstrap, Channel> getBootStrap() {
+    public Bootstrap getBootStrap() {
         bootstrap = new Bootstrap();
         bootstrap.channelFactory(getInstance());
         return bootstrap;
@@ -40,15 +40,16 @@ public abstract class ClientFactory<CC extends Channel, SA extends SocketAddress
     }
 
     @Override
-    public void addChildhandlers(ChannelConsumer<Bootstrap, Channel, SA> source) {
+    public void addChildhandlers(ChannelConsumer<Bootstrap, Channel> source, AbstractNettyServer<?, Bootstrap, Channel, ?, SA, ?, ?> server) {
     }
 
     @Override
-    public void addHandlers(ChannelConsumer<Bootstrap, Channel, SA> source) {
+    public void addHandlers(ChannelConsumer<Bootstrap, Channel> source, AbstractNettyServer<?, Bootstrap, Channel, ?, SA, ?, ?> server) {
         ChannelHandler handler = new ChannelInitializer<CC>() {
             @Override
             public void initChannel(CC ch) throws Exception {
                 try {
+                    server.addHandlers(ch.pipeline());
                     source.addHandlers(ch.pipeline());
                 } catch (Exception e) {
                     logger.error("Netty handler failed: {}", e.getMessage());

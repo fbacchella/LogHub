@@ -80,9 +80,15 @@ public class TestHttpSsl {
         }
     }
 
-    private static class CustomServer extends AbstractHttpServer {
+    private static class CustomServer extends AbstractHttpServer<CustomServer, CustomServer.Builder> {
+        private static class Builder extends AbstractHttpServer.Builder<CustomServer, Builder> {
+            @Override
+            public CustomServer build() {
+                return new CustomServer(this);
+            }
+        }
 
-        protected CustomServer(Builder<CustomServer> builder) {
+        protected CustomServer(Builder builder) {
             super(builder);
         }
 
@@ -93,17 +99,10 @@ public class TestHttpSsl {
 
     }
 
-    private AbstractHttpServer server;
-    private void makeServer(Map<String, Object> sslprops, Function<AbstractHttpServer.Builder<CustomServer>, AbstractHttpServer.Builder<CustomServer>> c) {
-        AbstractHttpServer.Builder<CustomServer> builder = new AbstractHttpServer.Builder<CustomServer>() {
-
-            @Override
-            public CustomServer build() {
-                return new CustomServer(this);
-            }
-
-        };
-        server = c.apply(builder.setPort(serverPort).setSSLContext(getContext.apply(sslprops)).useSSL(true)).build();
+    private CustomServer server;
+    private void makeServer(Map<String, Object> sslprops, Function<CustomServer.Builder, CustomServer.Builder> c) {
+        CustomServer.Builder builder = new CustomServer.Builder().setPort(serverPort).setSSLContext(getContext.apply(sslprops)).useSSL(true);
+        server = c.apply(builder).build();
         server.configure(server);
     }
 

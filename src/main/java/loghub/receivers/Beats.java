@@ -9,21 +9,28 @@ import org.logstash.beats.IMessageListener;
 import org.logstash.beats.Message;
 
 import io.netty.bootstrap.ServerBootstrap;
+import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
+import io.netty.channel.ServerChannel;
 import io.netty.handler.timeout.IdleStateHandler;
 import io.netty.util.concurrent.DefaultEventExecutorGroup;
 import io.netty.util.concurrent.EventExecutorGroup;
 import loghub.Event;
 import loghub.Pipeline;
+import loghub.netty.AbstractChannelConsumer;
+import loghub.netty.AbstractTcpReceiver;
+import loghub.netty.ChannelConsumer;
 import loghub.netty.CloseOnError;
-import loghub.netty.GenericTcp;
+import loghub.netty.ConsumerProvider;
 import loghub.netty.SelfDecoder;
+import loghub.netty.servers.TcpServer;
+import loghub.netty.servers.TcpServer.Builder;
 
 @SelfDecoder
 @CloseOnError
-public class Beats extends GenericTcp {
+public class Beats extends AbstractTcpReceiver<Beats, TcpServer, TcpServer.Builder> implements ConsumerProvider<Beats, ServerBootstrap, ServerChannel> {
 
     private final IMessageListener messageListener;
     private EventExecutorGroup idleExecutorGroup;
@@ -64,28 +71,37 @@ public class Beats extends GenericTcp {
     }
 
     @Override
-    public void addHandlers(ChannelPipeline pipe) {
-        pipe.addFirst("Splitter", new BeatsParser(maxPayloadSize));
-        // From org.logstash.beats.Server
-        // We have set a specific executor for the idle check, because the `beatsHandler` can be
-        // blocked on the queue, this the idleStateHandler manage the `KeepAlive` signal.
-        pipe.addBefore(idleExecutorGroup, "Splitter", "KeepAlive", new IdleStateHandler(clientInactivityTimeoutSeconds, 5, 0));
-        pipe.addAfter("Splitter", "Acker", new AckEncoder());
-        pipe.addAfter("Acker", "Handler", new BeatsHandler(messageListener));
-        super.addHandlers(pipe);
+    protected Builder getServerBuilder() {
+        return new TcpServer.Builder();
+    }
+
+    @Override
+    public ChannelConsumer<ServerBootstrap, ServerChannel> getConsumer() {
+        return new AbstractChannelConsumer<Beats, ServerBootstrap, ServerChannel, ByteBuf>(this) {
+            @Override
+            public void addHandlers(ChannelPipeline pipe) {
+                pipe.addBefore("Sender", "Splitter", new BeatsParser(maxPayloadSize));
+                // From org.logstash.beats.Server
+                // We have set a specific executor for the idle check, because the `beatsHandler` can be
+                // blocked on the queue, this the idleStateHandler manage the `KeepAlive` signal.
+                pipe.addBefore(idleExecutorGroup, "Splitter", "KeepAlive", new IdleStateHandler(clientInactivityTimeoutSeconds, 5, 0));
+                pipe.addAfter("Splitter", "Acker", new AckEncoder());
+                pipe.addAfter("Acker", "Handler", new BeatsHandler(messageListener));
+            }
+
+            @Override
+            public void addOptions(ServerBootstrap bootstrap) {
+                // From org.logstash.beats.Server
+                // Since the protocol doesn't support yet a remote close from the server and we don't want to have 'unclosed' socket lying around we have to use `SO_LINGER` to force the close of the socket.
+                bootstrap.childOption(ChannelOption.SO_LINGER, 0);
+                super.addOptions(bootstrap);
+            }
+        };
     }
 
     @Override
     public String getReceiverName() {
         return "BeatsReceiver/" + getListenAddress();
-    }
-
-    @Override
-    public void addOptions(ServerBootstrap bootstrap) {
-        super.addOptions(bootstrap);
-        // From org.logstash.beats.Server
-        // Since the protocol doesn't support yet a remote close from the server and we don't want to have 'unclosed' socket lying around we have to use `SO_LINGER` to force the close of the socket.
-        bootstrap.childOption(ChannelOption.SO_LINGER, 0);
     }
 
     @Override

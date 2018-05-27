@@ -1,10 +1,6 @@
 package loghub.netty.http;
 
-import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.net.UnknownHostException;
-
-import javax.net.ssl.SSLContext;
 
 import org.apache.logging.log4j.Level;
 
@@ -26,76 +22,35 @@ import io.netty.handler.stream.ChunkedWriteHandler;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import loghub.Helpers;
 import loghub.netty.ChannelConsumer;
-import loghub.netty.servers.TcpServer;
-import loghub.security.AuthenticationHandler;
-import loghub.security.ssl.ClientAuthentication;
+import loghub.netty.servers.AbstractTcpServer;
 
-public abstract class AbstractHttpServer extends TcpServer implements ChannelConsumer<ServerBootstrap, ServerChannel, InetSocketAddress> {
+public abstract class AbstractHttpServer<S extends AbstractHttpServer<S, B>, 
+                                         B extends AbstractHttpServer.Builder<S, B>
+                                        > extends AbstractTcpServer<S, B> implements ChannelConsumer<ServerBootstrap, ServerChannel> {
 
-    public abstract static class Builder<S extends AbstractHttpServer> {
-        private int port = -1;
-        private String host = null;
-        private SSLContext sslctx = null;
-        private AuthenticationHandler authHandler = null;
-        private boolean useSSL = false;
-        private ClientAuthentication sslClientAuthentication = ClientAuthentication.NONE;
-        private String alias = null;
+    public abstract static class Builder<S extends AbstractHttpServer<S, B>,
+                                         B extends AbstractHttpServer.Builder<S, B>
+                                        > extends AbstractTcpServer.Builder<S, B> {
         protected Builder() {
         }
-
-        public Builder<S> setHost(String host) {
-            this.host = host != null && !host.isEmpty() ? host : null;
-            return this;
-        }
-        public Builder<S> setPort(int port) {
-            this.port = port;
-            return this;
-        }
-        public Builder<S> setSSLContext(SSLContext sslctx) {
-            this.sslctx = sslctx;
-            return this;
-        }
-        public Builder<S> useSSL(boolean useSSL) {
-            this.useSSL = useSSL;
-            return this;
-        }
-        public Builder<S> setSSLClientAuthentication(ClientAuthentication sslClientAuthentication) {
-            this.sslClientAuthentication = sslClientAuthentication;
-            return this;
-        }
-        public Builder<S> setAuthHandler(AuthenticationHandler authHandler) {
-            this.authHandler = authHandler;
-            return this;
-        }
-        public Builder<S> setSSLKeyAlias(String alias) {
-            this.alias = alias;
-            return this;
-        }
-        public abstract S build();
     }
 
     private final SimpleChannelInboundHandler<FullHttpRequest> NOTFOUND = new NotFound();
 
-    private final int port;
-    private final String host;
-    private final AuthenticationHandler authHandler;
-
-    protected AbstractHttpServer(Builder<?> builder) {
-        port = builder.port;
-        host = builder.host;
-        authHandler = builder.authHandler;
-        if (builder.useSSL) {
-            setSSLContext(builder.sslctx);
-            setSSLClientAuthentication(builder.sslClientAuthentication);
-            setSSLKeyAlias(builder.alias );
-        }
+    protected AbstractHttpServer(B builder) {
+        super(builder);
     }
 
     @Override
-    public boolean configure(ChannelConsumer<ServerBootstrap, ServerChannel, InetSocketAddress> consumer) {
+    public boolean configure(ChannelConsumer<ServerBootstrap, ServerChannel> consumer) {
+        InetSocketAddress address = getAddress();
         setThreadFactory(new DefaultThreadFactory("builtinhttpserver/" +
-                consumer.getListenAddress().getAddress().getHostAddress() + ":" + consumer.getListenAddress().getPort()));
+                        address.getAddress().getHostAddress() + ":" + address.getPort()));
         return super.configure(consumer);
+    }
+
+    public boolean configure() {
+        return configure(this);
     }
 
     @Override
@@ -112,9 +67,7 @@ public abstract class AbstractHttpServer extends TcpServer implements ChannelCon
             p.addAfter("HttpObjectAggregator", "BrokenConfigHandler", getFatalErrorHandler());
         }
         p.addLast(NOTFOUND);
-        if (isWithSSL()) {
-            addSslHandler(p, getEngine());
-        }
+        super.addHandlers(p);
     }
 
     @Override
@@ -147,34 +100,6 @@ public abstract class AbstractHttpServer extends TcpServer implements ChannelCon
     public void addOptions(ServerBootstrap bootstrap) {
         bootstrap.option(ChannelOption.TCP_NODELAY, true);
         bootstrap.childOption(ChannelOption.SO_KEEPALIVE, true);
-    }
-
-    @Override
-    public InetSocketAddress getListenAddress() {
-        try {
-            return new InetSocketAddress(host != null ? InetAddress.getByName(host) : null , port);
-        } catch (UnknownHostException e) {
-            logger.error("Unknow host to bind: {}", host);
-            return null;
-        }
-    }
-
-    /**
-     * @return the port
-     */
-    public int getPort() {
-        return port;
-    }
-
-    /**
-     * @return the host
-     */
-    public String getHost() {
-        return host;
-    }
-
-    public AuthenticationHandler getAuthHandler() {
-        return authHandler;
     }
 
 }

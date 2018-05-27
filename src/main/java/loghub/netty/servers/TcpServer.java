@@ -1,48 +1,20 @@
 package loghub.netty.servers;
 
-import java.net.InetSocketAddress;
+public class TcpServer extends AbstractTcpServer<TcpServer, TcpServer.Builder> {
 
-import io.netty.bootstrap.AbstractBootstrap;
-import io.netty.bootstrap.ServerBootstrap;
-import io.netty.channel.Channel;
-import io.netty.channel.ServerChannel;
-import io.netty.channel.socket.ServerSocketChannel;
-import loghub.netty.TcpFactory;
-
-public class TcpServer extends AbstractNettyServer<TcpFactory, ServerBootstrap, ServerChannel, ServerSocketChannel, InetSocketAddress> {
-
-    Channel cf;
-
-    @Override
-    protected boolean makeChannel(AbstractBootstrap<ServerBootstrap, ServerChannel> bootstrap, InetSocketAddress address) {
-        // Bind and start to accept incoming connections.
-        try {
-            cf = bootstrap.bind(address).await().channel();
-            return true;
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            return false;
+    public static class Builder extends AbstractTcpServer.Builder<TcpServer, TcpServer.Builder> {
+        @Override
+        public final TcpServer build() {
+            return new TcpServer(this);
         }
     }
 
-    @Override
-    protected TcpFactory getNewFactory() {
-        return new TcpFactory(poller);
+    public static Builder getBuilder() {
+        return new Builder();
     }
 
-    @Override
-    public void waitClose() throws InterruptedException {
-        cf.closeFuture().sync();
-    }
-
-    @Override
-    public void close() {
-        try {
-            cf.close().await();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-        super.close();
+    protected TcpServer(Builder builder) {
+        super(builder);
     }
 
 }

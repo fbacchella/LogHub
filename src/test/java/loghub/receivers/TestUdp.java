@@ -51,8 +51,7 @@ public class TestUdp {
         // Generate a locally binded random socket
         try (DatagramSocket socket = new DatagramSocket(0, InetAddress.getLoopbackAddress())) {
             String hostname = socket.getLocalAddress().getHostAddress();
-            int port = socket.getLocalPort();
-            socket.close();
+            int port = Tools.tryGetPort();
             InetSocketAddress destaddr = new InetSocketAddress(hostname, port);
 
             r.setBufferSize(size + 10);

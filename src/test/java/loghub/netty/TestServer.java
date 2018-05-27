@@ -43,6 +43,7 @@ import loghub.netty.servers.AbstractNettyServer;
 import loghub.netty.servers.ServerFactory;
 
 public class TestServer {
+
     private static class LocalChannelConnectionContext extends ConnectionContext<LocalAddress> {
         private final LocalAddress local;
         private final LocalAddress remote;
@@ -79,8 +80,19 @@ public class TestServer {
         }
     };
 
-    private static class TesterServer extends AbstractNettyServer<TesterFactory, ServerBootstrap, ServerChannel, LocalServerChannel, LocalAddress> {
+    private static class TesterServer extends AbstractNettyServer<TesterFactory, ServerBootstrap, ServerChannel, LocalServerChannel, LocalAddress, TesterServer, TesterServer.Builder> {
+
+        public static class Builder extends  AbstractNettyServer.Builder<TesterServer, TesterServer.Builder> {
+            public TesterServer build() {
+                return new TesterServer(this);
+            }
+        }
+
         Channel cf;
+
+        public TesterServer(Builder builder) {
+            super(builder);
+        }
 
         @Override
         protected TesterFactory getNewFactory() {
@@ -103,24 +115,20 @@ public class TestServer {
         public void waitClose() throws InterruptedException {
             cf.closeFuture().sync();
         }
+
+        @Override
+        protected LocalAddress setAddress(Builder builder) {
+            return new LocalAddress(TestServer.class.getCanonicalName());
+        }
     }
 
     @CloseOnError
-    private static class TesterReceiver extends NettyReceiver<TesterServer, TesterFactory, ServerBootstrap, ServerChannel, LocalServerChannel, LocalChannel, LocalAddress, Object> {
+    private static class TesterReceiver extends NettyReceiver<TesterReceiver, TesterServer, TesterServer.Builder, TesterFactory, ServerBootstrap, ServerChannel, LocalServerChannel, LocalChannel, LocalAddress, Object>
+                                        implements ConsumerProvider<TesterReceiver, ServerBootstrap, ServerChannel>{
 
         public TesterReceiver(BlockingQueue<Event> outQueue, Pipeline pipeline) {
             super(outQueue, pipeline);
             decoder = new StringCodec();
-        }
-
-        @Override
-        public LocalAddress getListenAddress() {
-            return new LocalAddress(TestServer.class.getCanonicalName());
-        }
-
-        @Override
-        protected TesterServer getServer() {
-            return new TesterServer();
         }
 
         @Override
@@ -129,26 +137,30 @@ public class TestServer {
         }
 
         @Override
-        public void addHandlers(ChannelPipeline p) {
-            p.addFirst("Splitter", new LineBasedFrameDecoder(256));
-            super.addHandlers(p);
-            logger.debug(p);
-        }
-
-        @Override
-        protected ByteBuf getContent(Object message) {
-            logger.debug(message);
-            return (ByteBuf) message;
-        }
-
-        @Override
         public ConnectionContext<LocalAddress> getNewConnectionContext(ChannelHandlerContext ctx, Object message) {
             return new LocalChannelConnectionContext((LocalChannel) ctx.channel());
         }
 
         @Override
-        public void exception(ChannelHandlerContext ctx, Throwable cause) {
-            logger.catching(cause);
+        protected TesterServer.Builder getServerBuilder() {
+            return new TesterServer.Builder();
+        }
+
+        @Override
+        public ByteBuf getContent(Object message) {
+            logger.debug(message);
+            return (ByteBuf) message;
+        }
+
+        @Override
+        public ChannelConsumer<ServerBootstrap, ServerChannel> getConsumer() {
+            return new AbstractChannelConsumer<TesterReceiver, ServerBootstrap, ServerChannel, Object>(this) {
+                @Override
+                public void addHandlers(ChannelPipeline pipe) {
+                    super.addHandlers(pipe);
+                    pipe.addBefore("MessageDecoder", "Splitter", new LineBasedFrameDecoder(256));
+                }
+            };
         }
 
     }
@@ -166,36 +178,36 @@ public class TestServer {
     public void testSimple() throws InterruptedException {
         Properties empty = new Properties(Collections.emptyMap());
         BlockingQueue<Event> receiver = new ArrayBlockingQueue<>(1);
-        TesterReceiver r = new TesterReceiver(receiver, new Pipeline(Collections.emptyList(), "testone", null));
-        r.configure(empty);
+        try(TesterReceiver r = new TesterReceiver(receiver, new Pipeline(Collections.emptyList(), "testone", null))) {
+            r.configure(empty);
 
-        final ChannelFuture[] sent = new ChannelFuture[1];
+            ChannelFuture[] sent = new ChannelFuture[1];
 
-        EventLoopGroup workerGroup = new DefaultEventLoopGroup();
-        Bootstrap b = new Bootstrap();
-        b.group(workerGroup);
-        b.channel(LocalChannel.class);
-        b.handler(new SimpleChannelInboundHandler<ByteBuf>() {
-            @Override
-            public void channelActive(ChannelHandlerContext ctx) {
-                sent[0] = ctx.writeAndFlush(Unpooled.copiedBuffer("Message\r\n", CharsetUtil.UTF_8));
-            }
-            @Override
-            protected void channelRead0(ChannelHandlerContext ctx, ByteBuf msg) throws Exception {
-            }
+            EventLoopGroup workerGroup = new DefaultEventLoopGroup();
+            Bootstrap b = new Bootstrap();
+            b.group(workerGroup);
+            b.channel(LocalChannel.class);
+            b.handler(new SimpleChannelInboundHandler<ByteBuf>() {
+                @Override
+                public void channelActive(ChannelHandlerContext ctx) {
+                    sent[0] = ctx.writeAndFlush(Unpooled.copiedBuffer("Message\r\n", CharsetUtil.UTF_8));
+                }
+                @Override
+                protected void channelRead0(ChannelHandlerContext ctx, ByteBuf msg) throws Exception {
+                }
 
-        });
+            });
 
-        // Start the client.
-        ChannelFuture f = b.connect(new LocalAddress(TestServer.class.getCanonicalName())).sync();
-        Thread.sleep(100);
-        sent[0].sync();
-        f.channel().close();
-        // Wait until the connection is closed.
-        f.channel().closeFuture().sync();
+            // Start the client.
+            ChannelFuture f = b.connect(new LocalAddress(TestServer.class.getCanonicalName())).sync();
+            Thread.sleep(100);
+            sent[0].sync();
+            f.channel().close();
+            // Wait until the connection is closed.
+            f.channel().closeFuture().sync();
 
-        Event e = receiver.poll();
-        Assert.assertEquals("Message", e.get("message"));
-
+            Event e = receiver.poll();
+            Assert.assertEquals("Message", e.get("message"));
+        }
     }
 }

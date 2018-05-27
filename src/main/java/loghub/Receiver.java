@@ -6,6 +6,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.BlockingQueue;
+import java.util.function.Supplier;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -15,6 +16,7 @@ import com.codahale.metrics.Meter;
 
 import io.netty.buffer.ByteBuf;
 import loghub.Decoder.DecodeException;
+import loghub.Decoder.RuntimeDecodeException;
 import loghub.configuration.Properties;
 import loghub.receivers.Blocking;
 import loghub.security.AuthenticationHandler;
@@ -76,11 +78,11 @@ public abstract class Receiver extends Thread implements Iterator<Event>, Closea
     protected AuthenticationHandler getAuthHandler(Properties properties) {
         if (authHandler == null) {
             authHandler = AuthenticationHandler.getBuilder()
-                    .setSslClientAuthentication(sslclient).useSsl(withSsl)
-                    .setLogin(user).setPassword(password != null ? password.toCharArray() : null)
-                    .setJaasName(jaasName).setJaasConfig(properties.jaasConfig)
-                    .setJwtHandler(useJwt ? properties.jwtHandler : null).useJwt(useJwt)
-                    .build();
+                            .setSslClientAuthentication(sslclient).useSsl(withSsl)
+                            .setLogin(user).setPassword(password != null ? password.toCharArray() : null)
+                            .setJaasName(jaasName).setJaasConfig(properties.jaasConfig)
+                            .setJwtHandler(useJwt ? properties.jwtHandler : null).useJwt(useJwt)
+                            .build();
         }
         return authHandler;
     }
@@ -195,30 +197,50 @@ public abstract class Receiver extends Thread implements Iterator<Event>, Closea
         throw new NoSuchElementException();
     }
 
-    protected final Event decode(ConnectionContext<?> ctx, byte[] msg) {
-        return decode(ctx, msg, 0, msg != null ? msg.length : 0);
-    }
-
-    protected final Event decode(ConnectionContext<?> ctx, byte[] msg, int offset, int size) {
+    private Event decode(ConnectionContext<?> ctx,java.util.function.BooleanSupplier isValid, Supplier<Map<String, Object>> decoder) {
         EventInstance event = new EventInstance(ctx);
-        if ( msg == null || size == 0) {
+        if ( ! isValid.getAsBoolean()) {
             logger.info("received null or empty event");
             event.end();
             return null;
         } else {
             try {
-                Map<String, Object> content = decoder.decode(ctx, msg, offset, size);
+                Map<String, Object> content = decoder.get();
                 if (content.containsKey(Event.TIMESTAMPKEY) && (event.get(Event.TIMESTAMPKEY) instanceof Date)) {
                     event.setTimestamp((Date) event.remove(Event.TIMESTAMPKEY));
                 }
                 content.entrySet().stream().forEach( i -> event.put(i.getKey(), i.getValue()));
-            } catch (DecodeException e) {
-                manageDecodeException(e);
+            } catch (RuntimeDecodeException e) {
+                manageDecodeException((DecodeException)e.getCause());
                 event.end();
                 return null;
             }
         }
         return event;
+    }
+
+    protected final Event decode(ConnectionContext<?> ctx, ByteBuf bbuf) {
+        return decode(ctx, () -> bbuf != null && bbuf.isReadable(), () -> {
+            try {
+                return decoder.decode(ctx, bbuf);
+            } catch (DecodeException e) {
+                throw new RuntimeDecodeException(e.getMessage(), e.getCause());
+            }
+        });
+    }
+
+    protected final Event decode(ConnectionContext<?> ctx, byte[] msg) {
+        return decode(ctx, msg, 0, msg != null ? msg.length : 0);
+    }
+
+    protected final Event decode(ConnectionContext<?> ctx, byte[] msg, int offset, int size) {
+        return decode(ctx, () -> msg != null && size > 0 && offset < size, () -> {
+            try {
+                return decoder.decode(ctx, msg, offset, size);
+            } catch (DecodeException e) {
+                throw new RuntimeDecodeException(e.getMessage(), e.getCause());
+            }
+        });
     }
 
     protected final Event emptyEvent(ConnectionContext<?> ctx) {
