@@ -58,6 +58,7 @@ public class TestTcpLinesStream {
             Assert.assertNotNull(e);
             String message = (String) e.get("message");
             Assert.assertEquals("LogHub", message);
+            Assert.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
         } catch (IOException | InterruptedException | RuntimeException e) {
             if (receiver != null) {
                 receiver.stopReceiving();
@@ -83,6 +84,7 @@ public class TestTcpLinesStream {
             Event e = queue.poll(1, TimeUnit.SECONDS);
             String message = (String) e.get("message");
             Assert.assertEquals("LogHub", message);
+            Assert.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
         } catch (IOException | InterruptedException | RuntimeException e) {
             if (receiver != null) {
                 receiver.stopReceiving();

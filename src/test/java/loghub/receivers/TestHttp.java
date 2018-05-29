@@ -139,6 +139,7 @@ public class TestHttp {
         logger.debug(e.getClass());
         String a = (String) e.get("a");
         Assert.assertEquals("1", a);
+        Assert.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
     }
 
     @Test
@@ -155,6 +156,7 @@ public class TestHttp {
         String a = (String) e.get("a");
         Assert.assertEquals("1", a);
         Assert.assertEquals("CN=localhost", e.getConnectionContext().getPrincipal().toString());
+        Assert.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
         // Test that ssl state is still good
         doRequest(new URL("https", hostname, port, "/?a=1"),
                 new byte[]{},
@@ -202,6 +204,7 @@ public class TestHttp {
         Event e = queue.poll();
         Assert.assertEquals("1", e.get("a"));
         Assert.assertEquals("c d", e.get("b"));
+        Assert.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
     }
 
     @Test
@@ -249,6 +252,7 @@ public class TestHttp {
         Event e = queue.poll();
         Assert.assertEquals("1", e.get("a"));
         Assert.assertEquals("user", e.getConnectionContext().getPrincipal().getName());
+        Assert.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
     }
 
     @Test
@@ -269,6 +273,7 @@ public class TestHttp {
         Event e = queue.poll();
         Assert.assertEquals("1", e.get("a"));
         Assert.assertEquals("user", e.getConnectionContext().getPrincipal().getName());
+        Assert.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
     }
 
     @Test
@@ -290,6 +295,7 @@ public class TestHttp {
         Event e = queue.poll();
         Assert.assertEquals("1", e.get("a"));
         Assert.assertEquals("user", e.getConnectionContext().getPrincipal().getName());
+        Assert.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
     }
 
 }

@@ -5,12 +5,14 @@ import java.io.Reader;
 import java.net.ServerSocket;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
+import java.util.function.Function;
 
 import org.junit.Assert;
 
@@ -140,5 +142,7 @@ public class Tools {
     public static boolean isInMaven() {
         return "true".equals(System.getProperty("maven.surefire", "false"));
     }
+    
+    public static final Function<Date, Boolean> isRecent = i -> { long now = new Date().getTime() ; return (i.getTime() > (now - 60000)) && (i.getTime() < (now + 60000));};
 
 }

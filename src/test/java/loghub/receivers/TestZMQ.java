@@ -51,6 +51,7 @@ public class TestZMQ {
             logger.debug("after");
             Assert.assertTrue(sender.send("message 1"));
             Event e = receiver.take();
+            Assert.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
             Assert.assertEquals("Missing message", "message 1", e.get("message"));
             r.stopReceiving();
         }

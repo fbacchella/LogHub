@@ -79,6 +79,7 @@ public class TestTrap {
 
             r.processPdu(trapEvent);
             Event e = receiver.poll();
+            Assert.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
             logger.debug(e.getClass());
             @SuppressWarnings("unchecked")
             Map<String,?> details = (Map<String, ?>) e.get("lldpRemSysName");
@@ -109,6 +110,7 @@ public class TestTrap {
             trapEvent.setPDU(pdu);
             r.processPdu(trapEvent);
             Event e = receiver.poll();
+            Assert.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
             Assert.assertEquals(0.1, (Double)e.get("time_stamp"), 1e-10);
             Assert.assertEquals("warmStart", e.get("generic_trap"));
             Assert.assertEquals("compaq", e.get("enterprise"));
@@ -140,6 +142,7 @@ public class TestTrap {
             trapEvent.setPDU(pdu);
             r.processPdu(trapEvent);
             Event e = receiver.poll();
+            Assert.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
             Assert.assertEquals(0.1, (Double)e.get("time_stamp"), 1e-10);
             Assert.assertEquals(null, e.get("generic_trap"));
             Assert.assertEquals("compaq", e.get("enterprise"));

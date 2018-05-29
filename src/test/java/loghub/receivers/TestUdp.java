@@ -79,6 +79,7 @@ public class TestUdp {
                 }
             }
             Event e = receiver.take();
+            Assert.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
             Assert.assertTrue("Invalid message content", e.get("message").toString().startsWith("message"));
             Assert.assertEquals("Invalid message size", originalMessageSize, e.get("message").toString().length());
             Assert.assertTrue("didn't find valid hosts informations", e.get("host") instanceof InetAddress);
