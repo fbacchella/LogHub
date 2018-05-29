@@ -15,6 +15,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.msgpack.core.MessagePack;
 import org.msgpack.core.MessagePacker;
+import org.msgpack.jackson.dataformat.MessagePackExtensionType;
 import org.msgpack.jackson.dataformat.MessagePackFactory;
 import org.msgpack.value.Value;
 import org.msgpack.value.ValueFactory;
@@ -24,8 +25,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import loghub.ConnectionContext;
 import loghub.Decoder;
-import loghub.Event;
 import loghub.Decoder.DecodeException;
+import loghub.Event;
 import loghub.LogUtils;
 import loghub.Receiver;
 import loghub.Tools;
@@ -42,7 +43,7 @@ public class TestMsgpack {
         obj.put("b", 1);
         obj.put("c", false);
         obj.put("d", new Object[]{"0", 1, 2.0, null});
-        obj.put(Event.TIMESTAMPKEY, "1970-01-01T00:00:00.123456+0200");
+        obj.put(Event.TIMESTAMPKEY, 100);
     }
 
     @BeforeClass
@@ -54,11 +55,14 @@ public class TestMsgpack {
 
     @Test
     public void testmap() throws IOException, DecodeException {
-        Decoder d = new Msgpack();
+        Msgpack d = new Msgpack();
+        d.setDateField("faileddate");
 
         Map<String, Object> e = d.decode(ConnectionContext.EMPTY, objectMapper.writeValueAsBytes(obj));
 
         testContent(e);
+        Assert.assertEquals("key faileddate not found", 100, e.get("faileddate"));
+
     }
 
     @Test
@@ -86,10 +90,33 @@ public class TestMsgpack {
         byte[] packed = out.toByteArray();
 
         Map<String, Object> e = d.decode(ConnectionContext.EMPTY, packed);
-
         testContent(e);
     }
+    @Test
+    public void testtimestamps() throws IOException, DecodeException {
+        Decoder d = new Msgpack();
 
+        Map<Value, Value> destination = new HashMap<>();
+        destination.put(ValueFactory.newString("a"), ValueFactory.newExtension((byte) -1, new byte[]{1, 2, 3, 4}) );
+        destination.put(ValueFactory.newString("b"), ValueFactory.newExtension((byte) -1, new byte[]{1, 2, 3, 4, 5, 6, 7, 8}) );
+        destination.put(ValueFactory.newString("c"), ValueFactory.newExtension((byte) -1, new byte[]{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}) );
+        destination.put(ValueFactory.newString("d"), ValueFactory.newExtension((byte) -1, new byte[]{12, 11, 10, 9, 0, 0, 0, 0, 0, 3, 2, 1}) );
+
+        Value v = ValueFactory.newMap(destination);
+
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        MessagePacker packer = MessagePack.newDefaultPacker(out);
+
+        packer.packValue(v);
+        packer.close();
+        byte[] packed = out.toByteArray();
+
+        Map<String, Object> e = d.decode(ConnectionContext.EMPTY, packed);
+        Assert.assertEquals(Date.class, e.get("a").getClass());
+        Assert.assertEquals(Date.class, e.get("b").getClass());
+        Assert.assertEquals(MessagePackExtensionType.class, e.get("c").getClass());
+        Assert.assertEquals(Date.class, e.get("d").getClass());
+   }
 
     @SuppressWarnings("unchecked")
     @Test
@@ -125,8 +152,6 @@ public class TestMsgpack {
             r.setDecoder(d);
             Event e = r.next();
             testContent(e);
-            Assert.assertEquals(100, e.getTimestamp().getTime());
-            System.out.println(e);
         }
     }
 
