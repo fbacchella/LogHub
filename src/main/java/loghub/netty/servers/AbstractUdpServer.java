@@ -25,7 +25,7 @@ public class AbstractUdpServer<S extends AbstractUdpServer<S, B>,
 
     public abstract static class Builder<S extends AbstractUdpServer<S, B>, 
                                          B extends AbstractUdpServer.Builder<S, B>
-                                        > extends NettyIpServer.Builder<S, B> {
+                                        > extends NettyIpServer.Builder<S, B, Bootstrap, Channel> {
         int bufferSize;
         @SuppressWarnings("unchecked")
         public B setBufferSize(int bufferSize) {
@@ -33,12 +33,11 @@ public class AbstractUdpServer<S extends AbstractUdpServer<S, B>,
             return (B) this;
         }
     }
+
     public AbstractUdpServer(B builder) {
         super(builder);
-        this.buffersize =  builder.bufferSize;
     }
 
-    private int buffersize = -1;
     private Set<Channel> channels;
 
     @Override
@@ -47,23 +46,23 @@ public class AbstractUdpServer<S extends AbstractUdpServer<S, B>,
     }
 
     @Override
-    public void configureBootStrap(Bootstrap bootstrap) {
-        if (buffersize > 0 ) {
-            bootstrap.option(ChannelOption.RCVBUF_ALLOCATOR, new FixedRecvByteBufAllocator(buffersize));
+    public void configureBootStrap(Bootstrap bootstrap, B builder) {
+        if (builder.bufferSize > 0) {
+            bootstrap.option(ChannelOption.RCVBUF_ALLOCATOR, new FixedRecvByteBufAllocator(builder.bufferSize));
         }
         // Needed because Netty's UDP is not multi-thread, see http://marrachem.blogspot.fr/2014/09/multi-threaded-udp-server-with-netty-on.html
-        if (poller == POLLER.EPOLL && getWorkerThreads() > 1) {
+        if (poller == POLLER.EPOLL && builder.threadsCount > 1) {
             bootstrap.option(EpollChannelOption.SO_REUSEPORT, true);
-        } else if (poller != POLLER.EPOLL && getWorkerThreads() > 1){
+        } else if (poller != POLLER.EPOLL && builder.threadsCount > 1){
             logger.warn("Multiple worker, but not using EPOLL, it's useless");
         }
-        super.configureBootStrap(bootstrap);
+        super.configureBootStrap(bootstrap, builder);
     }
 
     @Override
-    protected boolean makeChannel(AbstractBootstrap<Bootstrap, Channel> bootstrap, InetSocketAddress address) {
-        channels = new HashSet<>(getWorkerThreads());
-        for (int i = 0 ; i < getWorkerThreads() ; ++i) {  
+    protected boolean makeChannel(AbstractBootstrap<Bootstrap, Channel> bootstrap, InetSocketAddress address, B builder) {
+        channels = new HashSet<>(builder.threadsCount);
+        for (int i = 0 ; i < builder.threadsCount ; ++i) {  
             ChannelFuture future = bootstrap.bind(address);
             channels.add(future.channel());
             try {

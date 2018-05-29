@@ -52,8 +52,8 @@ public class HttpTestServer extends ExternalResource {
     protected void before() throws Throwable {
         CustomServer.Builder builder = new CustomServer.Builder();
         builder.handlers = handlers;
+        builder.setThreadPrefix("TestServer");
         server = builder.setPort(port).setSSLContext(ssl).useSSL(ssl != null).build();
-        server.configure();
     }
 
     @Override

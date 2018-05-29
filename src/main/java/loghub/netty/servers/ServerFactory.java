@@ -35,9 +35,11 @@ public abstract class ServerFactory<CC extends Channel, SA extends SocketAddress
     }
 
     @Override
-    public void finish() {
-        workerGroup.shutdownGracefully();
-        bossGroup.shutdownGracefully();
+    public Runnable finisher() {
+        return () -> {
+            workerGroup.shutdownGracefully();
+            bossGroup.shutdownGracefully();
+        };
     }
 
     @Override

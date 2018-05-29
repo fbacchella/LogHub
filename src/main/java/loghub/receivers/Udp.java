@@ -45,7 +45,8 @@ public class Udp extends NettyIpReceiver<Udp,
 
     @Override
     public final boolean configure(Properties properties, UdpServer.Builder builder) {
-        builder.setBufferSize(buffersize);
+        builder.setBufferSize(buffersize)
+               .setThreadPrefix("UdpNettyReceiver");
         return super.configure(properties, builder);
     }
 

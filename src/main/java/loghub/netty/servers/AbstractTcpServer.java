@@ -10,14 +10,13 @@ import io.netty.channel.ServerChannel;
 import io.netty.channel.socket.ServerSocketChannel;
 import loghub.netty.TcpFactory;
 
-public class AbstractTcpServer<
-    S extends AbstractTcpServer<S, B>,
-    B extends AbstractTcpServer.Builder<S, B>
-    > extends NettyIpServer<TcpFactory, ServerBootstrap, ServerChannel, ServerSocketChannel, S, B> {
-    
+public class AbstractTcpServer<S extends AbstractTcpServer<S, B>,
+                               B extends AbstractTcpServer.Builder<S, B>
+                              > extends NettyIpServer<TcpFactory, ServerBootstrap, ServerChannel, ServerSocketChannel, S, B> {
+
     public abstract static class Builder<S extends AbstractTcpServer<S, B>,
                                          B extends AbstractTcpServer.Builder<S, B>
-                                        > extends NettyIpServer.Builder<S, B> {
+                                        > extends NettyIpServer.Builder<S, B, ServerBootstrap, ServerChannel> {
         protected Builder() {
         }
     }
@@ -29,7 +28,7 @@ public class AbstractTcpServer<
     Channel cf;
 
     @Override
-    protected boolean makeChannel(AbstractBootstrap<ServerBootstrap, ServerChannel> bootstrap, InetSocketAddress address) {
+    protected boolean makeChannel(AbstractBootstrap<ServerBootstrap, ServerChannel> bootstrap, InetSocketAddress address, B builder) {
         // Bind and start to accept incoming connections.
         try {
             cf = bootstrap.bind(address).await().channel();
@@ -42,9 +41,9 @@ public class AbstractTcpServer<
     }
 
     @Override
-    public void configureBootStrap(ServerBootstrap bootstrap) {
+    public void configureBootStrap(ServerBootstrap bootstrap, B builder) {
         bootstrap.childOption(ChannelOption.SO_KEEPALIVE, true);
-        super.configureBootStrap(bootstrap);
+        super.configureBootStrap(bootstrap, builder);
     }
 
     @Override

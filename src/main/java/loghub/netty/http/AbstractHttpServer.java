@@ -1,7 +1,5 @@
 package loghub.netty.http;
 
-import java.net.InetSocketAddress;
-
 import org.apache.logging.log4j.Level;
 
 import io.netty.bootstrap.ServerBootstrap;
@@ -19,7 +17,6 @@ import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.stream.ChunkedWriteHandler;
-import io.netty.util.concurrent.DefaultThreadFactory;
 import loghub.Helpers;
 import loghub.netty.ChannelConsumer;
 import loghub.netty.servers.AbstractTcpServer;
@@ -39,18 +36,6 @@ public abstract class AbstractHttpServer<S extends AbstractHttpServer<S, B>,
 
     protected AbstractHttpServer(B builder) {
         super(builder);
-    }
-
-    @Override
-    public boolean configure(ChannelConsumer<ServerBootstrap, ServerChannel> consumer) {
-        InetSocketAddress address = getAddress();
-        setThreadFactory(new DefaultThreadFactory("builtinhttpserver/" +
-                        address.getAddress().getHostAddress() + ":" + address.getPort()));
-        return super.configure(consumer);
-    }
-
-    public boolean configure() {
-        return configure(this);
     }
 
     @Override

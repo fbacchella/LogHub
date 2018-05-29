@@ -155,7 +155,7 @@ public class Http extends AbstractTcpReceiver<Http, Http.HttpReceiverServer, Htt
 
     @Override
     public boolean configure(Properties properties, HttpReceiverServer.Builder builder) {
-        builder.setPostHandler(new PostHandler());
+        builder.setPostHandler(new PostHandler()).setThreadPrefix("HTTP");
         return super.configure(properties, builder);
     }
 

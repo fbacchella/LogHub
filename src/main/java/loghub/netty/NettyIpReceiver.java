@@ -17,7 +17,7 @@ import loghub.security.ssl.ClientAuthentication;
 
 public abstract class NettyIpReceiver<R extends NettyIpReceiver<R, S, B, CF, BS, BSC, SC, CC, SM>,
                                       S extends NettyIpServer<CF, BS, BSC, SC, S, B>,
-                                      B extends NettyIpServer.Builder<S, B>,
+                                      B extends NettyIpServer.Builder<S, B, BS, BSC>,
                                       CF extends ComponentFactory<BS, BSC, InetSocketAddress>,
                                       BS extends AbstractBootstrap<BS,BSC>,
                                       BSC extends Channel,

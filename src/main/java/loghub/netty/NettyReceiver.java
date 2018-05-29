@@ -2,7 +2,6 @@ package loghub.netty;
 
 import java.net.SocketAddress;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ThreadFactory;
 
 import org.apache.logging.log4j.Level;
 
@@ -11,7 +10,6 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.util.AttributeKey;
-import io.netty.util.concurrent.DefaultThreadFactory;
 import loghub.ConnectionContext;
 import loghub.Event;
 import loghub.Helpers;
@@ -22,7 +20,7 @@ import loghub.netty.servers.AbstractNettyServer;
 
 public abstract class NettyReceiver<R extends NettyReceiver<R, S, B, CF, BS, BSC, SC, CC, SA, SM>,
                                     S extends AbstractNettyServer<CF, BS, BSC, SC, SA, S, B>,
-                                    B extends AbstractNettyServer.Builder<S, B>,
+                                    B extends AbstractNettyServer.Builder<S, B, BS, BSC>,
                                     CF extends ComponentFactory<BS, BSC, SA>,
                                     BS extends AbstractBootstrap<BS,BSC>, 
                                     BSC extends Channel,
@@ -49,34 +47,15 @@ public abstract class NettyReceiver<R extends NettyReceiver<R, S, B, CF, BS, BSC
 
     public boolean configure(Properties properties, B builder) {
         builder.setAuthHandler(getAuthHandler(properties)).setWorkerThreads(threadsCount).setPoller(poller);
+        builder.setConsumer(AbstractNettyServer.resolveConsumer(this));
         server = builder.build();
-        ThreadFactory tf = new DefaultThreadFactory(getReceiverName(), true);
-        server.setThreadFactory(tf);
-        ChannelConsumer<BS, BSC> cc = resolveConsumer();
-        if (cc == null) {
-            logger.error("Receiver incomplete, can't consume events");
-            return false;
-        }
         try {
-            return server.configure(cc) && super.configure(properties);
+            return super.configure(properties);
         } catch (UnsatisfiedLinkError e) {
             logger.error("Can't configure Netty server: {}", Helpers.resolveThrowableException(e));
             logger.catching(Level.DEBUG, e);
             return false;
         }
-    }
-
-    @SuppressWarnings("unchecked")
-    private ChannelConsumer<BS, BSC> resolveConsumer() {
-        ChannelConsumer<BS, BSC> cc = null;
-        if (server instanceof ChannelConsumer) {
-            cc = (ChannelConsumer<BS, BSC>) server;
-        } else if (this instanceof ChannelConsumer) {
-            cc = (ChannelConsumer<BS, BSC>) this;
-        } else if (this instanceof ConsumerProvider) {
-            cc = ((ConsumerProvider<R, BS, BSC>) this).getConsumer();
-        }
-        return cc;
     }
 
     @Override

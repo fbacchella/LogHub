@@ -245,7 +245,7 @@ public class Start {
             throw new RuntimeException("jmx configuration failed: " + e.getMessage(), e);
         }
         if (props.dashboardBuilder != null) {
-            props.dashboardBuilder.build().start();
+            props.dashboardBuilder.build();
         }
 
     }

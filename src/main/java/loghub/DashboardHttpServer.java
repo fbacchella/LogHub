@@ -45,10 +45,6 @@ public class DashboardHttpServer extends AbstractHttpServer<DashboardHttpServer,
         }
     }
 
-    public void start() {
-        configure(this);
-    }
-    
     @Override
     public void addModelHandlers(ChannelPipeline p) {
         p.addLast(ROOTREDIRECT);
@@ -90,7 +86,8 @@ public class DashboardHttpServer extends AbstractHttpServer<DashboardHttpServer,
             return getBuilder()
                     .setPort(port)
                     .setSSLContext(props.ssl).useSSL(useSSL).setSSLKeyAlias(sslKeyalias)
-                    .setAuthHandler(authHandler);
+                    .setAuthHandler(authHandler)
+                    .setThreadPrefix("Dashboard");
         }
     }
 

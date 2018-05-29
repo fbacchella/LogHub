@@ -82,7 +82,7 @@ public class TestServer {
 
     private static class TesterServer extends AbstractNettyServer<TesterFactory, ServerBootstrap, ServerChannel, LocalServerChannel, LocalAddress, TesterServer, TesterServer.Builder> {
 
-        public static class Builder extends  AbstractNettyServer.Builder<TesterServer, TesterServer.Builder> {
+        public static class Builder extends  AbstractNettyServer.Builder<TesterServer, TesterServer.Builder, ServerBootstrap, ServerChannel> {
             public TesterServer build() {
                 return new TesterServer(this);
             }
@@ -100,7 +100,7 @@ public class TestServer {
         }
 
         @Override
-        protected boolean makeChannel(AbstractBootstrap<ServerBootstrap, ServerChannel> bootstrap, LocalAddress address) {
+        protected boolean makeChannel(AbstractBootstrap<ServerBootstrap, ServerChannel> bootstrap, LocalAddress address, Builder builder) {
             // Bind and start to accept incoming connections.
             try {
                 cf = bootstrap.bind(address).await().channel();
@@ -117,7 +117,7 @@ public class TestServer {
         }
 
         @Override
-        protected LocalAddress setAddress(Builder builder) {
+        protected LocalAddress resolveAddress(Builder builder) {
             return new LocalAddress(TestServer.class.getCanonicalName());
         }
     }
@@ -129,6 +129,12 @@ public class TestServer {
         public TesterReceiver(BlockingQueue<Event> outQueue, Pipeline pipeline) {
             super(outQueue, pipeline);
             decoder = new StringCodec();
+        }
+
+        @Override
+        public boolean configure(Properties properties, TesterServer.Builder builder) {
+            builder.setThreadPrefix("ReceiverTest");
+            return super.configure(properties, builder);
         }
 
         @Override

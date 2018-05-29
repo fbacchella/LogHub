@@ -19,6 +19,7 @@ import io.netty.util.concurrent.DefaultEventExecutorGroup;
 import io.netty.util.concurrent.EventExecutorGroup;
 import loghub.Event;
 import loghub.Pipeline;
+import loghub.configuration.Properties;
 import loghub.netty.BaseChannelConsumer;
 import loghub.netty.AbstractTcpReceiver;
 import loghub.netty.ChannelConsumer;
@@ -73,6 +74,12 @@ public class Beats extends AbstractTcpReceiver<Beats, TcpServer, TcpServer.Build
     @Override
     protected Builder getServerBuilder() {
         return new TcpServer.Builder();
+    }
+
+    @Override
+    public boolean configure(Properties properties, Builder builder) {
+        builder.setThreadPrefix("BeatsReceiver");
+        return super.configure(properties, builder);
     }
 
     @Override

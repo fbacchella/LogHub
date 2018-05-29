@@ -101,9 +101,14 @@ public class TestHttpSsl {
 
     private CustomServer server;
     private void makeServer(Map<String, Object> sslprops, Function<CustomServer.Builder, CustomServer.Builder> c) {
-        CustomServer.Builder builder = new CustomServer.Builder().setPort(serverPort).setSSLContext(getContext.apply(sslprops)).useSSL(true);
+        CustomServer.Builder builder = new CustomServer.Builder()
+                        .setThreadPrefix("TestHttpSSL")
+                        .setConsumer(server)
+                        .setPort(serverPort)
+                        .setSSLContext(getContext.apply(sslprops))
+                        .useSSL(true);
+
         server = c.apply(builder).build();
-        server.configure(server);
     }
 
     @After

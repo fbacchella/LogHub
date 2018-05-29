@@ -27,20 +27,22 @@ public abstract class NettyIpServer<CF extends ComponentFactory<BS, BSC, InetSoc
                                     BSC extends Channel,
                                     SC extends Channel,
                                     S extends NettyIpServer<CF, BS, BSC, SC, S, B>,
-                                    B extends NettyIpServer.Builder<S, B>
+                                    B extends NettyIpServer.Builder<S, B, BS, BSC>
                                    > extends AbstractNettyServer<CF, BS, BSC, SC, InetSocketAddress, S, B> {
 
     public static final AttributeKey<SSLSession> SSLSESSIONATTRIBUTE = AttributeKey.newInstance(SSLSession.class.getName());
 
     public abstract static class Builder<S extends NettyIpServer<?, ?, ?, ?, S, B>,
-                                         B extends Builder<S, B>
-                                        > extends AbstractNettyServer.Builder <S, B>{
+                                         B extends Builder<S, B, BS, BSC>,
+                                         BS extends AbstractBootstrap<BS, BSC>,
+                                         BSC extends Channel
+                                        > extends AbstractNettyServer.Builder <S, B, BS, BSC>{
         int port = -1;
         String host = null;
         SSLContext sslctx = null;
         boolean useSSL = false;
         ClientAuthentication sslClientAuthentication = ClientAuthentication.NONE;
-        String alias = null;
+        String sslKeyAlias = null;
         int backlog;
         protected Builder() {
         }
@@ -71,7 +73,7 @@ public abstract class NettyIpServer<CF extends ComponentFactory<BS, BSC, InetSoc
         }
         @SuppressWarnings("unchecked")
         public B setSSLKeyAlias(String alias) {
-            this.alias = alias;
+            this.sslKeyAlias = alias;
             return (B) this;
         }
         @SuppressWarnings("unchecked")
@@ -86,22 +88,20 @@ public abstract class NettyIpServer<CF extends ComponentFactory<BS, BSC, InetSoc
     private ClientAuthentication sslClientAuthentication = null;
     private final int port;
     private final String host;
-    private final int backlog;
 
     protected NettyIpServer(B builder) {
         super(builder);
         port = builder.port;
         host = builder.host;
-        backlog = builder.backlog;
         if (builder.useSSL) {
-            setSSLContext(builder.sslctx);
-            setSSLClientAuthentication(builder.sslClientAuthentication);
-            setSSLKeyAlias(builder.alias);
+            sslctx = builder.sslctx;
+            sslClientAuthentication = builder.sslClientAuthentication;
+            sslKeyAlias = builder.sslKeyAlias;
         }
     }
 
     @Override
-    protected InetSocketAddress setAddress(B builder) {
+    protected InetSocketAddress resolveAddress(B builder) {
         try {
             return new InetSocketAddress(builder.host != null ? InetAddress.getByName(builder.host) : null , builder.port);
         } catch (UnknownHostException e) {
@@ -128,19 +128,20 @@ public abstract class NettyIpServer<CF extends ComponentFactory<BS, BSC, InetSoc
     public void addHandlers(ChannelPipeline p) {
         super.addHandlers(p);
         if (isWithSSL()) {
-            addSslHandler(p, getEngine());
+            addSslHandler(p);
         }
     }
 
     @Override
-    public void configureBootStrap(BS bootstrap) {
-        bootstrap.option(ChannelOption.SO_BACKLOG, backlog);
+    public void configureBootStrap(BS bootstrap, B builder) {
+        bootstrap.option(ChannelOption.SO_BACKLOG, builder.backlog);
         bootstrap.option(ChannelOption.TCP_NODELAY, true);
-        super.configureBootStrap(bootstrap);
+        super.configureBootStrap(bootstrap, builder);
     }
 
-    public void addSslHandler(ChannelPipeline p, SSLEngine engine) {
+    public void addSslHandler(ChannelPipeline p) {
         logger.debug("adding an ssl handler on {}", p.channel());
+        SSLEngine engine = getEngine();
         SslHandler sslHandler = new SslHandler(engine);
         p.addFirst("ssl", sslHandler);
         Future<Channel> future = sslHandler.handshakeFuture();
@@ -168,10 +169,6 @@ public abstract class NettyIpServer<CF extends ComponentFactory<BS, BSC, InetSoc
         return engine;
     }
 
-    public void setSSLContext(SSLContext sslctx) {
-        this.sslctx = sslctx;
-    }
-
     public boolean isWithSSL() {
         return sslctx != null;
     }
@@ -183,19 +180,8 @@ public abstract class NettyIpServer<CF extends ComponentFactory<BS, BSC, InetSoc
         return sslClientAuthentication;
     }
 
-    /**
-     * @param sslClientAuthentication the sslClientAuthentication to set
-     */
-    public void setSSLClientAuthentication(ClientAuthentication sslClientAuthentication) {
-        this.sslClientAuthentication = sslClientAuthentication;
-    }
-
     public String getSslKeyAlias() {
         return sslKeyAlias;
-    }
-
-    public void setSSLKeyAlias(String sslKeyAlias) {
-        this.sslKeyAlias = sslKeyAlias;
     }
 
 }

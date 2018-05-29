@@ -14,7 +14,7 @@ public abstract class ComponentFactory<BS extends AbstractBootstrap<BS,BSC>, BSC
     public abstract ChannelFactory<BSC> getInstance();
     public abstract BS getBootStrap();
     public abstract void group(int threads, ThreadFactory threadFactory);
-    public abstract void finish();
+    public abstract Runnable finisher();
     public abstract void addChildhandlers(ChannelConsumer<BS, BSC> source, AbstractNettyServer<?, BS, BSC, ?, SA, ?, ?> server);
     public void addHandlers(ChannelConsumer<BS, BSC> source, AbstractNettyServer<?, BS, BSC, ?, SA, ?, ?> server) { };
 }

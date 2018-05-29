@@ -23,10 +23,6 @@ public abstract class AbstractTcpReceiver<R extends AbstractTcpReceiver<R, S, B>
         super(outQueue, pipeline);
     }
 
-    public AbstractTcpReceiver(BlockingQueue<Event> outQueue, Pipeline pipeline, S server) {
-        super(outQueue, pipeline);
-    }
-
     @Override
     public boolean configure(Properties properties, B builder) {
         builder.setBacklog(backlog);
