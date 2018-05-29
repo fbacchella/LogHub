@@ -327,7 +327,11 @@ class EventInstance extends Event {
      */
     @Override
     public void setTimestamp(Date timestamp) {
-        this.timestamp = timestamp;
+        if (timestamp != null) {
+            this.timestamp = timestamp;
+        } else {
+            this.timestamp = new Date(0);
+        }
     }
 
     @Override
