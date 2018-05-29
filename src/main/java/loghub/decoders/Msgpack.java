@@ -72,7 +72,7 @@ public class Msgpack extends Decoder {
             if(o instanceof Map) {
                 @SuppressWarnings("unchecked")
                 Map<Object, Object> map = (Map<Object, Object>) o;
-                final Map<String, Object> newMap = new HashMap<>(map.size());
+                Map<String, Object> newMap = new HashMap<>(map.size());
                 map.entrySet().stream().forEach((i) -> newMap.put(i.getKey().toString(), i.getValue()));
                 return newMap;
             } else {

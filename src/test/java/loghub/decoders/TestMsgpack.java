@@ -2,6 +2,7 @@ package loghub.decoders;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -18,12 +19,15 @@ import org.msgpack.jackson.dataformat.MessagePackFactory;
 import org.msgpack.value.Value;
 import org.msgpack.value.ValueFactory;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import loghub.ConnectionContext;
 import loghub.Decoder;
+import loghub.Event;
 import loghub.Decoder.DecodeException;
 import loghub.LogUtils;
+import loghub.Receiver;
 import loghub.Tools;
 
 public class TestMsgpack {
@@ -38,6 +42,7 @@ public class TestMsgpack {
         obj.put("b", 1);
         obj.put("c", false);
         obj.put("d", new Object[]{"0", 1, 2.0, null});
+        obj.put(Event.TIMESTAMPKEY, "1970-01-01T00:00:00.123456+0200");
     }
 
     @BeforeClass
@@ -98,6 +103,31 @@ public class TestMsgpack {
 
         List<Map<String, Object>> v = (List<Map<String, Object>>) e.get("vector");
         testContent(v.get(0));
+    }
+
+    @Test
+    public void testDecoder() throws JsonProcessingException {
+
+        byte[] bs = objectMapper.writeValueAsBytes(obj);
+
+        try(Receiver r = new Receiver(null, null) {
+            @Override
+            public String getReceiverName() {
+                return null;
+            }
+
+            @Override
+            public Event next() {
+                return decode(ConnectionContext.EMPTY, bs);
+            }
+        }) {
+            Msgpack d = new Msgpack();
+            r.setDecoder(d);
+            Event e = r.next();
+            testContent(e);
+            Assert.assertEquals(100, e.getTimestamp().getTime());
+            System.out.println(e);
+        }
     }
 
     private void testContent(Map<String, Object> e) {
