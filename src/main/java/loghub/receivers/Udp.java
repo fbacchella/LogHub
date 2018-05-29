@@ -14,7 +14,7 @@ import loghub.Event;
 import loghub.IpConnectionContext;
 import loghub.Pipeline;
 import loghub.configuration.Properties;
-import loghub.netty.AbstractChannelConsumer;
+import loghub.netty.BaseChannelConsumer;
 import loghub.netty.ConsumerProvider;
 import loghub.netty.NettyIpReceiver;
 import loghub.netty.UdpFactory;
@@ -81,8 +81,8 @@ public class Udp extends NettyIpReceiver<Udp,
      }
 
      @Override
-     public AbstractChannelConsumer<Udp, Bootstrap, Channel, DatagramPacket> getConsumer() {
-         return new AbstractChannelConsumer<Udp, Bootstrap, Channel, DatagramPacket>(this);
+     public BaseChannelConsumer<Udp, Bootstrap, Channel, DatagramPacket> getConsumer() {
+         return new BaseChannelConsumer<Udp, Bootstrap, Channel, DatagramPacket>(this);
      }
 
 }

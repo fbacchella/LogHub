@@ -19,7 +19,7 @@ import io.netty.util.concurrent.DefaultEventExecutorGroup;
 import io.netty.util.concurrent.EventExecutorGroup;
 import loghub.Event;
 import loghub.Pipeline;
-import loghub.netty.AbstractChannelConsumer;
+import loghub.netty.BaseChannelConsumer;
 import loghub.netty.AbstractTcpReceiver;
 import loghub.netty.ChannelConsumer;
 import loghub.netty.CloseOnError;
@@ -77,7 +77,7 @@ public class Beats extends AbstractTcpReceiver<Beats, TcpServer, TcpServer.Build
 
     @Override
     public ChannelConsumer<ServerBootstrap, ServerChannel> getConsumer() {
-        return new AbstractChannelConsumer<Beats, ServerBootstrap, ServerChannel, ByteBuf>(this) {
+        return new BaseChannelConsumer<Beats, ServerBootstrap, ServerChannel, ByteBuf>(this) {
             @Override
             public void addHandlers(ChannelPipeline pipe) {
                 pipe.addBefore("Sender", "Splitter", new BeatsParser(maxPayloadSize));

@@ -18,7 +18,7 @@ import io.netty.util.ReferenceCounted;
 import loghub.Event;
 import loghub.Helpers;
 
-public class AbstractChannelConsumer<R extends NettyReceiver<?, ?, ?, ?, BS, BSC, ?, ?, ?, SM>,
+public class BaseChannelConsumer<R extends NettyReceiver<?, ?, ?, ?, BS, BSC, ?, ?, ?, SM>,
                                      BS extends AbstractBootstrap<BS,BSC>, 
                                      BSC extends Channel,
                                      SM> implements ChannelConsumer<BS, BSC> {
@@ -84,7 +84,7 @@ public class AbstractChannelConsumer<R extends NettyReceiver<?, ?, ?, ?, BS, BSC
     private final boolean selfDecoder;
     protected final R r;
 
-    public AbstractChannelConsumer(R r) {
+    public BaseChannelConsumer(R r) {
         closeOnError = r.getClass().isAnnotationPresent(CloseOnError.class);
         selfDecoder = r.getClass().isAnnotationPresent(SelfDecoder.class);
         this.r = r;

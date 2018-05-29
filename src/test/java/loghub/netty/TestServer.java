@@ -154,7 +154,7 @@ public class TestServer {
 
         @Override
         public ChannelConsumer<ServerBootstrap, ServerChannel> getConsumer() {
-            return new AbstractChannelConsumer<TesterReceiver, ServerBootstrap, ServerChannel, Object>(this) {
+            return new BaseChannelConsumer<TesterReceiver, ServerBootstrap, ServerChannel, Object>(this) {
                 @Override
                 public void addHandlers(ChannelPipeline pipe) {
                     super.addHandlers(pipe);

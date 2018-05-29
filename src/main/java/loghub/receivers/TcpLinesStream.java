@@ -13,7 +13,7 @@ import loghub.Event;
 import loghub.Pipeline;
 import loghub.configuration.Properties;
 import loghub.decoders.StringCodec;
-import loghub.netty.AbstractChannelConsumer;
+import loghub.netty.BaseChannelConsumer;
 import loghub.netty.AbstractTcpReceiver;
 import loghub.netty.ChannelConsumer;
 import loghub.netty.ConsumerProvider;
@@ -32,7 +32,7 @@ public class TcpLinesStream extends AbstractTcpReceiver<TcpLinesStream, TcpServe
 
     @Override
     public ChannelConsumer<ServerBootstrap, ServerChannel> getConsumer() {
-        return new AbstractChannelConsumer<TcpLinesStream, ServerBootstrap, ServerChannel, ByteBuf>(this) {
+        return new BaseChannelConsumer<TcpLinesStream, ServerBootstrap, ServerChannel, ByteBuf>(this) {
             @Override
             public void addHandlers(ChannelPipeline pipe) {
                 super.addHandlers(pipe);
