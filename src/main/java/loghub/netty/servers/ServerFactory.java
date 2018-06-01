@@ -48,7 +48,9 @@ public abstract class ServerFactory<CC extends Channel, SA extends SocketAddress
             @Override
             public void initChannel(CC ch) throws Exception {
                 server.addHandlers(ch.pipeline());
-                source.addHandlers(ch.pipeline());
+                if (server != source) {
+                    source.addHandlers(ch.pipeline());
+                }
             }
 
             @Override

@@ -14,13 +14,8 @@ import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 
+@RequestAccept(path="/")
 public class RootRedirect extends HttpRequestProcessing implements ChannelHandler {
-
-    @Override
-    public boolean acceptRequest(HttpRequest request) {
-        String uri = request.uri();
-        return uri.equals("/");
-    }
 
     @Override
     protected boolean processRequest(FullHttpRequest request, ChannelHandlerContext ctx) throws HttpRequestFailure {

@@ -62,7 +62,7 @@ public class TestHttpJwt {
 
     @Test
     public void TestTokenGeneration() throws IOException {
-        URL theurl = new URL(String.format("http://localhost:%d/", serverPort));
+        URL theurl = new URL(String.format("http://localhost:%d/token", serverPort));
         HttpURLConnection cnx = (HttpURLConnection) theurl.openConnection();
         String userpass = "user:password";
         String basicAuth = "Basic " + new String(Base64.getEncoder().encode(userpass.getBytes()));

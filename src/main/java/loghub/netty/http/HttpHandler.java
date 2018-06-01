@@ -1,7 +1,7 @@
 package loghub.netty.http;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
-import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
+import static io.netty.handler.codec.http.HttpResponseStatus.SERVICE_UNAVAILABLE;
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 
@@ -71,7 +71,7 @@ public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRe
             String path = mask.path();
             if (filter != null && ! filter.isEmpty()) {
                 this.urlFilter = Pattern.compile(filter).asPredicate();
-            } else if (filter != null && ! filter.isEmpty()) {
+            } else if (path != null && ! path.isEmpty()) {
                 this.urlFilter = i -> path.equals(i);
             } else {
                 this.urlFilter = i -> true;
@@ -269,12 +269,12 @@ public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRe
             logger.catching(Level.ERROR, cause);
         }
         FullHttpResponse response = new DefaultFullHttpResponse(
-                HTTP_1_1, INTERNAL_SERVER_ERROR, Unpooled.copiedBuffer("Critical internal server error\r\n", StandardCharsets.UTF_8));
+                HTTP_1_1, SERVICE_UNAVAILABLE, Unpooled.copiedBuffer("Critical internal server error\r\n", StandardCharsets.UTF_8));
         response.headers().set(HttpHeaderNames.CONNECTION, HttpHeaderValues.CLOSE);
         response.headers().set(HttpHeaderNames.CONTENT_TYPE, "text/plain; charset=UTF-8");
         ChannelFuture sendFileFuture = ctx.writeAndFlush(response);
         sendFileFuture.addListener(ChannelFutureListener.CLOSE);
-        Properties.metrics.meter("WebServer.status." + INTERNAL_SERVER_ERROR.code()).mark();;
+        Properties.metrics.meter("WebServer.status." + SERVICE_UNAVAILABLE.code()).mark();;
     }
 
 }

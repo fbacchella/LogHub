@@ -59,7 +59,7 @@ public abstract class AbstractHttpServer<S extends AbstractHttpServer<S, B>,
     public void exception(ChannelHandlerContext ctx, Throwable cause) {
         logger.error("Unable to process query: {}", Helpers.resolveThrowableException(cause));
         logger.catching(Level.DEBUG, cause);
-        ctx.pipeline().addFirst(getFatalErrorHandler());
+        ctx.pipeline().addAfter("HttpObjectAggregator", "FatalErrorHandler", getFatalErrorHandler());
     }
 
     private HttpRequestProcessing getFatalErrorHandler() {
