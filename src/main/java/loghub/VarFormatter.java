@@ -89,7 +89,7 @@ public class VarFormatter {
 
         @Override
         public final StringBuffer format(Object obj, StringBuffer toAppendTo,
-                FieldPosition pos) {
+                                         FieldPosition pos) {
             String formatted = f.apply(obj);
             if(toUpper) {
                 formatted = formatted.toUpperCase(l);
@@ -351,7 +351,7 @@ public class VarFormatter {
 
         @Override
         public StringBuffer format(Object obj, StringBuffer toAppendTo,
-                FieldPosition pos) {
+                                   FieldPosition pos) {
             if ( ! (obj instanceof Date) && ! (obj instanceof TemporalAccessor)) {
                 return toAppendTo;
             }
@@ -389,7 +389,7 @@ public class VarFormatter {
 
     private static final Logger logger = LogManager.getLogger();
 
-    private final Map<String, Integer> mapper = new LinkedHashMap<>();
+    private final Map<Object, Integer> mapper = new LinkedHashMap<>();
     private final MessageFormat mf;
 
     private ZoneId tz = ZoneId.systemDefault();
@@ -406,48 +406,80 @@ public class VarFormatter {
         locale = l;
         List<String> formats = new ArrayList<>();
         // Convert the pattern to a MessageFormat which is compiled and be reused
-        String pattern = findVariables(new StringBuilder(), format, mapper, 0, formats).toString();
+        String pattern = findVariables(new StringBuilder(), format, 0, formats).toString();
         mf = new MessageFormat(pattern, l);
         for(int i = 0; i < mf.getFormats().length; i++) {
             mf.setFormat(i, resolveFormat(formats.get(i)));
+        }
+        if (mapper.size() != 0) {
+            mapper.keySet().stream().reduce((i,j) ->  {
+                if (i.getClass() != j.getClass()) {
+                    throw new IllegalArgumentException("Can't mix indexed with object resolution");
+                } else {
+                    return j;
+                }
+            });
         }
     }
 
     @SuppressWarnings("unchecked")
     public String format(Object arg) throws IllegalArgumentException {
         Map<String, Object> variables;
-        if (arg instanceof Map) {
+        Object mapperType = mapper.keySet().stream().findAny().orElse("");
+        if (( mapperType instanceof Number) && ! ( arg instanceof List)) {
+            throw new IllegalArgumentException("Given a non-list to a format expecting only a list");
+        } else if ((mapperType instanceof String) && ( arg instanceof List)) {
+            throw new IllegalArgumentException("Given a list to a format not expecting a list");
+        }
+        else if (arg instanceof Map) {
             variables = (Map<String, Object>) arg;
         } else {
             variables = Collections.emptyMap();
         }
         Object[] resolved = new Object[mapper.size()];
-        for(Map.Entry<String, Integer> e: mapper.entrySet()) {
-            if (".".equals(e.getKey())) {
-                resolved[e.getValue()] = arg;
+        for(Map.Entry<Object, Integer> mapping: mapper.entrySet()) {
+            if (".".equals(mapping.getKey())) {
+                resolved[mapping.getValue()] = arg;
                 continue;
             }
             if (arg instanceof List) {
-                Matcher m = arrayIndex.matcher(e.getKey());
-                if (m.matches()) {
-                    int i = Integer.parseInt(m.group("index"));
-                    List<Object> l = (List<Object>) arg;
-                    if (i > l.size()) {
-                        throw new IllegalArgumentException("index out of range");
+                int i = ((Number) mapping.getKey()).intValue();
+                int j = ((Number) mapping.getValue()).intValue();
+                List<Object> l = (List<Object>) arg;
+                if (j > l.size()) {
+                    throw new IllegalArgumentException("index out of range");
+                }
+                resolved[i] = l.get(j - 1);
+            } else {
+                String[] path = mapping.getKey().toString().split("\\.");
+                if(path.length == 1) {
+                    // Only one element in the key, just use it
+                    if(! variables.containsKey(mapping.getKey())) {
+                        throw new IllegalArgumentException("invalid values for format key " + mapping.getKey());
                     }
-                    resolved[e.getValue()] = l.get(i - 1);
-                    continue;
+                    resolved[mapping.getValue()] = variables.get(mapping.getKey());
+                } else {
+                    // Recurse, variables written as "a.b.c" are paths in maps
+                    Map<String, Object> current = variables;
+                    String key = path[0];
+                    for(int i = 0; i < path.length - 1; i++) {
+                        Map<String, Object> next = (Map<String, Object>) current.get(key);
+                        if( next == null || ! (next instanceof Map) ) {
+                            throw new IllegalArgumentException("invalid values for format key " + mapping.getKey());
+                        }
+                        current = next;
+                        key = path[i + 1];
+                    }
+                    if(current != null) {
+                        resolved[mapping.getValue()] = current.get(key);
+                    }
                 }
             }
-            if (! variables.containsKey(e.getKey())) {
-                throw new IllegalArgumentException("invalid values for format key " + e.getKey());
-            }
-            resolved[e.getValue()] = variables.get(e.getKey());
         }
         return mf.format(resolved, new StringBuffer(), new FieldPosition(0)).toString();
     }
 
-    private StringBuilder findVariables(StringBuilder buffer, String in, Map<String, Integer> mapper, int last, List<String> formats) {
+    private StringBuilder findVariables(StringBuilder buffer, String in, int last, List<String> formats) {
         Matcher m = varregexp.matcher(in);
         if(m.find()) {
             String before = m.group("before");
@@ -475,13 +507,21 @@ public class VarFormatter {
                 }
                 // Remove the initial %
                 formats.add(format.substring(1));
-                if( ! mapper.containsKey(varname)) {
+                Matcher listIndexMatch = arrayIndex.matcher(varname);
+                int index;
+                if (listIndexMatch.matches()) {
+                    index = last;
+                    int i = Integer.parseInt(listIndexMatch.group("index"));
+                    mapper.put(last++, i);
+                } else  if( ! mapper.containsKey(varname)) {
+                    index = last;
                     mapper.put(varname, last++);
+                } else {
+                    index = mapper.get(varname);
                 }
-                int index = mapper.get(varname);
                 buffer.append("{" + index + "}");
             }
-            findVariables(buffer, after, mapper, last, formats);
+            findVariables(buffer, after, last, formats);
         } else {
             buffer.append(in);
         }

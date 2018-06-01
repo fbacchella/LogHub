@@ -2,9 +2,11 @@ package loghub;
 
 import java.io.IOException;
 import java.time.ZonedDateTime;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -193,19 +195,71 @@ public class TestVarFormatter {
         Assert.assertEquals("mismatch for complex pattern", "123 0123", vf.format(123) );
     }
 
+    @Test
+    public void formatPath() {
+        VarFormatter vf = new VarFormatter("${a.b}", Locale.ENGLISH);
+        Map<String,Map<String, Object>> obj = Collections.singletonMap("a", Collections.singletonMap("b", "c"));
+        String formatted = vf.format(obj);
+        Assert.assertEquals("c", formatted);
+    }
 
-    @Test(expected=RuntimeException.class)
+    @Test
+    public void formatArray() {
+        VarFormatter vf = new VarFormatter("${#1%s} ${#1%s} ${#3%s}", Locale.ENGLISH);
+        List<String> obj = Arrays.asList(new String[] {"1", "2", "3"});
+        String formatted = vf.format(obj);
+        Assert.assertEquals("1 1 3", formatted);
+    }
+
+    @Test(expected=IllegalArgumentException.class)
     public void testError1() {
         Map<String, Object> values = Collections.singletonMap("a", 1);
         VarFormatter vf = new VarFormatter("${b}");
         vf.format(values);
     }
 
-    @Test(expected=RuntimeException.class)
+    @Test(expected=IllegalArgumentException.class)
     public void testError2() {
         Map<String, Object> values = Collections.singletonMap("a", 1);
         VarFormatter vf = new VarFormatter("${b.c}");
         vf.format(values);
+    }
+
+    @Test(expected=IllegalArgumentException.class)
+    public void testError3() {
+        Map<String, Object> values = Collections.singletonMap("a", 1);
+        VarFormatter vf = new VarFormatter("${b.c}");
+        vf.format(values);
+    }
+
+    @Test(expected=IllegalArgumentException.class)
+    public void testError4() {
+        VarFormatter vf = new VarFormatter("${#2%s}", Locale.ENGLISH);
+        List<Object> obj = Collections.singletonList(1);
+        String formatted = vf.format(obj);
+        Assert.assertEquals("1", formatted);
+    }
+
+    @Test(expected=IllegalArgumentException.class)
+    public void testError5() {
+        VarFormatter vf = new VarFormatter("${a} ${#2}", Locale.ENGLISH);
+        List<Object> obj = Collections.singletonList(1);
+        String formatted = vf.format(obj);
+        Assert.assertEquals("1", formatted);
+    }
+
+    @Test(expected=IllegalArgumentException.class)
+    public void testError6() {
+        VarFormatter vf = new VarFormatter("${a}", Locale.ENGLISH);
+        List<Object> obj = Collections.singletonList(1);
+        vf.format(obj);
+    }
+
+    @Test(expected=IllegalArgumentException.class)
+    public void testError7() {
+        VarFormatter vf = new VarFormatter("${#1}", Locale.ENGLISH);
+        Map<String, Object> obj = Collections.singletonMap("a", 1);
+        vf.format(obj);
     }
 
 }
