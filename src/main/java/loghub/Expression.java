@@ -78,7 +78,7 @@ public class Expression {
         try {
             return localscript.run();
         } catch (Exception e) {
-            throw event.buildException(String.format("failed expression '%s': %s", expression, e.getMessage()));
+            throw event.buildException(String.format("failed expression '%s': %s", expression, Helpers.resolveThrowableException(e)));
         } finally {
             localscript.setBinding(EMPTYBIDDING);
         }

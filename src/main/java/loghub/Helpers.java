@@ -359,6 +359,8 @@ public final class Helpers {
         String message = t.getMessage();
         if (message == null) {
             message = t.getClass().getSimpleName();
+        } else if (t instanceof ArrayIndexOutOfBoundsException) {
+            message = "Array out of bounds: " + message;
         }
         builder.append(message);
         return builder.toString();
