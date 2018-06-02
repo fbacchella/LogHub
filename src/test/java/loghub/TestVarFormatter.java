@@ -170,9 +170,9 @@ public class TestVarFormatter {
     @Test
     public void testEscape() {
         Map<String, Object> values = Collections.singletonMap("var", 1);
-        VarFormatter vf = new VarFormatter("a${}b{}c");
+        VarFormatter vf = new VarFormatter("a${}b{}c{.}d");
         String formatter = vf.format(values);
-        Assert.assertEquals("mismatch for string escape", "a${}b{}c", formatter );
+        Assert.assertEquals("mismatch for string escape", "a${}b{}c{.}d", formatter );
 
         vf = new VarFormatter("a'c");
         formatter = vf.format(values);

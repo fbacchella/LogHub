@@ -382,7 +382,7 @@ public class VarFormatter {
         }
     }
 
-    private static final Pattern varregexp = Pattern.compile("^(?<before>.*?(?=(?:\\$\\{)|\\{|'))(?:\\$\\{(?<varname>#?[\\w\\.-]+)?(?<format>%[^}]+)?\\}|(?:(?<curlybraces>\\{\\})|(?<quote>')))(?<after>.*)$");
+    private static final Pattern varregexp = Pattern.compile("^(?<before>.*?(?=(?:\\$\\{)|\\{|'))(?:\\$\\{(?<varname>#?[\\w\\.-]+)?(?<format>%[^}]+)?\\}|(?:(?<curlybraces>\\{.*\\})|(?<quote>')))(?<after>.*)$");
     private static final Pattern formatSpecifier = Pattern.compile("^(?<flag>[-#+ 0,(]*)?(?<length>\\d+)?(?:\\.(?<precision>\\d+))?(?:(?<istime>[tT])(?:\\<(?<tz>.*)\\>)?)?(?<conversion>[a-zA-Z%])(?::(?<locale>.*))?$");
     private static final Pattern arrayIndex = Pattern.compile("#(?<index>\\d+)");
     private static final String lineseparator = System.lineSeparator();
@@ -491,7 +491,7 @@ public class VarFormatter {
             buffer.append(before);
             if (curlybraces != null) {
                 // Escape a {} pair
-                buffer.append("'{}'");
+                buffer.append("'" + curlybraces + "'");
             } else if (quote != null) {
                 // Escape a lone '
                 buffer.append("''");
