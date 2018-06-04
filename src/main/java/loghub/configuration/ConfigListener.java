@@ -11,7 +11,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import org.antlr.v4.runtime.CommonToken;
@@ -166,7 +165,7 @@ class ConfigListener extends RouteBaseListener {
         public String toString() {
             return "ProcessorInstance$" + wrapped.getClass().getSimpleName() + "@" + System.identityHashCode(wrapped);
         }
-        
+
     };
 
     static final class TypedStack extends ArrayDeque<Object> {
@@ -328,7 +327,7 @@ class ConfigListener extends RouteBaseListener {
             stack.push(pi);
         } else if( (o instanceof PipenodesList) ) {
             PipenodesList pipes = (PipenodesList) o;
-            Pipeline p = parsePipeline(pipes, currentPipeLineName, new AtomicInteger());
+            Pipeline p = parsePipeline(pipes, currentPipeLineName);
             AnonymousSubPipeline anonymous = new AnonymousSubPipeline();
             anonymous.setPipeline(p);
             stack.push(new ProcessorInstance(anonymous));
@@ -358,7 +357,7 @@ class ConfigListener extends RouteBaseListener {
         stack.push(pi);
     }
 
-    private Processor getProcessor(Pipenode i, String currentPipeLineName, AtomicInteger subPipeLine) throws ConfigException {
+    private Processor getProcessor(Pipenode i, String currentPipeLineName) throws ConfigException {
         Processor t;
         if (i instanceof ConfigListener.PipeRef){
             ConfigListener.PipeRef cpr = (ConfigListener.PipeRef) i;
@@ -366,9 +365,8 @@ class ConfigListener extends RouteBaseListener {
             pr.setPipeRef(cpr.pipename);
             t = pr;
         } else if (i instanceof ConfigListener.PipenodesList){
-            subPipeLine.incrementAndGet();
             AnonymousSubPipeline subpipe = new AnonymousSubPipeline();
-            Pipeline p = parsePipeline((ConfigListener.PipenodesList)i, currentPipeLineName, subPipeLine);
+            Pipeline p = parsePipeline((ConfigListener.PipenodesList)i, currentPipeLineName);
             subpipe.setPipeline(p);
             t = subpipe;
         } else if (i instanceof ConfigListener.ProcessorInstance) {
@@ -380,7 +378,7 @@ class ConfigListener extends RouteBaseListener {
         return t;
     }
 
-    Pipeline parsePipeline(PipenodesList desc, String currentPipeLineName, AtomicInteger subPipeCount) throws ConfigException {
+    Pipeline parsePipeline(PipenodesList desc, String currentPipeLineName) throws ConfigException {
         List<Processor> allSteps = new ArrayList<Processor>() {
             @Override
             public String toString() {
@@ -397,9 +395,9 @@ class ConfigListener extends RouteBaseListener {
         };
 
         desc.processors.stream().map(i -> {
-            return getProcessor(i, currentPipeLineName, subPipeCount);
+            return getProcessor(i, currentPipeLineName);
         }).forEach(allSteps::add);
-        Pipeline pipe = new Pipeline(allSteps, currentPipeLineName + (depth == 0 ? "" : "$" + subPipeCount.getAndIncrement()), desc.nextPipelineName);
+        Pipeline pipe = new Pipeline(allSteps, depth == 0 ? currentPipeLineName : null, desc.nextPipelineName);
         return pipe;
     }
 
@@ -500,11 +498,10 @@ class ConfigListener extends RouteBaseListener {
             }
         } while (! StackMarker.Test.equals(o));
         assert clauses.size() == 1 || clauses.size() == 2;
-        AtomicInteger subPipeLine = new AtomicInteger();
-        Processor thenProcessor = getProcessor(clauses.get(0), currentPipeLineName, subPipeLine);
+        Processor thenProcessor = getProcessor(clauses.get(0), currentPipeLineName);
         test.setThen(thenProcessor);
         if (clauses.size() == 2) {
-            Processor elseProcessor = getProcessor(clauses.get(1), currentPipeLineName, subPipeLine);
+            Processor elseProcessor = getProcessor(clauses.get(1), currentPipeLineName);
             test.setElse(elseProcessor);
         }
         stack.push(new ProcessorInstance(test));

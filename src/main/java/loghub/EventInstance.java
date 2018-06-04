@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.BlockingQueue;
 
@@ -83,7 +84,7 @@ class EventInstance extends Event {
 
     static private final PreSubpipline preSubpipline = new PreSubpipline();
     static private final PostSubpipline postSubpipline = new PostSubpipline();
-    
+
     static boolean configure(Properties props) {
         return postSubpipline.configure(props) && preSubpipline.configure(props);
     }
@@ -231,11 +232,14 @@ class EventInstance extends Event {
         logger.trace("inject processor {} at {}", () -> p, () -> append ? "end" : "start" );
         if (p instanceof SubPipeline) {
             SubPipeline sp = (SubPipeline) p;
-            pipelineNames.add(sp.getPipeline().getName());
+            Optional<String> pipename = Optional.ofNullable(sp.getPipeline().getName());
             List<Processor> newProcessors = new ArrayList<>(sp.getPipeline().processors.size() + 2);
-            newProcessors.add(preSubpipline);
+            pipename.ifPresent(s -> {
+                pipelineNames.add(s);
+                newProcessors.add(preSubpipline);
+            });
             newProcessors.addAll(sp.getPipeline().processors);
-            newProcessors.add(postSubpipline);
+            pipename.ifPresent( s -> newProcessors.add(postSubpipline));
             addProcessors(newProcessors, append);
         } else {
             if (append) {
@@ -248,24 +252,32 @@ class EventInstance extends Event {
 
     @Override
     public void refill(Pipeline pipeline) {
-        currentPipeline = pipeline.getName();
-        pipelineNames.add(currentPipeline);
+        Optional<String> pipename = Optional.ofNullable(pipeline.getName());
+        pipename.ifPresent( s -> {
+            currentPipeline = s;
+            pipelineNames.add(currentPipeline);
+            appendProcessor(preSubpipline);
+        });
         nextPipeline = pipeline.nextPipeline;
-        appendProcessor(preSubpipline);
         appendProcessors(pipeline.processors);
-        appendProcessor(postSubpipline);
+        pipename.ifPresent( s -> {
+            appendProcessor(postSubpipline);
+        });
     }
 
     /* (non-Javadoc)
      * @see loghub.Event#inject(loghub.Pipeline, java.util.concurrent.BlockingQueue, boolean)
      */
     public boolean inject(Pipeline pipeline, BlockingQueue<Event> mainqueue, boolean blocking) {
-        currentPipeline = pipeline.getName();
         nextPipeline = pipeline.nextPipeline;
-        pipelineNames.add(currentPipeline);
-        appendProcessor(preSubpipline);
+        Optional<String>pipeName = Optional.ofNullable(pipeline.getName());
+        pipeName.ifPresent( s -> {
+            currentPipeline = s;
+            pipelineNames.add(currentPipeline);
+            appendProcessor(preSubpipline);
+        });
         appendProcessors(pipeline.processors);
-        appendProcessor(postSubpipline);
+        pipeName.ifPresent( s -> appendProcessor(postSubpipline));
         if (blocking) {
             try {
                 mainqueue.put(this);

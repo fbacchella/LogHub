@@ -29,7 +29,6 @@ import java.util.Set;
 import java.util.TimeZone;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.regex.Pattern;
@@ -344,7 +343,7 @@ public class Configuration {
         conf.depth = 0;
         for(Entry<String, ConfigListener.PipenodesList> e: conf.pipelines.entrySet()) {
             String name = e.getKey(); 
-            Pipeline p = conf.parsePipeline(e.getValue(), name, new AtomicInteger());
+            Pipeline p = conf.parsePipeline(e.getValue(), name);
             pipelines.add(p);
             namedPipeLine.put(name, p);
             if (p.nextPipeline != null) {
