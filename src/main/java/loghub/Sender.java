@@ -18,14 +18,13 @@ public abstract class Sender extends Thread {
 
     protected final Logger logger;
 
-    private final BlockingQueue<Event> inQueue;
+    private BlockingQueue<Event> inQueue;
     private Encoder encoder;
     private boolean isAsync;
 
-    public Sender(BlockingQueue<Event> inQueue) {
+    public Sender() {
         setDaemon(true);
         setName("sender-" + getSenderName());
-        this.inQueue = inQueue;
         logger = LogManager.getLogger(Helpers.getFistInitClass());
         isAsync = getClass().getAnnotation(AsyncSender.class) != null;
     }
@@ -95,4 +94,9 @@ public abstract class Sender extends Thread {
     public void setEncoder(Encoder codec) {
         this.encoder = codec;
     }
+
+    public void setInQueue(BlockingQueue<Event> inQueue) {
+        this.inQueue = inQueue;
+    }
+
 }

@@ -103,7 +103,7 @@ etl
     ;
 
 path
-    : 'path' eventVariable '(' pipenodeList ')'
+    : 'path' eventVariable pipenode
     ;
  
 test: testExpression '?' pipenode (':' pipenode)? ;

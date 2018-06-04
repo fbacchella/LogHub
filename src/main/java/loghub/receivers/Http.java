@@ -7,7 +7,6 @@ import java.nio.charset.UnsupportedCharsetException;
 import java.security.Principal;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.BlockingQueue;
 import java.util.stream.Collectors;
 
 import io.netty.buffer.ByteBuf;
@@ -21,7 +20,6 @@ import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.QueryStringDecoder;
 import loghub.Decoder.DecodeException;
 import loghub.Event;
-import loghub.Pipeline;
 import loghub.ProcessorException;
 import loghub.configuration.Properties;
 import loghub.netty.AbstractTcpReceiver;
@@ -144,8 +142,8 @@ public class Http extends AbstractTcpReceiver<Http, Http.HttpReceiverServer, Htt
         }
     }
 
-    public Http(BlockingQueue<Event> outQueue, Pipeline pipeline) {
-        super(outQueue, pipeline);
+    public Http() {
+        super();
     }
 
     @Override

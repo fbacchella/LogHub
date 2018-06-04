@@ -6,7 +6,6 @@ import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
-import java.util.concurrent.BlockingQueue;
 
 import org.apache.logging.log4j.Level;
 
@@ -23,8 +22,7 @@ public class Udp extends Sender {
     DatagramSocket socket;
     InetAddress IPAddress;
 
-    public Udp(BlockingQueue<Event> inQueue) {
-        super(inQueue);
+    public Udp() {
     }
 
     @Override

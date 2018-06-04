@@ -11,10 +11,8 @@ import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.tree.ParseTreeWalker;
 import org.junit.Assert;
 
-import loghub.Helpers.ThrowingFunction;
 import loghub.RouteLexer;
 import loghub.RouteParser;
-import loghub.configuration.ConfigListener.ObjectDescription;
 import loghub.configuration.ConfigListener.ObjectWrapped;
 
 public class ConfigurationTools {
@@ -50,27 +48,21 @@ public class ConfigurationTools {
     }
 
     public static <T> T buildFromFragment(String fragment, Function<RouteParser, ? extends ParserRuleContext> extractor) {
-        ObjectDescription parsed = (ObjectDescription) ConfigurationTools.parseFragment(fragment,  extractor);
-
-        ThrowingFunction<Class<T>, T> emptyConstructor = i -> {return i.getConstructor().newInstance();};
-
-        Configuration c = new Configuration();
-        return c.parseObjectDescription(parsed, emptyConstructor);
+        @SuppressWarnings("unchecked")
+        ObjectWrapped<T> parsed = (ObjectWrapped<T>) ConfigurationTools.parseFragment(fragment, extractor);
+        return parsed.wrapped;
     }
 
     public static <T> T buildFromFragment(String fragment, Function<RouteParser, ? extends ParserRuleContext> extractor, Map<String, String> formatters) {
-        ObjectDescription parsed = (ObjectDescription) ConfigurationTools.parseFragment(fragment,  extractor, formatters);
-
-        ThrowingFunction<Class<T>, T> emptyConstructor = i -> {return i.getConstructor().newInstance();};
-
-        Configuration c = new Configuration();
-        return c.parseObjectDescription(parsed, emptyConstructor);
+        @SuppressWarnings("unchecked")
+        ObjectWrapped<T> parsed = (ObjectWrapped<T>) ConfigurationTools.parseFragment(fragment, extractor, formatters);
+        return parsed.wrapped;
     }
 
-    @SuppressWarnings("unchecked")
     public static <T> T unWrap(String fragment, Function<RouteParser, ? extends ParserRuleContext> extractor) {
-        ObjectWrapped parsed = (ObjectWrapped) ConfigurationTools.parseFragment(fragment,  extractor);
-        return (T) parsed.wrapped;
+        @SuppressWarnings("unchecked")
+        ObjectWrapped<T> parsed = (ObjectWrapped<T>) ConfigurationTools.parseFragment(fragment,  extractor);
+        return parsed.wrapped;
     }
 
 }

@@ -1,17 +1,17 @@
 package loghub.configuration;
 
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import org.antlr.v4.runtime.CommonToken;
@@ -25,6 +25,10 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import loghub.Event;
+import loghub.Helpers;
+import loghub.Pipeline;
+import loghub.Processor;
+import loghub.Receiver;
 import loghub.RouteBaseListener;
 import loghub.RouteParser.ArrayContext;
 import loghub.RouteParser.BeanContext;
@@ -61,6 +65,9 @@ import loghub.RouteParser.SourcedefContext;
 import loghub.RouteParser.StringLiteralContext;
 import loghub.RouteParser.TestContext;
 import loghub.RouteParser.TestExpressionContext;
+import loghub.Sender;
+import loghub.Source;
+import loghub.processors.AnonymousSubPipeline;
 import loghub.processors.Drop;
 import loghub.processors.Etl;
 import loghub.processors.FireEvent;
@@ -69,6 +76,7 @@ import loghub.processors.Forwarder;
 import loghub.processors.Log;
 import loghub.processors.Mapper;
 import loghub.processors.Merge;
+import loghub.processors.NamedSubPipeline;
 import loghub.processors.Test;
 import loghub.processors.UnwrapEvent;
 import loghub.processors.WrapEvent;
@@ -90,9 +98,9 @@ class ConfigListener extends RouteBaseListener {
     };
 
     static final class Input {
-        final List<ObjectDescription> receiver;
+        final List<ObjectWrapped<Receiver>> receiver;
         String piperef;
-        Input(List<ObjectDescription>receiver, String piperef) {
+        Input(List<ObjectWrapped<Receiver>>receiver, String piperef) {
             this.piperef = piperef;
             this.receiver = receiver;
         }
@@ -103,9 +111,9 @@ class ConfigListener extends RouteBaseListener {
     }
 
     static final class Output {
-        final List<ObjectDescription> sender;
+        final List<ObjectWrapped<Sender>> sender;
         final String piperef;
-        Output(List<ObjectDescription>sender, String piperef) {
+        Output(List<ObjectWrapped<Sender>>sender, String piperef) {
             this.piperef = piperef;
             this.sender = sender;
         }
@@ -118,7 +126,7 @@ class ConfigListener extends RouteBaseListener {
     static interface Pipenode {};
 
     static final class PipenodesList implements Pipenode {
-        final List<Pipenode> processors = new ArrayList<>();
+        final List<ProcessorInstance> processors = new ArrayList<>();
         String nextPipelineName;
     }
 
@@ -135,62 +143,53 @@ class ConfigListener extends RouteBaseListener {
 
     static interface ObjectReference {};
 
-    static final class ObjectWrapped implements ObjectReference {
-        final Object wrapped;
-        ObjectWrapped(Object wrapped) {
+    static class  ObjectWrapped<T> implements ObjectReference {
+        final T wrapped;
+        ObjectWrapped(T wrapped) {
             this.wrapped = wrapped;
         }
     }
 
-    static final class Source implements ObjectReference {
-        final String source;
-        final Map<String, ObjectDescription> sources;
-        Source(String source, Map<String, ObjectDescription> sources) {
-            this.source = source;
-            this.sources = sources;
-        }
+    public static class SourceProvider {
+        public Source source; 
+        public Map<Object, Object> map;
     }
 
-    static class ObjectDescription implements ObjectReference, Iterable<String> {
-        final ParserRuleContext ctx;
-        final String clazz;
-        final IntStream stream;
-        Map<String, ObjectReference> beans = new HashMap<>();
-        ObjectDescription(IntStream stream, String clazz, ParserRuleContext ctx) {
-            this.clazz = clazz;
-            this.ctx = ctx;
-            this.stream = stream;
+    static final class ProcessorInstance extends ObjectWrapped<Processor> implements Pipenode {
+        ProcessorInstance(ObjectWrapped<Processor> wrapper) {
+            super(wrapper.wrapped);
         }
-        ObjectReference get(String name) {
-            return beans.get(name);
-        }
-        void put(String name, ObjectReference object) {
-            beans.put(name, object);
+        ProcessorInstance(Processor processor) {
+            super(processor);
         }
         @Override
-        public Iterator<String> iterator() {
-            return beans.keySet().iterator();
+        public String toString() {
+            return "ProcessorInstance$" + wrapped.getClass().getSimpleName() + "@" + System.identityHashCode(wrapped);
+        }
+        
+    };
+
+    static final class TypedStack extends ArrayDeque<Object> {
+        public <T> T popTyped() {
+            @SuppressWarnings("unchecked")
+            T temp = (T) pop();
+            return temp;
+        }
+        public <T> T peekTyped() {
+            @SuppressWarnings("unchecked")
+            T temp = (T) peek();
+            return temp;
         }
     };
 
-    static final class ProcessorInstance extends ObjectDescription implements Pipenode {
-        ProcessorInstance(IntStream stream, String clazz, ParserRuleContext ctx) {
-            super(stream, clazz, ctx);
-        }
-        ProcessorInstance(IntStream stream, ObjectDescription object, ParserRuleContext ctx) {
-            super(stream, object.clazz, ctx);
-            this.beans = object.beans;
-        }
-    };
-
-    final Deque<Object> stack = new ArrayDeque<>();
+    final TypedStack stack = new TypedStack();
 
     final Map<String, PipenodesList> pipelines = new HashMap<>();
     final List<Input> inputs = new ArrayList<>();
     final List<Output> outputs = new ArrayList<>();
     final Map<String, Object> properties = new HashMap<>();
     final Map<String, String> formatters = new HashMap<>();
-    final Map<String, ObjectDescription> sources = new HashMap<>();
+    final Map<String, SourceProvider> sources = new HashMap<>();
 
     private String currentPipeLineName = null;
     private int expressionDepth = 0;
@@ -199,6 +198,7 @@ class ConfigListener extends RouteBaseListener {
 
     Parser parser;
     IntStream stream;
+    ClassLoader classLoader = ConfigListener.class.getClassLoader();
 
     @Override
     public void enterPiperef(PiperefContext ctx) {
@@ -210,7 +210,7 @@ class ConfigListener extends RouteBaseListener {
         if(expressionDepth > 0) {
             return;
         } else {
-            stack.push(new ObjectWrapped(content));
+            stack.push(new ObjectWrapped<Object>(content));
         }
     }
 
@@ -252,81 +252,161 @@ class ConfigListener extends RouteBaseListener {
     @Override
     public void exitBean(BeanContext ctx) {
         String beanName = null;
-        ObjectReference beanValue = null;
+        ObjectWrapped<Object> beanValue = null;
         if(ctx.condition != null) {
             beanName = ctx.condition.getText();
-            beanValue = new ObjectWrapped(stack.pop());
+            beanValue = stack.popTyped();
         } else if (ctx.expression() != null) {
             beanName = "if";
-            beanValue = (ObjectReference) stack.pop();
+            beanValue = stack.popTyped();
         } else {
             beanName = ctx.beanName().getText();
-            beanValue = (ObjectReference) stack.pop();
+            beanValue = stack.popTyped();
         }
-        ObjectDescription beanObject = (ObjectDescription) stack.peek();
+        ObjectWrapped<Object> beanObject = stack.peekTyped();
         assert (beanName != null);
         assert (beanValue != null);
-        beanObject.put(beanName, beanValue);
+        try {
+            BeansManager.beanSetter(beanObject.wrapped, beanName, beanValue.wrapped);
+        } catch (InvocationTargetException e) {
+            throw new RecognitionException(Helpers.resolveThrowableException(e.getTargetException()), parser, stream, ctx);
+        }
     }
 
     @Override
     public void exitMergeArgument(MergeArgumentContext ctx) {
         String beanName = ctx.type.getText();
-        ObjectReference beanValue;
-        if ("onFire".equals(beanName) || "onTimeout".equals(beanName)) {
-            beanValue = new ObjectWrapped(stack.pop());
-        } else {
-            beanValue = (ObjectReference) stack.pop();
-        }
-        ObjectDescription beanObject = (ObjectDescription) stack.peek();
+        ObjectWrapped<Object> beanValue;
+        beanValue = stack.popTyped();
+        ObjectWrapped<Object> beanObject = stack.peekTyped();
         assert (beanName != null);
         assert (beanValue != null);
-        beanObject.put(beanName, beanValue);
+
+        try {
+            BeansManager.beanSetter(beanObject.wrapped, beanName, beanValue.wrapped);
+        } catch (InvocationTargetException e) {
+            throw new RecognitionException(Helpers.resolveThrowableException(e), parser, stream, ctx);
+        }
     }
 
     @Override
     public void enterMerge(MergeContext ctx) {
-        ObjectReference beanObject = new ObjectDescription(this.stream , Merge.class.getCanonicalName(), ctx);
-        stack.push(beanObject);
+        stack.push(new ObjectWrapped<Merge>(new Merge()));
+    }
+
+    ObjectWrapped<Object> getObject(String qualifiedName, ParserRuleContext ctx) {
+        try {
+            logger.debug("Load ing {} with {}", qualifiedName, classLoader);
+            Class<?> objectClass = classLoader.loadClass(qualifiedName);
+            return new ObjectWrapped<Object>(objectClass.newInstance());
+        } catch (ClassNotFoundException e) {
+            throw new RecognitionException("Unknown class " + qualifiedName, parser, stream, ctx);
+        } catch (InstantiationException | IllegalAccessException e) {
+            throw new RecognitionException("Unsuable class " + qualifiedName, parser, stream, ctx);
+        }
     }
 
     @Override
     public void enterObject(ObjectContext ctx) {
-        String qualifiedName = ctx.QualifiedIdentifier().getText();
-        ObjectReference beanObject = new ObjectDescription(this.stream , qualifiedName, ctx);
-        stack.push(beanObject);
+        if (stack.peek() instanceof SourceProvider) {
+            SourceProvider sp = stack.popTyped();
+            ObjectWrapped<Source> wrapper = new ObjectWrapped<>(sp.source);
+            stack.push(wrapper);
+        } else {
+            String qualifiedName = ctx.QualifiedIdentifier().getText();
+            stack.push(getObject(qualifiedName, ctx));
+        }
     }
 
     @Override
     public void exitPipenode(PipenodeContext ctx) {
         Object o = stack.pop();
-        if( ! (o instanceof Pipenode) ) {
-            ObjectDescription object = (ObjectDescription) o;
-            ProcessorInstance ti = new ProcessorInstance(this.stream , object, ctx);
-            stack.push(ti);
+        if( (o instanceof ObjectWrapped) ) {
+            @SuppressWarnings("unchecked")
+            ObjectWrapped<Processor> processor = (ObjectWrapped<Processor>) o;
+            ProcessorInstance pi = new ProcessorInstance(processor);
+            stack.push(pi);
+        } else if( (o instanceof PipenodesList) ) {
+            PipenodesList pipes = (PipenodesList) o;
+            Pipeline p = parsePipeline(pipes, currentPipeLineName, new AtomicInteger());
+            AnonymousSubPipeline anonymous = new AnonymousSubPipeline();
+            anonymous.setPipeline(p);
+            stack.push(new ProcessorInstance(anonymous));
+        } else if( (o instanceof PipeRef) ) {
+            PipeRef pr = (PipeRef) o;
+            NamedSubPipeline nsp = new NamedSubPipeline();
+            nsp.setPipeRef(pr.pipename);
+            stack.push(new ProcessorInstance(nsp));
         } else {
-            stack.push(o);
+            assert false : "unwanted object in stack: " + o.getClass();
         }
     }
 
     @Override
     public void exitForkpiperef(ForkpiperefContext ctx) {
-        ObjectDescription beanObject = new ObjectDescription(this.stream , Forker.class.getCanonicalName(), ctx);
-        beanObject.put("destination", new ObjectWrapped(ctx.Identifier().getText()));
-        ProcessorInstance ti = new ProcessorInstance(this.stream , beanObject, ctx);
-        stack.push(ti);
+        Forker fk = new Forker();
+        fk.setDestination(ctx.Identifier().getText());
+        ProcessorInstance pi = new ProcessorInstance(fk);
+        stack.push(pi);
     }
 
     @Override
     public void exitForwardpiperef(ForwardpiperefContext ctx) {
-        ObjectDescription beanObject = new ObjectDescription(this.stream , Forwarder.class.getCanonicalName(), ctx);
-        beanObject.put("destination", new ObjectWrapped(ctx.Identifier().getText()));
-        ProcessorInstance ti = new ProcessorInstance(this.stream , beanObject, ctx);
-        stack.push(ti);
+        Forwarder fw = new Forwarder();
+        fw.setDestination(ctx.Identifier().getText());
+        ProcessorInstance pi = new ProcessorInstance(fw);
+        stack.push(pi);
     }
 
+    private Processor getProcessor(Pipenode i, String currentPipeLineName, AtomicInteger subPipeLine) throws ConfigException {
+        Processor t;
+        if (i instanceof ConfigListener.PipeRef){
+            ConfigListener.PipeRef cpr = (ConfigListener.PipeRef) i;
+            NamedSubPipeline pr = new NamedSubPipeline();
+            pr.setPipeRef(cpr.pipename);
+            t = pr;
+        } else if (i instanceof ConfigListener.PipenodesList){
+            subPipeLine.incrementAndGet();
+            AnonymousSubPipeline subpipe = new AnonymousSubPipeline();
+            Pipeline p = parsePipeline((ConfigListener.PipenodesList)i, currentPipeLineName, subPipeLine);
+            subpipe.setPipeline(p);
+            t = subpipe;
+        } else if (i instanceof ConfigListener.ProcessorInstance) {
+            ConfigListener.ProcessorInstance pi = (ConfigListener.ProcessorInstance) i;
+            t = pi.wrapped;
+        } else {
+            throw new RuntimeException("Unreachable code for " + i);
+        }
+        return t;
+    }
+
+    Pipeline parsePipeline(PipenodesList desc, String currentPipeLineName, AtomicInteger subPipeCount) throws ConfigException {
+        List<Processor> allSteps = new ArrayList<Processor>() {
+            @Override
+            public String toString() {
+                StringBuilder buffer = new StringBuilder();
+                buffer.append("PipeList(");
+                for(Processor i: this) {
+                    buffer.append(i);
+                    buffer.append(", ");
+                }
+                buffer.setLength(buffer.length() - 2);
+                buffer.append(')');
+                return buffer.toString();
+            }
+        };
+
+        desc.processors.stream().map(i -> {
+            return getProcessor(i, currentPipeLineName, subPipeCount);
+        }).forEach(allSteps::add);
+        Pipeline pipe = new Pipeline(allSteps, currentPipeLineName + (depth == 0 ? "" : "$" + subPipeCount.getAndIncrement()), desc.nextPipelineName);
+        return pipe;
+    }
+
+    int depth = 0;
     @Override
     public void enterPipeline(PipelineContext ctx) {
+        depth++;
         currentPipeLineName = ctx.Identifier().getText();
     }
 
@@ -350,6 +430,7 @@ class ConfigListener extends RouteBaseListener {
         pipelines.put(currentPipeLineName, pipe);
         logger.debug("Adding new pipeline {}", currentPipeLineName);
         currentPipeLineName = null;
+        depth--;
     }
 
     @Override
@@ -363,27 +444,28 @@ class ConfigListener extends RouteBaseListener {
         Object o;
         do {
             o = stack.pop();
-            if (o instanceof Pipenode) {
-                pipe.processors.add(0, (Pipenode)o);
+            if (o instanceof ProcessorInstance) {
+                pipe.processors.add(0, (ProcessorInstance)o);
             }
-            assert (StackMarker.PipeNodeList.equals(o)) || o instanceof Pipenode;
+            assert StackMarker.PipeNodeList.equals(o) || (o instanceof ProcessorInstance) : o.getClass();
         } while(! StackMarker.PipeNodeList.equals(o));
         stack.push(pipe);
     }
 
     @Override
     public void enterPath(PathContext ctx) {
-        ObjectDescription object = new ObjectDescription(stream, WrapEvent.class.getName(), ctx);
-        object.beans.put("pathArray", new ObjectWrapped(convertEventVariable(ctx.eventVariable())));
-        ProcessorInstance ti = new ProcessorInstance(stream , object, ctx);
-        stack.push(ti);
+        System.out.println("enterPath " + stack);
+        WrapEvent we = new WrapEvent();
+        we.setPathArray(convertEventVariable(ctx.eventVariable()));
+        ProcessorInstance pi = new ProcessorInstance(we);
+        stack.push(pi);
     }
 
     @Override
     public void exitPath(PathContext ctx) {
-        ObjectDescription object = new ObjectDescription(stream, UnwrapEvent.class.getName(), ctx);
-        ProcessorInstance ti = new ProcessorInstance(stream , object, ctx);
-        stack.push(ti);
+        UnwrapEvent we = new UnwrapEvent();
+        ProcessorInstance pi = new ProcessorInstance(we);
+        stack.push(pi);
     }
 
     @Override
@@ -402,25 +484,30 @@ class ConfigListener extends RouteBaseListener {
         stack.push(StackMarker.Test);
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public void exitTest(TestContext ctx) {
-        ObjectDescription beanObject = new ObjectDescription(this.stream, Test.class.getCanonicalName(), ctx);
+        Test test = new Test();
         List<Pipenode> clauses = new ArrayList<>(2);
         Object o;
         do {
             o = stack.pop();
-            if(o instanceof Pipenode) {
+            if (o instanceof Pipenode) {
                 Pipenode t = (Pipenode) o;
                 clauses.add(0, t);
-            } else if(o instanceof ObjectWrapped) {
-                beanObject.put("test", (ObjectWrapped)o);
+            } else if (o instanceof ObjectWrapped) {
+                test.setTest(((ObjectWrapped<String>)o).wrapped);
             }
-        } while(! StackMarker.Test.equals(o));
-        beanObject.put("then", new ObjectWrapped(clauses.get(0)));
+        } while (! StackMarker.Test.equals(o));
+        assert clauses.size() == 1 || clauses.size() == 2;
+        AtomicInteger subPipeLine = new AtomicInteger();
+        Processor thenProcessor = getProcessor(clauses.get(0), currentPipeLineName, subPipeLine);
+        test.setThen(thenProcessor);
         if (clauses.size() == 2) {
-            beanObject.put("else",  new ObjectWrapped(clauses.get(1)));
+            Processor elseProcessor = getProcessor(clauses.get(1), currentPipeLineName, subPipeLine);
+            test.setElse(elseProcessor);
         }
-        stack.push(beanObject);
+        stack.push(new ProcessorInstance(test));
     }
 
     @Override
@@ -430,9 +517,9 @@ class ConfigListener extends RouteBaseListener {
 
     @Override
     public void exitInputObjectlist(InputObjectlistContext ctx) {
-        List<ObjectDescription> l = new ArrayList<>();
+        List<ObjectWrapped<?>> l = new ArrayList<>();
         while(! StackMarker.ObjectList.equals(stack.peek())) {
-            l.add((ObjectDescription) stack.pop());
+            l.add((ObjectWrapped<?>) stack.pop());
         }
         stack.pop();
         stack.push(l);
@@ -445,9 +532,9 @@ class ConfigListener extends RouteBaseListener {
 
     @Override
     public void exitOutputObjectlist(OutputObjectlistContext ctx) {
-        List<ObjectDescription> l = new ArrayList<>();
+        List<ObjectWrapped<?>> l = new ArrayList<>();
         while(! StackMarker.ObjectList.equals(stack.peek())) {
-            l.add((ObjectDescription) stack.pop());
+            l.add((ObjectWrapped<?>) stack.pop());
         }
         stack.pop();
         stack.push(l);
@@ -457,7 +544,7 @@ class ConfigListener extends RouteBaseListener {
     public void exitOutput(OutputContext ctx) {
         PipeRefName piperef;
         @SuppressWarnings("unchecked")
-        List<ObjectDescription> senders = (List<ObjectDescription>) stack.pop();
+        List<ObjectWrapped<Sender>> senders = (List<ObjectWrapped<Sender>>) stack.pop();
         if(stack.peek() != null && stack.peek() instanceof PipeRefName) {
             piperef = (PipeRefName) stack.pop();
         } else {
@@ -479,7 +566,7 @@ class ConfigListener extends RouteBaseListener {
             piperef = new PipeRefName("main");
         }
         @SuppressWarnings("unchecked")
-        List<ObjectDescription> receivers = (List<ObjectDescription>) stack.pop();
+        List<ObjectWrapped<Receiver>> receivers = (List<ObjectWrapped<Receiver>>) stack.pop();
         Input input = new Input(receivers, piperef.piperef);
         inputs.add(input);
         logger.debug("adding new input {}", input);
@@ -498,10 +585,16 @@ class ConfigListener extends RouteBaseListener {
     }
 
     @Override
-    public void exitSourcedef(SourcedefContext ctx) {
+    public void enterSourcedef(SourcedefContext ctx) {
         String sourceName = ctx.Identifier().getText();
-        ObjectDescription source = (ObjectDescription) stack.pop();
-        sources.put(sourceName, source);
+        SourceProvider sp = sources.get(sourceName);
+        sp.source.setName(sourceName);
+        stack.push(sp);
+    }
+
+    @Override
+    public void exitSourcedef(SourcedefContext ctx) {
+        stack.pop();
     }
 
     @Override
@@ -509,23 +602,25 @@ class ConfigListener extends RouteBaseListener {
         stack.push(StackMarker.Array);
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public void exitArray(ArrayContext ctx) {
         List<Object> array = new ArrayList<>();
         while(! StackMarker.Array.equals(stack.peek()) ) {
             Object o = stack.pop();
             if(o instanceof ObjectWrapped) {
-                o = ((ObjectWrapped) o).wrapped;
+                o = ((ObjectWrapped<Object>) o).wrapped;
             }
-            array.add(0, o);
+            array.add(o);
         }
+        Collections.reverse(array);
         stack.pop();
-        stack.push(new ObjectWrapped(array.toArray()));
+        stack.push(new ObjectWrapped<Object[]>(array.toArray()));
     }
 
     @Override
     public void exitDrop(DropContext ctx) {
-        ObjectDescription drop = new ObjectDescription(this.stream, Drop.class.getCanonicalName(), ctx);
+        ObjectWrapped<Drop> drop = new ObjectWrapped<Drop>(new Drop());
         stack.push(drop);
     }
 
@@ -534,38 +629,37 @@ class ConfigListener extends RouteBaseListener {
         stack.push(StackMarker.Fire);
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public void exitFire(FireContext ctx) {
-        ObjectDescription fire = new ObjectDescription(this.stream, FireEvent.class.getName(), ctx);
+        FireEvent fire = new FireEvent();
         Map<String[], String> fields = new HashMap<>();
         int count = ctx.eventVariable().size() - 1;
         while(! StackMarker.Fire.equals(stack.peek()) ) {
             Object o = stack.pop();
             if(o instanceof ObjectWrapped) {
                 String[] lvalue = convertEventVariable(ctx.eventVariable().get(count--));
-                o = ((ObjectWrapped) o).wrapped;
-                fields.put(lvalue, (String) o);
+                fields.put(lvalue, ((ObjectWrapped<String>) o).wrapped);
             } else if (o instanceof PipeRefName){
                 PipeRefName name = (PipeRefName) o;
-                fire.beans.put("destination", new ObjectWrapped(name.piperef));
+                fire.setDestination(name.piperef);
             } else {
                 throw new RecognitionException("invalid fire argument: " + o.toString(), parser, stream, ctx);
             }
         }
-        fire.beans.put("fields", new ObjectWrapped(fields));
+        fire.setFields(fields);
         stack.pop();
-        stack.push(fire);
+        stack.push(new ObjectWrapped<FireEvent>(fire));
     }
 
     @Override
     public void exitLog(LogContext ctx) {
-        ObjectDescription logger = new ObjectDescription(this.stream, Log.class.getName(), ctx);
-        logger.beans.put("level", new ObjectWrapped(ctx.level().getText()));
-        logger.beans.put("pipeName", new ObjectWrapped(currentPipeLineName));
+        Log log = new Log();
+        log.setLevel(ctx.level().getText());
+        log.setPipeName(currentPipeLineName);
         String message = ctx.message.getText();
-        logger.beans.put("message", new ObjectWrapped(message));
-
-        stack.push(logger);
+        log.setMessage(message);
+        stack.push(new ObjectWrapped<Log>(log));
     }
 
     @Override
@@ -599,34 +693,36 @@ class ConfigListener extends RouteBaseListener {
             throw new RecognitionException("Context can't be a lvalue for " + ctx.getText(), parser, stream, ctx);
         }
 
-        ObjectDescription etl;
+        Etl etl;
 
         switch(ctx.op.getText()) {
         case("-"):
-            etl = new ObjectDescription(this.stream, Etl.Remove.class.getName(), ctx);
+            etl = new Etl.Remove();
         break;
         case("<"): {
-            etl = new ObjectDescription(this.stream, Etl.Rename.class.getName(), ctx);
-            etl.beans.put("source", new ObjectWrapped(convertEventVariable(ctx.eventVariable().get(1))));
+            etl = new Etl.Rename();
+            ((Etl.Rename) etl).setSource(convertEventVariable(ctx.eventVariable().get(1)));
             break;
         }
         case("="): {
-            etl = new ObjectDescription(this.stream, Etl.Assign.class.getName(), ctx);
-            ObjectWrapped expression = (ObjectWrapped) stack.pop();
-            etl.beans.put("expression", expression);
+            @SuppressWarnings("unchecked")
+            ObjectWrapped<String> expression = (ObjectWrapped<String>) stack.pop();
+            etl = new Etl.Assign();
+            ((Etl.Assign)etl).setExpression(expression.wrapped);
             break;
         }
         case("("): {
-            etl = new ObjectDescription(this.stream, Etl.Convert.class.getName(), ctx);
-            ObjectWrapped className = new ObjectWrapped(ctx.QualifiedIdentifier().getText());
-            etl.beans.put("className", className);
+            etl = new Etl.Convert();
+            ((Etl.Convert)etl).setClassName(ctx.QualifiedIdentifier().getText());
             break;
         }
         case("@"): {
-            etl = new ObjectDescription(this.stream, Mapper.class.getName(), ctx);
-            etl.beans.put("map", (ObjectReference) stack.pop());
-            ObjectWrapped expression = (ObjectWrapped) stack.pop();
-            etl.beans.put("expression", expression);
+            etl = new Mapper();
+            ObjectWrapped<Map<Object, Object>> wrapmap = stack.popTyped();
+            Map<Object, Object> map = wrapmap.wrapped;
+            ObjectWrapped<String> expression = stack.popTyped();
+            ((Mapper) etl).setMap(map);
+            ((Mapper) etl).setExpression(expression.wrapped);
             break;
         }
         default:
@@ -635,8 +731,8 @@ class ConfigListener extends RouteBaseListener {
         // Remove Etl marker
         Object o = stack.pop();
         assert StackMarker.Etl.equals(o);
-        etl.beans.put("lvalue", new ConfigListener.ObjectWrapped(convertEventVariable(ctx.eventVariable().get(0))));
-        stack.push(etl);
+        etl.setLvalue(convertEventVariable(ctx.eventVariable().get(0)));
+        stack.push(new ProcessorInstance(etl));
     }
 
     @Override
@@ -644,20 +740,33 @@ class ConfigListener extends RouteBaseListener {
         stack.push(StackMarker.Map);
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public void exitMap(MapContext ctx) {
         if (ctx.source() == null) {
             Map<Object, Object> map = new HashMap<>();
             Object o;
-            while((o = stack.pop()) != StackMarker.Map) { 
-                ObjectWrapped value = (ObjectWrapped) o;
-                ObjectWrapped key = (ObjectWrapped) stack.pop();
-                map.put(key.wrapped, value.wrapped);
+            while((o = stack.pop()) != StackMarker.Map) {
+                Object value;
+                if (o instanceof ObjectWrapped) {
+                    value = ((ObjectWrapped<Object>) o).wrapped;
+                } else {
+                    value = o.getClass();
+                }
+                ObjectWrapped<Object> key = (ObjectWrapped<Object>) stack.pop();
+                map.put(key.wrapped, value);
             };
-            stack.push(new ConfigListener.ObjectWrapped(map));
+            stack.push(new ObjectWrapped<Map<?, ?>>(map));
         } else {
-            assert stack.pop() == ConfigListener.StackMarker.Map;
-            stack.push(new ConfigListener.Source(ctx.source().Identifier().getText(), sources));
+            Object o = stack.pop();
+            assert o == ConfigListener.StackMarker.Map;
+            // Don't forget to remove the initial %
+            String sourceName = ctx.source().getText().substring(1);
+            if (! sources.containsKey(sourceName)) {
+                throw new RecognitionException("Undefined source " + sourceName, parser, stream, ctx);
+            }
+            Source s = sources.get(sourceName).source;
+            stack.push(new ObjectWrapped<Source>(s));
         }
     }
 
@@ -747,7 +856,7 @@ class ConfigListener extends RouteBaseListener {
         }
         expressionDepth--;
         if(expressionDepth == 0) {
-            stack.push( new ObjectWrapped(expression));
+            stack.push( new ObjectWrapped<String>(expression));
         } else {
             stack.push(expression);
         }

@@ -137,7 +137,7 @@ public class TestMsgpack {
 
         byte[] bs = objectMapper.writeValueAsBytes(obj);
 
-        try(Receiver r = new Receiver(null, null) {
+        try(Receiver r = new Receiver() {
             @Override
             public String getReceiverName() {
                 return null;

@@ -1,7 +1,5 @@
 package loghub.senders;
 
-import java.util.concurrent.BlockingQueue;
-
 import org.zeromq.ZMQ.Socket;
 
 import loghub.Event;
@@ -21,8 +19,7 @@ public class ZMQ extends Sender {
     private final SmartContext ctx = SmartContext.getContext();
     private volatile boolean running = false;
 
-    public ZMQ(BlockingQueue<Event> inQueue) {
-        super(inQueue);
+    public ZMQ() {
     }
 
     @Override

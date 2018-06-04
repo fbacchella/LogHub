@@ -1,7 +1,6 @@
 package loghub.receivers;
 
 import java.net.InetSocketAddress;
-import java.util.concurrent.BlockingQueue;
 
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
@@ -10,9 +9,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.socket.DatagramChannel;
 import io.netty.channel.socket.DatagramPacket;
 import loghub.ConnectionContext;
-import loghub.Event;
 import loghub.IpConnectionContext;
-import loghub.Pipeline;
 import loghub.configuration.Properties;
 import loghub.netty.BaseChannelConsumer;
 import loghub.netty.ConsumerProvider;
@@ -34,8 +31,8 @@ public class Udp extends NettyIpReceiver<Udp,
 
     private int buffersize = -1;
 
-    public Udp(BlockingQueue<Event> outQueue, Pipeline pipeline) {
-        super(outQueue, pipeline);
+    public Udp() {
+        super();
     }
 
     @Override

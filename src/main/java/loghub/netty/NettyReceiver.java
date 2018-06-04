@@ -1,7 +1,6 @@
 package loghub.netty;
 
 import java.net.SocketAddress;
-import java.util.concurrent.BlockingQueue;
 
 import org.apache.logging.log4j.Level;
 
@@ -13,7 +12,6 @@ import io.netty.util.AttributeKey;
 import loghub.ConnectionContext;
 import loghub.Event;
 import loghub.Helpers;
-import loghub.Pipeline;
 import loghub.Receiver;
 import loghub.configuration.Properties;
 import loghub.netty.servers.AbstractNettyServer;
@@ -35,8 +33,8 @@ public abstract class NettyReceiver<R extends NettyReceiver<R, S, B, CF, BS, BSC
     private int threadsCount = 1;
     private String poller = "NIO";
 
-    public NettyReceiver(BlockingQueue<Event> outQueue, Pipeline pipeline) {
-        super(outQueue, pipeline);
+    public NettyReceiver() {
+        super();
     }
 
     public final boolean configure(Properties properties) {

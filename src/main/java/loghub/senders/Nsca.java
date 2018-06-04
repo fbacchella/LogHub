@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.BlockingQueue;
 import java.util.stream.Stream;
 
 import com.googlecode.jsendnsca.Level;
@@ -41,8 +40,7 @@ public class Nsca extends Sender {
     private int timeout = -1;
     private boolean largeMessageSupport = false;
 
-    public Nsca(BlockingQueue<Event> inQueue) {
-        super(inQueue);
+    public Nsca() {
         mapping = new HashMap<>();
         MAPFIELD.enumerate().forEach(i -> mapping.put(i, i));
     }

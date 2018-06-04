@@ -15,7 +15,7 @@ import loghub.Helpers;
 import loghub.Source;
 import loghub.configuration.Properties;
 
-public class FileMap extends HashMap<Object, Object> implements Source{
+public class FileMap extends HashMap<Object, Object> implements Source {
 
     private static final Logger logger = LogManager.getLogger();
     

@@ -62,7 +62,9 @@ public class TestTrap {
     @Test
     public void testbig() throws InterruptedException, IOException {
         BlockingQueue<Event> receiver = new ArrayBlockingQueue<>(2);
-        try (SnmpTrap r = new SnmpTrap(receiver, new Pipeline(Collections.emptyList(), "testbig", null))) {
+        try (SnmpTrap r = new SnmpTrap()) {
+            r.setOutQueue(receiver);
+            r.setPipeline(new Pipeline(Collections.emptyList(), "testbig", null));
             r.setPort(0);
             Map<String, Object> props = new HashMap<>();
             props.put("mibdirs", new String[]{"/usr/share/snmp/mibs", "/tmp/mibs"});
@@ -93,7 +95,9 @@ public class TestTrap {
     @Test
     public void testtrapv1Generic() throws InterruptedException, IOException {
         BlockingQueue<Event> receiver = new ArrayBlockingQueue<>(2);
-        try (SnmpTrap r = new SnmpTrap(receiver, new Pipeline(Collections.emptyList(), "testbig", null))) {
+        try (SnmpTrap r = new SnmpTrap()) {
+            r.setOutQueue(receiver);
+            r.setPipeline(new Pipeline(Collections.emptyList(), "testbig", null));
             r.setPort(0);
             Map<String, Object> props = new HashMap<>();
             props.put("mibdirs", new String[]{"/usr/share/snmp/mibs", "/tmp/mibs"});
@@ -125,8 +129,10 @@ public class TestTrap {
     @Test
     public void testtrapv1Specific() throws InterruptedException, IOException {
         BlockingQueue<Event> receiver = new ArrayBlockingQueue<>(2);
-        try (SnmpTrap r = new SnmpTrap(receiver, new Pipeline(Collections.emptyList(), "testbig", null))) {
+        try (SnmpTrap r = new SnmpTrap()) {
             r.setPort(0);
+            r.setPipeline(new Pipeline(Collections.emptyList(), "testbig", null));
+            r.setOutQueue(receiver);
             Map<String, Object> props = new HashMap<>();
             props.put("mibdirs", new String[]{"/usr/share/snmp/mibs", "/tmp/mibs"});
             Assert.assertTrue(r.configure(new Properties(props)));

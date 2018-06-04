@@ -1,7 +1,5 @@
 package loghub.receivers;
 
-import java.util.concurrent.BlockingQueue;
-
 import org.logstash.beats.AckEncoder;
 import org.logstash.beats.BeatsHandler;
 import org.logstash.beats.BeatsParser;
@@ -17,11 +15,9 @@ import io.netty.channel.ServerChannel;
 import io.netty.handler.timeout.IdleStateHandler;
 import io.netty.util.concurrent.DefaultEventExecutorGroup;
 import io.netty.util.concurrent.EventExecutorGroup;
-import loghub.Event;
-import loghub.Pipeline;
 import loghub.configuration.Properties;
-import loghub.netty.BaseChannelConsumer;
 import loghub.netty.AbstractTcpReceiver;
+import loghub.netty.BaseChannelConsumer;
 import loghub.netty.ChannelConsumer;
 import loghub.netty.CloseOnError;
 import loghub.netty.ConsumerProvider;
@@ -38,8 +34,7 @@ public class Beats extends AbstractTcpReceiver<Beats, TcpServer, TcpServer.Build
     private int clientInactivityTimeoutSeconds;
     private int maxPayloadSize = 8192;
 
-    public Beats(BlockingQueue<Event> outQueue, Pipeline pipeline) {
-        super(outQueue, pipeline);
+    public Beats() {
         idleExecutorGroup = new DefaultEventExecutorGroup(4);
         messageListener = new IMessageListener() {
 

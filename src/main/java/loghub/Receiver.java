@@ -50,16 +50,14 @@ public abstract class Receiver extends Thread implements Iterator<Event>, Closea
     private String password = null;
     private boolean useJwt = false;
 
-    private final BlockingQueue<Event> outQueue;
-    private final Pipeline pipeline;
+    private BlockingQueue<Event> outQueue;
+    private Pipeline pipeline;
     private final boolean blocking;
     private Meter count;
     protected Decoder decoder = null;
 
-    public Receiver(BlockingQueue<Event> outQueue, Pipeline pipeline){
+    public Receiver(){
         setDaemon(true);
-        this.outQueue = outQueue;
-        this.pipeline = pipeline;
         logger = LogManager.getLogger(Helpers.getFistInitClass());
         blocking = getClass().getAnnotation(Blocking.class) != null;
     }
@@ -359,6 +357,14 @@ public abstract class Receiver extends Thread implements Iterator<Event>, Closea
 
     public void setSSLKeyAlias(String sslKeyAlias) {
         this.sslKeyAlias = sslKeyAlias;
+    }
+
+    public void setOutQueue(BlockingQueue<Event> outQueue) {
+        this.outQueue = outQueue;
+    }
+
+    public void setPipeline(Pipeline pipeline) {
+        this.pipeline = pipeline;
     }
 
 }

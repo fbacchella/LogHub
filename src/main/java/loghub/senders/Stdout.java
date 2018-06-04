@@ -2,7 +2,6 @@ package loghub.senders;
 
 import java.io.IOException;
 import java.io.PrintStream;
-import java.util.concurrent.BlockingQueue;
 
 import org.apache.logging.log4j.Level;
 
@@ -15,8 +14,7 @@ public class Stdout extends Sender {
 
     PrintStream destination = System.out;
 
-    public Stdout(BlockingQueue<Event> inQueue) {
-        super(inQueue);
+    public Stdout() {
     }
 
     @Override

@@ -1,7 +1,6 @@
 package loghub.receivers;
 
 import java.nio.charset.Charset;
-import java.util.concurrent.BlockingQueue;
 
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.ByteBuf;
@@ -9,12 +8,10 @@ import io.netty.channel.ChannelPipeline;
 import io.netty.channel.ServerChannel;
 import io.netty.handler.codec.LineBasedFrameDecoder;
 import io.netty.util.CharsetUtil;
-import loghub.Event;
-import loghub.Pipeline;
 import loghub.configuration.Properties;
 import loghub.decoders.StringCodec;
-import loghub.netty.BaseChannelConsumer;
 import loghub.netty.AbstractTcpReceiver;
+import loghub.netty.BaseChannelConsumer;
 import loghub.netty.ChannelConsumer;
 import loghub.netty.ConsumerProvider;
 import loghub.netty.servers.TcpServer;
@@ -26,8 +23,8 @@ public class TcpLinesStream extends AbstractTcpReceiver<TcpLinesStream, TcpServe
     private Charset charset= CharsetUtil.UTF_8;
     private String field = "message";
 
-    public TcpLinesStream(BlockingQueue<Event> outQueue, Pipeline pipeline) {
-        super(outQueue, pipeline);
+    public TcpLinesStream() {
+        super();
     }
 
     @Override

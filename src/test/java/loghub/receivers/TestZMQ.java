@@ -41,7 +41,9 @@ public class TestZMQ {
 
     private void dotest(Consumer<ZMQ> configure, Socket sender) throws InterruptedException  {
         BlockingQueue<Event> receiver = new ArrayBlockingQueue<>(1);
-        try (ZMQ r = new ZMQ(receiver, new Pipeline(Collections.emptyList(), "testone", null))) {
+        try (ZMQ r = new ZMQ()) {
+            r.setOutQueue(receiver);
+            r.setPipeline(new Pipeline(Collections.emptyList(), "testone", null));
             configure.accept(r);
             r.setDecoder(new StringCodec());
             Assert.assertTrue(r.configure(new Properties(Collections.emptyMap())));

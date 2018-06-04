@@ -17,7 +17,7 @@ public class TestNsca {
     @Test
     public void test() throws ConfigException, IOException {
 
-        String conf= "pipeline[main] {} output $main | { loghub.senders.Nsca { password: \"password\", encryption: \"RIJNDAEL192\", nagiosServer: \"localhost\", largeMessageSupport: true, mapping: { \"level\": \"level\", \"service\": \"service\",  \"message\": \"message\",  \"host\": \"host\", } } }";
+        String conf = "pipeline[main] {} output $main | { loghub.senders.Nsca { password: \"password\", encryption: \"RIJNDAEL192\", nagiosServer: \"localhost\", largeMessageSupport: true, mapping: { \"level\": \"level\", \"service\": \"service\",  \"message\": \"message\",  \"host\": \"host\", } } }";
 
         Properties p = Configuration.parse(new StringReader(conf));
 

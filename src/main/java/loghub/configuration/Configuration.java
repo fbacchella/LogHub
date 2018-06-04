@@ -4,7 +4,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
-import java.lang.reflect.InvocationTargetException;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -15,6 +14,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.DateTimeException;
 import java.time.ZoneId;
+import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -33,6 +33,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
@@ -47,32 +48,28 @@ import org.apache.logging.log4j.core.LoggerContext;
 import loghub.Event;
 import loghub.Helpers;
 import loghub.Helpers.ThrowingConsumer;
-import loghub.Helpers.ThrowingFunction;
 import loghub.Helpers.ThrowingPredicate;
 import loghub.Pipeline;
-import loghub.Processor;
 import loghub.Receiver;
 import loghub.RouteLexer;
 import loghub.RouteParser;
 import loghub.RouteParser.ArrayContext;
 import loghub.RouteParser.BeanValueContext;
+import loghub.RouteParser.ConfigurationContext;
 import loghub.RouteParser.LiteralContext;
 import loghub.RouteParser.PropertyContext;
+import loghub.RouteParser.SourcedefContext;
+import loghub.RouteParser.SourcesContext;
 import loghub.Sender;
 import loghub.Source;
 import loghub.configuration.ConfigListener.Input;
-import loghub.configuration.ConfigListener.ObjectReference;
 import loghub.configuration.ConfigListener.Output;
-import loghub.processors.AnonymousSubPipeline;
-import loghub.processors.NamedSubPipeline;
 
 public class Configuration {
 
     private static final Logger logger = LogManager.getLogger();
 
     private static final int DEFAULTQUEUEDEPTH = 100;
-
-    private static final ThrowingFunction<Class<Object>, Object> emptyConstructor = i -> {return i.getConstructor().newInstance();};
 
     private List<Receiver> receivers;
     private Set<String> inputpipelines = new HashSet<>();
@@ -109,6 +106,9 @@ public class Configuration {
 
             RouteParser.ConfigurationContext tree = getTree(cs, conflistener);
             Set<String> lockedProperties = resolveProperties(tree, conflistener, propertiesContext);
+            conflistener.classLoader = classLoader;
+
+            resolveSources(tree, conflistener);
             walker.walk(conflistener, tree);
 
             Consumer<Path> parseSubFile = filePath -> {
@@ -164,6 +164,23 @@ public class Configuration {
                 throw new ConfigException(e.getMessage(), e.getInputStream().getSourceName(), ctx.start, e);
             } else {
                 throw e;
+            }
+        }
+    }
+
+    private void resolveSources(ConfigurationContext tree, ConfigListener conflistener) throws ConfigException {
+        for (SourcesContext sc: tree.sources()) {
+            for (SourcedefContext sdc: sc.sourcedef()) {
+                String name = sdc.Identifier().getText();
+                if (! conflistener.sources.containsKey("name")) {
+                    String className = sdc.object().QualifiedIdentifier().getText();
+                    // Pre-create source object
+                    ConfigListener.SourceProvider sp = new ConfigListener.SourceProvider();
+                    sp.source = (Source) conflistener.getObject(className, sdc).wrapped;
+                    conflistener.sources.put(name, sp);
+                } else {
+                    throw new RecognitionException("Source redifined", conflistener.parser, conflistener.stream, sdc);
+                }
             }
         }
     }
@@ -312,19 +329,11 @@ public class Configuration {
         final Map<String, Object> newProperties = new HashMap<String, Object>(conf.properties.size() + Properties.PROPSNAMES.values().length + System.getProperties().size());
 
         // Resolvers properties found and and it to new properties
+        @SuppressWarnings("unchecked")
         Function<Object, Object> resolve = i -> {
-            return ((i instanceof ConfigListener.ObjectWrapped) ? ((ConfigListener.ObjectWrapped) i).wrapped : 
-                (i instanceof ConfigListener.ObjectReference) ? parseObjectDescription((ConfigListener.ObjectDescription) i, emptyConstructor) : i);
+            return ((i instanceof ConfigListener.ObjectWrapped) ? ((ConfigListener.ObjectWrapped<Object>) i).wrapped : i);
         };
         conf.properties.entrySet().stream().forEach( i-> newProperties.put(i.getKey(), resolve.apply(i.getValue())));
-
-        // Resolve the sources
-        ThrowingFunction<Class<Source>, Source> sourceConstructor = i -> {return i.getConstructor().newInstance();};
-        conf.sources.forEach((name,sd) -> {
-            Source s = parseObjectDescription(sd, sourceConstructor);
-            s.setName(name);
-            sources.put(name, s);
-        });
 
         Map<String, Pipeline> namedPipeLine = new HashMap<>(conf.pipelines.size());
 
@@ -332,9 +341,10 @@ public class Configuration {
 
         Set<Pipeline> pipelines = new HashSet<>();
         // Generate all the named pipeline
+        conf.depth = 0;
         for(Entry<String, ConfigListener.PipenodesList> e: conf.pipelines.entrySet()) {
             String name = e.getKey(); 
-            Pipeline p = parsePipeline(e.getValue(), name, 0, new AtomicInteger());
+            Pipeline p = conf.parsePipeline(e.getValue(), name, new AtomicInteger());
             pipelines.add(p);
             namedPipeLine.put(name, p);
             if (p.nextPipeline != null) {
@@ -363,10 +373,11 @@ public class Configuration {
             if(i.piperef == null || ! namedPipeLine.containsKey(i.piperef)) {
                 throw new RuntimeException("Invalid input, no destination pipeline: " + i);
             }
-            for(ConfigListener.ObjectDescription desc: i.receiver) {
+            for(ConfigListener.ObjectWrapped<Receiver> desc: i.receiver) {
                 Pipeline p = namedPipeLine.get(i.piperef);
-                ThrowingFunction<Class<Receiver>, Receiver> receiverConstructor = r -> {return r.getConstructor(BlockingQueue.class, Pipeline.class).newInstance(mainQueue, p);};
-                Receiver r = (Receiver) parseObjectDescription(desc, receiverConstructor);
+                Receiver r = desc.wrapped;
+                r.setOutQueue(mainQueue);
+                r.setPipeline(p);
                 receivers.add(r);
             }
             inputpipelines.add(i.piperef);
@@ -382,10 +393,10 @@ public class Configuration {
             if(o.piperef == null || ! namedPipeLine.containsKey(o.piperef)) {
                 throw new RuntimeException("Invalid output, no source pipeline: " + o);
             }
-            for(ConfigListener.ObjectDescription desc: o.sender) {
+            for(ConfigListener.ObjectWrapped<Sender> desc: o.sender) {
                 BlockingQueue<Event> out = outputQueues.get(o.piperef);
-                ThrowingFunction<Class<Sender>, Sender> senderConstructor = r -> {return r.getConstructor(BlockingQueue.class).newInstance(out);};
-                Sender s = (Sender) parseObjectDescription(desc, senderConstructor);
+                Sender s = desc.wrapped;
+                s.setInQueue(out);
                 //logger.debug("sender {} source point will be {}", () -> s, () -> namedPipeLine.get(o.piperef).outQueue);
                 senders.add(s);
             }
@@ -398,6 +409,10 @@ public class Configuration {
 
         newProperties.put(Properties.PROPSNAMES.TOPPIPELINE.toString(), Collections.unmodifiableSet(topPipelines));
 
+        sources = conf.sources.entrySet().stream()
+                        .map( e -> new AbstractMap.SimpleEntry<String, Source>(e.getKey(), e.getValue().source))
+                        .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue()))
+                        ;
         newProperties.put(Properties.PROPSNAMES.SOURCES.toString(), Collections.unmodifiableMap(sources));
 
         // Allows the system properties to override any properties given in the configuration file
@@ -406,103 +421,6 @@ public class Configuration {
         Arrays.stream(Properties.PROPSNAMES.values()).forEach(i -> privatepropsnames.add(i.toString()));;
         System.getProperties().entrySet().stream().filter(i -> ! privatepropsnames.contains(i.getKey())).forEach(i -> newProperties.put(i.getKey().toString(), i.getValue()));
         return new Properties(newProperties);
-    }
-
-    private Pipeline parsePipeline(ConfigListener.PipenodesList desc, String currentPipeLineName, int depth, AtomicInteger subPipeCount) throws ConfigException {
-        List<Processor> allSteps = new ArrayList<Processor>() {
-            @Override
-            public String toString() {
-                StringBuilder buffer = new StringBuilder();
-                buffer.append("PipeList(");
-                for(Processor i: this) {
-                    buffer.append(i);
-                    buffer.append(", ");
-                }
-                buffer.setLength(buffer.length() - 2);
-                buffer.append(')');
-                return buffer.toString();
-            }
-        };
-
-        desc.processors.stream().map(i -> {
-            return getProcessor(i, currentPipeLineName, depth, subPipeCount);
-        }).forEach(allSteps::add);
-        Pipeline pipe = new Pipeline(allSteps, currentPipeLineName + (depth == 0 ? "" : "$" + subPipeCount.getAndIncrement()), desc.nextPipelineName);
-        return pipe;
-    }
-
-    private Processor getProcessor(ConfigListener.Pipenode i, String currentPipeLineName, int depth, AtomicInteger subPipeLine) throws ConfigException {
-        Processor t;
-        if (i instanceof ConfigListener.PipeRef){
-            ConfigListener.PipeRef cpr = (ConfigListener.PipeRef) i;
-            NamedSubPipeline pr = new NamedSubPipeline();
-            pr.setPipeRef(cpr.pipename);
-            t = pr;
-        } else if (i instanceof ConfigListener.PipenodesList){
-            subPipeLine.incrementAndGet();
-            AnonymousSubPipeline subpipe = new AnonymousSubPipeline();
-            Pipeline p = parsePipeline((ConfigListener.PipenodesList)i, currentPipeLineName, depth + 1, subPipeLine);
-            subpipe.setPipeline(p);
-            t = subpipe;
-        } else if (i instanceof ConfigListener.ProcessorInstance) {
-            ConfigListener.ProcessorInstance ti = (ConfigListener.ProcessorInstance) i;
-            t = (Processor) parseObjectDescription(ti, emptyConstructor, currentPipeLineName, depth, subPipeLine);
-        } else {
-            throw new RuntimeException("Unreachable code for " + i);
-        }
-        return t;
-    }
-
-    <T, C> T parseObjectDescription(ConfigListener.ObjectDescription desc, ThrowingFunction<Class<T>, T> constructor) throws ConfigException {
-        return parseObjectDescription(desc, constructor, null, 0, null);
-    }
-
-    <T, C> T parseObjectDescription(ConfigListener.ObjectDescription desc, ThrowingFunction<Class<T>, T> constructor, String currentPipeLineName, int depth, AtomicInteger numSubpipe) throws ConfigException {
-        try {
-            @SuppressWarnings("unchecked")
-            Class<T> clazz = (Class<T>) classLoader.loadClass(desc.clazz);
-            T object = constructor.apply(clazz);
-
-            for(Entry<String, ObjectReference> i: desc.beans.entrySet()) {
-                ObjectReference ref = i.getValue();
-                Object beanValue;
-                if(ref instanceof ConfigListener.ObjectWrapped) {
-                    beanValue = ((ConfigListener.ObjectWrapped) ref).wrapped;
-                    if (beanValue instanceof ConfigListener.Pipenode) {
-                        beanValue = getProcessor((ConfigListener.Pipenode) beanValue, currentPipeLineName, depth, numSubpipe);
-                    }
-                } else if (ref instanceof ConfigListener.ObjectDescription) {
-                    beanValue = parseObjectDescription((ConfigListener.ObjectDescription) ref, emptyConstructor, currentPipeLineName, depth + 1, numSubpipe);
-                } else if (ref instanceof ConfigListener.Source) {
-                    ConfigListener.Source source = (ConfigListener.Source) ref;
-                    beanValue = sources.get(source.source);
-                } else if (ref == null){
-                    beanValue = null;
-                } else {
-                    throw new ConfigException(String.format("Invalid class '%s': %s", desc.clazz, ref.getClass().getCanonicalName()), desc.stream.getSourceName(), desc.ctx.start);
-                }
-                try {
-                    BeansManager.beanSetter(object, i.getKey(), beanValue);
-                } catch (InvocationTargetException ex) {
-                    throw new ConfigException(String.format("Invalid bean '%s.%s': %s", desc.clazz, i.getKey(), ex.getCause()), desc.stream.getSourceName(), desc.ctx.start, ex.getCause());
-                }
-            }
-            return object;
-        } catch (ClassNotFoundException e) {
-            throw new ConfigException(String.format("Unknown class '%s'", desc.clazz), desc.stream.getSourceName(), desc.ctx.start);
-        } catch (ConfigException e) {
-            throw e;
-        } catch (RuntimeException | ExceptionInInitializerError e) {
-            Throwable rootCause = e;
-            if (e.getCause() != null) {
-                rootCause = e.getCause();
-            }
-            String message = rootCause.getMessage();
-            if (message == null) {
-                message = rootCause.getClass().getSimpleName();
-            }
-            throw new ConfigException(String.format("Invalid class '%s': %s", desc.clazz, message), desc.stream.getSourceName(), desc.ctx.start, rootCause);
-        }
     }
 
     private static final class LogHubClassloader extends URLClassLoader {
@@ -572,11 +490,4 @@ public class Configuration {
         }
     }
 
-    public Collection<Receiver> getReceivers() {
-        return Collections.unmodifiableList(receivers);
-    }
-
-    public Collection<Sender> getSenders() {
-        return Collections.unmodifiableList(senders);
-    }
 }

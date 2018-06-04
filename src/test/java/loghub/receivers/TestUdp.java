@@ -47,7 +47,9 @@ public class TestUdp {
 
     private void testsend(int size) throws IOException, InterruptedException {
         BlockingQueue<Event> receiver = new ArrayBlockingQueue<>(10);
-        Udp r = new Udp(receiver, new Pipeline(Collections.emptyList(), "testone", null));
+        Udp r = new Udp();
+        r.setOutQueue(receiver);
+        r.setPipeline(new Pipeline(Collections.emptyList(), "testone", null));
         // Generate a locally binded random socket
         try (DatagramSocket socket = new DatagramSocket(0, InetAddress.getLoopbackAddress())) {
             String hostname = socket.getLocalAddress().getHostAddress();

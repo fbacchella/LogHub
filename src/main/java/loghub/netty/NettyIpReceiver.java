@@ -2,15 +2,12 @@ package loghub.netty;
 
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
-import java.util.concurrent.BlockingQueue;
 
 import io.netty.bootstrap.AbstractBootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import loghub.ConnectionContext;
-import loghub.Event;
 import loghub.IpConnectionContext;
-import loghub.Pipeline;
 import loghub.configuration.Properties;
 import loghub.netty.servers.NettyIpServer;
 import loghub.security.ssl.ClientAuthentication;
@@ -28,8 +25,8 @@ public abstract class NettyIpReceiver<R extends NettyIpReceiver<R, S, B, CF, BS,
     private int port;
     private String host = null;
 
-    public NettyIpReceiver(BlockingQueue<Event> outQueue, Pipeline pipeline) {
-        super(outQueue, pipeline);
+    public NettyIpReceiver() {
+        super();
     }
 
     @Override

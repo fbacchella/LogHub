@@ -96,7 +96,9 @@ public class TestTcpLinesStream {
     private void makeReceiver(Consumer<TcpLinesStream> prepare, Map<String, Object> propsMap) {
         port = Tools.tryGetPort();
         queue = new ArrayBlockingQueue<>(1);
-        receiver = new TcpLinesStream(queue, new Pipeline(Collections.emptyList(), "testtcplinesstream", null));
+        receiver = new TcpLinesStream();
+        receiver.setOutQueue(queue);
+        receiver.setPipeline(new Pipeline(Collections.emptyList(), "testtcplinesstream", null));
         receiver.setPort(port);
         receiver.setDecoder(new StringCodec());
         prepare.accept(receiver);

@@ -3,7 +3,6 @@ package loghub.receivers;
 import java.io.IOException;
 import java.nio.channels.SelectableChannel;
 import java.util.UUID;
-import java.util.concurrent.BlockingQueue;
 import java.util.function.BiFunction;
 
 import org.apache.logging.log4j.Level;
@@ -12,7 +11,6 @@ import org.zeromq.ZPoller;
 
 import loghub.ConnectionContext;
 import loghub.Event;
-import loghub.Pipeline;
 import loghub.Receiver;
 import loghub.configuration.Properties;
 import loghub.zmq.SmartContext;
@@ -56,8 +54,8 @@ public class ZMQ extends Receiver {
     private Socket listeningSocket;
     private volatile boolean running = false;
 
-    public ZMQ(BlockingQueue<Event> outQueue, Pipeline processors) {
-        super(outQueue, processors);
+    public ZMQ() {
+        super();
     }
 
     @Override

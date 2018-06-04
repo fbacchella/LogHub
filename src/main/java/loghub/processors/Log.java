@@ -44,13 +44,17 @@ public class Log extends Processor {
 
     @Override
     public boolean process(Event event) throws ProcessorException {
-        if (customLogger.isEnabled(level)) {
+        if (customLogger == null) {
+            throw event.buildException("Undefined logger");
+        } else if (customLogger.isEnabled(level)) {
             Map<String, Object> esjson = new HashMap<>(event.size());
             esjson.putAll(event);
             esjson.put("@timestamp", event.getTimestamp());
             customLogger.log(level, expression.eval(event));
+            return true;
+        } else {
+            return false;
         }
-        return true;
     }
 
     @Override

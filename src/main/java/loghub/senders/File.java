@@ -8,7 +8,6 @@ import java.nio.channels.FileLock;
 import java.nio.channels.NonWritableChannelException;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -39,8 +38,7 @@ public class File extends Sender {
     private AsynchronousFileChannel destination;
     private AtomicLong position;
 
-    public File(BlockingQueue<Event> inQueue) {
-        super(inQueue);
+    public File() {
     }
 
     @Override

@@ -8,7 +8,6 @@ import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.BlockingQueue;
 
 import org.apache.logging.log4j.Level;
 import org.snmp4j.CommandResponder;
@@ -45,7 +44,6 @@ import fr.jrds.snmpcodec.OIDFormatter;
 import loghub.ConnectionContext;
 import loghub.Event;
 import loghub.IpConnectionContext;
-import loghub.Pipeline;
 import loghub.Receiver;
 import loghub.configuration.Beans;
 import loghub.configuration.Properties;
@@ -81,8 +79,8 @@ public class SnmpTrap extends Receiver implements CommandResponder {
     private String listen = "0.0.0.0";
     private OIDFormatter formatter = null;
 
-    public SnmpTrap(BlockingQueue<Event> outQueue, Pipeline processors) {
-        super(outQueue, processors);
+    public SnmpTrap() {
+        super();
     }
 
     @Override

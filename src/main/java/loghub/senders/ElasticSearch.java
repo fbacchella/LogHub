@@ -14,7 +14,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.TimeZone;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.Stream;
@@ -64,8 +63,7 @@ public class ElasticSearch extends AbstractHttpSender {
     private ThreadLocal<DateFormat> esIndexFormat;
     private ThreadLocal<URL[]> UrlArrayCopy;
 
-    public ElasticSearch(BlockingQueue<Event> inQueue) {
-        super(inQueue);
+    public ElasticSearch() {
         setPort(9200);
     }
 

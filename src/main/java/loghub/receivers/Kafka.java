@@ -7,7 +7,6 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
-import java.util.concurrent.BlockingQueue;
 import java.util.stream.Collectors;
 
 import org.apache.kafka.clients.consumer.Consumer;
@@ -25,7 +24,6 @@ import loghub.ConnectionContext;
 import loghub.Decoder.DecodeException;
 import loghub.Event;
 import loghub.Helpers;
-import loghub.Pipeline;
 import loghub.Receiver;
 
 @Blocking
@@ -55,8 +53,8 @@ public class Kafka extends Receiver {
     private String group ="loghub";
     private String keyDeserializer = ByteArrayDeserializer.class.getName();
 
-    public Kafka(BlockingQueue<Event> outQueue, Pipeline pipeline) {
-        super(outQueue, pipeline);
+    public Kafka() {
+        super();
     }
 
     @Override

@@ -65,7 +65,9 @@ public class TestHttp {
         socket.close();
 
         queue = new ArrayBlockingQueue<>(1);
-        receiver = new Http(queue, new Pipeline(Collections.emptyList(), "testhttp", null));
+        receiver = new Http();
+        receiver.setOutQueue(queue);
+        receiver.setPipeline(new Pipeline(Collections.emptyList(), "testhttp", null));
         receiver.setHost(hostname);
         receiver.setPort(port);
         receiver.setDecoder(new StringCodec());

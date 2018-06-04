@@ -1,14 +1,10 @@
 package loghub.netty;
 
-import java.util.concurrent.BlockingQueue;
-
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ServerChannel;
 import io.netty.channel.socket.ServerSocketChannel;
 import io.netty.channel.socket.SocketChannel;
-import loghub.Event;
-import loghub.Pipeline;
 import loghub.configuration.Properties;
 import loghub.netty.servers.AbstractTcpServer;
 
@@ -19,8 +15,8 @@ public abstract class AbstractTcpReceiver<R extends AbstractTcpReceiver<R, S, B>
 
     private int backlog = 16;
 
-    public AbstractTcpReceiver(BlockingQueue<Event> outQueue, Pipeline pipeline) {
-        super(outQueue, pipeline);
+    public AbstractTcpReceiver() {
+        super();
     }
 
     @Override

@@ -129,6 +129,17 @@ public class TestConfigurations {
     }
 
     @Test
+    public void testLog() throws ConfigException, IOException, ProcessorException {
+        String confile = "pipeline[main] {log(\"event.info\", INFO)}";
+        Properties conf = Configuration.parse(new StringReader(confile));
+        Event sent = Tools.getEvent();
+        sent.put("a", "1");
+        Tools.runProcessing(sent, conf.namedPipeLine.get("main"), conf);
+        Event received = conf.mainQueue.remove();
+        Assert.assertEquals("Subpipeline not processed", "1", received.get("a"));
+   }
+
+    @Test
     public void testSubPipeline() throws ProcessorException, InterruptedException, ConfigException, IOException {
         Properties conf = Tools.loadConf("subpipeline.conf");
         Event sent = Tools.getEvent();
@@ -169,7 +180,7 @@ public class TestConfigurations {
     }
 
     @Test
-    public void testConfigurationWalkin() throws ConfigException, IOException {
+    public void testConfigurationWalking() throws ConfigException, IOException {
         String confile = "includes: \"" +  Configuration.class.getClassLoader().getResource("includes").getFile() + "/*.conf\"";
         Properties props = Configuration.parse(new StringReader(confile));
         Assert.assertTrue(props.namedPipeLine.containsKey("empty"));

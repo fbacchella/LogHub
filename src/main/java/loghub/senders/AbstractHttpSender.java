@@ -16,7 +16,6 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Queue;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import org.apache.http.HttpEntity;
@@ -208,8 +207,7 @@ public abstract class AbstractHttpSender extends Sender {
     private Thread[] threads;
     private volatile long lastFlush = 0;
 
-    public AbstractHttpSender(BlockingQueue<Event> inQueue) {
-        super(inQueue);
+    public AbstractHttpSender() {
         // A runnable that will be affected to threads
         // It consumes event and send them as bulk
         publisher = new Runnable() {

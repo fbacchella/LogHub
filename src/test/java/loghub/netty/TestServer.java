@@ -126,8 +126,8 @@ public class TestServer {
     private static class TesterReceiver extends NettyReceiver<TesterReceiver, TesterServer, TesterServer.Builder, TesterFactory, ServerBootstrap, ServerChannel, LocalServerChannel, LocalChannel, LocalAddress, Object>
                                         implements ConsumerProvider<TesterReceiver, ServerBootstrap, ServerChannel>{
 
-        public TesterReceiver(BlockingQueue<Event> outQueue, Pipeline pipeline) {
-            super(outQueue, pipeline);
+        public TesterReceiver() {
+            super();
             decoder = new StringCodec();
         }
 
@@ -184,7 +184,9 @@ public class TestServer {
     public void testSimple() throws InterruptedException {
         Properties empty = new Properties(Collections.emptyMap());
         BlockingQueue<Event> receiver = new ArrayBlockingQueue<>(1);
-        try(TesterReceiver r = new TesterReceiver(receiver, new Pipeline(Collections.emptyList(), "testone", null))) {
+        try(TesterReceiver r = new TesterReceiver()) {
+            r.setPipeline(new Pipeline(Collections.emptyList(), "testone", null));
+            r.setOutQueue(receiver);
             r.configure(empty);
 
             ChannelFuture[] sent = new ChannelFuture[1];
