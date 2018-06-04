@@ -133,7 +133,6 @@ public class Properties extends HashMap<String, Object> {
         PIPELINES,
         RECEIVERS,
         SENDERS,
-        TOPPIPELINE,
         SOURCES;
         @Override
         public String toString() {
