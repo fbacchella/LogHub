@@ -130,7 +130,7 @@ public class TestConfigurations {
 
     @Test
     public void testLog() throws ConfigException, IOException, ProcessorException {
-        String confile = "pipeline[main] {log(\"event.info\", INFO)}";
+        String confile = "pipeline[main] {log([info], INFO)}";
         Properties conf = Configuration.parse(new StringReader(confile));
         Event sent = Tools.getEvent();
         sent.put("a", "1");

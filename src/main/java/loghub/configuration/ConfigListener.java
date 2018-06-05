@@ -651,11 +651,11 @@ class ConfigListener extends RouteBaseListener {
 
     @Override
     public void exitLog(LogContext ctx) {
+        ObjectWrapped<String> expression = stack.popTyped();
         Log log = new Log();
         log.setLevel(ctx.level().getText());
         log.setPipeName(currentPipeLineName);
-        String message = ctx.message.getText();
-        log.setMessage(message);
+        log.setMessage(expression.wrapped);
         stack.push(new ObjectWrapped<Log>(log));
     }
 

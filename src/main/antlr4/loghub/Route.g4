@@ -80,7 +80,7 @@ fire
     ;
 
 log
-    : 'log' '(' message=StringLiteral ',' level ')'
+    : 'log' '(' expression ',' level ')'
     ;
 
 level
