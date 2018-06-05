@@ -22,7 +22,11 @@ public abstract class Processor {
     private String id = null;
 
     public Processor() {
-        logger = LogManager.getLogger(Helpers.getFistInitClass());
+        logger = LogManager.getLogger(Helpers.getFirstInitClass());
+    }
+
+    public Processor(Logger logger) {
+        this.logger = logger;
     }
 
     public boolean configure(Properties properties) {

@@ -25,7 +25,7 @@ public abstract class Sender extends Thread {
     public Sender() {
         setDaemon(true);
         setName("sender-" + getSenderName());
-        logger = LogManager.getLogger(Helpers.getFistInitClass());
+        logger = LogManager.getLogger(Helpers.getFirstInitClass());
         isAsync = getClass().getAnnotation(AsyncSender.class) != null;
     }
 

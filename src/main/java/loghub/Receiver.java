@@ -58,7 +58,7 @@ public abstract class Receiver extends Thread implements Iterator<Event>, Closea
 
     public Receiver(){
         setDaemon(true);
-        logger = LogManager.getLogger(Helpers.getFistInitClass());
+        logger = LogManager.getLogger(Helpers.getFirstInitClass());
         blocking = getClass().getAnnotation(Blocking.class) != null;
     }
 

@@ -113,7 +113,7 @@ public abstract class AbstractNettyServer<CF extends ComponentFactory<BS, BSC, S
         if (builder.threadPrefix == null) {
             throw new RuntimeException("Thread prefix not defined");
         }
-        logger = LogManager.getLogger(Helpers.getFistInitClass());
+        logger = LogManager.getLogger(Helpers.getFirstInitClass());
         authHandler = builder.authHandler;
         poller = builder.poller;
         address = resolveAddress(builder);

@@ -324,7 +324,7 @@ public final class Helpers {
         }
     }
 
-    public static String getFistInitClass() {
+    public static String getFirstInitClass() {
         StackTraceElement[] elements = new Throwable().getStackTrace();
         String last ="";
         for (int i = 1; i < elements.length ; i++) {

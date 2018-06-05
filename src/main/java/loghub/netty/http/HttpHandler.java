@@ -64,7 +64,7 @@ public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRe
 
     public HttpHandler(boolean release) {
         super(release);
-        logger = LogManager.getLogger(Helpers.getFistInitClass());
+        logger = LogManager.getLogger(Helpers.getFirstInitClass());
         RequestAccept mask = getClass().getAnnotation(RequestAccept.class);
         if ( mask != null) {
             String filter = mask.filter();
@@ -85,7 +85,7 @@ public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRe
 
     public HttpHandler(boolean release, Predicate<String> urlFilter, String... methods) {
         super(FullHttpRequest.class, release);
-        logger = LogManager.getLogger(Helpers.getFistInitClass());
+        logger = LogManager.getLogger(Helpers.getFirstInitClass());
         this.urlFilter = urlFilter;
         this.methods = Arrays.stream(methods).map( i -> HttpMethod.valueOf(i.toUpperCase())).collect(Collectors.toSet());
     }

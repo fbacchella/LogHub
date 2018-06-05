@@ -2,6 +2,9 @@ package loghub.processors;
 
 import java.util.concurrent.ExecutionException;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import io.netty.util.concurrent.Future;
 import loghub.AsyncProcessor;
 import loghub.Event;
@@ -12,11 +15,13 @@ import loghub.ProcessorException;
 
 public class FuturProcessor<FI> extends Processor {
 
+    private static final Logger logger = LogManager.getLogger();
+
     private final Future<FI> future;
     private final AsyncProcessor<FI> callback;
 
     public FuturProcessor(Future<FI> future, PausedEvent<Future<FI>> pe, AsyncProcessor<FI> callback) {
-        super();
+        super(logger);
         this.future = future;
         this.callback = callback;
         if (pe.onFailure != null) {
