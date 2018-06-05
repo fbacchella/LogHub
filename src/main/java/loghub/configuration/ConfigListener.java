@@ -808,15 +808,22 @@ class ConfigListener extends RouteBaseListener {
             expression = "event.getMeta(\"" + ctx.ev.MetaName().getText().substring(1) + "\")";
         } else if (ctx.ev != null) {
             StringBuilder buffer = new StringBuilder("event");
-            Arrays.stream(convertEventVariable(ctx.ev)).forEach( i-> {
-                if (Event.TIMESTAMPKEY.equals(i)) {
-                    buffer.append(".getTimestamp()");
-                } else if (Event.CONTEXTKEY.equals(i)) {
-                    buffer.append(".getConnectionContext()");
-                } else {
+            String[] path = convertEventVariable(ctx.ev);
+            if (Event.TIMESTAMPKEY.equals(path[0])) {
+                buffer.append(".getTimestamp()");
+            } else if (Event.CONTEXTKEY.equals(path[0])) {
+                buffer.append(".getConnectionContext()");
+                Arrays.stream(path, 1, path.length).forEach( i-> {
                     buffer.append(".").append(i);
-                }
-            });
+                });
+            } else {
+                buffer.append(".getPath(");
+                buffer.append(Arrays.stream(path)
+                              .map(s -> '"' + s + '"')
+                              .collect(Collectors.joining(","))
+                                );
+                buffer.append(")");
+            }
             expression = buffer.toString();
         } else if (ctx.qi != null) {
             expression = ctx.qi.getText();

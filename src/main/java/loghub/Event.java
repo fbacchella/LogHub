@@ -58,7 +58,7 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
     }
 
     protected abstract Map<String, Object> getMetas();
-    
+
     public abstract Object getMeta(String key);
 
     public abstract Object putMeta(String key, Object value);
@@ -69,6 +69,10 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
 
     public ProcessorException buildException(String message, Exception root) {
         return new ProcessorException(getRealEvent(), message, root);
+    }
+
+    public Object getPath(String...path) {
+        return applyAtPath((i,j,k) -> i.get(j), path, null, false);
     }
 
     /**

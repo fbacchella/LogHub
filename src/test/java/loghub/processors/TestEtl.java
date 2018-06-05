@@ -37,6 +37,10 @@ public class TestEtl {
     }
 
     private Event RunEtl(String exp, Consumer<Event> filer) throws ProcessorException {
+        return RunEtl(exp, filer, true);
+    }
+
+    private Event RunEtl(String exp, Consumer<Event> filer, boolean status) throws ProcessorException {
         Map<String, String> formatters = new HashMap<>();
         Etl e =  ConfigurationTools.buildFromFragment(exp, i -> i.etl(), formatters);
         Map<String, Object> settings = new HashMap<>(1);
@@ -44,7 +48,7 @@ public class TestEtl {
         e.configure(new Properties(settings));
         Event ev = Event.emptyEvent(ConnectionContext.EMPTY);
         filer.accept(ev);
-        Assert.assertTrue(e.process(ev));
+        Assert.assertEquals(status, e.process(ev));
         return ev;
     }
 
@@ -260,6 +264,13 @@ public class TestEtl {
     public void testMetaChar() throws ProcessorException {
         Event ev =  RunEtl("[a] = \"\\\"'!\"", i -> {});
         Assert.assertEquals("\"'!", ev.remove("a"));
+        Assert.assertTrue(ev.isEmpty());
+    }
+
+    @Test
+    public void testNullMapping() throws ProcessorException {
+        Event ev =  RunEtl("[ a b ] @ [ a b ] {0: 1} ", i -> {}, false);
+        System.out.println(ev);
         Assert.assertTrue(ev.isEmpty());
     }
 
