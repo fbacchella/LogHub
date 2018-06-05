@@ -1,13 +1,9 @@
 package loghub.netty;
 
 import java.net.InetSocketAddress;
-import java.net.SocketAddress;
 
 import io.netty.bootstrap.AbstractBootstrap;
 import io.netty.channel.Channel;
-import io.netty.channel.ChannelHandlerContext;
-import loghub.ConnectionContext;
-import loghub.IpConnectionContext;
 import loghub.configuration.Properties;
 import loghub.netty.servers.NettyIpServer;
 import loghub.security.ssl.ClientAuthentication;
@@ -63,21 +59,6 @@ public abstract class NettyIpReceiver<R extends NettyIpReceiver<R, S, B, CF, BS,
      public void setHost(String host) {
         // Ensure host is null if given empty string, to be resolved as "bind *" by InetSocketAddress;
         this.host = host != null && !host.isEmpty() ? host : null;
-     }
-
-     @Override
-     public ConnectionContext<InetSocketAddress> getNewConnectionContext(ChannelHandlerContext ctx, SM message) {
-         InetSocketAddress remoteaddr = null;
-         InetSocketAddress localaddr = null;
-         SocketAddress remoteddr = ctx.channel().remoteAddress();
-         SocketAddress localddr = ctx.channel().localAddress();
-         if (remoteddr instanceof InetSocketAddress) {
-             remoteaddr = (InetSocketAddress)remoteddr;
-         }
-         if (localddr instanceof InetSocketAddress) {
-             remoteaddr = (InetSocketAddress)remoteddr;
-         }
-         return new IpConnectionContext(localaddr, remoteaddr, null);
      }
 
 }

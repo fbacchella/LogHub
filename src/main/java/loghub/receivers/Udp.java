@@ -9,6 +9,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.socket.DatagramChannel;
 import io.netty.channel.socket.DatagramPacket;
 import loghub.ConnectionContext;
+import loghub.Event;
 import loghub.IpConnectionContext;
 import loghub.configuration.Properties;
 import loghub.netty.BaseChannelConsumer;
@@ -57,30 +58,44 @@ public class Udp extends NettyIpReceiver<Udp,
         return message.content();
     }
 
+    @Override
+    public Event nettyMessageDecode(ChannelHandlerContext ctx,
+                                    DatagramPacket message) {
+        ConnectionContext<InetSocketAddress> cctx = getNewConnectionContext(ctx, message);
+        return decode(cctx, message.content());
+    }
+
     /**
      * @return the buffersize
      */
-     public int getBufferSize() {
+    public int getBufferSize() {
         return buffersize;
     }
 
     /**
      * @param buffersize the buffersize to set
      */
-     public void setBufferSize(int buffersize) {
-         this.buffersize = buffersize;
-     }
+    public void setBufferSize(int buffersize) {
+        this.buffersize = buffersize;
+    }
 
-     @Override
-     public ConnectionContext<InetSocketAddress> getNewConnectionContext(ChannelHandlerContext ctx, DatagramPacket message) {
-         InetSocketAddress remoteaddr = message.sender();
-         InetSocketAddress localaddr = message.recipient();
-         return new IpConnectionContext(localaddr, remoteaddr, null);
-     }
+    @Override
+    public ConnectionContext<InetSocketAddress> getConnectionContext(ChannelHandlerContext ctx,
+                                                                     DatagramPacket message) {
+        return null;
+    }
 
-     @Override
-     public BaseChannelConsumer<Udp, Bootstrap, Channel, DatagramPacket> getConsumer() {
-         return new BaseChannelConsumer<Udp, Bootstrap, Channel, DatagramPacket>(this);
-     }
+    @Override
+    public ConnectionContext<InetSocketAddress> getNewConnectionContext(ChannelHandlerContext ctx, DatagramPacket message) {
+        System.out.println("getNewConnectionContext(UDP)");
+        InetSocketAddress remoteaddr = message.sender();
+        InetSocketAddress localaddr = message.recipient();
+        return new IpConnectionContext(localaddr, remoteaddr, null);
+    }
+
+    @Override
+    public BaseChannelConsumer<Udp, Bootstrap, Channel, DatagramPacket> getConsumer() {
+        return new BaseChannelConsumer<Udp, Bootstrap, Channel, DatagramPacket>(this);
+    }
 
 }

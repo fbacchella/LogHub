@@ -15,7 +15,6 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import io.netty.util.internal.logging.Log4J2LoggerFactory;
 import loghub.Helpers;
-import loghub.configuration.Properties;
 import loghub.netty.ChannelConsumer;
 import loghub.netty.ComponentFactory;
 import loghub.netty.ConsumerProvider;
