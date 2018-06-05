@@ -18,6 +18,7 @@ import io.netty.buffer.ByteBuf;
 import loghub.Decoder.DecodeException;
 import loghub.Decoder.RuntimeDecodeException;
 import loghub.configuration.Properties;
+import loghub.netty.SelfDecoder;
 import loghub.receivers.Blocking;
 import loghub.security.AuthenticationHandler;
 import loghub.security.ssl.ClientAuthentication;
@@ -67,9 +68,11 @@ public abstract class Receiver extends Thread implements Iterator<Event>, Closea
         count = Properties.metrics.meter("receiver." + getReceiverName());
         if (decoder != null) {
             return decoder.configure(properties, this);
-        } else {
+        } else if (getClass().getAnnotation(SelfDecoder.class) == null) {
             logger.error("Missing decoder");
             return false;
+        } else {
+            return true;
         }
     }
 
