@@ -1,26 +1,28 @@
 package org.logstash.beats;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.module.afterburner.AfterburnerModule;
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufOutputStream;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.handler.codec.ByteToMessageDecoder;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import java.io.IOException;
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.zip.Inflater;
 import java.util.zip.InflaterOutputStream;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.module.afterburner.AfterburnerModule;
+
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufOutputStream;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.handler.codec.ByteToMessageDecoder;
+
 public class BeatsParser extends ByteToMessageDecoder {
+
     public final static ObjectMapper MAPPER = new ObjectMapper().registerModule(new AfterburnerModule());
     private final static Logger logger = LogManager.getLogger();
-    private static final Charset UTF8 = Charset.forName("UTF8");
 
     private Batch batch = new Batch();
 
@@ -48,7 +50,6 @@ public class BeatsParser extends ByteToMessageDecoder {
     private final int maxPayloadSize;
 
     public BeatsParser(int maxPayloadSize) {
-        super();
         this.maxPayloadSize = maxPayloadSize;
     }
 
@@ -139,7 +140,7 @@ public class BeatsParser extends ByteToMessageDecoder {
                     throw new InvalidFrameProtocolException("Invalid field length, received: " + fieldLength);
                 }
                 ByteBuf fieldBuf = in.readBytes(fieldLength);
-                String field = fieldBuf.toString(UTF8);
+                String field = fieldBuf.toString(StandardCharsets.UTF_8);
                 fieldBuf.release();
 
                 int dataLength = (int) in.readUnsignedInt();
@@ -147,7 +148,7 @@ public class BeatsParser extends ByteToMessageDecoder {
                     throw new InvalidFrameProtocolException("Invalid data length length, received: " + dataLength);
                 }
                 ByteBuf dataBuf = in.readBytes(dataLength);
-                String data = dataBuf.toString(UTF8);
+                String data = dataBuf.toString(StandardCharsets.UTF_8);
                 dataBuf.release();
 
                 dataMap.put(field, data);
@@ -197,9 +198,9 @@ public class BeatsParser extends ByteToMessageDecoder {
             // Use the compressed size as the safe start for the buffer.
             ByteBuf buffer = ctx.alloc().buffer(requiredBytes);
             try (
-                    ByteBufOutputStream buffOutput = new ByteBufOutputStream(buffer);
-                    InflaterOutputStream inflater = new InflaterOutputStream(buffOutput, new Inflater());
-                    ) {
+                            ByteBufOutputStream buffOutput = new ByteBufOutputStream(buffer);
+                            InflaterOutputStream inflater = new InflaterOutputStream(buffOutput, new Inflater());
+                            ) {
                 in.readBytes(inflater, requiredBytes);
                 transition(States.READ_HEADER);
                 try {
@@ -245,7 +246,7 @@ public class BeatsParser extends ByteToMessageDecoder {
     }
 
     private void transition(States nextState, int requiredBytes) throws InvalidFrameProtocolException {
-        logger.debug("Transition, from: {}, to: {}, requiring ()  bytes", currentState, nextState, requiredBytes);
+        logger.debug("Transition, from: {}, to: {}, requiring {} bytes", currentState, nextState, requiredBytes);
         if (requiredBytes > maxPayloadSize) {
             throw new InvalidFrameProtocolException("Oversized payload: " + requiredBytes);
         }

@@ -1,5 +1,6 @@
 package loghub.receivers;
 
+import org.apache.logging.log4j.Level;
 import org.logstash.beats.AckEncoder;
 import org.logstash.beats.BeatsHandler;
 import org.logstash.beats.BeatsParser;
@@ -15,12 +16,16 @@ import io.netty.channel.ServerChannel;
 import io.netty.handler.timeout.IdleStateHandler;
 import io.netty.util.concurrent.DefaultEventExecutorGroup;
 import io.netty.util.concurrent.EventExecutorGroup;
+import loghub.ConnectionContext;
+import loghub.Event;
+import loghub.Helpers;
 import loghub.configuration.Properties;
 import loghub.netty.AbstractTcpReceiver;
 import loghub.netty.BaseChannelConsumer;
 import loghub.netty.ChannelConsumer;
 import loghub.netty.CloseOnError;
 import loghub.netty.ConsumerProvider;
+import loghub.netty.NettyReceiver;
 import loghub.netty.SelfDecoder;
 import loghub.netty.servers.TcpServer;
 import loghub.netty.servers.TcpServer.Builder;
@@ -40,7 +45,8 @@ public class Beats extends AbstractTcpReceiver<Beats, TcpServer, TcpServer.Build
 
             @Override
             public void onChannelInitializeException(ChannelHandlerContext arg0, Throwable error) {
-                logger.fatal("Beats initialization exception: {}", error.getCause());
+                logger.fatal("Beats initialization exception: {}", Helpers.resolveThrowableException(error));
+                logger.catching(Level.DEBUG, error);
             }
 
             @Override
@@ -59,9 +65,18 @@ public class Beats extends AbstractTcpReceiver<Beats, TcpServer, TcpServer.Build
             }
 
             @Override
-            public void onNewMessage(ChannelHandlerContext ctx, Message arg1) {
-                logger.trace("new beats message {}", arg1);
-                ctx.fireChannelRead(arg1.getData());
+            public void onNewMessage(ChannelHandlerContext ctx, Message beatsMessage) {
+                logger.trace("new beats message {}", () -> beatsMessage.getData());
+                ConnectionContext<?> cctx = ctx.channel().attr(NettyReceiver.CONNECTIONCONTEXTATTRIBUTE).get();
+                Event newEvent = Event.emptyEvent(cctx);
+                beatsMessage.getData().forEach((i,j) -> {
+                    String key = i.toString();
+                    if (key.startsWith("@")) {
+                        key = "_" + key.substring(1);
+                    }
+                    newEvent.put(key,j);
+                });
+                ctx.fireChannelRead(newEvent);
             }
         };
     }
@@ -82,6 +97,7 @@ public class Beats extends AbstractTcpReceiver<Beats, TcpServer, TcpServer.Build
         return new BaseChannelConsumer<Beats, ServerBootstrap, ServerChannel, ByteBuf>(this) {
             @Override
             public void addHandlers(ChannelPipeline pipe) {
+                super.addHandlers(pipe);
                 pipe.addBefore("Sender", "Splitter", new BeatsParser(maxPayloadSize));
                 // From org.logstash.beats.Server
                 // We have set a specific executor for the idle check, because the `beatsHandler` can be
