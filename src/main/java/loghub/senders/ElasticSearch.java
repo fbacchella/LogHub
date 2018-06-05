@@ -297,12 +297,16 @@ public class ElasticSearch extends AbstractHttpSender {
         URL[] localendPoints = UrlArrayCopy.get();
         Helpers.shuffleArray(localendPoints);
         for (URL endPoint: localendPoints) {
+            URL newEndPoint;
             try {
-                URL newEndPoint = new URL(endPoint.getProtocol(), endPoint.getHost(), endPoint.getPort(), endPoint.getFile() + filePart);
-                request.setUrl(newEndPoint);
-                HttpResponse response = doRequest(request);
+                newEndPoint = new URL(endPoint.getProtocol(), endPoint.getHost(), endPoint.getPort(), endPoint.getFile() + filePart);
+            } catch (MalformedURLException e1) {
+                continue;
+            }
+            request.setUrl(newEndPoint);
+            try (HttpResponse response = doRequest(request)) {
                 if (response.isConnexionFailed()) {
-                    break;
+                    continue;
                 }
                 int status = response.getStatus();
                 String responseMimeType = response.getMimeType();
@@ -310,6 +314,7 @@ public class ElasticSearch extends AbstractHttpSender {
                     JsonNode node = json.get().readTree(response.getContentReader());
                     return transform.apply(node);
                 } else if ((status - status % 100) == 200 || (status - status % 100) == 500) {
+                    // This node return 200 but not a application/json, or a 500
                     // Looks like this node is broken try another one
                     logger.warn("Broken node: {}, returned '{} {}' {}", newEndPoint, status, response.getStatusMessage(), response.getMimeType());
                     continue;
@@ -326,7 +331,6 @@ public class ElasticSearch extends AbstractHttpSender {
                     logger.error("Invalid query: {} {}, return '{} {}', {}", request.getVerb(), newEndPoint, status, response.getStatusMessage(), responseMimeType);
                     break;
                 }
-            } catch (MalformedURLException e) {
             } catch (IOException | UncheckedIOException e) {
                 logger.error("Can't communicate with node {}:{}: {}", endPoint.getHost(), endPoint.getPort(), e.getMessage());
                 logger.catching(Level.DEBUG, e);

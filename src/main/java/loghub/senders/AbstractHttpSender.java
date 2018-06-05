@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.io.UncheckedIOException;
+import java.lang.management.ManagementFactory;
 import java.net.ConnectException;
 import java.net.SocketTimeoutException;
 import java.net.URL;
@@ -17,6 +18,16 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
+
+import javax.management.InstanceAlreadyExistsException;
+import javax.management.InstanceNotFoundException;
+import javax.management.MBeanRegistrationException;
+import javax.management.MBeanServer;
+import javax.management.MXBean;
+import javax.management.MalformedObjectNameException;
+import javax.management.NotCompliantMBeanException;
+import javax.management.ObjectName;
+import javax.management.StandardMBean;
 
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHost;
@@ -36,6 +47,7 @@ import org.apache.http.config.RegistryBuilder;
 import org.apache.http.config.SocketConfig;
 import org.apache.http.conn.ConnectionPoolTimeoutException;
 import org.apache.http.conn.HttpHostConnectException;
+import org.apache.http.conn.routing.HttpRoute;
 import org.apache.http.conn.socket.ConnectionSocketFactory;
 import org.apache.http.conn.socket.PlainConnectionSocketFactory;
 import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
@@ -46,6 +58,7 @@ import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.apache.http.message.BasicHttpEntityEnclosingRequest;
 import org.apache.http.message.BasicRequestLine;
+import org.apache.http.pool.ConnPoolControl;
 import org.apache.http.protocol.HttpContext;
 import org.apache.http.util.VersionInfo;
 import org.apache.logging.log4j.Level;
@@ -95,8 +108,8 @@ public abstract class AbstractHttpSender extends Sender {
         }
         public void setTypeAndContent(String mimeType, Charset charset, byte[] content) throws IOException {
             EntityBuilder builder = EntityBuilder.create()
-                    .setBinary(content)
-                    .setContentType(org.apache.http.entity.ContentType.create(mimeType, charset));
+                            .setBinary(content)
+                            .setContentType(org.apache.http.entity.ContentType.create(mimeType, charset));
             this.content = builder.build();
         }
     }
@@ -187,6 +200,39 @@ public abstract class AbstractHttpSender extends Sender {
         }
     }
 
+    @MXBean
+    public interface HttpClientStatsMBean {
+        public int getAvailable();
+        public int getLeased();
+        public int getMax();
+        public int getPending();
+    }
+
+    public class Implementation extends StandardMBean implements HttpClientStatsMBean {
+        private final ConnPoolControl<HttpRoute> pool;
+        public Implementation(ConnPoolControl<HttpRoute> pool)
+                        throws NotCompliantMBeanException, MalformedObjectNameException, InstanceAlreadyExistsException, MBeanRegistrationException {
+            super(HttpClientStatsMBean.class);
+            this.pool = pool;
+        }
+        @Override
+        public int getAvailable() {
+            return pool.getTotalStats().getAvailable();
+        }
+        @Override
+        public int getLeased() {
+            return pool.getTotalStats().getLeased();
+        }
+        @Override
+        public int getMax() {
+            return pool.getTotalStats().getMax();
+        }
+        @Override
+        public int getPending() {
+            return pool.getTotalStats().getPending();
+        }
+    }
+
     // Beans
     private String[] destinations;
     private int buffersize = 20;
@@ -269,49 +315,59 @@ public abstract class AbstractHttpSender extends Sender {
         for (int i = 1 ; i <= publisherThreads ; i++) {
             String tname =  getPublishName() + "Publisher" + i;
             threads[i - 1] = ThreadBuilder.get()
-                    .setRunnable(publisher)
-                    .setDaemon(false)
-                    .setName(tname)
-                    .build(true);
+                            .setRunnable(publisher)
+                            .setDaemon(false)
+                            .setName(tname)
+                            .build(true);
         }
 
         // The HTTP connection management
         HttpClientBuilder builder = HttpClientBuilder.create();
         builder.setUserAgent(VersionInfo.getUserAgent("LogHub-HttpClient",
-                "org.apache.http.client", HttpClientBuilder.class));
+                                                      "org.apache.http.client", HttpClientBuilder.class));
 
         // Set the Configuration manager
         Registry<ConnectionSocketFactory> registry = RegistryBuilder.<ConnectionSocketFactory>create()
-                .register("http", PlainConnectionSocketFactory.getSocketFactory())
-                .register("https", new SSLConnectionSocketFactory(properties.ssl))
-                .build();
+                        .register("http", PlainConnectionSocketFactory.getSocketFactory())
+                        .register("https", new SSLConnectionSocketFactory(properties.ssl))
+                        .build();
         PoolingHttpClientConnectionManager cm = new PoolingHttpClientConnectionManager(registry);
         cm.setMaxTotal(publisherThreads + 1);
         cm.setDefaultMaxPerRoute(publisherThreads + 1);
         cm.setValidateAfterInactivity(timeout * 1000);
         builder.setConnectionManager(cm);
+
+        try {
+            MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
+            mbs.registerMBean(new Implementation(cm), new ObjectName("loghub:type=sender,servicename=" + getName() + ",name=connectionsPool"));
+        } catch (NotCompliantMBeanException | MalformedObjectNameException
+                        | InstanceAlreadyExistsException | MBeanRegistrationException e) {
+            throw new RuntimeException("jmx configuration failed: " + Helpers.resolveThrowableException(e), e);
+        }
+
+
         if (properties.ssl != null) {
             builder.setSSLContext(properties.ssl);
         }
 
         builder.setDefaultRequestConfig(RequestConfig.custom()
-                .setConnectionRequestTimeout(timeout * 1000)
-                .setConnectTimeout(timeout * 1000)
-                .setSocketTimeout(timeout * 1000)
-                .build());
+                                        .setConnectionRequestTimeout(timeout * 1000)
+                                        .setConnectTimeout(timeout * 1000)
+                                        .setSocketTimeout(timeout * 1000)
+                                        .build());
         builder.setDefaultSocketConfig(SocketConfig.custom()
-                .setTcpNoDelay(true)
-                .setSoKeepAlive(true)
-                .setSoTimeout(timeout * 1000)
-                .build());
+                                       .setTcpNoDelay(true)
+                                       .setSoKeepAlive(true)
+                                       .setSoTimeout(timeout * 1000)
+                                       .build());
         builder.setDefaultConnectionConfig(ConnectionConfig.custom()
-                .build());
+                                           .build());
         builder.disableCookieManagement();
 
         builder.setRetryHandler(new HttpRequestRetryHandler() {
             @Override
             public boolean retryRequest(IOException exception,
-                    int executionCount, HttpContext context) {
+                                        int executionCount, HttpContext context) {
                 return false;
             }
         });
@@ -322,8 +378,8 @@ public abstract class AbstractHttpSender extends Sender {
             credsProvider = new BasicCredentialsProvider();
             for(URL i: endPoints) {
                 credsProvider.setCredentials(
-                        new AuthScope(i.getHost(), i.getPort()), 
-                        new UsernamePasswordCredentials(user, password));
+                                             new AuthScope(i.getHost(), i.getPort()), 
+                                             new UsernamePasswordCredentials(user, password));
             }
         }
 
@@ -341,6 +397,18 @@ public abstract class AbstractHttpSender extends Sender {
         properties.registerScheduledTask(getPublishName() + "Flusher" , flush, 5000);
 
         return true;
+    }
+
+    @Override
+    public void stopSending() {
+        try {
+            MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
+            mbs.unregisterMBean(new ObjectName("loghub:type=sender,servicename=" + getName() + ",name=connectionsPool"));
+        } catch (MalformedObjectNameException | MBeanRegistrationException | InstanceNotFoundException e) {
+            logger.error("Failed to unregister mbeam: " + Helpers.resolveThrowableException(e), e);
+            logger.catching(Level.DEBUG, e);
+        }
+        super.stopSending();
     }
 
     public void close() {
@@ -390,7 +458,6 @@ public abstract class AbstractHttpSender extends Sender {
 
     protected HttpResponse doRequest(HttpRequest therequest) {
 
-        CloseableHttpResponse response = null;
         HttpClientContext context = HttpClientContext.create();
         if (credsProvider != null) {
             context.setCredentialsProvider(credsProvider);
@@ -404,12 +471,13 @@ public abstract class AbstractHttpSender extends Sender {
         }
         therequest.headers.forEach((i,j) -> request.addHeader(i, j));
         host = new HttpHost(therequest.url.getHost(),
-                therequest.url.getPort(),
-                therequest.url.getProtocol());
+                            therequest.url.getPort(),
+                            therequest.url.getProtocol());
         try {
-            response = client.execute(host, request, context);
+            CloseableHttpResponse response = client.execute(host, request, context);
+            return new HttpResponse(host, response, null, null);
         } catch (ConnectionPoolTimeoutException e) {
-            logger.error("All connections to {} used.", host);
+            logger.error("All connections slots to {} used.", host);
             return new HttpResponse(host, null, e, null);
         } catch (HttpHostConnectException e) {
             String message = "";
@@ -420,8 +488,8 @@ public abstract class AbstractHttpSender extends Sender {
             } catch (SocketTimeoutException e1) {
                 message = String.format("Slow response from %s", host);
             } catch (Throwable e1) {
-                message = String.format("Connection to %s failed: %s", host, e1.getMessage());
-                logger.catching(Level.DEBUG, e1);
+                // Don't worry, it was wrapped in HttpHostConnectException, so we're never catching a fatal exception here
+                message = String.format("Connection to %s failed: %s", host, Helpers.resolveThrowableException(e1));
             }
             logger.error(message);
             logger.catching(Level.DEBUG, e.getCause());
@@ -433,20 +501,15 @@ public abstract class AbstractHttpSender extends Sender {
             };
             // A TLS exception, will not help to retry
             if (rootCause instanceof GeneralSecurityException) {
-                logger.error("Secure comunication with {} failed: {}", host, rootCause.getMessage());
+                logger.error("Secure comunication with {} failed: {}", host, Helpers.resolveThrowableException(rootCause));
                 logger.catching(Level.DEBUG, rootCause);
                 return new HttpResponse(host, null, null, (GeneralSecurityException) rootCause);
             } else {
-                logger.error("Comunication with {} failed: {}", host, e.getMessage());
+                logger.error("Comunication with {} failed: {}", host, Helpers.resolveThrowableException(e));
                 logger.catching(Level.DEBUG, e);
                 return new HttpResponse(host, null, e, null);
             }
         }
-        if (response == null) {
-            logger.error("give up trying to connect to " + getPublishName());
-            return null;
-        };
-        return new HttpResponse(host, response, null, null);
     };
 
     /**
