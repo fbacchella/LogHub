@@ -173,6 +173,14 @@ public class TestExpressionParsing {
     }
 
     @Test
+    public void testPatternBooleanEscaped() throws ExpressionException, ProcessorException {
+        Event ev =  Tools.getEvent();
+        ev.put("a", "a.c");
+        Boolean i = (Boolean) evalExpression("[a] ==~ /a\\\\.c/",ev);
+        Assert.assertEquals(true, i.booleanValue());
+    }
+
+    @Test
     public void testPatternArray() throws ExpressionException, ProcessorException {
         Event ev =  Tools.getEvent();
         ev.put("a", "abc");

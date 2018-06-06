@@ -465,7 +465,7 @@ patternLiteral
 
 
 PatternLiteral
-    :   '/' PatternFirstCharacter PatternCharacter* '/'
+    :   '/' PatternFirstCharacter PatternCharacter* '/' {setText( '/' + loghub.configuration.CharSupport.getStringFromGrammarStringLiteral(getText()) + '/' );}
     ;
     
 fragment
