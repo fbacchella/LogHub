@@ -262,6 +262,7 @@ public class TestEtl {
 
     @Test
     public void testMetaChar() throws ProcessorException {
+        // The expected string is "'!
         Event ev =  RunEtl("[a] = \"\\\"'!\"", i -> {});
         Assert.assertEquals("\"'!", ev.remove("a"));
         Assert.assertTrue(ev.isEmpty());
@@ -270,7 +271,6 @@ public class TestEtl {
     @Test
     public void testNullMapping() throws ProcessorException {
         Event ev =  RunEtl("[ a b ] @ [ a b ] {0: 1} ", i -> {}, false);
-        System.out.println(ev);
         Assert.assertTrue(ev.isEmpty());
     }
 

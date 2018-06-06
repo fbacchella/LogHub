@@ -463,27 +463,30 @@ patternLiteral
     :   PatternLiteral
     ;
 
-
 PatternLiteral
-    :   '/' PatternFirstCharacter PatternCharacter* '/' {setText( '/' + loghub.configuration.CharSupport.getStringFromGrammarStringLiteral(getText()) + '/' );}
+    :   '/' PatternFirstCharacter PatternCharacter* '/'
     ;
     
 fragment
 PatternCharacter
-    :   ~[/\\]
-    |   EscapeSequence
+    :   ~[/]
     ;
 
 fragment
 PatternFirstCharacter
-    :   ~[/*\\]
-    |   EscapeSequence
+    :   ~[/*]
+    ;
+
+fragment
+PatternEscapeSequence
+    :   '\\' [btnfr"'\\.?+]
+    |   OctalEscape
+    |   UnicodeEscape
     ;
 
 StringLiteral
     :   '"' StringCharacter* '"' {setText( loghub.configuration.CharSupport.getStringFromGrammarStringLiteral(getText()));}
     ;
-
 
 fragment
 StringCharacter
