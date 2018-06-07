@@ -453,7 +453,6 @@ class ConfigListener extends RouteBaseListener {
 
     @Override
     public void enterPath(PathContext ctx) {
-        System.out.println("enterPath " + stack);
         WrapEvent we = new WrapEvent();
         we.setPathArray(convertEventVariable(ctx.eventVariable()));
         ProcessorInstance pi = new ProcessorInstance(we);
