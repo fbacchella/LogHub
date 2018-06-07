@@ -355,7 +355,7 @@ public class Configuration {
 
         BlockingQueue<Event> mainQueue = new ArrayBlockingQueue<Event>(queuesDepth);
         Map<String, BlockingQueue<Event>> outputQueues = new HashMap<>(namedPipeLine.size());
-        namedPipeLine.keySet().stream().forEach( i-> outputQueues.put(i, new ArrayBlockingQueue<Event>(queuesDepth)));
+        conf.outputPipelines.forEach( i-> outputQueues.put(i, new ArrayBlockingQueue<Event>(queuesDepth)));
 
         newProperties.put(Properties.PROPSNAMES.FORMATTERS.toString(), conf.formatters);
         newProperties.put(Properties.PROPSNAMES.MAINQUEUE.toString(), mainQueue);
@@ -384,7 +384,7 @@ public class Configuration {
         senders = new ArrayList<>();
         for(Output o: conf.outputs) {
             if(o.piperef == null || ! namedPipeLine.containsKey(o.piperef)) {
-                throw new RuntimeException("Invalid output, no source pipeline: " + o);
+                throw new IllegalArgumentException("Invalid output, no source pipeline: " + o);
             }
             for(ConfigListener.ObjectWrapped<Sender> desc: o.sender) {
                 BlockingQueue<Event> out = outputQueues.get(o.piperef);

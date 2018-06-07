@@ -154,8 +154,14 @@ public class EventsProcessor extends Thread {
                         event.end();
                         Thread.currentThread().interrupt();
                     }
+                } else if (event.getCurrentPipeline() != null && ! outQueues.containsKey(event.getCurrentPipeline())){
+                    Stats.newException(new IllegalArgumentException("No sender consumming pipeline " + event.getCurrentPipeline()));
+                    logger.debug("No sender using pipeline {} for event {}", event.getCurrentPipeline(), event);
+                    Properties.metrics.meter("Allevents.failed");
+                    event.end();
                 } else {
-                    logger.error("Miss-configured event droped: {}", event);
+                    Stats.newException(new IllegalStateException("Invalid end state for event, no pipelin "));
+                    logger.debug("Invalid end state for event {}", event);
                     Properties.metrics.meter("Allevents.failed");
                     event.end();
                 }

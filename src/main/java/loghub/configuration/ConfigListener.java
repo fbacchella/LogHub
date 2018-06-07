@@ -189,6 +189,7 @@ class ConfigListener extends RouteBaseListener {
     final Map<String, Object> properties = new HashMap<>();
     final Map<String, String> formatters = new HashMap<>();
     final Map<String, SourceProvider> sources = new HashMap<>();
+    final Set<String> outputPipelines = new HashSet<>();
 
     private String currentPipeLineName = null;
     private int expressionDepth = 0;
@@ -548,6 +549,10 @@ class ConfigListener extends RouteBaseListener {
             // if no pipe name given, take events from the main pipe
             piperef = new PipeRefName("main");
         }
+        if (outputPipelines.contains(piperef.piperef)) {
+            throw new RecognitionException("already sent pipeline " + piperef.piperef, parser, stream, ctx);
+        }
+        outputPipelines.add(piperef.piperef);
         Output output = new Output(senders, piperef.piperef);
         outputs.add(output);
         logger.debug("adding new output {}", output);

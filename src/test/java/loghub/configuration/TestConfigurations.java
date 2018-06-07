@@ -186,4 +186,15 @@ public class TestConfigurations {
         Assert.assertTrue(props.namedPipeLine.containsKey("empty"));
     }
 
+    @Test(expected=ConfigException.class)
+    public void testPipelineReuse() throws ConfigException, IOException {
+        String confile = "output $a | {\n" + 
+                        "    loghub.senders.Stdout { encoder: loghub.encoders.ToJson}\n" + 
+                        "}\n" + 
+                        "output $a | {\n" + 
+                        "    loghub.senders.Stdout { encoder: loghub.encoders.ToJson}\n" + 
+                        "}";
+        Configuration.parse(new StringReader(confile));
+    }
+
 }
