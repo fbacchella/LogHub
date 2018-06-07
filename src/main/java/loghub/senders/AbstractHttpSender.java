@@ -170,7 +170,9 @@ public abstract class AbstractHttpSender extends Sender {
         }
         public void close() {
             try {
-                response.close();
+                if (response != null) {
+                    response.close();
+                }
             } catch (IOException e) {
             }
         }
@@ -447,7 +449,7 @@ public abstract class AbstractHttpSender extends Sender {
                 batch = new Batch();
                 publisher.notify();
                 if (batches.size() > publisherThreads) {
-                    logger.warn("Waiting flush batches, added flushing threads");
+                    logger.warn("Waiting flush batches, add flushing threads");
                 }
             }
         }
