@@ -34,16 +34,12 @@ public class ScanBinary extends FieldsProcessor {
     }
 
     @Override
-    public boolean processMessage(Event event, String field, String destination) throws ProcessorException {
-        Object value = event.get(field);
+    public Object processMessage(Event event, Object value) throws ProcessorException {
         long nvalue = 0;
-        if (value == null) {
-            event.put(destination, null);
-            return true;
-        } else if (value instanceof Number) {
+        if (value instanceof Number) {
             if (value instanceof BigDecimal || value instanceof Double || value instanceof DoubleAccumulator || value instanceof DoubleAdder || value instanceof Float) {
                 // not bit field for floating point values
-                return false;
+                throw event.buildException("Can't parse as floating point value:  " + value);
             }
             else {
                 nvalue = ((Number)value).longValue();
@@ -66,7 +62,7 @@ public class ScanBinary extends FieldsProcessor {
                     parsed.add(bitsNames[i].toString());
                 }
             }
-            event.put(destination, parsed.toArray(new String[parsed.size()]));
+            return parsed.toArray(new String[parsed.size()]);
         } else {
             Map<String, Number> values = new HashMap<>(fieldsLength.length);
             for (int i = 0 ; i < fieldsLength.length  ; i++) {
@@ -74,9 +70,8 @@ public class ScanBinary extends FieldsProcessor {
                 values.put(bitsNames[i].toString(), nvalue & mask);
                 nvalue = nvalue >> fieldsLength[i];
             }
-            event.put(destination, values);
+            return values;
         }
-        return true;
     }
 
     /**

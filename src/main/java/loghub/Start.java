@@ -161,7 +161,7 @@ public class Start {
                 new BufferedReader(new InputStreamReader(System.in, "UTF-8")).lines().forEach( i -> {
                     try {
                         ev.put("message", i);
-                        fp.processMessage(ev, "message", "transformed_message");
+                        fp.processMessage(ev, i);
                         System.out.format("%s -> %s\n", i, ev);
                     } catch (ProcessorException e) {
                         System.err.println("Processing failed:" + e.getMessage());

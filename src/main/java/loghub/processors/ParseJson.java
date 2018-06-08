@@ -21,20 +21,19 @@ public class ParseJson extends FieldsProcessor {
     };
 
     @Override
-    public boolean processMessage(Event event, String field, String destination) throws ProcessorException {
-        String message = event.get(field).toString();
+    public Object processMessage(Event event, Object value) throws ProcessorException {
         try {
-            Object o = json.get().readValue(new StringReader(message), Object.class);
-            if(o instanceof Map) {
+            Object o = json.get().readValue(new StringReader(value.toString()), Object.class);
+            if (o instanceof Map) {
                 @SuppressWarnings("unchecked")
                 Map<Object, Object> map = (Map<Object, Object>) o;
                 map.entrySet().stream().forEach( (i) -> event.put(i.getKey().toString(), i.getValue()));
+                return FieldsProcessor.RUNSTATUS.NOSTORE;
             } else {
-                event.put(destination, o);
+                return o;
             }
-            return true;
         } catch (IOException e) {
-            throw event.buildException("failed to parse json " + message, e);
+            throw event.buildException("failed to parse json " + value, e);
         }
     }
 

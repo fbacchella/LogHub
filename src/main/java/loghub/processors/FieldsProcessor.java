@@ -1,5 +1,12 @@
 package loghub.processors;
 
+import static java.lang.annotation.ElementType.TYPE;
+import static java.lang.annotation.RetentionPolicy.RUNTIME;
+
+import java.lang.annotation.Documented;
+import java.lang.annotation.Inherited;
+import java.lang.annotation.Retention;
+import java.lang.annotation.Target;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -12,18 +19,33 @@ import loghub.Helpers;
 import loghub.IgnoredEventException;
 import loghub.Processor;
 import loghub.ProcessorException;
+import loghub.UncheckedProcessingException;
 import loghub.VarFormatter;
 import loghub.configuration.Properties;
 
 public abstract class FieldsProcessor extends Processor {
+
+    @Documented
+    @Retention(RUNTIME)
+    @Target(TYPE)
+    @Inherited
+    public @interface ProcessNullField {
+
+    }
+
+    protected enum RUNSTATUS {
+        FAILED,
+        NOSTORE,
+        REMOVE
+    }
+
     private String field = "message";
     private VarFormatter destinationFormat = null;
     private String[] fields = new String[] {};
     private Pattern[] patterns = new Pattern[]{};
-    public abstract boolean processMessage(Event event, String field, String destination) throws ProcessorException;
 
     public interface AsyncFieldsProcessor<FI> {
-        public boolean process(Event event, FI content, String destination) throws ProcessorException;
+        public Object process(Event event, FI content) throws ProcessorException;
         public boolean manageException(Event event, Exception e, String destination) throws ProcessorException;
         public int getTimeout();
     }
@@ -46,7 +68,7 @@ public abstract class FieldsProcessor extends Processor {
                 event.insertProcessor(this);
             }
             if (event.containsKey(toprocess)) {
-                return FieldsProcessor.this.processMessage(event, toprocess, getDestination(toprocess));
+                return doProcessMessage(event, toprocess);
             } else {
                 throw event.buildException("field " + toprocess + " vanished");
             }
@@ -64,7 +86,7 @@ public abstract class FieldsProcessor extends Processor {
 
     }
 
-    private class AsyncFieldSubProcessor extends FieldSubProcessor implements AsyncProcessor<Object> {
+    private class AsyncFieldSubProcessor<FI> extends FieldSubProcessor implements AsyncProcessor<FI> {
 
         private final int timeout;
 
@@ -74,10 +96,8 @@ public abstract class FieldsProcessor extends Processor {
         }
 
         @Override
-        public boolean process(Event event, Object content) throws ProcessorException {
-            @SuppressWarnings("unchecked")
-            AsyncFieldsProcessor<Object> ap = (AsyncFieldsProcessor<Object>) FieldsProcessor.this;
-            return ap.process(event, content, getDestination(toprocess));
+        public boolean process(Event event, FI content) throws ProcessorException {
+            return FieldsProcessor.this.doProcessMessage(event, toprocess);
         }
 
         @Override
@@ -137,12 +157,36 @@ public abstract class FieldsProcessor extends Processor {
             return false;
         } else {
             if (event.containsKey(field)) {
-                return processMessage(event, field, getDestination(field));
+                return doProcessMessage(event, field);
             } else {
                 throw IgnoredEventException.INSTANCE;
             }
         }
     }
+
+    private boolean doProcessMessage(Event event, String field) throws ProcessorException {
+        Object value = event.get(field);
+        if (getClass().getAnnotation(ProcessNullField.class) == null && value == null) {
+            return false;
+        }
+        try {
+            Object processed = processMessage(event, value);
+            if ( ! (processed instanceof RUNSTATUS)) {
+                event.put(getDestination(field), processed);
+            } else if (processed == RUNSTATUS.REMOVE) {
+                event.remove(field);
+            }
+            return processed != RUNSTATUS.FAILED;
+        } catch (ProcessorException.PausedEventException | ProcessorException.DroppedEventException | IgnoredEventException e) {
+            throw e;
+        } catch (ProcessorException | UncheckedProcessingException e) {
+            ProcessorException npe = event.buildException("field " + field + "invalid: " + e.getMessage(), (Exception)e.getCause());
+            npe.setStackTrace(e.getStackTrace());
+            throw npe;
+        }
+    }
+
+    public abstract Object processMessage(Event event, Object value) throws ProcessorException;
 
     private void delegate(Set<String> nextfields, Event event) {
         final Iterator<String> processing = nextfields.iterator();

@@ -16,38 +16,47 @@ import loghub.configuration.Properties;
  * @author Fabrice Bacchella
  *
  */
+@FieldsProcessor.ProcessNullField
 public class Convert extends FieldsProcessor {
 
     private String className = "java.lang.String";
     private Class<?> clazz;
 
     @Override
-    public boolean processMessage(Event event, String field, String destination) throws ProcessorException {
-        try {
-            Object o;
-            switch(className) {
-            case "java.lang.Integer":
-                o = Integer.valueOf(event.get(field).toString());
-                break;
-            case "java.lang.Byte" :
-                o = Byte.valueOf(event.get(field).toString());
-                break;
-            case "java.lang.Short":
-                o = Short.valueOf(event.get(field).toString());
-                break;
-            case "java.lang.Long":
-                o = Long.valueOf(event.get(field).toString());
-                break;
-            default:
-                o = BeansManager.ConstructFromString(clazz, event.get(field).toString());
-                break;
+    public Object processMessage(Event event, Object value) throws ProcessorException {
+        if (value == null) {
+            return null;
+        } else {
+            try {
+                String valueStr = value.toString();
+                Object o;
+                switch(className) {
+                case "java.lang.Integer":
+                case "Integer":
+                    o = Integer.valueOf(valueStr);
+                    break;
+                case "java.lang.Byte" :
+                case "Byte" :
+                    o = Byte.valueOf(valueStr);
+                    break;
+                case "java.lang.Short":
+                case "Short":
+                    o = Short.valueOf(valueStr);
+                    break;
+                case "java.lang.Long":
+                case "Long":
+                    o = Long.valueOf(valueStr);
+                    break;
+                default:
+                    o = BeansManager.ConstructFromString(clazz, valueStr);
+                    break;
+                }
+                return o;
+            } catch (NumberFormatException e) {
+                throw event.buildException("unable to convert from string to " + className, e);
+            } catch (InvocationTargetException e) {
+                throw event.buildException("unable to convert from string to " + className, (Exception)e.getCause());
             }
-            event.put(destination, o);
-            return true;
-        } catch (NumberFormatException e) {
-            throw event.buildException("unable to convert from string to " + className, e);
-        } catch (InvocationTargetException e) {
-            throw event.buildException("unable to convert from string to " + className, (Exception)e.getCause());
         }
     }
 

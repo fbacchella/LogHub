@@ -92,10 +92,9 @@ public class DateParser extends FieldsProcessor {
      * @see loghub.processors.FieldsProcessor#processMessage(loghub.Event, java.lang.String, java.lang.String)
      */
     @Override
-    public boolean processMessage(Event event, String field, String destination) throws ProcessorException {
-        String dateString = event.get(field).toString();
-        logger.debug("trying to parse {} from {}", dateString, field);
-        boolean converted = false;
+    public Object processMessage(Event event, Object value) throws ProcessorException {
+        String dateString = value.toString();
+        logger.debug("trying to parse {}", dateString);
         for(DateTimeFormatter formatter: patterns) {
             logger.trace("trying to parse {} with {}", () -> dateString, () -> formatter.toString());
             try {
@@ -156,19 +155,13 @@ public class DateParser extends FieldsProcessor {
                 // We should have a complete OffsetDateTime now
                 logger.debug("Resolved to {}", parsed);
                 Date date = Date.from(parsed.toInstant());
-                if(Event.TIMESTAMPKEY.equals(destination)) {
-                    event.setTimestamp(date);
-                } else {
-                    event.put(destination, date);
-                }
-                converted = true;
-                break;
+                return date;
             } catch (DateTimeException e) {
                 logger.debug("failed to parse date with pattern {}: {}", () -> formatter.toString(), () -> e.getMessage());
                 //no problem, just wrong parser, keep going
             }
         }
-        return converted;
+        return FieldsProcessor.RUNSTATUS.FAILED;
     }
 
     /**

@@ -56,20 +56,21 @@ public class Geoip2 extends FieldsProcessor {
     private String locale = "en";
 
     @Override
-    public boolean processMessage(Event event, String field, String destination) throws ProcessorException {
-        Object addr = event.get(field);
+    public Object processMessage(Event event, Object addr) throws ProcessorException {
         InetAddress ipInfo = null;
-        if(addr instanceof InetAddress) {
+        if (addr instanceof InetAddress) {
             ipInfo = (InetAddress) addr;
         } else if (addr instanceof String) {
             try {
                 ipInfo = Helpers.parseIpAddres((String) addr);
                 if(ipInfo == null) {
-                    throw event.buildException("can't read ip address " + addr);
+                    throw event.buildException("can't read IP address " + addr);
                 }
             } catch (UnknownHostException e) {
-                throw event.buildException("can't read ip address " + addr, e);
+                throw event.buildException("can't read IP address " + addr, e);
             }
+        } else {
+            throw event.buildException("It's not an IP address: " + addr);
         }
 
         Country country = null;
@@ -201,8 +202,7 @@ public class Geoip2 extends FieldsProcessor {
                 break;
             }
         }
-        event.put(destination, informations);
-        return true;
+        return informations;
     }
 
     @Override

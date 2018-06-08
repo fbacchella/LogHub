@@ -22,11 +22,13 @@ public class TestScanBinary {
         ScanBinary fs = new ScanBinary();
         fs.setBitsNames(new String[] {"PF_PROT", "PF_WRITE", "PF_USER", "PF_RSVD", "PF_INSTR"});
         fs.configure(new Properties(Collections.emptyMap()));
+        fs.setField("binary");
 
         Event e = Event.emptyEvent(ConnectionContext.EMPTY);
         e.put("binary", "13");
-        Assert.assertTrue(fs.processMessage(e, "binary", "value"));
-        Assert.assertArrayEquals("Bad decoding of bitfield", new String[] {"PF_PROT", "PF_USER", "PF_RSVD"}, (String[])e.get("value"));
+        Assert.assertTrue(fs.process(e));
+        String[] processed = (String[]) e.get("binary");
+        Assert.assertArrayEquals("Bad decoding of bitfield", new String[] {"PF_PROT", "PF_USER", "PF_RSVD"}, processed);
     }
 
     @Test
@@ -35,12 +37,13 @@ public class TestScanBinary {
         fs.setBitsNames(new String[] {"a", "b", "c"});
         fs.setAsMap(true);
         fs.configure(new Properties(Collections.emptyMap()));
+        fs.setField("binary");
 
         Event e = Event.emptyEvent(ConnectionContext.EMPTY);
         e.put("binary", 0b101);
-        Assert.assertTrue(fs.processMessage(e, "binary", "value"));
+        Assert.assertTrue(fs.process(e));
         @SuppressWarnings("unchecked")
-        Map<String, Number> value = (Map<String, Number>) e.get("value");
+        Map<String, Number> value = (Map<String, Number>) fs.processMessage(e, 0b101);
         Assert.assertEquals(1, value.get("a").intValue());
         Assert.assertEquals(0, value.get("b").intValue());
         Assert.assertEquals(1, value.get("c").intValue());
@@ -52,10 +55,12 @@ public class TestScanBinary {
         fs.setBitsNames(new String[] {"a", "b", "c"});
         fs.setFieldsLength(new Integer[] {3, 2, 1});
         fs.configure(new Properties(Collections.emptyMap()));
+        fs.setField("binary");
+        fs.setDestination("value");
 
         Event e = Event.emptyEvent(ConnectionContext.EMPTY);
         e.put("binary", 0b110101);
-        Assert.assertTrue(fs.processMessage(e, "binary", "value"));
+        Assert.assertTrue(fs.process(e));
         @SuppressWarnings("unchecked")
         Map<String, Number> value = (Map<String, Number>) e.get("value");
         Assert.assertEquals(0b101, value.get("a").intValue());

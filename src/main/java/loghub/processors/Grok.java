@@ -48,27 +48,20 @@ public class Grok extends FieldsProcessor {
     }
 
     @Override
-    public boolean processMessage(Event event, String field, String destination) {
-        if (! event.containsKey(field)) {
-            return false;
-        }
-        String line = event.get(field).toString();
-        Match gm = grok.match(line);
+    public Object processMessage(Event event, Object value) {
+        Match gm = grok.match(value.toString());
         //Results from grok needs to be cleaned
         Map<String, Object> captures = gm.capture();
         if (captures.size() == 0) {
-            return false;
+            return FieldsProcessor.RUNSTATUS.FAILED;
         }
+        Object returned = FieldsProcessor.RUNSTATUS.NOSTORE;
         for (Map.Entry<String, Object> e: gm.capture().entrySet()) {
             String destinationField = e.getKey();
-
-            // . is a special field name, it mean a value to put back in the original field
-            if (".".equals(e.getKey())) {
-                destinationField = field ;
-            }
+            Object stored;
             // Dirty hack to filter non named regex
             // Needed until https://github.com/thekrakken/java-grok/issues/61 is fixed
-            if (e.getKey().equals(e.getKey().toUpperCase()) && ! ".".equals(e.getKey())) {
+            if (destinationField.equals(destinationField.toUpperCase()) && ! ".".equals(destinationField)) {
                 continue;
             }
             if (e.getValue() == null) {
@@ -81,15 +74,21 @@ public class Grok extends FieldsProcessor {
                 if (newvalues.size() == 0) {
                     continue;
                 } else if (newvalues.size() == 1) {
-                    event.put(destinationField, newvalues.get(0));
+                    stored = newvalues.get(0);
                 } else {
-                    event.put(destinationField, newvalues);
+                    stored = newvalues;
                 }
             } else {
-                event.put(destinationField, e.getValue());
+                stored = e.getValue();
+            }
+            // . is a special field name, it mean a value to put back in the original field
+            if (! ".".equals(destinationField) ) {
+                event.put(destinationField, stored);
+            } else {
+                returned = stored;
             }
         }
-        return true;
+        return returned;
     }
 
     public void setPattern(String pattern) {

@@ -47,10 +47,10 @@ public class NameResolver extends AbstractNameResolver {
     @Override
     public boolean configure(Properties properties) {
         CacheConfiguration config = properties.getDefaultCacheConfig("NameResolver", this)
-                .eternal(false)
-                .maxEntriesLocalHeap(cacheSize)
-                .timeToLiveSeconds(ttl)
-                ;
+                        .eternal(false)
+                        .maxEntriesLocalHeap(cacheSize)
+                        .timeToLiveSeconds(ttl)
+                        ;
 
         hostCache = properties.getCache(config);
         return super.configure(properties);
@@ -132,16 +132,15 @@ public class NameResolver extends AbstractNameResolver {
     }
 
     @Override
-    public boolean resolve(Event event, String query, String destination) throws ProcessorException {
+    public Object resolve(Event event, String query) throws ProcessorException {
         Element cacheElement = hostCache.get(query);
 
         if(cacheElement != null && ! cacheElement.isExpired()) {
             Object o = cacheElement.getObjectValue();
             //Set only if it was not a negative cache
             if(o != null) {
-                event.put(destination, o);
+                return o;
             }
-            return true;
         }
         try {
             Attributes attrs = localContext.get().getAttributes(query, new String[] { type });
@@ -155,23 +154,22 @@ public class NameResolver extends AbstractNameResolver {
                     String value = attr.getAll().next().toString();
                     value = value.substring(0, value.length() - 1).intern();
                     hostCache.put(new Element(query, value));
-                    event.put(destination, value);
+                    return value;
                 }
             }
-            return true;
+            return FieldsProcessor.RUNSTATUS.FAILED;
         } catch (IllegalArgumentException e) {
             throw event.buildException("can't setup resolver for '" + query + "':" + e.getCause().getMessage());
         } catch (NameNotFoundException ex) {
-            // Expected failure from DNS, don't care
+            // Failure from DNS, don't panic
             // But keep a short negative cache to avoid flooding
             Element e = new Element(query, null);
             e.setTimeToLive(timeout * 5);
             hostCache.put(e);
-            return false;
+            return FieldsProcessor.RUNSTATUS.FAILED;
         } catch (NamingException e) {
             throw event.buildException("unresolvable name '" + query + "': " + e.getMessage());
-        } 
+        }
     }
-
 
 }

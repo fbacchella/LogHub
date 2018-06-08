@@ -69,11 +69,8 @@ public class OnigurumaRegex extends FieldsProcessor {
     }
 
     @Override
-    public boolean processMessage(Event event, String field, String destination) throws ProcessorException {
-        if (! event.containsKey(field)) {
-            return false;
-        }
-        String line = event.get(field).toString();
+    public Object processMessage(Event event, Object value) throws ProcessorException {
+        String line = value.toString();
         int length;
         Matcher matcher;
         Regex regex;
@@ -119,9 +116,9 @@ public class OnigurumaRegex extends FieldsProcessor {
                     }
                 });
             }
-            return true;
+            return FieldsProcessor.RUNSTATUS.NOSTORE;
         } else {
-            return false;
+            return FieldsProcessor.RUNSTATUS.FAILED;
         }
     }
 

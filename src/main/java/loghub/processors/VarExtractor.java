@@ -22,12 +22,9 @@ public class VarExtractor extends FieldsProcessor {
     ThreadLocal<Matcher> matchersGenerator = ThreadLocal.withInitial( () -> parser.matcher(""));
 
     @Override
-    public boolean processMessage(Event event, String field, String destination ) {
+    public Object processMessage(Event event, Object fieldValue) {
         boolean parsed = false;
-        if (event.get(field) == null) {
-            return false;
-        }
-        String message = event.get(field).toString();
+        String message = fieldValue.toString();
         String after = message;
         Matcher m = matchersGenerator.get().reset(message);
         while(m.find()) {
@@ -41,12 +38,13 @@ public class VarExtractor extends FieldsProcessor {
             }
             after = message.substring(m.end());
         }
-        if (after != null && ! after.isEmpty()) {
-            event.put(destination, after.intern());
+        if (! parsed) {
+            return FieldsProcessor.RUNSTATUS.FAILED;
+        } else if (after != null && ! after.isEmpty()) {
+            return after;
         } else {
-            event.remove(field);
+            return FieldsProcessor.RUNSTATUS.REMOVE;
         }
-        return parsed;
     }
 
     @Override

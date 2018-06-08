@@ -23,10 +23,8 @@ public class TestFieldsProcessor {
         FieldsProcessor p = new FieldsProcessor() {
 
             @Override
-            public boolean processMessage(Event event, String field,
-                    String destination) throws ProcessorException {
-                event.put(destination, event.get(field));
-                return true;
+            public Object processMessage(Event event, Object valuedestination) throws ProcessorException {
+                return valuedestination;
             }
 
             @Override

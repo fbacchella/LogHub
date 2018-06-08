@@ -130,14 +130,14 @@ public class NettyNameResolver extends AbstractNameResolver implements FieldsPro
     }
 
     @Override
-    public boolean resolve(Event event, String query, String destination) throws ProcessorException {
+    public Object resolve(Event event, String query) throws ProcessorException {
         DnsQuestion dnsquery = new DefaultDnsQuestion(query, DnsRecordType.PTR);
         Element e = hostCache.get(makeKey(dnsquery));
         if (e != null) {
             DnsCacheEntry cached = (DnsCacheEntry) e.getObjectValue();
             logger.trace("Cached response: {}", cached);
             if (! e.isExpired()) {
-                return store(event, cached , destination);
+                return store(event, cached);
             } else {
                 hostCache.remove(cached);
             }
@@ -147,7 +147,7 @@ public class NettyNameResolver extends AbstractNameResolver implements FieldsPro
     }
 
     @Override
-    public boolean process(Event ev, AddressedEnvelope<DnsResponse, InetSocketAddress> enveloppe, String destination) throws ProcessorException {
+    public Object process(Event ev, AddressedEnvelope<DnsResponse, InetSocketAddress> enveloppe) throws ProcessorException {
         try {
             DnsResponse response = enveloppe.content();
             DnsQuestion questionRr = (DnsQuestion) response.recordAt((DnsSection.QUESTION));
@@ -158,20 +158,19 @@ public class NettyNameResolver extends AbstractNameResolver implements FieldsPro
             int ttl = (response.code().intValue() == NOERROR && answerRr != null) ? (int) answerRr.timeToLive() : 5;
             Element cacheElement = new Element(makeKey(questionRr), cached, ttl / 2, ttl);
             hostCache.put(cacheElement);
-            return store(ev, cached, destination);
+            return store(ev, cached);
         } finally {
             enveloppe.release();
         }
     }
 
-    private boolean store(Event ev, DnsCacheEntry value, String destination) {
+    private Object store(Event ev, DnsCacheEntry value) {
         if (value.answserRr != null && value.answserRr instanceof DnsPtrRecord) {
             // DNS responses end the query with a ., substring removes it.
             DnsPtrRecord ptr = (DnsPtrRecord) value.answserRr;
-            ev.put(destination, ptr.hostname().substring(0, ptr.hostname().length() - 1).intern());
-            return true;
+            return ptr.hostname().substring(0, ptr.hostname().length() - 1);
         } else {
-            return false;
+            return FieldsProcessor.RUNSTATUS.FAILED;
         }
     }
 

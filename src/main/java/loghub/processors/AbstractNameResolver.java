@@ -14,14 +14,13 @@ public abstract class AbstractNameResolver extends FieldsProcessor {
     String resolver = null;
 
     @Override
-    public boolean processMessage(Event event, String field, String destination) throws ProcessorException {
-        Object addr = event.get(field);
+    public Object processMessage(Event event, Object addr) throws ProcessorException {
 
         InetAddress ipaddr = null;
         String toresolv = null;
 
         // If a string was given, convert it to a Inet?Address
-        if(addr instanceof String) {
+        if (addr instanceof String) {
             try {
                 ipaddr = Helpers.parseIpAddres((String) addr);
             } catch (UnknownHostException e) {
@@ -30,12 +29,12 @@ public abstract class AbstractNameResolver extends FieldsProcessor {
         } else if (addr instanceof InetAddress) {
             ipaddr = (InetAddress) addr;
         }
-        if(ipaddr instanceof Inet4Address) {
+        if (ipaddr instanceof Inet4Address) {
             Inet4Address ipv4 = (Inet4Address) ipaddr;
             byte[] parts = ipv4.getAddress();
             // the & 0xFF is needed because bytes are signed bytes
             toresolv = String.format("%d.%d.%d.%d.in-addr.arpa.", parts[3] & 0xFF , parts[2] & 0xFF , parts[1] & 0xFF, parts[0] & 0xFF);
-        } else if(ipaddr instanceof Inet6Address) {
+        } else if (ipaddr instanceof Inet6Address) {
             Inet6Address ipv6 = (Inet6Address) ipaddr;
             byte[] parts = ipv6.getAddress();
             StringBuilder buffer = new StringBuilder();
@@ -45,20 +44,18 @@ public abstract class AbstractNameResolver extends FieldsProcessor {
             buffer.append("ip6.arpa");
             toresolv = buffer.toString();
         }
-
         if (toresolv != null) {
             //If a query was build, use it
-            return resolve(event, toresolv, destination);
+            return resolve(event, toresolv);
         } else if(addr instanceof String) {
-            // if addr was a String, it's used a a hostname
-            event.put(destination, addr);
-            return true;
+            // if addr was a String, it's used as an hostname
+            return addr;
         } else {
-            return false;
+            return FieldsProcessor.RUNSTATUS.FAILED;
         }
     }
 
-    public abstract boolean resolve(Event event, String query, String destination) throws ProcessorException ;
+    public abstract Object resolve(Event event, String query) throws ProcessorException ;
 
     /**
      * @return the the IP of the resolver

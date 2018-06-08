@@ -48,37 +48,34 @@ public class SyslogPriority extends FieldsProcessor {
     private boolean resolve = true;
 
     @Override
-    public boolean processMessage(Event event, String field, String destination)
+    public Object processMessage(Event event, Object priorityObject)
                     throws ProcessorException {
-        Object priorityObject = event.get(field);
         int priority;
         if(priorityObject instanceof String) {
             try {
                 priority = Integer.parseInt((String) priorityObject);
             } catch (NumberFormatException e) {
-                throw event.buildException(field + " is not a number: " + priorityObject.toString());
+                throw event.buildException("Not a number: " + priorityObject.toString());
             }
         } else if ( priorityObject instanceof Number) {
             priority = ((Number) priorityObject).intValue();
         } else {
-            throw event.buildException(field + " is not a priority: " + priorityObject.toString());
+            throw event.buildException("Not a priority: " + priorityObject.toString());
         }
         int facility = (priority >> 3);
-        if(facility > 24) {
+        if (facility > 24) {
             facility = 24;
         }
         int severity = priority & 7;
         Map<String, Object> infos = new HashMap<>(2);
-        if(resolve) {
-            infos.put("facility", this.facilitiesNames[facility]);
-            infos.put("severity", this.severitiesNames[severity]);
+        if (resolve) {
+            infos.put("facility", facilitiesNames[facility]);
+            infos.put("severity", severitiesNames[severity]);
         } else {
             infos.put("facility", facility);
             infos.put("severity", severity);
         }
-        event.put(destination, infos);
-        return true;
-
+        return infos;
     }
 
     @Override

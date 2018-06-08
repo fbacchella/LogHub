@@ -25,12 +25,8 @@ public class UserAgent extends FieldsProcessor {
     private URL agentsUrl = null;
 
     @Override
-    public boolean processMessage(Event event, String field, String destination) {
-        if (event.get(field) == null) {
-            return false;
-        }
-        String userAgent = event.get(field).toString();
-        Client c = uaParser.parse(userAgent);
+    public Object processMessage(Event event, Object value) {
+        Client c = uaParser.parse(value.toString());
 
         Map<String, Object> ua = new HashMap<>(3);
         Helpers.putNotEmpty(ua, "device", c.device.family);
@@ -54,9 +50,7 @@ public class UserAgent extends FieldsProcessor {
             ua.put("userAgent", agent);
         }
 
-        event.put(destination, ua);
-
-        return true;
+        return ua;
     }
 
     @Override
