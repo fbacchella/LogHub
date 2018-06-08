@@ -18,8 +18,9 @@
         <log4j>2.11.0</log4j>
         <antlr>4.7.1</antlr>
         <javadoc>2.10.3</javadoc>
-        <ehcache>2.10.4</ehcache>
+        <ehcache>2.10.5</ehcache>
         <jackson>2.9.5</jackson>
+        <metrics>4.0.0</metrics>
         <mainClass>loghub.Start</mainClass>
         <dependency.locations.enabled>false</dependency.locations.enabled>
     </properties>
@@ -85,12 +86,12 @@
         <dependency>
             <groupId>org.snmp4j</groupId>
             <artifactId>snmp4j</artifactId>
-            <version>2.6.1</version>
+            <version>2.6.2</version>
         </dependency>
         <dependency>
             <groupId>org.codehaus.groovy</groupId>
-            <artifactId>groovy-all</artifactId>
-            <version>2.4.15</version>
+            <artifactId>groovy</artifactId>
+            <version>2.5.0</version>
         </dependency>
         <dependency>
             <groupId>org.antlr</groupId>
@@ -107,6 +108,7 @@
             <groupId>org.python</groupId>
             <artifactId>jython</artifactId>
             <version>2.7-b2</version>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>com.maxmind.geoip2</groupId>
@@ -142,17 +144,17 @@
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-all</artifactId>
-            <version>4.1.24.Final</version>
+            <version>4.1.25.Final</version>
         </dependency>
         <dependency>
             <groupId>io.dropwizard.metrics</groupId>
             <artifactId>metrics-core</artifactId>
-            <version>4.0.0</version>
+            <version>${metrics}</version>
         </dependency>
         <dependency>
             <groupId>io.dropwizard.metrics</groupId>
             <artifactId>metrics-jmx</artifactId>
-            <version>4.0.0</version>
+            <version>${metrics}</version>
         </dependency>
         <dependency>
             <groupId>com.github.jsendnsca</groupId>
@@ -289,9 +291,6 @@
                                 </filter>
                                 <filter>
                                     <artifact>log4j:log4j</artifact>
-                                    <excludes>
-                                        <exclude>**/*</exclude>
-                                    </excludes>
                                     <includes>
                                         <include>org/apache/log4j/spi/LoggingEvent.class</include>
                                     </includes>
@@ -299,13 +298,18 @@
                                 <filter>
                                     <artifact>org.apache.logging.log4j:log4j-*</artifact>
                                     <includes>
-                                        <include>**/*</include>
+                                        <include>**</include>
                                     </includes>
                                 </filter>
                                 <filter>
-                                    <artifact>org.codehaus.groovy:groovy-all</artifact>
+                                    <artifact>org.codehaus.groovy:groovy</artifact>
+                                    <excludes>
+                                        <exclude>groovyjarjarpicocli/**</exclude>
+                                        <exclude>groovy/cli/**</exclude>
+                                        <exclude>groovy/ui/**</exclude>
+                                    </excludes>
                                     <includes>
-                                        <include>**/*</include>
+                                        <include>**</include>
                                     </includes>
                                 </filter>
                             </filters>
