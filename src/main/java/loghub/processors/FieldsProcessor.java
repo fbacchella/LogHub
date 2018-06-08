@@ -6,7 +6,6 @@ import java.util.Iterator;
 import java.util.Set;
 import java.util.regex.Pattern;
 
-import loghub.AsyncProcessor;
 import loghub.Event;
 import loghub.Helpers;
 import loghub.IgnoredEventException;
@@ -22,13 +21,7 @@ public abstract class FieldsProcessor extends Processor {
     private Pattern[] patterns = new Pattern[]{};
     public abstract boolean processMessage(Event event, String field, String destination) throws ProcessorException;
 
-    public interface AsyncFieldsProcessor<FI> {
-        public boolean process(Event event, FI content, String destination) throws ProcessorException;
-        public boolean manageException(Event event, Exception e, String destination) throws ProcessorException;
-        public int getTimeout();
-    }
-
-    private class FieldSubProcessor extends Processor {
+    protected class FieldSubProcessor extends Processor {
 
         final Iterator<String> processing;
 
@@ -60,41 +53,6 @@ public abstract class FieldsProcessor extends Processor {
         @Override
         public String[] getPathArray() {
             return FieldsProcessor.this.getPathArray();
-        }
-
-    }
-
-    private class AsyncFieldSubProcessor extends FieldSubProcessor implements AsyncProcessor<Object> {
-
-        private final int timeout;
-
-        AsyncFieldSubProcessor(Iterator<String> processing, int timeout) {
-            super(processing);
-            this.timeout = timeout;
-        }
-
-        @Override
-        public boolean process(Event event, Object content) throws ProcessorException {
-            @SuppressWarnings("unchecked")
-            AsyncFieldsProcessor<Object> ap = (AsyncFieldsProcessor<Object>) FieldsProcessor.this;
-            return ap.process(event, content, getDestination(toprocess));
-        }
-
-        @Override
-        public boolean manageException(Event event, Exception e) throws ProcessorException {
-            @SuppressWarnings("unchecked")
-            AsyncFieldsProcessor<Object> ap = (AsyncFieldsProcessor<Object>) FieldsProcessor.this;
-            return ap.manageException(event, e, getDestination(toprocess));
-        }
-
-        @Override
-        public String getName() {
-            return String.format("%s$AsyncFieldSubProcessor@%d", FieldsProcessor.this.getName(), hashCode());
-        }
-
-        @Override
-        public int getTimeout() {
-            return timeout;
         }
 
     }
@@ -147,19 +105,18 @@ public abstract class FieldsProcessor extends Processor {
     private void delegate(Set<String> nextfields, Event event) {
         final Iterator<String> processing = nextfields.iterator();
 
-        Processor fieldProcessor;
-        if (this instanceof AsyncFieldsProcessor) {
-            fieldProcessor = new AsyncFieldSubProcessor(processing, ((AsyncFieldsProcessor<?>)this).getTimeout());
-        } else {
-            fieldProcessor = new FieldSubProcessor(processing);
-        }
+        Processor fieldProcessor = getSubProcessor(processing);
         if (processing.hasNext()) {
             event.insertProcessor(fieldProcessor);
         }
         throw IgnoredEventException.INSTANCE;
     }
+    
+    protected FieldSubProcessor getSubProcessor(Iterator<String> processing) {
+        return new FieldSubProcessor(processing);
+    }
 
-    private final String getDestination(String srcField) {
+    protected final String getDestination(String srcField) {
         if (destinationFormat == null) {
             return srcField;
         } else {

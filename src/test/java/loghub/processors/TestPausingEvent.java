@@ -49,7 +49,7 @@ public class TestPausingEvent {
     private class SleepingProcessor extends Processor implements AsyncProcessor<Object> {
 
         @Override
-        public boolean process(Event event, Object content)
+        public boolean processCallback(Event event, Object content)
                         throws ProcessorException {
             logger.debug("Will process {} with content {}", event, content);
             return onsucces.apply(event, content);

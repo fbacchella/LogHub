@@ -40,7 +40,7 @@ public class FuturProcessor<FI> extends Processor {
         FI content;
         try {
             content = future.get();
-            return callback.process(event, content);
+            return callback.processCallback(event, content);
         } catch (ExecutionException e) {
             // Don't try to manage fatal errors, they are re-thrown directly
             if (Helpers.isFatal(e.getCause())) {
