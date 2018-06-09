@@ -7,9 +7,7 @@ import java.util.Map;
 import io.netty.buffer.ByteBuf;
 import loghub.ConnectionContext;
 import loghub.Decoder;
-import loghub.configuration.Beans;
 
-@Beans({ "charset", "field" })
 public class StringCodec extends Decoder {
 
     private Charset charset = Charset.defaultCharset();

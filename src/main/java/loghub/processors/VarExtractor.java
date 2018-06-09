@@ -4,7 +4,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import loghub.Event;
-import loghub.configuration.Beans;
 
 /**
  * This transformer parse a field using a regex that extract name and value.
@@ -15,7 +14,6 @@ import loghub.configuration.Beans;
  * @author Fabrice Bacchella
  *
  */
-@Beans({"parser"})
 public class VarExtractor extends FieldsProcessor {
 
     private Pattern parser = Pattern.compile("(?<name>\\p{Alnum}+)\\p{Space}?[=:]\\p{Space}?(?<value>[^;,:]+)[;,:]?");

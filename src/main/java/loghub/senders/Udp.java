@@ -11,10 +11,8 @@ import org.apache.logging.log4j.Level;
 
 import loghub.Event;
 import loghub.Sender;
-import loghub.configuration.Beans;
 import loghub.configuration.Properties;
 
-@Beans({"port", "destination"})
 public class Udp extends Sender {
 
     private int port = 0;

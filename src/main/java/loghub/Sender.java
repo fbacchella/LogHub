@@ -9,11 +9,9 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import loghub.configuration.Beans;
 import loghub.configuration.Properties;
 import loghub.senders.AsyncSender;
 
-@Beans({"encoder"})
 public abstract class Sender extends Thread {
 
     protected final Logger logger;

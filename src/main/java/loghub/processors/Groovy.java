@@ -6,9 +6,7 @@ import groovy.lang.Script;
 import loghub.Event;
 import loghub.Processor;
 import loghub.ProcessorException;
-import loghub.configuration.Beans;
 
-@Beans({"script"})
 public class Groovy extends Processor  {
 
     private Script groovyScript;

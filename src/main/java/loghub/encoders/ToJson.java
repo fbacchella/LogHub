@@ -7,9 +7,7 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 
 import loghub.Encoder;
 import loghub.Event;
-import loghub.configuration.Beans;
 
-@Beans({"charset"})
 public class ToJson extends Encoder {
     
     private static final JsonFactory factory = new JsonFactory();

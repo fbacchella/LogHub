@@ -2,41 +2,14 @@ package loghub.configuration;
 
 import java.beans.IntrospectionException;
 import java.beans.PropertyDescriptor;
-import java.lang.annotation.Annotation;
 import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.LinkedHashSet;
-import java.util.Set;
 
 public class BeansManager {
 
     private BeansManager() {
-    }
-
-    /**
-     * Given an object, a bean name and a bean value, try to set the bean.
-     * 
-     * The bean type is expect to have a constructor taking a String argument
-     * @param beanObject the object to set
-     * @param beanName the bean to set
-     * @param beanValue the bean value, as a string
-     * @throws InvocationTargetException if unable to set bean
-     */
-    static public void beanSetter(Object beanObject, String beanName, String beanValue) throws InvocationTargetException{
-        try {
-            PropertyDescriptor bean = new PropertyDescriptor(beanName, beanObject.getClass());
-            Method setMethod = bean.getWriteMethod();
-            if(setMethod == null) {
-                throw new InvocationTargetException(new NullPointerException(), String.format("Unknown bean %s", beanName));
-            }
-            Class<?> setArgType = bean.getPropertyType();
-            Object argInstance = ConstructFromString(setArgType, beanValue);
-            setMethod.invoke(beanObject, argInstance);
-        } catch (Exception e) {
-            throw new InvocationTargetException(e, "invalid bean '" + beanName + "' for " + beanObject);
-        }
     }
 
     /**
@@ -86,31 +59,6 @@ public class BeansManager {
         } catch (Exception e) {
             throw new InvocationTargetException(e, "invalid bean '" + beanName + "' for " + beanObject);
         }
-    }
-
-    /**
-     * Enumerate the hierarchy of annotation for a class, until a certain class type is reached
-     * @param searched the Class where the annotation is searched
-     * @param annontationClass the annotation class
-     * @param stop a class that will stop (included) the search 
-     * @return a set of enumeration of type T
-     */
-    static public <T extends Annotation> Set<T> enumerateAnnotation(Class<?> searched, Class<T> annontationClass, Class<?> stop) {
-        Set<T> annotations =  new LinkedHashSet<T>();
-        while(searched != null && stop.isAssignableFrom(searched)) {
-            if(searched.isAnnotationPresent(annontationClass)) {
-                T annotation = searched.getAnnotation(annontationClass);
-                annotations.add(annotation);
-            }
-            for(Class<?> i: searched.getInterfaces()) {
-                if(i.isAnnotationPresent(annontationClass)) {
-                    T annotation = i.getAnnotation(annontationClass);
-                    annotations.add(annotation);
-                }
-            }
-            searched = searched.getSuperclass();
-        }
-        return annotations;
     }
 
     /**

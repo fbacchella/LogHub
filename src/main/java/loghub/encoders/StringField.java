@@ -9,9 +9,7 @@ import java.util.regex.Pattern;
 
 import loghub.Encoder;
 import loghub.Event;
-import loghub.configuration.Beans;
 
-@Beans({"locale", "charset", "format"})
 public class StringField extends Encoder {
 
     private static final Pattern varregexp = Pattern.compile("(?<before>.*?)(?:\\$\\{(?<varname>[\\w\\.-]+)(?<format>%[^}]+)?\\})(?<after>.*)");

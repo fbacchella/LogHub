@@ -23,10 +23,8 @@ import loghub.Event;
 import loghub.Helpers;
 import loghub.Processor;
 import loghub.ProcessorException;
-import loghub.configuration.Beans;
 import loghub.configuration.Properties;
 
-@Beans("script")
 public class Script extends Processor {
 
     private static ScriptEngineManager factory = null;

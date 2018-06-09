@@ -45,11 +45,9 @@ import loghub.ConnectionContext;
 import loghub.Event;
 import loghub.IpConnectionContext;
 import loghub.Receiver;
-import loghub.configuration.Beans;
 import loghub.configuration.Properties;
 import loghub.snmp.Log4j2LogFactory;
 
-@Beans({"protocol", "port", "listen"})
 public class SnmpTrap extends Receiver implements CommandResponder {
 
     static {

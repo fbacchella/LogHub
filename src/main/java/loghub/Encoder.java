@@ -4,10 +4,8 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.util.StackLocator;
 
-import loghub.configuration.Beans;
 import loghub.configuration.Properties;
 
-@Beans({"field"})
 public abstract class Encoder {
 
     private static final StackLocator stacklocator = StackLocator.getInstance();

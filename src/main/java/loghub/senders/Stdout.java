@@ -7,9 +7,8 @@ import org.apache.logging.log4j.Level;
 
 import loghub.Event;
 import loghub.Sender;
-import loghub.configuration.Beans;
+import loghub.configuration.Properties;
 
-@Beans("destination")
 public class Stdout extends Sender {
 
     PrintStream destination = System.out;

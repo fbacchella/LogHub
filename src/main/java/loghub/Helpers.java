@@ -59,22 +59,6 @@ public final class Helpers {
     }
 
     @FunctionalInterface
-    public interface ThrowingActor extends Actor {
-
-        @Override
-        default void act() {
-            try {
-                act();
-            } catch (final Exception e) {
-                throw new RuntimeException(e);
-            }
-        }
-
-        void actThrows() throws Exception;
-
-    }
-
-    @FunctionalInterface
     public interface ThrowingPredicate<T> extends Predicate<T> {
 
         @Override

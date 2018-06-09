@@ -10,9 +10,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufInputStream;
 import loghub.ConnectionContext;
 import loghub.Decoder;
-import loghub.configuration.Beans;
 
-@Beans({"field", "objectFied"})
 public class SerializedObject extends Decoder {
 
     private String field = "message";
