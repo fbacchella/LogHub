@@ -228,7 +228,7 @@ public class EventsProcessor extends Thread {
                     status = ProcessingStatus.PAUSED;
                 } else {
                     Properties.metrics.counter("Pipeline." + e.getCurrentPipeline() + ".exception").inc();
-                    Exception cce = new ClassCastException("A not AsyncProcessor throws a asynchronous operation");
+                    Exception cce = new ClassCastException("A not AsyncProcessor throws a asynchronous operation: " + p.getClass().getCanonicalName());
                     Stats.newException(cce);
                     logger.error("A not AsyncProcessor {} throws a asynchronous operation", p);
                     logger.throwing(Level.DEBUG, cce);
@@ -260,13 +260,7 @@ public class EventsProcessor extends Thread {
                     Properties.metrics.counter("Pipeline." + e.getCurrentPipeline() + ".exception").inc();
                     Stats.newException(ex);
                 });
-                String message= ex.getMessage();
-                if (message == null) {
-                    message = ex.getClass().getCanonicalName();
-                } else {
-                    message = ex.getClass().getCanonicalName() + ": " + message;
-                }
-                logger.error("failed to transform event {} with unmanaged error {}", e, message);
+                logger.error("failed to transform event {} with unmanaged error {}", e, Helpers.resolveThrowableException(ex));
                 logger.catching(Level.DEBUG, ex);
                 status = ProcessingStatus.FAILED;
             }

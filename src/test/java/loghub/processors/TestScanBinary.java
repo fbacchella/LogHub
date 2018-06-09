@@ -43,7 +43,7 @@ public class TestScanBinary {
         e.put("binary", 0b101);
         Assert.assertTrue(fs.process(e));
         @SuppressWarnings("unchecked")
-        Map<String, Number> value = (Map<String, Number>) fs.processMessage(e, 0b101);
+        Map<String, Number> value = (Map<String, Number>) fs.fieldFunction(e, 0b101);
         Assert.assertEquals(1, value.get("a").intValue());
         Assert.assertEquals(0, value.get("b").intValue());
         Assert.assertEquals(1, value.get("c").intValue());

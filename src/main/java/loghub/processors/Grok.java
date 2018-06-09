@@ -48,7 +48,7 @@ public class Grok extends FieldsProcessor {
     }
 
     @Override
-    public Object processMessage(Event event, Object value) {
+    public Object fieldFunction(Event event, Object value) {
         Match gm = grok.match(value.toString());
         //Results from grok needs to be cleaned
         Map<String, Object> captures = gm.capture();

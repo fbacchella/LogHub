@@ -22,7 +22,7 @@ public class VarExtractor extends FieldsProcessor {
     ThreadLocal<Matcher> matchersGenerator = ThreadLocal.withInitial( () -> parser.matcher(""));
 
     @Override
-    public Object processMessage(Event event, Object fieldValue) {
+    public Object fieldFunction(Event event, Object fieldValue) {
         boolean parsed = false;
         String message = fieldValue.toString();
         String after = message;

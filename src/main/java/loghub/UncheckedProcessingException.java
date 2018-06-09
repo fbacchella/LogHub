@@ -4,12 +4,12 @@ public class UncheckedProcessingException extends RuntimeException implements Pr
 
     private final Event event;
     
-    UncheckedProcessingException(Event event, String message, Exception root) {
+    public UncheckedProcessingException(Event event, String message, Exception root) {
         super(message, root);
         this.event = event;
     }
 
-    UncheckedProcessingException(Event event, String message) {
+    public UncheckedProcessingException(Event event, String message) {
         super(message);
         this.event = event;
     }

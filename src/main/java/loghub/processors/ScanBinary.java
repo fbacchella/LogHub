@@ -34,7 +34,7 @@ public class ScanBinary extends FieldsProcessor {
     }
 
     @Override
-    public Object processMessage(Event event, Object value) throws ProcessorException {
+    public Object fieldFunction(Event event, Object value) throws ProcessorException {
         long nvalue = 0;
         if (value instanceof Number) {
             if (value instanceof BigDecimal || value instanceof Double || value instanceof DoubleAccumulator || value instanceof DoubleAdder || value instanceof Float) {

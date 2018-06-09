@@ -86,7 +86,7 @@ public class Http extends AbstractTcpReceiver<Http, Http.HttpReceiverServer, Htt
                     break;
                 }
                 case "application/json":
-                    jsonParser.processMessage(e, message);
+                    jsonParser.fieldFunction(e, message);
                     break;
                 default:
                     Map<String, Object> result = Http.this.decoder.decode(e.getConnectionContext(), request.content());

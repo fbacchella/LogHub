@@ -89,10 +89,10 @@ public class DateParser extends FieldsProcessor {
      * 
      * If the pattern is incomplete (is missing some field like year or day), it will extract from
      * current time
-     * @see loghub.processors.FieldsProcessor#processMessage(loghub.Event, java.lang.String, java.lang.String)
+     * @see loghub.processors.FieldsProcessor#fieldFunction(loghub.Event, java.lang.Object)
      */
     @Override
-    public Object processMessage(Event event, Object value) throws ProcessorException {
+    public Object fieldFunction(Event event, Object value) throws ProcessorException {
         String dateString = value.toString();
         logger.debug("trying to parse {}", dateString);
         for(DateTimeFormatter formatter: patterns) {

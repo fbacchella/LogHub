@@ -21,7 +21,7 @@ public class ParseJson extends FieldsProcessor {
     };
 
     @Override
-    public Object processMessage(Event event, Object value) throws ProcessorException {
+    public Object fieldFunction(Event event, Object value) throws ProcessorException {
         try {
             Object o = json.get().readValue(new StringReader(value.toString()), Object.class);
             if (o instanceof Map) {

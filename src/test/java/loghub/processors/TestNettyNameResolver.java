@@ -185,12 +185,13 @@ public class TestNettyNameResolver {
         Tools.ProcessingStatus status = dorequest(i -> {
             i.setFields(new String[]{"*"});
             i.setDestination("fqdn_${field}");
+            i.setTimeout(2);
         } , e, "0.3.0.0.2.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.e.3.a.b.3.0.5.0.1.0.0.2.ip6.arpa", "4.0.41.198.in-addr.ptr");
 
         do {
             e = status.mainQueue.element();
             Thread.sleep(10);
-        } while(e.size() != 8);
+        } while (e.size() != 8);
 
         e = status.mainQueue.take();
         Assert.assertEquals("Still waiting events: " + status.repository, 0, status.repository.waiting());

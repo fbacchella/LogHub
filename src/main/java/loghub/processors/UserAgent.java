@@ -25,7 +25,7 @@ public class UserAgent extends FieldsProcessor {
     private URL agentsUrl = null;
 
     @Override
-    public Object processMessage(Event event, Object value) {
+    public Object fieldFunction(Event event, Object value) {
         Client c = uaParser.parse(value.toString());
 
         Map<String, Object> ua = new HashMap<>(3);

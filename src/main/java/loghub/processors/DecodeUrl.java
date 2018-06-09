@@ -12,7 +12,7 @@ public class DecodeUrl extends FieldsProcessor {
     private boolean loop = false;
 
     @Override
-    public Object processMessage(Event event, Object value) throws ProcessorException {
+    public Object fieldFunction(Event event, Object value) throws ProcessorException {
         String oldMessage = value.toString();
         try {
             String message = null;

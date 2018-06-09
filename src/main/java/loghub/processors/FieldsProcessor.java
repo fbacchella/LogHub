@@ -11,9 +11,9 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
+import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
-import loghub.AsyncProcessor;
 import loghub.Event;
 import loghub.Helpers;
 import loghub.IgnoredEventException;
@@ -44,13 +44,7 @@ public abstract class FieldsProcessor extends Processor {
     private String[] fields = new String[] {};
     private Pattern[] patterns = new Pattern[]{};
 
-    public interface AsyncFieldsProcessor<FI> {
-        public Object process(Event event, FI content) throws ProcessorException;
-        public boolean manageException(Event event, Exception e, String destination) throws ProcessorException;
-        public int getTimeout();
-    }
-
-    private class FieldSubProcessor extends Processor {
+    protected class FieldSubProcessor extends Processor {
 
         final Iterator<String> processing;
 
@@ -58,6 +52,7 @@ public abstract class FieldsProcessor extends Processor {
         protected String toprocess;
 
         FieldSubProcessor(Iterator<String> processing) {
+            super(FieldsProcessor.this.logger);
             this.processing = processing;
         }
 
@@ -68,7 +63,7 @@ public abstract class FieldsProcessor extends Processor {
                 event.insertProcessor(this);
             }
             if (event.containsKey(toprocess)) {
-                return doProcessMessage(event, toprocess);
+                return FieldsProcessor.this.filterField(event, toprocess);
             } else {
                 throw event.buildException("field " + toprocess + " vanished");
             }
@@ -86,43 +81,10 @@ public abstract class FieldsProcessor extends Processor {
 
     }
 
-    private class AsyncFieldSubProcessor<FI> extends FieldSubProcessor implements AsyncProcessor<FI> {
-
-        private final int timeout;
-
-        AsyncFieldSubProcessor(Iterator<String> processing, int timeout) {
-            super(processing);
-            this.timeout = timeout;
-        }
-
-        @Override
-        public boolean process(Event event, FI content) throws ProcessorException {
-            return FieldsProcessor.this.doProcessMessage(event, toprocess);
-        }
-
-        @Override
-        public boolean manageException(Event event, Exception e) throws ProcessorException {
-            @SuppressWarnings("unchecked")
-            AsyncFieldsProcessor<Object> ap = (AsyncFieldsProcessor<Object>) FieldsProcessor.this;
-            return ap.manageException(event, e, getDestination(toprocess));
-        }
-
-        @Override
-        public String getName() {
-            return String.format("%s$AsyncFieldSubProcessor@%d", FieldsProcessor.this.getName(), hashCode());
-        }
-
-        @Override
-        public int getTimeout() {
-            return timeout;
-        }
-
-    }
-
     @Override
     public boolean configure(Properties properties) {
         if ( (getFailure() != null || getSuccess() != null || getException() != null) && patterns.length > 0) {
-            logger.error("Will not run success or failure");
+            logger.error("Will not run conditionnal processors when multiple fields are defined");
             return false;
         }
         return super.configure(properties);
@@ -150,60 +112,75 @@ public abstract class FieldsProcessor extends Processor {
             } else {
                 throw IgnoredEventException.INSTANCE;
             }
-        } else if (this instanceof AsyncFieldsProcessor) {
-            // Needed because only AsyncProcessor are allowed to pause
-            delegate(Collections.singleton(field), event);
-            // never reached code
-            return false;
         } else {
             if (event.containsKey(field)) {
-                return doProcessMessage(event, field);
+                return doExecution(event, field);
             } else {
                 throw IgnoredEventException.INSTANCE;
             }
         }
     }
 
-    private boolean doProcessMessage(Event event, String field) throws ProcessorException {
-        Object value = event.get(field);
+    boolean doExecution(Event event, String currentField) throws ProcessorException {
+        return filterField(event, currentField);
+    }
+    
+    private boolean filterField(Event event, String currentField) throws ProcessorException {
+        logger.trace("transforming field {} on {}", currentField, event);
+        Object value = event.get(currentField);
         if (getClass().getAnnotation(ProcessNullField.class) == null && value == null) {
             return false;
         }
+        Supplier<Object> resolver = () -> {
+            try {
+                return fieldFunction(event, value);
+            } catch (ProcessorException ex) {
+                throw new UncheckedProcessingException(event, "", ex);
+            }
+        };
+        return processField(event, currentField, resolver);
+    }
+
+    protected boolean processField(Event event, String currentField, Supplier<Object> resolver) throws ProcessorException {
         try {
-            Object processed = processMessage(event, value);
+            Object processed = resolver.get();
             if ( ! (processed instanceof RUNSTATUS)) {
-                event.put(getDestination(field), processed);
+                event.put(getDestination(currentField), processed);
             } else if (processed == RUNSTATUS.REMOVE) {
-                event.remove(field);
+                event.remove(currentField);
             }
             return processed != RUNSTATUS.FAILED;
-        } catch (ProcessorException.PausedEventException | ProcessorException.DroppedEventException | IgnoredEventException e) {
-            throw e;
-        } catch (ProcessorException | UncheckedProcessingException e) {
-            ProcessorException npe = event.buildException("field " + field + "invalid: " + e.getMessage(), (Exception)e.getCause());
-            npe.setStackTrace(e.getStackTrace());
-            throw npe;
+        } catch (UncheckedProcessingException ex) {
+            try {
+                throw ex.getCause();
+            } catch (ProcessorException.PausedEventException | ProcessorException.DroppedEventException | IgnoredEventException e) {
+                throw e;
+            } catch (ProcessorException | UncheckedProcessingException e) {
+                ProcessorException npe = event.buildException("field " + currentField + "invalid: " + e.getMessage(), (Exception)e.getCause());
+                npe.setStackTrace(e.getStackTrace());
+                throw npe;
+            } catch (Throwable e) {
+                return false;
+            }
         }
     }
 
-    public abstract Object processMessage(Event event, Object value) throws ProcessorException;
+    public abstract Object fieldFunction(Event event, Object value) throws ProcessorException;
 
-    private void delegate(Set<String> nextfields, Event event) {
-        final Iterator<String> processing = nextfields.iterator();
-
-        Processor fieldProcessor;
-        if (this instanceof AsyncFieldsProcessor) {
-            fieldProcessor = new AsyncFieldSubProcessor(processing, ((AsyncFieldsProcessor<?>)this).getTimeout());
-        } else {
-            fieldProcessor = new FieldSubProcessor(processing);
-        }
+    void delegate(Set<String> nextfields, Event event) {
+        Iterator<String> processing = nextfields.iterator();
+        Processor fieldProcessor = getSubProcessor(processing);
         if (processing.hasNext()) {
             event.insertProcessor(fieldProcessor);
         }
         throw IgnoredEventException.INSTANCE;
     }
 
-    private final String getDestination(String srcField) {
+    FieldSubProcessor getSubProcessor(Iterator<String> processing) {
+        return new FieldSubProcessor(processing);
+    }
+
+    protected final String getDestination(String srcField) {
         if (destinationFormat == null) {
             return srcField;
         } else {

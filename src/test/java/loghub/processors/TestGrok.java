@@ -130,7 +130,7 @@ public class TestGrok {
 
         Event e = Tools.getEvent();
         e.put("host", "www.yahoo.com");
-        Assert.assertEquals("FAILED", grok.processMessage(e, "www.yahoo.com").toString());
+        Assert.assertEquals("FAILED", grok.fieldFunction(e, "www.yahoo.com").toString());
     }
 
 }

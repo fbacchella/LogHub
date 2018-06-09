@@ -56,7 +56,7 @@ public class Geoip2 extends FieldsProcessor {
     private String locale = "en";
 
     @Override
-    public Object processMessage(Event event, Object addr) throws ProcessorException {
+    public Object fieldFunction(Event event, Object addr) throws ProcessorException {
         InetAddress ipInfo = null;
         if (addr instanceof InetAddress) {
             ipInfo = (InetAddress) addr;

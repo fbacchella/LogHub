@@ -69,7 +69,7 @@ public class OnigurumaRegex extends FieldsProcessor {
     }
 
     @Override
-    public Object processMessage(Event event, Object value) throws ProcessorException {
+    public Object fieldFunction(Event event, Object value) throws ProcessorException {
         String line = value.toString();
         int length;
         Matcher matcher;

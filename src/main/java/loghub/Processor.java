@@ -10,10 +10,13 @@ import loghub.Expression.ExpressionException;
 import loghub.configuration.Properties;
 
 public abstract class Processor {
+    
+    // Some processor are created on fly, using a static empty path reduce the memory pressure
+    private static final String[] EMPTYPATH = new String[]{};
 
     protected final Logger logger;
 
-    private String[] path = new String[]{};
+    private String[] path = EMPTYPATH;
     private Expression ifexpression = null;
     private Processor success = null;
     private Processor failure = null;

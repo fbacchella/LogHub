@@ -48,7 +48,7 @@ public class SyslogPriority extends FieldsProcessor {
     private boolean resolve = true;
 
     @Override
-    public Object processMessage(Event event, Object priorityObject)
+    public Object fieldFunction(Event event, Object priorityObject)
                     throws ProcessorException {
         int priority;
         if(priorityObject instanceof String) {
