@@ -30,7 +30,7 @@ public class TestMerge {
     static public void configure() throws IOException {
         Tools.configure();
         logger = LogManager.getLogger();
-        LogUtils.setLevel(logger, Level.TRACE, "loghub.processors.Merge");
+        LogUtils.setLevel(logger, Level.TRACE, "loghub.processors.Merge", "loghub.EventsRepository");
     }
 
     @SuppressWarnings("rawtypes")
@@ -82,12 +82,12 @@ public class TestMerge {
     }
 
     @Test(timeout=5000)
-    public void testTimeout() throws Throwable {
-        String conf= "pipeline[main] { merge {index: \"${e%s}\", seeds: {\"a\": 0, \"b\": \",\", \"e\": 'c', \"c\": [], \"@timestamp\": null}, inPipeline: \"main\", timeout: 1 }}";
+    public void testExpiration() throws Throwable {
+        String conf= "pipeline[main] { merge {index: \"${e%s}\", seeds: {\"a\": 0, \"b\": \",\", \"e\": 'c', \"c\": [], \"@timestamp\": null}, inPipeline: \"main\", expiration: 1 }}";
 
         Properties p = Configuration.parse(new StringReader(conf));
         Assert.assertTrue(p.pipelines.stream().allMatch(i-> i.configure(p)));
-        Merge m = (Merge) p.namedPipeLine.get("main").processors.stream().findFirst().get();
+        Merge m = (Merge) p.namedPipeLine.get("main").processors.get(0);
         Event e = Event.emptyEvent(ConnectionContext.EMPTY);
         e.setTimestamp(new Date(0));
         e.put("a", 1);
@@ -102,7 +102,6 @@ public class TestMerge {
         Assert.assertTrue(p.mainQueue.isEmpty());
         Thread.sleep(2000);
         e = p.mainQueue.element();
-        Assert.assertEquals(String.class, e.get("b").getClass());
         Assert.assertEquals("2", e.get("b"));
         Assert.assertEquals(1L, e.get("e"));
         Assert.assertNotEquals(0L, e.getTimestamp().getTime());

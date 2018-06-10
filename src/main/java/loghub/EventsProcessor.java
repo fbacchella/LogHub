@@ -13,6 +13,7 @@ import org.apache.logging.log4j.Logger;
 import com.codahale.metrics.Counter;
 
 import io.netty.util.concurrent.Future;
+import loghub.PausedEvent.Builder;
 import loghub.configuration.Properties;
 import loghub.configuration.TestEventProcessing;
 import loghub.processors.Drop;
@@ -208,12 +209,14 @@ public class EventsProcessor extends Thread {
                     AsyncProcessor<?> ap = (AsyncProcessor<?>) p;
                     // A paused event was catch, create a custom FuturProcess for it that will be awaken when event come back
                     Future<?> future = ex.getFuture();
-                    PausedEvent<Future<?>> paused = new PausedEvent<>(topause, future);
-                    paused = paused.onSuccess(p.getSuccess())
-                            .onFailure(p.getFailure())
-                            .onException(p.getException())
-                            .setTimeout(ap.getTimeout(), TimeUnit.SECONDS)
-                            ;
+                    // Compilation fails if done in a one-liner
+                    Builder<Future<?>> builder = PausedEvent.builder(topause, future);
+                    PausedEvent<Future<?>> paused = builder
+                                    .onSuccess(p.getSuccess())
+                                    .onFailure(p.getFailure())
+                                    .onException(p.getException())
+                                    .expiration(ap.getTimeout(), TimeUnit.SECONDS)
+                                    .build();
                     //Create the processor that will process the call back processor
                     @SuppressWarnings({ "rawtypes", "unchecked"})
                     FuturProcessor<?> pauser = new FuturProcessor(future, paused, ap);

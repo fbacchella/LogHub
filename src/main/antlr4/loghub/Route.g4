@@ -42,7 +42,7 @@ bean
     ;
 
 beanName
-    :'index' | 'seeds' | 'doFire' | 'onFire' | 'timeout' | 'forward' | 'default' | 'merge' | 'inPipeline' | 'path'
+    :'index' | 'seeds' | 'doFire' | 'onFire' | 'expiration' | 'forward' | 'default' | 'merge' | 'inPipeline' | 'path'
     | Identifier
     ;
 
@@ -61,8 +61,8 @@ mergeArgument
     | type='seeds' ':' map
     | type='doFire' ':' expression
     | type='onFire' ':' pipenode
-    | type='onTimeout' ':' pipenode
-    | type='timeout' ':' (integerLiteral | floatingPointLiteral)
+    | type='onExpiration' ':' pipenode
+    | type='expiration' ':' (integerLiteral | floatingPointLiteral)
     | type='forward' ':' booleanLiteral
     | type='default' ':' beanValue
     | type='inPipeline' ':' stringLiteral

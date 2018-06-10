@@ -324,9 +324,9 @@ public class Merge extends Processor {
     private Map<String, Object> seeds = Collections.emptyMap();
     private Map<String, BiFunction<Object, Object, Object>> cumulators;
     private EventsRepository<String> repository = null;
-    private Processor timeoutProcessor = new Identity();
+    private Processor expirationProcessor = new Identity();
     private Processor fireProcessor = new Identity();
-    private int timeout = Integer.MAX_VALUE;
+    private int expiration = Integer.MAX_VALUE;
     private boolean forward = false;
     private String nextPipeline;
 
@@ -355,7 +355,7 @@ public class Merge extends Processor {
                 return false;
             }
         }
-        if (timeoutProcessor != null && ! timeoutProcessor.configure(properties)) {
+        if (expirationProcessor != null && ! expirationProcessor.configure(properties)) {
             return false;
         }
         if (nextPipeline == null) {
@@ -378,22 +378,7 @@ public class Merge extends Processor {
             return false;
         }
         logger.debug("key: {} for {}", eventKey, event);
-        PausedEvent<String> current = repository.getOrPause(eventKey, () -> {
-            PausedEvent<String> pe = new PausedEvent<String>(event.isTest() ? Event.emptyTestEvent(ConnectionContext.EMPTY) : Event.emptyEvent(ConnectionContext.EMPTY), eventKey)
-                    .setTimeout(timeout, TimeUnit.SECONDS).onTimeout(timeoutProcessor, prepareEvent)
-                    .onSuccess(fireProcessor, prepareEvent)
-                    .setPipeline(nextPipeline)
-                    ;
-            // If the cumulators return a value, use it to initialize the new event time stamp
-            // A null seed will keep it the new event timestamp all way long
-            // '<' will keep the initial event timestamp
-            // '>' will use the last event timestamp
-            Object newTimestamp = cumulators.get("@timestamp").apply(event.getTimestamp(), pe.event.getTimestamp());
-            if (newTimestamp instanceof Date) {
-                pe.event.setTimestamp((Date)newTimestamp);
-            }
-            return pe;
-        });
+        PausedEvent<String> current = repository.getOrPause(eventKey, i -> getPausedEvent(event, i));
         synchronized (current) {
             logger.trace("merging {} in {}", event, current.event);
             for(Map.Entry<String, Object> i: event.entrySet()) {
@@ -409,7 +394,7 @@ public class Merge extends Processor {
             // And don't forget the date, look for the @timestamp cumulator
             Date lastTimestamp = current.event.getTimestamp();
             Date nextTimestamp = event.getTimestamp();
-            Object newTimestamp = cumulators.get("@timestamp").apply(lastTimestamp, nextTimestamp);
+            Object newTimestamp = cumulators.get(Event.TIMESTAMPKEY).apply(lastTimestamp, nextTimestamp);
             if (newTimestamp instanceof Date) {
                 current.event.setTimestamp((Date)newTimestamp);
             }
@@ -425,6 +410,25 @@ public class Merge extends Processor {
             throw new ProcessorException.DroppedEventException(event);
         }
         return true;
+    }
+
+    private PausedEvent<String> getPausedEvent(Event event, String key) {
+        PausedEvent.Builder<String> builder = PausedEvent.builder(event.isTest() ? Event.emptyTestEvent(ConnectionContext.EMPTY) : Event.emptyEvent(ConnectionContext.EMPTY), key);
+        PausedEvent<String> pe = builder
+                        .expiration(expiration, TimeUnit.SECONDS).onExpiration(expirationProcessor, prepareEvent)
+                        .onSuccess(fireProcessor, prepareEvent)
+                        .nextPipeline(nextPipeline)
+                        .build()
+                        ;
+        // If the cumulators return a value, use it to initialize the new event time stamp
+        // A null seed will keep it the new event timestamp all way long
+        // '<' will keep the initial event timestamp
+        // '>' will use the last event timestamp
+        Object newTimestamp = cumulators.get(Event.TIMESTAMPKEY).apply(event.getTimestamp(), pe.event.getTimestamp());
+        if (newTimestamp instanceof Date) {
+            pe.event.setTimestamp((Date)newTimestamp);
+        }
+        return pe;
     }
 
     @Override
@@ -448,12 +452,12 @@ public class Merge extends Processor {
         this.indexSource = index;
     }
 
-    public Processor getOnTimeout() {
-        return timeoutProcessor;
+    public Processor getOnExpire() {
+        return expirationProcessor;
     }
 
-    public void setOnTimeout(Processor timeoutProcessor) {
-        this.timeoutProcessor = timeoutProcessor;
+    public void setOnExpiration(Processor expirationProcessor) {
+        this.expirationProcessor = expirationProcessor;
     }
 
     public Processor getOnFire() {
@@ -473,17 +477,17 @@ public class Merge extends Processor {
     }
 
     /**
-     * @return the timeout
+     * @return the expiration duration
      */
-    public Integer getTimeout() {
-        return timeout;
+    public Integer getExpiration() {
+        return expiration;
     }
 
     /**
-     * @param timeout the timeout to set
+     * @param expiration the expiration duration
      */
-    public void setTimeout(Integer timeout) {
-        this.timeout = timeout;
+    public void setExpiration(Integer expiration) {
+        this.expiration = expiration;
     }
 
     /**

@@ -7,7 +7,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
-import java.util.function.Supplier;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -31,7 +30,7 @@ public class EventsRepository<KEY> {
         }
 
     };
-    private static final HashedWheelTimer processTimeout = new HashedWheelTimer(tf);
+    private static final HashedWheelTimer processExpiration = new HashedWheelTimer(tf);
 
     private final Map<KEY, PausedEvent<KEY>> pausestack = new ConcurrentHashMap<>();
     private final Map<KEY, Timeout> waiting = new ConcurrentHashMap<>();
@@ -43,13 +42,14 @@ public class EventsRepository<KEY> {
         pipelines = properties.namedPipeLine;
     }
 
-    public void pause(PausedEvent<KEY> paused) {
-        PausedEvent<KEY> realpaused = paused.setRepository(this);
-        pausestack.put(realpaused.key, realpaused);
+    public PausedEvent<KEY> pause(PausedEvent<KEY> paused) {
+        logger.trace("Pausing {}", paused);
+        pausestack.put(paused.key, paused);
         Properties.metrics.counter("paused").inc();
-        if (realpaused.duration > 0 && realpaused.unit != null) {
-            waiting.put(realpaused.key, processTimeout.newTimeout(i -> this.timeout(realpaused.key), realpaused.duration, realpaused.unit));
+        if (paused.duration > 0 && paused.unit != null) {
+            waiting.put(paused.key, processExpiration.newTimeout(i -> timeout(paused.key), paused.duration, paused.unit));
         }
+        return paused;
     }
 
     public PausedEvent<KEY> cancel(KEY key) {
@@ -107,11 +107,12 @@ public class EventsRepository<KEY> {
      * @param creator return an new paused event, called only if don't already exists
      * @return
      */
-    public PausedEvent<KEY> getOrPause(KEY key, Supplier<PausedEvent<KEY>> creator) {
+    public PausedEvent<KEY> getOrPause(KEY key, Function<KEY, PausedEvent<KEY>> creator) {
+        logger.trace("looking for key {}", key);
         return pausestack.computeIfAbsent(key, i -> {
-            final PausedEvent<KEY> paused = creator.get().setRepository(this).setKey(i);
+            PausedEvent<KEY> paused = creator.apply(i);
             if (paused.duration > 0 && paused.unit != null) {
-                waiting.put(key, processTimeout.newTimeout(j -> this.timeout(key), paused.duration, paused.unit));
+                waiting.put(key, processExpiration.newTimeout(j -> this.timeout(key), paused.duration, paused.unit));
             }
             Properties.metrics.counter("paused").inc();
             return paused;

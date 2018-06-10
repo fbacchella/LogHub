@@ -5,7 +5,7 @@ import java.util.function.Function;
 
 import loghub.processors.Identity;
 
-public final class PausedEvent<KEY> {
+public class PausedEvent<KEY> {
 
     private static final Processor DONOTHING = new Identity();
 
@@ -17,103 +17,118 @@ public final class PausedEvent<KEY> {
     public final Processor onException;
     public final TimeUnit unit;
     public final long duration;
-    public final EventsRepository<KEY> repository;
     public final Function<Event, Event> successTransform;
     public final Function<Event, Event> failureTransform;
     public final Function<Event, Event> timeoutTransform;
     public final Function<Event, Event> exceptionTransform;
     public final String pipeline;
 
-    private PausedEvent(Event event, KEY key,
-            Processor onSuccess, Processor onFailure, Processor onTimeout, Processor onException,
-            Function<Event, Event> successTransform, Function<Event, Event> failureTransform, Function<Event, Event> timeoutTransform, Function<Event, Event> exceptionTransform,
-            long duration, TimeUnit unit,
-            EventsRepository<KEY> repository,
-            String pipeline) {
-        this.event = event;
-        this.key = key;
-        this.onSuccess = onSuccess;
-        this.onFailure = onFailure;
-        this.onTimeout = onTimeout;
-        this.onException = onException;
-        this.unit = unit;
-        this.duration = duration;
-        this.repository = repository;
-        this.successTransform = successTransform;
-        this.failureTransform = failureTransform;
-        this.timeoutTransform = timeoutTransform;
-        this.exceptionTransform = exceptionTransform;
-        this.pipeline = pipeline;
-    }
-
-    public PausedEvent(Event event, KEY key) {
-        this.event = event;
-        this.key = key;
-        onSuccess = DONOTHING;
-        onFailure = DONOTHING;
-        onTimeout = DONOTHING;
-        onException = DONOTHING;
-        unit = null;
-        duration = -1;
-        repository = null;
-        successTransform = i -> i;
-        failureTransform = i -> i;
-        timeoutTransform = i -> i;
-        exceptionTransform = i -> i;
-        pipeline = null;
-    }
-
-    public final PausedEvent<KEY> setKey(KEY key) {
-        return new PausedEvent<KEY>(event, key, onSuccess, onFailure, onTimeout, onException, successTransform, failureTransform, timeoutTransform, exceptionTransform, duration, unit, repository, pipeline);
-    }
-
-    public final PausedEvent<KEY> onSuccess(Processor onSuccess) {
-        return new PausedEvent<KEY>(event, key, onSuccess, onFailure, onTimeout, onException, successTransform, failureTransform, timeoutTransform, exceptionTransform, duration, unit, repository, pipeline);
-    }
-
-    public final PausedEvent<KEY> onSuccess(Processor onSuccess, Function<Event, Event> successTransform) {
-        return new PausedEvent<KEY>(event, key, onSuccess, onFailure, onTimeout, onException, successTransform, failureTransform, timeoutTransform, exceptionTransform, duration, unit, repository, pipeline);
-    }
-
-    public final PausedEvent<KEY> onFailure(Processor onFailure) {
-        return new PausedEvent<KEY>(event, key, onSuccess, onFailure, onTimeout, onException, successTransform, failureTransform, timeoutTransform, exceptionTransform, duration, unit, repository, pipeline);
-    }
-
-    public final PausedEvent<KEY> onFailure(Processor onFailure, Function<Event, Event> failureTransform) {
-        return new PausedEvent<KEY>(event, key, onSuccess, onFailure, onTimeout, onException, successTransform, failureTransform, timeoutTransform, exceptionTransform, duration, unit, repository, pipeline);
-    }
-
-    public final PausedEvent<KEY> onTimeout(Processor onTimeout) {
-        return new PausedEvent<KEY>(event, key, onSuccess, onFailure, onTimeout, onException, successTransform, failureTransform, timeoutTransform, exceptionTransform, duration, unit, repository, pipeline);
-    }
-
-    public final PausedEvent<KEY> onTimeout(Processor onTimeout, Function<Event, Event> timeoutTransform) {
-        return new PausedEvent<KEY>(event, key, onSuccess, onFailure, onTimeout, onException, successTransform, failureTransform, timeoutTransform, exceptionTransform, duration, unit, repository, pipeline);
-    }
-
-    public final PausedEvent<KEY> onException(Processor onException) {
-        return new PausedEvent<KEY>(event, key, onSuccess, onFailure, onTimeout, onException, successTransform, failureTransform, timeoutTransform, exceptionTransform, duration, unit, repository, pipeline);
-    }
-
-    public final PausedEvent<KEY> onException(Processor onException, Function<Event, Event> exceptionTransform) {
-        return new PausedEvent<KEY>(event, key, onSuccess, onFailure, onTimeout, onException, successTransform, failureTransform, timeoutTransform, exceptionTransform, duration, unit, repository, pipeline);
-    }
-
-    final PausedEvent<KEY> setRepository(EventsRepository<KEY> repository) {
-        return new PausedEvent<KEY>(event, key, onSuccess, onFailure, onTimeout, onException, successTransform, failureTransform, timeoutTransform, exceptionTransform, duration, unit, repository, pipeline);
-    }
-
-    public final PausedEvent<KEY> setTimeout(long duration, TimeUnit unit) {
-        return new PausedEvent<KEY>(event, key, onSuccess, onFailure, onTimeout, onException, successTransform, failureTransform, timeoutTransform, exceptionTransform, duration, unit, repository, pipeline);
-    }
-
-    public final PausedEvent<KEY> setPipeline(String pipeline) {
-        return new PausedEvent<KEY>(event, key, onSuccess, onFailure, onTimeout, onException, successTransform, failureTransform, timeoutTransform, exceptionTransform, duration, unit, repository, pipeline);
+    private PausedEvent(Builder<KEY>  builder) {
+        this.event = builder.event;
+        this.key = builder.key;
+        this.onSuccess = builder.onSuccess;
+        this.onFailure = builder.onFailure;
+        this.onTimeout = builder.onExpiration;
+        this.onException = builder.onException;
+        this.unit = builder.unit;
+        this.duration = builder.duration;
+        this.successTransform = builder.successTransform;
+        this.failureTransform = builder.failureTransform;
+        this.timeoutTransform = builder.expirationTransform;
+        this.exceptionTransform = builder.exceptionTransform;
+        this.pipeline = builder.pipeline;
     }
 
     @Override
     public String toString() {
         return "PausedEvent [event=" + event + ", key=" + key + "]";
+    }
+
+    /**
+     * Creates builder to build {@link PausedEvent}.
+     * @return created builder
+     */
+
+    public static <KEY> Builder<KEY> builder(Event event, KEY key) {
+        return new Builder<KEY>(event, key);
+    }
+
+    /**
+     * Builder to build {@link PausedEvent}.
+     */
+    public static final class Builder<KEY> {
+        private Event event;
+        private KEY key;
+        private Processor onSuccess = DONOTHING;
+        private Processor onFailure = DONOTHING;
+        private Processor onExpiration = DONOTHING;
+        private Processor onException = DONOTHING;
+        private TimeUnit unit = null;
+        private long duration = -1;
+        private Function<Event, Event> successTransform = i -> i;
+        private Function<Event, Event> failureTransform = i -> i;
+        private Function<Event, Event> expirationTransform = i -> i;
+        private Function<Event, Event> exceptionTransform = i -> i;
+        private String pipeline = null;
+
+        private Builder(Event event, KEY key) {
+            this.event = event;
+            this.key = key;
+        }
+
+        public Builder<KEY> expiration(long duration, TimeUnit unit) {
+            this.duration = duration;
+            this.unit = unit;
+            return this;
+        }
+
+        public Builder<KEY> onSuccess(Processor onSuccess) {
+            this.onSuccess = onSuccess;
+            return this;
+        }
+
+        public Builder<KEY> onSuccess(Processor onSuccess, Function<Event, Event> successTransform) {
+            this.onSuccess = onSuccess;
+            this.successTransform = successTransform;
+            return this;
+        }
+
+        public Builder<KEY> onFailure(Processor onFailure) {
+            this.onFailure = onFailure;
+            return this;
+        }
+
+        public Builder<KEY> onFailure(Processor onFailure, Function<Event, Event> failureTransform) {
+            this.onFailure = onFailure;
+            this.failureTransform = failureTransform;
+            return this;
+        }
+
+        public Builder<KEY> onExpiration(Processor onExpiration, Function<Event, Event> expirationTransform) {
+            this.onExpiration = onExpiration;
+            this.expirationTransform = expirationTransform;
+            return this;
+        }
+
+        public Builder<KEY> onException(Processor onException) {
+            this.onException = onException;
+            return this;
+        }
+
+        public Builder<KEY> onException(Processor onException, Function<Event, Event> exceptionTransform) {
+            this.onException = onException;
+            this.exceptionTransform = exceptionTransform;
+            return this;
+        }
+
+        public Builder<KEY>  nextPipeline(String pipeline) {
+            this.pipeline = pipeline;
+            return this;
+        }
+
+        public PausedEvent<KEY> build() {
+            return new PausedEvent<KEY>(this);
+        }
     }
 
 }
