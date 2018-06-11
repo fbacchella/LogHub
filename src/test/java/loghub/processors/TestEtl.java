@@ -21,6 +21,7 @@ import loghub.LogUtils;
 import loghub.Pipeline;
 import loghub.ProcessorException;
 import loghub.Tools;
+import loghub.Event.Action;
 import loghub.configuration.ConfigException;
 import loghub.configuration.ConfigurationTools;
 import loghub.configuration.Properties;
@@ -68,7 +69,7 @@ public class TestEtl {
         Event event = Tools.getEvent();
         event.put("c", 0);
         event.process(etl);
-        Assert.assertEquals("evaluation failed", 1, event.applyAtPath((i,j,k) -> i.get(j), new String[] {"a", "b"}, null, false));
+        Assert.assertEquals("evaluation failed", 1, event.applyAtPath(Action.GET, new String[] {"a", "b"}, null, false));
     }
 
     @Test
@@ -80,7 +81,7 @@ public class TestEtl {
         Event event = Tools.getEvent();
         event.put("a", 0);
         etl.process(event);
-        Assert.assertEquals("evaluation failed", null, event.applyAtPath((i,j,k) -> i.get(j), new String[] {"a"}, null, false));
+        Assert.assertEquals("evaluation failed", null, event.applyAtPath(Action.GET, new String[] {"a"}, null, false));
     }
 
     @Test
@@ -93,7 +94,7 @@ public class TestEtl {
         Event event = Tools.getEvent();
         event.put("a", 0);
         etl.process(event);
-        Assert.assertEquals("evaluation failed", 0, event.applyAtPath((i,j,k) -> i.get(j), new String[] {"b"}, null, false));
+        Assert.assertEquals("evaluation failed", 0, event.applyAtPath(Action.GET, new String[] {"b"}, null, false));
     }
 
     @Test

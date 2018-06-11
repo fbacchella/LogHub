@@ -40,6 +40,8 @@ public class TestWrapping {
         ep.start();
         Event processed = conf.outputQueues.get("main").poll(1, TimeUnit.SECONDS);
         Assert.assertEquals("b", ((Map<String, Object>)processed.get("a")).get("c"));
+        Assert.assertEquals(1, processed.getMeta("d"));
+        Assert.assertEquals(0, processed.getTimestamp().getTime());
         ep.stopProcessing();
     }
 

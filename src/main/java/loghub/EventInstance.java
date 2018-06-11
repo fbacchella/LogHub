@@ -190,7 +190,7 @@ class EventInstance extends Event {
 
     @Override
     public String toString() {
-        return "[" + timestamp + "]" + super.toString();
+        return "[" + timestamp + "]" + super.toString() + "#" + metas.toString();
     }
 
     public Processor next() {
@@ -373,17 +373,6 @@ class EventInstance extends Event {
     }
 
     @Override
-    public void putAll(Map<? extends String, ? extends Object> m) {
-        super.putAll(m);
-        if (m.containsKey(Event.TIMESTAMPKEY)) {
-            if (m.get(Event.TIMESTAMPKEY) instanceof Date) {
-                timestamp = (Date) m.get(Event.TIMESTAMPKEY);
-            }
-            remove(Event.TIMESTAMPKEY);
-        }
-    }
-
-    @Override
     public ConnectionContext<?> getConnectionContext() {
         return ctx;
     }
@@ -411,26 +400,6 @@ class EventInstance extends Event {
     @Override
     public Object putMeta(String key, Object value) {
         return metas.put(key, value);
-    }
-
-    @Override
-    public Object get(Object key) {
-        if (Event.CONTEXTKEY.equals(key)) {
-            return ctx;
-        } else if (Event.TIMESTAMPKEY.equals(key)) {
-            return timestamp;
-        } else {
-            return super.get(key);
-        }
-    }
-
-    @Override
-    public boolean containsKey(Object key) {
-        if (Event.CONTEXTKEY.equals(key) || Event.TIMESTAMPKEY.equals(key)) {
-            return true;
-        } else {
-            return super.containsKey(key);
-        }
     }
 
 }

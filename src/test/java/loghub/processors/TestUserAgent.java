@@ -8,6 +8,7 @@ import org.junit.Test;
 import loghub.Event;
 import loghub.ProcessorException;
 import loghub.Tools;
+import loghub.Event.Action;
 import loghub.configuration.Properties;
 
 public class TestUserAgent {
@@ -25,7 +26,7 @@ public class TestUserAgent {
         Event event = Tools.getEvent();
         event.put("User-Agent", uaString);
         Assert.assertTrue(ua.process(event));
-        Object family = event.applyAtPath((i, j, k) -> i.get(j), new String[] {"agent", "userAgent", "family"}, null, false);
+        Object family = event.applyAtPath(Action.GET, new String[] {"agent", "userAgent", "family"}, null, false);
         Assert.assertEquals("can't find user agent parsing", "Mobile Safari", family);
     }
     

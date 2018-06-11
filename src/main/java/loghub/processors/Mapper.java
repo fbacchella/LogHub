@@ -8,6 +8,7 @@ import org.codehaus.groovy.control.CompilationFailedException;
 import loghub.Event;
 import loghub.Expression;
 import loghub.ProcessorException;
+import loghub.Event.Action;
 import loghub.Expression.ExpressionException;
 import loghub.configuration.Properties;
 
@@ -52,7 +53,7 @@ public class Mapper extends Etl {
             return false;
         }
         Object value =  map.get(key);
-        event.applyAtPath((i,j,k) -> i.put(j, k), lvalue, value, true);
+        event.applyAtPath(Action.PUT, lvalue, value, true);
         return true;
     }
 

@@ -11,6 +11,7 @@ import loghub.Pipeline;
 import loghub.Expression.ExpressionException;
 import loghub.Processor;
 import loghub.ProcessorException;
+import loghub.Event.Action;
 import loghub.configuration.Properties;
 
 public class FireEvent extends Processor {
@@ -47,7 +48,7 @@ public class FireEvent extends Processor {
         Event newEvent = Event.emptyEvent(ConnectionContext.EMPTY);
         for(Map.Entry<String[], Expression> e: expressions.entrySet()) {
             Object value = e.getValue().eval(event);
-            newEvent.applyAtPath( (i, j, k) -> i.put(j, k), e.getKey(), value);
+            newEvent.applyAtPath(Action.PUT, e.getKey(), value);
         }
         return newEvent.inject(pipeDestination, mainQueue);
     }

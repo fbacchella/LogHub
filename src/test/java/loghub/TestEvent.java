@@ -2,6 +2,7 @@ package loghub;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -12,6 +13,7 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import loghub.Event.Action;
 import loghub.EventsProcessor.ProcessingStatus;
 import loghub.configuration.Properties;
 import loghub.processors.Identity;
@@ -45,21 +47,26 @@ public class TestEvent {
     @Test
     public void TestPath() {
         Event e = Tools.getEvent();
-        e.applyAtPath((i, j, k) -> i.put(j, k), new String[]{"a", "b", "c"}, 1, true);
+        e.setTimestamp(new Date(0));
+        e.applyAtPath(Action.PUT, new String[]{"a", "b", "c"}, 1, true);
         e.put("d", 2);
-        e.applyAtPath((i, j, k) -> i.put(j, k), new String[]{"e"}, 3, true);
+        e.applyAtPath(Action.PUT, new String[]{"e"}, 3, true);
+        e.applyAtPath(Action.PUT, new String[]{"#f"}, 4, true);
         Assert.assertEquals("wrong number of keys", 3, e.keySet().size());
-        Assert.assertEquals("Didn't resolve the path correctly",  1, e.applyAtPath((i, j, k) -> i.get(j), new String[]{"a", "b", "c"}, null));
-        Assert.assertEquals("Didn't resolve the path correctly",  1, e.applyAtPath((i, j, k) -> i.remove(j), new String[]{"a", "b", "c"}, null));
-        Assert.assertEquals("Didn't resolve the path correctly",  2, e.applyAtPath((i, j, k) -> i.get(j), new String[]{"d"}, null) );
+        Assert.assertEquals("Didn't resolve the path correctly",  1, e.applyAtPath(Action.GET, new String[]{"a", "b", "c"}, null));
+        Assert.assertEquals("Didn't resolve the path correctly",  1, e.applyAtPath(Action.REMOVE, new String[]{"a", "b", "c"}, null));
+        Assert.assertEquals("Didn't resolve the path correctly",  2, e.applyAtPath(Action.GET, new String[]{"d"}, null) );
+        Assert.assertEquals("Didn't resolve the path correctly",  4, e.getMeta("f") );
         Assert.assertEquals("Didn't resolve the path correctly",  3, e.get("e") );
-    }
+        Assert.assertEquals("Didn't resolve the path correctly",  new Date(0), e.applyAtPath(Action.GET, new String[]{"@timestamp"}, null));
+   }
 
     @Test
     public void TestForkable() {
         Event e = Tools.getEvent();
         e.put("key", "value");
         Event e2 = e.duplicate();
+        Assert.assertNotNull(e2);
         Pipeline newPipe = new Pipeline(Collections.singletonList(new Identity()), "next", null);
         e2.refill(newPipe);
         Assert.assertEquals("cloned value not found", e.get("key"), e2.get("key"));

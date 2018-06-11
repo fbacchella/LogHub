@@ -1,13 +1,12 @@
 package loghub.processors;
 
 import java.lang.reflect.InvocationTargetException;
-import java.util.Date;
-import java.util.concurrent.CompletionException;
 
 import org.apache.logging.log4j.Level;
 import org.codehaus.groovy.control.CompilationFailedException;
 
 import loghub.Event;
+import loghub.Event.Action;
 import loghub.Expression;
 import loghub.Expression.ExpressionException;
 import loghub.Processor;
@@ -23,18 +22,8 @@ public abstract class Etl extends Processor {
         private String[] sourcePath;
         @Override
         public boolean process(Event event) throws ProcessorException {
-            Object old = event.applyAtPath((i,j,k) -> i.remove(j), sourcePath, null);
-            if(lvalue.length == 1 && Event.TIMESTAMPKEY.equals(lvalue[0]) ) {
-                if (old instanceof Date) {
-                    event.setTimestamp((Date) old);
-                } else if (old instanceof Number){
-                    Date newDate = new Date(((Number)old).longValue());
-                    event.setTimestamp(newDate);
-                }
-                event.applyAtPath((i,j,k) -> i.remove(j), lvalue, null);
-            } else {
-                event.applyAtPath((i,j,k) -> i.put(j, k), lvalue, old, true);
-            }
+            Object old = event.applyAtPath(Action.REMOVE, sourcePath, null);
+            event.applyAtPath(Action.PUT, lvalue, old, true);
             return true;
         }
         @Override
@@ -55,16 +44,7 @@ public abstract class Etl extends Processor {
         @Override
         public boolean process(Event event) throws ProcessorException {
             Object o = script.eval(event);
-            if(lvalue.length == 1 && Event.TIMESTAMPKEY.equals(lvalue[0])) {
-                if (o instanceof Date) {
-                    event.setTimestamp((Date) o);
-                } else if (o instanceof Number){
-                    Date newDate = new Date(((Number)o).longValue());
-                    event.setTimestamp(newDate);
-                }
-            } else {
-                event.applyAtPath((i,j,k) -> i.put(j, k), lvalue, o, true);
-            }
+            event.applyAtPath(Action.PUT, lvalue, o, true);
             return true;
         }
         @Override
@@ -98,22 +78,14 @@ public abstract class Etl extends Processor {
         @Override
         public boolean process(Event event) throws ProcessorException {
             try {
-                event.applyAtPath((i,j,k) -> {
-                    try {
-                        Object val = i.get(j);
-                        if(val == null) {
-                            return null;
-                        } else {
-                            Object o = BeansManager.ConstructFromString(clazz, val.toString());
-                            return i.put(j, o);
-                        }
-                    } catch (InvocationTargetException e) {
-                        throw new CompletionException(e.getCause());
-                    }
-                }, lvalue, (Object) null, false);
+                Object val = event.applyAtPath(Action.GET, lvalue, null, false);
+                if(val != null) {
+                    Object o = BeansManager.ConstructFromString(clazz, val.toString());
+                    event.applyAtPath(Action.PUT, lvalue, o);
+                }
                 return true;
-            } catch (CompletionException e1) {
-                throw event.buildException("unable to convert from string to " + className, (Exception)e1.getCause());
+            } catch (InvocationTargetException e) {
+                throw event.buildException("unable to convert from string to " + className, e);
             }
         }
         @Override
@@ -138,7 +110,7 @@ public abstract class Etl extends Processor {
     public static class Remove extends Etl {
         @Override
         public boolean process(Event event) throws ProcessorException {
-            event.applyAtPath((i,j,k) -> i.remove(j), lvalue, null);
+            event.applyAtPath(Action.REMOVE, lvalue, null);
             return true;
         }
     }

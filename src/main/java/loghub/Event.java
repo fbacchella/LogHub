@@ -1,6 +1,7 @@
 package loghub;
 
 import java.io.Serializable;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -16,6 +17,24 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
     public static final String TIMESTAMPKEY = "@timestamp";
     public static final String CONTEXTKEY = "@context";
 
+    public enum Action {
+        GET((i,j,k) -> i.get(j)),
+        PUT((i, j, k) -> i.put(j, k)),
+        REMOVE((i, j, k) -> i.remove(j)),
+        CONTAINS((i, j, k) -> i.containsKey(j)),
+        SIZE((i, j, k) -> i.size()),
+        ISEMPTY((i, j, k) -> i.isEmpty()),
+        CLEAR((i, j, k) -> {i.clear(); return null;}),
+        CONTAINSVALUE((i, j, k) -> i.containsValue(k)),
+        KEYSET((i, j, k) -> i.keySet()),
+        VALUES((i, j, k) -> i.values()),
+        ;
+        public final Helpers.TriFunction<Map<String, Object>, String, Object, Object> action;
+        Action (Helpers.TriFunction<Map<String, Object>, String, Object, Object> action){
+            this.action = action;
+        }
+    }
+
     public static Event emptyEvent(ConnectionContext<?> ctx) {
         return new EventInstance(ctx);
     }
@@ -24,16 +43,38 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
         return new EventInstance(ctx, true);
     }
 
-    public Object applyAtPath(Helpers.TriFunction<Map<String, Object>, String, Object, Object> f, String[] path, Object value) {
+    public Object applyAtPath(Action f, String[] path, Object value) {
         return applyAtPath(f, path, value, false);
     }
 
     @SuppressWarnings("unchecked")
-    public Object applyAtPath(Helpers.TriFunction<Map<String, Object>, String, Object, Object> f, String[] path, Object value, boolean create) {
+    public Object applyAtPath(Action f, String[] path, Object value, boolean create) {
         Map<String, Object> current = this;
         String key = path[0];
         if (key != null && key.startsWith("#")) {
-            return f.apply(getMetas(), key.substring(1), value);
+            return f.action.apply(getMetas(), key.substring(1), value);
+        } else if ( TIMESTAMPKEY.equals(key)) {
+            switch(f) {
+            case GET: return getTimestamp();
+            case PUT: { 
+                if (value instanceof Date) {
+                    setTimestamp((Date) value);
+                } else if (value instanceof Number){
+                    Date newDate = new Date(((Number)value).longValue());
+                    setTimestamp(newDate);
+                }
+                return null;
+            }
+            case REMOVE: return getTimestamp();
+            case CONTAINS: return true;
+            case SIZE: return 1;
+            case ISEMPTY: return false;
+            case CLEAR: return null;
+            case CONTAINSVALUE: return getTimestamp().equals(value);
+            case KEYSET: return Collections.singleton(TIMESTAMPKEY);
+            case VALUES: return Collections.singleton(getTimestamp());
+            default: return null;
+            }
         } else {
             for (int i = 0; i < path.length - 1; i++) {
                 Object peekNext = current.get(key);
@@ -53,7 +94,7 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
                 current = next;
                 key = path[i + 1];
             }
-            return f.apply(current, key, value);
+            return f.action.apply(current, key, value);
         }
     }
 
@@ -72,7 +113,7 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
     }
 
     public Object getPath(String...path) {
-        return applyAtPath((i,j,k) -> i.get(j), path, null, false);
+        return applyAtPath(Action.GET, path, null, false);
     }
 
     /**
