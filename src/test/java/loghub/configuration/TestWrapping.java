@@ -26,7 +26,7 @@ public class TestWrapping {
     static public void configure() throws IOException {
         Tools.configure();
         logger = LogManager.getLogger();
-        LogUtils.setLevel(logger, Level.TRACE, "loghub.Event", "loghub.EventsProcessor");
+        LogUtils.setLevel(logger, Level.TRACE, "loghub.Event", "loghub.EventsProcessor", "loghub");
     }
 
     @SuppressWarnings("unchecked")
@@ -42,6 +42,9 @@ public class TestWrapping {
         Assert.assertEquals("b", ((Map<String, Object>)processed.get("a")).get("c"));
         Assert.assertEquals(1, processed.getMeta("d"));
         Assert.assertEquals(0, processed.getTimestamp().getTime());
+        Assert.assertEquals("b", processed.get("e"));
+        Assert.assertEquals(1, processed.get("#f"));
+        Assert.assertEquals(2, processed.get("@timestamp"));
         ep.stopProcessing();
     }
 

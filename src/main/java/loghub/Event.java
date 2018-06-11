@@ -76,7 +76,13 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
             default: return null;
             }
         } else {
-            for (int i = 0; i < path.length - 1; i++) {
+            int startwalk = 0;
+            if (".".equals(path[0])) {
+                current = getRealEvent();
+                key=path[1];
+                startwalk = 1;
+            }
+            for (int i = startwalk ; i < path.length - 1; i++) {
                 Object peekNext = current.get(key);
                 Map<String, Object> next;
                 if ( peekNext == null ) {

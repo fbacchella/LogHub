@@ -13,13 +13,11 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import org.antlr.v4.runtime.CommonToken;
 import org.antlr.v4.runtime.IntStream;
 import org.antlr.v4.runtime.Parser;
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.RecognitionException;
 import org.antlr.v4.runtime.Token;
-import org.antlr.v4.runtime.tree.pattern.TokenTagToken;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -668,19 +666,26 @@ class ConfigListener extends RouteBaseListener {
         stack.push(StackMarker.Etl);
     }
 
-    private static final CommonToken NONE = new TokenTagToken("", Token.INVALID_TYPE);
-
     private String[] convertEventVariable(EventVariableContext ev) {
-        String keyString = Optional.ofNullable(ev.key).orElse(NONE).getText();
-        if (Event.TIMESTAMPKEY.equals(keyString)) {
-            return new String[] { ev.key.getText() };
-        } else if (ev.MetaName() != null) {
+        boolean withRoot = ev.root != null;
+        String keyString = Optional.ofNullable(ev.key).map(Token::getText).orElse("");
+        if (Event.TIMESTAMPKEY.equals(keyString) && ! withRoot) {
+            return new String[] { keyString };
+        } else if (ev.MetaName() != null && ! withRoot) {
             return new String[] { ev.MetaName().getText() };
         } else {
             List<String> path = ev.Identifier().stream().map(i -> i.getText()).collect(Collectors.toList());
-            if (Event.CONTEXTKEY.equals(keyString))
+            if (withRoot ) {
+                if ( ! keyString.isEmpty()) {
+                    path.add(0, keyString);
+                } else if (ev.MetaName() != null) {
+                    path.add(0, ev.MetaName().getText());
+                }
+                path.add(0, ".");
+            } else if (Event.CONTEXTKEY.equals(keyString)) {
+                // The . at path start prevents the resolution of specific variables
                 path.add(0, ev.key.getText());
-            path.stream().toArray(String[]::new);
+            }
             return path.stream().toArray(String[]::new);
         }
     }

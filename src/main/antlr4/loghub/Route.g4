@@ -182,7 +182,7 @@ source
     : '%' Identifier
     ;
 
-eventVariable: '[' (key='@timestamp' | (key='@context' (Identifier ( Identifier)*))? | MetaName | (Identifier ( Identifier)*)) ']' ;
+eventVariable: '[' root='.'? (key='@timestamp' | (key='@context' (Identifier ( Identifier)*))? | MetaName | (Identifier ( Identifier)*)) ']' ;
 
 propertyName
     :   Identifier | QualifiedIdentifier
