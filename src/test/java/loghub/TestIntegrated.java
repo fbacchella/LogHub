@@ -83,13 +83,13 @@ public class TestIntegrated {
                 }
             };
             t.start();
-            Pattern messagePattern = Pattern.compile("\\{\"a\":1,\"b\":\"google-public-dns-a\",\"message\":\"message \\d+\"\\}");
+            Pattern messagePattern = Pattern.compile("\\{\"a\":1,\"b\":\"(google-public-dns-a|8.8.8.8)\",\"message\":\"message \\d+\"\\}");
             while(send.get() < 99 || allevents_inflight.getCount() != 0) {
                 logger.debug("send: {}, in flight: {}", send.get(), allevents_inflight.getCount());
                 while (receiver.getEvents() > 0) {
                     logger.debug("in flight: {}", allevents_inflight.getCount());
                     String content = receiver.recvStr();
-                    Assert.assertTrue(messagePattern.matcher(content).find());
+                    Assert.assertTrue(content, messagePattern.matcher(content).find());
                     Thread.sleep(1);
                 };
                 Thread.sleep(50);
