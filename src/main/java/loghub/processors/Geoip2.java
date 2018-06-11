@@ -117,7 +117,7 @@ public class Geoip2 extends FieldsProcessor {
             }
         } catch (AddressNotFoundException e) {
             // not an error, just return a failure
-            return false;
+            return RUNSTATUS.FAILED;
         } catch (IOException | GeoIp2Exception e) {
             throw event.buildException("can't read geoip database", e);
         }
@@ -202,7 +202,11 @@ public class Geoip2 extends FieldsProcessor {
                 break;
             }
         }
-        return informations;
+        if (informations.size() > 0) {
+            return informations;
+        } else {
+            return RUNSTATUS.FAILED;
+        }
     }
 
     @Override
