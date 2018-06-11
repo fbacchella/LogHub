@@ -20,7 +20,7 @@ import loghub.ProcessorException;
 import loghub.ThreadBuilder;
 import loghub.Tools;
 
-public class TestFieldsPausingEvent {
+public class TestFieldsAsynchronous {
 
 
     private static Logger logger;
@@ -32,7 +32,7 @@ public class TestFieldsPausingEvent {
         LogUtils.setLevel(logger, Level.TRACE, "loghub.processors", "loghub.EventsProcessor", "loghub.Event");
     }
 
-    private static class PausingPromise extends DefaultPromise<TestFieldsPausingEvent> {
+    private static class PausingPromise extends DefaultPromise<TestFieldsAsynchronous> {
         PausingPromise() {
             super(new DefaultEventLoop());
         }
@@ -41,12 +41,12 @@ public class TestFieldsPausingEvent {
     PausingPromise future = new PausingPromise();
     Runnable todo;
     BiFunction<Event, Exception, Boolean> onexception;
-    BiFunction<Event, TestFieldsPausingEvent, Object> transform = (e, v) -> v.getClass().getCanonicalName();
+    BiFunction<Event, TestFieldsAsynchronous, Object> transform = (e, v) -> v.getClass().getCanonicalName();
 
-    private class SleepingProcessor extends AsyncFieldsProcessor<TestFieldsPausingEvent> {
+    private class SleepingProcessor extends AsyncFieldsProcessor<TestFieldsAsynchronous> {
 
         @Override
-        public Object asyncProcess(Event event, TestFieldsPausingEvent content)
+        public Object asyncProcess(Event event, TestFieldsAsynchronous content)
                         throws ProcessorException {
             return transform.apply(event, content);
         }
