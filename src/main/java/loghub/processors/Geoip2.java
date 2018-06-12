@@ -119,6 +119,9 @@ public class Geoip2 extends FieldsProcessor {
                 represented_country = response.getRepresentedCountry();
                 break;
             }
+            default:
+                throw event.buildException("Unknown database type: " + reader.getMetadata().getDatabaseType());
+
             }
         } catch (AddressNotFoundException e) {
             // not an error, just return a failure
@@ -224,7 +227,7 @@ public class Geoip2 extends FieldsProcessor {
                             .build();
             EntryProcessor<Integer, JsonNode, JsonNode> ep = (i, j) -> {
                 try {
-                    if (i.getValue() == null) {
+                    if (! i.exists()) {
                         Loader loader = (Loader)j[0];
                         JsonNode node = loader.load(i.getKey());
                         i.setValue(node);

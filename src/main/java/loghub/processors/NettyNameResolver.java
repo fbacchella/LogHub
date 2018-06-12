@@ -7,10 +7,10 @@ import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 
 import javax.cache.Cache;
+import javax.cache.processor.EntryProcessor;
 
 import io.netty.channel.AddressedEnvelope;
 import io.netty.channel.EventLoopGroup;
@@ -107,6 +107,27 @@ public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<Dn
 
     private static final int NOERROR = DnsResponseCode.NOERROR.intValue();
     private static final EventLoopGroup evg = new NioEventLoopGroup(1, new DefaultThreadFactory("dnsresolver"));
+
+    private final EntryProcessor<DnsCacheKey, DnsCacheEntry, Object> checkTTL = (i, j) -> {
+        if (i.exists() && i.getValue().eol.isBefore(Instant.now())) {
+            i.remove();
+            return null;
+        } else if (i.exists()) {
+            return store(i.getValue());
+        } else {
+            return null;
+        }
+    };
+
+    private final EntryProcessor<DnsCacheKey, DnsCacheEntry, Object> addEntry = (i, j) -> {
+        if (! i.exists()) {
+            @SuppressWarnings("unchecked")
+            AddressedEnvelope<DnsResponse, InetSocketAddress> enveloppe = (AddressedEnvelope<DnsResponse, InetSocketAddress>) j[0];
+            i.setValue(new DnsCacheEntry(enveloppe));
+        }
+        return store(i.getValue());
+    };
+
     private DnsNameResolver resolver;
     private int cacheSize = 10000;
     private Cache<DnsCacheKey, DnsCacheEntry> hostCache;
@@ -174,10 +195,9 @@ public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<Dn
         if (toresolv != null) {
             //If a query was build, use it
             DnsQuestion dnsquery = new DefaultDnsQuestion(toresolv, DnsRecordType.PTR);
-            DnsCacheEntry e = hostCache.get(new DnsCacheKey(dnsquery));
-            Optional<DnsCacheEntry> eo = Optional.ofNullable(e).filter(i -> i.eol.isAfter(Instant.now()));
-            if (eo.isPresent()) {
-                return store(e);
+            Object found = hostCache.invoke(new DnsCacheKey(dnsquery), checkTTL);
+            if (found != null) {
+                return found;
             } else {
                 Future<AddressedEnvelope<DnsResponse, InetSocketAddress>> future = resolver.query(dnsquery);
                 throw new ProcessorException.PausedEventException(event, future);
@@ -209,9 +229,7 @@ public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<Dn
         try {
             DnsResponse response = enveloppe.content();
             DnsQuestion questionRr = (DnsQuestion) response.recordAt((DnsSection.QUESTION));
-            DnsCacheEntry cached = new DnsCacheEntry(enveloppe);
-            hostCache.put(new DnsCacheKey(questionRr), cached);
-            return store(cached);
+            return hostCache.invoke(new DnsCacheKey(questionRr), addEntry, enveloppe);
         } finally {
             enveloppe.release();
         }
