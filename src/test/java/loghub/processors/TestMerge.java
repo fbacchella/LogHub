@@ -36,7 +36,7 @@ public class TestMerge {
     @SuppressWarnings("rawtypes")
     @Test
     public void test() throws Throwable {
-        String conf= "pipeline[main] { merge {index: \"${e%s}\", seeds: {\"a\": 0, \"b\": \",\", \"d\": 0.0, \"e\": null, \"c\": [], \"count\": 'c', \"@timestamp\": '>', \"f\": {}}, doFire: [a] >= 2, inPipeline: \"main\", forward: false}}";
+        String conf= "pipeline[main] { merge {index: \"${e%s}\", seeds: {\"a\": 0, \"b\": \",\", \"d\": 0.0, \"e\": null, \"c\": [], \"count\": 'c', \"@timestamp\": '>', \"f\": {}}, doFire: [a] >= 2, inPipeline: \"main\", forward: false, defaultMeta: \"\"}}";
 
         Properties p = Configuration.parse(new StringReader(conf));
         Assert.assertTrue(p.pipelines.stream().allMatch(i-> i.configure(p)));
@@ -53,6 +53,7 @@ public class TestMerge {
         e.put("d", 4);
         e.put("e", "5");
         e.put("f", Collections.singletonMap(".f", 1));
+        e.putMeta("g", 7);
         boolean dropped = false;
         try {
             m.process(e);
@@ -78,6 +79,7 @@ public class TestMerge {
         Assert.assertTrue(e.get("f") instanceof Map);
         Assert.assertTrue(((Map)e.get("f")).get(".f") instanceof List);
         Assert.assertEquals(timestamp, e.getTimestamp().getTime());
+        Assert.assertEquals("77", e.getMeta("g"));
 
     }
 

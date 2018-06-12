@@ -20,6 +20,7 @@ import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.BlockingQueue;
+import java.util.function.BiFunction;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -388,8 +389,19 @@ class EventInstance extends Event {
     }
 
     @Override
-    public Map<String, Object> getMetas() {
+    Map<String, Object> getMetas() {
         return metas;
+    }
+
+    @Override
+    public void mergeMeta(Event event,
+                          BiFunction<Object, Object, Object> cumulator) {
+        event.getMetas().entrySet().forEach( i-> {
+            String key = i.getKey();
+            Object newValue = i.getValue();
+            Object oldValue = metas.get(key);
+            metas.put(key, cumulator.apply(oldValue, newValue));
+        });
     }
 
     @Override

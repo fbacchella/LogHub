@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
+import java.util.function.BiFunction;
 
 class EventWrapper extends Event {
     private final Event event;
@@ -243,6 +244,12 @@ class EventWrapper extends Event {
     @Override
     public Map<String, Object> getMetas() {
         return event.getMetas();
+    }
+
+    @Override
+    public void mergeMeta(Event event,
+                          BiFunction<Object, Object, Object> cumulator) {
+        event.mergeMeta(event, cumulator);
     }
 
     @Override

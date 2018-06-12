@@ -320,6 +320,7 @@ public class Merge extends Processor {
     private Expression fire = null;
 
     private Object defaultSeedType = new Object[]{};
+    private Object defaultMetaSeedType = '<';
 
     private Map<String, Object> seeds = Collections.emptyMap();
     private Map<String, BiFunction<Object, Object, Object>> cumulators;
@@ -391,6 +392,7 @@ public class Merge extends Processor {
                     current.event.put(key, newValue);
                 }
             }
+            current.event.mergeMeta(event, Cumulator.getCumulator(defaultMetaSeedType));
             // And don't forget the date, look for the @timestamp cumulator
             Date lastTimestamp = current.event.getTimestamp();
             Date nextTimestamp = event.getTimestamp();
@@ -516,6 +518,20 @@ public class Merge extends Processor {
      */
     public void setDefault(Object defaultSeed) {
         this.defaultSeedType = defaultSeed;
+    }
+
+    /**
+     * @return the defaultSeed
+     */
+    public Object getDefaultMeta() {
+        return defaultSeedType;
+    }
+
+    /**
+     * @param defaultSeed the defaultSeed to set
+     */
+    public void setDefaultMeta(Object defaultSeed) {
+        this.defaultMetaSeedType = defaultSeed;
     }
 
     /**

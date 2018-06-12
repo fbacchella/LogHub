@@ -66,6 +66,7 @@ mergeArgument
     | type='forward' ':' booleanLiteral
     | type='default' ':' beanValue
     | type='inPipeline' ':' stringLiteral
+    | type='defaultMeta' ':' beanValue
     ;
 
 mapping
