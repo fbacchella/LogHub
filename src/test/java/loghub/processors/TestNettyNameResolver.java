@@ -2,8 +2,11 @@ package loghub.processors;
 
 import java.io.IOException;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.UnknownHostException;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
@@ -14,7 +17,9 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import io.netty.channel.AddressedEnvelope;
 import io.netty.handler.codec.dns.DnsRecordType;
+import io.netty.handler.codec.dns.DnsResponse;
 import loghub.Event;
 import loghub.LogUtils;
 import loghub.Processor;
@@ -200,5 +205,26 @@ public class TestNettyNameResolver {
         }
         Assert.assertEquals("Queue not empty: " + status.mainQueue.size(), 0, status.mainQueue.size());
         Assert.assertEquals("Still waiting events: " + status.repository, 0, status.repository.waiting());
+    }
+
+    @Test(timeout=2000)
+    public void testCaching() throws UnknownHostException, ProcessorException, InterruptedException, ExecutionException {
+
+        NettyNameResolver proc = new NettyNameResolver();
+        proc.setResolver("8.8.8.8");
+        Assert.assertTrue(proc.configure(new Properties(Collections.emptyMap())));
+
+        Event e = Tools.getEvent();
+        /// resolving a.root-servers.net. in IPv4
+        e.put("host", InetAddress.getByName("198.41.0.4"));
+        try {
+            proc.fieldFunction(e, "198.41.0.4");
+        } catch (ProcessorException.PausedEventException e1) {
+            @SuppressWarnings("unchecked")
+            AddressedEnvelope<DnsResponse, InetSocketAddress> resp = (AddressedEnvelope<DnsResponse, InetSocketAddress>) e1.getFuture().await().get();
+            Assert.assertEquals("a.root-servers.net", proc.asyncProcess(e, resp));
+        }
+        // Will fail if the previous query was not cached
+        Assert.assertEquals("a.root-servers.net", proc.fieldFunction(e, "198.41.0.4"));
     }
 }

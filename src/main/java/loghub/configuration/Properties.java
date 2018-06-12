@@ -1,6 +1,5 @@
 package loghub.configuration;
 
-import java.lang.management.ManagementFactory;
 import java.nio.file.Paths;
 import java.security.NoSuchAlgorithmException;
 import java.security.URIParameter;
@@ -10,7 +9,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
-import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.function.BiFunction;
@@ -19,7 +17,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import javax.management.MBeanServer;
 import javax.management.MalformedObjectNameException;
 import javax.management.ObjectName;
 import javax.net.ssl.SSLContext;
@@ -55,12 +52,6 @@ import loghub.jmx.Helper;
 import loghub.jmx.Helper.PROTOCOL;
 import loghub.security.JWTHandler;
 import loghub.security.ssl.ContextLoader;
-import net.sf.ehcache.Cache;
-import net.sf.ehcache.CacheManager;
-import net.sf.ehcache.config.CacheConfiguration;
-import net.sf.ehcache.config.PersistenceConfiguration;
-import net.sf.ehcache.management.ManagementService;
-import net.sf.ehcache.store.MemoryStoreEvictionPolicy;
 
 public class Properties extends HashMap<String, Object> {
 
@@ -162,9 +153,9 @@ public class Properties extends HashMap<String, Object> {
     public final javax.security.auth.login.Configuration jaasConfig;
     public final JWTHandler jwtHandler;
     public final DashboardHttpServer.Builder dashboardBuilder;
+    public final CacheManager cacheManager;
 
     public final Timer timer = new Timer("loghubtimer", true);
-    private final CacheManager cacheManager;
 
     @SuppressWarnings("unchecked")
     public Properties(Map<String, Object> properties) {
@@ -195,10 +186,6 @@ public class Properties extends HashMap<String, Object> {
         senders = properties.containsKey(PROPSNAMES.SENDERS.toString()) ? (Collection<Sender>) properties.remove(PROPSNAMES.SENDERS.toString()) : Collections.emptyList();
 
         groovyClassLoader = new GroovyClassLoader(cl);
-
-        cacheManager = new CacheManager(new net.sf.ehcache.config.Configuration()
-                .name(UUID.randomUUID().toString())
-                );
 
         Map<String, Processor> _identifiedProcessors = new HashMap<String, Processor>();
         pipelines.forEach( i-> i.processors.forEach( j -> {
@@ -250,10 +237,7 @@ public class Properties extends HashMap<String, Object> {
             this.jmxlisten = "0.0.0.0";
         }
 
-        if (this.jmxport > 0) {
-            MBeanServer mBeanServer = ManagementFactory.getPlatformMBeanServer(); 
-            ManagementService.registerMBeans(cacheManager, mBeanServer, false, false, false, true);
-        }
+        cacheManager = new CacheManager(this);
 
         if (properties.containsKey("numWorkers")) {
             numWorkers = (Integer) properties.remove("numWorkers");
@@ -324,27 +308,7 @@ public class Properties extends HashMap<String, Object> {
     private JWTHandler buildJwtAlgorithm(Map<String, Object> properties) {
         Function<Object, String> stringOrNull = k -> (properties.get(k) != null ) ? properties.get(k) .toString() : null;
         return JWTHandler.getBuilder()
-                .secret(stringOrNull.apply("secret")).setAlg(stringOrNull.apply("alg")).build();
-    }
-
-    public Cache getCache(int size, String name, Object parent) {
-        CacheConfiguration config = getDefaultCacheConfig(name, parent).maxEntriesLocalHeap(size);
-        return getCache(config);
-    }
-
-    public CacheConfiguration getDefaultCacheConfig(String name, Object parent) {
-        return new CacheConfiguration()
-                .name(name + "@" + parent.hashCode())
-                .persistence(new PersistenceConfiguration().strategy(PersistenceConfiguration.Strategy.NONE))
-                .eternal(true)
-                .memoryStoreEvictionPolicy(MemoryStoreEvictionPolicy.LFU)
-                ;
-    }
-
-    public Cache getCache(CacheConfiguration config) {
-        Cache memoryOnlyCache = new Cache(config); 
-        cacheManager.addCache(memoryOnlyCache); 
-        return memoryOnlyCache;
+                        .secret(stringOrNull.apply("secret")).setAlg(stringOrNull.apply("alg")).build();
     }
 
     /**

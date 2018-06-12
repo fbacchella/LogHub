@@ -13,10 +13,15 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+import javax.cache.Cache;
+import javax.cache.processor.EntryProcessor;
+import javax.cache.processor.EntryProcessorException;
+
 import org.apache.logging.log4j.Level;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.maxmind.db.NodeCache;
+import com.maxmind.db.NodeCache.Loader;
 import com.maxmind.geoip2.DatabaseReader;
 import com.maxmind.geoip2.exception.AddressNotFoundException;
 import com.maxmind.geoip2.exception.GeoIp2Exception;
@@ -33,8 +38,6 @@ import loghub.Event;
 import loghub.Helpers;
 import loghub.ProcessorException;
 import loghub.configuration.Properties;
-import net.sf.ehcache.Cache;
-import net.sf.ehcache.Element;
 
 public class Geoip2 extends FieldsProcessor {
 
@@ -54,6 +57,7 @@ public class Geoip2 extends FieldsProcessor {
     private Path datfilepath = null;
     private LocationType[] types = new LocationType[] {};
     private String locale = "en";
+    private int cacheSize = 100;
 
     @Override
     public Object fieldFunction(Event event, Object addr) throws ProcessorException {
@@ -216,21 +220,24 @@ public class Geoip2 extends FieldsProcessor {
             datfilepath = Paths.get(datfile.toString());
         }
         if(reader == null) {
-            final Cache ehCache = properties.getCache(100, "Geoip2", this);
-            NodeCache nc = new NodeCache() {
-                @Override
-                public JsonNode get(int key, Loader loader) throws IOException {
-                    Element cacheElement = ehCache.get(key);
-
-                    if(cacheElement != null) {
-                        return (JsonNode) cacheElement.getObjectValue();
-                    } else {
-                        JsonNode node = loader.load(key);
-                        ehCache.put(new Element(key, node));
-                        return node;
+            Cache<Integer, JsonNode> ehCache = properties.cacheManager.getBuilder(Integer.class, JsonNode.class)
+                            .setCacheSize(cacheSize)
+                            .setName("Geoip2", this)
+                            .build();
+            EntryProcessor<Integer, JsonNode, JsonNode> ep = (i, j) -> {
+                try {
+                    if (i.getValue() == null) {
+                        Loader loader = (Loader)j[0];
+                        JsonNode node = loader.load(i.getKey());
+                        i.setValue(node);
                     }
+                    return i.getValue();
+                } catch (IOException e) {
+                    throw new EntryProcessorException(e);
                 }
             };
+            NodeCache nc = (k, l) -> ehCache.invoke(k, ep, l);
+
             if(datfilepath != null) {
                 try {
                     reader = new DatabaseReader.Builder(datfilepath.toFile()).withCache(nc).build();
@@ -284,6 +291,20 @@ public class Geoip2 extends FieldsProcessor {
         for(int i = 0; i < types.length ; i++) {
             this.types[i] = LocationType.valueOf(LocationType.class, types[i].toUpperCase(Locale.ENGLISH));
         }
+    }
+
+    /**
+     * @return the cacheSize
+     */
+    public int getCacheSize() {
+        return cacheSize;
+    }
+
+    /**
+     * @param cacheSize the cacheSize to set
+     */
+    public void setCacheSize(int cacheSize) {
+        this.cacheSize = cacheSize;
     }
 
 }

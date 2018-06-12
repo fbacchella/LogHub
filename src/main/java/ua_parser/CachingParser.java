@@ -4,9 +4,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.function.Function;
 
+import javax.cache.Cache;
+
 import loghub.configuration.Properties;
-import net.sf.ehcache.Cache;
-import net.sf.ehcache.Element;
 
 /**
  * When doing webanalytics (with for example PIG) the main pattern is to process
@@ -23,40 +23,37 @@ import net.sf.ehcache.Element;
  */
 public class CachingParser extends Parser {
 
-    private final Cache    cacheClient;
-    private final Cache cacheUserAgent;
-    private final Cache    cacheDevice;
-    private final Cache        cacheOS;
+    private final Cache<String, Client>    cacheClient;
+    private final Cache<String, UserAgent> cacheUserAgent;
+    private final Cache<String, Device>    cacheDevice;
+    private final Cache<String, OS>        cacheOS;
 
     // ------------------------------------------
 
     public CachingParser(int cacheSize, Properties props) throws IOException {
         super();
-        cacheClient = props.getCache(cacheSize, "UA-client", this);
-        cacheUserAgent = props.getCache(cacheSize, "UA-useragent", this);
-        cacheDevice = props.getCache(cacheSize, "UA-device", this);
-        cacheOS = props.getCache(cacheSize, "UA-os", this);
+        cacheClient = props.cacheManager.getBuilder(String.class, Client.class).setName("UA-client", this).build();
+        cacheUserAgent = props.cacheManager.getBuilder(String.class, UserAgent.class).setName("UA-useragent", this).build();
+        cacheDevice = props.cacheManager.getBuilder(String.class, Device.class).setName("UA-device", this).build();
+        cacheOS = props.cacheManager.getBuilder(String.class, OS.class).setName("UA-os", this).build();
     }
 
     public CachingParser(int cacheSize, Properties props, InputStream regexYaml) {
         super(regexYaml);
-        cacheClient = props.getCache(cacheSize, "UA-client", this);
-        cacheUserAgent = props.getCache(cacheSize, "UA-useragent", this);
-        cacheDevice = props.getCache(cacheSize, "UA-device", this);
-        cacheOS = props.getCache(cacheSize, "UA-os", this);
+        cacheClient = props.cacheManager.getBuilder(String.class, Client.class).setName("UA-client", this).setCacheSize(cacheSize).build();
+        cacheUserAgent = props.cacheManager.getBuilder(String.class, UserAgent.class).setName("UA-useragent", this).setCacheSize(cacheSize).build();
+        cacheDevice = props.cacheManager.getBuilder(String.class, Device.class).setName("UA-device", this).setCacheSize(cacheSize).build();
+        cacheOS = props.cacheManager.getBuilder(String.class, OS.class).setName("UA-os", this).setCacheSize(cacheSize).build();
     }
 
-    @SuppressWarnings("unchecked")
-    private <T> T getObject(Cache cache, String key, Function<String, T> resolve) {
-        T value = null;
-        Element e = cache.get(key);
-        if(e == null) {
-            value = resolve.apply(key);
-            cache.put(new Element(key, value));
-        } else {
-            value = (T) e.getObjectValue();
-        }
-        return value;
+    private <T> T getObject(Cache<String, T> cache, String key, Function<String, T> resolve) {
+        return cache.invoke(key, (e, a) -> {
+            if (e.getValue() == null) {
+                T value = resolve.apply(e.getKey());
+                e.setValue(value);
+            }
+            return e.getValue();
+        });
     }
 
     @Override

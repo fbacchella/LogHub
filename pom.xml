@@ -18,9 +18,9 @@
         <log4j>2.11.0</log4j>
         <antlr>4.7.1</antlr>
         <javadoc>2.10.3</javadoc>
-        <ehcache>2.10.5</ehcache>
         <jackson>2.9.5</jackson>
         <metrics>4.0.0</metrics>
+        <ehcache>3.5.2</ehcache>
         <mainClass>loghub.Start</mainClass>
         <dependency.locations.enabled>false</dependency.locations.enabled>
     </properties>
@@ -127,14 +127,20 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>net.sf.ehcache</groupId>
-            <artifactId>ehcache</artifactId>
+            <groupId>org.ehcache.modules</groupId>
+            <artifactId>ehcache-107</artifactId>
             <version>${ehcache}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.terracotta</groupId>
+                    <artifactId>offheap-store</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
-            <groupId>net.sf.ehcache</groupId>
-            <artifactId>ehcache-core</artifactId>
-            <version>2.6.11</version>
+            <groupId>javax.cache</groupId>
+            <artifactId>cache-api</artifactId>
+            <version>1.0.0</version>
         </dependency>
         <dependency>
             <groupId>fr.jrds</groupId>
@@ -284,6 +290,12 @@
                                     </excludes>
                                 </filter>
                                 <filter>
+                                    <artifact>javax.cache:cache-api</artifact>
+                                    <includes>
+                                        <include>**</include>
+                                    </includes>
+                                </filter>
+                                <filter>
                                     <artifact>io.krakens:java-grok</artifact>
                                     <excludes>
                                         <exclude>patterns/*</exclude>
@@ -385,8 +397,8 @@
                 </executions>
                 <configuration>
                     <links>
-                        <link>https://www.ehcache.org/apidocs/${ehcache}/</link>
                         <link>https://docs.groovy-lang.org/latest/html/api/</link>
+                        <link>http://www.ehcache.org/apidocs/${ehcache}/index.html</link>
                         <link>https://www.antlr.org/api/Java</link>
                         <link>https://netty.io/4.0/api/</link>
                         <link>https://www.snmp4j.org/doc/</link>
@@ -444,8 +456,8 @@
                 </reportSets>
                 <configuration>
                     <links>
-                        <link>https://www.ehcache.org/apidocs/${ehcache}/</link>
                         <link>https://docs.groovy-lang.org/latest/html/api/</link>
+                        <link>http://www.ehcache.org/apidocs/${ehcache}/index.html</link>
                         <link>https://www.antlr.org/api/Java</link>
                         <link>https://netty.io/4.0/api/</link>
                         <link>https://www.snmp4j.org/doc/</link>
