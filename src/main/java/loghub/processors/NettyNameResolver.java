@@ -117,9 +117,10 @@ public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<Dn
                         .queryTimeoutMillis(Math.max(getTimeout() - 1, 1) * 1000L)
                         .channelType(NioDatagramChannel.class)
                         ;
+        InetSocketAddress resolverAddr = null;
         try {
             if (getResolver() != null) {
-                InetSocketAddress resolverAddr = new InetSocketAddress(InetAddress.getByName(getResolver()), 53);
+                resolverAddr = new InetSocketAddress(InetAddress.getByName(getResolver()), 53);
                 builder = builder.nameServerProvider(new SingletonDnsServerAddressStreamProvider(resolverAddr));
             }
         } catch (UnknownHostException e) {
@@ -129,7 +130,7 @@ public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<Dn
         resolver = builder.build();
 
         hostCache = properties.cacheManager.getBuilder(DnsCacheKey.class, DnsCacheEntry.class)
-                        .setName("NameResolver", this)
+                        .setName("NameResolver", resolverAddr)
                         .setCacheSize(cacheSize)
                         .build();
 

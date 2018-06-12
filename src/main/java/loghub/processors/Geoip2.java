@@ -12,6 +12,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 
 import javax.cache.Cache;
 import javax.cache.processor.EntryProcessor;
@@ -215,14 +216,11 @@ public class Geoip2 extends FieldsProcessor {
 
     @Override
     public boolean configure(Properties properties) {
-        Object datfile = properties.get("geoip2data");
-        if(datfile != null) {
-            datfilepath = Paths.get(datfile.toString());
-        }
+        datfilepath = Optional.ofNullable(properties.get("geoip2data")).map(i-> Paths.get(i.toString())).orElse(null);
         if(reader == null) {
             Cache<Integer, JsonNode> ehCache = properties.cacheManager.getBuilder(Integer.class, JsonNode.class)
                             .setCacheSize(cacheSize)
-                            .setName("Geoip2", this)
+                            .setName("Geoip2", datfilepath != null ? datfilepath : "GeoLite2-City.mmdb")
                             .build();
             EntryProcessor<Integer, JsonNode, JsonNode> ep = (i, j) -> {
                 try {

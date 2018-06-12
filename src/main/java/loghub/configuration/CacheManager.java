@@ -90,7 +90,7 @@ public class CacheManager {
             return this;
         }
         public Cache<K, V> build() {
-            Cache<K, V> cache = Caching.getCache(name, keyType, valueType);
+            Cache<K, V> cache = cacheManager.getCache(name, keyType, valueType);
             if (cache != null) {
                 return cache;
             } else {
