@@ -296,6 +296,12 @@
                                     </includes>
                                 </filter>
                                 <filter>
+                                    <artifact>org.ehcache.modules:ehcache-107</artifact>
+                                    <includes>
+                                        <include>**</include>
+                                    </includes>
+                                </filter>
+                                <filter>
                                     <artifact>io.krakens:java-grok</artifact>
                                     <excludes>
                                         <exclude>patterns/*</exclude>
