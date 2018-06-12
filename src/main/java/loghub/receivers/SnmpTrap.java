@@ -89,8 +89,8 @@ public class SnmpTrap extends Receiver implements CommandResponder {
             String[] mibdirs = null;
             try {
                 mibdirs = Arrays.stream((Object[]) properties.get("mibdirs"))
-                        .map( i -> i.toString())
-                        .toArray(String[]::new);
+                                .map( i -> i.toString())
+                                .toArray(String[]::new);
                 formatter = OIDFormatter.register(mibdirs);
             } catch (ClassCastException e) {
                 logger.error("mibdirs property is not a string array");
@@ -102,7 +102,7 @@ public class SnmpTrap extends Receiver implements CommandResponder {
         }
         threadPool = ThreadPool.create("Trap", 2);
         MultiThreadedMessageDispatcher dispatcher = new MultiThreadedMessageDispatcher(threadPool,
-                new MessageDispatcherImpl());
+                                                                                       new MessageDispatcherImpl());
         dispatcher.addCommandResponder(this);
         dispatcher.addMessageProcessingModel(new MPv1());
         dispatcher.addMessageProcessingModel(new MPv2c());

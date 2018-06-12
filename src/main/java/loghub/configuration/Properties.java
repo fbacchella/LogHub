@@ -277,26 +277,26 @@ public class Properties extends HashMap<String, Object> {
         outputQueues = properties.containsKey(PROPSNAMES.OUTPUTQUEUE.toString()) ? (Map<String, BlockingQueue<Event>>) properties.remove(PROPSNAMES.OUTPUTQUEUE.toString()) : null;
 
         metrics.register(
-                "EventWaiting.mainloop",
-                new Gauge<Integer>() {
-                    @Override
-                    public Integer getValue() {
-                        return mainQueue != null ? mainQueue.size() : 0;
-                    }
-                });
+                         "EventWaiting.mainloop",
+                         new Gauge<Integer>() {
+                             @Override
+                             public Integer getValue() {
+                                 return mainQueue != null ? mainQueue.size() : 0;
+                             }
+                         });
 
         if (outputQueues != null) {
             for(Map.Entry<String, BlockingQueue<Event>> i: outputQueues.entrySet()) {
                 final BlockingQueue<Event> queue = i.getValue();
                 final String name = i.getKey();
                 metrics.register(
-                        "EventWaiting.output." + name,
-                        new Gauge<Integer>() {
-                            @Override
-                            public Integer getValue() {
-                                return queue.size();
-                            }
-                        });
+                                 "EventWaiting.output." + name,
+                                 new Gauge<Integer>() {
+                                     @Override
+                                     public Integer getValue() {
+                                         return queue.size();
+                                     }
+                                 });
             }
         }
 
@@ -369,13 +369,13 @@ public class Properties extends HashMap<String, Object> {
 
     @Override
     public Object merge(String key, Object value,
-            BiFunction<? super Object, ? super Object, ? extends Object> remappingFunction) {
+                        BiFunction<? super Object, ? super Object, ? extends Object> remappingFunction) {
         throw new UnsupportedOperationException("read only");
     }
 
     @Override
     public void replaceAll(
-            BiFunction<? super String, ? super Object, ? extends Object> function) {
+                           BiFunction<? super String, ? super Object, ? extends Object> function) {
         throw new UnsupportedOperationException("read only");
     }
 

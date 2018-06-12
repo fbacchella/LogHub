@@ -293,11 +293,11 @@ public final class Helpers {
      */
     public static boolean isFatal(Throwable err) {
         return (
-                // StackOverflowError is a VirtualMachineError but not critical if found in a plugin
-                ! (err instanceof StackOverflowError) && 
-                // VirtualMachineError includes OutOfMemoryError and other fatal errors
-                (err instanceof VirtualMachineError || err instanceof InterruptedException || err instanceof ThreadDeath) ) 
-                ;
+                        // StackOverflowError is a VirtualMachineError but not critical if found in a plugin
+                        ! (err instanceof StackOverflowError) && 
+                        // VirtualMachineError includes OutOfMemoryError and other fatal errors
+                        (err instanceof VirtualMachineError || err instanceof InterruptedException || err instanceof ThreadDeath) ) 
+                        ;
     }
 
     public static Object putNotEmpty(Map<String, Object>i, String j, Object k){
@@ -362,11 +362,11 @@ public final class Helpers {
                 URL newEndPoint = new URL(temp);
                 int localport = port;
                 endPoints[i] = new URL(
-                        (newEndPoint.getProtocol() != null ? newEndPoint.getProtocol() : protocol),
-                        (newEndPoint.getHost() != null ? newEndPoint.getHost() : "localhost"),
-                        (newEndPoint.getPort() > 0 ? newEndPoint.getPort() : localport),
-                        (newEndPoint.getPath() != null ? newEndPoint.getPath() : "")
-                        );
+                                       (newEndPoint.getProtocol() != null ? newEndPoint.getProtocol() : protocol),
+                                       (newEndPoint.getHost() != null ? newEndPoint.getHost() : "localhost"),
+                                       (newEndPoint.getPort() > 0 ? newEndPoint.getPort() : localport),
+                                       (newEndPoint.getPath() != null ? newEndPoint.getPath() : "")
+                                );
             } catch (MalformedURLException e) {
                 logger.error("invalid destination {}: {}", destinations[i], e.getMessage());
             }
