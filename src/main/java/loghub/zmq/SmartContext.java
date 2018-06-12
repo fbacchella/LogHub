@@ -4,6 +4,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.concurrent.FutureTask;
 
+import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.zeromq.ZContext;
@@ -11,6 +12,7 @@ import org.zeromq.ZMQ.Socket;
 import org.zeromq.ZMQException;
 import org.zeromq.ZPoller;
 
+import loghub.Helpers;
 import loghub.ThreadBuilder;
 import loghub.zmq.ZMQHelper.Method;
 import zmq.socket.Sockets;
@@ -91,10 +93,12 @@ public class SmartContext {
                             instance.context.close();
                         } catch (ZMQException | zmq.ZError.IOException | zmq.ZError.CtxTerminatedException | zmq.ZError.InstantiationException e) {
                             ZMQHelper.logZMQException(logger, "terminate", e);
-                        } catch (final java.nio.channels.ClosedSelectorException e) {
-                            logger.error("closed selector:" + e.getMessage());
-                        } catch (final Exception e) {
-                            logger.error("Unexpected error:" + e.getMessage());
+                        } catch (java.nio.channels.ClosedSelectorException e) {
+                            logger.error("closed selector:" + Helpers.resolveThrowableException(e));
+                            logger.catching(Level.DEBUG, e);
+                        } catch (Exception e) {
+                            logger.error("Unexpected error:" + Helpers.resolveThrowableException(e));
+                            logger.catching(Level.DEBUG, e);
                             return false;
                         }
                         logger.trace("ZMQ context terminated");
