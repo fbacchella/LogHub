@@ -296,7 +296,13 @@
                                     </includes>
                                 </filter>
                                 <filter>
-                                    <artifact>org.ehcache.modules:ehcache-107</artifact>
+                                    <artifact>org.ehcache.modules:*</artifact>
+                                    <includes>
+                                        <include>**</include>
+                                    </includes>
+                                </filter>
+                                <filter>
+                                    <artifact>org.terracotta:statistics</artifact>
                                     <includes>
                                         <include>**</include>
                                     </includes>
