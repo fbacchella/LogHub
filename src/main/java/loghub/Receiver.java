@@ -264,10 +264,10 @@ public abstract class Receiver extends Thread implements Iterator<Event>, Closea
         logger.debug("new event: {}", event);
         Stats.received.incrementAndGet();
         if(! event.inject(pipeline, outQueue, blocking)) {
-            Stats.dropped.incrementAndGet();
-            Properties.metrics.meter("Pipeline." + pipeline.getName() + ".blocked.in").mark();
             event.end();
-            logger.error("send failed for {}, destination blocked", event);
+            Properties.metrics.meter("Pipeline." + pipeline.getName() + ".blocked.in").mark();
+            Stats.newBlockedError("Listener " + getName() + " sending to " + pipeline.getName());
+            logger.debug("send failed from {}, pipeline destination {} blocked", () -> getName(), () -> pipeline.getName());
             return false;
         } else {
             return true;

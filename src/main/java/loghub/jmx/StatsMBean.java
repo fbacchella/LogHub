@@ -29,38 +29,44 @@ public interface StatsMBean {
 
     default public String[] getErrors() {
         return loghub.Stats.getErrors().stream()
-                .map( i-> (Throwable) (i.getCause() != null ? i.getCause() :  i))
-                .map( i -> i.getClass().getSimpleName() + ":" + i.getMessage())
-                .toArray(String[]::new)
-                ;
+                        .map( i-> (Throwable) (i.getCause() != null ? i.getCause() :  i))
+                        .map( i -> i.getClass().getSimpleName() + ":" + i.getMessage())
+                        .toArray(String[]::new)
+                        ;
     }
 
     default public String[] getDecodErrors() {
         return loghub.Stats.getDecodeErrors().stream()
-                .map( i-> (Throwable) (i.getCause() != null ? i.getCause() :  i))
-                .map( i -> i.getClass().getSimpleName() + ":" + i.getMessage())
-                .toArray(String[]::new)
-                ;
+                        .map( i-> (Throwable) (i.getCause() != null ? i.getCause() :  i))
+                        .map( i -> i.getClass().getSimpleName() + ":" + i.getMessage())
+                        .toArray(String[]::new)
+                        ;
     }
 
     default public String[] getExceptions() {
         return loghub.Stats.getExceptions().stream()
-                .map( i-> (Throwable) (i.getCause() != null ? i.getCause() :  i))
-                .map( i -> {
-                    StringBuffer exceptionDetails = new StringBuffer();
-                    String exceptionMessage = i.getMessage();
-                    if (exceptionMessage == null) {
-                        exceptionMessage = i.getClass().getSimpleName();
-                    }
-                    exceptionDetails.append(exceptionMessage);
-                    StackTraceElement[] stack = i.getStackTrace();
-                    if (stack.length > 0) {
-                        exceptionDetails.append(String.format(" at %s.%s line %d", stack[0].getClassName(), stack[0].getMethodName(), stack[0].getLineNumber()));
-                    }
-                    return exceptionDetails.toString();
-                })
-                .toArray(String[]::new)
-                ;
+                        .map( i-> (Throwable) (i.getCause() != null ? i.getCause() :  i))
+                        .map( i -> {
+                            StringBuffer exceptionDetails = new StringBuffer();
+                            String exceptionMessage = i.getMessage();
+                            if (exceptionMessage == null) {
+                                exceptionMessage = i.getClass().getSimpleName();
+                            }
+                            exceptionDetails.append(exceptionMessage);
+                            StackTraceElement[] stack = i.getStackTrace();
+                            if (stack.length > 0) {
+                                exceptionDetails.append(String.format(" at %s.%s line %d", stack[0].getClassName(), stack[0].getMethodName(), stack[0].getLineNumber()));
+                            }
+                            return exceptionDetails.toString();
+                        })
+                        .toArray(String[]::new)
+                        ;
+    }
+
+    default public String[] getBlockedError() {
+        return loghub.Stats.getBlockedError().stream()
+                        .toArray(String[]::new)
+                        ;
     }
 
     public class Implementation extends StandardMBean implements StatsMBean {
@@ -75,7 +81,7 @@ public interface StatsMBean {
         }
 
         public Implementation()
-                throws NotCompliantMBeanException, MalformedObjectNameException, InstanceAlreadyExistsException, MBeanRegistrationException {
+                        throws NotCompliantMBeanException, MalformedObjectNameException, InstanceAlreadyExistsException, MBeanRegistrationException {
             super(StatsMBean.class);
         }
 

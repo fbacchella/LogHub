@@ -14,10 +14,12 @@ public final class Stats {
     public final static AtomicLong sent = new AtomicLong();
     public final static AtomicLong failed = new AtomicLong();
     public final static AtomicLong thrown = new AtomicLong();
+    public final static AtomicLong blocked = new AtomicLong();
 
     private final static Queue<ProcessingException> errors = new ArrayBlockingQueue<>(100);
     private final static Queue<DecodeException> decodeErrors = new ArrayBlockingQueue<>(100);
     private final static Queue<Throwable> exceptions = new ArrayBlockingQueue<>(100);
+    private final static Queue<String> blockedMessage = new ArrayBlockingQueue<>(100);
 
     private Stats() {
     }
@@ -62,6 +64,16 @@ public final class Stats {
         }
     }
 
+    public static synchronized void newBlockedError(String context) {
+        blocked.incrementAndGet();
+        try {
+            blockedMessage.add(context);
+        } catch (IllegalStateException ex) {
+            blockedMessage.remove();
+            blockedMessage.add(context);
+        }
+    }
+
     public static synchronized Collection<ProcessingException> getErrors() {
         return Collections.unmodifiableCollection(errors);
     }
@@ -74,4 +86,7 @@ public final class Stats {
         return Collections.unmodifiableCollection(exceptions);
     }
 
+    public static Collection<String> getBlockedError() {
+        return Collections.unmodifiableCollection(blockedMessage);
+    }
 }
