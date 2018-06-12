@@ -206,6 +206,8 @@ public class Start {
             t.start();
             allep.add(t);
         }
+        Helpers.waitAllThreads(allep.stream().map(i -> (Thread) i ));
+
         for (Receiver r: props.receivers) {
             if (r.configure(props)) {
                 r.start();

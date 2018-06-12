@@ -403,4 +403,16 @@ public final class Helpers {
         }
     }
 
+    public static void waitAllThreads(Stream<Thread> threads) {
+        threads.forEach(i -> {
+            while ( ! i.isAlive()) {
+                try {
+                    Thread.sleep(10);
+                } catch (InterruptedException e) {
+                    Thread.interrupted();
+                }
+            }
+        });
+    }
+
 }

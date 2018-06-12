@@ -397,7 +397,7 @@ public abstract class AbstractHttpSender extends Sender {
             }
         };
         properties.registerScheduledTask(getPublishName() + "Flusher" , flush, 5000);
-
+        Helpers.waitAllThreads(Arrays.stream(threads));
         return true;
     }
 
