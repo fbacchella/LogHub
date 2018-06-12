@@ -2,6 +2,7 @@ package loghub.encoders;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
+import java.util.Collections;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -13,6 +14,7 @@ import org.junit.Test;
 import loghub.Event;
 import loghub.LogUtils;
 import loghub.Tools;
+import loghub.configuration.Properties;
 
 public class TestStringField {
 
@@ -30,6 +32,7 @@ public class TestStringField {
         StringField encoder = new StringField();
         encoder.setCharset("UTF-16");
         encoder.setFormat("${K1}: ${K2%02d}");
+        Assert.assertTrue(encoder.configure(new Properties(Collections.emptyMap()), null));
         Event e = Tools.getEvent();
         e.put("K1", "V1");
         e.put("K2", 2);

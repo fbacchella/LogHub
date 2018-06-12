@@ -1,48 +1,47 @@
 package loghub.encoders;
 
+import java.io.UnsupportedEncodingException;
 import java.nio.charset.Charset;
-import java.util.Formatter;
 import java.util.Locale;
-import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.function.Function;
 
 import loghub.Encoder;
 import loghub.Event;
+import loghub.Sender;
+import loghub.VarFormatter;
+import loghub.configuration.Properties;
 
 public class StringField extends Encoder {
-
-    private static final Pattern varregexp = Pattern.compile("(?<before>.*?)(?:\\$\\{(?<varname>[\\w\\.-]+)(?<format>%[^}]+)?\\})(?<after>.*)");
 
     private Locale locale = Locale.getDefault();
     private Charset charset = Charset.defaultCharset();
     private String format = null;
+    private Function<String, byte[]> encoder;
+    private VarFormatter formatter;
 
-    private StringBuilder findVariables(Formatter f, StringBuilder buffer, String in, Map<String, Object> env) {
-        Matcher m = varregexp.matcher(in);
-        if(m.find()) {
-            String before = m.group("before");
-            String format = m.group("format");
-            String varname = m.group("varname");
-            String after = m.group("after");
-            buffer.append(before);
-            if(varname == null || ! varname.isEmpty()) {
-                if(format == null || format.isEmpty()) {
-                    format = "%s";
+    @Override
+    public boolean configure(Properties properties, Sender sender) {
+        // With UTF-8, String.getBytes(String) is faster than String.getBytes(Charset), by about 10%
+        // See https://issues.apache.org/jira/browse/LOG4J2-935
+        // See also http://psy-lob-saw.blogspot.fr/2012/12/encode-utf-8-string-to-bytebuffer-faster.html
+        if ("UTF-8".equals(charset.name())) {
+            encoder = i -> {
+                try {
+                    return i.getBytes("UTF-8");
+                } catch (UnsupportedEncodingException e) {
+                    throw new RuntimeException(e);
                 }
-                f.format(format, env.get(varname));
-
-            }
-            findVariables(f, buffer, after, env);
+            };
+        } else {
+            encoder = i -> i.getBytes(charset);
         }
-        return buffer;
+        formatter = new VarFormatter(format);
+        return super.configure(properties, sender);
     }
 
     @Override
     public byte[] encode(Event event) {
-        StringBuilder buffer = new StringBuilder();
-        findVariables(new Formatter(buffer, locale), buffer, format, event);
-        return buffer.toString().getBytes(charset);
+        return encoder.apply(formatter.format(event));
     }
 
     public String getCharset() {
