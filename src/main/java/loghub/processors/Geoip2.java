@@ -39,6 +39,7 @@ import loghub.Event;
 import loghub.Helpers;
 import loghub.ProcessorException;
 import loghub.configuration.Properties;
+import loghub.configuration.CacheManager.Policy;
 
 public class Geoip2 extends FieldsProcessor {
 
@@ -53,15 +54,16 @@ public class Geoip2 extends FieldsProcessor {
         SUBDIVISION,
     };
 
-    private static DatabaseReader reader;
 
     private Path datfilepath = null;
     private LocationType[] types = new LocationType[] {};
-    private String locale = "en";
+    private String locale = null;
     private int cacheSize = 100;
+    private DatabaseReader reader;
 
     @Override
     public Object fieldFunction(Event event, Object addr) throws ProcessorException {
+        System.out.format("fieldFunction %s %s\n", event, addr);
         InetAddress ipInfo = null;
         if (addr instanceof InetAddress) {
             ipInfo = (InetAddress) addr;
@@ -121,7 +123,6 @@ public class Geoip2 extends FieldsProcessor {
             }
             default:
                 throw event.buildException("Unknown database type: " + reader.getMetadata().getDatabaseType());
-
             }
         } catch (AddressNotFoundException e) {
             // not an error, just return a failure
@@ -135,8 +136,8 @@ public class Geoip2 extends FieldsProcessor {
             case COUNTRY:
                 if(country != null) {
                     Map<String, Object> infos = new HashMap<>(2);
-                    Helpers.putNotEmpty(infos, "code", country.getIsoCode());
-                    Helpers.putNotEmpty(infos, "name", country.getNames().get(locale));
+                    Optional.ofNullable(country.getIsoCode()).ifPresent(i -> infos.put("code", i));
+                    Optional.ofNullable(country.getNames().get(locale)).ifPresent(i -> infos.put("name", i));
                     if(infos.size() > 0) {
                         informations.put("country", infos);
                     }
@@ -145,8 +146,8 @@ public class Geoip2 extends FieldsProcessor {
             case REPRESENTEDCOUNTRY:
                 if(represented_country != null) {
                     Map<String, Object> infos = new HashMap<>(2);
-                    Helpers.putNotEmpty(infos, "code", represented_country.getIsoCode());
-                    Helpers.putNotEmpty(infos, "name", represented_country.getNames().get(locale));
+                    Optional.ofNullable(represented_country.getIsoCode()).ifPresent(i -> infos.put("code", i));
+                    Optional.ofNullable(represented_country.getNames().get(locale)).ifPresent(i -> infos.put("name", i));
                     if(infos.size() > 0) {
                         informations.put("represented_country", infos);
                     }
@@ -155,8 +156,8 @@ public class Geoip2 extends FieldsProcessor {
             case REGISTREDCOUNTRY:
                 if(registred_country != null) {
                     Map<String, Object> infos = new HashMap<>(2);
-                    Helpers.putNotEmpty(infos, "code", registred_country.getIsoCode());
-                    Helpers.putNotEmpty(infos, "name", registred_country.getNames().get(locale));
+                    Optional.ofNullable(registred_country.getIsoCode()).ifPresent(i -> infos.put("code", i));
+                    Optional.ofNullable(registred_country.getNames().get(locale)).ifPresent(i -> infos.put("name", i));
                     if(infos.size() > 0) {
                         informations.put("registred_country", infos);
                     }
@@ -164,32 +165,32 @@ public class Geoip2 extends FieldsProcessor {
                 break;
             case CITY: {
                 if(city != null) {
-                    Helpers.putNotEmpty(informations, "city", city.getNames().get(locale));
+                    Optional.ofNullable(city.getNames().get(locale)).ifPresent(i -> informations.put("city", i));
                 }
                 break;
             }
             case LOCATION:
-                Map<String, Object> infos = new HashMap<>(10);
+                Map<String, Object> infos = new HashMap<>(7);
                 if(location != null) {
-                    Helpers.putNotEmpty(infos, "latitude", location.getLatitude());
-                    Helpers.putNotEmpty(infos, "longitude", location.getLongitude());
-                    Helpers.putNotEmpty(infos, "timezone", location.getTimeZone());
-                    Helpers.putNotEmpty(infos, "accuray_radius", location.getAccuracyRadius());
-                    Helpers.putNotEmpty(infos, "metro_code", location.getMetroCode());
-                    Helpers.putNotEmpty(infos, "average_income", location.getAverageIncome());
-                    Helpers.putNotEmpty(infos, "population_density", location.getPopulationDensity());
+                    Optional.ofNullable(location.getLatitude()).ifPresent(i -> infos.put("latitude", i));
+                    Optional.ofNullable(location.getLongitude()).ifPresent(i -> infos.put("longitude", i));
+                    Optional.ofNullable(location.getTimeZone()).ifPresent(i -> infos.put("timezone", i));
+                    Optional.ofNullable(location.getAccuracyRadius()).ifPresent(i -> infos.put("accuray_radius", i));
+                    Optional.ofNullable(location.getMetroCode()).ifPresent(i -> infos.put("metro_code", i));
+                    Optional.ofNullable(location.getAverageIncome()).ifPresent(i -> infos.put("average_income", i));
+                    Optional.ofNullable(location.getPopulationDensity()).ifPresent(i -> infos.put("population_density", i));
                     if(infos.size() > 0) {
                         informations.put("location", infos);
                     }
                 }
             case CONTINENT:
                 if(continent != null) {
-                    Helpers.putNotEmpty(informations, "continent", continent.getNames().get(locale));
+                    Optional.ofNullable(continent.getNames().get(locale)).ifPresent(i -> informations.put("continent", i));
                 }
                 break;
             case POSTAL:
                 if(postal != null) {
-                    Helpers.putNotEmpty(informations, "postal", postal.getCode());
+                    Optional.ofNullable(postal.getCode()).ifPresent(i -> informations.put("postal", i));
                 }
                 break;
             case SUBDIVISION:
@@ -197,8 +198,8 @@ public class Geoip2 extends FieldsProcessor {
                     List<Map<String, Object>> all = new ArrayList<>(subdivision.size());
                     for(Subdivision sub: subdivision) {
                         Map<String, Object> subdivisioninfo = new HashMap<>(2);
-                        Helpers.putNotEmpty(subdivisioninfo, "code", sub.getIsoCode());
-                        Helpers.putNotEmpty(subdivisioninfo, "name", sub.getNames().get(locale));
+                        Optional.ofNullable(sub.getIsoCode()).ifPresent(i -> subdivisioninfo.put("code", i));
+                        Optional.ofNullable(sub.getNames().get(locale)).ifPresent(i -> subdivisioninfo.put("name", i));
                         if(subdivisioninfo.size() > 0) {
                             all.add(subdivisioninfo);
                         }
@@ -219,49 +220,56 @@ public class Geoip2 extends FieldsProcessor {
 
     @Override
     public boolean configure(Properties properties) {
-        datfilepath = Optional.ofNullable(properties.get("geoip2data")).map(i-> Paths.get(i.toString())).orElse(null);
-        if(reader == null) {
-            Cache<Integer, JsonNode> ehCache = properties.cacheManager.getBuilder(Integer.class, JsonNode.class)
-                            .setCacheSize(cacheSize)
-                            .setName("Geoip2", datfilepath != null ? datfilepath : "GeoLite2-City.mmdb")
-                            .build();
-            EntryProcessor<Integer, JsonNode, JsonNode> ep = (i, j) -> {
-                try {
-                    if (! i.exists()) {
-                        Loader loader = (Loader)j[0];
-                        JsonNode node = loader.load(i.getKey());
-                        i.setValue(node);
-                    }
-                    return i.getValue();
-                } catch (IOException e) {
-                    throw new EntryProcessorException(e);
+        // It might have been setup by properties
+        if (locale == null) {
+            locale = Locale.getDefault().getCountry();
+        }
+        // Kept for compatibility
+        if (datfilepath == null) {
+            datfilepath = Optional.ofNullable(properties.get("geoip2data")).map(i-> Paths.get(i.toString())).orElse(null);
+        }
+        Cache<Integer, JsonNode> ehCache = properties.cacheManager.getBuilder(Integer.class, JsonNode.class)
+                        .setCacheSize(cacheSize)
+                        .setName("Geoip2", datfilepath != null ? datfilepath : "GeoLite2-City.mmdb")
+                        .setExpiry(Policy.ETERNAL)
+                        .build();
+        EntryProcessor<Integer, JsonNode, JsonNode> ep = (i, j) -> {
+            try {
+                JsonNode node = i.getValue();
+                if (! i.exists()) {
+                    Loader loader = (Loader)j[0];
+                    node = loader.load(i.getKey());
+                    i.setValue(node);
                 }
-            };
-            NodeCache nc = (k, l) -> ehCache.invoke(k, ep, l);
+                return node;
+            } catch (Exception e) {
+                throw new EntryProcessorException(e);
+            }
+        };
+        NodeCache nc = (k, l) -> ehCache.invoke(k, ep, l);
 
-            if(datfilepath != null) {
-                try {
-                    reader = new DatabaseReader.Builder(datfilepath.toFile()).withCache(nc).build();
-                } catch (IOException e) {
-                    logger.error("can't read geoip database " + datfilepath.toString());
-                    logger.throwing(Level.DEBUG, e);
-                    return false;
-                }
-            } else {
-                try {
-                    InputStream is = properties.classloader.getResourceAsStream("GeoLite2-City.mmdb");
-                    if (is == null) {
-                        logger.error("Didn't find a default database");
-                        return false;
-                    } else {
-                        InputStream embedded = new BufferedInputStream(is);
-                        reader = new DatabaseReader.Builder(embedded).withCache(nc).build();
-                    }
-                } catch (IOException e) {
+        if(datfilepath != null) {
+            try {
+                reader = new DatabaseReader.Builder(datfilepath.toFile()).withCache(nc).build();
+            } catch (IOException e) {
+                logger.error("can't read geoip database " + datfilepath.toString());
+                logger.throwing(Level.DEBUG, e);
+                return false;
+            }
+        } else {
+            try {
+                InputStream is = properties.classloader.getResourceAsStream("GeoLite2-City.mmdb");
+                if (is == null) {
                     logger.error("Didn't find a default database");
-                    logger.throwing(Level.DEBUG, e);
                     return false;
+                } else {
+                    InputStream embedded = new BufferedInputStream(is);
+                    reader = new DatabaseReader.Builder(embedded).withCache(nc).build();
                 }
+            } catch (IOException e) {
+                logger.error("Didn't find a default database");
+                logger.throwing(Level.DEBUG, e);
+                return false;
             }
         }
         return super.configure(properties);
