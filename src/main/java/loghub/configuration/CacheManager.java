@@ -2,106 +2,110 @@ package loghub.configuration;
 
 import java.time.Duration;
 import java.time.temporal.TemporalUnit;
+import java.util.concurrent.TimeUnit;
 
 import javax.cache.Cache;
 import javax.cache.Caching;
-import javax.cache.configuration.Configuration;
-import javax.cache.configuration.Factory;
 import javax.cache.spi.CachingProvider;
 
-import org.ehcache.config.CacheConfiguration;
-import org.ehcache.config.builders.CacheConfigurationBuilder;
-import org.ehcache.config.builders.ExpiryPolicyBuilder;
-import org.ehcache.config.builders.ResourcePoolsBuilder;
-import org.ehcache.expiry.ExpiryPolicy;
-import org.ehcache.jsr107.Eh107Configuration;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.cache2k.Cache2kBuilder;
+import org.cache2k.jcache.ExtendedMutableConfiguration;
 
 public class CacheManager {
 
+    private static final Logger logger = LogManager.getLogger();
+
     public enum Policy {
         ACCESSED {
-            @SuppressWarnings("unchecked")
             @Override
-            <K,V> Factory<ExpiryPolicy<K,V>> getPolicy(Duration duration) {
-                return (Factory<ExpiryPolicy<K, V>>) ExpiryPolicyBuilder.timeToIdleExpiration(duration);
+            <K,
+            V> Cache2kBuilder<K, V> configure(Cache2kBuilder<K, V> configuration,
+                                              Duration duration) {
+                return configuration;
             }
         },
         CREATED {
-            @SuppressWarnings("unchecked")
             @Override
-            <K,V> Factory<ExpiryPolicy<K,V>> getPolicy(Duration duration) {
-                return (Factory<ExpiryPolicy<K, V>>) ExpiryPolicyBuilder.timeToLiveExpiration(duration);
+            <K,
+            V> Cache2kBuilder<K, V> configure(Cache2kBuilder<K, V> configuration,
+                                              Duration duration) {
+                return configuration;
             }
         },
         ETERNAL {
-            @SuppressWarnings("unchecked")
             @Override
-            <K,V> Factory<ExpiryPolicy<K,V>> getPolicy(Duration duration) {
-                return (Factory<ExpiryPolicy<K, V>>) ExpiryPolicyBuilder.noExpiration();
+            <K,
+            V> Cache2kBuilder<K, V> configure(Cache2kBuilder<K, V> configuration,
+                                              Duration duration) {
+                configuration.eternal(true);
+                return configuration;
             }
         },
         MODIFIED {
             @Override
-            <K,V> Factory<ExpiryPolicy<K,V>> getPolicy(Duration duration) {
-                throw new UnsupportedOperationException("Ehcache don't handle modify expiration");
+            <K,
+            V> Cache2kBuilder<K, V> configure(Cache2kBuilder<K, V> configuration,
+                                              Duration duration) {
+                configuration.expireAfterWrite(duration.toMillis(), TimeUnit.MILLISECONDS);
+                return configuration;
             }
         },
         TOUCHED {
             @Override
-            <K,V> Factory<ExpiryPolicy<K,V>> getPolicy(Duration duration) {
-                throw new UnsupportedOperationException("Ehcache don't handle touched expiration");
+            <K,
+            V> Cache2kBuilder<K, V> configure(Cache2kBuilder<K, V> configuration,
+                                              Duration duration) {
+                return configuration;
             }
         };
-        abstract <K,V> Factory<ExpiryPolicy<K,V>> getPolicy(Duration duration);
+        abstract <K,V> Cache2kBuilder<K, V> configure(Cache2kBuilder<K, V> configuration, Duration duration);
     }
 
     public class Builder<K, V> {
         private String name;
-        private Class<K> keyType;
-        private Class<V> valueType;
-        private Factory<ExpiryPolicy<K,V>> policy = null;
-        private int cacheSize;
-        private Builder(Class<K> keyType, Class<V> ValueType) {
+        private final Cache2kBuilder<K, V> builder2k;
+        private final Class<K> keyType;
+        private final Class<V> valueType;
+        private Builder(Class<K> keyType, Class<V> valueType) {
+            builder2k = Cache2kBuilder.of(keyType, valueType)
+                            .permitNullValues(false)
+                            .storeByReference(true)
+                            .keepDataAfterExpired(false)
+                            ;
             this.keyType = keyType;
-            this.valueType = ValueType;
+            this.valueType = valueType;
         }
         public Builder<K, V> setName(String name, Object parent) {
-            this.name = name + "@" + parent.hashCode();
+            this.name = String.format("%s@%08x", name, Integer.toUnsignedLong(parent.hashCode()));
             return this;
         }
-        public Builder<K, V> setKeyType(Class<K> keyType) {
-            this.keyType = keyType;
-            return this;
-        }
-        public Builder<K, V> setValueType(Class<V> ValueType) {
-            this.valueType = ValueType;
+        public Builder<K, V> setExpiry(Policy policy) {
+            policy.configure(builder2k, Duration.ZERO);
             return this;
         }
         public Builder<K, V> setExpiry(Policy policy, Duration duration) {
-            this.policy = policy.getPolicy(duration);
+            policy.configure(builder2k, duration);
             return this;
         }
         public Builder<K, V> setExpiry(Policy policy, long durationAmount, TemporalUnit timeUnit) {
-            this.policy = policy.getPolicy(Duration.of(durationAmount, timeUnit));
+            policy.configure(builder2k, Duration.of(durationAmount, timeUnit));
             return this;
         }
         public Builder<K, V> setCacheSize(int cacheSize) {
-            this.cacheSize = cacheSize;
+            builder2k.entryCapacity(cacheSize);
             return this;
         }
         public Cache<K, V> build() {
             Cache<K, V> cache = cacheManager.getCache(name, keyType, valueType);
             if (cache != null) {
+                logger.debug("Reusing cache {}", name);
                 return cache;
             } else {
-                CacheConfigurationBuilder<K, V> builder = CacheConfigurationBuilder.newCacheConfigurationBuilder(keyType, valueType,
-                                                                                                                 ResourcePoolsBuilder.heap(cacheSize));
-                if (policy != null) {
-                    builder.withExpiry(policy.create());
-                }
-                CacheConfiguration<K, V> cacheConfiguration = builder.build(); 
-                Configuration<K, V> eh107config = Eh107Configuration.fromEhcacheCacheConfiguration(cacheConfiguration);
-                return cacheManager.createCache(name, eh107config); 
+                logger.debug("creating cache {}", name);
+                ExtendedMutableConfiguration<K, V> config = ExtendedMutableConfiguration.of(builder2k);
+                return cacheManager.createCache(name, config);
             }
         }
     }
@@ -109,8 +113,12 @@ public class CacheManager {
     private final javax.cache.CacheManager cacheManager;
 
     public CacheManager(Properties props) {
-        CachingProvider provider = Caching.getCachingProvider(props.classloader);
-        cacheManager = provider.getCacheManager();
+        synchronized (CacheManager.class) {
+            CachingProvider provider = Caching.getCachingProvider(props.classloader);
+            cacheManager = provider.getCacheManager();
+            //Needed for junit tests that reuse context
+            cacheManager.getCacheNames().forEach(cacheManager::destroyCache);
+        }
     }
 
     public <K, V> Builder<K, V> getBuilder(Class<K> keyType, Class<V> ValueType) {

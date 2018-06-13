@@ -9,6 +9,8 @@ import org.apache.logging.log4j.core.config.Configurator;
 public class LogUtils {
 
     static public void configure() throws IOException {
+        System.setProperty("Log4jContextSelector", "org.apache.logging.log4j.core.selector.BasicContextSelector");
+        System.setProperty("java.util.logging.manager", "org.apache.logging.log4j.jul.LogManager");
     }
 
     static public void setLevel(Logger logger, Level level, String... allLoggers) {

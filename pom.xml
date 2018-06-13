@@ -20,7 +20,7 @@
         <javadoc>2.10.3</javadoc>
         <jackson>2.9.5</jackson>
         <metrics>4.0.0</metrics>
-        <ehcache>3.5.2</ehcache>
+        <cache2k>1.0.2.Final</cache2k>
         <mainClass>loghub.Start</mainClass>
         <dependency.locations.enabled>false</dependency.locations.enabled>
     </properties>
@@ -127,20 +127,19 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.ehcache.modules</groupId>
-            <artifactId>ehcache-107</artifactId>
-            <version>${ehcache}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.terracotta</groupId>
-                    <artifactId>offheap-store</artifactId>
-                </exclusion>
-            </exclusions>
+            <groupId>org.cache2k</groupId>
+            <artifactId>cache2k-all</artifactId>
+            <version>${cache2k}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.cache2k</groupId>
+            <artifactId>cache2k-jcache</artifactId>
+            <version>${cache2k}</version>
         </dependency>
         <dependency>
             <groupId>javax.cache</groupId>
             <artifactId>cache-api</artifactId>
-            <version>1.0.0</version>
+            <version>1.1.0</version>
         </dependency>
         <dependency>
             <groupId>fr.jrds</groupId>
@@ -296,13 +295,7 @@
                                     </includes>
                                 </filter>
                                 <filter>
-                                    <artifact>org.ehcache.modules:*</artifact>
-                                    <includes>
-                                        <include>**</include>
-                                    </includes>
-                                </filter>
-                                <filter>
-                                    <artifact>org.terracotta:statistics</artifact>
+                                    <artifact>org.cache2k:*</artifact>
                                     <includes>
                                         <include>**</include>
                                     </includes>
@@ -408,9 +401,11 @@
                     </execution>
                 </executions>
                 <configuration>
+                    <!-- needed by javadoc.io -->
+                    <additionalJOption>-J-Dhttp.agent=maven-javadoc-plugin-${pom‌​.name}</additionalJOption>
                     <links>
-                        <link>https://docs.groovy-lang.org/latest/html/api/</link>
-                        <link>http://www.ehcache.org/apidocs/${ehcache}/index.html</link>
+                        <link>https://static.javadoc.io/javax.cache/cache-api/1.1.0/</link>
+                        <link>http://docs.groovy-lang.org/latest/html/api/</link>
                         <link>https://www.antlr.org/api/Java</link>
                         <link>https://netty.io/4.0/api/</link>
                         <link>https://www.snmp4j.org/doc/</link>
@@ -467,9 +462,11 @@
                     </reportSet>
                 </reportSets>
                 <configuration>
+                    <!-- needed by javadoc.io -->
+                    <additionalJOption>-J-Dhttp.agent=maven-javadoc-plugin-${pom‌​.name}</additionalJOption>
                     <links>
-                        <link>https://docs.groovy-lang.org/latest/html/api/</link>
-                        <link>http://www.ehcache.org/apidocs/${ehcache}/index.html</link>
+                        <link>https://static.javadoc.io/javax.cache/cache-api/1.1.0/</link>
+                        <link>http://docs.groovy-lang.org/latest/html/api/</link>
                         <link>https://www.antlr.org/api/Java</link>
                         <link>https://netty.io/4.0/api/</link>
                         <link>https://www.snmp4j.org/doc/</link>
