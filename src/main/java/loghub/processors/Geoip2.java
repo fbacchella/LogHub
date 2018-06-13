@@ -55,7 +55,7 @@ public class Geoip2 extends FieldsProcessor {
     };
 
 
-    private Path datfilepath = null;
+    private Path geoipdb = null;
     private LocationType[] types = new LocationType[] {};
     private String locale = null;
     private int cacheSize = 100;
@@ -224,12 +224,12 @@ public class Geoip2 extends FieldsProcessor {
             locale = Locale.getDefault().getCountry();
         }
         // Kept for compatibility
-        if (datfilepath == null) {
-            datfilepath = Optional.ofNullable(properties.get("geoip2data")).map(i-> Paths.get(i.toString())).orElse(null);
+        if (geoipdb == null) {
+            geoipdb = Optional.ofNullable(properties.get("geoip2data")).map(i-> Paths.get(i.toString())).orElse(null);
         }
         Cache<Integer, JsonNode> ehCache = properties.cacheManager.getBuilder(Integer.class, JsonNode.class)
                         .setCacheSize(cacheSize)
-                        .setName("Geoip2", datfilepath != null ? datfilepath : "GeoLite2-City.mmdb")
+                        .setName("Geoip2", geoipdb != null ? geoipdb : "GeoLite2-City.mmdb")
                         .setExpiry(Policy.ETERNAL)
                         .build();
         EntryProcessor<Integer, JsonNode, JsonNode> ep = (i, j) -> {
@@ -247,11 +247,11 @@ public class Geoip2 extends FieldsProcessor {
         };
         NodeCache nc = (k, l) -> ehCache.invoke(k, ep, l);
 
-        if(datfilepath != null) {
+        if(geoipdb != null) {
             try {
-                reader = new DatabaseReader.Builder(datfilepath.toFile()).withCache(nc).build();
+                reader = new DatabaseReader.Builder(geoipdb.toFile()).withCache(nc).build();
             } catch (IOException e) {
-                logger.error("can't read geoip database " + datfilepath.toString());
+                logger.error("can't read geoip database " + geoipdb.toString());
                 logger.throwing(Level.DEBUG, e);
                 return false;
             }
@@ -274,12 +274,12 @@ public class Geoip2 extends FieldsProcessor {
         return super.configure(properties);
     }
 
-    public String getDatfilepath() {
-        return datfilepath.toString();
+    public String getGeoipdb() {
+        return geoipdb.toString();
     }
 
-    public void setDatfilepath(String datfilepath) {
-        this.datfilepath = Paths.get(datfilepath);
+    public void setGeoipdb(String datfilepath) {
+        this.geoipdb = Paths.get(datfilepath);
     }
 
     public String getLocale() {
