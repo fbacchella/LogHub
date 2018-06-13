@@ -5,6 +5,7 @@ import java.util.Date;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 import java.util.function.Supplier;
 
@@ -123,8 +124,8 @@ public abstract class Receiver extends Thread implements Iterator<Event>, Closea
                 }
             } catch (Exception e) {
                 eventseen = 0;
-                logger.error(e.getMessage());
-                logger.catching(e);
+                logger.error("Failed received event: " + Helpers.resolveThrowableException(e));
+                logger.catching(Level.DEBUG, e);
             }
             // The previous loop didn't catch anything
             // So try some recovery
@@ -200,24 +201,32 @@ public abstract class Receiver extends Thread implements Iterator<Event>, Closea
 
     private Event decode(ConnectionContext<?> ctx,java.util.function.BooleanSupplier isValid, Supplier<Map<String, Object>> decoder) {
         EventInstance event = new EventInstance(ctx);
-        if ( ! isValid.getAsBoolean()) {
-            logger.info("received null or empty event");
+        try {
+            if ( ! isValid.getAsBoolean() ) {
+                throw new DecodeException("received null or empty event");
+            } else {
+                Map<String, Object> content = decoder.get();
+                if (content != null) {
+                    Object ts = Optional.ofNullable(content.get(Event.TIMESTAMPKEY)).filter( i -> i instanceof Date).orElse(null);
+                    if (ts != null) {
+                        content.remove(Event.TIMESTAMPKEY);
+                        event.setTimestamp((Date) ts);
+                    }
+                    content.entrySet().stream().forEach( i -> event.put(i.getKey(), i.getValue()));
+                } else {
+                    throw new DecodeException("Received event with no usable body");
+                }
+            }
+            return event;
+        } catch (DecodeException e) {
+            manageDecodeException(e);
             event.end();
             return null;
-        } else {
-            try {
-                Map<String, Object> content = decoder.get();
-                if (content.containsKey(Event.TIMESTAMPKEY) && (event.get(Event.TIMESTAMPKEY) instanceof Date)) {
-                    event.setTimestamp((Date) event.remove(Event.TIMESTAMPKEY));
-                }
-                content.entrySet().stream().forEach( i -> event.put(i.getKey(), i.getValue()));
-            } catch (RuntimeDecodeException e) {
-                manageDecodeException((DecodeException)e.getCause());
-                event.end();
-                return null;
-            }
+        } catch (RuntimeDecodeException e) {
+            manageDecodeException((DecodeException)e.getCause());
+            event.end();
+            return null;
         }
-        return event;
     }
 
     protected final Event decode(ConnectionContext<?> ctx, ByteBuf bbuf) {
@@ -225,7 +234,7 @@ public abstract class Receiver extends Thread implements Iterator<Event>, Closea
             try {
                 return decoder.decode(ctx, bbuf);
             } catch (DecodeException e) {
-                throw new RuntimeDecodeException(e.getMessage(), e.getCause());
+                throw new RuntimeDecodeException(Helpers.resolveThrowableException(e), e.getCause());
             }
         });
     }
@@ -239,7 +248,7 @@ public abstract class Receiver extends Thread implements Iterator<Event>, Closea
             try {
                 return decoder.decode(ctx, msg, offset, size);
             } catch (DecodeException e) {
-                throw new RuntimeDecodeException(e.getMessage(), e.getCause());
+                throw new RuntimeDecodeException(Helpers.resolveThrowableException(e), e.getCause());
             }
         });
     }
@@ -250,8 +259,8 @@ public abstract class Receiver extends Thread implements Iterator<Event>, Closea
 
     protected void manageDecodeException(DecodeException ex) {
         Stats.newDecodError(ex);
-        logger.error("invalid message received: {}", ex.getMessage());
-        logger.throwing(Level.DEBUG, ex.getCause() != null ? ex.getCause() : ex);
+        logger.debug("invalid message received: {}", ex.getMessage());
+        logger.catching(Level.DEBUG, ex.getCause() != null ? ex.getCause() : ex);
     }
 
     /**
