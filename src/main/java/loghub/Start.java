@@ -69,9 +69,9 @@ public class Start {
     static public void main(final String[] args) {
         Start main = new Start();
         JCommander jcom = JCommander
-                .newBuilder()
-                .addObject(main)
-                .build();
+                        .newBuilder()
+                        .addObject(main)
+                        .build();
 
         try {
             jcom.parse(args);
@@ -227,11 +227,11 @@ public class Start {
             props.receivers.forEach( i -> i.stopReceiving());
         };
         shutdownAction = ThreadBuilder.get()
-                .setDaemon(true)
-                .setRunnable(shutdown)
-                .setName("StopEventsProcessors")
-                .setShutdownHook(true)
-                .build();
+                        .setDaemon(true)
+                        .setRunnable(shutdown)
+                        .setName("StopEventsProcessors")
+                        .setShutdownHook(true)
+                        .build();
 
         try {
             MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
@@ -243,7 +243,7 @@ public class Start {
                 Helper.start(props.jmxproto, props.jmxlisten, port);
             }
         } catch (IOException | NotBoundException | NotCompliantMBeanException | MalformedObjectNameException
-                | InstanceAlreadyExistsException | MBeanRegistrationException e) {
+                        | InstanceAlreadyExistsException | MBeanRegistrationException e) {
             throw new RuntimeException("jmx configuration failed: " + e.getMessage(), e);
         }
         if (props.dashboardBuilder != null) {

@@ -99,7 +99,7 @@ public class Tools {
         sent.inject(pipe, props.mainQueue);
         Event toprocess;
         Processor processor;
-        // Process all the events, will hang forever is it don't finish
+        // Process all the events, will hang forever if it don't finish
         try {
             while ((toprocess = props.mainQueue.poll(5, TimeUnit.SECONDS)) != null) {
                 while ((processor = toprocess.next()) != null) {
@@ -116,6 +116,7 @@ public class Tools {
                 }
             }
         } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
         }
         return ps;
     }
