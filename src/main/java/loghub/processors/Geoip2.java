@@ -63,7 +63,6 @@ public class Geoip2 extends FieldsProcessor {
 
     @Override
     public Object fieldFunction(Event event, Object addr) throws ProcessorException {
-        System.out.format("fieldFunction %s %s\n", event, addr);
         InetAddress ipInfo = null;
         if (addr instanceof InetAddress) {
             ipInfo = (InetAddress) addr;
