@@ -2,34 +2,23 @@
 
 package loghub.receivers;
 
-import java.nio.ByteBuffer;
 import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicLong;
 
 import loghub.ConnectionContext;
 import loghub.Event;
 import loghub.Receiver;
-import loghub.configuration.Properties;
+import loghub.netty.SelfDecoder;
 
+@SelfDecoder
 public class TimeSerie extends Receiver {
 
     private final static AtomicLong r = new AtomicLong(0);
 
     private int frequency = 1000;
 
-    public TimeSerie() {
-        super();
-    }
-
-    @Override
-    public boolean configure(Properties properties) {
-        decoder = Receiver.NULLDECODER;
-        return super.configure(properties);
-    }
-
     @Override
     protected Iterator<Event> getIterator() {
-        final ByteBuffer buffer = ByteBuffer.allocate(8);
         return new Iterator<Event>() {
             @Override
             public boolean hasNext() {
@@ -44,15 +33,10 @@ public class TimeSerie extends Receiver {
 
             @Override
             public Event next() {
-                try {
-                    buffer.clear();
-                    buffer.put(Long.toString(r.getAndIncrement()).getBytes());
-                } catch (Exception e) {
-                    throw new RuntimeException("can't push to buffer", e);
-                }
-                return decode(ConnectionContext.EMPTY, buffer.array());
+                Event event = Event.emptyEvent(ConnectionContext.EMPTY);
+                event.put("message", Long.toString(r.getAndIncrement()));
+                return event;
             }
-
         };
     }
 
