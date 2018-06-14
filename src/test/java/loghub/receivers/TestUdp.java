@@ -84,7 +84,8 @@ public class TestUdp {
             Assert.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
             Assert.assertTrue("Invalid message content", e.get("message").toString().startsWith("message"));
             Assert.assertEquals("Invalid message size", originalMessageSize, e.get("message").toString().length());
-            Assert.assertTrue("didn't find valid hosts informations", e.get("host") instanceof InetAddress);
+            Assert.assertTrue("didn't find valid remote host informations", e.getConnectionContext().getRemoteAddress() instanceof InetSocketAddress);
+            Assert.assertTrue("didn't find valid local host informations", e.getConnectionContext().getLocalAddress() instanceof InetSocketAddress);
         } finally {
             r.close();
         }

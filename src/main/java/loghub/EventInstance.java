@@ -117,10 +117,6 @@ class EventInstance extends Event {
     EventInstance(ConnectionContext<?> ctx, boolean test) {
         this.test = test;
         this.ctx = ctx;
-        if (ctx instanceof IpConnectionContext) {
-            IpConnectionContext ipcc = (IpConnectionContext) ctx;
-            put("host", ipcc.getRemoteAddress().getAddress());
-        }
         // Initialize the transient objects
         readResolve();
     }

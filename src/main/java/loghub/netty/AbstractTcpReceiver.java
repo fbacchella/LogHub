@@ -3,16 +3,20 @@ package loghub.netty;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 
+import javax.net.ssl.SSLSession;
+
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ServerChannel;
 import io.netty.channel.socket.ServerSocketChannel;
 import io.netty.channel.socket.SocketChannel;
+import io.netty.util.Attribute;
 import loghub.ConnectionContext;
 import loghub.IpConnectionContext;
 import loghub.configuration.Properties;
 import loghub.netty.servers.AbstractTcpServer;
+import loghub.netty.servers.NettyIpServer;
 
 public abstract class AbstractTcpReceiver<R extends AbstractTcpReceiver<R, S, B>,
                                           S extends AbstractTcpServer<S, B>,
@@ -38,17 +42,19 @@ public abstract class AbstractTcpReceiver<R extends AbstractTcpReceiver<R, S, B>
 
     @Override
     public ConnectionContext<InetSocketAddress> getNewConnectionContext(ChannelHandlerContext ctx, ByteBuf message) {
+        SocketAddress remoteChannelAddr = ctx.channel().remoteAddress();
+        SocketAddress localChannelAddr = ctx.channel().localAddress();
         InetSocketAddress remoteaddr = null;
         InetSocketAddress localaddr = null;
-        SocketAddress remoteddr = ctx.channel().remoteAddress();
-        SocketAddress localddr = ctx.channel().localAddress();
-        if (remoteddr instanceof InetSocketAddress) {
-            remoteaddr = (InetSocketAddress)remoteddr;
+        if (remoteChannelAddr instanceof InetSocketAddress) {
+            remoteaddr = (InetSocketAddress)remoteChannelAddr;
         }
-        if (localddr instanceof InetSocketAddress) {
-            remoteaddr = (InetSocketAddress)remoteddr;
+        if (localChannelAddr instanceof InetSocketAddress) {
+            localaddr = (InetSocketAddress)localChannelAddr;
         }
-        return new IpConnectionContext(localaddr, remoteaddr, null);
+
+        Attribute<SSLSession> sess = ctx.channel().attr(NettyIpServer.SSLSESSIONATTRIBUTE);
+        return new IpConnectionContext(localaddr, remoteaddr, sess.get());
     }
 
     /**

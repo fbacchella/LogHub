@@ -6,6 +6,7 @@ import java.io.InputStreamReader;
 import java.io.UncheckedIOException;
 import java.net.HttpURLConnection;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.ProtocolException;
 import java.net.ServerSocket;
 import java.net.URL;
@@ -17,6 +18,7 @@ import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.function.Consumer;
+import java.util.regex.Pattern;
 
 import javax.management.remote.JMXPrincipal;
 import javax.net.ssl.HostnameVerifier;
@@ -33,6 +35,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import loghub.Event;
+import loghub.IpConnectionContext;
 import loghub.LogUtils;
 import loghub.Pipeline;
 import loghub.Tools;
@@ -142,6 +145,10 @@ public class TestHttp {
         String a = (String) e.get("a");
         Assert.assertEquals("1", a);
         Assert.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
+        IpConnectionContext ectxt = (IpConnectionContext) e.getConnectionContext();
+        Assert.assertTrue(ectxt.getLocalAddress() instanceof InetSocketAddress);
+        Assert.assertTrue(ectxt.getRemoteAddress() instanceof InetSocketAddress);
+        Assert.assertNull(ectxt.getSslParameters());
     }
 
     @Test
@@ -159,6 +166,10 @@ public class TestHttp {
         Assert.assertEquals("1", a);
         Assert.assertEquals("CN=localhost", e.getConnectionContext().getPrincipal().toString());
         Assert.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
+        IpConnectionContext ectxt = (IpConnectionContext) e.getConnectionContext();
+        Assert.assertTrue(ectxt.getLocalAddress() instanceof InetSocketAddress);
+        Assert.assertTrue(ectxt.getRemoteAddress() instanceof InetSocketAddress);
+        Assert.assertTrue(Pattern.matches("TLSv1.*", ectxt.getSslParameters().getProtocol()));
         // Test that ssl state is still good
         doRequest(new URL("https", hostname, port, "/?a=1"),
                 new byte[]{},
