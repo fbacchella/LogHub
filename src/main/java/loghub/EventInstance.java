@@ -21,6 +21,7 @@ import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.BlockingQueue;
 import java.util.function.BiFunction;
+import java.util.stream.Stream;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -412,6 +413,11 @@ class EventInstance extends Event {
     @Override
     public Object putMeta(String key, Object value) {
         return metas.put(key, value);
+    }
+
+    @Override
+    public Stream<Entry<String, Object>> getMetaAsStream() {
+        return metas.entrySet().stream();
     }
 
 }

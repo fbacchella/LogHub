@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.function.BiFunction;
+import java.util.stream.Stream;
 
 class EventWrapper extends Event {
     private final Event event;
@@ -260,6 +261,11 @@ class EventWrapper extends Event {
     @Override
     public Object putMeta(String key, Object value) {
         return event.putMeta(key, value);
+    }
+
+    @Override
+    public Stream<Entry<String, Object>> getMetaAsStream() {
+        return event.getMetaAsStream();
     }
 
 }

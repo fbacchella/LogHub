@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.function.BiFunction;
+import java.util.stream.Stream;
 
 import com.fasterxml.jackson.annotation.JsonIdentityInfo;
 import com.fasterxml.jackson.annotation.ObjectIdGenerators;
@@ -112,6 +113,8 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
     public abstract Object putMeta(String key, Object value);
 
     public abstract void mergeMeta(Event event, BiFunction<Object, Object, Object> cumulator);
+
+    public abstract Stream<Entry<String, Object>> getMetaAsStream();
 
     public ProcessorException buildException(String message) {
         return new ProcessorException(getRealEvent(), message);

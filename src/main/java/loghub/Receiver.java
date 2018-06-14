@@ -51,6 +51,7 @@ public abstract class Receiver extends Thread implements Iterator<Event>, Closea
     private String user = null;
     private String password = null;
     private boolean useJwt = false;
+    private String timeStampField = Event.TIMESTAMPKEY;
 
     private BlockingQueue<Event> outQueue;
     private Pipeline pipeline;
@@ -199,33 +200,35 @@ public abstract class Receiver extends Thread implements Iterator<Event>, Closea
         throw new NoSuchElementException();
     }
 
-    private Event decode(ConnectionContext<?> ctx,java.util.function.BooleanSupplier isValid, Supplier<Map<String, Object>> decoder) {
-        EventInstance event = new EventInstance(ctx);
-        try {
-            if ( ! isValid.getAsBoolean() ) {
-                throw new DecodeException("received null or empty event");
-            } else {
-                Map<String, Object> content = decoder.get();
-                if (content != null) {
-                    Object ts = Optional.ofNullable(content.get(Event.TIMESTAMPKEY)).filter( i -> i instanceof Date).orElse(null);
-                    if (ts != null) {
-                        content.remove(Event.TIMESTAMPKEY);
-                        event.setTimestamp((Date) ts);
-                    }
-                    content.entrySet().stream().forEach( i -> event.put(i.getKey(), i.getValue()));
-                } else {
-                    throw new DecodeException("Received event with no usable body");
-                }
+    private Event decode(ConnectionContext<?> ctx, java.util.function.BooleanSupplier isValid, Supplier<Map<String, Object>> decoder) {
+        if (! isValid.getAsBoolean()) {
+            manageDecodeException(new DecodeException("received null or empty event"));
+            Event.emptyEvent(ctx).end();
+            return null;
+        } else {
+            Map<String, Object> content = null;;
+            try {
+                content = decoder.get();
+            } catch (RuntimeDecodeException e) {
+                Event.emptyEvent(ctx).end();
+                manageDecodeException((DecodeException)e.getCause());
             }
-            return event;
-        } catch (DecodeException e) {
-            manageDecodeException(e);
-            event.end();
-            return null;
-        } catch (RuntimeDecodeException e) {
-            manageDecodeException((DecodeException)e.getCause());
-            event.end();
-            return null;
+            if (content == null) {
+                Event.emptyEvent(ctx).end();
+                manageDecodeException(new DecodeException("Received event with no usable body"));
+                return null;
+            } if (content instanceof Event) {
+                return (Event) content;
+            } else {
+                EventInstance event = new EventInstance(ctx);
+                Object ts = Optional.ofNullable(content.get(timeStampField)).filter( i -> i instanceof Date).orElse(null);
+                if (ts != null) {
+                    content.remove(timeStampField);
+                    event.setTimestamp((Date) ts);
+                }
+                content.entrySet().stream().forEach( i -> event.put(i.getKey(), i.getValue()));
+                return event;
+            }
         }
     }
 
@@ -377,6 +380,20 @@ public abstract class Receiver extends Thread implements Iterator<Event>, Closea
 
     public void setPipeline(Pipeline pipeline) {
         this.pipeline = pipeline;
+    }
+
+    /**
+     * @return the timeStampField
+     */
+    public String getTimeStampField() {
+        return timeStampField;
+    }
+
+    /**
+     * @param timeStampField the timeStampField to set
+     */
+    public void setTimeStampField(String timeStampField) {
+        this.timeStampField = timeStampField;
     }
 
 }

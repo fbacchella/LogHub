@@ -2,6 +2,7 @@ package loghub.decoders;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.time.Instant;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -15,7 +16,6 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.msgpack.core.MessagePack;
 import org.msgpack.core.MessagePacker;
-import org.msgpack.jackson.dataformat.MessagePackExtensionType;
 import org.msgpack.jackson.dataformat.MessagePackFactory;
 import org.msgpack.value.Value;
 import org.msgpack.value.ValueFactory;
@@ -43,7 +43,8 @@ public class TestMsgpack {
         obj.put("b", 1);
         obj.put("c", false);
         obj.put("d", new Object[]{"0", 1, 2.0, null});
-        obj.put(Event.TIMESTAMPKEY, 100);
+        obj.put("f", new Date(1000));
+        obj.put("g", Instant.ofEpochSecond(2, 3000000));
     }
 
     @BeforeClass
@@ -56,12 +57,10 @@ public class TestMsgpack {
     @Test
     public void testmap() throws IOException, DecodeException {
         Msgpack d = new Msgpack();
-        d.setDateField("faileddate");
 
         Map<String, Object> e = d.decode(ConnectionContext.EMPTY, objectMapper.writeValueAsBytes(obj));
 
         testContent(e);
-        Assert.assertEquals("key faileddate not found", 100, e.get("faileddate"));
 
     }
 
@@ -112,13 +111,12 @@ public class TestMsgpack {
         byte[] packed = out.toByteArray();
 
         Map<String, Object> e = d.decode(ConnectionContext.EMPTY, packed);
-        Assert.assertEquals(Date.class, e.get("a").getClass());
-        Assert.assertEquals(Date.class, e.get("b").getClass());
-        Assert.assertEquals(MessagePackExtensionType.class, e.get("c").getClass());
-        Assert.assertEquals(Date.class, e.get("d").getClass());
-   }
+        Assert.assertEquals(Instant.class, e.get("a").getClass());
+        Assert.assertEquals(Instant.class, e.get("b").getClass());
+        Assert.assertArrayEquals(new byte[]{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}, (byte[]) e.get("c"));
+        Assert.assertEquals(Instant.class, e.get("d").getClass());
+    }
 
-    @SuppressWarnings("unchecked")
     @Test
     public void testother() throws IOException, DecodeException {
 
@@ -128,6 +126,7 @@ public class TestMsgpack {
         d.setField("vector");
         Map<String, Object> e = d.decode(ConnectionContext.EMPTY, bs);
 
+        @SuppressWarnings("unchecked")
         List<Map<String, Object>> v = (List<Map<String, Object>>) e.get("vector");
         testContent(v.get(0));
     }
@@ -148,11 +147,51 @@ public class TestMsgpack {
                 return decode(ConnectionContext.EMPTY, bs);
             }
         }) {
+            r.setTimeStampField("f");
             Msgpack d = new Msgpack();
             r.setDecoder(d);
             Event e = r.next();
             testContent(e);
         }
+    }
+
+    @Test
+    public void testRoundTripAsEvent() throws IOException, DecodeException {
+        loghub.encoders.Msgpack enc = new loghub.encoders.Msgpack();
+        enc.setForwardEvent(true);
+        Event ev = Event.emptyEvent(ConnectionContext.EMPTY);
+        ev.putAll(obj);
+        ev.putMeta("h", 7);
+        ev.setTimestamp(new Date(0));
+        Decoder dec = new Msgpack();
+        Event e = (Event) dec.decode(ConnectionContext.EMPTY, enc.encode(ev));
+        testContent(e);
+        Instant f = (Instant) e.get("f");
+        Instant g = (Instant) e.get("g");
+        Assert.assertEquals(1, f.getEpochSecond());
+        Assert.assertEquals(2, g.getEpochSecond());
+        Assert.assertEquals(3000000, g.getNano());
+        Assert.assertEquals(7, e.getMeta("h"));
+        Assert.assertEquals(0, e.getTimestamp().getTime());
+    }
+
+    @Test
+    public void testRoundTripAsMap() throws IOException, DecodeException {
+        loghub.encoders.Msgpack enc = new loghub.encoders.Msgpack();
+        enc.setForwardEvent(false);
+        Event ev = Event.emptyEvent(ConnectionContext.EMPTY);
+        ev.putAll(obj);
+        ev.putMeta("h", 7);
+        ev.setTimestamp(new Date(0));
+        Decoder dec = new Msgpack();
+        Map<String, Object> e = dec.decode(ConnectionContext.EMPTY, enc.encode(ev));
+        testContent(e);
+        Assert.assertFalse(e instanceof Event);
+        Instant f = (Instant) e.get("f");
+        Instant g = (Instant) e.get("g");
+        Assert.assertEquals(1, f.getEpochSecond());
+        Assert.assertEquals(2, g.getEpochSecond());
+        Assert.assertEquals(3000000, g.getNano());
     }
 
     private void testContent(Map<String, Object> e) {
