@@ -10,9 +10,9 @@ import org.codehaus.groovy.control.CompilationFailedException;
 
 import loghub.Event;
 import loghub.Expression;
-import loghub.Expression.ExpressionException;
 import loghub.Processor;
 import loghub.ProcessorException;
+import loghub.Expression.ExpressionException;
 import loghub.configuration.Properties;
 
 public class Log extends Processor {

@@ -21,10 +21,6 @@ public abstract class NettyIpReceiver<R extends NettyIpReceiver<R, S, B, CF, BS,
     private int port;
     private String host = null;
 
-    public NettyIpReceiver() {
-        super();
-    }
-
     @Override
     public boolean configure(Properties properties, B builder) {
         if (isWithSSL()) {

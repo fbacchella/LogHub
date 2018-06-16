@@ -118,15 +118,15 @@ public class TestHttp {
     public void testHttpPostJson() throws IOException {
         try (Http receiver = makeReceiver( i -> {}, Collections.emptyMap())) {
             doRequest(new URL("http", hostname, port, "/"),
-                    "{\"a\": 1}".getBytes("UTF-8"),
-                    i -> {
-                        try {
-                            i.setRequestMethod("PUT");
-                            i.setRequestProperty("Content-Type", "application/json");
-                        } catch (ProtocolException e1) {
-                            throw new UncheckedIOException(e1);
-                        }
-                    }, 200);
+                      "{\"a\": 1}".getBytes("UTF-8"),
+                      i -> {
+                          try {
+                              i.setRequestMethod("PUT");
+                              i.setRequestProperty("Content-Type", "application/json");
+                          } catch (ProtocolException e1) {
+                              throw new UncheckedIOException(e1);
+                          }
+                      }, 200);
             Event e = queue.poll();
             logger.debug(e.getClass());
             Integer a = (Integer) e.get("a");
@@ -138,8 +138,8 @@ public class TestHttp {
     public void testHttpGet() throws IOException {
         makeReceiver( i -> {}, Collections.emptyMap());
         doRequest(new URL("http", hostname, port, "/?a=1"),
-                new byte[]{},
-                i -> {}, 200);
+                  new byte[]{},
+                  i -> {}, 200);
 
         Event e = queue.poll();
         logger.debug(e.getClass());
@@ -155,11 +155,11 @@ public class TestHttp {
     @Test
     public void testHttpsGet() throws IOException {
         makeReceiver( i -> { i.setWithSSL(true); i.setSSLClientAuthentication("REQUIRED");},
-                Collections.singletonMap("ssl.trusts", new String[] {getClass().getResource("/localhost.p12").getFile()})
-                );
+                      Collections.singletonMap("ssl.trusts", new String[] {getClass().getResource("/localhost.p12").getFile()})
+                        );
         doRequest(new URL("https", hostname, port, "/?a=1"),
-                new byte[]{},
-                i -> {}, 200);
+                  new byte[]{},
+                  i -> {}, 200);
 
         Event e = queue.poll();
         logger.debug(e.getClass());
@@ -173,8 +173,8 @@ public class TestHttp {
         Assert.assertTrue(Pattern.matches("TLSv1.*", ((IpConnectionContext)ectxt).getSslParameters().getProtocol()));
         // Test that ssl state is still good
         doRequest(new URL("https", hostname, port, "/?a=1"),
-                new byte[]{},
-                i -> {}, 200);
+                  new byte[]{},
+                  i -> {}, 200);
     }
 
     @Test
@@ -182,20 +182,20 @@ public class TestHttp {
         makeReceiver( i -> {}, Collections.emptyMap());
         try {
             doRequest(new URL("http", hostname, port, "/?a=1"),
-                    new byte[]{},
-                    i -> {}, 200);
+                      new byte[]{},
+                      i -> {}, 200);
             doRequest(new URL("http", hostname, port, "/?a=1"),
-                    new byte[]{},
-                    i -> {}, 200);
+                      new byte[]{},
+                      i -> {}, 200);
             doRequest(new URL("http", hostname, port, "/?a=1"),
-                    new byte[]{},
-                    i -> {}, 200);
+                      new byte[]{},
+                      i -> {}, 200);
             doRequest(new URL("http", hostname, port, "/?a=1"),
-                    new byte[]{},
-                    i -> {}, 200);
+                      new byte[]{},
+                      i -> {}, 200);
             doRequest(new URL("http", hostname, port, "/?a=1"),
-                    new byte[]{},
-                    i -> {}, 200);
+                      new byte[]{},
+                      i -> {}, 200);
         } catch (IOException e) {
             Assert.assertEquals("Server returned HTTP response code: 429 for URL: http://127.0.0.1:" + receiver.getPort() + "/?a=1", e.getMessage());
             return;
@@ -206,15 +206,15 @@ public class TestHttp {
     public void testHttpPostForm() throws IOException {
         makeReceiver( i -> {}, Collections.emptyMap());
         doRequest(new URL("http", hostname, port, "/"),
-                "a=1&b=c%20d".getBytes("UTF-8"),
-                i -> {
-                    try {
-                        i.setRequestMethod("POST");
-                        i.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
-                    } catch (ProtocolException e1) {
-                        throw new UncheckedIOException(e1);
-                    }
-                }, 200);
+                  "a=1&b=c%20d".getBytes("UTF-8"),
+                  i -> {
+                      try {
+                          i.setRequestMethod("POST");
+                          i.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+                      } catch (ProtocolException e1) {
+                          throw new UncheckedIOException(e1);
+                      }
+                  }, 200);
         Event e = queue.poll();
         Assert.assertEquals("1", e.get("a"));
         Assert.assertEquals("c d", e.get("b"));
@@ -226,8 +226,8 @@ public class TestHttp {
         try {
             makeReceiver( i -> { i.setUser("user") ; i.setPassword("password");}, Collections.emptyMap());
             doRequest(new URL("http", hostname, port, "/?a=1"),
-                    new byte[]{},
-                    i -> {}, 401);
+                      new byte[]{},
+                      i -> {}, 401);
         } catch (IOException e) {
             Assert.assertEquals("Server returned HTTP response code: 401 for URL: http://127.0.0.1:" + receiver.getPort() + "/?a=1", e.getMessage());
             return;
@@ -241,11 +241,11 @@ public class TestHttp {
             makeReceiver( i -> { i.setUser("user") ; i.setPassword("password");}, Collections.emptyMap());
             URL dest = new URL("http", hostname, port, "/?a=1");
             doRequest(dest,
-                    new byte[]{},
-                    i -> {
-                        String authStr = Base64.getEncoder().encodeToString("user:badpassword".getBytes());
-                        i.setRequestProperty("Authorization", "Basic " + authStr);
-                    }, 401);
+                      new byte[]{},
+                      i -> {
+                          String authStr = Base64.getEncoder().encodeToString("user:badpassword".getBytes());
+                          i.setRequestProperty("Authorization", "Basic " + authStr);
+                      }, 401);
         } catch (IOException e) {
             Assert.assertEquals("Server returned HTTP response code: 401 for URL: http://127.0.0.1:" + receiver.getPort() + "/?a=1", e.getMessage());
             return;
@@ -258,11 +258,11 @@ public class TestHttp {
         makeReceiver( i -> { i.setUser("user") ; i.setPassword("password");}, Collections.emptyMap());
         URL dest = new URL("http", hostname, port, "/?a=1");
         doRequest(dest,
-                new byte[]{},
-                i -> {
-                    String authStr = Base64.getEncoder().encodeToString("user:password".getBytes());
-                    i.setRequestProperty("Authorization", "Basic " + authStr);
-                }, 200);
+                  new byte[]{},
+                  i -> {
+                      String authStr = Base64.getEncoder().encodeToString("user:password".getBytes());
+                      i.setRequestProperty("Authorization", "Basic " + authStr);
+                  }, 200);
         Event e = queue.poll();
         Assert.assertEquals("1", e.get("a"));
         Assert.assertEquals("user", e.getConnectionContext().getPrincipal().getName());
@@ -280,10 +280,10 @@ public class TestHttp {
         makeReceiver( i -> { i.setUseJwt(true); }, props);
         URL dest = new URL("http", hostname, port, "/?a=1");
         doRequest(dest,
-                new byte[]{},
-                i -> {
-                    i.setRequestProperty("Authorization", "Bearer " + jwtToken);
-                }, 200);
+                  new byte[]{},
+                  i -> {
+                      i.setRequestProperty("Authorization", "Bearer " + jwtToken);
+                  }, 200);
         Event e = queue.poll();
         Assert.assertEquals("1", e.get("a"));
         Assert.assertEquals("user", e.getConnectionContext().getPrincipal().getName());
@@ -301,11 +301,11 @@ public class TestHttp {
         makeReceiver( i -> { i.setUseJwt(true); }, props);
         URL dest = new URL("http", hostname, port, "/?a=1");
         doRequest(dest,
-                new byte[]{},
-                i -> {
-                    String authStr = Base64.getEncoder().encodeToString((":" + jwtToken).getBytes());
-                    i.setRequestProperty("Authorization", "Basic " + authStr);
-                }, 200);
+                  new byte[]{},
+                  i -> {
+                      String authStr = Base64.getEncoder().encodeToString((":" + jwtToken).getBytes());
+                      i.setRequestProperty("Authorization", "Basic " + authStr);
+                  }, 200);
         Event e = queue.poll();
         Assert.assertEquals("1", e.get("a"));
         Assert.assertEquals("user", e.getConnectionContext().getPrincipal().getName());

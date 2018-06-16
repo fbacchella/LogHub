@@ -2,9 +2,9 @@ package loghub.processors;
 
 import loghub.Event;
 import loghub.Expression;
-import loghub.Expression.ExpressionException;
 import loghub.Processor;
 import loghub.ProcessorException;
+import loghub.Expression.ExpressionException;
 import loghub.configuration.Properties;
 
 public class Test extends Processor {

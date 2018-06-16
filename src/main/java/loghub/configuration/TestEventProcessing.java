@@ -51,10 +51,10 @@ public class TestEventProcessing {
         @Override
         protected ObjectMapper initialValue() {
             return new ObjectMapper(factory)
-                    .configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false)
-                    .configure(JsonGenerator.Feature.ESCAPE_NON_ASCII, true)
-                    .configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true)
-                    ;
+                            .configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false)
+                            .configure(JsonGenerator.Feature.ESCAPE_NON_ASCII, true)
+                            .configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true)
+                            ;
         }
     };
 
@@ -174,11 +174,11 @@ public class TestEventProcessing {
         }
         Layout<String> layout = PatternLayout.newBuilder().withPattern("%msg%n").withConfiguration(config).build();
         Appender jsonappender = ConsoleAppender.newBuilder()
-                .withName(APPENDERNAME)
-                .setTarget(ConsoleAppender.Target.SYSTEM_ERR)
-                .withLayout(layout)
-                .setConfiguration(config)
-                .build();
+                        .withName(APPENDERNAME)
+                        .setTarget(ConsoleAppender.Target.SYSTEM_ERR)
+                        .withLayout(layout)
+                        .setConfiguration(config)
+                        .build();
         jsonappender.start();
         config.addAppender(jsonappender);
         AppenderRef ref = AppenderRef.createAppenderRef(APPENDERNAME, null, null);

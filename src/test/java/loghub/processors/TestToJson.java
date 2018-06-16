@@ -11,10 +11,10 @@ import org.junit.Test;
 
 import loghub.Event;
 import loghub.LogUtils;
-import loghub.Tools;
-import loghub.processors.ParseJson;
 import loghub.Processor;
 import loghub.ProcessorException;
+import loghub.Tools;
+import loghub.processors.ParseJson;
 
 public class TestToJson {
 

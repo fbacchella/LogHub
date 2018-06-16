@@ -6,14 +6,10 @@ import java.io.PrintStream;
 import org.apache.logging.log4j.Level;
 
 import loghub.Event;
-import loghub.configuration.Properties;
 
 public class Stdout extends Sender {
 
     PrintStream destination = System.out;
-
-    public Stdout() {
-    }
 
     @Override
     public boolean send(Event event) {

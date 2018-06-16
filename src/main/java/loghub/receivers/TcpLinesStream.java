@@ -23,10 +23,6 @@ public class TcpLinesStream extends AbstractTcpReceiver<TcpLinesStream, TcpServe
     private Charset charset= CharsetUtil.UTF_8;
     private String field = "message";
 
-    public TcpLinesStream() {
-        super();
-    }
-
     @Override
     public ChannelConsumer<ServerBootstrap, ServerChannel> getConsumer() {
         return new BaseChannelConsumer<TcpLinesStream, ServerBootstrap, ServerChannel, ByteBuf>(this) {

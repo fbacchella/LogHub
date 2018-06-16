@@ -8,9 +8,9 @@ import loghub.ConnectionContext;
 import loghub.Event;
 import loghub.Expression;
 import loghub.Pipeline;
-import loghub.Expression.ExpressionException;
 import loghub.Processor;
 import loghub.ProcessorException;
+import loghub.Expression.ExpressionException;
 import loghub.Event.Action;
 import loghub.configuration.Properties;
 
