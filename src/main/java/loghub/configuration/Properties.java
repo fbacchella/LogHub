@@ -234,7 +234,7 @@ public class Properties extends HashMap<String, Object> {
         if (jmxlisten != null) {
             this.jmxlisten = jmxlisten;
         } else {
-            this.jmxlisten = "0.0.0.0";
+            this.jmxlisten = Helper.ANYLISTEN;
         }
 
         cacheManager = new CacheManager(this);

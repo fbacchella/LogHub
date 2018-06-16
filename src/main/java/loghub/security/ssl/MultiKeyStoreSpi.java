@@ -344,8 +344,8 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
             }
         } else if ("default".equals(path)) {
             String[] paths = new String[] {
-                    System.getProperty("java.home") + File.separator + "lib" + File.separator + "security" + File.separator + "jssecacerts",
-                    System.getProperty("java.home") + File.separator + "lib" + File.separator + "security" + File.separator + "cacerts"
+                                           System.getProperty("java.home") + File.separator + "lib" + File.separator + "security" + File.separator + "jssecacerts",
+                                           System.getProperty("java.home") + File.separator + "lib" + File.separator + "security" + File.separator + "cacerts"
             };
             for (String storePathName: paths) {
                 Path storePath = Paths.get(storePathName);
@@ -427,10 +427,8 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
                             KeyStore.TrustedCertificateEntry entry = new KeyStore.TrustedCertificateEntry(cert);
                             stores.get(0).setEntry(alias, entry, null);
                         }
-                    } catch (CertificateException e) {
-                        e.printStackTrace();
-                    } catch (KeyStoreException e) {
-                        e.printStackTrace();
+                    } catch (CertificateException | KeyStoreException e) {
+                        throw new IllegalArgumentException("Invalid certificate in " + filename, e);
                     }
                 } else {
                     buffer.append(line);

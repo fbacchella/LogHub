@@ -138,18 +138,16 @@ class ConfigListener extends RouteBaseListener {
         }
     }
 
-    static interface ObjectReference {};
-
-    static class  ObjectWrapped<T> implements ObjectReference {
+    static class  ObjectWrapped<T> {
         final T wrapped;
         ObjectWrapped(T wrapped) {
             this.wrapped = wrapped;
         }
     }
 
-    public static class SourceProvider {
-        public Source source; 
-        public Map<Object, Object> map;
+    static class SourceProvider {
+        Source source; 
+        Map<Object, Object> map;
     }
 
     static final class ProcessorInstance extends ObjectWrapped<Processor> implements Pipenode {

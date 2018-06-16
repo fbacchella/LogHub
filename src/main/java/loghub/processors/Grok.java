@@ -21,7 +21,7 @@ import loghub.configuration.Properties;
 public class Grok extends FieldsProcessor {
 
 
-    public static String PATTERNSFOLDER = "patterns";
+    public static final String PATTERNSFOLDER = "patterns";
 
     private io.krakens.grok.api.Grok grok;
     private String pattern;

@@ -13,6 +13,8 @@ import javax.management.remote.JMXServiceURL;
 
 public class Helper {
 
+    public static final String ANYLISTEN = "0.0.0.0";
+
     static final public PROTOCOL DEFAULTPROTOCOL = PROTOCOL.rmi;
     public static enum PROTOCOL {
         rmi,
@@ -29,7 +31,7 @@ public class Helper {
         Map<String, Object> jmxenv = new HashMap<>();
         if (protocol == PROTOCOL.rmi) {
             // If listen bound to a given ip, and jmx protocol is rmi, use it as the rmi's property hostname.
-            if (! "0.0.0.0".equals(host) && System.getProperty("java.rmi.server.hostname") == null) {
+            if (! ANYLISTEN.equals(host) && System.getProperty("java.rmi.server.hostname") == null) {
                 System.setProperty("java.rmi.server.hostname", host);
                 // Not sure if it's useful, hostname is resolve in sun.rmi.transport.tcp.TCPEndpoint, using InetAddress.getLocalHost() if 
                 // this property is not defined.

@@ -431,8 +431,7 @@ public class VarFormatter {
             throw new IllegalArgumentException("Given a non-list to a format expecting only a list");
         } else if ((mapperType instanceof String) && ( arg instanceof List)) {
             throw new IllegalArgumentException("Given a list to a format not expecting a list");
-        }
-        else if (arg instanceof Map) {
+        } else if (arg instanceof Map) {
             variables = (Map<String, Object>) arg;
         } else {
             variables = Collections.emptyMap();

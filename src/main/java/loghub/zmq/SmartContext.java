@@ -22,13 +22,16 @@ public class SmartContext {
     private static final Logger logger = LogManager.getLogger();
 
     private static SmartContext instance = null;
-    public static int numSocket = 1;
-    private final ZContext context = new ZContext(numSocket);
+    private final ZContext context;
     private volatile boolean running = true;
 
     public static synchronized SmartContext getContext() {
+        return getContext(1);
+    }
+
+    public static synchronized SmartContext getContext(int numSocket) {
         if (instance == null) {
-            instance = new SmartContext();
+            instance = new SmartContext(numSocket);
             logger.debug("New SmartContext instance");
             ThreadBuilder.get()
             .setDaemon(true)
@@ -43,6 +46,10 @@ public class SmartContext {
             }).setShutdownHook(true).build();
         }
         return instance;
+    }
+
+    private SmartContext(int numSocket) {
+        context = new ZContext(numSocket);
     }
 
     public boolean isRunning() {
