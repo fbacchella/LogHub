@@ -10,7 +10,6 @@ import java.net.UnknownHostException;
 import org.apache.logging.log4j.Level;
 
 import loghub.Event;
-import loghub.Sender;
 import loghub.configuration.Properties;
 
 public class Udp extends Sender {

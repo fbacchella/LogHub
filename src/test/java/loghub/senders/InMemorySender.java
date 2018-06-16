@@ -5,7 +5,6 @@ import java.util.Collections;
 import java.util.List;
 
 import loghub.Event;
-import loghub.Sender;
 
 public class InMemorySender extends Sender {
     private final List<Event> received = new ArrayList<>();

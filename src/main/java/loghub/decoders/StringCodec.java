@@ -6,7 +6,6 @@ import java.util.Map;
 
 import io.netty.buffer.ByteBuf;
 import loghub.ConnectionContext;
-import loghub.Decoder;
 
 public class StringCodec extends Decoder {
 

@@ -1,10 +1,12 @@
-package loghub;
+package loghub.encoders;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.util.StackLocator;
 
+import loghub.Event;
 import loghub.configuration.Properties;
+import loghub.senders.Sender;
 
 public abstract class Encoder {
 

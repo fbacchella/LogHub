@@ -6,7 +6,7 @@ import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.atomic.AtomicLong;
 
-import loghub.Decoder.DecodeException;
+import loghub.decoders.Decoder.DecodeException;
 
 public final class Stats {
     public final static AtomicLong received = new AtomicLong();

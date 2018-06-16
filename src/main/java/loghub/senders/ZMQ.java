@@ -3,7 +3,6 @@ package loghub.senders;
 import org.zeromq.ZMQ.Socket;
 
 import loghub.Event;
-import loghub.Sender;
 import loghub.configuration.Properties;
 import loghub.zmq.SmartContext;
 import loghub.zmq.ZMQHelper;

@@ -11,6 +11,8 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import loghub.decoders.Decoder;
+
 public class BeanChecks {
 
     private static Logger logger;

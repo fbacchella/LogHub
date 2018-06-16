@@ -5,7 +5,7 @@ import java.io.UncheckedIOException;
 import java.net.InetAddress;
 
 import io.netty.buffer.ByteBuf;
-import loghub.Decoder.DecodeException;
+import loghub.decoders.Decoder.DecodeException;
 
 public class PacketFactory {
     

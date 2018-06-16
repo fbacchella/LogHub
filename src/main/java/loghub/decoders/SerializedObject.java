@@ -9,7 +9,6 @@ import java.util.Map;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufInputStream;
 import loghub.ConnectionContext;
-import loghub.Decoder;
 
 public class SerializedObject extends Decoder {
 

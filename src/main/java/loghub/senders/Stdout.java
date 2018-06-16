@@ -6,7 +6,6 @@ import java.io.PrintStream;
 import org.apache.logging.log4j.Level;
 
 import loghub.Event;
-import loghub.Sender;
 import loghub.configuration.Properties;
 
 public class Stdout extends Sender {

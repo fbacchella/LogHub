@@ -17,10 +17,10 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import io.netty.buffer.Unpooled;
-import loghub.Decoder;
 import loghub.IpConnectionContext;
 import loghub.LogUtils;
 import loghub.Tools;
+import loghub.decoders.Decoder;
 import loghub.netflow.NetflowDecoder;
 import loghub.netflow.NetflowPacket;
 import loghub.netflow.PacketFactory;

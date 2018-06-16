@@ -21,10 +21,9 @@ import org.apache.kafka.common.record.TimestampType;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 
 import loghub.ConnectionContext;
-import loghub.Decoder.DecodeException;
 import loghub.Event;
 import loghub.Helpers;
-import loghub.Receiver;
+import loghub.decoders.Decoder.DecodeException;
 
 @Blocking
 public class Kafka extends Receiver {
@@ -89,7 +88,7 @@ public class Kafka extends Receiver {
             }
             for(ConsumerRecord<Long, byte[]> record: consumerRecords) {
                 KafkaContext ctxt = new KafkaContext(record.topic());
-                Event event = emptyEvent(ctxt);
+                Event event = Event.emptyEvent(ctxt);
                 if (record.timestampType() ==  TimestampType.CREATE_TIME) {
                     event.setTimestamp(new Date(record.timestamp()));
                 }

@@ -18,7 +18,6 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import loghub.Event;
 import loghub.Helpers;
-import loghub.Sender;
 import loghub.configuration.Properties;
 
 @AsyncSender

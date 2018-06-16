@@ -14,7 +14,6 @@ import java.util.zip.GZIPOutputStream;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import loghub.Encoder;
 import loghub.Event;
 
 public class Gelf extends Encoder {

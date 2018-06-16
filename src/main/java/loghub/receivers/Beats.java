@@ -19,7 +19,6 @@ import io.netty.util.concurrent.EventExecutorGroup;
 import loghub.ConnectionContext;
 import loghub.Event;
 import loghub.Helpers;
-import loghub.SelfDecoder;
 import loghub.configuration.Properties;
 import loghub.netty.AbstractTcpReceiver;
 import loghub.netty.BaseChannelConsumer;

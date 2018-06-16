@@ -25,7 +25,6 @@ import loghub.Event;
 import loghub.Helpers;
 import loghub.Pipeline;
 import loghub.Processor;
-import loghub.Receiver;
 import loghub.RouteBaseListener;
 import loghub.RouteParser.ArrayContext;
 import loghub.RouteParser.BeanContext;
@@ -62,7 +61,6 @@ import loghub.RouteParser.SourcedefContext;
 import loghub.RouteParser.StringLiteralContext;
 import loghub.RouteParser.TestContext;
 import loghub.RouteParser.TestExpressionContext;
-import loghub.Sender;
 import loghub.Source;
 import loghub.processors.AnonymousSubPipeline;
 import loghub.processors.Drop;
@@ -77,6 +75,8 @@ import loghub.processors.NamedSubPipeline;
 import loghub.processors.Test;
 import loghub.processors.UnwrapEvent;
 import loghub.processors.WrapEvent;
+import loghub.receivers.Receiver;
+import loghub.senders.Sender;
 
 class ConfigListener extends RouteBaseListener {
 

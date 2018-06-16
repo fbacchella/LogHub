@@ -24,12 +24,11 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import loghub.ConnectionContext;
-import loghub.Decoder;
-import loghub.Decoder.DecodeException;
+import loghub.receivers.Receiver;
 import loghub.Event;
 import loghub.LogUtils;
-import loghub.Receiver;
 import loghub.Tools;
+import loghub.decoders.Decoder.DecodeException;
 
 public class TestMsgpack {
 

@@ -7,9 +7,9 @@ import java.util.Map;
 
 import io.netty.buffer.ByteBuf;
 import loghub.ConnectionContext;
-import loghub.Decoder;
 import loghub.Event;
 import loghub.IpConnectionContext;
+import loghub.decoders.Decoder;
 
 public class NetflowDecoder extends Decoder {
 

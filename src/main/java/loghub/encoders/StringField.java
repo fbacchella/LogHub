@@ -5,11 +5,10 @@ import java.nio.charset.Charset;
 import java.util.Locale;
 import java.util.function.Function;
 
-import loghub.Encoder;
 import loghub.Event;
-import loghub.Sender;
 import loghub.VarFormatter;
 import loghub.configuration.Properties;
+import loghub.senders.Sender;
 
 public class StringField extends Encoder {
 

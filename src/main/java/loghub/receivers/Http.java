@@ -18,10 +18,10 @@ import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.QueryStringDecoder;
-import loghub.Decoder.DecodeException;
 import loghub.Event;
 import loghub.ProcessorException;
 import loghub.configuration.Properties;
+import loghub.decoders.Decoder.DecodeException;
 import loghub.netty.AbstractTcpReceiver;
 import loghub.netty.http.AbstractHttpServer;
 import loghub.netty.http.AccessControl;
@@ -44,7 +44,7 @@ public class Http extends AbstractTcpReceiver<Http, Http.HttpReceiverServer, Htt
 
         @Override
         protected boolean processRequest(FullHttpRequest request, ChannelHandlerContext ctx) throws HttpRequestFailure {
-            Event e = Http.this.emptyEvent(Http.this.getConnectionContext(ctx, null));
+            Event e = Event.emptyEvent(Http.this.getConnectionContext(ctx, null));
             try {
                 String mimeType = Optional.ofNullable(HttpUtil.getMimeType(request)).orElse("application/octet-stream").toString();
                 CharSequence encoding = Optional.ofNullable(HttpUtil.getCharsetAsSequence(request)).orElse("UTF-8");

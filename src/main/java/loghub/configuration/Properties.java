@@ -43,15 +43,15 @@ import loghub.EventsRepository;
 import loghub.PausingTimer;
 import loghub.Pipeline;
 import loghub.Processor;
-import loghub.Receiver;
-import loghub.Sender;
 import loghub.Source;
 import loghub.ThreadBuilder;
 import loghub.VarFormatter;
 import loghub.jmx.Helper;
 import loghub.jmx.Helper.PROTOCOL;
+import loghub.receivers.Receiver;
 import loghub.security.JWTHandler;
 import loghub.security.ssl.ContextLoader;
+import loghub.senders.Sender;
 
 public class Properties extends HashMap<String, Object> {
 

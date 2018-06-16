@@ -49,7 +49,6 @@ import loghub.Helpers;
 import loghub.Helpers.ThrowingConsumer;
 import loghub.Helpers.ThrowingPredicate;
 import loghub.Pipeline;
-import loghub.Receiver;
 import loghub.RouteLexer;
 import loghub.RouteParser;
 import loghub.RouteParser.ArrayContext;
@@ -59,10 +58,11 @@ import loghub.RouteParser.LiteralContext;
 import loghub.RouteParser.PropertyContext;
 import loghub.RouteParser.SourcedefContext;
 import loghub.RouteParser.SourcesContext;
-import loghub.Sender;
 import loghub.Source;
 import loghub.configuration.ConfigListener.Input;
 import loghub.configuration.ConfigListener.Output;
+import loghub.receivers.Receiver;
+import loghub.senders.Sender;
 
 public class Configuration {
 

@@ -11,7 +11,6 @@ import org.zeromq.ZPoller;
 
 import loghub.ConnectionContext;
 import loghub.Event;
-import loghub.Receiver;
 import loghub.configuration.Properties;
 import loghub.zmq.SmartContext;
 import loghub.zmq.ZMQHelper;

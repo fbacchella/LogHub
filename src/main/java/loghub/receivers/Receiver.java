@@ -1,4 +1,4 @@
-package loghub;
+package loghub.receivers;
 
 import java.io.Closeable;
 import java.util.Date;
@@ -16,10 +16,15 @@ import org.apache.logging.log4j.Logger;
 import com.codahale.metrics.Meter;
 
 import io.netty.buffer.ByteBuf;
-import loghub.Decoder.DecodeException;
-import loghub.Decoder.RuntimeDecodeException;
+import loghub.ConnectionContext;
+import loghub.Event;
+import loghub.Helpers;
+import loghub.Pipeline;
+import loghub.Stats;
 import loghub.configuration.Properties;
-import loghub.receivers.Blocking;
+import loghub.decoders.Decoder;
+import loghub.decoders.Decoder.DecodeException;
+import loghub.decoders.Decoder.RuntimeDecodeException;
 import loghub.security.AuthenticationHandler;
 import loghub.security.ssl.ClientAuthentication;
 
@@ -219,7 +224,7 @@ public abstract class Receiver extends Thread implements Iterator<Event>, Closea
             } if (content instanceof Event) {
                 return (Event) content;
             } else {
-                EventInstance event = new EventInstance(ctx);
+                Event event = Event.emptyEvent(ctx);
                 Object ts = Optional.ofNullable(content.get(timeStampField)).filter( i -> i instanceof Date).orElse(null);
                 if (ts != null) {
                     content.remove(timeStampField);
@@ -253,10 +258,6 @@ public abstract class Receiver extends Thread implements Iterator<Event>, Closea
                 throw new RuntimeDecodeException(Helpers.resolveThrowableException(e), e.getCause());
             }
         });
-    }
-
-    protected final Event emptyEvent(ConnectionContext<?> ctx) {
-        return new EventInstance(ctx);
     }
 
     protected void manageDecodeException(DecodeException ex) {

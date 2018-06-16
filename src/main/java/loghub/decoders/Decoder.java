@@ -1,4 +1,4 @@
-package loghub;
+package loghub.decoders;
 
 import java.util.Map;
 
@@ -7,7 +7,9 @@ import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.util.StackLocator;
 
 import io.netty.buffer.ByteBuf;
+import loghub.ConnectionContext;
 import loghub.configuration.Properties;
+import loghub.receivers.Receiver;
 
 public abstract class Decoder {
 

@@ -44,8 +44,6 @@ import fr.jrds.snmpcodec.OIDFormatter;
 import loghub.ConnectionContext;
 import loghub.Event;
 import loghub.IpConnectionContext;
-import loghub.Receiver;
-import loghub.SelfDecoder;
 import loghub.configuration.Properties;
 import loghub.snmp.Log4j2LogFactory;
 
@@ -159,7 +157,7 @@ public class SnmpTrap extends Receiver implements CommandResponder {
                 InetSocketAddress remoteinetaddr = getSA((TransportIpAddress) remoteaddr);
                 ctx = new IpConnectionContext(localinetaddr, remoteinetaddr, null);
             }
-            Event event = emptyEvent(ctx);
+            Event event = Event.emptyEvent(ctx);
             if (pdu instanceof PDUv1) {
                 PDUv1 pduv1 = (PDUv1) pdu;
                 String enterprise = (String) convertVar(pduv1.getEnterprise());

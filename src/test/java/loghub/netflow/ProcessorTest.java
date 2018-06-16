@@ -17,14 +17,14 @@ import org.junit.Test;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import loghub.Decoder;
-import loghub.Decoder.DecodeException;
 import loghub.Event;
 import loghub.IpConnectionContext;
 import loghub.LogUtils;
 import loghub.ProcessorException;
 import loghub.Tools;
 import loghub.Tools.ProcessingStatus;
+import loghub.decoders.Decoder;
+import loghub.decoders.Decoder.DecodeException;
 
 public class ProcessorTest {
 

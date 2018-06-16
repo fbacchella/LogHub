@@ -12,9 +12,9 @@ import io.netty.util.AttributeKey;
 import loghub.ConnectionContext;
 import loghub.Event;
 import loghub.Helpers;
-import loghub.Receiver;
 import loghub.configuration.Properties;
 import loghub.netty.servers.AbstractNettyServer;
+import loghub.receivers.Receiver;
 
 public abstract class NettyReceiver<R extends NettyReceiver<R, S, B, CF, BS, BSC, SC, CC, SA, SM>,
                                     S extends AbstractNettyServer<CF, BS, BSC, SC, SA, S, B>,

@@ -31,6 +31,8 @@ import loghub.configuration.TestEventProcessing;
 import loghub.jmx.Helper;
 import loghub.jmx.StatsMBean;
 import loghub.processors.FieldsProcessor;
+import loghub.receivers.Receiver;
+import loghub.senders.Sender;
 
 public class Start {
 

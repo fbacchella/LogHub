@@ -67,7 +67,6 @@ import com.codahale.metrics.Timer;
 
 import loghub.Event;
 import loghub.Helpers;
-import loghub.Sender;
 import loghub.ThreadBuilder;
 import loghub.configuration.Properties;
 

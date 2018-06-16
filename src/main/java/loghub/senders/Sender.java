@@ -1,4 +1,4 @@
-package loghub;
+package loghub.senders;
 
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
@@ -9,8 +9,12 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import loghub.Event;
+import loghub.Helpers;
+import loghub.Stats;
 import loghub.configuration.Properties;
-import loghub.senders.AsyncSender;
+import loghub.encoders.Encoder;
+import loghub.receivers.SelfEncoder;
 
 public abstract class Sender extends Thread {
 
