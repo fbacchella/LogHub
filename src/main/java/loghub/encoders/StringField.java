@@ -35,7 +35,12 @@ public class StringField extends Encoder {
         } else {
             encoder = i -> i.getBytes(charset);
         }
-        formatter = new VarFormatter(format);
+        try {
+            formatter = new VarFormatter(format);
+        } catch (IllegalArgumentException e) {
+            logger.error("Illegal format \"{}\": {}", format, e.getMessage());
+            return false;
+        }
         return super.configure(properties, sender);
     }
 
