@@ -409,7 +409,7 @@ public final class Helpers {
                 try {
                     Thread.sleep(10);
                 } catch (InterruptedException e) {
-                    Thread.interrupted();
+                    Thread.currentThread().interrupt();
                 }
             }
         });

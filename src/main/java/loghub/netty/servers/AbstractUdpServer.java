@@ -95,7 +95,7 @@ public class AbstractUdpServer<S extends AbstractUdpServer<S, B>,
 
     @Override
     public void close() {
-        channels.stream().map(Channel::close);
+        channels.stream().forEach(Channel::close);
         super.close();
     }
 

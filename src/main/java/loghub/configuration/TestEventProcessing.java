@@ -59,7 +59,7 @@ public class TestEventProcessing {
     };
 
     private static final class EventJsonFormatter implements Message, StringBuilderFormattable {
-        private static final DateFormat ISO8601 = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ");
+        private static final ThreadLocal<DateFormat> ISO8601 = ThreadLocal.withInitial(() -> new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ"));
 
         private final Event event;
 
@@ -71,7 +71,7 @@ public class TestEventProcessing {
         public void formatTo(StringBuilder buffer) {
             Map<String, Object> esjson = new HashMap<>(event.size());
             esjson.putAll(event);
-            esjson.put("@timestamp", ISO8601.format(event.getTimestamp()));
+            esjson.put("@timestamp", ISO8601.get().format(event.getTimestamp()));
 
             ObjectMapper jsonmapper = json.get();
             try {

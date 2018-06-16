@@ -25,6 +25,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.TimeZone;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -357,19 +358,19 @@ public class VarFormatter {
             }
             String resulStr = "";
             if (calToStr != null) {
-                resulStr = calToStr.apply(getCalendar(obj));
+                resulStr = Optional.ofNullable(getCalendar(obj)).map(calToStr::apply).orElse("");
             } else if (symbols != null && calendarField > 0) {
-                resulStr = symbols.get()[getCalendar(obj).get(calendarField)];
+                resulStr = Optional.ofNullable(getCalendar(obj)).map(i -> i.get(calendarField)).map(i -> symbols.get()[i.intValue()]).orElse("");
             } else if (nf != null) {
                 long value = 0;
                 if(transform != null) {
                     value = transform.queryFrom(getTemporalAccessor(obj));
+                    resulStr = nf.format(value);
                 } else if (field != null){
-                    value = getTemporalAccessor(obj).getLong(field);
+                    resulStr = Optional.ofNullable(getTemporalAccessor(obj)).map( i -> i.getLong(field)).map(i -> nf.format(i)).orElse("");
                 }
-                resulStr = nf.format(value);
             } else if ( dtf != null) {
-                resulStr = dtf.format(getTemporalAccessor(obj));
+                resulStr = Optional.ofNullable(getTemporalAccessor(obj)).map( i -> dtf.format(i)).orElse("");
             }
             if(transformResult != null && resulStr != null ) {
                 resulStr = transformResult.apply(resulStr);

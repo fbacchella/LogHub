@@ -3,6 +3,7 @@
 package loghub.receivers;
 
 import java.util.Iterator;
+import java.util.NoSuchElementException;
 import java.util.concurrent.atomic.AtomicLong;
 
 import loghub.ConnectionContext;
@@ -31,9 +32,13 @@ public class TimeSerie extends Receiver {
 
             @Override
             public Event next() {
-                Event event = Event.emptyEvent(ConnectionContext.EMPTY);
-                event.put("message", Long.toString(r.getAndIncrement()));
-                return event;
+                if (Thread.interrupted()) {
+                    throw new NoSuchElementException();
+                } else {
+                    Event event = Event.emptyEvent(ConnectionContext.EMPTY);
+                    event.put("message", Long.toString(r.getAndIncrement()));
+                    return event;
+                }
             }
         };
     }
