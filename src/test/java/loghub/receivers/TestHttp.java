@@ -34,6 +34,7 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import loghub.ConnectionContext;
 import loghub.Event;
 import loghub.IpConnectionContext;
 import loghub.LogUtils;
@@ -145,10 +146,10 @@ public class TestHttp {
         String a = (String) e.get("a");
         Assert.assertEquals("1", a);
         Assert.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
-        IpConnectionContext ectxt = (IpConnectionContext) e.getConnectionContext();
+        ConnectionContext<InetSocketAddress> ectxt = e.getConnectionContext();
         Assert.assertTrue(ectxt.getLocalAddress() instanceof InetSocketAddress);
         Assert.assertTrue(ectxt.getRemoteAddress() instanceof InetSocketAddress);
-        Assert.assertNull(ectxt.getSslParameters());
+        Assert.assertNull(((IpConnectionContext)ectxt).getSslParameters());
     }
 
     @Test
@@ -166,10 +167,10 @@ public class TestHttp {
         Assert.assertEquals("1", a);
         Assert.assertEquals("CN=localhost", e.getConnectionContext().getPrincipal().toString());
         Assert.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
-        IpConnectionContext ectxt = (IpConnectionContext) e.getConnectionContext();
+        ConnectionContext<InetSocketAddress> ectxt = e.getConnectionContext();
         Assert.assertTrue(ectxt.getLocalAddress() instanceof InetSocketAddress);
         Assert.assertTrue(ectxt.getRemoteAddress() instanceof InetSocketAddress);
-        Assert.assertTrue(Pattern.matches("TLSv1.*", ectxt.getSslParameters().getProtocol()));
+        Assert.assertTrue(Pattern.matches("TLSv1.*", ((IpConnectionContext)ectxt).getSslParameters().getProtocol()));
         // Test that ssl state is still good
         doRequest(new URL("https", hostname, port, "/?a=1"),
                 new byte[]{},

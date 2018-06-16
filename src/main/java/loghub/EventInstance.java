@@ -44,6 +44,7 @@ class EventInstance extends Event {
             String pipename = event.getRealEvent().pipelineNames.remove();
             PausingContext newpc = (PausingContext) Properties.metrics.pausingTimer("Pipeline." + pipename + ".timer").time();
             event.getRealEvent().timersStack.add(newpc);
+            LogManager.getLogger("loghub.eventlogger." + pipename).debug("Start processing event {}", event);;
             return true;
         }
 
@@ -62,6 +63,7 @@ class EventInstance extends Event {
         @Override
         public boolean process(Event event) throws ProcessorException {
             try {
+                LogManager.getLogger("loghub.eventlogger." + event.getRealEvent().currentPipeline).debug("Finished processing event {}", event);;
                 event.getRealEvent().timersStack.remove().close();
             } catch (NoSuchElementException e1) {
                 throw new ProcessorException(event.getRealEvent(), "Empty timer stack, bad state");
@@ -370,9 +372,10 @@ class EventInstance extends Event {
         }
     }
 
+    @SuppressWarnings("unchecked")
     @Override
-    public ConnectionContext<?> getConnectionContext() {
-        return ctx;
+    public <T> ConnectionContext<T> getConnectionContext() {
+        return (ConnectionContext<T>) ctx;
     }
 
     @Override

@@ -198,7 +198,7 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
 
     public abstract void drop();
 
-    public abstract ConnectionContext<?> getConnectionContext();
+    public abstract <T> ConnectionContext<T> getConnectionContext();
 
     protected abstract EventInstance getRealEvent();
 
