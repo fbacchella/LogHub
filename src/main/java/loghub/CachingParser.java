@@ -1,4 +1,4 @@
-package ua_parser;
+package loghub;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -7,6 +7,11 @@ import java.util.function.Function;
 import javax.cache.Cache;
 
 import loghub.configuration.Properties;
+import ua_parser.Client;
+import ua_parser.Device;
+import ua_parser.OS;
+import ua_parser.Parser;
+import ua_parser.UserAgent;
 
 /**
  * When doing webanalytics (with for example PIG) the main pattern is to process

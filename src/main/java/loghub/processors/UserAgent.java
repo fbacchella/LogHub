@@ -10,10 +10,10 @@ import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
 
+import loghub.CachingParser;
 import loghub.Event;
 import loghub.Helpers;
 import loghub.configuration.Properties;
-import ua_parser.CachingParser;
 import ua_parser.Client;
 import ua_parser.Parser;
 
