@@ -14,9 +14,11 @@ import com.googlecode.jsendnsca.NagiosSettings;
 import com.googlecode.jsendnsca.encryption.Encryption;
 
 import loghub.Event;
+import loghub.SelfEncoder;
 import loghub.Sender;
 import loghub.configuration.Properties;
 
+@SelfEncoder
 public class Nsca extends Sender {
 
     private enum MAPFIELD {

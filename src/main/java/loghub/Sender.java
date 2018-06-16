@@ -30,11 +30,13 @@ public abstract class Sender extends Thread {
     public boolean configure(Properties properties) {
         if (encoder != null) {
             return encoder.configure(properties, this);
+        } else if (getClass().getAnnotation(SelfEncoder.class) == null) {
+            logger.error("Missing encoder");
+            return false;
         } else {
             return true;
         }
     }
-
 
     public void stopSending() {
         interrupt();

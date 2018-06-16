@@ -45,9 +45,11 @@ import loghub.ConnectionContext;
 import loghub.Event;
 import loghub.IpConnectionContext;
 import loghub.Receiver;
+import loghub.SelfDecoder;
 import loghub.configuration.Properties;
 import loghub.snmp.Log4j2LogFactory;
 
+@SelfDecoder
 public class SnmpTrap extends Receiver implements CommandResponder {
 
     static {
@@ -77,13 +79,8 @@ public class SnmpTrap extends Receiver implements CommandResponder {
     private String listen = "0.0.0.0";
     private OIDFormatter formatter = null;
 
-    public SnmpTrap() {
-        super();
-    }
-
     @Override
     public boolean configure(Properties properties) {
-        decoder = Receiver.NULLDECODER;
         if(! reconfigured && properties.containsKey("mibdirs")) {
             reconfigured = true;
             String[] mibdirs = null;

@@ -19,7 +19,6 @@ import io.netty.buffer.ByteBuf;
 import loghub.Decoder.DecodeException;
 import loghub.Decoder.RuntimeDecodeException;
 import loghub.configuration.Properties;
-import loghub.netty.SelfDecoder;
 import loghub.receivers.Blocking;
 import loghub.security.AuthenticationHandler;
 import loghub.security.ssl.ClientAuthentication;

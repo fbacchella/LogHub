@@ -17,6 +17,7 @@ import io.netty.handler.codec.MessageToMessageDecoder;
 import io.netty.util.ReferenceCounted;
 import loghub.Event;
 import loghub.Helpers;
+import loghub.SelfDecoder;
 
 public class BaseChannelConsumer<R extends NettyReceiver<?, ?, ?, ?, BS, BSC, ?, ?, ?, SM>,
                                      BS extends AbstractBootstrap<BS,BSC>, 

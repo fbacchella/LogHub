@@ -8,7 +8,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import loghub.ConnectionContext;
 import loghub.Event;
 import loghub.Receiver;
-import loghub.netty.SelfDecoder;
+import loghub.SelfDecoder;
 
 @SelfDecoder
 public class TimeSerie extends Receiver {

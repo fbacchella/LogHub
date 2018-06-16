@@ -19,6 +19,7 @@ import io.netty.util.concurrent.EventExecutorGroup;
 import loghub.ConnectionContext;
 import loghub.Event;
 import loghub.Helpers;
+import loghub.SelfDecoder;
 import loghub.configuration.Properties;
 import loghub.netty.AbstractTcpReceiver;
 import loghub.netty.BaseChannelConsumer;
@@ -26,7 +27,6 @@ import loghub.netty.ChannelConsumer;
 import loghub.netty.CloseOnError;
 import loghub.netty.ConsumerProvider;
 import loghub.netty.NettyReceiver;
-import loghub.netty.SelfDecoder;
 import loghub.netty.servers.TcpServer;
 import loghub.netty.servers.TcpServer.Builder;
 

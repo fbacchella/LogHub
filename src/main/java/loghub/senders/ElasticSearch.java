@@ -33,9 +33,11 @@ import loghub.Expression;
 import loghub.Expression.ExpressionException;
 import loghub.Helpers;
 import loghub.ProcessorException;
+import loghub.SelfEncoder;
 import loghub.configuration.Properties;
 
 @AsyncSender
+@SelfEncoder
 public class ElasticSearch extends AbstractHttpSender {
 
     private static final JsonFactory factory = new JsonFactory();
