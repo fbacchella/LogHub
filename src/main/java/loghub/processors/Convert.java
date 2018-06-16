@@ -32,19 +32,15 @@ public class Convert extends FieldsProcessor {
                 Object o;
                 switch(className) {
                 case "java.lang.Integer":
-                case "Integer":
                     o = Integer.valueOf(valueStr);
                     break;
                 case "java.lang.Byte" :
-                case "Byte" :
                     o = Byte.valueOf(valueStr);
                     break;
                 case "java.lang.Short":
-                case "Short":
                     o = Short.valueOf(valueStr);
                     break;
                 case "java.lang.Long":
-                case "Long":
                     o = Long.valueOf(valueStr);
                     break;
                 default:
