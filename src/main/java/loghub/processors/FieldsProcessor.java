@@ -156,11 +156,11 @@ public abstract class FieldsProcessor extends Processor {
             } catch (ProcessorException.PausedEventException | ProcessorException.DroppedEventException e) {
                 throw e;
             } catch (UncheckedProcessorException e) {
-                ProcessorException newpe = event.buildException("field " + currentField + "invalid: " + e.getMessage(), (Exception) e.getProcessoException().getCause());
+                ProcessorException newpe = event.buildException("field \"" + currentField + "\" invalid: " + e.getMessage(), (Exception) e.getProcessoException().getCause());
                 newpe.setStackTrace(e.getStackTrace());
                 throw newpe;
             } catch (ProcessorException e) {
-                ProcessorException newpe = event.buildException("field " + currentField + "invalid: " + e.getMessage(), (Exception) e.getCause());
+                ProcessorException newpe = event.buildException("field \"" + currentField + "\" invalid: " + e.getMessage(), (Exception) e.getCause());
                 newpe.setStackTrace(e.getStackTrace());
                 throw newpe;
             }
