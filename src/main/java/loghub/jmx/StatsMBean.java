@@ -8,6 +8,8 @@ import javax.management.NotCompliantMBeanException;
 import javax.management.ObjectName;
 import javax.management.StandardMBean;
 
+import loghub.Helpers;
+
 @MXBean
 public interface StatsMBean {
 
@@ -29,31 +31,25 @@ public interface StatsMBean {
 
     default public String[] getErrors() {
         return loghub.Stats.getErrors().stream()
-                        .map( i-> (Throwable) (i.getCause() != null ? i.getCause() :  i))
-                        .map( i -> i.getClass().getSimpleName() + ":" + i.getMessage())
+                        .map(i -> Helpers.resolveThrowableException((Throwable)i))
                         .toArray(String[]::new)
                         ;
     }
 
     default public String[] getDecodErrors() {
         return loghub.Stats.getDecodeErrors().stream()
-                        .map( i-> (Throwable) (i.getCause() != null ? i.getCause() :  i))
-                        .map( i -> i.getClass().getSimpleName() + ":" + i.getMessage())
+                        .map(i -> Helpers.resolveThrowableException((Throwable)i))
                         .toArray(String[]::new)
                         ;
     }
 
     default public String[] getExceptions() {
         return loghub.Stats.getExceptions().stream()
-                        .map( i-> (Throwable) (i.getCause() != null ? i.getCause() :  i))
                         .map( i -> {
                             StringBuffer exceptionDetails = new StringBuffer();
-                            String exceptionMessage = i.getMessage();
-                            if (exceptionMessage == null) {
-                                exceptionMessage = i.getClass().getSimpleName();
-                            }
+                            String exceptionMessage = Helpers.resolveThrowableException(i);
                             exceptionDetails.append(exceptionMessage);
-                            StackTraceElement[] stack = i.getStackTrace();
+                            StackTraceElement[] stack = (i.getCause() != null ? i.getCause() : i).getStackTrace();
                             if (stack.length > 0) {
                                 exceptionDetails.append(String.format(" at %s.%s line %d", stack[0].getClassName(), stack[0].getMethodName(), stack[0].getLineNumber()));
                             }
