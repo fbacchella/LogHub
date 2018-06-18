@@ -1,17 +1,14 @@
 package loghub.processors;
 
-import java.lang.reflect.InvocationTargetException;
-
 import org.apache.logging.log4j.Level;
 import org.codehaus.groovy.control.CompilationFailedException;
 
 import loghub.Event;
 import loghub.Event.Action;
 import loghub.Expression;
+import loghub.Expression.ExpressionException;
 import loghub.Processor;
 import loghub.ProcessorException;
-import loghub.Expression.ExpressionException;
-import loghub.configuration.BeansManager;
 import loghub.configuration.Properties;
 
 public abstract class Etl extends Processor {
@@ -74,29 +71,18 @@ public abstract class Etl extends Processor {
 
     public static class Convert extends Etl {
         private String className = null;
-        private Class<?> clazz;
+        private loghub.processors.Convert convert;
         @Override
         public boolean process(Event event) throws ProcessorException {
-            try {
-                Object val = event.applyAtPath(Action.GET, lvalue, null, false);
-                if(val != null) {
-                    Object o = BeansManager.ConstructFromString(clazz, val.toString());
-                    event.applyAtPath(Action.PUT, lvalue, o);
-                }
-                return true;
-            } catch (InvocationTargetException e) {
-                throw event.buildException("unable to convert from string to " + className, e);
-            }
+            Object val = event.applyAtPath(Action.GET, lvalue, null, false);
+            event.applyAtPath(Action.PUT, lvalue, convert.fieldFunction(event, val));
+            return true;
         }
         @Override
         public boolean configure(Properties properties) {
-            try {
-                clazz = properties.classloader.loadClass(className);
-            } catch (ClassNotFoundException e) {
-                logger.error("class not found: {}", className);
-                return false;
-            }
-            return super.configure(properties);
+            convert = new loghub.processors.Convert();
+            convert.setClassName(className);
+            return convert.configure(properties) && super.configure(properties);
         }
         public String getClassName() {
             return className;

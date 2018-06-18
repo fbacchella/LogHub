@@ -27,8 +27,8 @@ public class Convert extends FieldsProcessor {
         if (value == null) {
             return null;
         } else {
+            String valueStr = value.toString();
             try {
-                String valueStr = value.toString();
                 Object o;
                 switch(className) {
                 case "java.lang.Integer":
@@ -49,9 +49,9 @@ public class Convert extends FieldsProcessor {
                 }
                 return o;
             } catch (NumberFormatException e) {
-                throw event.buildException("unable to convert from string to " + className, e);
+                throw event.buildException("Unable to parse \""+ valueStr +"\" as a " + className);
             } catch (InvocationTargetException e) {
-                throw event.buildException("unable to convert from string to " + className, (Exception)e.getCause());
+                throw event.buildException("Unable to parse \""+ valueStr +"\" as a " + className, (Exception)e.getCause());
             }
         }
     }
