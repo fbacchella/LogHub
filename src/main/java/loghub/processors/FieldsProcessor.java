@@ -19,7 +19,7 @@ import loghub.Helpers;
 import loghub.IgnoredEventException;
 import loghub.Processor;
 import loghub.ProcessorException;
-import loghub.UncheckedProcessingException;
+import loghub.UncheckedProcessorException;
 import loghub.VarFormatter;
 import loghub.configuration.Properties;
 
@@ -135,7 +135,7 @@ public abstract class FieldsProcessor extends Processor {
             try {
                 return fieldFunction(event, value);
             } catch (ProcessorException ex) {
-                throw new UncheckedProcessingException(event, "", ex);
+                throw new UncheckedProcessorException(ex);
             }
         };
         return processField(event, currentField, resolver);
@@ -150,17 +150,19 @@ public abstract class FieldsProcessor extends Processor {
                 event.remove(currentField);
             }
             return processed != RUNSTATUS.FAILED;
-        } catch (UncheckedProcessingException ex) {
+        } catch (UncheckedProcessorException ex) {
             try {
-                throw ex.getCause();
-            } catch (ProcessorException.PausedEventException | ProcessorException.DroppedEventException | IgnoredEventException e) {
+                throw ex.getProcessoException();
+            } catch (ProcessorException.PausedEventException | ProcessorException.DroppedEventException e) {
                 throw e;
-            } catch (ProcessorException | UncheckedProcessingException e) {
-                ProcessorException npe = event.buildException("field " + currentField + "invalid: " + e.getMessage(), (Exception)e.getCause());
-                npe.setStackTrace(e.getStackTrace());
-                throw npe;
-            } catch (Throwable e) {
-                return false;
+            } catch (UncheckedProcessorException e) {
+                ProcessorException newpe = event.buildException("field " + currentField + "invalid: " + e.getMessage(), (Exception) e.getProcessoException().getCause());
+                newpe.setStackTrace(e.getStackTrace());
+                throw newpe;
+            } catch (ProcessorException e) {
+                ProcessorException newpe = event.buildException("field " + currentField + "invalid: " + e.getMessage(), (Exception) e.getCause());
+                newpe.setStackTrace(e.getStackTrace());
+                throw newpe;
             }
         }
     }

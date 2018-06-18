@@ -45,7 +45,7 @@ public class TestEvent {
     }
 
     @Test
-    public void TestPath() {
+    public void TestPath() throws ProcessorException {
         Event e = Tools.getEvent();
         e.setTimestamp(new Date(0));
         e.applyAtPath(Action.PUT, new String[]{"a", "b", "c"}, 1, true);
@@ -59,7 +59,7 @@ public class TestEvent {
         Assert.assertEquals("Didn't resolve the path correctly",  4, e.getMeta("f") );
         Assert.assertEquals("Didn't resolve the path correctly",  3, e.get("e") );
         Assert.assertEquals("Didn't resolve the path correctly",  new Date(0), e.applyAtPath(Action.GET, new String[]{"@timestamp"}, null));
-   }
+    }
 
     @Test
     public void TestForkable() {

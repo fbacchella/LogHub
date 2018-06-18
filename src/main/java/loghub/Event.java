@@ -45,12 +45,12 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
         return new EventInstance(ctx, true);
     }
 
-    public Object applyAtPath(Action f, String[] path, Object value) {
+    public Object applyAtPath(Action f, String[] path, Object value) throws ProcessorException {
         return applyAtPath(f, path, value, false);
     }
 
     @SuppressWarnings("unchecked")
-    public Object applyAtPath(Action f, String[] path, Object value, boolean create) {
+    public Object applyAtPath(Action f, String[] path, Object value, boolean create) throws ProcessorException {
         Map<String, Object> current = this;
         String key = path[0];
         if (key != null && key.startsWith("#")) {
@@ -95,7 +95,7 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
                         return null;
                     }
                 } else if ( ! (peekNext instanceof Map) ) {
-                    throw new UncheckedProcessingException(getRealEvent(), "Can descend into " + key + ", it's not an object");
+                    throw buildException("Can descend into " + key + ", it's not an object");
                 } else {
                     next = (Map<String, Object>) peekNext;
                 }
@@ -124,7 +124,15 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
         return new ProcessorException(getRealEvent(), message, root);
     }
 
-    public Object getPath(String...path) {
+    public UncheckedProcessorException wrapException(String message, Exception root) {
+        return new UncheckedProcessorException(new ProcessorException(getRealEvent(), message, root));
+    }
+
+    public UncheckedProcessorException wrapException(String message) {
+        return new UncheckedProcessorException(new ProcessorException(getRealEvent(), message));
+    }
+
+    public Object getPath(String...path) throws ProcessorException {
         return applyAtPath(Action.GET, path, null, false);
     }
 

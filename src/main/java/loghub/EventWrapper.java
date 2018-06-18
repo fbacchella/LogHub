@@ -36,11 +36,11 @@ class EventWrapper extends Event {
         return event.entrySet();
     }
 
-    private Object action(Action f, String key, final Object value) {
+    private Object action(Action f, String key, final Object value) throws ProcessorException {
         return action(f, key, value, false);
     }
 
-    private Object action(Action f, String key, final Object value, boolean create) {
+    private Object action(Action f, String key, final Object value, boolean create) throws ProcessorException {
         final String[] lpath;
         if(key == null) {
             lpath = path;
@@ -59,7 +59,11 @@ class EventWrapper extends Event {
 
     @Override
     public Object put(String key, Object value) {
-        return action( Action.PUT, key, value, true);
+        try {
+            return action( Action.PUT, key, value, true);
+        } catch (ProcessorException e) {
+            throw new UncheckedProcessorException(e);
+        }
     }
 
     @Override
@@ -69,17 +73,29 @@ class EventWrapper extends Event {
 
     @Override
     public Object get(Object key) {
-        return action(Action.GET, key.toString(), null);
+        try {
+            return action(Action.GET, key.toString(), null);
+        } catch (ProcessorException e) {
+            throw new UncheckedProcessorException(e);
+        }
     }
 
     @Override
     public Object remove(Object key) {
-        return action(Action.REMOVE, key.toString(), null);
+        try {
+            return action(Action.REMOVE, key.toString(), null);
+        } catch (ProcessorException e) {
+            throw new UncheckedProcessorException(e);
+        }
     }
 
     @Override
     public boolean containsKey(Object key) {
-        return Boolean.TRUE.equals(action(Action.CONTAINS, key.toString(), null));
+        try {
+            return Boolean.TRUE.equals(action(Action.CONTAINS, key.toString(), null));
+        } catch (ProcessorException e) {
+            throw new UncheckedProcessorException(e);
+        }
     }
 
     @Override
@@ -89,40 +105,65 @@ class EventWrapper extends Event {
 
     @Override
     public int size() {
-        Integer size = (Integer) action( Action.SIZE, null, null);
-        return size != null ? size : 0;
+        Integer size;
+        try {
+            size = (Integer) action( Action.SIZE, null, null);
+            return size != null ? size : 0;
+        } catch (ProcessorException e) {
+            throw new UncheckedProcessorException(e);
+        }
     }
 
     @Override
     public boolean isEmpty() {
-        return (Boolean) action(Action.ISEMPTY, null, null) == true;
+        try {
+            return (Boolean) action(Action.ISEMPTY, null, null) == true;
+        } catch (ProcessorException e) {
+            throw new UncheckedProcessorException(e);
+        }
     }
 
     @Override
     public void clear() {
-        action(Action.CLEAR, null, null);
+        try {
+            action(Action.CLEAR, null, null);
+        } catch (ProcessorException e) {
+            throw new UncheckedProcessorException(e);
+        }
     }
 
     @Override
     public boolean containsValue(Object value) {
-        return Boolean.TRUE.equals(action(Action.CONTAINSVALUE, null, null));
+        try {
+            return Boolean.TRUE.equals(action(Action.CONTAINSVALUE, null, null));
+        } catch (ProcessorException e) {
+            throw new UncheckedProcessorException(e);
+        }
     }
 
     @SuppressWarnings("unchecked")
     @Override
     public Set<String> keySet() {
-        Object found = action(Action.KEYSET, null, null);
-        if(found != null) {
-            return (Set<String>) found;
-        } else {
-            return Collections.emptySet();
+        try {
+            Object found = action(Action.KEYSET, null, null);
+            if(found != null) {
+                return (Set<String>) found;
+            } else {
+                return Collections.emptySet();
+            }
+        } catch (ProcessorException e) {
+            throw new UncheckedProcessorException(e);
         }
     }
 
     @SuppressWarnings("unchecked")
     @Override
     public Collection<Object> values() {
-        return (Collection<Object>) action( Action.VALUES, null, null);
+        try {
+            return (Collection<Object>) action( Action.VALUES, null, null);
+        } catch (ProcessorException e) {
+            throw new UncheckedProcessorException(e);
+        }
     }
 
     @Override
