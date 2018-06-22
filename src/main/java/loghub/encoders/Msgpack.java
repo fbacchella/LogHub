@@ -50,9 +50,8 @@ public class Msgpack extends Encoder {
     }
 
     private static abstract class TimeSerializer<K> extends JsonSerializer<K> {
-        private final ByteBuffer longBuffer = ByteBuffer.wrap(new byte[12]);
         void doSerialiaze(long seconds, int nanoseconds, MessagePackGenerator gen) throws IOException {
-            longBuffer.clear();
+            ByteBuffer longBuffer = ByteBuffer.wrap(new byte[12]);
             long result = ((long)nanoseconds << 34) | seconds;
             int size = 0;
             if ((result >> 34) == 0) {
@@ -106,23 +105,31 @@ public class Msgpack extends Encoder {
     }
 
     private static final JsonFactory factory = new MessagePackFactory();
-    private static final ThreadLocal<ObjectMapper> msgpackAsEvent = ThreadLocal.withInitial(() ->  {
-        ObjectMapper mapper = new ObjectMapper(factory);
-        SimpleModule dateModule = new SimpleModule("LogHub", new Version(1, 0, 0, null, "loghub", ""));
-        dateModule.addSerializer(new DateSerializer());
-        dateModule.addSerializer(new InstantSerializer());
-        dateModule.addSerializer(new EventSerializer());
-        mapper.registerModule(dateModule);
-        return mapper;
-    });
-    private static final ThreadLocal<ObjectMapper> msgpackAsMap = ThreadLocal.withInitial(() ->  {
-        ObjectMapper mapper = new ObjectMapper(factory);
-        SimpleModule dateModule = new SimpleModule("LogHub", new Version(1, 0, 0, null, "loghub", ""));
-        dateModule.addSerializer(new DateSerializer());
-        dateModule.addSerializer(new InstantSerializer());
-        mapper.registerModule(dateModule);
-        return mapper;
-    });
+    private static final ThreadLocal<ObjectMapper> msgpackAsEvent;
+    private static final ThreadLocal<ObjectMapper> msgpackAsMap;
+    static {
+        // The are shared by ObjectMapper in a unknown way, don't create useless instance.
+        DateSerializer ds = new DateSerializer();
+        InstantSerializer is = new InstantSerializer();
+        EventSerializer es = new EventSerializer();
+        msgpackAsEvent = ThreadLocal.withInitial(() ->  {
+            ObjectMapper mapper = new ObjectMapper(factory);
+            SimpleModule dateModule = new SimpleModule("LogHub", new Version(1, 0, 0, null, "loghub", "MsgpackAsEvent"));
+            dateModule.addSerializer(ds);
+            dateModule.addSerializer(is);
+            dateModule.addSerializer(es);
+            mapper.registerModule(dateModule);
+            return mapper;
+        });
+        msgpackAsMap = ThreadLocal.withInitial(() ->  {
+            ObjectMapper mapper = new ObjectMapper(factory);
+            SimpleModule dateModule = new SimpleModule("LogHub", new Version(1, 0, 0, null, "loghub", "MsgpackAsMap"));
+            dateModule.addSerializer(ds);
+            dateModule.addSerializer(is);
+            mapper.registerModule(dateModule);
+            return mapper;
+        });
+    }
 
     private boolean forwardEvent = false;
 
