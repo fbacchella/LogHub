@@ -25,12 +25,12 @@ public class TestHttp {
         private static class Builder extends AbstractHttpServer.Builder<CustomServer, Builder> {
             ChannelHandler customHandler;
             @Override
-            public CustomServer build() {
+            public CustomServer build() throws IllegalArgumentException, InterruptedException {
                 return new CustomServer(this);
             }
         }
         private final ChannelHandler customHandler;
-        protected CustomServer(Builder builder) {
+        protected CustomServer(Builder builder) throws IllegalArgumentException, InterruptedException {
             super(builder);
             this.customHandler = builder.customHandler;
         }
@@ -52,7 +52,7 @@ public class TestHttp {
         }
     }
     private CustomServer server;
-    private void makeServer(Map<String, Object> sslprops, Function<CustomServer.Builder, CustomServer.Builder> c) {
+    private void makeServer(Map<String, Object> sslprops, Function<CustomServer.Builder, CustomServer.Builder> c) throws IllegalArgumentException, InterruptedException {
         CustomServer.Builder builder = new CustomServer.Builder()
                         .setThreadPrefix("TestHttp")
                         .setConsumer(server)
@@ -70,14 +70,14 @@ public class TestHttp {
     }
 
     @Test
-    public void Test404() throws IOException {
+    public void Test404() throws IOException, IllegalArgumentException, InterruptedException {
         makeServer(Collections.emptyMap(), i -> i);
         HttpURLConnection cnx = (HttpURLConnection) theurl.openConnection();
         Assert.assertEquals(404, cnx.getResponseCode());
     }
 
     @Test
-    public void Test503() throws IOException {
+    public void Test503() throws IOException, IllegalArgumentException, InterruptedException {
         makeServer(Collections.emptyMap(), i -> {
             i.customHandler = new HttpRequestProcessing() {
                 @Override
@@ -99,7 +99,7 @@ public class TestHttp {
     }
 
     @Test
-    public void TestRootRedirect() throws IOException {
+    public void TestRootRedirect() throws IOException, IllegalArgumentException, InterruptedException {
         makeServer(Collections.emptyMap(), i -> {
             i.customHandler = new RootRedirect();
             return i;

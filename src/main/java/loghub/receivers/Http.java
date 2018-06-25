@@ -119,13 +119,13 @@ public class Http extends AbstractTcpReceiver<Http, Http.HttpReceiverServer, Htt
                 return this;
             }
             @Override
-            public HttpReceiverServer build() {
+            public HttpReceiverServer build() throws IllegalArgumentException, InterruptedException {
                 return new HttpReceiverServer(this);
             }
         }
 
         final PostHandler recepter;
-        protected HttpReceiverServer(Builder builder) {
+        protected HttpReceiverServer(Builder builder) throws IllegalArgumentException, InterruptedException {
             super(builder);
             this.recepter = builder.recepter;
         }

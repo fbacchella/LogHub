@@ -34,7 +34,7 @@ public abstract class AbstractHttpServer<S extends AbstractHttpServer<S, B>,
 
     private final SimpleChannelInboundHandler<FullHttpRequest> NOTFOUND = new NotFound();
 
-    protected AbstractHttpServer(B builder) {
+    protected AbstractHttpServer(B builder) throws IllegalArgumentException, InterruptedException {
         super(builder);
     }
 

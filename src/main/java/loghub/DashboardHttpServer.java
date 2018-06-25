@@ -23,7 +23,7 @@ public class DashboardHttpServer extends AbstractHttpServer<DashboardHttpServer,
 
     public static class Builder extends AbstractHttpServer.Builder<DashboardHttpServer, DashboardHttpServer.Builder> {
         @Override
-        public DashboardHttpServer build() {
+        public DashboardHttpServer build() throws IllegalArgumentException, InterruptedException {
             return new DashboardHttpServer(this);
         }
     }
@@ -33,7 +33,7 @@ public class DashboardHttpServer extends AbstractHttpServer<DashboardHttpServer,
     private final SimpleChannelInboundHandler<FullHttpRequest> TOKENGENERATOR;
     private final SimpleChannelInboundHandler<FullHttpRequest> TOKENFILTER;
 
-    private DashboardHttpServer(Builder builder) {
+    private DashboardHttpServer(Builder builder) throws IllegalArgumentException, InterruptedException {
         super(builder);
         AuthenticationHandler authHandler = getAuthHandler();
         if (authHandler != null && authHandler.isWithJwt()) {

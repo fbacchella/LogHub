@@ -89,7 +89,7 @@ public abstract class NettyIpServer<CF extends ComponentFactory<BS, BSC, InetSoc
     private final int port;
     private final String host;
 
-    protected NettyIpServer(B builder) {
+    protected NettyIpServer(B builder) throws IllegalArgumentException, InterruptedException {
         super(builder);
         port = builder.port;
         host = builder.host;

@@ -83,14 +83,14 @@ public class TestServer {
     private static class TesterServer extends AbstractNettyServer<TesterFactory, ServerBootstrap, ServerChannel, LocalServerChannel, LocalAddress, TesterServer, TesterServer.Builder> {
 
         public static class Builder extends  AbstractNettyServer.Builder<TesterServer, TesterServer.Builder, ServerBootstrap, ServerChannel> {
-            public TesterServer build() {
+            public TesterServer build() throws IllegalStateException, InterruptedException {
                 return new TesterServer(this);
             }
         }
 
         Channel cf;
 
-        public TesterServer(Builder builder) {
+        public TesterServer(Builder builder) throws IllegalStateException, InterruptedException {
             super(builder);
         }
 
@@ -100,14 +100,12 @@ public class TestServer {
         }
 
         @Override
-        protected boolean makeChannel(AbstractBootstrap<ServerBootstrap, ServerChannel> bootstrap, LocalAddress address, Builder builder) {
+        protected void makeChannel(AbstractBootstrap<ServerBootstrap, ServerChannel> bootstrap, LocalAddress address, Builder builder) {
             // Bind and start to accept incoming connections.
             try {
                 cf = bootstrap.bind(address).await().channel();
-                return true;
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                return false;
             }
         }
 

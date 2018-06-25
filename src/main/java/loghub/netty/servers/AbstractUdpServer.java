@@ -2,11 +2,8 @@ package loghub.netty.servers;
 
 import java.net.InetSocketAddress;
 import java.util.HashSet;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
-
-import org.apache.logging.log4j.Level;
 
 import io.netty.bootstrap.AbstractBootstrap;
 import io.netty.bootstrap.Bootstrap;
@@ -34,7 +31,7 @@ public class AbstractUdpServer<S extends AbstractUdpServer<S, B>,
         }
     }
 
-    public AbstractUdpServer(B builder) {
+    public AbstractUdpServer(B builder) throws IllegalArgumentException, InterruptedException {
         super(builder);
     }
 
@@ -60,26 +57,25 @@ public class AbstractUdpServer<S extends AbstractUdpServer<S, B>,
     }
 
     @Override
-    protected boolean makeChannel(AbstractBootstrap<Bootstrap, Channel> bootstrap, InetSocketAddress address, B builder) {
+    protected void makeChannel(AbstractBootstrap<Bootstrap, Channel> bootstrap, InetSocketAddress address, B builder) throws IllegalStateException, InterruptedException {
         channels = new HashSet<>(builder.threadsCount);
         for (int i = 0 ; i < builder.threadsCount ; ++i) {  
             ChannelFuture future = bootstrap.bind(address);
             channels.add(future.channel());
             try {
+                future.await().channel();
                 future.get();
             } catch (ExecutionException | InterruptedException e) {
-                if (e instanceof InterruptedException) {
-                    Thread.currentThread().interrupt();
-                }
-                String message = Optional.ofNullable(e.getCause().getMessage()).orElse(e.getCause().getClass().getCanonicalName());
-                logger.error("Failed to start listening on {}: {}", address, message);
-                logger.catching(Level.DEBUG, e.getCause());
                 channels.forEach(Channel::close);
                 channels.clear();
-                return false;
+                if (e instanceof InterruptedException) {
+                    Thread.currentThread().interrupt();
+                    throw (InterruptedException) e;
+                } else {
+                    throw new IllegalStateException("Failed to start listening on " + address, e.getCause());
+                }
             }
         }
-        return true;
     }
 
     @Override

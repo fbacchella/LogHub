@@ -101,4 +101,17 @@ public class TestUdp {
         testsend(16384);
     }
 
+    @Test
+    public void testAlreadyBinded() throws IOException {
+        try (DatagramSocket ss = new DatagramSocket(0, InetAddress.getLoopbackAddress()); Udp r = new Udp()) {
+            BlockingQueue<Event> receiver = new ArrayBlockingQueue<>(10);
+            r.setOutQueue(receiver);
+            r.setPipeline(new Pipeline(Collections.emptyList(), "testone", null));
+            r.setHost(InetAddress.getLoopbackAddress().getHostAddress());
+            r.setPort(ss.getLocalPort());
+            r.setDecoder(new StringCodec());
+            Assert.assertFalse(r.configure(new Properties(Collections.emptyMap())));
+        }
+    }
+
 }

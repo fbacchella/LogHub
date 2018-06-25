@@ -46,12 +46,14 @@ public abstract class NettyReceiver<R extends NettyReceiver<R, S, B, CF, BS, BSC
     public boolean configure(Properties properties, B builder) {
         builder.setAuthHandler(getAuthHandler(properties)).setWorkerThreads(threadsCount).setPoller(poller);
         builder.setConsumer(AbstractNettyServer.resolveConsumer(this));
-        server = builder.build();
         try {
+            server = builder.build();
             return super.configure(properties);
-        } catch (UnsatisfiedLinkError e) {
-            logger.error("Can't configure Netty server: {}", Helpers.resolveThrowableException(e));
-            logger.catching(Level.DEBUG, e);
+        } catch (IllegalStateException ex) {
+            logger.error("Can't start receiver: {}", Helpers.resolveThrowableException(ex));
+            logger.catching(Level.DEBUG, ex);
+            return false;
+        } catch (InterruptedException e1) {
             return false;
         }
     }
@@ -105,7 +107,9 @@ public abstract class NettyReceiver<R extends NettyReceiver<R, S, B, CF, BS, BSC
 
     @Override
     public void close() {
-        server.close();
+        if (server != null) {
+            server.close();
+        }
         super.close();
     }
 

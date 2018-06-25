@@ -1,10 +1,12 @@
 package loghub.netty.servers;
 
 import java.net.InetSocketAddress;
+import java.util.concurrent.ExecutionException;
 
 import io.netty.bootstrap.AbstractBootstrap;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ServerChannel;
 import io.netty.channel.socket.ServerSocketChannel;
@@ -21,22 +23,24 @@ public class AbstractTcpServer<S extends AbstractTcpServer<S, B>,
         }
     }
 
-    protected AbstractTcpServer(B builder) {
+    protected AbstractTcpServer(B builder) throws IllegalArgumentException, InterruptedException {
         super(builder);
     }
 
-    Channel cf;
+    Channel listeningChannel;
 
     @Override
-    protected boolean makeChannel(AbstractBootstrap<ServerBootstrap, ServerChannel> bootstrap, InetSocketAddress address, B builder) {
+    protected void makeChannel(AbstractBootstrap<ServerBootstrap, ServerChannel> bootstrap, InetSocketAddress address, B builder) throws IllegalStateException, InterruptedException {
         // Bind and start to accept incoming connections.
         try {
-            cf = bootstrap.bind(address).await().channel();
+            ChannelFuture cf = bootstrap.bind(address);
+            cf.get();
+            listeningChannel = cf.channel();
             logger.debug("bond to {}", address);
-            return true;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            return false;
+        } catch (ExecutionException e) {
+            throw new IllegalStateException("Failed to start listening on " +  address, e.getCause());
         }
     }
 
@@ -53,13 +57,13 @@ public class AbstractTcpServer<S extends AbstractTcpServer<S, B>,
 
     @Override
     public void waitClose() throws InterruptedException {
-        cf.closeFuture().sync();
+        listeningChannel.closeFuture().sync();
     }
 
     @Override
     public void close() {
         try {
-            cf.close().await();
+            listeningChannel.close().await();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }

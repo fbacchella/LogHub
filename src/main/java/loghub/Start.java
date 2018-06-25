@@ -249,7 +249,14 @@ public class Start {
             throw new RuntimeException("jmx configuration failed: " + e.getMessage(), e);
         }
         if (props.dashboardBuilder != null) {
-            props.dashboardBuilder.build();
+            try {
+                props.dashboardBuilder.build();
+            } catch (IllegalArgumentException e) {
+                logger.error("Unable to start HTTP dashboard: {}", Helpers.resolveThrowableException(e));
+                throw new IllegalStateException();
+            } catch (InterruptedException e) {
+                throw new IllegalStateException();
+            }
         }
 
     }

@@ -33,12 +33,12 @@ public class HttpTestServer extends ExternalResource {
         private static class Builder extends AbstractHttpServer.Builder<CustomServer, CustomServer.Builder> {
             HttpHandler[] handlers = null;
             @Override
-            public CustomServer build() {
+            public CustomServer build() throws IllegalArgumentException, InterruptedException {
                 return new CustomServer(this);
             }
         }
         private final HttpHandler[] handlers;
-        protected CustomServer(CustomServer.Builder builder) {
+        protected CustomServer(CustomServer.Builder builder) throws IllegalArgumentException, InterruptedException {
             super(builder);
             this.handlers = builder.handlers;
         }

@@ -82,7 +82,7 @@ public abstract class AbstractNettyServer<CF extends ComponentFactory<BS, BSC, S
             this.threadPrefix = threadPrefix;
             return (B) this;
         }
-       public abstract S build();
+        public abstract S build() throws IllegalStateException, InterruptedException;
     }
 
     @SuppressWarnings("unchecked")
@@ -103,7 +103,7 @@ public abstract class AbstractNettyServer<CF extends ComponentFactory<BS, BSC, S
     protected final POLLER poller;
     protected final AuthenticationHandler authHandler;
 
-    public AbstractNettyServer(B builder) {
+    public AbstractNettyServer(B builder) throws IllegalStateException, InterruptedException {
         if (builder.consumer == null) {
             builder.consumer = resolveConsumer(this);
         }
@@ -130,14 +130,12 @@ public abstract class AbstractNettyServer<CF extends ComponentFactory<BS, BSC, S
         factory.addHandlers(builder.consumer, this);
         builder.consumer.addOptions((BS) bootstrap);
         logger.debug("started {} with consumer {} listening on {}", factory, builder.consumer, address);
-        if (! makeChannel(bootstrap, address, builder)) {
-            throw new RuntimeException("");
-        }
+        makeChannel(bootstrap, address, builder);
     }
 
     protected abstract SA resolveAddress(B builder);
 
-    protected abstract boolean makeChannel(AbstractBootstrap<BS,BSC> bootstrap, SA address, B builder);
+    protected abstract void makeChannel(AbstractBootstrap<BS,BSC> bootstrap, SA address, B builder) throws IllegalStateException, InterruptedException;
 
     public abstract void waitClose() throws InterruptedException;
 

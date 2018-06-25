@@ -3,6 +3,7 @@ package loghub.receivers;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetAddress;
+import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
@@ -104,6 +105,18 @@ public class TestTcpLinesStream {
         prepare.accept(receiver);
         Assert.assertTrue(receiver.configure(new Properties(propsMap)));
         receiver.start();
+    }
+
+    @Test
+    public void testAlreadyBinded() throws IOException {
+        try (ServerSocket ss = new ServerSocket(0, 1, InetAddress.getLoopbackAddress()); TcpLinesStream r = new TcpLinesStream()) {
+            BlockingQueue<Event> receiver = new ArrayBlockingQueue<>(10);
+            r.setOutQueue(receiver);
+            r.setPipeline(new Pipeline(Collections.emptyList(), "testone", null));
+            r.setHost(InetAddress.getLoopbackAddress().getHostAddress());
+            r.setPort(ss.getLocalPort());
+            Assert.assertFalse(r.configure(new Properties(Collections.emptyMap())));
+        }
     }
 
 }

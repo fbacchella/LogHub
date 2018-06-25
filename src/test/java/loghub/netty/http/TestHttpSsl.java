@@ -83,12 +83,12 @@ public class TestHttpSsl {
     private static class CustomServer extends AbstractHttpServer<CustomServer, CustomServer.Builder> {
         private static class Builder extends AbstractHttpServer.Builder<CustomServer, Builder> {
             @Override
-            public CustomServer build() {
+            public CustomServer build() throws IllegalArgumentException, InterruptedException {
                 return new CustomServer(this);
             }
         }
 
-        protected CustomServer(Builder builder) {
+        protected CustomServer(Builder builder) throws IllegalArgumentException, InterruptedException {
             super(builder);
         }
 
@@ -100,7 +100,7 @@ public class TestHttpSsl {
     }
 
     private CustomServer server;
-    private void makeServer(Map<String, Object> sslprops, Function<CustomServer.Builder, CustomServer.Builder> c) {
+    private void makeServer(Map<String, Object> sslprops, Function<CustomServer.Builder, CustomServer.Builder> c) throws IllegalArgumentException, InterruptedException {
         CustomServer.Builder builder = new CustomServer.Builder()
                         .setThreadPrefix("TestHttpSSL")
                         .setConsumer(server)
@@ -120,7 +120,7 @@ public class TestHttpSsl {
     }
 
     @Test
-    public void TestSimple() throws NoSuchAlgorithmException, KeyStoreException, CertificateException, IOException, KeyManagementException {
+    public void TestSimple() throws NoSuchAlgorithmException, KeyStoreException, CertificateException, IOException, KeyManagementException, IllegalArgumentException, InterruptedException {
         makeServer(Collections.emptyMap(), i -> i);
         HttpsURLConnection cnx = (HttpsURLConnection) theurl.openConnection();
         cnx.setSSLSocketFactory(getContext.apply(Collections.emptyMap()).getSocketFactory());
@@ -144,7 +144,7 @@ public class TestHttpSsl {
     }
 
     @Test
-    public void TestClientAuthentication() throws NoSuchAlgorithmException, KeyStoreException, CertificateException, IOException, KeyManagementException {
+    public void TestClientAuthentication() throws NoSuchAlgorithmException, KeyStoreException, CertificateException, IOException, KeyManagementException, IllegalArgumentException, InterruptedException {
         makeServer(Collections.emptyMap(), i -> i.setSSLClientAuthentication(ClientAuthentication.REQUIRED));
         HttpsURLConnection cnx = (HttpsURLConnection) theurl.openConnection();
         cnx.setSSLSocketFactory(getContext.apply(Collections.emptyMap()).getSocketFactory());
@@ -156,7 +156,7 @@ public class TestHttpSsl {
     }
 
     @Test(expected=IOException.class)
-    public void TestClientAuthenticationFailed() throws NoSuchAlgorithmException, KeyStoreException, CertificateException, IOException, KeyManagementException {
+    public void TestClientAuthenticationFailed() throws NoSuchAlgorithmException, KeyStoreException, CertificateException, IOException, KeyManagementException, IllegalArgumentException, InterruptedException {
         makeServer(Collections.emptyMap(), i -> i.setSSLClientAuthentication(ClientAuthentication.REQUIRED));
         HttpsURLConnection cnx = (HttpsURLConnection) theurl.openConnection();
         cnx.setSSLSocketFactory(getContext.apply(Collections.singletonMap("issuers", new String[] {"cn=notlocalhost"})).getSocketFactory());
@@ -164,7 +164,7 @@ public class TestHttpSsl {
     }
 
     @Test(expected=javax.net.ssl.SSLHandshakeException.class)
-    public void TestChangedAlias() throws NoSuchAlgorithmException, KeyStoreException, CertificateException, IOException, KeyManagementException {
+    public void TestChangedAlias() throws NoSuchAlgorithmException, KeyStoreException, CertificateException, IOException, KeyManagementException, IllegalArgumentException, InterruptedException {
         makeServer(Collections.emptyMap(), i -> i.setSSLKeyAlias("invalidalias"));
         HttpsURLConnection cnx = (HttpsURLConnection) theurl.openConnection();
         cnx.setSSLSocketFactory(getContext.apply(Collections.emptyMap()).getSocketFactory());
