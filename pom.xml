@@ -6,9 +6,6 @@
     <artifactId>LogHub</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <packaging>jar</packaging>
-    <prerequisites>
-        <maven>3.0</maven>
-    </prerequisites>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -139,7 +136,7 @@
         <dependency>
             <groupId>fr.jrds</groupId>
             <artifactId>snmpcodec</artifactId>
-            <version>0.0.1-SNAPSHOT</version>
+            <version>0.0.5</version>
         </dependency>
         <dependency>
             <groupId>io.netty</groupId>
@@ -224,32 +221,6 @@
             <version>1.0.0-RC2</version>
         </dependency>
     </dependencies>
-    <repositories>
-        <repository>
-            <id>sonaytpe</id>
-            <name>Sonatype's snapshots</name>
-            <url>https://oss.sonatype.org/content/repositories/snapshots/</url>
-            <layout>default</layout>
-            <releases>
-                <enabled>false</enabled>
-            </releases>
-            <snapshots />
-        </repository>
-        <repository>
-            <id>snmp4j</id>
-            <url>https://oosnmp.net/dist/release</url>
-        </repository>
-        <repository>
-            <id>jrds</id>
-            <name>jrds Java Packages</name>
-            <url>http://jrds.fr/jenkins/plugin/repository/everything/</url>
-            <layout>default</layout>
-            <releases>
-                <enabled>true</enabled>
-            </releases>
-            <snapshots />
-        </repository>
-    </repositories>
     <build>
         <plugins>
             <plugin>
@@ -420,7 +391,7 @@
                 </executions>
                 <configuration>
                     <!-- needed by javadoc.io -->
-                    <additionalJOption>-J-Dhttp.agent=maven-javadoc-plugin-${pom‌​.name}</additionalJOption>
+                    <additionalJOption>-J-Dhttp.agent=maven-javadoc-plugin-${pom.name}</additionalJOption>
                     <links>
                         <link>https://static.javadoc.io/javax.cache/cache-api/1.1.0/</link>
                         <link>http://docs.groovy-lang.org/latest/html/api/</link>
