@@ -34,7 +34,6 @@ import loghub.Expression.ExpressionException;
 import loghub.Helpers;
 import loghub.ProcessorException;
 import loghub.configuration.Properties;
-import loghub.receivers.SelfEncoder;
 
 @AsyncSender
 @SelfEncoder

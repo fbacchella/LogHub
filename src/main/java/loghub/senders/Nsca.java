@@ -15,7 +15,6 @@ import com.googlecode.jsendnsca.encryption.Encryption;
 
 import loghub.Event;
 import loghub.configuration.Properties;
-import loghub.receivers.SelfEncoder;
 
 @SelfEncoder
 public class Nsca extends Sender {

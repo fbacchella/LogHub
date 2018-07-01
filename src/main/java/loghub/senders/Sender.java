@@ -14,7 +14,6 @@ import loghub.Helpers;
 import loghub.Stats;
 import loghub.configuration.Properties;
 import loghub.encoders.Encoder;
-import loghub.receivers.SelfEncoder;
 
 public abstract class Sender extends Thread {
 
