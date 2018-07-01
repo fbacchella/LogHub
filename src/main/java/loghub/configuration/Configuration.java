@@ -365,7 +365,7 @@ public class Configuration {
         receivers = new ArrayList<>();
         for(Input i: conf.inputs) {
             if(i.piperef == null || ! namedPipeLine.containsKey(i.piperef)) {
-                throw new RuntimeException("Invalid input, no destination pipeline: " + i);
+                throw new ConfigException("Invalid input, no destination pipeline: " + i);
             }
             for(ConfigListener.ObjectWrapped<Receiver> desc: i.receiver) {
                 Pipeline p = namedPipeLine.get(i.piperef);

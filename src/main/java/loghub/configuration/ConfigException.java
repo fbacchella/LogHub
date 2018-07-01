@@ -6,7 +6,7 @@ public class ConfigException extends RuntimeException {
     private final int startLine;
     private final int startChar;
     private final String fileName;
-    
+
     ConfigException(String message, String fileName, Token start, Throwable e) {
         super(message, e);
         this.fileName = fileName;
@@ -42,8 +42,19 @@ public class ConfigException extends RuntimeException {
         this.startChar = -1;
     }
 
+    ConfigException(String message) {
+        super(message);
+        this.fileName = null;
+        this.startLine = -1;
+        this.startChar = -1;
+    }
+
     public String getLocation() {
-        return String.format("file %s%s", fileName, startLine > 0 ? ", line " + startLine + ":" + startChar : "");
+        if (fileName == null) {
+            return "global configuration";
+        } else {
+            return String.format("file %s%s", fileName, startLine > 0 ? ", line " + startLine + ":" + startChar : "");
+        }
     }
 
 };
