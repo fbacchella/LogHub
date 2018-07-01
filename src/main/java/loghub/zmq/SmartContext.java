@@ -61,7 +61,7 @@ public class SmartContext {
         socket.setRcvHWM(hwm);
         socket.setSndHWM(hwm);
         socket.setSendTimeOut(timeout);
-        socket.setReceiveTimeOut(timeout);;
+        socket.setReceiveTimeOut(timeout);
         method.act(socket, endpoint);
         String url = endpoint + ":" + type.toString() + ":" + method.getSymbol();
         socket.setIdentity(url.getBytes());

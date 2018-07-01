@@ -187,7 +187,6 @@ public class SnmpTrap extends Receiver implements CommandResponder {
         }
     }
 
-
     private void smartPut(Event e, OID oid, Object value) {
         Map<String, Object> oidindex = formatter.store.parseIndexOID(oid.getValue());
         if (oidindex.size() == 0) {

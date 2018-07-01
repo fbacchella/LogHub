@@ -64,7 +64,7 @@ public class ConfigurationTools {
 
     public static <T> T unWrap(String fragment, Function<RouteParser, ? extends ParserRuleContext> extractor) {
         @SuppressWarnings("unchecked")
-        ObjectWrapped<T> parsed = (ObjectWrapped<T>) ConfigurationTools.parseFragment(fragment,  extractor);
+        ObjectWrapped<T> parsed = (ObjectWrapped<T>) ConfigurationTools.parseFragment(fragment, extractor);
         return parsed.wrapped;
     }
 
