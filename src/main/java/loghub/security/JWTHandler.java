@@ -1,6 +1,5 @@
 package loghub.security;
 
-import java.io.UnsupportedEncodingException;
 import java.security.Principal;
 import java.time.Instant;
 import java.time.Period;
@@ -139,11 +138,9 @@ public class JWTHandler {
                 alg = null;
             }
             this.verifier = JWT.require(alg)
-                    .withIssuer(builder.issuer)
-                    .build();
+                            .withIssuer(builder.issuer)
+                            .build();
         } catch (IllegalArgumentException e) {
-            throw new RuntimeException(e);
-        } catch (UnsupportedEncodingException e) {
             throw new RuntimeException(e);
         }
     }
@@ -154,9 +151,9 @@ public class JWTHandler {
 
     public String getToken(Principal p, UnaryOperator<JWTCreator.Builder> filler) {
         JWTCreator.Builder builder = JWT.create()
-                .withIssuer(issuer)
-                .withSubject(p.getName())
-                .withIssuedAt(new Date());
+                        .withIssuer(issuer)
+                        .withSubject(p.getName())
+                        .withIssuedAt(new Date());
         if (validity != null) {
             Instant end = ZonedDateTime.now(ZoneOffset.UTC).plus(validity).toInstant();
             builder.withExpiresAt(Date.from(end));
