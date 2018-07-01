@@ -15,7 +15,7 @@
         <log4j>2.11.0</log4j>
         <antlr>4.7.1</antlr>
         <javadoc>2.10.3</javadoc>
-        <jackson>2.9.5</jackson>
+        <jackson>2.9.6</jackson>
         <metrics>4.0.0</metrics>
         <cache2k>1.0.2.Final</cache2k>
         <mainClass>loghub.Start</mainClass>
@@ -202,7 +202,7 @@
         <dependency>
             <groupId>com.auth0</groupId>
             <artifactId>java-jwt</artifactId>
-            <version>3.3.0</version>
+            <version>3.4.0</version>
         </dependency>
         <dependency>
             <groupId>io.krakens</groupId>
