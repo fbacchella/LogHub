@@ -36,7 +36,6 @@ import org.apache.http.RequestLine;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.CredentialsProvider;
-import org.apache.http.client.HttpRequestRetryHandler;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.entity.EntityBuilder;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -59,7 +58,6 @@ import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.apache.http.message.BasicHttpEntityEnclosingRequest;
 import org.apache.http.message.BasicRequestLine;
 import org.apache.http.pool.ConnPoolControl;
-import org.apache.http.protocol.HttpContext;
 import org.apache.http.util.VersionInfo;
 import org.apache.logging.log4j.Level;
 
@@ -121,7 +119,7 @@ public abstract class AbstractHttpSender extends Sender {
         public void finished() {
             Properties.metrics.counter("sender." + getName() + ".activeBatches").dec();
         }
-    };
+    }
 
     protected enum ContentType {
 
@@ -173,6 +171,7 @@ public abstract class AbstractHttpSender extends Sender {
                     response.close();
                 }
             } catch (IOException e) {
+                throw new UncheckedIOException(e);
             }
         }
         public Reader getContentReader() throws IOException {
@@ -269,7 +268,7 @@ public abstract class AbstractHttpSender extends Sender {
                         Batch flushedBatch;
                         while ((flushedBatch = batches.poll()) != null){
                             Properties.metrics.histogram("sender." + getName() + ".batchesSize").update(flushedBatch.size());
-                            if(flushedBatch.size() == 0) {
+                            if (flushedBatch.isEmpty()) {
                                 flushedBatch.finished();
                                 continue;
                             } else {
@@ -365,13 +364,7 @@ public abstract class AbstractHttpSender extends Sender {
                                            .build());
         builder.disableCookieManagement();
 
-        builder.setRetryHandler(new HttpRequestRetryHandler() {
-            @Override
-            public boolean retryRequest(IOException exception,
-                                        int executionCount, HttpContext context) {
-                return false;
-            }
-        });
+        builder.setRetryHandler((i,j, k) -> false);
 
         client = builder.build();
 
