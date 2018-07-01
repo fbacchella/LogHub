@@ -14,9 +14,38 @@ import java.util.zip.GZIPOutputStream;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import loghub.BuilderClass;
 import loghub.Event;
+import lombok.Setter;
 
+@BuilderClass(Gelf.Builder.class)
 public class Gelf extends Encoder {
+
+    public static class Builder extends Encoder.Builder<Gelf> {
+        private boolean compressed = false;
+        private boolean stream = false;
+        @Setter
+        private String shortmessagefield = "shortmessage";
+        @Setter
+        private String fullmessagefield = null;
+        public Builder setCompressed(Boolean compressed) {
+            this.compressed = compressed;
+            this.stream = compressed ? false : this.stream;
+            return this;
+        }
+        public Builder setStream(Boolean stream) {
+            this.stream = stream;
+            this.compressed = stream ? false: this.compressed;
+            return this;
+        }
+        @Override
+        public Gelf build() {
+            return new Gelf(this);
+        }
+    };
+    public static Builder getBuilder() {
+        return new Builder();
+    }
 
     private static final Pattern fieldpattner = Pattern.compile("^[\\w\\.\\-]*$");
     private static final Predicate<String> fieldpredicate = fieldpattner.asPredicate();
@@ -32,10 +61,19 @@ public class Gelf extends Encoder {
     private static final JsonFactory factory = new JsonFactory();
     private static final ThreadLocal<ObjectMapper> json = ThreadLocal.withInitial(() ->new ObjectMapper(factory));
 
-    private boolean compressed = false;
-    private boolean stream = false;
-    private String shortmessagefield = "shortmessage";
-    private String fullmessagefield = null;
+    private final boolean compressed;
+    private final boolean stream;
+    private final String shortmessagefield;
+    private final String fullmessagefield;
+
+    private Gelf(Builder builder) {
+        super(builder);
+        this.compressed = builder.compressed;
+        this.stream = builder.stream;
+        this.shortmessagefield = builder.shortmessagefield;
+        this.fullmessagefield = builder.fullmessagefield;
+
+    }
 
     @Override
     public byte[] encode(Event event) {
@@ -58,7 +96,7 @@ public class Gelf extends Encoder {
             byte[] buffer2;
             if (compressed) {
                 try (final ByteArrayOutputStream bos = new ByteArrayOutputStream();
-                        final GZIPOutputStream stream = new GZIPOutputStream(bos)) {
+                                final GZIPOutputStream stream = new GZIPOutputStream(bos)) {
 
                     stream.write(buffer1);
                     stream.finish();
@@ -73,40 +111,6 @@ public class Gelf extends Encoder {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-    }
-
-    public Boolean isCompressed() {
-        return compressed;
-    }
-
-    public void setCompressed(Boolean compressed) {
-        this.compressed = compressed;
-        this.stream = compressed ? false : this.stream;
-    }
-
-    public Boolean isStream() {
-        return stream;
-    }
-
-    public void setStream(Boolean stream) {
-        this.stream = stream;
-        this.compressed = stream ? false: this.compressed;
-    }
-
-    public String getShortmessagefield() {
-        return shortmessagefield;
-    }
-
-    public void setShortmessagefield(String shortmessagefield) {
-        this.shortmessagefield = shortmessagefield;
-    }
-
-    public String getFullmessagefield() {
-        return fullmessagefield;
-    }
-
-    public void setFullmessagefield(String messagefield) {
-        this.fullmessagefield = messagefield;
     }
 
 }

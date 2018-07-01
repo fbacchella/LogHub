@@ -6,6 +6,7 @@ import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.Optional;
 
 public class BeansManager {
 
@@ -20,23 +21,33 @@ public class BeansManager {
      * @param beanValue the bean value
      * @throws InvocationTargetException if unable to set bean
      */
-    static public void beanSetter(Object beanObject, String beanName, Object beanValue) throws InvocationTargetException{
+    static public void beanSetter(Object beanObject, String beanName, Object beanValue) throws InvocationTargetException, IntrospectionException {
+        Method setMethod;
         try {
-            PropertyDescriptor bean = new PropertyDescriptor(beanName, beanObject.getClass());
-            Method setMethod = bean.getWriteMethod();
-            if(setMethod == null) {
-                throw new InvocationTargetException(new NullPointerException(), String.format("Unknown bean %s", beanName));
-            }
-            Class<?> setArgType = bean.getPropertyType();
+            Optional<PropertyDescriptor> beanopt =  Optional.ofNullable(new PropertyDescriptor(beanName, beanObject.getClass()));
+            setMethod = beanopt.map(PropertyDescriptor::getWriteMethod).orElse(null);
+        } catch (IntrospectionException e) {
+            // new PropertyDescriptor throws a useless message, will delegate it.
+            setMethod = null;
+        }
+        beanSetter(beanName, beanObject, beanObject.getClass().getName(), setMethod, beanValue);
+    }
+
+    static public void beanSetter(String beanName, Object object, String objectClassName, Method setMethod, Object beanValue) throws InvocationTargetException, IntrospectionException {
+        if (setMethod == null) {
+            throw new IntrospectionException("Unknown bean '" + beanName + "' for " + objectClassName);
+        }
+        try {
+            Class<?> setArgType = setMethod.getParameterTypes()[0];
             if(beanValue == null || setArgType.isAssignableFrom(beanValue.getClass())) {
-                setMethod.invoke(beanObject, beanValue);
+                setMethod.invoke(object, beanValue);
             } else if (beanValue instanceof String){
                 Object argInstance = BeansManager.ConstructFromString(setArgType, (String) beanValue);
-                setMethod.invoke(beanObject, argInstance);
+                setMethod.invoke(object, argInstance);
             } else if (beanValue instanceof Number){
-                setMethod.invoke(beanObject, beanValue);
+                setMethod.invoke(object, beanValue);
             } else if (beanValue instanceof Boolean){
-                setMethod.invoke(beanObject, (Boolean)beanValue.equals(Boolean.TRUE));
+                setMethod.invoke(object, (Boolean)beanValue.equals(Boolean.TRUE));
             } else if(setArgType.isArray() && beanValue.getClass().isArray()) {
                 // In case of an array, try a crude conversion, expect that type cast is possible
                 // for every element
@@ -46,18 +57,13 @@ public class BeansManager {
                 for(int i = 0; i < length ; i++){
                     Array.set(newValue, i, Array.get(beanValue, i));
                 }
-                setMethod.invoke(beanObject, newValue);
+                setMethod.invoke(object, newValue);
             } else {
-                String message = String.format("can't assign bean %s.%s with argument type %s", beanObject.getClass().getName(), beanName, beanValue.getClass().getName());
+                String message = String.format("can't assign bean %s.%s with argument type %s", objectClassName, beanName, beanValue.getClass().getName());
                 throw new InvocationTargetException(new ClassCastException(message), String.format("Invalid bean %s", beanName));
             }
-        } catch (IntrospectionException e) {
-            throw new InvocationTargetException(e, "Unknown bean '" + beanName + "' for " + beanObject);
-        } catch (InvocationTargetException e) {
-            // No need to wrap again the exception
-            throw e;
-        } catch (Exception e) {
-            throw new InvocationTargetException(e, "invalid bean '" + beanName + "' for " + beanObject);
+        } catch (IllegalAccessException | IllegalArgumentException e) {
+            throw new InvocationTargetException(e, "Invalid bean '" + beanName + "' for " + objectClassName);
         }
     }
 

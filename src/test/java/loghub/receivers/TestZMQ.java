@@ -45,7 +45,7 @@ public class TestZMQ {
             r.setOutQueue(receiver);
             r.setPipeline(new Pipeline(Collections.emptyList(), "testone", null));
             configure.accept(r);
-            r.setDecoder(new StringCodec());
+            r.setDecoder(StringCodec.getBuilder().build());
             Assert.assertTrue(r.configure(new Properties(Collections.emptyMap())));
             logger.debug("before");
             r.start();

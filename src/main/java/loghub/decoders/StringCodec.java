@@ -5,12 +5,31 @@ import java.util.Collections;
 import java.util.Map;
 
 import io.netty.buffer.ByteBuf;
+import loghub.BuilderClass;
 import loghub.ConnectionContext;
+import lombok.Setter;
 
+@BuilderClass(StringCodec.Builder.class)
 public class StringCodec extends Decoder {
 
-    private Charset charset = Charset.defaultCharset();
-    private String field = "message";
+    public static class Builder extends Decoder.Builder<StringCodec> {
+        @Setter
+        private String charset = Charset.defaultCharset().name();
+        @Override
+        public StringCodec build() {
+            return new StringCodec(this);
+        }
+    };
+    public static Builder getBuilder() {
+        return new Builder();
+    }
+
+    private final Charset charset;
+
+    private StringCodec(Builder builder) {
+        super(builder);
+        charset = Charset.forName(builder.charset);
+    }
 
     @Override
     public Map<String, Object> decode(ConnectionContext<?> ctx, byte[] msg, int offset, int length) {
@@ -21,22 +40,6 @@ public class StringCodec extends Decoder {
     @Override
     public Map<String, Object> decode(ConnectionContext<?> ctx, ByteBuf bbuf) {
         return Collections.singletonMap(field, bbuf.toString(charset));
-    }
-
-    public String getCharset() {
-        return charset.name();
-    }
-
-    public void setCharset(String charset) {
-        this.charset = Charset.forName(charset);
-    }
-
-    public String getField() {
-        return field;
-    }
-
-    public void setField(String field) {
-        this.field = field;
     }
 
 }

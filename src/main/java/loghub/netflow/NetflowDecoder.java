@@ -6,12 +6,28 @@ import java.util.HashMap;
 import java.util.Map;
 
 import io.netty.buffer.ByteBuf;
+import loghub.BuilderClass;
 import loghub.ConnectionContext;
 import loghub.Event;
 import loghub.IpConnectionContext;
 import loghub.decoders.Decoder;
 
+@BuilderClass(NetflowDecoder.Builder.class)
 public class NetflowDecoder extends Decoder {
+
+    public static class Builder extends Decoder.Builder<NetflowDecoder> {
+        @Override
+        public NetflowDecoder build() {
+            return new NetflowDecoder(this);
+        }
+    };
+    public static Builder getBuilder() {
+        return new Builder();
+    }
+
+    private NetflowDecoder(loghub.decoders.Decoder.Builder<? extends Decoder> builder) {
+        super(builder);
+    }
 
     @Override
     public Map<String, Object> decode(ConnectionContext<?> ctx, byte[] msg, int offset, int length) throws DecodeException {

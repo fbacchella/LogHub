@@ -101,7 +101,7 @@ public class TestTcpLinesStream {
         receiver.setOutQueue(queue);
         receiver.setPipeline(new Pipeline(Collections.emptyList(), "testtcplinesstream", null));
         receiver.setPort(port);
-        receiver.setDecoder(new StringCodec());
+        receiver.setDecoder(StringCodec.getBuilder().build());
         prepare.accept(receiver);
         Assert.assertTrue(receiver.configure(new Properties(propsMap)));
         receiver.start();

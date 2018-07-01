@@ -8,12 +8,29 @@ import java.util.Map;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufInputStream;
+import loghub.BuilderClass;
 import loghub.ConnectionContext;
+import lombok.Setter;
 
+@BuilderClass(SerializedObject.Builder.class)
 public class SerializedObject extends Decoder {
 
-    private String field = "message";
-    private String objectFied = "objectClass";
+    public static class Builder extends Decoder.Builder<SerializedObject> {
+        @Setter
+        private String objectFied = "objectClass";
+        @Override
+        public SerializedObject build() {
+            return new SerializedObject(this);
+        }
+
+    };
+
+    private final String objectFied;
+
+    private SerializedObject(Builder builder) {
+        super(builder);
+        objectFied = builder.objectFied;
+    }
 
     @Override
     public Map<String, Object> decode(ConnectionContext<?> ctx, byte[] msg, int offset, int length) throws DecodeException {
@@ -47,28 +64,6 @@ public class SerializedObject extends Decoder {
             throw new DecodeException("Unable to unserialize log4j event: " + e.getMessage(), e);
         }
         return map;
-    }
-
-    public String getField() {
-        return field;
-    }
-
-    public void setField(String field) {
-        this.field = field;
-    }
-
-    /**
-     * @return the objectFied
-     */
-    public String getObjectFied() {
-        return objectFied;
-    }
-
-    /**
-     * @param objectFied the objectFied to set
-     */
-    public void setObjectFied(String objectFied) {
-        this.objectFied = objectFied;
     }
 
 }

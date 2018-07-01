@@ -126,7 +126,7 @@ public class TestServer {
 
         public TesterReceiver() {
             super();
-            decoder = new StringCodec();
+            decoder = StringCodec.getBuilder().build();
         }
 
         @Override

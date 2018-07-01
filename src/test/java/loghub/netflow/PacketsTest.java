@@ -139,7 +139,7 @@ public class PacketsTest {
     @SuppressWarnings("unchecked")
     @Test
     public void testDecode() {
-        Decoder nfd = new NetflowDecoder();
+        Decoder nfd = NetflowDecoder.getBuilder().build();
         IpConnectionContext dummyctx = new IpConnectionContext(new InetSocketAddress(0), new InetSocketAddress(0), null);
         Arrays.stream(captures)
         .map(i -> {logger.debug(i + ": "); return i;})

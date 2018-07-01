@@ -59,7 +59,7 @@ public class TestUdp {
             r.setBufferSize(size + 10);
             r.setHost(hostname);
             r.setPort(port);
-            r.setDecoder(new StringCodec());
+            r.setDecoder(StringCodec.getBuilder().build());
             Assert.assertTrue(r.configure(new Properties(Collections.emptyMap())));
             r.start();
             int originalMessageSize = 0;
@@ -109,7 +109,7 @@ public class TestUdp {
             r.setPipeline(new Pipeline(Collections.emptyList(), "testone", null));
             r.setHost(InetAddress.getLoopbackAddress().getHostAddress());
             r.setPort(ss.getLocalPort());
-            r.setDecoder(new StringCodec());
+            r.setDecoder(StringCodec.getBuilder().build());
             Assert.assertFalse(r.configure(new Properties(Collections.emptyMap())));
         }
     }

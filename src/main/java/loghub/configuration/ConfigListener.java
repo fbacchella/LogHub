@@ -1,5 +1,6 @@
 package loghub.configuration;
 
+import java.beans.IntrospectionException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -21,6 +22,7 @@ import org.antlr.v4.runtime.Token;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import loghub.AbstractBuilder;
 import loghub.Event;
 import loghub.Helpers;
 import loghub.Pipeline;
@@ -259,14 +261,7 @@ class ConfigListener extends RouteBaseListener {
             beanName = ctx.beanName().getText();
             beanValue = stack.popTyped();
         }
-        ObjectWrapped<Object> beanObject = stack.peekTyped();
-        assert (beanName != null);
-        assert (beanValue != null);
-        try {
-            BeansManager.beanSetter(beanObject.wrapped, beanName, beanValue.wrapped);
-        } catch (InvocationTargetException e) {
-            throw new RecognitionException(Helpers.resolveThrowableException(e.getTargetException()), parser, stream, ctx);
-        }
+        doBean(beanName, beanValue, ctx);
     }
 
     @Override
@@ -274,13 +269,22 @@ class ConfigListener extends RouteBaseListener {
         String beanName = ctx.type.getText();
         ObjectWrapped<Object> beanValue;
         beanValue = stack.popTyped();
+        doBean(beanName, beanValue, ctx);
+    }
+
+    private void doBean(String beanName, ObjectWrapped<Object> beanValue, ParserRuleContext ctx) {
         ObjectWrapped<Object> beanObject = stack.peekTyped();
         assert (beanName != null);
         assert (beanValue != null);
-
         try {
-            BeansManager.beanSetter(beanObject.wrapped, beanName, beanValue.wrapped);
-        } catch (InvocationTargetException e) {
+            if (beanObject.wrapped instanceof AbstractBuilder) {
+                @SuppressWarnings("unchecked")
+                AbstractBuilder<Object> builder = (AbstractBuilder<Object>) beanObject.wrapped;
+                builder.set(beanName, beanValue.wrapped);
+            } else {
+                BeansManager.beanSetter(beanObject.wrapped, beanName, beanValue.wrapped);
+            }
+        } catch (IntrospectionException | InvocationTargetException e) {
             throw new RecognitionException(Helpers.resolveThrowableException(e), parser, stream, ctx);
         }
     }
@@ -294,7 +298,8 @@ class ConfigListener extends RouteBaseListener {
         try {
             logger.debug("Load ing {} with {}", qualifiedName, classLoader);
             Class<?> objectClass = classLoader.loadClass(qualifiedName);
-            return new ObjectWrapped<Object>(objectClass.newInstance());
+            AbstractBuilder<?> builder = AbstractBuilder.resolve(objectClass);
+            return new ObjectWrapped<Object>(builder != null ? builder: objectClass.newInstance());
         } catch (ClassNotFoundException e) {
             throw new RecognitionException("Unknown class " + qualifiedName, parser, stream, ctx);
         } catch (InstantiationException | IllegalAccessException e) {
@@ -311,6 +316,17 @@ class ConfigListener extends RouteBaseListener {
         } else {
             String qualifiedName = ctx.QualifiedIdentifier().getText();
             stack.push(getObject(qualifiedName, ctx));
+        }
+    }
+
+    @Override
+    public void exitObject(ObjectContext ctx) {
+        ObjectWrapped<Object> wobject = stack.popTyped();
+        if (wobject.wrapped instanceof AbstractBuilder) {
+            AbstractBuilder<?> builder = (AbstractBuilder<?>) wobject.wrapped;
+            stack.push(new ObjectWrapped<Object>(builder.build()));
+        } else {
+            stack.push(wobject);
         }
     }
 

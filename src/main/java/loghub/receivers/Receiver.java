@@ -30,21 +30,6 @@ import loghub.security.ssl.ClientAuthentication;
 
 public abstract class Receiver extends Thread implements Iterator<Event>, Closeable {
 
-    /**
-     * Any receiver that does it's own decoding should set the decoder to this value during configuration
-     */
-    protected static final Decoder NULLDECODER = new Decoder() {
-        @Override
-        public Map<String, Object> decode(ConnectionContext<?> connectionContext, byte[] msg, int offset, int length) throws DecodeException {
-            return null;
-        }
-        @Override
-        public Map<String, Object> decode(ConnectionContext<?> ctx, ByteBuf bbuf) throws DecodeException {
-            return null;
-        }
-
-    };
-
     protected final Logger logger;
 
     private AuthenticationHandler authHandler = null;

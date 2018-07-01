@@ -20,6 +20,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufInputStream;
+import loghub.BuilderClass;
 import loghub.ConnectionContext;
 import loghub.Event;
 
@@ -30,7 +31,18 @@ import loghub.Event;
  * @author Fabrice Bacchella
  *
  */
+@BuilderClass(Msgpack.Builder.class)
 public class Msgpack extends Decoder {
+
+    public static class Builder extends Decoder.Builder<Msgpack> {
+        @Override
+        public Msgpack build() {
+            return new Msgpack(this);
+        }
+    };
+    public static Builder getBuilder() {
+        return new Builder();
+    }
 
     private static final TypeReference<Object> OBJECTREF = new TypeReference<Object>() { };
 
@@ -81,7 +93,9 @@ public class Msgpack extends Decoder {
         return new ObjectMapper(factory);
     });
 
-    private String field = "message";
+    private Msgpack(Builder builder) {
+        super(builder);
+    }
 
     @Override
     public Map<String, Object> decode(ConnectionContext<?> ctx, byte[] msg, int offset, int length) throws DecodeException {
@@ -148,9 +162,4 @@ public class Msgpack extends Decoder {
     public String getField() {
         return field;
     }
-
-    public void setField(String field) {
-        this.field = field;
-    }
-
 }

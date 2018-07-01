@@ -74,7 +74,7 @@ public class TestHttp {
         receiver.setPipeline(new Pipeline(Collections.emptyList(), "testhttp", null));
         receiver.setHost(hostname);
         receiver.setPort(port);
-        receiver.setDecoder(new StringCodec());
+        receiver.setDecoder(StringCodec.getBuilder().build());
         prepare.accept(receiver);
         Assert.assertTrue(receiver.configure(new Properties(propsMap)));
         receiver.start();

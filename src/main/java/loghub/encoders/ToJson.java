@@ -5,10 +5,39 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 
+import loghub.BuilderClass;
 import loghub.Event;
+import lombok.Setter;
 
+@BuilderClass(ToJson.Builder.class)
 public class ToJson extends Encoder {
     
+    public static class Builder extends Encoder.Builder<ToJson> {
+        private boolean compressed = false;
+        private boolean stream = false;
+        @Setter
+        private String shortmessagefield = "shortmessage";
+        @Setter
+        private String fullmessagefield = null;
+        public Builder setCompressed(Boolean compressed) {
+            this.compressed = compressed;
+            this.stream = compressed ? false : this.stream;
+            return this;
+        }
+        public Builder setStream(Boolean stream) {
+            this.stream = stream;
+            this.compressed = stream ? false: this.compressed;
+            return this;
+        }
+        @Override
+        public ToJson build() {
+            return new ToJson(this);
+        }
+    };
+    public static Builder getBuilder() {
+        return new Builder();
+    }
+
     private static final JsonFactory factory = new JsonFactory();
     private static final ThreadLocal<ObjectMapper> json = new ThreadLocal<ObjectMapper>() {
         @Override
@@ -16,6 +45,10 @@ public class ToJson extends Encoder {
             return new ObjectMapper(factory).configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false);
         }
     };
+
+    private ToJson(Builder builder) {
+        super(builder);
+    }
 
     @Override
     public byte[] encode(Event event) {
@@ -25,6 +58,5 @@ public class ToJson extends Encoder {
             throw new RuntimeException(e);
         }
     }
-
 
 }

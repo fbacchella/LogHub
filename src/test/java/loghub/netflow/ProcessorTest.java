@@ -48,7 +48,7 @@ public class ProcessorTest {
             out.write(buffer, 0, length);
         }
         ByteBuf bbuffer = Unpooled.wrappedBuffer(out.toByteArray());
-        Decoder nfd = new NetflowDecoder();
+        Decoder nfd = NetflowDecoder.getBuilder().build();
         IpConnectionContext dummyctx = new IpConnectionContext(new InetSocketAddress(0), new InetSocketAddress(0), null);
         Map<String, Object> content = nfd.decode(dummyctx, bbuffer);
 

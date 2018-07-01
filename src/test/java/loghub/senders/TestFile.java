@@ -81,8 +81,7 @@ public class TestFile {
         File fsend = new File();
         fsend.setFileName(outFile);
         fsend.setInQueue(queue);
-        StringField sf = new StringField();
-        sf.setFormat("${message%s}");
+        StringField sf = StringField.getBuilder().setFormat("${message%s}").build();
         fsend.setEncoder(sf);
 
         prepare.accept(fsend);
@@ -130,8 +129,7 @@ public class TestFile {
         File fsend = new File();
         fsend.setFileName(outFile);
         fsend.setInQueue(queue);
-        StringField sf = new StringField();
-        sf.setFormat("${");
+        StringField sf = StringField.getBuilder().setFormat("${").build();
         fsend.setEncoder(sf);
         Assert.assertFalse(fsend.configure(new Properties(Collections.emptyMap())));
     }

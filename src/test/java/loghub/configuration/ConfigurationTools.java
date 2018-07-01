@@ -41,7 +41,10 @@ public class ConfigurationTools {
         ConfigListener conf = new ConfigListener();
         ParseTreeWalker walker = new ParseTreeWalker();
         walker.walk(conf, tree);
-        Object o = conf.stack.pop();
+        Object o = null;
+        if (conf.stack.size() >= 1) {
+            o = conf.stack.pop();
+        }
         Assert.assertTrue(conf.stack.isEmpty());
         formatters.putAll(conf.formatters);
         return o;

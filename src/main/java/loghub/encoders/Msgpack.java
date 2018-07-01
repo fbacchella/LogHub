@@ -22,9 +22,24 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 
+import loghub.BuilderClass;
 import loghub.Event;
+import lombok.Setter;
 
+@BuilderClass(Msgpack.Builder.class)
 public class Msgpack extends Encoder {
+
+    public static class Builder extends Encoder.Builder<Msgpack> {
+        @Setter
+        private boolean forwardEvent = false;
+        @Override
+        public Msgpack build() {
+            return new Msgpack(this);
+        }
+    };
+    public static Builder getBuilder() {
+        return new Builder();
+    }
 
     private static class EventSerializer extends JsonSerializer<Event> {
         @Override
@@ -131,7 +146,12 @@ public class Msgpack extends Encoder {
         });
     }
 
-    private boolean forwardEvent = false;
+    private final boolean forwardEvent;
+
+    private Msgpack(Builder builder) {
+        super(builder);
+        this.forwardEvent = builder.forwardEvent;
+    }
 
     @Override
     public byte[] encode(Event event) {
@@ -148,20 +168,6 @@ public class Msgpack extends Encoder {
                 throw new RuntimeException(e);
             }
         }
-    }
-
-    /**
-     * @return the forwardEvent
-     */
-    public boolean isForwardEvent() {
-        return forwardEvent;
-    }
-
-    /**
-     * @param forwardEvent the forwardEvent to set
-     */
-    public void setForwardEvent(boolean forwardEvent) {
-        this.forwardEvent = forwardEvent;
     }
 
 }

@@ -23,6 +23,7 @@ import org.msgpack.value.ValueFactory;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import loghub.AbstractBuilder;
 import loghub.ConnectionContext;
 import loghub.receivers.Receiver;
 import loghub.Event;
@@ -55,7 +56,7 @@ public class TestMsgpack {
 
     @Test
     public void testmap() throws IOException, DecodeException {
-        Msgpack d = new Msgpack();
+        Msgpack d = new Msgpack.Builder().build();
 
         Map<String, Object> e = d.decode(ConnectionContext.EMPTY, objectMapper.writeValueAsBytes(obj));
 
@@ -65,7 +66,7 @@ public class TestMsgpack {
 
     @Test
     public void testmapsimple() throws IOException, DecodeException {
-        Decoder d = new Msgpack();
+        Decoder d = new Msgpack.Builder().build();
 
         Map<Value, Value> destination = new HashMap<>();
         destination.put(ValueFactory.newString("a"), ValueFactory.newString("0"));
@@ -92,7 +93,7 @@ public class TestMsgpack {
     }
     @Test
     public void testtimestamps() throws IOException, DecodeException {
-        Decoder d = new Msgpack();
+        Decoder d = new Msgpack.Builder().build();
 
         Map<Value, Value> destination = new HashMap<>();
         destination.put(ValueFactory.newString("a"), ValueFactory.newExtension((byte) -1, new byte[]{1, 2, 3, 4}) );
@@ -121,8 +122,7 @@ public class TestMsgpack {
 
         byte[] bs = objectMapper.writeValueAsBytes(new Object[] {obj});
 
-        Msgpack d = new Msgpack();
-        d.setField("vector");
+        Msgpack d = Msgpack.getBuilder().setField("vector").build();
         Map<String, Object> e = d.decode(ConnectionContext.EMPTY, bs);
 
         @SuppressWarnings("unchecked")
@@ -147,7 +147,7 @@ public class TestMsgpack {
             }
         }) {
             r.setTimeStampField("f");
-            Msgpack d = new Msgpack();
+            Msgpack d = AbstractBuilder.resolve(Msgpack.class).build();
             r.setDecoder(d);
             Event e = r.next();
             testContent(e);
@@ -156,13 +156,12 @@ public class TestMsgpack {
 
     @Test
     public void testRoundTripAsEvent() throws IOException, DecodeException {
-        loghub.encoders.Msgpack enc = new loghub.encoders.Msgpack();
-        enc.setForwardEvent(true);
+        loghub.encoders.Msgpack enc = loghub.encoders.Msgpack.getBuilder().setForwardEvent(true).build();
         Event ev = Event.emptyEvent(ConnectionContext.EMPTY);
         ev.putAll(obj);
         ev.putMeta("h", 7);
         ev.setTimestamp(new Date(0));
-        Decoder dec = new Msgpack();
+        Decoder dec = new Msgpack.Builder().build();
         Event e = (Event) dec.decode(ConnectionContext.EMPTY, enc.encode(ev));
         testContent(e);
         Instant f = (Instant) e.get("f");
@@ -176,13 +175,12 @@ public class TestMsgpack {
 
     @Test
     public void testRoundTripAsMap() throws IOException, DecodeException {
-        loghub.encoders.Msgpack enc = new loghub.encoders.Msgpack();
-        enc.setForwardEvent(false);
+        loghub.encoders.Msgpack enc = loghub.encoders.Msgpack.getBuilder().setForwardEvent(false).build();
         Event ev = Event.emptyEvent(ConnectionContext.EMPTY);
         ev.putAll(obj);
         ev.putMeta("h", 7);
         ev.setTimestamp(new Date(0));
-        Decoder dec = new Msgpack();
+        Decoder dec = new Msgpack.Builder().build();
         Map<String, Object> e = dec.decode(ConnectionContext.EMPTY, enc.encode(ev));
         testContent(e);
         Assert.assertFalse(e instanceof Event);

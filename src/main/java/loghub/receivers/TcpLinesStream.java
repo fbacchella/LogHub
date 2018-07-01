@@ -41,10 +41,7 @@ public class TcpLinesStream extends AbstractTcpReceiver<TcpLinesStream, TcpServe
 
     @Override
     public boolean configure(Properties properties, TcpServer.Builder builder) {
-        StringCodec stringcodec = new StringCodec();
-        stringcodec.setCharset(charset.toString());
-        stringcodec.setField(field);
-        decoder = stringcodec;
+        decoder = new StringCodec.Builder().setCharset(charset.toString()).setField(field).build();;
         builder.setThreadPrefix("LineReceiver");
         return super.configure(properties, builder);
     }

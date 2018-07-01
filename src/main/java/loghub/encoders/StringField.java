@@ -5,21 +5,43 @@ import java.nio.charset.Charset;
 import java.util.Locale;
 import java.util.function.Function;
 
+import loghub.BuilderClass;
 import loghub.Event;
 import loghub.VarFormatter;
 import loghub.configuration.Properties;
 import loghub.senders.Sender;
+import lombok.Setter;
 
+@BuilderClass(StringField.Builder.class)
 public class StringField extends Encoder {
 
-    private Locale locale = Locale.getDefault();
-    private Charset charset = Charset.defaultCharset();
-    private String format = null;
-    private Function<String, byte[]> encoder;
+    public static class Builder extends Encoder.Builder<StringField> {
+        @Setter
+        private String locale = Locale.getDefault().toLanguageTag();
+        @Setter
+        private String charset = Charset.defaultCharset().name();
+        @Setter
+        private String format = null;
+        @Setter
+        private Function<String, byte[]> encoder;
+        @Setter
+        private VarFormatter formatter;
+        @Override
+        public StringField build() {
+            return new StringField(this);
+        }
+    };
+    public static Builder getBuilder() {
+        return new Builder();
+    }
+
+    private final Function<String, byte[]> encoder;
     private VarFormatter formatter;
 
-    @Override
-    public boolean configure(Properties properties, Sender sender) {
+    private StringField(Builder builder) {
+        super(builder);
+        Locale locale = Locale.forLanguageTag(builder.locale);
+        Charset charset = Charset.forName(builder.charset);
         // With UTF-8, String.getBytes(String) is faster than String.getBytes(Charset), by about 10%
         // See https://issues.apache.org/jira/browse/LOG4J2-935
         // See also http://psy-lob-saw.blogspot.fr/2012/12/encode-utf-8-string-to-bytebuffer-faster.html
@@ -35,9 +57,16 @@ public class StringField extends Encoder {
             encoder = i -> i.getBytes(charset);
         }
         try {
-            formatter = new VarFormatter(format);
+            formatter = new VarFormatter(builder.format, locale);
         } catch (IllegalArgumentException e) {
-            logger.error("Illegal format \"{}\": {}", format, e.getMessage());
+            logger.error("Illegal format \"{}\": {}", builder.format, e.getMessage());
+            formatter = null;
+        }
+    }
+
+    @Override
+    public boolean configure(Properties properties, Sender sender) {
+        if (formatter == null) {
             return false;
         }
         return super.configure(properties, sender);
@@ -46,30 +75,6 @@ public class StringField extends Encoder {
     @Override
     public byte[] encode(Event event) {
         return encoder.apply(formatter.format(event));
-    }
-
-    public String getCharset() {
-        return charset.name();
-    }
-
-    public void setCharset(String charset) {
-        this.charset = Charset.forName(charset);
-    }
-
-    public String getLocale() {
-        return locale.toLanguageTag();
-    }
-
-    public void setLocale(String local) {
-        this.locale = Locale.forLanguageTag(local);
-    }
-
-    public String getFormat() {
-        return format;
-    }
-
-    public void setFormat(String format) {
-        this.format = format;
     }
 
 }
