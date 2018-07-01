@@ -10,7 +10,9 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 import loghub.Event;
 import loghub.EventsProcessor;
@@ -23,6 +25,9 @@ import loghub.processors.SyslogPriority;
 public class TestConfigurations {
 
     private static Logger logger;
+
+    @Rule
+    public ExpectedException thrown = ExpectedException.none();
 
     @BeforeClass
     static public void configure() throws IOException {
@@ -194,6 +199,27 @@ public class TestConfigurations {
                         "output $a | {\n" + 
                         "    loghub.senders.Stdout { encoder: loghub.encoders.ToJson}\n" + 
                         "}";
+        Configuration.parse(new StringReader(confile));
+    }
+
+    @Test
+    public void testMissingPipeInput() throws ConfigException, IOException {
+        thrown.expect(ConfigException.class);
+        thrown.expectMessage("Invalid input, no destination pipeline");
+
+        String confile = "input { loghub.receivers.TimeSerie } | $pipe";
+        Configuration.parse(new StringReader(confile));
+    }
+
+    @Test
+    public void testBadBean() throws ConfigException, IOException {
+        thrown.expect(ConfigException.class);
+        thrown.expectMessage("Unknown bean 'bad' for loghub.processors.Identity");
+
+        String confile = "pipeline[bad] {\n" + 
+                        "   loghub.processors.Identity {bad: true}\n" + 
+                        "}\n" + 
+                        "";
         Configuration.parse(new StringReader(confile));
     }
 
