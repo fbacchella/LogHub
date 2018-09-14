@@ -4,7 +4,7 @@ import java.io.Serializable;
 import java.security.Principal;
 
 public abstract class ConnectionContext<A> implements Serializable {
-    
+
     private static class EmptyPrincipal implements Principal, Serializable {
         @Override
         public String getName() {
@@ -25,6 +25,16 @@ public abstract class ConnectionContext<A> implements Serializable {
         public Object getRemoteAddress() {
             return null;
         }
+
+        @Override
+        public Principal getPrincipal() {
+            return EMPTYPRINCIPAL;
+        }
+
+        @Override
+        public void setPrincipal(Principal peerPrincipal) {
+        }
+
     };
 
     private Principal peerPrincipal;
