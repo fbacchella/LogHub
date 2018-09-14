@@ -7,8 +7,6 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.Map;
 
-import javax.management.remote.JMXPrincipal;
-
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -16,6 +14,7 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import loghub.ConnectionContext;
 import loghub.Event;
 import loghub.Expression;
 import loghub.Expression.ExpressionException;
@@ -117,9 +116,23 @@ public class TestExpressionParsing {
     public void testFormatterContextPrincipal() throws ExpressionException, ProcessorException {
         String format = "${#1%s}-${#2%tY}.${#2%tm}.${#2%td}";
         String formatHash = Integer.toHexString(format.hashCode());
-        Event ev =  Tools.getEvent();
+        Event ev =  Event.emptyEvent(new ConnectionContext<Object>() {
+            @Override
+            public Object getLocalAddress() {
+                return null;
+            }
+            @Override
+            public Object getRemoteAddress() {
+                return null;
+            }
+        });
         ev.setTimestamp(new Date(0));
-        Principal p = new JMXPrincipal("user");
+        Principal p = new Principal() {
+            @Override
+            public String getName() {
+                return "user";
+            }
+        };
         ev.getConnectionContext().setPrincipal(p);
         Assert.assertEquals("user-1970.01.01", evalExpression("\"" + format + "\" ([@context principal name], [@timestamp])", ev, Collections.singletonMap("h_" + formatHash, new VarFormatter(format))).toString());
     }
@@ -202,7 +215,12 @@ public class TestExpressionParsing {
         String formatHash = Integer.toHexString(format.hashCode());
 
         Event ev =  Event.emptyEvent(new IpConnectionContext(new InetSocketAddress("127.0.0.1", 35710), new InetSocketAddress("localhost", 80), null));
-        Principal p = new JMXPrincipal("user");
+        Principal p = new Principal() {
+            @Override
+            public String getName() {
+                return "user";
+            }
+        };
         ev.getConnectionContext().setPrincipal(p);
         Object value = evalExpression("[ @context principal name ] == \"user\"", ev, Collections.singletonMap("h_" + formatHash, new VarFormatter(format)));
         Assert.assertEquals(true, value);
