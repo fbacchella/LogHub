@@ -21,6 +21,7 @@ import org.snmp4j.CommandResponderEvent;
 import org.snmp4j.MessageDispatcherImpl;
 import org.snmp4j.PDU;
 import org.snmp4j.PDUv1;
+import org.snmp4j.mp.MessageProcessingModel;
 import org.snmp4j.smi.IpAddress;
 import org.snmp4j.smi.OID;
 import org.snmp4j.smi.OctetString;
@@ -87,6 +88,36 @@ public class TestTrap {
             Map<String,?> details = (Map<String, ?>) e.get("lldpRemSysName");
             Assert.assertEquals(3, Array.getLength(details.get("index")));
             Assert.assertEquals("localhost", details.get("value"));
+            r.stopReceiving();
+        }
+    }
+
+    @Ignore
+    @Test
+    public void testTrapv2() throws InterruptedException, IOException {
+        BlockingQueue<Event> receiver = new ArrayBlockingQueue<>(2);
+        try (SnmpTrap r = new SnmpTrap()) {
+            r.setOutQueue(receiver);
+            r.setPipeline(new Pipeline(Collections.emptyList(), "testbig", null));
+            r.setPort(0);
+            Map<String, Object> props = new HashMap<>();
+            props.put("mibdirs", new String[]{"/usr/share/snmp/mibs", "/tmp/mibs"});
+            Assert.assertTrue(r.configure(new Properties(props)));
+            r.start();
+
+            CommandResponderEvent trapEvent = new CommandResponderEvent(new MessageDispatcherImpl(), new DefaultUdpTransportMapping(), TransportIpAddress.parse("127.0.0.1/162"), 0,0, null, 0, null, null, 0, null );
+            trapEvent.setMessageProcessingModel(MessageProcessingModel.MPv2c);
+            trapEvent.setSecurityName("loghub".getBytes());
+            PDU pdu = new PDU();
+            pdu.setType(PDU.TRAP);
+            pdu.add(new VariableBinding(new OID("1.3.6.1.6.3.1.1.4.1"), new OctetString("lldpRemTablesChange")));
+            trapEvent.setPDU(pdu);
+            r.processPdu(trapEvent);
+            Event e = receiver.poll();
+            Assert.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
+            Assert.assertEquals(null, e.get("specific_trap"));
+            Assert.assertEquals("loghub", e.getConnectionContext().getPrincipal().getName());
+            Assert.assertEquals("lldpRemTablesChange", e.get("snmpTrapOID"));
             r.stopReceiving();
         }
     }

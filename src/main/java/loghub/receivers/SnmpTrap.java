@@ -3,11 +3,14 @@ package loghub.receivers;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+import java.security.Principal;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 import org.apache.logging.log4j.Level;
 import org.snmp4j.CommandResponder;
@@ -22,6 +25,7 @@ import org.snmp4j.asn1.BERInputStream;
 import org.snmp4j.log.LogFactory;
 import org.snmp4j.mp.MPv1;
 import org.snmp4j.mp.MPv2c;
+import org.snmp4j.mp.MessageProcessingModel;
 import org.snmp4j.smi.Address;
 import org.snmp4j.smi.Counter64;
 import org.snmp4j.smi.GenericAddress;
@@ -178,6 +182,14 @@ public class SnmpTrap extends Receiver implements CommandResponder {
                 Object value = convertVar(i.getVariable());
                 smartPut(event, vbOID, value);
             }
+            // If SNMPv2c try, try to save the community as a principal
+            if (trap.getMessageProcessingModel() == MessageProcessingModel.MPv2c) {
+                Optional.ofNullable(trap.getSecurityName())
+                .filter( i -> i.length > 0)
+                .map(i -> new String(i, StandardCharsets.UTF_8))
+                .map(SnmpTrap::getPrincipal)
+                .ifPresent(ctx::setPrincipal);
+            }
             send(event);
         } catch (Exception e) {
             logger.error(e.getMessage());
@@ -185,6 +197,19 @@ public class SnmpTrap extends Receiver implements CommandResponder {
         } finally {
             trap.setProcessed(true);
         }
+    }
+
+    /**
+     * Generate a anonymous inner class but static, with no references to SnmpTrap
+     * @param name the principal name
+     */
+    private static Principal getPrincipal(String name) {
+        return new Principal() {
+            @Override
+            public String getName() {
+                return name;
+            }
+        };
     }
 
     private void smartPut(Event e, OID oid, Object value) {
