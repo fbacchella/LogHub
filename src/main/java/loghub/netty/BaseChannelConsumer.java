@@ -69,7 +69,7 @@ public class BaseChannelConsumer<R extends NettyReceiver<?, ?, ?, ?, BS, BSC, ?,
             if (Helpers.isFatal(cause)) {
                 throw (Error) cause;
             }
-            logger.error("Unmannageded exception: {}", cause.getMessage());
+            logger.error("Unmannageded exception: {}", Helpers.resolveThrowableException(cause));
             logger.debug("details", cause);
             if (closeOnError) {
                 ctx.close();
@@ -109,7 +109,7 @@ public class BaseChannelConsumer<R extends NettyReceiver<?, ?, ?, ?, BS, BSC, ?,
 
     @Override
     public void exception(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-        logger.error("Pipeline processing failed: {}", cause.getCause());
+        logger.error("Pipeline processing failed: {}", Helpers.resolveThrowableException(cause));
         logger.catching(Level.DEBUG, cause);
     }
 
