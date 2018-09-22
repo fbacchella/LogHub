@@ -4,6 +4,7 @@ import org.apache.logging.log4j.Level;
 import org.logstash.beats.AckEncoder;
 import org.logstash.beats.BeatsHandler;
 import org.logstash.beats.BeatsParser;
+import org.logstash.beats.ConnectionHandler;
 import org.logstash.beats.IMessageListener;
 import org.logstash.beats.Message;
 
@@ -35,11 +36,11 @@ public class Beats extends AbstractTcpReceiver<Beats, TcpServer, TcpServer.Build
 
     private final IMessageListener messageListener;
     private EventExecutorGroup idleExecutorGroup;
+    private EventExecutorGroup beatsHandlerExecutorGroup;
     private int clientInactivityTimeoutSeconds;
     private int maxPayloadSize = 8192;
 
     public Beats() {
-        idleExecutorGroup = new DefaultEventExecutorGroup(4);
         messageListener = new IMessageListener() {
 
             @Override
@@ -88,6 +89,8 @@ public class Beats extends AbstractTcpReceiver<Beats, TcpServer, TcpServer.Build
     @Override
     public boolean configure(Properties properties, Builder builder) {
         builder.setThreadPrefix("BeatsReceiver");
+        idleExecutorGroup = new DefaultEventExecutorGroup(4);
+        beatsHandlerExecutorGroup = new DefaultEventExecutorGroup(4);
         return super.configure(properties, builder);
     }
 
@@ -97,13 +100,14 @@ public class Beats extends AbstractTcpReceiver<Beats, TcpServer, TcpServer.Build
             @Override
             public void addHandlers(ChannelPipeline pipe) {
                 super.addHandlers(pipe);
-                pipe.addBefore("Sender", "Splitter", new BeatsParser(maxPayloadSize));
                 // From org.logstash.beats.Server
                 // We have set a specific executor for the idle check, because the `beatsHandler` can be
                 // blocked on the queue, this the idleStateHandler manage the `KeepAlive` signal.
-                pipe.addBefore(idleExecutorGroup, "Splitter", "KeepAlive", new IdleStateHandler(clientInactivityTimeoutSeconds, 5, 0));
-                pipe.addAfter("Splitter", "Acker", new AckEncoder());
-                pipe.addAfter("Acker", "Handler", new BeatsHandler(messageListener));
+                pipe.addBefore(idleExecutorGroup, "Sender", "KeepAlive", new IdleStateHandler(clientInactivityTimeoutSeconds, 5, 0));
+                pipe.addBefore("Sender", "Acker", new AckEncoder());
+                pipe.addBefore("Sender", "ConnectionHandler", new ConnectionHandler());
+                pipe.addBefore(beatsHandlerExecutorGroup, "Sender", "BeatsSplitter", new BeatsParser(maxPayloadSize));
+                pipe.addBefore(beatsHandlerExecutorGroup, "Sender", "BeatsHandler", new BeatsHandler(messageListener));
             }
 
             @Override
