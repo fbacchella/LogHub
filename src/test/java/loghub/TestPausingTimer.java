@@ -15,9 +15,6 @@ public class TestPausingTimer {
         Snapshot sn = t.getSnapshot();
         Assert.assertEquals(expected, (double) sn.getMean() / 1e9, 0.05);
         Assert.assertEquals(10, t.getCount());
-        System.out.println((double)sn.getMin() / 1e9);
-        System.out.println((double)sn.getMean() / 1e9);
-        System.out.println((double)sn.getMax() / 1e9);
     }
 
     @Test

@@ -396,8 +396,9 @@
                     </execution>
                 </executions>
                 <configuration>
+                    <quiet>true</quiet>
                     <!-- needed by javadoc.io -->
-                    <additionalJOption>-J-Dhttp.agent=maven-javadoc-plugin-${pom.name}</additionalJOption>
+                    <additionalJOption>-J-Dhttp.agent=maven-javadoc-plugin-${project.name}</additionalJOption>
                     <links>
                         <link>https://static.javadoc.io/javax.cache/cache-api/1.1.0/</link>
                         <link>http://docs.groovy-lang.org/latest/html/api/</link>
