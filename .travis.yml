@@ -1,17 +1,23 @@
 language: java
 sudo: false
-install: true
 addons:
   sonarcloud:
     organization: "fbacchella-github"
     token:
       secure: "XWJ0wVivuMHEgvTPvKaXhC5u7+SZfT/XYDC/YkksoFKQmGn7TO2HuwJq9DK7WOXrI5lJC/VKppcLJqwVVh4t7Sk+lz4VJm1vh1dzYwYRIDPguyTRArmw5XHe58QxFvKGTvtO/1BR7/hYYug+n6I3vU8h8M/El+f7inKwzJZYBqg="
 script:
-  - mvn clean org.jacoco:jacoco-maven-plugin:prepare-agent package sonar:sonar
+  - mvn clean package
 jdk:
   - oraclejdk8
-  - oraclejdk9
 cache:
   directories:
     - '$HOME/.m2/repository'
     - '$HOME/.sonar/cache'
+matrix:
+  include:
+    - jdk: openjdk9
+      script:
+        - "cp .travis.settings.xml $HOME/.m2/settings.xml"
+        - mvn clean org.jacoco:jacoco-maven-plugin:prepare-agent package sonar:sonar deploy
+      on:
+          branch: master

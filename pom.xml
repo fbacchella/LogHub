@@ -514,6 +514,13 @@
             </dependency>
         </dependencies>
     </dependencyManagement>
+    <distributionManagement>
+        <snapshotRepository>
+            <id>jfrog-snapshots</id>
+            <name>oss-jfrog-artifactory-snapshots</name>
+            <url>https://oss.jfrog.org/artifactory/oss-snapshot-local</url>
+        </snapshotRepository>
+    </distributionManagement>
     <scm>
         <url>https://github.com/fbacchella/LogHub.git</url>
         <connection>scm:git:https://github.com/fbacchella/LogHub.git</connection>
