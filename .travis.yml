@@ -9,17 +9,17 @@ script:
   - mvn clean package
 jdk:
   - openjdk8
-  - openjdk10
+  - openjdk9
 cache:
   directories:
     - '$HOME/.m2/repository'
     - '$HOME/.sonar/cache'
 matrix:
   include:
-    - jdk: openjdk9
+    - jdk: openjdk10
       script:
         - "cp .travis.settings.xml $HOME/.m2/settings.xml"
-        - mvn clean org.jacoco:jacoco-maven-plugin:prepare-agent package sonar:sonar
+        - mvn clean org.jacoco:jacoco-maven-plugin:prepare-agent package sonar:sonar deploy
       on:
           branch: master
 env:
