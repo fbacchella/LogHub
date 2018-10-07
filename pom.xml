@@ -23,15 +23,14 @@
     </properties>
 
     <dependencies>
+        <!-- Needed for loghub.processors.Log4Extract. It's incompatible with org.apache.logging.log4j:log4j-1.2-api.
+             That could conflict with log4j configuration but SNMP4J is the only current library that uses log4j 1.2, 
+             but it's already intercepted so no configuration conflict here.
+         -->
         <dependency>
             <groupId>log4j</groupId>
             <artifactId>log4j</artifactId>
             <version>1.2.17</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.logging.log4j</groupId>
-            <artifactId>log4j-1.2-api</artifactId>
-            <version>${log4j}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.logging.log4j</groupId>
