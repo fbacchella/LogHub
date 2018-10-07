@@ -6,6 +6,7 @@ import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.Semaphore;
+import java.util.function.Consumer;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -24,6 +25,7 @@ import loghub.Stats;
 import loghub.Tools;
 import loghub.configuration.Properties;
 import loghub.encoders.StringField;
+import lombok.var;
 
 public class TestFile {
 
@@ -75,16 +77,18 @@ public class TestFile {
         Stats.reset();
     }
 
-    private File send(java.util.function.Consumer<File> prepare, long expectedSize, boolean close) throws IOException, InterruptedException {
+    private File send(Consumer<File.Builder> prepare, long expectedSize, boolean close) throws IOException, InterruptedException {
         outFile = Paths.get(folder.getRoot().getCanonicalPath(), "file1").toAbsolutePath().toString();
+        StringField.Builder builder1 = StringField.getBuilder();
+        builder1.setFormat("${message%s}");
+        StringField sf = builder1.build();
 
-        File fsend = new File();
-        fsend.setFileName(outFile);
+        File.Builder fb = File.getBuilder();
+        fb.setFileName(outFile);
+        fb.setEncoder(sf);
+        prepare.accept(fb);
+        File fsend = fb.build();
         fsend.setInQueue(queue);
-        StringField sf = StringField.getBuilder().setFormat("${message%s}").build();
-        fsend.setEncoder(sf);
-
-        prepare.accept(fsend);
 
         Assert.assertTrue(fsend.configure(new Properties(Collections.emptyMap())));
         fsend.start();
@@ -126,18 +130,21 @@ public class TestFile {
     @Test
     public void testBrokenFormatter() throws IOException, InterruptedException {
         outFile = Paths.get(folder.getRoot().getCanonicalPath(), "file1").toAbsolutePath().toString();
-        File fsend = new File();
-        fsend.setFileName(outFile);
+        StringField.Builder builder1 = StringField.getBuilder();
+        builder1.setFormat("${");
+        StringField sf = builder1.build();
+        var builder = File.getBuilder();
+        builder.setFileName(outFile);
+        builder.setEncoder(sf);
+        File fsend = builder.build();
         fsend.setInQueue(queue);
-        StringField sf = StringField.getBuilder().setFormat("${").build();
-        fsend.setEncoder(sf);
         Assert.assertFalse(fsend.configure(new Properties(Collections.emptyMap())));
     }
 
     @Test()
     public void testFailing() throws IOException, InterruptedException {
         File fsend = send(i -> {}, -1, false);
-        new java.io.File(fsend.getFileName()).setWritable(false, false);
+        new java.io.File(fsend.getName()).setWritable(false, false);
         Files.setPosixFilePermissions(Paths.get(fsend.getFileName()), Collections.emptySet());
         Event ev = Tools.getEvent();
         ev.put("message", 2);

@@ -13,11 +13,41 @@ import com.googlecode.jsendnsca.NagiosPassiveCheckSender;
 import com.googlecode.jsendnsca.NagiosSettings;
 import com.googlecode.jsendnsca.encryption.Encryption;
 
+import loghub.BuilderClass;
 import loghub.Event;
+import loghub.Helpers;
 import loghub.configuration.Properties;
+import lombok.Setter;
 
 @SelfEncoder
+@BuilderClass(Nsca.Builder.class)
 public class Nsca extends Sender {
+
+    public static class Builder extends Sender.Builder<Nsca> {
+        @Setter
+        private int port = -1;
+        @Setter
+        private String nagiosServer;
+        @Setter
+        private String password = null;
+        @Setter
+        private int connectTimeout = -1;
+        @Setter
+        private int timeout = -1;
+        @Setter
+        private boolean largeMessageSupport = false;
+        @Setter
+        private String encryption = null;
+        @Setter
+        private Map<String, String> mapping;
+         @Override
+        public Nsca build() {
+            return new Nsca(this);
+        }
+    }
+    public static Builder getBuilder() {
+        return new Builder();
+    }
 
     private enum MAPFIELD {
         HOST,
@@ -25,52 +55,49 @@ public class Nsca extends Sender {
         LEVEL,
         SERVICE,
         ;
-        static Stream<String> enumerate() {
-            return Arrays.stream(MAPFIELD.values()).map(i -> i.toString().toLowerCase());
+        static Stream<MAPFIELD> enumerate() {
+            return Arrays.stream(MAPFIELD.values());
         }
     }
 
-    private NagiosPassiveCheckSender sender;
-    private Encryption encryption = null;
-    private String password = null;
-    private Map<String, String> mapping;
-    private String nagiosServer;
-    private int port = -1;
-    private int connectTimeout = -1;
-    private int timeout = -1;
-    private boolean largeMessageSupport = false;
-
-    public Nsca() {
-        mapping = new HashMap<>();
-        MAPFIELD.enumerate().forEach(i -> mapping.put(i, i));
+    private final NagiosPassiveCheckSender sender;
+    private final Map<MAPFIELD, String> mapping = new HashMap<>(MAPFIELD.values().length);
+    private final String name;
+    public Nsca(Builder builder) {
+        super(builder);
+        builder.mapping.forEach((k, v) -> {
+            mapping.put(MAPFIELD.valueOf(k.toUpperCase()), v);
+        });
+        NagiosSettings settings = new NagiosSettings();
+        if (builder.port > 0) {
+            settings.setPort(builder.port);
+        }
+        if (builder.nagiosServer != null) {
+            settings.setNagiosHost(builder.nagiosServer);
+        }
+        if (builder.encryption != null) {
+            Encryption encryption = Encryption.valueOf(builder.encryption.trim().toUpperCase());
+            settings.setEncryption(encryption);
+        }
+        if (builder.password != null) {
+            settings.setPassword(builder.password);
+        }
+        if (builder.connectTimeout >= 0) {
+            settings.setConnectTimeout(builder.connectTimeout);
+        }
+        if (builder.timeout >= 0) {
+            settings.setTimeout(builder.timeout);
+        }
+        if (builder.largeMessageSupport) {
+            settings.enableLargeMessageSupport();
+        }
+        sender = new NagiosPassiveCheckSender(settings);
+        name = "NSCA/" + builder.nagiosServer;
     }
 
     @Override
     public boolean configure(Properties properties) {
         try {
-            NagiosSettings settings = new NagiosSettings();
-            if (port > 0) {
-                settings.setPort(port);
-            }
-            if (nagiosServer != null) {
-                settings.setNagiosHost(nagiosServer);
-            }
-            if (encryption != null) {
-                settings.setEncryption(encryption);
-            }
-            if (password != null) {
-                settings.setPassword(password);
-            }
-            if (connectTimeout >= 0) {
-                settings.setConnectTimeout(connectTimeout);
-            }
-            if (timeout >= 0) {
-                settings.setTimeout(timeout);
-            }
-            if (largeMessageSupport) {
-                settings.enableLargeMessageSupport();
-            }
-            sender = new NagiosPassiveCheckSender(settings);
             // Uses a map to ensure that each field is tested, for easier debuging
             return MAPFIELD.enumerate().map( i -> {
                 if (!mapping.containsKey(i)) {
@@ -99,125 +126,24 @@ public class Nsca extends Sender {
         if (!allfields) {
             return false;
         }
-        Level level = Level.tolevel(event.get(mapping.get(MAPFIELD.LEVEL.name().toLowerCase())).toString().trim().toUpperCase());
-        String serviceName = event.get(mapping.get(MAPFIELD.SERVICE.name().toLowerCase())).toString();
-        String message = event.get(mapping.get(MAPFIELD.MESSAGE.name().toLowerCase())).toString();
-        String hostName = event.get(mapping.get(MAPFIELD.HOST.name().toLowerCase())).toString();
+        Level level = Level.tolevel(event.get(mapping.get(MAPFIELD.LEVEL)).toString().trim().toUpperCase());
+        String serviceName = event.get(mapping.get(MAPFIELD.SERVICE)).toString();
+        String message = event.get(mapping.get(MAPFIELD.MESSAGE)).toString();
+        String hostName = event.get(mapping.get(MAPFIELD.HOST)).toString();
         MessagePayload payload = new MessagePayload(hostName, level, serviceName, message);
         try {
             sender.send(payload);
+            return true;
         } catch (NagiosException | IOException e) {
-            logger.error("NSCA send failed: {}", e.getMessage());
+            logger.error("NSCA send failed: {}", Helpers.resolveThrowableException(e));
+            logger.catching(org.apache.logging.log4j.Level.DEBUG, e);
             return false;
         }
-        return true;
     }
 
     @Override
     public String getSenderName() {
-        return "NSCA/" + nagiosServer;
-    }
-
-    /**
-     * @return the encryption
-     */
-    public String getEncryption() {
-        return encryption.toString();
-    }
-
-    /**
-     * @param encryption the encryption to set
-     */
-    public void setEncryption(String encryption) {
-        this.encryption = Encryption.valueOf(encryption.trim().toUpperCase());
-    }
-
-    /**
-     * @return the map
-     */
-    public Map<String, String> getMap() {
-        return mapping;
-    }
-
-    /**
-     * @param map the map to set
-     */
-    public void setMap(Map<String, String> map) {
-        this.mapping = map;
-    }
-
-    public NagiosPassiveCheckSender getSender() {
-        return sender;
-    }
-
-    public void setSender(NagiosPassiveCheckSender sender) {
-        this.sender = sender;
-    }
-
-    public Map<String, String> getMapping() {
-        return mapping;
-    }
-
-    public void setMapping(Map<String, String> mapping) {
-        this.mapping = mapping;
-    }
-
-    public String getNagiosServer() {
-        return nagiosServer;
-    }
-
-    public void setNagiosServer(String nagiosServer) {
-        this.nagiosServer = nagiosServer;
-    }
-
-    public Integer getPort() {
-        return port;
-    }
-
-    public void setPort(Integer port) {
-        this.port = port;
-    }
-
-    /**
-     * @return the password
-     */
-    public String getPassword() {
-        return password;
-    }
-
-    /**
-     * @param password the password to set
-     */
-    public void setPassword(String password) {
-        this.password = password;
-    }
-
-    public int getConnectTimeout() {
-        return connectTimeout;
-    }
-
-    public void setConnectTimeout(int connectTimeout) {
-        this.connectTimeout = connectTimeout;
-    }
-
-    public int getTimeout() {
-        return timeout;
-    }
-
-    public void setTimeout(int timeout) {
-        this.timeout = timeout;
-    }
-
-    public Boolean getLargeMessageSupport() {
-        return largeMessageSupport;
-    }
-
-    public void setLargeMessageSupport(Boolean largeMessageSupport) {
-        this.largeMessageSupport = largeMessageSupport;
-    }
-
-    public void setPort(int port) {
-        this.port = port;
+        return name;
     }
 
 }

@@ -67,8 +67,30 @@ import loghub.Event;
 import loghub.Helpers;
 import loghub.ThreadBuilder;
 import loghub.configuration.Properties;
+import lombok.Setter;
 
 public abstract class AbstractHttpSender extends Sender {
+
+    public abstract static class Builder<S extends AbstractHttpSender> extends Sender.Builder<S> {
+        @Setter
+        private String protocol = "http";
+        @Setter
+        private String password = null;
+        @Setter
+        private String login = null;;
+        @Setter
+        private String user = null;
+        @Setter
+        private int timeout = 2;
+        @Setter
+        private int port = -1;
+        @Setter
+        private int threads = 2;
+        @Setter
+        private String[] destinations;
+        @Setter
+        private int buffersize = 20;
+    };
 
     protected class HttpRequest {
         private String verb = "GET";
@@ -234,26 +256,24 @@ public abstract class AbstractHttpSender extends Sender {
     }
 
     // Beans
-    private String[] destinations;
-    private int buffersize = 20;
-    private int publisherThreads = 2;
-    private int port = -1;
-    private String protocol = "http";
-    private int timeout = 2;
-    private String user = null;
-    private String password = null;
+    private final int buffersize;
+    private final int timeout;
     private CredentialsProvider credsProvider = null;
 
     private CloseableHttpClient client = null;
-    private Batch batch;
+    private Batch batch = new Batch();
     private final Queue<Batch> batches = new ConcurrentLinkedQueue<>();
     private final Runnable publisher;
-    protected URL[] endPoints;
+    protected final URL[] endPoints;
     private volatile boolean closed = false;
-    private Thread[] threads;
+    private final Thread[] threads;
     private volatile long lastFlush = 0;
 
-    public AbstractHttpSender() {
+    public AbstractHttpSender(Builder<? extends AbstractHttpSender> builder) {
+        super(builder);
+        timeout = builder.timeout;
+        buffersize = builder.buffersize;
+        endPoints = Helpers.stringsToUrl(builder.destinations, builder.port, builder.protocol, logger);
         // A runnable that will be affected to threads
         // It consumes event and send them as bulk
         publisher = new Runnable() {
@@ -297,22 +317,8 @@ public abstract class AbstractHttpSender extends Sender {
                 }
             }
         };
-    }
-
-    @Override
-    public boolean configure(Properties properties) {
-
-        endPoints = Helpers.stringsToUrl(destinations, port, protocol, logger);
-
-        if(endPoints.length == 0) {
-            return false;
-        }
-
-        // Create the senders threads and the common queue
-        batch = new Batch();
-
-        threads = new Thread[publisherThreads];
-        for (int i = 1 ; i <= publisherThreads ; i++) {
+        threads = new Thread[builder.threads];
+        for (int i = 1 ; i <= builder.threads ; i++) {
             String tname =  getPublishName() + "Publisher" + i;
             threads[i - 1] = ThreadBuilder.get()
                             .setRunnable(publisher)
@@ -320,11 +326,30 @@ public abstract class AbstractHttpSender extends Sender {
                             .setName(tname)
                             .build(true);
         }
+        // Two names for login/user
+        String user = builder.user != null ? builder.user : builder.login;
+        if (user != null && builder.password != null) {
+            credsProvider = new BasicCredentialsProvider();
+            for(URL i: endPoints) {
+                credsProvider.setCredentials(
+                                             new AuthScope(i.getHost(), i.getPort()), 
+                                             new UsernamePasswordCredentials(user, builder.password));
+            }
+        }
+
+    }
+
+    @Override
+    public boolean configure(Properties properties) {
+
+        if(endPoints.length == 0) {
+            return false;
+        }
 
         // The HTTP connection management
-        HttpClientBuilder builder = HttpClientBuilder.create();
-        builder.setUserAgent(VersionInfo.getUserAgent("LogHub-HttpClient",
-                                                      "org.apache.http.client", HttpClientBuilder.class));
+        HttpClientBuilder clientBuilder = HttpClientBuilder.create();
+        clientBuilder.setUserAgent(VersionInfo.getUserAgent("LogHub-HttpClient",
+                                                            "org.apache.http.client", HttpClientBuilder.class));
 
         // Set the Configuration manager
         Registry<ConnectionSocketFactory> registry = RegistryBuilder.<ConnectionSocketFactory>create()
@@ -332,10 +357,10 @@ public abstract class AbstractHttpSender extends Sender {
                         .register("https", new SSLConnectionSocketFactory(properties.ssl))
                         .build();
         PoolingHttpClientConnectionManager cm = new PoolingHttpClientConnectionManager(registry);
-        cm.setMaxTotal(publisherThreads + 1);
-        cm.setDefaultMaxPerRoute(publisherThreads + 1);
+        cm.setMaxTotal(threads.length + 1);
+        cm.setDefaultMaxPerRoute(threads.length + 1);
         cm.setValidateAfterInactivity(timeout * 1000);
-        builder.setConnectionManager(cm);
+        clientBuilder.setConnectionManager(cm);
 
         try {
             MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
@@ -345,37 +370,27 @@ public abstract class AbstractHttpSender extends Sender {
             throw new RuntimeException("jmx configuration failed: " + Helpers.resolveThrowableException(e), e);
         }
 
-
         if (properties.ssl != null) {
-            builder.setSSLContext(properties.ssl);
+            clientBuilder.setSSLContext(properties.ssl);
         }
 
-        builder.setDefaultRequestConfig(RequestConfig.custom()
-                                        .setConnectionRequestTimeout(timeout * 1000)
-                                        .setConnectTimeout(timeout * 1000)
-                                        .setSocketTimeout(timeout * 1000)
-                                        .build());
-        builder.setDefaultSocketConfig(SocketConfig.custom()
-                                       .setTcpNoDelay(true)
-                                       .setSoKeepAlive(true)
-                                       .setSoTimeout(timeout * 1000)
-                                       .build());
-        builder.setDefaultConnectionConfig(ConnectionConfig.custom()
-                                           .build());
-        builder.disableCookieManagement();
+        clientBuilder.setDefaultRequestConfig(RequestConfig.custom()
+                                              .setConnectionRequestTimeout(timeout * 1000)
+                                              .setConnectTimeout(timeout * 1000)
+                                              .setSocketTimeout(timeout * 1000)
+                                              .build());
+        clientBuilder.setDefaultSocketConfig(SocketConfig.custom()
+                                             .setTcpNoDelay(true)
+                                             .setSoKeepAlive(true)
+                                             .setSoTimeout(timeout * 1000)
+                                             .build());
+        clientBuilder.setDefaultConnectionConfig(ConnectionConfig.custom()
+                                                 .build());
+        clientBuilder.disableCookieManagement();
 
-        builder.setRetryHandler((i,j, k) -> false);
+        clientBuilder.setRetryHandler((i,j, k) -> false);
 
-        client = builder.build();
-
-        if (user != null && password != null) {
-            credsProvider = new BasicCredentialsProvider();
-            for(URL i: endPoints) {
-                credsProvider.setCredentials(
-                                             new AuthScope(i.getHost(), i.getPort()), 
-                                             new UsernamePasswordCredentials(user, password));
-            }
-        }
+        client = clientBuilder.build();
 
         //Schedule a task to flush every 5 seconds
         Runnable flush = () -> {
@@ -440,7 +455,7 @@ public abstract class AbstractHttpSender extends Sender {
                 batches.add(batch);
                 batch = new Batch();
                 publisher.notify();
-                if (batches.size() > publisherThreads) {
+                if (batches.size() > threads.length) {
                     logger.warn("Waiting flush batches, add flushing threads");
                 }
             }
@@ -505,101 +520,5 @@ public abstract class AbstractHttpSender extends Sender {
             }
         }
     };
-
-    /**
-     * @return the destinations
-     */
-    public String[] getDestinations() {
-        return destinations;
-    }
-
-    /**
-     * @param destinations the destinations to set
-     */
-    public void setDestinations(String[] destinations) {
-        this.destinations = destinations;
-    }
-
-    public int getBuffersize() {
-        return buffersize;
-    }
-
-    public void setBuffersize(int buffersize) {
-        this.buffersize = buffersize;
-    }
-
-    public int getThreads() {
-        return publisherThreads;
-    }
-
-    public void setThreads(int publisherThreads) {
-        this.publisherThreads = publisherThreads;
-    }
-
-    public int getPort() {
-        return port;
-    }
-
-    public void setPort(int port) {
-        this.port = port;
-    }
-
-    public int getTimeout() {
-        return timeout;
-    }
-
-    public void setTimeout(int timeout) {
-        this.timeout = timeout;
-    }
-
-    /**
-     * @return the login
-     */
-    public String getLogin() {
-        return user;
-    }
-
-    /**
-     * @param login the login to set
-     */
-    public void setLogin(String login) {
-        this.user = login;
-    }
-
-    /**
-     * @return the login
-     */
-    public String getUser() {
-        return user;
-    }
-
-    /**
-     * @param login the login to set
-     */
-    public void setUser(String login) {
-        this.user = login;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
-    }
-
-    /**
-     * @return the protocol
-     */
-    public String getProtocol() {
-        return protocol;
-    }
-
-    /**
-     * @param protocol the protocol to set
-     */
-    public void setProtocol(String protocol) {
-        this.protocol = protocol;
-    }
 
 }

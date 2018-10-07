@@ -29,7 +29,10 @@ public class TestStringField {
 
     @Test
     public void testone() {
-        StringField encoder = StringField.getBuilder().setCharset("UTF-16").setFormat("${K1}: ${K2%02d}").build();
+        StringField.Builder builder = StringField.getBuilder();
+        builder.setCharset("UTF-16");
+        builder.setFormat("${K1}: ${K2%02d}");
+        StringField encoder = builder.build();
         Assert.assertTrue(encoder.configure(new Properties(Collections.emptyMap()), null));
         Event e = Tools.getEvent();
         e.put("K1", "V1");

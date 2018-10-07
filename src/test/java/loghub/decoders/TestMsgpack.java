@@ -25,11 +25,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import loghub.AbstractBuilder;
 import loghub.ConnectionContext;
-import loghub.receivers.Receiver;
 import loghub.Event;
 import loghub.LogUtils;
+import loghub.ThreadBuilder;
 import loghub.Tools;
 import loghub.decoders.Decoder.DecodeException;
+import loghub.receivers.Receiver;
 
 public class TestMsgpack {
 
@@ -121,8 +122,9 @@ public class TestMsgpack {
     public void testother() throws IOException, DecodeException {
 
         byte[] bs = objectMapper.writeValueAsBytes(new Object[] {obj});
-
-        Msgpack d = Msgpack.getBuilder().setField("vector").build();
+        Msgpack.Builder builder = Msgpack.getBuilder();
+        builder.setField("vector");
+        Msgpack d = builder.build();
         Map<String, Object> e = d.decode(ConnectionContext.EMPTY, bs);
 
         @SuppressWarnings("unchecked")
@@ -156,7 +158,9 @@ public class TestMsgpack {
 
     @Test
     public void testRoundTripAsEvent() throws IOException, DecodeException {
-        loghub.encoders.Msgpack enc = loghub.encoders.Msgpack.getBuilder().setForwardEvent(true).build();
+        loghub.encoders.Msgpack.Builder builder = loghub.encoders.Msgpack.getBuilder();
+        builder.setForwardEvent(true);
+        loghub.encoders.Msgpack enc = builder.build();
         Event ev = Event.emptyEvent(ConnectionContext.EMPTY);
         ev.putAll(obj);
         ev.putMeta("h", 7);
@@ -175,7 +179,9 @@ public class TestMsgpack {
 
     @Test
     public void testRoundTripAsMap() throws IOException, DecodeException {
-        loghub.encoders.Msgpack enc = loghub.encoders.Msgpack.getBuilder().setForwardEvent(false).build();
+        loghub.encoders.Msgpack.Builder builder = loghub.encoders.Msgpack.getBuilder();
+        builder.setForwardEvent(false);
+        loghub.encoders.Msgpack enc = builder.build();
         Event ev = Event.emptyEvent(ConnectionContext.EMPTY);
         ev.putAll(obj);
         ev.putMeta("h", 7);

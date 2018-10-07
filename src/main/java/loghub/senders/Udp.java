@@ -11,15 +11,50 @@ import org.apache.logging.log4j.Level;
 
 import loghub.Event;
 import loghub.configuration.Properties;
+import lombok.Setter;
 
 public class Udp extends Sender {
+    
+    public static class Builder extends Sender.Builder<Udp> {
+        @Setter
+        private int port = -1;
+        @Setter
+        private String destination = "127.0.0.1";
+        @Override
+        public Udp build() {
+            return new Udp(this);
+        }
+    }
 
-    private int port = 0;
-    private String destination = "127.0.0.1";
-    DatagramSocket socket;
-    InetAddress IPAddress;
+    private final int port;
+    private final DatagramSocket socket;
+    private final InetAddress IPAddress;
 
-    public Udp() {
+    public Udp(Builder builder) {
+        super(builder);
+        port = builder.port;
+        DatagramSocket tempSocket = null;
+        InetAddress tempIPAddress = null;
+        try {
+            tempIPAddress = InetAddress.getByName(builder.destination);
+            tempSocket = new DatagramSocket();
+        } catch (UnknownHostException e) {
+            logger.error("Can't resolve destination address '{}': {}", builder.destination, e.getMessage());
+        } catch (SocketException e) {
+            logger.error("Can't start socket: {}", e.getMessage());
+        } finally {
+            socket = tempSocket;
+            IPAddress = tempIPAddress;
+        }
+    }
+
+    @Override
+    public boolean configure(Properties properties) {
+        if (socket !=null && IPAddress != null) {
+            return super.configure(properties);
+        } else {
+            return false;
+        }
     }
 
     @Override
@@ -40,36 +75,6 @@ public class Udp extends Sender {
     @Override
     public String getSenderName() {
         return "UDP";
-    }
-
-    @Override
-    public boolean configure(Properties properties) {
-        try {
-            IPAddress = InetAddress.getByName(destination);
-            socket = new DatagramSocket();
-            return super.configure(properties);
-        } catch (UnknownHostException e) {
-            logger.error("Can't resolve destination address '{}': {}", destination, e.getMessage());
-        } catch (SocketException e) {
-            logger.error("Can't start socket: {}", e.getMessage());
-        }
-        return false;
-    }
-
-    public int getPort() {
-        return port;
-    }
-
-    public void setPort(int port) {
-        this.port = port;
-    }
-
-    public String getDestination() {
-        return destination;
-    }
-
-    public void setDestination(String destination) {
-        this.destination = destination;
     }
 
 }

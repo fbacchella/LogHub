@@ -155,11 +155,12 @@ public class TestElasticSearch {
     public void testSend() throws InterruptedException {
         received.set(0);
         int count = 20;
-        ElasticSearch es = new ElasticSearch();
+        ElasticSearch.Builder esbuilder = new ElasticSearch.Builder();
+        esbuilder.setDestinations(new String[]{"http://localhost:" + serverPort, });
+        esbuilder.setTimeout(1);
+        esbuilder.setBuffersize(10);
+        ElasticSearch es = esbuilder.build();
         es.setInQueue(new ArrayBlockingQueue<>(count));
-        es.setDestinations(new String[]{"http://localhost:" + serverPort, });
-        es.setTimeout(1);
-        es.setBuffersize(10);
         Assert.assertTrue("Elastic configuration failed", es.configure(new Properties(Collections.emptyMap())));
         es.start();
         for (int i = 0 ; i < count ; i++) {
@@ -184,13 +185,14 @@ public class TestElasticSearch {
     public void testWithExpression() throws InterruptedException {
         received.set(0);
         int count = 20;
-        ElasticSearch es = new ElasticSearch();
+        ElasticSearch.Builder esbuilder = new ElasticSearch.Builder();
+        esbuilder.setDestinations(new String[]{"http://localhost:" + serverPort, });
+        esbuilder.setTimeout(1);
+        esbuilder.setBuffersize(10);
+        esbuilder.setIndexX(ConfigurationTools.unWrap("[#index]", i -> i.expression()));
+        esbuilder.setTypeX(ConfigurationTools.unWrap("[#type]", i -> i.expression()));
+        ElasticSearch es = esbuilder.build();
         es.setInQueue(new ArrayBlockingQueue<>(count));
-        es.setDestinations(new String[]{"http://localhost:" + serverPort, });
-        es.setTimeout(1);
-        es.setBuffersize(10);
-        es.setIndexX(ConfigurationTools.unWrap("[#index]", i -> i.expression()));
-        es.setTypeX(ConfigurationTools.unWrap("[#type]", i -> i.expression()));
         Assert.assertTrue("Elastic configuration failed", es.configure(new Properties(Collections.emptyMap())));
         es.start();
         for (int i = 0 ; i < count ; i++) {
@@ -216,13 +218,14 @@ public class TestElasticSearch {
     public void testEmptySend() throws InterruptedException {
         received.set(0);
         int count = 5;
-        ElasticSearch es = new ElasticSearch();
+        ElasticSearch.Builder esbuilder = new ElasticSearch.Builder();
+        esbuilder.setDestinations(new String[]{"http://localhost:" + serverPort, });
+        esbuilder.setTimeout(1);
+        esbuilder.setBuffersize(10);
+        esbuilder.setIndexX(ConfigurationTools.unWrap("[#index]", i -> i.expression()));
+        esbuilder.setTypeX(ConfigurationTools.unWrap("[#type]", i -> i.expression()));
+        ElasticSearch es = esbuilder.build();
         es.setInQueue(new ArrayBlockingQueue<>(count));
-        es.setDestinations(new String[]{"http://localhost:" + serverPort, });
-        es.setTimeout(1);
-        es.setBuffersize(10);
-        es.setIndexX(ConfigurationTools.unWrap("[#index]", i -> i.expression()));
-        es.setTypeX(ConfigurationTools.unWrap("[#type]", i -> i.expression()));
         Assert.assertTrue("Elastic configuration failed", es.configure(new Properties(Collections.emptyMap())));
         es.start();
         for (int i = 0 ; i < count ; i++) {
@@ -247,11 +250,12 @@ public class TestElasticSearch {
         Stats.reset();
         int count = 40;
         ArrayBlockingQueue<Event> queue = new ArrayBlockingQueue<>(count/2);
-        ElasticSearch es = new ElasticSearch();
+        ElasticSearch.Builder esbuilder = new ElasticSearch.Builder();
+        esbuilder.setDestinations(new String[]{"http://localhost:" + serverPort, });
+        esbuilder.setTimeout(5);
+        esbuilder.setBuffersize(10);
+        ElasticSearch es = esbuilder.build();
         es.setInQueue(queue);
-        es.setDestinations(new String[]{"http://localhost:" + serverPort, });
-        es.setTimeout(5);
-        es.setBuffersize(10);
         Assert.assertTrue("Elastic configuration failed", es.configure(new Properties(Collections.emptyMap())));
         es.start();
         for (int i = 0 ; i < count ; i++) {

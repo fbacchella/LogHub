@@ -16,13 +16,33 @@ import org.apache.logging.log4j.Level;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import loghub.BuilderClass;
 import loghub.Event;
 import loghub.Helpers;
 import loghub.configuration.Properties;
+import lombok.Getter;
+import lombok.Setter;
 
 @AsyncSender
+@BuilderClass(File.Builder.class)
 public class File extends Sender {
 
+    public static class Builder extends Sender.Builder<File> {
+        @Setter
+        private String fileName;
+        @Setter
+        private String separator = "";
+        @Setter
+        private boolean truncate = false;
+        @Override
+        public File build() {
+            return new File(this);
+        }
+    }
+    public static Builder getBuilder() {
+        return new Builder();
+    }
+  
     private final CompletionHandler<Integer, Event> handler = new CompletionHandler<Integer, Event>() {
 
         @Override
@@ -47,13 +67,25 @@ public class File extends Sender {
 
     };
 
-    private String fileName;
-    private String separator = "";
-    private byte[] separatorBytes = new byte[] {};
-    private boolean truncate = false;
+    @Getter
+    private final String fileName;
+    private final byte[] separatorBytes;
+    private final boolean truncate;
 
     private AsynchronousFileChannel destination;
     private AtomicLong position;
+
+    public File(Builder builder) {
+        super(builder);
+        if (builder.separator.length() > 0) {
+            separatorBytes = builder.separator.getBytes(StandardCharsets.UTF_8);
+        } else {
+            separatorBytes = new byte[] {};;
+        }
+        fileName = builder.fileName;
+        truncate = builder.truncate;
+    }
+
 
     @Override
     public boolean configure(Properties properties) {
@@ -68,9 +100,6 @@ public class File extends Sender {
             logger.error("error openening output file {}: {}", fileName, Helpers.resolveThrowableException(e));
             logger.catching(Level.DEBUG, e);
             return false;
-        }
-        if (separator.length() > 0) {
-            separatorBytes = separator.getBytes(StandardCharsets.UTF_8);
         }
         return super.configure(properties);
     }
@@ -124,42 +153,6 @@ public class File extends Sender {
     @Override
     public String getSenderName() {
         return "File_" + fileName;
-    }
-
-    /**
-     * @return the fileName
-     */
-    public String getFileName() {
-        return fileName;
-    }
-
-    /**
-     * @param fileName the fileName to set
-     */
-    public void setFileName(String fileName) {
-        this.fileName = fileName;
-    }
-
-    /**
-     * @return the separator
-     */
-    public String getSeparator() {
-        return separator;
-    }
-
-    /**
-     * @param separator the separator to set
-     */
-    public void setSeparator(String separator) {
-        this.separator = separator;
-    }
-
-    public boolean isTruncate() {
-        return truncate;
-    }
-
-    public void setTruncate(boolean truncate) {
-        this.truncate = truncate;
     }
 
 }

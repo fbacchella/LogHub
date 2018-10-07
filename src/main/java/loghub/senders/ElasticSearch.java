@@ -28,50 +28,104 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 
 import io.netty.util.CharsetUtil;
+import loghub.BuilderClass;
 import loghub.Event;
 import loghub.Expression;
 import loghub.Expression.ExpressionException;
 import loghub.Helpers;
 import loghub.ProcessorException;
 import loghub.configuration.Properties;
+import lombok.Setter;
 
 @AsyncSender
 @SelfEncoder
+@BuilderClass(ElasticSearch.Builder.class)
 public class ElasticSearch extends AbstractHttpSender {
+
+    public static class Builder extends AbstractHttpSender.Builder<ElasticSearch> {
+        @Setter
+        private String type = "type";
+        @Setter
+        private String typeX = null;
+        @Setter
+        private String indexformat = "'loghub-'yyyy.MM.dd";
+        @Setter
+        private String indexX = null;
+        @Setter
+        private String templateName = "loghub";
+        @Setter
+        private String templatePath = null;
+        @Setter
+        private boolean withTemplate = true;
+        public Builder() {
+            this.setPort(9200);
+        }
+        @Override
+        public ElasticSearch build() {
+            return new ElasticSearch(this);
+        }
+    }
+    public static Builder getBuilder() {
+        return new Builder();
+    }
 
     private static final JsonFactory factory = new JsonFactory();
     private static final ThreadLocal<ObjectMapper> json = new ThreadLocal<ObjectMapper>() {
         @Override
         protected ObjectMapper initialValue() {
             return new ObjectMapper(factory)
-                    .configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false)
-                    .configure(JsonGenerator.Feature.ESCAPE_NON_ASCII, true);
+                            .configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false)
+                            .configure(JsonGenerator.Feature.ESCAPE_NON_ASCII, true);
         }
     };
 
     private static final ThreadLocal<DateFormat> ISO8601 = ThreadLocal.withInitial( () -> new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ"));
-    // Beans
-    private String type = "type";
-    private String typeExpressionSrc = null;
-    private Expression typeExpression = null;
-    private String indexformat = "'loghub-'yyyy.MM.dd";
-    private String indexExpressionSrc = null;
-    private Expression indexExpression = null;
-    private String templateName = "loghub";
-    private URL templatePath = null;
-    private boolean withTemplate = true;
+
+    private final String type;
+    private final String typeExpressionSrc;
+    private Expression typeExpression;
+    private final String indexExpressionSrc;
+    private Expression indexExpression;
+    private final String templateName;
+    private URL templatePath;
+    private final boolean withTemplate;
 
     private ThreadLocal<DateFormat> esIndexFormat;
-    private ThreadLocal<URL[]> UrlArrayCopy;
+    private final ThreadLocal<URL[]> UrlArrayCopy;
 
-    public ElasticSearch() {
-        setPort(9200);
+    public ElasticSearch(Builder builder) {
+        super(builder);
+        if (builder.templateName == null) {
+            withTemplate = false;
+            templatePath = null;
+            templateName = null;
+        } else {
+            withTemplate = true;
+            templateName = builder.templateName;
+            if (builder.templatePath != null) {
+                try {
+                    templatePath = Paths.get(builder.templatePath).toUri().toURL();
+                } catch (MalformedURLException e) {
+                    // Can't happen
+                }
+            }
+        }
+        type = builder.type;
+        typeExpressionSrc = builder.typeX;
+        indexExpressionSrc = builder.indexX;
+        UrlArrayCopy = ThreadLocal.withInitial(() -> Arrays.copyOf(endPoints, endPoints.length));
+        if (indexExpressionSrc == null) {
+            esIndexFormat = ThreadLocal.withInitial( () -> {
+                DateFormat df = new SimpleDateFormat(builder.indexformat);
+                df.setTimeZone(TimeZone.getTimeZone("UTC"));
+                return df;
+            });
+        }
     }
 
     @Override
     public boolean configure(Properties properties) {
         if (super.configure(properties)) {
-            UrlArrayCopy = ThreadLocal.withInitial(() -> Arrays.copyOf(endPoints, endPoints.length));
             // Used to log an possible failure
             String processedSrc = null;
             try {
@@ -87,11 +141,6 @@ public class ElasticSearch extends AbstractHttpSender {
                 Expression.logError(e, processedSrc, logger);
                 return false;
             }
-            esIndexFormat = ThreadLocal.withInitial( () -> {
-                DateFormat df = new SimpleDateFormat(indexformat);
-                df.setTimeZone(TimeZone.getTimeZone("UTC"));
-                return df;
-            });
             // Check version
             int major = checkMajorVersion();
             if (major < 0) {
@@ -234,24 +283,24 @@ public class ElasticSearch extends AbstractHttpSender {
         Map<Object, Object> wantedtemplate;
         try {
             wantedtemplate = Stream.of(templatePath)
-                    .map( i -> {
-                        try {
-                            return i.openStream();
-                        } catch (IOException e) {
-                            throw new UncheckedIOException(e);
-                        }
-                    })
-                    .map( i -> new InputStreamReader(i, CharsetUtil.UTF_8))
-                    .map( i -> {
-                        try {
-                            @SuppressWarnings("unchecked")
-                            Map<Object, Object> localtemplate = json.get().readValue(i, Map.class);
-                            return localtemplate;
-                        } catch (IOException e) {
-                            throw new UncheckedIOException(e);
-                        }
-                    })
-                    .findFirst().orElseGet(() -> null);
+                            .map( i -> {
+                                try {
+                                    return i.openStream();
+                                } catch (IOException e) {
+                                    throw new UncheckedIOException(e);
+                                }
+                            })
+                            .map( i -> new InputStreamReader(i, CharsetUtil.UTF_8))
+                            .map( i -> {
+                                try {
+                                    @SuppressWarnings("unchecked")
+                                    Map<Object, Object> localtemplate = json.get().readValue(i, Map.class);
+                                    return localtemplate;
+                                } catch (IOException e) {
+                                    throw new UncheckedIOException(e);
+                                }
+                            })
+                            .findFirst().orElseGet(() -> null);
         } catch (UncheckedIOException e) {
             logger.error("Can't load template definition: {}", e.getMessage());
             logger.catching(Level.DEBUG, e);
@@ -345,95 +394,9 @@ public class ElasticSearch extends AbstractHttpSender {
         return "ElasticSearch";
     }
 
-    /**
-     * @return the type
-     */
-    public String getType() {
-        return type;
-    }
-
-    /**
-     * @param type the type to set
-     */
-    public void setType(String type) {
-        this.type = type;
-    }
-
-    /**
-     * @return the type
-     */
-    public String getTypeX() {
-        return typeExpressionSrc;
-    }
-
-    /**
-     * @param typeExpression the type to set
-     */
-    public void setTypeX(String typeExpression) {
-        this.typeExpressionSrc = typeExpression;
-    }
-
     @Override
     protected String getPublishName() {
         return "ElasticSearch";
-    }
-
-    /**
-     * @return the indexformat
-     */
-    public String getIndexformat() {
-        return indexformat;
-    }
-
-    public void setIndexformat(String indexformat) {
-        this.indexformat = indexformat;
-    }
-
-    /**
-     * @return the indexformat
-     */
-    public String getIndexX() {
-        return indexExpressionSrc;
-    }
-
-    /**
-     * @param indexExpression the indexformat to set
-     */
-    public void setIndexX(String indexExpression) {
-        this.indexExpressionSrc = indexExpression;
-    }
-
-    /**
-     * @return the templateName
-     */
-    public String getTemplateName() {
-        return templateName;
-    }
-
-    /**
-     * @param templateName the templateName to set
-     */
-    public void setTemplateName(String templateName) {
-        this.templateName = templateName;
-    }
-
-    /**
-     * @return the templatePath
-     */
-    public String getTemplatePath() {
-        return templatePath.getFile();
-    }
-
-    /**
-     * @param templatePath the templatePath to set, or null to prevent template use
-     * @throws MalformedURLException 
-     */
-    public void setTemplatePath(String templatePath) throws MalformedURLException {
-        if (templatePath == null) {
-            withTemplate = false;
-        } else {
-            this.templatePath = Paths.get(templatePath).toUri().toURL();
-        }
     }
 
 }

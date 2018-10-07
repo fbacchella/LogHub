@@ -9,25 +9,35 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import loghub.AbstractBuilder;
 import loghub.Event;
 import loghub.Helpers;
 import loghub.Stats;
 import loghub.configuration.Properties;
 import loghub.encoders.Encoder;
+import lombok.Getter;
+import lombok.Setter;
 
 public abstract class Sender extends Thread {
+
+    public abstract static class Builder<B extends Sender> extends AbstractBuilder<B> {
+        @Setter
+        private Encoder encoder;
+    };
 
     protected final Logger logger;
 
     private BlockingQueue<Event> inQueue;
-    private Encoder encoder;
-    private boolean isAsync;
+    @Getter
+    private final Encoder encoder;
+    private final boolean isAsync;
 
-    public Sender() {
+    public Sender(Builder<?  extends  Sender> builder) {
         setDaemon(true);
         setName("sender-" + getSenderName());
         logger = LogManager.getLogger(Helpers.getFirstInitClass());
         isAsync = getClass().getAnnotation(AsyncSender.class) != null;
+        encoder = builder.encoder;
     }
 
     public boolean configure(Properties properties) {
@@ -88,14 +98,6 @@ public abstract class Sender extends Thread {
             logger.catching(Level.DEBUG, cause);
         }
         event.end();
-    }
-
-    public Encoder getEncoder() {
-        return encoder;
-    }
-
-    public void setEncoder(Encoder codec) {
-        this.encoder = codec;
     }
 
     public void setInQueue(BlockingQueue<Event> inQueue) {
