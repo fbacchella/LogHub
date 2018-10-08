@@ -14,6 +14,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
+import loghub.ContextRule;
 import loghub.Event;
 import loghub.EventsProcessor;
 import loghub.LogUtils;
@@ -25,6 +26,9 @@ import loghub.processors.SyslogPriority;
 public class TestConfigurations {
 
     private static Logger logger;
+
+    @Rule
+    public ContextRule tctxt = new ContextRule();
 
     @Rule
     public ExpectedException thrown = ExpectedException.none();
