@@ -1,7 +1,9 @@
 package loghub.netty.http;
 
 import java.io.IOException;
+import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
+import java.net.SocketException;
 import java.net.URL;
 import java.security.KeyManagementException;
 import java.security.KeyStoreException;
@@ -56,7 +58,7 @@ public class TestHttpSsl {
     static public void configure() throws IOException {
         Tools.configure();
         logger = LogManager.getLogger();
-        LogUtils.setLevel(logger, Level.TRACE, "loghub.security", "loghub.HttpTestServer");
+        LogUtils.setLevel(logger, Level.TRACE, "loghub.security", "loghub.HttpTestServer", "loghub.netty.http");
         Configurator.setLevel("org", Level.WARN);
     }
 
@@ -173,6 +175,16 @@ public class TestHttpSsl {
         try(Scanner s = new Scanner(cnx.getInputStream())) {
             s.skip(".*");
         }
+    }
+
+    @Test(expected=SocketException.class)
+    public void TestNoSsl() throws NoSuchAlgorithmException, KeyStoreException, CertificateException, IOException, KeyManagementException, IllegalArgumentException, InterruptedException {
+        makeServer(Collections.emptyMap(), i -> i.setSSLKeyAlias("invalidalias"));
+        URL nohttpsurl = new URL("http", theurl.getHost(), theurl.getPort(), theurl.getFile());
+        HttpURLConnection cnx = (HttpURLConnection) nohttpsurl.openConnection();
+        // This generate two log lines, HttpURLConnection retry the connection
+        cnx.connect();
+        cnx.getResponseCode();
     }
 
 }

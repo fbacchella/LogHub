@@ -3,13 +3,10 @@ package loghub.netty.servers;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
-import java.util.concurrent.ExecutionException;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLSession;
-
-import org.apache.logging.log4j.Level;
 
 import io.netty.bootstrap.AbstractBootstrap;
 import io.netty.channel.Channel;
@@ -148,12 +145,7 @@ public abstract class NettyIpServer<CF extends ComponentFactory<BS, BSC, InetSoc
         future.addListener(new GenericFutureListener<Future<Channel>>() {
             @Override
             public void operationComplete(Future<Channel> future) throws Exception {
-                try {
-                    future.get().attr(SSLSESSIONATTRIBUTE).set(sslHandler.engine().getSession());
-                } catch (ExecutionException e) {
-                    logger.warn("Failed ssl connexion", e.getCause());
-                    logger.catching(Level.DEBUG, e.getCause());
-                }
+                future.get().attr(SSLSESSIONATTRIBUTE).set(sslHandler.engine().getSession());
             }});
     }
 

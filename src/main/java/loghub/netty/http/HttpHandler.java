@@ -44,6 +44,7 @@ import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.LastHttpContent;
+import io.netty.handler.ssl.NotSslRecordException;
 import io.netty.handler.stream.ChunkedInput;
 import io.netty.util.AsciiString;
 import loghub.Helpers;
@@ -258,23 +259,20 @@ public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRe
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-        while(cause.getCause() != null) {
-            cause = cause.getCause();
-        }
-        //Network error, not a big deal
-        if ( cause instanceof IOException) {
-            logger.error("Network error: {}", cause.getMessage());
+        // Forward non HTTP error
+        if (cause.getCause() instanceof NotSslRecordException || cause instanceof IOException) {
+            ctx.fireExceptionCaught(cause);
         } else {
-            logger.error("Internal server errorr: {}", cause.getMessage());
+            logger.error("Internal server errorr: {}", Helpers.resolveThrowableException(cause));
             logger.catching(Level.ERROR, cause);
+            FullHttpResponse response = new DefaultFullHttpResponse(
+                                                                    HTTP_1_1, SERVICE_UNAVAILABLE, Unpooled.copiedBuffer("Critical internal server error\r\n", StandardCharsets.UTF_8));
+            response.headers().set(HttpHeaderNames.CONNECTION, HttpHeaderValues.CLOSE);
+            response.headers().set(HttpHeaderNames.CONTENT_TYPE, "text/plain; charset=UTF-8");
+            ChannelFuture sendFileFuture = ctx.writeAndFlush(response);
+            sendFileFuture.addListener(ChannelFutureListener.CLOSE);
+            Properties.metrics.meter("WebServer.status." + SERVICE_UNAVAILABLE.code()).mark();;
         }
-        FullHttpResponse response = new DefaultFullHttpResponse(
-                HTTP_1_1, SERVICE_UNAVAILABLE, Unpooled.copiedBuffer("Critical internal server error\r\n", StandardCharsets.UTF_8));
-        response.headers().set(HttpHeaderNames.CONNECTION, HttpHeaderValues.CLOSE);
-        response.headers().set(HttpHeaderNames.CONTENT_TYPE, "text/plain; charset=UTF-8");
-        ChannelFuture sendFileFuture = ctx.writeAndFlush(response);
-        sendFileFuture.addListener(ChannelFutureListener.CLOSE);
-        Properties.metrics.meter("WebServer.status." + SERVICE_UNAVAILABLE.code()).mark();;
     }
 
 }

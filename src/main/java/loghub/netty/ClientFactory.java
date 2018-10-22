@@ -40,17 +40,18 @@ public abstract class ClientFactory<CC extends Channel, SA extends SocketAddress
     }
 
     @Override
-    public void addChildhandlers(ChannelConsumer<Bootstrap, Channel> source, AbstractNettyServer<?, Bootstrap, Channel, ?, SA, ?, ?> server) {
+    public void addChildhandlers(ChannelConsumer<Bootstrap, Channel> source, AbstractNettyServer<?, Bootstrap, Channel, ?, SA, ?, ?> server, Logger serverlogger) {
     }
 
     @Override
-    public void addHandlers(ChannelConsumer<Bootstrap, Channel> source, AbstractNettyServer<?, Bootstrap, Channel, ?, SA, ?, ?> server) {
+    public void addHandlers(ChannelConsumer<Bootstrap, Channel> source, AbstractNettyServer<?, Bootstrap, Channel, ?, SA, ?, ?> server, Logger serverlogger) {
         ChannelHandler handler = new ChannelInitializer<CC>() {
             @Override
             public void initChannel(CC ch) throws Exception {
                 try {
                     server.addHandlers(ch.pipeline());
                     source.addHandlers(ch.pipeline());
+                    ClientFactory.this.addErrorHandler(ch.pipeline(), logger);
                 } catch (Exception e) {
                     logger.error("Netty handler failed: {}", e.getMessage());
                     logger.throwing(Level.DEBUG, e);

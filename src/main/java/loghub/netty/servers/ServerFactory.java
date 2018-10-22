@@ -3,6 +3,8 @@ package loghub.netty.servers;
 import java.net.SocketAddress;
 import java.util.concurrent.ThreadFactory;
 
+import org.apache.logging.log4j.Logger;
+
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
@@ -43,7 +45,7 @@ public abstract class ServerFactory<CC extends Channel, SA extends SocketAddress
     }
 
     @Override
-    public void addChildhandlers(ChannelConsumer<ServerBootstrap, ServerChannel> source, AbstractNettyServer<?, ServerBootstrap, ServerChannel, ?, SA, ?, ?> server) {
+    public void addChildhandlers(ChannelConsumer<ServerBootstrap, ServerChannel> source, AbstractNettyServer<?, ServerBootstrap, ServerChannel, ?, SA, ?, ?> server, Logger logger) {
         ChannelHandler handler = new ChannelInitializer<CC>() {
             @Override
             public void initChannel(CC ch) throws Exception {
@@ -51,6 +53,7 @@ public abstract class ServerFactory<CC extends Channel, SA extends SocketAddress
                 if (server != source) {
                     source.addHandlers(ch.pipeline());
                 }
+                ServerFactory.this.addErrorHandler(ch.pipeline(), logger);
             }
 
             @Override

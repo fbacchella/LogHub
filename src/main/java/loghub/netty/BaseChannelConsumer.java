@@ -10,7 +10,6 @@ import io.netty.bootstrap.AbstractBootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler.Sharable;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.MessageToMessageDecoder;
@@ -61,25 +60,8 @@ public class BaseChannelConsumer<R extends NettyReceiver<?, ?, ?, ?, BS, BSC, ?,
         }
     }
 
-    @Sharable
-    private class ExceptionHandler extends ChannelInboundHandlerAdapter {
-        @Override
-        public void exceptionCaught(ChannelHandlerContext ctx,
-                                    Throwable cause) throws Error {
-            if (Helpers.isFatal(cause)) {
-                throw (Error) cause;
-            }
-            logger.error("Unmannageded exception: {}", Helpers.resolveThrowableException(cause));
-            logger.debug("details", cause);
-            if (closeOnError) {
-                ctx.close();
-            }
-        }
-    }
-
     private final MessageToMessageDecoder<SM> nettydecoder;
     private final MessageToMessageDecoder<SM> extractor = new ContextExtractor();
-    private final ChannelInboundHandlerAdapter exceptionhandler = new ExceptionHandler();
     private final EventSender sender = new EventSender();
     private final boolean closeOnError;
     private final boolean selfDecoder;
@@ -104,7 +86,6 @@ public class BaseChannelConsumer<R extends NettyReceiver<?, ?, ?, ?, BS, BSC, ?,
             p.addLast("MessageDecoder", nettydecoder);
         }
         p.addLast("Sender", sender);
-        p.addLast("ExceptionHandler", exceptionhandler);
     }
 
     @Override

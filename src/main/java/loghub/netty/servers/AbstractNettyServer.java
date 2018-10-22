@@ -126,8 +126,8 @@ public abstract class AbstractNettyServer<CF extends ComponentFactory<BS, BSC, S
         configureBootStrap(bootstrap, builder);
         ThreadFactory threadFactory = new DefaultThreadFactory(builder.threadPrefix + "/" + address.toString(), true);
         factory.group(builder.threadsCount, threadFactory);
-        factory.addChildhandlers(builder.consumer, this);
-        factory.addHandlers(builder.consumer, this);
+        factory.addChildhandlers(builder.consumer, this, logger);
+        factory.addHandlers(builder.consumer, this, logger);
         builder.consumer.addOptions((BS) bootstrap);
         logger.debug("started {} with consumer {} listening on {}", factory, builder.consumer, address);
         makeChannel(bootstrap, address, builder);
