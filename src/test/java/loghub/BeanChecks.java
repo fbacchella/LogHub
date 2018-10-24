@@ -17,16 +17,16 @@ public class BeanChecks {
 
     private static Logger logger;
     
-    private static final Class<? extends String[]> LSTRING = new String[] {}.getClass();
+    public static final Class<? extends String[]> LSTRING = new String[] {}.getClass();
 
-    private static class BeanInfo {
+    public static class BeanInfo {
         private final String beanName;
         private final Class<? extends Object> beanType;
         private BeanInfo(String beanName, Class<? extends Object> beanType) {
             this.beanName = beanName;
             this.beanType = beanType;
         }
-        private static BeanInfo build(String beanName, Class<? extends Object> beanType) {
+        public static BeanInfo build(String beanName, Class<? extends Object> beanType) {
             return new BeanInfo(beanName, beanType);
         }
     }
@@ -38,16 +38,19 @@ public class BeanChecks {
         LogUtils.setLevel(logger, Level.TRACE);
     }
 
-
-    private void beansCheck(String className, BeanInfo... beans) throws IntrospectionException, ClassNotFoundException {
-        Class<? extends Object> testedClass = getClass().getClassLoader().loadClass(className);
+    public static void beansCheck(Logger callerLogger, String className, BeanInfo... beans) throws IntrospectionException, ClassNotFoundException {
+        Class<? extends Object> testedClass = BeanChecks.class.getClassLoader().loadClass(className);
         for (BeanInfo bi: beans) {
             PropertyDescriptor bean = new PropertyDescriptor(bi.beanName, testedClass);
-            logger.debug("Bean {} for {} is {}", bi.beanName, className, bean);
+            callerLogger.debug("Bean {} for {} is {}", bi.beanName, className, bean);
             Assert.assertEquals(bi.beanType, bean.getPropertyType());
             Assert.assertNotNull(bean.getWriteMethod());
             Assert.assertNotNull(bean.getReadMethod());
         }
+    }
+
+    private void beansCheck(String className, BeanInfo... beans) throws IntrospectionException, ClassNotFoundException {
+        BeanChecks.beansCheck(logger, className, beans);
     }
 
     @Test
