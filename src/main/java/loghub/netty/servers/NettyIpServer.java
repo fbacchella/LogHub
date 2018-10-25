@@ -3,10 +3,14 @@ package loghub.netty.servers;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
+import java.security.GeneralSecurityException;
+import java.security.Principal;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
+import javax.net.ssl.SSLPeerUnverifiedException;
 import javax.net.ssl.SSLSession;
+import javax.security.auth.login.FailedLoginException;
 
 import io.netty.bootstrap.AbstractBootstrap;
 import io.netty.channel.Channel;
@@ -137,7 +141,7 @@ public abstract class NettyIpServer<CF extends ComponentFactory<BS, BSC, InetSoc
     }
 
     public void addSslHandler(ChannelPipeline p) {
-        logger.debug("adding an ssl handler on {}", p.channel());
+        logger.debug("adding an SSL handler on {}", () -> p.channel());
         SSLEngine engine = getEngine();
         SslHandler sslHandler = new SslHandler(engine);
         p.addFirst("ssl", sslHandler);
@@ -145,8 +149,33 @@ public abstract class NettyIpServer<CF extends ComponentFactory<BS, BSC, InetSoc
         future.addListener(new GenericFutureListener<Future<Channel>>() {
             @Override
             public void operationComplete(Future<Channel> future) throws Exception {
-                future.get().attr(SSLSESSIONATTRIBUTE).set(sslHandler.engine().getSession());
+                SSLSession sess = sslHandler.engine().getSession();
+                logger.trace("SSL started with {}", () -> sess);
+                Principal p = checkSslClient(sess);
+                logger.debug("Got SSL client identity {}", () -> (p != null ? p.getName() : ""));
+                if (p != null) {
+                    future.get().attr(PRINCIPALATTRIBUTE).set(p);
+                }
+                future.get().attr(SSLSESSIONATTRIBUTE).set(sess);
             }});
+    }
+
+    public Principal checkSslClient(SSLSession sess) throws GeneralSecurityException {
+        logger.debug("testing ssl client authentication");
+        if (sslClientAuthentication != ClientAuthentication.NOTNEEDED) {
+            try {
+                if (sslClientAuthentication == ClientAuthentication.WANTED || sslClientAuthentication == ClientAuthentication.REQUIRED) {
+                    return sess.getPeerPrincipal();
+                }
+            } catch (SSLPeerUnverifiedException e) {
+                if (sslClientAuthentication == ClientAuthentication.REQUIRED) {
+                    throw new FailedLoginException("Client authentication required but failed");
+                } else {
+                    return null;
+                }
+            }
+        }
+        return null;
     }
 
     public SSLEngine getEngine() {

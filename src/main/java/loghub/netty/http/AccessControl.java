@@ -1,15 +1,15 @@
 package loghub.netty.http;
 
+import static loghub.netty.servers.AbstractNettyServer.PRINCIPALATTRIBUTE;
+
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.security.GeneralSecurityException;
 import java.security.Principal;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.Locale;
 
-import javax.net.ssl.SSLSession;
 import javax.security.auth.login.FailedLoginException;
 
 import io.netty.channel.ChannelHandlerContext;
@@ -17,10 +17,7 @@ import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import loghub.netty.servers.NettyIpServer;
 import loghub.security.AuthenticationHandler;
-
-import static loghub.netty.servers.AbstractNettyServer.PRINCIPALATTRIBUTE;
 
 public class AccessControl extends HttpFilter {
 
@@ -37,16 +34,10 @@ public class AccessControl extends HttpFilter {
 
     @Override
     protected void filter(FullHttpRequest request, ChannelHandlerContext ctx) throws HttpRequestFailure {
-        Principal peerPrincipal = null;
-        try {
-            SSLSession sess = ctx.channel().attr(NettyIpServer.SSLSESSIONATTRIBUTE).get();
-            if (sess != null) {
-                peerPrincipal = authhandler.checkSslClient(sess);
-            }
-        } catch (FailedLoginException e) {
-            throw new HttpRequestFailure(HttpResponseStatus.UNAUTHORIZED, "Incorrect SSL/TLS client authentication", Collections.singletonMap(HttpHeaderNames.WWW_AUTHENTICATE, "Basic realm=\"loghub\", charset=\"UTF-8\""));
-        } catch (GeneralSecurityException e) {
-            throw new HttpRequestFailure(HttpResponseStatus.BAD_REQUEST, "Invalid SSL/TLS client authentication", Collections.emptyMap());
+        Principal peerPrincipal = ctx.channel().attr(PRINCIPALATTRIBUTE).get();
+        if (peerPrincipal != null) {
+            //not null, someone (probably TLS) already done the job, nice !
+            return;
         }
         if (peerPrincipal == null) {
             String authorization = request.headers().get(HttpHeaderNames.AUTHORIZATION);
@@ -87,6 +78,15 @@ public class AccessControl extends HttpFilter {
             throw new HttpRequestFailure(HttpResponseStatus.UNAUTHORIZED, "Authentication required", Collections.singletonMap(HttpHeaderNames.WWW_AUTHENTICATE, "Basic realm=\"loghub\", charset=\"UTF-8\""));
         }
         ctx.channel().attr(PRINCIPALATTRIBUTE).set(peerPrincipal);
+    }
+
+    @Override
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+        if (cause instanceof FailedLoginException) {
+            throw new HttpRequestFailure(HttpResponseStatus.UNAUTHORIZED, "Incorrect SSL/TLS client authentication", Collections.singletonMap(HttpHeaderNames.WWW_AUTHENTICATE, "Basic realm=\"loghub\", charset=\"UTF-8\""));
+        } else {
+            ctx.fireExceptionCaught(cause);
+        }
     }
 
 }

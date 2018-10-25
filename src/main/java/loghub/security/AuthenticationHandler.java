@@ -1,20 +1,16 @@
 package loghub.security;
 
 import java.io.IOException;
-import java.security.GeneralSecurityException;
 import java.security.Principal;
 import java.util.Arrays;
 
 import javax.management.remote.JMXPrincipal;
-import javax.net.ssl.SSLPeerUnverifiedException;
-import javax.net.ssl.SSLSession;
 import javax.security.auth.callback.Callback;
 import javax.security.auth.callback.CallbackHandler;
 import javax.security.auth.callback.NameCallback;
 import javax.security.auth.callback.PasswordCallback;
 import javax.security.auth.callback.UnsupportedCallbackException;
 import javax.security.auth.login.Configuration;
-import javax.security.auth.login.FailedLoginException;
 import javax.security.auth.login.LoginContext;
 import javax.security.auth.login.LoginException;
 
@@ -24,8 +20,6 @@ import org.apache.logging.log4j.Logger;
 
 import com.auth0.jwt.exceptions.JWTVerificationException;
 
-import loghub.security.ssl.ClientAuthentication;
-
 public class AuthenticationHandler {
 
     public static Builder getBuilder() {
@@ -34,12 +28,10 @@ public class AuthenticationHandler {
 
     public static class Builder {
         private boolean active = false;
-        private ClientAuthentication sslclient = ClientAuthentication.NONE;
         private String jaasName = null;
         private Configuration jaasConfig = null;
         private String login;
         private char[] password;
-        private boolean withSsl = false;
         private boolean withJwt = false;
         private JWTHandler jwtHandler;
 
@@ -51,13 +43,11 @@ public class AuthenticationHandler {
         }
         public Builder useSsl(boolean useSsl) {
             active = active || useSsl;
-            withSsl = useSsl;
             return this;
         }
         public Builder setSslClientAuthentication(String sslclient) {
             if (sslclient != null && ! sslclient.isEmpty()) {
                 try {
-                    this.sslclient = ClientAuthentication.valueOf(sslclient.toUpperCase());
                 } catch (IllegalArgumentException e) {
                     logger.throwing(Level.DEBUG, e);
                     throw new IllegalArgumentException(String.format("'%s' is not a valide value", sslclient), e);
@@ -105,9 +95,6 @@ public class AuthenticationHandler {
 
     private static final Logger logger = LogManager.getLogger();
 
-    // SSL authentication
-    private final ClientAuthentication sslclient;
-
     // Hard code login password
     private final String login;
     private final char[] password;
@@ -120,11 +107,6 @@ public class AuthenticationHandler {
     private final JWTHandler jwtHandler;
 
     private AuthenticationHandler(Builder builder) {
-        if (builder.withSsl) {
-            this.sslclient = builder.sslclient;
-        } else {
-            this.sslclient = ClientAuthentication.NONE;
-        }
 
         this.login = builder.login;
         this.password = builder.password;
@@ -146,24 +128,6 @@ public class AuthenticationHandler {
         } else {
             this.jwtHandler = null;
         }
-    }
-
-    public Principal checkSslClient(SSLSession sess) throws GeneralSecurityException {
-        logger.debug("testing ssl client authentication");
-        if (sslclient != ClientAuthentication.NOTNEEDED) {
-            try {
-                if (sslclient == ClientAuthentication.WANTED || sslclient == ClientAuthentication.REQUIRED) {
-                    return sess.getPeerPrincipal();
-                }
-            } catch (SSLPeerUnverifiedException e) {
-                if (sslclient == ClientAuthentication.REQUIRED) {
-                    throw new FailedLoginException("Client authentication required but failed");
-                } else {
-                    return null;
-                }
-            }
-        }
-        return null;
     }
 
     public Principal checkLoginPassword(String tryLogin, char[] tryPassword) {
@@ -201,8 +165,8 @@ public class AuthenticationHandler {
         LoginContext lc;
         try {
             lc = new LoginContext(jaasName, null,
-                    cbHandler,
-                    jaasConfig);
+                                  cbHandler,
+                                  jaasConfig);
         } catch (LoginException e) {
             logger.error("Unusable jaas profile {}: {}", jaasName, e.getMessage());
             logger.catching(Level.DEBUG, e);
@@ -239,10 +203,6 @@ public class AuthenticationHandler {
 
     public boolean isWithJwt() {
         return jwtHandler != null;
-    }
-
-    public ClientAuthentication getClientAuthentication() {
-        return sslclient;
     }
 
     public boolean useJaas() {

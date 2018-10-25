@@ -105,8 +105,10 @@ public class ContextLoader {
                             return Arrays.stream(issuers)
                                     .filter(validIssuers::contains)
                                     .toArray(Principal[]::new);
-                        } else {
+                        } else if (issuers != null) {
                             return issuers;
+                        } else {
+                            return new Principal[] {};
                         }
                     }
 

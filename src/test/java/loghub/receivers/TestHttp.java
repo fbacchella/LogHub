@@ -99,7 +99,7 @@ public class TestHttp {
                 }
             });
             Map<String, Object> properties = new HashMap<>();
-            properties.put("trusts", new String[] {getClass().getResource("/localhost.p12").getFile()});
+            properties.put("trusts", new String[] {getClass().getResource("/loghub.p12").getFile()});
             SSLContext cssctx = ContextLoader.build(properties);
             cnx.setSSLSocketFactory(cssctx.getSocketFactory());
         }
@@ -155,14 +155,13 @@ public class TestHttp {
     @Test
     public void testHttpsGet() throws IOException {
         makeReceiver( i -> { i.setWithSSL(true); i.setSSLClientAuthentication("REQUIRED");},
-                      Collections.singletonMap("ssl.trusts", new String[] {getClass().getResource("/localhost.p12").getFile()})
+                      Collections.singletonMap("ssl.trusts", new String[] {getClass().getResource("/loghub.p12").getFile()})
                         );
         doRequest(new URL("https", hostname, port, "/?a=1"),
                   new byte[]{},
                   i -> {}, 200);
 
         Event e = queue.poll();
-        logger.debug(e.getClass());
         String a = (String) e.get("a");
         Assert.assertEquals("1", a);
         Assert.assertEquals("CN=localhost", e.getConnectionContext().getPrincipal().toString());

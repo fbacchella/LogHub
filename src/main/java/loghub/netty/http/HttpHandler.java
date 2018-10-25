@@ -20,6 +20,8 @@ import java.util.function.Supplier;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import javax.net.ssl.SSLHandshakeException;
+
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -258,9 +260,9 @@ public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRe
     }
 
     @Override
-    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
         // Forward non HTTP error
-        if (cause.getCause() instanceof NotSslRecordException || cause instanceof IOException) {
+        if (cause.getCause() instanceof NotSslRecordException || cause instanceof IOException || cause.getCause() instanceof SSLHandshakeException) {
             ctx.fireExceptionCaught(cause);
         } else {
             logger.error("Internal server errorr: {}", Helpers.resolveThrowableException(cause));

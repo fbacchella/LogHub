@@ -3,6 +3,9 @@ package loghub.netty;
 import java.net.SocketAddress;
 import java.util.concurrent.ThreadFactory;
 
+import javax.net.ssl.SSLHandshakeException;
+
+import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.Logger;
 
 import io.netty.bootstrap.AbstractBootstrap;
@@ -38,9 +41,12 @@ public abstract class ComponentFactory<BS extends AbstractBootstrap<BS,BSC>, BSC
                             throws Exception {
                 if (cause.getCause() instanceof NotSslRecordException) {
                     logger.warn("Not a SSL connexion from {} on SSL listen", ctx.channel().remoteAddress());
+                } else if (cause.getCause() instanceof SSLHandshakeException) {
+                    logger.warn("Failed SSL handshake from {}: {}", ctx.channel().remoteAddress(), cause.getCause().getMessage());
+                    logger.catching(Level.DEBUG, cause);
                 } else {
                     logger.warn("Not handled exception {} from {}", Helpers.resolveThrowableException(cause), ctx.channel().remoteAddress());
-                    logger.catching(cause);
+                    logger.catching(Level.WARN, cause);
                 }
             }
         };

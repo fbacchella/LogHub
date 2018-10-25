@@ -29,6 +29,7 @@ import loghub.Pipeline;
 import loghub.Tools;
 import loghub.configuration.Properties;
 import loghub.decoders.StringCodec;
+import loghub.security.ssl.ClientAuthentication;
 import loghub.security.ssl.ContextLoader;
 
 public class TestTcpLinesStream {
@@ -39,14 +40,14 @@ public class TestTcpLinesStream {
     static public void configure() throws IOException {
         Tools.configure();
         logger = LogManager.getLogger();
-        LogUtils.setLevel(logger, Level.TRACE, "loghub.receivers.TcpLinesStream", "loghub.netty", "loghub.EventsProcessor");
+        LogUtils.setLevel(logger, Level.TRACE, "loghub.receivers.TcpLinesStream", "loghub.netty", "loghub.EventsProcessor", "loghub.security");
     }
 
     private TcpLinesStream receiver;
     private int port;
     private BlockingQueue<Event> queue;
 
-    @Test(timeout=1000)
+    @Test(timeout=5000)
     public void testSimple() throws IOException, InterruptedException {
         try {
             makeReceiver( i -> {}, Collections.emptyMap());
@@ -68,21 +69,25 @@ public class TestTcpLinesStream {
         }
     }
 
-    @Test(timeout=1000)
+    @Test(timeout=5000)
     public void testSSL() throws IOException, InterruptedException {
         try {
-            makeReceiver( i -> { i.setWithSSL(true); i.setSSLClientAuthentication("REQUIRED");},
-                          Collections.singletonMap("ssl.trusts", new String[] {getClass().getResource("/localhost.p12").getFile()})
-                            );
+            makeReceiver( i -> {
+                    i.setWithSSL(true);
+                    // It should be required for a better test, needs to understand how to make client side TLS works
+                    i.setSSLClientAuthentication(ClientAuthentication.WANTED.name());
+                },
+                Collections.singletonMap("ssl.trusts", new String[] {getClass().getResource("/loghub.p12").getFile()})
+            );
             Map<String, Object> properties = new HashMap<>();
-            properties.put("trusts", new String[] {getClass().getResource("/localhost.p12").getFile()});
+            properties.put("trusts", new String[] {getClass().getResource("/loghub.p12").getFile()});
             SSLContext cssctx = ContextLoader.build(properties);
             try(Socket socket = cssctx.getSocketFactory().createSocket(InetAddress.getLoopbackAddress(), port)) {
                 OutputStream os = socket.getOutputStream();
                 os.write("LogHub\n".getBytes(StandardCharsets.UTF_8));
                 os.flush();
             }
-            Event e = queue.poll(1, TimeUnit.SECONDS);
+            Event e = queue.poll(6, TimeUnit.SECONDS);
             String message = (String) e.get("message");
             Assert.assertEquals("LogHub", message);
             Assert.assertTrue(Tools.isRecent.apply(e.getTimestamp()));

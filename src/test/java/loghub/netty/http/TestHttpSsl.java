@@ -58,14 +58,14 @@ public class TestHttpSsl {
     static public void configure() throws IOException {
         Tools.configure();
         logger = LogManager.getLogger();
-        LogUtils.setLevel(logger, Level.TRACE, "loghub.security", "loghub.HttpTestServer", "loghub.netty.http");
+        LogUtils.setLevel(logger, Level.TRACE, "loghub.security", "loghub.HttpTestServer", "loghub.netty");
         Configurator.setLevel("org", Level.WARN);
     }
 
     Function<Map<String, Object> , SSLContext> getContext = (props) -> {
         Map<String, Object> properties = new HashMap<>();
         properties.put("context", "TLSv1.2");
-        properties.put("trusts", new String[] {getClass().getResource("/localhost.p12").getFile(), "/Users/fa4/Documents/Exalead/svn/Prod/Puppet/modules/jdk/files/alldsca.jks"});
+        properties.put("trusts", new String[] {getClass().getResource("/loghub.p12").getFile()});
         properties.putAll(props);
         SSLContext newCtxt = ContextLoader.build(properties);
         Assert.assertEquals("TLSv1.2", newCtxt.getProtocol());
@@ -107,6 +107,7 @@ public class TestHttpSsl {
                         .setThreadPrefix("TestHttpSSL")
                         .setConsumer(server)
                         .setPort(serverPort)
+                        .setSSLClientAuthentication(ClientAuthentication.REQUIRED)
                         .setSSLContext(getContext.apply(sslprops))
                         .useSSL(true);
 
