@@ -1,6 +1,7 @@
 package loghub.netty;
 
 import java.net.SocketAddress;
+import java.util.Optional;
 
 import org.apache.logging.log4j.Level;
 
@@ -100,6 +101,7 @@ public abstract class NettyReceiver<R extends NettyReceiver<R, S, B, CF, BS, BSC
             cctx = getNewConnectionContext(ctx, message);
             ctx.channel().attr(CONNECTIONCONTEXTATTRIBUTE).set(cctx);
         }
+        Optional.ofNullable(ctx.channel().attr(AbstractNettyServer.PRINCIPALATTRIBUTE).get()).ifPresent(cctx::setPrincipal);
         return cctx;
     }
 
