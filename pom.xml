@@ -20,6 +20,7 @@
         <cache2k>1.0.2.Final</cache2k>
         <mainClass>loghub.Start</mainClass>
         <dependency.locations.enabled>false</dependency.locations.enabled>
+        <jacoco>0.8.2</jacoco>
     </properties>
 
     <dependencies>
@@ -365,7 +366,7 @@
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
-                <version>0.8.2</version>
+                <version>${jacoco}</version>
                 <configuration>
                     <output>file</output>
                     <append>true</append>
@@ -477,7 +478,7 @@
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
-                <version>0.7.5.201505241946</version>
+                <version>${jacoco}</version>
                 <configuration>
                     <output>file</output>
                     <append>true</append>
