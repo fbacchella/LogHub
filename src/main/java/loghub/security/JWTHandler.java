@@ -163,7 +163,7 @@ public class JWTHandler {
     }
 
     public JWTPrincipal verifyToken(String token) throws JWTVerificationException {
-        if ( ! JWTREGEX.test(token)) {
+        if (! JWTREGEX.test(token)) {
             return null;
         }
         DecodedJWT jwt = verifier.verify(token);

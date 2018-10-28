@@ -23,10 +23,11 @@ public class TestJwt {
         String secret = UUID.randomUUID().toString();
         String issuer = UUID.randomUUID().toString();
         String token = JWT.create()
-        .withIssuer(issuer)
-        .withSubject("user")
-        .sign(Algorithm.HMAC256(secret));
+                        .withIssuer(issuer)
+                        .withSubject("user")
+                        .sign(Algorithm.HMAC256(secret));
         JWTHandler handler = JWTHandler.getBuilder().setAlg("HMAC256").setIssuer(issuer).secret(secret).build();
+        System.out.println(token);
         JWTPrincipal newp = handler.verifyToken(token);
         Assert.assertNotNull(newp);
         Assert.assertEquals("user", newp.getName());
@@ -38,9 +39,9 @@ public class TestJwt {
         String secret = UUID.randomUUID().toString();
         String issuer = UUID.randomUUID().toString();
         String token = JWT.create()
-        .withIssuer(issuer)
-        .withSubject("user")
-        .sign(Algorithm.HMAC256(secret));
+                        .withIssuer(issuer)
+                        .withSubject("user")
+                        .sign(Algorithm.HMAC256(secret));
         JWTHandler handler = JWTHandler.getBuilder().setAlg("HMAC256").setIssuer(issuer).secret(UUID.randomUUID().toString()).build();
         handler.verifyToken(token);
     }

@@ -55,7 +55,7 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
         String key = path[0];
         if (key != null && key.startsWith("#")) {
             return f.action.apply(getMetas(), key.substring(1), value);
-        } else if ( TIMESTAMPKEY.equals(key)) {
+        } else if (TIMESTAMPKEY.equals(key)) {
             switch(f) {
             case GET: return getTimestamp();
             case PUT: { 

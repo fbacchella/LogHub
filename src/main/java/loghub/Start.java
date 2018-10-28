@@ -42,6 +42,7 @@ public class Start {
 
     @Parameter(names = {"--configfile", "-c"}, description = "File")
     String configFile = null;
+
     @Parameter(names = {"--help", "-h"}, help = true)
     private boolean help;
 

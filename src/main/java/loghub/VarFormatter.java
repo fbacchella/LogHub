@@ -452,9 +452,9 @@ public class VarFormatter {
                 resolved[i] = l.get(j - 1);
             } else {
                 String[] path = mapping.getKey().toString().split("\\.");
-                if(path.length == 1) {
+                if (path.length == 1) {
                     // Only one element in the key, just use it
-                    if(! variables.containsKey(mapping.getKey())) {
+                    if (! variables.containsKey(mapping.getKey())) {
                         throw new IllegalArgumentException("invalid values for format key " + mapping.getKey());
                     }
                     resolved[mapping.getValue()] = variables.get(mapping.getKey());
@@ -470,7 +470,7 @@ public class VarFormatter {
                         current = next;
                         key = path[i + 1];
                     }
-                    if(current != null) {
+                    if (current != null) {
                         resolved[mapping.getValue()] = current.get(key);
                     }
                 }

@@ -48,7 +48,6 @@ public class Tools {
         for(Pipeline pipe: props.pipelines) {
             Assert.assertTrue("configuration failed", pipe.configure(props));
         }
-
         return props;
     }
 

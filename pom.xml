@@ -22,7 +22,6 @@
         <dependency.locations.enabled>false</dependency.locations.enabled>
         <jacoco>0.8.2</jacoco>
     </properties>
-
     <dependencies>
         <!-- Needed for loghub.processors.Log4Extract. It's incompatible with org.apache.logging.log4j:log4j-1.2-api.
              That could conflict with log4j configuration but SNMP4J is the only current library that uses log4j 1.2, 

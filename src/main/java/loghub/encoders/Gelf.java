@@ -72,7 +72,6 @@ public class Gelf extends Encoder {
         this.stream = builder.stream;
         this.shortmessagefield = builder.shortmessagefield;
         this.fullmessagefield = builder.fullmessagefield;
-
     }
 
     @Override
