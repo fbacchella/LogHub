@@ -95,4 +95,19 @@ public class TestJwt {
         Assert.assertNull(newp);
     }
 
+    @Test
+    public void testSign() {
+        String payload = "{\n" + 
+                        "  \"sub\": \"John Doe\",\n" + 
+                        "  \"iss\": \"LogHub\"\n" + 
+                        "}";
+        String secret = UUID.randomUUID().toString();
+        JWTHandler handler = JWTHandler.getBuilder().setAlg("HMAC256").secret(secret).build();
+        String token = handler.sign(payload);
+        JWTHandler.JWTPrincipal principal = handler.verifyToken(token);
+        Assert.assertEquals("John Doe", principal.getName());
+        Assert.assertEquals("LogHub", principal.getIssuer());
+        Assert.assertEquals("HS256", principal.getAlgorithm());
+    }
+
 }

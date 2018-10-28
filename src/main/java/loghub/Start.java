@@ -5,6 +5,9 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
 import java.lang.management.ManagementFactory;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.rmi.NotBoundException;
 import java.util.HashSet;
 import java.util.Set;
@@ -32,6 +35,7 @@ import loghub.jmx.Helper;
 import loghub.jmx.StatsMBean;
 import loghub.processors.FieldsProcessor;
 import loghub.receivers.Receiver;
+import loghub.security.JWTHandler;
 import loghub.senders.Sender;
 
 public class Start {
@@ -52,6 +56,12 @@ public class Start {
 
     @Parameter(names = {"--testprocessor", "-p"}, description = "A field processor to test")
     String testedprocessor = null;
+
+    @Parameter(names = {"--sign", "-S"}, description = "Sign a JWT token")
+    boolean sign = false;
+
+    @Parameter(names = {"--signfile", "-F"}, description = "The jwt token to sign")
+    String signfile = null;
 
     String pipeLineTest = null;
     int exitcode = 0;
@@ -119,7 +129,10 @@ public class Start {
                 exitcode = 1;
             } else {
                 Properties props = Configuration.parse(configFile);
-                if (!test) {
+                if (sign) {
+                    sign(signfile, props.jwtHandler);
+                    exitcode = 0;
+                } else if (!test) {
                     launch(props);
                     logger.warn("LogHub started");
                     exitcode = 0;
@@ -151,6 +164,20 @@ public class Start {
             System.exit(exitcode);
         } else if (exitcode != 0) {
             throw new RuntimeException();
+        }
+    }
+
+    private void sign(String signfile, JWTHandler handler) {
+        if (signfile == null) {
+            System.err.println("No JWT payload");
+        }
+        try {
+            byte[] buffer = Files.readAllBytes(Paths.get(signfile));
+            String token = handler.sign(new String(buffer, StandardCharsets.UTF_8));
+            System.out.println(token);
+        } catch (IOException e) {
+            System.err.println("Can't read JWT payload: " + Helpers.resolveThrowableException(e));
+            logger.catching(e);
         }
     }
 

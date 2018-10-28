@@ -1,10 +1,12 @@
 package loghub.security;
 
+import java.nio.charset.StandardCharsets;
 import java.security.Principal;
 import java.time.Instant;
 import java.time.Period;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
+import java.util.Base64;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -170,6 +172,16 @@ public class JWTHandler {
         }
         DecodedJWT jwt = verifier.verify(token);
         return new JWTPrincipal(jwt);
+    }
+
+    public String sign(String payload) {
+        Base64.Encoder enc = Base64.getUrlEncoder().withoutPadding();
+        String header = String.format("{\"alg\": \"%s\",\"typ\": \"JWT\"}", alg.getName());
+        String headerEncoded = enc.encodeToString(header.getBytes(StandardCharsets.UTF_8));
+        String payloadEncoded = enc.encodeToString(payload.getBytes(StandardCharsets.UTF_8));
+        String firstPart = headerEncoded + "." + payloadEncoded;
+        String signature = enc.encodeToString(alg.sign(firstPart.getBytes(StandardCharsets.US_ASCII)));
+        return firstPart + "." + signature;
     }
 
 }
