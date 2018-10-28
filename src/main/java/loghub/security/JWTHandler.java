@@ -136,7 +136,7 @@ public class JWTHandler {
             alg = Algorithm.HMAC256(builder.secret);
             break;
         default:
-            alg = null;
+            throw new IllegalArgumentException("Unhandled signing algorithm: " + builder.alg);
         }
         this.verifier = JWT.require(alg)
                         .withIssuer(builder.issuer)
