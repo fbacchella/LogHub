@@ -257,12 +257,12 @@ public class Start {
         }
 
         Runnable shutdown = () -> {
+            props.receivers.forEach( i -> i.stopReceiving());
             allep.forEach(i -> i.stopProcessing());
             props.senders.forEach( i -> i.stopSending());
-            props.receivers.forEach( i -> i.stopReceiving());
         };
         shutdownAction = ThreadBuilder.get()
-                        .setDaemon(true)
+                        .setDaemon(false)
                         .setRunnable(shutdown)
                         .setName("StopEventsProcessors")
                         .setShutdownHook(true)
@@ -286,8 +286,11 @@ public class Start {
                 props.dashboardBuilder.build();
             } catch (IllegalArgumentException e) {
                 logger.error("Unable to start HTTP dashboard: {}", Helpers.resolveThrowableException(e));
+                shutdownAction.start();
                 throw new IllegalStateException();
             } catch (InterruptedException e) {
+                shutdownAction.start();
+                Thread.currentThread().interrupt();
                 throw new IllegalStateException();
             }
         }
