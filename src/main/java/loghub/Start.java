@@ -114,13 +114,18 @@ public class Start {
         }
 
         try {
-            Properties props = Configuration.parse(configFile);
-            if (!test) {
-                launch(props);
-                logger.warn("LogHub started");
-                exitcode = 0;
-            } else if (testedprocessor != null) {
-                testProcessor(props, testedprocessor);
+            if (configFile == null) {
+                System.err.println("No configuration file given");
+                exitcode = 1;
+            } else {
+                Properties props = Configuration.parse(configFile);
+                if (!test) {
+                    launch(props);
+                    logger.warn("LogHub started");
+                    exitcode = 0;
+                } else if (testedprocessor != null) {
+                    testProcessor(props, testedprocessor);
+                }
             }
         } catch (ConfigException e) {
             Throwable t = e;
