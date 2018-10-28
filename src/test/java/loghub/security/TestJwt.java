@@ -110,4 +110,10 @@ public class TestJwt {
         Assert.assertEquals("HS256", principal.getAlgorithm());
     }
 
+    @Test(expected=IllegalArgumentException.class)
+    public void testInvalidSign() {
+        String secret = UUID.randomUUID().toString();
+        JWTHandler.getBuilder().setAlg("BAD").secret(secret).build();
+    }
+
 }

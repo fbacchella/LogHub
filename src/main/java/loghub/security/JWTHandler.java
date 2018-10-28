@@ -128,23 +128,19 @@ public class JWTHandler {
     private final Algorithm alg;
     private final JWTVerifier verifier;
 
-    private JWTHandler(Builder builder) {
-        try {
-            this.validity = builder.validity;
-            this.issuer = builder.issuer;
-            switch(builder.alg) {
-            case "HMAC256":
-                alg = Algorithm.HMAC256(builder.secret);
-                break;
-            default:
-                alg = null;
-            }
-            this.verifier = JWT.require(alg)
-                            .withIssuer(builder.issuer)
-                            .build();
-        } catch (IllegalArgumentException e) {
-            throw new RuntimeException(e);
+    private JWTHandler(Builder builder) throws IllegalArgumentException {
+        this.validity = builder.validity;
+        this.issuer = builder.issuer;
+        switch(builder.alg) {
+        case "HMAC256":
+            alg = Algorithm.HMAC256(builder.secret);
+            break;
+        default:
+            alg = null;
         }
+        this.verifier = JWT.require(alg)
+                        .withIssuer(builder.issuer)
+                        .build();
     }
 
     public String getToken(Principal p) {
