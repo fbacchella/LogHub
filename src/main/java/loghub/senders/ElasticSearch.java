@@ -211,7 +211,7 @@ public class ElasticSearch extends AbstractHttpSender {
                 if (typeExpression != null) {
                     typevalue = Optional.ofNullable(typeExpression.eval(e)).map( i-> i.toString()).orElse(null);
                 } else {
-                    typevalue = esjson.remove(type).toString();
+                    typevalue = Optional.ofNullable(esjson.remove(type)).map(i -> i.toString()).orElse(null);
                 }
                 if (typevalue == null || typevalue.isEmpty()) {
                     processStatus(e, CompletableFuture.completedFuture(false));
