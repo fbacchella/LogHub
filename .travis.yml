@@ -5,6 +5,8 @@ addons:
     organization: "fbacchella-github"
     token:
       secure: "XWJ0wVivuMHEgvTPvKaXhC5u7+SZfT/XYDC/YkksoFKQmGn7TO2HuwJq9DK7WOXrI5lJC/VKppcLJqwVVh4t7Sk+lz4VJm1vh1dzYwYRIDPguyTRArmw5XHe58QxFvKGTvtO/1BR7/hYYug+n6I3vU8h8M/El+f7inKwzJZYBqg="
+services:
+  - elasticsearch
 script:
   - mvn clean package
 jdk:
