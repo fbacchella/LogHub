@@ -211,4 +211,40 @@ public class TestElasticSearch {
         }
     }
 
+    @Test
+    public void testWithDocker() throws InterruptedException {
+        Stats.reset();
+        int count = 20;
+        ElasticSearch.Builder esbuilder = new ElasticSearch.Builder();
+        esbuilder.setDestinations(new String[]{"http://localhost:9200", });
+        esbuilder.setTimeout(1);
+        esbuilder.setBuffersize(count * 2);
+        ElasticSearch es = esbuilder.build();
+        es.setInQueue(new ArrayBlockingQueue<>(count));
+        Assert.assertTrue("Elastic configuration failed", es.configure(new Properties(Collections.emptyMap())));
+        es.start();
+        for (int i = 0 ; i < count ; i++) {
+            Event ev = Tools.getEvent();
+            ev.put("type", "junit");
+            ev.put("value", i);
+            ev.setTimestamp(new Date(0));
+            Assert.assertTrue(es.send(ev));
+            Thread.sleep(1);
+        }
+        for (int i = 0 ; i < count ; i++) {
+            Event ev = Tools.getEvent();
+            ev.put("type", "junit");
+            ev.put("value", "atest" + i);
+            ev.setTimestamp(new Date(0));
+            Assert.assertTrue(es.send(ev));
+            Thread.sleep(1);
+        }
+        es.stopSending();
+        es.close();
+        Thread.sleep(1000);
+        Assert.assertEquals(count, Stats.getSenderError().size());
+        Assert.assertEquals(count * 2, Stats.sent.get());
+        logger.debug("Events failed: {}", () -> Stats.getSenderError());
+    }
+
 }

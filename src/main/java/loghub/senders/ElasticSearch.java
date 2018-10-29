@@ -11,6 +11,7 @@ import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.TimeZone;
@@ -34,6 +35,7 @@ import loghub.Expression;
 import loghub.Expression.ExpressionException;
 import loghub.Helpers;
 import loghub.ProcessorException;
+import loghub.Stats;
 import loghub.configuration.Properties;
 import lombok.Setter;
 
@@ -165,11 +167,11 @@ public class ElasticSearch extends AbstractHttpSender {
         }
         request.setTypeAndContent("application/json", CharsetUtil.UTF_8, content);
         request.setVerb("POST");
-        Function<JsonNode, Object> reader;
+        Function<JsonNode, Map<String, ? extends Object>> reader;
         try {
             reader = node -> {
                 try {
-                    return json.get().readerFor(Object.class).readValue(node);
+                    return json.get().readerFor(Map.class).readValue(node);
                 } catch (IOException e) {
                     throw new UncheckedIOException(e);
                 }
@@ -177,7 +179,24 @@ public class ElasticSearch extends AbstractHttpSender {
         } catch (UncheckedIOException e) {
             throw e.getCause();
         }
-        return doquery(request, "/_bulk", reader, Collections.emptyMap(), null);
+        Map<String, ? extends Object> response = doquery(request, "/_bulk", reader, Collections.emptyMap(), null);
+        if (Boolean.TRUE.equals(response.get("errors"))) {
+            @SuppressWarnings("unchecked")
+            List<Map<String, ?>> items = (List<Map<String, ?>>) response.get("items");
+            for (Map<String, ?> i: items) {
+                @SuppressWarnings("unchecked")
+                Map<String, Map<String, ? extends Object>> index = (Map<String, Map<String, ? extends Object>>) i.get("index");
+                if (! index.containsKey("error")) {
+                    continue;
+                }
+                Map<String, ? extends Object> error = (Map<String, ? extends Object>) index.get("error");
+                String type = (String) error.get("type");
+                String errorReason = (String) error.get("reason");
+                Map<?, ?> errorCause = (Map<?, ?>) error.get("caused_by");
+                Stats.newSenderError(String.format("%s %s, caused by %s %s", type, errorReason, errorCause.get("type"), errorCause.get("reason")));
+            }
+        }
+        return response;
     }
 
     private byte[] putContent(Batch documents) {
