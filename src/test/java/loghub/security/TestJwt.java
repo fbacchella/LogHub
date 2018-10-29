@@ -27,7 +27,6 @@ public class TestJwt {
                         .withSubject("user")
                         .sign(Algorithm.HMAC256(secret));
         JWTHandler handler = JWTHandler.getBuilder().setAlg("HMAC256").setIssuer(issuer).secret(secret).build();
-        System.out.println(token);
         JWTPrincipal newp = handler.verifyToken(token);
         Assert.assertNotNull(newp);
         Assert.assertEquals("user", newp.getName());
