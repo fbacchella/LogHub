@@ -29,6 +29,10 @@ public interface StatsMBean {
         return loghub.Stats.failed.get();
     }
 
+    default public long getFailedSend() {
+        return loghub.Stats.failedSend.get();
+    }
+
     default public String[] getErrors() {
         return loghub.Stats.getErrors().stream()
                         .map(i -> Helpers.resolveThrowableException((Throwable)i))
@@ -61,6 +65,12 @@ public interface StatsMBean {
 
     default public String[] getBlockedError() {
         return loghub.Stats.getBlockedError().stream()
+                        .toArray(String[]::new)
+                        ;
+    }
+
+    default public String[] getSenderErrors() {
+        return loghub.Stats.getSenderError().stream()
                         .toArray(String[]::new)
                         ;
     }
