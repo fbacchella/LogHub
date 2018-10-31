@@ -1,5 +1,6 @@
 package loghub.receivers;
 
+import java.beans.IntrospectionException;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -34,13 +35,16 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import loghub.BeanChecks;
 import loghub.ConnectionContext;
 import loghub.Event;
 import loghub.IpConnectionContext;
 import loghub.LogUtils;
 import loghub.Pipeline;
 import loghub.Tools;
+import loghub.BeanChecks.BeanInfo;
 import loghub.configuration.Properties;
+import loghub.decoders.Decoder;
 import loghub.decoders.StringCodec;
 import loghub.security.JWTHandler;
 import loghub.security.ssl.ContextLoader;
@@ -309,6 +313,21 @@ public class TestHttp {
         Assert.assertEquals("1", e.get("a"));
         Assert.assertEquals("user", e.getConnectionContext().getPrincipal().getName());
         Assert.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
+    }
+
+    @Test
+    public void test_loghub_receivers_Http() throws ClassNotFoundException, IntrospectionException {
+        BeanChecks.beansCheck(logger, "loghub.receivers.Http"
+                   ,BeanInfo.build("decoder", Decoder.class)
+                   ,BeanInfo.build("useJwt", Boolean.TYPE)
+                   ,BeanInfo.build("user", String.class)
+                   ,BeanInfo.build("password", String.class)
+                   ,BeanInfo.build("jaasName", String.class)
+                   ,BeanInfo.build("withSSL", Boolean.TYPE)
+                   ,BeanInfo.build("SSLClientAuthentication", String.class)
+                   ,BeanInfo.build("SSLKeyAlias", String.class)
+                   ,BeanInfo.build("Decoders", Object.class)
+        );
     }
 
 }

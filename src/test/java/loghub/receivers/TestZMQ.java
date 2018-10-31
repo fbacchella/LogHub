@@ -1,5 +1,6 @@
 package loghub.receivers;
 
+import java.beans.IntrospectionException;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -20,6 +21,8 @@ import loghub.Event;
 import loghub.LogUtils;
 import loghub.Pipeline;
 import loghub.Tools;
+import loghub.BeanChecks;
+import loghub.BeanChecks.BeanInfo;
 import loghub.configuration.Properties;
 import loghub.decoders.StringCodec;
 import loghub.zmq.ZMQHelper.Method;
@@ -79,6 +82,16 @@ public class TestZMQ {
                 r.setType("SUB");
             }, sender);
         };
+    }
+
+    @Test
+    public void testBeans() throws ClassNotFoundException, IntrospectionException {
+        BeanChecks.beansCheck(logger, "loghub.receivers.ZMQ"
+                   ,BeanInfo.build("method", String.class)
+                   ,BeanInfo.build("listen", String.class)
+                   ,BeanInfo.build("type", String.class)
+                   ,BeanInfo.build("hwm", Integer.TYPE)
+        );
     }
 
 }

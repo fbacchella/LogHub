@@ -1,5 +1,6 @@
 package loghub.senders;
 
+import java.beans.IntrospectionException;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.net.MalformedURLException;
@@ -33,6 +34,8 @@ import loghub.Event;
 import loghub.LogUtils;
 import loghub.Stats;
 import loghub.Tools;
+import loghub.BeanChecks;
+import loghub.BeanChecks.BeanInfo;
 import loghub.configuration.ConfigurationTools;
 import loghub.configuration.Properties;
 
@@ -245,6 +248,23 @@ public class TestElasticSearch {
         Assert.assertEquals(count, Stats.getSenderError().size());
         Assert.assertEquals(count * 2, Stats.sent.get());
         logger.debug("Events failed: {}", () -> Stats.getSenderError());
+    }
+
+    @Test
+    public void testBeans() throws ClassNotFoundException, IntrospectionException {
+        BeanChecks.beansCheck(logger, "loghub.senders.ElasticSearch"
+                              , BeanInfo.build("destinations", BeanChecks.LSTRING)
+                              , BeanInfo.build("indexX", String.class)
+                              , BeanInfo.build("timeout", Integer.TYPE)
+                              , BeanInfo.build("threads", Integer.TYPE)
+                              , BeanInfo.build("buffersize", Integer.TYPE)
+                              , BeanInfo.build("indexformat", String.class)
+                              , BeanInfo.build("type", String.class)
+                              , BeanInfo.build("typeX", String.class)
+                              , BeanInfo.build("templatePath", String.class)
+                              , BeanInfo.build("login", String.class)
+                              , BeanInfo.build("password", String.class)
+                        );
     }
 
 }
