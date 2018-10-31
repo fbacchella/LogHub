@@ -64,7 +64,6 @@ public class TestElasticSearch {
                             BadAttributeValueExpException,
                             InvalidApplicationException {
                 if (name.getDomain().startsWith("loghub")) {
-                    System.out.println(name);
                     return true;
                 } else {
                     return false;
@@ -75,7 +74,6 @@ public class TestElasticSearch {
             }
         }).forEach(i -> {
             try {
-                System.out.println(i);
                 mbs.unregisterMBean(i);
             } catch (MBeanRegistrationException | InstanceNotFoundException e) {
                 throw new RuntimeException(e);
@@ -126,7 +124,7 @@ public class TestElasticSearch {
         for (int i = 0 ; i < count ; i++) {
             Event ev = Tools.getEvent();
             ev.putMeta("type", "junit");
-            ev.putMeta("index", "loghub-1970.01.01");
+            ev.putMeta("index", "testWithExpression-1970.01.01");
             ev.put("value", "atest" + i);
             ev.setTimestamp(new Date(0));
             Assert.assertTrue(es.send(ev));
@@ -215,13 +213,14 @@ public class TestElasticSearch {
     }
 
     @Test
-    public void testWithDocker() throws InterruptedException {
+    public void testSomeFailed() throws InterruptedException {
         Stats.reset();
         int count = 20;
         ElasticSearch.Builder esbuilder = new ElasticSearch.Builder();
         esbuilder.setDestinations(new String[]{"http://localhost:9200", });
         esbuilder.setTimeout(1);
         esbuilder.setBuffersize(count * 2);
+        esbuilder.setIndexformat("'testsomefailed-'yyyy.MM.dd");
         ElasticSearch es = esbuilder.build();
         es.setInQueue(new ArrayBlockingQueue<>(count));
         Assert.assertTrue("Elastic configuration failed", es.configure(new Properties(Collections.emptyMap())));
@@ -229,7 +228,7 @@ public class TestElasticSearch {
         for (int i = 0 ; i < count ; i++) {
             Event ev = Tools.getEvent();
             ev.put("type", "junit");
-            ev.put("value", i);
+            ev.put("value", new Date(0));
             ev.setTimestamp(new Date(0));
             Assert.assertTrue(es.send(ev));
             Thread.sleep(1);

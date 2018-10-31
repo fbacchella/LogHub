@@ -180,7 +180,6 @@ public class ElasticSearch extends AbstractHttpSender {
             throw e.getCause();
         }
         Map<String, ? extends Object> response = doquery(request, "/_bulk", reader, Collections.emptyMap(), null);
-        System.out.println(response);
         if (Boolean.TRUE.equals(response.get("errors"))) {
             @SuppressWarnings("unchecked")
             List<Map<String, ?>> items = (List<Map<String, ?>>) response.get("items");
@@ -190,11 +189,13 @@ public class ElasticSearch extends AbstractHttpSender {
                 if (! index.containsKey("error")) {
                     continue;
                 }
-                Map<String, ? extends Object> error = (Map<String, ? extends Object>) index.get("error");
+                Map<String, ? extends Object> error =  Optional.ofNullable((Map<String, ? extends Object>) index.get("error")).orElse(Collections.emptyMap());
                 String type = (String) error.get("type");
                 String errorReason = (String) error.get("reason");
-                Map<?, ?> errorCause = (Map<?, ?>) error.get("caused_by");
-                Stats.newSenderError(String.format("%s %s, caused by %s %s", type, errorReason, errorCause.get("type"), errorCause.get("reason")));
+                Optional<Map<?, ?>> errorCause = Optional.ofNullable((Map<?, ?>) error.get("caused_by"));
+                Stats.newSenderError(String.format("%s %s, caused by %s %s",
+                                                   type, errorReason,
+                                                   errorCause.orElse(Collections.emptyMap()).get("type"), errorCause.orElse(Collections.emptyMap()).get("reason")));
             }
         }
         return response;
