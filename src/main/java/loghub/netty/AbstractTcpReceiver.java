@@ -17,7 +17,9 @@ import loghub.IpConnectionContext;
 import loghub.configuration.Properties;
 import loghub.netty.servers.AbstractTcpServer;
 import loghub.netty.servers.NettyIpServer;
+import loghub.receivers.Blocking;
 
+@Blocking
 public abstract class AbstractTcpReceiver<R extends AbstractTcpReceiver<R, S, B>,
                                           S extends AbstractTcpServer<S, B>,
                                           B extends AbstractTcpServer.Builder<S, B>
