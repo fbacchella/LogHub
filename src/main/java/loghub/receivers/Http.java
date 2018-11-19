@@ -33,6 +33,7 @@ import loghub.netty.http.RequestAccept;
 import loghub.netty.servers.AbstractNettyServer;
 import loghub.processors.ParseJson;
 
+@Blocking(false)
 public class Http extends AbstractTcpReceiver<Http, Http.HttpReceiverServer, Http.HttpReceiverServer.Builder> {
 
     private static final ParseJson jsonParser = new ParseJson();

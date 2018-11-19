@@ -13,6 +13,8 @@ import java.lang.annotation.Target;
  * the destination queue is full, instead of dropping the event. It's too be used for
  * receiver that read from an already buffered source like Kafka or a followed file.
  * 
+ * <p>When just given, it defaults to block. But it can also be given a value that will reverse it's comportement</p>
+ * 
  * @author Fabrice Bacchella
  *
  */
@@ -21,5 +23,5 @@ import java.lang.annotation.Target;
 @Target(TYPE)
 @Inherited
 public @interface Blocking {
-
+    boolean value() default true;
 }

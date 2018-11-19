@@ -180,7 +180,7 @@ public class TestHttp {
                   i -> {}, 200);
     }
 
-    @Test
+    @Test(timeout=5000)
     public void testHttpFull() throws IOException {
         makeReceiver( i -> {}, Collections.emptyMap());
         try {

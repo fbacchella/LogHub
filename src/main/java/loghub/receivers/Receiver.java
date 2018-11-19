@@ -28,6 +28,7 @@ import loghub.decoders.Decoder.RuntimeDecodeException;
 import loghub.security.AuthenticationHandler;
 import loghub.security.ssl.ClientAuthentication;
 
+@Blocking(false)
 public abstract class Receiver extends Thread implements Iterator<Event>, Closeable {
 
     protected final Logger logger;
@@ -51,7 +52,18 @@ public abstract class Receiver extends Thread implements Iterator<Event>, Closea
     public Receiver(){
         setDaemon(true);
         logger = LogManager.getLogger(Helpers.getFirstInitClass());
-        blocking = getClass().getAnnotation(Blocking.class) != null;
+        blocking = isBlocking();
+    }
+
+    /**
+     * <p>Check if the receiver should block or discard when destination is full.
+     * Default is fault.</p>
+     * 
+     * <p>The base method check the value of the {@link Blocking annotation}
+     * @return
+     */
+    protected boolean isBlocking() {
+        return getClass().getAnnotation(Blocking.class).value();
     }
 
     public boolean configure(Properties properties) {
