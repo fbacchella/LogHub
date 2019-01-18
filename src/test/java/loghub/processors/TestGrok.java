@@ -133,4 +133,14 @@ public class TestGrok {
         Assert.assertEquals("FAILED", grok.fieldFunction(e, "www.yahoo.com").toString());
     }
 
+    @Test
+    public void TestBadPattern() throws ProcessorException {
+        Grok grok = new Grok();
+        grok.setPattern("*");
+
+        Properties props = new Properties(Collections.emptyMap());
+
+        Assert.assertFalse("Failed to handle bad pattern", grok.configure(props));
+    }
+
 }

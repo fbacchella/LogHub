@@ -3,12 +3,14 @@ package loghub.processors;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 
+import org.apache.logging.log4j.Level;
 import org.jcodings.specific.USASCIIEncoding;
 import org.jcodings.specific.UTF8Encoding;
 import org.joni.Matcher;
 import org.joni.Option;
 import org.joni.Regex;
 import org.joni.Region;
+import org.joni.exception.SyntaxException;
 
 import loghub.Event;
 import loghub.Helpers;
@@ -50,21 +52,27 @@ public class OnigurumaRegex extends FieldsProcessor {
 
     @Override
     public boolean configure(Properties properties) {
-        // Generate pattern using both ASCII and UTF-8
-        byte[] patternSrcBytesAscii = getBytesAscii(patternSrc);
-        // the ascii pattern is generated only if the source pattern is pure ASCII
-        if (patternSrcBytesAscii != null) {
-            patternAscii = new Regex(patternSrcBytesAscii, 0, patternSrcBytesAscii.length, Option.NONE, USASCIIEncoding.INSTANCE);
-        } else {
-            patternAscii = null;
-        }
-        byte[] patternSrcBytesUtf8 = patternSrc.getBytes(StandardCharsets.UTF_8);
-        patternUtf8 = new Regex(patternSrcBytesUtf8, 0, patternSrcBytesUtf8.length, Option.NONE, UTF8Encoding.INSTANCE);
-        if (patternUtf8.numberOfCaptures() != patternUtf8.numberOfNames()) {
-            logger.error("Can't have two captures with same name");
+        try {
+            // Generate pattern using both ASCII and UTF-8
+            byte[] patternSrcBytesAscii = getBytesAscii(patternSrc);
+            // the ascii pattern is generated only if the source pattern is pure ASCII
+            if (patternSrcBytesAscii != null) {
+                patternAscii = new Regex(patternSrcBytesAscii, 0, patternSrcBytesAscii.length, Option.NONE, USASCIIEncoding.INSTANCE);
+            } else {
+                patternAscii = null;
+            }
+            byte[] patternSrcBytesUtf8 = patternSrc.getBytes(StandardCharsets.UTF_8);
+            patternUtf8 = new Regex(patternSrcBytesUtf8, 0, patternSrcBytesUtf8.length, Option.NONE, UTF8Encoding.INSTANCE);
+            if (patternUtf8.numberOfCaptures() != patternUtf8.numberOfNames()) {
+                logger.error("Can't have two captures with same name");
+                return false;
+            } else {
+                return super.configure(properties);
+            }
+        } catch (SyntaxException e) {
+            logger.error("Error parsing regex:" + Helpers.resolveThrowableException(e));
+            logger.catching(Level.DEBUG, e);
             return false;
-        } else {
-            return super.configure(properties);
         }
     }
 

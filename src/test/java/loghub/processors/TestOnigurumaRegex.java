@@ -111,4 +111,15 @@ public class TestOnigurumaRegex {
         Assert.assertTrue(e.process(grok));
     }
 
+    @Test
+    public void testBadPattern() throws ProcessorException {
+        OnigurumaRegex grok = new OnigurumaRegex();
+        grok.setField("message");
+        grok.setPattern("*");
+
+        Properties props = new Properties(Collections.emptyMap());
+
+        Assert.assertTrue("Failed to handle bad pattern", grok.configure(props));
+    }
+
 }
