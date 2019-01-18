@@ -180,7 +180,7 @@ public class ElasticSearch extends AbstractHttpSender {
             throw e.getCause();
         }
         Map<String, ? extends Object> response = doquery(request, "/_bulk", reader, Collections.emptyMap(), null);
-        if (Boolean.TRUE.equals(response.get("errors"))) {
+        if (response != null && Boolean.TRUE.equals(response.get("errors"))) {
             @SuppressWarnings("unchecked")
             List<Map<String, ?>> items = (List<Map<String, ?>>) response.get("items");
             for (Map<String, ?> i: items) {
