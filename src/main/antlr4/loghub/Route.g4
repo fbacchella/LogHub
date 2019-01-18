@@ -463,24 +463,13 @@ patternLiteral
     ;
 
 PatternLiteral
-    :   '/' PatternFirstCharacter PatternCharacter* '/'
+    :   '/' PatternCharacter+ '/' {loghub.Helpers.cleanPattern(this);}
     ;
     
 fragment
 PatternCharacter
-    :   ~[/]
-    ;
-
-fragment
-PatternFirstCharacter
-    :   ~[/*]
-    ;
-
-fragment
-PatternEscapeSequence
-    :   '\\' [btnfr"'\\.?+]
-    |   OctalEscape
-    |   UnicodeEscape
+    :   '\\' [\r\n] [\r\n]?   // A unix-macos-windows line feed needs to be escaped
+    |   ~[/\r\n]
     ;
 
 StringLiteral

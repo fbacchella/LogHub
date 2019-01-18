@@ -227,4 +227,28 @@ public class TestConfigurations {
         Configuration.parse(new StringReader(confile));
     }
 
+    @Test
+    public void testComplexPattern() throws ConfigException, IOException, InterruptedException {
+        String confile = "pipeline[pattern] {\n" + 
+                        "   [b] ==~ /a\\\n" + 
+                        "b\\d+/ ? [a]=1:[a]=2" + 
+                        "}\n" + 
+                        "output $pattern | { loghub.senders.InMemorySender }";
+        
+        Properties conf = Tools.loadConf(new StringReader(confile));
+        EventsProcessor ep = new EventsProcessor(conf.mainQueue, conf.outputQueues, conf.namedPipeLine, conf.maxSteps, conf.repository);
+        ep.start();
+        
+        Event sent = Tools.getEvent();
+        sent.put("b", "a\nb1");
+        sent.inject(conf.namedPipeLine.get("pattern"), conf.mainQueue);
+        try {
+            sent.inject(conf.namedPipeLine.get("pattern"), conf.mainQueue);
+            Event received = conf.outputQueues.get("pattern").poll(1, TimeUnit.SECONDS);
+            Assert.assertEquals(1, received.get("a"));
+        } finally {
+            ep.interrupt();
+        }
+    }
+
 }

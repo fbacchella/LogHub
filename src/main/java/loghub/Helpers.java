@@ -415,4 +415,10 @@ public final class Helpers {
         });
     }
 
+    private static final Pattern regexContent = Pattern.compile("\\\\(\r|\n){1,2}?");
+    public static void cleanPattern(RouteLexer p) {
+        String newText = regexContent.matcher(p.getText()).replaceAll("$1");
+        p.setText(newText);
+    }
+
 }
