@@ -119,7 +119,7 @@ public class TestOnigurumaRegex {
 
         Properties props = new Properties(Collections.emptyMap());
 
-        Assert.assertTrue("Failed to handle bad pattern", grok.configure(props));
+        Assert.assertFalse("Failed to handle bad pattern", grok.configure(props));
     }
 
 }
