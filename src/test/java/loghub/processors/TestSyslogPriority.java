@@ -32,7 +32,7 @@ public class TestSyslogPriority {
     @Test
     public void TestResolvedString() throws ProcessorException {
         SyslogPriority sp = new SyslogPriority();
-        sp.setField("message");
+        sp.setField(new String[] {"message"});
 
         Properties props = new Properties(Collections.emptyMap());
 
@@ -51,7 +51,7 @@ public class TestSyslogPriority {
     @Test
     public void TestNotResolvedString() throws ProcessorException {
         SyslogPriority sp = new SyslogPriority();
-        sp.setField("message");
+        sp.setField(new String[] {"message"});
         sp.setResolve(false);
 
         Properties props = new Properties(Collections.emptyMap());
@@ -71,7 +71,7 @@ public class TestSyslogPriority {
     @Test
     public void TestResolvedNumber() throws ProcessorException {
         SyslogPriority sp = new SyslogPriority();
-        sp.setField("message");
+        sp.setField(new String[] {"message"});
 
         Properties props = new Properties(Collections.emptyMap());
 
@@ -90,7 +90,7 @@ public class TestSyslogPriority {
     @Test
     public void TestNotResolvedNumber() throws ProcessorException {
         SyslogPriority sp = new SyslogPriority();
-        sp.setField("message");
+        sp.setField(new String[] {"message"});
         sp.setResolve(false);
 
         Properties props = new Properties(Collections.emptyMap());

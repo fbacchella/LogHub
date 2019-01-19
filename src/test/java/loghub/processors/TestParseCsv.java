@@ -33,7 +33,7 @@ public class TestParseCsv {
     public void test1() throws ProcessorException {
         ParseCsv parse = new ParseCsv();
         parse.setHeaders(new String[]{"a", "b", "c", "d"});
-        parse.setField("message");
+        parse.setField(new String[] {"message"});
         parse.setColumnSeparator(';');
         parse.setFeatures(new String[]{"TRIM_SPACES"});
         Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));

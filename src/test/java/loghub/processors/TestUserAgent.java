@@ -16,7 +16,7 @@ public class TestUserAgent {
     @Test
     public void test1() throws ProcessorException {
         UserAgent ua = new UserAgent();
-        ua.setField("User-Agent");
+        ua.setField(new String[] {"User-Agent"});
         ua.setCacheSize(10);
         ua.setDestination("agent");
         Assert.assertTrue("configuration failed", ua.configure(new Properties(Collections.emptyMap())));
@@ -29,11 +29,11 @@ public class TestUserAgent {
         Object family = event.applyAtPath(Action.GET, new String[] {"agent", "userAgent", "family"}, null, false);
         Assert.assertEquals("can't find user agent parsing", "Mobile Safari", family);
     }
-    
+
     @Test
     public void testDownload() throws ProcessorException {
         UserAgent ua = new UserAgent();
-        ua.setField("User-Agent");
+        ua.setField(new String[] {"User-Agent"});
         ua.setCacheSize(10);
         ua.setDestination("agent");
         ua.setAgentsUrl("https://raw.githubusercontent.com/ua-parser/uap-core/master/regexes.yaml");

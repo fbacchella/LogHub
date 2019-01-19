@@ -22,7 +22,7 @@ public class TestScanBinary {
         ScanBinary fs = new ScanBinary();
         fs.setBitsNames(new String[] {"PF_PROT", "PF_WRITE", "PF_USER", "PF_RSVD", "PF_INSTR"});
         fs.configure(new Properties(Collections.emptyMap()));
-        fs.setField("binary");
+        fs.setField(new String[] {"binary"});
 
         Event e = Event.emptyEvent(ConnectionContext.EMPTY);
         e.put("binary", "13");
@@ -37,7 +37,7 @@ public class TestScanBinary {
         fs.setBitsNames(new String[] {"a", "b", "c"});
         fs.setAsMap(true);
         fs.configure(new Properties(Collections.emptyMap()));
-        fs.setField("binary");
+        fs.setField(new String[] {"binary"});
 
         Event e = Event.emptyEvent(ConnectionContext.EMPTY);
         e.put("binary", 0b101);
@@ -55,7 +55,7 @@ public class TestScanBinary {
         fs.setBitsNames(new String[] {"a", "b", "c"});
         fs.setFieldsLength(new Integer[] {3, 2, 1});
         fs.configure(new Properties(Collections.emptyMap()));
-        fs.setField("binary");
+        fs.setField(new String[] {"binary"});
         fs.setDestination("value");
 
         Event e = Event.emptyEvent(ConnectionContext.EMPTY);

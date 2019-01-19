@@ -1,4 +1,4 @@
-package loghub.processors;
+ package loghub.processors;
 
 import java.util.Collections;
 import java.util.Iterator;
@@ -13,7 +13,7 @@ public abstract class AsyncFieldsProcessor<FI> extends FieldsProcessor {
 
     private class AsyncFieldSubProcessor extends FieldSubProcessor implements AsyncProcessor<FI> {
 
-        AsyncFieldSubProcessor(Iterator<String> processing) {
+        AsyncFieldSubProcessor(Iterator<String[]> processing) {
             super(processing);
         }
 
@@ -64,14 +64,14 @@ public abstract class AsyncFieldsProcessor<FI> extends FieldsProcessor {
     private int timeout = 10;
 
     public abstract Object asyncProcess(Event event, FI content) throws ProcessorException;
-    public abstract boolean manageException(Event event, Exception e, String destination) throws ProcessorException;
+    public abstract boolean manageException(Event event, Exception e, String[] destination) throws ProcessorException;
 
     @Override
-    FieldSubProcessor getSubProcessor(Iterator<String> processing) {
+    FieldSubProcessor getSubProcessor(Iterator<String[]> processing) {
         return new AsyncFieldSubProcessor(processing);
     }
 
-    boolean doExecution(Event event, String field) throws ProcessorException {
+    boolean doExecution(Event event, String[] field) throws ProcessorException {
         delegate(Collections.singleton(field), event);
         // never reached code
         return false;

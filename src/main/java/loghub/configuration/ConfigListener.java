@@ -247,19 +247,25 @@ class ConfigListener extends RouteBaseListener {
         pushLiteral(ctx, null);
     }
 
+    @SuppressWarnings({ "unchecked", "rawtypes" })
     @Override
     public void exitBean(BeanContext ctx) {
         String beanName = null;
-        ObjectWrapped<Object> beanValue = null;
+        ObjectWrapped<Object> beanValue = stack.popTyped();
         if(ctx.condition != null) {
             beanName = ctx.condition.getText();
-            beanValue = stack.popTyped();
         } else if (ctx.expression() != null) {
             beanName = "if";
-            beanValue = stack.popTyped();
+        } else if (ctx.fev != null) {
+            stack.push(beanValue);
+            beanName = "field";
+            String[] ev = convertEventVariable(ctx.fev);
+            beanValue = (ObjectWrapped<Object>) new ObjectWrapped(ev);
+        } else if (ctx.fsv != null) {
+            beanName = "field";
+            beanValue = (ObjectWrapped<Object>) new ObjectWrapped(new String[] {ctx.fsv.getText()});
         } else {
             beanName = ctx.beanName().getText();
-            beanValue = stack.popTyped();
         }
         doBean(beanName, beanValue, ctx);
     }

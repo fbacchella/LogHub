@@ -246,7 +246,7 @@ public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<Dn
     }
 
     @Override
-    public boolean manageException(Event event, Exception ex, String destination) throws ProcessorException {
+    public boolean manageException(Event event, Exception ex, String[]  destination) throws ProcessorException {
         if (ex instanceof DnsNameResolverException) {
             return false;
         } else {

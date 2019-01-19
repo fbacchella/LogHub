@@ -53,7 +53,7 @@ public class TestFieldsAsynchronous {
 
         @Override
         public boolean manageException(Event event, Exception e,
-                                       String destination)
+                                       String[] destination)
                                                        throws ProcessorException {
             try {
                 return onexception.apply(event, e);
@@ -135,7 +135,7 @@ public class TestFieldsAsynchronous {
         Event e = Tools.getEvent();
         e.put("a", 1);
         SleepingProcessor sp = new SleepingProcessor();
-        sp.setField("a");
+        sp.setField(new String[] {"a"});
         Groovy gp = new Groovy();
         gp.setScript("event.a = 2");
         sp.setFailure(gp);
@@ -152,7 +152,7 @@ public class TestFieldsAsynchronous {
         Event e = Tools.getEvent();
         e.put("a", 1);
         SleepingProcessor sp = new SleepingProcessor();
-        sp.setField("a");
+        sp.setField(new String[] {"a"});
         Groovy gp = new Groovy();
         gp.setScript("event.a = 2");
         sp.setFailure(gp);
@@ -174,7 +174,7 @@ public class TestFieldsAsynchronous {
         Event e = Tools.getEvent();
         e.put("a", 1);
         SleepingProcessor sp = new SleepingProcessor();
-        sp.setField("a");
+        sp.setField(new String[] {"a"});
         Groovy gp = new Groovy();
         gp.setScript("event.a = 2");
         sp.setException(gp);

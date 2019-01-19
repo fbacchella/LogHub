@@ -7,6 +7,7 @@ import java.lang.annotation.Documented;
 import java.lang.annotation.Inherited;
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -21,6 +22,7 @@ import loghub.Processor;
 import loghub.ProcessorException;
 import loghub.UncheckedProcessorException;
 import loghub.VarFormatter;
+import loghub.Event.Action;
 import loghub.configuration.Properties;
 
 public abstract class FieldsProcessor extends Processor {
@@ -39,19 +41,19 @@ public abstract class FieldsProcessor extends Processor {
         REMOVE
     }
 
-    private String field = "message";
+    private String[] field = new String[] {"message"};
     private VarFormatter destinationFormat = null;
-    private String[] fields = new String[] {};
+    private String[][] fields = new String[][] {};
     private Pattern[] patterns = new Pattern[]{};
 
     protected class FieldSubProcessor extends Processor {
 
-        final Iterator<String> processing;
+        final Iterator<String[]> processing;
 
         // Will be used by AsyncFieldSubProcessor
-        protected String toprocess;
+        protected String[] toprocess;
 
-        FieldSubProcessor(Iterator<String> processing) {
+        FieldSubProcessor(Iterator<String[]> processing) {
             super(FieldsProcessor.this.logger);
             this.processing = processing;
         }
@@ -62,7 +64,8 @@ public abstract class FieldsProcessor extends Processor {
             if (processing.hasNext()) {
                 event.insertProcessor(this);
             }
-            if (event.containsKey(toprocess)) {
+            boolean containsKey =  Boolean.TRUE.equals(event.applyAtPath(Action.CONTAINS, toprocess, null));
+            if (containsKey) {
                 return FieldsProcessor.this.filterField(event, toprocess);
             } else {
                 throw event.buildException("field " + toprocess + " vanished");
@@ -93,12 +96,12 @@ public abstract class FieldsProcessor extends Processor {
     @Override
     public boolean process(Event event) throws ProcessorException {
         if (patterns.length != 0) {
-            Set<String> nextfields = new HashSet<>();
+            Set<String[]> nextfields = new HashSet<>();
             //Build a set of fields that needs to be processed
             for (String eventField: new HashSet<>(event.keySet())) {
                 for (Pattern p: patterns) {
                     if (p.matcher(eventField).matches()) {
-                        nextfields.add(eventField);
+                        nextfields.add(new String[] {eventField});
                         break;
                     }
                 }
@@ -113,7 +116,7 @@ public abstract class FieldsProcessor extends Processor {
                 throw IgnoredEventException.INSTANCE;
             }
         } else {
-            if (event.containsKey(field)) {
+            if (Boolean.TRUE.equals(event.applyAtPath(Action.CONTAINS, field, null))) {
                 return doExecution(event, field);
             } else {
                 throw IgnoredEventException.INSTANCE;
@@ -121,13 +124,13 @@ public abstract class FieldsProcessor extends Processor {
         }
     }
 
-    boolean doExecution(Event event, String currentField) throws ProcessorException {
+    boolean doExecution(Event event, String[] currentField) throws ProcessorException {
         return filterField(event, currentField);
     }
     
-    private boolean filterField(Event event, String currentField) throws ProcessorException {
+    private boolean filterField(Event event, String[] currentField) throws ProcessorException {
         logger.trace("transforming field {} on {}", currentField, event);
-        Object value = event.get(currentField);
+        Object value = event.applyAtPath(Action.GET, currentField, null);
         if (getClass().getAnnotation(ProcessNullField.class) == null && value == null) {
             return false;
         }
@@ -141,13 +144,13 @@ public abstract class FieldsProcessor extends Processor {
         return processField(event, currentField, resolver);
     }
 
-    protected boolean processField(Event event, String currentField, Supplier<Object> resolver) throws ProcessorException {
+    protected boolean processField(Event event, String[] currentField, Supplier<Object> resolver) throws ProcessorException {
         try {
             Object processed = resolver.get();
             if ( ! (processed instanceof RUNSTATUS)) {
-                event.put(getDestination(currentField), processed);
+                event.applyAtPath(Action.PUT, getDestination(currentField), processed);
             } else if (processed == RUNSTATUS.REMOVE) {
-                event.remove(currentField);
+                event.applyAtPath(Action.REMOVE, currentField, null);
             }
             return processed != RUNSTATUS.FAILED;
         } catch (UncheckedProcessorException ex) {
@@ -156,11 +159,11 @@ public abstract class FieldsProcessor extends Processor {
             } catch (ProcessorException.PausedEventException | ProcessorException.DroppedEventException e) {
                 throw e;
             } catch (UncheckedProcessorException e) {
-                ProcessorException newpe = event.buildException("field \"" + currentField + "\" invalid: " + e.getMessage(), (Exception) e.getProcessoException().getCause());
+                ProcessorException newpe = event.buildException("Field with path \"" + Arrays.toString(currentField) + "\" invalid: " + e.getMessage(), (Exception) e.getProcessoException().getCause());
                 newpe.setStackTrace(e.getStackTrace());
                 throw newpe;
             } catch (ProcessorException e) {
-                ProcessorException newpe = event.buildException("field \"" + currentField + "\" invalid: " + e.getMessage(), (Exception) e.getCause());
+                ProcessorException newpe = event.buildException("Field with path \"" + Arrays.toString(currentField) + "\" invalid: " + e.getMessage(), (Exception) e.getCause());
                 newpe.setStackTrace(e.getStackTrace());
                 throw newpe;
             }
@@ -169,8 +172,8 @@ public abstract class FieldsProcessor extends Processor {
 
     public abstract Object fieldFunction(Event event, Object value) throws ProcessorException;
 
-    void delegate(Set<String> nextfields, Event event) {
-        Iterator<String> processing = nextfields.iterator();
+    void delegate(Set<String[]> nextfields, Event event) {
+        Iterator<String[]> processing = nextfields.iterator();
         Processor fieldProcessor = getSubProcessor(processing);
         if (processing.hasNext()) {
             event.insertProcessor(fieldProcessor);
@@ -178,15 +181,15 @@ public abstract class FieldsProcessor extends Processor {
         throw IgnoredEventException.INSTANCE;
     }
 
-    FieldSubProcessor getSubProcessor(Iterator<String> processing) {
+    FieldSubProcessor getSubProcessor(Iterator<String[]> processing) {
         return new FieldSubProcessor(processing);
     }
 
-    protected final String getDestination(String srcField) {
+    protected final String[] getDestination(String[] currentField) {
         if (destinationFormat == null) {
-            return srcField;
+            return currentField;
         } else {
-            return destinationFormat.format(Collections.singletonMap("field", srcField));
+            return new String[] {destinationFormat.format(Collections.singletonMap("field", currentField[currentField.length - 1]))};
         }
     }
 
@@ -201,11 +204,11 @@ public abstract class FieldsProcessor extends Processor {
         }
     }
 
-    public String getField() {
+    public String[] getField() {
         return field;
     }
 
-    public void setField(String field) {
+    public void setField(String[] field) {
         this.field = field;
     }
 

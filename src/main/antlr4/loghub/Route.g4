@@ -34,13 +34,14 @@ object: QualifiedIdentifier beansDescription ;
 beansDescription: ('{' (bean (',' bean)*)? ','? '}')? ;
 
 bean
-    :   'if' ':' expression
-    |   condition=('success' | 'failure' | 'exception') ':' pipenode
-    |   (beanName ':' beanValue)
+    : 'if' ':' expression
+    | condition=('success' | 'failure' | 'exception') ':' pipenode
+    | 'field' ':' (fsv=stringLiteral | fev=eventVariable)
+    | (beanName ':' beanValue)
     ;
 
 beanName
-    :'index' | 'seeds' | 'doFire' | 'onFire' | 'expiration' | 'forward' | 'default' | 'merge' | 'inPipeline' | 'path'
+    :'index' | 'seeds' | 'doFire' | 'onFire' | 'expiration' | 'forward' | 'default' | 'merge' | 'inPipeline' | 'path' | 'field'
     | Identifier
     ;
 

@@ -30,7 +30,7 @@ public class TestVarExtractor {
     public void test1() throws ProcessorException {
         VarExtractor t = new VarExtractor();
         t.setPath("sub");
-        t.setField(".message");
+        t.setField(new String[] {".message"});
         t.setParser("(?<name>[a-z]+)[=:](?<value>[^;]+);?");
         Event e = Tools.getEvent();
         e.put("message", "a=1;b:2;c");
@@ -45,7 +45,7 @@ public class TestVarExtractor {
     @Test
     public void test2() throws ProcessorException {
         VarExtractor t = new VarExtractor();
-        t.setField("message");
+        t.setField(new String[] {".message"});
         t.setParser("(?<name>[a-z]+)[=:](?<value>[^;]+);?");
         Event e = Tools.getEvent();
         e.put("message", "a=1;b:2");
@@ -58,7 +58,7 @@ public class TestVarExtractor {
     @Test
     public void test3() throws ProcessorException {
         VarExtractor t = new VarExtractor();
-        t.setField("message");
+        t.setField(new String[] {".message"});
 
         Event e = Tools.getEvent();
         e.put("message", "a=1;b:2;c");

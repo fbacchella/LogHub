@@ -30,7 +30,7 @@ public class TestGrok {
     @Test
     public void TestLoadPatterns1() throws ProcessorException {
         Grok grok = new Grok();
-        grok.setField("message");
+        grok.setField(new String[] {"message"});
         grok.setPattern("%{COMBINEDAPACHELOG}");
 
         Properties props = new Properties(Collections.emptyMap());
@@ -47,7 +47,7 @@ public class TestGrok {
     @Test
     public void TestLoadPatterns2() throws ProcessorException {
         Grok grok = new Grok();
-        grok.setField("message");
+        grok.setField(new String[] {"message"});
         grok.setPattern("(?:%{SYSLOG_LINE})");
 
         Properties props = new Properties(Collections.emptyMap());
@@ -64,7 +64,7 @@ public class TestGrok {
     @Test
     public void TestLoadPatterns3() throws ProcessorException {
         Grok grok = new Grok();
-        grok.setField("message");
+        grok.setField(new String[] {"message"});
         grok.setCustomPatterns(Collections.singletonMap("FETCHING", "fetching user_deny.db entry"));
         grok.setPattern("%{FETCHING:message} for '%{USERNAME:imap_user}'");
 

@@ -146,7 +146,7 @@ public class TestConfigurations {
         Tools.runProcessing(sent, conf.namedPipeLine.get("main"), conf);
         Event received = conf.mainQueue.remove();
         Assert.assertEquals("Subpipeline not processed", "1", received.get("a"));
-   }
+    }
 
     @Test
     public void testSubPipeline() throws ProcessorException, InterruptedException, ConfigException, IOException {
@@ -234,11 +234,11 @@ public class TestConfigurations {
                         "b\\d+/ ? [a]=1:[a]=2" + 
                         "}\n" + 
                         "output $pattern | { loghub.senders.InMemorySender }";
-        
+
         Properties conf = Tools.loadConf(new StringReader(confile));
         EventsProcessor ep = new EventsProcessor(conf.mainQueue, conf.outputQueues, conf.namedPipeLine, conf.maxSteps, conf.repository);
         ep.start();
-        
+
         Event sent = Tools.getEvent();
         sent.put("b", "a\nb1");
         sent.inject(conf.namedPipeLine.get("pattern"), conf.mainQueue);
@@ -249,6 +249,24 @@ public class TestConfigurations {
         } finally {
             ep.interrupt();
         }
+    }
+
+    @Test
+    public void testPathString() throws ConfigException, IOException {
+        String confile = "pipeline[bad] {\n" + 
+                        "   loghub.processors.DecodeUrl {field: \"a\"}\n" + 
+                        "}\n" + 
+                        "";
+        Configuration.parse(new StringReader(confile));
+    }
+
+    @Test
+    public void testPathEventVariable() throws ConfigException, IOException {
+        String confile = "pipeline[bad] {\n" + 
+                        "   loghub.processors.DecodeUrl {field: [a b]}\n" + 
+                        "}\n" + 
+                        "";
+        Configuration.parse(new StringReader(confile));
     }
 
 }

@@ -69,7 +69,7 @@ public class TestNettyNameResolver {
 
         Tools.ProcessingStatus status = dorequest(i -> {
             i.setResolver("169.254.1.1");
-            i.setField("host");
+            i.setField(new String[] {"host"});
             i.setDestination("fqdn");
             i.setTimeout(1);
         }, e);
@@ -91,7 +91,7 @@ public class TestNettyNameResolver {
         e.put("host", InetAddress.getByName("169.254.1.1"));
 
         Tools.ProcessingStatus status = dorequest(i -> {
-            i.setField("host");
+            i.setField(new String[] {"host"});
             i.setDestination("fqdn");
             i.setTimeout(1);
         } , e, "1.1.254.169.in-addr.arpa");
@@ -110,7 +110,7 @@ public class TestNettyNameResolver {
         e.put("host", InetAddress.getByName("198.41.0.4"));
 
         Tools.ProcessingStatus status = dorequest(i -> {
-            i.setField("host");
+            i.setField(new String[] {"host"});
             i.setDestination("fqdn");
         } , e, "4.0.41.198.in-addr.arpa");
 
@@ -128,7 +128,7 @@ public class TestNettyNameResolver {
         e.put("host", "198.41.0.4");
 
         Tools.ProcessingStatus status = dorequest(i -> {
-            i.setField("host");
+            i.setField(new String[] {"host"});
             i.setDestination("fqdn");
         } , e, "4.0.41.198.in-addr.arpa");
 
@@ -148,7 +148,7 @@ public class TestNettyNameResolver {
         e.put("host", InetAddress.getByName("2001:503:ba3e::2:30"));
 
         Tools.ProcessingStatus status = dorequest(i -> {
-            i.setField("host");
+            i.setField(new String[] {"host"});
             i.setDestination("fqdn");
         } , e, "0.3.0.0.2.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.e.3.a.b.3.0.5.0.1.0.0.2.ip6.arpa");
 
@@ -167,7 +167,7 @@ public class TestNettyNameResolver {
         e.put("host", "2001:503:ba3e::2:30");
 
         Tools.ProcessingStatus status = dorequest(i -> {
-            i.setField("host");
+            i.setField(new String[] {"host"});
             i.setDestination("fqdn");
         } , e, "0.3.0.0.2.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.e.3.a.b.3.0.5.0.1.0.0.2.ip6.arpa");
 

@@ -31,7 +31,7 @@ public class TestConvert {
     
     private void check(String className, Class<?> reference, String invalue, Object outvalue) throws ProcessorException {
         Convert cv = new Convert();
-        cv.setField("message");
+        cv.setField(new String[] {"message"});
         cv.setClassName(className);
 
         Properties props = new Properties(Collections.emptyMap());
