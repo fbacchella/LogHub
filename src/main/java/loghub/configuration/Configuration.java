@@ -168,7 +168,7 @@ public class Configuration {
     private void resolveSources(ConfigurationContext tree, ConfigListener conflistener) throws ConfigException {
         for (SourcesContext sc: tree.sources()) {
             for (SourcedefContext sdc: sc.sourcedef()) {
-                String name = sdc.Identifier().getText();
+                String name = sdc.identifier().getText();
                 if (! conflistener.sources.containsKey("name")) {
                     String className = sdc.object().QualifiedIdentifier().getText();
                     // Pre-create source object

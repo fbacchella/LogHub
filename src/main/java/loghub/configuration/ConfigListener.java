@@ -273,8 +273,7 @@ class ConfigListener extends RouteBaseListener {
     @Override
     public void exitMergeArgument(MergeArgumentContext ctx) {
         String beanName = ctx.type.getText();
-        ObjectWrapped<Object> beanValue;
-        beanValue = stack.popTyped();
+        ObjectWrapped<Object> beanValue = stack.popTyped();
         doBean(beanName, beanValue, ctx);
     }
 
@@ -363,7 +362,7 @@ class ConfigListener extends RouteBaseListener {
     @Override
     public void exitForkpiperef(ForkpiperefContext ctx) {
         Forker fk = new Forker();
-        fk.setDestination(ctx.Identifier().getText());
+        fk.setDestination(ctx.identifier().getText());
         ProcessorInstance pi = new ProcessorInstance(fk);
         stack.push(pi);
     }
@@ -371,7 +370,7 @@ class ConfigListener extends RouteBaseListener {
     @Override
     public void exitForwardpiperef(ForwardpiperefContext ctx) {
         Forwarder fw = new Forwarder();
-        fw.setDestination(ctx.Identifier().getText());
+        fw.setDestination(ctx.identifier().getText());
         ProcessorInstance pi = new ProcessorInstance(fw);
         stack.push(pi);
     }
@@ -424,7 +423,7 @@ class ConfigListener extends RouteBaseListener {
     @Override
     public void enterPipeline(PipelineContext ctx) {
         depth++;
-        currentPipeLineName = ctx.Identifier().getText();
+        currentPipeLineName = ctx.identifier().getText();
     }
 
     @Override
@@ -605,7 +604,7 @@ class ConfigListener extends RouteBaseListener {
 
     @Override
     public void enterSourcedef(SourcedefContext ctx) {
-        String sourceName = ctx.Identifier().getText();
+        String sourceName = ctx.identifier().getText();
         SourceProvider sp = sources.get(sourceName);
         sp.source.setName(sourceName);
         stack.push(sp);
@@ -694,7 +693,7 @@ class ConfigListener extends RouteBaseListener {
         } else if (ev.MetaName() != null && ! withRoot) {
             return new String[] { ev.MetaName().getText() };
         } else {
-            List<String> path = ev.Identifier().stream().map(i -> i.getText()).collect(Collectors.toList());
+            List<String> path = ev.identifier().stream().map(i -> i.getText()).collect(Collectors.toList());
             if (withRoot ) {
                 if ( ! keyString.isEmpty()) {
                     path.add(0, keyString);

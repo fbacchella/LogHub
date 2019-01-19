@@ -5,7 +5,7 @@
 grammar Route;
 
 configuration: (pipeline|input|output|sources|property)+ EOF;
-pipeline: 'pipeline' '[' Identifier ']' '{' pipenodeList? '}' ( '|' '$' finalpiperef) ?;
+pipeline: 'pipeline' '[' identifier ']' '{' pipenodeList? '}' ( '|' '$' finalpiperef) ?;
 input: 'input' '{'  inputObjectlist '}' ('|' '$' piperef)?;
 output: 'output' ('$' piperef '|' )? '{' outputObjectlist '}';
 inputObjectlist: (object (',' object)*)? ','?;
@@ -13,8 +13,8 @@ outputObjectlist: (object (',' object)*)? ','?;
 pipenodeList: ( (pipenode | '+' forkpiperef ) (('+' forkpiperef)|('|' pipenode))*) ('>' forwardpiperef)?
               |  ('>' forwardpiperef)
     ;
-forkpiperef: '$' Identifier;
-forwardpiperef: '$' Identifier;
+forkpiperef: '$' identifier;
+forwardpiperef: '$' identifier;
 pipenode
     : test
     | merge
@@ -41,14 +41,13 @@ bean
     ;
 
 beanName
-    :'index' | 'seeds' | 'doFire' | 'onFire' | 'expiration' | 'forward' | 'default' | 'merge' | 'inPipeline' | 'path' | 'field'
-    | Identifier
+    : identifier
     ;
 
 beanValue: object | literal | array | map | expression;
 finalpiperef: piperef;
 
-piperef:  Identifier;
+piperef:  identifier;
 
 merge
     : 'merge' '{' (mergeArgument (',' mergeArgument)*)? ','? '}'
@@ -116,7 +115,7 @@ expression
     |   ev = eventVariable
     |   qi = QualifiedIdentifier
     |   opu = unaryOperator e2 = expression
-    |   'new' newclass = (QualifiedIdentifier | Identifier) '(' expression ')'
+    |   'new' newclass = qualifiedIdentifier '(' expression ')'
     |   e1 = expression opb=binaryOperator e2=expression
     |   e1 = expression opm=matchOperator patternLiteral
     |   '(' e3 = expression ')'
@@ -179,13 +178,13 @@ map
     ;
 
 source
-    : '%' Identifier
+    : '%' identifier
     ;
 
-eventVariable: '[' root='.'? (key='@timestamp' | (key='@context' (Identifier ( Identifier)*))? | MetaName | (Identifier ( Identifier)*)) ']' ;
+eventVariable: '[' root='.'? (key='@timestamp' | (key='@context' (identifier ( identifier)*))? | MetaName | (identifier ( identifier)*)) ']' ;
 
 propertyName
-    :   Identifier | QualifiedIdentifier
+    :   identifier | QualifiedIdentifier
     ;
     
 sources
@@ -193,11 +192,20 @@ sources
     ;
 
 sourcedef
-    :  Identifier ':' object
+    :  identifier ':' object
+    ;
+
+identifier
+    :'index' | 'seeds' | 'doFire' | 'onFire' | 'expiration' | 'forward' | 'default' | 'merge' | 'inPipeline' | 'path' | 'bean' | 'field'
+    | Identifier
     ;
 
 Identifier
     :   JavaLetter JavaLetterOrDigit*
+    ;
+
+qualifiedIdentifier
+    : QualifiedIdentifier
     ;
 
 QualifiedIdentifier
