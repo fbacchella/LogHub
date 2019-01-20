@@ -91,12 +91,12 @@ public class TestUdp {
         }
     }
 
-    @Test(timeout=1000)
+    @Test(timeout=5000)
     public void testsmall() throws InterruptedException, IOException {
         testsend(1500);
     }
 
-    @Test(timeout=1000)
+    @Test(timeout=5000)
     public void testbig() throws InterruptedException, IOException {
         testsend(16384);
     }
