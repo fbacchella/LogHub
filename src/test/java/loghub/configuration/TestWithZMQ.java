@@ -66,6 +66,9 @@ public class TestWithZMQ {
         for(Receiver r: conf.receivers) {
             r.stopReceiving();
         }
+        for(Receiver r: conf.receivers) {
+            r.close();
+        }
         for(Sender s: conf.senders) {
             s.stopSending();
         }
