@@ -1,5 +1,30 @@
 package loghub.zmq;
 
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.security.InvalidKeyException;
+import java.security.KeyFactory;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.KeyStore;
+import java.security.KeyStore.PrivateKeyEntry;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.PrivateKey;
+import java.security.PublicKey;
+import java.security.Security;
+import java.security.UnrecoverableEntryException;
+import java.security.cert.Certificate;
+import java.security.cert.CertificateException;
+import java.security.spec.InvalidKeySpecException;
+import java.util.Base64;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.concurrent.FutureTask;
@@ -12,6 +37,10 @@ import org.zeromq.ZMQ.Socket;
 import org.zeromq.ZMQException;
 import org.zeromq.ZPoller;
 
+import fr.loghub.naclprovider.NaclCertificate;
+import fr.loghub.naclprovider.NaclPrivateKeySpec;
+import fr.loghub.naclprovider.NaclProvider;
+import fr.loghub.naclprovider.NaclPublicKeySpec;
 import loghub.Helpers;
 import loghub.ThreadBuilder;
 import loghub.zmq.ZMQHelper.Method;
@@ -19,17 +48,47 @@ import zmq.socket.Sockets;
 
 public class SmartContext {
 
+    public static final String CURVEPREFIX="Curve";
+
     private static final Logger logger = LogManager.getLogger();
 
     private static SmartContext instance = null;
-    private final ZContext context;
+    public final ZContext context;
     private volatile boolean running = true;
+    private byte[] privateKey = null;
+    private byte[] publicKey = null;
 
-    public static synchronized SmartContext getContext() {
-        return getContext(1);
+    // Load the nacl security handler 
+    static {
+        Security.insertProviderAt(new NaclProvider(), Security.getProviders().length + 1);
     }
 
-    public static synchronized SmartContext getContext(int numSocket) {
+    public static synchronized SmartContext build(Map<Object, Object> collect) {
+        int numSocket;
+        Path zmqKeyStore;
+        if (collect.containsKey("keystore")) {
+            zmqKeyStore = Paths.get((String)collect.remove("keystore"));
+        } else {
+            zmqKeyStore = null;
+        }
+        if (collect.containsKey("numSocket")) {
+            numSocket = (Integer) collect.remove("numSocket");
+        } else {
+            numSocket = 1;
+        }
+        return getContext(numSocket, zmqKeyStore);
+    }
+
+
+    public static synchronized SmartContext getContext(Path zmqKeyStore) {
+        return getContext(1, zmqKeyStore);
+    }
+
+    public static synchronized SmartContext getContext() {
+        return getContext(1, null);
+    }
+
+    public static synchronized SmartContext getContext(int numSocket, Path zmqKeyStore) {
         if (instance == null) {
             instance = new SmartContext(numSocket);
             logger.debug("New SmartContext instance");
@@ -45,7 +104,68 @@ public class SmartContext {
                 }
             }).setShutdownHook(true).build();
         }
+        if (zmqKeyStore != null) {
+            try {
+                instance.checkKeyStore(zmqKeyStore);
+            } catch (KeyStoreException | NoSuchAlgorithmException
+                            | CertificateException | InvalidKeySpecException
+                            | UnrecoverableEntryException | IOException | InvalidKeyException ex) {
+                throw new IllegalArgumentException("Can't load the key store", ex);
+            }
+        }
         return instance;
+    }
+
+    private void checkKeyStore(Path zmqKeyStore) throws KeyStoreException, NoSuchAlgorithmException, CertificateException, IOException, InvalidKeySpecException, UnrecoverableEntryException, InvalidKeyException {
+        String keystoretype;
+        switch (Helpers.getMimeType(zmqKeyStore.toString())) {
+        case "application/x-java-keystore":
+            keystoretype = "JKS";
+            break;
+        case "application/x-java-jce-keystore":
+            keystoretype = "JCEKS";
+            break;
+        case "application/x-java-bc-keystore":
+            keystoretype = "BKS";
+            break;
+        default:
+            throw new IllegalArgumentException("Unsupported key store");
+        }
+        KeyStore ks = KeyStore.getInstance(keystoretype);
+
+        char[] emptypass = new char[] {};
+        KeyFactory kf = KeyFactory.getInstance(NaclProvider.NAME);
+        PrivateKey prk = null;
+        PublicKey puk = null;
+
+        if (! Files.exists(zmqKeyStore)) {
+            ks.load(null);
+
+            KeyPairGenerator kpg = KeyPairGenerator.getInstance(kf.getAlgorithm());
+            kpg.initialize(256);
+            KeyPair kp = kpg.generateKeyPair();
+            NaclCertificate certificate = new NaclCertificate(kp.getPublic());
+
+            ks.setKeyEntry("loghubzmqpair", kp.getPrivate(), emptypass, new Certificate[] {certificate});
+            ks.store(new FileOutputStream(zmqKeyStore.toFile()), emptypass);
+
+            prk = kp.getPrivate();
+            Path publicKeyPath = Paths.get(zmqKeyStore.toString().replaceAll("\\.[a-z]+$", ".pub"));
+            try (PrintWriter writer = new PrintWriter(publicKeyPath.toFile(), "UTF-8")) {
+                writer.print(CURVEPREFIX + " ");
+                writer.println(Base64.getEncoder().encodeToString(kf.getKeySpec(kp.getPublic(), NaclPublicKeySpec.class).getBytes()));
+            }
+            puk = kp.getPublic();
+        } else {
+            ks.load(new FileInputStream(zmqKeyStore.toFile()), emptypass);
+            KeyStore.Entry e = ks.getEntry("zmqpair", new KeyStore.PasswordProtection(emptypass));
+            if (e instanceof PrivateKeyEntry) {
+                prk = ((PrivateKeyEntry) e).getPrivateKey();
+                puk = ((PrivateKeyEntry) e).getCertificate().getPublicKey();
+            }
+        }
+        privateKey = kf.getKeySpec(prk, NaclPrivateKeySpec.class).getBytes();
+        publicKey = kf.getKeySpec(puk, NaclPublicKeySpec.class).getBytes();
     }
 
     private SmartContext(int numSocket) {
@@ -58,20 +178,33 @@ public class SmartContext {
 
     public Socket newSocket(Method method, Sockets type, String endpoint, int hwm, int timeout) {
         Socket socket = context.createSocket(type.ordinal());
+        String url = endpoint + ":" + type.toString() + ":" + method.getSymbol();
+        logger.debug("new socket: {}", url);
         socket.setRcvHWM(hwm);
         socket.setSndHWM(hwm);
         socket.setSendTimeOut(timeout);
         socket.setReceiveTimeOut(timeout);
         method.act(socket, endpoint);
-        String url = endpoint + ":" + type.toString() + ":" + method.getSymbol();
-        socket.setIdentity(url.getBytes());
-        logger.debug("new socket: {}", url);
+        socket.setIdentity(url.getBytes(StandardCharsets.UTF_8));
         return socket;
     }
 
     public Socket newSocket(Method method, Sockets type, String endpoint) {
         // All socket have high hwm and are blocking
         return newSocket(method, type, endpoint, 1, -1);
+    }
+
+    public void setCurveServer(Socket socket) {
+        socket.setCurveServer(true);
+        socket.setCurvePublicKey(publicKey);
+        socket.setCurveSecretKey(privateKey);
+    }
+
+    public void setCurveClient(Socket socket, byte[] serverPublicKey) {
+        socket.setCurveServer(false);
+        socket.setCurvePublicKey(publicKey);
+        socket.setCurveSecretKey(privateKey);
+        socket.setCurveServerKey(serverPublicKey);
     }
 
     public void close(Socket socket) {
@@ -91,13 +224,14 @@ public class SmartContext {
 
     public Future<Boolean> terminate() {
         synchronized (SmartContext.class) {
+            SmartContext.instance = null;
             if (running) {
                 running = false;
                 FutureTask<Boolean> terminator = new FutureTask<>(() -> {
                     synchronized (SmartContext.class) {
                         try {
                             logger.debug("Terminating ZMQ context");
-                            instance.context.close();
+                            context.close();
                         } catch (ZMQException | zmq.ZError.IOException | zmq.ZError.CtxTerminatedException | zmq.ZError.InstantiationException e) {
                             ZMQHelper.logZMQException(logger, "terminate", e);
                         } catch (java.nio.channels.ClosedSelectorException e) {
@@ -142,4 +276,5 @@ public class SmartContext {
 
         return new Socket[] {socket1, socket2};
     }
+
 }

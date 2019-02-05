@@ -69,10 +69,36 @@
             <artifactId>jackson-dataformat-msgpack</artifactId>
             <version>0.8.16</version>
         </dependency>
+        <!-- **************** -->
+        <!-- ZMQ dependencies -->
         <dependency>
             <groupId>org.zeromq</groupId>
             <artifactId>jeromq</artifactId>
             <version>0.4.3</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.zeromq</groupId>
+                    <artifactId>jnacl</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <!-- Original code for org.zeromq:jnacl -->
+        <dependency>
+            <groupId>eu.neilalexander</groupId>
+            <artifactId>jnacl</artifactId>
+            <version>1.0.0</version>
+        </dependency>
+        <dependency>
+            <groupId>fr.loghub</groupId>
+            <artifactId>naclprovider</artifactId>
+            <version>1.0.0-SNAPSHOT</version>
+        </dependency>
+        <!-- **************** -->
+        <!-- end of ZMQ dependencies -->
+        <dependency>
+            <groupId>fr.loghub</groupId>
+            <artifactId>naclprovider</artifactId>
+            <version>0.0.1-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>org.apache.httpcomponents</groupId>

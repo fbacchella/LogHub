@@ -2,8 +2,11 @@ package loghub.senders;
 
 import org.zeromq.ZMQ.Socket;
 
+import org.zeromq.ZMQException;
+
 import loghub.BuilderClass;
 import loghub.Event;
+import loghub.configuration.Properties;
 import loghub.zmq.SmartContext;
 import loghub.zmq.ZMQHelper;
 import lombok.Setter;
@@ -21,6 +24,14 @@ public class ZMQ extends Sender {
         private int hwm = 1000;
         @Setter
         private String method = ZMQHelper.Method.BIND.name();
+        private byte[] serverKey = null;
+        @Setter
+        private String security = null;
+
+        public void setServerKey(String key) {
+            this.serverKey = ZMQHelper.parseServerIdentity(key);
+        }
+
         public ZMQ build() {
             return new ZMQ(this);
         }
@@ -35,9 +46,29 @@ public class ZMQ extends Sender {
 
     public ZMQ(Builder builder) {
         super(builder);
-        ZMQHelper.Method method = ZMQHelper.Method.valueOf(builder.method.toUpperCase());
-        Sockets type = Sockets.valueOf(builder.type.trim().toUpperCase());
-        sendsocket = ctx.newSocket(method, type, builder.destination);
+        Socket trysendsocket = null;
+        try {
+            ZMQHelper.Method method = ZMQHelper.Method.valueOf(builder.method.toUpperCase());
+            Sockets type = Sockets.valueOf(builder.type.trim().toUpperCase());
+            trysendsocket = ctx.newSocket(method, type, builder.destination);
+            if ("Curve".equals(builder.security) && builder.serverKey != null) {
+                ctx.setCurveClient(trysendsocket, builder.serverKey);
+            } else if ("Curve".equals(builder.security)) {
+                ctx.setCurveServer(trysendsocket);
+            }
+        } catch (ZMQException e) {
+            ZMQHelper.logZMQException(logger, "", e);
+        }
+        sendsocket = trysendsocket;
+    }
+
+    @Override
+    public boolean configure(Properties properties) {
+        if (sendsocket == null) {
+            return false;
+        } else {
+            return super.configure(properties);
+        }
     }
 
     @Override

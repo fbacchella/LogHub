@@ -2,6 +2,7 @@ package loghub.receivers;
 
 import java.io.IOException;
 import java.nio.channels.SelectableChannel;
+import java.util.Base64;
 import java.util.UUID;
 import java.util.function.BiFunction;
 
@@ -51,6 +52,9 @@ public class ZMQ extends Receiver {
     private Sockets type = Sockets.SUB;
     private int hwm = 1000;
     private Socket listeningSocket;
+    private byte[] serverKey = null;
+    private String security = null;
+
     private volatile boolean running = false;
 
     public ZMQ() {
@@ -66,6 +70,11 @@ public class ZMQ extends Receiver {
             listeningSocket.setHWM(hwm);
             if(type == Sockets.SUB){
                 listeningSocket.subscribe(new byte[] {});
+            }
+            if ("Curve".equals(security) && serverKey != null) {
+                ctx.setCurveClient(listeningSocket, serverKey);
+            } else if ("Curve".equals(security)) {
+                ctx.setCurveServer(listeningSocket);
             }
             boolean configured = super.configure(properties);
             stopPair = ctx.getPair(getName() + "/" + UUID.randomUUID());
@@ -183,6 +192,22 @@ public class ZMQ extends Receiver {
     @Override
     public String getReceiverName() {
         return "ZMQ";
+    }
+
+    public String getServerKey() {
+        return SmartContext.CURVEPREFIX + " " + Base64.getEncoder().encodeToString(serverKey);
+    }
+
+    public void setServerKey(String key) {
+        this.serverKey = ZMQHelper.parseServerIdentity(key);
+    }
+
+    public String getSecurity() {
+        return security;
+    }
+
+    public void setSecurity(String security) {
+        this.security = security;
     }
 
 }

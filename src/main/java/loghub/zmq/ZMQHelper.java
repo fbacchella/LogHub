@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.net.SocketException;
 import java.nio.channels.ClosedByInterruptException;
 import java.nio.channels.ClosedChannelException;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -150,4 +151,17 @@ public class ZMQHelper {
         }
     }
 
+    public static byte[] parseServerIdentity(String information) {
+        String[] keyInfos = information.split(" +");
+        if (SmartContext.CURVEPREFIX.equals(keyInfos[0]) && keyInfos.length == 2) {
+            byte[] serverPublicKey = Base64.getDecoder().decode(keyInfos[1]);
+            if (serverPublicKey.length != 32) {
+                throw new IllegalArgumentException("Not a valid server key");
+            } else {
+                return serverPublicKey;
+            }
+        } else {
+            throw new IllegalArgumentException("Not a valid server key");
+        }
+    }
 }

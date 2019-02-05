@@ -52,6 +52,7 @@ import loghub.receivers.Receiver;
 import loghub.security.JWTHandler;
 import loghub.security.ssl.ContextLoader;
 import loghub.senders.Sender;
+import loghub.zmq.SmartContext;
 
 public class Properties extends HashMap<String, Object> {
 
@@ -254,6 +255,12 @@ public class Properties extends HashMap<String, Object> {
         ssl = ContextLoader.build(properties.entrySet().stream().filter(i -> i.getKey().startsWith("ssl.")).collect(Collectors.toMap( i -> i.getKey().substring(4), j -> j.getValue())));
 
         jwtHandler = buildJwtAlgorithm(properties.entrySet().stream().filter(i -> i.getKey().startsWith("jwt.")).collect(Collectors.toMap( i -> i.getKey().substring(4), j -> j.getValue())));
+
+        // Check if some ZMQ properties given. It not, just let the receiver or senders do that
+        Map<Object, Object> zmqProperties = properties.entrySet().stream().filter(i -> i.getKey().startsWith("zmq.")).collect(Collectors.toMap( i -> i.getKey().substring(4), j -> j.getValue()));
+        if (! zmqProperties.isEmpty()) {
+            SmartContext.build(zmqProperties);
+        }
 
         javax.security.auth.login.Configuration jc = null;
         if (properties.containsKey("jaasConfig")) {
