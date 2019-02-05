@@ -147,7 +147,9 @@ public class SmartContext {
             NaclCertificate certificate = new NaclCertificate(kp.getPublic());
 
             ks.setKeyEntry("loghubzmqpair", kp.getPrivate(), emptypass, new Certificate[] {certificate});
-            ks.store(new FileOutputStream(zmqKeyStore.toFile()), emptypass);
+            try (FileOutputStream ksstream = new FileOutputStream(zmqKeyStore.toFile())) {
+                ks.store(ksstream, emptypass);
+            }
 
             prk = kp.getPrivate();
             Path publicKeyPath = Paths.get(zmqKeyStore.toString().replaceAll("\\.[a-z]+$", ".pub"));
@@ -157,7 +159,9 @@ public class SmartContext {
             }
             puk = kp.getPublic();
         } else {
-            ks.load(new FileInputStream(zmqKeyStore.toFile()), emptypass);
+            try (FileInputStream ksstream = new FileInputStream(zmqKeyStore.toFile())) {
+                ks.load(ksstream, emptypass);
+            }
             KeyStore.Entry e = ks.getEntry("zmqpair", new KeyStore.PasswordProtection(emptypass));
             if (e instanceof PrivateKeyEntry) {
                 prk = ((PrivateKeyEntry) e).getPrivateKey();
