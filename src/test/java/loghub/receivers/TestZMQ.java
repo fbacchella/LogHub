@@ -70,6 +70,7 @@ public class TestZMQ {
             Assert.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
             Assert.assertEquals("Missing message", "message 1", e.get("message"));
             r.stopReceiving();
+            r.close();
         }
     }
 
@@ -119,6 +120,7 @@ public class TestZMQ {
                 r.setServerKey("Curve "+ Base64.getEncoder().encodeToString(serverKeys[0]));
             }, sender);
             Assert.assertEquals(Mechanism.CURVE, sender.getMechanism());
+            ctx.close(sender);
         } finally {
             ctx.terminate();
         };

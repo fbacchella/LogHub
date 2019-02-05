@@ -60,6 +60,8 @@ public class CurveTest {
 
             server.send("Hello, World!");
             Assert.assertEquals("Hello, World!", client.recvStr());
+            ctx.close(server);
+            ctx.close(client);
         } finally {
             ctx.terminate();
         }
