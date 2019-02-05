@@ -41,21 +41,21 @@ public class ProcessorTest {
     public void test() throws IOException, DecodeException, ProcessorException, InterruptedException {
         Processor p = new Processor();
 
-        InputStream is = getClass().getResourceAsStream("/netflow/packets/ipfix.dat");
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        byte[] buffer = new byte[8*1024];
-        for (int length; (length = is.read(buffer)) != -1; ){
-            out.write(buffer, 0, length);
+        ByteBuf bbuffer = null;
+        try (InputStream is = getClass().getResourceAsStream("/netflow/packets/ipfix.dat") ;
+             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            byte[] buffer = new byte[8*1024];
+            for (int length; (length = is.read(buffer)) != -1; ){
+                out.write(buffer, 0, length);
+            }
+            bbuffer = Unpooled.wrappedBuffer(out.toByteArray());
         }
-        ByteBuf bbuffer = Unpooled.wrappedBuffer(out.toByteArray());
         Decoder nfd = NetflowDecoder.getBuilder().build();
         IpConnectionContext dummyctx = new IpConnectionContext(new InetSocketAddress(0), new InetSocketAddress(0), null);
         Map<String, Object> content = nfd.decode(dummyctx, bbuffer);
-
         Event e = Tools.getEvent();
         e.setTimestamp((Date) content.remove(Event.TIMESTAMPKEY));
         e.putAll(content);
-
         ProcessingStatus ps = Tools.runProcessing(e, "main", Collections.singletonList(p));
         logger.debug(ps.mainQueue.remove());
         logger.debug(ps.mainQueue.remove());

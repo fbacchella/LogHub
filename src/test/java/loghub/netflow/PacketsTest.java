@@ -111,18 +111,18 @@ public class PacketsTest {
                 for (int length; (length = i.read(buffer)) != -1; ){
                     out.write(buffer, 0, length);
                 }
-                i.close();
                 return out;
             } catch (Exception e) {
+                Assert.fail(e.getMessage());
+                return null;
+            } finally {
                 try {
                     i.close();
                 } catch (IOException e1) {
+                    // Don't care
                 }
-                Assert.fail(e.getMessage());
-                return null;
             }
         })
-        .filter(i -> i != null)
         .map(i -> Unpooled.wrappedBuffer(i.toByteArray()))
         .forEach(i -> {
             try {
@@ -150,7 +150,6 @@ public class PacketsTest {
         .map(i -> {logger.debug(i + ": "); return i;})
         .map(i -> "/netflow/packets/" + i)
         .map(i-> getClass().getResourceAsStream(i))
-        .filter(i -> i != null)
         .map(i -> {
             try {
                 ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -162,9 +161,14 @@ public class PacketsTest {
             } catch (Exception e) {
                 Assert.fail(e.getMessage());
                 return null;
+            } finally {
+                try {
+                    i.close();
+                } catch (IOException e) {
+                    // Don't care
+                }
             }
         })
-        .filter(i -> i != null)
         .map(i -> Unpooled.wrappedBuffer(i.toByteArray()))
         .forEach(i -> {
             try {
