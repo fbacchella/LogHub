@@ -111,8 +111,13 @@ public class PacketsTest {
                 for (int length; (length = i.read(buffer)) != -1; ){
                     out.write(buffer, 0, length);
                 }
+                i.close();
                 return out;
             } catch (Exception e) {
+                try {
+                    i.close();
+                } catch (IOException e1) {
+                }
                 Assert.fail(e.getMessage());
                 return null;
             }
