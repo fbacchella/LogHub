@@ -51,7 +51,7 @@ public class Script extends Processor {
     @SuppressWarnings("unchecked")
     @Override
     public boolean configure(Properties properties) {
-        synchronized (this) {
+        synchronized (Script.class) {
             if(factory == null) {
                 factory = new ScriptEngineManager(properties.classloader);
             }
@@ -75,15 +75,16 @@ public class Script extends Processor {
                 logger.error("langage not found for script {}", script);
                 return false;
             }
-            final ScriptEngine logengine = engine;
+            ScriptEngine logengine = engine;
             logger.debug("script language is {}", () -> logengine.getFactory().getLanguageName());
             if( ! (engine instanceof Invocable)) {
                 logger.error("engine for langage {} is not invocable", () -> logengine.getFactory().getLanguageName());
                 return false;
             }
-            Reader r = getScriptReader();
-            inv = (Invocable) engine;
-            settings = (Map<String, String>) engine.eval(r);
+            try (Reader r = getScriptReader()) {
+                inv = (Invocable) engine;
+                settings = (Map<String, String>) engine.eval(r);
+            }
             if(settings == null) {
                 settings = (Map<String, String>) engine.get("settings");
             }
