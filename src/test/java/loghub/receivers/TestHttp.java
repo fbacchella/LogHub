@@ -115,6 +115,7 @@ public class TestHttp {
         }
         String[] result = new BufferedReader(new InputStreamReader(conn.getInputStream(), "UTF-8")).lines().toArray(String[]::new);
         Assert.assertEquals(expected, conn.getResponseCode());
+        conn.disconnect();
         return result;
     }
 

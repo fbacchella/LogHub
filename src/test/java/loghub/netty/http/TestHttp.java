@@ -74,6 +74,7 @@ public class TestHttp {
         makeServer(Collections.emptyMap(), i -> i);
         HttpURLConnection cnx = (HttpURLConnection) theurl.openConnection();
         Assert.assertEquals(404, cnx.getResponseCode());
+        cnx.disconnect();
     }
 
     @Test
@@ -96,6 +97,7 @@ public class TestHttp {
         });
         HttpURLConnection cnx = (HttpURLConnection) theurl.openConnection();
         Assert.assertEquals(503, cnx.getResponseCode());
+        cnx.disconnect();
     }
 
     @Test
@@ -108,6 +110,7 @@ public class TestHttp {
         cnx.setInstanceFollowRedirects(true);
         Assert.assertEquals(404, cnx.getResponseCode());
         Assert.assertTrue(cnx.getURL().toString().endsWith("/static/index.html"));
+        cnx.disconnect();
     }
 
 }

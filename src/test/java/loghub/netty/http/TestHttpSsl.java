@@ -132,6 +132,7 @@ public class TestHttpSsl {
         try(Scanner s = new Scanner(cnx.getInputStream())) {
             s.skip(".*");
         }
+        cnx.disconnect();
     }
 
     @Test(expected=javax.net.ssl.SSLHandshakeException.class)
@@ -144,6 +145,7 @@ public class TestHttpSsl {
         try(Scanner s = new Scanner(cnx.getInputStream())) {
             s.skip(".*");
         }
+        cnx.disconnect();
     }
 
     @Test
@@ -156,6 +158,7 @@ public class TestHttpSsl {
         try(Scanner s = new Scanner(cnx.getInputStream())) {
             s.skip(".*");
         }
+        cnx.disconnect();
     }
 
     @Test(expected=IOException.class)
@@ -164,6 +167,7 @@ public class TestHttpSsl {
         HttpsURLConnection cnx = (HttpsURLConnection) theurl.openConnection();
         cnx.setSSLSocketFactory(getContext.apply(Collections.singletonMap("issuers", new String[] {"cn=notlocalhost"})).getSocketFactory());
         cnx.connect();
+        cnx.disconnect();
     }
 
     @Test(expected=javax.net.ssl.SSLHandshakeException.class)
@@ -176,6 +180,7 @@ public class TestHttpSsl {
         try(Scanner s = new Scanner(cnx.getInputStream())) {
             s.skip(".*");
         }
+        cnx.disconnect();
     }
 
     @Test(expected=SocketException.class)
@@ -186,6 +191,7 @@ public class TestHttpSsl {
         // This generate two log lines, HttpURLConnection retry the connection
         cnx.connect();
         cnx.getResponseCode();
+        cnx.disconnect();
     }
 
 }
