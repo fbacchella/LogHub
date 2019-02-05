@@ -38,11 +38,11 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import loghub.Helpers;
-import loghub.security.ssl.MultiKeyStore.SubKeyStore;
+import loghub.security.ssl.MultiKeyStoreProvider.SubKeyStore;
 
 public class MultiKeyStoreSpi extends KeyStoreSpi {
 
-    private static final Logger logger = LogManager.getLogger(MultiKeyStore.class);
+    private static final Logger logger = LogManager.getLogger(MultiKeyStoreProvider.class);
 
     static private final CertificateFactory cf;
     static private final MessageDigest digest;
@@ -398,9 +398,10 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
     private void loadKeystore(String type, String filename, String password) throws KeyStoreException, NoSuchAlgorithmException, CertificateException, IOException {
         logger.trace("Loading keystore {} as {}", filename, type);
         KeyStore ks = KeyStore.getInstance(type);
-        InputStream is = new FileInputStream(filename);
-        ks.load(is, password.toCharArray());
-        stores.add(ks);
+        try (InputStream is = new FileInputStream(filename)) {
+            ks.load(is, password.toCharArray());
+            stores.add(ks);
+        }
     }
 
     private void loadPem(String filename) {
@@ -437,7 +438,6 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-
     }
 
 }

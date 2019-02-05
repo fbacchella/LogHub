@@ -65,13 +65,13 @@ public class ContextLoader {
             Object trusts = properties.get("trusts");
             X509KeyManager kmtranslator = null;
             if (trusts != null) {
-                MultiKeyStore.SubKeyStore param = new MultiKeyStore.SubKeyStore("");
+                MultiKeyStoreProvider.SubKeyStore param = new MultiKeyStoreProvider.SubKeyStore("");
                 if (trusts instanceof Object[]) {
                     Arrays.stream((Object[]) trusts).forEach( i -> param.addSubStore(i.toString(), null));
                 } else {
                     param.addSubStore(trusts.toString(), null);
                 }
-                KeyStore ks = KeyStore.getInstance(MultiKeyStore.NAME, MultiKeyStore.PROVIDERNAME);
+                KeyStore ks = KeyStore.getInstance(MultiKeyStoreProvider.NAME, MultiKeyStoreProvider.PROVIDERNAME);
                 ks.load(param);
                 TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
                 tmf.init(ks);
@@ -92,8 +92,8 @@ public class ContextLoader {
                             return null;
                         }
                     })
-                            .filter(i -> i != null)
-                            .collect(Collectors.toSet());
+                                    .filter(i -> i != null)
+                                    .collect(Collectors.toSet());
                     logger.debug("Will filter valid ssl client issuers as {}", validIssuers);
                 } else {
                     validIssuers = Collections.emptySet();
@@ -103,8 +103,8 @@ public class ContextLoader {
                     private Principal[] filterIssuers(Principal[] issuers) {
                         if ( ! validIssuers.isEmpty()) {
                             return Arrays.stream(issuers)
-                                    .filter(validIssuers::contains)
-                                    .toArray(Principal[]::new);
+                                            .filter(validIssuers::contains)
+                                            .toArray(Principal[]::new);
                         } else if (issuers != null) {
                             return issuers;
                         } else {
