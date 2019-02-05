@@ -47,9 +47,9 @@ public class CurveTest {
         byte[][] serverKeys = curve.keypair();
 
         String rendezvous = "tcp://localhost:" + Tools.tryGetPort();
-        try(Socket server = ctx.newSocket(Method.CONNECT, Sockets.PUSH, rendezvous, 100, 1000);
-            Socket client = ctx.newSocket(Method.BIND, Sockets.PULL, rendezvous, 100, 1000);
-           ) {
+        Socket server = ctx.newSocket(Method.CONNECT, Sockets.PUSH, rendezvous, 100, 1000);
+        Socket client = ctx.newSocket(Method.BIND, Sockets.PULL, rendezvous, 100, 1000);
+        try {
             ctx.setCurveClient(client, serverKeys[0]);
             server.setCurveServer(true);
             server.setCurvePublicKey(serverKeys[0]);
@@ -60,9 +60,9 @@ public class CurveTest {
 
             server.send("Hello, World!");
             Assert.assertEquals("Hello, World!", client.recvStr());
+        } finally {
             ctx.close(server);
             ctx.close(client);
-        } finally {
             ctx.terminate();
         }
     }
@@ -78,9 +78,9 @@ public class CurveTest {
         byte[][] serverKeys = curve.keypair();
 
         String rendezvous = "tcp://localhost:" + Tools.tryGetPort();
-        try(Socket server = ctx.newSocket(Method.CONNECT, Sockets.PULL, rendezvous, 100, 1000);
-            Socket client = ctx.newSocket(Method.BIND, Sockets.PUSH, rendezvous, 100, 1000);
-           ) {
+        Socket server = ctx.newSocket(Method.CONNECT, Sockets.PULL, rendezvous, 100, 1000);
+        Socket client = ctx.newSocket(Method.BIND, Sockets.PUSH, rendezvous, 100, 1000);
+        try {
             ctx.setCurveClient(client, serverKeys[0]);
             server.setCurveServer(true);
             server.setCurvePublicKey(serverKeys[0]);
@@ -92,6 +92,8 @@ public class CurveTest {
             client.send("Hello, World!");
             Assert.assertEquals("Hello, World!", server.recvStr());
         } finally {
+            ctx.close(server);
+            ctx.close(client);
             ctx.terminate();
         }
     }
@@ -107,9 +109,9 @@ public class CurveTest {
         byte[][] serverKeys = curve.keypair();
 
         String rendezvous = "tcp://localhost:" + Tools.tryGetPort();
-        try(Socket server = ctx.newSocket(Method.CONNECT, Sockets.PUSH, rendezvous, 100, 1000);
-            Socket client = ctx.newSocket(Method.BIND, Sockets.PULL, rendezvous, 100, 1000);
-           ) {
+        Socket server = ctx.newSocket(Method.CONNECT, Sockets.PUSH, rendezvous, 100, 1000);
+        Socket client = ctx.newSocket(Method.BIND, Sockets.PULL, rendezvous, 100, 1000);
+        try {
             // Putting the wrong key
             ctx.setCurveClient(client, serverKeys[1]);
             server.setCurveServer(true);
@@ -122,9 +124,10 @@ public class CurveTest {
             server.send("Hello, World!");
             Assert.assertNull(client.recvStr());
         } finally {
+            ctx.close(server);
+            ctx.close(client);
             ctx.terminate();
         }
     }
-
 
 }

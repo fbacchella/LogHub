@@ -228,13 +228,13 @@ public class SmartContext {
 
     public Future<Boolean> terminate() {
         synchronized (SmartContext.class) {
-            SmartContext.instance = null;
             if (running) {
                 running = false;
                 FutureTask<Boolean> terminator = new FutureTask<>(() -> {
                     synchronized (SmartContext.class) {
                         try {
                             logger.debug("Terminating ZMQ context");
+                            context.getSockets().forEach(context::destroySocket);
                             context.close();
                         } catch (ZMQException | zmq.ZError.IOException | zmq.ZError.CtxTerminatedException | zmq.ZError.InstantiationException e) {
                             ZMQHelper.logZMQException(logger, "terminate", e);
