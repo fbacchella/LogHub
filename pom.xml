@@ -12,12 +12,12 @@
         <source>1.8</source>
         <target>1.8</target>
         <mavenSurefirePlugin>2.19.1</mavenSurefirePlugin>
-        <log4j>2.11.0</log4j>
-        <antlr>4.7.1</antlr>
+        <log4j>2.11.1</log4j>
+        <antlr>4.7.2</antlr>
         <javadoc>2.10.3</javadoc>
-        <jackson>2.9.6</jackson>
+        <jackson>2.9.8</jackson>
         <metrics>4.0.0</metrics>
-        <cache2k>1.0.2.Final</cache2k>
+        <cache2k>1.2.0.Final</cache2k>
         <mainClass>loghub.Start</mainClass>
         <dependency.locations.enabled>false</dependency.locations.enabled>
         <jacoco>0.8.2</jacoco>
@@ -108,12 +108,12 @@
         <dependency>
             <groupId>org.snmp4j</groupId>
             <artifactId>snmp4j</artifactId>
-            <version>2.6.2</version>
+            <version>2.7.0</version>
         </dependency>
         <dependency>
             <groupId>org.codehaus.groovy</groupId>
             <artifactId>groovy</artifactId>
-            <version>2.5.0</version>
+            <version>2.5.6</version>
         </dependency>
         <dependency>
             <groupId>org.antlr</groupId>
@@ -166,7 +166,7 @@
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-all</artifactId>
-            <version>4.1.25.Final</version>
+            <version>4.1.33.Final</version>
         </dependency>
         <dependency>
             <groupId>io.dropwizard.metrics</groupId>
@@ -206,17 +206,17 @@
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-csv</artifactId>
-            <version>1.5</version>
+            <version>1.6</version>
         </dependency>
         <dependency>
             <groupId>org.jruby.joni</groupId>
             <artifactId>joni</artifactId>
-            <version>2.1.16</version>
+            <version>2.1.25</version>
         </dependency>
         <dependency>
             <groupId>org.apache.kafka</groupId>
             <artifactId>kafka-clients</artifactId>
-            <version>1.1.0</version>
+            <version>1.1.1</version>
         </dependency>
         <dependency>
             <groupId>com.beust</groupId>
@@ -226,18 +226,23 @@
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
-            <version>1.18.0</version>
+            <version>1.18.4</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>com.auth0</groupId>
             <artifactId>java-jwt</artifactId>
-            <version>3.4.0</version>
+            <version>3.7.0</version>
         </dependency>
         <dependency>
             <groupId>io.krakens</groupId>
             <artifactId>java-grok</artifactId>
             <version>0.1.9</version>
+        </dependency>
+        <dependency>
+            <groupId>com.github.vladimir-bukhtoyarov</groupId>
+            <artifactId>bucket4j-core</artifactId>
+            <version>4.3.0</version>
         </dependency>
         <dependency>
             <groupId>com.github.ua-parser</groupId>
@@ -376,7 +381,6 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>${mavenSurefirePlugin}</version>
                 <configuration>
-                    <systemProperties>
                         <property>
                             <name>java.awt.headless</name>
                             <value>true</value>
@@ -385,7 +389,6 @@
                             <name>maven.surefire</name>
                             <value>true</value>
                         </property>
-                    </systemProperties>
                 </configuration>
             </plugin>
             <plugin>
