@@ -50,7 +50,7 @@ public class TestIntegrated {
         LogUtils.setLevel(logger, Level.DEBUG, "loghub.EventsProcessor");
     }
 
-    @Test(timeout=5000)
+    @Test(timeout=10000)
     public void runStart() throws ConfigException, IOException, InterruptedException, IntrospectionException, InstanceNotFoundException, MalformedObjectNameException, ReflectionException {
         loghub.Stats.reset();
         String conffile = Configuration.class.getClassLoader().getResource("test.conf").getFile();
