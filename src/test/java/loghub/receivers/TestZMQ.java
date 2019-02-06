@@ -70,7 +70,6 @@ public class TestZMQ {
             Assert.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
             Assert.assertEquals("Missing message", "message 1", e.get("message"));
             r.stopReceiving();
-            r.close();
         }
     }
 
@@ -121,8 +120,6 @@ public class TestZMQ {
             }, sender);
             Assert.assertEquals(Mechanism.CURVE, sender.getMechanism());
             ctx.close(sender);
-        } finally {
-            ctx.terminate();
         };
     }
 

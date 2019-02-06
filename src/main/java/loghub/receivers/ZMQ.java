@@ -57,10 +57,6 @@ public class ZMQ extends Receiver {
 
     private volatile boolean running = false;
 
-    public ZMQ() {
-        super();
-    }
-
     @Override
     public boolean configure(Properties properties) {
         try {
@@ -116,9 +112,12 @@ public class ZMQ extends Receiver {
                     return true;
                 }), ZPoller.ERR | ZPoller.IN);
                 zpoller.register(stopPair[1], new ZMQHandler((socket, events)  -> {
+                    logger.debug("Received stop signal");
+                    running = false;
                     return false;
                 }), ZPoller.ERR | ZPoller.IN);
                 zpoller.setGlobalHandler(new ZMQHandler((socket, events)  -> {
+                    logger.trace("In Global handler");
                     return true;
                 }));
                 while (running && ! isInterrupted() && ctx.isRunning() && zpoller.poll(-1) > 0) {
@@ -140,6 +139,7 @@ public class ZMQ extends Receiver {
             try {
                 // Wait for end of processing the stop
                 join();
+                logger.trace("Run stopped");
             } catch (InterruptedException e) {
                 interrupt();
             }
@@ -150,6 +150,7 @@ public class ZMQ extends Receiver {
     @Override
     public void close() {
         if (ctx.isRunning()) {
+            running = false;
             ctx.close(listeningSocket);
             ctx.close(stopPair[0]);
             ctx.close(stopPair[1]);

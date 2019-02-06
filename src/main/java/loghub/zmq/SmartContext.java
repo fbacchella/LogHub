@@ -79,7 +79,6 @@ public class SmartContext {
         return getContext(numSocket, zmqKeyStore);
     }
 
-
     public static synchronized SmartContext getContext(Path zmqKeyStore) {
         return getContext(1, zmqKeyStore);
     }
@@ -114,6 +113,10 @@ public class SmartContext {
             }
         }
         return instance;
+    }
+
+    private SmartContext(int numSocket) {
+        context = new ZContext(numSocket);
     }
 
     private void checkKeyStore(Path zmqKeyStore) throws KeyStoreException, NoSuchAlgorithmException, CertificateException, IOException, InvalidKeySpecException, UnrecoverableEntryException, InvalidKeyException {
@@ -170,10 +173,6 @@ public class SmartContext {
         }
         privateKey = kf.getKeySpec(prk, NaclPrivateKeySpec.class).getBytes();
         publicKey = kf.getKeySpec(puk, NaclPublicKeySpec.class).getBytes();
-    }
-
-    private SmartContext(int numSocket) {
-        context = new ZContext(numSocket);
     }
 
     public boolean isRunning() {
