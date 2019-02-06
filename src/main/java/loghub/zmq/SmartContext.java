@@ -44,6 +44,7 @@ import fr.loghub.naclprovider.NaclPublicKeySpec;
 import loghub.Helpers;
 import loghub.ThreadBuilder;
 import loghub.zmq.ZMQHelper.Method;
+import zmq.Options;
 import zmq.socket.Sockets;
 
 public class SmartContext {
@@ -173,6 +174,8 @@ public class SmartContext {
         }
         privateKey = kf.getKeySpec(prk, NaclPrivateKeySpec.class).getBytes();
         publicKey = kf.getKeySpec(puk, NaclPublicKeySpec.class).getBytes();
+        assert privateKey != null && privateKey.length == Options.CURVE_KEYSIZE;
+        assert publicKey != null && publicKey.length == Options.CURVE_KEYSIZE;
     }
 
     public boolean isRunning() {
@@ -198,12 +201,27 @@ public class SmartContext {
     }
 
     public void setCurveServer(Socket socket) {
+        if (privateKey == null || privateKey.length != Options.CURVE_KEYSIZE) {
+            throw new IllegalStateException("Curve requested but private key not define");
+        }
+        if (publicKey == null || publicKey.length != Options.CURVE_KEYSIZE) {
+            throw new IllegalStateException("Curve requested but public key not define");
+        }
         socket.setCurveServer(true);
         socket.setCurvePublicKey(publicKey);
         socket.setCurveSecretKey(privateKey);
     }
 
     public void setCurveClient(Socket socket, byte[] serverPublicKey) {
+        if (privateKey == null || privateKey.length != Options.CURVE_KEYSIZE) {
+            throw new IllegalStateException("Curve mechanism requested but private key not defined");
+        }
+        if (publicKey == null || publicKey.length != Options.CURVE_KEYSIZE) {
+            throw new IllegalStateException("Curve mechanism requested but public key not defined");
+        }
+        if (serverPublicKey == null || serverPublicKey.length != Options.CURVE_KEYSIZE) {
+            throw new IllegalArgumentException("Curve mechanism requested but server public key not defined");
+        }
         socket.setCurveServer(false);
         socket.setCurvePublicKey(publicKey);
         socket.setCurveSecretKey(privateKey);
