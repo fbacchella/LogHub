@@ -376,6 +376,7 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>${mavenSurefirePlugin}</version>
                 <configuration>
+                    <systemProperties>
                         <property>
                             <name>java.awt.headless</name>
                             <value>true</value>
@@ -384,6 +385,7 @@
                             <name>maven.surefire</name>
                             <value>true</value>
                         </property>
+                    </systemProperties>
                 </configuration>
             </plugin>
             <plugin>
