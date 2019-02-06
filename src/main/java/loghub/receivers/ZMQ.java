@@ -43,9 +43,9 @@ public class ZMQ extends Receiver {
         public boolean events(SelectableChannel channel, int events) {
             throw new RuntimeException("Not registred for SelectableChannel");
         }
-
     };
-    private final SmartContext ctx = SmartContext.getContext();
+
+    private SmartContext ctx;
     private Socket[] stopPair;
     private ZMQHelper.Method method = ZMQHelper.Method.BIND;
     private String listen = "tcp://localhost:2120";
@@ -60,6 +60,7 @@ public class ZMQ extends Receiver {
     @Override
     public boolean configure(Properties properties) {
         try {
+            ctx = SmartContext.getContext();
             listeningSocket = ctx.newSocket(method, type, listen);
             listeningSocket.setImmediate(false);
             listeningSocket.setReceiveTimeOut(-1);
@@ -82,7 +83,6 @@ public class ZMQ extends Receiver {
             return false;
         }
     }
-
 
     @Override
     public void run() {
