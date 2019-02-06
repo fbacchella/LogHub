@@ -9,6 +9,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
 
 import org.apache.logging.log4j.Level;
@@ -96,8 +97,8 @@ public class TestZMQ {
     }
 
     @Test(timeout=5000)
-    public void testCurve() throws InterruptedException {
-        tctxt.ctx.terminate();
+    public void testCurve() throws InterruptedException, ExecutionException {
+        Assert.assertTrue(tctxt.ctx.terminate().get());
         
         Map<Object, Object> props = new HashMap<>();
         props.put("keystore", Paths.get(testFolder.getRoot().getAbsolutePath(), "zmqtest.jks").toAbsolutePath().toString());
