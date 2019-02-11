@@ -1,8 +1,11 @@
 package loghub.configuration;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -12,14 +15,18 @@ import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.zeromq.ZMQ.Socket;
+import org.zeromq.ZPoller;
 
 import loghub.ContextRule;
 import loghub.Event;
 import loghub.LogUtils;
 import loghub.Tools;
+import loghub.ZMQFlow;
+import loghub.ZMQSink;
 import loghub.receivers.Receiver;
 import loghub.senders.Sender;
-import loghub.zmq.SmartContext;
+import loghub.zmq.ZMQHelper;
+import loghub.zmq.ZMQHelper.ERRNO;
 import loghub.zmq.ZMQHelper.Method;
 import zmq.socket.Sockets;
 
@@ -34,11 +41,29 @@ public class TestWithZMQ {
     static public void configure() throws IOException {
         Tools.configure();
         logger = LogManager.getLogger();
-        LogUtils.setLevel(logger, Level.TRACE, "loghub.zmq", "loghub.receivers.ZMQ");
+        LogUtils.setLevel(logger, Level.TRACE, "loghub.zmq", "loghub.receivers.ZMQ", "loghub.senders.ZMQ", "loghub.ZMQSink", "loghub.ZMQFlow");
+    }
+
+    private CountDownLatch latch;
+
+    public boolean process(Socket socket, int eventMask) {
+        while ((socket.getEvents() & ZPoller.IN) != 0) {
+            String received = socket.recvStr();
+            logger.trace("received {}", received);
+            latch.countDown();
+            if (received == null) {
+                ERRNO error = ZMQHelper.ERRNO.get(socket.errno());
+                logger.log(error.level, "error with ZSocket {}: {}", "TEST", error.toStringMessage());
+                return false;
+            }
+        }
+        return true;
     }
 
     @Test(timeout=3000) 
     public void testSimpleInput() throws InterruptedException, ConfigException, IOException, ExecutionException {
+        latch = new CountDownLatch(1);
+
         Properties conf = Tools.loadConf("simpleinput.conf");
         logger.debug("pipelines: {}", conf.pipelines);
 
@@ -50,29 +75,43 @@ public class TestWithZMQ {
             Assert.assertTrue("failed to configure " + s, s.configure(conf));
             s.start();
         }
-        try (Socket out = tctxt.ctx.newSocket(Method.CONNECT, Sockets.SUB, "inproc://sender", 1, -1);
-             Socket sender = tctxt.ctx.newSocket(Method.CONNECT, Sockets.PUB, "inproc://listener", 1, -1);
-        ) {
-            out.subscribe(new byte[]{});
-            // Wait for ZMQ to be started
-            Thread.sleep(30);
-            sender.send("something");
+
+        AtomicInteger count = new AtomicInteger(0);
+        ZMQFlow.Builder flowbuilder = new ZMQFlow.Builder()
+                        .setMethod(Method.CONNECT)
+                        .setDestination("inproc://listener")
+                        .setType(Sockets.PUB)
+                        .setSource(() -> String.format("message %s", count.incrementAndGet()).getBytes(StandardCharsets.UTF_8))
+                        .setMsPause(250)
+                        .setCtx(tctxt.ctx);
+
+        ZMQSink.Builder sinkbuilder = new ZMQSink.Builder()
+                        .setMethod(Method.CONNECT)
+                        .setType(Sockets.SUB)
+                        .setTopic(new byte[] {})
+                        .setSource("inproc://sender")
+                        .setLocalhandler(this::process)
+                        .setCtx(tctxt.ctx);
+
+        try (ZMQSink receiver = sinkbuilder.build();
+             ZMQFlow sender = flowbuilder.build();
+            ) {
             Event received = conf.mainQueue.poll(1, TimeUnit.SECONDS);
             Assert.assertNotNull("nothing received", received);
             conf.outputQueues.get("main").add(received);
-            byte[] buffer = out.recv();
-            Assert.assertEquals("wrong send message", "something", new String(buffer));
+            Assert.assertTrue(latch.await(2, TimeUnit.SECONDS));
+            //byte[] buffer = out.recv();
+            //Assert.assertEquals("wrong send message", "something", new String(buffer));
+            for(Receiver r: conf.receivers) {
+                r.stopReceiving();
+            }
+            for(Receiver r: conf.receivers) {
+                r.close();
+            }
+            for(Sender s: conf.senders) {
+                s.stopSending();
+            }
         }
-        for(Receiver r: conf.receivers) {
-            r.stopReceiving();
-        }
-        for(Receiver r: conf.receivers) {
-            r.close();
-        }
-        for(Sender s: conf.senders) {
-            s.stopSending();
-        }
-        Assert.assertTrue(SmartContext.getContext().terminate().get());
     }
 
 }

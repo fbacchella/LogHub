@@ -1,19 +1,14 @@
 package loghub.receivers;
 
-import java.io.IOException;
-import java.nio.channels.SelectableChannel;
-import java.util.Base64;
-import java.util.UUID;
-import java.util.function.BiFunction;
+import java.nio.charset.StandardCharsets;
 
-import org.apache.logging.log4j.Level;
 import org.zeromq.ZMQ.Socket;
 import org.zeromq.ZPoller;
 
 import loghub.ConnectionContext;
 import loghub.Event;
 import loghub.configuration.Properties;
-import loghub.zmq.SmartContext;
+import loghub.zmq.ZMQHandler;
 import loghub.zmq.ZMQHelper;
 import loghub.zmq.ZMQHelper.ERRNO;
 import zmq.socket.Sockets;
@@ -21,141 +16,75 @@ import zmq.socket.Sockets;
 @Blocking
 public class ZMQ extends Receiver {
 
-    private final class ZMQHandler implements ZPoller.EventsHandler {
-        private BiFunction<Socket, Integer, Boolean> localHandler;
-        ZMQHandler(BiFunction<Socket, Integer, Boolean> localHandler) {
-            this.localHandler = localHandler;
-        };
-        @Override
-        public boolean events(Socket socket, int events) {
-            logger.trace("receiving {} on {}", () -> "0b" + Integer.toBinaryString(8 + events).substring(1), () -> socket);
-            if ((events & ZPoller.ERR) != 0) {
-                ERRNO error = ZMQHelper.ERRNO.get(socket.errno());
-                logger.log(error.level, "error with ZSocket {}: {}", ZMQ.this.listen, error.toStringMessage());
-                return false;
-            } else {
-                return localHandler.apply(socket, events);
-            }
-
-        }
-
-        @Override
-        public boolean events(SelectableChannel channel, int events) {
-            throw new RuntimeException("Not registred for SelectableChannel");
-        }
-    };
-
-    private SmartContext ctx;
-    private Socket[] stopPair;
     private ZMQHelper.Method method = ZMQHelper.Method.BIND;
     private String listen = "tcp://localhost:2120";
     private Sockets type = Sockets.SUB;
+    private String topic = "";
     private int hwm = 1000;
-    private Socket listeningSocket;
-    private byte[] serverKey = null;
+    private String serverKey = null;
     private String security = null;
-
-    private volatile boolean running = false;
+    private Runnable handlerstopper = () -> {}; // Default to empty, don' fail on crossed start/stop
+    private ZMQHandler handler;
+    private byte[] databuffer;
 
     @Override
     public boolean configure(Properties properties) {
-        try {
-            ctx = SmartContext.getContext();
-            listeningSocket = ctx.newSocket(method, type, listen);
-            listeningSocket.setImmediate(false);
-            listeningSocket.setReceiveTimeOut(-1);
-            listeningSocket.setHWM(hwm);
-            if(type == Sockets.SUB){
-                listeningSocket.subscribe(new byte[] {});
-            }
-            if ("Curve".equals(security) && serverKey != null) {
-                ctx.setCurveClient(listeningSocket, serverKey);
-            } else if ("Curve".equals(security)) {
-                ctx.setCurveServer(listeningSocket);
-            }
-            boolean configured = super.configure(properties);
-            stopPair = ctx.getPair(getName() + "/" + UUID.randomUUID());
-            return configured;
-        } catch (org.zeromq.ZMQException e) {
-            ZMQHelper.logZMQException(logger, "failed to start ZMQ input " + listen + ":", e);
-            logger.catching(Level.DEBUG, e.getCause());
-            listeningSocket = null;
+        if (super.configure(properties)) {
+            this.handler = new ZMQHandler.Builder()
+                            .setHwm(hwm)
+                            .setSocketUrl(listen)
+                            .setMethod(method)
+                            .setType(type)
+                            .setTopic(topic.getBytes(StandardCharsets.UTF_8))
+                            .setServerKeyToken(serverKey)
+                            .setLogger(logger)
+                            .setName(getName())
+                            .setLocalHandler(this::process)
+                            .setMask(ZPoller.IN)
+                            .setSecurity(security)
+                            .build();
+            return true;
+        } else {
             return false;
         }
     }
 
     @Override
     public void run() {
-        running = true;
-        long maxMsgSize = listeningSocket.getMaxMsgSize();
-        byte[] databuffer;
+        handlerstopper = handler.getStopper();
+        int maxMsgSize = (int) handler.getSocket().getMaxMsgSize();
         if (maxMsgSize > 0 && maxMsgSize < 65535) {
-            databuffer = new byte[(int) maxMsgSize];
+            databuffer = new byte[maxMsgSize];
         } else {
             databuffer = new byte[65535];
         }
-        while (running && ! isInterrupted() && ctx.isRunning()) {
-            try (ZPoller zpoller = ctx.getZPoller()) {
-                logger.trace("new poller: {}", zpoller);
-                zpoller.register(listeningSocket, new ZMQHandler((socket, events)  -> {
-                    while ((socket.getEvents() & ZPoller.IN) != 0) {
-                        int received = socket.recv(databuffer, 0, 65535, 0);
-                        if (received < 0) {
-                            ERRNO error = ZMQHelper.ERRNO.get(socket.errno());
-                            logger.log(error.level, "error with ZSocket {}: {}", ZMQ.this.listen, error.toStringMessage());
-                        }
-                        Event event = decode(ConnectionContext.EMPTY, databuffer, 0, received);
-                        if (event != null) {
-                            send(event);
-                        }
-                    }
-                    return true;
-                }), ZPoller.ERR | ZPoller.IN);
-                zpoller.register(stopPair[1], new ZMQHandler((socket, events)  -> {
-                    logger.debug("Received stop signal");
-                    running = false;
-                    return false;
-                }), ZPoller.ERR | ZPoller.IN);
-                zpoller.setGlobalHandler(new ZMQHandler((socket, events)  -> {
-                    logger.trace("In Global handler");
-                    return true;
-                }));
-                while (running && ! isInterrupted() && ctx.isRunning() && zpoller.poll(-1) > 0) {
-                }
-            } catch (IOException e) {
-                logger.error("Error polling ZSocket {}: {}", listen, e.getMessage());
-                logger.catching(Level.DEBUG, e);
-            };
-        }
-        close();
+        handler.run();
     }
 
-    @Override
-    public void stopReceiving() {
-        if (running && ctx.isRunning()) {
-            running = false;
-            stopPair[0].send(new byte[] {});
-            logger.debug("Listening stopped");
-            try {
-                // Wait for end of processing the stop
-                join();
-                logger.trace("Run stopped");
-            } catch (InterruptedException e) {
-                interrupt();
+
+    public boolean process(Socket socket, int eventMask) {
+        while ((socket.getEvents() & ZPoller.IN) != 0 && handler.isRunning()) {
+            int received = socket.recv(ZMQ.this.databuffer, 0, databuffer.length, 0);
+            if (received < 0) {
+                ERRNO error = ZMQHelper.ERRNO.get(socket.errno());
+                logger.log(error.level, "error with ZSocket {}: {}", listen, error.toStringMessage());
             }
-            super.stopReceiving();
+            Event event = decode(ConnectionContext.EMPTY, databuffer, 0, received);
+            if (event != null) {
+                send(event);
+            }
         }
+        return true;
     }
 
     @Override
     public void close() {
-        if (ctx.isRunning()) {
-            running = false;
-            ctx.close(listeningSocket);
-            ctx.close(stopPair[0]);
-            ctx.close(stopPair[1]);
-        }
-        super.close();
+        handlerstopper.run();
+    }
+
+    @Override
+    public void stopReceiving() {
+        handlerstopper.run();
     }
 
     public String getMethod() {
@@ -196,11 +125,11 @@ public class ZMQ extends Receiver {
     }
 
     public String getServerKey() {
-        return SmartContext.CURVEPREFIX + " " + Base64.getEncoder().encodeToString(serverKey);
+        return serverKey;
     }
 
     public void setServerKey(String key) {
-        this.serverKey = ZMQHelper.parseServerIdentity(key);
+        this.serverKey = key;
     }
 
     public String getSecurity() {
@@ -209,6 +138,18 @@ public class ZMQ extends Receiver {
 
     public void setSecurity(String security) {
         this.security = security;
+    }
+
+    public String getDestination() {
+        return listen;
+    }
+
+    public String getTopic() {
+        return topic;
+    }
+
+    public void setTopic(String topic) {
+        this.topic = topic;
     }
 
 }

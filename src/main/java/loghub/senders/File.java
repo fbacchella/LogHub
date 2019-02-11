@@ -129,8 +129,15 @@ public class File extends Sender {
      * Used by unit test, don't use it
      * @throws IOException
      */
-    void close() throws IOException {
-        destination.close();
+    @Override
+    public void close() {
+        try {
+            destination.close();
+        } catch (IOException e) {
+            logger.error("Failed to close {}: {}", fileName,
+                         Helpers.resolveThrowableException(e));
+            logger.catching(Level.DEBUG, e);
+        }
     }
 
     @Override

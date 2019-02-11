@@ -1,14 +1,17 @@
 package loghub.senders;
 
-import org.zeromq.ZMQ.Socket;
+import java.util.concurrent.CompletableFuture;
 
-import org.zeromq.ZMQException;
+import org.zeromq.ZMQ.Socket;
+import org.zeromq.ZPoller;
 
 import loghub.BuilderClass;
 import loghub.Event;
 import loghub.configuration.Properties;
-import loghub.zmq.SmartContext;
+import loghub.zmq.ZMQHandler;
 import loghub.zmq.ZMQHelper;
+import loghub.zmq.ZMQHelper.Method;
+import lombok.Getter;
 import lombok.Setter;
 import zmq.socket.Sockets;
 
@@ -16,21 +19,18 @@ import zmq.socket.Sockets;
 public class ZMQ extends Sender {
 
     public static class Builder extends Sender.Builder<ZMQ> {
-        @Setter
+        @Setter @Getter
         private String destination = "tcp://localhost:2120";
-        @Setter
+        @Setter @Getter
         private String type = Sockets.PUB.name();
-        @Setter
+        @Setter @Getter
         private int hwm = 1000;
-        @Setter
+        @Setter @Getter
         private String method = ZMQHelper.Method.BIND.name();
-        private byte[] serverKey = null;
-        @Setter
+        @Setter  @Getter
+        private String serverKey = null;
+        @Setter  @Getter
         private String security = null;
-
-        public void setServerKey(String key) {
-            this.serverKey = ZMQHelper.parseServerIdentity(key);
-        }
 
         public ZMQ build() {
             return new ZMQ(this);
@@ -40,31 +40,35 @@ public class ZMQ extends Sender {
         return new Builder();
     }
 
-    private final Socket sendsocket;
-    private final SmartContext ctx = SmartContext.getContext();
-    private volatile boolean running = false;
+    private final ZMQHandler handler;
+    private Runnable handlerstopper = () -> {}; // Default to empty, don' fail on crossed start/stop
+    //Interrupt is only allowed outside of ZMQ poll, this flag protect that
+    private volatile boolean canInterrupt;
 
     public ZMQ(Builder builder) {
         super(builder);
-        Socket trysendsocket = null;
-        try {
-            ZMQHelper.Method method = ZMQHelper.Method.valueOf(builder.method.toUpperCase());
-            Sockets type = Sockets.valueOf(builder.type.trim().toUpperCase());
-            trysendsocket = ctx.newSocket(method, type, builder.destination);
-            if ("Curve".equals(builder.security) && builder.serverKey != null) {
-                ctx.setCurveClient(trysendsocket, builder.serverKey);
-            } else if ("Curve".equals(builder.security)) {
-                ctx.setCurveServer(trysendsocket);
-            }
-        } catch (ZMQException e) {
-            ZMQHelper.logZMQException(logger, "", e);
-        }
-        sendsocket = trysendsocket;
+        this.handler = new ZMQHandler.Builder()
+                        .setHwm(builder.hwm)
+                        .setSocketUrl(builder.destination)
+                        .setMethod(Method.valueOf(builder.getMethod().toUpperCase()))
+                        .setType(Sockets.valueOf(builder.type.toUpperCase()))
+                        .setSecurity(builder.security)
+                        .setServerKeyToken(builder.serverKey)
+                        .setLogger(logger)
+                        .setName(getName())
+                        .setLocalHandler(this::process)
+                        .setMask(ZPoller.OUT)
+                        .setStopFunction(() -> {
+                            if (canInterrupt) {
+                                ZMQ.this.interrupt();
+                            }
+                        })
+                        .build();
     }
 
     @Override
     public boolean configure(Properties properties) {
-        if (sendsocket == null) {
+        if (handler == null) {
             return false;
         } else {
             return super.configure(properties);
@@ -73,31 +77,48 @@ public class ZMQ extends Sender {
 
     @Override
     public void run() {
-        running = true;
-        super.run();
+        handlerstopper = handler.getStopper();
+        handler.run();
     }
 
     @Override
     public void stopSending() {
-        running = false;
+        handlerstopper.run();
         super.stopSending();
     }
 
-    @Override
     public boolean send(Event event) {
-        byte[] msg = getEncoder().encode(event);
-        if (running) {
-            sendsocket.send(msg);
-            return true;
-        } else {
-            ctx.close(sendsocket);
-            return false;
-        }
+        throw new UnsupportedOperationException("No direct send");
     }
 
     @Override
     public String getSenderName() {
         return "ZMQ";
+    }
+
+    public boolean process(Socket socket, int eventMask) {
+        try {
+            while (handler.isRunning() && (socket.getEvents() & ZPoller.OUT) != 0) {
+                canInterrupt = true;
+                Event event = getNext();
+                byte[] msg = getEncoder().encode(event);
+                canInterrupt = false;
+                boolean sent = socket.send(msg);
+                CompletableFuture<Boolean> statusFuture = CompletableFuture.completedFuture(sent);
+                processStatus(event, statusFuture);
+            }
+            return true;
+        } catch (InterruptedException e) {
+            interrupt();
+            return false;
+        } finally {
+            canInterrupt = false;
+        }
+    }
+
+    @Override
+    public void close() {
+        stopSending();
     }
 
 }

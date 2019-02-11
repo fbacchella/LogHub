@@ -1,5 +1,6 @@
 package loghub.senders;
 
+import java.io.Closeable;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -18,7 +19,7 @@ import loghub.encoders.Encoder;
 import lombok.Getter;
 import lombok.Setter;
 
-public abstract class Sender extends Thread {
+public abstract class Sender extends Thread implements Closeable {
 
     public abstract static class Builder<B extends Sender> extends AbstractBuilder<B> {
         @Setter
@@ -78,6 +79,16 @@ public abstract class Sender extends Thread {
             }
         }
     }
+    
+    /**
+     * A method that can be used inside custom {@link Sender#run()} for synchronous wait
+     * 
+     * @return a waiting event
+     * @throws InterruptedException
+     */
+    protected Event getNext() throws InterruptedException {
+        return inQueue.take();
+    }
 
     public void processStatus(Event event, Future<Boolean> result) {
         try {
@@ -102,6 +113,11 @@ public abstract class Sender extends Thread {
 
     public void setInQueue(BlockingQueue<Event> inQueue) {
         this.inQueue = inQueue;
+    }
+    
+    @Override
+    public void close() {
+        // Default to do nothing
     }
 
 }

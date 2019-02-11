@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -37,7 +38,7 @@ public class CurveTest {
     }
 
     @Test(timeout=5000)
-    public void testSecureConnectOneWay() {
+    public void testSecureConnectOneWay() throws InterruptedException, ExecutionException {
         Map<Object, Object> props = new HashMap<>();
         props.put("keystore", Paths.get(testFolder.getRoot().getAbsolutePath(), "zmqtest.jks").toAbsolutePath().toString());
         props.put("numSocket", 2);
@@ -68,7 +69,7 @@ public class CurveTest {
     }
 
     @Test(timeout=5000)
-    public void testSecureConnectOtherWay() {
+    public void testSecureConnectOtherWay() throws InterruptedException, ExecutionException {
         Map<Object, Object> props = new HashMap<>();
         props.put("keystore", Paths.get(testFolder.getRoot().getAbsolutePath(), "zmqtest.jks").toAbsolutePath().toString());
         props.put("numSocket", 2);
@@ -99,7 +100,7 @@ public class CurveTest {
     }
 
     @Test(timeout=5000)
-    public void testFailedSecureConnect() {
+    public void testFailedSecureConnect() throws InterruptedException, ExecutionException {
         Map<Object, Object> props = new HashMap<>();
         props.put("keystore", Paths.get(testFolder.getRoot().getAbsolutePath(), "zmqtest.jks").toAbsolutePath().toString());
         props.put("numSocket", 2);

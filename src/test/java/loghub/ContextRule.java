@@ -2,7 +2,6 @@ package loghub;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.junit.Assert;
 import org.junit.rules.TestRule;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
@@ -33,7 +32,7 @@ public class ContextRule implements TestRule {
     private void terminateRescue() {
         try {
             logger.debug("Terminating ZMQ manager");
-            Assert.assertTrue(SmartContext.getContext().terminate().get());
+            SmartContext.getContext().terminate();
         } catch (Exception e) {
             logger.throwing(e);
             throw new RuntimeException("Failed to terminate ZMQ's context", e);

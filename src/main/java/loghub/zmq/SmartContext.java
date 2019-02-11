@@ -4,6 +4,7 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.channels.ClosedSelectorException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -25,9 +26,7 @@ import java.security.cert.CertificateException;
 import java.security.spec.InvalidKeySpecException;
 import java.util.Base64;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Future;
-import java.util.concurrent.FutureTask;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -54,10 +53,15 @@ public class SmartContext {
     private static final Logger logger = LogManager.getLogger();
 
     private static SmartContext instance = null;
-    public final ZContext context;
+    private final ZContext context;
+    private final ThreadLocal<ZContext> localContext;
+    @SuppressWarnings("unused")
+    private final ZContext firstContext;
     private volatile boolean running = true;
     private byte[] privateKey = null;
     private byte[] publicKey = null;
+    private final AtomicInteger activeContext = new AtomicInteger();
+    private final Thread terminator;
 
     // Load the nacl security handler 
     static {
@@ -91,18 +95,6 @@ public class SmartContext {
     public static synchronized SmartContext getContext(int numSocket, Path zmqKeyStore) {
         if (instance == null) {
             instance = new SmartContext(numSocket);
-            logger.debug("New SmartContext instance");
-            ThreadBuilder.get()
-            .setDaemon(true)
-            .setName("terminator")
-            .setRunnable(() -> {
-                synchronized (SmartContext.class) {
-                    if (instance != null) {
-                        logger.debug("starting shutdown hook for ZMQ");
-                        instance.terminate();
-                    }
-                }
-            }).setShutdownHook(true).build();
         }
         if (zmqKeyStore != null) {
             try {
@@ -117,7 +109,27 @@ public class SmartContext {
     }
 
     private SmartContext(int numSocket) {
+        logger.debug("New SmartContext instance");
         context = new ZContext(numSocket);
+        localContext = ThreadLocal.withInitial(() -> {
+            ZContext local = ZContext.shadow(context);
+            logger.debug("new shadow {} rank {} from parent {}", local, activeContext.get() + 1, context);activeContext.incrementAndGet();
+            return local;
+        });
+        // Initiate a top level instance
+        firstContext = localContext.get();
+        terminator = ThreadBuilder.get()
+        .setDaemon(true)
+        .setName("terminator")
+        .setRunnable(() -> {
+            synchronized (SmartContext.class) {
+                if (instance != null) {
+                    logger.debug("starting shutdown hook for ZMQ");
+                    instance.terminate();
+                }
+            }
+        }).setShutdownHook(true).build();
+
     }
 
     private void checkKeyStore(Path zmqKeyStore) throws KeyStoreException, NoSuchAlgorithmException, CertificateException, IOException, InvalidKeySpecException, UnrecoverableEntryException, InvalidKeyException {
@@ -183,9 +195,9 @@ public class SmartContext {
     }
 
     public Socket newSocket(Method method, Sockets type, String endpoint, int hwm, int timeout) {
-        Socket socket = context.createSocket(type.ordinal());
+        Socket socket = localContext.get().createSocket(type.ordinal());
         String url = endpoint + ":" + type.toString() + ":" + method.getSymbol();
-        logger.debug("new socket: {}", url);
+        logger.debug("new socket: {}={}", url, socket);
         socket.setRcvHWM(hwm);
         socket.setSndHWM(hwm);
         socket.setSendTimeOut(timeout);
@@ -230,59 +242,44 @@ public class SmartContext {
 
     public void close(Socket socket) {
         try {
-            logger.debug("close socket {}: {}", socket, socket);
+            logger.debug("close socket {}", socket);
             socket.setLinger(0);
-            context.destroySocket(socket);
+            localContext.get().destroySocket(socket);
         } catch (ZMQException|zmq.ZError.IOException|zmq.ZError.CtxTerminatedException|zmq.ZError.InstantiationException e) {
             ZMQHelper.logZMQException(logger, "close " + socket, e);
-        } catch (java.nio.channels.ClosedSelectorException e) {
-            logger.debug("in close: " + e);
+        } catch (ClosedSelectorException e) {
+            logger.debug("in close: {}", () -> e.getMessage());
         } catch (Exception e) {
-            logger.error("in close: " + e);
-        } finally {
+            logger.error("in close: {}", () -> e.getMessage());
         }
     }
 
-    public Future<Boolean> terminate() {
+    public void terminate() {
         synchronized (SmartContext.class) {
-            if (running) {
-                running = false;
-                FutureTask<Boolean> terminator = new FutureTask<>(() -> {
-                    synchronized (SmartContext.class) {
-                        try {
-                            logger.debug("Terminating ZMQ context");
-                            context.getSockets().forEach(context::destroySocket);
-                            context.close();
-                        } catch (ZMQException | zmq.ZError.IOException | zmq.ZError.CtxTerminatedException | zmq.ZError.InstantiationException e) {
-                            ZMQHelper.logZMQException(logger, "terminate", e);
-                        } catch (java.nio.channels.ClosedSelectorException e) {
-                            logger.error("closed selector:" + Helpers.resolveThrowableException(e));
-                            logger.catching(Level.DEBUG, e);
-                        } catch (Exception e) {
-                            logger.error("Unexpected error:" + Helpers.resolveThrowableException(e));
-                            logger.catching(Level.DEBUG, e);
-                            return false;
-                        }
-                        logger.trace("ZMQ context terminated");
-                        SmartContext.instance = null;
-                        return true;
-                    }
-                });
-                ThreadBuilder.get(Boolean.class).setName("ZMQContextTerminator").setCallable(terminator).setDaemon(false).build(true);
-                // Now we've send termination signals, let other threads
-                // some time to finish
-                Thread.yield();
-                return terminator;
-            } else {
-                CompletableFuture<Boolean> done = new CompletableFuture<>();
-                done.complete(true);
-                return done;
+            try {
+                logger.debug("Terminating ZMQ context {}", localContext.get());
+                localContext.get().getSockets().forEach(context::destroySocket);
+                localContext.get().destroy();
+                if (activeContext.decrementAndGet() == 0) {
+                    logger.debug("ZMQ context terminated");
+                    context.destroy();
+                    Runtime.getRuntime().removeShutdownHook(terminator);
+                    SmartContext.instance = null;
+                }
+            } catch (ZMQException | zmq.ZError.IOException | zmq.ZError.CtxTerminatedException | zmq.ZError.InstantiationException e) {
+                ZMQHelper.logZMQException(logger, "terminate", e);
+            } catch (java.nio.channels.ClosedSelectorException e) {
+                logger.error("closed selector:" + Helpers.resolveThrowableException(e));
+                logger.catching(Level.DEBUG, e);
+            } catch (Exception e) {
+                logger.error("Unexpected error:" + Helpers.resolveThrowableException(e));
+                logger.catching(Level.DEBUG, e);
             }
         }
     }
 
     public ZPoller getZPoller() {
-        return new ZPoller(context);
+        return new ZPoller(localContext.get());
     }
 
     public Socket[] getPair(String name) {

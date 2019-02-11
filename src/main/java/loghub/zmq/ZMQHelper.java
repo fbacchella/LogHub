@@ -154,9 +154,15 @@ public class ZMQHelper {
     public static byte[] parseServerIdentity(String information) {
         String[] keyInfos = information.split(" +");
         if (SmartContext.CURVEPREFIX.equals(keyInfos[0]) && keyInfos.length == 2) {
-            byte[] serverPublicKey = Base64.getDecoder().decode(keyInfos[1]);
+            byte[] serverPublicKey;
+            try {
+                serverPublicKey = Base64.getDecoder()
+                                        .decode(keyInfos[1].trim());
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException("Not a valid curve server key: "+ e.getMessage(), e);
+            }
             if (serverPublicKey.length != 32) {
-                throw new IllegalArgumentException("Not a valid server key");
+                throw new IllegalArgumentException("Not a valid curve server key");
             } else {
                 return serverPublicKey;
             }
