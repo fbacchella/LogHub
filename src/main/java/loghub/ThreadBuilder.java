@@ -2,13 +2,10 @@ package loghub;
 
 import java.util.concurrent.FutureTask;
 
-public class ThreadBuilder<T> {
-    public static <T> ThreadBuilder<T> get(Class<T> clazz) {
-        return new ThreadBuilder<T>();
-    }
+public class ThreadBuilder {
 
-    public static ThreadBuilder<Object> get() {
-        return new ThreadBuilder<Object>();
+    public static ThreadBuilder get() {
+        return new ThreadBuilder();
     }
 
     private Runnable task;
@@ -19,26 +16,26 @@ public class ThreadBuilder<T> {
     private ThreadBuilder() {
     }
 
-    public ThreadBuilder<T> setName(String name) {
+    public ThreadBuilder setName(String name) {
         this.name = name;
         return this;
     }
 
-    public ThreadBuilder<T> setDaemon(boolean on) {
+    public ThreadBuilder setDaemon(boolean on) {
         return this;
     }
 
-    public ThreadBuilder<T> setCallable(FutureTask<T> task) {
+    public ThreadBuilder setCallable(FutureTask<?> task) {
         this.task = task;
         return this;
     }
 
-    public ThreadBuilder<T> setRunnable(Runnable r) {
+    public ThreadBuilder setRunnable(Runnable r) {
         task = r;
         return this;
     }
 
-    public ThreadBuilder<T> setShutdownHook(boolean shutdownHook) {
+    public ThreadBuilder setShutdownHook(boolean shutdownHook) {
         this.shutdownHook = shutdownHook;
         return this;
     }
