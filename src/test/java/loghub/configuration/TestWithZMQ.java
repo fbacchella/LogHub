@@ -12,6 +12,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.zeromq.ZMQ.Socket;
@@ -60,6 +61,7 @@ public class TestWithZMQ {
         return true;
     }
 
+    @Ignore
     @Test(timeout=3000) 
     public void testSimpleInput() throws InterruptedException, ConfigException, IOException, ExecutionException {
         latch = new CountDownLatch(1);
