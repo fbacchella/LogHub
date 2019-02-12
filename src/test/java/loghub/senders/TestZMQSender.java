@@ -87,8 +87,8 @@ public class TestZMQSender {
             try {
                 while(true) {
                     ev.put("message", count.incrementAndGet());
-                    queue.add(ev);
-                    Thread.sleep(100);
+                    queue.offer(ev);
+                    Thread.sleep(250);
                 }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
