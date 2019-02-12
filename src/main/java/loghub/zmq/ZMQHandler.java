@@ -11,10 +11,10 @@ import java.util.function.Supplier;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.Logger;
 import org.zeromq.ZMQ.Socket;
-import org.zeromq.ZMQException;
 import org.zeromq.ZPoller;
 
 import loghub.AbstractBuilder;
+import loghub.Helpers;
 import loghub.zmq.ZMQHelper.ERRNO;
 import loghub.zmq.ZMQHelper.Method;
 import lombok.Setter;
@@ -42,7 +42,6 @@ public class ZMQHandler implements Closeable {
         int mask;
         @Setter
         BiFunction<Socket, Integer, Boolean> localHandler;
-        //ZPoller.EventsHandler localHandler;
         @Setter
         String security;
         @Setter
@@ -113,7 +112,7 @@ public class ZMQHandler implements Closeable {
                 } else if (builder.security != null) {
                     throw new IllegalArgumentException("Security  "+ builder.security + "not managed");
                 }
-            } catch (ZMQException e) {
+            } catch (RuntimeException e) {
                 ZMQHelper.logZMQException(logger, "failed to start ZMQ handler " + socketUrl + ":", e);
                 logger.catching(Level.DEBUG, e.getCause());
                 trysendsocket = null;
@@ -134,10 +133,10 @@ public class ZMQHandler implements Closeable {
     public void run() {
         getSocket();
         running = true;
-        Socket socketEndPair = ctx.newSocket(Method.BIND, Sockets.PAIR, "inproc://pair/" + pairId);
+        Socket socketEndPair = null;
         try {
+            socketEndPair = ctx.newSocket(Method.BIND, Sockets.PAIR, "inproc://pair/" + pairId);
             ZPoller.EventsHandler stopsignal = new ZPoller.EventsHandler() {
-
                 @Override
                 public boolean events(Socket socket, int eventMask) {
                     logEvent(socket, eventMask);
@@ -155,11 +154,9 @@ public class ZMQHandler implements Closeable {
                 public boolean events(SelectableChannel channel, int events) {
                     throw new UnsupportedOperationException("Not registred for SelectableChannel");
                 }
-
             };
 
             ZPoller.EventsHandler processevent = new ZPoller.EventsHandler() {
-
                 @Override
                 public boolean events(Socket socket, int eventMask) {
                     logEvent(socket, eventMask);
@@ -180,8 +177,8 @@ public class ZMQHandler implements Closeable {
                 public boolean events(SelectableChannel channel, int events) {
                     throw new UnsupportedOperationException("Not registred for SelectableChannel");
                 }
-
             };
+
             while (isRunning()) {
                 try (ZPoller zpoller = ctx.getZPoller()) {
                     logger.trace("Starting a poller {} {} {} {}", zpoller, socket, localHandler, mask);
@@ -190,10 +187,20 @@ public class ZMQHandler implements Closeable {
                     while (isRunning() && zpoller.poll(-1L) > 0) {
                         logger.trace("Loopping the poller");
                     }
-                } catch (IOException | ZError.IOException | ZError.InstantiationException | ZError.CtxTerminatedException e) {
+                } catch (IOException e) {
                     logger.error("Error polling ZSocket {}: {}", socketUrl, e.getMessage());
                     logger.catching(Level.DEBUG, e);
+                } catch (ZError.IOException | ZError.InstantiationException | ZError.CtxTerminatedException e) {
+                    ZMQHelper.logZMQException(logger, "Error polling ZSocket", e);
+                    logger.catching(Level.DEBUG, e);
                 }
+            }
+        } catch (RuntimeException ex) {
+            try {
+                ZMQHelper.logZMQException(logger, "Failed ZMQ processing", ex);
+            } catch (RuntimeException se) {
+                logger.error("Failed ZMQ processing : {}",Helpers.resolveThrowableException(se));
+                logger.catching(Level.ERROR, se);
             }
         } finally {
             running = false;
@@ -247,4 +254,3 @@ public class ZMQHandler implements Closeable {
     }
 
 }
-

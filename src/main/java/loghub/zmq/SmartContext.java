@@ -112,23 +112,26 @@ public class SmartContext {
         logger.debug("New SmartContext instance");
         context = new ZContext(numSocket);
         localContext = ThreadLocal.withInitial(() -> {
-            ZContext local = ZContext.shadow(context);
-            logger.debug("new shadow {} rank {} from parent {}", local, activeContext.get() + 1, context);activeContext.incrementAndGet();
-            return local;
+            synchronized(SmartContext.this) {
+                ZContext local = ZContext.shadow(context);
+                activeContext.incrementAndGet();
+                logger.debug("new shadow context rank {}", local, activeContext.get());
+                return local;
+            }
         });
         // Initiate a top level instance
         firstContext = localContext.get();
         terminator = ThreadBuilder.get()
-        .setDaemon(true)
-        .setName("terminator")
-        .setRunnable(() -> {
-            synchronized (SmartContext.class) {
-                if (instance != null) {
-                    logger.debug("starting shutdown hook for ZMQ");
-                    instance.terminate();
-                }
-            }
-        }).setShutdownHook(true).build();
+                        .setDaemon(true)
+                        .setName("terminator")
+                        .setRunnable(() -> {
+                            synchronized (SmartContext.class) {
+                                if (instance != null) {
+                                    logger.debug("starting shutdown hook for ZMQ");
+                                    instance.terminate();
+                                }
+                            }
+                        }).setShutdownHook(true).build();
 
     }
 
@@ -194,10 +197,11 @@ public class SmartContext {
         return running;
     }
 
+    @SuppressWarnings("deprecation")
     public Socket newSocket(Method method, Sockets type, String endpoint, int hwm, int timeout) {
         Socket socket = localContext.get().createSocket(type.ordinal());
         String url = endpoint + ":" + type.toString() + ":" + method.getSymbol();
-        logger.debug("new socket: {}={}", url, socket);
+        logger.trace("new socket: {}={}", url, socket);
         socket.setRcvHWM(hwm);
         socket.setSndHWM(hwm);
         socket.setSendTimeOut(timeout);
@@ -242,7 +246,7 @@ public class SmartContext {
 
     public void close(Socket socket) {
         try {
-            logger.debug("close socket {}", socket);
+            logger.trace("close socket {}", socket);
             socket.setLinger(0);
             localContext.get().destroySocket(socket);
         } catch (ZMQException|zmq.ZError.IOException|zmq.ZError.CtxTerminatedException|zmq.ZError.InstantiationException e) {
@@ -257,23 +261,37 @@ public class SmartContext {
     public void terminate() {
         synchronized (SmartContext.class) {
             try {
-                logger.debug("Terminating ZMQ context {}", localContext.get());
+                logger.debug("Terminating ZMQ shadow context {}", () -> localContext.get());
                 localContext.get().getSockets().forEach(context::destroySocket);
+            } catch (ZMQException | zmq.ZError.IOException | zmq.ZError.CtxTerminatedException | zmq.ZError.InstantiationException e) {
+                ZMQHelper.logZMQException(logger, "terminate", e);
+            } catch (java.nio.channels.ClosedSelectorException e) {
+                logger.error("closed selector: {}", Helpers.resolveThrowableException(e));
+                logger.catching(Level.DEBUG, e);
+            } catch (RuntimeException e) {
+                logger.error("Unexpected error: {}", Helpers.resolveThrowableException(e));
+                logger.catching(Level.DEBUG, e);
+            } finally {
                 localContext.get().destroy();
+            }
+            try {
                 if (activeContext.decrementAndGet() == 0) {
-                    logger.debug("ZMQ context terminated");
-                    context.destroy();
+                    running = false;
+                    logger.debug("Global ZMQ context terminated");
                     Runtime.getRuntime().removeShutdownHook(terminator);
-                    SmartContext.instance = null;
+                    System.out.println(context.getSockets());
+                    context.destroy();
                 }
             } catch (ZMQException | zmq.ZError.IOException | zmq.ZError.CtxTerminatedException | zmq.ZError.InstantiationException e) {
                 ZMQHelper.logZMQException(logger, "terminate", e);
             } catch (java.nio.channels.ClosedSelectorException e) {
-                logger.error("closed selector:" + Helpers.resolveThrowableException(e));
+                logger.error("closed selector: {}", Helpers.resolveThrowableException(e));
                 logger.catching(Level.DEBUG, e);
-            } catch (Exception e) {
-                logger.error("Unexpected error:" + Helpers.resolveThrowableException(e));
-                logger.catching(Level.DEBUG, e);
+            } catch (RuntimeException e) {
+                logger.error("Unexpected error: {}", Helpers.resolveThrowableException(e));
+                logger.catching(Level.ERROR, e);
+            } finally {
+                SmartContext.instance = null;
             }
         }
     }
