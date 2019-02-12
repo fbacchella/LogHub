@@ -49,9 +49,14 @@ public class TestZMQReceiver {
 
     @BeforeClass
     static public void configure() throws IOException {
-        Tools.configure();
-        logger = LogManager.getLogger();
-        LogUtils.setLevel(logger, Level.TRACE, "loghub.zmq", "loghub.receivers.ZMQ", "loghub.ContextRule", "loghub.ZMQFlow");
+        try {
+            Tools.configure();
+            logger = LogManager.getLogger();
+            LogUtils.setLevel(logger, Level.TRACE, "loghub.zmq", "loghub.receivers.ZMQ", "loghub.ContextRule", "loghub.ZMQFlow");
+        } catch (IOException e) {
+            e.printStackTrace();
+            throw e;
+        }
     }
 
     private void dotest(SmartContext ctx, Consumer<ZMQ> configure, ZMQFlow.Builder flowbuilder) throws IOException, InterruptedException {
