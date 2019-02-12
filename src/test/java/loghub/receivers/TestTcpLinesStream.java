@@ -73,12 +73,12 @@ public class TestTcpLinesStream {
     public void testSSL() throws IOException, InterruptedException {
         try {
             makeReceiver( i -> {
-                    i.setWithSSL(true);
-                    // It should be required for a better test, needs to understand how to make client side TLS works
-                    i.setSSLClientAuthentication(ClientAuthentication.WANTED.name());
-                },
-                Collections.singletonMap("ssl.trusts", new String[] {getClass().getResource("/loghub.p12").getFile()})
-            );
+                i.setWithSSL(true);
+                // It should be required for a better test, needs to understand how to make client side TLS works
+                i.setSSLClientAuthentication(ClientAuthentication.WANTED.name());
+            },
+                          Collections.singletonMap("ssl.trusts", new String[] {getClass().getResource("/loghub.p12").getFile()})
+                            );
             Map<String, Object> properties = new HashMap<>();
             properties.put("trusts", new String[] {getClass().getResource("/loghub.p12").getFile()});
             SSLContext cssctx = ContextLoader.build(properties);

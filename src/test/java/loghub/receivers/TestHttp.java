@@ -319,16 +319,16 @@ public class TestHttp {
     @Test
     public void test_loghub_receivers_Http() throws ClassNotFoundException, IntrospectionException {
         BeanChecks.beansCheck(logger, "loghub.receivers.Http"
-                   ,BeanInfo.build("decoder", Decoder.class)
-                   ,BeanInfo.build("useJwt", Boolean.TYPE)
-                   ,BeanInfo.build("user", String.class)
-                   ,BeanInfo.build("password", String.class)
-                   ,BeanInfo.build("jaasName", String.class)
-                   ,BeanInfo.build("withSSL", Boolean.TYPE)
-                   ,BeanInfo.build("SSLClientAuthentication", String.class)
-                   ,BeanInfo.build("SSLKeyAlias", String.class)
-                   ,BeanInfo.build("Decoders", Object.class)
-        );
+                              ,BeanInfo.build("decoder", Decoder.class)
+                              ,BeanInfo.build("useJwt", Boolean.TYPE)
+                              ,BeanInfo.build("user", String.class)
+                              ,BeanInfo.build("password", String.class)
+                              ,BeanInfo.build("jaasName", String.class)
+                              ,BeanInfo.build("withSSL", Boolean.TYPE)
+                              ,BeanInfo.build("SSLClientAuthentication", String.class)
+                              ,BeanInfo.build("SSLKeyAlias", String.class)
+                              ,BeanInfo.build("Decoders", Object.class)
+                        );
     }
 
 }

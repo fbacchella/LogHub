@@ -85,7 +85,7 @@ public class EventsRepository<KEY> {
     private boolean awake(KEY key, Function<PausedEvent<KEY>, Processor> source, Function<PausedEvent<KEY>, Function<Event, Event>> transform) {
         PausedEvent<KEY> pe = pausestack.remove(key);
         Timeout task = waiting.remove(key);
-        if (task  != null) {
+        if (task != null) {
             task.cancel();
         }
         if (pe == null) {

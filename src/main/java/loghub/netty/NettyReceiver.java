@@ -38,6 +38,7 @@ public abstract class NettyReceiver<R extends NettyReceiver<R, S, B, CF, BS, BSC
         super();
     }
 
+    @Override
     public final boolean configure(Properties properties) {
         return configure(properties, getServerBuilder());
     }
@@ -55,6 +56,7 @@ public abstract class NettyReceiver<R extends NettyReceiver<R, S, B, CF, BS, BSC
             logger.catching(Level.DEBUG, ex);
             return false;
         } catch (InterruptedException e1) {
+            interrupt();
             return false;
         }
     }

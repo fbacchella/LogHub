@@ -2,7 +2,6 @@ package loghub.configuration;
 
 import java.io.IOException;
 import java.io.StringReader;
-import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;

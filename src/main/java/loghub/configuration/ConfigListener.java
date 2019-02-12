@@ -140,10 +140,14 @@ class ConfigListener extends RouteBaseListener {
         }
     }
 
-    static class  ObjectWrapped<T> {
+    static class ObjectWrapped<T> {
         final T wrapped;
         ObjectWrapped(T wrapped) {
             this.wrapped = wrapped;
+        }
+        @Override
+        public String toString() {
+            return "ObjectWrapped(" + wrapped + ")";
         }
     }
 

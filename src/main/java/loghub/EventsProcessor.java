@@ -128,12 +128,14 @@ public class EventsProcessor extends Thread {
                 processor = event.next();
                 // If next processor is null, refill the event
                 while (processor == null && event.getNextPipeline() != null) {
+                    logger.trace("next processor is {}", processor);
                     // Send to another pipeline, loop in the main processing queue
                     Pipeline next = namedPipelines.get(event.getNextPipeline());
                     event.refill(next);
                     processor = event.next();
                 }
             }
+            logger.trace("event is now {}", event);
             // Processing of the event is finished, what to do next with it ?
             //Detect if will send to another pipeline, or just wait for a sender to take it
             if (event != null) {

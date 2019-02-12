@@ -5,7 +5,7 @@ import java.security.Principal;
 
 public abstract class ConnectionContext<A> implements Serializable {
 
-    private static class EmptyPrincipal implements Principal, Serializable {
+    private static final class EmptyPrincipal implements Principal, Serializable {
         @Override
         public String getName() {
             return "";
