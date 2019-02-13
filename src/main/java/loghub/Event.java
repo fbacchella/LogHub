@@ -215,7 +215,7 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
     /**
      * An event is only equals to itself.
      * @param o object to be compared for equality with this map
-     * @return <tt>true</tt> if the specified object is this event.
+     * @return <code>true</code> if the specified object is this event.
      */
     @Override
     public boolean equals(Object o) {
