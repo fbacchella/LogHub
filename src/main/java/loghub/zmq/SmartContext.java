@@ -181,7 +181,7 @@ public class SmartContext {
             try (FileInputStream ksstream = new FileInputStream(zmqKeyStore.toFile())) {
                 ks.load(ksstream, emptypass);
             }
-            KeyStore.Entry e = ks.getEntry("zmqpair", new KeyStore.PasswordProtection(emptypass));
+            KeyStore.Entry e = ks.getEntry("loghubzmqpair", new KeyStore.PasswordProtection(emptypass));
             if (e instanceof PrivateKeyEntry) {
                 prk = ((PrivateKeyEntry) e).getPrivateKey();
                 puk = ((PrivateKeyEntry) e).getCertificate().getPublicKey();
