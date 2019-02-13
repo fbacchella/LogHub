@@ -164,7 +164,6 @@ public class TestZMQReceiver {
     @Ignore
     @Test(timeout=5000)
     public void testCurveClient() throws InterruptedException, IOException {
-
         Map<Object, Object> props = new HashMap<>();
         props.put("keystore", Paths.get(testFolder.getRoot().getAbsolutePath(), "zmqtest.jks").toAbsolutePath().toString());
         props.put("numSocket", 2);
@@ -196,14 +195,19 @@ public class TestZMQReceiver {
 
     @Test
     public void testBeans() throws ClassNotFoundException, IntrospectionException {
-        BeanChecks.beansCheck(logger, "loghub.receivers.ZMQ"
-                              ,BeanInfo.build("method", String.class)
-                              ,BeanInfo.build("listen", String.class)
-                              ,BeanInfo.build("type", String.class)
-                              ,BeanInfo.build("hwm", Integer.TYPE)
-                              ,BeanInfo.build("serverKey", String.class)
-                              ,BeanInfo.build("security", String.class)
-                        );
+        try {
+            BeanChecks.beansCheck(logger, "loghub.receivers.ZMQ"
+                                  ,BeanInfo.build("method", String.class)
+                                  ,BeanInfo.build("listen", String.class)
+                                  ,BeanInfo.build("type", String.class)
+                                  ,BeanInfo.build("hwm", Integer.TYPE)
+                                  ,BeanInfo.build("serverKey", String.class)
+                                  ,BeanInfo.build("security", String.class)
+                            );
+        } catch (Exception e) {
+            e.printStackTrace();
+            Assert.fail(e.getMessage());
+        }
     }
 
 }
