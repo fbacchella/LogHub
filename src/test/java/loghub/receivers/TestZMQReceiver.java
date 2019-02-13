@@ -19,6 +19,7 @@ import java.util.function.Consumer;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.core.config.Configurator;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
@@ -53,6 +54,11 @@ public class TestZMQReceiver {
             Tools.configure();
             logger = LogManager.getLogger();
             LogUtils.setLevel(logger, Level.TRACE, "loghub.zmq", "loghub.receivers.ZMQ", "loghub.ContextRule", "loghub.ZMQFlow");
+            Configurator.setRootLevel(Level.ERROR);
+            Configurator.setLevel(logger.getName(), Level.TRACE);
+            for(String l: new String[] {}) {
+                Configurator.setLevel(l, Level.TRACE);
+            }
         } catch (IOException e) {
             e.printStackTrace();
             throw e;
