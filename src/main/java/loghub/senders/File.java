@@ -127,7 +127,6 @@ public class File extends Sender {
 
     /**
      * Used by unit test, don't use it
-     * @throws IOException
      */
     @Override
     public void close() {
