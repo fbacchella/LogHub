@@ -6,7 +6,7 @@ jobs:
             - image: circleci/openjdk:8-jdk
         steps:
             - checkout
-            - restore_cache
+            - restore_cache:
                 key: 
                     - loghub-{{ checksum "pom.xml" }}
                     - loghub-
