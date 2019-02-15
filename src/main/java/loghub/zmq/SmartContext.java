@@ -266,7 +266,7 @@ public class SmartContext {
         synchronized (SmartContext.class) {
             try {
                 logger.debug("Terminating ZMQ shadow context {}", () -> localContext.get());
-                assert localContext.get().getSockets().isEmpty();
+                assert localContext.get().getSockets().isEmpty() : localContext.get().getSockets();
                 localContext.get().getSockets().forEach(context::destroySocket);
             } catch (ZMQException | zmq.ZError.IOException | zmq.ZError.CtxTerminatedException | zmq.ZError.InstantiationException e) {
                 ZMQHelper.logZMQException(logger, "terminate", e);
