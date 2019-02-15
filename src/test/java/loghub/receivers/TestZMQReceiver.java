@@ -19,7 +19,6 @@ import java.util.function.Consumer;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.core.config.Configurator;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
@@ -50,19 +49,9 @@ public class TestZMQReceiver {
 
     @BeforeClass
     static public void configure() throws IOException {
-        try {
-            Tools.configure();
-            logger = LogManager.getLogger();
-            LogUtils.setLevel(logger, Level.TRACE, "loghub.zmq", "loghub.receivers.ZMQ", "loghub.ContextRule", "loghub.ZMQFlow");
-            Configurator.setRootLevel(Level.ERROR);
-            Configurator.setLevel(logger.getName(), Level.TRACE);
-            for(String l: new String[] {}) {
-                Configurator.setLevel(l, Level.TRACE);
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-            throw e;
-        }
+        Tools.configure();
+        logger = LogManager.getLogger();
+        LogUtils.setLevel(logger, Level.TRACE, "loghub.zmq", "loghub.receivers.ZMQ", "loghub.ContextRule", "loghub.ZMQFlow");
     }
 
     private void dotest(SmartContext ctx, Consumer<ZMQ> configure, ZMQFlow.Builder flowbuilder) throws IOException, InterruptedException {
@@ -140,7 +129,6 @@ public class TestZMQReceiver {
     @Ignore
     @Test(timeout=5000)
     public void testCurveServer() throws InterruptedException, IOException {
-
         Map<Object, Object> props = new HashMap<>();
         props.put("keystore", Paths.get(testFolder.getRoot().getAbsolutePath(), "zmqtest.jks").toAbsolutePath().toString());
         props.put("numSocket", 2);
@@ -201,19 +189,14 @@ public class TestZMQReceiver {
 
     @Test
     public void testBeans() throws ClassNotFoundException, IntrospectionException {
-        try {
-            BeanChecks.beansCheck(logger, "loghub.receivers.ZMQ"
-                                  ,BeanInfo.build("method", String.class)
-                                  ,BeanInfo.build("listen", String.class)
-                                  ,BeanInfo.build("type", String.class)
-                                  ,BeanInfo.build("hwm", Integer.TYPE)
-                                  ,BeanInfo.build("serverKey", String.class)
-                                  ,BeanInfo.build("security", String.class)
-                            );
-        } catch (Exception e) {
-            e.printStackTrace();
-            Assert.fail(e.getMessage());
-        }
+        BeanChecks.beansCheck(logger, "loghub.receivers.ZMQ"
+                              ,BeanInfo.build("method", String.class)
+                              ,BeanInfo.build("listen", String.class)
+                              ,BeanInfo.build("type", String.class)
+                              ,BeanInfo.build("hwm", Integer.TYPE)
+                              ,BeanInfo.build("serverKey", String.class)
+                              ,BeanInfo.build("security", String.class)
+                        );
     }
 
 }
