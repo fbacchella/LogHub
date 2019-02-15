@@ -374,6 +374,8 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>${mavenSurefirePlugin}</version>
                 <configuration>
+                    <!-- issue https://issues.apache.org/jira/browse/SUREFIRE-1588, show only on circle-ci -->
+                    <useSystemClassLoader>false</useSystemClassLoader>
                     <systemProperties>
                         <property>
                             <name>java.awt.headless</name>
