@@ -5,7 +5,7 @@ commands:
             jvm:
                 type: string
         steps:
-            #- checkout
+            - checkout
             - restore_cache:
                 key: loghub-<<parameters.jvm>>-{{ checksum "pom.xml" }}
             - run: mvn dependency:go-offline
