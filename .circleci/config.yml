@@ -1,42 +1,32 @@
-version: 2.1
-commands:
-    simplerun:
-        parameters:
-            jvm:
-                type: string
+version: 2
+jobs:
+    build:
+        docker:
+            - image: circleci/openjdk:11-jdk
+            - image: docker.elastic.co/elasticsearch/elasticsearch:6.6.0
+              environment:
+                  discovery.type: single-node
         steps:
             - checkout
+            - run: sudo apt-get install openjdk-11-jdk-headless openjdk-8-jdk-headless
             - restore_cache:
-                key: loghub-<<parameters.jvm>>-{{ checksum "pom.xml" }}
+                key: loghub-{{ checksum "pom.xml" }}
             - run: mvn dependency:go-offline
             - save_cache:
                 paths:
                     - ~/.m2
-                key: loghub-<<parameters.jvm>>-{{ checksum "pom.xml" }}
-            - run: curl -L -o /tmp/es-snap.zip https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-6.4.2.zip
-            - run: unzip /tmp/es-snap.zip -d /tmp/
-            - run: /tmp/elasticsearch-*/bin/elasticsearch -E path.repo=/tmp -E repositories.url.allowed_urls='http://*' -E node.attr.testattr=test -d
-            - run: mvn package
+                key: loghub-{{ checksum "pom.xml" }}
+            - run:
+                command: mvn compile
+                environment:
+                    JAVA_HOME: /usr/lib/jvm/java-11-openjdk-amd64
+            - run:
+                command: mvn resources:testResources compiler:testCompile surefire:test
+                environment:
+                    JAVA_HOME: /usr/lib/jvm/java-8-openjdk-amd64
+            - run:
+                command: mvn install -Dmaven.test.skip=true -Dmaven.main.skip=true
+                environment:
+                    JAVA_HOME: /usr/lib/jvm/java-11-openjdk-amd64
             - store_test_results:
                 path: target/surefire-reports
-jobs:
-    openjdk8:
-        working_directory: ~/loghub
-        docker:
-            - image: circleci/openjdk:8-jdk
-        steps:
-            - simplerun:
-                jvm: openjdk8
-    openjdk11:
-        working_directory: ~/loghub
-        docker:
-            - image: circleci/openjdk:11-jdk
-        steps:
-            - simplerun:
-                jvm: openjdk11
-workflows:
-  version: 2.1
-  builds:
-    jobs:
-      - openjdk8
-      - openjdk11
