@@ -176,7 +176,7 @@ public class JWTHandler {
         String headerEncoded = enc.encodeToString(header.getBytes(StandardCharsets.UTF_8));
         String payloadEncoded = enc.encodeToString(payload.getBytes(StandardCharsets.UTF_8));
         String firstPart = headerEncoded + "." + payloadEncoded;
-        String signature = enc.encodeToString(alg.sign(firstPart.getBytes(StandardCharsets.US_ASCII)));
+        String signature = enc.encodeToString(alg.sign(headerEncoded.getBytes(StandardCharsets.US_ASCII), payloadEncoded.getBytes(StandardCharsets.US_ASCII)));
         return firstPart + "." + signature;
     }
 
