@@ -9,16 +9,17 @@ services:
   - elasticsearch
 script:
   - mvn clean package
+  - mvn surefire:test -Dtest=*.TestZMQ* --debug
 jdk:
   - openjdk8
-  - openjdk9
+  - openjdk12
 cache:
   directories:
     - '$HOME/.m2/repository'
     - '$HOME/.sonar/cache'
 matrix:
   include:
-    - jdk: openjdk10
+    - jdk: openjdk11
       script:
         - "cp .travis.settings.xml $HOME/.m2/settings.xml"
         - mvn clean org.jacoco:jacoco-maven-plugin:prepare-agent package sonar:sonar deploy
