@@ -16,10 +16,6 @@ jobs:
                 command: mvn compile
                 environment:
                     JAVA_HOME: /usr/lib/jvm/java-11-openjdk-amd64
-            - save_cache:
-                paths:
-                    - ~/.m2
-                key: loghub-{{ checksum "pom.xml" }}
             - run:
                 command: mvn resources:testResources compiler:testCompile surefire:test
                 environment:
@@ -28,5 +24,9 @@ jobs:
                 command: mvn site deploy -Dmaven.test.skip=true -Dmaven.main.skip=true -s .circleci/settings.xml
                 environment:
                     JAVA_HOME: /usr/lib/jvm/java-11-openjdk-amd64
+            - save_cache:
+                paths:
+                    - ~/.m2
+                key: loghub-{{ checksum "pom.xml" }}
             - store_test_results:
                 path: target/surefire-reports
