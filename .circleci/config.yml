@@ -7,15 +7,12 @@ jobs:
         steps:
             - checkout
             - restore_cache:
-                key: 
-                    - loghub-{{ checksum "pom.xml" }}
-                    - loghub-
+                key: loghub-{{ checksum "pom.xml" }}
             - run: mvn dependency:go-offline
             - run: mvn package
             - save_cache:
                 paths:
                     - ~/.m2
-                key: 
-                    - loghub-{{ checksum "pom.xml" }}
+                key: loghub-{{ checksum "pom.xml" }}
             - store_test_results:
                 path: target/surefire-reports
