@@ -49,6 +49,7 @@ import zmq.socket.Sockets;
 public class SmartContext {
 
     public static final String CURVEPREFIX="Curve";
+    public static final String KEYNAME = "loghubzmqpair";
 
     private static final Logger logger = LogManager.getLogger();
 
@@ -148,7 +149,7 @@ public class SmartContext {
             keystoretype = "BKS";
             break;
         default:
-            throw new IllegalArgumentException("Unsupported key store");
+            throw new IllegalArgumentException("Unsupported key store type");
         }
         KeyStore ks = KeyStore.getInstance(keystoretype);
 
@@ -165,7 +166,7 @@ public class SmartContext {
             KeyPair kp = kpg.generateKeyPair();
             NaclCertificate certificate = new NaclCertificate(kp.getPublic());
 
-            ks.setKeyEntry("loghubzmqpair", kp.getPrivate(), emptypass, new Certificate[] {certificate});
+            ks.setKeyEntry(KEYNAME, kp.getPrivate(), emptypass, new Certificate[] {certificate});
             try (FileOutputStream ksstream = new FileOutputStream(zmqKeyStore.toFile())) {
                 ks.store(ksstream, emptypass);
             }
@@ -181,7 +182,10 @@ public class SmartContext {
             try (FileInputStream ksstream = new FileInputStream(zmqKeyStore.toFile())) {
                 ks.load(ksstream, emptypass);
             }
-            KeyStore.Entry e = ks.getEntry("loghubzmqpair", new KeyStore.PasswordProtection(emptypass));
+            KeyStore.Entry e = ks.getEntry(KEYNAME, new KeyStore.PasswordProtection(emptypass));
+            if (e == null) {
+                throw new IllegalArgumentException("Invalid key store, the curve key is missing");
+            }
             if (e instanceof PrivateKeyEntry) {
                 prk = ((PrivateKeyEntry) e).getPrivateKey();
                 puk = ((PrivateKeyEntry) e).getCertificate().getPublicKey();
