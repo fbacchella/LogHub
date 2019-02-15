@@ -9,18 +9,18 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <source>1.8</source>
-        <target>1.8</target>
-        <mavenSurefirePlugin>2.19.1</mavenSurefirePlugin>
-        <log4j>2.11.1</log4j>
+        <maven.compiler.source>1.8</maven.compiler.source>
+        <maven.compiler.target>1.8</maven.compiler.target>
+        <mavenSurefirePlugin>2.22.0</mavenSurefirePlugin>
+        <log4j>2.11.2</log4j>
         <antlr>4.7.2</antlr>
-        <javadoc>2.10.3</javadoc>
+        <javadoc>3.0.1 </javadoc>
         <jackson>2.9.8</jackson>
         <metrics>4.0.0</metrics>
         <cache2k>1.2.0.Final</cache2k>
         <mainClass>loghub.Start</mainClass>
         <dependency.locations.enabled>false</dependency.locations.enabled>
-        <jacoco>0.8.2</jacoco>
+        <jacoco>0.8.3</jacoco>
     </properties>
     <dependencies>
         <!-- Needed for loghub.processors.Log4Extract. It's incompatible with org.apache.logging.log4j:log4j-1.2-api.
@@ -74,7 +74,7 @@
         <dependency>
             <groupId>org.zeromq</groupId>
             <artifactId>jeromq</artifactId>
-            <version>0.4.3</version>
+            <version>0.5.0-SNAPSHOT</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.zeromq</groupId>
@@ -98,7 +98,7 @@
         <dependency>
             <groupId>org.apache.httpcomponents</groupId>
             <artifactId>httpclient</artifactId>
-            <version>4.5.5</version>
+            <version>4.5.7</version>
         </dependency>
         <dependency>
             <groupId>org.snmp4j</groupId>
@@ -157,7 +157,7 @@
         <dependency>
             <groupId>fr.jrds</groupId>
             <artifactId>snmpcodec</artifactId>
-            <version>0.0.6</version>
+            <version>0.0.7</version>
         </dependency>
         <dependency>
             <groupId>io.netty</groupId>
@@ -217,12 +217,12 @@
         <dependency>
             <groupId>com.beust</groupId>
             <artifactId>jcommander</artifactId>
-            <version>1.72</version>
+            <version>1.74</version>
         </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
-            <version>1.18.4</version>
+            <version>1.18.6</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
@@ -263,16 +263,12 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.3</version>
-                <configuration>
-                    <source>${source}</source>
-                    <target>${target}</target>
-                </configuration>
+                <version>3.8.0</version>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
-                <version>2.6</version>
+                <version>3.1.1</version>
                 <executions>
                     <execution>
                         <id>default-jar</id>
@@ -284,7 +280,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
-                <version>3.1.0</version>
+                <version>3.2.1</version>
                 <executions>
                     <execution>
                         <phase>package</phase>
@@ -446,7 +442,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-source-plugin</artifactId>
-                <version>2.4</version>
+                <version>3.0.1</version>
                 <executions>
                     <execution>
                         <id>attach-source</id>
