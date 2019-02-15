@@ -1,18 +1,37 @@
-version: 2
+version: 2.1
+commands:
+    simplerun:
+        parameters:
+            jvm:
+                type: string
+        steps:
+            #- checkout
+            - restore_cache:
+                key: loghub-<<parameters.jvm>>-{{ checksum "pom.xml" }}
+            - run: mvn dependency:go-offline
+            - save_cache:
+                paths:
+                    - ~/.m2
+                key: loghub-<<parameters.jvm>>-{{ checksum "pom.xml" }}
+            - run: curl -L -o /tmp/es-snap.zip https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-6.4.2.zip
+            - run: unzip /tmp/es-snap.zip -d /tmp/
+            - run: /tmp/elasticsearch-*/bin/elasticsearch -E path.repo=/tmp -E repositories.url.allowed_urls='http://*' -E node.attr.testattr=test -d
+            - run: mvn package
+            - store_test_results:
+                path: target/surefire-reports
 jobs:
-    build:
+    openjdk8:
         working_directory: ~/loghub
         docker:
             - image: circleci/openjdk:8-jdk
         steps:
-            - checkout
-            - restore_cache:
-                key: loghub-{{ checksum "pom.xml" }}
-            - run: mvn dependency:go-offline
-            - run: mvn package
-            - save_cache:
-                paths:
-                    - ~/.m2
-                key: loghub-{{ checksum "pom.xml" }}
-            - store_test_results:
-                path: target/surefire-reports
+            - simplerun:
+                jvm: openjdk8
+    openjdk11:
+        working_directory: ~/loghub
+        docker:
+            - image: circleci/openjdk:11-jdk
+        steps:
+        steps:
+            - simplerun:
+                jvm: openjdk11
