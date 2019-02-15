@@ -11,7 +11,7 @@ jobs:
             - run: sudo apt-get install openjdk-11-jdk-headless openjdk-8-jdk-headless
             - restore_cache:
                 key: loghub-{{ checksum "pom.xml" }}
-            - run: mvn dependency:go-offline
+            - run: mvn dependency:go-offline dependency:resolve-plugins
             - save_cache:
                 paths:
                     - ~/.m2
@@ -25,7 +25,7 @@ jobs:
                 environment:
                     JAVA_HOME: /usr/lib/jvm/java-8-openjdk-amd64
             - run:
-                command: mvn install -Dmaven.test.skip=true -Dmaven.main.skip=true
+                command: mvn site deploy -Dmaven.test.skip=true -Dmaven.main.skip=true -s .circleci/settings.xml
                 environment:
                     JAVA_HOME: /usr/lib/jvm/java-11-openjdk-amd64
             - store_test_results:
