@@ -12,14 +12,14 @@ jobs:
             - restore_cache:
                 key: loghub-{{ checksum "pom.xml" }}
             - run: mvn dependency:go-offline dependency:resolve-plugins
-            - save_cache:
-                paths:
-                    - ~/.m2
-                key: loghub-{{ checksum "pom.xml" }}
             - run:
                 command: mvn compile
                 environment:
                     JAVA_HOME: /usr/lib/jvm/java-11-openjdk-amd64
+            - save_cache:
+                paths:
+                    - ~/.m2
+                key: loghub-{{ checksum "pom.xml" }}
             - run:
                 command: mvn resources:testResources compiler:testCompile surefire:test
                 environment:
