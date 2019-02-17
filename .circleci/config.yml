@@ -11,17 +11,17 @@ jobs:
             - run: sudo apt-get install openjdk-11-jdk-headless openjdk-8-jdk-headless
             - restore_cache:
                 key: loghub-{{ checksum "pom.xml" }}
-            - run: mvn dependency:go-offline dependency:resolve-plugins
+            - run: mvn -B dependency:go-offline dependency:resolve-plugins
             - run:
                 command: mvn compile
                 environment:
                     JAVA_HOME: /usr/lib/jvm/java-11-openjdk-amd64
             - run:
-                command: mvn resources:testResources compiler:testCompile surefire:test
+                command: mvn -B resources:testResources compiler:testCompile surefire:test
                 environment:
                     JAVA_HOME: /usr/lib/jvm/java-8-openjdk-amd64
             - run:
-                command: mvn site deploy -Dmaven.test.skip=true -Dmaven.main.skip=true -s .circleci/settings.xml
+                command: mvn -B site deploy -Dmaven.test.skip=true -Dmaven.main.skip=true -s .circleci/settings.xml
                 environment:
                     JAVA_HOME: /usr/lib/jvm/java-11-openjdk-amd64
                     MAVEN_OPTS: "-Dorg.slf4j.simpleLogger.log.org.apache.maven.plugins.shade=ERROR"
