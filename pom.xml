@@ -362,7 +362,7 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>${mavenSurefirePlugin}</version>
                 <configuration>
-                    <argLine>-Xmx4096M</argLine>
+                    <argLine>-Xmx2048M</argLine>
                     <!-- issue https://issues.apache.org/jira/browse/SUREFIRE-1588, show only on circle-ci -->
                     <useSystemClassLoader>false</useSystemClassLoader>
                     <systemProperties>

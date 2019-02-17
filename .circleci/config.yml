@@ -20,10 +20,6 @@ jobs:
                 command: mvn resources:testResources compiler:testCompile surefire:test
                 environment:
                     JAVA_HOME: /usr/lib/jvm/java-8-openjdk-amd64
-            - save_cache:
-                paths:
-                    - ~/.m2
-                key: loghub-{{ checksum "pom.xml" }}
             - run:
                 command: mvn site deploy -Dmaven.test.skip=true -Dmaven.main.skip=true -s .circleci/settings.xml
                 environment:
