@@ -31,6 +31,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.zeromq.SocketType;
 import org.zeromq.ZContext;
 import org.zeromq.ZMQ.Socket;
 import org.zeromq.ZMQException;
@@ -44,7 +45,6 @@ import loghub.Helpers;
 import loghub.ThreadBuilder;
 import loghub.zmq.ZMQHelper.Method;
 import zmq.Options;
-import zmq.socket.Sockets;
 
 public class SmartContext {
 
@@ -201,9 +201,8 @@ public class SmartContext {
         return running;
     }
 
-    @SuppressWarnings("deprecation")
-    public Socket newSocket(Method method, Sockets type, String endpoint, int hwm, int timeout) {
-        Socket socket = localContext.get().createSocket(type.ordinal());
+    public Socket newSocket(Method method, SocketType type, String endpoint, int hwm, int timeout) {
+        Socket socket = localContext.get().createSocket(type);
         String url = endpoint + ":" + type.toString() + ":" + method.getSymbol();
         logger.trace("new socket: {}={}", url, socket);
         socket.setRcvHWM(hwm);
@@ -215,7 +214,7 @@ public class SmartContext {
         return socket;
     }
 
-    public Socket newSocket(Method method, Sockets type, String endpoint) {
+    public Socket newSocket(Method method, SocketType type, String endpoint) {
         // All socket have high hwm and are blocking
         return newSocket(method, type, endpoint, 1, -1);
     }
@@ -252,6 +251,7 @@ public class SmartContext {
         try {
             logger.trace("close socket {}", socket);
             socket.setLinger(0);
+            assert localContext.get().getSockets().contains(socket);
             localContext.get().destroySocket(socket);
         } catch (ZMQException|zmq.ZError.IOException|zmq.ZError.CtxTerminatedException|zmq.ZError.InstantiationException e) {
             ZMQCheckedException.logZMQException(logger, "failed to close " + socket + ": {}", e);
@@ -307,11 +307,11 @@ public class SmartContext {
 
     public Socket[] getPair(String name) {
         String endPoint = "inproc://pair/" + name;
-        Socket socket1 = newSocket(Method.BIND, Sockets.PAIR, endPoint);
+        Socket socket1 = newSocket(Method.BIND, SocketType.PAIR, endPoint);
         socket1.setLinger(0);
         socket1.setHWM(1);
 
-        Socket socket2 = newSocket(Method.CONNECT, Sockets.PAIR, endPoint);
+        Socket socket2 = newSocket(Method.CONNECT, SocketType.PAIR, endPoint);
         socket2.setLinger(0);
         socket2.setHWM(1);
 

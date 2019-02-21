@@ -7,6 +7,7 @@ import java.util.function.Supplier;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.zeromq.SocketType;
 import org.zeromq.ZMQ;
 import org.zeromq.ZMQ.Socket;
 import org.zeromq.ZPoller;
@@ -18,7 +19,6 @@ import loghub.zmq.ZMQHelper.Method;
 import lombok.Setter;
 import lombok.experimental.Accessors;
 import zmq.ZError;
-import zmq.socket.Sockets;
 
 @Accessors(chain=true)
 public class ZMQFlow implements Closeable {
@@ -29,7 +29,7 @@ public class ZMQFlow implements Closeable {
         @Setter
         private String destination = "tcp://localhost:2120";
         @Setter
-        private Sockets type = Sockets.PUB;
+        private SocketType type = SocketType.PUB;
         @Setter
         private int hwm = 1000;
         @Setter

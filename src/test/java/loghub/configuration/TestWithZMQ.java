@@ -15,6 +15,7 @@ import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
+import org.zeromq.SocketType;
 import org.zeromq.ZMQ.Error;
 import org.zeromq.ZMQ.Socket;
 import org.zeromq.ZPoller;
@@ -28,7 +29,6 @@ import loghub.ZMQSink;
 import loghub.receivers.Receiver;
 import loghub.senders.Sender;
 import loghub.zmq.ZMQHelper.Method;
-import zmq.socket.Sockets;
 
 public class TestWithZMQ {
 
@@ -81,14 +81,14 @@ public class TestWithZMQ {
         ZMQFlow.Builder flowbuilder = new ZMQFlow.Builder()
                         .setMethod(Method.CONNECT)
                         .setDestination("inproc://listener")
-                        .setType(Sockets.PUB)
+                        .setType(SocketType.PUB)
                         .setSource(() -> String.format("message %s", count.incrementAndGet()).getBytes(StandardCharsets.UTF_8))
                         .setMsPause(250)
                         .setCtx(tctxt.ctx);
 
         ZMQSink.Builder sinkbuilder = new ZMQSink.Builder()
                         .setMethod(Method.CONNECT)
-                        .setType(Sockets.SUB)
+                        .setType(SocketType.SUB)
                         .setTopic(new byte[] {})
                         .setSource("inproc://sender")
                         .setLocalhandler(this::process)

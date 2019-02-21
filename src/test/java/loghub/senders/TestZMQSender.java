@@ -24,6 +24,7 @@ import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.zeromq.SocketType;
 import org.zeromq.ZMQ.Error;
 import org.zeromq.ZMQ.Socket;
 import org.zeromq.ZPoller;
@@ -78,7 +79,7 @@ public class TestZMQSender {
 
         sinkbuilder.setLocalhandler(this::process)
         .setCtx(ctx)
-        .setType(Sockets.PULL);
+        .setType(SocketType.PULL);
         BlockingQueue<Event> queue = new ArrayBlockingQueue<>(10);
         Event ev = Event.emptyEvent(ConnectionContext.EMPTY);
         AtomicInteger count = new AtomicInteger();

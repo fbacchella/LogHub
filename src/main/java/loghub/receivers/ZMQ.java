@@ -2,6 +2,7 @@ package loghub.receivers;
 
 import java.nio.charset.StandardCharsets;
 
+import org.zeromq.SocketType;
 import org.zeromq.ZMQ.Socket;
 import org.apache.logging.log4j.Level;
 import static org.zeromq.ZMQ.Error;
@@ -15,14 +16,13 @@ import loghub.configuration.Properties;
 import loghub.zmq.ZMQCheckedException;
 import loghub.zmq.ZMQHandler;
 import loghub.zmq.ZMQHelper;
-import zmq.socket.Sockets;
 
 @Blocking
 public class ZMQ extends Receiver {
 
     private ZMQHelper.Method method = ZMQHelper.Method.BIND;
     private String listen = "tcp://localhost:2120";
-    private Sockets type = Sockets.SUB;
+    private SocketType type = SocketType.SUB;
     private String topic = "";
     private int hwm = 1000;
     private String serverKey = null;
@@ -127,7 +127,7 @@ public class ZMQ extends Receiver {
     }
 
     public void setType(String type) {
-        this.type = Sockets.valueOf(type.trim().toUpperCase());
+        this.type = SocketType.valueOf(type.trim().toUpperCase());
     }
 
     @Override

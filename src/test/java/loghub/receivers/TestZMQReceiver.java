@@ -24,6 +24,7 @@ import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.zeromq.SocketType;
 
 import loghub.BeanChecks;
 import loghub.BeanChecks.BeanInfo;
@@ -37,7 +38,6 @@ import loghub.decoders.StringCodec;
 import loghub.zmq.SmartContext;
 import loghub.zmq.ZMQHelper.Method;
 import zmq.io.mechanism.curve.Curve;
-import zmq.socket.Sockets;
 
 public class TestZMQReceiver {
 
@@ -82,7 +82,7 @@ public class TestZMQReceiver {
         ZMQFlow.Builder flowbuilder = new ZMQFlow.Builder()
                         .setMethod(Method.BIND)
                         .setDestination(rendezvous)
-                        .setType(Sockets.PUSH)
+                        .setType(SocketType.PUSH)
                         .setMsPause(250);
         dotest(null, r -> {
             r.setListen(rendezvous);
@@ -97,7 +97,7 @@ public class TestZMQReceiver {
         ZMQFlow.Builder flowbuilder = new ZMQFlow.Builder()
                         .setMethod(Method.CONNECT)
                         .setDestination(rendezvous)
-                        .setType(Sockets.PUSH)
+                        .setType(SocketType.PUSH)
                         .setMsPause(1000);
         dotest(null, r -> {
             r.setListen(rendezvous);
@@ -112,7 +112,7 @@ public class TestZMQReceiver {
         ZMQFlow.Builder flowbuilder = new ZMQFlow.Builder()
                         .setMethod(Method.CONNECT)
                         .setDestination(rendezvous)
-                        .setType(Sockets.PUB)
+                        .setType(SocketType.PUB)
                         .setMsPause(1000);
         dotest(null, r -> {
             r.setListen(rendezvous);
@@ -136,7 +136,7 @@ public class TestZMQReceiver {
         ZMQFlow.Builder flowbuilder = new ZMQFlow.Builder()
                         .setMethod(Method.CONNECT)
                         .setDestination(rendezvous)
-                        .setType(Sockets.PUSH)
+                        .setType(SocketType.PUSH)
                         .setMsPause(1000)
                         .setSecurity("Curve")
                         .setPrivateKey(serverKeys[1])
@@ -167,7 +167,7 @@ public class TestZMQReceiver {
         ZMQFlow.Builder flowbuilder = new ZMQFlow.Builder()
                         .setMethod(Method.CONNECT)
                         .setDestination(rendezvous)
-                        .setType(Sockets.PUSH)
+                        .setType(SocketType.PUSH)
                         .setMsPause(1000)
                         .setSecurity("Curve")
                         .setPrivateKey(serverKeys[1])

@@ -2,6 +2,7 @@ package loghub.senders;
 
 import java.util.concurrent.CompletableFuture;
 
+import org.zeromq.SocketType;
 import org.zeromq.ZMQ.Socket;
 import org.zeromq.ZPoller;
 
@@ -51,7 +52,7 @@ public class ZMQ extends Sender {
                         .setHwm(builder.hwm)
                         .setSocketUrl(builder.destination)
                         .setMethod(Method.valueOf(builder.getMethod().toUpperCase()))
-                        .setType(Sockets.valueOf(builder.type.toUpperCase()))
+                        .setType(SocketType.valueOf(builder.type.toUpperCase()))
                         .setSecurity(builder.security)
                         .setServerKeyToken(builder.serverKey)
                         .setLogger(logger)

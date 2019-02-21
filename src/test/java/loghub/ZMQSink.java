@@ -6,6 +6,7 @@ import java.util.function.BiFunction;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.zeromq.SocketType;
 import org.zeromq.ZMQ.Error;
 import org.zeromq.ZMQ.Socket;
 import org.zeromq.ZPoller;
@@ -15,7 +16,6 @@ import loghub.zmq.ZMQHandler;
 import loghub.zmq.ZMQHelper.Method;
 import lombok.Setter;
 import lombok.experimental.Accessors;
-import zmq.socket.Sockets;
 
 @Accessors(chain=true)
 public class ZMQSink implements Closeable {
@@ -26,7 +26,7 @@ public class ZMQSink implements Closeable {
         @Setter
         private String source = "tcp://localhost:2120";
         @Setter
-        private Sockets type = Sockets.SUB;
+        private SocketType type = SocketType.SUB;
         @Setter
         private int hwm = 1000;
         @Setter

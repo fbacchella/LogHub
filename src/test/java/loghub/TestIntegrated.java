@@ -23,6 +23,7 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
+import org.zeromq.SocketType;
 import org.zeromq.ZMQ.Socket;
 
 import com.codahale.metrics.jmx.JmxReporter.JmxCounterMBean;
@@ -34,7 +35,6 @@ import loghub.configuration.ConfigException;
 import loghub.configuration.Configuration;
 import loghub.jmx.StatsMBean;
 import loghub.zmq.ZMQHelper.Method;
-import zmq.socket.Sockets;
 
 public class TestIntegrated {
 
@@ -63,8 +63,8 @@ public class TestIntegrated {
         JmxTimerMBean allevents_timer = JMX.newMBeanProxy(mbs, new ObjectName("metrics:name=Allevents.timer"), JmxTimerMBean.class);
         JmxCounterMBean allevents_inflight = JMX.newMBeanProxy(mbs, new ObjectName("metrics:name=Allevents.inflight"), JmxCounterMBean.class);
 
-        try (Socket sender = tctxt.ctx.newSocket(Method.CONNECT, Sockets.PUSH, "inproc://listener");
-             Socket receiver = tctxt.ctx.newSocket(Method.CONNECT, Sockets.PULL, "inproc://sender");) {
+        try (Socket sender = tctxt.ctx.newSocket(Method.CONNECT, SocketType.PUSH, "inproc://listener");
+             Socket receiver = tctxt.ctx.newSocket(Method.CONNECT, SocketType.PULL, "inproc://sender");) {
             sender.setHWM(200);
             receiver.setHWM(200);
             AtomicLong send = new AtomicLong();

@@ -11,6 +11,7 @@ import java.util.function.Supplier;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.Logger;
+import org.zeromq.SocketType;
 import org.zeromq.ZMQ.Error;
 import org.zeromq.ZMQ.Socket;
 import org.zeromq.ZPoller;
@@ -21,7 +22,6 @@ import loghub.zmq.ZMQHelper.Method;
 import lombok.Setter;
 import lombok.experimental.Accessors;
 import zmq.ZError;
-import zmq.socket.Sockets;
 
 @Accessors(chain=true)
 public class ZMQHandler implements Closeable {
@@ -30,7 +30,7 @@ public class ZMQHandler implements Closeable {
         @Setter
         String socketUrl;
         @Setter
-        Sockets type;
+        SocketType type;
         @Setter
         int hwm;
         @Setter
@@ -116,7 +116,7 @@ public class ZMQHandler implements Closeable {
             } else if (builder.security != null) {
                 throw new IllegalArgumentException("Security  "+ builder.security + "not managed");
             }
-            if (builder.type == Sockets.SUB && builder.topic != null) {
+            if (builder.type == SocketType.SUB && builder.topic != null) {
                 trysendsocket.subscribe(builder.topic);
             }
             return trysendsocket;
@@ -134,7 +134,7 @@ public class ZMQHandler implements Closeable {
         Socket socketEndPair = null;
         try {
             getSocket();
-            socketEndPair = ctx.newSocket(Method.BIND, Sockets.PAIR, "inproc://pair/" + pairId);
+            socketEndPair = ctx.newSocket(Method.BIND, SocketType.PAIR, "inproc://pair/" + pairId);
             ZPoller.EventsHandler stopsignal = new ZPoller.EventsHandler() {
                 @Override
                 public boolean events(Socket socket, int eventMask) {
@@ -215,7 +215,7 @@ public class ZMQHandler implements Closeable {
         logger.trace("Stop handling messages");
         if (running && ctx.isRunning()) {
             running = false;
-            Socket stopStartPair = ctx.newSocket(Method.CONNECT, Sockets.PAIR, "inproc://pair/" + pairId);
+            Socket stopStartPair = ctx.newSocket(Method.CONNECT, SocketType.PAIR, "inproc://pair/" + pairId);
             stopStartPair.send(new byte[] {});
             ctx.close(stopStartPair);
             logger.debug("Listening stopped");

@@ -14,6 +14,7 @@ import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.zeromq.SocketType;
 import org.zeromq.ZMQ;
 import org.zeromq.ZMQ.Socket;
 
@@ -21,7 +22,6 @@ import loghub.LogUtils;
 import loghub.Tools;
 import loghub.zmq.ZMQHelper.Method;
 import zmq.io.mechanism.curve.Curve;
-import zmq.socket.Sockets;
 
 public class CurveTest {
 
@@ -48,8 +48,8 @@ public class CurveTest {
         byte[][] serverKeys = curve.keypair();
 
         String rendezvous = "tcp://localhost:" + Tools.tryGetPort();
-        Socket server = ctx.newSocket(Method.CONNECT, Sockets.PUSH, rendezvous, 100, 1000);
-        Socket client = ctx.newSocket(Method.BIND, Sockets.PULL, rendezvous, 100, 1000);
+        Socket server = ctx.newSocket(Method.CONNECT, SocketType.PUSH, rendezvous, 100, 1000);
+        Socket client = ctx.newSocket(Method.BIND, SocketType.PULL, rendezvous, 100, 1000);
         try {
             ctx.setCurveClient(client, serverKeys[0]);
             server.setCurveServer(true);
@@ -79,8 +79,8 @@ public class CurveTest {
         byte[][] serverKeys = curve.keypair();
 
         String rendezvous = "tcp://localhost:" + Tools.tryGetPort();
-        Socket server = ctx.newSocket(Method.CONNECT, Sockets.PULL, rendezvous, 100, 1000);
-        Socket client = ctx.newSocket(Method.BIND, Sockets.PUSH, rendezvous, 100, 1000);
+        Socket server = ctx.newSocket(Method.CONNECT, SocketType.PULL, rendezvous, 100, 1000);
+        Socket client = ctx.newSocket(Method.BIND, SocketType.PUSH, rendezvous, 100, 1000);
         try {
             ctx.setCurveClient(client, serverKeys[0]);
             server.setCurveServer(true);
@@ -110,8 +110,8 @@ public class CurveTest {
         byte[][] serverKeys = curve.keypair();
 
         String rendezvous = "tcp://localhost:" + Tools.tryGetPort();
-        Socket server = ctx.newSocket(Method.CONNECT, Sockets.PUSH, rendezvous, 100, 1000);
-        Socket client = ctx.newSocket(Method.BIND, Sockets.PULL, rendezvous, 100, 1000);
+        Socket server = ctx.newSocket(Method.CONNECT, SocketType.PUSH, rendezvous, 100, 1000);
+        Socket client = ctx.newSocket(Method.BIND, SocketType.PULL, rendezvous, 100, 1000);
         try {
             // Putting the wrong key
             ctx.setCurveClient(client, serverKeys[1]);
