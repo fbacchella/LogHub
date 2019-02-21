@@ -110,7 +110,8 @@ public class ZMQ extends Sender {
             }
             return true;
         } catch (InterruptedException e) {
-            interrupt();
+            // Don't rethrow interrupt, ZMQ don't like them
+            // The false value will be enough to stop processing
             return false;
         } finally {
             canInterrupt = false;
