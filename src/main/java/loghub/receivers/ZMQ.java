@@ -7,6 +7,7 @@ import org.zeromq.ZPoller;
 
 import loghub.ConnectionContext;
 import loghub.Event;
+import loghub.Stats;
 import loghub.configuration.Properties;
 import loghub.zmq.ZMQHandler;
 import loghub.zmq.ZMQHelper;
@@ -67,7 +68,7 @@ public class ZMQ extends Receiver {
             int received = socket.recv(ZMQ.this.databuffer, 0, databuffer.length, 0);
             if (received < 0) {
                 ERRNO error = ZMQHelper.ERRNO.get(socket.errno());
-                logger.log(error.level, "error with ZSocket {}: {}", listen, error.toStringMessage());
+                Stats.newReceivedError(String.format("error with ZSocket %s: %s", listen, error.toStringMessage()));
             }
             Event event = decode(ConnectionContext.EMPTY, databuffer, 0, received);
             if (event != null) {

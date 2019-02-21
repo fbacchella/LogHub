@@ -47,7 +47,9 @@ import org.snmp4j.util.ThreadPool;
 import fr.jrds.snmpcodec.OIDFormatter;
 import loghub.ConnectionContext;
 import loghub.Event;
+import loghub.Helpers;
 import loghub.IpConnectionContext;
+import loghub.Stats;
 import loghub.configuration.Properties;
 import loghub.snmp.Log4j2LogFactory;
 
@@ -192,8 +194,8 @@ public class SnmpTrap extends Receiver implements CommandResponder {
             }
             send(event);
         } catch (Exception e) {
-            logger.error(e.getMessage());
-            logger.catching(e);
+            Stats.newReceivedError(Helpers.resolveThrowableException(e));
+            Stats.newException(e);
         } finally {
             trap.setProcessed(true);
         }

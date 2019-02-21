@@ -19,7 +19,9 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.QueryStringDecoder;
 import loghub.Event;
+import loghub.Helpers;
 import loghub.ProcessorException;
+import loghub.Stats;
 import loghub.configuration.Properties;
 import loghub.decoders.Decoder.DecodeException;
 import loghub.netty.AbstractTcpReceiver;
@@ -100,9 +102,15 @@ public class Http extends AbstractTcpReceiver<Http, Http.HttpReceiverServer, Htt
                 if (! Http.this.send(e)) {
                     throw new HttpRequestFailure(HttpResponseStatus.TOO_MANY_REQUESTS, "Busy, try again");
                 };
-            } catch (DecodeException | ProcessorException | IllegalCharsetNameException | UnsupportedCharsetException e1) {
+            } catch (DecodeException ex) {
                 e.end();
-                logger.error("Can't decode content", e1);
+                Http.this.manageDecodeException(ex);
+                logger.error("Can't decode content", ex);
+                throw new HttpRequestFailure(HttpResponseStatus.BAD_REQUEST, "Content invalid for decoder");
+            } catch (ProcessorException | IllegalCharsetNameException | UnsupportedCharsetException ex) {
+                e.end();
+                Stats.newReceivedError("Can't decode HTTP content: " + Helpers.resolveThrowableException(ex));
+                logger.debug("Can't decode HTTP content", ex);
                 throw new HttpRequestFailure(HttpResponseStatus.BAD_REQUEST, "Content invalid for decoder");
             }
             ByteBuf content = Unpooled.copiedBuffer("{'decoded': true}\r\n", StandardCharsets.UTF_8);

@@ -16,12 +16,14 @@ public final class Stats {
     public final static AtomicLong thrown = new AtomicLong();
     public final static AtomicLong blocked = new AtomicLong();
     public final static AtomicLong failedSend = new AtomicLong();
+    public final static AtomicLong failedReceived = new AtomicLong();
 
     private final static Queue<ProcessingException> errors = new ArrayBlockingQueue<>(100);
     private final static Queue<DecodeException> decodeErrors = new ArrayBlockingQueue<>(100);
     private final static Queue<Throwable> exceptions = new ArrayBlockingQueue<>(100);
     private final static Queue<String> blockedMessage = new ArrayBlockingQueue<>(100);
     private final static Queue<String> senderErrors = new ArrayBlockingQueue<>(100);
+    private final static Queue<String> receiverErrors = new ArrayBlockingQueue<>(100);
 
     private Stats() {
     }
@@ -90,6 +92,16 @@ public final class Stats {
         }
     }
 
+    public static synchronized void newReceivedError(String context) {
+        failedReceived.incrementAndGet();
+        try {
+            receiverErrors.add(context);
+        } catch (IllegalStateException ex) {
+            receiverErrors.remove();
+            receiverErrors.add(context);
+        }
+    }
+
     public static synchronized Collection<ProcessingException> getErrors() {
         return Collections.unmodifiableCollection(errors);
     }
@@ -108,6 +120,10 @@ public final class Stats {
 
     public static Collection<String> getSenderError() {
         return Collections.unmodifiableCollection(senderErrors);
+    }
+
+    public static Collection<String> getReceiverError() {
+        return Collections.unmodifiableCollection(receiverErrors);
     }
 
 }
