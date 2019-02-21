@@ -67,7 +67,7 @@ public abstract class Receiver extends Thread implements Iterator<Event>, Closea
     }
 
     public boolean configure(Properties properties) {
-        setName("receiver-" + getReceiverName());
+        setName("receiver." + getReceiverName());
         count = Properties.metrics.meter("receiver." + getReceiverName());
         if (decoder != null) {
             return decoder.configure(properties, this);

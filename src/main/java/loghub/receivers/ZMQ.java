@@ -39,7 +39,7 @@ public class ZMQ extends Receiver {
                             .setTopic(topic.getBytes(StandardCharsets.UTF_8))
                             .setServerKeyToken(serverKey)
                             .setLogger(logger)
-                            .setName(getName())
+                            .setName("zmqhandler:" + getReceiverName())
                             .setLocalHandler(this::process)
                             .setMask(ZPoller.IN)
                             .setSecurity(security)
@@ -122,7 +122,7 @@ public class ZMQ extends Receiver {
 
     @Override
     public String getReceiverName() {
-        return "ZMQ";
+        return "ZMQ:" + listen;
     }
 
     public String getServerKey() {
