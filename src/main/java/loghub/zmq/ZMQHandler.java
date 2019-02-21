@@ -6,16 +6,17 @@ import java.nio.channels.SelectableChannel;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.BiFunction;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.Logger;
+import org.zeromq.ZMQ.Error;
 import org.zeromq.ZMQ.Socket;
 import org.zeromq.ZPoller;
 
 import loghub.AbstractBuilder;
 import loghub.Helpers;
-import loghub.zmq.ZMQHelper.ERRNO;
 import loghub.zmq.ZMQHelper.Method;
 import lombok.Setter;
 import lombok.experimental.Accessors;
@@ -54,6 +55,8 @@ public class ZMQHandler implements Closeable {
         byte[] topic = null;
         @Setter
         Runnable stopFunction = () -> {};
+        @Setter
+        Consumer<String> injectError;
 
         public Builder setServerKeyToken(String serverKeyToken) {
             this.serverKey = serverKeyToken != null ? ZMQHelper.parseServerIdentity(serverKeyToken) : null;
@@ -73,6 +76,7 @@ public class ZMQHandler implements Closeable {
     private final String pairId;
     // The stopFunction can be used to do a little cleaning and verifications before the join
     private final Runnable stopFunction;
+    private final Consumer<String> injectError;
 
     private volatile boolean running = false;
     private Supplier<Socket> makeSocket;
@@ -87,35 +91,30 @@ public class ZMQHandler implements Closeable {
         this.localHandler = builder.localHandler;
         this.pairId = builder.name + "/" + UUID.randomUUID();
         this.stopFunction = builder.stopFunction;
+        this.injectError = builder.injectError;
         makeSocket = () -> {
             runningThread = Thread.currentThread();
             ctx = SmartContext.getContext();
             Socket trysendsocket = null;
-            try {
-                trysendsocket = ctx.newSocket(builder.method, builder.type, socketUrl);
-                if ("Curve".equals(builder.security)) {
-                    logger.trace("Activating Curve security on a socket");
-                    if (builder.privateKey == null && builder.publicKey == null) {
-                        if (builder.serverKey != null) {
-                            ctx.setCurveClient(trysendsocket, builder.serverKey);
-                        } else if ("Curve".equals(builder.security)) {
-                            ctx.setCurveServer(trysendsocket);
-                        }
-                    } else {
-                        trysendsocket.setCurvePublicKey(builder.publicKey);
-                        trysendsocket.setCurveSecretKey(builder.privateKey);
-                        trysendsocket.setCurveServer(builder.serverKey == null);
-                        if (builder.serverKey != null) {
-                            trysendsocket.setCurveServerKey(builder.serverKey);
-                        }
+            trysendsocket = ctx.newSocket(builder.method, builder.type, socketUrl);
+            if ("Curve".equals(builder.security)) {
+                logger.trace("Activating Curve security on a socket");
+                if (builder.privateKey == null && builder.publicKey == null) {
+                    if (builder.serverKey != null) {
+                        ctx.setCurveClient(trysendsocket, builder.serverKey);
+                    } else if ("Curve".equals(builder.security)) {
+                        ctx.setCurveServer(trysendsocket);
                     }
-                } else if (builder.security != null) {
-                    throw new IllegalArgumentException("Security  "+ builder.security + "not managed");
+                } else {
+                    trysendsocket.setCurvePublicKey(builder.publicKey);
+                    trysendsocket.setCurveSecretKey(builder.privateKey);
+                    trysendsocket.setCurveServer(builder.serverKey == null);
+                    if (builder.serverKey != null) {
+                        trysendsocket.setCurveServerKey(builder.serverKey);
+                    }
                 }
-            } catch (RuntimeException e) {
-                ZMQHelper.logZMQException(logger, "failed to start ZMQ handler " + socketUrl + ":", e);
-                logger.catching(Level.DEBUG, e.getCause());
-                trysendsocket = null;
+            } else if (builder.security != null) {
+                throw new IllegalArgumentException("Security  "+ builder.security + "not managed");
             }
             if (builder.type == Sockets.SUB && builder.topic != null) {
                 trysendsocket.subscribe(builder.topic);
@@ -131,18 +130,18 @@ public class ZMQHandler implements Closeable {
     }
 
     public void run() {
-        getSocket();
         running = true;
         Socket socketEndPair = null;
         try {
+            getSocket();
             socketEndPair = ctx.newSocket(Method.BIND, Sockets.PAIR, "inproc://pair/" + pairId);
             ZPoller.EventsHandler stopsignal = new ZPoller.EventsHandler() {
                 @Override
                 public boolean events(Socket socket, int eventMask) {
                     logEvent(socket, eventMask);
                     if ((eventMask & ZPoller.ERR) != 0) {
-                        ERRNO error = ZMQHelper.ERRNO.get(socket.errno());
-                        logger.log(error.level, "error with ZSocket {}: {}", socketUrl, error.toStringMessage());
+                        Error error = Error.findByCode(socket.errno());
+                        logger.error("error with ZSocket {}: {}", socketUrl, error.getMessage());
                     } else {
                         logger.debug("Received stop signal");
                         running = false;
@@ -161,8 +160,8 @@ public class ZMQHandler implements Closeable {
                 public boolean events(Socket socket, int eventMask) {
                     logEvent(socket, eventMask);
                     if ((eventMask & ZPoller.ERR) != 0) {
-                        ERRNO error = ZMQHelper.ERRNO.get(socket.errno());
-                        logger.log(error.level, "error with ZSocket {}: {}", socketUrl, error.toStringMessage());
+                        Error error = Error.findByCode(socket.errno());
+                        injectError.accept(String.format("error with ZSocket %s: %s", socketUrl, error.getMessage()));
                         return false;
                     } else if (localHandler != null) {
                         return localHandler.apply(socket, eventMask);
@@ -188,20 +187,18 @@ public class ZMQHandler implements Closeable {
                         logger.trace("Loopping the poller");
                     }
                 } catch (IOException e) {
-                    logger.error("Error polling ZSocket {}: {}", socketUrl, e.getMessage());
-                    logger.catching(Level.DEBUG, e);
+                    Error error = Error.findByCode(socket.errno());
+                    injectError.accept(String.format("error with ZSocket %s: %s", socketUrl, error.getMessage()));
                 } catch (ZError.IOException | ZError.InstantiationException | ZError.CtxTerminatedException e) {
-                    ZMQHelper.logZMQException(logger, "Error polling ZSocket", e);
-                    logger.catching(Level.DEBUG, e);
+                    ZMQCheckedException.logZMQException(logger, "failure when polling a ZSocket: {}", e);
                 }
             }
         } catch (RuntimeException ex) {
-            try {
-                ZMQHelper.logZMQException(logger, "Failed ZMQ processing", ex);
-            } catch (RuntimeException se) {
-                logger.error("Failed ZMQ processing : {}",Helpers.resolveThrowableException(se));
-                logger.catching(Level.ERROR, se);
-            }
+            logger.error("Failed ZMQ processing : {}", Helpers.resolveThrowableException(ex));
+            logger.catching(Level.ERROR, ex);
+        } catch (ZMQCheckedException ex) {
+            logger.error("Failed ZMQ processing : {}", Helpers.resolveThrowableException(ex));
+            logger.catching(Level.DEBUG, ex);
         } finally {
             running = false;
             Optional.ofNullable(socket).ifPresent(ctx::close);
@@ -245,12 +242,19 @@ public class ZMQHandler implements Closeable {
     /**
      * Can only be called from the the same thread that consume the socket
      * @return
+     * @throws ZMQCheckedException if socket creation failed
      */
-    public Socket getSocket() {
-        socket = socket == null ? makeSocket.get() : socket;
-        makeSocket = null;
-        assert Thread.currentThread() == runningThread;
-        return socket;
+    public Socket getSocket() throws ZMQCheckedException {
+        try {
+            socket = socket == null ? makeSocket.get() : socket;
+            makeSocket = null;
+            assert Thread.currentThread() == runningThread;
+            return socket;
+        } catch (RuntimeException e) {
+            ZMQCheckedException.raise(e);
+            // Not reached ZMQCheckedException always throws an exception
+            return null;
+        }
     }
 
 }

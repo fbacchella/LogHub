@@ -3,15 +3,18 @@ package loghub.receivers;
 import java.nio.charset.StandardCharsets;
 
 import org.zeromq.ZMQ.Socket;
+import org.apache.logging.log4j.Level;
+import static org.zeromq.ZMQ.Error;
 import org.zeromq.ZPoller;
 
 import loghub.ConnectionContext;
 import loghub.Event;
+import loghub.Helpers;
 import loghub.Stats;
 import loghub.configuration.Properties;
+import loghub.zmq.ZMQCheckedException;
 import loghub.zmq.ZMQHandler;
 import loghub.zmq.ZMQHelper;
-import loghub.zmq.ZMQHelper.ERRNO;
 import zmq.socket.Sockets;
 
 @Blocking
@@ -52,23 +55,30 @@ public class ZMQ extends Receiver {
 
     @Override
     public void run() {
-        handlerstopper = handler.getStopper();
-        int maxMsgSize = (int) handler.getSocket().getMaxMsgSize();
-        if (maxMsgSize > 0 && maxMsgSize < 65535) {
-            databuffer = new byte[maxMsgSize];
-        } else {
-            databuffer = new byte[65535];
+        try {
+            handlerstopper = handler.getStopper();
+            int maxMsgSize = (int) handler.getSocket().getMaxMsgSize();
+            if (maxMsgSize > 0 && maxMsgSize < 65535) {
+                databuffer = new byte[maxMsgSize];
+            } else {
+                databuffer = new byte[65535];
+            }
+            handler.run();
+        } catch (RuntimeException ex) {
+            logger.error("Failed ZMQ processing : {}", Helpers.resolveThrowableException(ex));
+            logger.catching(Level.ERROR, ex);
+        } catch (ZMQCheckedException ex) {
+            logger.error("Failed ZMQ processing : {}", Helpers.resolveThrowableException(ex));
+            logger.catching(Level.DEBUG, ex);
         }
-        handler.run();
     }
-
 
     public boolean process(Socket socket, int eventMask) {
         while ((socket.getEvents() & ZPoller.IN) != 0 && handler.isRunning()) {
             int received = socket.recv(ZMQ.this.databuffer, 0, databuffer.length, 0);
             if (received < 0) {
-                ERRNO error = ZMQHelper.ERRNO.get(socket.errno());
-                Stats.newReceivedError(String.format("error with ZSocket %s: %s", listen, error.toStringMessage()));
+                Error error = Error.findByCode(socket.errno());
+                Stats.newReceivedError(String.format("error with ZSocket %s: %s", listen, error.getMessage()));
             }
             Event event = decode(ConnectionContext.EMPTY, databuffer, 0, received);
             if (event != null) {

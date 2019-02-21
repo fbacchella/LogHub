@@ -21,10 +21,10 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.Assert;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.zeromq.ZMQ.Error;
 import org.zeromq.ZMQ.Socket;
 import org.zeromq.ZPoller;
 
@@ -37,8 +37,6 @@ import loghub.ZMQSink;
 import loghub.configuration.Properties;
 import loghub.encoders.ToJson;
 import loghub.zmq.SmartContext;
-import loghub.zmq.ZMQHelper;
-import loghub.zmq.ZMQHelper.ERRNO;
 import loghub.zmq.ZMQHelper.Method;
 import zmq.io.mechanism.curve.Curve;
 import zmq.socket.Sockets;
@@ -64,8 +62,8 @@ public class TestZMQSender {
             String received = socket.recvStr();
             latch.countDown();
             if (received == null) {
-                ERRNO error = ZMQHelper.ERRNO.get(socket.errno());
-                logger.log(error.level, "error with ZSocket {}: {}", "TEST", error.toStringMessage());
+                Error error = Error.findByCode(socket.errno());
+                logger.error("error with ZSocket {}: {}", socket, error.getMessage());
                 return false;
             }
         }
@@ -112,7 +110,6 @@ public class TestZMQSender {
         }
     }
 
-    @Ignore
     @Test(timeout=5000)
     public void bind() throws IOException, InterruptedException {
         String rendezvous = "tcp://localhost:" + Tools.tryGetPort();
@@ -125,7 +122,6 @@ public class TestZMQSender {
         }, flowbuilder);
     }
 
-    @Ignore
     @Test(timeout=5000)
     public void connect() throws IOException, InterruptedException {
         String rendezvous = "tcp://localhost:" + Tools.tryGetPort();
@@ -138,7 +134,6 @@ public class TestZMQSender {
         }, flowbuilder);
     }
 
-    @Ignore
     @Test(timeout=5000)
     public void curveClient() throws IOException, InterruptedException {
         Map<Object, Object> props = new HashMap<>();
@@ -166,7 +161,6 @@ public class TestZMQSender {
         }, flowbuilder);
     }
 
-    @Ignore
     @Test(timeout=5000)
     public void curveServer() throws IOException, InterruptedException {
         Map<Object, Object> props = new HashMap<>();

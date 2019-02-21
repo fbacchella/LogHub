@@ -21,7 +21,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.Assert;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -77,7 +76,6 @@ public class TestZMQReceiver {
         }
     }
 
-    @Ignore
     @Test(timeout=5000)
     public void testConnect() throws InterruptedException, IOException {
         String rendezvous = "tcp://localhost:" + Tools.tryGetPort();
@@ -93,7 +91,6 @@ public class TestZMQReceiver {
         }, flowbuilder);
     }
 
-    @Ignore
     @Test(timeout=5000)
     public void testBind() throws InterruptedException, IOException {
         String rendezvous = "tcp://localhost:" + Tools.tryGetPort();
@@ -109,7 +106,6 @@ public class TestZMQReceiver {
         }, flowbuilder);
     }
 
-    @Ignore
     @Test(timeout=5000)
     public void testSub() throws InterruptedException, IOException {
         String rendezvous = "tcp://localhost:" + Tools.tryGetPort();
@@ -126,7 +122,6 @@ public class TestZMQReceiver {
         }, flowbuilder);
     }
 
-    @Ignore
     @Test(timeout=5000)
     public void testCurveServer() throws InterruptedException, IOException {
         Map<Object, Object> props = new HashMap<>();
@@ -155,7 +150,6 @@ public class TestZMQReceiver {
         }, flowbuilder);
     }
 
-    @Ignore
     @Test(timeout=5000)
     public void testCurveClient() throws InterruptedException, IOException {
         Map<Object, Object> props = new HashMap<>();

@@ -6,13 +6,12 @@ import java.util.function.BiFunction;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.zeromq.ZMQ.Error;
 import org.zeromq.ZMQ.Socket;
 import org.zeromq.ZPoller;
 
 import loghub.zmq.SmartContext;
 import loghub.zmq.ZMQHandler;
-import loghub.zmq.ZMQHelper;
-import loghub.zmq.ZMQHelper.ERRNO;
 import loghub.zmq.ZMQHelper.Method;
 import lombok.Setter;
 import lombok.experimental.Accessors;
@@ -99,8 +98,8 @@ public class ZMQSink implements Closeable {
         while ((socket.getEvents() & ZPoller.IN) != 0 && handler.isRunning()) {
             byte[] received = socket.recv();
             if (received == null) {
-                ERRNO error = ZMQHelper.ERRNO.get(socket.errno());
-                logger.log(error.level, "error with ZSocket {}: {}", source, error.toStringMessage());
+                Error error = Error.findByCode(socket.errno());
+                logger.error("error with ZSocket {}: {}", source, error.getMessage());
                 return false;
             }
         }

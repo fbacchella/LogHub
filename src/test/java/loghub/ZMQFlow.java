@@ -12,12 +12,12 @@ import org.zeromq.ZMQ.Socket;
 import org.zeromq.ZPoller;
 
 import loghub.zmq.SmartContext;
+import loghub.zmq.ZMQCheckedException;
 import loghub.zmq.ZMQHandler;
-import loghub.zmq.ZMQHelper;
-import loghub.zmq.ZMQHelper.ERRNO;
 import loghub.zmq.ZMQHelper.Method;
 import lombok.Setter;
 import lombok.experimental.Accessors;
+import zmq.ZError;
 import zmq.socket.Sockets;
 
 @Accessors(chain=true)
@@ -82,11 +82,15 @@ public class ZMQFlow implements Closeable {
         this.source = builder.source;
         this.msPause = builder.msPause;
         eventSource = ThreadBuilder.get().setRunnable(() -> {
-            ZMQFlow.this.run();
+            try {
+                ZMQFlow.this.run();
+            } catch (ZMQCheckedException e) {
+                e.getCause();
+            }
         }).setDaemon(false).setName("EventSource").build(true);
     }
 
-    private void run() {
+    private void run() throws ZMQCheckedException {
         logger.debug("flow started");
         Socket socket = null;
         try {
@@ -97,9 +101,9 @@ public class ZMQFlow implements Closeable {
                 synchronized (this) {
                     if (running && ctx.isRunning()) {
                         boolean sent = socket.send(message, ZMQ.DONTWAIT);
-                        if (! sent && socket.errno() != ZMQHelper.ERRNO.EAGAIN.code) {
-                            ERRNO error = ZMQHelper.ERRNO.get(socket.errno());
-                            logger.error("send failed : {} {}", error, error.toStringMessage());
+                        if (! sent && socket.errno() != ZError.EAGAIN) {
+                            ZMQ.Error error = ZMQ.Error.findByCode(socket.errno());
+                            logger.error("send failed : {}", error.getMessage());
                         } else if (! sent ){
                             logger.debug("send: retry");
                         } else {

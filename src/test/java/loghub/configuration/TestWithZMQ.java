@@ -15,6 +15,7 @@ import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
+import org.zeromq.ZMQ.Error;
 import org.zeromq.ZMQ.Socket;
 import org.zeromq.ZPoller;
 
@@ -26,8 +27,6 @@ import loghub.ZMQFlow;
 import loghub.ZMQSink;
 import loghub.receivers.Receiver;
 import loghub.senders.Sender;
-import loghub.zmq.ZMQHelper;
-import loghub.zmq.ZMQHelper.ERRNO;
 import loghub.zmq.ZMQHelper.Method;
 import zmq.socket.Sockets;
 
@@ -53,8 +52,8 @@ public class TestWithZMQ {
             logger.trace("received {}", received);
             latch.countDown();
             if (received == null) {
-                ERRNO error = ZMQHelper.ERRNO.get(socket.errno());
-                logger.log(error.level, "error with ZSocket {}: {}", "TEST", error.toStringMessage());
+                Error error = Error.findByCode(socket.errno());
+                logger.error("error with ZSocket {}: {}", socket, error.getMessage());
                 return false;
             }
         }

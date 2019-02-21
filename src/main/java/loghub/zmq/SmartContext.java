@@ -254,7 +254,7 @@ public class SmartContext {
             socket.setLinger(0);
             localContext.get().destroySocket(socket);
         } catch (ZMQException|zmq.ZError.IOException|zmq.ZError.CtxTerminatedException|zmq.ZError.InstantiationException e) {
-            ZMQHelper.logZMQException(logger, "close " + socket, e);
+            ZMQCheckedException.logZMQException(logger, "failed to close " + socket + ": {}", e);
         } catch (ClosedSelectorException e) {
             logger.debug("in close: {}", () -> e.getMessage());
         } catch (Exception e) {
@@ -269,7 +269,7 @@ public class SmartContext {
                 assert localContext.get().getSockets().isEmpty() : localContext.get().getSockets();
                 localContext.get().getSockets().forEach(context::destroySocket);
             } catch (ZMQException | zmq.ZError.IOException | zmq.ZError.CtxTerminatedException | zmq.ZError.InstantiationException e) {
-                ZMQHelper.logZMQException(logger, "terminate", e);
+                ZMQCheckedException.logZMQException(logger, "failed to terminate: {}", e);
             } catch (java.nio.channels.ClosedSelectorException e) {
                 logger.error("closed selector: {}", Helpers.resolveThrowableException(e));
                 logger.catching(Level.DEBUG, e);
@@ -288,7 +288,7 @@ public class SmartContext {
                     context.destroy();
                 }
             } catch (ZMQException | zmq.ZError.IOException | zmq.ZError.CtxTerminatedException | zmq.ZError.InstantiationException e) {
-                ZMQHelper.logZMQException(logger, "terminate", e);
+                ZMQCheckedException.logZMQException(logger, "terminate", e);
             } catch (java.nio.channels.ClosedSelectorException e) {
                 logger.error("closed selector: {}", Helpers.resolveThrowableException(e));
                 logger.catching(Level.DEBUG, e);
