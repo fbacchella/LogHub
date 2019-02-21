@@ -75,6 +75,12 @@ public interface StatsMBean {
                         ;
     }
 
+    default public String[] getReceiverErrors() {
+        return loghub.Stats.getReceiverError().stream()
+                        .toArray(String[]::new)
+                        ;
+    }
+
     public class Implementation extends StandardMBean implements StatsMBean {
 
         public final static ObjectName NAME;
