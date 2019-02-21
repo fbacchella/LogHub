@@ -343,10 +343,10 @@ public final class Helpers {
         String message = t.getMessage();
         if (t instanceof NoSuchMethodException) {
             message = "No such method: " + t.getMessage();
-        } else if (message == null) {
-            message = t.getClass().getSimpleName();
         } else if (t instanceof ArrayIndexOutOfBoundsException) {
             message = "Array out of bounds: " + message;
+        } else if (message == null) {
+            message = t.getClass().getSimpleName();
         }
         builder.append(message);
         return builder.toString();
