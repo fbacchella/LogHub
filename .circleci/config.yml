@@ -8,7 +8,7 @@ jobs:
             - restore_cache:
                 key: loghub-{{ checksum "pom.xml" }}
             - run: mkdir -p /home/circleci/.sonar/cache /home/circleci/.m2/repository
-            - run: "mvn -B dependency:go-offline"
+            - run: "mvn -B dependency:go-offline -Psonar,versions"
             - persist_to_workspace:
                 root: /
                 paths:
@@ -27,7 +27,7 @@ jobs:
                     mv -n /tmp/ws/home/circleci/project/* /home/circleci/project/
                     mv -n /tmp/ws/home/circleci/project/.??* /home/circleci/project/
             - run:
-                command: mvn -B clean compile -Djdk.compile.home=/usr/lib/jvm/java-8-openjdk-amd64/jre
+                command: mvn -B clean compile -Dmaven.test.skip=true
                 environment:
                     JAVA_HOME: /usr/lib/jvm/java-11-openjdk-amd64
             - persist_to_workspace:
@@ -51,12 +51,19 @@ jobs:
                     mv -n /tmp/ws/home/circleci/project/.??* /home/circleci/project/
             - run:
                 command: |
-                    mvn -B package -Dmaven.test.skip=true -Dmaven.main.skip=true -s .circleci/settings.xml
+                    # If no symbolic name, it's a PR, will run sonar
+                    if [ -n "$(git symbolic-ref HEAD 2>/dev/null )" ] ; then
+                        SONAR="-Psonar"
+                    else
+                        SONAR=""
+                    fi
+                    echo "publishing jobs: $SONAR"
+                    mvn -B test -Dmaven.resources.skip=true -Dmaven.main.skip=true $SONAR -Dsonar.login=$SONARCLOUD_LOGIN
                 environment:
                     JAVA_HOME: /usr/lib/jvm/java-8-openjdk-amd64
-                    MAVEN_OPTS: "-Dorg.slf4j.simpleLogger.log.org.apache.maven.plugins.shade=ERROR"
             - store_test_results:
                 path: target/surefire-reports
+            #don't persist_to_workspace, can't be done in parallel with testsj11
     testsj11:
         docker:
             - image: circleci/openjdk:11-jdk
@@ -74,19 +81,41 @@ jobs:
                     mv -n /tmp/ws/home/circleci/project/.??* /home/circleci/project/
             - run:
                 command: |
+                    mvn -B test -Dmaven.resources.skip=true -Dmaven.main.skip=true
+                environment:
+                    JAVA_HOME: /usr/lib/jvm/java-11-openjdk-amd64
+            - store_test_results:
+                path: target/surefire-reports
+            - persist_to_workspace:
+                root: /
+                paths:
+                    - home/circleci/.m2/repository
+                    - home/circleci/.sonar/cache
+    publish:
+        docker:
+            - image: circleci/openjdk:11-jdk
+        steps:
+            - attach_workspace:
+                at: /tmp/ws
+            - run:
+                command: |
+                    mv -n /tmp/ws/home/circleci/.m2 /home/circleci/
+                    mv -n /tmp/ws/home/circleci/.sonar /home/circleci/
+                    mv -n /tmp/ws/home/circleci/project/* /home/circleci/project/
+                    mv -n /tmp/ws/home/circleci/project/.??* /home/circleci/project/
+            - run:
+                command: |
                     # If no symbolic name, it's a PR, will not publish results
                     if [ -n "$(git symbolic-ref HEAD 2>/dev/null )" ] ; then
-                        PUBLISH="deploy -Psonar"
+                        PUBLISH="deploy"
                     else
-                        PUBLISH="package"
+                        PUBLISH="install"
                     fi
                     echo "publishing jobs: $PUBLISH"
-                    mvn -B $PUBLISH -Dmaven.test.skip=true -Dmaven.main.skip=true -s .circleci/settings.xml -Dsonar.login=$SONARCLOUD_LOGIN
+                    mvn -B $PUBLISH site -Dmaven.resources.skip=true -Dmaven.test.skip=true -Dmaven.main.skip=true -s .circleci/settings.xml
                 environment:
                     JAVA_HOME: /usr/lib/jvm/java-11-openjdk-amd64
                     MAVEN_OPTS: "-Dorg.slf4j.simpleLogger.log.org.apache.maven.plugins.shade=ERROR"
-            - store_test_results:
-                path: target/surefire-reports
             - persist_to_workspace:
                 root: /
                 paths:
@@ -125,8 +154,10 @@ workflows:
       - testsj11:
           requires:
               - build
-      - savecache:
+      - publish:
           requires:
               - testsj8
-              - testsj11
-      
+#              - testsj11
+      - savecache:
+          requires:
+              - publish
