@@ -1,33 +1,132 @@
-version: 2
+version: 2.1
 jobs:
+    checkout:
+        docker:
+            - image: circleci/openjdk:8-jdk
+        steps:
+            - checkout
+            - restore_cache:
+                key: loghub-{{ checksum "pom.xml" }}
+            - run: mkdir -p /home/circleci/.sonar/cache /home/circleci/.m2/repository
+            - run: "mvn -B dependency:go-offline"
+            - persist_to_workspace:
+                root: /
+                paths:
+                    - home/circleci/.m2/repository
+                    - home/circleci/.sonar/cache
+                    - home/circleci/project
     build:
+        docker:
+            - image: circleci/openjdk:11-jdk
+        steps:
+            - attach_workspace:
+                at: /tmp/ws
+            - run:
+                command: |
+                    mv -n /tmp/ws/home/circleci/.m2 /home/circleci/
+                    mv -n /tmp/ws/home/circleci/project/* /home/circleci/project/
+                    mv -n /tmp/ws/home/circleci/project/.??* /home/circleci/project/
+            - run:
+                command: mvn -B clean compile -Djdk.compile.home=/usr/lib/jvm/java-8-openjdk-amd64/jre
+                environment:
+                    JAVA_HOME: /usr/lib/jvm/java-11-openjdk-amd64
+            - persist_to_workspace:
+                root: /
+                paths:
+                    - home/circleci/.m2/repository
+                    - home/circleci/project/target
+    testsj8:
+        docker:
+            - image: circleci/openjdk:8-jdk
+            - image: docker.elastic.co/elasticsearch/elasticsearch:6.6.0
+              environment:
+                  discovery.type: single-node
+        steps:
+            - attach_workspace:
+                at: /tmp/ws
+            - run:
+                command: |
+                    mv -n /tmp/ws/home/circleci/.m2 /home/circleci/
+                    mv -n /tmp/ws/home/circleci/project/* /home/circleci/project/
+                    mv -n /tmp/ws/home/circleci/project/.??* /home/circleci/project/
+            - run:
+                command: |
+                    mvn -B package -Dmaven.test.skip=true -Dmaven.main.skip=true -s .circleci/settings.xml
+                environment:
+                    JAVA_HOME: /usr/lib/jvm/java-8-openjdk-amd64
+                    MAVEN_OPTS: "-Dorg.slf4j.simpleLogger.log.org.apache.maven.plugins.shade=ERROR"
+            - store_test_results:
+                path: target/surefire-reports
+    testsj11:
         docker:
             - image: circleci/openjdk:11-jdk
             - image: docker.elastic.co/elasticsearch/elasticsearch:6.6.0
               environment:
                   discovery.type: single-node
         steps:
-            - checkout
-            - run: sudo apt-get install openjdk-11-jdk-headless openjdk-8-jdk-headless
-            - restore_cache:
-                key: loghub-{{ checksum "pom.xml" }}
-            - run: mvn -B dependency:go-offline dependency:resolve-plugins
+            - attach_workspace:
+                at: /tmp/ws
             - run:
-                command: mvn compile
-                environment:
-                    JAVA_HOME: /usr/lib/jvm/java-11-openjdk-amd64
+                command: |
+                    mv -n /tmp/ws/home/circleci/.m2 /home/circleci/
+                    mv -n /tmp/ws/home/circleci/.sonar /home/circleci/
+                    mv -n /tmp/ws/home/circleci/project/* /home/circleci/project/
+                    mv -n /tmp/ws/home/circleci/project/.??* /home/circleci/project/
             - run:
-                command: mvn -B resources:testResources compiler:testCompile surefire:test
-                environment:
-                    JAVA_HOME: /usr/lib/jvm/java-8-openjdk-amd64
-            - run:
-                command: mvn -B site deploy -Dmaven.test.skip=true -Dmaven.main.skip=true -s .circleci/settings.xml
+                command: |
+                    # If no symbolic name, it's a PR, will not publish results
+                    if [ -n "$(git symbolic-ref HEAD 2>/dev/null )" ] ; then
+                        PUBLISH="deploy -Psonar"
+                    else
+                        PUBLISH="package"
+                    fi
+                    echo "publishing jobs: $PUBLISH"
+                    mvn -B $PUBLISH -Dmaven.test.skip=true -Dmaven.main.skip=true -s .circleci/settings.xml -Dsonar.login=$SONARCLOUD_LOGIN
                 environment:
                     JAVA_HOME: /usr/lib/jvm/java-11-openjdk-amd64
                     MAVEN_OPTS: "-Dorg.slf4j.simpleLogger.log.org.apache.maven.plugins.shade=ERROR"
-            - save_cache:
-                paths:
-                    - ~/.m2
-                key: loghub-{{ checksum "pom.xml" }}
             - store_test_results:
                 path: target/surefire-reports
+            - persist_to_workspace:
+                root: /
+                paths:
+                    - home/circleci/.m2/repository
+                    - home/circleci/.sonar/cache
+    savecache:
+        docker:
+            - image: circleci/openjdk:11-jdk
+              environment:
+                  discovery.type: single-node
+        steps:
+            - attach_workspace:
+                at: /tmp/ws
+            - run:
+                command: |
+                    mv /tmp/ws/home/circleci/project/pom.xml /home/circleci/project/
+                    mv /tmp/ws/home/circleci/.m2 /home/circleci/
+                    mv /tmp/ws/home/circleci/.sonar /home/circleci/
+            - save_cache:
+                paths:
+                    - /home/circleci/.m2/repository
+                    - /home/circleci/.sonar/cache
+                key: loghub-{{ checksum "pom.xml" }}
+            
+workflows:
+  version: 2.1
+  build_and_test:
+    jobs:
+      - checkout
+      - build:
+          requires:
+              - checkout
+      - testsj8:
+          requires:
+              - build
+      - testsj11:
+          requires:
+              - build
+      - savecache:
+          requires:
+              - testsj8
+              - testsj11
+      
