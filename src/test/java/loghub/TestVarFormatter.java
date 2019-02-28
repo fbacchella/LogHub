@@ -211,6 +211,14 @@ public class TestVarFormatter {
         Assert.assertEquals("1 1 3", formatted);
     }
 
+    @Test
+    public void formatNewLine() {
+        VarFormatter vf = new VarFormatter("${#1%s}\n${#1%s}\n${#3%s}", Locale.ENGLISH);
+        List<String> obj = Arrays.asList(new String[] {"1", "2", "3"});
+        String formatted = vf.format(obj);
+        Assert.assertEquals("1\n1\n3", formatted);
+    }
+
     @Test(expected=IllegalArgumentException.class)
     public void testError1() {
         Map<String, Object> values = Collections.singletonMap("a", 1);
