@@ -401,6 +401,11 @@ public class VarFormatter {
         this(format, Locale.getDefault());
     }
 
+    /**
+     * @param format
+     * @param l
+     * @throws IllegalArgumentException
+     */
     public VarFormatter(String format, Locale l) {
         logger.trace("new format: {}", format);
         this.format = format;
@@ -408,7 +413,11 @@ public class VarFormatter {
         List<String> formats = new ArrayList<>();
         // Convert the pattern to a MessageFormat which is compiled and be reused
         String pattern = findVariables(new StringBuilder(), format, 0, formats).toString();
-        mf = new MessageFormat(pattern, l);
+        try {
+            mf = new MessageFormat(pattern, l);
+        } catch (IllegalArgumentException ex) {
+            throw new IllegalArgumentException(String.format("Can'f format %s, locale %s: %s", format, l, ex.getMessage()), ex);
+        }
         for(int i = 0; i < mf.getFormats().length; i++) {
             mf.setFormat(i, resolveFormat(formats.get(i)));
         }

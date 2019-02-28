@@ -21,6 +21,7 @@ import loghub.LogUtils;
 import loghub.Pipeline;
 import loghub.ProcessorException;
 import loghub.Tools;
+import loghub.VarFormatter;
 import loghub.Event.Action;
 import loghub.configuration.ConfigException;
 import loghub.configuration.ConfigurationTools;
@@ -34,7 +35,7 @@ public class TestEtl {
     static public void configure() throws IOException {
         Tools.configure();
         logger = LogManager.getLogger();
-        LogUtils.setLevel(logger, Level.TRACE, "loghub.processors.Etl", "loghub.EventsProcessor");
+        LogUtils.setLevel(logger, Level.TRACE, "loghub.processors.Etl", "loghub.EventsProcessor", "loghub.Expression");
     }
 
     private Event RunEtl(String exp, Consumer<Event> filer) throws ProcessorException {
@@ -42,7 +43,7 @@ public class TestEtl {
     }
 
     private Event RunEtl(String exp, Consumer<Event> filer, boolean status) throws ProcessorException {
-        Map<String, String> formatters = new HashMap<>();
+        Map<String, VarFormatter> formatters = new HashMap<>();
         Etl e =  ConfigurationTools.buildFromFragment(exp, i -> i.etl(), formatters);
         Map<String, Object> settings = new HashMap<>(1);
         settings.put("__FORMATTERS", formatters);
@@ -102,7 +103,7 @@ public class TestEtl {
         Etl.Assign etl = new Etl.Assign();
         etl.setLvalue(new String[]{"a"});
         etl.setExpression("formatters.a.format(event.getTimestamp())");
-        Map<String, String> formats = Collections.singletonMap("a", "${%t<GMT>H}");
+        Map<String, VarFormatter> formats = Collections.singletonMap("a", new VarFormatter("${%t<GMT>H}"));
         Map<String, Object> properties = new HashMap<>();
         properties.put("__FORMATTERS", formats);
         boolean done = etl.configure(new Properties(properties));

@@ -5,6 +5,7 @@ import java.net.InetSocketAddress;
 import java.security.Principal;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.logging.log4j.Level;
@@ -35,17 +36,17 @@ public class TestExpressionParsing {
         LogUtils.setLevel(logger, Level.TRACE, "loghub.configuration", "loghub.Expression", "loghub.VarFormatter");
     }
 
-    private String parseExpression(String exp) {
-        return ConfigurationTools.unWrap(exp, i -> i.expression());
+    private String parseExpression(String exp, Map<String, VarFormatter> formats) {
+        return ConfigurationTools.unWrap(exp, i -> i.expression(), formats);
     }
 
     private Object evalExpression(String exp, Event ev, Map<String, VarFormatter> formats) throws ExpressionException, ProcessorException {
-        Expression expression = new Expression(parseExpression(exp), new Properties(Collections.emptyMap()).groovyClassLoader, formats);
+        Expression expression = new Expression(parseExpression(exp, formats), new Properties(Collections.emptyMap()).groovyClassLoader, formats);
         return expression.eval(ev);
     }
 
     private Object evalExpression(String exp, Event ev) throws ExpressionException, ProcessorException {
-        return evalExpression(exp, ev, Collections.emptyMap());
+        return evalExpression(exp, ev, new HashMap<>());
     }
 
     private Object evalExpression(String exp) throws ExpressionException, ProcessorException {
@@ -83,20 +84,18 @@ public class TestExpressionParsing {
     @Test
     public void testFormatterSimple() throws ExpressionException, ProcessorException {
         String format = "${#1%02d}";
-        String formatHash = Integer.toHexString(format.hashCode());
         Event ev =  Tools.getEvent();
         ev.put("a", 1);
-        Assert.assertEquals("01", evalExpression("\"" + format + "\"([a])", ev, Collections.singletonMap("h_" + formatHash, new VarFormatter(format))).toString());
+        Assert.assertEquals("01", evalExpression("\"" + format + "\"([a])", ev));
     }
 
     @Test(expected=ProcessorException.class)
     public void testFormatterFailed() throws ExpressionException, ProcessorException {
         String format = "${#2%02d}";
-        String formatHash = Integer.toHexString(format.hashCode());
         Event ev =  Tools.getEvent();
         ev.put("a", 1);
         try {
-            evalExpression("\"" + format + "\"([a])", ev, Collections.singletonMap("h_" + formatHash, new VarFormatter(format)));
+            evalExpression("\"" + format + "\"([a])", ev);
         } catch (ProcessorException e) {
             Assert.assertTrue(e.getMessage().contains("index out of range"));
             throw e;
@@ -106,10 +105,9 @@ public class TestExpressionParsing {
     @Test
     public void testFormatterTimestamp() throws ExpressionException, ProcessorException {
         String format = "${#1%t<Europe/Paris>H}";
-        String formatHash = Integer.toHexString(format.hashCode());
         Event ev =  Tools.getEvent();
         ev.setTimestamp(new Date(0));
-        Assert.assertEquals("01", evalExpression("\"" + format + "\"([@timestamp])", ev, Collections.singletonMap("h_" + formatHash, new VarFormatter(format))).toString());
+        Assert.assertEquals("01", evalExpression("\"" + format + "\"([@timestamp])", ev));
     }
 
     @Test
@@ -134,7 +132,7 @@ public class TestExpressionParsing {
             }
         };
         ev.getConnectionContext().setPrincipal(p);
-        Assert.assertEquals("user-1970.01.01", evalExpression("\"" + format + "\" ([@context principal name], [@timestamp])", ev, Collections.singletonMap("h_" + formatHash, new VarFormatter(format))).toString());
+        Assert.assertEquals("user-1970.01.01", evalExpression("\"" + format + "\" ([@context principal name], [@timestamp])", ev));
     }
 
     @Test
@@ -143,7 +141,7 @@ public class TestExpressionParsing {
         String formatHash = Integer.toHexString(format.hashCode());
         Event ev =  Tools.getEvent();
         ev.put("a", 1);
-        Assert.assertEquals("1", evalExpression("\"" + format + "\"", ev, Collections.singletonMap("h_" + formatHash, new VarFormatter(format))).toString());
+        Assert.assertEquals("1", evalExpression("\"" + format + "\"", ev));
     }
 
     @Test
@@ -222,7 +220,7 @@ public class TestExpressionParsing {
             }
         };
         ev.getConnectionContext().setPrincipal(p);
-        Object value = evalExpression("[ @context principal name ] == \"user\"", ev, Collections.singletonMap("h_" + formatHash, new VarFormatter(format)));
+        Object value = evalExpression("[ @context principal name ] == \"user\"", ev);
         Assert.assertEquals(true, value);
         InetSocketAddress localAddr = (InetSocketAddress) evalExpression("[ @context localAddress]", ev, Collections.singletonMap("h_" + formatHash, new VarFormatter(format)));
         Assert.assertEquals(35710, localAddr.getPort());

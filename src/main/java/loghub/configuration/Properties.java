@@ -198,11 +198,8 @@ public class Properties extends HashMap<String, Object> {
         identifiedProcessors = _identifiedProcessors.size() > 0 ? Collections.unmodifiableMap(_identifiedProcessors) : Collections.emptyMap();
 
         //buffer is here to make writing tests easier
-        Map<String, String> buffer = (Map<String, String>) properties.remove(PROPSNAMES.FORMATTERS.toString());
-        if (buffer != null && buffer.size() > 0) {
-            Map<String, VarFormatter> formattersMap = new HashMap<>(buffer.size());
-            buffer.entrySet().stream().forEach(i -> formattersMap.put(i.getKey(), new VarFormatter(i.getValue())));
-            formatters = Collections.unmodifiableMap(formattersMap);
+        if (properties.containsKey(PROPSNAMES.FORMATTERS.toString())) {
+            formatters = Collections.unmodifiableMap((Map<String, VarFormatter>) properties.remove(PROPSNAMES.FORMATTERS.toString()));
         } else {
             formatters = Collections.emptyMap();
         }

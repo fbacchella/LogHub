@@ -19,6 +19,7 @@ import org.antlr.v4.runtime.Parser;
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.RecognitionException;
 import org.antlr.v4.runtime.Token;
+import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -64,6 +65,7 @@ import loghub.RouteParser.StringLiteralContext;
 import loghub.RouteParser.TestContext;
 import loghub.RouteParser.TestExpressionContext;
 import loghub.Source;
+import loghub.VarFormatter;
 import loghub.processors.AnonymousSubPipeline;
 import loghub.processors.Drop;
 import loghub.processors.Etl;
@@ -189,7 +191,7 @@ class ConfigListener extends RouteBaseListener {
     final List<Input> inputs = new ArrayList<>();
     final List<Output> outputs = new ArrayList<>();
     final Map<String, Object> properties = new HashMap<>();
-    final Map<String, String> formatters = new HashMap<>();
+    final Map<String, VarFormatter> formatters = new HashMap<>();
     final Map<String, SourceProvider> sources = new HashMap<>();
     final Set<String> outputPipelines = new HashSet<>();
 
@@ -826,7 +828,12 @@ class ConfigListener extends RouteBaseListener {
         if(ctx.sl != null) {
             String format = ctx.sl.getText();
             String key = "h_" + Integer.toHexString(format.hashCode());
-            formatters.put(key, format);
+            try {
+                formatters.put(key, new VarFormatter(format));
+            } catch (IllegalArgumentException ex) {
+                logger.catching(Level.DEBUG, ex);
+                throw new RecognitionException(ex.getMessage(), parser, stream, ctx);
+            }
             String subexpression;
             if (ctx.expressionsList() != null) {
                 subexpression = (String) stack.pop();
