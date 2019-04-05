@@ -34,6 +34,7 @@ import com.codahale.metrics.jmx.JmxReporter.JmxTimerMBean;
 import loghub.configuration.ConfigException;
 import loghub.configuration.Configuration;
 import loghub.jmx.StatsMBean;
+import loghub.zmq.ZMQCheckedException;
 import loghub.zmq.ZMQHelper.Method;
 
 public class TestIntegrated {
@@ -51,7 +52,7 @@ public class TestIntegrated {
     }
 
     @Test(timeout=10000)
-    public void runStart() throws ConfigException, IOException, InterruptedException, IntrospectionException, InstanceNotFoundException, MalformedObjectNameException, ReflectionException {
+    public void runStart() throws ConfigException, IOException, InterruptedException, IntrospectionException, InstanceNotFoundException, MalformedObjectNameException, ReflectionException, ZMQCheckedException {
         loghub.Stats.reset();
         String conffile = Configuration.class.getClassLoader().getResource("test.conf").getFile();
         Start.main(new String[] {"--canexit", "-c", conffile});

@@ -26,6 +26,7 @@ import java.security.cert.CertificateException;
 import java.security.spec.InvalidKeySpecException;
 import java.util.Base64;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.logging.log4j.Level;
@@ -201,37 +202,45 @@ public class SmartContext {
         return running;
     }
 
-    public Socket newSocket(Method method, SocketType type, String endpoint, int hwm, int timeout) {
-        Socket socket = localContext.get().createSocket(type);
-        String url = endpoint + ":" + type.toString() + ":" + method.getSymbol();
-        logger.trace("new socket: {}={}", url, socket);
-        socket.setRcvHWM(hwm);
-        socket.setSndHWM(hwm);
-        socket.setSendTimeOut(timeout);
-        socket.setReceiveTimeOut(timeout);
-        method.act(socket, endpoint);
-        socket.setIdentity(url.getBytes(StandardCharsets.UTF_8));
-        return socket;
+    public Socket newSocket(Method method, SocketType type, String endpoint, int hwm, int timeout) throws ZMQCheckedException {
+        Socket socket = null;
+        try {
+            socket = localContext.get().createSocket(type);
+            String url = endpoint + ":" + type.toString() + ":" + method.getSymbol();
+            logger.trace("new socket: {}={}", url, socket);
+            socket.setRcvHWM(hwm);
+            socket.setSndHWM(hwm);
+            socket.setSendTimeOut(timeout);
+            socket.setReceiveTimeOut(timeout);
+            method.act(socket, endpoint);
+            socket.setIdentity(url.getBytes(StandardCharsets.UTF_8));
+            return socket;
+        } catch (RuntimeException e) {
+            Optional.ofNullable(socket).ifPresent(i -> localContext.get().destroySocket(i));
+            ZMQCheckedException.raise(e);
+            // Never reached
+            return null;
+        }
     }
 
-    public Socket newSocket(Method method, SocketType type, String endpoint) {
+    public Socket newSocket(Method method, SocketType type, String endpoint) throws ZMQCheckedException {
         // All socket have high hwm and are blocking
         return newSocket(method, type, endpoint, 1, -1);
     }
 
-    public void setCurveServer(Socket socket) {
+    public void setCurveServer(Socket socket) throws ZMQCheckedException {
         if (privateKey == null || privateKey.length != Options.CURVE_KEYSIZE) {
             throw new IllegalStateException("Curve requested but private key not define");
         }
         if (publicKey == null || publicKey.length != Options.CURVE_KEYSIZE) {
             throw new IllegalStateException("Curve requested but public key not define");
         }
-        socket.setCurveServer(true);
-        socket.setCurvePublicKey(publicKey);
-        socket.setCurveSecretKey(privateKey);
+        ZMQCheckedException.checkOption(socket.setCurveServer(true), socket);
+        ZMQCheckedException.checkOption(socket.setCurvePublicKey(publicKey), socket);
+        ZMQCheckedException.checkOption(socket.setCurveSecretKey(privateKey), socket);
     }
 
-    public void setCurveClient(Socket socket, byte[] serverPublicKey) {
+    public void setCurveClient(Socket socket, byte[] serverPublicKey) throws ZMQCheckedException {
         if (privateKey == null || privateKey.length != Options.CURVE_KEYSIZE) {
             throw new IllegalStateException("Curve mechanism requested but private key not defined");
         }
@@ -241,10 +250,10 @@ public class SmartContext {
         if (serverPublicKey == null || serverPublicKey.length != Options.CURVE_KEYSIZE) {
             throw new IllegalArgumentException("Curve mechanism requested but server public key not defined");
         }
-        socket.setCurveServer(false);
-        socket.setCurvePublicKey(publicKey);
-        socket.setCurveSecretKey(privateKey);
-        socket.setCurveServerKey(serverPublicKey);
+        ZMQCheckedException.checkOption(socket.setCurveServer(false), socket);
+        ZMQCheckedException.checkOption(socket.setCurvePublicKey(publicKey), socket);
+        ZMQCheckedException.checkOption(socket.setCurveSecretKey(privateKey), socket);
+        ZMQCheckedException.checkOption(socket.setCurveServerKey(serverPublicKey), socket);
     }
 
     public void close(Socket socket) {
@@ -253,6 +262,7 @@ public class SmartContext {
             socket.setLinger(0);
             assert localContext.get().getSockets().contains(socket);
             localContext.get().destroySocket(socket);
+            assert ! localContext.get().getSockets().contains(socket);
         } catch (ZMQException|zmq.ZError.IOException|zmq.ZError.CtxTerminatedException|zmq.ZError.InstantiationException e) {
             ZMQCheckedException.logZMQException(logger, "failed to close " + socket + ": {}", e);
         } catch (ClosedSelectorException e) {
@@ -305,7 +315,7 @@ public class SmartContext {
         return new ZPoller(localContext.get());
     }
 
-    public Socket[] getPair(String name) {
+    public Socket[] getPair(String name) throws ZMQCheckedException {
         String endPoint = "inproc://pair/" + name;
         Socket socket1 = newSocket(Method.BIND, SocketType.PAIR, endPoint);
         socket1.setLinger(0);

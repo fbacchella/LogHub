@@ -7,7 +7,6 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
-import java.util.function.Supplier;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.Logger;
@@ -25,6 +24,11 @@ import zmq.ZError;
 
 @Accessors(chain=true)
 public class ZMQHandler implements Closeable {
+    
+    @FunctionalInterface
+    private interface MakeSocket {
+        Socket newSocket() throws ZMQCheckedException;
+    }
 
     public static class Builder extends AbstractBuilder<ZMQHandler> {
         @Setter
@@ -79,7 +83,7 @@ public class ZMQHandler implements Closeable {
     private final Consumer<String> injectError;
 
     private volatile boolean running = false;
-    private Supplier<Socket> makeSocket;
+    private MakeSocket makeSocket;
     private Socket socket;
     private Thread runningThread = null;
     private SmartContext ctx = null;
@@ -215,10 +219,14 @@ public class ZMQHandler implements Closeable {
         logger.trace("Stop handling messages");
         if (running && ctx.isRunning()) {
             running = false;
-            Socket stopStartPair = ctx.newSocket(Method.CONNECT, SocketType.PAIR, "inproc://pair/" + pairId);
-            stopStartPair.send(new byte[] {});
-            ctx.close(stopStartPair);
-            logger.debug("Listening stopped");
+            try {
+                Socket stopStartPair = ctx.newSocket(Method.CONNECT, SocketType.PAIR, "inproc://pair/" + pairId);
+                stopStartPair.send(new byte[] {});
+                ctx.close(stopStartPair);
+                logger.debug("Listening stopped");
+            } catch (ZMQCheckedException ex) {
+                logger.error("Failed to stop socket", ex);
+            }
             stopFunction.run();
             try {
                 // Wait for end of processing the stop
@@ -245,16 +253,10 @@ public class ZMQHandler implements Closeable {
      * @throws ZMQCheckedException if socket creation failed
      */
     public Socket getSocket() throws ZMQCheckedException {
-        try {
-            socket = socket == null ? makeSocket.get() : socket;
-            makeSocket = null;
-            assert Thread.currentThread() == runningThread;
-            return socket;
-        } catch (RuntimeException e) {
-            ZMQCheckedException.raise(e);
-            // Not reached ZMQCheckedException always throws an exception
-            return null;
-        }
+        socket = socket == null ? makeSocket.newSocket() : socket;
+        makeSocket = null;
+        assert Thread.currentThread() == runningThread;
+        return socket;
     }
 
 }

@@ -5,8 +5,10 @@ import java.net.SocketException;
 import java.nio.channels.ClosedByInterruptException;
 import java.nio.channels.ClosedChannelException;
 
+import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.Logger;
 import org.zeromq.ZMQ;
+import org.zeromq.ZMQ.Socket;
 import org.zeromq.ZMQException;
 
 import zmq.ZError;
@@ -16,7 +18,7 @@ public class ZMQCheckedException extends Exception {
     private final ZMQ.Error error;
 
     /**
-     * Transform an unchecked ZMQ exception in checked exception. If it's a reall runtime exception, it's not transformed
+     * Transform an unchecked ZMQ exception in checked exception. If it's a real runtime exception, it's not transformed
      * @param ex
      * @throws ZMQCheckedException
      */
@@ -25,7 +27,13 @@ public class ZMQCheckedException extends Exception {
         throw checked;
     }
 
-    private ZMQCheckedException(RuntimeException e) {
+    public static void checkOption(boolean test, Socket s) throws ZMQCheckedException {
+        if (! test) {
+            throw new ZMQCheckedException(s.errno());
+        }
+    }
+
+    public ZMQCheckedException(RuntimeException e) {
         super(e);
         if (e instanceof ZError.IOException) {
             IOException cause = (java.io.IOException) e.getCause();
@@ -40,6 +48,10 @@ public class ZMQCheckedException extends Exception {
             throw e;
         }
         setStackTrace(e.getStackTrace());
+    }
+
+    public ZMQCheckedException(int error) {
+        this.error = ZMQ.Error.findByCode(error);
     }
 
     private static int exccode(java.io.IOException e) {
@@ -73,6 +85,7 @@ public class ZMQCheckedException extends Exception {
         default:
             l.error(prefix, zex.getMessage());
         }
+        l.catching(Level.DEBUG, e);
     }
 
 }
