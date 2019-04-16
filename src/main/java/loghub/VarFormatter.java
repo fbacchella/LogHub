@@ -438,8 +438,6 @@ public class VarFormatter {
         Object mapperType = mapper.keySet().stream().findAny().orElse("");
         if (( mapperType instanceof Number) && ! ( arg instanceof List)) {
             throw new IllegalArgumentException("Given a non-list to a format expecting only a list");
-        } else if ((mapperType instanceof String) && ( arg instanceof List)) {
-            throw new IllegalArgumentException("Given a list to a format not expecting a list");
         } else if (arg instanceof Map) {
             variables = (Map<String, Object>) arg;
         } else {
@@ -448,17 +446,17 @@ public class VarFormatter {
         Object[] resolved = new Object[mapper.size()];
         for(Map.Entry<Object, Integer> mapping: mapper.entrySet()) {
             if (".".equals(mapping.getKey())) {
-                resolved[mapping.getValue()] = arg;
+                resolved[mapping.getValue()] = checkIsArray(arg);
                 continue;
             }
-            if (arg instanceof List) {
+            if (mapperType instanceof Number) {
                 int i = ((Number) mapping.getKey()).intValue();
                 int j = ((Number) mapping.getValue()).intValue();
                 List<Object> l = (List<Object>) arg;
                 if (j > l.size()) {
                     throw new IllegalArgumentException("index out of range");
                 }
-                resolved[i] = l.get(j - 1);
+                resolved[i] = checkIsArray(l.get(j - 1));
             } else {
                 String[] path = mapping.getKey().toString().split("\\.");
                 if (path.length == 1) {
@@ -466,7 +464,7 @@ public class VarFormatter {
                     if (! variables.containsKey(mapping.getKey())) {
                         throw new IllegalArgumentException("invalid values for format key " + mapping.getKey());
                     }
-                    resolved[mapping.getValue()] = variables.get(mapping.getKey());
+                    resolved[mapping.getValue()] = checkIsArray(variables.get(mapping.getKey()));
                 } else {
                     // Recurse, variables written as "a.b.c" are paths in maps
                     Map<String, Object> current = variables;
@@ -480,12 +478,36 @@ public class VarFormatter {
                         key = path[i + 1];
                     }
                     if (current != null) {
-                        resolved[mapping.getValue()] = current.get(key);
+                        resolved[mapping.getValue()] = checkIsArray(current.get(key));
                     }
                 }
             }
         }
         return mf.format(resolved, new StringBuffer(), new FieldPosition(0)).toString();
+    }
+    
+    private Object checkIsArray(Object arg) {
+        if (arg == null || ! arg.getClass().isArray()) {
+            return arg;
+        } else if (arg instanceof byte[]) {
+            return Arrays.toString((byte[])arg);
+        } else if (arg instanceof short[]) {
+            return Arrays.toString((short[])arg);
+        } else if (arg instanceof int[]) {
+            return Arrays.toString((int[])arg);
+        } else if (arg instanceof long[]) {
+            return Arrays.toString((long[])arg);
+        } else if (arg instanceof float[]) {
+            return Arrays.toString((float[])arg);
+        } else if (arg instanceof double[]) {
+            return Arrays.toString((double[])arg);
+        } else if (arg instanceof boolean[]) {
+            return Arrays.toString((boolean[])arg);
+        } else if (arg instanceof char[]) {
+            return Arrays.toString((char[])arg);
+        } else {
+            return Arrays.deepToString((Object[])arg);
+        }
     }
 
     private StringBuilder findVariables(StringBuilder buffer, String in, int last, List<String> formats) {

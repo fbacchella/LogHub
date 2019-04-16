@@ -212,6 +212,54 @@ public class TestVarFormatter {
     }
 
     @Test
+    public void formatListString() {
+        VarFormatter vf = new VarFormatter("${%s}", Locale.ENGLISH);
+        List<String> obj = Arrays.asList(new String[] {"1", "2", "3"});
+        String formatted = vf.format(obj);
+        Assert.assertEquals("[1, 2, 3]", formatted);
+    }
+
+    @Test
+    public void formatArrayString() {
+        VarFormatter vf = new VarFormatter("${%s}", Locale.ENGLISH);
+        String[] obj = new String[] {"1", "2", "3"};
+        String formatted = vf.format(obj);
+        Assert.assertEquals("[1, 2, 3]", formatted);
+    }
+
+    @Test
+    public void formatDeepArrayString() {
+        VarFormatter vf = new VarFormatter("${%s}", Locale.ENGLISH);
+        Object[] obj = new Object[] {"1", "2", new Object[] {"3"}};
+        String formatted = vf.format(obj);
+        Assert.assertEquals("[1, 2, [3]]", formatted);
+    }
+
+    @Test
+    public void formatArrayIntString() {
+        VarFormatter vf = new VarFormatter("${%s}", Locale.ENGLISH);
+        int[] obj = new int[] {1, 2, 3};
+        String formatted = vf.format(obj);
+        Assert.assertEquals("[1, 2, 3]", formatted);
+    }
+
+    @Test
+    public void formatArrayMapString() {
+        VarFormatter vf = new VarFormatter("${a%s}", Locale.ENGLISH);
+        Map<String, Object> values = Collections.singletonMap("a", new int[] {1, 2, 3});
+        String formatted = vf.format(values);
+        Assert.assertEquals("[1, 2, 3]", formatted);
+    }
+
+    @Test
+    public void formatArrayMapDepthString() {
+        VarFormatter vf = new VarFormatter("${a.b%s}", Locale.ENGLISH);
+        Map<String, Object> values = Collections.singletonMap("a", Collections.singletonMap("b",new int[] {1, 2, 3}));
+        String formatted = vf.format(values);
+        Assert.assertEquals("[1, 2, 3]", formatted);
+    }
+
+    @Test
     public void formatNewLine() {
         VarFormatter vf = new VarFormatter("${#1%s}\n${#1%s}\n${#3%s}", Locale.ENGLISH);
         List<String> obj = Arrays.asList(new String[] {"1", "2", "3"});
