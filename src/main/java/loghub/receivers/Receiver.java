@@ -212,7 +212,7 @@ public abstract class Receiver extends Thread implements Iterator<Event>, Closea
                 content = decoder.get();
             } catch (RuntimeDecodeException e) {
                 Event.emptyEvent(ctx).end();
-                manageDecodeException((DecodeException)e.getCause());
+                manageDecodeException(e.getDecodeException());
             }
             if (content == null) {
                 Event.emptyEvent(ctx).end();
@@ -238,7 +238,7 @@ public abstract class Receiver extends Thread implements Iterator<Event>, Closea
             try {
                 return decoder.decode(ctx, bbuf);
             } catch (DecodeException e) {
-                throw new RuntimeDecodeException(Helpers.resolveThrowableException(e), e.getCause());
+                throw new RuntimeDecodeException(Helpers.resolveThrowableException(e), e);
             }
         });
     }
@@ -252,7 +252,7 @@ public abstract class Receiver extends Thread implements Iterator<Event>, Closea
             try {
                 return decoder.decode(ctx, msg, offset, size);
             } catch (DecodeException e) {
-                throw new RuntimeDecodeException(Helpers.resolveThrowableException(e), e.getCause());
+                throw new RuntimeDecodeException(Helpers.resolveThrowableException(e), e);
             }
         });
     }

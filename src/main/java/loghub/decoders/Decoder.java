@@ -30,11 +30,11 @@ public abstract class Decoder {
     }
 
     public static class RuntimeDecodeException extends RuntimeException {
-        public RuntimeDecodeException(String message, Throwable cause) {
+        public RuntimeDecodeException(String message, DecodeException cause) {
             super(message, cause);
         }
-        public RuntimeDecodeException(String message) {
-            super(message);
+        public DecodeException getDecodeException() {
+            return (DecodeException) getCause();
         }
     }
 
