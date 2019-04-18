@@ -33,6 +33,10 @@ public interface StatsMBean {
         return loghub.Stats.failedSend.get();
     }
 
+    default public long getUnhandledExceptions() {
+        return loghub.Stats.thrown.get();
+    }
+
     default public String[] getErrors() {
         return loghub.Stats.getErrors().stream()
                         .map(i -> Helpers.resolveThrowableException((Throwable)i))
