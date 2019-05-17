@@ -266,12 +266,16 @@ public class Properties extends HashMap<String, Object> {
             try {
                 jc = javax.security.auth.login.Configuration.getInstance("JavaLoginConfig", cp);
             } catch (NoSuchAlgorithmException e) {
-                throw new RuntimeException("JavaLoginConfig unavailable", e);
+                throw new ConfigException("JavaLoginConfig unavailable", e);
             }
         }
         jaasConfig = jc;
 
-        dashboardBuilder = DashboardHttpServer.buildDashboad(properties.entrySet().stream().filter(i -> i.getKey().startsWith("http.")).collect(Collectors.toMap( i -> i.getKey().substring(5), j -> j.getValue())), this);
+        try {
+            dashboardBuilder = DashboardHttpServer.buildDashboad(properties.entrySet().stream().filter(i -> i.getKey().startsWith("http.")).collect(Collectors.toMap( i -> i.getKey().substring(5), j -> j.getValue())), this);
+        } catch (IllegalArgumentException e) {
+            throw new ConfigException("Failed to build dashboard", e);
+        }
 
         sources = (Map<String, Source>) properties.remove(PROPSNAMES.SOURCES.toString());
 

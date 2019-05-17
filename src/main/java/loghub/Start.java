@@ -142,14 +142,7 @@ public class Start {
                 }
             }
         } catch (ConfigException e) {
-            Throwable t = e;
-            if (e.getCause() != null) {
-                t = e.getCause();
-            }
-            String message = t.getMessage();
-            if (message == null) {
-                message = t.getClass().getSimpleName();
-            }
+            String message = Helpers.resolveThrowableException(e);
             System.out.format("Error in %s: %s\n", e.getLocation(), message);
             exitcode = 1;
         } catch (IllegalStateException e) {

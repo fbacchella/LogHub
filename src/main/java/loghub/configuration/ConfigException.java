@@ -49,6 +49,13 @@ public class ConfigException extends RuntimeException {
         this.startChar = -1;
     }
 
+    ConfigException(String message, Throwable e) {
+        super(message, e);
+        this.fileName = null;
+        this.startLine = -1;
+        this.startChar = -1;
+    }
+
     public String getLocation() {
         if (fileName == null) {
             return "global configuration";
