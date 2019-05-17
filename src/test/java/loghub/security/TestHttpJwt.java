@@ -32,7 +32,7 @@ public class TestHttpJwt {
     static public void configure() throws IOException {
         Tools.configure();
         logger = LogManager.getLogger();
-        LogUtils.setLevel(logger, Level.TRACE, "loghub.ssl", "loghub.HttpTestServer");
+        LogUtils.setLevel(logger, Level.TRACE, "loghub.ssl", "loghub.HttpTestServer", "loghub.netty.http.TokenFilter");
         Configurator.setLevel("org", Level.WARN);
     }
 
