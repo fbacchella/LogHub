@@ -16,8 +16,8 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Queue;
-import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 
 import javax.management.InstanceAlreadyExistsException;
 import javax.management.InstanceNotFoundException;
@@ -262,7 +262,7 @@ public abstract class AbstractHttpSender extends Sender {
 
     private CloseableHttpClient client = null;
     private Batch batch = new Batch();
-    private final Queue<Batch> batches = new ConcurrentLinkedQueue<>();
+    private final BlockingQueue<Batch> batches;
     private final Runnable publisher;
     protected final URL[] endPoints;
     private volatile boolean closed = false;
@@ -274,6 +274,7 @@ public abstract class AbstractHttpSender extends Sender {
         timeout = builder.timeout;
         buffersize = builder.buffersize;
         endPoints = Helpers.stringsToUrl(builder.destinations, builder.port, builder.protocol, logger);
+        batches = new ArrayBlockingQueue<>(builder.threads * 2);
         // A runnable that will be affected to threads
         // It consumes event and send them as bulk
         publisher = new Runnable() {
@@ -424,7 +425,11 @@ public abstract class AbstractHttpSender extends Sender {
         logger.debug("Closing");
         closed = true;
         synchronized(publisher) {
-            batches.add(batch);
+            try {
+                batches.put(batch);
+            } catch (InterruptedException e) {
+                interrupt();
+            }
             batch = new Batch();
             publisher.notify();
         }
@@ -451,12 +456,16 @@ public abstract class AbstractHttpSender extends Sender {
         synchronized(publisher) {
             batch.add(event);
             if (batch.size() >= buffersize) {
-                logger.debug("queue full, flush");
-                batches.add(batch);
+                logger.debug("batch full, flush");
+                try {
+                    batches.put(batch);
+                } catch (InterruptedException e) {
+                    interrupt();
+                }
                 batch = new Batch();
                 publisher.notify();
                 if (batches.size() > threads.length) {
-                    logger.warn("Waiting flush batches, add flushing threads");
+                    logger.warn("{} waiting flush batches, add flushing threads", () -> batches.size() - threads.length);
                 }
             }
         }
