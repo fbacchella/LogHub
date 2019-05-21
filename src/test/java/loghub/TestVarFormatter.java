@@ -30,26 +30,11 @@ public class TestVarFormatter {
     }
 
     private void checkFormat(Object value, String format, boolean fail) {
-        Map<String, Object> values = Collections.singletonMap("var", value);
         for(Locale l: Locale.getAvailableLocales()) {
-            // String.format don't handle well the turkish i (not i), like Pazartesi -> PAZARTESİ
-            // So skip it
-            if ("tr".equals(l.getLanguage()) && "%TA".equals(format)) {
-                continue;
-            }
-            // String.format don't handle well the Azerbaijan i (not i), like BAZAR ERTƏSI -> BAZAR ERTƏSİ
-            // So skip it
-            if ("az".equals(l.getLanguage()) && "%TA".equals(format)) {
-                continue;
-            }
-            VarFormatter vf = new VarFormatter("${var" + format + "}", l);
+            VarFormatter vf = new VarFormatter("${" + format + "}", l);
             String printf = String.format(l, format, value);
-            String formatter = vf.format(values);
-            if(! fail && ! printf.equals(formatter) ) {
-                System.out.println("mismatch for " + format + " at locale " + l.toLanguageTag() + " " + printf + " " + formatter);
-            } else {
-                Assert.assertEquals("mismatch for " + format + " at locale " + l.toLanguageTag() + " with " + value.getClass().getSimpleName(), printf, formatter );
-            }
+            String formatter = vf.format(value);
+            Assert.assertEquals("mismatch for " + format + " at locale " + l.toLanguageTag() + " with " + value.getClass().getSimpleName(), printf, formatter );
         }
     }
     private void checkFormat(Object value, String format) {
@@ -109,12 +94,12 @@ public class TestVarFormatter {
         checkFormat(date, "%tm");
         checkFormat(date, "%td");
         checkFormat(date, "%te");
-        //checkFormat(new Date(), "%tR");
-        //checkFormat(new Date(), "%tT");
-        //checkFormat(new Date(), "%tr");
-        //checkFormat(new Date(), "%tD");
-        //checkFormat(new Date(), "%tF");
-        //checkFormat(new Date(), "%tc");
+        // checkFormat(new Date(), "%tR"); Not implemented
+        // checkFormat(new Date(), "%tT"); Not implemented
+        // checkFormat(new Date(), "%tr"); Not implemented
+        // checkFormat(new Date(), "%tD"); Not implemented
+        // checkFormat(new Date(), "%tF"); Not implemented
+        // checkFormat(new Date(), "%tc"); Not implemented
 
         checkFormat(date, "%Ta");
         checkFormat(date, "%TA");

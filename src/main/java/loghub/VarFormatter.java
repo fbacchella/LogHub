@@ -8,6 +8,8 @@ import java.text.Format;
 import java.text.MessageFormat;
 import java.text.NumberFormat;
 import java.text.ParsePosition;
+import java.time.DateTimeException;
+import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.chrono.JapaneseDate;
@@ -205,7 +207,6 @@ public class VarFormatter {
         private ChronoField field;
         private TemporalQuery<Long> transform;
         private Function<String, String> transformResult;
-        private Function<ZonedDateTime, TemporalAccessor> getDate;
         private Supplier<String[]> symbols = null;
         private int calendarField = -1;
         private Locale locale;
@@ -249,7 +250,7 @@ public class VarFormatter {
                 calToStr = i -> {
                     Date d = i.getTime();
                     TimeZone z = i.getTimeZone();
-                    return z.getDisplayName( z.inDaylightTime(d), TimeZone.SHORT, locale);
+                    return z.getDisplayName(z.inDaylightTime(d), TimeZone.SHORT, locale);
                 };
                 break;
             case 's': // Seconds since the beginning of the epoch starting at 1 January 1970 00:00:00 UTC, i.e. Long.MIN_VALUE/1000 to Long.MAX_VALUE/1000.
@@ -306,15 +307,6 @@ public class VarFormatter {
             } else if (dtfPattern != null) {
                 dtf = DateTimeFormatter.ofPattern(dtfPattern, l);
             }
-
-            // Use the good calendar, as printf("%tY") does when given a date;
-            Calendar cal = Calendar.getInstance(TimeZone.getTimeZone(tz), l);
-            switch(cal.getCalendarType()) {
-            case "gregory": getDate = i -> i; break;
-            case "buddhist": getDate = i -> ThaiBuddhistDate.from(i); break;
-            case "japanese": getDate = i -> JapaneseDate.from(i) ; break;
-            default: getDate = i -> i; break;
-            }
         }
 
         private Calendar getCalendar(Object obj) {
@@ -325,23 +317,42 @@ public class VarFormatter {
                     cal.setTimeInMillis(d.getTime());
                 }
             } else if (obj instanceof TemporalAccessor){
-                TemporalAccessor  timePoint = (TemporalAccessor) obj;
+                TemporalAccessor timePoint = (TemporalAccessor) obj;
                 cal.setTimeInMillis(timePoint.getLong(ChronoField.INSTANT_SECONDS) * 1000L + timePoint.getLong(ChronoField.MILLI_OF_SECOND));
             } else {
                 return null;
             }
             return cal;
         }
+
+        private TemporalAccessor withCalendarSystem(ZonedDateTime timePoint) {
+            // Some thai and japanese locals needs special treatment because of different calendar systems
+            if (field == ChronoField.YEAR_OF_ERA || field == ChronoField.DAY_OF_YEAR) {
+                switch(locale.getLanguage()) {
+                case "th":
+                    if ("TH".equals(locale.getCountry())) {
+                        return ThaiBuddhistDate.from(timePoint);
+                    }
+                case "ja":
+                    if ("japanese".equals(locale.getUnicodeLocaleType("ca"))) {
+                        return JapaneseDate.from(timePoint);
+                    }
+                default:
+                    return timePoint;
+                }
+            } else {
+                return timePoint;
+            }
+        }
+
         private TemporalAccessor getTemporalAccessor(Object obj) {
             TemporalAccessor timePoint;
             if(obj instanceof Date) {
                 Date d = (Date) obj;
-                ZonedDateTime temp = ZonedDateTime.ofInstant(d.toInstant(), tz);
-                if(field == ChronoField.YEAR_OF_ERA) {
-                    timePoint = getDate.apply(temp);
-                } else {
-                    timePoint = temp;
-                }
+                timePoint = withCalendarSystem(ZonedDateTime.ofInstant(d.toInstant(), tz));
+            } else if (obj instanceof Instant){
+                Instant i = (Instant) obj;
+                timePoint = withCalendarSystem(i.atZone(tz));
             } else if (obj instanceof TemporalAccessor){
                 timePoint = (TemporalAccessor) obj;
             } else {
@@ -367,7 +378,11 @@ public class VarFormatter {
                     value = transform.queryFrom(getTemporalAccessor(obj));
                     resulStr = nf.format(value);
                 } else if (field != null){
-                    resulStr = Optional.ofNullable(getTemporalAccessor(obj)).map( i -> i.getLong(field)).map(i -> nf.format(i)).orElse("");
+                    try {
+                        resulStr = Optional.ofNullable(getTemporalAccessor(obj)).map( i -> i.getLong(field)).map(i -> nf.format(i)).orElse("");
+                    } catch (DateTimeException e) {
+                        throw new IllegalArgumentException("Can't format the given time data: " + Helpers.resolveThrowableException(e), e);
+                    }
                 }
             } else if ( dtf != null) {
                 resulStr = Optional.ofNullable(getTemporalAccessor(obj)).map( i -> dtf.format(i)).orElse("");
@@ -485,7 +500,7 @@ public class VarFormatter {
         }
         return mf.format(resolved, new StringBuffer(), new FieldPosition(0)).toString();
     }
-    
+
     private Object checkIsArray(Object arg) {
         if (arg == null || ! arg.getClass().isArray()) {
             return arg;
