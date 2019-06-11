@@ -5,9 +5,9 @@ import java.nio.ByteBuffer;
 import java.time.DateTimeException;
 import java.time.Instant;
 import java.util.Collections;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 import org.msgpack.core.MessageInsufficientBufferException;
 import org.msgpack.core.MessagePackException;
@@ -137,11 +137,11 @@ public class Msgpack extends Decoder {
                     Map<String, Object> fields = (Map<String, Object>)eventContent.remove("@fields");
                     @SuppressWarnings("unchecked")
                     Map<String, Object> metas = (Map<String, Object>) eventContent.remove("@METAS");
-                    Instant timeStamp = (Instant) eventContent.remove(Event.TIMESTAMPKEY);
-
                     Event newEvent = Event.emptyEvent(ctx);
                     newEvent.putAll(fields);
-                    newEvent.setTimestamp(Date.from(timeStamp));
+                    Optional.ofNullable(eventContent.get(Event.TIMESTAMPKEY))
+                    .filter(newEvent::setTimestamp)
+                    .ifPresent(ts -> eventContent.remove(Event.TIMESTAMPKEY));
                     metas.forEach((i,j) -> newEvent.putMeta(i, j));
                     return newEvent;
                 } else {

@@ -1,6 +1,8 @@
 package loghub;
 
 import java.io.Serializable;
+import java.time.Instant;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
@@ -58,13 +60,10 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
         } else if (TIMESTAMPKEY.equals(key)) {
             switch(f) {
             case GET: return getTimestamp();
-            case PUT: { 
-                if (value instanceof Date) {
-                    setTimestamp((Date) value);
-                } else if (value instanceof Number){
-                    Date newDate = new Date(((Number)value).longValue());
-                    setTimestamp(newDate);
-                }
+            case PUT: {
+                if (!setTimestamp(value)) {
+                    throw buildException(value.toString() + " is not usable as a timestamp from path " + Arrays.toString(path));
+                };
                 return null;
             }
             case REMOVE: return getTimestamp();
@@ -195,6 +194,26 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
     public abstract Date getTimestamp();
 
     public abstract void setTimestamp(Date timestamp);
+
+    public void setTimestamp(Instant instant) {
+        setTimestamp(Date.from(instant));
+    }
+
+    public boolean setTimestamp(Object value) {
+        if (value instanceof Date) {
+            setTimestamp((Date) value);
+            return true;
+        } else if (value instanceof Instant){
+            setTimestamp(Date.from((Instant)value));
+            return true;
+        } else if (value instanceof Number){
+            Date newDate = new Date(((Number)value).longValue());
+            setTimestamp(newDate);
+            return true;
+        } else {
+            return false;
+        }
+    }
 
     public abstract void end();
 

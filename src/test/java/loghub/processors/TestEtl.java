@@ -1,6 +1,7 @@
 package loghub.processors;
 
 import java.io.IOException;
+import java.time.Instant;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
@@ -197,6 +198,22 @@ public class TestEtl {
     public void testTimestampMove() throws ProcessorException {
         Event ev =  RunEtl("[@timestamp] < [b]", i -> i.put("b", 1000));
         Assert.assertEquals(1000, ev.getTimestamp().getTime());
+        Assert.assertTrue(ev.isEmpty());
+    }
+
+    @Test
+    public void testTimestampFromInstant() throws ProcessorException {
+        Event ev =  RunEtl("[@timestamp] = [b]", i -> i.put("b", Instant.ofEpochMilli(1000)));
+        Assert.assertEquals(1000, ev.getTimestamp().getTime());
+        ev.remove("b");
+        Assert.assertTrue(ev.isEmpty());
+    }
+
+    @Test
+    public void testTimestampFromNumber() throws ProcessorException {
+        Event ev =  RunEtl("[@timestamp] = [b]", i -> i.put("b", 1000));
+        Assert.assertEquals(1000, ev.getTimestamp().getTime());
+        ev.remove("b");
         Assert.assertTrue(ev.isEmpty());
     }
 

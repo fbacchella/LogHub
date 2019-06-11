@@ -427,9 +427,7 @@ public class Merge extends Processor {
         // '<' will keep the initial event timestamp
         // '>' will use the last event timestamp
         Object newTimestamp = cumulators.get(Event.TIMESTAMPKEY).apply(event.getTimestamp(), pe.event.getTimestamp());
-        if (newTimestamp instanceof Date) {
-            pe.event.setTimestamp((Date)newTimestamp);
-        }
+        pe.event.setTimestamp(newTimestamp);
         return pe;
     }
 

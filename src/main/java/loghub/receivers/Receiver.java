@@ -1,6 +1,7 @@
 package loghub.receivers;
 
 import java.io.Closeable;
+import java.time.Instant;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.Map;
@@ -207,28 +208,30 @@ public abstract class Receiver extends Thread implements Iterator<Event>, Closea
             Event.emptyEvent(ctx).end();
             return null;
         } else {
-            Map<String, Object> content = null;;
             try {
-                content = decoder.get();
+                Map<String, Object>  content = decoder.get();
+                if (content == null) {
+                    Event.emptyEvent(ctx).end();
+                    manageDecodeException(new DecodeException("Received event with no usable body"));
+                    return null;
+                } else if (content instanceof Event) {
+                    return (Event) content;
+                } else {
+                    Event event = Event.emptyEvent(ctx);
+                    Optional.ofNullable(content.get(timeStampField))
+                    .filter(i -> i instanceof Date || i instanceof Instant || i instanceof Number)
+                    .ifPresent(ts -> {
+                        if (event.setTimestamp(ts)) {
+                            content.remove(timeStampField);
+                        }
+                    });
+                    content.entrySet().stream().forEach( i -> event.put(i.getKey(), i.getValue()));
+                    return event;
+                }
             } catch (RuntimeDecodeException e) {
                 Event.emptyEvent(ctx).end();
                 manageDecodeException(e.getDecodeException());
-            }
-            if (content == null) {
-                Event.emptyEvent(ctx).end();
-                manageDecodeException(new DecodeException("Received event with no usable body"));
                 return null;
-            } if (content instanceof Event) {
-                return (Event) content;
-            } else {
-                Event event = Event.emptyEvent(ctx);
-                Object ts = Optional.ofNullable(content.get(timeStampField)).filter( i -> i instanceof Date).orElse(null);
-                if (ts != null) {
-                    content.remove(timeStampField);
-                    event.setTimestamp((Date) ts);
-                }
-                content.entrySet().stream().forEach( i -> event.put(i.getKey(), i.getValue()));
-                return event;
             }
         }
     }
