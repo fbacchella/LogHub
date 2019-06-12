@@ -62,7 +62,7 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
             case GET: return getTimestamp();
             case PUT: {
                 if (!setTimestamp(value)) {
-                    throw buildException(value.toString() + " is not usable as a timestamp from path " + Arrays.toString(path));
+                    throw buildException(String.valueOf(value) + " is not usable as a timestamp from path " + Arrays.toString(path));
                 };
                 return null;
             }
@@ -94,7 +94,7 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
                         return null;
                     }
                 } else if ( ! (peekNext instanceof Map) ) {
-                    throw buildException("Can descend into " + key + ", it's not an object");
+                    throw buildException("Can descend into " + key + " from " + Arrays.toString(path) + " , it's not an object");
                 } else {
                     next = (Map<String, Object>) peekNext;
                 }
