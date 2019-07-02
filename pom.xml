@@ -11,11 +11,11 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
-        <log4j>2.11.2</log4j>
+        <log4j>2.12.0</log4j>
         <antlr>4.7.2</antlr>
-        <jackson>2.9.8</jackson>
+        <jackson>2.9.9</jackson>
         <metrics>4.0.0</metrics>
-        <cache2k>1.2.0.Final</cache2k>
+        <cache2k>1.2.2.Final </cache2k>
         <mainClass>loghub.Start</mainClass>
         <dependency.locations.enabled>false</dependency.locations.enabled>
     </properties>
@@ -64,7 +64,7 @@
         <dependency>
             <groupId>org.msgpack</groupId>
             <artifactId>jackson-dataformat-msgpack</artifactId>
-            <version>0.8.16</version>
+            <version>0.8.17</version>
         </dependency>
         <!-- **************** -->
         <!-- ZMQ dependencies -->
@@ -83,7 +83,7 @@
         <dependency>
             <groupId>org.apache.httpcomponents</groupId>
             <artifactId>httpclient</artifactId>
-            <version>4.5.7</version>
+            <version>4.5.9</version>
         </dependency>
         <dependency>
             <groupId>org.snmp4j</groupId>
@@ -93,7 +93,7 @@
         <dependency>
             <groupId>org.codehaus.groovy</groupId>
             <artifactId>groovy</artifactId>
-            <version>2.5.6</version>
+            <version>2.5.7</version>
         </dependency>
         <dependency>
             <groupId>org.antlr</groupId>
@@ -137,7 +137,7 @@
         <dependency>
             <groupId>javax.cache</groupId>
             <artifactId>cache-api</artifactId>
-            <version>1.1.0</version>
+            <version>1.1.1</version>
         </dependency>
         <dependency>
             <groupId>fr.jrds</groupId>
@@ -147,7 +147,7 @@
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-all</artifactId>
-            <version>4.1.33.Final</version>
+            <version>4.1.37.Final</version>
         </dependency>
         <dependency>
             <groupId>io.dropwizard.metrics</groupId>
@@ -187,12 +187,12 @@
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-csv</artifactId>
-            <version>1.6</version>
+            <version>1.7</version>
         </dependency>
         <dependency>
             <groupId>org.jruby.joni</groupId>
             <artifactId>joni</artifactId>
-            <version>2.1.25</version>
+            <version>2.1.29</version>
         </dependency>
         <dependency>
             <groupId>org.apache.kafka</groupId>
@@ -213,7 +213,7 @@
         <dependency>
             <groupId>com.auth0</groupId>
             <artifactId>java-jwt</artifactId>
-            <version>3.7.0</version>
+            <version>3.8.1</version>
         </dependency>
         <dependency>
             <groupId>io.krakens</groupId>
@@ -223,12 +223,12 @@
         <dependency>
             <groupId>com.github.vladimir-bukhtoyarov</groupId>
             <artifactId>bucket4j-core</artifactId>
-            <version>4.3.0</version>
+            <version>4.4.1</version>
         </dependency>
         <dependency>
             <groupId>com.github.ua-parser</groupId>
             <artifactId>uap-java</artifactId>
-            <version>1.4.0</version>
+            <version>1.4.3</version>
             <exclusions>
                 <exclusion>
                     <!-- Excluded because caching is done using cache2k -->
@@ -240,7 +240,7 @@
         <dependency>
             <groupId>fr.loghub</groupId>
             <artifactId>netty-beats</artifactId>
-            <version>1.0.0-RC2</version>
+            <version>1.0.0-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>org.apache.commons</groupId>
@@ -250,12 +250,12 @@
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-transport-native-unix-common</artifactId>
-            <version>4.1.33.Final</version>
+            <version>4.1.37.Final</version>
         </dependency>
         <dependency>
             <groupId>org.bouncycastle</groupId>
             <artifactId>bcprov-jdk15on</artifactId>
-            <version>1.61</version>
+            <version>1.62</version>
         </dependency>
     </dependencies>
     <build>
