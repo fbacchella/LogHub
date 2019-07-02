@@ -84,7 +84,7 @@ public class TestIntegrated {
                 }
             };
             t.start();
-            Pattern messagePattern = Pattern.compile("\\{\"a\":1,\"b\":\"(google-public-dns-a|8.8.8.8)\",\"message\":\"message \\d+\"\\}");
+            Pattern messagePattern = Pattern.compile("\\{\"a\":1,\"b\":\"(google-public-dns-a|8.8.8.8|dns\\.google)\",\"message\":\"message \\d+\"\\}");
             while(send.get() < 99 || allevents_inflight.getCount() != 0) {
                 logger.debug("send: {}, in flight: {}", send.get(), allevents_inflight.getCount());
                 while (receiver.getEvents() > 0) {
