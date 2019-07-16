@@ -2,6 +2,8 @@ package loghub.decoders;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.time.Instant;
 import java.util.Date;
 import java.util.HashMap;
@@ -102,6 +104,12 @@ public class TestMsgpack {
         destination.put(ValueFactory.newString("c"), ValueFactory.newExtension((byte) -1, new byte[]{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}) );
         destination.put(ValueFactory.newString("d"), ValueFactory.newExtension((byte) -1, new byte[]{12, 11, 10, 9, 0, 0, 0, 0, 0, 3, 2, 1}) );
 
+        // A value that overflow the unsigned nano
+        ByteBuffer bytes = ByteBuffer.wrap(new byte[8]);
+        bytes.order(ByteOrder.BIG_ENDIAN);
+        bytes.putLong(Long.parseUnsignedLong("12005275407473284400"));
+        destination.put(ValueFactory.newString("e"), ValueFactory.newExtension((byte) -1, bytes.array()) );
+
         Value v = ValueFactory.newMap(destination);
 
         ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -116,6 +124,9 @@ public class TestMsgpack {
         Assert.assertEquals(Instant.class, e.get("b").getClass());
         Assert.assertArrayEquals(new byte[]{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}, (byte[]) e.get("c"));
         Assert.assertEquals(Instant.class, e.get("d").getClass());
+        Instant time = (Instant)e.get("e");
+        Assert.assertEquals(1563268400L, time.getEpochSecond());
+        Assert.assertEquals(698799000, time.getNano());
     }
 
     @Test

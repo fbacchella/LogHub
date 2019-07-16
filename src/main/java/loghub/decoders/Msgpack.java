@@ -46,7 +46,7 @@ public class Msgpack extends Decoder {
 
     private static final TypeReference<Object> OBJECTREF = new TypeReference<Object>() { };
 
-    private static class TimeDserializer implements ExtensionTypeCustomDeserializers.Deser {
+    private static class TimeDeserializer implements ExtensionTypeCustomDeserializers.Deser {
         @Override
         public Object deserialize(byte[] data)
                         throws IOException
@@ -63,8 +63,9 @@ public class Msgpack extends Decoder {
                 break;
             case 8:
                 long lcontent = content.getLong();
-                nanoseconds = (int) (lcontent >> 34);
                 seconds = lcontent & 0x00000003ffffffffL;
+                // Masked needed to drop sign extended by right shift
+                nanoseconds = (int)((lcontent >> 34) & (0x3FFFFFFFL));
                 found = true;
                 break;
             case 12:
@@ -86,7 +87,7 @@ public class Msgpack extends Decoder {
     }
     private static final ExtensionTypeCustomDeserializers extTypeCustomDesers = new ExtensionTypeCustomDeserializers();
     static {
-        extTypeCustomDesers.addCustomDeser((byte) -1, new TimeDserializer());
+        extTypeCustomDesers.addCustomDeser((byte) -1, new TimeDeserializer());
     }
     private static final JsonFactory factory = new MessagePackFactory().setExtTypeCustomDesers(extTypeCustomDesers);
     private static final ThreadLocal<ObjectMapper> msgpack = ThreadLocal.withInitial(() ->  {
@@ -131,6 +132,7 @@ public class Msgpack extends Decoder {
                 @SuppressWarnings("unchecked")
                 Map<Object, Object> map = (Map<Object, Object>) o;
                 if (map.size() == 1 && map.containsKey(Event.class.getCanonicalName())) {
+                    // Special case, the message contain a loghub event, sent from another loghub
                     @SuppressWarnings("unchecked")
                     Map<String, Object> eventContent = (Map<String, Object>) map.remove(Event.class.getCanonicalName());
                     @SuppressWarnings("unchecked")
