@@ -2,6 +2,7 @@ package loghub.encoders;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.Collections;
@@ -67,6 +68,7 @@ public class Msgpack extends Encoder {
     private static abstract class TimeSerializer<K> extends JsonSerializer<K> {
         void doSerialiaze(long seconds, int nanoseconds, MessagePackGenerator gen) throws IOException {
             ByteBuffer longBuffer = ByteBuffer.wrap(new byte[12]);
+            longBuffer.order(ByteOrder.BIG_ENDIAN);
             long result = ((long)nanoseconds << 34) | seconds;
             int size = 0;
             if ((result >> 34) == 0) {
