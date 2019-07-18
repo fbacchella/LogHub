@@ -96,19 +96,19 @@ public class ContextLoader {
                                     .collect(Collectors.toSet());
                     logger.debug("Will filter valid ssl client issuers as {}", validIssuers);
                 } else {
-                    validIssuers = Collections.emptySet();
+                    validIssuers = null;
                 }
                 kmtranslator = new X509ExtendedKeyManager() {
 
                     private Principal[] filterIssuers(Principal[] issuers) {
-                        if ( ! validIssuers.isEmpty()) {
+                        if (validIssuers != null && issuers != null) {
                             return Arrays.stream(issuers)
                                             .filter(validIssuers::contains)
                                             .toArray(Principal[]::new);
-                        } else if (issuers != null) {
-                            return issuers;
+                        } else if (validIssuers != null && issuers == null){
+                            return validIssuers.stream().toArray(Principal[]::new);
                         } else {
-                            return new Principal[] {};
+                            return issuers;
                         }
                     }
 
@@ -132,8 +132,8 @@ public class ContextLoader {
                     @Override
                     public String chooseClientAlias(String[] keyType, Principal[] issuers, Socket socket) {
                         Principal[] newIssuers = filterIssuers(issuers);
-                        if (newIssuers.length == 0) {
-                            // The orignal KeyManager understand a empty issuers list as an any filter, we don't want that
+                        if (newIssuers != null && newIssuers.length == 0) {
+                            // The original KeyManager understand a empty issuers list as an any filter, we don't want that
                             return null;
                         } else {
                             return origkm.chooseClientAlias(keyType, newIssuers, socket);
