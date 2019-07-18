@@ -67,7 +67,15 @@ public class TestFile {
     }
 
     @Rule
-    public TemporaryFolder folder= new TemporaryFolder();
+    public TemporaryFolder folder;
+    {
+        try {
+            folder = new TemporaryFolder();
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw e;
+        }
+    }
 
     private String outFile;
     private final ArrayBlockingQueue<Event> queue = new ArrayBlockingQueue<>(10);
