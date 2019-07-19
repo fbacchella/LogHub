@@ -18,6 +18,8 @@
         <cache2k>1.2.2.Final </cache2k>
         <mainClass>loghub.Start</mainClass>
         <surefire.version>3.0.0-M3</surefire.version>
+        <cacheapi.version>1.1.1</cacheapi.version>
+        <snmp4j.version>2.7.0</snmp4j.version>
         <dependency.locations.enabled>false</dependency.locations.enabled>
     </properties>
     <dependencies>
@@ -89,7 +91,7 @@
         <dependency>
             <groupId>org.snmp4j</groupId>
             <artifactId>snmp4j</artifactId>
-            <version>2.7.0</version>
+            <version>${snmp4j.version}</version>
         </dependency>
         <dependency>
             <groupId>org.codehaus.groovy</groupId>
@@ -138,7 +140,7 @@
         <dependency>
             <groupId>javax.cache</groupId>
             <artifactId>cache-api</artifactId>
-            <version>1.1.1</version>
+            <version>${cacheapi.version}</version>
         </dependency>
         <dependency>
             <groupId>fr.jrds</groupId>
@@ -301,6 +303,27 @@
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-javadoc-plugin</artifactId>
                     <version>3.1.1</version>
+                    <configuration>
+                        <quiet>true</quiet>
+                        <source>8</source>
+                        <detectJavaApiLink>false</detectJavaApiLink>
+                        <detectLinks>false</detectLinks>
+                        <validateLinks>true</validateLinks>
+                        <links>
+                            <link>https://static.javadoc.io/javax.cache/cache-api/${cacheapi.version}/</link>
+                            <link>http://docs.groovy-lang.org/latest/html/api/</link>
+                            <link>https://www.antlr.org/api/Java</link>
+                            <link>https://netty.io/4.0/api/</link>
+                            <link>https://static.javadoc.io/org.snmp4j/snmp4j/${snmp4j.version}/</link>
+                            <link>https://zeromq.github.io/jzmq/javadocs/</link>
+                            <link>https://logging.apache.org/log4j/2.0/log4j-api/apidocs</link>
+                            <!-- detectJavaApiLink should be set to true, and this removed
+                                 but workaround from https://bugs.openjdk.java.net/browse/JDK-8212233
+                                 fails, so javadoc link is handled manually -->
+                            <link>https://docs.oracle.com/javase/8/docs/api/</link>
+                        </links>
+                        <keywords>true</keywords>
+                    </configuration>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -648,21 +671,6 @@
                         </goals>
                     </execution>
                 </executions>
-                <configuration>
-                    <quiet>true</quiet>
-                    <!-- needed by javadoc.io -->
-                    <additionalJOption>-J-Dhttp.agent=maven-javadoc-plugin-${project.name}</additionalJOption>
-                    <links>
-                        <link>https://static.javadoc.io/javax.cache/cache-api/1.1.0/</link>
-                        <link>http://docs.groovy-lang.org/latest/html/api/</link>
-                        <link>https://www.antlr.org/api/Java</link>
-                        <link>https://netty.io/4.0/api/</link>
-                        <link>https://www.snmp4j.org/doc/</link>
-                        <link>https://zeromq.github.io/jzmq/javadocs/</link>
-                        <link>https://logging.apache.org/log4j/2.0/log4j-api/apidocs</link>
-                    </links>
-                    <keywords>true</keywords>
-                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -680,27 +688,6 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-javadoc-plugin</artifactId>
-                <reportSets>
-                    <reportSet>
-                        <reports>
-                            <report>javadoc-no-fork</report>
-                        </reports>
-                    </reportSet>
-                </reportSets>
-                <configuration>
-                    <!-- needed by javadoc.io -->
-                    <additionalJOption>-J-Dhttp.agent=maven-javadoc-plugin-${pom‌​.name}</additionalJOption>
-                    <links>
-                        <link>https://static.javadoc.io/javax.cache/cache-api/1.1.0/</link>
-                        <link>http://docs.groovy-lang.org/latest/html/api/</link>
-                        <link>https://www.antlr.org/api/Java</link>
-                        <link>https://netty.io/4.0/api/</link>
-                        <link>https://www.snmp4j.org/doc/</link>
-                        <link>https://zeromq.github.io/jzmq/javadocs/</link>
-                        <link>https://logging.apache.org/log4j/2.0/log4j-api/apidocs</link>
-                    </links>
-                    <keywords>true</keywords>
-                </configuration>
             </plugin>
         </plugins>
     </reporting>
