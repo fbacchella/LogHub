@@ -106,7 +106,7 @@ public class DateParser extends FieldsProcessor {
                     continue;
                 }
                 // Try to resolve the zone offset
-                ZoneId zi = ta.query(TemporalQueries.offset());
+                ZoneId zi = ta.query(TemporalQueries.zone());
                 if (zi == null) {
                     zi = zone;
                 }

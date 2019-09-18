@@ -140,4 +140,31 @@ public class TestDateParser {
         Assert.assertFalse(parse.configure(new Properties(Collections.emptyMap())));
     }
 
+    private void checkTZ(String tz, String tzFormat, int expectedHour) throws ProcessorException {
+        String parseformat = "yyyy MMM dd HH:mm:ss.SSS " + tzFormat;
+        String parsedDate = "2019 Sep 18 07:53:09.504 " + tz;
+        DateParser parse = new DateParser();
+        parse.setPatterns(new String[] {parseformat});
+        parse.setTimezone("America/Los_Angeles");
+        parse.setField(new String[] {"field"});
+        Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
+        Event event = Tools.getEvent();
+        event.put("field", parsedDate);
+        Assert.assertTrue("failed to parse " + parsedDate + " with " + parseformat, parse.process(event));
+        Date date = (Date) event.get("field");
+        OffsetDateTime t = OffsetDateTime.ofInstant(date.toInstant(), ZoneId.of("GMT"));
+        Assert.assertEquals("failed to parse " + parsedDate + " with " + parseformat, expectedHour, t.getLong(ChronoField.HOUR_OF_DAY));
+    }
+
+    @Test
+    public void testTZFormats() throws ProcessorException {
+        checkTZ("UTC", "zzz", 7);
+        checkTZ("Z", "zzz", 7);
+        checkTZ("GMT", "zzz", 7);
+        checkTZ("CET", "zzz", 5);
+        checkTZ("Europe/Paris", "VV", 5);
+        checkTZ("+0200", "ZZZ", 5);
+        checkTZ("+02:00", "xxx", 5);
+    }
+
 }
