@@ -9,7 +9,7 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 public class NotFound extends HttpRequestProcessing implements ChannelHandler {
 
     @Override
-    protected boolean processRequest(FullHttpRequest request, ChannelHandlerContext ctx) throws HttpRequestFailure {
+    protected void processRequest(FullHttpRequest request, ChannelHandlerContext ctx) throws HttpRequestFailure {
         throw new HttpRequestFailure(HttpResponseStatus.NOT_FOUND, request.uri() + " not found");
     }
 

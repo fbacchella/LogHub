@@ -56,7 +56,7 @@ public class JmxProxy extends HttpRequestProcessing {
     }
 
     @Override
-    protected boolean processRequest(FullHttpRequest request, ChannelHandlerContext ctx) throws HttpRequestFailure {
+    protected void processRequest(FullHttpRequest request, ChannelHandlerContext ctx) throws HttpRequestFailure {
         String rawname = request.uri().replace("/jmx/", "");
         String name;
         try {
@@ -94,7 +94,7 @@ public class JmxProxy extends HttpRequestProcessing {
             }
             String serialized = json.get().writeValueAsString(mbeanmap);
             ByteBuf content = Unpooled.copiedBuffer(serialized + "\r\n", CharsetUtil.UTF_8);
-            return writeResponse(ctx, request, content, content.readableBytes());
+            writeResponse(ctx, request, content, content.readableBytes());
         } catch (MalformedObjectNameException e) {
             throw new HttpRequestFailure(BAD_REQUEST, String.format("malformed object name '%s': %s", name, e.getMessage()));
         } catch (IntrospectionException | ReflectionException | RuntimeException | JsonProcessingException e) {

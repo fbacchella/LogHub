@@ -26,12 +26,12 @@ public class JwtToken extends HttpRequestProcessing {
     }
 
     @Override
-    protected boolean processRequest(FullHttpRequest request, ChannelHandlerContext ctx) throws HttpRequestFailure {
+    protected void processRequest(FullHttpRequest request, ChannelHandlerContext ctx) throws HttpRequestFailure {
         Principal p = ctx.channel().attr(AbstractNettyServer.PRINCIPALATTRIBUTE).get();
         try {
             String token = alg.getToken(p);
             ByteBuf content = Unpooled.copiedBuffer(token + "\r\n", CharsetUtil.UTF_8);
-            return writeResponse(ctx, request, content, content.readableBytes());
+            writeResponse(ctx, request, content, content.readableBytes());
         } catch (JWTCreationException exception){
             throw new HttpRequestFailure(HttpResponseStatus.SERVICE_UNAVAILABLE, "JWT creation failed", Collections.emptyMap());
         }

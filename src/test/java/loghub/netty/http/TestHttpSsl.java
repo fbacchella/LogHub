@@ -45,9 +45,9 @@ public class TestHttpSsl {
     static class SimpleHandler extends HttpRequestProcessing {
 
         @Override
-        protected boolean processRequest(FullHttpRequest request, ChannelHandlerContext ctx) throws HttpRequestFailure {
+        protected void processRequest(FullHttpRequest request, ChannelHandlerContext ctx) throws HttpRequestFailure {
             ByteBuf content = Unpooled.copiedBuffer("Request received\r\n", CharsetUtil.UTF_8);
-            return writeResponse(ctx, request, content, content.readableBytes());
+            writeResponse(ctx, request, content, content.readableBytes());
         }
 
     }

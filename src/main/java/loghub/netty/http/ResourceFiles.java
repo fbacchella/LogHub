@@ -33,7 +33,7 @@ public class ResourceFiles extends HttpRequestProcessing {
     }
 
     @Override
-    protected boolean processRequest(FullHttpRequest request, ChannelHandlerContext ctx) throws HttpRequestFailure {
+    protected void processRequest(FullHttpRequest request, ChannelHandlerContext ctx) throws HttpRequestFailure {
         String name = ROOT.relativize(
                 Paths.get(request.uri())
                 .normalize()
@@ -55,7 +55,7 @@ public class ResourceFiles extends HttpRequestProcessing {
                 internalPath = entry.getName();
                 internalDate = new Date(entry.getLastModifiedTime().toMillis());
                 ChunkedInput<ByteBuf> content = new ChunkedStream(jarConnection.getInputStream());
-                return writeResponse(ctx, request, content, length);
+                writeResponse(ctx, request, content, length);
             } catch (IOException e) {
                 throw new HttpRequestFailure(HttpResponseStatus.INTERNAL_SERVER_ERROR, e.getMessage());
             }

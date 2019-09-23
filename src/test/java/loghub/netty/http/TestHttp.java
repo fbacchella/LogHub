@@ -87,7 +87,7 @@ public class TestHttp {
                 }
 
                 @Override
-                protected boolean processRequest(FullHttpRequest request,
+                protected void processRequest(FullHttpRequest request,
                                                  ChannelHandlerContext ctx)
                                                                  throws HttpRequestFailure {
                     throw new RuntimeException();

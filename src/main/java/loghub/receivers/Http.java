@@ -46,7 +46,7 @@ public class Http extends AbstractTcpReceiver<Http, Http.HttpReceiverServer, Htt
     private class PostHandler extends HttpRequestProcessing {
 
         @Override
-        protected boolean processRequest(FullHttpRequest request, ChannelHandlerContext ctx) throws HttpRequestFailure {
+        protected void processRequest(FullHttpRequest request, ChannelHandlerContext ctx) throws HttpRequestFailure {
             Event e = Event.emptyEvent(Http.this.getConnectionContext(ctx, null));
             try {
                 String mimeType = Optional.ofNullable(HttpUtil.getMimeType(request)).orElse("application/octet-stream").toString();
@@ -114,7 +114,7 @@ public class Http extends AbstractTcpReceiver<Http, Http.HttpReceiverServer, Htt
                 throw new HttpRequestFailure(HttpResponseStatus.BAD_REQUEST, "Content invalid for decoder");
             }
             ByteBuf content = Unpooled.copiedBuffer("{'decoded': true}\r\n", StandardCharsets.UTF_8);
-            return writeResponse(ctx, request, content, content.readableBytes());
+            writeResponse(ctx, request, content, content.readableBytes());
         }
 
     };
@@ -122,9 +122,9 @@ public class Http extends AbstractTcpReceiver<Http, Http.HttpReceiverServer, Htt
     protected static class HttpReceiverServer extends AbstractHttpServer<HttpReceiverServer, HttpReceiverServer.Builder> {
 
         protected static class Builder extends AbstractHttpServer.Builder<HttpReceiverServer, Builder> {
-            PostHandler recepter;
-            Builder setPostHandler(PostHandler recepter) {
-                this.recepter = recepter;
+            HttpRequestProcessing receiver;
+            Builder setReceiveHandler(HttpRequestProcessing recepter) {
+                this.receiver = recepter;
                 return this;
             }
             @Override
@@ -133,10 +133,10 @@ public class Http extends AbstractTcpReceiver<Http, Http.HttpReceiverServer, Htt
             }
         }
 
-        final PostHandler recepter;
+        final HttpRequestProcessing receiver;
         protected HttpReceiverServer(Builder builder) throws IllegalArgumentException, InterruptedException {
             super(builder);
-            this.recepter = builder.recepter;
+            this.receiver = builder.receiver;
         }
 
         @Override
@@ -145,7 +145,7 @@ public class Http extends AbstractTcpReceiver<Http, Http.HttpReceiverServer, Htt
                 p.addLast("authentication", new AccessControl(getAuthHandler()));
                 logger.debug("Added authentication");
             }
-            p.addLast("recepter", recepter);
+            p.addLast("receiver", receiver);
         }
     }
 
@@ -160,40 +160,17 @@ public class Http extends AbstractTcpReceiver<Http, Http.HttpReceiverServer, Htt
 
     @Override
     public boolean configure(Properties properties, HttpReceiverServer.Builder builder) {
-        builder.setPostHandler(new PostHandler()).setThreadPrefix("HTTP");
+        settings(builder);
         return super.configure(properties, builder);
     }
 
-    //
-    //    @Override
-    //    public ConnectionContext getConnectionContext(ChannelHandlerContext ctx, ByteBuf message) {
-    //        System.out.println(ctx);
-    //        System.out.println(message);
-    //        SSLSession sess = this.getSslSession(ctx);
-    //        SocketChannel channel = (SocketChannel) ctx.channel();
-    //        System.out.println("sess " + sess);
-    //        System.out.println("channel " + ctx.channel().getClass());
-    //        return super.getConnectionContext(ctx, message);
-    //    }
-    //
-    //    @Override
-    //    public void run() {
-    //        logger.debug("running");
-    //        webserver.finish();
-    //        logger.debug("runned");
-    //    }
+    protected void settings(HttpReceiverServer.Builder builder) {
+        builder.setReceiveHandler(new PostHandler()).setThreadPrefix("HTTP");
+    }
 
     @Override
     public String getReceiverName() {
         return "HTTP/" + getPort();
-    }
-
-    public Object getDecoders() {
-        return null;
-    }
-
-    public void setDecoders(Object password) {
-        System.out.println(password);
     }
 
 }
