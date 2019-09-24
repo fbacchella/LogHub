@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpContent;
@@ -42,6 +43,8 @@ public class Journald extends Http {
         }
     };
 
+    private final Map<String, HashMap<String, String>> eventVars = new HashMap<>(2);
+    private final ByteBuf prevChunck = Unpooled.buffer(4096);
 
     /**
      * This aggregator swallows valid journald events, that are sended as chunck by systemd-journal-upload
@@ -53,6 +56,8 @@ public class Journald extends Http {
 
         public JournaldAgregator() {
             super(8192);
+            eventVars.put(USERDFIELDS, new HashMap<String, String>());
+            eventVars.put(TRUSTEDFIELDS, new HashMap<String, String>());
         }
 
         @Override
@@ -78,17 +83,23 @@ public class Journald extends Http {
                     }
                 } else if (isContentMessage(msg)) {
                     processed = true;
-                    forward = true;
+                    forward = false;
                     HttpContent chunk = (HttpContent) msg;
-                    Journald.this.logger.debug("New journald chunk of events, length {}", () -> chunk.content().readableBytes());
-                    Map<String, HashMap<String, String>> eventVars = new HashMap<>(2);
-                    eventVars.put(USERDFIELDS, new HashMap<String, String>());
-                    eventVars.put(TRUSTEDFIELDS, new HashMap<String, String>());
+                    Journald.this.logger.trace("New journald chunk of events, length {}", () -> chunk.content().readableBytes());
 
                     ByteBuf chunckContent = chunk.content();
                     int eolPos;
                     while ((eolPos = findEndOfLine(chunckContent)) >= 0) {
-                        ByteBuf lineBuffer = chunckContent.readSlice(eolPos);
+                        ByteBuf lineBuffer;
+                        if (prevChunck.readableBytes() > 0) {
+                            // Some data from previous chunck not yet handled
+                            // Copy the current line after them and process it
+                            chunckContent.readBytes(prevChunck, eolPos);
+                            lineBuffer = prevChunck.readSlice(prevChunck.readableBytes());
+                            prevChunck.clear();
+                        } else {
+                            lineBuffer = chunckContent.readSlice(eolPos);
+                        }
                         // Read the EOL
                         chunckContent.readByte();
                         if (eolPos == 0) {
@@ -99,13 +110,13 @@ public class Journald extends Http {
                             int equalPos = lineBuffer.forEachByte(FIND_EQUAL);
                             if (equalPos > 0) {
                                 ByteBuf keyBuffer = lineBuffer.readSlice(equalPos);
-                                // Used to detect the number of _ in front of field name
+                                // Used to detect the number of _ in front of a field name
                                 // 1, it's a trusted field, managed by journald
                                 // 2, it's a private field, probably to be dropped
                                 // Fields are explained at https://www.freedesktop.org/software/systemd/man/systemd.journal-fields.html
                                 int startKey = keyBuffer.forEachByte(NON_UNDERSCORE);
                                 if (startKey == 2) {
-                                    // field starting with __ are privates, skip them
+                                    // fields starting with __ are privates, skip them
                                     continue;
                                 }
                                 keyBuffer.readerIndex(startKey);
@@ -120,7 +131,12 @@ public class Journald extends Http {
                             }
                         }
                     }
-                    newEvent(ctx, eventVars);
+                    if (chunckContent.readableBytes() > 0) {
+                        //Save the unused chunck bytes
+                        chunckContent.getBytes(chunckContent.readerIndex(), prevChunck, chunckContent.readableBytes());
+                    } else {
+                        prevChunck.clear();
+                    }
                     if (isLastContentMessage(chunk)) {
                         super.decode(ctx, LastHttpContent.EMPTY_LAST_CONTENT, out);
                     }
