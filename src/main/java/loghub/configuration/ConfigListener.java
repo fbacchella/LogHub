@@ -283,7 +283,7 @@ class ConfigListener extends RouteBaseListener {
         doBean(beanName, beanValue, ctx);
     }
 
-    private void doBean(String beanName, ObjectWrapped<Object> beanValue, ParserRuleContext ctx) {
+    private void doBean(String beanName, ObjectWrapped<? extends Object> beanValue, ParserRuleContext ctx) {
         ObjectWrapped<Object> beanObject = stack.peekTyped();
         assert (beanName != null);
         assert (beanValue != null);
@@ -307,7 +307,7 @@ class ConfigListener extends RouteBaseListener {
 
     ObjectWrapped<Object> getObject(String qualifiedName, ParserRuleContext ctx) {
         try {
-            logger.debug("Load ing {} with {}", qualifiedName, classLoader);
+            logger.debug("Loading {} with {}", qualifiedName, classLoader);
             Class<?> objectClass = classLoader.loadClass(qualifiedName);
             AbstractBuilder<?> builder = AbstractBuilder.resolve(objectClass);
             return new ObjectWrapped<Object>(builder != null ? builder: objectClass.newInstance());

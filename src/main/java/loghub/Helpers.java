@@ -150,7 +150,7 @@ public final class Helpers {
                 JarURLConnection jarcnx = (JarURLConnection) cnx;
                 JarFile jarfile = jarcnx.getJarFile();
 
-                Helpers.ThrowingFunction<JarEntry, InputStream> openner = i-> jarfile.getInputStream(i);
+                Helpers.ThrowingFunction<JarEntry, InputStream> openner = jarfile::getInputStream;
 
                 StreamSupport.stream(Helpers.enumIterable(jarfile.entries()).spliterator(), false)
                 .filter( i -> i.getName().startsWith(lookingfor))

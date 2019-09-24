@@ -128,7 +128,7 @@ public class ElasticSearch extends AbstractHttpSender {
     @Override
     public boolean configure(Properties properties) {
         if (super.configure(properties)) {
-            // Used to log an possible failure
+            // Used to log a possible failure
             String processedSrc = null;
             try {
                 if (typeExpressionSrc != null) {

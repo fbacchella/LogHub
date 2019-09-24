@@ -10,7 +10,7 @@ import loghub.Expression.ExpressionException;
 import loghub.configuration.Properties;
 
 public abstract class Processor {
-    
+
     // Some processor are created on fly, using a static empty path reduce the memory pressure
     private static final String[] EMPTYPATH = new String[]{};
 
@@ -67,6 +67,7 @@ public abstract class Processor {
     public String[] getPathArray() {
         return path;
     }
+
     /**
      * @return the fieldprefix
      */
