@@ -33,8 +33,8 @@ public class Journald extends Http {
 
     private static final AttributeKey<Boolean> VALIDJOURNALD = AttributeKey.newInstance(Boolean.class.getName());
 
-    private static final String TRUSTEDFIELDS = "trusted";
-    private static final String USERDFIELDS = "user";
+    private static final String TRUSTEDFIELDS = "fields_trusted";
+    private static final String USERDFIELDS = "fields_user";
     private static final ByteProcessor FIND_EQUAL = new IndexOfProcessor((byte)'=');
     private static final ByteProcessor NON_UNDERSCORE = new ByteProcessor() {
         @Override
