@@ -29,6 +29,7 @@ import loghub.netty.http.HttpRequestProcessing;
 import loghub.netty.http.RequestAccept;
 
 @Blocking
+@SelfDecoder
 public class Journald extends Http {
 
     private static final AttributeKey<Boolean> VALIDJOURNALD = AttributeKey.newInstance(Boolean.class.getName());
