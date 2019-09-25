@@ -153,7 +153,7 @@ public class Journald extends Http {
         private void newEvent(ChannelHandlerContext ctx, Map<String, HashMap<String, String>> eventVars) {
             Journald.this.logger.trace("finishing event {}", eventVars);
             if (! eventVars.get(TRUSTEDFIELDS).isEmpty()) {
-                Long timestamp = Optional.ofNullable(eventVars.get(TRUSTEDFIELDS).remove("SOURCE_REALTIME_TIMESTAMP")).map(Long::parseLong).orElse(null);
+                Long timestamp = Optional.ofNullable(eventVars.get(TRUSTEDFIELDS).remove("source_realtime_timestamp")).map(Long::parseLong).orElse(null);
                 Event e = Event.emptyEvent(getConnectionContext(ctx, null));
                 e.put(USERDFIELDS, new HashMap<String, String>(eventVars.get(USERDFIELDS)));
                 e.put(TRUSTEDFIELDS, new HashMap<String, String>(eventVars.get(TRUSTEDFIELDS)));
