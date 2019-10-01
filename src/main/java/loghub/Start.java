@@ -218,7 +218,7 @@ public class Start {
             failed.set(failed.get() || (! pipeOk));
         });
 
-        failed.set(failed.get() || (! EventInstance.configure(props)));
+        failed.set(failed.get());
 
         for (Sender s: props.senders) {
             if (s.configure(props)) {
