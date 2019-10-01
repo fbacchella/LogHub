@@ -3,6 +3,7 @@ package loghub.configuration;
 import java.nio.file.Paths;
 import java.security.NoSuchAlgorithmException;
 import java.security.URIParameter;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -40,10 +41,10 @@ import io.netty.util.concurrent.Future;
 import loghub.DashboardHttpServer;
 import loghub.Event;
 import loghub.EventsRepository;
-import loghub.PausingTimer;
 import loghub.Pipeline;
 import loghub.Processor;
 import loghub.Source;
+import loghub.Stats;
 import loghub.ThreadBuilder;
 import loghub.VarFormatter;
 import loghub.jmx.Helper;
@@ -73,10 +74,6 @@ public class Properties extends HashMap<String, Object> {
 
         public com.codahale.metrics.Timer timer(String name) {
             return metrics.timer(name);
-        }
-
-        public PausingTimer pausingTimer(String name) {
-            return (PausingTimer) metrics.timer(name, PausingTimer.pausingsupplier);
         }
 
         public void reset() {
@@ -206,12 +203,7 @@ public class Properties extends HashMap<String, Object> {
 
         // Extracts all the named pipelines and generate metrics for them
         namedPipeLine.keySet().stream().forEach( i -> {
-            metrics.counter("Pipeline." + i + ".inflight");
-            metrics.pausingTimer("Pipeline." + i + ".timer");
-            metrics.meter("Pipeline." + i + ".failed");
-            metrics.meter("Pipeline." + i + ".dropped");
-            metrics.meter("Pipeline." + i + ".blocked.in");
-            metrics.meter("Pipeline." + i + ".blocked.out");
+            Arrays.stream(Stats.PIPELINECOUNTERS.values()).forEach( j -> j.instanciate(metrics, i));
         });
         metrics.counter("Allevents.inflight");
         metrics.timer("Allevents.timer");

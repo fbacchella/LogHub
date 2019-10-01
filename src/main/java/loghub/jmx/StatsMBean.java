@@ -8,8 +8,6 @@ import javax.management.NotCompliantMBeanException;
 import javax.management.ObjectName;
 import javax.management.StandardMBean;
 
-import loghub.Helpers;
-
 @MXBean
 public interface StatsMBean {
 
@@ -25,64 +23,28 @@ public interface StatsMBean {
         return loghub.Stats.sent.get();
     }
 
-    default public long getFailed() {
-        return loghub.Stats.failed.get();
+    default public long getFailedProcessors() {
+        return loghub.Stats.processorFailures.get();
     }
 
-    default public long getFailedSend() {
+    default public long getFailedDecoders() {
+        return loghub.Stats.decoderFailures.get();
+    }
+
+    default public long getFailedSenders() {
         return loghub.Stats.failedSend.get();
+    }
+
+    default public long getFailedReceivers() {
+        return loghub.Stats.failedReceived.get();
     }
 
     default public long getUnhandledExceptions() {
         return loghub.Stats.thrown.get();
     }
 
-    default public String[] getErrors() {
-        return loghub.Stats.getErrors().stream()
-                        .map(i -> Helpers.resolveThrowableException((Throwable)i))
-                        .toArray(String[]::new)
-                        ;
-    }
-
-    default public String[] getDecodErrors() {
-        return loghub.Stats.getDecodeErrors().stream()
-                        .map(i -> Helpers.resolveThrowableException((Throwable)i))
-                        .toArray(String[]::new)
-                        ;
-    }
-
-    default public String[] getExceptions() {
-        return loghub.Stats.getExceptions().stream()
-                        .map( i -> {
-                            StringBuffer exceptionDetails = new StringBuffer();
-                            String exceptionMessage = Helpers.resolveThrowableException(i);
-                            exceptionDetails.append(exceptionMessage);
-                            StackTraceElement[] stack = (i.getCause() != null ? i.getCause() : i).getStackTrace();
-                            if (stack.length > 0) {
-                                exceptionDetails.append(String.format(" at %s.%s line %d", stack[0].getClassName(), stack[0].getMethodName(), stack[0].getLineNumber()));
-                            }
-                            return exceptionDetails.toString();
-                        })
-                        .toArray(String[]::new)
-                        ;
-    }
-
-    default public String[] getBlockedError() {
-        return loghub.Stats.getBlockedError().stream()
-                        .toArray(String[]::new)
-                        ;
-    }
-
-    default public String[] getSenderErrors() {
-        return loghub.Stats.getSenderError().stream()
-                        .toArray(String[]::new)
-                        ;
-    }
-
-    default public String[] getReceiverErrors() {
-        return loghub.Stats.getReceiverError().stream()
-                        .toArray(String[]::new)
-                        ;
+    default public long getBlockedEvents() {
+        return loghub.Stats.blocked.get();
     }
 
     public class Implementation extends StandardMBean implements StatsMBean {

@@ -22,6 +22,7 @@ import loghub.Event;
 import loghub.Helpers;
 import loghub.Pipeline;
 import loghub.Stats;
+import loghub.Stats.PipelineStat;
 import loghub.configuration.Properties;
 import loghub.decoders.Decoder;
 import loghub.decoders.Decoder.DecodeException;
@@ -277,7 +278,7 @@ public abstract class Receiver extends Thread implements Iterator<Event>, Closea
         Stats.received.incrementAndGet();
         if(! event.inject(pipeline, outQueue, blocking)) {
             event.end();
-            Properties.metrics.meter("Pipeline." + pipeline.getName() + ".blocked.in").mark();
+            Stats.pipelineHanding(pipeline.getName(), PipelineStat.BLOCKIN);
             Stats.newBlockedError("Listener " + getName() + " sending to " + pipeline.getName());
             logger.debug("send failed from {}, pipeline destination {} blocked", () -> getName(), () -> pipeline.getName());
             return false;

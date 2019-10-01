@@ -88,7 +88,7 @@ public class TestEvent {
         while ((processor = e.next()) != null) {
             logger.debug("doing step");
             loop++;
-            if (ep.process(e, processor) != ProcessingStatus.SUCCESS) {
+            if (ep.process(e, processor) != ProcessingStatus.CONTINUE) {
                 break;
             };
             Assert.assertTrue("Not counting processing", e.stepsCount() > numsteps);

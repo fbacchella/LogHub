@@ -104,7 +104,7 @@ public class Tools {
                 while ((processor = toprocess.next()) != null) {
                     EventsProcessor.ProcessingStatus status = ep.process(toprocess, processor);
                     ps.status.add(status.name());
-                    if (status != loghub.EventsProcessor.ProcessingStatus.SUCCESS) {
+                    if (status != loghub.EventsProcessor.ProcessingStatus.CONTINUE) {
                         toprocess = null;
                         break;
                     }

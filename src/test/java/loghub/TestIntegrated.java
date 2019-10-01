@@ -33,6 +33,7 @@ import com.codahale.metrics.jmx.JmxReporter.JmxTimerMBean;
 
 import loghub.configuration.ConfigException;
 import loghub.configuration.Configuration;
+import loghub.jmx.ExceptionsMBean;
 import loghub.jmx.StatsMBean;
 import loghub.zmq.ZMQCheckedException;
 import loghub.zmq.ZMQHelper.Method;
@@ -60,6 +61,7 @@ public class TestIntegrated {
 
         MBeanServer mbs =  ManagementFactory.getPlatformMBeanServer(); 
         StatsMBean stats = JMX.newMBeanProxy(mbs, StatsMBean.Implementation.NAME, StatsMBean.class);
+        ExceptionsMBean exceptions = JMX.newMBeanProxy(mbs, ExceptionsMBean.Implementation.NAME, ExceptionsMBean.class);
 
         JmxTimerMBean allevents_timer = JMX.newMBeanProxy(mbs, new ObjectName("metrics:name=Allevents.timer"), JmxTimerMBean.class);
         JmxCounterMBean allevents_inflight = JMX.newMBeanProxy(mbs, new ObjectName("metrics:name=Allevents.inflight"), JmxCounterMBean.class);
@@ -108,11 +110,9 @@ public class TestIntegrated {
             blocked += dumpstatus(mbs, metrics, i -> i.toString().startsWith("loghub:type=Pipeline,servicename=") && i.toString().endsWith(",name=blocked.out"), i -> i.getCount(), JmxMeterMBean.class);
             dumpstatus(mbs, metrics, i -> i.toString().startsWith("loghub:type=Pipeline,servicename=") && i.toString().endsWith(",name=inflight"), i -> i.getCount(), JmxMeterMBean.class);
             logger.debug("dropped: " + stats.getDropped());
-            logger.debug("failed: " + stats.getFailed());
+            logger.debug("failed: " + stats.getFailedProcessors());
             logger.debug("received: " + stats.getReceived());
             logger.debug("sent: " + stats.getSent());
-            logger.debug(Arrays.toString(stats.getErrors()));
-            logger.debug(Arrays.toString(stats.getExceptions()));
 
             long received = stats.getReceived();
             Assert.assertTrue(received > 95);

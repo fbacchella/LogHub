@@ -95,7 +95,7 @@ public abstract class Sender extends Thread implements Closeable {
             if (result.get()) {
                 Stats.sent.incrementAndGet();
             } else {
-                Stats.failed.incrementAndGet();
+                Stats.failedSend.incrementAndGet();
             }
         } catch (InterruptedException e) {
             interrupt();
@@ -104,7 +104,7 @@ public abstract class Sender extends Thread implements Closeable {
             if (Helpers.isFatal(cause)) {
                 throw (Error) cause;
             }
-            Stats.newException(e);
+            Stats.newProcessorException(e);
             logger.error("Send failed: {}", Helpers.resolveThrowableException(cause));
             logger.catching(Level.DEBUG, cause);
         }

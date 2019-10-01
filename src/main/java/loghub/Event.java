@@ -15,6 +15,8 @@ import java.util.stream.Stream;
 import com.fasterxml.jackson.annotation.JsonIdentityInfo;
 import com.fasterxml.jackson.annotation.ObjectIdGenerators;
 
+import loghub.Stats.PipelineStat;
+
 @JsonIdentityInfo(generator = ObjectIdGenerators.IntSequenceGenerator.class)
 public abstract class Event extends HashMap<String, Object> implements Serializable {
 
@@ -221,7 +223,11 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
 
     public abstract boolean isTest();
 
-    public abstract void doMetric(Runnable metric);
+    public void doMetric(PipelineStat status) {
+        doMetric(status, null);
+    }
+
+    public abstract void doMetric(PipelineStat status, Throwable ex);
 
     public abstract void drop();
 

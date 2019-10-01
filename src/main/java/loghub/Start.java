@@ -31,6 +31,7 @@ import loghub.configuration.ConfigException;
 import loghub.configuration.Configuration;
 import loghub.configuration.Properties;
 import loghub.configuration.TestEventProcessing;
+import loghub.jmx.ExceptionsMBean;
 import loghub.jmx.Helper;
 import loghub.jmx.StatsMBean;
 import loghub.processors.FieldsProcessor;
@@ -118,7 +119,7 @@ public class Start {
                 System.out.format("received: %.2f/s\n", Stats.received.get() / runtime);
                 System.out.format("dropped: %.2f/s\n", Stats.dropped.get() / runtime);
                 System.out.format("sent: %.2f/s\n", Stats.sent.get() / runtime);
-                System.out.format("failed: %.2f/s\n", Stats.failed.get() / runtime);
+                System.out.format("failures: %.2f/s\n", Stats.processorFailures.get() / runtime);
                 System.out.format("thrown: %.2f/s\n", Stats.thrown.get() / runtime);
             })
             .build();
@@ -264,6 +265,7 @@ public class Start {
         try {
             MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
             mbs.registerMBean(new StatsMBean.Implementation(), StatsMBean.Implementation.NAME);
+            mbs.registerMBean(new ExceptionsMBean.Implementation(), ExceptionsMBean.Implementation.NAME);
             JmxReporter reporter = Properties.metrics.getJmxReporter();
             reporter.start();
             int port = props.jmxport;

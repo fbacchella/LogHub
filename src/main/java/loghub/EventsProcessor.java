@@ -4,16 +4,14 @@ import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import com.codahale.metrics.Counter;
-
 import io.netty.util.concurrent.Future;
 import loghub.PausedEvent.Builder;
+import loghub.Stats.PipelineStat;
 import loghub.configuration.Properties;
 import loghub.configuration.TestEventProcessing;
 import loghub.processors.Drop;
@@ -26,9 +24,7 @@ import loghub.processors.WrapEvent;
 public class EventsProcessor extends Thread {
 
     enum ProcessingStatus {
-        // Does not mean the processing return true
-        // It just mean it reached it's end
-        SUCCESS,
+        CONTINUE,
         PAUSED,
         DROPED,
         FAILED
@@ -55,7 +51,6 @@ public class EventsProcessor extends Thread {
 
     @Override
     public void run() {
-        final AtomicReference<Counter> gaugecounter = new AtomicReference<>();
         while (! isInterrupted()) {
             Event event = null;
             try {
@@ -63,13 +58,6 @@ public class EventsProcessor extends Thread {
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 break;
-            }
-            { // Needed because eventtemp must be final
-                final Event eventtemp  = event;
-                event.doMetric(() -> {
-                    gaugecounter.set(Properties.metrics.counter("Pipeline." + eventtemp.getCurrentPipeline() + ".inflight"));
-                    gaugecounter.get().inc();
-                });
             }
             { // Needed because eventtemp must be final
                 final Event eventtemp  = event;
@@ -84,43 +72,28 @@ public class EventsProcessor extends Thread {
                     event = event.unwrap();
                 } else {
                     ProcessingStatus processingstatus = process(event, processor);
-                    if (processingstatus != ProcessingStatus.SUCCESS) {
-                        event.doMetric(() -> {
-                            gaugecounter.get().dec();
-                            gaugecounter.set(null);
-                        });
+                    if (processingstatus != ProcessingStatus.CONTINUE) {
                         // Processing status was non null, so the event will not be processed any more
                         // But it's needed to check why.
-                        String currentPipeline = event.getCurrentPipeline();
                         switch (processingstatus) {
                         case DROPED: {
                             //It was a drop action
-                            logger.debug("dropped event {}", event);
-                            event.doMetric(() -> {
-                                Properties.metrics.meter("Allevents.dropped");
-                                Properties.metrics.meter("Pipeline." + currentPipeline + ".dropped").mark();
-                            });
+                            logger.debug("Dropped event {}", event);
+                            event.doMetric(PipelineStat.INFLIGHTDOWN);
                             event.drop();
                             break;
                         }
                         case FAILED: {
                             //Processing failed critically (with an exception) and no recovery was attempted
                             logger.debug("Failed event {}", event);
-                            event.doMetric(() -> {
-                                Properties.metrics.meter("Allevents.failed");
-                                Properties.metrics.meter("Pipeline." + currentPipeline + ".failed").mark();
-                            });
+                            event.doMetric(PipelineStat.INFLIGHTDOWN);
                             event.end();
                             break;
                         }
-                        case PAUSED:
-                            //It's simply a paused event, nothing to worry
-                            break;
-                        case SUCCESS:
-                            // Unreachable code
+                        default:
+                            // Non fatal processing interruption
                             break;
                         }
-                        // It was not a success, end the processing.
                         event = null;
                         break;
                     }
@@ -137,12 +110,8 @@ public class EventsProcessor extends Thread {
             }
             logger.trace("event is now {}", event);
             // Processing of the event is finished, what to do next with it ?
-            //Detect if will send to another pipeline, or just wait for a sender to take it
+            // Detect if will send to another pipeline, or just wait for a sender to take it
             if (event != null) {
-                event.doMetric(() -> {
-                    gaugecounter.get().dec();
-                    gaugecounter.set(null);
-                });
                 if (event.isTest()) {
                     // A test event, it will not be send an output queue
                     // Checked after pipeline forwarding, but before output sending
@@ -153,19 +122,19 @@ public class EventsProcessor extends Thread {
                     try {
                         outQueues.get(event.getCurrentPipeline()).put(event);
                     } catch (InterruptedException e) {
-                        Stats.dropped.incrementAndGet();
+                        event.doMetric(PipelineStat.BLOCKOUT);
                         event.end();
                         Thread.currentThread().interrupt();
                     }
                 } else if (event.getCurrentPipeline() != null && ! outQueues.containsKey(event.getCurrentPipeline())){
-                    Stats.newException(new IllegalArgumentException("No sender consumming pipeline " + event.getCurrentPipeline()));
+                    Stats.newProcessorException(new IllegalArgumentException("No sender consumming pipeline " + event.getCurrentPipeline()));
                     logger.debug("No sender using pipeline {} for event {}", event.getCurrentPipeline(), event);
-                    Properties.metrics.meter("Allevents.failed");
+                    Properties.metrics.meter("Allevents.failed").mark();
                     event.end();
                 } else {
-                    Stats.newException(new IllegalStateException("Invalid end state for event, no pipelin "));
+                    Stats.newProcessorException(new IllegalStateException("Invalid end state for event, no pipeline"));
                     logger.debug("Invalid end state for event {}", event);
-                    Properties.metrics.meter("Allevents.failed");
+                    Properties.metrics.meter("Allevents.failed").mark();
                     event.end();
                 }
             }
@@ -176,17 +145,19 @@ public class EventsProcessor extends Thread {
         ProcessingStatus status = null;
         if (p instanceof Forker) {
             if (((Forker) p).fork(e)) {
-                status = ProcessingStatus.SUCCESS;
+                status = ProcessingStatus.CONTINUE;
             } else {
                 status = ProcessingStatus.FAILED;
             }
         } else if (p instanceof Forwarder) {
             ((Forwarder) p).forward(e);
-            status = ProcessingStatus.SUCCESS;
+            status = ProcessingStatus.CONTINUE;
         } else if (p instanceof Drop) {
             status = ProcessingStatus.DROPED;
+            e.doMetric(Stats.PipelineStat.DROP);
         } else if (e.stepsCount() > maxSteps) {
             logger.error("Too much steps for event {}, dropping", e);
+            e.doMetric(Stats.PipelineStat.LOOPOVERFLOW);
             status = ProcessingStatus.FAILED;
         } else {
             try {
@@ -202,7 +173,7 @@ public class EventsProcessor extends Thread {
                 } else if (! success && failureProcessor != null) {
                     e.insertProcessor(failureProcessor);
                 }
-                status = ProcessingStatus.SUCCESS;
+                status = ProcessingStatus.CONTINUE;
             } catch (ProcessorException.PausedEventException ex) {
                 // The event to pause might be a transformation of the original event.
                 Event topause = ex.getEvent();
@@ -232,27 +203,27 @@ public class EventsProcessor extends Thread {
                     evrepo.pause(paused);
                     status = ProcessingStatus.PAUSED;
                 } else {
-                    Properties.metrics.counter("Pipeline." + e.getCurrentPipeline() + ".exception").inc();
+                    e.doMetric(Stats.PipelineStat.EXCEPTION, ex);
                     Exception cce = new ClassCastException("A not AsyncProcessor throws a asynchronous operation: " + p.getClass().getCanonicalName());
-                    Stats.newException(cce);
                     logger.error("A not AsyncProcessor {} throws a asynchronous operation", p);
                     logger.throwing(Level.DEBUG, cce);
                     status = ProcessingStatus.FAILED;
                 }
             } catch (ProcessorException.DroppedEventException ex) {
                 status = ProcessingStatus.DROPED;
+                e.doMetric(Stats.PipelineStat.DROP);
             } catch (IgnoredEventException ex) {
                 // A do nothing event
-                status = ProcessingStatus.SUCCESS;
+                status = ProcessingStatus.CONTINUE;
             } catch (ProcessorException | UncheckedProcessorException ex) {
                 logger.debug("got a processing exception");
                 logger.catching(Level.DEBUG, ex);
-                e.doMetric(() -> Stats.newError(ex));
                 Processor exceptionProcessor = p.getException();
                 if (exceptionProcessor != null) {
                     e.insertProcessor(exceptionProcessor);
-                    status = ProcessingStatus.SUCCESS;
+                    status = ProcessingStatus.CONTINUE;
                 } else {
+                    e.doMetric(Stats.PipelineStat.FAILURE, ex);
                     status = ProcessingStatus.FAILED;
                 }
             } catch (Throwable ex) {
@@ -261,10 +232,7 @@ public class EventsProcessor extends Thread {
                 if (Helpers.isFatal(ex)) {
                     throw ex;
                 }
-                e.doMetric(() -> {
-                    Properties.metrics.counter("Pipeline." + e.getCurrentPipeline() + ".exception").inc();
-                    Stats.newException(ex);
-                });
+                e.doMetric(Stats.PipelineStat.EXCEPTION, ex);
                 logger.error("failed to transform event {} with unmanaged error {}", e, Helpers.resolveThrowableException(ex));
                 logger.catching(Level.DEBUG, ex);
                 status = ProcessingStatus.FAILED;

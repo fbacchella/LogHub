@@ -188,7 +188,7 @@ public class TestElasticSearch {
         es.close();
         Thread.sleep(2000);
         Assert.assertEquals(count, Stats.sent.intValue());
-        Assert.assertEquals(0, Stats.failed.intValue());
+        Assert.assertEquals(0, Stats.processorFailures.intValue());
         Assert.assertEquals(0, Properties.metrics.counter("Allevents.inflight").getCount());
     }
 

@@ -195,7 +195,7 @@ public class SnmpTrap extends Receiver implements CommandResponder {
             send(event);
         } catch (Exception e) {
             Stats.newReceivedError(Helpers.resolveThrowableException(e));
-            Stats.newException(e);
+            Stats.newProcessorException(e);
         } finally {
             trap.setProcessed(true);
         }

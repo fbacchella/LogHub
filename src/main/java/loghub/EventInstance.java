@@ -6,6 +6,8 @@ import java.io.IOException;
 import java.io.NotSerializableException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -20,6 +22,7 @@ import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
 import java.util.stream.Stream;
 
@@ -29,22 +32,67 @@ import org.apache.logging.log4j.Logger;
 
 import com.codahale.metrics.Timer.Context;
 
-import loghub.PausingTimer.PausingContext;
+import loghub.Stats.PipelineStat;
 import loghub.configuration.Properties;
 
 class EventInstance extends Event {
 
+    /**
+     * The execution stack contains informations about named pipeline being executed.
+     * It's reset when changing top level pipeline
+     * @author fa4
+     *
+     */
+    private static final class ExecutionStackElement {
+        private final String name;
+
+        private long duration = 0;
+        private long startTime = Long.MIN_VALUE;
+        private boolean running;
+
+        private ExecutionStackElement(String name) {
+            this.name = name;
+            restart();
+        }
+
+        private void close() {
+            if (running) {
+                long elapsed = System.nanoTime() - startTime;
+                duration += elapsed;
+            }
+            Properties.metrics.timer("Pipeline." + name + ".timer").update(duration, TimeUnit.NANOSECONDS);
+            duration = 0;
+            running = false;
+            startTime = Long.MIN_VALUE;
+        }
+
+        private void pause() {
+            running = false;
+            Stats.pipelineHanding(name, PipelineStat.INFLIGHTDOWN);
+            long elapsed = System.nanoTime() - startTime;
+            duration += elapsed;
+        }
+
+        private void restart() {
+            startTime = System.nanoTime();
+            running = true;
+            Stats.pipelineHanding(name, PipelineStat.INFLIGHTUP);
+        }
+
+        @Override
+        public String toString() {
+            return name + "(" + Duration.of(duration, ChronoUnit.NANOS) + ")";
+        }
+    }
+
     static private final class PreSubpipline extends Processor {
         @Override
         public boolean process(Event event) throws ProcessorException {
-            PausingContext previouspc = event.getRealEvent().timersStack.peek();
-            if (previouspc != null) {
-                previouspc.pause();
-            }
+            Optional.ofNullable(event.getRealEvent().executionStack.peek()).ifPresent(ExecutionStackElement::pause);
             String pipename = event.getRealEvent().pipelineNames.remove();
-            PausingContext newpc = (PausingContext) Properties.metrics.pausingTimer("Pipeline." + pipename + ".timer").time();
-            event.getRealEvent().timersStack.add(newpc);
-            LogManager.getLogger("loghub.eventlogger." + pipename).debug("Start processing event {}", event);;
+            ExecutionStackElement ctxt = new ExecutionStackElement(pipename);
+            event.getRealEvent().executionStack.add(ctxt);
+            LogManager.getLogger("loghub.eventlogger." + pipename).debug("Start processing event {}", event);
             return true;
         }
 
@@ -63,15 +111,13 @@ class EventInstance extends Event {
         @Override
         public boolean process(Event event) throws ProcessorException {
             try {
-                LogManager.getLogger("loghub.eventlogger." + event.getRealEvent().currentPipeline).debug("Finished processing event {}", event);;
-                event.getRealEvent().timersStack.remove().close();
+                LogManager.getLogger("loghub.eventlogger." + event.getRealEvent().currentPipeline).debug("Finished processing event {}", event);
+                event.doMetric(PipelineStat.INFLIGHTDOWN);
+                event.getRealEvent().executionStack.remove().close();
             } catch (NoSuchElementException e1) {
                 throw new ProcessorException(event.getRealEvent(), "Empty timer stack, bad state");
             }
-            PausingContext previouspc = event.getRealEvent().timersStack.peek();
-            if (previouspc != null) {
-                previouspc.restart();
-            }
+            Optional.ofNullable(event.getRealEvent().executionStack.peek()).ifPresent(ExecutionStackElement::restart);
             return true;
         }
 
@@ -108,8 +154,8 @@ class EventInstance extends Event {
 
     private transient Context timer;
 
-    // The context for exact pipeline timine
-    private transient Queue<PausingContext> timersStack;
+    // The context for exact pipeline timing
+    private transient Queue<ExecutionStackElement> executionStack;
     private transient Deque<String> pipelineNames;
 
     EventInstance(ConnectionContext<?> ctx) {
@@ -137,7 +183,7 @@ class EventInstance extends Event {
         }
         processors = new LinkedList<>();
         wevent = null;
-        timersStack = Collections.asLifoQueue(new ArrayDeque<PausingContext>());
+        executionStack = Collections.asLifoQueue(new ArrayDeque<>());
         pipelineNames = new ArrayDeque<>();
         return this;
     }
@@ -145,13 +191,23 @@ class EventInstance extends Event {
 
     public void end() {
         ctx.acknowledge();
-        if(! test) {
+        if (! test) {
             timer.close();
+            executionStack.forEach(ExecutionStackElement::close);
             Properties.metrics.counter("Allevents.inflight").dec();
         } else {
             synchronized(this) {
                 notify();
             }
+        }
+    }
+
+    @Override
+    public void drop() {
+        end();
+        if (test) {
+            clear();
+            put("_processing_dropped", Boolean.TRUE);
         }
     }
 
@@ -303,8 +359,8 @@ class EventInstance extends Event {
     }
 
     public void finishPipeline() {
-        timersStack.forEach(PausingContext::close);
-        timersStack.clear();
+        executionStack.forEach(ExecutionStackElement::close);
+        executionStack.clear();
         pipelineNames.clear();
         processors.clear();
     }
@@ -357,18 +413,10 @@ class EventInstance extends Event {
     }
 
     @Override
-    public void doMetric(Runnable metric) {
+    public void doMetric(PipelineStat status, Throwable ex) {
         if (! test) {
-            metric.run();
-        }
-    }
-
-    @Override
-    public void drop() {
-        end();
-        if (test) {
-            clear();
-            put("_processing_dropped", Boolean.TRUE);
+            String name = Optional.ofNullable(executionStack.peek()).map(c -> c.name).orElse(currentPipeline);
+            Stats.pipelineHanding(name, status, ex);
         }
     }
 

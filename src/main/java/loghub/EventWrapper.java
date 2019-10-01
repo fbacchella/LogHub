@@ -11,6 +11,8 @@ import java.util.concurrent.BlockingQueue;
 import java.util.function.BiFunction;
 import java.util.stream.Stream;
 
+import loghub.Stats.PipelineStat;
+
 class EventWrapper extends Event {
     private final Event event;
     private String[] path;
@@ -258,8 +260,8 @@ class EventWrapper extends Event {
     }
 
     @Override
-    public void doMetric(Runnable metric) {
-        event.doMetric(metric);
+    public void doMetric(PipelineStat status, Throwable ex) {
+        event.doMetric(status, ex);
     }
 
     @Override

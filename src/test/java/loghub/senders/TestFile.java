@@ -159,7 +159,7 @@ public class TestFile {
         fsend.close();
         fsend.send(ev);
         Thread.sleep(100);
-        Assert.assertEquals(1L, Stats.failed.get());
+        Assert.assertEquals(1L, Stats.failedSend.get());
     }
 
 }
