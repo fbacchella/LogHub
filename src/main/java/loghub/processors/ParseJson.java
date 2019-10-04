@@ -27,7 +27,14 @@ public class ParseJson extends FieldsProcessor {
             if (o instanceof Map) {
                 @SuppressWarnings("unchecked")
                 Map<Object, Object> map = (Map<Object, Object>) o;
-                map.entrySet().stream().forEach( (i) -> event.put(i.getKey().toString(), i.getValue()));
+                for(Map.Entry<Object, Object> e: map.entrySet()) {
+                    String key = e.getKey().toString();
+                    if (key.startsWith("@")) {
+                        event.put("_" + key, e.getValue());
+                    } else {
+                        event.put( key, e.getValue());
+                    }
+                }
                 return FieldsProcessor.RUNSTATUS.NOSTORE;
             } else {
                 return o;
@@ -41,4 +48,5 @@ public class ParseJson extends FieldsProcessor {
     public String getName() {
         return "ToJson";
     }
+
 }

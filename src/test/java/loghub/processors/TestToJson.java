@@ -1,11 +1,11 @@
 package loghub.processors;
 
 import java.io.IOException;
-import java.util.Collection;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -14,7 +14,6 @@ import loghub.LogUtils;
 import loghub.Processor;
 import loghub.ProcessorException;
 import loghub.Tools;
-import loghub.processors.ParseJson;
 
 public class TestToJson {
 
@@ -28,14 +27,13 @@ public class TestToJson {
     }
 
     @Test
-    public void test1() throws ProcessorException {
+    public void test() throws ProcessorException {
         Event e = Tools.getEvent();
         Processor t = new ParseJson();
-        e.put("message", "{\"a\": [ 1, 2.0 , 3.01 , {\"b\": true} ] }");
+        e.put("message", "{\"@timestamp\": \"2019-10-04T16:36:31.406Z\", \"a\": 1}");
         e.process(t);
-        @SuppressWarnings("unchecked")
-        Collection<Object> a = (Collection<Object>) e.get("a");
-        a.stream().forEach((i) -> logger.debug(i.getClass()));
-        logger.debug(e);
+        Assert.assertEquals("2019-10-04T16:36:31.406Z", e.get("_@timestamp"));
+        Assert.assertEquals(1, e.get("a"));
     }
+
 }
