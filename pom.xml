@@ -11,6 +11,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
+        <jdk.compile.home>${jdk.8.home}</jdk.compile.home>
         <log4j>2.12.1</log4j>
         <antlr>4.7.2</antlr>
         <jackson>2.10.0</jackson>
@@ -321,11 +322,11 @@
                     <artifactId>maven-javadoc-plugin</artifactId>
                     <version>3.1.1</version>
                     <configuration>
-                        <quiet>true</quiet>
-                        <source>8</source>
-                        <detectJavaApiLink>false</detectJavaApiLink>
+                        <quiet/>
+                        <bootclasspath>${jdk.compile.home}/jre/lib/rt.jar</bootclasspath>
+                        <source>${maven.compiler.source}</source>
+                        <detectJavaApiLink>true</detectJavaApiLink>
                         <detectLinks>false</detectLinks>
-                        <validateLinks>true</validateLinks>
                         <links>
                             <link>https://static.javadoc.io/javax.cache/cache-api/${cacheapi.version}/</link>
                             <link>http://docs.groovy-lang.org/latest/html/api/</link>
@@ -334,10 +335,6 @@
                             <link>https://static.javadoc.io/org.snmp4j/snmp4j/${snmp4j.version}/</link>
                             <link>https://zeromq.github.io/jzmq/javadocs/</link>
                             <link>https://logging.apache.org/log4j/2.0/log4j-api/apidocs</link>
-                            <!-- detectJavaApiLink should be set to true, and this removed
-                                 but workaround from https://bugs.openjdk.java.net/browse/JDK-8212233
-                                 fails, so javadoc link is handled manually -->
-                            <link>https://docs.oracle.com/javase/8/docs/api/</link>
                         </links>
                         <keywords>true</keywords>
                     </configuration>
@@ -561,6 +558,20 @@
                         </goals>
                     </execution>
                 </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <compilerArgs>
+                        <arg>-Xlint</arg>
+                        <arg>-Xbootclasspath/p:${jdk.compile.home}/lib/rt.jar</arg>
+                    </compilerArgs>
+                    <showWarnings>false</showWarnings>
+                    <!-- needed for maven-plugin-javadoc to find the source version to use -->
+                    <source>${maven.compiler.source}</source>
+                    <target>${maven.compiler.target}</target>
+                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

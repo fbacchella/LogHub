@@ -2,13 +2,16 @@ version: 2.1
 jobs:
     checkout:
         docker:
-            - image: circleci/openjdk:8-jdk
+            - image: circleci/openjdk:13-jdk-buster
         steps:
             - checkout
             - restore_cache:
                 key: loghub-{{ checksum "pom.xml" }}
             - run: mkdir -p /home/circleci/.sonar/cache /home/circleci/.m2/repository
-            - run: "mvn -B dependency:go-offline -Psonar,versions"
+            - run:
+                command: "mvn -B dependency:go-offline -Psonar,versions -s .circleci/settings.xml"
+                environment:
+                    JAVA_HOME: /usr/java/openjdk-13
             - persist_to_workspace:
                 root: /
                 paths:
@@ -17,7 +20,8 @@ jobs:
                     - home/circleci/project
     build:
         docker:
-            - image: circleci/openjdk:11-jdk
+            - image: circleci/openjdk:8-jdk
+            - image: circleci/openjdk:13-jdk-buster
         steps:
             - attach_workspace:
                 at: /tmp/ws
@@ -27,9 +31,9 @@ jobs:
                     mv -n /tmp/ws/home/circleci/project/* /home/circleci/project/
                     mv -n /tmp/ws/home/circleci/project/.??* /home/circleci/project/
             - run:
-                command: mvn -B clean compile -Dmaven.test.skip=true
+                command: mvn -B clean compile -DskipTests -s .circleci/settings.xml
                 environment:
-                    JAVA_HOME: /usr/lib/jvm/java-11-openjdk-amd64
+                    JAVA_HOME: /usr/java/openjdk-13
             - persist_to_workspace:
                 root: /
                 paths:
@@ -58,7 +62,7 @@ jobs:
                         SONAR=""
                     fi
                     echo "publishing jobs: $SONAR"
-                    mvn -B test -Dmaven.resources.skip=true -Dmaven.main.skip=true $SONAR -Dsonar.login=$SONARCLOUD_LOGIN
+                    mvn -B test -Pskip $SONAR -Dsonar.login=$SONARCLOUD_LOGIN -s .circleci/settings.xml
                 environment:
                     JAVA_HOME: /usr/lib/jvm/java-8-openjdk-amd64
             - store_test_results:
@@ -81,7 +85,7 @@ jobs:
                     mv -n /tmp/ws/home/circleci/project/.??* /home/circleci/project/
             - run:
                 command: |
-                    mvn -B test -Dmaven.resources.skip=true -Dmaven.main.skip=true
+                    mvn -B test -Pskip -s .circleci/settings.xml
                 environment:
                     JAVA_HOME: /usr/lib/jvm/java-11-openjdk-amd64
             - store_test_results:
@@ -93,7 +97,7 @@ jobs:
                     - home/circleci/.sonar/cache
     publish:
         docker:
-            - image: circleci/openjdk:11-jdk
+            - image: circleci/openjdk:13-jdk-buster
         steps:
             - attach_workspace:
                 at: /tmp/ws
@@ -112,7 +116,7 @@ jobs:
                         PUBLISH="install"
                     fi
                     echo "publishing jobs: $PUBLISH"
-                    mvn -B $PUBLISH site -Dmaven.resources.skip=true -Dmaven.test.skip=true -Dmaven.main.skip=true -s .circleci/settings.xml
+                    mvn -B $PUBLISH site -Pskip -Dmaven.test.skip=true -s .circleci/settings.xml
                 environment:
                     JAVA_HOME: /usr/lib/jvm/java-11-openjdk-amd64
                     MAVEN_OPTS: "-Dorg.slf4j.simpleLogger.log.org.apache.maven.plugins.shade=ERROR"
