@@ -8,6 +8,7 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 
+import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -47,7 +48,23 @@ public class EventsRepository<KEY> {
         pausestack.put(paused.key, paused);
         Properties.metrics.counter("paused").inc();
         if (paused.duration > 0 && paused.unit != null) {
-            waiting.put(paused.key, processExpiration.newTimeout(i -> timeout(paused.key), paused.duration, paused.unit));
+            waiting.put(paused.key, processExpiration.newTimeout(i -> {
+                // HashedWheelTimer silently swallows Throwable, we handle them ourselves
+                try {
+                    timeout(paused.key);
+                } catch (Throwable ex) {
+                    Level l;
+                    if (Helpers.isFatal(ex)) {
+                        ex.printStackTrace();
+                        l = Level.FATAL;
+                    } else {
+                        l = Level.ERROR;
+                    }
+                    Stats.newProcessorException(ex);
+                    logger.log(l, "Async timeout handler failed: {}", Helpers.resolveThrowableException(ex));
+                    logger.catching(Level.DEBUG, ex);
+                }
+            }, paused.duration, paused.unit));
         }
         return paused;
     }
