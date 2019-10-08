@@ -21,7 +21,6 @@ public class PausedEvent<KEY> {
     public final Function<Event, Event> failureTransform;
     public final Function<Event, Event> timeoutTransform;
     public final Function<Event, Event> exceptionTransform;
-    public final String pipeline;
 
     private PausedEvent(Builder<KEY>  builder) {
         this.event = builder.event;
@@ -36,7 +35,6 @@ public class PausedEvent<KEY> {
         this.failureTransform = builder.failureTransform;
         this.timeoutTransform = builder.expirationTransform;
         this.exceptionTransform = builder.exceptionTransform;
-        this.pipeline = builder.pipeline;
     }
 
     @Override
@@ -69,7 +67,6 @@ public class PausedEvent<KEY> {
         private Function<Event, Event> failureTransform = i -> i;
         private Function<Event, Event> expirationTransform = i -> i;
         private Function<Event, Event> exceptionTransform = i -> i;
-        private String pipeline = null;
 
         private Builder(Event event, KEY key) {
             this.event = event;
@@ -118,11 +115,6 @@ public class PausedEvent<KEY> {
         public Builder<KEY> onException(Processor onException, Function<Event, Event> exceptionTransform) {
             this.onException = onException;
             this.exceptionTransform = exceptionTransform;
-            return this;
-        }
-
-        public Builder<KEY>  nextPipeline(String pipeline) {
-            this.pipeline = pipeline;
             return this;
         }
 

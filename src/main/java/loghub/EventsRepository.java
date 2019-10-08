@@ -36,11 +36,9 @@ public class EventsRepository<KEY> {
     private final Map<KEY, PausedEvent<KEY>> pausestack = new ConcurrentHashMap<>();
     private final Map<KEY, Timeout> waiting = new ConcurrentHashMap<>();
     private final BlockingQueue<Event> mainQueue;
-    private final Map<String, Pipeline> pipelines;
 
     public EventsRepository(Properties properties) {
         mainQueue = properties.mainQueue;
-        pipelines = properties.namedPipeLine;
     }
 
     public PausedEvent<KEY> pause(PausedEvent<KEY> paused) {
@@ -111,7 +109,8 @@ public class EventsRepository<KEY> {
         Properties.metrics.counter("paused").dec();
         logger.trace("Waking up event {}", pe.event);
         pe.event.insertProcessor(source.apply(pe));
-        return transform.apply(pe).apply(pe.event).inject(pipelines.get(pe.pipeline), mainQueue);
+        Event transformed = transform.apply(pe).apply(pe.event);
+        return mainQueue.add(transformed);
     }
 
     public Event get(KEY key) {
