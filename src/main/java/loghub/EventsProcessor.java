@@ -175,10 +175,11 @@ public class EventsProcessor extends Thread {
                 }
                 status = ProcessingStatus.CONTINUE;
             } catch (ProcessorException.PausedEventException ex) {
-                // The event to pause might be a transformation of the original event.
-                Event topause = ex.getEvent();
+                status = ProcessingStatus.PAUSED;
                 // First check if the process will be able to manage the call back
                 if (p instanceof AsyncProcessor) {
+                    // The event to pause might be a transformation of the original event.
+                    Event topause = ex.getEvent();
                     AsyncProcessor<?> ap = (AsyncProcessor<?>) p;
                     // A paused event was catch, create a custom FuturProcess for it that will be awaken when event come back
                     Future<?> future = ex.getFuture();
@@ -203,13 +204,6 @@ public class EventsProcessor extends Thread {
                         evrepo.cancel(future);
                     });
                     evrepo.pause(paused);
-                    status = ProcessingStatus.PAUSED;
-                } else {
-                    e.doMetric(Stats.PipelineStat.EXCEPTION, ex);
-                    Exception cce = new ClassCastException("A not AsyncProcessor throws a asynchronous operation: " + p.getClass().getCanonicalName());
-                    logger.error("A not AsyncProcessor {} throws a asynchronous operation", p);
-                    logger.throwing(Level.DEBUG, cce);
-                    status = ProcessingStatus.FAILED;
                 }
             } catch (ProcessorException.DroppedEventException ex) {
                 status = ProcessingStatus.DROPED;

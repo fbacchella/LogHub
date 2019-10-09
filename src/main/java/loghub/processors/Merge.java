@@ -18,7 +18,6 @@ import loghub.Event;
 import loghub.EventsRepository;
 import loghub.Expression;
 import loghub.Expression.ExpressionException;
-import loghub.IgnoredEventException;
 import loghub.PausedEvent;
 import loghub.Processor;
 import loghub.ProcessorException;
@@ -398,7 +397,7 @@ public class Merge extends Processor {
                 current.event.setTimestamp(newTimestamp);
                 if (fire != null) {
                     Object dofire = fire.eval(current.event);
-                    if (dofire instanceof Boolean && ((Boolean) dofire)) {
+                    if (Boolean.TRUE.equals(dofire)) {
                         repository.succed(eventKey);
                     }
                 }
@@ -409,7 +408,7 @@ public class Merge extends Processor {
                 return true;
             }
         } else {
-            throw IgnoredEventException.INSTANCE;
+            throw new ProcessorException.PausedEventException(event, null);
         }
     }
 
