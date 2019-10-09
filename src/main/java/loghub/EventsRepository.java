@@ -1,6 +1,7 @@
 package loghub;
 
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
@@ -32,6 +33,9 @@ public class EventsRepository<KEY> {
 
     };
     private static final HashedWheelTimer processExpiration = new HashedWheelTimer(tf);
+    static {
+        processExpiration.start();
+    }
 
     private final Map<KEY, PausedEvent<KEY>> pausestack = new ConcurrentHashMap<>();
     private final Map<KEY, Timeout> waiting = new ConcurrentHashMap<>();
@@ -90,6 +94,7 @@ public class EventsRepository<KEY> {
     }
 
     public boolean timeout(KEY key) {
+        Optional.ofNullable(pausestack.get(key)).ifPresent(PausedEvent::done);
         return awake(key, i -> i.onTimeout, i -> i.timeoutTransform);
     }
 

@@ -2,8 +2,11 @@ package loghub.processors;
 
 import java.io.IOException;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.function.BiFunction;
+import java.util.function.Consumer;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -16,6 +19,7 @@ import io.netty.channel.DefaultEventLoop;
 import io.netty.util.concurrent.DefaultPromise;
 import loghub.Event;
 import loghub.LogUtils;
+import loghub.Processor;
 import loghub.ProcessorException;
 import loghub.ThreadBuilder;
 import loghub.Tools;
@@ -29,19 +33,19 @@ public class TestFieldsAsynchronous {
     static public void configure() throws IOException {
         Tools.configure();
         logger = LogManager.getLogger();
-        LogUtils.setLevel(logger, Level.TRACE, "loghub.processors", "loghub.EventsProcessor", "loghub.Event");
+        LogUtils.setLevel(logger, Level.TRACE, "loghub.processors", "loghub.EventsProcessor", "loghub.Event", "loghub.EventsRepository", "io.netty.util.HashedWheelTimer");
     }
 
     private static class PausingPromise extends DefaultPromise<TestFieldsAsynchronous> {
+        private static final DefaultEventLoop executor = new DefaultEventLoop();
         PausingPromise() {
-            super(new DefaultEventLoop());
+            super(executor);
         }
     }
 
-    PausingPromise future = new PausingPromise();
-    Runnable todo;
+    Consumer<PausingPromise> todo;
     BiFunction<Event, Exception, Boolean> onexception;
-    BiFunction<Event, TestFieldsAsynchronous, Object> transform = (e, v) -> v.getClass().getCanonicalName();
+    BiFunction<Event, TestFieldsAsynchronous, Object> transform;
 
     private class SleepingProcessor extends AsyncFieldsProcessor<TestFieldsAsynchronous> {
 
@@ -69,29 +73,30 @@ public class TestFieldsAsynchronous {
         @Override
         public Object fieldFunction(Event event, Object value)
                         throws ProcessorException {
+            PausingPromise f = new PausingPromise();
             ThreadBuilder.get().setRunnable(() -> {
                 try {
                     Thread.sleep(200);
-                    todo.run();
+                    todo.accept(f);
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                 }
             })
             .build(true);
-            ;
-            throw new ProcessorException.PausedEventException(event, future);
+            throw new ProcessorException.PausedEventException(event, f);
         }
     }
 
-    @Test(timeout=1000)
+    @Test(timeout=2000)
     public void success() throws ProcessorException, InterruptedException {
         long started = Instant.now().toEpochMilli();
         logger.debug("starting");
-        todo = () -> {
-            if ( ! future.isDone()) {
-                future.setSuccess(this);
+        todo = (v) -> {
+            if ( ! v.isDone()) {
+                v.setSuccess(TestFieldsAsynchronous.this);
             }
         };
+        transform = (e, v) -> v.getClass().getCanonicalName();
         Event e = Tools.getEvent();
         e.put("a", 1);
         e.put("b", 2);
@@ -109,11 +114,12 @@ public class TestFieldsAsynchronous {
     public void successWithDestination() throws ProcessorException, InterruptedException {
         long started = Instant.now().toEpochMilli();
         logger.debug("starting");
-        todo = () -> {
-            if ( ! future.isDone()) {
-                future.setSuccess(this);
+        todo = (v) -> {
+            if ( ! v.isDone()) {
+                v.setSuccess(this);
             }
         };
+        transform = (e, v) -> v.getClass().getCanonicalName();
         Event e = Tools.getEvent();
         e.put("a", 1);
         e.put("b", 2);
@@ -130,7 +136,7 @@ public class TestFieldsAsynchronous {
 
     @Test(timeout=1000)
     public void failed() throws ProcessorException, InterruptedException {
-        todo = () -> future.setSuccess(this);
+        todo = (v) -> v.setSuccess(this);
         transform = (e, v) -> FieldsProcessor.RUNSTATUS.FAILED;
         Event e = Tools.getEvent();
         e.put("a", 1);
@@ -144,11 +150,45 @@ public class TestFieldsAsynchronous {
         Assert.assertEquals(2, e.get("a"));
     }
 
+    @Test(timeout=5000)
+    public void timeout() throws ProcessorException, InterruptedException {
+        todo = (v) -> {
+            try {
+                Thread.sleep(2000);
+                v.setSuccess(this);
+            } catch (InterruptedException e1) {
+                Thread.currentThread().interrupt();
+            }
+        };
+        transform = (e, v) -> v.getClass().getCanonicalName();
+        Event e = Tools.getEvent();
+        e.put("a", 1);
+        SleepingProcessor sp = new SleepingProcessor();
+        sp.setField(new String[] {"a"});
+        sp.setTimeout(1);
+        Groovy gp = new Groovy();
+        gp.setScript("event.failure = true");
+        sp.setFailure(gp);
+        List<Processor> processors = new ArrayList<>(2);
+
+        Groovy gp2 = new Groovy();
+        gp2.setScript("event.b = true");
+        
+        processors.add(sp);
+        processors.add(gp2);
+        Tools.ProcessingStatus status = Tools.runProcessing(e, "main", processors, (i,j) -> {});
+        e = status.mainQueue.take();
+        Assert.assertEquals(true, e.get("failure"));
+        Assert.assertEquals(true, e.get("b"));
+        Assert.assertEquals(1, e.get("a"));
+    }
+
 
     @Test(timeout=1000)
     public void exceptionFalse() throws ProcessorException, InterruptedException {
-        todo = () -> future.setFailure(new RuntimeException());
+        todo = (v) -> v.setFailure(new RuntimeException());
         onexception = (e, x) -> Boolean.FALSE;
+        transform = (e, v) -> v.getClass().getCanonicalName();
         Event e = Tools.getEvent();
         e.put("a", 1);
         SleepingProcessor sp = new SleepingProcessor();
@@ -163,7 +203,8 @@ public class TestFieldsAsynchronous {
 
     @Test(timeout=1000)
     public void exceptionException() throws ProcessorException, InterruptedException {
-        todo = () -> future.setFailure(new RuntimeException());
+        todo = (v) -> v.setFailure(new RuntimeException());
+        transform = (e, v) -> v.getClass().getCanonicalName();
         onexception = (e, x) -> {
             try {
                 throw e.buildException("got it", x);

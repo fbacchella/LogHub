@@ -4,6 +4,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
 import loghub.processors.Identity;
+import lombok.Getter;
 
 public class PausedEvent<KEY> {
 
@@ -22,6 +23,12 @@ public class PausedEvent<KEY> {
     public final Function<Event, Event> timeoutTransform;
     public final Function<Event, Event> exceptionTransform;
 
+    /**
+     * A flag that avoid dual processing that might happens with time out
+     */
+    @Getter
+    private boolean done = false;
+
     private PausedEvent(Builder<KEY>  builder) {
         this.event = builder.event;
         this.key = builder.key;
@@ -35,6 +42,10 @@ public class PausedEvent<KEY> {
         this.failureTransform = builder.failureTransform;
         this.timeoutTransform = builder.expirationTransform;
         this.exceptionTransform = builder.exceptionTransform;
+    }
+
+    public void done() {
+        done = true;
     }
 
     @Override

@@ -197,7 +197,9 @@ public class EventsProcessor extends Thread {
 
                     //Store the callback informations
                     future.addListener(i -> {
-                        inQueue.put(topause);
+                        if (! paused.isDone()) {
+                            inQueue.put(topause);
+                        }
                         evrepo.cancel(future);
                     });
                     evrepo.pause(paused);

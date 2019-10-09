@@ -1,5 +1,6 @@
 package loghub.processors;
 
+import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 
 import org.apache.logging.log4j.LogManager;
@@ -19,6 +20,7 @@ public class FuturProcessor<FI> extends Processor {
 
     private final Future<FI> future;
     private final AsyncProcessor<FI> callback;
+    private final PausedEvent<Future<FI>> pe;
 
     public FuturProcessor(Future<FI> future, PausedEvent<Future<FI>> pe, AsyncProcessor<FI> callback) {
         super(logger);
@@ -33,14 +35,21 @@ public class FuturProcessor<FI> extends Processor {
         if (pe.onException != null) {
             setException(pe.onException);
         }
+        this.pe = pe;
     }
 
     @Override
     public boolean process(Event event) throws ProcessorException {
+        logger.trace("Delayed processing of {}", pe);
         FI content;
         try {
-            content = future.get();
-            return callback.processCallback(event, content);
+            if (! pe.isDone()) {
+                pe.done();
+                content = future.get();
+                return callback.processCallback(event, content);
+            } else {
+                return false;
+            }
         } catch (ExecutionException e) {
             // Don't try to manage fatal errors, they are re-thrown directly
             if (Helpers.isFatal(e.getCause())) {
