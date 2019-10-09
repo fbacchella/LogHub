@@ -18,18 +18,27 @@ jobs:
                     - home/circleci/.m2/repository
                     - home/circleci/.sonar/cache
                     - home/circleci/project
-    build:
+    jdk8_jre:
         docker:
             - image: circleci/openjdk:8-jdk
+        steps:
+            - persist_to_workspace:
+                root: /
+                paths:
+                    - usr/lib/jvm/java-8-openjdk-amd64/jre
+    build:
+        docker:
             - image: circleci/openjdk:13-jdk-buster
         steps:
             - attach_workspace:
                 at: /tmp/ws
             - run:
                 command: |
+                    sudo mkdir -p /usr/lib/jvm/java-8-openjdk-amd64
                     mv -n /tmp/ws/home/circleci/.m2 /home/circleci/
                     mv -n /tmp/ws/home/circleci/project/* /home/circleci/project/
                     mv -n /tmp/ws/home/circleci/project/.??* /home/circleci/project/
+                    sudo mv -n /tmp/ws/usr/lib/jvm/java-8-openjdk-amd64/jre /usr/lib/jvm/java-8-openjdk-amd64/
             - run:
                 command: mvn -B clean compile -DskipTests -s .circleci/settings.xml
                 environment:
@@ -149,9 +158,11 @@ workflows:
   build_and_test:
     jobs:
       - checkout
+      - jdk8_jre
       - build:
           requires:
               - checkout
+              -  jdk8_jre
       - testsj8:
           requires:
               - build
