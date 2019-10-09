@@ -17,7 +17,6 @@ import java.util.function.Function;
 import org.junit.Assert;
 
 import io.netty.util.concurrent.Future;
-import loghub.EventsProcessor;
 import loghub.configuration.ConfigException;
 import loghub.configuration.Configuration;
 import loghub.configuration.Properties;
@@ -142,7 +141,7 @@ public class Tools {
     public static boolean isInMaven() {
         return "true".equals(System.getProperty("maven.surefire", "false"));
     }
-    
+
     public static final Function<Date, Boolean> isRecent = i -> { long now = new Date().getTime() ; return (i.getTime() > (now - 60000)) && (i.getTime() < (now + 60000));};
 
 }

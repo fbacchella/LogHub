@@ -14,11 +14,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
-import loghub.ConnectionContext;
 import loghub.Event;
 import loghub.EventsRepository;
 import loghub.Expression;
 import loghub.Expression.ExpressionException;
+import loghub.IgnoredEventException;
 import loghub.PausedEvent;
 import loghub.Processor;
 import loghub.ProcessorException;
@@ -205,6 +205,8 @@ public class Merge extends Processor {
                         return ((StringBuilder)last).append(next.toString());
                     } else if (last instanceof Number && next instanceof Number) {
                         return ((Number)last).longValue() + ((Number)next).longValue();
+                    } else if (last instanceof Date || next instanceof Date) {
+                        return new Date();
                     } else {
                         return next;
                     }
@@ -320,7 +322,6 @@ public class Merge extends Processor {
     private Expression fire = null;
 
     private Object defaultSeedType = new Object[]{};
-    private Object defaultMetaSeedType = '<';
 
     private Map<String, Object> seeds = Collections.emptyMap();
     private Map<String, BiFunction<Object, Object, Object>> cumulators;
@@ -329,7 +330,6 @@ public class Merge extends Processor {
     private Processor fireProcessor = new Identity();
     private int expiration = Integer.MAX_VALUE;
     private boolean forward = false;
-    private String nextPipeline;
 
     @Override
     public boolean configure(Properties properties) {
@@ -359,9 +359,6 @@ public class Merge extends Processor {
         if (expirationProcessor != null && ! expirationProcessor.configure(properties)) {
             return false;
         }
-        if (nextPipeline == null) {
-            return false;
-        }
         return super.configure(properties);
     }
 
@@ -378,48 +375,49 @@ public class Merge extends Processor {
         if (eventKey == null) {
             return false;
         }
-        logger.debug("key: {} for {}", eventKey, event);
+        logger.trace("key: {} for {}", eventKey, event);
         PausedEvent<String> current = repository.getOrPause(eventKey, i -> getPausedEvent(event, i));
-        synchronized (current) {
-            logger.trace("merging {} in {}", event, current.event);
-            for(Map.Entry<String, Object> i: event.entrySet()) {
-                String key = i.getKey();
-                Object last = current.event.get(key);
-                Object next = i.getValue();
-                BiFunction<Object, Object, Object> m =  cumulators.computeIfAbsent(key, j -> Cumulator.getCumulator(defaultSeedType));
-                Object newValue = m.apply(last, next);
-                if (newValue != null) {
-                    current.event.put(key, newValue);
+        // If we didn't get back the same event, we are actually merging a new event.
+        if (event != current.event) {
+            synchronized (current) {
+                logger.trace("merging {} in {}", event, current.event);
+                for(Map.Entry<String, Object> i: event.entrySet()) {
+                    String key = i.getKey();
+                    Object last = current.event.get(key);
+                    Object next = i.getValue();
+                    BiFunction<Object, Object, Object> m =  cumulators.computeIfAbsent(key, j -> Cumulator.getCumulator(defaultSeedType));
+                    Object newValue = m.apply(last, next);
+                    if (newValue != null) {
+                        current.event.put(key, newValue);
+                    }
+                }
+                // And don't forget the date, look for the @timestamp cumulator
+                Date lastTimestamp = current.event.getTimestamp();
+                Date nextTimestamp = event.getTimestamp();
+                Object newTimestamp = cumulators.get(Event.TIMESTAMPKEY).apply(lastTimestamp, nextTimestamp);
+                current.event.setTimestamp(newTimestamp);
+                if (fire != null) {
+                    Object dofire = fire.eval(current.event);
+                    if (dofire instanceof Boolean && ((Boolean) dofire)) {
+                        repository.succed(eventKey);
+                    }
                 }
             }
-            current.event.mergeMeta(event, Cumulator.getCumulator(defaultMetaSeedType));
-            // And don't forget the date, look for the @timestamp cumulator
-            Date lastTimestamp = current.event.getTimestamp();
-            Date nextTimestamp = event.getTimestamp();
-            Object newTimestamp = cumulators.get(Event.TIMESTAMPKEY).apply(lastTimestamp, nextTimestamp);
-            if (newTimestamp instanceof Date) {
-                current.event.setTimestamp((Date)newTimestamp);
+            if (! forward) {
+                throw new ProcessorException.DroppedEventException(event);
+            } else {
+                return true;
             }
-
-            if (fire != null) {
-                Object dofire = fire.eval(current.event);
-                if(dofire instanceof Boolean && ((Boolean) dofire)) {
-                    repository.succed(eventKey);
-                }
-            }
+        } else {
+            throw IgnoredEventException.INSTANCE;
         }
-        if (! forward) {
-            throw new ProcessorException.DroppedEventException(event);
-        }
-        return true;
     }
 
     private PausedEvent<String> getPausedEvent(Event event, String key) {
-        PausedEvent.Builder<String> builder = PausedEvent.builder(event.isTest() ? Event.emptyTestEvent(ConnectionContext.EMPTY) : Event.emptyEvent(ConnectionContext.EMPTY), key);
+        PausedEvent.Builder<String> builder = PausedEvent.builder(event, key);
         PausedEvent<String> pe = builder
                         .expiration(expiration, TimeUnit.SECONDS).onExpiration(expirationProcessor, prepareEvent)
                         .onSuccess(fireProcessor, prepareEvent)
-                        .nextPipeline(nextPipeline)
                         .build()
                         ;
         // If the cumulators return a value, use it to initialize the new event time stamp
@@ -523,27 +521,6 @@ public class Merge extends Processor {
      */
     public Object getDefaultMeta() {
         return defaultSeedType;
-    }
-
-    /**
-     * @param defaultSeed the defaultSeed to set
-     */
-    public void setDefaultMeta(Object defaultSeed) {
-        this.defaultMetaSeedType = defaultSeed;
-    }
-
-    /**
-     * @return the pipeline that will process the event
-     */
-    public String getInPipeline() {
-        return nextPipeline;
-    }
-
-    /**
-     * @param nextPipeline the pipeline that will process the event
-     */
-    public void setInPipeline(String nextPipeline) {
-        this.nextPipeline = nextPipeline;
     }
 
 }
