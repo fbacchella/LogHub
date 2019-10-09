@@ -17,7 +17,6 @@ import org.junit.Test;
 
 import loghub.ConnectionContext;
 import loghub.Event;
-import loghub.IgnoredEventException;
 import loghub.LogUtils;
 import loghub.ProcessorException;
 import loghub.Tools;
@@ -75,13 +74,13 @@ public class TestMerge {
             Assert.fail("Sould be ignored");
         } catch (ProcessorException.DroppedEventException ex) {
             Assert.fail("Sould not be dropped");
-        } catch (IgnoredEventException ex) {
+        } catch (ProcessorException.PausedEventException ex) {
         }
         try {
             Assert.assertTrue(m.process(e2));
             Assert.fail("Sould be dropped");
         } catch (ProcessorException.DroppedEventException ex) {
-        } catch (IgnoredEventException ex) {
+        } catch (ProcessorException.PausedEventException ex) {
             Assert.fail("Sould not be ignored");
         }
 
@@ -115,7 +114,7 @@ public class TestMerge {
         try {
             m.process(e);
             Assert.fail("Should not reach that line");
-        } catch (IgnoredEventException e1) {
+        } catch (ProcessorException.PausedEventException e1) {
         }
         Thread.sleep(2000);
         // Will throw exception if event was not fired
@@ -139,7 +138,7 @@ public class TestMerge {
             e.put("e", "5");
             m.process(e);
             Assert.fail("Should not reach that line");
-        } catch (IgnoredEventException ex) {
+        } catch (ProcessorException.PausedEventException ex) {
         }
         Event e2 = Event.emptyEvent(ConnectionContext.EMPTY);
         e2.put("g", 1);
