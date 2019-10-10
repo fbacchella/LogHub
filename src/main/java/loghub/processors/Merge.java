@@ -21,7 +21,6 @@ import loghub.Expression.ExpressionException;
 import loghub.PausedEvent;
 import loghub.Processor;
 import loghub.ProcessorException;
-import loghub.VarFormatter;
 import loghub.configuration.Properties;
 
 public class Merge extends Processor {
@@ -315,7 +314,7 @@ public class Merge extends Processor {
     };
 
     private String indexSource;
-    private VarFormatter index;
+    private Expression index;
 
     private String fireSource = null;
     private Expression fire = null;
@@ -324,7 +323,7 @@ public class Merge extends Processor {
 
     private Map<String, Object> seeds = Collections.emptyMap();
     private Map<String, BiFunction<Object, Object, Object>> cumulators;
-    private EventsRepository<String> repository = null;
+    private EventsRepository<Object> repository = null;
     private Processor expirationProcessor = new Identity();
     private Processor fireProcessor = new Identity();
     private int expiration = Integer.MAX_VALUE;
@@ -335,14 +334,19 @@ public class Merge extends Processor {
         if (indexSource == null) {
             return false;
         }
-        repository = new EventsRepository<String>(properties);
+        repository = new EventsRepository<Object>(properties);
         cumulators = new ConcurrentHashMap<>(seeds.size() + 1);
         // Default to timestamp is to keep the first
         cumulators.put("@timestamp", Cumulator.FIRST.cumulate(null));
         for (Entry<String, Object> i: seeds.entrySet()) {
             cumulators.put(i.getKey(), Cumulator.getCumulator(i.getValue()));
         }
-        index = new VarFormatter(indexSource);
+        try {
+            index = new Expression(indexSource, properties.groovyClassLoader, properties.formatters);
+        } catch (ExpressionException ex) {
+            Expression.logError(ex, indexSource, logger);
+            return false;
+        }
         // Prepare fire only if test and processor given for that
         if (fireSource != null && fireProcessor != null) {
             try {
@@ -363,9 +367,9 @@ public class Merge extends Processor {
 
     @Override
     public boolean process(Event event) throws ProcessorException {
-        String eventKey;
+        Object eventKey;
         try {
-            eventKey = index.format(event);
+            eventKey = index.eval(event);
         } catch (IllegalArgumentException e) {
             // index key not found, not to be merged
             return false;
@@ -375,7 +379,7 @@ public class Merge extends Processor {
             return false;
         }
         logger.trace("key: {} for {}", eventKey, event);
-        PausedEvent<String> current = repository.getOrPause(eventKey, i -> getPausedEvent(event, i));
+        PausedEvent<Object> current = repository.getOrPause(eventKey, i -> getPausedEvent(event, i));
         // If we didn't get back the same event, we are actually merging a new event.
         if (event != current.event) {
             synchronized (current) {
@@ -412,9 +416,9 @@ public class Merge extends Processor {
         }
     }
 
-    private PausedEvent<String> getPausedEvent(Event event, String key) {
-        PausedEvent.Builder<String> builder = PausedEvent.builder(event, key);
-        PausedEvent<String> pe = builder
+    private PausedEvent<Object> getPausedEvent(Event event, Object key) {
+        PausedEvent.Builder<Object> builder = PausedEvent.builder(event, key);
+        PausedEvent<Object> pe = builder
                         .expiration(expiration, TimeUnit.SECONDS).onExpiration(expirationProcessor, prepareEvent)
                         .onSuccess(fireProcessor, prepareEvent)
                         .build()
