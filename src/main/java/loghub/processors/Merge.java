@@ -370,8 +370,8 @@ public class Merge extends Processor {
         Object eventKey;
         try {
             eventKey = index.eval(event);
-        } catch (IllegalArgumentException e) {
-            // index key not found, not to be merged
+        } catch (IllegalArgumentException | ProcessorException e) {
+            // index key not found or expression failed, not to be merged
             return false;
         }
         // If the key is null, can't use the event

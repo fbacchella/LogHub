@@ -55,7 +55,7 @@ merge
 
 mergeArgument
     : type='if' ':' expression
-    | type='index' ':' stringLiteral
+    | type='index' ':' expression
     | type='seeds' ':' map
     | type='doFire' ':' expression
     | type='onFire' ':' pipenode
