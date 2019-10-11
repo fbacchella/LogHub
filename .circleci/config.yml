@@ -12,6 +12,7 @@ jobs:
                 command: "mvn -B dependency:go-offline -Psonar,versions -s .circleci/settings.xml"
                 environment:
                     JAVA_HOME: /usr/java/openjdk-13
+                    MAVEN_OPTS: "-Xmx1024m"
             - persist_to_workspace:
                 root: /
                 paths:
@@ -25,7 +26,7 @@ jobs:
             - persist_to_workspace:
                 root: /
                 paths:
-                    - usr/lib/jvm/java-8-openjdk-amd64/jre
+                    - usr/lib/jvm/java-8-openjdk-amd64
     build:
         docker:
             - image: circleci/openjdk:13-jdk-buster
@@ -34,15 +35,16 @@ jobs:
                 at: /tmp/ws
             - run:
                 command: |
-                    sudo mkdir -p /usr/lib/jvm/java-8-openjdk-amd64
+                    sudo mkdir -p /usr/lib/jvm
+                    sudo mv -n /tmp/ws/usr/lib/jvm/java-8-openjdk-amd64 /usr/lib/jvm/
                     mv -n /tmp/ws/home/circleci/.m2 /home/circleci/
                     mv -n /tmp/ws/home/circleci/project/* /home/circleci/project/
                     mv -n /tmp/ws/home/circleci/project/.??* /home/circleci/project/
-                    sudo mv -n /tmp/ws/usr/lib/jvm/java-8-openjdk-amd64/jre /usr/lib/jvm/java-8-openjdk-amd64/
             - run:
                 command: mvn -B clean compile -DskipTests -s .circleci/settings.xml
                 environment:
                     JAVA_HOME: /usr/java/openjdk-13
+                    MAVEN_OPTS: "-Xmx1024m"
             - persist_to_workspace:
                 root: /
                 paths:
@@ -74,6 +76,7 @@ jobs:
                     mvn -B test -Pskip $SONAR -Dsonar.login=$SONARCLOUD_LOGIN -s .circleci/settings.xml
                 environment:
                     JAVA_HOME: /usr/lib/jvm/java-8-openjdk-amd64
+                    MAVEN_OPTS: "-Xmx1024m"
             - store_test_results:
                 path: target/surefire-reports
             #don't persist_to_workspace, can't be done in parallel with testsj11
@@ -97,6 +100,7 @@ jobs:
                     mvn -B test -Pskip -s .circleci/settings.xml
                 environment:
                     JAVA_HOME: /usr/lib/jvm/java-11-openjdk-amd64
+                    MAVEN_OPTS: "-Xmx1024m"
             - store_test_results:
                 path: target/surefire-reports
             - persist_to_workspace:
@@ -128,7 +132,7 @@ jobs:
                     mvn -B $PUBLISH site -Pskip -Dmaven.test.skip=true -s .circleci/settings.xml
                 environment:
                     JAVA_HOME: /usr/lib/jvm/java-11-openjdk-amd64
-                    MAVEN_OPTS: "-Dorg.slf4j.simpleLogger.log.org.apache.maven.plugins.shade=ERROR"
+                    MAVEN_OPTS: "-Dorg.slf4j.simpleLogger.log.org.apache.maven.plugins.shade=ERROR -Xmx1024m"
             - persist_to_workspace:
                 root: /
                 paths:
