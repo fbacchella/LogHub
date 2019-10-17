@@ -376,6 +376,11 @@
                     <artifactId>maven-site-plugin</artifactId>
                     <version>3.7.1</version>
                 </plugin>
+                <plugin>
+                  <groupId>org.sonarsource.scanner.maven</groupId>
+                  <artifactId>sonar-maven-plugin</artifactId>
+                  <version>3.7.0.1746</version>
+                </plugin>
             </plugins>
         </pluginManagement>
         <!-- Used to help dependency:go-offline -->
@@ -741,6 +746,7 @@
             <properties>
                 <sonar.host.url>https://sonarcloud.io</sonar.host.url>
                 <sonar.organization>${env.SONARCLOUD_ORG}</sonar.organization>
+                <sonar.login>${env.SONARCLOUD_LOGIN}</sonar.login>
             </properties>
             <build>
                 <plugins>
@@ -763,19 +769,6 @@
                                 <phase>verify</phase>
                                 <goals>
                                     <goal>report</goal>
-                                </goals>
-                            </execution>
-                        </executions>
-                    </plugin>
-                    <plugin>
-                        <groupId>org.sonarsource.scanner.maven</groupId>
-                        <artifactId>sonar-maven-plugin</artifactId>
-                        <version>3.6.0.1398</version>
-                        <executions>
-                            <execution>
-                                <phase>verify</phase>
-                                <goals>
-                                    <goal>sonar</goal>
                                 </goals>
                             </execution>
                         </executions>

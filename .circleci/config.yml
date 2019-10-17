@@ -68,12 +68,12 @@ jobs:
                 command: |
                     # If no symbolic name, it's a PR, will run sonar
                     if [ -n "$(git symbolic-ref HEAD 2>/dev/null )" ] ; then
-                        SONAR="-Psonar -Dsonar.login=$SONARCLOUD_LOGIN"
+                        SONAR="sonar:sonar -Psonar"
                         echo "Doing sonar"
                     else
                         SONAR=""
                     fi
-                    mvn -B test -Pskip $SONAR -s .circleci/settings.xml
+                    mvn -B test $SONAR -Pskip -s .circleci/settings.xml
                 environment:
                     JAVA_HOME: /usr/lib/jvm/java-8-openjdk-amd64
                     MAVEN_OPTS: "-Xmx1024m"
