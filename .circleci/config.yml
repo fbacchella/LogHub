@@ -41,7 +41,7 @@ jobs:
                     mv -n /tmp/ws/home/circleci/project/* /home/circleci/project/
                     mv -n /tmp/ws/home/circleci/project/.??* /home/circleci/project/
             - run:
-                command: mvn -B clean compile -DskipTests -s .circleci/settings.xml
+                command: mvn -B clean verify -DskipTests -s .circleci/settings.xml
                 environment:
                     JAVA_HOME: /usr/java/openjdk-13
                     MAVEN_OPTS: "-Xmx1024m"
@@ -68,12 +68,12 @@ jobs:
                 command: |
                     # If no symbolic name, it's a PR, will run sonar
                     if [ -n "$(git symbolic-ref HEAD 2>/dev/null )" ] ; then
-                        SONAR="-Psonar"
+                        SONAR="-Psonar -Dsonar.login=$SONARCLOUD_LOGIN"
+                        echo "Doing sonar"
                     else
                         SONAR=""
                     fi
-                    echo "publishing jobs: $SONAR"
-                    mvn -B test -Pskip $SONAR -Dsonar.login=$SONARCLOUD_LOGIN -s .circleci/settings.xml
+                    mvn -B test -Pskip $SONAR -s .circleci/settings.xml
                 environment:
                     JAVA_HOME: /usr/lib/jvm/java-8-openjdk-amd64
                     MAVEN_OPTS: "-Xmx1024m"
@@ -116,6 +116,8 @@ jobs:
                 at: /tmp/ws
             - run:
                 command: |
+                    sudo mkdir -p /usr/lib/jvm
+                    sudo mv -n /tmp/ws/usr/lib/jvm/java-8-openjdk-amd64 /usr/lib/jvm/
                     mv -n /tmp/ws/home/circleci/.m2 /home/circleci/
                     mv -n /tmp/ws/home/circleci/.sonar /home/circleci/
                     mv -n /tmp/ws/home/circleci/project/* /home/circleci/project/
@@ -131,7 +133,7 @@ jobs:
                     echo "publishing jobs: $PUBLISH"
                     mvn -B $PUBLISH site -Pskip -Dmaven.test.skip=true -s .circleci/settings.xml
                 environment:
-                    JAVA_HOME: /usr/lib/jvm/java-11-openjdk-amd64
+                    JAVA_HOME: /usr/java/openjdk-13
                     MAVEN_OPTS: "-Dorg.slf4j.simpleLogger.log.org.apache.maven.plugins.shade=ERROR -Xmx1024m"
             - persist_to_workspace:
                 root: /
