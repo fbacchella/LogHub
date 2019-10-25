@@ -36,7 +36,7 @@ public final class Stats {
         LOOPOVERFLOW {
             @Override
             public void instanciate(MetricRegistryWrapper metrics, String name) {
-                metrics.meter("Pipeline." + name + "." + prettyName());
+                metrics.counter("Pipeline." + name + "." + prettyName());
             }
             @Override
             public String prettyName() {
