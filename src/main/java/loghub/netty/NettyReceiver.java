@@ -46,7 +46,13 @@ public abstract class NettyReceiver<R extends NettyReceiver<R, S, B, CF, BS, BSC
     protected abstract B getServerBuilder();
 
     public boolean configure(Properties properties, B builder) {
-        builder.setAuthHandler(getAuthHandler(properties)).setWorkerThreads(threadsCount).setPoller(poller);
+        try {
+            builder.setAuthHandler(getAuthHandler(properties)).setWorkerThreads(threadsCount).setPoller(poller);
+        } catch (IllegalArgumentException ex) {
+            logger.error("Can't start receiver authentication handler: {}", Helpers.resolveThrowableException(ex));
+            logger.catching(Level.DEBUG, ex);
+            return false;
+        }
         builder.setConsumer(AbstractNettyServer.resolveConsumer(this));
         try {
             server = builder.build();
