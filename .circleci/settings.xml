@@ -11,6 +11,14 @@
     </activeProfiles>
     <profiles>
         <profile>
+            <id>sonar</id>
+            <properties>
+                <sonar.host.url>https://sonarcloud.io</sonar.host.url>
+                <sonar.organization>${env.SONARCLOUD_ORG}</sonar.organization>
+                <sonar.login>${env.SONARCLOUD_LOGIN}</sonar.login>
+            </properties>
+        </profile>
+        <profile>
             <id>jdkpaths</id>
             <properties>
                 <jdk.8.home>/usr/lib/jvm/java-8-openjdk-amd64</jdk.8.home>
