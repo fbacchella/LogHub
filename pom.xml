@@ -359,11 +359,6 @@
                     <artifactId>maven-site-plugin</artifactId>
                     <version>3.7.1</version>
                 </plugin>
-                <plugin>
-                  <groupId>org.sonarsource.scanner.maven</groupId>
-                  <artifactId>sonar-maven-plugin</artifactId>
-                  <version>3.7.0.1746</version>
-                </plugin>
             </plugins>
         </pluginManagement>
         <!-- Used to help dependency:go-offline -->
@@ -525,9 +520,14 @@
                 <version>1.6.0</version>
             </extension>
             <extension>
-                <groupId>org.sonarsource.sonar-packaging-maven-plugin</groupId>
-                <artifactId>sonar-packaging-maven-plugin</artifactId>
-                <version>1.18.0.372</version>
+              <groupId>org.sonarsource.scanner.maven</groupId>
+              <artifactId>sonar-maven-plugin</artifactId>
+              <version>3.7.0.1746</version>
+            </extension>
+            <extension>
+              <groupId>org.codehaus.mojo</groupId>
+              <artifactId>sonar-maven-plugin</artifactId>
+              <version>3.7.0.1746</version>
             </extension>
             <extension>
                 <groupId>org.apache.maven.skins</groupId>
