@@ -39,7 +39,7 @@ public class CurveTest {
 
     @Test(timeout=5000)
     public void testSecureConnectOneWay() throws InterruptedException, ExecutionException, ZMQCheckedException {
-        Map<Object, Object> props = new HashMap<>();
+        Map<String, Object> props = new HashMap<>();
         props.put("keystore", Paths.get(testFolder.getRoot().getAbsolutePath(), "zmqtest.jks").toAbsolutePath().toString());
         props.put("numSocket", 2);
         SmartContext ctx = SmartContext.build(props);
@@ -70,7 +70,7 @@ public class CurveTest {
 
     @Test(timeout=5000)
     public void testSecureConnectOtherWay() throws InterruptedException, ExecutionException, ZMQCheckedException {
-        Map<Object, Object> props = new HashMap<>();
+        Map<String, Object> props = new HashMap<>();
         props.put("keystore", Paths.get(testFolder.getRoot().getAbsolutePath(), "zmqtest.jks").toAbsolutePath().toString());
         props.put("numSocket", 2);
         SmartContext ctx = SmartContext.build(props);
@@ -101,7 +101,7 @@ public class CurveTest {
 
     @Test(timeout=5000)
     public void testFailedSecureConnect() throws InterruptedException, ExecutionException, ZMQCheckedException {
-        Map<Object, Object> props = new HashMap<>();
+        Map<String, Object> props = new HashMap<>();
         props.put("keystore", Paths.get(testFolder.getRoot().getAbsolutePath(), "zmqtest.jks").toAbsolutePath().toString());
         props.put("numSocket", 2);
         SmartContext ctx = SmartContext.build(props);

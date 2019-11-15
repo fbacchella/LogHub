@@ -56,7 +56,7 @@ public class DashboardHttpServer extends AbstractHttpServer<DashboardHttpServer,
         }
     }
 
-    public static DashboardHttpServer.Builder buildDashboad(Map<Object, Object> collect, Properties props) {
+    public static DashboardHttpServer.Builder buildDashboad(Map<String, Object> collect, Properties props) {
         int port = (Integer) collect.compute("port", (i,j) -> {
             if (j != null && ! (j instanceof Integer)) {
                 throw new IllegalArgumentException("http dasbhoard port is not an integer");

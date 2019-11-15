@@ -70,7 +70,7 @@ public class SmartContext {
         Security.insertProviderAt(new NaclProvider(), Security.getProviders().length + 1);
     }
 
-    public static synchronized SmartContext build(Map<Object, Object> collect) {
+    public static synchronized SmartContext build(Map<String, Object> collect) {
         int numSocket;
         Path zmqKeyStore;
         if (collect.containsKey("keystore")) {

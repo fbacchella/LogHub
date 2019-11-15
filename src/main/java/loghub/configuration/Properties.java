@@ -18,7 +18,10 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import javax.management.InstanceAlreadyExistsException;
+import javax.management.MBeanRegistrationException;
 import javax.management.MalformedObjectNameException;
+import javax.management.NotCompliantMBeanException;
 import javax.management.ObjectName;
 import javax.net.ssl.SSLContext;
 
@@ -243,13 +246,10 @@ public class Properties extends HashMap<String, Object> {
 
         ssl = ContextLoader.build(properties.entrySet().stream().filter(i -> i.getKey().startsWith("ssl.")).collect(Collectors.toMap( i -> i.getKey().substring(4), j -> j.getValue())));
 
-        jwtHandler = buildJwtAlgorithm(properties.entrySet().stream().filter(i -> i.getKey().startsWith("jwt.")).collect(Collectors.toMap( i -> i.getKey().substring(4), j -> j.getValue())));
+        jwtHandler = buildJwtAlgorithm(filterPrefix(properties, "jwt"));
 
         // Check if some ZMQ properties given. It not, just let the receiver or senders do that
-        Map<Object, Object> zmqProperties = properties.entrySet().stream().filter(i -> i.getKey().startsWith("zmq.")).collect(Collectors.toMap( i -> i.getKey().substring(4), j -> j.getValue()));
-        if (! zmqProperties.isEmpty()) {
-            SmartContext.build(zmqProperties);
-        }
+        SmartContext.build(filterPrefix(properties, "zmq"));
 
         javax.security.auth.login.Configuration jc = null;
         if (properties.containsKey("jaasConfig")) {
@@ -264,7 +264,7 @@ public class Properties extends HashMap<String, Object> {
         jaasConfig = jc;
 
         try {
-            dashboardBuilder = DashboardHttpServer.buildDashboad(properties.entrySet().stream().filter(i -> i.getKey().startsWith("http.")).collect(Collectors.toMap( i -> i.getKey().substring(5), j -> j.getValue())), this);
+            dashboardBuilder = DashboardHttpServer.buildDashboad(filterPrefix(properties, "http"), this);
         } catch (IllegalArgumentException e) {
             throw new ConfigException("Failed to build dashboard", e);
         }
@@ -309,6 +309,21 @@ public class Properties extends HashMap<String, Object> {
         Function<Object, String> stringOrNull = k -> (properties.get(k) != null ) ? properties.get(k) .toString() : null;
         return JWTHandler.getBuilder()
                         .secret(stringOrNull.apply("secret")).setAlg(stringOrNull.apply("alg")).build();
+    }
+
+    /**
+     * Filter a a set of properties, keeping only those starting with the given prefix and removing it.
+     * @param input
+     * @param prefix
+     * @return
+     */
+    private Map<String, Object> filterPrefix(Map<String, Object> input, String prefix) {
+        int prefixLenght = prefix.length() + 1;
+        String prefixKey = prefix + ".";
+        return input
+               .entrySet()
+               .stream()
+               .filter(i -> i.getKey().startsWith(prefixKey)).collect(Collectors.toMap(i -> i.getKey().substring(prefixLenght), j -> j.getValue()));
     }
 
     /**

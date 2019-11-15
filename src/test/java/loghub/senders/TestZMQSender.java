@@ -137,7 +137,7 @@ public class TestZMQSender {
 
     @Test(timeout=5000)
     public void curveClient() throws IOException, InterruptedException {
-        Map<Object, Object> props = new HashMap<>();
+        Map<String, Object> props = new HashMap<>();
         props.put("keystore", Paths.get(testFolder.getRoot().getAbsolutePath(), "zmqtest.jks").toAbsolutePath().toString());
         props.put("numSocket", 2);
 
@@ -164,7 +164,7 @@ public class TestZMQSender {
 
     @Test(timeout=5000)
     public void curveServer() throws IOException, InterruptedException {
-        Map<Object, Object> props = new HashMap<>();
+        Map<String, Object> props = new HashMap<>();
         props.put("keystore", Paths.get(testFolder.getRoot().getAbsolutePath(), "zmqtest.jks").toAbsolutePath().toString());
         props.put("numSocket", 2);
         SmartContext ctx = SmartContext.build(props);
