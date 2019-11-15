@@ -4,20 +4,12 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
-import java.lang.management.ManagementFactory;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.rmi.NotBoundException;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
-
-import javax.management.InstanceAlreadyExistsException;
-import javax.management.MBeanRegistrationException;
-import javax.management.MBeanServer;
-import javax.management.MalformedObjectNameException;
-import javax.management.NotCompliantMBeanException;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -25,15 +17,11 @@ import org.apache.logging.log4j.Logger;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
-import com.codahale.metrics.jmx.JmxReporter;
 
 import loghub.configuration.ConfigException;
 import loghub.configuration.Configuration;
 import loghub.configuration.Properties;
 import loghub.configuration.TestEventProcessing;
-import loghub.jmx.ExceptionsMBean;
-import loghub.jmx.Helper;
-import loghub.jmx.StatsMBean;
 import loghub.processors.FieldsProcessor;
 import loghub.receivers.Receiver;
 import loghub.security.JWTHandler;
@@ -263,18 +251,14 @@ public class Start {
                         .build();
 
         try {
-            MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
-            mbs.registerMBean(new StatsMBean.Implementation(), StatsMBean.Implementation.NAME);
-            mbs.registerMBean(new ExceptionsMBean.Implementation(), ExceptionsMBean.Implementation.NAME);
-            JmxReporter reporter = Properties.metrics.getJmxReporter();
-            reporter.start();
-            int port = props.jmxport;
-            if (port > 0) {
-                Helper.start(props.jmxproto, props.jmxlisten, port);
+            if (props.jmxBuilder != null) {
+                Properties.metrics.getJmxReporter().start();
+                props.jmxBuilder.start();
             }
-        } catch (IOException | NotBoundException | NotCompliantMBeanException | MalformedObjectNameException
-                        | InstanceAlreadyExistsException | MBeanRegistrationException e) {
-            throw new RuntimeException("jmx configuration failed: " + e.getMessage(), e);
+        } catch (Exception e) {
+            logger.error("JMX start failed: {}", Helpers.resolveThrowableException(e));
+            shutdownAction.start();
+            throw new IllegalStateException();
         }
         if (props.dashboardBuilder != null) {
             try {

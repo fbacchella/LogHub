@@ -50,8 +50,9 @@ import loghub.Source;
 import loghub.Stats;
 import loghub.ThreadBuilder;
 import loghub.VarFormatter;
-import loghub.jmx.Helper;
-import loghub.jmx.Helper.PROTOCOL;
+import loghub.jmx.ExceptionsMBean;
+import loghub.jmx.JmxServerBuilder;
+import loghub.jmx.StatsMBean;
 import loghub.receivers.Receiver;
 import loghub.security.JWTHandler;
 import loghub.security.ssl.ContextLoader;
@@ -141,9 +142,7 @@ public class Properties extends HashMap<String, Object> {
     public final Map<String, Source> sources;
     public final GroovyClassLoader groovyClassLoader;
     public final Map<String, VarFormatter> formatters;
-    public final int jmxport;
-    public final PROTOCOL jmxproto;
-    public final String jmxlisten;
+    public final JmxServerBuilder jmxBuilder;
     public final int numWorkers;
     public final BlockingQueue<Event> mainQueue;
     public final Map<String, BlockingQueue<Event>> outputQueues;
@@ -210,26 +209,6 @@ public class Properties extends HashMap<String, Object> {
         });
         metrics.counter("Allevents.inflight");
         metrics.timer("Allevents.timer");
-        //Read the jmx configuration
-        Integer jmxport = (Integer) properties.remove("jmx.port");
-        if (jmxport != null) {
-            this.jmxport = jmxport;
-        } else {
-            this.jmxport = -1;
-        }
-        String jmxproto = (String) properties.remove("jmx.protocol");
-        if (jmxproto != null) {
-            this.jmxproto = PROTOCOL.valueOf(jmxproto.toLowerCase());
-        } else {
-            this.jmxproto = Helper.DEFAULTPROTOCOL;
-        }
-        String jmxlisten = (String) properties.remove("jmx.listen");
-        if (jmxlisten != null) {
-            this.jmxlisten = jmxlisten;
-        } else {
-            this.jmxlisten = Helper.ANYLISTEN;
-        }
-
         cacheManager = new CacheManager(this);
 
         if (properties.containsKey("numWorkers")) {
@@ -262,6 +241,21 @@ public class Properties extends HashMap<String, Object> {
             }
         }
         jaasConfig = jc;
+
+        if (((Number)properties.getOrDefault("jmx.port", -1)).intValue() >= 0) {
+            try {
+                jmxBuilder = JmxServerBuilder.builder()
+                                .setProperties(filterPrefix(properties, "jmx"))
+                                .setSslContext(ssl)
+                                .setJaasConfig(jaasConfig)
+                                .register(StatsMBean.Implementation.NAME, new StatsMBean.Implementation())
+                                .register(ExceptionsMBean.Implementation.NAME, new ExceptionsMBean.Implementation());
+            } catch (NotCompliantMBeanException |MalformedObjectNameException | InstanceAlreadyExistsException | MBeanRegistrationException ex) {
+                throw new ConfigException("Invalid JMX configuration", ex);
+            }
+        } else {
+            jmxBuilder = null;
+        }
 
         try {
             dashboardBuilder = DashboardHttpServer.buildDashboad(filterPrefix(properties, "http"), this);
