@@ -4,6 +4,7 @@ import java.nio.charset.StandardCharsets;
 
 import org.zeromq.SocketType;
 import org.zeromq.ZMQ.Socket;
+import org.zeromq.ZMQException;
 import org.apache.logging.log4j.Level;
 import static org.zeromq.ZMQ.Error;
 import org.zeromq.ZPoller;
@@ -16,6 +17,7 @@ import loghub.configuration.Properties;
 import loghub.zmq.ZMQCheckedException;
 import loghub.zmq.ZMQHandler;
 import loghub.zmq.ZMQHelper;
+import zmq.ZError;
 
 @Blocking
 public class ZMQ extends Receiver {
@@ -64,6 +66,9 @@ public class ZMQ extends Receiver {
                 databuffer = new byte[65535];
             }
             handler.run();
+        } catch (IllegalArgumentException ex) {
+            logger.error("Failed ZMQ processing : {}", Helpers.resolveThrowableException(ex));
+            logger.catching(Level.DEBUG, ex);
         } catch (RuntimeException ex) {
             logger.error("Failed ZMQ processing : {}", Helpers.resolveThrowableException(ex));
             logger.catching(Level.ERROR, ex);
@@ -75,14 +80,21 @@ public class ZMQ extends Receiver {
 
     public boolean process(Socket socket, int eventMask) {
         while ((socket.getEvents() & ZPoller.IN) != 0 && handler.isRunning()) {
-            int received = socket.recv(ZMQ.this.databuffer, 0, databuffer.length, 0);
-            if (received < 0) {
-                Error error = Error.findByCode(socket.errno());
-                Stats.newReceivedError(String.format("error with ZSocket %s: %s", listen, error.getMessage()));
-            }
-            Event event = decode(ConnectionContext.EMPTY, databuffer, 0, received);
-            if (event != null) {
-                send(event);
+            int received;
+            try {
+                received = socket.recv(ZMQ.this.databuffer, 0, databuffer.length, 0);
+                if (received < 0) {
+                    Error error = Error.findByCode(socket.errno());
+                    Stats.newReceivedError(String.format("error with ZSocket %s: %s", listen, error.getMessage()));
+                } else {
+                    Event event = decode(ConnectionContext.EMPTY, databuffer, 0, received);
+                    if (event != null) {
+                        send(event);
+                    }
+                }
+            } catch (ZError.IOException | ZError.CtxTerminatedException | ZError.InstantiationException | ZMQException ex) {
+                ZMQCheckedException cex = new ZMQCheckedException(ex);
+                Stats.newReceivedError(String.format("error with ZSocket %s: %s", listen, cex.getMessage()));
             }
         }
         return true;
