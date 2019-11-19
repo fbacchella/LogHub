@@ -1,5 +1,6 @@
 package loghub.jmx;
 
+import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.rmi.server.RMIClientSocketFactory;
@@ -24,6 +25,8 @@ import javax.net.ssl.SSLContext;
 import javax.rmi.ssl.SslRMIServerSocketFactory;
 import javax.security.auth.Subject;
 
+import loghub.Helpers;
+import loghub.configuration.Properties;
 import loghub.security.AuthenticationHandler;
 import lombok.Setter;
 import lombok.experimental.Accessors;
@@ -94,79 +97,88 @@ public class JmxServerBuilder {
         return this;
     }
 
-    public JMXConnectorServer start() throws Exception {
-        if (port < 0) {
-            return null;
-        }
-
-        Map<String, Object> env = new HashMap<>();
-
-        RMIClientSocketFactory csf = null;
-        RMIServerSocketFactory ssf = null;
-
-        if (hostname != null) {
-            System.setProperty("java.rmi.server.hostname", hostname);
-            System.setProperty("java.rmi.server.useLocalHostname", "false");
-        }
-
-        if (withSsl) {
-            ssf = new SslRMIServerSocketFactory(sslContext, null, null, false);
-            env.put(RMIConnectorServer.RMI_SERVER_SOCKET_FACTORY_ATTRIBUTE, ssf);
-        }
-
-        if (jaasName != null) {
-            AuthenticationHandler ah = AuthenticationHandler.getBuilder()
-                            .setJaasName(jaasName)
-                            .setJaasConfig(jaasConfig)
-                            .build();
-
-            env.put(JMXConnectorServer.AUTHENTICATOR, new JMXAuthenticator() {
-                @Override
-                public Subject authenticate(Object credentials) {
-
-                    Principal p = null;
-                    if ((credentials instanceof String[])) {
-                        String[] loginPassword = (String[]) credentials;
-                        if (loginPassword.length == 2) {
-                            p = ah.checkLoginPassword(loginPassword[0], loginPassword[1].toCharArray());
-                            loginPassword[1] = null;
-                            if (p == null) {
-                                throw new SecurityException("Invalid user");
-                            }
-                        }
-                    }
-                    if (p == null) {
-                        throw new SecurityException("Invalid configuration");
-                    } else {
-                        return new Subject(true, Collections.singleton(p), Collections.emptySet(), Collections.emptySet());
-                    }
-                }
-            });
-        }
-
-        String path = "/";
-        if (protocol == PROTOCOL.rmi) {
-            java.rmi.registry.LocateRegistry.createRegistry(port, csf, ssf);
-            path = "/jndi/rmi://0.0.0.0:" + port + "/jmxrmi";
-        }
-        JMXServiceURL url = new JMXServiceURL(protocol.toString(), "0.0.0.0", port, path);
+    public JMXConnectorServer start() throws IOException {
         if (mbs == null) {
             mbs = ManagementFactory.getPlatformMBeanServer();
         }
+
+        Properties.metrics.startJmxReporter(mbs);
+
         try {
             mbeans.forEach((k,v) -> {
                 try {
                     mbs.registerMBean(v,k);
-                } catch (InstanceAlreadyExistsException | MBeanRegistrationException | NotCompliantMBeanException ex) {
+                } catch (InstanceAlreadyExistsException
+                                | MBeanRegistrationException
+                                | NotCompliantMBeanException ex) {
                     throw new UndeclaredThrowableException(ex);
                 }
             });
         } catch (UndeclaredThrowableException ex) {
-            throw (Exception) ex.getCause();
+            throw new IllegalStateException("Unusuable JMX setup: " + Helpers.resolveThrowableException(ex), ex);
         }
-        JMXConnectorServer cs = JMXConnectorServerFactory.newJMXConnectorServer(url, env, mbs);
-        cs.start();
-        return cs;
+
+        if (port >= 0) {
+            Map<String, Object> env = new HashMap<>();
+            RMIClientSocketFactory csf = null;
+            RMIServerSocketFactory ssf = null;
+            if (hostname != null) {
+                System.setProperty("java.rmi.server.hostname", hostname);
+                System.setProperty("java.rmi.server.useLocalHostname", "false");
+            }
+            if (withSsl) {
+                ssf = new SslRMIServerSocketFactory(sslContext, null, null, false);
+                env.put(RMIConnectorServer.RMI_SERVER_SOCKET_FACTORY_ATTRIBUTE, ssf);
+            }
+            if (jaasName != null) {
+                AuthenticationHandler ah = AuthenticationHandler.getBuilder()
+                                .setJaasName(jaasName)
+                                .setJaasConfig(jaasConfig)
+                                .build();
+
+                env.put(JMXConnectorServer.AUTHENTICATOR,
+                        new JMXAuthenticator() {
+                    @Override
+                    public Subject authenticate(Object credentials) {
+
+                        Principal p = null;
+                        if ((credentials instanceof String[])) {
+                            String[] loginPassword = (String[]) credentials;
+                            if (loginPassword.length == 2) {
+                                p = ah.checkLoginPassword(loginPassword[0],
+                                                          loginPassword[1].toCharArray());
+                                loginPassword[1] = null;
+                                if (p == null) {
+                                    throw new SecurityException("Invalid user");
+                                }
+                            }
+                        }
+                        if (p == null) {
+                            throw new SecurityException("Invalid configuration");
+                        } else {
+                            return new Subject(true,
+                                               Collections.singleton(p),
+                                               Collections.emptySet(),
+                                               Collections.emptySet());
+                        }
+                    }
+                });
+            }
+            String path = "/";
+            if (protocol == PROTOCOL.rmi) {
+                java.rmi.registry.LocateRegistry.createRegistry(port, csf, ssf);
+                path = "/jndi/rmi://0.0.0.0:" + port + "/jmxrmi";
+            }
+            JMXServiceURL url = new JMXServiceURL(protocol.toString(), "0.0.0.0",
+                                                  port, path);
+            JMXConnectorServer cs = JMXConnectorServerFactory.newJMXConnectorServer(url,
+                                                                                    env,
+                                                                                    mbs);
+            cs.start();
+            return cs;
+        } else {
+            return null;
+        }
     }
 
 }

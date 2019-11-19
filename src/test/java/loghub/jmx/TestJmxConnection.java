@@ -10,12 +10,14 @@ import java.util.HashMap;
 import java.util.Map;
 
 import javax.management.InstanceNotFoundException;
+import javax.management.MBeanServer;
 import javax.management.MBeanServerFactory;
 import javax.management.remote.JMXConnector;
 import javax.management.remote.JMXConnectorFactory;
 import javax.management.remote.JMXConnectorServer;
 import javax.management.remote.JMXServiceURL;
 
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -38,7 +40,6 @@ public class TestJmxConnection {
     private static final String loopbackip = InetAddress.getLoopbackAddress().getHostAddress();
     private final int port = Tools.tryGetPort();
 
-
     static {
         Map<String, String> env = new HashMap<>();
 
@@ -52,10 +53,12 @@ public class TestJmxConnection {
         System.getProperties().putAll(env);
     }
 
+    @After
     public void stopJmx() throws IOException {
         if (server != null) {
             server.stop();
         }
+        Properties.metrics.stopJmxReporter();
     }
 
     @Test
@@ -63,7 +66,8 @@ public class TestJmxConnection {
         String configStr = "jmx.port: " +  port + "\njmx.hostname: \"" + hostip +"\"";
         StringReader reader = new StringReader(configStr);
         Properties props = Configuration.parse(reader);
-        server = props.jmxBuilder.setMbs(MBeanServerFactory.newMBeanServer()).start();
+        MBeanServer mbs = MBeanServerFactory.newMBeanServer();
+        server = props.jmxBuilder.setMbs(mbs).start();
         connect(hostip, loopbackip);
     }
 
@@ -72,7 +76,8 @@ public class TestJmxConnection {
         String configStr = "jmx.port: " +  port + "\njmx.hostname: \"" + loopbackip +"\"";
         StringReader reader = new StringReader(configStr);
         Properties props = Configuration.parse(reader);
-        server = props.jmxBuilder.setMbs(MBeanServerFactory.newMBeanServer()).start();
+        MBeanServer mbs = MBeanServerFactory.newMBeanServer();
+        server = props.jmxBuilder.setMbs(mbs).start();
         connect(loopbackip, hostip);
     }
 
@@ -83,8 +88,8 @@ public class TestJmxConnection {
         String cnxId = jmxc.getConnectionId();
         Assert.assertTrue(cnxId.contains(ip1));
         Assert.assertFalse(cnxId.contains(ip2));
-        Assert.assertNotNull(jmxc.getMBeanServerConnection().getObjectInstance(StatsMBean.Implementation.NAME));
         Assert.assertNotNull(jmxc.getMBeanServerConnection().getObjectInstance(ExceptionsMBean.Implementation.NAME));
+        Assert.assertNotNull(jmxc.getMBeanServerConnection().getObjectInstance(StatsMBean.Implementation.NAME));
     }
 
 }

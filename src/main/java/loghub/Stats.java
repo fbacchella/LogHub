@@ -6,8 +6,9 @@ import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.atomic.AtomicLong;
 
+import com.codahale.metrics.MetricRegistry;
+
 import loghub.configuration.Properties;
-import loghub.configuration.Properties.MetricRegistryWrapper;
 import loghub.decoders.Decoder.DecodeException;
 
 public final class Stats {
@@ -15,7 +16,7 @@ public final class Stats {
     static public enum PIPELINECOUNTERS {
         BLOCKEDOUT {
             @Override
-            public void instanciate(MetricRegistryWrapper metrics, String name) {
+            public void instanciate(MetricRegistry metrics, String name) {
                 metrics.meter("Pipeline." + name + "." + prettyName());
             }
             @Override
@@ -25,7 +26,7 @@ public final class Stats {
         },
         BLOCKEDIN {
             @Override
-            public void instanciate(MetricRegistryWrapper metrics, String name) {
+            public void instanciate(MetricRegistry metrics, String name) {
                 metrics.meter("Pipeline." + name + "." + prettyName());
             }
             @Override
@@ -35,7 +36,7 @@ public final class Stats {
         },
         LOOPOVERFLOW {
             @Override
-            public void instanciate(MetricRegistryWrapper metrics, String name) {
+            public void instanciate(MetricRegistry metrics, String name) {
                 metrics.counter("Pipeline." + name + "." + prettyName());
             }
             @Override
@@ -45,7 +46,7 @@ public final class Stats {
         },
         EXCEPTION {
             @Override
-            public void instanciate(MetricRegistryWrapper metrics, String name) {
+            public void instanciate(MetricRegistry metrics, String name) {
                 metrics.meter("Pipeline." + name + "." + prettyName());
             }
             @Override
@@ -55,7 +56,7 @@ public final class Stats {
         },
         DROPED {
             @Override
-            public void instanciate(MetricRegistryWrapper metrics, String name) {
+            public void instanciate(MetricRegistry metrics, String name) {
                 metrics.meter("Pipeline." + name + "." + prettyName());
             }
             @Override
@@ -65,7 +66,7 @@ public final class Stats {
         },
         FAILED {
             @Override
-            public void instanciate(MetricRegistryWrapper metrics, String name) {
+            public void instanciate(MetricRegistry metrics, String name) {
                 metrics.meter("Pipeline." + name + "." + prettyName());
             }
             @Override
@@ -75,7 +76,7 @@ public final class Stats {
         },
         INFLIGHT {
             @Override
-            public void instanciate(MetricRegistryWrapper metrics, String name) {
+            public void instanciate(MetricRegistry metrics, String name) {
                 metrics.counter("Pipeline." + name + "." + prettyName());
             }
             @Override
@@ -85,7 +86,7 @@ public final class Stats {
         },
         TIMER {
             @Override
-            public void instanciate(MetricRegistryWrapper metrics, String name) {
+            public void instanciate(MetricRegistry metrics, String name) {
                 metrics.timer("Pipeline." + name + "." + prettyName());
             }
             @Override
@@ -93,7 +94,7 @@ public final class Stats {
                 return "timer";
             }
         };
-        public abstract void instanciate(MetricRegistryWrapper metrics, String name);
+        public abstract void instanciate(MetricRegistry metrics, String name);
         public abstract String prettyName();
         public String metricName(String name) {
             return "Pipeline." + name + "." + prettyName();

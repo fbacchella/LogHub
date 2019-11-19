@@ -8,6 +8,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.BlockingQueue;
@@ -20,6 +21,7 @@ import java.util.stream.Collectors;
 
 import javax.management.InstanceAlreadyExistsException;
 import javax.management.MBeanRegistrationException;
+import javax.management.MBeanServer;
 import javax.management.MalformedObjectNameException;
 import javax.management.NotCompliantMBeanException;
 import javax.management.ObjectName;
@@ -33,7 +35,6 @@ import com.codahale.metrics.Counter;
 import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Histogram;
 import com.codahale.metrics.Meter;
-import com.codahale.metrics.Metric;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.jmx.DefaultObjectNameFactory;
 import com.codahale.metrics.jmx.JmxReporter;
@@ -44,6 +45,7 @@ import io.netty.util.concurrent.Future;
 import loghub.DashboardHttpServer;
 import loghub.Event;
 import loghub.EventsRepository;
+import loghub.Helpers;
 import loghub.Pipeline;
 import loghub.Processor;
 import loghub.Source;
@@ -62,7 +64,14 @@ import loghub.zmq.SmartContext;
 public class Properties extends HashMap<String, Object> {
 
     public static final class MetricRegistryWrapper {
-        private MetricRegistry metrics = new MetricRegistry();
+
+        private MetricRegistry metrics = null;
+        private JmxReporter.Builder reporterBuilder = null;
+        private JmxReporter reporter = null;
+
+        private MetricRegistryWrapper() {
+            reset();
+        }
 
         public Counter counter(String name) {
             return metrics.counter(name);
@@ -82,16 +91,10 @@ public class Properties extends HashMap<String, Object> {
 
         public void reset() {
             metrics = new MetricRegistry();
-        }
-
-        public <T extends Metric> T register(String name, T metric) throws IllegalArgumentException {
-            return metrics.register(name, metric);
-        }
-
-        public JmxReporter getJmxReporter() {
+            Optional.ofNullable(reporter).ifPresent(JmxReporter::stop);
             ObjectNameFactory donf = new DefaultObjectNameFactory();
-            final Pattern pipepattern = Pattern.compile("([^\\.]+)\\.([^\\.]+)\\.(.*)");
-            return JmxReporter.forRegistry(metrics).createsObjectNamesWith(new ObjectNameFactory() {
+            Pattern pipepattern = Pattern.compile("([^\\.]+)\\.([^\\.]+)\\.(.*)");
+            reporterBuilder = JmxReporter.forRegistry(metrics).createsObjectNamesWith(new ObjectNameFactory() {
                 @Override
                 public ObjectName createName(String type, String domain, String name) {
                     Matcher m = pipepattern.matcher(name);
@@ -109,8 +112,19 @@ public class Properties extends HashMap<String, Object> {
                         return donf.createName(type, domain, name);
                     }
                 }
+            });
+        }
 
-            }).build();
+        public void startJmxReporter(MBeanServer mbs) {
+            reporter = reporterBuilder.registerWith(mbs).build();
+            reporterBuilder = null;
+            reporter.start();
+        }
+
+        public void stopJmxReporter() {
+            reporter.stop();
+            reporter = null;
+            reporterBuilder = null;
         }
     };
 
@@ -205,7 +219,7 @@ public class Properties extends HashMap<String, Object> {
 
         // Extracts all the named pipelines and generate metrics for them
         namedPipeLine.keySet().stream().forEach( i -> {
-            Arrays.stream(Stats.PIPELINECOUNTERS.values()).forEach( j -> j.instanciate(metrics, i));
+            Arrays.stream(Stats.PIPELINECOUNTERS.values()).forEach( j -> j.instanciate(metrics.metrics, i));
         });
         metrics.counter("Allevents.inflight");
         metrics.timer("Allevents.timer");
@@ -242,19 +256,17 @@ public class Properties extends HashMap<String, Object> {
         }
         jaasConfig = jc;
 
-        if (((Number)properties.getOrDefault("jmx.port", -1)).intValue() >= 0) {
-            try {
-                jmxBuilder = JmxServerBuilder.builder()
-                                .setProperties(filterPrefix(properties, "jmx"))
-                                .setSslContext(ssl)
-                                .setJaasConfig(jaasConfig)
-                                .register(StatsMBean.Implementation.NAME, new StatsMBean.Implementation())
-                                .register(ExceptionsMBean.Implementation.NAME, new ExceptionsMBean.Implementation());
-            } catch (NotCompliantMBeanException |MalformedObjectNameException | InstanceAlreadyExistsException | MBeanRegistrationException ex) {
-                throw new ConfigException("Invalid JMX configuration", ex);
-            }
-        } else {
-            jmxBuilder = null;
+        try {
+            jmxBuilder = JmxServerBuilder.builder()
+                            .setProperties(filterPrefix(properties, "jmx"))
+                            .setSslContext(ssl)
+                            .register(StatsMBean.Implementation.NAME, new StatsMBean.Implementation())
+                            .register(ExceptionsMBean.Implementation.NAME, new ExceptionsMBean.Implementation())
+                            .setJaasConfig(jaasConfig);
+        } catch (NotCompliantMBeanException | MalformedObjectNameException
+                        | InstanceAlreadyExistsException
+                        | MBeanRegistrationException ex) {
+            throw new ConfigException("Unusuable JMX setup: " + Helpers.resolveThrowableException(ex), ex);
         }
 
         try {
@@ -270,27 +282,27 @@ public class Properties extends HashMap<String, Object> {
         mainQueue = properties.containsKey(PROPSNAMES.MAINQUEUE.toString()) ? (BlockingQueue<Event>) properties.remove(PROPSNAMES.MAINQUEUE.toString()) :  new LinkedBlockingDeque<Event>();;
         outputQueues = properties.containsKey(PROPSNAMES.OUTPUTQUEUE.toString()) ? (Map<String, BlockingQueue<Event>>) properties.remove(PROPSNAMES.OUTPUTQUEUE.toString()) : null;
 
-        metrics.register(
-                         "EventWaiting.mainloop",
-                         new Gauge<Integer>() {
-                             @Override
-                             public Integer getValue() {
-                                 return mainQueue != null ? mainQueue.size() : 0;
-                             }
-                         });
+        metrics.metrics.register(
+                                 "EventWaiting.mainloop",
+                                 new Gauge<Integer>() {
+                                     @Override
+                                     public Integer getValue() {
+                                         return mainQueue != null ? mainQueue.size() : 0;
+                                     }
+                                 });
 
         if (outputQueues != null) {
             for(Map.Entry<String, BlockingQueue<Event>> i: outputQueues.entrySet()) {
                 final BlockingQueue<Event> queue = i.getValue();
                 final String name = i.getKey();
-                metrics.register(
-                                 "EventWaiting.output." + name,
-                                 new Gauge<Integer>() {
-                                     @Override
-                                     public Integer getValue() {
-                                         return queue.size();
-                                     }
-                                 });
+                metrics.metrics.register(
+                                         "EventWaiting.output." + name,
+                                         new Gauge<Integer>() {
+                                             @Override
+                                             public Integer getValue() {
+                                                 return queue.size();
+                                             }
+                                         });
             }
         }
 

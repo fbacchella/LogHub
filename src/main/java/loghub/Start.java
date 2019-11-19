@@ -242,6 +242,7 @@ public class Start {
             props.receivers.forEach( i -> i.stopReceiving());
             allep.forEach(i -> i.stopProcessing());
             props.senders.forEach( i -> i.stopSending());
+            Properties.metrics.stopJmxReporter();
         };
         shutdownAction = ThreadBuilder.get()
                         .setDaemon(false)
@@ -251,11 +252,8 @@ public class Start {
                         .build();
 
         try {
-            if (props.jmxBuilder != null) {
-                Properties.metrics.getJmxReporter().start();
-                props.jmxBuilder.start();
-            }
-        } catch (Exception e) {
+            props.jmxBuilder.start();
+        } catch (IOException e) {
             logger.error("JMX start failed: {}", Helpers.resolveThrowableException(e));
             shutdownAction.start();
             throw new IllegalStateException();
