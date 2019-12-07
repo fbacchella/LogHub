@@ -10,11 +10,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 import javax.management.InstanceNotFoundException;
-import javax.management.MBeanServer;
-import javax.management.MBeanServerFactory;
 import javax.management.remote.JMXConnector;
 import javax.management.remote.JMXConnectorFactory;
-import javax.management.remote.JMXConnectorServer;
 import javax.management.remote.JMXServiceURL;
 
 import org.junit.After;
@@ -26,8 +23,6 @@ import loghub.configuration.Configuration;
 import loghub.configuration.Properties;
 
 public class TestJmxConnection {
-
-    private JMXConnectorServer server = null;
 
     private static final String hostip;
     static {
@@ -55,10 +50,7 @@ public class TestJmxConnection {
 
     @After
     public void stopJmx() throws IOException {
-        if (server != null) {
-            server.stop();
-        }
-        Properties.metrics.stopJmxReporter();
+        JmxService.stop();
     }
 
     @Test
@@ -66,9 +58,9 @@ public class TestJmxConnection {
         String configStr = "jmx.port: " +  port + "\njmx.hostname: \"" + hostip +"\"";
         StringReader reader = new StringReader(configStr);
         Properties props = Configuration.parse(reader);
-        MBeanServer mbs = MBeanServerFactory.newMBeanServer();
-        server = props.jmxBuilder.setMbs(mbs).start();
+        JmxService.start(props.jmxServiceConfiguration);
         connect(hostip, loopbackip);
+        JmxService.stop();
     }
 
     @Test
@@ -76,9 +68,9 @@ public class TestJmxConnection {
         String configStr = "jmx.port: " +  port + "\njmx.hostname: \"" + loopbackip +"\"";
         StringReader reader = new StringReader(configStr);
         Properties props = Configuration.parse(reader);
-        MBeanServer mbs = MBeanServerFactory.newMBeanServer();
-        server = props.jmxBuilder.setMbs(mbs).start();
+        JmxService.start(props.jmxServiceConfiguration);
         connect(loopbackip, hostip);
+        JmxService.stop();
     }
 
     private void connect(String ip1, String ip2) throws IOException, InstanceNotFoundException {

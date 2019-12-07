@@ -8,23 +8,18 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.function.BiFunction;
 import java.util.function.Function;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import javax.management.InstanceAlreadyExistsException;
 import javax.management.MBeanRegistrationException;
-import javax.management.MBeanServer;
 import javax.management.MalformedObjectNameException;
 import javax.management.NotCompliantMBeanException;
-import javax.management.ObjectName;
 import javax.net.ssl.SSLContext;
 
 import org.apache.logging.log4j.Level;
@@ -36,9 +31,6 @@ import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Histogram;
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.MetricRegistry;
-import com.codahale.metrics.jmx.DefaultObjectNameFactory;
-import com.codahale.metrics.jmx.JmxReporter;
-import com.codahale.metrics.jmx.ObjectNameFactory;
 
 import groovy.lang.GroovyClassLoader;
 import io.netty.util.concurrent.Future;
@@ -53,7 +45,7 @@ import loghub.Stats;
 import loghub.ThreadBuilder;
 import loghub.VarFormatter;
 import loghub.jmx.ExceptionsMBean;
-import loghub.jmx.JmxServerBuilder;
+import loghub.jmx.JmxService;
 import loghub.jmx.StatsMBean;
 import loghub.receivers.Receiver;
 import loghub.security.JWTHandler;
@@ -64,14 +56,7 @@ import loghub.zmq.SmartContext;
 public class Properties extends HashMap<String, Object> {
 
     public static final class MetricRegistryWrapper {
-
-        private MetricRegistry metrics = null;
-        private JmxReporter.Builder reporterBuilder = null;
-        private JmxReporter reporter = null;
-
-        private MetricRegistryWrapper() {
-            reset();
-        }
+        private MetricRegistry metrics = new MetricRegistry();
 
         public Counter counter(String name) {
             return metrics.counter(name);
@@ -91,40 +76,7 @@ public class Properties extends HashMap<String, Object> {
 
         public void reset() {
             metrics = new MetricRegistry();
-            Optional.ofNullable(reporter).ifPresent(JmxReporter::stop);
-            ObjectNameFactory donf = new DefaultObjectNameFactory();
-            Pattern pipepattern = Pattern.compile("([^\\.]+)\\.([^\\.]+)\\.(.*)");
-            reporterBuilder = JmxReporter.forRegistry(metrics).createsObjectNamesWith(new ObjectNameFactory() {
-                @Override
-                public ObjectName createName(String type, String domain, String name) {
-                    Matcher m = pipepattern.matcher(name);
-                    if (m.matches()) {
-                        String service = m.group(1);
-                        String servicename = m.group(2);
-                        String metric = m.group(3);
-                        try {
-                            ObjectName on = new ObjectName(String.format("loghub:type=%s,servicename=%s,name=%s", service, servicename, metric));
-                            return on;
-                        } catch (MalformedObjectNameException e) {
-                            return donf.createName(type, domain, name);
-                        }
-                    } else {
-                        return donf.createName(type, domain, name);
-                    }
-                }
-            });
-        }
-
-        public void startJmxReporter(MBeanServer mbs) {
-            reporter = reporterBuilder.registerWith(mbs).build();
-            reporterBuilder = null;
-            reporter.start();
-        }
-
-        public void stopJmxReporter() {
-            reporter.stop();
-            reporter = null;
-            reporterBuilder = null;
+            JmxService.stopMetrics();
         }
     };
 
@@ -156,7 +108,7 @@ public class Properties extends HashMap<String, Object> {
     public final Map<String, Source> sources;
     public final GroovyClassLoader groovyClassLoader;
     public final Map<String, VarFormatter> formatters;
-    public final JmxServerBuilder jmxBuilder;
+    public final JmxService.Configuration jmxServiceConfiguration;
     public final int numWorkers;
     public final BlockingQueue<Event> mainQueue;
     public final Map<String, BlockingQueue<Event>> outputQueues;
@@ -257,7 +209,8 @@ public class Properties extends HashMap<String, Object> {
         jaasConfig = jc;
 
         try {
-            jmxBuilder = JmxServerBuilder.builder()
+            jmxServiceConfiguration = JmxService.configuration()
+                            .setMetrics(metrics.metrics)
                             .setProperties(filterPrefix(properties, "jmx"))
                             .setSslContext(ssl)
                             .register(StatsMBean.Implementation.NAME, new StatsMBean.Implementation())
@@ -327,9 +280,9 @@ public class Properties extends HashMap<String, Object> {
         int prefixLenght = prefix.length() + 1;
         String prefixKey = prefix + ".";
         return input
-               .entrySet()
-               .stream()
-               .filter(i -> i.getKey().startsWith(prefixKey)).collect(Collectors.toMap(i -> i.getKey().substring(prefixLenght), j -> j.getValue()));
+                        .entrySet()
+                        .stream()
+                        .filter(i -> i.getKey().startsWith(prefixKey)).collect(Collectors.toMap(i -> i.getKey().substring(prefixLenght), j -> j.getValue()));
     }
 
     /**

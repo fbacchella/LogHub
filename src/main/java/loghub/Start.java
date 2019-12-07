@@ -22,6 +22,7 @@ import loghub.configuration.ConfigException;
 import loghub.configuration.Configuration;
 import loghub.configuration.Properties;
 import loghub.configuration.TestEventProcessing;
+import loghub.jmx.JmxService;
 import loghub.processors.FieldsProcessor;
 import loghub.receivers.Receiver;
 import loghub.security.JWTHandler;
@@ -242,7 +243,7 @@ public class Start {
             props.receivers.forEach( i -> i.stopReceiving());
             allep.forEach(i -> i.stopProcessing());
             props.senders.forEach( i -> i.stopSending());
-            Properties.metrics.stopJmxReporter();
+            JmxService.stop();
         };
         shutdownAction = ThreadBuilder.get()
                         .setDaemon(false)
@@ -252,7 +253,7 @@ public class Start {
                         .build();
 
         try {
-            props.jmxBuilder.start();
+            JmxService.start(props.jmxServiceConfiguration);
         } catch (IOException e) {
             logger.error("JMX start failed: {}", Helpers.resolveThrowableException(e));
             shutdownAction.start();

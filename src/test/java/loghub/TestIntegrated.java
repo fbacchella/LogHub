@@ -19,6 +19,7 @@ import javax.management.ReflectionException;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -34,6 +35,7 @@ import com.codahale.metrics.jmx.JmxReporter.JmxTimerMBean;
 import loghub.configuration.ConfigException;
 import loghub.configuration.Configuration;
 import loghub.jmx.ExceptionsMBean;
+import loghub.jmx.JmxService;
 import loghub.jmx.StatsMBean;
 import loghub.zmq.ZMQCheckedException;
 import loghub.zmq.ZMQHelper.Method;
@@ -50,6 +52,11 @@ public class TestIntegrated {
         Tools.configure();
         logger = LogManager.getLogger();
         LogUtils.setLevel(logger, Level.DEBUG, "loghub.EventsProcessor");
+    }
+    
+    @After
+    public void endJmx() {
+        JmxService.stop();
     }
 
     @Test(timeout=10000)
