@@ -395,13 +395,20 @@ public abstract class AbstractHttpSender extends Sender {
 
         //Schedule a task to flush every 5 seconds
         Runnable flush = () -> {
-            synchronized(publisher) {
-                long now = new Date().getTime();
-                if (( now - lastFlush) > 5000) {
-                    batches.add(batch);
-                    batch = new Batch();
-                    publisher.notify();
+            try {
+                synchronized(publisher) {
+                    long now = new Date().getTime();
+                    if (( now - lastFlush) > 5000) {
+                        batches.add(batch);
+                        batch = new Batch();
+                        publisher.notify();
+                    }
                 }
+            } catch (IllegalStateException e) {
+                logger.warn("Failed to launch a scheduled batch: " + Helpers.resolveThrowableException(e));
+                logger.catching(Level.DEBUG, e);
+            } catch (Exception e) {
+                logger.error("Failed to launch a scheduled batch: " + Helpers.resolveThrowableException(e), e);
             }
         };
         properties.registerScheduledTask(getPublishName() + "Flusher" , flush, 5000);
