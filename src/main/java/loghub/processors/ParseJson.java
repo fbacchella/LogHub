@@ -6,9 +6,12 @@ import java.util.Map;
 
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.jsontype.impl.StdTypeResolverBuilder;
 
 import loghub.Event;
 import loghub.ProcessorException;
+import lombok.Getter;
+import lombok.Setter;
 
 public class ParseJson extends FieldsProcessor {
 
@@ -16,9 +19,14 @@ public class ParseJson extends FieldsProcessor {
     private static final ThreadLocal<ObjectMapper> json = new ThreadLocal<ObjectMapper>() {
         @Override
         protected ObjectMapper initialValue() {
-            return new ObjectMapper(factory);
+            ObjectMapper mapper = new ObjectMapper(factory);
+            mapper.setDefaultTyping(StdTypeResolverBuilder.noTypeInfoBuilder());
+            return mapper;
         }
     };
+
+    @Getter @Setter
+    String atPrefix = "_";
 
     @Override
     public Object fieldFunction(Event event, Object value) throws ProcessorException {
@@ -30,7 +38,7 @@ public class ParseJson extends FieldsProcessor {
                 for(Map.Entry<Object, Object> e: map.entrySet()) {
                     String key = e.getKey().toString();
                     if (key.startsWith("@")) {
-                        event.put("_" + key, e.getValue());
+                        event.put(atPrefix + key.substring(1), e.getValue());
                     } else {
                         event.put( key, e.getValue());
                     }
