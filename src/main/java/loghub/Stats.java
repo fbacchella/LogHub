@@ -110,6 +110,7 @@ public final class Stats {
     public final static AtomicLong blocked = new AtomicLong();
     public final static AtomicLong failedSend = new AtomicLong();
     public final static AtomicLong failedReceived = new AtomicLong();
+    public final static AtomicLong loopOverflow = new AtomicLong();
 
     private final static Queue<ProcessingException> processorExceptions = new ArrayBlockingQueue<>(100);
     private final static Queue<DecodeException> decodeExceptions = new ArrayBlockingQueue<>(100);
@@ -242,18 +243,19 @@ public final class Stats {
     public static void pipelineHanding(String name, PipelineStat status, Throwable ex) {
         switch(status) {
         case FAILURE:
-            Properties.metrics.meter(PIPELINECOUNTERS.FAILED.metricName(name)).mark();
             Stats.newProcessorError((ProcessingException) ex);
+            Properties.metrics.meter(PIPELINECOUNTERS.FAILED.metricName(name)).mark();
             break;
         case DROP:
             Stats.dropped.incrementAndGet();
             Properties.metrics.meter(PIPELINECOUNTERS.DROPED.metricName(name)).mark();
             break;
         case EXCEPTION:
-            Properties.metrics.counter(PIPELINECOUNTERS.EXCEPTION.metricName(name)).inc();
             Stats.newProcessorException(ex);
+            Properties.metrics.counter(PIPELINECOUNTERS.EXCEPTION.metricName(name)).inc();
             break;
         case LOOPOVERFLOW:
+            Stats.loopOverflow.incrementAndGet();
             Properties.metrics.counter(PIPELINECOUNTERS.LOOPOVERFLOW.metricName(name)).inc();
             break;
         case INFLIGHTUP:

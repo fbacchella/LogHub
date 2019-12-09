@@ -47,6 +47,10 @@ public interface StatsMBean {
         return loghub.Stats.blocked.get();
     }
 
+    default public long getLoopOverflow() {
+        return loghub.Stats.loopOverflow.get();
+    }
+
     public class Implementation extends StandardMBean implements StatsMBean {
 
         public final static ObjectName NAME;
