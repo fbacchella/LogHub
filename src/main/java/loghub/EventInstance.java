@@ -149,10 +149,10 @@ class EventInstance extends Event {
             return "postSubpipline";
         }
     }
-    
+
     private static final Map<String, PreSubpipline> preSubpiplines = new ConcurrentHashMap<>();
     private static final PostSubpipline postSubpipline = new PostSubpipline();
-    
+
     private static PreSubpipline getPre(String name) {
         return preSubpiplines.computeIfAbsent(name, PreSubpipline::new);
     }
@@ -195,7 +195,7 @@ class EventInstance extends Event {
      * Ensure than transient fields store the good values
      * @return
      */
-    private Object readResolve() {
+    private void readResolve() {
         if (!test) {
             timer = Properties.metrics.timer("Allevents.timer").time();
             Properties.metrics.counter("Allevents.inflight").inc();
@@ -205,7 +205,6 @@ class EventInstance extends Event {
         processors = new LinkedList<>();
         wevent = null;
         executionStack = Collections.asLifoQueue(new ArrayDeque<>());
-        return this;
     }
 
 
@@ -242,24 +241,22 @@ class EventInstance extends Event {
      * @return a copy of this event, with a different key
      */
     public Event duplicate() {
-        ctx.acknowledge();
-        try {
-            ByteArrayOutputStream bos = new ByteArrayOutputStream();
-            ObjectOutputStream oos = new ObjectOutputStream(bos);
+        try (ByteArrayOutputStream bos = new ByteArrayOutputStream(); ObjectOutputStream oos = new ObjectOutputStream(bos);) {
             oos.writeObject(this);
             oos.flush();
-            oos.close();
-            bos.close();
+            bos.flush();
             byte[] byteData = bos.toByteArray();
-            ByteArrayInputStream bais = new ByteArrayInputStream(byteData);
-            return (EventInstance) new ObjectInputStream(bais).readObject();
+            try (ByteArrayInputStream bais = new ByteArrayInputStream(byteData)) {
+                EventInstance forked = (EventInstance) new ObjectInputStream(bais).readObject();
+                forked.readResolve();
+                return forked;
+            }
         } catch (NotSerializableException ex) {
-            logger.info("Event copy failed: {}", ex.getMessage());
+            logger.info("Event copy failed: {}", Helpers.resolveThrowableException(ex));
             logger.catching(Level.DEBUG, ex);
             return null;
-        } catch (ClassNotFoundException | IOException ex) {
-            logger.fatal("Event copy failed: {}", ex.getMessage());
-            logger.catching(Level.FATAL, ex);
+        } catch (ClassNotFoundException | IOException | SecurityException | IllegalArgumentException ex) {
+            logger.fatal("Event copy failed: {}", Helpers.resolveThrowableException(ex), ex);
             return null;
         }
     }

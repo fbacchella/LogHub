@@ -58,6 +58,10 @@ public class Tools {
         return new EventInstance(ConnectionContext.EMPTY);
     }
 
+    public static Event getEvent(ConnectionContext<?> ctx) {
+        return new EventInstance(ctx);
+    }
+
     public static void runProcessing(Event sent, Pipeline pipe, Properties props) throws ProcessorException {
         EventsProcessor ep = new EventsProcessor(props.mainQueue, props.outputQueues, props.namedPipeLine, props.maxSteps, props.repository);
         sent.inject(pipe, props.mainQueue);
