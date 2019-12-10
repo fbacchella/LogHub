@@ -155,8 +155,9 @@ public class EventsProcessor extends Thread {
         } else if (p instanceof Drop) {
             status = ProcessingStatus.DROPED;
             e.doMetric(Stats.PipelineStat.DROP);
-        } else if (e.stepsCount() > maxSteps) {
-            logger.error("Too much steps for event {}, dropping", e);
+        } else if (e.processingDone() > maxSteps) {
+            logger.error("Too much steps for an event in pipeline. Done {} steps, still {} left, throwing away", () -> e.processingDone(), () -> e.processingLeft());
+            logger.debug("Thrown event: {}", e);
             e.doMetric(Stats.PipelineStat.LOOPOVERFLOW);
             status = ProcessingStatus.FAILED;
         } else {

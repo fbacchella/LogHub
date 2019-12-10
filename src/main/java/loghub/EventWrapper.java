@@ -250,8 +250,13 @@ class EventWrapper extends Event {
     }
 
     @Override
-    public int stepsCount() {
-        return event.stepsCount();
+    public int processingDone() {
+        return event.processingDone();
+    }
+
+    @Override
+    public int processingLeft() {
+        return event.processingLeft();
     }
 
     @Override

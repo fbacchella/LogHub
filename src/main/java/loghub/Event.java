@@ -219,7 +219,9 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
 
     public abstract void end();
 
-    public abstract int stepsCount();
+    public abstract int processingDone();
+
+    public abstract int processingLeft();
 
     public abstract boolean isTest();
 

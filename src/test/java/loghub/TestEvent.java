@@ -91,12 +91,12 @@ public class TestEvent {
             if (ep.process(e, processor) != ProcessingStatus.CONTINUE) {
                 break;
             };
-            Assert.assertTrue("Not counting processing", e.stepsCount() > numsteps);
-            Assert.assertTrue("Not stopping processing", e.stepsCount() <= props.maxSteps);
-            Assert.assertTrue("Not stopping processing", e.stepsCount() <= loop);
-            numsteps = e.stepsCount();
+            Assert.assertTrue("Not counting processing", e.processingDone() > numsteps);
+            Assert.assertTrue("Not stopping processing", e.processingDone() <= props.maxSteps);
+            Assert.assertTrue("Not stopping processing", e.processingDone() <= loop);
+            numsteps = e.processingDone();
         }
-        Assert.assertTrue("Breaking early", e.stepsCount() >= props.maxSteps);
+        Assert.assertTrue("Breaking early", e.processingDone() >= props.maxSteps);
         e.end();
     }
 

@@ -409,8 +409,13 @@ class EventInstance extends Event {
     }
 
     @Override
-    public int stepsCount() {
+    public int processingDone() {
         return stepsCount;
+    }
+
+    @Override
+    public int processingLeft() {
+        return processors.size();
     }
 
     @Override
