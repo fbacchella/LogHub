@@ -214,6 +214,7 @@ class EventInstance extends Event {
             timer.close();
             executionStack.forEach(ExecutionStackElement::close);
             Properties.metrics.counter("Allevents.inflight").dec();
+            Properties.metrics.histogram("Steps").update(stepsCount);
         } else {
             synchronized(this) {
                 notify();

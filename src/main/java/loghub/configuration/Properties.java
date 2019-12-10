@@ -175,6 +175,7 @@ public class Properties extends HashMap<String, Object> {
         });
         metrics.counter("Allevents.inflight");
         metrics.timer("Allevents.timer");
+        metrics.histogram("Steps");
         cacheManager = new CacheManager(this);
 
         if (properties.containsKey("numWorkers")) {
