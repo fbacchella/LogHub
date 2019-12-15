@@ -269,4 +269,19 @@ public class TestConfigurations {
         Configuration.parse(new StringReader(confile));
     }
 
+    @Test
+    public void testBadCharset() throws ConfigException, IOException {
+        try {
+            String confile = "input {\n" + 
+                            "    loghub.receivers.TimeSerie { decoder: loghub.decoders.StringCodec { charset: \"NONE\"}, frequency: 10 }\n" + 
+                            "} | $main\n" + 
+                            "";
+            Configuration.parse(new StringReader(confile));
+            Assert.fail("An exception was expected");
+        } catch (ConfigException e) {
+            Assert.assertEquals("Illegal charset name: None", e.getMessage());
+            Assert.assertEquals("file <unknown>, line 2:42", e.getLocation());
+        }
+    }
+
 }
