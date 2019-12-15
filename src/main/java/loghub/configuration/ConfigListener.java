@@ -335,7 +335,12 @@ class ConfigListener extends RouteBaseListener {
         ObjectWrapped<Object> wobject = stack.popTyped();
         if (wobject.wrapped instanceof AbstractBuilder) {
             AbstractBuilder<?> builder = (AbstractBuilder<?>) wobject.wrapped;
-            stack.push(new ObjectWrapped<Object>(builder.build()));
+            try {
+                Object created = builder.build();
+                stack.push(new ObjectWrapped<Object>(created));
+            } catch (Exception e) {
+                throw new RecognitionException(Helpers.resolveThrowableException(e), parser, stream, ctx);
+            }
         } else {
             stack.push(wobject);
         }
