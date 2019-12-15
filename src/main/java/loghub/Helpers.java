@@ -10,6 +10,8 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLConnection;
 import java.net.UnknownHostException;
+import java.nio.charset.IllegalCharsetNameException;
+import java.nio.charset.UnsupportedCharsetException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -341,10 +343,15 @@ public final class Helpers {
             t = t.getCause();
         }
         String message = t.getMessage();
+        // Helping resolve bad exception's message
         if (t instanceof NoSuchMethodException) {
             message = "No such method: " + t.getMessage();
         } else if (t instanceof ArrayIndexOutOfBoundsException) {
             message = "Array out of bounds: " + message;
+        } else if (t instanceof IllegalCharsetNameException) {
+            message = "Illegal charset name: " + t.getMessage();
+        } else if (t instanceof UnsupportedCharsetException) {
+            message = "Unsupported charset name: " + t.getMessage();
         } else if (message == null) {
             message = t.getClass().getSimpleName();
         }
