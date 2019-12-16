@@ -31,6 +31,10 @@ public class TestVarFormatter {
 
     private void checkFormat(Object value, String format, boolean fail) {
         for(Locale l: Locale.getAvailableLocales()) {
+            if ("tr".equals(l.getLanguage()) && "%TA".equals(format)) {
+                // Broken until Java 9
+                continue;
+            }
             VarFormatter vf = new VarFormatter("${" + format + "}", l);
             String printf = String.format(l, format, value);
             String formatter = vf.format(value);
