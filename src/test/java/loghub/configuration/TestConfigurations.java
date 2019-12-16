@@ -279,7 +279,7 @@ public class TestConfigurations {
             Configuration.parse(new StringReader(confile));
             Assert.fail("An exception was expected");
         } catch (ConfigException e) {
-            Assert.assertEquals("Illegal charset name: None", e.getMessage());
+            Assert.assertEquals("Unsupported charset name: NONE", e.getMessage());
             Assert.assertEquals("file <unknown>, line 2:42", e.getLocation());
         }
     }
