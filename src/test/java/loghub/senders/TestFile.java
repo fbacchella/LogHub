@@ -54,7 +54,6 @@ public class TestFile {
         public void acknowledge() {
             lock.release();
         }
-
     }
 
     private static Logger logger = LogManager.getLogger();

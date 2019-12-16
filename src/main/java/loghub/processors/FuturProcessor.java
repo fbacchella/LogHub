@@ -1,6 +1,5 @@
 package loghub.processors;
 
-import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 
 import org.apache.logging.log4j.LogManager;

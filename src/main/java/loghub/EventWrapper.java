@@ -62,7 +62,7 @@ class EventWrapper extends Event {
     @Override
     public Object put(String key, Object value) {
         try {
-            return action( Action.PUT, key, value, true);
+            return action(Action.PUT, key, value, true);
         } catch (ProcessorException e) {
             throw new UncheckedProcessorException(e);
         }

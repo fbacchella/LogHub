@@ -54,7 +54,6 @@ public class TestClassLoader {
         String config = "plugins: [\"${%s}\"] pipeline[main] { loghub.processors.TestProcessor {id: \"a\"} }";
         VarFormatter vf = new VarFormatter(config, Locale.ENGLISH);
         StringReader configReader = new StringReader(vf.format(plugindir));
-        Properties props = Tools.loadConf(configReader);
-        System.out.println(props.identifiedProcessors);
+        Tools.loadConf(configReader);
     }
 }
