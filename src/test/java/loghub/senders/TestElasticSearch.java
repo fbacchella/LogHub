@@ -28,6 +28,7 @@ import org.apache.logging.log4j.core.config.Configurator;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import loghub.Event;
@@ -81,6 +82,7 @@ public class TestElasticSearch {
         });
     }
 
+    @Ignore
     @Test
     public void testSend() throws InterruptedException {
         Stats.reset();
@@ -107,6 +109,7 @@ public class TestElasticSearch {
         Assert.assertEquals(count, Stats.sent.get());
     }
 
+    @Ignore
     @Test
     public void testWithExpression() throws InterruptedException {
         Stats.reset();
@@ -136,6 +139,7 @@ public class TestElasticSearch {
         Assert.assertEquals(count, Stats.sent.get());
     }
 
+    @Ignore
     @Test
     public void testEmptySend() throws InterruptedException {
         Stats.reset();
@@ -162,6 +166,7 @@ public class TestElasticSearch {
         Thread.sleep(1000);
     }
 
+    @Ignore
     @Test
     public void testSendInQueue() throws InterruptedException {
         Stats.reset();
@@ -192,6 +197,7 @@ public class TestElasticSearch {
         Assert.assertEquals(0, Properties.metrics.counter("Allevents.inflight").getCount());
     }
 
+    @Ignore
     @Test
     public void testParse() throws MalformedURLException, URISyntaxException {
         String[] destinations  = new String[] {"//localhost", "//truc:9301", "truc", "truc:9300"};
@@ -212,6 +218,7 @@ public class TestElasticSearch {
         }
     }
 
+    @Ignore
     @Test
     public void testSomeFailed() throws InterruptedException {
         Stats.reset();
@@ -249,6 +256,7 @@ public class TestElasticSearch {
         logger.debug("Events failed: {}", () -> Stats.getSenderError());
     }
 
+    @Ignore
     @Test
     public void testBeans() throws ClassNotFoundException, IntrospectionException {
         BeanChecks.beansCheck(logger, "loghub.senders.ElasticSearch"

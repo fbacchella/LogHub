@@ -21,8 +21,9 @@
         <profile>
             <id>jdkpaths</id>
             <properties>
-                <jdk.8.home>/usr/lib/jvm/java-8-openjdk-amd64</jdk.8.home>
-                <jdk.11.home>/usr/lib/jvm/java-11-openjdk-amd64</jdk.11.home>
+                <jdk.8.home>/tmp/ws/openjdk-8</jdk.8.home>
+                <jdk.11.home>/tmp/ws/openjdk-8</jdk.11.home>
+                <jdk.13.home>/tmp/ws/openjdk-13</jdk.13.home>
             </properties>
         </profile>
         <profile>
