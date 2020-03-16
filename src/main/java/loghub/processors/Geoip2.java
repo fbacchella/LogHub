@@ -298,7 +298,7 @@ public class Geoip2 extends FieldsProcessor {
     public void setTypes(String[] types) {
         this.types = new LocationType[types.length];
         for(int i = 0; i < types.length ; i++) {
-            this.types[i] = LocationType.valueOf(LocationType.class, types[i].toUpperCase(Locale.ENGLISH));
+            this.types[i] = LocationType.valueOf(types[i].toUpperCase(Locale.ENGLISH));
         }
     }
 

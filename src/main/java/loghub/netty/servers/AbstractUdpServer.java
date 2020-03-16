@@ -11,8 +11,8 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.FixedRecvByteBufAllocator;
-import io.netty.channel.epoll.EpollChannelOption;
 import io.netty.channel.socket.DatagramChannel;
+import io.netty.channel.unix.UnixChannelOption;
 import loghub.netty.POLLER;
 import loghub.netty.UdpFactory;
 
@@ -49,7 +49,7 @@ public class AbstractUdpServer<S extends AbstractUdpServer<S, B>,
         }
         // Needed because Netty's UDP is not multi-thread, see http://marrachem.blogspot.fr/2014/09/multi-threaded-udp-server-with-netty-on.html
         if (poller == POLLER.EPOLL && builder.threadsCount > 1) {
-            bootstrap.option(EpollChannelOption.SO_REUSEPORT, true);
+            bootstrap.option(UnixChannelOption.SO_REUSEPORT, true);
         } else if (poller != POLLER.EPOLL && builder.threadsCount > 1){
             logger.warn("Multiple worker, but not using EPOLL, it's useless");
         }
