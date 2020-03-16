@@ -127,7 +127,7 @@ public class Journald extends Http {
             Journald.this.logger.debug("New journald post {}", msg);
             HttpRequest headers = (HttpRequest) msg;
             String contentType = Optional.ofNullable(headers.headers().get("Content-Type")).orElse("");
-            String uri = headers.uri().replaceAll("//", "/");
+            String uri = headers.uri().replace("//", "/");
             HttpMethod method = headers.method();
             if ( ("application/vnd.fdo.journal".equals(contentType))
                             &&  HttpMethod.POST.equals(method)
