@@ -332,10 +332,15 @@ public class VarFormatter {
                 case "th":
                     if ("TH".equals(locale.getCountry())) {
                         return ThaiBuddhistDate.from(timePoint);
+                    } else {
+                        return timePoint;
+
                     }
                 case "ja":
                     if ("japanese".equals(locale.getUnicodeLocaleType("ca"))) {
                         return JapaneseDate.from(timePoint);
+                    } else {
+                        return timePoint;
                     }
                 default:
                     return timePoint;

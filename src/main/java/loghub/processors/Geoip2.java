@@ -182,6 +182,7 @@ public class Geoip2 extends FieldsProcessor {
                         informations.put("location", infos);
                     }
                 }
+                break;
             case CONTINENT:
                 if(continent != null) {
                     Optional.ofNullable(continent.getNames().get(locale)).ifPresent(i -> informations.put("continent", i));
