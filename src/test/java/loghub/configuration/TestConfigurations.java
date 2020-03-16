@@ -20,6 +20,7 @@ import loghub.EventsProcessor;
 import loghub.LogUtils;
 import loghub.ProcessorException;
 import loghub.Tools;
+import loghub.processors.DecodeUrl;
 import loghub.processors.Identity;
 import loghub.processors.SyslogPriority;
 
@@ -134,7 +135,11 @@ public class TestConfigurations {
 
     @Test
     public void testArray() throws ConfigException, IOException {
-        Tools.loadConf("array.conf", false);
+        Properties p = Tools.loadConf("array.conf", false);
+        SyslogPriority pr = (SyslogPriority) p.identifiedProcessors.get("withArray");
+        String[] fields = (String[]) pr.getFields();
+        Assert.assertEquals(1, fields.length);
+        Assert.assertEquals("*", fields[0]);
     }
 
     @Test
@@ -253,20 +258,25 @@ public class TestConfigurations {
 
     @Test
     public void testPathString() throws ConfigException, IOException {
-        String confile = "pipeline[bad] {\n" + 
+        String confile = "pipeline[field] {\n" + 
                         "   loghub.processors.DecodeUrl {field: \"a\"}\n" + 
                         "}\n" + 
                         "";
-        Configuration.parse(new StringReader(confile));
+        Properties  p = Configuration.parse(new StringReader(confile));
+        DecodeUrl pr = (DecodeUrl) p.namedPipeLine.get("field").processors.get(0);
+        Assert.assertEquals("a", pr.getField()[0]);
     }
 
     @Test
     public void testPathEventVariable() throws ConfigException, IOException {
-        String confile = "pipeline[bad] {\n" + 
+        String confile = "pipeline[fields] {\n" + 
                         "   loghub.processors.DecodeUrl {field: [a b]}\n" + 
                         "}\n" + 
                         "";
-        Configuration.parse(new StringReader(confile));
+        Properties  p =  Configuration.parse(new StringReader(confile));
+        DecodeUrl pr = (DecodeUrl) p.namedPipeLine.get("fields").processors.get(0);
+        Assert.assertEquals("a", pr.getField()[0]);
+        Assert.assertEquals("b", pr.getField()[1]);
     }
 
     @Test

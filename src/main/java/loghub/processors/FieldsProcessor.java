@@ -16,13 +16,13 @@ import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
 import loghub.Event;
+import loghub.Event.Action;
 import loghub.Helpers;
 import loghub.IgnoredEventException;
 import loghub.Processor;
 import loghub.ProcessorException;
 import loghub.UncheckedProcessorException;
 import loghub.VarFormatter;
-import loghub.Event.Action;
 import loghub.configuration.Properties;
 
 public abstract class FieldsProcessor extends Processor {
@@ -43,8 +43,8 @@ public abstract class FieldsProcessor extends Processor {
 
     private String[] field = new String[] {"message"};
     private VarFormatter destinationFormat = null;
-    private String[][] fields = new String[][] {};
     private Pattern[] patterns = new Pattern[]{};
+    private String[] globs = new String[] {};
 
     protected class FieldSubProcessor extends Processor {
 
@@ -127,7 +127,7 @@ public abstract class FieldsProcessor extends Processor {
     boolean doExecution(Event event, String[] currentField) throws ProcessorException {
         return filterField(event, currentField);
     }
-    
+
     private boolean filterField(Event event, String[] currentField) throws ProcessorException {
         logger.trace("transforming field {} on {}", currentField, event);
         Object value = event.applyAtPath(Action.GET, currentField, null);
@@ -194,13 +194,15 @@ public abstract class FieldsProcessor extends Processor {
     }
 
     public Object[] getFields() {
-        return fields;
+        return Arrays.copyOf(globs, globs.length);
     }
 
     public void setFields(Object[] fields) {
+        this.globs = new String[fields.length];
         this.patterns = new Pattern[fields.length];
-        for (int i = 0; i < fields.length ; i++) {
-            this.patterns[i] = Helpers.convertGlobToRegex(fields[i].toString());
+        for (int i = 0 ; i < fields.length ; i++) {
+            this.globs[i] = fields[i].toString();
+            this.patterns[i] = Helpers.convertGlobToRegex(this.globs[i]);
         }
     }
 

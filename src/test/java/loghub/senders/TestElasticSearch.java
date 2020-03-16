@@ -197,10 +197,10 @@ public class TestElasticSearch {
         Assert.assertEquals(0, Properties.metrics.counter("Allevents.inflight").getCount());
     }
 
-    @Ignore
     @Test
     public void testParse() throws MalformedURLException, URISyntaxException {
         String[] destinations  = new String[] {"//localhost", "//truc:9301", "truc", "truc:9300"};
+        URI[] uris  = new URI[] {new URI("thrift://localhost:9300"), new URI("thrift://truc:9301"), new URI("thrift://localhost:9300"), new URI("truc://localhost:9300")};
         for (int i = 0 ; i < destinations.length ; i++) {
             String temp = destinations[i];
             if ( ! temp.contains("//")) {
@@ -215,6 +215,7 @@ public class TestElasticSearch {
                               null,
                               null
                             );
+            Assert.assertEquals(uris[i], newUrl);
         }
     }
 
@@ -256,7 +257,6 @@ public class TestElasticSearch {
         logger.debug("Events failed: {}", () -> Stats.getSenderError());
     }
 
-    @Ignore
     @Test
     public void testBeans() throws ClassNotFoundException, IntrospectionException {
         BeanChecks.beansCheck(logger, "loghub.senders.ElasticSearch"
