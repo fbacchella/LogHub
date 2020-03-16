@@ -23,9 +23,6 @@ import javax.management.ReflectionException;
 import javax.management.openmbean.CompositeData;
 import javax.management.openmbean.TabularData;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -42,8 +39,6 @@ import io.netty.util.CharsetUtil;
 @NoCache
 @ContentType("application/json; charset=utf-8")
 public class JmxProxy extends HttpRequestProcessing {
-
-    private static final Logger logger = LogManager.getLogger();
 
     private static final MBeanServer server = ManagementFactory.getPlatformMBeanServer();
     private static final JsonFactory factory = new JsonFactory();
