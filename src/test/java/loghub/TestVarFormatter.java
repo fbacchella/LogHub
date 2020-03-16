@@ -307,4 +307,18 @@ public class TestVarFormatter {
         vf.format(obj);
     }
 
+    @Test(expected=IllegalArgumentException.class)
+    public void testError8() {
+        VarFormatter vf = new VarFormatter("${var%z}", Locale.ENGLISH);
+        Map<String, Object> obj = Collections.singletonMap("a", 1);
+        vf.format(obj);
+    }
+
+    @Test(expected=IllegalArgumentException.class)
+    public void testError9() {
+        VarFormatter vf = new VarFormatter("${var%zd}", Locale.ENGLISH);
+        Map<String, Object> obj = Collections.singletonMap("a", 1);
+        vf.format(obj);
+    }
+
 }

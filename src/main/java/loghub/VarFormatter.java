@@ -66,6 +66,7 @@ public class VarFormatter {
                 case '0': zeropadded = true; break;
                 case ',': grouping = true; break;
                 case '(': parenthesis = true; break;
+                default: throw new IllegalStateException("Unhandled flag format, should not be reached");
                 }
             }
             this.leftjustified = leftjustified;
@@ -635,10 +636,10 @@ public class VarFormatter {
             case 't': return new ExtendedDateFormat(locale, timeFormat, tz, isUpper);
             case '%': return new NonParsingFormat(Locale.getDefault(), false, i -> "%");
             case 'n': return new NonParsingFormat(Locale.getDefault(), false, i -> lineseparator);
-            default: return null;
+            default: throw new IllegalArgumentException("Invalid format specifier: " + format);
             }
         } else {
-            return null;
+            throw new IllegalArgumentException(format);
         }
     }
 
