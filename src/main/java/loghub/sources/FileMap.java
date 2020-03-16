@@ -18,7 +18,7 @@ import loghub.configuration.Properties;
 public class FileMap extends HashMap<Object, Object> implements Source {
 
     private static final Logger logger = LogManager.getLogger();
-    
+
     private String name;
 
     private String mappingFile = null;
@@ -38,6 +38,9 @@ public class FileMap extends HashMap<Object, Object> implements Source {
         case "text/csv":
             map = mapFromCsv();
             break;
+        default:
+            logger.error("Unhandled MIME type");
+            return false;
         }
         if (map != null) {
             putAll(map);

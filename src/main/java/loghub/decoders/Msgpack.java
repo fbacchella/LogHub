@@ -73,6 +73,8 @@ public class Msgpack extends Decoder {
                 seconds = content.getLong();
                 found = true;
                 break;
+            default:
+                throw new IOException("Invalid time object length");
             }
             if (found) {
                 try {

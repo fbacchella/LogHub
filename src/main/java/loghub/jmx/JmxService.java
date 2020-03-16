@@ -102,6 +102,8 @@ public class JmxService {
             case "withSsl": 
                 withSsl = (Boolean) value;
                 break;
+            default:
+                throw new IllegalArgumentException("Unknown property " + key);
             }
             return this;
         }
