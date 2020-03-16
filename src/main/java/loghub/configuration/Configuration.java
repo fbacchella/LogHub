@@ -141,11 +141,10 @@ public class Configuration {
                         Path patternPath = sourcePath.getFileName();
                         Path parent = sourcePath.getParent();
                         if (Files.isDirectory(parent)) {
-                            PathMatcher pm = parent.getFileSystem().getPathMatcher("syntax:" + patternPath.toString());
+                            PathMatcher pm = parent.getFileSystem().getPathMatcher("glob:" + patternPath.toString());
                             try {
                                 Files.list(parent)
-                                .map(Path::getFileName)
-                                .filter(pm::matches)
+                                .filter( i -> pm.matches(i.getFileName()))
                                 .forEach(parseSubFile::accept);
                             } catch (IOException e) {
                                 throw new ConfigException(e.getMessage(), sourceName, e);
