@@ -11,6 +11,7 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.PathMatcher;
 import java.nio.file.Paths;
 import java.time.DateTimeException;
 import java.time.ZoneId;
@@ -31,7 +32,6 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import org.antlr.v4.runtime.CharStream;
@@ -45,7 +45,6 @@ import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.LoggerContext;
 
 import loghub.Event;
-import loghub.Helpers;
 import loghub.Helpers.ThrowingConsumer;
 import loghub.Helpers.ThrowingPredicate;
 import loghub.Pipeline;
@@ -141,12 +140,13 @@ public class Configuration {
                         // It might be a directory/pattern
                         Path patternPath = sourcePath.getFileName();
                         Path parent = sourcePath.getParent();
-                        Pattern mask = Helpers.convertGlobToRegex(patternPath.toString());
                         if (Files.isDirectory(parent)) {
+                            PathMatcher pm = parent.getFileSystem().getPathMatcher("syntax:" + patternPath.toString());
                             try {
                                 Files.list(parent)
-                                .filter( i-> mask.matcher(i.getFileName().toString()).matches())
-                                .forEach( i -> parseSubFile.accept(i));
+                                .map(Path::getFileName)
+                                .filter(pm::matches)
+                                .forEach(parseSubFile::accept);
                             } catch (IOException e) {
                                 throw new ConfigException(e.getMessage(), sourceName, e);
                             }
