@@ -352,7 +352,8 @@ public class ElasticSearch extends AbstractHttpSender {
                 String jsonbody = json.get().writeValueAsString(wantedtemplate);
                 puttemplate.setTypeAndContent("application/json", CharsetUtil.UTF_8, jsonbody.getBytes(CharsetUtil.UTF_8));
             } catch (IOException e) {
-                logger.fatal("Can't build buffer: {}", e);
+                logger.fatal("Can't build buffer: {}", () -> e);
+                logger.catching(Level.DEBUG, e);
                 return false;
             }
             return doquery(puttemplate, "/_template/" + templateName, node -> true, Collections.emptyMap(), false);

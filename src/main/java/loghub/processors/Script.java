@@ -102,7 +102,7 @@ public class Script extends Processor {
         } catch (NoSuchMethodException e) {
             return false;
         } catch (ClassCastException e) {
-            logger.error("script {} didn't return a configuration map");
+            logger.error("script {} didn't return a configuration map", script);
             return false;
         }
     }

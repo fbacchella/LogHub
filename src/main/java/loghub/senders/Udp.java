@@ -66,8 +66,8 @@ public class Udp extends Sender {
             socket.send(packet);
             return true;
         } catch (IOException e) {
-            logger.error("unable to send message: {}", e);
-            logger.throwing(Level.DEBUG, e);
+            logger.error("unable to send message: {}", () -> e);
+            logger.catching(Level.DEBUG, e);
             return false;
         }
     }
