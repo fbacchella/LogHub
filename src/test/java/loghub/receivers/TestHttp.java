@@ -4,6 +4,7 @@ import java.beans.IntrospectionException;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.StringReader;
 import java.io.UncheckedIOException;
 import java.net.HttpURLConnection;
 import java.net.InetAddress;
@@ -36,16 +37,15 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import loghub.BeanChecks;
+import loghub.BeanChecks.BeanInfo;
 import loghub.ConnectionContext;
 import loghub.Event;
 import loghub.IpConnectionContext;
 import loghub.LogUtils;
 import loghub.Pipeline;
 import loghub.Tools;
-import loghub.BeanChecks.BeanInfo;
+import loghub.configuration.ConfigException;
 import loghub.configuration.Properties;
-import loghub.decoders.Decoder;
-import loghub.decoders.StringCodec;
 import loghub.security.JWTHandler;
 import loghub.security.ssl.ContextLoader;
 
@@ -78,7 +78,6 @@ public class TestHttp {
         receiver.setPipeline(new Pipeline(Collections.emptyList(), "testhttp", null));
         receiver.setHost(hostname);
         receiver.setPort(port);
-        receiver.setDecoder(StringCodec.getBuilder().build());
         prepare.accept(receiver);
         Assert.assertTrue(receiver.configure(new Properties(propsMap)));
         receiver.start();
@@ -99,11 +98,13 @@ public class TestHttp {
             HttpsURLConnection cnx = (HttpsURLConnection) conn;
             cnx.setHostnameVerifier(new HostnameVerifier() {
                 public boolean verify(String hostname, SSLSession session) {
+                    logger.trace("Verifying {} with sessions {}", hostname, session);
                     return true;
                 }
             });
             Map<String, Object> properties = new HashMap<>();
             properties.put("trusts", new String[] {getClass().getResource("/loghub.p12").getFile()});
+            properties.put("issuers", new String[] {"CN=loghub CA"});
             SSLContext cssctx = ContextLoader.build(properties);
             cnx.setSSLSocketFactory(cssctx.getSocketFactory());
         }
@@ -159,7 +160,11 @@ public class TestHttp {
 
     @Test
     public void testHttpsGet() throws IOException {
-        makeReceiver( i -> { i.setWithSSL(true); i.setSSLClientAuthentication("REQUIRED");},
+        System.setProperty("javax.net.debug", "ssl");
+        makeReceiver( i -> { 
+            i.setWithSSL(true);
+            i.setSSLClientAuthentication("REQUIRED");
+        },
                       Collections.singletonMap("ssl.trusts", new String[] {getClass().getResource("/loghub.p12").getFile()})
                         );
         doRequest(new URL("https", hostname, port, "/?a=1"),
@@ -317,9 +322,45 @@ public class TestHttp {
     }
 
     @Test
+    public void manyDecoders() throws ConfigException, IOException {
+        String confile = "input {" + 
+                        "    loghub.receivers.Http {" + 
+                        "        port: 1502," + 
+                        "        decoders: {" + 
+                        "            \"text/csv\": loghub.decoders.Msgpack {" + 
+                        "            }," + 
+                        "            \"text/json\": loghub.decoders.Msgpack {" + 
+                        "            }," + 
+                        "        }," + 
+                        "    }" + 
+                        "} | $main " + 
+                        "pipeline[main] {" + 
+                        "}";
+        Properties conf = Tools.loadConf(new StringReader(confile));
+    }
+
+    @Test
+    public void noExplicitDecoder() throws ConfigException, IOException {
+        String confile = "input {" + 
+                        "    loghub.receivers.Http {" + 
+                        "        decoder: loghub.decoders.Msgpack {" + 
+                        "        }," + 
+                        "    }" + 
+                        "} | $main";
+
+        try {
+            @SuppressWarnings("unused")
+            Properties conf = Tools.loadConf(new StringReader(confile));
+        } catch (ConfigException ex) {
+            Assert.assertEquals("InvocationTargetException: No default decoder can be defined", ex.getMessage());
+            Assert.assertEquals("file <unknown>, line 1:42", ex.getLocation());
+        }
+    }
+
+    @Test
     public void test_loghub_receivers_Http() throws ClassNotFoundException, IntrospectionException {
         BeanChecks.beansCheck(logger, "loghub.receivers.Http"
-                              ,BeanInfo.build("decoder", Decoder.class)
+                              ,BeanInfo.build("decoders", Map.class)
                               ,BeanInfo.build("useJwt", Boolean.TYPE)
                               ,BeanInfo.build("user", String.class)
                               ,BeanInfo.build("password", String.class)

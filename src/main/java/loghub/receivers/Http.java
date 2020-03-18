@@ -1,13 +1,16 @@
 package loghub.receivers;
 
+import java.net.InetSocketAddress;
 import java.nio.charset.Charset;
 import java.nio.charset.IllegalCharsetNameException;
 import java.nio.charset.StandardCharsets;
 import java.nio.charset.UnsupportedCharsetException;
 import java.security.Principal;
+import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -18,12 +21,13 @@ import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.QueryStringDecoder;
-import loghub.Event;
+import loghub.ConnectionContext;
 import loghub.Helpers;
-import loghub.ProcessorException;
 import loghub.Stats;
 import loghub.configuration.Properties;
+import loghub.decoders.Decoder;
 import loghub.decoders.Decoder.DecodeException;
+import loghub.decoders.Decoder.RuntimeDecodeException;
 import loghub.netty.AbstractTcpReceiver;
 import loghub.netty.http.AbstractHttpServer;
 import loghub.netty.http.AccessControl;
@@ -33,12 +37,12 @@ import loghub.netty.http.HttpRequestProcessing;
 import loghub.netty.http.NoCache;
 import loghub.netty.http.RequestAccept;
 import loghub.netty.servers.AbstractNettyServer;
-import loghub.processors.ParseJson;
+import lombok.Getter;
+import lombok.Setter;
 
-@Blocking(false)
+@Blocking(true)
+@SelfDecoder
 public class Http extends AbstractTcpReceiver<Http, Http.HttpReceiverServer, Http.HttpReceiverServer.Builder> {
-
-    private static final ParseJson jsonParser = new ParseJson();
 
     @NoCache
     @RequestAccept(methods= {"GET", "PUT", "POST"})
@@ -47,7 +51,6 @@ public class Http extends AbstractTcpReceiver<Http, Http.HttpReceiverServer, Htt
 
         @Override
         protected void processRequest(FullHttpRequest request, ChannelHandlerContext ctx) throws HttpRequestFailure {
-            Event e = Event.emptyEvent(Http.this.getConnectionContext(ctx, null));
             try {
                 String mimeType = Optional.ofNullable(HttpUtil.getMimeType(request)).orElse("application/octet-stream").toString();
                 CharSequence encoding = Optional.ofNullable(HttpUtil.getCharsetAsSequence(request)).orElse("UTF-8");
@@ -56,8 +59,7 @@ public class Http extends AbstractTcpReceiver<Http, Http.HttpReceiverServer, Htt
                 }
                 String message;
                 switch(mimeType) {
-                case "application/json":
-                case "text/plain": {
+                case "application/json": {
                     Charset cs = Charset.forName(encoding.toString());
                     message = request.content().toString(cs);
                     break;
@@ -71,11 +73,17 @@ public class Http extends AbstractTcpReceiver<Http, Http.HttpReceiverServer, Htt
                     message = request.uri();
                     break;
                 default:
-                    message = null;
+                    if (mimeType.startsWith("text/")) {
+                        Charset cs = Charset.forName(encoding.toString());
+                        message = request.content().toString(cs);
+                    } else {
+                        message = null;
+                    }
                 }
-                switch(mimeType) {
-                case "application/x-www-form-urlencoded":
-                case "application/query-string": {
+                ConnectionContext<InetSocketAddress> cctx = Http.this.getConnectionContext(ctx, null);
+                Stream<Map<String, Object>> mapsStream;
+                if ("application/x-www-form-urlencoded".equals(mimeType)
+                    || "application/query-string".equals(mimeType)) {
                     QueryStringDecoder qsd = new QueryStringDecoder(message);
                     Map<String, Object> result = qsd.parameters().entrySet().stream()
                                     .collect(Collectors.toMap(i -> i.getKey(), j -> {
@@ -84,31 +92,27 @@ public class Http extends AbstractTcpReceiver<Http, Http.HttpReceiverServer, Htt
                                         } else {
                                             return (Object) j.getValue();
                                         }
-                                    }) );
-                    e.putAll(result);
-                    break;
-                }
-                case "application/json":
-                    jsonParser.fieldFunction(e, message);
-                    break;
-                default:
-                    Map<String, Object> result = Http.this.decoder.decode(e.getConnectionContext(), request.content());
-                    e.putAll(result);
+                                    }));
+                    mapsStream = Stream.of(result);
+                } else if (decoders.containsKey(mimeType)) {
+                    mapsStream = decoders.get(mimeType).decodeStream(cctx, request.content());
+                } else {
+                    throw new RuntimeDecodeException(new DecodeException("Unhandled content type " + mimeType));
                 }
                 Principal p = ctx.channel().attr(AbstractNettyServer.PRINCIPALATTRIBUTE).get();
                 if (p != null) {
-                    e.getConnectionContext().setPrincipal(p);
+                    cctx.setPrincipal(p);
                 }
-                if (! Http.this.send(e)) {
-                    throw new HttpRequestFailure(HttpResponseStatus.TOO_MANY_REQUESTS, "Busy, try again");
-                };
+                mapsStream.map(m -> Http.this.mapToEvent(cctx, () -> ! m.isEmpty(), () -> m)).forEach(Http.this::send);
             } catch (DecodeException ex) {
-                e.end();
                 Http.this.manageDecodeException(ex);
                 logger.error("Can't decode content", ex);
                 throw new HttpRequestFailure(HttpResponseStatus.BAD_REQUEST, "Content invalid for decoder");
-            } catch (ProcessorException | IllegalCharsetNameException | UnsupportedCharsetException ex) {
-                e.end();
+            } catch (RuntimeDecodeException ex) {
+                Http.this.manageDecodeException(ex.getDecodeException());
+                logger.error("Can't decode content", ex.getDecodeException());
+                throw new HttpRequestFailure(HttpResponseStatus.BAD_REQUEST, "Content invalid for decoder");
+            } catch (IllegalCharsetNameException | UnsupportedCharsetException ex) {
                 Stats.newReceivedError("Can't decode HTTP content: " + Helpers.resolveThrowableException(ex));
                 logger.debug("Can't decode HTTP content", ex);
                 throw new HttpRequestFailure(HttpResponseStatus.BAD_REQUEST, "Content invalid for decoder");
@@ -149,6 +153,9 @@ public class Http extends AbstractTcpReceiver<Http, Http.HttpReceiverServer, Htt
         }
     }
 
+    @Getter @Setter
+    private Map<String, Decoder> decoders = Collections.emptyMap();
+
     public Http() {
         super();
     }
@@ -160,6 +167,7 @@ public class Http extends AbstractTcpReceiver<Http, Http.HttpReceiverServer, Htt
 
     @Override
     public boolean configure(Properties properties, HttpReceiverServer.Builder builder) {
+        decoders.values().forEach(d -> d.configure(properties, this));
         settings(builder);
         return super.configure(properties, builder);
     }
@@ -171,6 +179,11 @@ public class Http extends AbstractTcpReceiver<Http, Http.HttpReceiverServer, Htt
     @Override
     public String getReceiverName() {
         return "HTTP/" + getPort();
+    }
+
+    @Override
+    public void setDecoder(Decoder codec) {
+        throw new IllegalArgumentException("No default decoder can be defined");
     }
 
 }
