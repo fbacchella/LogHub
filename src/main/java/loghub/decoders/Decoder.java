@@ -1,6 +1,8 @@
 package loghub.decoders;
 
+import java.util.Collections;
 import java.util.Map;
+import java.util.stream.Stream;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -30,6 +32,9 @@ public abstract class Decoder {
     }
 
     public static class RuntimeDecodeException extends RuntimeException {
+        public RuntimeDecodeException(DecodeException cause) {
+            super(cause.getMessage(), cause);
+        }
         public RuntimeDecodeException(String message, DecodeException cause) {
             super(message, cause);
         }
@@ -53,12 +58,28 @@ public abstract class Decoder {
         return true;
     }
 
-    public abstract Map<String, Object> decode(ConnectionContext<?> connectionContext, byte[] msg, int offset, int length) throws DecodeException;
+    protected Map<String, Object> decode(ConnectionContext<?> connectionContext, byte[] msg, int offset, int length) throws DecodeException {
+        return Collections.emptyMap();
+    }
 
-    public abstract Map<String, Object> decode(ConnectionContext<?> ctx, ByteBuf bbuf) throws DecodeException;
+    protected Map<String, Object> decode(ConnectionContext<?> ctx, ByteBuf bbuf) throws DecodeException {
+        return Collections.emptyMap();
+    }
 
-    public Map<String, Object> decode(ConnectionContext<?> ctx, byte[] msg) throws DecodeException{
+    protected Map<String, Object> decode(ConnectionContext<?> ctx, byte[] msg) throws DecodeException {
         return decode(ctx, msg, 0, msg.length);
+    }
+
+    public Stream<Map<String, Object>> decodeStream(ConnectionContext<?> ctx, ByteBuf bbuf) throws DecodeException {
+        return Stream.of(decode(ctx, bbuf));
+    }
+
+    public Stream<Map<String, Object>> decodeStream(ConnectionContext<?> ctx, byte[] msg, int offset, int length) throws DecodeException {
+        return Stream.of(decode(ctx, msg, offset, length));
+    }
+
+    public Stream<Map<String, Object>> decodeStream(ConnectionContext<?> ctx, byte[] msg) throws DecodeException {
+        return Stream.of(decode(ctx, msg, 0, msg.length));
     }
 
 }

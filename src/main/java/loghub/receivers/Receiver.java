@@ -6,9 +6,10 @@ import java.util.Date;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
-import java.util.function.Supplier;
+import java.util.stream.Stream;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -16,7 +17,6 @@ import org.apache.logging.log4j.Logger;
 
 import com.codahale.metrics.Meter;
 
-import io.netty.buffer.ByteBuf;
 import loghub.ConnectionContext;
 import loghub.Event;
 import loghub.Helpers;
@@ -32,6 +32,11 @@ import loghub.security.ssl.ClientAuthentication;
 
 @Blocking(false)
 public abstract class Receiver extends Thread implements Iterator<Event>, Closeable {
+
+    @FunctionalInterface
+    public static interface DecodeSupplier {
+        Map<String, Object> get() throws DecodeException;
+    }
 
     protected final Logger logger;
 
@@ -93,11 +98,6 @@ public abstract class Receiver extends Thread implements Iterator<Event>, Closea
         return authHandler;
     }
 
-    /**
-     * This method listen for new event and send it.
-     * It can manage failure and retry. So it should be overridden with care.
-     * @see java.lang.Thread#run()
-     */
     public void run() {
         int eventseen = 0;
         int looptry = 0;
@@ -203,7 +203,7 @@ public abstract class Receiver extends Thread implements Iterator<Event>, Closea
         throw new NoSuchElementException();
     }
 
-    private Event decode(ConnectionContext<?> ctx, java.util.function.BooleanSupplier isValid, Supplier<Map<String, Object>> decoder) {
+    protected final Event mapToEvent(ConnectionContext<?> ctx, java.util.function.BooleanSupplier isValid, DecodeSupplier decoder) {
         if (! isValid.getAsBoolean()) {
             manageDecodeException(new DecodeException("received null or empty event"));
             Event.emptyEvent(ctx).end();
@@ -221,44 +221,39 @@ public abstract class Receiver extends Thread implements Iterator<Event>, Closea
                     Event event = Event.emptyEvent(ctx);
                     Optional.ofNullable(content.get(timeStampField))
                     .filter(i -> i instanceof Date || i instanceof Instant || i instanceof Number)
-                    .ifPresent(ts -> {
-                        if (event.setTimestamp(ts)) {
-                            content.remove(timeStampField);
-                        }
-                    });
+                    .filter(event::setTimestamp)
+                    .ifPresent(ts -> content.remove(timeStampField));
                     content.entrySet().stream().forEach( i -> event.put(i.getKey(), i.getValue()));
                     return event;
                 }
-            } catch (RuntimeDecodeException e) {
+            } catch (RuntimeDecodeException ex) {
                 Event.emptyEvent(ctx).end();
-                manageDecodeException(e.getDecodeException());
+                manageDecodeException(ex.getDecodeException());
+                return null;
+            } catch (DecodeException ex) {
+                Event.emptyEvent(ctx).end();
+                manageDecodeException(ex);
                 return null;
             }
         }
     }
 
-    protected final Event decode(ConnectionContext<?> ctx, ByteBuf bbuf) {
-        return decode(ctx, () -> bbuf != null && bbuf.isReadable(), () -> {
-            try {
-                return decoder.decode(ctx, bbuf);
-            } catch (DecodeException e) {
-                throw new RuntimeDecodeException(Helpers.resolveThrowableException(e), e);
-            }
-        });
+    protected final Stream<Event> decodeStream(ConnectionContext<?> ctx, byte[] msg, int offset, int size) {
+        try {
+            return decoder.decodeStream(ctx, msg, offset, size).map((m) -> mapToEvent(ctx, () -> msg != null && size > 0 && offset < size, () -> m)).filter(Objects::nonNull);
+        } catch (DecodeException ex) {
+            manageDecodeException(ex);
+            return Stream.of();
+        }
     }
 
-    protected final Event decode(ConnectionContext<?> ctx, byte[] msg) {
-        return decode(ctx, msg, 0, msg != null ? msg.length : 0);
-    }
-
-    protected final Event decode(ConnectionContext<?> ctx, byte[] msg, int offset, int size) {
-        return decode(ctx, () -> msg != null && size > 0 && offset < size, () -> {
-            try {
-                return decoder.decode(ctx, msg, offset, size);
-            } catch (DecodeException e) {
-                throw new RuntimeDecodeException(Helpers.resolveThrowableException(e), e);
-            }
-        });
+    protected final Stream<Event> decodeStream(ConnectionContext<?> ctx, byte[] msg) {
+        try {
+            return decoder.decodeStream(ctx, msg).map((m) -> mapToEvent(ctx, () -> true, () -> m)).filter(Objects::nonNull);
+        } catch (DecodeException ex) {
+            manageDecodeException(ex);
+            return Stream.of();
+        }
     }
 
     protected void manageDecodeException(DecodeException ex) {

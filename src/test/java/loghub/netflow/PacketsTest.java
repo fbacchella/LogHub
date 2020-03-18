@@ -173,15 +173,16 @@ public class PacketsTest {
         .forEach(i -> {
             try {
                 while(i.isReadable()) {
-                    Map<String, Object> content = nfd.decode(dummyctx, i);
-                    Assert.assertTrue(content.containsKey("version"));
-                    Assert.assertTrue(content.containsKey("sequenceNumber"));
-                    Assert.assertTrue(content.containsKey("records"));
-                    ((List<Map<String, Object>>)content.get("records")).forEach( j -> Assert.assertTrue(j.containsKey("_type")));
-                    if (((Integer)content.get("version"))< 10) {
-                        Assert.assertTrue(content.containsKey("SysUptime"));
-                    }
-                    logger.debug(content);
+                    nfd.decodeStream(dummyctx, i).forEach(content -> {
+                        Assert.assertTrue(content.containsKey("version"));
+                        Assert.assertTrue(content.containsKey("sequenceNumber"));
+                        Assert.assertTrue(content.containsKey("records"));
+                        ((List<Map<String, Object>>)content.get("records")).forEach( j -> Assert.assertTrue(j.containsKey("_type")));
+                        if (((Integer)content.get("version"))< 10) {
+                            Assert.assertTrue(content.containsKey("SysUptime"));
+                        }
+                        logger.debug(content);
+                    });
                 }
             } catch (Exception e) {
                 Assert.fail(e.getMessage());

@@ -2,15 +2,14 @@ package loghub.receivers;
 
 import java.nio.charset.StandardCharsets;
 
+import org.apache.logging.log4j.Level;
 import org.zeromq.SocketType;
+import org.zeromq.ZMQ.Error;
 import org.zeromq.ZMQ.Socket;
 import org.zeromq.ZMQException;
-import org.apache.logging.log4j.Level;
-import static org.zeromq.ZMQ.Error;
 import org.zeromq.ZPoller;
 
 import loghub.ConnectionContext;
-import loghub.Event;
 import loghub.Helpers;
 import loghub.Stats;
 import loghub.configuration.Properties;
@@ -87,10 +86,7 @@ public class ZMQ extends Receiver {
                     Error error = Error.findByCode(socket.errno());
                     Stats.newReceivedError(String.format("error with ZSocket %s: %s", listen, error.getMessage()));
                 } else {
-                    Event event = decode(ConnectionContext.EMPTY, databuffer, 0, received);
-                    if (event != null) {
-                        send(event);
-                    }
+                    decodeStream(ConnectionContext.EMPTY, databuffer, 0, received).forEach(this::send);
                 }
             } catch (ZError.IOException | ZError.CtxTerminatedException | ZError.InstantiationException | ZMQException ex) {
                 ZMQCheckedException cex = new ZMQCheckedException(ex);

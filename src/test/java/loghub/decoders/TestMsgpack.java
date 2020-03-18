@@ -61,7 +61,7 @@ public class TestMsgpack {
     public void testmap() throws IOException, DecodeException {
         Msgpack d = new Msgpack.Builder().build();
 
-        Map<String, Object> e = d.decode(ConnectionContext.EMPTY, objectMapper.writeValueAsBytes(obj));
+        Map<String, Object> e = d.decodeStream(ConnectionContext.EMPTY, objectMapper.writeValueAsBytes(obj)).findAny().get();
 
         testContent(e);
 
@@ -91,7 +91,7 @@ public class TestMsgpack {
         packer.close();
         byte[] packed = out.toByteArray();
 
-        Map<String, Object> e = d.decode(ConnectionContext.EMPTY, packed);
+        Map<String, Object> e = d.decodeStream(ConnectionContext.EMPTY, packed).findAny().get();
         testContent(e);
     }
     @Test
@@ -119,7 +119,7 @@ public class TestMsgpack {
         packer.close();
         byte[] packed = out.toByteArray();
 
-        Map<String, Object> e = d.decode(ConnectionContext.EMPTY, packed);
+        Map<String, Object> e = d.decodeStream(ConnectionContext.EMPTY, packed).findAny().get();
         Assert.assertEquals(Instant.class, e.get("a").getClass());
         Assert.assertEquals(Instant.class, e.get("b").getClass());
         Assert.assertArrayEquals(new byte[]{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}, (byte[]) e.get("c"));
@@ -136,7 +136,7 @@ public class TestMsgpack {
         Msgpack.Builder builder = Msgpack.getBuilder();
         builder.setField("vector");
         Msgpack d = builder.build();
-        Map<String, Object> e = d.decode(ConnectionContext.EMPTY, bs);
+        Map<String, Object> e = d.decodeStream(ConnectionContext.EMPTY, bs).findAny().get();
 
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> v = (List<Map<String, Object>>) e.get("vector");
@@ -156,7 +156,11 @@ public class TestMsgpack {
 
             @Override
             public Event next() {
-                return decode(ConnectionContext.EMPTY, bs);
+                return decodeStream(ConnectionContext.EMPTY, bs).findAny().get();
+            }
+
+            @Override
+            public void run() {
             }
         }) {
             r.setTimeStampField("f");
@@ -177,7 +181,7 @@ public class TestMsgpack {
         ev.putMeta("h", 7);
         ev.setTimestamp(new Date(0));
         Decoder dec = new Msgpack.Builder().build();
-        Event e = (Event) dec.decode(ConnectionContext.EMPTY, enc.encode(ev));
+        Event e = (Event) dec.decodeStream(ConnectionContext.EMPTY, enc.encode(ev)).findAny().get();
         testContent(e);
         Instant f = (Instant) e.get("f");
         Instant g = (Instant) e.get("g");
@@ -198,7 +202,7 @@ public class TestMsgpack {
         ev.putMeta("h", 7);
         ev.setTimestamp(new Date(0));
         Decoder dec = new Msgpack.Builder().build();
-        Map<String, Object> e = dec.decode(ConnectionContext.EMPTY, enc.encode(ev));
+        Map<String, Object> e = dec.decodeStream(ConnectionContext.EMPTY, enc.encode(ev)).findAny().get();
         testContent(e);
         Assert.assertFalse(e instanceof Event);
         Instant f = (Instant) e.get("f");

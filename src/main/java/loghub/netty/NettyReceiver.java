@@ -1,7 +1,9 @@
 package loghub.netty;
 
 import java.net.SocketAddress;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 import org.apache.logging.log4j.Level;
 
@@ -14,6 +16,7 @@ import loghub.ConnectionContext;
 import loghub.Event;
 import loghub.Helpers;
 import loghub.configuration.Properties;
+import loghub.decoders.Decoder.DecodeException;
 import loghub.netty.servers.AbstractNettyServer;
 import loghub.receivers.Receiver;
 
@@ -87,9 +90,9 @@ public abstract class NettyReceiver<R extends NettyReceiver<R, S, B, CF, BS, BSC
 
     public abstract ByteBuf getContent(SM message);
 
-    public Event nettyMessageDecode(ChannelHandlerContext ctx, SM message) {
+    public Stream<Event> nettyMessageDecode(ChannelHandlerContext ctx, SM message) {
         ConnectionContext<?> cctx = ctx.channel().attr(NettyReceiver.CONNECTIONCONTEXTATTRIBUTE).get();
-        return decode(cctx, getContent(message));
+        return decodeStream(cctx, getContent(message));
     }
 
     public boolean nettySend(Event e) {
@@ -121,6 +124,15 @@ public abstract class NettyReceiver<R extends NettyReceiver<R, S, B, CF, BS, BSC
             server.close();
         }
         super.close();
+    }
+
+    protected final Stream<Event> decodeStream(ConnectionContext<?> ctx, ByteBuf bbuf) {
+        try {
+            return decoder.decodeStream(ctx, bbuf).map((m) -> mapToEvent(ctx, () -> bbuf != null && bbuf.isReadable(), () -> m)).filter(Objects::nonNull);
+        } catch (DecodeException ex) {
+            manageDecodeException(ex);
+            return Stream.of();
+        }
     }
 
     /**

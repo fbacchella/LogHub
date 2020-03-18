@@ -1,6 +1,7 @@
 package loghub.netty;
 
 import java.util.List;
+import java.util.stream.Stream;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -37,11 +38,11 @@ public class BaseChannelConsumer<R extends NettyReceiver<?, ?, ?, ?, BS, BSC, ?,
     private class LogHubDecoder extends MessageToMessageDecoder<SM> {
         @Override
         protected void decode(ChannelHandlerContext ctx, SM msg, List<Object> out) {
-            Event e = r.nettyMessageDecode(ctx, msg);
-            if (e == null && closeOnError) {
+            Stream<Event> es = r.nettyMessageDecode(ctx, msg);
+            if (es == null && closeOnError) {
                 ctx.close();
-            } else if (e != null){
-                out.add(e);
+            } else if (es != null){
+                es.forEach(out::add);
             }
         }
     }

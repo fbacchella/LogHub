@@ -1,6 +1,7 @@
 package loghub.receivers;
 
 import java.net.InetSocketAddress;
+import java.util.stream.Stream;
 
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
@@ -59,10 +60,10 @@ public class Udp extends NettyIpReceiver<Udp,
     }
 
     @Override
-    public Event nettyMessageDecode(ChannelHandlerContext ctx,
-                                    DatagramPacket message) {
+    public Stream<Event> nettyMessageDecode(ChannelHandlerContext ctx,
+                                            DatagramPacket message) {
         ConnectionContext<InetSocketAddress> cctx = getNewConnectionContext(ctx, message);
-        return decode(cctx, message.content());
+        return decodeStream(cctx, message.content());
     }
 
     /**

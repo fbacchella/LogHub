@@ -6,7 +6,6 @@ import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.util.Collections;
 import java.util.Date;
-import java.util.Map;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -52,21 +51,27 @@ public class ProcessorTest {
         }
         Decoder nfd = NetflowDecoder.getBuilder().build();
         IpConnectionContext dummyctx = new IpConnectionContext(new InetSocketAddress(0), new InetSocketAddress(0), null);
-        Map<String, Object> content = nfd.decode(dummyctx, bbuffer);
-        Event e = Tools.getEvent();
-        e.setTimestamp((Date) content.remove(Event.TIMESTAMPKEY));
-        e.putAll(content);
-        ProcessingStatus ps = Tools.runProcessing(e, "main", Collections.singletonList(p));
-        logger.debug(ps.mainQueue.remove());
-        logger.debug(ps.mainQueue.remove());
-        logger.debug(ps.mainQueue.remove());
-        logger.debug(ps.mainQueue.remove());
-        logger.debug(ps.mainQueue.remove());
-        logger.debug(ps.mainQueue.remove());
-        logger.debug(ps.mainQueue.remove());
-        logger.debug(ps.mainQueue.remove());
+        nfd.decodeStream(dummyctx, bbuffer).forEach(content -> {
+            Event e = Tools.getEvent();
+            e.setTimestamp((Date) content.remove(Event.TIMESTAMPKEY));
+            e.putAll(content);
+            ProcessingStatus ps;
+            try {
+                ps = Tools.runProcessing(e, "main", Collections.singletonList(p));
+            } catch (ProcessorException ex) {
+                throw new RuntimeException(ex);
+            }
+            logger.debug(ps.mainQueue.remove());
+            logger.debug(ps.mainQueue.remove());
+            logger.debug(ps.mainQueue.remove());
+            logger.debug(ps.mainQueue.remove());
+            logger.debug(ps.mainQueue.remove());
+            logger.debug(ps.mainQueue.remove());
+            logger.debug(ps.mainQueue.remove());
+            logger.debug(ps.mainQueue.remove());
 
-        Assert.assertTrue(ps.mainQueue.isEmpty());
+            Assert.assertTrue(ps.mainQueue.isEmpty());
+        });
     }
 
 }
