@@ -6,6 +6,7 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.stream.Collectors;
 
@@ -21,9 +22,7 @@ import org.apache.kafka.common.record.TimestampType;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 
 import loghub.ConnectionContext;
-import loghub.Event;
 import loghub.Helpers;
-import loghub.decoders.Decoder.DecodeException;
 
 @Blocking
 public class Kafka extends Receiver {
@@ -52,10 +51,6 @@ public class Kafka extends Receiver {
     private String group ="loghub";
     private String keyDeserializer = ByteArrayDeserializer.class.getName();
 
-    public Kafka() {
-        super();
-    }
-
     @Override
     public String getReceiverName() {
         return String.format("Kafka/%s/%s", topic, hashCode());
@@ -66,9 +61,9 @@ public class Kafka extends Receiver {
         Properties props = new Properties();
         URL[] brokersUrl = Helpers.stringsToUrl(brokers, port, "http", logger);
         String resolvedBrokers = Arrays.stream(brokersUrl)
-                .map( i -> i.getHost() + ":" + i.getPort())
-                .collect(Collectors.joining(","))
-                ;
+                                       .map( i -> i.getHost() + ":" + i.getPort())
+                                       .collect(Collectors.joining(","))
+                                       ;
         props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, resolvedBrokers);
         props.put(ConsumerConfig.GROUP_ID_CONFIG, group);
         props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, keyDeserializer);
@@ -88,24 +83,23 @@ public class Kafka extends Receiver {
             }
             for(ConsumerRecord<Long, byte[]> record: consumerRecords) {
                 KafkaContext ctxt = new KafkaContext(record.topic());
-                Event event = Event.emptyEvent(ctxt);
-                if (record.timestampType() ==  TimestampType.CREATE_TIME) {
-                    event.setTimestamp(new Date(record.timestamp()));
-                }
-                Header[] headers = record.headers().toArray();
-                if (headers.length > 0) {
-                    Map<String, byte[]> headersMap = new HashMap<>(headers.length);
-                    Arrays.stream(headers).forEach( i-> headersMap.put(i.key(), i.value()));
-                    event.put("headers", headersMap);
-                }
+                Optional<Date> timestamp = Optional.empty().map(ts ->  record.timestampType() ==  TimestampType.CREATE_TIME ? new Date(record.timestamp()) : null);
+                Optional<Map<String, byte[]>> headers= Optional.empty().map(n-> {
+                    Header[] h = record.headers().toArray();
+                    if (h.length > 0) {
+                        Map<String, byte[]> headersMap = new HashMap<>(h.length);
+                        Arrays.stream(h).forEach( i-> headersMap.put(i.key(), i.value()));
+                        return headersMap;
+                    } else {
+                        return null;
+                    }
+                });
                 byte[] content = record.value();
-                try {
-                    event.putAll(decoder.decode(ctxt, content, 0, content.length));
-                    send(event);
-                } catch (DecodeException e) {
-                    logger.error(e.getMessage());
-                    logger.catching(e);
-                }
+                decodeStream(ctxt, content).forEach( e -> {
+                    timestamp.ifPresent(e::setTimestamp);
+                    headers.ifPresent( h -> e.put("headers", h));
+                    send(e);
+                });
                 if (isInterrupted()) {
                     consumer.commitSync(Collections.singletonMap(new TopicPartition(record.topic(), record.partition()), new OffsetAndMetadata(record.offset())));
                     broke = true;
