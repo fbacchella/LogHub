@@ -51,7 +51,7 @@ public class ProcessorTest {
         }
         Decoder nfd = NetflowDecoder.getBuilder().build();
         IpConnectionContext dummyctx = new IpConnectionContext(new InetSocketAddress(0), new InetSocketAddress(0), null);
-        nfd.decodeStream(dummyctx, bbuffer).forEach(content -> {
+        nfd.decode(dummyctx, bbuffer).forEach(content -> {
             Event e = Tools.getEvent();
             e.setTimestamp((Date) content.remove(Event.TIMESTAMPKEY));
             e.putAll(content);

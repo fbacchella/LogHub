@@ -30,12 +30,7 @@ public class NetflowDecoder extends Decoder {
     }
 
     @Override
-    public Map<String, Object> decode(ConnectionContext<?> ctx, byte[] msg, int offset, int length) throws DecodeException {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public Map<String, Object> decode(ConnectionContext<?> ctx, ByteBuf bbuf) throws DecodeException {
+    public Object decodeObject(ConnectionContext<?> ctx, ByteBuf bbuf) throws DecodeException {
         InetAddress addr;
         if (ctx instanceof IpConnectionContext) {
             addr = ((IpConnectionContext)ctx).getRemoteAddress().getAddress();

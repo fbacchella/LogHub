@@ -4,11 +4,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.time.DateTimeException;
 import java.time.Instant;
-import java.util.Map;
-import java.util.stream.Stream;
 
-import org.msgpack.core.MessageInsufficientBufferException;
-import org.msgpack.core.MessagePackException;
 import org.msgpack.jackson.dataformat.ExtensionTypeCustomDeserializers;
 import org.msgpack.jackson.dataformat.MessagePackFactory;
 
@@ -28,7 +24,7 @@ import loghub.ConnectionContext;
 @BuilderClass(Msgpack.Builder.class)
 public class Msgpack extends AbstractJackson {
 
-    public static class Builder extends Decoder.Builder<Msgpack> {
+    public static class Builder extends AbstractJackson.Builder<Msgpack> {
         @Override
         public Msgpack build() {
             return new Msgpack(this);
@@ -79,12 +75,12 @@ public class Msgpack extends AbstractJackson {
         }
     }
 
-    private static final JacksonDeserializer deser;
+    private static final ObjectMapper mapper;
     static {
         ExtensionTypeCustomDeserializers extTypeCustomDesers = new ExtensionTypeCustomDeserializers();
         extTypeCustomDesers.addCustomDeser((byte) -1, new TimeDeserializer());
         JsonFactory factory = new MessagePackFactory().setExtTypeCustomDesers(extTypeCustomDesers);
-        deser = new JacksonDeserializer(new ObjectMapper(factory));
+        mapper = new ObjectMapper(factory);
     }
 
     private Msgpack(Builder builder) {
@@ -92,20 +88,9 @@ public class Msgpack extends AbstractJackson {
     }
 
     @Override
-    protected Stream<Map<String, Object>> decodeStreamJackson(ConnectionContext<?> ctx, JacksonDeserializer.ObjectResolver gen) throws DecodeException {
-        try {
-            return deser.decodeStream(ctx, gen);
-        } catch (MessageInsufficientBufferException e) {
-            throw new DecodeException("Reception buffer too small");
-        } catch (MessagePackException e) {
-            throw new DecodeException("Can't parse msgpack serialization", e);
-        } catch (IOException e) {
-            throw new DecodeException("Can't parse msgpack serialization", e.getCause());
-        }
-    }
-
-    public String getField() {
-        return field;
+    protected Object decodeJackson(ConnectionContext<?> ctx, ObjectResolver gen)
+                    throws DecodeException, IOException {
+        return gen.deserialize(mapper);
     }
 
 }

@@ -217,6 +217,21 @@ public abstract class Receiver extends Thread implements Iterator<Event>, Closea
                     return null;
                 } else if (content instanceof Event) {
                     return (Event) content;
+                } else if (content.size() == 1 && content.containsKey(Event.class.getCanonicalName())) {
+                    // Special case, the message contain a loghub event, sent from another loghub
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> eventContent = (Map<String, Object>) content.remove(Event.class.getCanonicalName());
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> fields = (Map<String, Object>)eventContent.remove("@fields");
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> metas = (Map<String, Object>) eventContent.remove("@METAS");
+                    Event newEvent = Event.emptyEvent(ctx);
+                    newEvent.putAll(fields);
+                    Optional.ofNullable(eventContent.get(Event.TIMESTAMPKEY))
+                    .filter(newEvent::setTimestamp)
+                    .ifPresent(ts -> eventContent.remove(Event.TIMESTAMPKEY));
+                    metas.forEach((i,j) -> newEvent.putMeta(i, j));
+                    return newEvent;
                 } else {
                     Event event = Event.emptyEvent(ctx);
                     Optional.ofNullable(content.get(timeStampField))
@@ -240,7 +255,7 @@ public abstract class Receiver extends Thread implements Iterator<Event>, Closea
 
     protected final Stream<Event> decodeStream(ConnectionContext<?> ctx, byte[] msg, int offset, int size) {
         try {
-            return decoder.decodeStream(ctx, msg, offset, size).map((m) -> mapToEvent(ctx, () -> msg != null && size > 0 && offset < size, () -> m)).filter(Objects::nonNull);
+            return decoder.decode(ctx, msg, offset, size).map((m) -> mapToEvent(ctx, () -> msg != null && size > 0 && offset < size, () -> m)).filter(Objects::nonNull);
         } catch (DecodeException ex) {
             manageDecodeException(ex);
             return Stream.of();
@@ -249,14 +264,14 @@ public abstract class Receiver extends Thread implements Iterator<Event>, Closea
 
     protected final Stream<Event> decodeStream(ConnectionContext<?> ctx, byte[] msg) {
         try {
-            return decoder.decodeStream(ctx, msg).map((m) -> mapToEvent(ctx, () -> true, () -> m)).filter(Objects::nonNull);
+            return decoder.decode(ctx, msg).map((m) -> mapToEvent(ctx, () -> true, () -> m)).filter(Objects::nonNull);
         } catch (DecodeException ex) {
             manageDecodeException(ex);
             return Stream.of();
         }
     }
 
-    protected void manageDecodeException(DecodeException ex) {
+    public void manageDecodeException(DecodeException ex) {
         Stats.newDecodError(ex);
         logger.debug("invalid message received: {}", ex.getMessage());
         logger.catching(Level.DEBUG, ex.getCause() != null ? ex.getCause() : ex);

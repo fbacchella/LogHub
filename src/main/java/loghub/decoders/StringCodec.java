@@ -1,8 +1,6 @@
 package loghub.decoders;
 
 import java.nio.charset.Charset;
-import java.util.Collections;
-import java.util.Map;
 
 import io.netty.buffer.ByteBuf;
 import loghub.BuilderClass;
@@ -20,6 +18,7 @@ public class StringCodec extends Decoder {
             return new StringCodec(this);
         }
     };
+
     public static Builder getBuilder() {
         return new Builder();
     }
@@ -32,14 +31,16 @@ public class StringCodec extends Decoder {
     }
 
     @Override
-    public Map<String, Object> decode(ConnectionContext<?> ctx, byte[] msg, int offset, int length) {
-        String message = new String(msg, offset, length, charset);
-        return Collections.singletonMap(field, message);
+    protected Object decodeObject(ConnectionContext<?> connectionContext,
+                                  byte[] msg, int offset, int length)
+                                                  throws DecodeException {
+        return new String(msg, offset, length, charset);
     }
 
     @Override
-    public Map<String, Object> decode(ConnectionContext<?> ctx, ByteBuf bbuf) {
-        return Collections.singletonMap(field, bbuf.toString(charset));
+    protected Object decodeObject(ConnectionContext<?> ctx, ByteBuf bbuf)
+                    throws DecodeException {
+        return bbuf.toString(charset);
     }
 
 }

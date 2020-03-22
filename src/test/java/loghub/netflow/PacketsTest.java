@@ -173,7 +173,7 @@ public class PacketsTest {
         .forEach(i -> {
             try {
                 while(i.isReadable()) {
-                    nfd.decodeStream(dummyctx, i).forEach(content -> {
+                    nfd.decode(dummyctx, i).forEach(content -> {
                         Assert.assertTrue(content.containsKey("version"));
                         Assert.assertTrue(content.containsKey("sequenceNumber"));
                         Assert.assertTrue(content.containsKey("records"));

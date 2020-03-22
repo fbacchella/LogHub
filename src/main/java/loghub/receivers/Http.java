@@ -95,7 +95,7 @@ public class Http extends AbstractTcpReceiver<Http, Http.HttpReceiverServer, Htt
                                     }));
                     mapsStream = Stream.of(result);
                 } else if (decoders.containsKey(mimeType)) {
-                    mapsStream = decoders.get(mimeType).decodeStream(cctx, request.content());
+                    mapsStream = decoders.get(mimeType).decode(cctx, request.content());
                 } else {
                     throw new RuntimeDecodeException(new DecodeException("Unhandled content type " + mimeType));
                 }
