@@ -6,8 +6,10 @@ import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.jsontype.impl.StdTypeResolverBuilder;
 
+import loghub.BuilderClass;
 import loghub.ConnectionContext;
 
+@BuilderClass(Json.Builder.class)
 public class Json extends AbstractStringJackson {
 
     public static class Builder extends AbstractStringJackson.Builder<Json> {
