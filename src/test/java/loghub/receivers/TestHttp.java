@@ -46,6 +46,8 @@ import loghub.Pipeline;
 import loghub.Tools;
 import loghub.configuration.ConfigException;
 import loghub.configuration.Properties;
+import loghub.decoders.Decoder;
+import loghub.decoders.Json;
 import loghub.security.JWTHandler;
 import loghub.security.ssl.ContextLoader;
 
@@ -57,7 +59,7 @@ public class TestHttp {
     static public void configure() throws IOException {
         Tools.configure();
         logger = LogManager.getLogger();
-        LogUtils.setLevel(logger, Level.TRACE, "loghub.receivers.Http", "loghub.netty", "loghub.EventsProcessor", "loghub.security", "loghub.netty.http");
+        LogUtils.setLevel(logger, Level.TRACE, "loghub.receivers.Http", "loghub.netty", "loghub.EventsProcessor", "loghub.security", "loghub.netty.http", "loghub.configuration");
     }
 
     private Http receiver = null;
@@ -78,6 +80,11 @@ public class TestHttp {
         receiver.setPipeline(new Pipeline(Collections.emptyList(), "testhttp", null));
         receiver.setHost(hostname);
         receiver.setPort(port);
+        Json.Builder builder = Json.getBuilder();
+        builder.setCharset("UTF-8");
+        Json jdec = builder.build();
+        jdec.configure(null, receiver);
+        receiver.setDecoders(Collections.singletonMap("application/json", jdec));
         prepare.accept(receiver);
         Assert.assertTrue(receiver.configure(new Properties(propsMap)));
         receiver.start();
@@ -184,31 +191,6 @@ public class TestHttp {
         doRequest(new URL("https", hostname, port, "/?a=1"),
                   new byte[]{},
                   i -> {}, 200);
-    }
-
-    @Test(timeout=5000)
-    public void testHttpFull() throws IOException {
-        makeReceiver( i -> {}, Collections.emptyMap());
-        try {
-            doRequest(new URL("http", hostname, port, "/?a=1"),
-                      new byte[]{},
-                      i -> {}, 200);
-            doRequest(new URL("http", hostname, port, "/?a=1"),
-                      new byte[]{},
-                      i -> {}, 200);
-            doRequest(new URL("http", hostname, port, "/?a=1"),
-                      new byte[]{},
-                      i -> {}, 200);
-            doRequest(new URL("http", hostname, port, "/?a=1"),
-                      new byte[]{},
-                      i -> {}, 200);
-            doRequest(new URL("http", hostname, port, "/?a=1"),
-                      new byte[]{},
-                      i -> {}, 200);
-        } catch (IOException e) {
-            Assert.assertEquals("Server returned HTTP response code: 429 for URL: http://127.0.0.1:" + receiver.getPort() + "/?a=1", e.getMessage());
-            return;
-        }
     }
 
     @Test
@@ -327,9 +309,9 @@ public class TestHttp {
                         "    loghub.receivers.Http {" + 
                         "        port: 1502," + 
                         "        decoders: {" + 
-                        "            \"text/csv\": loghub.decoders.Msgpack {" + 
+                        "            \"application/csv\": loghub.decoders.Json {" + 
                         "            }," + 
-                        "            \"text/json\": loghub.decoders.Msgpack {" + 
+                        "            \"application/msgpack\": loghub.decoders.Msgpack {" + 
                         "            }," + 
                         "        }," + 
                         "    }" + 
@@ -337,6 +319,10 @@ public class TestHttp {
                         "pipeline[main] {" + 
                         "}";
         Properties conf = Tools.loadConf(new StringReader(confile));
+        Http http = (Http) conf.receivers.toArray(new Receiver[1])[0];
+        Map<String, Decoder> decs = http.getDecoders();
+        Assert.assertTrue(decs.containsKey("application/csv"));
+        Assert.assertTrue(decs.containsKey("application/msgpack"));
     }
 
     @Test
