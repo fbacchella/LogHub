@@ -23,12 +23,12 @@ public abstract class AbstractStringJackson extends AbstractJackson {
 
     @Override
     public Object decodeObject(ConnectionContext<?> ctx, byte[] msg, int offset, int length) throws DecodeException {
-        return runDecodeJackson(ctx, om -> om.readValue(new String(msg, offset, length, charset), OBJECTREF));
+        return runDecodeJackson(ctx, reader -> reader.readValues(new String(msg, offset, length, charset)));
     }
 
     @Override
     public Object decodeObject(ConnectionContext<?> ctx, ByteBuf bbuf) throws DecodeException {
-        return runDecodeJackson(ctx, om -> om.readValue(bbuf.toString(charset), OBJECTREF));
+        return runDecodeJackson(ctx, reader -> reader.readValues(bbuf.toString(charset)));
     }
 
 }

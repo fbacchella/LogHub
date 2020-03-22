@@ -3,6 +3,7 @@ package loghub.decoders;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Stream;
@@ -18,6 +19,7 @@ import loghub.ConnectionContext;
 import loghub.Event;
 import loghub.configuration.Properties;
 import loghub.receivers.Receiver;
+import lombok.Getter;
 import lombok.Setter;
 
 public abstract class Decoder {
@@ -52,8 +54,9 @@ public abstract class Decoder {
 
     protected final Logger logger;
 
+    @Getter
     protected final String field;
-    protected Receiver receiver;
+    private Receiver receiver;
 
     protected Decoder(Builder<?  extends Decoder> builder) {
         logger = LogManager.getLogger(stacklocator.getCallerClass(2));
@@ -106,6 +109,11 @@ public abstract class Decoder {
         } else if (o instanceof Iterable){
             @SuppressWarnings("unchecked")
             Iterable<Object> i = (Iterable<Object>) o;
+            return StreamSupport.stream(i.spliterator(), false).map(getDecodeMap(ctx)).filter(m -> m != null);
+        } else if (o instanceof Iterator){
+            @SuppressWarnings("unchecked")
+            Iterator<Object> iter = (Iterator<Object>) o;
+            Iterable<Object> i = () -> iter;
             return StreamSupport.stream(i.spliterator(), false).map(getDecodeMap(ctx)).filter(m -> m != null);
         }  else {
             return Stream.of(decodeMap(ctx, o));

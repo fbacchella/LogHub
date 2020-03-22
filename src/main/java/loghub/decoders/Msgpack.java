@@ -10,6 +10,7 @@ import org.msgpack.jackson.dataformat.MessagePackFactory;
 
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectReader;
 
 import loghub.BuilderClass;
 import loghub.ConnectionContext;
@@ -75,12 +76,13 @@ public class Msgpack extends AbstractJackson {
         }
     }
 
-    private static final ObjectMapper mapper;
+    private static final ObjectReader reader;
     static {
         ExtensionTypeCustomDeserializers extTypeCustomDesers = new ExtensionTypeCustomDeserializers();
         extTypeCustomDesers.addCustomDeser((byte) -1, new TimeDeserializer());
         JsonFactory factory = new MessagePackFactory().setExtTypeCustomDesers(extTypeCustomDesers);
-        mapper = new ObjectMapper(factory);
+        ObjectMapper mapper = new ObjectMapper(factory);
+        reader = mapper.readerFor(OBJECTREF);
     }
 
     private Msgpack(Builder builder) {
@@ -90,7 +92,7 @@ public class Msgpack extends AbstractJackson {
     @Override
     protected Object decodeJackson(ConnectionContext<?> ctx, ObjectResolver gen)
                     throws DecodeException, IOException {
-        return gen.deserialize(mapper);
+        return gen.deserialize(reader);
     }
 
 }

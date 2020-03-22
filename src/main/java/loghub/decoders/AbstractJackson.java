@@ -1,9 +1,10 @@
 package loghub.decoders;
 
 import java.io.IOException;
+import java.io.InputStream;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectReader;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufInputStream;
@@ -16,7 +17,7 @@ public abstract class AbstractJackson extends Decoder {
 
     @FunctionalInterface
     public static interface ObjectResolver {
-        Object deserialize(ObjectMapper om) throws DecodeException, IOException;
+        Object deserialize(ObjectReader reader) throws DecodeException, IOException;
     }
 
     protected static final TypeReference<Object> OBJECTREF = new TypeReference<Object>() { };
@@ -27,12 +28,12 @@ public abstract class AbstractJackson extends Decoder {
 
     @Override
     public Object decodeObject(ConnectionContext<?> ctx, byte[] msg, int offset, int length) throws DecodeException {
-        return runDecodeJackson(ctx, om -> om.readValue(msg, offset, length, OBJECTREF));
+        return runDecodeJackson(ctx, reader -> reader.readValue(msg, offset, length));
     }
 
     @Override
     public Object decodeObject(ConnectionContext<?> ctx, ByteBuf bbuf) throws DecodeException {
-        return runDecodeJackson(ctx, om -> om.readValue(new ByteBufInputStream(bbuf), OBJECTREF));
+        return runDecodeJackson(ctx, reader -> reader.readValue((InputStream)new ByteBufInputStream(bbuf)));
     }
     
     protected final Object runDecodeJackson(ConnectionContext<?> ctx, ObjectResolver gen) throws DecodeException {
