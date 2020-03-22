@@ -314,7 +314,7 @@ class ConfigListener extends RouteBaseListener {
         } catch (ClassNotFoundException e) {
             throw new RecognitionException("Unknown class " + qualifiedName, parser, stream, ctx);
         } catch (InstantiationException | IllegalAccessException e) {
-            throw new RecognitionException("Unsuable class " + qualifiedName, parser, stream, ctx);
+            throw new RecognitionException("Unsuable class " + qualifiedName + ": " + Helpers.resolveThrowableException(e), parser, stream, ctx);
         }
     }
 
