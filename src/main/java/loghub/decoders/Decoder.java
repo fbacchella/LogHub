@@ -50,6 +50,11 @@ public abstract class Decoder {
         }
     }
 
+    @FunctionalInterface
+    public static interface ObjectDecoder {
+        Object get()  throws DecodeException;
+    }
+
     private static final StackLocator stacklocator = StackLocator.getInstance();
 
     protected final Logger logger;
@@ -68,12 +73,10 @@ public abstract class Decoder {
         return true;
     }
 
-    
     protected void manageDecodeException(ConnectionContext<?> connectionContext, DecodeException ex) {
         receiver.manageDecodeException(new DecodeException("received null or empty event"));
         Event.emptyEvent(connectionContext).end();
     }
-
 
     protected Object decodeObject(ConnectionContext<?> connectionContext, byte[] msg, int offset, int length) throws DecodeException {
         throw new UnsupportedOperationException();
@@ -87,16 +90,8 @@ public abstract class Decoder {
         return decodeObject(ctx, msg, 0, msg.length);
     }
 
-    protected Stream<Object> decodeStream(ConnectionContext<?> ctx, ByteBuf bbuf) throws DecodeException {
-        return Stream.of(decodeObject(ctx, bbuf));
-    }
-
-    protected Stream<Object> decodeStream(ConnectionContext<?> ctx, byte[] msg, int offset, int length) throws DecodeException {
-        return Stream.of(decodeObject(ctx, msg, offset, length));
-    }
-
-    protected Stream<Object> decodeStream(ConnectionContext<?> ctx, byte[] msg) throws DecodeException {
-        return Stream.of(decodeObject(ctx, msg, 0, msg.length));
+    protected Stream<Object> decodeStream(ConnectionContext<?> ctx, ObjectDecoder od) throws DecodeException {
+        return Stream.of(od.get());
     }
 
     private Stream<Map<String, Object>> resolve(ConnectionContext<?> ctx, Object o) throws DecodeException {
@@ -148,29 +143,19 @@ public abstract class Decoder {
     }
 
     public final Stream<Map<String, Object>> decode(ConnectionContext<?> ctx, ByteBuf bbuf) throws DecodeException {
-        return decodeStream(ctx, bbuf).flatMap(i -> {
-            try {
-                return resolve(ctx, i);
-            } catch (DecodeException ex) {
-                manageDecodeException(ctx, ex);
-                return null;
-            }
-        });
+        return parseObjectStream(ctx, () -> decodeObject(ctx, bbuf));
     }
 
     public final Stream<Map<String, Object>> decode(ConnectionContext<?> ctx, byte[] msg, int offset, int length) throws DecodeException {
-        return decodeStream(ctx, msg, offset, length).flatMap(i -> {
-            try {
-                return resolve(ctx, i);
-            } catch (DecodeException ex) {
-                manageDecodeException(ctx, ex);
-                return null;
-            }
-        });
+        return parseObjectStream(ctx, () -> decodeObject(ctx, msg, offset, length));
     }
 
     public final Stream<Map<String, Object>> decode(ConnectionContext<?> ctx, byte[] msg) throws DecodeException {
-        return decodeStream(ctx, msg).flatMap(i -> {
+        return parseObjectStream(ctx, () -> decodeObject(ctx, msg));
+    }
+
+    protected final Stream<Map<String, Object>> parseObjectStream(ConnectionContext<?> ctx, ObjectDecoder objectsSource) throws DecodeException {
+        return decodeStream(ctx, objectsSource).flatMap(i -> {
             try {
                 return resolve(ctx, i);
             } catch (DecodeException ex) {
