@@ -8,6 +8,7 @@ import java.nio.charset.UnsupportedCharsetException;
 import java.security.Principal;
 import java.util.Collections;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -28,6 +29,7 @@ import loghub.configuration.Properties;
 import loghub.decoders.Decoder;
 import loghub.decoders.Decoder.DecodeException;
 import loghub.decoders.Decoder.RuntimeDecodeException;
+import loghub.decoders.TextDecoder;
 import loghub.netty.AbstractTcpReceiver;
 import loghub.netty.http.AbstractHttpServer;
 import loghub.netty.http.AccessControl;
@@ -53,48 +55,32 @@ public class Http extends AbstractTcpReceiver<Http, Http.HttpReceiverServer, Htt
         protected void processRequest(FullHttpRequest request, ChannelHandlerContext ctx) throws HttpRequestFailure {
             try {
                 String mimeType = Optional.ofNullable(HttpUtil.getMimeType(request)).orElse("application/octet-stream").toString();
-                CharSequence encoding = Optional.ofNullable(HttpUtil.getCharsetAsSequence(request)).orElse("UTF-8");
                 if (request.method() == HttpMethod.GET) {
                     mimeType = "application/query-string";
                 }
+                CharSequence encoding = Optional.ofNullable(HttpUtil.getCharsetAsSequence(request)).orElse("UTF-8");
+                Decoder decoder = Optional.ofNullable(mimeType).map(decoders::get).orElse(null);
                 String message;
-                switch(mimeType) {
-                case "application/json": {
-                    Charset cs = Charset.forName(encoding.toString());
-                    message = request.content().toString(cs);
-                    break;
-                }
-                case "application/x-www-form-urlencoded": {
+                if ("application/x-www-form-urlencoded".equals(mimeType)) {
                     Charset cs = Charset.forName(encoding.toString());
                     message = "?" + request.content().toString(cs);
-                    break;
-                }
-                case "application/query-string":
+                    decoder = null;
+                } else if ("application/query-string".equals(mimeType)) {
                     message = request.uri();
-                    break;
-                default:
-                    if (mimeType.startsWith("text/")) {
-                        Charset cs = Charset.forName(encoding.toString());
-                        message = request.content().toString(cs);
-                    } else {
-                        message = null;
-                    }
+                    decoder = null;
+                } else if (decoder instanceof TextDecoder) {
+                    Charset cs = Charset.forName(encoding.toString());
+                    message = request.content().toString(cs);
+                } else {
+                    message = null;
                 }
                 ConnectionContext<InetSocketAddress> cctx = Http.this.getConnectionContext(ctx, null);
                 Stream<Map<String, Object>> mapsStream;
-                if ("application/x-www-form-urlencoded".equals(mimeType)
-                    || "application/query-string".equals(mimeType)) {
-                    QueryStringDecoder qsd = new QueryStringDecoder(message);
-                    Map<String, Object> result = qsd.parameters().entrySet().stream()
-                                    .collect(Collectors.toMap(i -> i.getKey(), j -> {
-                                        if (j.getValue().size() == 1) {
-                                            return (Object) j.getValue().get(0);
-                                        } else {
-                                            return (Object) j.getValue();
-                                        }
-                                    }));
-                    mapsStream = Stream.of(result);
-                } else if (decoders.containsKey(mimeType)) {
+                if (message != null && decoder == null) {
+                    mapsStream = Stream.of(resolveCgi(message));
+                } else if (decoder instanceof TextDecoder) {
+                    mapsStream = ((TextDecoder)decoder).decode(cctx, message);
+                } else if (decoder != null) {
                     mapsStream = decoders.get(mimeType).decode(cctx, request.content());
                 } else {
                     throw new RuntimeDecodeException(new DecodeException("Unhandled content type " + mimeType));
@@ -103,7 +89,7 @@ public class Http extends AbstractTcpReceiver<Http, Http.HttpReceiverServer, Htt
                 if (p != null) {
                     cctx.setPrincipal(p);
                 }
-                mapsStream.map(m -> Http.this.mapToEvent(cctx, () -> ! m.isEmpty(), () -> m)).forEach(Http.this::send);
+                mapsStream.filter(Objects::nonNull).map(m -> Http.this.mapToEvent(cctx, () -> ! m.isEmpty(), () -> m)).forEach(Http.this::send);
             } catch (DecodeException ex) {
                 Http.this.manageDecodeException(ex);
                 logger.error("Can't decode content", ex);
@@ -122,6 +108,19 @@ public class Http extends AbstractTcpReceiver<Http, Http.HttpReceiverServer, Htt
         }
 
     };
+
+    private Map<String, Object> resolveCgi(String message) {
+        QueryStringDecoder qsd = new QueryStringDecoder(message);
+        return qsd.parameters().entrySet().stream()
+                        .collect(Collectors.toMap(i -> i.getKey(), j -> {
+                            if (j.getValue().size() == 1) {
+                                return (Object) j.getValue().get(0);
+                            } else {
+                                return (Object) j.getValue();
+                            }
+                        }));
+
+    }
 
     protected static class HttpReceiverServer extends AbstractHttpServer<HttpReceiverServer, HttpReceiverServer.Builder> {
 
@@ -151,6 +150,7 @@ public class Http extends AbstractTcpReceiver<Http, Http.HttpReceiverServer, Htt
             }
             p.addLast("receiver", receiver);
         }
+
     }
 
     @Getter @Setter
