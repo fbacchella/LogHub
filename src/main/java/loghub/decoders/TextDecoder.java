@@ -4,7 +4,6 @@ import java.util.Map;
 import java.util.stream.Stream;
 
 import loghub.ConnectionContext;
-import loghub.decoders.Decoder.DecodeException;
 
 public interface TextDecoder {
 

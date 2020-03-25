@@ -31,7 +31,6 @@ import loghub.Event;
 import loghub.LogUtils;
 import loghub.ThreadBuilder;
 import loghub.Tools;
-import loghub.decoders.Decoder.DecodeException;
 import loghub.receivers.Receiver;
 
 public class TestMsgpack {

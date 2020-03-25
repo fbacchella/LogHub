@@ -16,7 +16,7 @@ import loghub.ConnectionContext;
 import loghub.Event;
 import loghub.Helpers;
 import loghub.configuration.Properties;
-import loghub.decoders.Decoder.DecodeException;
+import loghub.decoders.DecodeException;
 import loghub.netty.servers.AbstractNettyServer;
 import loghub.receivers.Receiver;
 

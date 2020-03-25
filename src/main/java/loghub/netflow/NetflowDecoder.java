@@ -10,6 +10,7 @@ import loghub.BuilderClass;
 import loghub.ConnectionContext;
 import loghub.Event;
 import loghub.IpConnectionContext;
+import loghub.decoders.DecodeException;
 import loghub.decoders.Decoder;
 
 @BuilderClass(NetflowDecoder.Builder.class)

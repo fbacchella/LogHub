@@ -18,7 +18,6 @@ import loghub.ConnectionContext;
 import loghub.LogUtils;
 import loghub.Tools;
 import loghub.decoders.Csv.Builder;
-import loghub.decoders.Decoder.DecodeException;
 
 public class TestCsv {
 

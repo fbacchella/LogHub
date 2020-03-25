@@ -9,7 +9,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import com.codahale.metrics.MetricRegistry;
 
 import loghub.configuration.Properties;
-import loghub.decoders.Decoder.DecodeException;
+import loghub.decoders.DecodeException;
 
 public final class Stats {
 

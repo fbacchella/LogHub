@@ -29,27 +29,6 @@ public abstract class Decoder {
         private String field = "message";
     };
 
-    public static class DecodeException extends Exception {
-        public DecodeException(String message, Throwable cause) {
-            super(message, cause);
-        }
-        public DecodeException(String message) {
-            super(message);
-        }
-    }
-
-    public static class RuntimeDecodeException extends RuntimeException {
-        public RuntimeDecodeException(DecodeException cause) {
-            super(cause.getMessage(), cause);
-        }
-        public RuntimeDecodeException(String message, DecodeException cause) {
-            super(message, cause);
-        }
-        public DecodeException getDecodeException() {
-            return (DecodeException) getCause();
-        }
-    }
-
     @FunctionalInterface
     public static interface ObjectDecoder {
         Object get()  throws DecodeException;
@@ -137,7 +116,7 @@ public abstract class Decoder {
             if (field != null) {
                 return Collections.singletonMap(field, o);
             } else {
-                throw new Decoder.DecodeException("Can't be mapped to event");
+                throw new DecodeException("Can't be mapped to event");
             }
         }
     }

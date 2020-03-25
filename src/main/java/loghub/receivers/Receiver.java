@@ -24,9 +24,9 @@ import loghub.Pipeline;
 import loghub.Stats;
 import loghub.Stats.PipelineStat;
 import loghub.configuration.Properties;
+import loghub.decoders.DecodeException;
+import loghub.decoders.DecodeException.RuntimeDecodeException;
 import loghub.decoders.Decoder;
-import loghub.decoders.Decoder.DecodeException;
-import loghub.decoders.Decoder.RuntimeDecodeException;
 import loghub.security.AuthenticationHandler;
 import loghub.security.ssl.ClientAuthentication;
 

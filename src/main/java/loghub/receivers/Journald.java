@@ -32,7 +32,7 @@ import io.netty.util.AttributeKey;
 import io.netty.util.ByteProcessor;
 import io.netty.util.ByteProcessor.IndexOfProcessor;
 import loghub.Event;
-import loghub.decoders.Decoder.DecodeException;
+import loghub.decoders.DecodeException;
 import loghub.netty.http.ContentType;
 import loghub.netty.http.HttpRequestFailure;
 import loghub.netty.http.HttpRequestProcessing;
