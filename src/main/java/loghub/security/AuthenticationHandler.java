@@ -38,23 +38,6 @@ public class AuthenticationHandler {
         private Builder() {
         }
 
-        public Builder useSsl() {
-            return useSsl(true);
-        }
-        public Builder useSsl(boolean useSsl) {
-            active = active || useSsl;
-            return this;
-        }
-        public Builder setSslClientAuthentication(String sslclient) {
-            if (sslclient != null && ! sslclient.isEmpty()) {
-                try {
-                } catch (IllegalArgumentException e) {
-                    logger.throwing(Level.DEBUG, e);
-                    throw new IllegalArgumentException(String.format("'%s' is not a valide value", sslclient), e);
-                }
-            }
-            return this;
-        }
         public Builder setLogin(String login) {
             active = active || ((password != null && password.length > 0) && (login != null && ! login.isEmpty()));
             this.login = login;
@@ -111,7 +94,7 @@ public class AuthenticationHandler {
         this.login = builder.login;
         this.password = builder.password;
 
-        if(builder.jaasConfig != null && (builder.jaasName != null && ! builder.jaasName.isEmpty())) {
+        if (builder.jaasConfig != null && (builder.jaasName != null && ! builder.jaasName.isEmpty())) {
             this.jaasName = builder.jaasName;
             this.jaasConfig = builder.jaasConfig;
             if (jaasConfig.getAppConfigurationEntry(jaasName) == null){

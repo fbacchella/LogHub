@@ -131,7 +131,6 @@ public abstract class Receiver extends Thread implements Iterator<Event>, Closea
     protected AuthenticationHandler getAuthHandler(Properties properties) {
         if (authHandler == null) {
             authHandler = AuthenticationHandler.getBuilder()
-                            .setSslClientAuthentication(SSLClientAuthentication).useSsl(withSSL)
                             .setLogin(user).setPassword(password != null ? password.toCharArray() : null)
                             .setJaasName(jaasName).setJaasConfig(properties.jaasConfig)
                             .setJwtHandler(useJwt ? properties.jwtHandler : null).useJwt(useJwt)

@@ -1,5 +1,6 @@
 package loghub;
 
+import java.util.Locale;
 import java.util.Map;
 
 import io.netty.channel.ChannelPipeline;
@@ -79,13 +80,12 @@ public class DashboardHttpServer extends AbstractHttpServer<DashboardHttpServer,
                 sslKeyalias = null;
             }
             AuthenticationHandler authHandler = AuthenticationHandler.getBuilder()
-                    .useSsl(useSSL).setSslClientAuthentication(clientAuthentication)
                     .useJwt((Boolean) collect.compute("jwt", (i,j) -> Boolean.TRUE.equals(j))).setJwtHandler(props.jwtHandler)
                     .setJaasName(collect.compute("jaasName", (i,j) -> j != null ? j : "").toString()).setJaasConfig(props.jaasConfig)
                     .build();
             return getBuilder()
                     .setPort(port)
-                    .setSSLContext(props.ssl).useSSL(useSSL).setSSLKeyAlias(sslKeyalias)
+                    .setSSLContext(props.ssl).useSSL(useSSL).setSSLKeyAlias(sslKeyalias).setSSLClientAuthentication(ClientAuthentication.valueOf(clientAuthentication.toUpperCase(Locale.ENGLISH)))
                     .setAuthHandler(authHandler)
                     .setThreadPrefix("Dashboard");
         }
