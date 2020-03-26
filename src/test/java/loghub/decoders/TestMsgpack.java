@@ -128,29 +128,54 @@ public class TestMsgpack {
         Assert.assertEquals(698799000, time.getNano());
     }
 
+    private static class TestReceiver extends Receiver {
+
+        public static class Builder extends Receiver.Builder<TestReceiver> {
+
+            public TestReceiver build(byte[] bs) {
+                return new TestReceiver(this, bs);
+            }
+
+            @Override
+            public TestReceiver build() {
+                return null;
+            }
+        };
+        public static Builder getBuilder() {
+            return new Builder();
+        }
+
+        private final byte[] bs;
+        protected TestReceiver(Builder builder, byte[] bs) {
+            super(builder);
+            this.bs = bs;
+        }
+        @Override
+        public String getReceiverName() {
+            return null;
+        }
+
+        @Override
+        public Event next() {
+            return decodeStream(ConnectionContext.EMPTY, bs).findAny().get();
+        }
+
+        @Override
+        public void run() {
+        }
+    }
+
     @Test
     public void testDecoder() throws JsonProcessingException {
 
         byte[] bs = objectMapper.writeValueAsBytes(obj);
 
-        try(Receiver r = new Receiver() {
-            @Override
-            public String getReceiverName() {
-                return null;
-            }
-
-            @Override
-            public Event next() {
-                return decodeStream(ConnectionContext.EMPTY, bs).findAny().get();
-            }
-
-            @Override
-            public void run() {
-            }
-        }) {
-            r.setTimeStampField("f");
-            Msgpack d = AbstractBuilder.resolve(Msgpack.class).build();
-            r.setDecoder(d);
+        TestReceiver.Builder builder = TestReceiver.getBuilder();
+        builder.setTimeStampField("f");
+        Msgpack d = AbstractBuilder.resolve(Msgpack.class).build();
+        builder.setDecoder(d);
+        
+        try (Receiver r = builder.build(bs)) {
             Event e = r.next();
             testContent(e);
         }
