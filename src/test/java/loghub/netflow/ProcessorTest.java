@@ -22,8 +22,8 @@ import loghub.LogUtils;
 import loghub.ProcessorException;
 import loghub.Tools;
 import loghub.Tools.ProcessingStatus;
+import loghub.decoders.DecodeException;
 import loghub.decoders.Decoder;
-import loghub.decoders.Decoder.DecodeException;
 
 public class ProcessorTest {
 
