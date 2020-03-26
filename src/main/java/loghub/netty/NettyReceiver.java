@@ -19,6 +19,7 @@ import loghub.configuration.Properties;
 import loghub.decoders.DecodeException;
 import loghub.netty.servers.AbstractNettyServer;
 import loghub.receivers.Receiver;
+import lombok.Setter;
 
 public abstract class NettyReceiver<R extends NettyReceiver<R, S, B, CF, BS, BSC, SC, CC, SA, SM>,
                                     S extends AbstractNettyServer<CF, BS, BSC, SC, SA, S, B>,
@@ -33,12 +34,21 @@ public abstract class NettyReceiver<R extends NettyReceiver<R, S, B, CF, BS, BSC
 
     protected static final AttributeKey<ConnectionContext<?  extends SocketAddress>> CONNECTIONCONTEXTATTRIBUTE = AttributeKey.newInstance(ConnectionContext.class.getName());
 
-    protected S server;
-    private int threadsCount = 1;
-    private String poller = "NIO";
+    public abstract static class Builder<B extends NettyReceiver<?, ?, ?, ?,?, ?, ?, ?, ?, ?>> extends Receiver.Builder<B> {
+        @Setter
+        String poller = "NIO";
+        @Setter
+        int workerThreads = 1;
+    };
 
-    public NettyReceiver() {
-        super();
+    protected S server;
+    private final int workerThreads;
+    private final String poller;
+
+    protected NettyReceiver(Builder<? extends NettyReceiver<R, S, B, CF, BS, BSC, SC, CC, SA, SM>> builder) {
+        super(builder);
+        this.workerThreads = builder.workerThreads;
+        this.poller = builder.poller;
     }
 
     @Override
@@ -50,7 +60,7 @@ public abstract class NettyReceiver<R extends NettyReceiver<R, S, B, CF, BS, BSC
 
     public boolean configure(Properties properties, B builder) {
         try {
-            builder.setAuthHandler(getAuthHandler(properties)).setWorkerThreads(threadsCount).setPoller(poller);
+            builder.setAuthHandler(getAuthHandler(properties)).setWorkerThreads(workerThreads).setPoller(poller);
         } catch (IllegalArgumentException ex) {
             logger.error("Can't start receiver authentication handler: {}", Helpers.resolveThrowableException(ex));
             logger.catching(Level.DEBUG, ex);
@@ -131,36 +141,8 @@ public abstract class NettyReceiver<R extends NettyReceiver<R, S, B, CF, BS, BSC
             return decoder.decode(ctx, bbuf).map((m) -> mapToEvent(ctx, () -> bbuf != null && bbuf.isReadable(), () -> m)).filter(Objects::nonNull);
         } catch (DecodeException ex) {
             manageDecodeException(ex);
-            return Stream.of();
+            return Stream.empty();
         }
-    }
-
-    /**
-     * @return the threads
-     */
-    public int getWorkerThreads() {
-        return threadsCount;
-    }
-
-    /**
-     * @param threads the threads to set
-     */
-    public void setWorkerThreads(int threads) {
-        this.threadsCount = threads;
-    }
-
-    /**
-     * @return the poller
-     */
-    public String getPoller() {
-        return poller;
-    }
-
-    /**
-     * @param poller the poller to set
-     */
-    public void setPoller(String poller) {
-        this.poller = poller;
     }
 
 }

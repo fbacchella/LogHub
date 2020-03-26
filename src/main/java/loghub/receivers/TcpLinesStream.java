@@ -8,6 +8,7 @@ import io.netty.channel.ChannelPipeline;
 import io.netty.channel.ServerChannel;
 import io.netty.handler.codec.LineBasedFrameDecoder;
 import io.netty.util.CharsetUtil;
+import loghub.BuilderClass;
 import loghub.configuration.Properties;
 import loghub.decoders.StringCodec;
 import loghub.netty.AbstractTcpReceiver;
@@ -15,13 +16,45 @@ import loghub.netty.BaseChannelConsumer;
 import loghub.netty.ChannelConsumer;
 import loghub.netty.ConsumerProvider;
 import loghub.netty.servers.TcpServer;
-import loghub.netty.servers.TcpServer.Builder;
+import lombok.Getter;
+import lombok.Setter;
 
+@BuilderClass(TcpLinesStream.Builder.class)
 public class TcpLinesStream extends AbstractTcpReceiver<TcpLinesStream, TcpServer, TcpServer.Builder> implements ConsumerProvider<TcpLinesStream, ServerBootstrap, ServerChannel> {
 
-    private int maxLength = 256;
-    private Charset charset= CharsetUtil.UTF_8;
-    private String field = "message";
+    public static class Builder extends AbstractTcpReceiver.Builder<TcpLinesStream> {
+        @Setter
+        private int maxLength = 256;
+        @Setter
+        private String charset= CharsetUtil.UTF_8.name();
+        @Setter
+        private String field = "message";
+        @Override
+        public TcpLinesStream build() {
+            StringCodec.Builder sbuilder = new StringCodec.Builder();
+            sbuilder.setCharset(charset.toString());
+            sbuilder.setField(field);
+            this.setDecoder(sbuilder.build());
+            return new TcpLinesStream(this);
+        }
+    };
+    public static Builder getBuilder() {
+        return new Builder();
+    }
+
+    @Getter
+    private final int maxLength;
+
+    private final Charset charset;
+    @Getter
+    private final String field;
+
+    protected TcpLinesStream(Builder builder) {
+        super(builder);
+        this.maxLength = builder.maxLength;
+        this.charset = Charset.forName(builder.charset);
+        this.field = builder.field;
+    }
 
     @Override
     public ChannelConsumer<ServerBootstrap, ServerChannel> getConsumer() {
@@ -35,26 +68,14 @@ public class TcpLinesStream extends AbstractTcpReceiver<TcpLinesStream, TcpServe
     }
 
     @Override
-    protected Builder getServerBuilder() {
+    protected TcpServer.Builder getServerBuilder() {
         return TcpServer.getBuilder();
     }
 
     @Override
     public boolean configure(Properties properties, TcpServer.Builder builder) {
-        StringCodec.Builder sbuilder = new StringCodec.Builder();
-        sbuilder.setCharset(charset.toString());
-        sbuilder.setField(field);
-        decoder = sbuilder.build();
         builder.setThreadPrefix("LineReceiver");
         return super.configure(properties, builder);
-    }
-
-    public int getMaxLength() {
-        return maxLength;
-    }
-
-    public void setMaxLength(int maxLength) {
-        this.maxLength = maxLength;
     }
 
     /**
@@ -64,30 +85,9 @@ public class TcpLinesStream extends AbstractTcpReceiver<TcpLinesStream, TcpServe
         return charset.name();
     }
 
-    /**
-     * @param charset the charset to set
-     */
-    public void setCharset(String charset) {
-        this.charset = Charset.forName(charset);
-    }
-
     @Override
     public String getReceiverName() {
         return "LineReceiver/" + getListenAddress();
-    }
-
-    /**
-     * @return the field
-     */
-    public String getField() {
-        return field;
-    }
-
-    /**
-     * @param field the field to set
-     */
-    public void setField(String field) {
-        this.field = field;
     }
 
 }

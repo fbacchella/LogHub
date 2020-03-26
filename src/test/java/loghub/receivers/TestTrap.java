@@ -1,7 +1,6 @@
 package loghub.receivers;
 
 import java.io.IOException;
-import java.lang.reflect.Array;
 import java.net.InetAddress;
 import java.util.Collections;
 import java.util.HashMap;
@@ -63,10 +62,12 @@ public class TestTrap {
     @Test
     public void testbig() throws InterruptedException, IOException {
         BlockingQueue<Event> receiver = new ArrayBlockingQueue<>(2);
-        try (SnmpTrap r = new SnmpTrap()) {
+        SnmpTrap.Builder builder = SnmpTrap.getBuilder();
+        builder.setPort(0);
+
+        try (SnmpTrap r = builder.build()) {
             r.setOutQueue(receiver);
             r.setPipeline(new Pipeline(Collections.emptyList(), "testbig", null));
-            r.setPort(0);
             Map<String, Object> props = new HashMap<>();
             props.put("mibdirs", new String[]{"/usr/share/snmp/mibs", "/tmp/mibs"});
             Assert.assertTrue(r.configure(new Properties(props)));
@@ -86,7 +87,7 @@ public class TestTrap {
             logger.debug(e.getClass());
             @SuppressWarnings("unchecked")
             Map<String,?> details = (Map<String, ?>) e.get("lldpRemSysName");
-            Assert.assertEquals(3, Array.getLength(details.get("index")));
+            Assert.assertEquals(3, ((Map)details.get("index")).size());
             Assert.assertEquals("localhost", details.get("value"));
             r.stopReceiving();
         }
@@ -96,10 +97,12 @@ public class TestTrap {
     @Test
     public void testTrapv2() throws InterruptedException, IOException {
         BlockingQueue<Event> receiver = new ArrayBlockingQueue<>(2);
-        try (SnmpTrap r = new SnmpTrap()) {
+        SnmpTrap.Builder builder = SnmpTrap.getBuilder();
+        builder.setPort(0);
+
+        try (SnmpTrap r = builder.build()) {
             r.setOutQueue(receiver);
             r.setPipeline(new Pipeline(Collections.emptyList(), "testbig", null));
-            r.setPort(0);
             Map<String, Object> props = new HashMap<>();
             props.put("mibdirs", new String[]{"/usr/share/snmp/mibs", "/tmp/mibs"});
             Assert.assertTrue(r.configure(new Properties(props)));
@@ -126,10 +129,12 @@ public class TestTrap {
     @Test
     public void testtrapv1Generic() throws InterruptedException, IOException {
         BlockingQueue<Event> receiver = new ArrayBlockingQueue<>(2);
-        try (SnmpTrap r = new SnmpTrap()) {
+        SnmpTrap.Builder builder = SnmpTrap.getBuilder();
+        builder.setPort(0);
+
+        try (SnmpTrap r = builder.build()) {
             r.setOutQueue(receiver);
             r.setPipeline(new Pipeline(Collections.emptyList(), "testbig", null));
-            r.setPort(0);
             Map<String, Object> props = new HashMap<>();
             props.put("mibdirs", new String[]{"/usr/share/snmp/mibs", "/tmp/mibs"});
             Assert.assertTrue(r.configure(new Properties(props)));
@@ -160,8 +165,10 @@ public class TestTrap {
     @Test
     public void testtrapv1Specific() throws InterruptedException, IOException {
         BlockingQueue<Event> receiver = new ArrayBlockingQueue<>(2);
-        try (SnmpTrap r = new SnmpTrap()) {
-            r.setPort(0);
+        SnmpTrap.Builder builder = SnmpTrap.getBuilder();
+        builder.setPort(0);
+
+        try (SnmpTrap r = builder.build()) {
             r.setPipeline(new Pipeline(Collections.emptyList(), "testbig", null));
             r.setOutQueue(receiver);
             Map<String, Object> props = new HashMap<>();

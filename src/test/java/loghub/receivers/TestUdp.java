@@ -1,5 +1,6 @@
 package loghub.receivers;
 
+import java.beans.IntrospectionException;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
@@ -8,6 +9,7 @@ import java.net.InetSocketAddress;
 import java.util.Collections;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.function.Consumer;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -17,10 +19,12 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import loghub.BeanChecks;
 import loghub.Event;
 import loghub.LogUtils;
 import loghub.Pipeline;
 import loghub.Tools;
+import loghub.BeanChecks.BeanInfo;
 import loghub.configuration.Properties;
 import loghub.decoders.StringCodec;
 
@@ -45,21 +49,31 @@ public class TestUdp {
         }
     }
 
+    private Udp getReceiver(Consumer<Udp.Builder> configure) {
+        Udp.Builder b = Udp.getBuilder();
+        configure.accept(b);
+        return b.build();
+    }
+
     private void testsend(int size) throws IOException, InterruptedException {
+        int port = Tools.tryGetPort();
         BlockingQueue<Event> receiver = new ArrayBlockingQueue<>(10);
-        Udp r = new Udp();
-        r.setOutQueue(receiver);
-        r.setPipeline(new Pipeline(Collections.emptyList(), "testone", null));
+    
         // Generate a locally binded random socket
-        try (DatagramSocket socket = new DatagramSocket(0, InetAddress.getLoopbackAddress())) {
+        try (DatagramSocket socket = new DatagramSocket(0, InetAddress.getLoopbackAddress());
+             Udp r = getReceiver(b -> {
+                 b.setBufferSize(size + 10);
+                 b.setHost(InetAddress.getLoopbackAddress().getHostAddress());
+                 b.setPort(port);
+                 b.setDecoder(StringCodec.getBuilder().build());
+                
+             })
+                        ) {
+            r.setOutQueue(receiver);
+            r.setPipeline(new Pipeline(Collections.emptyList(), "testone", null));
             String hostname = socket.getLocalAddress().getHostAddress();
-            int port = Tools.tryGetPort();
             InetSocketAddress destaddr = new InetSocketAddress(hostname, port);
 
-            r.setBufferSize(size + 10);
-            r.setHost(hostname);
-            r.setPort(port);
-            r.setDecoder(StringCodec.getBuilder().build());
             Assert.assertTrue(r.configure(new Properties(Collections.emptyMap())));
             r.start();
             int originalMessageSize = 0;
@@ -86,8 +100,6 @@ public class TestUdp {
             Assert.assertEquals("Invalid message size", originalMessageSize, e.get("message").toString().length());
             Assert.assertTrue("didn't find valid remote host informations", e.getConnectionContext().getRemoteAddress() instanceof InetSocketAddress);
             Assert.assertTrue("didn't find valid local host informations", e.getConnectionContext().getLocalAddress() instanceof InetSocketAddress);
-        } finally {
-            r.close();
         }
     }
 
@@ -103,15 +115,26 @@ public class TestUdp {
 
     @Test
     public void testAlreadyBinded() throws IOException {
-        try (DatagramSocket ss = new DatagramSocket(0, InetAddress.getLoopbackAddress()); Udp r = new Udp()) {
+        try (DatagramSocket ss = new DatagramSocket(0, InetAddress.getLoopbackAddress());
+             Udp r = getReceiver(b -> {
+                 b.setHost(InetAddress.getLoopbackAddress().getHostAddress());
+                 b.setPort(ss.getLocalPort());
+                 b.setDecoder(StringCodec.getBuilder().build());
+             })) {
             BlockingQueue<Event> receiver = new ArrayBlockingQueue<>(10);
             r.setOutQueue(receiver);
             r.setPipeline(new Pipeline(Collections.emptyList(), "testone", null));
-            r.setHost(InetAddress.getLoopbackAddress().getHostAddress());
-            r.setPort(ss.getLocalPort());
-            r.setDecoder(StringCodec.getBuilder().build());
             Assert.assertFalse(r.configure(new Properties(Collections.emptyMap())));
         }
+    }
+
+    @Test
+    public void testBeans() throws ClassNotFoundException, IntrospectionException {
+        BeanChecks.beansCheck(logger, "loghub.receivers.Udp"
+                              , BeanInfo.build("host", String.class)
+                              , BeanInfo.build("port", Integer.TYPE)
+                              , BeanInfo.build("bufferSize", Integer.TYPE)
+                        );
     }
 
 }

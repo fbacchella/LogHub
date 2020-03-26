@@ -124,9 +124,19 @@ public class TestServer {
     private static class TesterReceiver extends NettyReceiver<TesterReceiver, TesterServer, TesterServer.Builder, TesterFactory, ServerBootstrap, ServerChannel, LocalServerChannel, LocalChannel, LocalAddress, Object>
                                         implements ConsumerProvider<TesterReceiver, ServerBootstrap, ServerChannel>{
 
-        public TesterReceiver() {
-            super();
-            decoder = StringCodec.getBuilder().build();
+        public static class Builder extends NettyReceiver.Builder<TesterReceiver> {
+            @Override
+            public TesterReceiver build() {
+                this.setDecoder(StringCodec.getBuilder().build());
+                return new TesterReceiver(this);
+            }
+        };
+        public static Builder getBuilder() {
+            return new Builder();
+        }
+
+        protected TesterReceiver(Builder builder) {
+            super(builder);
         }
 
         @Override
@@ -182,7 +192,9 @@ public class TestServer {
     public void testSimple() throws InterruptedException {
         Properties empty = new Properties(Collections.emptyMap());
         BlockingQueue<Event> receiver = new ArrayBlockingQueue<>(1);
-        try(TesterReceiver r = new TesterReceiver()) {
+        TesterReceiver.Builder builder = TesterReceiver.getBuilder();
+        
+        try(TesterReceiver r = builder.build()) {
             r.setPipeline(new Pipeline(Collections.emptyList(), "testone", null));
             r.setOutQueue(receiver);
             r.configure(empty);

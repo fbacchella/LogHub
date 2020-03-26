@@ -9,6 +9,7 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.socket.DatagramChannel;
 import io.netty.channel.socket.DatagramPacket;
+import loghub.BuilderClass;
 import loghub.ConnectionContext;
 import loghub.Event;
 import loghub.IpConnectionContext;
@@ -18,8 +19,10 @@ import loghub.netty.ConsumerProvider;
 import loghub.netty.NettyIpReceiver;
 import loghub.netty.UdpFactory;
 import loghub.netty.servers.UdpServer;
-import loghub.netty.servers.UdpServer.Builder;
+import lombok.Getter;
+import lombok.Setter;
 
+@BuilderClass(Udp.Builder.class)
 public class Udp extends NettyIpReceiver<Udp,
                                          UdpServer,
                                          UdpServer.Builder,
@@ -31,21 +34,35 @@ public class Udp extends NettyIpReceiver<Udp,
                                          DatagramPacket
                                          > implements ConsumerProvider<Udp, Bootstrap, Channel> {
 
-    private int buffersize = -1;
+    public static class Builder extends NettyIpReceiver.Builder<Udp> {
+        @Setter
+        private int bufferSize = -1;
+        @Override
+        public Udp build() {
+            return new Udp(this);
+        }
+    };
+    public static Builder getBuilder() {
+        return new Builder();
+    }
 
-    public Udp() {
-        super();
+    @Getter
+    private final  int bufferSize;
+
+    protected Udp(Builder builder) {
+        super(builder);
+        this.bufferSize = builder.bufferSize;
     }
 
     @Override
-    protected Builder getServerBuilder() {
+    protected UdpServer.Builder getServerBuilder() {
         return UdpServer.getBuilder();
     }
 
     @Override
     public final boolean configure(Properties properties, UdpServer.Builder builder) {
-        builder.setBufferSize(buffersize)
-               .setThreadPrefix("UdpNettyReceiver");
+        builder.setBufferSize(bufferSize)
+        .setThreadPrefix("UdpNettyReceiver");
         return super.configure(properties, builder);
     }
 
@@ -64,20 +81,6 @@ public class Udp extends NettyIpReceiver<Udp,
                                             DatagramPacket message) {
         ConnectionContext<InetSocketAddress> cctx = getNewConnectionContext(ctx, message);
         return decodeStream(cctx, message.content());
-    }
-
-    /**
-     * @return the buffersize
-     */
-    public int getBufferSize() {
-        return buffersize;
-    }
-
-    /**
-     * @param buffersize the buffersize to set
-     */
-    public void setBufferSize(int buffersize) {
-        this.buffersize = buffersize;
     }
 
     @Override

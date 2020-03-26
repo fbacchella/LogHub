@@ -45,15 +45,18 @@ import org.snmp4j.util.MultiThreadedMessageDispatcher;
 import org.snmp4j.util.ThreadPool;
 
 import fr.jrds.snmpcodec.OIDFormatter;
+import loghub.BuilderClass;
 import loghub.ConnectionContext;
-import loghub.Event;
 import loghub.Helpers;
 import loghub.IpConnectionContext;
 import loghub.Stats;
 import loghub.configuration.Properties;
 import loghub.snmp.Log4j2LogFactory;
+import lombok.Getter;
+import lombok.Setter;
 
 @SelfDecoder
+@BuilderClass(SnmpTrap.Builder.class)
 public class SnmpTrap extends Receiver implements CommandResponder {
 
     static {
@@ -74,14 +77,44 @@ public class SnmpTrap extends Receiver implements CommandResponder {
     static final private byte TAG_FLOAT = (byte) 0x78;
     static final private byte TAG_DOUBLE = (byte) 0x79;
 
+    public static class Builder extends Receiver.Builder<SnmpTrap> {
+        @Setter
+        private String protocol = "udp";
+        @Setter
+        private int port = 162;
+        @Setter
+        private String listen = "0.0.0.0";
+        @Setter
+        private int worker = 1;
+        @Override
+        public SnmpTrap build() {
+            return new SnmpTrap(this);
+        }
+    };
+    public static Builder getBuilder() {
+        return new Builder();
+    }
+
     static private Snmp snmp;
     static private boolean reconfigured = false;
 
-    private ThreadPool threadPool;
-    private String protocol = "udp";
-    private int port = 162;
-    private String listen = "0.0.0.0";
+    @Getter
+    private final String protocol;
+    @Getter
+    private final int port;
+    @Getter
+    private final String listen;
+
     private OIDFormatter formatter = null;
+    private final ThreadPool threadPool;
+
+    protected SnmpTrap(Builder builder) {
+        super(builder);
+        this.protocol = builder.protocol;
+        this.port = builder.port;
+        this.listen = builder.listen;
+        this.threadPool = ThreadPool.create("Trap", builder.worker);
+    }
 
     @Override
     public boolean configure(Properties properties) {
@@ -101,7 +134,6 @@ public class SnmpTrap extends Receiver implements CommandResponder {
         } else {
             formatter = OIDFormatter.register();
         }
-        threadPool = ThreadPool.create("Trap", 2);
         MultiThreadedMessageDispatcher dispatcher = new MultiThreadedMessageDispatcher(threadPool,
                                                                                        new MessageDispatcherImpl());
         dispatcher.addCommandResponder(this);
@@ -163,28 +195,28 @@ public class SnmpTrap extends Receiver implements CommandResponder {
                 InetSocketAddress remoteinetaddr = getSA((TransportIpAddress) remoteaddr);
                 ctx = new IpConnectionContext(localinetaddr, remoteinetaddr, null);
             }
-            Event event = Event.emptyEvent(ctx);
+            Map<String, Object> eventMap = new HashMap<>();
             if (pdu instanceof PDUv1) {
                 PDUv1 pduv1 = (PDUv1) pdu;
                 String enterprise = (String) convertVar(pduv1.getEnterprise());
-                event.put("enterprise", enterprise);
-                event.put("agent_addr", pduv1.getAgentAddress().getInetAddress());
+                eventMap.put("enterprise", enterprise);
+                eventMap.put("agent_addr", pduv1.getAgentAddress().getInetAddress());
                 if (pduv1.getGenericTrap() != PDUv1.ENTERPRISE_SPECIFIC) {
-                    event.put("generic_trap", GENERICTRAP.values()[pduv1.getGenericTrap()].toString());
+                    eventMap.put("generic_trap", GENERICTRAP.values()[pduv1.getGenericTrap()].toString());
                 } else {
                     String resolved = formatter.format(pduv1.getEnterprise(), new Integer32(pduv1.getSpecificTrap()), true);
-                    event.put("specific_trap", resolved);
+                    eventMap.put("specific_trap", resolved);
                 }
-                event.put("time_stamp", 1.0 * pduv1.getTimestamp() / 100.0);
+                eventMap.put("time_stamp", 1.0 * pduv1.getTimestamp() / 100.0);
             }
             @SuppressWarnings("unchecked")
             Enumeration<VariableBinding> vbenum = (Enumeration<VariableBinding>) pdu.getVariableBindings().elements();
             for(VariableBinding i: Collections.list(vbenum)) {
                 OID vbOID = i.getOid();
                 Object value = convertVar(i.getVariable());
-                smartPut(event, vbOID, value);
+                smartPut(eventMap, vbOID, value);
             }
-            // If SNMPv2c try, try to save the community as a principal
+            // If SNMPv2c, try to save the community as a principal
             if (trap.getMessageProcessingModel() == MessageProcessingModel.MPv2c) {
                 Optional.ofNullable(trap.getSecurityName())
                 .filter( i -> i.length > 0)
@@ -192,7 +224,7 @@ public class SnmpTrap extends Receiver implements CommandResponder {
                 .map(SnmpTrap::getPrincipal)
                 .ifPresent(ctx::setPrincipal);
             }
-            send(event);
+            send(mapToEvent(ctx, () -> true, () -> eventMap));
         } catch (Exception e) {
             Stats.newReceivedError(Helpers.resolveThrowableException(e));
             Stats.newProcessorException(e);
@@ -214,7 +246,7 @@ public class SnmpTrap extends Receiver implements CommandResponder {
         };
     }
 
-    private void smartPut(Event e, OID oid, Object value) {
+    private void smartPut(Map<String, Object> e, OID oid, Object value) {
         Map<String, Object> oidindex = formatter.store.parseIndexOID(oid.getValue());
         if (oidindex.size() == 0) {
             e.put(oid.format(), value);
@@ -333,28 +365,5 @@ public class SnmpTrap extends Receiver implements CommandResponder {
         return "SnmpTrap";
     }
 
-    public String getProtocol() {
-        return protocol;
-    }
-
-    public void setProtocol(String protocol) {
-        this.protocol = protocol;
-    }
-
-    public int getPort() {
-        return port;
-    }
-
-    public void setPort(int port) {
-        this.port = port;
-    }
-
-    public String getListen() {
-        return listen;
-    }
-
-    public void setListen(String listen) {
-        this.listen = listen;
-    }
 
 }

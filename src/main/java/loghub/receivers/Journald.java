@@ -31,8 +31,10 @@ import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.util.AttributeKey;
 import io.netty.util.ByteProcessor;
 import io.netty.util.ByteProcessor.IndexOfProcessor;
+import loghub.BuilderClass;
 import loghub.Event;
 import loghub.decoders.DecodeException;
+import loghub.netty.AbstractHttp;
 import loghub.netty.http.ContentType;
 import loghub.netty.http.HttpRequestFailure;
 import loghub.netty.http.HttpRequestProcessing;
@@ -40,7 +42,8 @@ import loghub.netty.http.RequestAccept;
 
 @Blocking
 @SelfDecoder
-public class Journald extends Http {
+@BuilderClass(Journald.Builder.class)
+public class Journald extends AbstractHttp {
 
     private static final AttributeKey<Boolean> VALIDJOURNALD = AttributeKey.newInstance(Journald.class.getCanonicalName() + "." + Boolean.class.getName());
     private static final AttributeKey<List<Event>> EVENTS = AttributeKey.newInstance(Journald.class.getCanonicalName() + "." + List.class.getName());
@@ -285,6 +288,20 @@ public class Journald extends Http {
 
     }
 
+    public static class Builder extends AbstractHttp.Builder<Journald> {
+        @Override
+        public Journald build() {
+            return new Journald(this);
+        }
+    };
+    public static Builder getBuilder() {
+        return new Builder();
+    }
+
+    protected Journald(Builder builder) {
+        super(builder);
+    }
+
     @ContentType("text/plain; charset=utf-8")
     @RequestAccept(methods = {"GET", "PUT", "POST"})
     private class JournaldUploadHandler extends HttpRequestProcessing {
@@ -308,6 +325,11 @@ public class Journald extends Http {
     protected void settings(HttpReceiverServer.Builder builder) {
         super.settings(builder);
         builder.setAggregatorSupplier(() -> new JournaldAgregator()).setReceiveHandler(new JournaldUploadHandler());
+    }
+
+    @Override
+    public String getReceiverName() {
+        return "Journald";
     }
 
 }

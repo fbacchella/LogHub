@@ -21,10 +21,14 @@ import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.record.TimestampType;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 
+import loghub.BuilderClass;
 import loghub.ConnectionContext;
 import loghub.Helpers;
+import lombok.Getter;
+import lombok.Setter;
 
 @Blocking
+@BuilderClass(Kafka.Builder.class)
 public class Kafka extends Receiver {
 
     public static class KafkaContext extends ConnectionContext<Object> {
@@ -42,14 +46,46 @@ public class Kafka extends Receiver {
         }
     }
 
+    public static class Builder extends Receiver.Builder<Kafka> {
+        @Setter
+        private String[] brokers = new String[] { "localhost"};
+        @Setter
+        private int port = 9092;
+        @Setter
+        private String topic;
+        @Setter
+        private String group ="loghub";
+        @Setter
+        private String keyDeserializer = ByteArrayDeserializer.class.getName();
+        @Override
+        public Kafka build() {
+            return new Kafka(this);
+        }
+    };
+    public static Builder getBuilder() {
+        return new Builder();
+    }
+
     private Consumer<Long, byte[]> consumer;
 
-    // Beans
-    private String[] brokers = new String[] { "localhost"};
-    private int port = 9092;
-    private String topic;
-    private String group ="loghub";
-    private String keyDeserializer = ByteArrayDeserializer.class.getName();
+    private final String[] brokers;
+    @Getter
+    private final int port;
+    @Getter
+    private final String topic;
+    @Getter
+    private final String group;
+    @Getter
+    private final String keyDeserializer;
+
+    protected Kafka(Builder builder) {
+        super(builder);
+        this.brokers = Arrays.copyOf(builder.brokers, builder.brokers.length);
+        this.port = builder.port;
+        this.topic = builder.topic;
+        this.group = builder.group;
+        this.keyDeserializer = builder.keyDeserializer;
+    }
 
     @Override
     public String getReceiverName() {
@@ -117,43 +153,7 @@ public class Kafka extends Receiver {
     }
 
     public String[] getBrokers() {
-        return brokers;
-    }
-
-    public void setBrokers(String[] brokers) {
-        this.brokers = brokers;
-    }
-
-    public int getPort() {
-        return port;
-    }
-
-    public void setPort(int port) {
-        this.port = port;
-    }
-
-    public String getTopic() {
-        return topic;
-    }
-
-    public void setTopic(String topic) {
-        this.topic = topic;
-    }
-
-    public String getGroup() {
-        return group;
-    }
-
-    public void setGroup(String group) {
-        this.group = group;
-    }
-
-    public String getKeyDeserializer() {
-        return keyDeserializer;
-    }
-
-    public void setKeyDeserializer(String keyDeserializer) {
-        this.keyDeserializer = keyDeserializer;
+        return Arrays.copyOf(brokers, brokers.length);
     }
 
 }

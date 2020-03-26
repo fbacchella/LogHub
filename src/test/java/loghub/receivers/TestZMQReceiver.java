@@ -53,18 +53,20 @@ public class TestZMQReceiver {
         LogUtils.setLevel(logger, Level.TRACE, "loghub.zmq", "loghub.receivers.ZMQ", "loghub.ContextRule", "loghub.ZMQFlow");
     }
 
-    private void dotest(SmartContext ctx, Consumer<ZMQ> configure, ZMQFlow.Builder flowbuilder) throws IOException, InterruptedException {
+    private void dotest(SmartContext ctx, Consumer<ZMQ.Builder> configure, ZMQFlow.Builder flowbuilder) throws IOException, InterruptedException {
         if (ctx == null) {
             ctx = SmartContext.getContext();
         }
         AtomicInteger count = new AtomicInteger(0);
         flowbuilder.setSource(() -> String.format("message %s", count.incrementAndGet()).getBytes(StandardCharsets.UTF_8)); 
         BlockingQueue<Event> receiver = new ArrayBlockingQueue<>(100);
-        try (ZMQFlow flow = flowbuilder.build() ; ZMQ r = new ZMQ()) {
+        ZMQ.Builder builder = ZMQ.getBuilder();
+        builder.setDecoder(StringCodec.getBuilder().build());
+        configure.accept(builder);
+        
+        try (ZMQFlow flow = flowbuilder.build() ; ZMQ r = builder.build()) {
             r.setOutQueue(receiver);
             r.setPipeline(new Pipeline(Collections.emptyList(), "testone", null));
-            configure.accept(r);
-            r.setDecoder(StringCodec.getBuilder().build());
             Assert.assertTrue(r.configure(new Properties(Collections.emptyMap())));
             r.start();
             Event e = receiver.poll(2000, TimeUnit.MILLISECONDS);

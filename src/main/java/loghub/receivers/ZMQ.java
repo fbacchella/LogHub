@@ -9,6 +9,7 @@ import org.zeromq.ZMQ.Socket;
 import org.zeromq.ZMQException;
 import org.zeromq.ZPoller;
 
+import loghub.BuilderClass;
 import loghub.ConnectionContext;
 import loghub.Helpers;
 import loghub.Stats;
@@ -16,21 +17,67 @@ import loghub.configuration.Properties;
 import loghub.zmq.ZMQCheckedException;
 import loghub.zmq.ZMQHandler;
 import loghub.zmq.ZMQHelper;
+import lombok.Getter;
+import lombok.Setter;
 import zmq.ZError;
 
 @Blocking
+@BuilderClass(ZMQ.Builder.class)
 public class ZMQ extends Receiver {
 
-    private ZMQHelper.Method method = ZMQHelper.Method.BIND;
-    private String listen = "tcp://localhost:2120";
-    private SocketType type = SocketType.SUB;
-    private String topic = "";
-    private int hwm = 1000;
-    private String serverKey = null;
-    private String security = null;
+    public static class Builder extends Receiver.Builder<ZMQ> {
+        @Setter
+        String method = ZMQHelper.Method.BIND.name();
+        @Setter
+        String listen = "tcp://localhost:2120";
+        @Setter
+        int hwm= 1000;
+        @Setter
+        String type = SocketType.SUB.name();
+        @Setter
+        String serverKey = null;
+        @Setter
+        String security = null;
+        @Setter
+        String topic = "";
+        @Override
+        public ZMQ build() {
+            return new ZMQ(this);
+        }
+    };
+    public static Builder getBuilder() {
+        return new Builder();
+    }
+
+
+    private final ZMQHelper.Method method;
+    @Getter
+    private final String listen;
+
+    private final SocketType type;
+    @Getter
+    private final String topic;
+    @Getter
+    private final int hwm ;
+    @Getter
+    private final String serverKey;
+    @Getter
+    private final String security;
+
     private Runnable handlerstopper = () -> {}; // Default to empty, don' fail on crossed start/stop
     private ZMQHandler handler;
     private byte[] databuffer;
+
+    protected ZMQ(Builder builder) {
+        super(builder);
+        this.method = ZMQHelper.Method.valueOf(builder.method);
+        this.listen = builder.listen;
+        this.type = SocketType.valueOf(builder.type);
+        this.topic = builder.topic;
+        this.hwm = builder.hwm;
+        this.serverKey = builder.serverKey;
+        this.security = builder.security;
+    }
 
     @Override
     public boolean configure(Properties properties) {
@@ -110,65 +157,13 @@ public class ZMQ extends Receiver {
         return method.toString();
     }
 
-    public void setMethod(String method) {
-        this.method = ZMQHelper.Method.valueOf(method.toUpperCase());
-    }
-
-    public String getListen() {
-        return listen;
-    }
-
-    public void setListen(String endpoint) {
-        this.listen = endpoint;
-    }
-
-    public int getHwm() {
-        return hwm;
-    }
-
-    public void setHwm(int hwm) {
-        this.hwm = hwm;
-    }
-
     public String getType() {
-        return type.toString();
-    }
-
-    public void setType(String type) {
-        this.type = SocketType.valueOf(type.trim().toUpperCase());
+        return type.name();
     }
 
     @Override
     public String getReceiverName() {
         return "ZMQ:" + listen;
-    }
-
-    public String getServerKey() {
-        return serverKey;
-    }
-
-    public void setServerKey(String key) {
-        this.serverKey = key;
-    }
-
-    public String getSecurity() {
-        return security;
-    }
-
-    public void setSecurity(String security) {
-        this.security = security;
-    }
-
-    public String getDestination() {
-        return listen;
-    }
-
-    public String getTopic() {
-        return topic;
-    }
-
-    public void setTopic(String topic) {
-        this.topic = topic;
     }
 
 }

@@ -67,7 +67,7 @@ public class TestHttp {
     private String hostname;
     private int port;
 
-    public Http makeReceiver(Consumer<Http> prepare, Map<String, Object> propsMap) throws IOException {
+    public Http makeReceiver(Consumer<Http.Builder> prepare, Map<String, Object> propsMap) throws IOException {
         // Generate a locally binded random socket
         ServerSocket socket = new ServerSocket(0, 10, InetAddress.getLoopbackAddress());
         hostname = socket.getInetAddress().getHostAddress();
@@ -75,17 +75,22 @@ public class TestHttp {
         socket.close();
 
         queue = new ArrayBlockingQueue<>(1);
-        receiver = new Http();
-        receiver.setOutQueue(queue);
-        receiver.setPipeline(new Pipeline(Collections.emptyList(), "testhttp", null));
-        receiver.setHost(hostname);
-        receiver.setPort(port);
+
         Json.Builder builder = Json.getBuilder();
         builder.setCharset("UTF-8");
         Json jdec = builder.build();
         jdec.configure(null, receiver);
-        receiver.setDecoders(Collections.singletonMap("application/json", jdec));
-        prepare.accept(receiver);
+
+        Http.Builder httpbuilder = Http.getBuilder();
+        httpbuilder.setDecoders(Collections.singletonMap("application/json", jdec));
+        httpbuilder.setHost(hostname);
+        httpbuilder.setPort(port);
+        prepare.accept(httpbuilder);
+        
+        receiver = httpbuilder.build();
+        receiver.setOutQueue(queue);
+        receiver.setPipeline(new Pipeline(Collections.emptyList(), "testhttp", null));
+
         Assert.assertTrue(receiver.configure(new Properties(propsMap)));
         receiver.start();
         return receiver;
@@ -338,8 +343,8 @@ public class TestHttp {
             @SuppressWarnings("unused")
             Properties conf = Tools.loadConf(new StringReader(confile));
         } catch (ConfigException ex) {
-            Assert.assertEquals("InvocationTargetException: No default decoder can be defined", ex.getMessage());
-            Assert.assertEquals("file <unknown>, line 1:42", ex.getLocation());
+            Assert.assertEquals("No default decoder can be defined", ex.getMessage());
+            Assert.assertEquals("file <unknown>, line 1:11", ex.getLocation());
         }
     }
 

@@ -17,6 +17,7 @@ import io.netty.channel.ServerChannel;
 import io.netty.handler.timeout.IdleStateHandler;
 import io.netty.util.concurrent.DefaultEventExecutorGroup;
 import io.netty.util.concurrent.EventExecutorGroup;
+import loghub.BuilderClass;
 import loghub.ConnectionContext;
 import loghub.Event;
 import loghub.Helpers;
@@ -28,20 +29,50 @@ import loghub.netty.CloseOnError;
 import loghub.netty.ConsumerProvider;
 import loghub.netty.NettyReceiver;
 import loghub.netty.servers.TcpServer;
-import loghub.netty.servers.TcpServer.Builder;
+import lombok.Getter;
+import lombok.Setter;
 
 @SelfDecoder
 @CloseOnError
+@BuilderClass(Beats.Builder.class)
 public class Beats extends AbstractTcpReceiver<Beats, TcpServer, TcpServer.Builder> implements ConsumerProvider<Beats, ServerBootstrap, ServerChannel> {
 
-    private final IMessageListener messageListener;
-    private EventExecutorGroup idleExecutorGroup;
-    private EventExecutorGroup beatsHandlerExecutorGroup;
-    private int clientInactivityTimeoutSeconds;
-    private int maxPayloadSize = 8192;
+    public static class Builder extends AbstractTcpReceiver.Builder<Beats> {
+        @Setter
+        private int clientInactivityTimeoutSeconds;
+        @Setter
+        private int maxPayloadSize = 8192;
+        @Setter
+        private int workers = 4;
+        @Override
+        public Beats build() {
+            return new Beats(this);
+        }
+    };
+    public static Builder getBuilder() {
+        return new Builder();
+    }
 
-    public Beats() {
-        messageListener = new IMessageListener() {
+    private final IMessageListener messageListener;
+    private final EventExecutorGroup idleExecutorGroup;
+    private final EventExecutorGroup beatsHandlerExecutorGroup;
+    
+    @Getter
+    private final int clientInactivityTimeoutSeconds;
+    @Getter
+    private final int maxPayloadSize;
+    @Getter
+    private final int workers;
+
+    public Beats(Builder builder) {
+        super(builder);
+        this.clientInactivityTimeoutSeconds = builder.clientInactivityTimeoutSeconds;
+        this.maxPayloadSize = builder.maxPayloadSize;
+        this.idleExecutorGroup = new DefaultEventExecutorGroup(builder.workers);
+        this.beatsHandlerExecutorGroup = new DefaultEventExecutorGroup(builder.workers);
+        this.workers = builder.workers;
+
+        this.messageListener = new IMessageListener() {
 
             @Override
             public void onChannelInitializeException(ChannelHandlerContext arg0, Throwable error) {
@@ -82,15 +113,13 @@ public class Beats extends AbstractTcpReceiver<Beats, TcpServer, TcpServer.Build
     }
 
     @Override
-    protected Builder getServerBuilder() {
+    protected TcpServer.Builder getServerBuilder() {
         return new TcpServer.Builder();
     }
 
     @Override
-    public boolean configure(Properties properties, Builder builder) {
+    public boolean configure(Properties properties, TcpServer.Builder builder) {
         builder.setThreadPrefix("BeatsReceiver");
-        idleExecutorGroup = new DefaultEventExecutorGroup(4);
-        beatsHandlerExecutorGroup = new DefaultEventExecutorGroup(4);
         return super.configure(properties, builder);
     }
 
@@ -133,28 +162,6 @@ public class Beats extends AbstractTcpReceiver<Beats, TcpServer, TcpServer.Build
             Thread.currentThread().interrupt();
         }
         super.close();
-    }
-
-    public int getClientInactivityTimeout() {
-        return clientInactivityTimeoutSeconds;
-    }
-
-    public void setClientInactivityTimeout(int clientInactivityTimeoutSeconds) {
-        this.clientInactivityTimeoutSeconds = clientInactivityTimeoutSeconds;
-    }
-
-    /**
-     * @return the maxPayloadSize
-     */
-    public int getMaxPayloadSize() {
-        return maxPayloadSize;
-    }
-
-    /**
-     * @param maxPayloadSize the maxPayloadSize to set
-     */
-    public void setMaxPayloadSize(int maxPayloadSize) {
-        this.maxPayloadSize = maxPayloadSize;
     }
 
 }

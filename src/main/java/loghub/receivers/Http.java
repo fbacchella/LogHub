@@ -1,5 +1,6 @@
 package loghub.receivers;
 
+import java.lang.reflect.InvocationTargetException;
 import java.net.InetSocketAddress;
 import java.nio.charset.Charset;
 import java.nio.charset.IllegalCharsetNameException;
@@ -7,6 +8,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.charset.UnsupportedCharsetException;
 import java.security.Principal;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -16,23 +18,21 @@ import java.util.stream.Stream;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.QueryStringDecoder;
+import loghub.BuilderClass;
 import loghub.ConnectionContext;
 import loghub.Helpers;
 import loghub.Stats;
 import loghub.configuration.Properties;
-import loghub.decoders.Decoder;
 import loghub.decoders.DecodeException;
 import loghub.decoders.DecodeException.RuntimeDecodeException;
+import loghub.decoders.Decoder;
 import loghub.decoders.TextDecoder;
-import loghub.netty.AbstractTcpReceiver;
-import loghub.netty.http.AbstractHttpServer;
-import loghub.netty.http.AccessControl;
+import loghub.netty.AbstractHttp;
 import loghub.netty.http.ContentType;
 import loghub.netty.http.HttpRequestFailure;
 import loghub.netty.http.HttpRequestProcessing;
@@ -44,7 +44,8 @@ import lombok.Setter;
 
 @Blocking(true)
 @SelfDecoder
-public class Http extends AbstractTcpReceiver<Http, Http.HttpReceiverServer, Http.HttpReceiverServer.Builder> {
+@BuilderClass(Http.Builder.class)
+public class Http extends AbstractHttp {
 
     @NoCache
     @RequestAccept(methods= {"GET", "PUT", "POST"})
@@ -122,42 +123,28 @@ public class Http extends AbstractTcpReceiver<Http, Http.HttpReceiverServer, Htt
 
     }
 
-    protected static class HttpReceiverServer extends AbstractHttpServer<HttpReceiverServer, HttpReceiverServer.Builder> {
-
-        protected static class Builder extends AbstractHttpServer.Builder<HttpReceiverServer, Builder> {
-            HttpRequestProcessing receiver;
-            Builder setReceiveHandler(HttpRequestProcessing recepter) {
-                this.receiver = recepter;
-                return this;
-            }
-            @Override
-            public HttpReceiverServer build() throws IllegalArgumentException, InterruptedException {
-                return new HttpReceiverServer(this);
-            }
-        }
-
-        final HttpRequestProcessing receiver;
-        protected HttpReceiverServer(Builder builder) throws IllegalArgumentException, InterruptedException {
-            super(builder);
-            this.receiver = builder.receiver;
-        }
+    public static class Builder extends AbstractHttp.Builder<Http> {
+        @Setter
+        private Map<String, Decoder> decoders = Collections.emptyMap();
 
         @Override
-        public void addModelHandlers(ChannelPipeline p) {
-            if (getAuthHandler() != null) {
-                p.addLast("authentication", new AccessControl(getAuthHandler()));
-                logger.debug("Added authentication");
-            }
-            p.addLast("receiver", receiver);
+        public Http build() {
+            return new Http(this);
         }
-
+    };
+    public static Builder getBuilder() {
+        return new Builder();
     }
 
-    @Getter @Setter
-    private Map<String, Decoder> decoders = Collections.emptyMap();
+    @Getter
+    private final Map<String, Decoder> decoders;
 
-    public Http() {
-        super();
+    protected Http(Builder builder) {
+        super(builder);
+        this.decoders = Collections.unmodifiableMap(new HashMap<String, Decoder>(builder.decoders));
+        if (this.decoder != null) {
+            throw new IllegalArgumentException("No default decoder can be defined");
+        }
     }
 
     @Override
@@ -173,17 +160,13 @@ public class Http extends AbstractTcpReceiver<Http, Http.HttpReceiverServer, Htt
     }
 
     protected void settings(HttpReceiverServer.Builder builder) {
+        super.settings(builder);
         builder.setReceiveHandler(new PostHandler()).setThreadPrefix("HTTP");
     }
 
     @Override
     public String getReceiverName() {
         return "HTTP/" + getPort();
-    }
-
-    @Override
-    public void setDecoder(Decoder codec) {
-        throw new IllegalArgumentException("No default decoder can be defined");
     }
 
 }

@@ -18,6 +18,8 @@ import loghub.configuration.Properties;
 import loghub.netty.servers.AbstractTcpServer;
 import loghub.netty.servers.NettyIpServer;
 import loghub.receivers.Blocking;
+import lombok.Getter;
+import lombok.Setter;
 
 @Blocking
 public abstract class AbstractTcpReceiver<R extends AbstractTcpReceiver<R, S, B>,
@@ -25,10 +27,17 @@ public abstract class AbstractTcpReceiver<R extends AbstractTcpReceiver<R, S, B>
                                           B extends AbstractTcpServer.Builder<S, B>
                                          > extends NettyIpReceiver<R, S, B, TcpFactory, ServerBootstrap, ServerChannel, ServerSocketChannel, SocketChannel, ByteBuf> {
 
-    private int backlog = 16;
+    public abstract static class Builder<B extends AbstractTcpReceiver<?, ?, ?>> extends NettyIpReceiver.Builder<B> {
+        @Setter
+        private int backlog = 16;
+    };
 
-    public AbstractTcpReceiver() {
-        super();
+    @Getter
+    private final int backlog;
+
+    protected AbstractTcpReceiver(Builder<? extends AbstractTcpReceiver<R, S, B>> builder) {
+        super(builder);
+        this.backlog = builder.backlog;
     }
 
     @Override
@@ -58,19 +67,5 @@ public abstract class AbstractTcpReceiver<R extends AbstractTcpReceiver<R, S, B>
         Attribute<SSLSession> sess = ctx.channel().attr(NettyIpServer.SSLSESSIONATTRIBUTE);
         return new IpConnectionContext(localaddr, remoteaddr, sess.get());
     }
-
-    /**
-     * @return the backlog
-     */
-     public int getListenBacklog() {
-        return backlog;
-    }
-
-    /**
-     * @param backlog the backlog to set
-     */
-     public void setListenBacklog(int backlog) {
-         this.backlog = backlog;
-     }
 
 }

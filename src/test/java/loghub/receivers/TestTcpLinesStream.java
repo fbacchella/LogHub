@@ -77,8 +77,8 @@ public class TestTcpLinesStream {
                 // It should be required for a better test, needs to understand how to make client side TLS works
                 i.setSSLClientAuthentication(ClientAuthentication.WANTED.name());
             },
-                          Collections.singletonMap("ssl.trusts", new String[] {getClass().getResource("/loghub.p12").getFile()})
-                            );
+                Collections.singletonMap("ssl.trusts", new String[] {getClass().getResource("/loghub.p12").getFile()})
+            );
             Map<String, Object> properties = new HashMap<>();
             properties.put("trusts", new String[] {getClass().getResource("/loghub.p12").getFile()});
             SSLContext cssctx = ContextLoader.build(properties);
@@ -99,29 +99,37 @@ public class TestTcpLinesStream {
         }
     }
 
-    private void makeReceiver(Consumer<TcpLinesStream> prepare, Map<String, Object> propsMap) {
+    private void makeReceiver(Consumer<TcpLinesStream.Builder> prepare, Map<String, Object> propsMap) {
         port = Tools.tryGetPort();
         queue = new ArrayBlockingQueue<>(1);
-        receiver = new TcpLinesStream();
+        TcpLinesStream.Builder builder = TcpLinesStream.getBuilder();
+        builder.setPort(port);
+        builder.setDecoder(StringCodec.getBuilder().build());
+        prepare.accept(builder);
+        
+        receiver = new TcpLinesStream(builder);
         receiver.setOutQueue(queue);
         receiver.setPipeline(new Pipeline(Collections.emptyList(), "testtcplinesstream", null));
-        receiver.setPort(port);
-        receiver.setDecoder(StringCodec.getBuilder().build());
-        prepare.accept(receiver);
         Assert.assertTrue(receiver.configure(new Properties(propsMap)));
         receiver.start();
     }
 
     @Test
     public void testAlreadyBinded() throws IOException {
-        try (ServerSocket ss = new ServerSocket(0, 1, InetAddress.getLoopbackAddress()); TcpLinesStream r = new TcpLinesStream()) {
+        try (ServerSocket ss = new ServerSocket(0, 1, InetAddress.getLoopbackAddress());
+             TcpLinesStream r = getReceiver(InetAddress.getLoopbackAddress().getHostAddress(), ss.getLocalPort())) {
             BlockingQueue<Event> receiver = new ArrayBlockingQueue<>(10);
             r.setOutQueue(receiver);
             r.setPipeline(new Pipeline(Collections.emptyList(), "testone", null));
-            r.setHost(InetAddress.getLoopbackAddress().getHostAddress());
-            r.setPort(ss.getLocalPort());
             Assert.assertFalse(r.configure(new Properties(Collections.emptyMap())));
         }
+    }
+    
+    private TcpLinesStream getReceiver(String host, int port) {
+        TcpLinesStream.Builder builder = TcpLinesStream.getBuilder();
+        builder.setHost(host);
+        builder.setPort(port);
+        return builder.build();
     }
 
 }

@@ -4,6 +4,7 @@ import java.io.Closeable;
 import java.time.Instant;
 import java.util.Date;
 import java.util.Iterator;
+import java.util.Locale;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
@@ -17,6 +18,7 @@ import org.apache.logging.log4j.Logger;
 
 import com.codahale.metrics.Meter;
 
+import loghub.AbstractBuilder;
 import loghub.ConnectionContext;
 import loghub.Event;
 import loghub.Helpers;
@@ -29,6 +31,8 @@ import loghub.decoders.DecodeException.RuntimeDecodeException;
 import loghub.decoders.Decoder;
 import loghub.security.AuthenticationHandler;
 import loghub.security.ssl.ClientAuthentication;
+import lombok.Getter;
+import lombok.Setter;
 
 @Blocking(false)
 public abstract class Receiver extends Thread implements Iterator<Event>, Closeable {
@@ -38,28 +42,66 @@ public abstract class Receiver extends Thread implements Iterator<Event>, Closea
         Map<String, Object> get() throws DecodeException;
     }
 
+    public abstract static class Builder<B extends Receiver> extends AbstractBuilder<B> {
+        @Setter
+        private Decoder decoder;
+        @Setter
+        private boolean withSSL = false;
+        @Setter
+        private String SSLClientAuthentication = ClientAuthentication.NONE.name();
+        @Setter
+        private String SSLKeyAlias;
+        @Setter
+        private String jaasName = null;
+        @Setter
+        private String user = null;
+        @Setter
+        private String password = null;
+        @Setter
+        private boolean useJwt = false;
+        @Setter
+        private String timeStampField = Event.TIMESTAMPKEY;
+    };
+
     protected final Logger logger;
 
     private AuthenticationHandler authHandler = null;
-    private boolean withSsl = false;
-    private String sslclient = ClientAuthentication.NONE.name();
-    private String sslKeyAlias = null;
-    private String jaasName = null;
-    private String user = null;
-    private String password = null;
-    private boolean useJwt = false;
-    private String timeStampField = Event.TIMESTAMPKEY;
+    @Getter
+    private final boolean withSSL;
+    @Getter
+    private final ClientAuthentication SSLClientAuthentication;
+    @Getter
+    private final String jaasName;
+    @Getter
+    private final String user;
+    @Getter
+    private final String password;
+    @Getter
+    private final boolean useJwt;
+    @Getter
+    private final String timeStampField;
+    @Getter
+    private final String SSLKeyAlias;
 
     private BlockingQueue<Event> outQueue;
     private Pipeline pipeline;
     private final boolean blocking;
     private Meter count;
-    protected Decoder decoder = null;
+    protected final Decoder decoder;
 
-    public Receiver(){
+    protected Receiver(Builder<?  extends Receiver> builder){
         setDaemon(true);
         logger = LogManager.getLogger(Helpers.getFirstInitClass());
         blocking = isBlocking();
+        this.decoder = builder.decoder;
+        this.withSSL = builder.withSSL;
+        this.SSLClientAuthentication = ClientAuthentication.valueOf(builder.SSLClientAuthentication.toUpperCase(Locale.ENGLISH));
+        this.SSLKeyAlias = builder.SSLKeyAlias;
+        this.jaasName = builder.jaasName;
+        this.user = builder.user;
+        this.password = builder.password;
+        this.useJwt = builder.useJwt;
+        this.timeStampField = builder.timeStampField;
     }
 
     /**
@@ -89,7 +131,7 @@ public abstract class Receiver extends Thread implements Iterator<Event>, Closea
     protected AuthenticationHandler getAuthHandler(Properties properties) {
         if (authHandler == null) {
             authHandler = AuthenticationHandler.getBuilder()
-                            .setSslClientAuthentication(sslclient).useSsl(withSsl)
+                            .setSslClientAuthentication(SSLClientAuthentication).useSsl(withSSL)
                             .setLogin(user).setPassword(password != null ? password.toCharArray() : null)
                             .setJaasName(jaasName).setJaasConfig(properties.jaasConfig)
                             .setJwtHandler(useJwt ? properties.jwtHandler : null).useJwt(useJwt)
@@ -297,92 +339,10 @@ public abstract class Receiver extends Thread implements Iterator<Event>, Closea
         }
     }
 
-    public Decoder getDecoder() {
-        return decoder;
-    }
-
-    public void setDecoder(Decoder codec) {
-        this.decoder = codec;
-    }
-
     public abstract String getReceiverName();
-
-    /**
-     * @return the withSsl
-     */
-    public boolean isWithSSL() {
-        return withSsl;
-    }
-
-    /**
-     * @param withSsl the withSsl to set
-     */
-    public void setWithSSL(boolean withSsl) {
-        this.withSsl = withSsl;
-    }
-
-    /**
-     * @return the sslclient
-     */
-    public String getSSLClientAuthentication() {
-        return sslclient;
-    }
-
-    /**
-     * @param sslclient the sslclient to set
-     */
-    public void setSSLClientAuthentication(String sslclient) {
-        this.sslclient = sslclient;
-    }
 
     protected boolean withJaas() {
         return jaasName != null;
-    }
-
-    public String getJaasName() {
-        return jaasName;
-    }
-
-    public void setJaasName(String jaasName) {
-        this.jaasName = jaasName;
-    }
-
-    public String getUser() {
-        return user;
-    }
-
-    public void setUser(String user) {
-        this.user = user;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
-    }
-
-    /**
-     * @return the useJwt
-     */
-    public boolean isUseJwt() {
-        return useJwt;
-    }
-
-    /**
-     * @param useJwt the useJwt to set
-     */
-    public void setUseJwt(boolean useJwt) {
-        this.useJwt = useJwt;
-    }
-
-    public String getSSLKeyAlias() {
-        return sslKeyAlias;
-    }
-
-    public void setSSLKeyAlias(String sslKeyAlias) {
-        this.sslKeyAlias = sslKeyAlias;
     }
 
     public void setOutQueue(BlockingQueue<Event> outQueue) {
@@ -391,20 +351,6 @@ public abstract class Receiver extends Thread implements Iterator<Event>, Closea
 
     public void setPipeline(Pipeline pipeline) {
         this.pipeline = pipeline;
-    }
-
-    /**
-     * @return the timeStampField
-     */
-    public String getTimeStampField() {
-        return timeStampField;
-    }
-
-    /**
-     * @param timeStampField the timeStampField to set
-     */
-    public void setTimeStampField(String timeStampField) {
-        this.timeStampField = timeStampField;
     }
 
 }
