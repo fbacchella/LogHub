@@ -14,7 +14,7 @@ import loghub.configuration.Properties;
 import lombok.Setter;
 
 public class Udp extends Sender {
-    
+
     public static class Builder extends Sender.Builder<Udp> {
         @Setter
         private int port = -1;
@@ -50,7 +50,7 @@ public class Udp extends Sender {
 
     @Override
     public boolean configure(Properties properties) {
-        if (socket !=null && IPAddress != null) {
+        if (socket != null && IPAddress != null) {
             return super.configure(properties);
         } else {
             return false;
@@ -75,6 +75,12 @@ public class Udp extends Sender {
     @Override
     public String getSenderName() {
         return "UDP";
+    }
+
+    @Override
+    public void close() {
+        super.close();
+        socket.close();
     }
 
 }
