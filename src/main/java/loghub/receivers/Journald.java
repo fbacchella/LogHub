@@ -243,7 +243,7 @@ public class Journald extends AbstractHttp {
             Journald.this.logger.trace("finishing event {}", eventVars);
             if (! eventVars.get(TRUSTEDFIELDS).isEmpty()) {
                 Long timestamp = Optional.ofNullable(eventVars.get(TRUSTEDFIELDS).remove("source_realtime_timestamp")).map(Object::toString).map(Long::parseLong).orElse(null);
-                Event e = Event.emptyEvent(getConnectionContext(ctx, null));
+                Event e = Event.emptyEvent(getConnectionContext(ctx));
                 e.put(USERDFIELDS, new HashMap<String, Object>(eventVars.get(USERDFIELDS)));
                 e.put(TRUSTEDFIELDS, new HashMap<String, Object>(eventVars.get(TRUSTEDFIELDS)));
                 if (timestamp != null) {

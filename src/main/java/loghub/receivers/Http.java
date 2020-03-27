@@ -1,6 +1,5 @@
 package loghub.receivers;
 
-import java.lang.reflect.InvocationTargetException;
 import java.net.InetSocketAddress;
 import java.nio.charset.Charset;
 import java.nio.charset.IllegalCharsetNameException;
@@ -75,7 +74,7 @@ public class Http extends AbstractHttp {
                 } else {
                     message = null;
                 }
-                ConnectionContext<InetSocketAddress> cctx = Http.this.getConnectionContext(ctx, null);
+                ConnectionContext<InetSocketAddress> cctx = Http.this.getConnectionContext(ctx);
                 Stream<Map<String, Object>> mapsStream;
                 if (message != null && decoder == null) {
                     mapsStream = Stream.of(resolveCgi(message));

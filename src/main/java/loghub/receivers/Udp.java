@@ -78,15 +78,8 @@ public class Udp extends NettyIpReceiver<Udp,
 
     @Override
     public Stream<Event> nettyMessageDecode(ChannelHandlerContext ctx,
-                                            DatagramPacket message) {
-        ConnectionContext<InetSocketAddress> cctx = getNewConnectionContext(ctx, message);
-        return decodeStream(cctx, message.content());
-    }
-
-    @Override
-    public ConnectionContext<InetSocketAddress> getConnectionContext(ChannelHandlerContext ctx,
-                                                                     DatagramPacket message) {
-        return null;
+                                            ByteBuf message) {
+        return decodeStream(getConnectionContext(ctx), message);
     }
 
     @Override

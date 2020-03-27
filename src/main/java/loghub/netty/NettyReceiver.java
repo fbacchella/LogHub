@@ -100,9 +100,9 @@ public abstract class NettyReceiver<R extends NettyReceiver<R, S, B, CF, BS, BSC
 
     public abstract ByteBuf getContent(SM message);
 
-    public Stream<Event> nettyMessageDecode(ChannelHandlerContext ctx, SM message) {
+    public Stream<Event> nettyMessageDecode(ChannelHandlerContext ctx, ByteBuf message) {
         ConnectionContext<?> cctx = ctx.channel().attr(NettyReceiver.CONNECTIONCONTEXTATTRIBUTE).get();
-        return decodeStream(cctx, getContent(message));
+        return decodeStream(cctx, message);
     }
 
     public boolean nettySend(Event e) {
@@ -113,17 +113,16 @@ public abstract class NettyReceiver<R extends NettyReceiver<R, S, B, CF, BS, BSC
         return server.getAddress();
     }
 
-    @SuppressWarnings("unchecked")
-    public ConnectionContext<SA> getConnectionContext(ChannelHandlerContext ctx, SM message) {
-        ConnectionContext<SA> cctx;
-        if (ctx.channel().hasAttr(CONNECTIONCONTEXTATTRIBUTE)) {
-            cctx = (ConnectionContext<SA>) ctx.channel().attr(CONNECTIONCONTEXTATTRIBUTE).get();
-        } else {
-            cctx = getNewConnectionContext(ctx, message);
-            ctx.channel().attr(CONNECTIONCONTEXTATTRIBUTE).set(cctx);
-        }
+    public ConnectionContext<SA> makeConnectionContext(ChannelHandlerContext ctx, SM message) {
+        ConnectionContext<SA> cctx = getNewConnectionContext(ctx, message);
+        ctx.channel().attr(CONNECTIONCONTEXTATTRIBUTE).set(cctx);
         Optional.ofNullable(ctx.channel().attr(AbstractNettyServer.PRINCIPALATTRIBUTE).get()).ifPresent(cctx::setPrincipal);
         return cctx;
+    }
+
+    @SuppressWarnings("unchecked")
+    public ConnectionContext<SA> getConnectionContext(ChannelHandlerContext ctx) {
+        return (ConnectionContext<SA>) ctx.channel().attr(CONNECTIONCONTEXTATTRIBUTE).get();
     }
 
     public abstract ConnectionContext<SA> getNewConnectionContext(ChannelHandlerContext ctx, SM message);

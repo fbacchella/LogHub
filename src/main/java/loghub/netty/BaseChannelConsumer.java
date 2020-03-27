@@ -1,6 +1,7 @@
 package loghub.netty;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Stream;
 
 import org.apache.logging.log4j.Level;
@@ -8,6 +9,8 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import io.netty.bootstrap.AbstractBootstrap;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufHolder;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler.Sharable;
 import io.netty.channel.ChannelHandlerContext;
@@ -35,9 +38,9 @@ public class BaseChannelConsumer<R extends NettyReceiver<?, ?, ?, ?, BS, BSC, ?,
     }
 
     @Sharable
-    private class LogHubDecoder extends MessageToMessageDecoder<SM> {
+    private class LogHubDecoder extends MessageToMessageDecoder<ByteBuf> {
         @Override
-        protected void decode(ChannelHandlerContext ctx, SM msg, List<Object> out) {
+        protected void decode(ChannelHandlerContext ctx, ByteBuf msg, List<Object> out) {
             Stream<Event> es = r.nettyMessageDecode(ctx, msg);
             if (es == null && closeOnError) {
                 ctx.close();
@@ -51,8 +54,7 @@ public class BaseChannelConsumer<R extends NettyReceiver<?, ?, ?, ?, BS, BSC, ?,
     private class ContextExtractor extends MessageToMessageDecoder<SM> {
         @Override
         protected void decode(ChannelHandlerContext ctx, SM msg, List<Object> out) {
-            // Calls getConnectionContext to ensure that the attribute is present
-            r.getConnectionContext(ctx, msg);
+            r.makeConnectionContext(ctx, msg);
             //The message is not transformed in this step, so don't decrease reference count
             if (msg instanceof ReferenceCounted) {
                 ((ReferenceCounted) msg).retain();
@@ -61,31 +63,42 @@ public class BaseChannelConsumer<R extends NettyReceiver<?, ?, ?, ?, BS, BSC, ?,
         }
     }
 
-    private final MessageToMessageDecoder<SM> nettydecoder;
+    @Sharable
+    private class ContentExtractor extends MessageToMessageDecoder<SM> {
+        @Override
+        protected void decode(ChannelHandlerContext ctx, SM msg, List<Object> out) {
+            ByteBuf content = r.getContent(msg);
+            // Often the content and the message are linked.
+            // To avoid a useless copy, keep the message.
+            if (content.equals(msg)) {
+                content.retain();
+            } else if (msg instanceof ByteBufHolder) {
+                ((ByteBufHolder)msg).retain();
+            }
+            out.add(content);
+        }
+    }
+
     private final MessageToMessageDecoder<SM> extractor = new ContextExtractor();
+    private final Optional<MessageToMessageDecoder<ByteBuf>> nettydecoder;
     private final EventSender sender = new EventSender();
     private final boolean closeOnError;
-    private final boolean selfDecoder;
     protected final R r;
 
     public BaseChannelConsumer(R r) {
         closeOnError = r.getClass().isAnnotationPresent(CloseOnError.class);
-        selfDecoder = r.getClass().isAnnotationPresent(SelfDecoder.class);
         this.r = r;
-        // Prepare the Netty decoder, before it's used during server creation in #getServer()
-        if (! selfDecoder) {
-            nettydecoder = new LogHubDecoder();
-        } else {
-            nettydecoder = null;
-        }
+        // Some filters are sharable, so keep them
+        nettydecoder = Optional.of(r.getClass()).filter(i -> i.isAnnotationPresent(SelfDecoder.class)).map(i -> new LogHubDecoder());
     }
 
     @Override
     public void addHandlers(ChannelPipeline p) {
         p.addFirst("SourceResolver", extractor);
-        if (! selfDecoder) {
-            p.addLast("MessageDecoder", nettydecoder);
-        }
+        p.addLast("ContentExtracotr", new ContentExtractor());
+        nettydecoder.ifPresent(i -> {
+            p.addLast("MessageDecoder", i);
+        });
         p.addLast("Sender", sender);
     }
 
