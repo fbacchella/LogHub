@@ -20,6 +20,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 @BuilderClass(TcpLinesStream.Builder.class)
+@SelfDecoder
 public class TcpLinesStream extends AbstractTcpReceiver<TcpLinesStream, TcpServer, TcpServer.Builder> implements ConsumerProvider<TcpLinesStream, ServerBootstrap, ServerChannel> {
 
     public static class Builder extends AbstractTcpReceiver.Builder<TcpLinesStream> {
