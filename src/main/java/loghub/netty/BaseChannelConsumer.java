@@ -20,6 +20,7 @@ import io.netty.handler.codec.MessageToMessageDecoder;
 import io.netty.util.ReferenceCounted;
 import loghub.Event;
 import loghub.Helpers;
+import loghub.decoders.DecodeException;
 import loghub.receivers.SelfDecoder;
 
 public class BaseChannelConsumer<R extends NettyReceiver<?, ?, ?, ?, BS, BSC, ?, ?, ?, SM>,
@@ -64,6 +65,18 @@ public class BaseChannelConsumer<R extends NettyReceiver<?, ?, ?, ?, BS, BSC, ?,
     }
 
     @Sharable
+    private class FilterHandler extends MessageToMessageDecoder<ByteBuf> {
+        @Override
+        protected void decode(ChannelHandlerContext ctx, ByteBuf msg, List<Object> out) {
+            try {
+                out.add(r.getFilter().filter(msg));
+            } catch (DecodeException ex) {
+                BaseChannelConsumer.this.r.manageDecodeException(ex);
+            }
+        }
+    }
+
+    @Sharable
     private class ContentExtractor extends MessageToMessageDecoder<SM> {
         @Override
         protected void decode(ChannelHandlerContext ctx, SM msg, List<Object> out) {
@@ -80,6 +93,7 @@ public class BaseChannelConsumer<R extends NettyReceiver<?, ?, ?, ?, BS, BSC, ?,
     }
 
     private final MessageToMessageDecoder<SM> extractor = new ContextExtractor();
+    private final Optional<MessageToMessageDecoder<ByteBuf>> filter;
     private final Optional<MessageToMessageDecoder<ByteBuf>> nettydecoder;
     private final EventSender sender = new EventSender();
     private final boolean closeOnError;
@@ -89,6 +103,7 @@ public class BaseChannelConsumer<R extends NettyReceiver<?, ?, ?, ?, BS, BSC, ?,
         closeOnError = r.getClass().isAnnotationPresent(CloseOnError.class);
         this.r = r;
         // Some filters are sharable, so keep them
+        filter = Optional.ofNullable(r.getFilter()).map(i -> new FilterHandler());
         nettydecoder = Optional.of(r.getClass()).filter(i -> i.isAnnotationPresent(SelfDecoder.class)).map(i -> new LogHubDecoder());
     }
 
@@ -96,6 +111,9 @@ public class BaseChannelConsumer<R extends NettyReceiver<?, ?, ?, ?, BS, BSC, ?,
     public void addHandlers(ChannelPipeline p) {
         p.addFirst("SourceResolver", extractor);
         p.addLast("ContentExtracotr", new ContentExtractor());
+        filter.ifPresent(i -> {
+            p.addLast("Filter", i);
+        });
         nettydecoder.ifPresent(i -> {
             p.addLast("MessageDecoder", i);
         });

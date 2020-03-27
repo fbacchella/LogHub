@@ -21,6 +21,7 @@ import com.codahale.metrics.Meter;
 import loghub.AbstractBuilder;
 import loghub.ConnectionContext;
 import loghub.Event;
+import loghub.Filter;
 import loghub.Helpers;
 import loghub.Pipeline;
 import loghub.Stats;
@@ -61,6 +62,8 @@ public abstract class Receiver extends Thread implements Iterator<Event>, Closea
         private boolean useJwt = false;
         @Setter
         private String timeStampField = Event.TIMESTAMPKEY;
+        @Setter
+        private Filter filter;
     };
 
     protected final Logger logger;
@@ -82,6 +85,8 @@ public abstract class Receiver extends Thread implements Iterator<Event>, Closea
     private final String timeStampField;
     @Getter
     private final String SSLKeyAlias;
+    @Getter
+    private final Filter filter;
 
     private BlockingQueue<Event> outQueue;
     private Pipeline pipeline;
@@ -102,6 +107,7 @@ public abstract class Receiver extends Thread implements Iterator<Event>, Closea
         this.password = builder.password;
         this.useJwt = builder.useJwt;
         this.timeStampField = builder.timeStampField;
+        this.filter = builder.filter;
     }
 
     /**
@@ -296,7 +302,19 @@ public abstract class Receiver extends Thread implements Iterator<Event>, Closea
 
     protected final Stream<Event> decodeStream(ConnectionContext<?> ctx, byte[] msg, int offset, int size) {
         try {
-            return decoder.decode(ctx, msg, offset, size).map((m) -> mapToEvent(ctx, () -> msg != null && size > 0 && offset < size, () -> m)).filter(Objects::nonNull);
+            byte[] buffer;
+            int bufferOffset;
+            int bufferSize;
+            if (filter != null) {
+                buffer = filter.filter(msg, offset, size);
+                bufferOffset = 0;
+                bufferSize = msg.length;
+            } else {
+                buffer = msg;
+                bufferOffset = offset;
+                bufferSize = size;
+            }
+            return decoder.decode(ctx, msg, offset, size).map((m) -> mapToEvent(ctx, () -> buffer != null && bufferSize > 0 && bufferOffset < bufferSize, () -> m)).filter(Objects::nonNull);
         } catch (DecodeException ex) {
             manageDecodeException(ex);
             return Stream.of();
@@ -304,12 +322,7 @@ public abstract class Receiver extends Thread implements Iterator<Event>, Closea
     }
 
     protected final Stream<Event> decodeStream(ConnectionContext<?> ctx, byte[] msg) {
-        try {
-            return decoder.decode(ctx, msg).map((m) -> mapToEvent(ctx, () -> true, () -> m)).filter(Objects::nonNull);
-        } catch (DecodeException ex) {
-            manageDecodeException(ex);
-            return Stream.of();
-        }
+        return decodeStream(ctx, msg, 0, msg.length);
     }
 
     public void manageDecodeException(DecodeException ex) {

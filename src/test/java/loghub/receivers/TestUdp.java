@@ -6,11 +6,13 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.function.Consumer;
 
+import org.apache.commons.compress.compressors.CompressorStreamFactory;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -20,12 +22,16 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import loghub.BeanChecks;
+import loghub.BeanChecks.BeanInfo;
+import loghub.Compressor;
+import loghub.Decompressor;
 import loghub.Event;
+import loghub.Filter;
 import loghub.LogUtils;
 import loghub.Pipeline;
 import loghub.Tools;
-import loghub.BeanChecks.BeanInfo;
 import loghub.configuration.Properties;
+import loghub.decoders.DecodeException;
 import loghub.decoders.StringCodec;
 
 public class TestUdp {
@@ -113,6 +119,55 @@ public class TestUdp {
         testsend(16384);
     }
 
+    @Test(timeout=5000)
+    public void testCompressed() throws InterruptedException, IOException, DecodeException {
+        int port = Tools.tryGetPort();
+        BlockingQueue<Event> receiver = new ArrayBlockingQueue<>(10);
+        
+        Decompressor.Builder builder = Decompressor.getBuilder();
+
+        Compressor.Builder cbuilder = Compressor.getBuilder();
+        cbuilder.setFormat(CompressorStreamFactory.DEFLATE);
+        Compressor comp = cbuilder.build();
+        byte[] sentBuffer = comp.filter("Compressed message".getBytes(StandardCharsets.UTF_8));
+
+        // Generate a locally binded random socket
+        try (DatagramSocket socket = new DatagramSocket(0, InetAddress.getLoopbackAddress());
+             Udp r = getReceiver(b -> {
+                 b.setBufferSize(4000);
+                 b.setHost(InetAddress.getLoopbackAddress().getHostAddress());
+                 b.setPort(port);
+                 b.setDecoder(StringCodec.getBuilder().build());
+                 b.setFilter(builder.build());
+                
+             })
+                        ) {
+            r.setOutQueue(receiver);
+            r.setPipeline(new Pipeline(Collections.emptyList(), "testone", null));
+            String hostname = socket.getLocalAddress().getHostAddress();
+            InetSocketAddress destaddr = new InetSocketAddress(hostname, port);
+
+            Assert.assertTrue(r.configure(new Properties(Collections.emptyMap())));
+            r.start();
+            try(DatagramSocket send = new DatagramSocket()) {
+                DatagramPacket packet = new DatagramPacket(sentBuffer, sentBuffer.length, destaddr);
+                try {
+                    logger.debug("Listening on {}", r.getListenAddress());
+                    send.send(packet);
+                    logger.debug("One message sent to {}", packet.getAddress());
+                } catch (IOException e1) {
+                    logger.error("IO exception on port {}", r.getPort());
+                    throw e1;
+                }
+            }
+            Event e = receiver.take();
+            Assert.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
+            Assert.assertEquals("Invalid message content", "Compressed message", e.get("message"));
+            Assert.assertTrue("didn't find valid remote host informations", e.getConnectionContext().getRemoteAddress() instanceof InetSocketAddress);
+            Assert.assertTrue("didn't find valid local host informations", e.getConnectionContext().getLocalAddress() instanceof InetSocketAddress);
+        }
+    }
+
     @Test
     public void testAlreadyBinded() throws IOException {
         try (DatagramSocket ss = new DatagramSocket(0, InetAddress.getLoopbackAddress());
@@ -134,6 +189,7 @@ public class TestUdp {
                               , BeanInfo.build("host", String.class)
                               , BeanInfo.build("port", Integer.TYPE)
                               , BeanInfo.build("bufferSize", Integer.TYPE)
+                              , BeanInfo.build("filter", Filter.class)
                         );
     }
 
