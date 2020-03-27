@@ -104,7 +104,7 @@ public class BaseChannelConsumer<R extends NettyReceiver<?, ?, ?, ?, BS, BSC, ?,
         this.r = r;
         // Some filters are sharable, so keep them
         filter = Optional.ofNullable(r.getFilter()).map(i -> new FilterHandler());
-        nettydecoder = Optional.of(r.getClass()).filter(i -> i.isAnnotationPresent(SelfDecoder.class)).map(i -> new LogHubDecoder());
+        nettydecoder = Optional.of(r.getClass()).filter(i -> ! i.isAnnotationPresent(SelfDecoder.class)).map(i -> new LogHubDecoder());
     }
 
     @Override
