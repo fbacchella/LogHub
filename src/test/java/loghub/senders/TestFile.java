@@ -25,7 +25,6 @@ import loghub.Stats;
 import loghub.Tools;
 import loghub.configuration.Properties;
 import loghub.encoders.StringField;
-import lombok.var;
 
 public class TestFile {
 
@@ -140,7 +139,7 @@ public class TestFile {
         StringField.Builder builder1 = StringField.getBuilder();
         builder1.setFormat("${");
         StringField sf = builder1.build();
-        var builder = File.getBuilder();
+        File.Builder builder = File.getBuilder();
         builder.setFileName(outFile);
         builder.setEncoder(sf);
         File fsend = builder.build();
