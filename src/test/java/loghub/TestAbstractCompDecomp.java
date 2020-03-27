@@ -37,7 +37,7 @@ public class TestAbstractCompDecomp {
         Decompressor dcomp = builder.build();
 
         Compressor.Builder cbuilder = Compressor.getBuilder();
-        cbuilder.setFormat(CompressorStreamFactory.BROTLI);
+        cbuilder.setFormat(CompressorStreamFactory.DEFLATE);
         Compressor comp = cbuilder.build();
 
         ByteBuf resultbuff = dcomp.filter(comp.filter(inbuf));
