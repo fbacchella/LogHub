@@ -17,7 +17,6 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.MessageToMessageDecoder;
-import io.netty.util.ReferenceCounted;
 import loghub.Event;
 import loghub.Helpers;
 import loghub.decoders.DecodeException;
@@ -52,19 +51,6 @@ public class BaseChannelConsumer<R extends NettyReceiver<?, ?, ?, ?, BS, BSC, ?,
     }
 
     @Sharable
-    private class ContextExtractor extends MessageToMessageDecoder<SM> {
-        @Override
-        protected void decode(ChannelHandlerContext ctx, SM msg, List<Object> out) {
-            r.makeConnectionContext(ctx, msg);
-            //The message is not transformed in this step, so don't decrease reference count
-            if (msg instanceof ReferenceCounted) {
-                ((ReferenceCounted) msg).retain();
-            }
-            out.add(msg);
-        }
-    }
-
-    @Sharable
     private class FilterHandler extends MessageToMessageDecoder<ByteBuf> {
         @Override
         protected void decode(ChannelHandlerContext ctx, ByteBuf msg, List<Object> out) {
@@ -91,8 +77,14 @@ public class BaseChannelConsumer<R extends NettyReceiver<?, ?, ?, ?, BS, BSC, ?,
             out.add(content);
         }
     }
+    
+    private class LocalContextExtractor extends ContextExtractor<SM> {
+        public LocalContextExtractor(NettyReceiver<?, ?, ?, ?, ?, ?, ?, ?, ?, SM> r) {
+            super(r);
+        }
+    }
 
-    private final MessageToMessageDecoder<SM> extractor = new ContextExtractor();
+    private final ContextExtractor<SM> extractor;
     private final Optional<MessageToMessageDecoder<ByteBuf>> filter;
     private final Optional<MessageToMessageDecoder<ByteBuf>> nettydecoder;
     private final EventSender sender = new EventSender();
@@ -102,6 +94,7 @@ public class BaseChannelConsumer<R extends NettyReceiver<?, ?, ?, ?, BS, BSC, ?,
     public BaseChannelConsumer(R r) {
         closeOnError = r.getClass().isAnnotationPresent(CloseOnError.class);
         this.r = r;
+        extractor = new LocalContextExtractor(r);
         // Some filters are sharable, so keep them
         filter = Optional.ofNullable(r.getFilter()).map(i -> new FilterHandler());
         nettydecoder = Optional.of(r.getClass()).filter(i -> ! i.isAnnotationPresent(SelfDecoder.class)).map(i -> new LogHubDecoder());
@@ -109,7 +102,7 @@ public class BaseChannelConsumer<R extends NettyReceiver<?, ?, ?, ?, BS, BSC, ?,
 
     @Override
     public void addHandlers(ChannelPipeline p) {
-        p.addFirst("SourceResolver", extractor);
+        p.addFirst(ContextExtractor.NAME, extractor);
         p.addLast("ContentExtracotr", new ContentExtractor());
         filter.ifPresent(i -> {
             p.addLast("Filter", i);

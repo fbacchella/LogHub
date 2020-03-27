@@ -6,7 +6,6 @@ import java.net.SocketAddress;
 import javax.net.ssl.SSLSession;
 
 import io.netty.bootstrap.ServerBootstrap;
-import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ServerChannel;
 import io.netty.channel.socket.ServerSocketChannel;
@@ -22,12 +21,13 @@ import lombok.Getter;
 import lombok.Setter;
 
 @Blocking
-public abstract class AbstractTcpReceiver<R extends AbstractTcpReceiver<R, S, B>,
+public abstract class AbstractTcpReceiver<R extends AbstractTcpReceiver<R, S, B, SM>,
                                           S extends AbstractTcpServer<S, B>,
-                                          B extends AbstractTcpServer.Builder<S, B>
-                                         > extends NettyIpReceiver<R, S, B, TcpFactory, ServerBootstrap, ServerChannel, ServerSocketChannel, SocketChannel, ByteBuf> {
+                                          B extends AbstractTcpServer.Builder<S, B>,
+                                          SM
+                                         > extends NettyIpReceiver<R, S, B, TcpFactory, ServerBootstrap, ServerChannel, ServerSocketChannel, SocketChannel, SM> {
 
-    public abstract static class Builder<B extends AbstractTcpReceiver<?, ?, ?>> extends NettyIpReceiver.Builder<B> {
+    public abstract static class Builder<B extends AbstractTcpReceiver<?, ?, ?, ?>> extends NettyIpReceiver.Builder<B> {
         @Setter
         private int backlog = 16;
     };
@@ -35,7 +35,7 @@ public abstract class AbstractTcpReceiver<R extends AbstractTcpReceiver<R, S, B>
     @Getter
     private final int backlog;
 
-    protected AbstractTcpReceiver(Builder<? extends AbstractTcpReceiver<R, S, B>> builder) {
+    protected AbstractTcpReceiver(Builder<? extends AbstractTcpReceiver<R, S, B, SM>> builder) {
         super(builder);
         this.backlog = builder.backlog;
     }
@@ -47,12 +47,7 @@ public abstract class AbstractTcpReceiver<R extends AbstractTcpReceiver<R, S, B>
     }
 
     @Override
-    public ByteBuf getContent(ByteBuf message) {
-        return message;
-    }
-
-    @Override
-    public ConnectionContext<InetSocketAddress> getNewConnectionContext(ChannelHandlerContext ctx, ByteBuf message) {
+    public ConnectionContext<InetSocketAddress> getNewConnectionContext(ChannelHandlerContext ctx, SM message) {
         SocketAddress remoteChannelAddr = ctx.channel().remoteAddress();
         SocketAddress localChannelAddr = ctx.channel().localAddress();
         InetSocketAddress remoteaddr = null;

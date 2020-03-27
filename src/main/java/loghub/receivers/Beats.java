@@ -35,7 +35,7 @@ import lombok.Setter;
 @SelfDecoder
 @CloseOnError
 @BuilderClass(Beats.Builder.class)
-public class Beats extends AbstractTcpReceiver<Beats, TcpServer, TcpServer.Builder> implements ConsumerProvider<Beats, ServerBootstrap, ServerChannel> {
+public class Beats extends AbstractTcpReceiver<Beats, TcpServer, TcpServer.Builder, ByteBuf> implements ConsumerProvider<Beats, ServerBootstrap, ServerChannel> {
 
     public static class Builder extends AbstractTcpReceiver.Builder<Beats> {
         @Setter
@@ -162,6 +162,11 @@ public class Beats extends AbstractTcpReceiver<Beats, TcpServer, TcpServer.Build
             Thread.currentThread().interrupt();
         }
         super.close();
+    }
+
+    @Override
+    public ByteBuf getContent(ByteBuf message) {
+        return message;
     }
 
 }

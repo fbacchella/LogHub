@@ -147,11 +147,6 @@ public class Http extends AbstractHttp {
     }
 
     @Override
-    protected HttpReceiverServer.Builder getServerBuilder() {
-        return new HttpReceiverServer.Builder();
-    }
-
-    @Override
     public boolean configure(Properties properties, HttpReceiverServer.Builder builder) {
         decoders.values().forEach(d -> d.configure(properties, this));
         settings(builder);
