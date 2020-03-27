@@ -95,7 +95,6 @@ public class SnmpTrap extends Receiver implements CommandResponder {
         return new Builder();
     }
 
-    static private Snmp snmp;
     static private boolean reconfigured = false;
 
     @Getter
@@ -106,6 +105,7 @@ public class SnmpTrap extends Receiver implements CommandResponder {
     private final String listen;
 
     private OIDFormatter formatter = null;
+    private Snmp snmp;
     private final ThreadPool threadPool;
 
     protected SnmpTrap(Builder builder) {
@@ -152,6 +152,7 @@ public class SnmpTrap extends Receiver implements CommandResponder {
             snmp.listen();
         } catch (IOException e) {
             logger.error("can't listen: {}", e.getMessage());
+            return false;
         }
         return super.configure(properties);
     }
@@ -337,7 +338,6 @@ public class SnmpTrap extends Receiver implements CommandResponder {
     }
 
     private Object resolvOpaque(Opaque var) {
-
         //If not resolved, we will return the data as an array of bytes
         Object value = var.getValue();
 
@@ -364,6 +364,5 @@ public class SnmpTrap extends Receiver implements CommandResponder {
     public String getReceiverName() {
         return "SnmpTrap";
     }
-
 
 }
