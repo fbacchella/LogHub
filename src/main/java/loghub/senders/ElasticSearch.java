@@ -22,8 +22,8 @@ import java.util.stream.Stream;
 import org.apache.logging.log4j.Level;
 
 import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.json.JsonWriteFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -77,7 +77,7 @@ public class ElasticSearch extends AbstractHttpSender {
         protected ObjectMapper initialValue() {
             return new ObjectMapper(factory)
                             .configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false)
-                            .configure(JsonGenerator.Feature.ESCAPE_NON_ASCII, true);
+                            .configure(JsonWriteFeature.ESCAPE_NON_ASCII.mappedFeature(), true);
         }
     };
 
