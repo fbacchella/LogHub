@@ -1,11 +1,11 @@
 # JAVA_HOME keep moving around in debian
 # Check it with the following script:
-# for j in 8 11 14 ; do for d in stretch buster ; do echo "==== circleci/openjdk:$j-$d ====" ; docker run --rm -ti circleci/openjdk:$j-$d bash -c 'find /usr -name '*openjdk*' -type d | while read p ; do echo ">>> $p" ; $p/bin/java -version ; done' ; done ; done | grep -v -e doc -e gdb
+# for j in 8 11 13 ; do for d in stretch buster ; do echo "==== circleci/openjdk:$j-$d ====" ; docker run --rm -ti circleci/openjdk:$j-$d bash -c 'find /usr -name '*openjdk*' -type d | while read p ; do echo ">>> $p" ; $p/bin/java -version ; done' ; done ; done | grep -v -e doc -e gdb
 version: 2.1
 jobs:
     checkout:
         docker:
-            - image: circleci/openjdk:14-jdk-buster
+            - image: circleci/openjdk:13-jdk-buster
         steps:
             - checkout
             - restore_cache:
@@ -14,7 +14,7 @@ jobs:
             - run:
                 command: "mvn -B dependency:go-offline -Psonar,versions -s .circleci/settings.xml"
                 environment:
-                    JAVA_HOME: /usr/java/openjdk-14
+                    JAVA_HOME: /usr/java/openjdk-13
                     MAVEN_OPTS: "-Xmx1024m"
             - persist_to_workspace:
                 root: /
@@ -32,7 +32,7 @@ jobs:
                     - openjdk-8
     build:
         docker:
-            - image: circleci/openjdk:14-jdk-buster
+            - image: circleci/openjdk:13-jdk-buster
         steps:
             - attach_workspace:
                 at: /tmp/ws
@@ -44,16 +44,16 @@ jobs:
             - run:
                 command: mvn -B clean compile -s .circleci/settings.xml
                 environment:
-                    JAVA_HOME: /usr/java/openjdk-14
+                    JAVA_HOME: /usr/java/openjdk-13
                     MAVEN_OPTS: "-Xmx2048m"
             - persist_to_workspace:
                 root: /
                 paths:
                     - home/circleci/.m2/repository
                     - home/circleci/project/target
-    testsj14:
+    testsj13:
         docker:
-            - image: circleci/openjdk:14-jdk-buster
+            - image: circleci/openjdk:13-jdk-buster
         steps:
             - attach_workspace:
                 at: /tmp/ws
@@ -73,7 +73,7 @@ jobs:
                     fi
                     mvn -B test $SONAR -Pskip  -DargLine="-Xmx2048m" -s .circleci/settings.xml
                 environment:
-                    JAVA_HOME: /usr/java/openjdk-14
+                    JAVA_HOME: /usr/java/openjdk-13
                     MAVEN_OPTS: "-Xmx1024m"
             - store_test_results:
                 path: target/surefire-reports
@@ -102,7 +102,7 @@ jobs:
                     MAVEN_OPTS: "-Xmx512m"
             - store_test_results:
                 path: target/surefire-reports
-            #don't persist_to_workspace, can't be done in parallel with testsj14
+            #don't persist_to_workspace, can't be done in parallel with testsj13
     testsj8:
         docker:
             - image: circleci/openjdk:8-buster
@@ -123,10 +123,10 @@ jobs:
                     MAVEN_OPTS: "-Xmx512m"
             - store_test_results:
                 path: target/surefire-reports
-            #don't persist_to_workspace, can't be done in parallel with testsj14
+            #don't persist_to_workspace, can't be done in parallel with testsj13
     publish:
         docker:
-            - image: circleci/openjdk:14-jdk-buster
+            - image: circleci/openjdk:13-jdk-buster
         steps:
             - attach_workspace:
                 at: /tmp/ws
@@ -147,7 +147,7 @@ jobs:
                     echo "publishing jobs: $PUBLISH"
                     mvn -B $PUBLISH -Pskip -Dmaven.test.skip=true -s .circleci/settings.xml
                 environment:
-                    JAVA_HOME: /usr/java/openjdk-14
+                    JAVA_HOME: /usr/java/openjdk-13
                     MAVEN_OPTS: "-Dorg.slf4j.simpleLogger.log.org.apache.maven.plugins.shade=ERROR -Xmx2048m"
             - persist_to_workspace:
                 root: /
@@ -156,7 +156,7 @@ jobs:
                     - home/circleci/.sonar/cache
     savecache:
         docker:
-            - image: circleci/openjdk:14-jdk-buster
+            - image: circleci/openjdk:13-jdk-buster
         steps:
             - attach_workspace:
                 at: /tmp/ws
@@ -187,14 +187,14 @@ workflows:
       - testsj11:
           requires:
               - build
-      - testsj14:
+      - testsj13:
           requires:
               - build
       - publish:
           requires:
               - testsj8
               - testsj11
-              - testsj14
+              - testsj13
       - savecache:
           requires:
               - publish
