@@ -2,7 +2,6 @@ package loghub.senders;
 
 import java.beans.IntrospectionException;
 import java.io.IOException;
-import java.lang.management.ManagementFactory;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -11,32 +10,21 @@ import java.util.Date;
 import java.util.TimeZone;
 import java.util.concurrent.ArrayBlockingQueue;
 
-import javax.management.BadAttributeValueExpException;
-import javax.management.BadBinaryOpValueExpException;
-import javax.management.BadStringOperationException;
-import javax.management.InstanceNotFoundException;
-import javax.management.InvalidApplicationException;
-import javax.management.MBeanRegistrationException;
-import javax.management.MBeanServer;
-import javax.management.ObjectName;
-import javax.management.QueryExp;
-
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.config.Configurator;
-import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
 
+import loghub.BeanChecks;
+import loghub.BeanChecks.BeanInfo;
 import loghub.Event;
 import loghub.LogUtils;
 import loghub.Stats;
 import loghub.Tools;
-import loghub.BeanChecks;
-import loghub.BeanChecks.BeanInfo;
 import loghub.configuration.ConfigurationTools;
 import loghub.configuration.Properties;
 
@@ -53,35 +41,6 @@ public class TestElasticSearch {
         TimeZone.setDefault(TimeZone.getTimeZone("GMT"));
     }
 
-    @AfterClass
-    static public void removeBeans() throws IOException {
-        MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
-        mbs.queryNames(null, new QueryExp() {
-
-            @Override
-            public boolean apply(ObjectName name)
-                            throws BadStringOperationException,
-                            BadBinaryOpValueExpException,
-                            BadAttributeValueExpException,
-                            InvalidApplicationException {
-                if (name.getDomain().startsWith("loghub")) {
-                    return true;
-                } else {
-                    return false;
-                }
-            }
-            @Override
-            public void setMBeanServer(MBeanServer s) {
-            }
-        }).forEach(i -> {
-            try {
-                mbs.unregisterMBean(i);
-            } catch (MBeanRegistrationException | InstanceNotFoundException e) {
-                throw new RuntimeException(e);
-            }
-        });
-    }
-
     @Ignore
     @Test
     public void testSend() throws InterruptedException {
@@ -90,7 +49,7 @@ public class TestElasticSearch {
         ElasticSearch.Builder esbuilder = new ElasticSearch.Builder();
         esbuilder.setDestinations(new String[]{"http://localhost:9200", });
         esbuilder.setTimeout(1);
-        esbuilder.setBuffersize(10);
+        esbuilder.setBatchSize(10);
         ElasticSearch es = esbuilder.build();
         es.setInQueue(new ArrayBlockingQueue<>(count));
         Assert.assertTrue("Elastic configuration failed", es.configure(new Properties(Collections.emptyMap())));
@@ -117,9 +76,10 @@ public class TestElasticSearch {
         ElasticSearch.Builder esbuilder = new ElasticSearch.Builder();
         esbuilder.setDestinations(new String[]{"http://localhost:9200"});
         esbuilder.setTimeout(1);
-        esbuilder.setBuffersize(10);
+        esbuilder.setBatchSize(10);
         esbuilder.setIndexX(ConfigurationTools.unWrap("[#index]", i -> i.expression()));
-        esbuilder.setTypeX(ConfigurationTools.unWrap("[#type]", i -> i.expression()));
+        //esbuilder.setTypeX(ConfigurationTools.unWrap("[#type]", i -> i.expression()));
+        esbuilder.setTypeX(ConfigurationTools.unWrap("\"_doc\"", i -> i.expression()));
         ElasticSearch es = esbuilder.build();
         es.setInQueue(new ArrayBlockingQueue<>(count));
         Assert.assertTrue("Elastic configuration failed", es.configure(new Properties(Collections.emptyMap())));
@@ -147,7 +107,7 @@ public class TestElasticSearch {
         ElasticSearch.Builder esbuilder = new ElasticSearch.Builder();
         esbuilder.setDestinations(new String[]{"http://localhost:9200"});
         esbuilder.setTimeout(1);
-        esbuilder.setBuffersize(10);
+        esbuilder.setBatchSize(10);
         esbuilder.setIndexX(ConfigurationTools.unWrap("[#index]", i -> i.expression()));
         esbuilder.setTypeX(ConfigurationTools.unWrap("[#type]", i -> i.expression()));
         ElasticSearch es = esbuilder.build();
@@ -175,7 +135,7 @@ public class TestElasticSearch {
         ElasticSearch.Builder esbuilder = new ElasticSearch.Builder();
         esbuilder.setDestinations(new String[]{"http://localhost:9200"});
         esbuilder.setTimeout(5);
-        esbuilder.setBuffersize(10);
+        esbuilder.setBatchSize(10);
         ElasticSearch es = esbuilder.build();
         es.setInQueue(queue);
         Assert.assertTrue("Elastic configuration failed", es.configure(new Properties(Collections.emptyMap())));
@@ -227,7 +187,7 @@ public class TestElasticSearch {
         ElasticSearch.Builder esbuilder = new ElasticSearch.Builder();
         esbuilder.setDestinations(new String[]{"http://localhost:9200", });
         esbuilder.setTimeout(1);
-        esbuilder.setBuffersize(count * 2);
+        esbuilder.setBatchSize(count * 2);
         esbuilder.setIndexformat("'testsomefailed-'yyyy.MM.dd");
         ElasticSearch es = esbuilder.build();
         es.setInQueue(new ArrayBlockingQueue<>(count));
@@ -260,11 +220,12 @@ public class TestElasticSearch {
     @Test
     public void testBeans() throws ClassNotFoundException, IntrospectionException {
         BeanChecks.beansCheck(logger, "loghub.senders.ElasticSearch"
+                              , BeanInfo.build("threads", Integer.TYPE)
+                              , BeanInfo.build("batchSize", Integer.TYPE)
+                              , BeanInfo.build("flushInterval", Integer.TYPE)
                               , BeanInfo.build("destinations", BeanChecks.LSTRING)
                               , BeanInfo.build("indexX", String.class)
                               , BeanInfo.build("timeout", Integer.TYPE)
-                              , BeanInfo.build("threads", Integer.TYPE)
-                              , BeanInfo.build("buffersize", Integer.TYPE)
                               , BeanInfo.build("indexformat", String.class)
                               , BeanInfo.build("type", String.class)
                               , BeanInfo.build("typeX", String.class)

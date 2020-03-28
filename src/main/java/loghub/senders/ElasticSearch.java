@@ -40,6 +40,7 @@ import loghub.configuration.Properties;
 import lombok.Setter;
 
 @AsyncSender
+@CanBatch(only=true)
 @SelfEncoder
 @BuilderClass(ElasticSearch.Builder.class)
 public class ElasticSearch extends AbstractHttpSender {
@@ -61,6 +62,7 @@ public class ElasticSearch extends AbstractHttpSender {
         private boolean withTemplate = true;
         public Builder() {
             this.setPort(9200);
+            this.setBatchSize(20);
         }
         @Override
         public ElasticSearch build() {
@@ -156,6 +158,11 @@ public class ElasticSearch extends AbstractHttpSender {
         } else {
             return false;
         }
+    }
+
+    @Override
+    public boolean send(Event e) {
+        throw new UnsupportedOperationException("Can't send single event");
     }
 
     @Override
@@ -413,11 +420,6 @@ public class ElasticSearch extends AbstractHttpSender {
 
     @Override
     public String getSenderName() {
-        return "ElasticSearch";
-    }
-
-    @Override
-    protected String getPublishName() {
         return "ElasticSearch";
     }
 

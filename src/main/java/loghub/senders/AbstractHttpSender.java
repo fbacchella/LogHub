@@ -11,16 +11,10 @@ import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.nio.charset.Charset;
 import java.security.GeneralSecurityException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
 
 import javax.management.InstanceAlreadyExistsException;
-import javax.management.InstanceNotFoundException;
 import javax.management.MBeanRegistrationException;
 import javax.management.MBeanServer;
 import javax.management.MXBean;
@@ -61,11 +55,7 @@ import org.apache.http.pool.ConnPoolControl;
 import org.apache.http.util.VersionInfo;
 import org.apache.logging.log4j.Level;
 
-import com.codahale.metrics.Timer;
-
-import loghub.Event;
 import loghub.Helpers;
-import loghub.ThreadBuilder;
 import loghub.configuration.Properties;
 import lombok.Setter;
 
@@ -85,11 +75,7 @@ public abstract class AbstractHttpSender extends Sender {
         @Setter
         private int port = -1;
         @Setter
-        private int threads = 2;
-        @Setter
         private String[] destinations;
-        @Setter
-        private int buffersize = 20;
     };
 
     protected class HttpRequest {
@@ -130,16 +116,6 @@ public abstract class AbstractHttpSender extends Sender {
                             .setBinary(content)
                             .setContentType(org.apache.http.entity.ContentType.create(mimeType, charset));
             this.content = builder.build();
-        }
-    }
-
-    protected class Batch extends ArrayList<Event> {
-        Batch() {
-            super(buffersize);
-            Properties.metrics.counter("sender." + getName() + ".activeBatches").inc();
-        }
-        public void finished() {
-            Properties.metrics.counter("sender." + getName() + ".activeBatches").dec();
         }
     }
 
@@ -256,77 +232,16 @@ public abstract class AbstractHttpSender extends Sender {
     }
 
     // Beans
-    private final int buffersize;
     private final int timeout;
     private CredentialsProvider credsProvider = null;
 
     private CloseableHttpClient client = null;
-    private Batch batch = new Batch();
-    private final BlockingQueue<Batch> batches;
-    private final Runnable publisher;
     protected final URL[] endPoints;
-    private volatile boolean closed = false;
-    private final Thread[] threads;
-    private volatile long lastFlush = 0;
 
     public AbstractHttpSender(Builder<? extends AbstractHttpSender> builder) {
         super(builder);
         timeout = builder.timeout;
-        buffersize = builder.buffersize;
         endPoints = Helpers.stringsToUrl(builder.destinations, builder.port, builder.protocol, logger);
-        batches = new ArrayBlockingQueue<>(builder.threads * 2);
-        // A runnable that will be affected to threads
-        // It consumes event and send them as bulk
-        publisher = new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    while (!isInterrupted() && ! closed) {
-                        synchronized (this) {
-                            wait();
-                            logger.debug("Flush initated");
-                        }
-                        Batch flushedBatch;
-                        while ((flushedBatch = batches.poll()) != null){
-                            Properties.metrics.histogram("sender." + getName() + ".batchesSize").update(flushedBatch.size());
-                            if (flushedBatch.isEmpty()) {
-                                flushedBatch.finished();
-                                continue;
-                            } else {
-                                lastFlush = new Date().getTime();
-                            }
-                            Timer.Context tctx = Properties.metrics.timer("sender." + getName() + ".flushDuration").time();
-                            try {
-                                Object response = flush(flushedBatch);
-                                if (response != null) {
-                                    logger.debug("response from http server: {}", response);
-                                }
-                            } catch (IOException | UncheckedIOException e) {
-                                logger.error("IO exception: {}", e.getMessage());
-                                logger.catching(Level.DEBUG, e);
-                            } catch (Exception e) {
-                                String message = Helpers.resolveThrowableException(e);
-                                logger.error("Unexpected exception: {}", message);
-                                logger.catching(e);
-                            }
-                            flushedBatch.finished();
-                            tctx.close();
-                        }
-                    }
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                }
-            }
-        };
-        threads = new Thread[builder.threads];
-        for (int i = 1 ; i <= builder.threads ; i++) {
-            String tname =  getPublishName() + "Publisher" + i;
-            threads[i - 1] = ThreadBuilder.get()
-                            .setRunnable(publisher)
-                            .setDaemon(false)
-                            .setName(tname)
-                            .build(true);
-        }
         // Two names for login/user
         String user = builder.user != null ? builder.user : builder.login;
         if (user != null && builder.password != null) {
@@ -358,8 +273,8 @@ public abstract class AbstractHttpSender extends Sender {
                         .register("https", new SSLConnectionSocketFactory(properties.ssl))
                         .build();
         PoolingHttpClientConnectionManager cm = new PoolingHttpClientConnectionManager(registry);
-        cm.setMaxTotal(threads.length + 1);
-        cm.setDefaultMaxPerRoute(threads.length + 1);
+        cm.setMaxTotal(getThreads() + 1);
+        cm.setDefaultMaxPerRoute(getThreads() + 1);
         cm.setValidateAfterInactivity(timeout * 1000);
         clientBuilder.setConnectionManager(cm);
 
@@ -393,93 +308,8 @@ public abstract class AbstractHttpSender extends Sender {
 
         client = clientBuilder.build();
 
-        //Schedule a task to flush every 5 seconds
-        Runnable flush = () -> {
-            try {
-                synchronized(publisher) {
-                    long now = new Date().getTime();
-                    if (( now - lastFlush) > 5000) {
-                        batches.add(batch);
-                        batch = new Batch();
-                        publisher.notify();
-                    }
-                }
-            } catch (IllegalStateException e) {
-                logger.warn("Failed to launch a scheduled batch: " + Helpers.resolveThrowableException(e));
-                logger.catching(Level.DEBUG, e);
-            } catch (Exception e) {
-                logger.error("Failed to launch a scheduled batch: " + Helpers.resolveThrowableException(e), e);
-            }
-        };
-        properties.registerScheduledTask(getPublishName() + "Flusher" , flush, 5000);
-        Helpers.waitAllThreads(Arrays.stream(threads));
         return true;
     }
-
-    @Override
-    public void stopSending() {
-        try {
-            MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
-            mbs.unregisterMBean(new ObjectName("loghub:type=sender,servicename=" + getName() + ",name=connectionsPool"));
-        } catch (MalformedObjectNameException | MBeanRegistrationException | InstanceNotFoundException e) {
-            logger.error("Failed to unregister mbeam: " + Helpers.resolveThrowableException(e), e);
-            logger.catching(Level.DEBUG, e);
-        }
-        super.stopSending();
-    }
-
-    public void close() {
-        logger.debug("Closing");
-        closed = true;
-        synchronized(publisher) {
-            try {
-                batches.put(batch);
-            } catch (InterruptedException e) {
-                interrupt();
-            }
-            batch = new Batch();
-            publisher.notify();
-        }
-        // Notify all publisher threads that publication is finished
-        synchronized (publisher) {
-            publisher.notifyAll();
-        }
-        Arrays.stream(threads).forEach(t -> {
-            try {
-                t.join(1000);
-            } catch (InterruptedException e) {
-                t.interrupt();
-            }
-        });
-    }
-
-    protected abstract String getPublishName();
-
-    @Override
-    public boolean send(Event event) {
-        if (closed) {
-            return false;
-        }
-        synchronized(publisher) {
-            batch.add(event);
-            if (batch.size() >= buffersize) {
-                logger.debug("batch full, flush");
-                try {
-                    batches.put(batch);
-                } catch (InterruptedException e) {
-                    interrupt();
-                }
-                batch = new Batch();
-                publisher.notify();
-                if (batches.size() > threads.length) {
-                    logger.warn("{} waiting flush batches, add flushing threads", () -> batches.size() - threads.length);
-                }
-            }
-        }
-        return true;
-    }
-
-    protected abstract Object flush(Batch documents) throws IOException;
 
     protected HttpResponse doRequest(HttpRequest therequest) {
 
@@ -488,14 +318,13 @@ public abstract class AbstractHttpSender extends Sender {
             context.setCredentialsProvider(credsProvider);
         }
 
-        HttpHost host;
         RequestLine requestLine = new BasicRequestLine(therequest.verb, therequest.url.getPath(), therequest.httpVersion);
         BasicHttpEntityEnclosingRequest request = new BasicHttpEntityEnclosingRequest(requestLine);
         if (therequest.content != null) {
             request.setEntity(therequest.content);
         }
         therequest.headers.forEach((i,j) -> request.addHeader(i, j));
-        host = new HttpHost(therequest.url.getHost(),
+        HttpHost host = new HttpHost(therequest.url.getHost(),
                             therequest.url.getPort(),
                             therequest.url.getProtocol());
         try {
