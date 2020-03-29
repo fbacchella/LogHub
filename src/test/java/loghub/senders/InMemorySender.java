@@ -16,6 +16,10 @@ public class InMemorySender extends Sender {
         public InMemorySender build() {
             return new InMemorySender(this);
         }
+
+    }
+    public static Builder getBuilder() {
+        return new Builder();
     }
 
     public InMemorySender(Builder builder) {

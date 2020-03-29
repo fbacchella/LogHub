@@ -15,6 +15,7 @@ import loghub.Event;
 import loghub.LogUtils;
 import loghub.Tools;
 import loghub.configuration.Properties;
+import loghub.senders.InMemorySender;
 
 public class TestStringField {
 
@@ -33,7 +34,7 @@ public class TestStringField {
         builder.setCharset("UTF-16");
         builder.setFormat("${K1}: ${K2%02d}");
         StringField encoder = builder.build();
-        Assert.assertTrue(encoder.configure(new Properties(Collections.emptyMap()), null));
+        Assert.assertTrue(encoder.configure(new Properties(Collections.emptyMap()), InMemorySender.getBuilder().build()));
         Event e = Tools.getEvent();
         e.put("K1", "V1");
         e.put("K2", 2);
