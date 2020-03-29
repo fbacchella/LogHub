@@ -256,7 +256,6 @@ public abstract class Sender extends Thread implements Closeable {
     }
 
     public void run() {
-        System.out.println(threads == null ? "send(event)" : "queue(event)");
         while (! isInterrupted()) {
             Event event = null;
             try {
