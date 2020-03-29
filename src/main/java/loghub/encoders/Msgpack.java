@@ -9,6 +9,8 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.msgpack.jackson.dataformat.MessagePackExtensionType;
 import org.msgpack.jackson.dataformat.MessagePackFactory;
@@ -24,10 +26,12 @@ import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 
 import loghub.BuilderClass;
+import loghub.CanBatch;
 import loghub.Event;
 import lombok.Setter;
 
 @BuilderClass(Msgpack.Builder.class)
+@CanBatch
 public class Msgpack extends Encoder {
 
     public static class Builder extends Encoder.Builder<Msgpack> {
@@ -148,27 +152,28 @@ public class Msgpack extends Encoder {
         });
     }
 
-    private final boolean forwardEvent;
+    private final ThreadLocal<ObjectMapper> mapper;
 
     private Msgpack(Builder builder) {
         super(builder);
-        this.forwardEvent = builder.forwardEvent;
+        mapper = builder.forwardEvent ? msgpackAsEvent : msgpackAsMap;
     }
 
     @Override
     public byte[] encode(Event event) {
-        if (forwardEvent) {
-            try {
-                return msgpackAsEvent.get().writeValueAsBytes(event);
-            } catch (JsonProcessingException e) {
-                throw new RuntimeException(e);
-            }
-        } else {
-            try {
-                return msgpackAsMap.get().writeValueAsBytes(event);
-            } catch (JsonProcessingException e) {
-                throw new RuntimeException(e);
-            }
+        try {
+            return mapper.get().writeValueAsBytes(event);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
+    public byte[] encode(Stream<Event> events) {
+        try {
+            return mapper.get().writeValueAsBytes(events.collect(Collectors.toList()));
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
         }
     }
 

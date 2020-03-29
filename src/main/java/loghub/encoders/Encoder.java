@@ -1,10 +1,13 @@
 package loghub.encoders;
 
+import java.util.stream.Stream;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.util.StackLocator;
 
 import loghub.AbstractBuilder;
+import loghub.CanBatch;
 import loghub.Event;
 import loghub.configuration.Properties;
 import loghub.senders.Sender;
@@ -20,7 +23,7 @@ public abstract class Encoder {
     private static final StackLocator stacklocator = StackLocator.getInstance();
 
     protected final Logger logger;
-    
+
     protected final String field;
 
     protected Encoder(Builder<?  extends Encoder> builder) {
@@ -29,7 +32,16 @@ public abstract class Encoder {
     }
 
     public boolean configure(Properties properties, Sender sender) {
-        return true;
+        if (getClass().getAnnotation(CanBatch.class) == null && sender.isWithBatch()) {
+            logger.error("This encoder don't handle batches");
+            return false;
+        } else {
+            return true;
+        }
+    }
+
+    public byte[] encode(Stream<Event> events) {
+        throw new UnsupportedOperationException("Can't batch events");
     }
 
     public abstract byte[] encode(Event event);

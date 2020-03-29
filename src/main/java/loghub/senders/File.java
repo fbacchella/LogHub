@@ -18,6 +18,7 @@ import org.apache.logging.log4j.Level;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import loghub.BuilderClass;
+import loghub.CanBatch;
 import loghub.Event;
 import loghub.Helpers;
 import loghub.configuration.Properties;

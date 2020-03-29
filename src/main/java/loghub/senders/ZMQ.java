@@ -5,6 +5,7 @@ import org.zeromq.ZMQ.Socket;
 import org.zeromq.ZPoller;
 
 import loghub.BuilderClass;
+import loghub.CanBatch;
 import loghub.Event;
 import loghub.configuration.Properties;
 import loghub.zmq.ZMQHandler;
@@ -15,6 +16,7 @@ import lombok.Setter;
 import zmq.socket.Sockets;
 
 @BuilderClass(ZMQ.Builder.class)
+@CanBatch
 public class ZMQ extends Sender {
 
     public static class Builder extends Sender.Builder<ZMQ> {

@@ -1,15 +1,20 @@
 package loghub.encoders;
 
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 
 import loghub.BuilderClass;
+import loghub.CanBatch;
 import loghub.Event;
 import lombok.Setter;
 
 @BuilderClass(ToJson.Builder.class)
+@CanBatch
 public class ToJson extends Encoder {
     
     public static class Builder extends Encoder.Builder<ToJson> {
@@ -54,6 +59,15 @@ public class ToJson extends Encoder {
     public byte[] encode(Event event) {
         try {
             return json.get().writeValueAsBytes(event);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
+    public byte[] encode(Stream<Event> events) {
+        try {
+            return json.get().writeValueAsBytes(events.collect(Collectors.toList()));
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }
