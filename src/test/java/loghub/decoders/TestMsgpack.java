@@ -9,6 +9,9 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -194,6 +197,57 @@ public class TestMsgpack {
         Map<String, Object> e = dec.decode(ConnectionContext.EMPTY, enc.encode(ev)).findAny().get();
         testContent(e);
         Assert.assertFalse(e instanceof Event);
+        Instant f = (Instant) e.get("f");
+        Instant g = (Instant) e.get("g");
+        Assert.assertEquals(1, f.getEpochSecond());
+        Assert.assertEquals(2, g.getEpochSecond());
+        Assert.assertEquals(3000000, g.getNano());
+    }
+
+    @Test
+    public void testRoundTripAsEvent() throws IOException, DecodeException {
+        loghub.encoders.Msgpack.Builder builder = loghub.encoders.Msgpack.getBuilder();
+        builder.setForwardEvent(true);
+        loghub.encoders.Msgpack enc = builder.build();
+        Event ev = Event.emptyEvent(ConnectionContext.EMPTY);
+        ev.putAll(obj);
+        ev.putMeta("h", 7);
+        ev.setTimestamp(new Date(0));
+        Decoder dec = new Msgpack.Builder().build();
+        List<Map<String, Object>> objects = dec.decode(ConnectionContext.EMPTY, enc.encode(ev)).collect(Collectors.toList());
+        Assert.assertEquals(1, objects.size());
+        Map<String, Object> object = objects.get(0);
+        testCompletEvent(object);
+    }
+
+    @Test
+    public void testRoundTripAsBatchedEvent() throws IOException, DecodeException {
+        loghub.encoders.Msgpack.Builder builder = loghub.encoders.Msgpack.getBuilder();
+        builder.setForwardEvent(true);
+        loghub.encoders.Msgpack enc = builder.build();
+        Event ev = Event.emptyEvent(ConnectionContext.EMPTY);
+        ev.putAll(obj);
+        ev.putMeta("h", 7);
+        ev.setTimestamp(new Date(0));
+        Decoder dec = new Msgpack.Builder().build();
+        byte[] encoded = enc.encode(Stream.of(ev, ev));
+        AtomicInteger seen = new AtomicInteger(0);
+        dec.decode(ConnectionContext.EMPTY, encoded).forEach(o -> {
+            seen.getAndIncrement();
+            testCompletEvent(o);
+        });
+        Assert.assertEquals(2, seen.get());
+    }
+
+    @SuppressWarnings("unchecked")
+    private void testCompletEvent(Map<String, Object> o) {
+        Map<String, Object> e = (Map<String, Object>) ((Map<String, Object>) o.get("loghub.Event")).get("@fields");
+        Map<String, Object> m = (Map<String, Object>) ((Map<String, Object>) o.get("loghub.Event")).get("@METAS");
+        Instant ts = (Instant) ((Map<String, Object>) o.get("loghub.Event")).get(Event.TIMESTAMPKEY);
+        Assert.assertEquals(0, ts.getEpochSecond());
+        testContent(e);
+        Assert.assertFalse(e instanceof Event);
+        Assert.assertEquals(7, m.get("h"));
         Instant f = (Instant) e.get("f");
         Instant g = (Instant) e.get("g");
         Assert.assertEquals(1, f.getEpochSecond());
