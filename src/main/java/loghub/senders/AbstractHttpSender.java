@@ -257,58 +257,61 @@ public abstract class AbstractHttpSender extends Sender {
 
     @Override
     public boolean configure(Properties properties) {
+        if (super.configure(properties)) {
+            if(endPoints.length == 0) {
+                return false;
+            }
 
-        if(endPoints.length == 0) {
+            // The HTTP connection management
+            HttpClientBuilder clientBuilder = HttpClientBuilder.create();
+            clientBuilder.setUserAgent(VersionInfo.getUserAgent("LogHub-HttpClient",
+                                                                "org.apache.http.client", HttpClientBuilder.class));
+
+            // Set the Configuration manager
+            Registry<ConnectionSocketFactory> registry = RegistryBuilder.<ConnectionSocketFactory>create()
+                            .register("http", PlainConnectionSocketFactory.getSocketFactory())
+                            .register("https", new SSLConnectionSocketFactory(properties.ssl))
+                            .build();
+            PoolingHttpClientConnectionManager cm = new PoolingHttpClientConnectionManager(registry);
+            cm.setMaxTotal(getThreads() + 1);
+            cm.setDefaultMaxPerRoute(getThreads() + 1);
+            cm.setValidateAfterInactivity(timeout * 1000);
+            clientBuilder.setConnectionManager(cm);
+
+            try {
+                MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
+                mbs.registerMBean(new Implementation(cm), new ObjectName("loghub:type=sender,servicename=" + getName() + ",name=connectionsPool"));
+            } catch (NotCompliantMBeanException | MalformedObjectNameException
+                            | InstanceAlreadyExistsException | MBeanRegistrationException e) {
+                throw new RuntimeException("jmx configuration failed: " + Helpers.resolveThrowableException(e), e);
+            }
+
+            if (properties.ssl != null) {
+                clientBuilder.setSSLContext(properties.ssl);
+            }
+
+            clientBuilder.setDefaultRequestConfig(RequestConfig.custom()
+                                                  .setConnectionRequestTimeout(timeout * 1000)
+                                                  .setConnectTimeout(timeout * 1000)
+                                                  .setSocketTimeout(timeout * 1000)
+                                                  .build());
+            clientBuilder.setDefaultSocketConfig(SocketConfig.custom()
+                                                 .setTcpNoDelay(true)
+                                                 .setSoKeepAlive(true)
+                                                 .setSoTimeout(timeout * 1000)
+                                                 .build());
+            clientBuilder.setDefaultConnectionConfig(ConnectionConfig.custom()
+                                                     .build());
+            clientBuilder.disableCookieManagement();
+
+            clientBuilder.setRetryHandler((i,j, k) -> false);
+
+            client = clientBuilder.build();
+
+            return true;
+        } else {
             return false;
         }
-
-        // The HTTP connection management
-        HttpClientBuilder clientBuilder = HttpClientBuilder.create();
-        clientBuilder.setUserAgent(VersionInfo.getUserAgent("LogHub-HttpClient",
-                                                            "org.apache.http.client", HttpClientBuilder.class));
-
-        // Set the Configuration manager
-        Registry<ConnectionSocketFactory> registry = RegistryBuilder.<ConnectionSocketFactory>create()
-                        .register("http", PlainConnectionSocketFactory.getSocketFactory())
-                        .register("https", new SSLConnectionSocketFactory(properties.ssl))
-                        .build();
-        PoolingHttpClientConnectionManager cm = new PoolingHttpClientConnectionManager(registry);
-        cm.setMaxTotal(getThreads() + 1);
-        cm.setDefaultMaxPerRoute(getThreads() + 1);
-        cm.setValidateAfterInactivity(timeout * 1000);
-        clientBuilder.setConnectionManager(cm);
-
-        try {
-            MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
-            mbs.registerMBean(new Implementation(cm), new ObjectName("loghub:type=sender,servicename=" + getName() + ",name=connectionsPool"));
-        } catch (NotCompliantMBeanException | MalformedObjectNameException
-                        | InstanceAlreadyExistsException | MBeanRegistrationException e) {
-            throw new RuntimeException("jmx configuration failed: " + Helpers.resolveThrowableException(e), e);
-        }
-
-        if (properties.ssl != null) {
-            clientBuilder.setSSLContext(properties.ssl);
-        }
-
-        clientBuilder.setDefaultRequestConfig(RequestConfig.custom()
-                                              .setConnectionRequestTimeout(timeout * 1000)
-                                              .setConnectTimeout(timeout * 1000)
-                                              .setSocketTimeout(timeout * 1000)
-                                              .build());
-        clientBuilder.setDefaultSocketConfig(SocketConfig.custom()
-                                             .setTcpNoDelay(true)
-                                             .setSoKeepAlive(true)
-                                             .setSoTimeout(timeout * 1000)
-                                             .build());
-        clientBuilder.setDefaultConnectionConfig(ConnectionConfig.custom()
-                                                 .build());
-        clientBuilder.disableCookieManagement();
-
-        clientBuilder.setRetryHandler((i,j, k) -> false);
-
-        client = clientBuilder.build();
-
-        return true;
     }
 
     protected HttpResponse doRequest(HttpRequest therequest) {

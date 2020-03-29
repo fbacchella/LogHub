@@ -8,15 +8,17 @@ import java.net.URL;
 import java.nio.file.Paths;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.TimeZone;
-import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.apache.logging.log4j.Level;
@@ -35,7 +37,6 @@ import loghub.Expression;
 import loghub.Expression.ExpressionException;
 import loghub.Helpers;
 import loghub.ProcessorException;
-import loghub.Stats;
 import loghub.configuration.Properties;
 import lombok.Setter;
 
@@ -166,7 +167,7 @@ public class ElasticSearch extends AbstractHttpSender {
     }
 
     @Override
-    protected Object flush(Batch documents) throws IOException {
+    protected List<EventFuture> flush(Batch documents) throws IOException {
         HttpRequest request = new HttpRequest();
         byte[] content = putContent(documents);
         if (content.length == 0) {
@@ -188,24 +189,39 @@ public class ElasticSearch extends AbstractHttpSender {
         }
         Map<String, ? extends Object> response = doquery(request, "/_bulk", reader, Collections.emptyMap(), null);
         if (response != null && Boolean.TRUE.equals(response.get("errors"))) {
+            List<EventFuture> status = new ArrayList<>(documents.size());
             @SuppressWarnings("unchecked")
             List<Map<String, ?>> items = (List<Map<String, ?>>) response.get("items");
+            int eventIndex = 0;
             for (Map<String, ?> i: items) {
                 @SuppressWarnings("unchecked")
                 Map<String, Map<String, ? extends Object>> index = (Map<String, Map<String, ? extends Object>>) i.get("index");
+                EventFuture f = new EventFuture(documents.get(eventIndex));
+                status.add(eventIndex++, f);
                 if (! index.containsKey("error")) {
-                    continue;
+                    f.complete(true);
+                } else {
+                    Map<String, ? extends Object> error =  Optional.ofNullable((Map<String, ? extends Object>) index.get("error")).orElse(Collections.emptyMap());
+                    String type = (String) error.get("type");
+                    String errorReason = (String) error.get("reason");
+                    Optional<Map<?, ?>> errorCause = Optional.ofNullable((Map<?, ?>) error.get("caused_by"));
+                    f.failure(String.format("%s %s, caused by %s %s",
+                                                       type, errorReason,
+                                                       errorCause.orElse(Collections.emptyMap()).get("type"), errorCause.orElse(Collections.emptyMap()).get("reason")));
                 }
-                Map<String, ? extends Object> error =  Optional.ofNullable((Map<String, ? extends Object>) index.get("error")).orElse(Collections.emptyMap());
-                String type = (String) error.get("type");
-                String errorReason = (String) error.get("reason");
-                Optional<Map<?, ?>> errorCause = Optional.ofNullable((Map<?, ?>) error.get("caused_by"));
-                Stats.newSenderError(String.format("%s %s, caused by %s %s",
-                                                   type, errorReason,
-                                                   errorCause.orElse(Collections.emptyMap()).get("type"), errorCause.orElse(Collections.emptyMap()).get("reason")));
             }
+            return status;
+        } else if (response != null && Boolean.FALSE.equals(response.get("errors"))) {
+            return documents.stream()
+            .map(EventFuture::new)
+            .map(i -> {i.complete(true) ; return i;})
+            .collect(Collectors.toList());
+        } else {
+            return documents.stream()
+            .map(EventFuture::new)
+            .map(i -> {i.complete(false) ; return i;})
+            .collect(Collectors.toList());
         }
-        return response;
     }
 
     private byte[] putContent(Batch documents) {
@@ -229,7 +245,7 @@ public class ElasticSearch extends AbstractHttpSender {
                     indexvalue = esIndexFormat.get().format(e.getTimestamp());
                 }
                 if (indexvalue == null || indexvalue.isEmpty()) {
-                    processStatus(e, CompletableFuture.completedFuture(false));
+                    processStatus(e, false);
                     logger.warn("No usable index name for event {}", e);
                     continue;
                 } else {
@@ -242,7 +258,7 @@ public class ElasticSearch extends AbstractHttpSender {
                     typevalue = Optional.ofNullable(esjson.remove(type)).map(i -> i.toString()).orElse(null);
                 }
                 if (typevalue == null || typevalue.isEmpty()) {
-                    processStatus(e, CompletableFuture.completedFuture(false));
+                    processStatus(e, false);
                     logger.warn("No usable type for event {}", e);
                     continue;
                 } else {
@@ -254,12 +270,11 @@ public class ElasticSearch extends AbstractHttpSender {
                 eventbuilder.append("\n");
                 builder.append(eventbuilder);
                 validEvents++;
-                processStatus(e, CompletableFuture.completedFuture(true));
             } catch (java.lang.StackOverflowError ex) {
-                processStatus(e, CompletableFuture.completedFuture(false));
+                processStatus(new EventFuture(e, false));
                 logger.error("Failed to serialized event {}, infinite recursion", e);
             } catch (ProcessorException ex) {
-                processStatus(e, CompletableFuture.completedFuture(false));
+                processStatus(new EventFuture(e, false));
                 logger.error("Failed to determine index/type for event {}: {}", e, ex);
                 logger.catching(Level.DEBUG, ex);
             } catch (JsonProcessingException ex) {
@@ -311,6 +326,7 @@ public class ElasticSearch extends AbstractHttpSender {
         Map<Object, Object> wantedtemplate;
         try {
             wantedtemplate = Stream.of(templatePath)
+                            .filter(Objects::nonNull)
                             .map( i -> {
                                 try {
                                     return i.openStream();

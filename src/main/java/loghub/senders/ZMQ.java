@@ -1,7 +1,5 @@
 package loghub.senders;
 
-import java.util.concurrent.CompletableFuture;
-
 import org.zeromq.SocketType;
 import org.zeromq.ZMQ.Socket;
 import org.zeromq.ZPoller;
@@ -105,8 +103,7 @@ public class ZMQ extends Sender {
                 byte[] msg = getEncoder().encode(event);
                 canInterrupt = false;
                 boolean sent = socket.send(msg);
-                CompletableFuture<Boolean> statusFuture = CompletableFuture.completedFuture(sent);
-                processStatus(event, statusFuture);
+                processStatus(event, sent);
             }
             return true;
         } catch (InterruptedException e) {

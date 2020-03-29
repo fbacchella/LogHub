@@ -9,6 +9,7 @@ import java.nio.channels.NonWritableChannelException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -20,6 +21,7 @@ import loghub.BuilderClass;
 import loghub.Event;
 import loghub.Helpers;
 import loghub.configuration.Properties;
+import loghub.senders.Sender.EventFuture;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -47,21 +49,17 @@ public class File extends Sender {
 
         @Override
         public void completed(Integer result, Event event) {
-            event.getConnectionContext().acknowledge();
-            CompletableFuture<Boolean> done = CompletableFuture.completedFuture(true);
-            File.this.processStatus(event, done);
+            File.this.processStatus(event, true);
         }
 
         @Override
         public void failed(Throwable ex, Event event) {
             if (ex instanceof AsynchronousCloseException || ex instanceof ClosedChannelException) {
-                CompletableFuture<Boolean> failed = new CompletableFuture<>();
-                failed.complete(false);
-                File.this.processStatus(event, failed);
+                File.this.processStatus(event, false);
             } else {
-                CompletableFuture<Boolean> failed = new CompletableFuture<>();
+                EventFuture failed = new EventFuture(event);
                 failed.completeExceptionally(ex);
-                File.this.processStatus(event, failed);
+                File.this.processStatus(failed);
             }
         }
 

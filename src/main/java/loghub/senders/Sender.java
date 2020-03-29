@@ -7,12 +7,12 @@ import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
 import java.util.stream.IntStream;
 
 import javax.management.InstanceNotFoundException;
@@ -40,7 +40,7 @@ import lombok.Setter;
 
 public abstract class Sender extends Thread implements Closeable {
 
-    static class Batch extends ArrayList<Event> {
+    static protected class Batch extends ArrayList<Event> {
         private final Counter counter;
         Batch(Sender sender) {
             super(sender.buffersize);
@@ -49,6 +49,23 @@ public abstract class Sender extends Thread implements Closeable {
         }
         void finished() {
             counter.dec();
+        }
+    }
+
+    static protected class EventFuture extends CompletableFuture<Boolean> {
+        private final Event event;
+        @Getter
+        private String message;
+        public EventFuture(Event ev) {
+            this.event = ev;
+        }
+        public EventFuture(Event ev, boolean status) {
+            this.event = ev;
+            this.complete(status);
+        }
+        public void failure(String message) {
+            this.complete(false);
+            this.message = message;
         }
     }
 
@@ -96,6 +113,7 @@ public abstract class Sender extends Thread implements Closeable {
             threads = new Thread[builder.threads];
             batches = new ArrayBlockingQueue<>(threads.length * 2);
             publisher = getPublisher();
+            batch = new Batch(this);
         } else {
             isAsync = getClass().getAnnotation(AsyncSender.class) != null;
             threads = null;
@@ -140,22 +158,21 @@ public abstract class Sender extends Thread implements Closeable {
                         } else {
                             lastFlush = new Date().getTime();
                         }
-                        Timer.Context tctx = Properties.metrics.timer("sender." + getName() + ".flushDuration").time();
-                        try {
-                            Object response = flush(flushedBatch);
-                            if (response != null) {
-                                logger.debug("response from http server: {}", response);
-                            }
+                        ;
+                        try (Timer.Context tctx = Properties.metrics.timer("sender." + getName() + ".flushDuration").time()) {
+                            flush(flushedBatch).forEach(f -> processStatus(f));
                         } catch (IOException | UncheckedIOException e) {
+                            batch.forEach(ev -> processStatus(ev, false));
                             logger.error("IO exception: {}", e.getMessage());
                             logger.catching(Level.DEBUG, e);
                         } catch (Exception e) {
+                            batch.forEach(ev -> processStatus(ev, false));
                             String message = Helpers.resolveThrowableException(e);
                             logger.error("Unexpected exception: {}", message);
-                            logger.catching(e);
+                            logger.catching(Level.ERROR, e);
+                        } finally {
+                            flushedBatch.finished();
                         }
-                        flushedBatch.finished();
-                        tctx.close();
                     }
                 }
             } catch (InterruptedException e) {
@@ -233,29 +250,34 @@ public abstract class Sender extends Thread implements Closeable {
 
     public abstract String getSenderName();
 
-    protected Object flush(Batch documents) throws IOException {
+    protected List<EventFuture> flush(Batch documents) throws IOException {
         throw new UnsupportedOperationException("Can't send single event");
     }
 
     public void run() {
+        System.out.println(threads == null ? "send(event)" : "queue(event)");
         while (! isInterrupted()) {
             Event event = null;
             try {
                 event = inQueue.take();
-                boolean status = threads == null ? send(event) : queue(event);
+                boolean status = isWithBatch() ? queue(event): send(event);
                 if (! isAsync) {
-                    processStatus(event, CompletableFuture.completedFuture(status));
+                    processStatus(event, status);
                 }
                 event = null;
             } catch (InterruptedException e) {
                 interrupt();
                 break;
             } catch (Exception | StackOverflowError e) {
-                CompletableFuture<Boolean> failed = new CompletableFuture<>();
+                EventFuture failed = new EventFuture(event);
                 failed.completeExceptionally(e);
-                processStatus(event, failed);
+                processStatus(failed);
             }
         }
+    }
+
+    public boolean isWithBatch() {
+        return threads != null;
     }
 
     /**
@@ -268,12 +290,17 @@ public abstract class Sender extends Thread implements Closeable {
         return inQueue.take();
     }
 
-    protected void processStatus(Event event, Future<Boolean> result) {
+    protected void processStatus(EventFuture result) {
         try {
             if (result.get()) {
                 Stats.sent.incrementAndGet();
             } else {
-                Stats.failedSend.incrementAndGet();
+                String message = result.getMessage();
+                if (message != null) {
+                    Stats.newSenderError(message);
+                } else {
+                    Stats.failedSend.incrementAndGet();
+                }
             }
         } catch (InterruptedException e) {
             interrupt();
@@ -286,7 +313,15 @@ public abstract class Sender extends Thread implements Closeable {
             logger.error("Send failed: {}", Helpers.resolveThrowableException(cause));
             logger.catching(Level.DEBUG, cause);
         }
-        event.end();
+        result.event.end();
+    }
+
+    protected void processStatus(Event event, boolean status) {
+        if (status) {
+            Stats.sent.incrementAndGet();
+        } else {
+            Stats.failedSend.incrementAndGet();
+        }
     }
 
     public void setInQueue(BlockingQueue<Event> inQueue) {
