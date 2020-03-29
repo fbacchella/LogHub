@@ -256,10 +256,12 @@ public abstract class Sender extends Thread implements Closeable {
     }
 
     public void run() {
+        logger.debug("Started");
         while (! isInterrupted()) {
             Event event = null;
             try {
                 event = inQueue.take();
+                logger.trace("New event to send: {}", event);
                 boolean status = isWithBatch() ? queue(event): send(event);
                 if (! isAsync) {
                     processStatus(event, status);
@@ -322,6 +324,7 @@ public abstract class Sender extends Thread implements Closeable {
         } else {
             Stats.failedSend.incrementAndGet();
         }
+        event.end();
     }
 
     public void setInQueue(BlockingQueue<Event> inQueue) {
