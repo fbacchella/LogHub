@@ -71,7 +71,7 @@ jobs:
                     else
                         SONAR=""
                     fi
-                    mvn -B test $SONAR -Pskip  -DargLine="-Xmx2048m" -s .circleci/settings.xml
+                    mvn -B test $SONAR -Pskip -Darg.line="-Xmx2048m" -s .circleci/settings.xml
                 environment:
                     JAVA_HOME: /usr/java/openjdk-13
                     MAVEN_OPTS: "-Xmx1024m"
@@ -96,7 +96,7 @@ jobs:
                     mv -n /tmp/ws/home/circleci/project/.??* /home/circleci/project/
             - run:
                 command: |
-                    mvn -B test -Pskip -DargLine="-Xmx2048m" -s .circleci/settings.xml
+                    mvn -B test -Pskip -Darg.line="-Xmx2048m" -s .circleci/settings.xml
                 environment:
                     JAVA_HOME: /usr/local/openjdk-11
                     MAVEN_OPTS: "-Xmx512m"
@@ -117,7 +117,7 @@ jobs:
                     mv -n /tmp/ws/home/circleci/project/.??* /home/circleci/project/
             - run:
                 command: |
-                    mvn -B test -Pskip -DargLine="-Xmx2048m" -s .circleci/settings.xml
+                    mvn -B test -Pskip -Darg.line="-Xmx2048m" -s .circleci/settings.xml
                 environment:
                     JAVA_HOME: /usr/local/openjdk-8
                     MAVEN_OPTS: "-Xmx512m"
