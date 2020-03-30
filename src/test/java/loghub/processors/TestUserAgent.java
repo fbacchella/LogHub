@@ -1,17 +1,32 @@
 package loghub.processors;
 
+import java.io.IOException;
 import java.util.Collections;
 
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.junit.Assert;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import loghub.Event;
+import loghub.LogUtils;
 import loghub.ProcessorException;
 import loghub.Tools;
 import loghub.Event.Action;
 import loghub.configuration.Properties;
 
 public class TestUserAgent {
+    
+    private static Logger logger;
+
+    @BeforeClass
+    static public void configure() throws IOException {
+        Tools.configure();
+        logger = LogManager.getLogger();
+        LogUtils.setLevel(logger, Level.TRACE, "loghub.processors.UserAgent");
+    }
 
     @Test
     public void test1() throws ProcessorException {
@@ -36,7 +51,7 @@ public class TestUserAgent {
         ua.setField(new String[] {"User-Agent"});
         ua.setCacheSize(10);
         ua.setDestination("agent");
-        ua.setAgentsUrl("https://raw.githubusercontent.com/ua-parser/uap-core/master/regexes.yaml");
+        ua.setAgentsUrl(TestUserAgent.class.getClassLoader().getResource("regexes.yaml").toString());
         Assert.assertTrue("configuration failed", ua.configure(new Properties(Collections.emptyMap())));
     }
 
