@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -317,7 +318,8 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
                 try {
                     addStore(i, j);
                 } catch (KeyStoreException | NoSuchAlgorithmException | CertificateException | IOException e) {
-                    logger.error("Unable to load keystore {}", i);
+                    logger.error("Unable to load keystore {}: {}", i, Helpers.resolveThrowableException(e));
+                    logger.catching(Level.DEBUG, e);
                 }
             });
         } else {
