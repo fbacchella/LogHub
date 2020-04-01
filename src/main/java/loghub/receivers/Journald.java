@@ -324,7 +324,7 @@ public class Journald extends AbstractHttp {
     @Override
     protected void settings(HttpReceiverServer.Builder builder) {
         super.settings(builder);
-        builder.setAggregatorSupplier(() -> new JournaldAgregator()).setReceiveHandler(new JournaldUploadHandler());
+        builder.setAggregatorSupplier(() -> new JournaldAgregator()).setReceiveHandler(new JournaldUploadHandler()).setThreadPrefix("Journald");
     }
 
     @Override
