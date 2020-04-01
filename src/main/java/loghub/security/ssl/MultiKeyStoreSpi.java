@@ -193,7 +193,7 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
 
     @Override
     public Enumeration<String> engineAliases() {
-        final Iterator<KeyStore> iter = stores.iterator();
+        Iterator<KeyStore> iter = stores.iterator();
         return new Enumeration<String>(){
             //private KeyStore cur = null;
             private Enumeration<String> enumerator = null;
@@ -286,7 +286,6 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
 
     @Override
     public String engineGetCertificateAlias(Certificate cert) {
-        logger.traceEntry(() -> cert);
         for (KeyStore ks: stores) {
             try {
                 String val = ks.getCertificateAlias(cert);
