@@ -1,6 +1,7 @@
 package loghub.receivers;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Locale;
 
 import org.apache.logging.log4j.Level;
 import org.zeromq.SocketType;
@@ -70,9 +71,9 @@ public class ZMQ extends Receiver {
 
     protected ZMQ(Builder builder) {
         super(builder);
-        this.method = ZMQHelper.Method.valueOf(builder.method);
+        this.method = ZMQHelper.Method.valueOf(builder.method.toUpperCase(Locale.ENGLISH));
         this.listen = builder.listen;
-        this.type = SocketType.valueOf(builder.type);
+        this.type = SocketType.valueOf(builder.type.toUpperCase(Locale.ENGLISH));
         this.topic = builder.topic;
         this.hwm = builder.hwm;
         this.serverKey = builder.serverKey;
