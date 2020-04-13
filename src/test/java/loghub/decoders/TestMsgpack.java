@@ -34,6 +34,7 @@ import loghub.Event;
 import loghub.LogUtils;
 import loghub.ThreadBuilder;
 import loghub.Tools;
+import loghub.encoders.EncodeException;
 import loghub.receivers.Receiver;
 
 public class TestMsgpack {
@@ -177,7 +178,7 @@ public class TestMsgpack {
         builder.setTimeStampField("f");
         Msgpack d = AbstractBuilder.resolve(Msgpack.class).build();
         builder.setDecoder(d);
-        
+
         try (Receiver r = builder.build(bs)) {
             Event e = r.next();
             testContent(e);
@@ -185,13 +186,12 @@ public class TestMsgpack {
     }
 
     @Test
-    public void testRoundTripAsMap() throws IOException, DecodeException {
+    public void testRoundTripAsMap() throws DecodeException, EncodeException {
         loghub.encoders.Msgpack.Builder builder = loghub.encoders.Msgpack.getBuilder();
         builder.setForwardEvent(false);
         loghub.encoders.Msgpack enc = builder.build();
         Event ev = Event.emptyEvent(ConnectionContext.EMPTY);
         ev.putAll(obj);
-        ev.putMeta("h", 7);
         ev.setTimestamp(new Date(0));
         Decoder dec = new Msgpack.Builder().build();
         Map<String, Object> e = dec.decode(ConnectionContext.EMPTY, enc.encode(ev)).findAny().get();
@@ -205,7 +205,7 @@ public class TestMsgpack {
     }
 
     @Test
-    public void testRoundTripAsEvent() throws IOException, DecodeException {
+    public void testRoundTripAsEvent() throws DecodeException, EncodeException {
         loghub.encoders.Msgpack.Builder builder = loghub.encoders.Msgpack.getBuilder();
         builder.setForwardEvent(true);
         loghub.encoders.Msgpack enc = builder.build();
@@ -221,7 +221,7 @@ public class TestMsgpack {
     }
 
     @Test
-    public void testRoundTripAsBatchedEvent() throws IOException, DecodeException {
+    public void testRoundTripAsBatchedEvent() throws EncodeException, DecodeException {
         loghub.encoders.Msgpack.Builder builder = loghub.encoders.Msgpack.getBuilder();
         builder.setForwardEvent(true);
         loghub.encoders.Msgpack enc = builder.build();

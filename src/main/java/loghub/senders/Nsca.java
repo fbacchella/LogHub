@@ -15,8 +15,8 @@ import com.googlecode.jsendnsca.encryption.Encryption;
 
 import loghub.BuilderClass;
 import loghub.Event;
-import loghub.Helpers;
 import loghub.configuration.Properties;
+import loghub.encoders.EncodeException;
 import lombok.Setter;
 
 @SelfEncoder
@@ -114,7 +114,7 @@ public class Nsca extends Sender {
     }
 
     @Override
-    public boolean send(Event event) {
+    public boolean send(Event event) throws SendException, EncodeException {
         boolean allfields = MAPFIELD.enumerate().allMatch( i -> {
             if (!event.containsKey(mapping.get(i))) {
                 logger.error("event mapping field '{}' value missing", mapping.get(i));
@@ -135,9 +135,7 @@ public class Nsca extends Sender {
             sender.send(payload);
             return true;
         } catch (NagiosException | IOException e) {
-            logger.error("NSCA send failed: {}", Helpers.resolveThrowableException(e));
-            logger.catching(org.apache.logging.log4j.Level.DEBUG, e);
-            return false;
+            throw new SendException(e);
         }
     }
 

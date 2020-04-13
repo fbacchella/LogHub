@@ -7,10 +7,9 @@ import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
 
-import org.apache.logging.log4j.Level;
-
 import loghub.Event;
 import loghub.configuration.Properties;
+import loghub.encoders.EncodeException;
 import lombok.Setter;
 
 public class Udp extends Sender {
@@ -58,18 +57,15 @@ public class Udp extends Sender {
     }
 
     @Override
-    public boolean send(Event event) {
+    public boolean send(Event event) throws EncodeException, SendException {
         byte[] msg = getEncoder().encode(event);
-
         DatagramPacket packet = new DatagramPacket(msg, msg.length, IPAddress, port);
         try {
             socket.send(packet);
-            return true;
         } catch (IOException e) {
-            logger.error("unable to send message: {}", () -> e);
-            logger.catching(Level.DEBUG, e);
-            return false;
+            throw new SendException(e);
         }
+        return true;
     }
 
     @Override

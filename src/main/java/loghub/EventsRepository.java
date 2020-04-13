@@ -134,7 +134,7 @@ public class EventsRepository<KEY> {
         try {
             timeout(paused.key);
         } catch (Throwable ex) {
-            Stats.newProcessorException(ex);
+            Stats.newUnhandledException(ex);
             Level l;
             if (Helpers.isFatal(ex)) {
                 ex.printStackTrace();

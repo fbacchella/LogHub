@@ -22,7 +22,6 @@ public interface ExceptionsMBean {
 
     default public String[] getDecodersFailures() {
         return loghub.Stats.getDecodeErrors().stream()
-                        .map(i -> Helpers.resolveThrowableException((Throwable)i))
                         .toArray(String[]::new)
                         ;
     }

@@ -168,26 +168,26 @@ public class ElasticSearch extends AbstractHttpSender {
     }
 
     @Override
-    protected List<EventFuture> flush(Batch documents) throws IOException {
+    protected List<EventFuture> flush(Batch documents) throws SendException {
         HttpRequest request = new HttpRequest();
         byte[] content = putContent(documents);
         if (content.length == 0) {
             return null;
         }
-        request.setTypeAndContent("application/json", CharsetUtil.UTF_8, content);
+        try {
+            request.setTypeAndContent("application/json", CharsetUtil.UTF_8, content);
+        } catch (IOException e) {
+            throw new SendException(e);
+        }
         request.setVerb("POST");
         Function<JsonNode, Map<String, ? extends Object>> reader;
-        try {
-            reader = node -> {
-                try {
-                    return json.get().readerFor(Map.class).readValue(node);
-                } catch (IOException e) {
-                    throw new UncheckedIOException(e);
-                }
-            };
-        } catch (UncheckedIOException e) {
-            throw e.getCause();
-        }
+        reader = node -> {
+            try {
+                return json.get().readerFor(Map.class).readValue(node);
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+        };
         Map<String, ? extends Object> response = doquery(request, "/_bulk", reader, Collections.emptyMap(), null);
         if (response != null && Boolean.TRUE.equals(response.get("errors"))) {
             List<EventFuture> status = new ArrayList<>(documents.size());

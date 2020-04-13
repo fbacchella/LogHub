@@ -11,11 +11,12 @@ import loghub.Event;
 import loghub.configuration.ConfigException;
 import loghub.configuration.Configuration;
 import loghub.configuration.Properties;
+import loghub.encoders.EncodeException;
 
 public class TestNsca {
 
     @Test
-    public void test() throws ConfigException, IOException {
+    public void test() throws ConfigException, IOException, SendException, EncodeException {
 
         String conf = "pipeline[main] {} output $main | { loghub.senders.Nsca { password: \"password\", encryption: \"RIJNDAEL192\", nagiosServer: \"localhost\", largeMessageSupport: true, mapping: { \"level\": \"level\", \"service\": \"service\",  \"message\": \"message\",  \"host\": \"host\", } } }";
 
@@ -29,8 +30,7 @@ public class TestNsca {
         ev.put("message", "message");
         ev.put("host", "host");
 
-        sender.send(ev);
+        Assert.assertThrows("Connection refused", SendException.class, () -> sender.send(ev));
         sender.stopSending();
-
     }
 }

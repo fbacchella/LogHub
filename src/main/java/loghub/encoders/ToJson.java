@@ -11,6 +11,7 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import loghub.BuilderClass;
 import loghub.CanBatch;
 import loghub.Event;
+import loghub.Helpers;
 import lombok.Setter;
 
 @BuilderClass(ToJson.Builder.class)
@@ -56,20 +57,20 @@ public class ToJson extends Encoder {
     }
 
     @Override
-    public byte[] encode(Event event) {
+    public byte[] encode(Event event) throws EncodeException {
         try {
             return json.get().writeValueAsBytes(event);
         } catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
+            throw new EncodeException("Failed to encode to JSON: " + Helpers.resolveThrowableException(e), e);
         }
     }
 
     @Override
-    public byte[] encode(Stream<Event> events) {
+    public byte[] encode(Stream<Event> events) throws EncodeException {
         try {
             return json.get().writeValueAsBytes(events.collect(Collectors.toList()));
         } catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
+            throw new EncodeException("Failed to encode to JSON: " + Helpers.resolveThrowableException(e), e);
         }
     }
 

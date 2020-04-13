@@ -24,6 +24,7 @@ import loghub.LogUtils;
 import loghub.Stats;
 import loghub.Tools;
 import loghub.configuration.Properties;
+import loghub.encoders.EncodeException;
 import loghub.encoders.StringField;
 
 public class TestFile {
@@ -49,6 +50,7 @@ public class TestFile {
         public Semaphore getRemoteAddress() {
             return lock;
         }
+
         @Override
         public void acknowledge() {
             lock.release();
@@ -134,7 +136,7 @@ public class TestFile {
     }
 
     @Test
-    public void testBrokenFormatter() throws IOException, InterruptedException {
+    public void testBrokenFormatter() throws InterruptedException, IOException {
         outFile = Paths.get(folder.getRoot().getCanonicalPath(), "file1").toAbsolutePath().toString();
         StringField.Builder builder1 = StringField.getBuilder();
         builder1.setFormat("${");
@@ -147,8 +149,8 @@ public class TestFile {
         Assert.assertFalse(fsend.configure(new Properties(Collections.emptyMap())));
     }
 
-    @Test()
-    public void testFailing() throws IOException, InterruptedException {
+    @Test(timeout=2000)
+    public void testFailing() throws IOException, InterruptedException, SendException, EncodeException {
         File fsend = send(i -> {}, -1, false);
         new java.io.File(fsend.getName()).setWritable(false, false);
         Files.setPosixFilePermissions(Paths.get(fsend.getFileName()), Collections.emptySet());

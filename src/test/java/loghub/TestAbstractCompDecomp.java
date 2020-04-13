@@ -9,12 +9,11 @@ import org.junit.Test;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import loghub.decoders.DecodeException;
 
 public class TestAbstractCompDecomp {
 
     @Test
-    public void testRountTripBytes() throws DecodeException {
+    public void testRountTripBytes() throws FilterException {
         byte[] input = "Compressed message".getBytes(StandardCharsets.UTF_8);
         Decompressor.Builder builder = Decompressor.getBuilder();
         Decompressor dcomp = builder.build();
@@ -28,7 +27,7 @@ public class TestAbstractCompDecomp {
     }
 
     @Test
-    public void testRountTripByteBuf() throws DecodeException {
+    public void testRountTripByteBuf() throws FilterException {
         byte[] input = "Compressed message".getBytes(StandardCharsets.UTF_8);
         ByteBuf inbuf = Unpooled.buffer(input.length);
         inbuf.writeBytes(input);
@@ -64,7 +63,7 @@ public class TestAbstractCompDecomp {
         byte[] result;
         try {
             result = dcomp.filter(comp.filter(input));
-        } catch (DecodeException e) {
+        } catch (FilterException e) {
             throw e.getCause();
         }
         Assert.assertArrayEquals(input, result);

@@ -9,8 +9,6 @@ import java.nio.channels.NonWritableChannelException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.logging.log4j.Level;
@@ -18,11 +16,10 @@ import org.apache.logging.log4j.Level;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import loghub.BuilderClass;
-import loghub.CanBatch;
 import loghub.Event;
 import loghub.Helpers;
 import loghub.configuration.Properties;
-import loghub.senders.Sender.EventFuture;
+import loghub.encoders.EncodeException;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -104,7 +101,7 @@ public class File extends Sender {
     }
 
     @Override
-    public boolean send(Event event) {
+    public boolean send(Event event) throws SendException, EncodeException {
         try {
             byte[] msg = getEncoder().encode(event);
             ByteBuf buffer = Unpooled.buffer(msg.length

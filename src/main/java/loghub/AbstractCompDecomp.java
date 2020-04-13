@@ -13,7 +13,6 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufInputStream;
 import io.netty.buffer.ByteBufOutputStream;
 import io.netty.buffer.PooledByteBufAllocator;
-import loghub.decoders.DecodeException;
 import lombok.EqualsAndHashCode;
 import lombok.Setter;
 import lombok.ToString;
@@ -32,7 +31,7 @@ abstract class AbstractCompDecomp implements Filter {
         csf = new CompressorStreamFactory(true, builder.memoryLimitInKb);
     }
 
-    public byte[] filter(byte[] in, int offset, int length) throws DecodeException {
+    public byte[] filter(byte[] in, int offset, int length) throws FilterException {
         ByteBuf outb = PooledByteBufAllocator.DEFAULT.compositeBuffer(length);
         try (InputStream ins = source(new ByteArrayInputStream(in, offset, length));
              OutputStream outs = destination(new ByteBufOutputStream(outb));
@@ -40,7 +39,7 @@ abstract class AbstractCompDecomp implements Filter {
             IOUtils.copy(ins, outs);
         } catch (IOException | CompressorException e) {
             outb.release();
-            throw new DecodeException("Failed to (de)compress: " + Helpers.resolveThrowableException(e), e);
+            throw new FilterException("Failed to (de)compress: " + Helpers.resolveThrowableException(e), e);
         }
         try {
             byte[] out = new byte[outb.readableBytes()];
@@ -51,7 +50,7 @@ abstract class AbstractCompDecomp implements Filter {
         }
     }
 
-    public ByteBuf filter(ByteBuf in) throws DecodeException {
+    public ByteBuf filter(ByteBuf in) throws FilterException {
         ByteBuf out = in.alloc().compositeBuffer(in.readableBytes());
         try (InputStream ins = source(new ByteBufInputStream(in));
              OutputStream outs = destination(new ByteBufOutputStream(out));
@@ -59,7 +58,7 @@ abstract class AbstractCompDecomp implements Filter {
             IOUtils.copy(ins, outs);
         } catch (IOException | CompressorException e) {
             out.release();
-            throw new DecodeException("Failed to (de)compress: " + Helpers.resolveThrowableException(e), e);
+            throw new FilterException("Failed to (de)compress: " + Helpers.resolveThrowableException(e), e);
         }
         return out;
     }

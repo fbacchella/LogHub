@@ -9,6 +9,7 @@ import com.fasterxml.jackson.databind.ObjectReader;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufInputStream;
 import loghub.ConnectionContext;
+import loghub.Helpers;
 
 public abstract class AbstractJackson extends Decoder {
 
@@ -40,7 +41,7 @@ public abstract class AbstractJackson extends Decoder {
         try {
             return decodeJackson(ctx, gen);
         } catch (IOException ex) {
-            throw new DecodeException("Failed reading message content: " + ex.getMessage(), ex);
+            throw new DecodeException("Failed reading message content: " + Helpers.resolveThrowableException(ex), ex);
         }
     }
 

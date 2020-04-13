@@ -22,6 +22,7 @@ import loghub.AbstractBuilder;
 import loghub.ConnectionContext;
 import loghub.Event;
 import loghub.Filter;
+import loghub.FilterException;
 import loghub.Helpers;
 import loghub.Pipeline;
 import loghub.Stats;
@@ -318,6 +319,9 @@ public abstract class Receiver extends Thread implements Iterator<Event>, Closea
         } catch (DecodeException ex) {
             manageDecodeException(ex);
             return Stream.of();
+        } catch (FilterException e) {
+            manageDecodeException(new DecodeException(e));
+            return Stream.of();
         }
     }
 
@@ -326,7 +330,7 @@ public abstract class Receiver extends Thread implements Iterator<Event>, Closea
     }
 
     public void manageDecodeException(DecodeException ex) {
-        Stats.newDecodError(ex);
+        Stats.newDecodError(Helpers.resolveThrowableException(ex));
         logger.debug("invalid message received: {}", ex.getMessage());
         logger.catching(Level.DEBUG, ex.getCause() != null ? ex.getCause() : ex);
     }

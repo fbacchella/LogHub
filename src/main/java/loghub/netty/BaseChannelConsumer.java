@@ -18,6 +18,7 @@ import io.netty.channel.ChannelPipeline;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.MessageToMessageDecoder;
 import loghub.Event;
+import loghub.FilterException;
 import loghub.Helpers;
 import loghub.decoders.DecodeException;
 import loghub.receivers.SelfDecoder;
@@ -56,8 +57,8 @@ public class BaseChannelConsumer<R extends NettyReceiver<?, ?, ?, ?, BS, BSC, ?,
         protected void decode(ChannelHandlerContext ctx, ByteBuf msg, List<Object> out) {
             try {
                 out.add(r.getFilter().filter(msg));
-            } catch (DecodeException ex) {
-                BaseChannelConsumer.this.r.manageDecodeException(ex);
+            } catch (FilterException ex) {
+                BaseChannelConsumer.this.r.manageDecodeException(new DecodeException(ex));
             }
         }
     }

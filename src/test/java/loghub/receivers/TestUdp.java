@@ -27,11 +27,11 @@ import loghub.Compressor;
 import loghub.Decompressor;
 import loghub.Event;
 import loghub.Filter;
+import loghub.FilterException;
 import loghub.LogUtils;
 import loghub.Pipeline;
 import loghub.Tools;
 import loghub.configuration.Properties;
-import loghub.decoders.DecodeException;
 import loghub.decoders.StringCodec;
 
 public class TestUdp {
@@ -120,7 +120,7 @@ public class TestUdp {
     }
 
     @Test(timeout=5000)
-    public void testCompressed() throws InterruptedException, IOException, DecodeException {
+    public void testCompressed() throws InterruptedException, IOException, FilterException {
         int port = Tools.tryGetPort();
         BlockingQueue<Event> receiver = new ArrayBlockingQueue<>(10);
         

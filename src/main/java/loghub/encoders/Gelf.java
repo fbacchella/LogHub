@@ -59,7 +59,7 @@ public class Gelf extends Encoder {
     }
 
     private static final JsonFactory factory = new JsonFactory();
-    private static final ThreadLocal<ObjectMapper> json = ThreadLocal.withInitial(() ->new ObjectMapper(factory));
+    private static final ThreadLocal<ObjectMapper> json = ThreadLocal.withInitial(() -> new ObjectMapper(factory));
 
     private final boolean compressed;
     private final boolean stream;
@@ -75,7 +75,7 @@ public class Gelf extends Encoder {
     }
 
     @Override
-    public byte[] encode(Event event) {
+    public byte[] encode(Event event) throws EncodeException {
         try {
             Map<String, Object> gelfcontent = new HashMap<>(event.size() + 5);
             gelfcontent.put("version", "1.1");
@@ -94,9 +94,8 @@ public class Gelf extends Encoder {
             byte[] buffer1 = json.get().writeValueAsBytes(gelfcontent);
             byte[] buffer2;
             if (compressed) {
-                try (final ByteArrayOutputStream bos = new ByteArrayOutputStream();
-                                final GZIPOutputStream stream = new GZIPOutputStream(bos)) {
-
+                try (ByteArrayOutputStream bos = new ByteArrayOutputStream();
+                     GZIPOutputStream stream = new GZIPOutputStream(bos)) {
                     stream.write(buffer1);
                     stream.finish();
                     buffer2 = bos.toByteArray();
@@ -108,7 +107,7 @@ public class Gelf extends Encoder {
             }
             return buffer2;
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            throw new EncodeException("Failed to encode to GELF", e);
         }
     }
 

@@ -10,6 +10,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufInputStream;
 import loghub.BuilderClass;
 import loghub.ConnectionContext;
+import loghub.Helpers;
 
 @BuilderClass(SerializedObject.Builder.class)
 public class SerializedObject extends Decoder {
@@ -52,11 +53,11 @@ public class SerializedObject extends Decoder {
         try (ObjectInputStream ois = oisp.get()){
             return ois.readObject();
         } catch (UncheckedIOException e) {
-            throw new DecodeException("IO exception while reading ByteArrayInputStream: " + e.getCause().getMessage(), e.getCause());
+            throw new DecodeException("IO exception while reading ByteArrayInputStream: " + Helpers.resolveThrowableException(e), e.getCause());
         } catch (IOException e) {
-            throw new DecodeException("IO exception while reading ByteArrayInputStream: " + e.getMessage(), e);
+            throw new DecodeException("IO exception while reading ByteArrayInputStream: " + Helpers.resolveThrowableException(e), e);
         } catch (ClassNotFoundException e) {
-            throw new DecodeException("Unable to unserialize log4j event: " + e.getMessage(), e);
+            throw new DecodeException("Unable to unserialize log4j event: " + Helpers.resolveThrowableException(e), e);
         }
     }
 

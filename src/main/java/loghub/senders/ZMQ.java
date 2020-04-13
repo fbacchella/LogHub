@@ -10,6 +10,7 @@ import loghub.BuilderClass;
 import loghub.CanBatch;
 import loghub.Event;
 import loghub.configuration.Properties;
+import loghub.encoders.EncodeException;
 import loghub.zmq.ZMQHandler;
 import loghub.zmq.ZMQHelper;
 import loghub.zmq.ZMQHelper.Method;
@@ -104,10 +105,15 @@ public class ZMQ extends Sender {
             while (handler.isRunning() && (socket.getEvents() & ZPoller.OUT) != 0) {
                 canInterrupt = true;
                 Event event = getNext();
-                byte[] msg = getEncoder().encode(event);
-                canInterrupt = false;
-                boolean sent = socket.send(msg);
-                processStatus(event, sent);
+                EventFuture result = new EventFuture(event);
+                try {
+                    byte[] msg = getEncoder().encode(event);
+                    canInterrupt = false;
+                    result.complete(socket.send(msg));
+                } catch (EncodeException e) {
+                    result.completeExceptionally(e);
+                }
+                processStatus(result);
             }
             return true;
         } catch (InterruptedException e) {

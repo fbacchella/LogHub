@@ -40,10 +40,10 @@ public abstract class Encoder {
         }
     }
 
-    public byte[] encode(Stream<Event> events) {
+    public byte[] encode(Stream<Event> events) throws EncodeException {
         throw new UnsupportedOperationException("Can't batch events");
     }
 
-    public abstract byte[] encode(Event event);
+    public abstract byte[] encode(Event event) throws EncodeException;
 
 }

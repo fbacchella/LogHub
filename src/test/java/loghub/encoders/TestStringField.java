@@ -29,7 +29,7 @@ public class TestStringField {
     }
 
     @Test
-    public void testone() {
+    public void testone() throws EncodeException {
         StringField.Builder builder = StringField.getBuilder();
         builder.setCharset("UTF-16");
         builder.setFormat("${K1}: ${K2%02d}");

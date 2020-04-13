@@ -1,15 +1,14 @@
 package loghub;
 
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
 
 import com.codahale.metrics.MetricRegistry;
 
 import loghub.configuration.Properties;
-import loghub.decoders.DecodeException;
 
 public final class Stats {
 
@@ -54,7 +53,7 @@ public final class Stats {
                 return "exception";
             }
         },
-        DROPED {
+        DROPPED {
             @Override
             public void instanciate(MetricRegistry metrics, String name) {
                 metrics.meter("Pipeline." + name + "." + prettyName());
@@ -113,8 +112,8 @@ public final class Stats {
     public final static AtomicLong loopOverflow = new AtomicLong();
 
     private final static Queue<ProcessingException> processorExceptions = new ArrayBlockingQueue<>(100);
-    private final static Queue<DecodeException> decodeExceptions = new ArrayBlockingQueue<>(100);
     private final static Queue<Throwable> exceptions = new ArrayBlockingQueue<>(100);
+    private final static Queue<String> decodeMessage = new ArrayBlockingQueue<>(100);
     private final static Queue<String> blockedMessage = new ArrayBlockingQueue<>(100);
     private final static Queue<String> senderMessages = new ArrayBlockingQueue<>(100);
     private final static Queue<String> receiverMessages = new ArrayBlockingQueue<>(100);
@@ -145,95 +144,83 @@ public final class Stats {
         failedReceived.set(0);
 
         processorExceptions.clear();
-        decodeExceptions.clear();
+        decodeMessage.clear();
         exceptions.clear();
 
         blockedMessage.clear();
         senderMessages.clear();
     }
 
-    public static synchronized void newDecodError(DecodeException e) {
+    public static synchronized void newDecodError(String msg) {
         decoderFailures.incrementAndGet();
-        try {
-            decodeExceptions.add(e);
-        } catch (IllegalStateException ex) {
-            decodeExceptions.remove();
-            decodeExceptions.add(e);
+        if (! decodeMessage.offer(msg)) {
+            decodeMessage.remove();
+            decodeMessage.offer(msg);
         }
     }
 
     public static synchronized void newProcessorError(ProcessingException e) {
         processorFailures.incrementAndGet();
-        try {
-            processorExceptions.add(e);
-        } catch (IllegalStateException ex) {
+        if (! processorExceptions.offer(e)) {
             processorExceptions.remove();
-            processorExceptions.add(e);
+            processorExceptions.offer(e);
         }
     }
 
-    public static synchronized void newProcessorException(Throwable e) {
+    public static synchronized void newUnhandledException(Throwable e) {
         thrown.incrementAndGet();
-        try {
-            exceptions.add(e);
-        } catch (IllegalStateException ex) {
+        if (! exceptions.offer(e)) {
             exceptions.remove();
-            exceptions.add(e);
+            exceptions.offer(e);
         }
     }
 
-    public static synchronized void newBlockedError(String context) {
+    public static synchronized void newBlockedError(String msg) {
         blocked.incrementAndGet();
-        try {
-            blockedMessage.add(context);
-        } catch (IllegalStateException ex) {
+        if (! blockedMessage.offer(msg)) {
             blockedMessage.remove();
-            blockedMessage.add(context);
+            blockedMessage.offer(msg);
         }
     }
 
-    public static synchronized void newSenderError(String context) {
+    public static synchronized void newSenderError(String msg) {
         failedSend.incrementAndGet();
-        try {
-            senderMessages.add(context);
-        } catch (IllegalStateException ex) {
+        if (! senderMessages.offer(msg)) {
             senderMessages.remove();
-            senderMessages.add(context);
+            senderMessages.offer(msg);
         }
     }
 
-    public static synchronized void newReceivedError(String context) {
+    public static synchronized void newReceivedError(String msg) {
         failedReceived.incrementAndGet();
-        try {
-            receiverMessages.add(context);
-        } catch (IllegalStateException ex) {
+        if (! receiverMessages.offer(msg)) {
             receiverMessages.remove();
-            receiverMessages.add(context);
+            receiverMessages.offer(msg);
         }
     }
 
     public static synchronized Collection<ProcessingException> getErrors() {
-        return Collections.unmodifiableCollection(processorExceptions);
+        return processorExceptions.stream().collect(Collectors.toList());
     }
 
-    public static synchronized Collection<DecodeException> getDecodeErrors() {
-        return Collections.unmodifiableCollection(decodeExceptions);
+    public static synchronized Collection<String> getDecodeErrors() {
+        return decodeMessage.stream().collect(Collectors.toList());
     }
 
     public static Collection<Throwable> getExceptions() {
-        return Collections.unmodifiableCollection(exceptions);
+        return exceptions.stream().collect(Collectors.toList());
     }
 
     public static Collection<String> getBlockedError() {
-        return Collections.unmodifiableCollection(blockedMessage);
+        return blockedMessage.stream().collect(Collectors.toList());
     }
 
     public static Collection<String> getSenderError() {
-        return Collections.unmodifiableCollection(senderMessages);
+        return senderMessages.stream().collect(Collectors.toList());
     }
 
     public static Collection<String> getReceiverError() {
-        return Collections.unmodifiableCollection(receiverMessages);
+        return receiverMessages.stream().collect(Collectors.toList());
     }
 
     public static void pipelineHanding(String name, PipelineStat status) {
@@ -248,10 +235,10 @@ public final class Stats {
             break;
         case DROP:
             Stats.dropped.incrementAndGet();
-            Properties.metrics.meter(PIPELINECOUNTERS.DROPED.metricName(name)).mark();
+            Properties.metrics.meter(PIPELINECOUNTERS.DROPPED.metricName(name)).mark();
             break;
         case EXCEPTION:
-            Stats.newProcessorException(ex);
+            Stats.newUnhandledException(ex);
             Properties.metrics.counter(PIPELINECOUNTERS.EXCEPTION.metricName(name)).inc();
             break;
         case LOOPOVERFLOW:

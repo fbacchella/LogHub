@@ -1,8 +1,6 @@
 package loghub.senders;
 
 import java.io.Closeable;
-import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -31,10 +29,13 @@ import com.codahale.metrics.Timer;
 import loghub.AbstractBuilder;
 import loghub.CanBatch;
 import loghub.Event;
+import loghub.Filter;
+import loghub.FilterException;
 import loghub.Helpers;
 import loghub.Stats;
 import loghub.ThreadBuilder;
 import loghub.configuration.Properties;
+import loghub.encoders.EncodeException;
 import loghub.encoders.Encoder;
 import lombok.Getter;
 import lombok.Setter;
@@ -79,6 +80,8 @@ public abstract class Sender extends Thread implements Closeable {
         protected int threads = 2;
         @Setter
         protected int flushInterval = 5;
+        @Setter
+        private Filter filter;
     };
 
     protected final Logger logger;
@@ -159,18 +162,11 @@ public abstract class Sender extends Thread implements Closeable {
                         } else {
                             lastFlush = new Date().getTime();
                         }
-                        ;
                         try (Timer.Context tctx = Properties.metrics.timer("sender." + getName() + ".flushDuration").time()) {
                             flush(flushedBatch).forEach(f -> processStatus(f));
-                        } catch (IOException | UncheckedIOException e) {
+                        } catch (Throwable e) {
+                            handleException(e);
                             batch.forEach(ev -> processStatus(ev, false));
-                            logger.error("IO exception: {}", e.getMessage());
-                            logger.catching(Level.DEBUG, e);
-                        } catch (Exception e) {
-                            batch.forEach(ev -> processStatus(ev, false));
-                            String message = Helpers.resolveThrowableException(e);
-                            logger.error("Unexpected exception: {}", message);
-                            logger.catching(Level.ERROR, e);
                         } finally {
                             flushedBatch.finished();
                         }
@@ -205,8 +201,6 @@ public abstract class Sender extends Thread implements Closeable {
             } catch (IllegalStateException e) {
                 logger.warn("Failed to launch a scheduled batch: " + Helpers.resolveThrowableException(e));
                 logger.catching(Level.DEBUG, e);
-            } catch (Exception e) {
-                logger.error("Failed to launch a scheduled batch: " + Helpers.resolveThrowableException(e), e);
             }
         };
         properties.registerScheduledTask(getName() + "Flusher" , flush, 5000);
@@ -224,13 +218,13 @@ public abstract class Sender extends Thread implements Closeable {
         interrupt();
     }
 
-    protected abstract boolean send(Event e);
+    protected abstract boolean send(Event e) throws SendException, EncodeException;
 
     protected boolean queue(Event event) {
         if (closed) {
             return false;
         }
-        synchronized(publisher) {
+        synchronized (publisher) {
             batch.add(event);
             if (batch.size() >= buffersize) {
                 logger.debug("batch full, flush");
@@ -251,7 +245,11 @@ public abstract class Sender extends Thread implements Closeable {
 
     public abstract String getSenderName();
 
-    protected List<EventFuture> flush(Batch documents) throws IOException {
+    protected List<EventFuture> flush(Batch documents) throws SendException, EncodeException {
+        throw new UnsupportedOperationException("Can't flush batch");
+    }
+
+    protected byte[] encode(Batch documents) throws EncodeException {
         throw new UnsupportedOperationException("Can't send single event");
     }
 
@@ -307,15 +305,39 @@ public abstract class Sender extends Thread implements Closeable {
         } catch (InterruptedException e) {
             interrupt();
         } catch (ExecutionException e) {
-            Throwable cause = e.getCause();
-            if (Helpers.isFatal(cause)) {
-                throw (Error) cause;
-            }
-            Stats.newProcessorException(e);
-            logger.error("Send failed: {}", Helpers.resolveThrowableException(cause));
-            logger.catching(Level.DEBUG, cause);
+            handleException(e.getCause());
         }
         result.event.end();
+    }
+
+    private void handleException(Throwable t) {
+        try {
+            throw t;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } catch (SendException e) {
+            Stats.newSenderError(Helpers.resolveThrowableException(e));
+            logger.error("Sending exception: {}", Helpers.resolveThrowableException(e));
+            logger.catching(Level.DEBUG, e);
+        } catch (EncodeException e) {
+            Stats.newSenderError(Helpers.resolveThrowableException(e));
+            logger.error("Sending exception: {}", Helpers.resolveThrowableException(e));
+            logger.catching(Level.DEBUG, e);
+        } catch (Error e) {
+            if (Helpers.isFatal(e)) {
+                throw e;
+            } else {
+                String message = Helpers.resolveThrowableException(e);
+                Stats.newUnhandledException(e);
+                logger.error("Unexpected exception: {}", message);
+                logger.catching(Level.ERROR, e);
+            }
+        } catch (Throwable e) {
+            String message = Helpers.resolveThrowableException(e);
+            Stats.newUnhandledException(e);
+            logger.error("Unexpected exception: {}", message);
+            logger.catching(Level.ERROR, e);
+        }
     }
 
     protected void processStatus(Event event, boolean status) {

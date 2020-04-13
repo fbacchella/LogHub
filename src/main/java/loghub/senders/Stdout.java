@@ -3,10 +3,9 @@ package loghub.senders;
 import java.io.IOException;
 import java.io.PrintStream;
 
-import org.apache.logging.log4j.Level;
-
 import loghub.BuilderClass;
 import loghub.Event;
+import loghub.encoders.EncodeException;
 import lombok.Setter;
 
 @BuilderClass(Stdout.Builder.class)
@@ -40,7 +39,7 @@ public class Stdout extends Sender {
     }
 
     @Override
-    public boolean send(Event event) {
+    public boolean send(Event event) throws SendException, EncodeException {
         try {
             byte[] msg = getEncoder().encode(event);
             destination.write(msg);
@@ -48,11 +47,8 @@ public class Stdout extends Sender {
             destination.flush();
             return true;
         } catch (IOException e) {
-            logger.error("failed to output {}: {}", event, e.getMessage());
-            logger.throwing(Level.DEBUG, e);
-            return false;
+            throw new SendException(e);
         }
-
     }
 
     @Override

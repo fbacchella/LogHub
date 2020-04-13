@@ -16,7 +16,7 @@ public class TestStats {
         loghub.Stats.reset();
         ExceptionsMBean exceptions = new ExceptionsMBean.Implementation();
         Exception e = new NullPointerException();
-        loghub.Stats.newProcessorException(e);
+        loghub.Stats.newUnhandledException(e);
         assertEquals(String.format("NullPointerException at loghub.jmx.TestStats.test1 line %d", e.getStackTrace()[0].getLineNumber()), exceptions.getUnhandledExceptions()[0]);
     }
 
@@ -25,7 +25,7 @@ public class TestStats {
         loghub.Stats.reset();
         ExceptionsMBean exceptions = new ExceptionsMBean.Implementation();
         Exception e = new RuntimeException("some message");
-        loghub.Stats.newProcessorException(e);
+        loghub.Stats.newUnhandledException(e);
         assertEquals(String.format("some message at loghub.jmx.TestStats.test2 line %d", e.getStackTrace()[0].getLineNumber()), exceptions.getUnhandledExceptions()[0]);
     }
 

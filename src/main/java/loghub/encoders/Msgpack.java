@@ -160,20 +160,20 @@ public class Msgpack extends Encoder {
     }
 
     @Override
-    public byte[] encode(Event event) {
+    public byte[] encode(Event event) throws EncodeException {
         try {
             return mapper.get().writeValueAsBytes(event);
         } catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
+            throw new EncodeException("Failed to encode to MsgPack", e);
         }
     }
 
     @Override
-    public byte[] encode(Stream<Event> events) {
+    public byte[] encode(Stream<Event> events) throws EncodeException {
         try {
             return mapper.get().writeValueAsBytes(events.collect(Collectors.toList()));
         } catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
+            throw new EncodeException("Failed to encode to MsgPack", e);
         }
     }
 

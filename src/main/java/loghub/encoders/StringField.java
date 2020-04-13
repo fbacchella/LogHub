@@ -73,7 +73,7 @@ public class StringField extends Encoder {
     }
 
     @Override
-    public byte[] encode(Event event) {
+    public byte[] encode(Event event) throws EncodeException {
         return encoder.apply(formatter.format(event));
     }
 

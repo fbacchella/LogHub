@@ -1,5 +1,6 @@
 package loghub.decoders;
 
+import loghub.FilterException;
 
 public class DecodeException extends Exception {
 
@@ -18,9 +19,11 @@ public class DecodeException extends Exception {
     public DecodeException(String message, Throwable cause) {
         super(message, cause);
     }
+    public DecodeException(FilterException cause) {
+        super("Filter exception", cause);
+    }
     public DecodeException(String message) {
         super(message);
     }
+
 }
-
-
