@@ -4,14 +4,14 @@ import java.io.Closeable;
 import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Date;
-import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.function.Consumer;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import javax.management.InstanceNotFoundException;
 import javax.management.MBeanRegistrationException;
@@ -42,19 +42,34 @@ import lombok.Setter;
 
 public abstract class Sender extends Thread implements Closeable {
 
-    static protected class Batch extends ArrayList<Event> {
+    protected class Batch extends ArrayList<EventFuture> {
         private final Counter counter;
-        Batch(Sender sender) {
-            super(sender.buffersize);
-            counter = Properties.metrics.counter("sender." + sender.getName() + ".activeBatches");
+        Batch() {
+            super(Sender.this.buffersize);
+            counter = Properties.metrics.counter("sender." + Sender.this.getName() + ".activeBatches");
             counter.inc();
         }
         void finished() {
+            super.stream().forEach(Sender.this::processStatus);
             counter.dec();
+        }
+        public EventFuture add(Event e) {
+            EventFuture fe = new EventFuture(e);
+            add(fe);
+            return fe;
+        }
+        @Override
+        public Stream<EventFuture> stream() {
+            return super.stream().filter(EventFuture::isNotDone);
+        }
+        @Override
+        public void forEach(Consumer<? super EventFuture> action) {
+            stream().forEach(action);
         }
     }
 
-    static protected class EventFuture extends CompletableFuture<Boolean> {
+    static public class EventFuture extends CompletableFuture<Boolean> {
+        @Getter
         private final Event event;
         @Getter
         private String message;
@@ -68,6 +83,9 @@ public abstract class Sender extends Thread implements Closeable {
         public void failure(String message) {
             this.complete(false);
             this.message = message;
+        }
+        public boolean isNotDone() {
+            return ! isDone();
         }
     }
 
@@ -94,6 +112,8 @@ public abstract class Sender extends Thread implements Closeable {
     // Batch settings
     @Getter
     private final int buffersize;
+    @Getter
+    private final Filter filter;
     private volatile long lastFlush = 0;
     private final Thread[] threads;
     private final BlockingQueue<Batch> batches;
@@ -102,6 +122,7 @@ public abstract class Sender extends Thread implements Closeable {
     private volatile boolean closed = false;
 
     public Sender(Builder<?  extends  Sender> builder) {
+        filter = builder.filter;
         setDaemon(true);
         setName("sender-" + getSenderName());
         logger = LogManager.getLogger(Helpers.getFirstInitClass());
@@ -117,7 +138,7 @@ public abstract class Sender extends Thread implements Closeable {
             threads = new Thread[builder.threads];
             batches = new ArrayBlockingQueue<>(threads.length * 2);
             publisher = getPublisher();
-            batch = new Batch(this);
+            batch = new Batch();
         } else {
             isAsync = getClass().getAnnotation(AsyncSender.class) != null;
             threads = null;
@@ -146,55 +167,58 @@ public abstract class Sender extends Thread implements Closeable {
      * @return
      */
     private Runnable getPublisher() {
-        return () -> {
-            try {
-                while (!isInterrupted() && ! closed) {
-                    synchronized (this) {
-                        wait();
-                        logger.debug("Flush initated");
-                    }
-                    Batch flushedBatch;
-                    while ((flushedBatch = batches.poll()) != null){
-                        Properties.metrics.histogram("sender." + getName() + ".batchesSize").update(flushedBatch.size());
-                        if (flushedBatch.isEmpty()) {
-                            flushedBatch.finished();
-                            continue;
-                        } else {
-                            lastFlush = new Date().getTime();
+        // Don't use a lambda as 'this' is used as a monitor
+        return new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    while (! Sender.this.isInterrupted() && ! closed) {
+                        synchronized (this) {
+                            wait();
+                            logger.debug("Flush initated");
                         }
-                        try (Timer.Context tctx = Properties.metrics.timer("sender." + getName() + ".flushDuration").time()) {
-                            flush(flushedBatch).forEach(f -> processStatus(f));
-                        } catch (Throwable e) {
-                            handleException(e);
-                            batch.forEach(ev -> processStatus(ev, false));
-                        } finally {
-                            flushedBatch.finished();
+                        Batch flushedBatch;
+                        while ((flushedBatch = batches.poll()) != null) {
+                            Properties.metrics.histogram("sender." + getName() + ".batchesSize").update(flushedBatch.size());
+                            if (flushedBatch.isEmpty()) {
+                                flushedBatch.finished();
+                                continue;
+                            } else {
+                                lastFlush = System.currentTimeMillis();
+                            }
+                            try (Timer.Context tctx = Properties.metrics.timer("sender." + getName() + ".flushDuration").time()) {
+                                flush(flushedBatch);
+                            } catch (Throwable ex) {
+                                Sender.this.handleException(ex);
+                                flushedBatch.forEach(fe -> fe.complete(false));
+                            } finally {
+                                flushedBatch.finished();
+                            }
                         }
                     }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
                 }
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
             }
         };
     }
 
     protected void buildSyncer(Properties properties) {
         IntStream.rangeClosed(1, threads.length)
-        .mapToObj(i ->getName() + "Publisher" + i)
-        .map(i -> ThreadBuilder.get().setName(i))
-        .map(i -> i.setTask(publisher))
-        .map(i -> i.setDaemon(false))
-        .map(i -> i.build(true))
-        .toArray(i -> threads);
-        ;
+                 .mapToObj(i ->getName() + "Publisher" + i)
+                 .map(i -> ThreadBuilder.get().setName(i))
+                 .map(i -> i.setTask(publisher))
+                 .map(i -> i.setDaemon(false))
+                 .map(i -> i.build(true))
+                 .toArray(i -> threads);
         //Schedule a task to flush every 5 seconds
         Runnable flush = () -> {
             try {
-                synchronized(publisher) {
-                    long now = new Date().getTime();
-                    if (( now - lastFlush) > 5000) {
+                synchronized (publisher) {
+                    long now =  System.currentTimeMillis();
+                    if ((now - lastFlush) > 5000) {
                         batches.add(batch);
-                        batch = new Batch(this);
+                        batch = new Batch();
                         publisher.notify();
                     }
                 }
@@ -208,10 +232,28 @@ public abstract class Sender extends Thread implements Closeable {
     }
 
     public void stopSending() {
+        if (isWithBatch()) {
+            batch.forEach(ef -> ef.complete(false));
+            batches.forEach(b -> b.forEach(ef -> ef.complete(false)));
+            // Notify all publisher threads that publication is finished
+            synchronized (publisher) {
+                publisher.notifyAll();
+            }
+            Arrays.stream(threads).forEach(t -> {
+                try {
+                    t.join(1000);
+                } catch (InterruptedException e) {
+                    t.interrupt();
+                }
+            });
+        }
+        closed = true;
         try {
             MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
             mbs.unregisterMBean(new ObjectName("loghub:type=sender,servicename=" + getName() + ",name=connectionsPool"));
-        } catch (MalformedObjectNameException | MBeanRegistrationException | InstanceNotFoundException e) {
+        } catch (InstanceNotFoundException e) {
+            logger.debug("Failed to unregister mbeam: " + Helpers.resolveThrowableException(e), e);
+        } catch (MalformedObjectNameException | MBeanRegistrationException e) {
             logger.error("Failed to unregister mbeam: " + Helpers.resolveThrowableException(e), e);
             logger.catching(Level.DEBUG, e);
         }
@@ -233,7 +275,7 @@ public abstract class Sender extends Thread implements Closeable {
                 } catch (InterruptedException e) {
                     interrupt();
                 }
-                batch = new Batch(this);
+                batch = new Batch();
                 publisher.notify();
                 if (batches.size() > threads.length) {
                     logger.warn("{} waiting flush batches, add flushing threads", () -> batches.size() - threads.length);
@@ -245,16 +287,36 @@ public abstract class Sender extends Thread implements Closeable {
 
     public abstract String getSenderName();
 
-    protected List<EventFuture> flush(Batch documents) throws SendException, EncodeException {
+    protected void flush(Batch documents) throws SendException, EncodeException {
         throw new UnsupportedOperationException("Can't flush batch");
     }
 
+    @FunctionalInterface
+    private interface ByteSource {
+        byte[] get() throws EncodeException;
+    }
+
     protected byte[] encode(Batch documents) throws EncodeException {
-        throw new UnsupportedOperationException("Can't send single event");
+        return genericEncoder(() -> encoder.encode(documents.stream().map(ef -> ef.event)));
+    }
+
+    protected byte[] encode(Event event) throws EncodeException {
+        return genericEncoder(() -> encoder.encode(event));
+    }
+
+    private byte[] genericEncoder(ByteSource bs) throws EncodeException {
+        if (filter != null) {
+            try {
+                return filter.filter(bs.get());
+            } catch (FilterException e) {
+                throw new EncodeException(e);
+            }
+        } else {
+            return bs.get();
+        }
     }
 
     public void run() {
-        logger.debug("Started");
         while (! isInterrupted()) {
             Event event = null;
             try {
@@ -262,16 +324,19 @@ public abstract class Sender extends Thread implements Closeable {
                 logger.trace("New event to send: {}", event);
                 boolean status = isWithBatch() ? queue(event): send(event);
                 if (! isAsync) {
+                    // real async or in batch mode
+                    processStatus(event, status);
+                } else if (isWithBatch() && ! status) {
+                    // queue return false if this event was not batched
                     processStatus(event, status);
                 }
                 event = null;
             } catch (InterruptedException e) {
                 interrupt();
                 break;
-            } catch (Exception | StackOverflowError e) {
-                EventFuture failed = new EventFuture(event);
-                failed.completeExceptionally(e);
-                processStatus(failed);
+            } catch (Throwable t) {
+                handleException(t);
+                processStatus(event, false);
             }
         }
     }
@@ -310,7 +375,7 @@ public abstract class Sender extends Thread implements Closeable {
         result.event.end();
     }
 
-    private void handleException(Throwable t) {
+    protected void handleException(Throwable t) {
         try {
             throw t;
         } catch (InterruptedException e) {
@@ -356,27 +421,7 @@ public abstract class Sender extends Thread implements Closeable {
     @Override
     public void close() {
         logger.debug("Closing");
-        closed = true;
-        synchronized(publisher) {
-            try {
-                batches.put(batch);
-            } catch (InterruptedException e) {
-                interrupt();
-            }
-            batch = new Batch(this);
-            publisher.notify();
-        }
-        // Notify all publisher threads that publication is finished
-        synchronized (publisher) {
-            publisher.notifyAll();
-        }
-        Arrays.stream(threads).forEach(t -> {
-            try {
-                t.join(1000);
-            } catch (InterruptedException e) {
-                t.interrupt();
-            }
-        });
+        stopSending();
     }
 
     public int getThreads() {

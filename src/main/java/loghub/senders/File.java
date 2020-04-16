@@ -1,9 +1,7 @@
 package loghub.senders;
 
 import java.io.IOException;
-import java.nio.channels.AsynchronousCloseException;
 import java.nio.channels.AsynchronousFileChannel;
-import java.nio.channels.ClosedChannelException;
 import java.nio.channels.CompletionHandler;
 import java.nio.channels.NonWritableChannelException;
 import java.nio.charset.StandardCharsets;
@@ -52,13 +50,8 @@ public class File extends Sender {
 
         @Override
         public void failed(Throwable ex, Event event) {
-            if (ex instanceof AsynchronousCloseException || ex instanceof ClosedChannelException) {
-                File.this.processStatus(event, false);
-            } else {
-                EventFuture failed = new EventFuture(event);
-                failed.completeExceptionally(ex);
-                File.this.processStatus(failed);
-            }
+            File.this.handleException(ex);
+            File.this.processStatus(event, false);
         }
 
     };

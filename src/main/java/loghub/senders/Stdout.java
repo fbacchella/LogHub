@@ -41,7 +41,7 @@ public class Stdout extends Sender {
     @Override
     public boolean send(Event event) throws SendException, EncodeException {
         try {
-            byte[] msg = getEncoder().encode(event);
+            byte[] msg = encode(event);
             destination.write(msg);
             destination.println();
             destination.flush();

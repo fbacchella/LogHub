@@ -58,7 +58,7 @@ public class Udp extends Sender {
 
     @Override
     public boolean send(Event event) throws EncodeException, SendException {
-        byte[] msg = getEncoder().encode(event);
+        byte[] msg = encode(event);
         DatagramPacket packet = new DatagramPacket(msg, msg.length, IPAddress, port);
         try {
             socket.send(packet);

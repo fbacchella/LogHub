@@ -18,7 +18,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.TimeZone;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.apache.logging.log4j.Level;
@@ -39,6 +38,7 @@ import loghub.Expression.ExpressionException;
 import loghub.Helpers;
 import loghub.ProcessorException;
 import loghub.configuration.Properties;
+import loghub.encoders.EncodeException;
 import lombok.Setter;
 
 @AsyncSender
@@ -168,11 +168,13 @@ public class ElasticSearch extends AbstractHttpSender {
     }
 
     @Override
-    protected List<EventFuture> flush(Batch documents) throws SendException {
+    protected void flush(Batch documents) throws SendException {
         HttpRequest request = new HttpRequest();
-        byte[] content = putContent(documents);
+        // This list contains the event futures that will be effectively sent to ES
+        List<EventFuture> tosend = new ArrayList<EventFuture>(documents.size());
+        byte[] content = putContent(documents, tosend);
         if (content.length == 0) {
-            return null;
+            return;
         }
         try {
             request.setTypeAndContent("application/json", CharsetUtil.UTF_8, content);
@@ -190,15 +192,13 @@ public class ElasticSearch extends AbstractHttpSender {
         };
         Map<String, ? extends Object> response = doquery(request, "/_bulk", reader, Collections.emptyMap(), null);
         if (response != null && Boolean.TRUE.equals(response.get("errors"))) {
-            List<EventFuture> status = new ArrayList<>(documents.size());
             @SuppressWarnings("unchecked")
             List<Map<String, ?>> items = (List<Map<String, ?>>) response.get("items");
             int eventIndex = 0;
             for (Map<String, ?> i: items) {
                 @SuppressWarnings("unchecked")
                 Map<String, Map<String, ? extends Object>> index = (Map<String, Map<String, ? extends Object>>) i.get("index");
-                EventFuture f = new EventFuture(documents.get(eventIndex));
-                status.add(eventIndex++, f);
+                EventFuture f = tosend.get(eventIndex);
                 if (! index.containsKey("error")) {
                     f.complete(true);
                 } else {
@@ -207,25 +207,19 @@ public class ElasticSearch extends AbstractHttpSender {
                     String errorReason = (String) error.get("reason");
                     Optional<Map<?, ?>> errorCause = Optional.ofNullable((Map<?, ?>) error.get("caused_by"));
                     f.failure(String.format("%s %s, caused by %s %s",
-                                                       type, errorReason,
-                                                       errorCause.orElse(Collections.emptyMap()).get("type"), errorCause.orElse(Collections.emptyMap()).get("reason")));
+                                            type,
+                                            errorReason,
+                                            errorCause.orElse(Collections.emptyMap()).get("type"), errorCause.orElse(Collections.emptyMap()).get("reason")));
                 }
             }
-            return status;
         } else if (response != null && Boolean.FALSE.equals(response.get("errors"))) {
-            return documents.stream()
-            .map(EventFuture::new)
-            .map(i -> {i.complete(true) ; return i;})
-            .collect(Collectors.toList());
+            documents.stream().forEach(i -> i.complete(true));
         } else {
-            return documents.stream()
-            .map(EventFuture::new)
-            .map(i -> {i.complete(false) ; return i;})
-            .collect(Collectors.toList());
+            documents.stream().forEach(i -> i.complete(false));
         }
     }
 
-    private byte[] putContent(Batch documents) {
+    private byte[] putContent(List<EventFuture> events, List<EventFuture> toprocess) {
         StringBuilder builder = new StringBuilder();
         StringBuilder eventbuilder = new StringBuilder();
         Map<String, String> settings = new HashMap<>(2);
@@ -233,8 +227,9 @@ public class ElasticSearch extends AbstractHttpSender {
         Map<String, Object> esjson = new HashMap<>();
         ObjectMapper jsonmapper = json.get();
         int validEvents = 0;
-        for(Event e: documents) {
+        for (EventFuture ef: events) {
             try {
+                Event e = ef.getEvent();
                 eventbuilder.setLength(0);
                 esjson.clear();
                 esjson.putAll(e);
@@ -246,8 +241,8 @@ public class ElasticSearch extends AbstractHttpSender {
                     indexvalue = esIndexFormat.get().format(e.getTimestamp());
                 }
                 if (indexvalue == null || indexvalue.isEmpty()) {
-                    processStatus(e, false);
-                    logger.warn("No usable index name for event {}", e);
+                    ef.completeExceptionally(new EncodeException("No usable index name for event"));
+                    logger.debug("No usable index name for event {}", e);
                     continue;
                 } else {
                     settings.put("_index", indexvalue);
@@ -259,8 +254,8 @@ public class ElasticSearch extends AbstractHttpSender {
                     typevalue = Optional.ofNullable(esjson.remove(type)).map(i -> i.toString()).orElse(null);
                 }
                 if (typevalue == null || typevalue.isEmpty()) {
-                    processStatus(e, false);
-                    logger.warn("No usable type for event {}", e);
+                    ef.completeExceptionally(new EncodeException("No usable type for event"));
+                    logger.debug("No usable type for event {}", e);
                     continue;
                 } else {
                     settings.put("_type", typevalue);
@@ -271,16 +266,10 @@ public class ElasticSearch extends AbstractHttpSender {
                 eventbuilder.append("\n");
                 builder.append(eventbuilder);
                 validEvents++;
-            } catch (java.lang.StackOverflowError ex) {
-                processStatus(new EventFuture(e, false));
-                logger.error("Failed to serialized event {}, infinite recursion", e);
-            } catch (ProcessorException ex) {
-                processStatus(new EventFuture(e, false));
-                logger.error("Failed to determine index/type for event {}: {}", e, ex);
-                logger.catching(Level.DEBUG, ex);
-            } catch (JsonProcessingException ex) {
-                logger.error("Failed to serialized {}: {}", e, ex.getMessage());
-                logger.catching(Level.DEBUG, ex);
+                toprocess.add(ef);
+            } catch (JsonProcessingException | ProcessorException ex) {
+                ef.completeExceptionally(ex);
+                logger.debug("Failed to serialized {}: {}", ef.getEvent(),Helpers.resolveThrowableException(ex));
                 continue;
             }
         }
