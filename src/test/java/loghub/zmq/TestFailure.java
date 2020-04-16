@@ -98,7 +98,7 @@ public class TestFailure {
             }
         });
         try {
-            Thread t = ThreadBuilder.get().setRunnable(blocked).setDaemon(true).build(true);
+            Thread t = ThreadBuilder.get().setTask(blocked).setDaemon(true).build(true);
             latch.await();
             Thread.sleep(100);
             t.interrupt();

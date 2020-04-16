@@ -72,7 +72,7 @@ public class TestPausingEvent {
 
         @Override
         public boolean process(Event event) throws ProcessorException {
-            ThreadBuilder.get().setRunnable(() -> {
+            ThreadBuilder.get().setTask(() -> {
                 try {
                     Thread.sleep(200);
                     todo.run();

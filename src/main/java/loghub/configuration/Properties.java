@@ -300,7 +300,7 @@ public class Properties extends HashMap<String, Object> {
                 ThreadBuilder.get()
                 .setDaemon(true)
                 .setName(name)
-                .setRunnable(task)
+                .setTask(task)
                 .build(true);
             }
         };

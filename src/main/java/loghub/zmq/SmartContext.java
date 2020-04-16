@@ -126,7 +126,7 @@ public class SmartContext {
         terminator = ThreadBuilder.get()
                         .setDaemon(true)
                         .setName("terminator")
-                        .setRunnable(() -> {
+                        .setTask(() -> {
                             synchronized (SmartContext.class) {
                                 if (instance != null) {
                                     logger.debug("starting shutdown hook for ZMQ");

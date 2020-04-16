@@ -81,7 +81,7 @@ public class ZMQFlow implements Closeable {
 
         this.source = builder.source;
         this.msPause = builder.msPause;
-        eventSource = ThreadBuilder.get().setRunnable(() -> {
+        eventSource = ThreadBuilder.get().setTask(() -> {
             try {
                 ZMQFlow.this.run();
             } catch (ZMQCheckedException e) {

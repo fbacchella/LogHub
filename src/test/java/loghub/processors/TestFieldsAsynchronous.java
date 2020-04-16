@@ -74,7 +74,7 @@ public class TestFieldsAsynchronous {
         public Object fieldFunction(Event event, Object value)
                         throws ProcessorException {
             PausingPromise f = new PausingPromise();
-            ThreadBuilder.get().setRunnable(() -> {
+            ThreadBuilder.get().setTask(() -> {
                 try {
                     Thread.sleep(200);
                     todo.accept(f);

@@ -102,7 +102,7 @@ public class Start {
             long starttime = System.nanoTime();
             ThreadBuilder.get()
             .setShutdownHook(true)
-            .setRunnable(() -> {
+            .setTask(() -> {
                 long endtime = System.nanoTime();
                 double runtime = ((double)(endtime - starttime)) / 1.0e9;
                 System.out.format("received: %.2f/s\n", Stats.received.get() / runtime);
@@ -247,7 +247,7 @@ public class Start {
         };
         shutdownAction = ThreadBuilder.get()
                         .setDaemon(false)
-                        .setRunnable(shutdown)
+                        .setTask(shutdown)
                         .setName("StopEventsProcessors")
                         .setShutdownHook(true)
                         .build();

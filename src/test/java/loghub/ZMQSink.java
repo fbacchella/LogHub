@@ -74,7 +74,7 @@ public class ZMQSink implements Closeable {
                         .setServerKeyToken(builder.serverKey)
                         .build();
         this.source = builder.source;
-        eventSink = ThreadBuilder.get().setRunnable(() -> {
+        eventSink = ThreadBuilder.get().setTask(() -> {
             ZMQSink.this.run();
         }).setDaemon(false).setName("Sink").build(true);
     }

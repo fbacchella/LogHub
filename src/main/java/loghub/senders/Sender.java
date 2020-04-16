@@ -182,7 +182,7 @@ public abstract class Sender extends Thread implements Closeable {
         IntStream.rangeClosed(1, threads.length)
         .mapToObj(i ->getName() + "Publisher" + i)
         .map(i -> ThreadBuilder.get().setName(i))
-        .map(i -> i.setRunnable(publisher))
+        .map(i -> i.setTask(publisher))
         .map(i -> i.setDaemon(false))
         .map(i -> i.build(true))
         .toArray(i -> threads);
