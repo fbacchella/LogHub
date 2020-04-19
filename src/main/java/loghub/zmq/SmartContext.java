@@ -33,6 +33,7 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.zeromq.SocketType;
+import org.zeromq.UncheckedZMQException;
 import org.zeromq.ZContext;
 import org.zeromq.ZMQ.Socket;
 import org.zeromq.ZMQException;
@@ -215,11 +216,9 @@ public class SmartContext {
             method.act(socket, endpoint);
             socket.setIdentity(url.getBytes(StandardCharsets.UTF_8));
             return socket;
-        } catch (RuntimeException e) {
+        } catch (UncheckedZMQException e) {
             Optional.ofNullable(socket).ifPresent(i -> localContext.get().destroySocket(i));
-            ZMQCheckedException.raise(e);
-            // Never reached
-            return null;
+            throw new ZMQCheckedException(e);
         }
     }
 
@@ -283,9 +282,6 @@ public class SmartContext {
             } catch (java.nio.channels.ClosedSelectorException e) {
                 logger.error("closed selector: {}", Helpers.resolveThrowableException(e));
                 logger.catching(Level.DEBUG, e);
-            } catch (RuntimeException e) {
-                logger.error("Unexpected error: {}", Helpers.resolveThrowableException(e));
-                logger.catching(Level.DEBUG, e);
             } finally {
                 localContext.get().destroy();
             }
@@ -302,9 +298,6 @@ public class SmartContext {
             } catch (java.nio.channels.ClosedSelectorException e) {
                 logger.error("closed selector: {}", Helpers.resolveThrowableException(e));
                 logger.catching(Level.DEBUG, e);
-            } catch (RuntimeException e) {
-                logger.error("Unexpected error: {}", Helpers.resolveThrowableException(e));
-                logger.catching(Level.ERROR, e);
             } finally {
                 SmartContext.instance = null;
             }

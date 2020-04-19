@@ -136,7 +136,7 @@ public class ZMQ extends Receiver {
                 } else {
                     decodeStream(ConnectionContext.EMPTY, databuffer, 0, received).forEach(this::send);
                 }
-            } catch (ZError.IOException | ZError.CtxTerminatedException | ZError.InstantiationException | ZMQException ex) {
+            } catch (UncheckedZMQException ex) {
                 ZMQCheckedException cex = new ZMQCheckedException(ex);
                 Stats.newReceivedError(String.format("error with ZSocket %s: %s", listen, cex.getMessage()));
             }
