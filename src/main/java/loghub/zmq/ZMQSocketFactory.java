@@ -35,7 +35,6 @@ import org.zeromq.ZPoller;
 
 import fr.loghub.naclprovider.NaclCertificate;
 import fr.loghub.naclprovider.NaclPrivateKeySpec;
-import fr.loghub.naclprovider.NaclProvider;
 import fr.loghub.naclprovider.NaclPublicKeySpec;
 import loghub.Helpers;
 import loghub.ThreadBuilder;
@@ -145,7 +144,7 @@ public class ZMQSocketFactory implements AutoCloseable {
 
         if (! Files.exists(zmqKeyStore)) {
             logger.debug("Creating a new keystore at {}", zmqKeyStore);
-            KeyFactory kf = KeyFactory.getInstance(NaclProvider.NAME);
+            KeyFactory kf = ZMQHelper.NACLKEYFACTORY;
             ks.load(null);
 
             KeyPairGenerator kpg = KeyPairGenerator.getInstance(kf.getAlgorithm());
