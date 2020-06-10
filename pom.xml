@@ -717,6 +717,7 @@
                             <value>true</value>
                         </property>
                     </systemProperties>
+                    <trimStackTrace>false</trimStackTrace>
                 </configuration>
             </plugin>
             <plugin>
