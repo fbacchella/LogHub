@@ -1,26 +1,23 @@
 package loghub.receivers;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 
 import org.apache.logging.log4j.Level;
 import org.zeromq.SocketType;
-import org.zeromq.ZMQ.Error;
 import org.zeromq.ZMQ.Socket;
-import org.zeromq.ZMQException;
 import org.zeromq.ZPoller;
 
 import loghub.BuilderClass;
 import loghub.ConnectionContext;
 import loghub.Helpers;
-import loghub.Stats;
 import loghub.configuration.Properties;
 import loghub.zmq.ZMQCheckedException;
 import loghub.zmq.ZMQHandler;
 import loghub.zmq.ZMQHelper;
-import lombok.Getter;
+import loghub.zmq.ZMQHelper.Method;
 import lombok.Setter;
-import zmq.ZError;
 
 @Blocking
 @BuilderClass(ZMQ.Builder.class)
@@ -50,52 +47,35 @@ public class ZMQ extends Receiver {
         return new Builder();
     }
 
-
-    private final ZMQHelper.Method method;
-    @Getter
+    private ZMQHandler.Builder<byte[]> hbuilder;
+    private ZMQHandler<byte[]> handler;
     private final String listen;
-
-    private final SocketType type;
-    @Getter
-    private final String topic;
-    @Getter
-    private final int hwm ;
-    @Getter
-    private final String serverKey;
-    @Getter
-    private final String security;
-
-    private Runnable handlerstopper = () -> {}; // Default to empty, don' fail on crossed start/stop
-    private ZMQHandler handler;
-    private byte[] databuffer;
 
     protected ZMQ(Builder builder) {
         super(builder);
-        this.method = ZMQHelper.Method.valueOf(builder.method.toUpperCase(Locale.ENGLISH));
+        hbuilder = new ZMQHandler.Builder<>();
+        hbuilder.setHwm(builder.hwm)
+                .setSocketUrl(builder.listen)
+                .setMethod(Method.valueOf(builder.method.toUpperCase(Locale.ENGLISH)))
+                .setType(SocketType.valueOf(builder.type.toUpperCase(Locale.ENGLISH)))
+                .setTopic(builder.topic.getBytes(StandardCharsets.UTF_8))
+                .setServerPublicKeyToken(builder.serverKey)
+                .setLogger(logger)
+                .setName("zmqhandler:" + getReceiverName())
+                .setReceive(Socket::recv)
+                .setMask(ZPoller.IN)
+                .setSecurity(builder.security)
+                ;
         this.listen = builder.listen;
-        this.type = SocketType.valueOf(builder.type.toUpperCase(Locale.ENGLISH));
-        this.topic = builder.topic;
-        this.hwm = builder.hwm;
-        this.serverKey = builder.serverKey;
-        this.security = builder.security;
     }
 
     @Override
     public boolean configure(Properties properties) {
         if (super.configure(properties)) {
-            this.handler = new ZMQHandler.Builder()
-                            .setHwm(hwm)
-                            .setSocketUrl(listen)
-                            .setMethod(method)
-                            .setType(type)
-                            .setTopic(topic.getBytes(StandardCharsets.UTF_8))
-                            .setServerKeyToken(serverKey)
-                            .setLogger(logger)
-                            .setName("zmqhandler:" + getReceiverName())
-                            .setLocalHandler(this::process)
-                            .setMask(ZPoller.IN)
-                            .setSecurity(security)
+            this.handler = hbuilder
+                            .setZfactory(properties.zSocketFactory)
                             .build();
+            this.hbuilder = null;
             return true;
         } else {
             return false;
@@ -105,61 +85,50 @@ public class ZMQ extends Receiver {
     @Override
     public void run() {
         try {
-            handlerstopper = handler.getStopper();
-            int maxMsgSize = (int) handler.getSocket().getMaxMsgSize();
-            if (maxMsgSize > 0 && maxMsgSize < 65535) {
-                databuffer = new byte[maxMsgSize];
-            } else {
-                databuffer = new byte[65535];
+            handler.start();
+            while (handler.isRunning()) {
+                byte[] message = handler.dispatch(null);
+                if (message != null) {
+                    decodeStream(ConnectionContext.EMPTY, message).forEach(this::send);
+                }
             }
-            handler.run();
         } catch (IllegalArgumentException ex) {
             logger.error("Failed ZMQ processing : {}", Helpers.resolveThrowableException(ex));
             logger.catching(Level.DEBUG, ex);
-        } catch (RuntimeException ex) {
-            logger.error("Failed ZMQ processing : {}", Helpers.resolveThrowableException(ex));
-            logger.catching(Level.ERROR, ex);
         } catch (ZMQCheckedException ex) {
             logger.error("Failed ZMQ processing : {}", Helpers.resolveThrowableException(ex));
             logger.catching(Level.DEBUG, ex);
+        } catch (Throwable ex) {
+            logger.error("Failed ZMQ processing : {}", Helpers.resolveThrowableException(ex));
+            logger.catching(Level.DEBUG, ex);
+        } finally {
+            handler.close();
         }
-    }
-
-    public boolean process(Socket socket, int eventMask) {
-        while ((socket.getEvents() & ZPoller.IN) != 0 && handler.isRunning()) {
-            int received;
-            try {
-                received = socket.recv(ZMQ.this.databuffer, 0, databuffer.length, 0);
-                if (received < 0) {
-                    Error error = Error.findByCode(socket.errno());
-                    Stats.newReceivedError(String.format("error with ZSocket %s: %s", listen, error.getMessage()));
-                } else {
-                    decodeStream(ConnectionContext.EMPTY, databuffer, 0, received).forEach(this::send);
-                }
-            } catch (UncheckedZMQException ex) {
-                ZMQCheckedException cex = new ZMQCheckedException(ex);
-                Stats.newReceivedError(String.format("error with ZSocket %s: %s", listen, cex.getMessage()));
-            }
-        }
-        return true;
     }
 
     @Override
     public void close() {
-        handlerstopper.run();
+        try {
+            handler.stopRunning();
+        } catch (IOException | ZMQCheckedException ex) {
+            logger.error("Failed ZMQ socket close : {}", Helpers.resolveThrowableException(ex));
+            logger.catching(Level.DEBUG, ex);
+        }
     }
 
     @Override
     public void stopReceiving() {
-        handlerstopper.run();
+        try {
+            handler.stopRunning();
+        } catch (IOException | ZMQCheckedException ex) {
+            logger.error("Failed receiver ZMQ stop : {}", Helpers.resolveThrowableException(ex));
+            logger.catching(Level.DEBUG, ex);
+        }
     }
 
-    public String getMethod() {
-        return method.toString();
-    }
-
-    public String getType() {
-        return type.name();
+    @Override
+    public void interrupt() {
+        handler.interrupt(this, super::interrupt);
     }
 
     @Override

@@ -1,36 +1,43 @@
 package loghub.zmq;
 
-import java.io.Closeable;
 import java.io.IOException;
-import java.nio.channels.SelectableChannel;
+import java.security.KeyStore.PrivateKeyEntry;
+import java.security.cert.Certificate;
+import java.util.Locale;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.stream.Stream;
 
-import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.Logger;
 import org.zeromq.SocketType;
-import org.zeromq.ZMQ.Error;
+import org.zeromq.UncheckedZMQException;
+import org.zeromq.ZMQ.Event;
 import org.zeromq.ZMQ.Socket;
 import org.zeromq.ZPoller;
 
 import loghub.AbstractBuilder;
 import loghub.Helpers;
 import loghub.zmq.ZMQHelper.Method;
+import loghub.zmq.ZMQSocketFactory.SocketBuilder;
 import lombok.Setter;
 import lombok.experimental.Accessors;
-import zmq.ZError;
+import zmq.io.mechanism.Mechanisms;
 
 @Accessors(chain=true)
-public class ZMQHandler implements Closeable {
-    
+public class ZMQHandler<M> implements AutoCloseable {
+
     @FunctionalInterface
-    private interface MakeSocket {
-        Socket newSocket() throws ZMQCheckedException;
+    private interface PrepareFactory {
+        void run() throws ZMQCheckedException;
     }
 
-    public static class Builder extends AbstractBuilder<ZMQHandler> {
+    public static class Builder<M> extends AbstractBuilder<ZMQHandler<M>> {
         @Setter
         String socketUrl;
         @Setter
@@ -46,205 +53,260 @@ public class ZMQHandler implements Closeable {
         @Setter
         int mask;
         @Setter
-        BiFunction<Socket, Integer, Boolean> localHandler;
+        String security = Mechanisms.NULL.toString();
         @Setter
-        String security;
+        Certificate serverPublicKey;
         @Setter
-        byte[] serverKey;
-        @Setter
-        byte[] publicKey;
-        @Setter
-        byte[] privateKey;
+        PrivateKeyEntry keyEntry = null;
         @Setter
         byte[] topic = null;
         @Setter
         Runnable stopFunction = () -> {};
         @Setter
         Consumer<String> injectError;
+        @Setter
+        ZMQSocketFactory zfactory = null;
+        @Setter
+        CountDownLatch latch = null;
+        @Setter
+        Function<Socket, M> receive = null;
+        @Setter
+        BiFunction<Socket, M, Boolean> send = null;
+        @Setter
+        BiConsumer<Socket, Event> eventCallback = null;
 
-        public Builder setServerKeyToken(String serverKeyToken) {
-            this.serverKey = serverKeyToken != null ? ZMQHelper.parseServerIdentity(serverKeyToken) : null;
+
+        public Builder<M> setServerPublicKeyToken(String serverKeyToken) {
+            this.serverPublicKey = serverKeyToken != null ? ZMQHelper.parseServerIdentity(serverKeyToken) : null;
             return this;
         }
 
         @Override
-        public ZMQHandler build() {
-            return new ZMQHandler(this);
+        public ZMQHandler<M> build() {
+            return new ZMQHandler<M>(this);
         }
     }
 
     private final Logger logger;
     private final String socketUrl;
     private final int mask;
-    private final BiFunction<Socket, Integer, Boolean> localHandler;
+    private final Function<Socket, M> receive;
+    private final BiFunction<Socket, M, Boolean> send;
     private final String pairId;
     // The stopFunction can be used to do a little cleaning and verifications before the join
     private final Runnable stopFunction;
-    private final Consumer<String> injectError;
 
     private volatile boolean running = false;
-    private MakeSocket makeSocket;
+    private PrepareFactory makeThreadLocal;
     private Socket socket;
+    private Socket socketEndPair;
+    private Socket socketMonitor;
     private Thread runningThread = null;
-    private SmartContext ctx = null;
+    private ZPoller pooler;
+    // Settings of the factory can be delayed
+    @Setter
+    private ZMQSocketFactory zfactory = null;
+    //Interrupt is only allowed outside of ZMQ poll or socket options, this flag protect that
+    private volatile boolean canInterrupt = true;
+    private final BiConsumer<Socket, Event> eventCallback;
 
-    private ZMQHandler(Builder builder) {
+    private ZMQHandler(Builder<M> builder) {
         this.logger = builder.logger;
         this.socketUrl = builder.socketUrl;
         this.mask = builder.mask;
-        this.localHandler = builder.localHandler;
         this.pairId = builder.name + "/" + UUID.randomUUID();
         this.stopFunction = builder.stopFunction;
-        this.injectError = builder.injectError;
-        makeSocket = () -> {
+        this.zfactory = builder.zfactory;
+        this.send = builder.send;
+        this.receive = builder.receive;
+        this.eventCallback = builder.eventCallback;
+        // Socket creation is delayed
+        // So the socket is created in the using thread
+        makeThreadLocal = () -> {
+            makeThreadLocal = null;
             runningThread = Thread.currentThread();
-            ctx = SmartContext.getContext();
-            Socket trysendsocket = null;
-            trysendsocket = ctx.newSocket(builder.method, builder.type, socketUrl);
-            if ("Curve".equals(builder.security)) {
+            SocketBuilder sbuilder = zfactory.getBuilder(builder.method, builder.type, socketUrl).setTopic(builder.topic).setImmediate(false);
+            if (eventCallback != null) {
+                socketMonitor = zfactory.getBuilder(Method.CONNECT, SocketType.PAIR, "inproc://monitor/" + pairId).build();
+                sbuilder.setMonitor("inproc://monitor/" + pairId);
+            } else {
+                socketMonitor = null;
+            }
+            Mechanisms security = Optional.ofNullable(builder.security)
+                                          .map(s -> s.toUpperCase(Locale.ENGLISH))
+                                          .map(Mechanisms::valueOf)
+                                          .orElse(Mechanisms.NULL);
+            switch (security) {
+            case CURVE: 
                 logger.trace("Activating Curve security on a socket");
-                if (builder.privateKey == null && builder.publicKey == null) {
-                    if (builder.serverKey != null) {
-                        ctx.setCurveClient(trysendsocket, builder.serverKey);
-                    } else if ("Curve".equals(builder.security)) {
-                        ctx.setCurveServer(trysendsocket);
-                    }
-                } else {
-                    trysendsocket.setCurvePublicKey(builder.publicKey);
-                    trysendsocket.setCurveSecretKey(builder.privateKey);
-                    trysendsocket.setCurveServer(builder.serverKey == null);
-                    if (builder.serverKey != null) {
-                        trysendsocket.setCurveServerKey(builder.serverKey);
-                    }
-                }
-            } else if (builder.security != null) {
-                throw new IllegalArgumentException("Security  "+ builder.security + "not managed");
+                sbuilder.setCurveKeys(Optional.ofNullable(builder.keyEntry).orElse(zfactory.getKeyEntry()));
+                break;
+            case NULL:
+                break;
+            default:
+                throw new IllegalArgumentException("Security  "+ builder.security + "not handled");
             }
-            if (builder.type == SocketType.SUB && builder.topic != null) {
-                trysendsocket.subscribe(builder.topic);
+            socket = sbuilder.build();
+            pooler = zfactory.getZPoller();
+            socketEndPair = zfactory.getBuilder(Method.BIND, SocketType.PAIR, "inproc://stop/" + pairId).build();
+            logger.trace("Socket end pair will be {}", socketEndPair);
+            pooler.register(socket, mask | ZPoller.ERR);
+            pooler.register(socketEndPair, ZPoller.IN | ZPoller.ERR);
+            if (eventCallback != null) {
+                pooler.register(socketMonitor, ZPoller.IN | ZPoller.ERR);
             }
-            return trysendsocket;
+            running = true;
+            if (builder.latch != null) {
+                builder.latch.countDown();
+            }
         };
     }
 
-    public Runnable getStopper() {
-        return () -> {
-            stopRunning();
-        };
+    public void start() throws ZMQCheckedException {
+        makeThreadLocal.run();
     }
 
-    public void run() {
-        running = true;
-        Socket socketEndPair = null;
-        try {
-            getSocket();
-            socketEndPair = ctx.newSocket(Method.BIND, SocketType.PAIR, "inproc://pair/" + pairId);
-            ZPoller.EventsHandler stopsignal = new ZPoller.EventsHandler() {
-                @Override
-                public boolean events(Socket socket, int eventMask) {
-                    logEvent(socket, eventMask);
-                    if ((eventMask & ZPoller.ERR) != 0) {
-                        Error error = Error.findByCode(socket.errno());
-                        logger.error("error with ZSocket {}: {}", socketUrl, error.getMessage());
-                    } else {
-                        logger.debug("Received stop signal");
-                        running = false;
-                    }
-                    return false;
-                }
-
-                @Override
-                public boolean events(SelectableChannel channel, int events) {
-                    throw new UnsupportedOperationException("Not registred for SelectableChannel");
-                }
-            };
-
-            ZPoller.EventsHandler processevent = new ZPoller.EventsHandler() {
-                @Override
-                public boolean events(Socket socket, int eventMask) {
-                    logEvent(socket, eventMask);
-                    if ((eventMask & ZPoller.ERR) != 0) {
-                        Error error = Error.findByCode(socket.errno());
-                        injectError.accept(String.format("error with ZSocket %s: %s", socketUrl, error.getMessage()));
-                        return false;
-                    } else if (localHandler != null) {
-                        return localHandler.apply(socket, eventMask);
-                    } else {
-                        logger.error("No handler given");
-                        running = false;
-                        return false;
-                    }
-                }
-
-                @Override
-                public boolean events(SelectableChannel channel, int events) {
-                    throw new UnsupportedOperationException("Not registred for SelectableChannel");
-                }
-            };
-
-            while (isRunning()) {
-                try (ZPoller zpoller = ctx.getZPoller()) {
-                    logger.trace("Starting a poller {} {} {} {}", zpoller, socket, localHandler, mask);
-                    zpoller.register(socket, processevent, mask | ZPoller.ERR);
-                    zpoller.register(socketEndPair, stopsignal, ZPoller.ERR | ZPoller.IN);
-                    while (isRunning() && zpoller.poll(-1L) > 0) {
-                        logger.trace("Loopping the poller");
-                    }
-                } catch (IOException e) {
-                    Error error = Error.findByCode(socket.errno());
-                    injectError.accept(String.format("error with ZSocket %s: %s", socketUrl, error.getMessage()));
-                } catch (ZError.IOException | ZError.InstantiationException | ZError.CtxTerminatedException e) {
-                    ZMQCheckedException.logZMQException(logger, "failure when polling a ZSocket: {}", e);
-                }
-            }
-        } catch (RuntimeException ex) {
-            logger.error("Failed ZMQ processing : {}", Helpers.resolveThrowableException(ex));
-            logger.catching(Level.ERROR, ex);
-        } catch (ZMQCheckedException ex) {
-            logger.error("Failed ZMQ processing : {}", Helpers.resolveThrowableException(ex));
-            logger.catching(Level.DEBUG, ex);
-        } finally {
-            running = false;
-            Optional.ofNullable(socket).ifPresent(ctx::close);
-            Optional.ofNullable(socketEndPair).ifPresent(ctx::close);
-            ctx.terminate();
-        }
-    }
-
-    public void logEvent(Socket socket, int event) {
-        logger.trace("receiving {} on {}", () -> "0b" + Integer.toBinaryString(8 + event).substring(1), () -> socket);
-    }
-
-    public void stopRunning() {
-        logger.trace("Stop handling messages");
-        if (running && ctx.isRunning()) {
-            running = false;
+    public M dispatch(M message) throws ZMQCheckedException {
+        assert Thread.currentThread() == runningThread;
+        logger.trace("One dispatch loop");
+        // Loop until an event is received in the main socket.
+        while (isRunning()) {
             try {
-                Socket stopStartPair = ctx.newSocket(Method.CONNECT, SocketType.PAIR, "inproc://pair/" + pairId);
-                stopStartPair.send(new byte[] {});
-                ctx.close(stopStartPair);
-                logger.debug("Listening stopped");
-            } catch (ZMQCheckedException ex) {
-                logger.error("Failed to stop socket", ex);
+                canInterrupt = false;
+                // Keep the usage of Thread.interrupted(), jeromq break with thread interruption
+                if (Thread.interrupted()) {
+                    running = false;
+                    break;
+                }
+                int count = pooler.poll(-1L);
+                canInterrupt = true;
+                if (count > 0) {
+                    int sEvents = ZMQCheckedException.checkCommand(socket.getEvents(),
+                                                                   socket);
+                    int pEvents = ZMQCheckedException.checkCommand(socketEndPair.getEvents(),
+                                                                   socketEndPair);
+                    int mEvents;
+                    if (socketMonitor != null) {
+                        mEvents = ZMQCheckedException.checkCommand(socketMonitor.getEvents(),
+                                                                   socketMonitor);
+                    } else {
+                        mEvents = 0;
+                    }
+                    // Received an error, end processing
+                    if ((sEvents & ZPoller.ERR) != 0) {
+                        logEvent("Error on socket", socket, sEvents);
+                        throw new ZMQCheckedException(socket.errno());
+                    } else if ((pEvents & ZPoller.ERR) != 0) {
+                        logEvent("Error on socket", socketEndPair, pEvents);
+                        throw new ZMQCheckedException(socketEndPair.errno());
+                    } else if ((mEvents & ZPoller.ERR) != 0) {
+                        logEvent("Error on socket", socketMonitor, mEvents);
+                        throw new ZMQCheckedException(socketEndPair.errno());
+                    }
+                    // A monitor or end signal event
+                    if ((mEvents & ZPoller.IN) != 0) {
+                        logEvent("Monitor signal", socketMonitor, mEvents);
+                        Event ev = Event.recv(socketMonitor);
+                        eventCallback.accept(socket, ev);
+                    }
+                    if ((pEvents & ZPoller.IN) != 0) {
+                        logEvent("Stop signal", socketEndPair, pEvents);
+                        running = false;
+                        socketEndPair.recv();
+                        break;
+                    }
+                    // A event on the main socket, end the loop
+                    if ((sEvents & ZPoller.OUT) != 0) {
+                        logEvent("Message signal", socket, sEvents);
+                        if (! send.apply(socket, message)) {
+                            throw new ZMQCheckedException(socket.errno());
+                        }
+                        return null;
+                    }
+                    if ((sEvents & ZPoller.IN) != 0) {
+                        logEvent("Message signal", socket, sEvents);
+                        M received = this.receive.apply(socket);
+                        if (received == null) {
+                            throw new ZMQCheckedException(socket.errno());
+                        } else {
+                            return received;
+                        }
+                    }
+               }
+            } catch (UncheckedZMQException ex) {
+                throw new ZMQCheckedException(ex);
+            } finally {
+                canInterrupt = true;
             }
-            stopFunction.run();
-            try {
-                // Wait for end of processing the stop
-                runningThread.join();
-                logger.trace("Run stopped");
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-        }
+        } 
+        return null;
+    }
+
+    public void logEvent(String prefix, Socket socket, int event) {
+        logger.trace("{}: receiving {}{}{} on {}",
+                     () -> prefix,
+                     () -> (event & ZPoller.ERR) != 0 ? "E" : ".",
+                     () -> (event & ZPoller.OUT) != 0 ? "O" : ".",
+                     () -> (event & ZPoller.IN) != 0  ? "I" : ".",
+                     () -> socket);
     }
 
     public boolean isRunning() {
-        return running && ! runningThread.isInterrupted() && ctx.isRunning();
+        return running && ! runningThread.isInterrupted();
     }
 
     @Override
-    public void close() throws IOException {
-        stopRunning();
+    public void close() {
+        assert Thread.currentThread() == runningThread;
+        assert ! running;
+        Stream.of(socket, socketEndPair, socketMonitor)
+        .filter(Objects::nonNull)
+        .forEach(this::close);
+   }
+
+    public void close(Socket s) {
+        boolean interrupted = false;
+        try {
+            canInterrupt = false;
+            // Keep Thread.interrupted(), jeromq break with thread interruption
+            interrupted = Thread.interrupted();
+            s.close();
+       } catch (UncheckedZMQException e) {
+            e.printStackTrace();
+        } finally {
+            canInterrupt = false;
+        }
+        if (interrupted) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    public void stopRunning() throws IOException, ZMQCheckedException {
+        if (isRunning()) {
+            logger.trace("Stop handling messages");
+            running = false;
+            try (Socket stopStartPair = zfactory.getBuilder(Method.CONNECT, SocketType.PAIR, "inproc://stop/" + pairId).build()) {
+                stopStartPair.send(new byte[] {});
+                logger.debug("Listening stopped");
+            } catch (UncheckedZMQException ex) {
+                throw new ZMQCheckedException(ex);
+            }
+            stopFunction.run();
+        }
+        logger.trace("Done stop handling messages");
+    }
+
+    public void interrupt(Thread holder, Runnable realInterrupt) {
+        logger.trace("trying to interrupt");
+        if (canInterrupt) {
+            realInterrupt.run();
+        } else {
+            try {
+                stopRunning();
+            } catch (IOException | ZMQCheckedException ex) {
+                logger.error("Failed to handle interrupt: {}", Helpers.resolveThrowableException(ex), ex);
+            }
+        }
     }
 
     /**
@@ -253,10 +315,11 @@ public class ZMQHandler implements Closeable {
      * @throws ZMQCheckedException if socket creation failed
      */
     public Socket getSocket() throws ZMQCheckedException {
-        socket = socket == null ? makeSocket.newSocket() : socket;
-        makeSocket = null;
-        assert Thread.currentThread() == runningThread;
         return socket;
+    }
+
+    public Certificate getCertificate() {
+        return zfactory.getKeyEntry().getCertificate();
     }
 
 }

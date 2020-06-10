@@ -24,8 +24,16 @@ public class ZMQCheckedException extends Exception {
         }
     }
 
+    public static int checkCommand(int status, Socket s) throws ZMQCheckedException {
+        if (status < 0 ) {
+            throw new ZMQCheckedException(s.errno());
+        } else {
+            return status;
+        }
+    }
+
     public ZMQCheckedException(UncheckedZMQException e) {
-        super(e);
+        super(filterCause(e));
         if (e instanceof ZError.IOException) {
             IOException cause = (java.io.IOException) e.getCause();
             error = ZMQ.Error.findByCode(exccode(cause));
@@ -39,6 +47,14 @@ public class ZMQCheckedException extends Exception {
             throw new IllegalStateException("Unhandled ZMQ Exception", e);
         }
         setStackTrace(e.getStackTrace());
+    }
+    
+    private static Exception filterCause(UncheckedZMQException e) {
+        if (e instanceof ZError.IOException) {
+            return (java.io.IOException) e.getCause();
+        } else {
+            return e;
+        }
     }
 
     public ZMQCheckedException(int error) {
@@ -63,6 +79,10 @@ public class ZMQCheckedException extends Exception {
 
     public ZMQ.Error getError() {
         return error;
+    }
+    
+    public boolean isInterruption() {
+        return error == ZMQ.Error.EINTR || error == ZMQ.Error.ETERM;
     }
 
     @Override

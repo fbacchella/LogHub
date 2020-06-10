@@ -129,7 +129,7 @@ public class File extends Sender {
     }
 
     @Override
-    public void stopSending() {
+    public void customStopSending() {
         if (destination.isOpen()) {
             try {
                 // The lock will not be released, as you don't release a closed file
@@ -142,7 +142,6 @@ public class File extends Sender {
                 logger.catching(Level.DEBUG, e);
             } 
         }
-        super.stopSending();
     }
 
     @Override

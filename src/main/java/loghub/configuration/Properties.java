@@ -51,7 +51,7 @@ import loghub.receivers.Receiver;
 import loghub.security.JWTHandler;
 import loghub.security.ssl.ContextLoader;
 import loghub.senders.Sender;
-import loghub.zmq.SmartContext;
+import loghub.zmq.ZMQSocketFactory;
 
 public class Properties extends HashMap<String, Object> {
 
@@ -120,6 +120,7 @@ public class Properties extends HashMap<String, Object> {
     public final JWTHandler jwtHandler;
     public final DashboardHttpServer.Builder dashboardBuilder;
     public final CacheManager cacheManager;
+    public final ZMQSocketFactory zSocketFactory;
 
     public final Timer timer = new Timer("loghubtimer", true);
 
@@ -194,8 +195,7 @@ public class Properties extends HashMap<String, Object> {
 
         jwtHandler = buildJwtAlgorithm(filterPrefix(properties, "jwt"));
 
-        // Check if some ZMQ properties given. It not, just let the receiver or senders do that
-        SmartContext.build(filterPrefix(properties, "zmq"));
+        zSocketFactory = ZMQSocketFactory.getFactory(filterPrefix(properties, "zmq"));
 
         javax.security.auth.login.Configuration jc = null;
         if (properties.containsKey("jaasConfig")) {
