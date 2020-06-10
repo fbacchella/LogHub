@@ -3,6 +3,7 @@ package loghub.netty;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.http.HttpMessage;
+import loghub.configuration.Properties;
 import loghub.netty.http.AbstractHttpServer;
 import loghub.netty.http.AccessControl;
 import loghub.netty.http.HttpRequestProcessing;
@@ -62,8 +63,14 @@ public abstract class AbstractHttp extends AbstractTcpReceiver<AbstractHttp, Abs
         return new HttpReceiverServer.Builder().setReceiver(this);
     }
 
+    @Override
+    public boolean configure(Properties properties, HttpReceiverServer.Builder builder) {
+        settings(builder);
+        return super.configure(properties, builder);
+    }
+
     protected void settings(loghub.netty.AbstractHttp.HttpReceiverServer.Builder builder) {
-        
+        // Empty
     }
 
     @Override
