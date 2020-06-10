@@ -220,7 +220,7 @@ public class TestElasticSearch {
     @Test
     public void testBeans() throws ClassNotFoundException, IntrospectionException {
         BeanChecks.beansCheck(logger, "loghub.senders.ElasticSearch"
-                              , BeanInfo.build("threads", Integer.TYPE)
+                              , BeanInfo.build("workers", Integer.TYPE)
                               , BeanInfo.build("batchSize", Integer.TYPE)
                               , BeanInfo.build("flushInterval", Integer.TYPE)
                               , BeanInfo.build("destinations", BeanChecks.LSTRING)
