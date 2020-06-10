@@ -14,7 +14,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-import loghub.ContextRule;
+import loghub.ZMQFactory;
 import loghub.Event;
 import loghub.EventsProcessor;
 import loghub.LogUtils;
@@ -29,7 +29,7 @@ public class TestConfigurations {
     private static Logger logger;
 
     @Rule
-    public ContextRule tctxt = new ContextRule();
+    public ZMQFactory tctxt = new ZMQFactory();
 
     @Rule
     public ExpectedException thrown = ExpectedException.none();

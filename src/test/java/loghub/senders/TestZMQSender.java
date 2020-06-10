@@ -1,20 +1,20 @@
 package loghub.senders;
 
+import java.beans.IntrospectionException;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Base64;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
+import java.util.regex.Pattern;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -25,29 +25,33 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.zeromq.SocketType;
-import org.zeromq.ZMQ.Error;
 import org.zeromq.ZMQ.Socket;
-import org.zeromq.ZPoller;
 
+import loghub.BeanChecks;
+import loghub.BeanChecks.BeanInfo;
 import loghub.ConnectionContext;
 import loghub.Event;
 import loghub.LogUtils;
 import loghub.ThreadBuilder;
 import loghub.Tools;
+import loghub.ZMQFactory;
 import loghub.ZMQSink;
 import loghub.configuration.Properties;
 import loghub.encoders.ToJson;
-import loghub.zmq.SmartContext;
+import loghub.zmq.ZMQCheckedException;
 import loghub.zmq.ZMQHelper.Method;
-import zmq.io.mechanism.curve.Curve;
+import loghub.zmq.ZMQSocketFactory;
 import zmq.socket.Sockets;
 
 public class TestZMQSender {
 
     private static Logger logger;
 
-    @Rule
+    @Rule(order=1)
     public TemporaryFolder testFolder = new TemporaryFolder();
+
+    @Rule(order=2)
+    public ZMQFactory tctxt = new ZMQFactory(testFolder, "secure");
 
     @BeforeClass
     static public void configure() throws IOException {
@@ -57,38 +61,40 @@ public class TestZMQSender {
     }
 
     private CountDownLatch latch;
+    private final StringBuffer received = new StringBuffer();
 
-    public boolean process(Socket socket, int eventMask) {
-        while ((socket.getEvents() & ZPoller.IN) != 0) {
-            String received = socket.recvStr();
+    public String process(Socket socket) {
+        String in = socket.recvStr();
+        if (in != null) {
+            received.append(in);
             latch.countDown();
-            if (received == null) {
-                Error error = Error.findByCode(socket.errno());
-                logger.error("error with ZSocket {}: {}", socket, error.getMessage());
-                return false;
-            }
         }
-        return true;
+        return in;
     }
 
-    private void dotest(SmartContext ctx, Consumer<ZMQ.Builder> configure, ZMQSink.Builder sinkbuilder) throws IOException, InterruptedException {
-        if (ctx == null) {
-            ctx = SmartContext.getContext();
-        }
-        final SmartContext finalctx = ctx;
+    private void dotest(Consumer<ZMQ.Builder> configure, Consumer<ZMQSink.Builder<String>> sinkconfigure, String pattern)
+                    throws IOException, InterruptedException, ZMQCheckedException {
+        received.setLength(0);
+        ZMQSocketFactory ctx = tctxt.getFactory();
 
-        sinkbuilder.setLocalhandler(this::process)
-        .setCtx(ctx)
-        .setType(SocketType.PULL);
+        String rendezvous = "tcp://localhost:" + Tools.tryGetPort();
+
+        ZMQSink.Builder<String> sinkbuilder = ZMQSink.getBuilder();
+        sinkbuilder.setReceive(this::process)
+                    .setZmqFactory(ctx)
+                    .setSource(rendezvous)
+                    .setType(SocketType.PULL);
+        sinkconfigure.accept(sinkbuilder);
+
         BlockingQueue<Event> queue = new ArrayBlockingQueue<>(10);
-        Event ev = Event.emptyEvent(ConnectionContext.EMPTY);
         AtomicInteger count = new AtomicInteger();
-        ThreadBuilder.get().setRunnable(() -> {
+        Thread injector = ThreadBuilder.get().setTask(() -> {
             try {
-                while(finalctx.isRunning()) {
+                while (true) {
+                    Event ev = Event.emptyEvent(ConnectionContext.EMPTY);
                     ev.put("message", count.incrementAndGet());
                     queue.offer(ev);
-                    Thread.sleep(250);
+                    Thread.sleep(50);
                 }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
@@ -98,96 +104,98 @@ public class TestZMQSender {
         ZMQ.Builder builder = ZMQ.getBuilder();
         builder.setEncoder(ToJson.getBuilder().build());
         builder.setType(Sockets.PUSH.name());
+        builder.setDestination(rendezvous);
         configure.accept(builder);
 
-        try (ZMQSink sink = sinkbuilder.build() ; ZMQ r = builder.build()) {
-            r.setInQueue(queue);
-            Assert.assertTrue(r.configure(new Properties(Collections.emptyMap())));
-            latch = new CountDownLatch(1);
-            r.start();
-            latch.await(1, TimeUnit.SECONDS);
+        Properties p = new Properties(Collections.singletonMap("zmq.keystore", Paths.get(testFolder.newFolder().getAbsolutePath(), "zmqtest.jks").toString()));
+        try (ZMQSink<String> sink = sinkbuilder.build() ; ZMQ sender = builder.build()) {
+            Thread.sleep(100);
+            sender.setInQueue(queue);
+            Assert.assertTrue(sender.configure(p));
+            latch = new CountDownLatch(4);
+            sender.start();
+            Assert.assertTrue(latch.await(2, TimeUnit.SECONDS));
         } finally {
-            ctx.terminate();
+            injector.interrupt();
         }
+        p.zSocketFactory.close();
+        String buf = received.toString();
+        Assert.assertTrue(buf, Pattern.matches(pattern, buf));
+   }
+
+    @Test(timeout=5000)
+    public void bind() throws IOException, InterruptedException, ZMQCheckedException {
+         dotest(s ->  s.setMethod(Method.CONNECT.name()),
+                s -> s.setMethod(Method.BIND),
+                "(\\{\"message\":\\d+\\})+");
     }
 
     @Test(timeout=5000)
-    public void bind() throws IOException, InterruptedException {
-        String rendezvous = "tcp://localhost:" + Tools.tryGetPort();
-        ZMQSink.Builder flowbuilder = new ZMQSink.Builder()
-                        .setMethod(Method.BIND)
-                        .setSource(rendezvous);
-        dotest(null, (s) -> {
-            s.setDestination(rendezvous);
+    public void connect() throws IOException, InterruptedException, ZMQCheckedException {
+        dotest(s ->  s.setMethod(Method.BIND.name()),
+               s -> s.setMethod(Method.CONNECT),
+               "(\\{\"message\":\\d+\\})+");
+    }
+
+    @Test(timeout=5000)
+    public void batch() throws IOException, InterruptedException, ZMQCheckedException {
+        dotest((s) -> {
             s.setMethod(Method.CONNECT.name());
-        }, flowbuilder);
+            s.setBatchSize(2);
+        }, s -> s.setMethod(Method.BIND), "(\\[\\{\"message\":\\d+\\},\\{\"message\":\\d+\\}\\])+");
     }
 
-    @Test(timeout=5000)
-    public void connect() throws IOException, InterruptedException {
-        String rendezvous = "tcp://localhost:" + Tools.tryGetPort();
-        ZMQSink.Builder flowbuilder = new ZMQSink.Builder()
-                        .setMethod(Method.CONNECT)
-                        .setSource(rendezvous);
-        dotest(null, (s) -> {
-            s.setDestination(rendezvous);
-            s.setMethod(Method.BIND.name());
-        }, flowbuilder);
-    }
+//    @Test(timeout=5000)
+//    public void curveClient() throws IOException, InterruptedException, ZMQCheckedException {
+//        Path keyPubpath = Paths.get(testFolder.getRoot().getPath(), "secure", "zmqtest.pub");
+//        String keyPub;
+//        try (ByteArrayOutputStream pubkeyBuffer = new ByteArrayOutputStream()) {
+//            Files.copy(keyPubpath, pubkeyBuffer);
+//            keyPub = new String(pubkeyBuffer.toByteArray(), StandardCharsets.UTF_8);
+//        }
+//
+//        String rendezvous = "tcp://localhost:" + Tools.tryGetPort();
+//        ZMQSink.Builder flowbuilder = ZMQSink.getBuilder()
+//                        .setMethod(Method.CONNECT)
+//                        .setSource(rendezvous)
+//                        .setSecurity("Curve")
+//                        .setPrivateKey(serverKeys[1])
+//                        .setPublicKey(serverKeys[0]);
+//
+//        dotest((s) -> {
+//            s.setDestination(rendezvous);
+//            s.setMethod(Method.BIND.name());
+//            s.setServerKey("Curve "+ Base64.getEncoder().encodeToString(serverKeys[0]));
+//        }, flowbuilder, Mechanisms.CURVE, "(\\{\"message\":\\d+\\})+");
+//    }
 
     @Test(timeout=5000)
-    public void curveClient() throws IOException, InterruptedException {
-        Map<String, Object> props = new HashMap<>();
-        props.put("keystore", Paths.get(testFolder.getRoot().getAbsolutePath(), "zmqtest.jks").toAbsolutePath().toString());
-        props.put("numSocket", 2);
-
-        SmartContext ctx = SmartContext.build(props);
-
-        Curve curve = new Curve();
-        byte[][] serverKeys = curve.keypair();
-
-        String rendezvous = "tcp://localhost:" + Tools.tryGetPort();
-        ZMQSink.Builder flowbuilder = new ZMQSink.Builder()
-                        .setMethod(Method.CONNECT)
-                        .setSource(rendezvous)
-                        .setSecurity("Curve")
-                        .setPrivateKey(serverKeys[1])
-                        .setPublicKey(serverKeys[0]);
-
-        dotest(ctx, (s) -> {
-            s.setDestination(rendezvous);
+    public void curveServer() throws IOException, InterruptedException, ZMQCheckedException {
+        Path keyPubpath = Paths.get(testFolder.getRoot().getPath(), "secure", "zmqtest.pub");
+        String keyPub;
+        try (ByteArrayOutputStream pubkeyBuffer = new ByteArrayOutputStream()) {
+            Files.copy(keyPubpath, pubkeyBuffer);
+            keyPub = new String(pubkeyBuffer.toByteArray(), StandardCharsets.UTF_8);
+        }
+        dotest(s -> {
             s.setMethod(Method.BIND.name());
+            s.setServerKey(keyPub);
             s.setSecurity("Curve");
-            s.setServerKey("Curve "+ Base64.getEncoder().encodeToString(serverKeys[0]));
-        }, flowbuilder);
+        },
+        s -> s.setMethod(Method.CONNECT).setKeyEntry(tctxt.getFactory().getKeyEntry()).setServerKey(keyPub).setSecurity("Curve"),
+        "(\\{\"message\":\\d+\\})+");
     }
 
-    @Test(timeout=5000)
-    public void curveServer() throws IOException, InterruptedException {
-        Map<String, Object> props = new HashMap<>();
-        props.put("keystore", Paths.get(testFolder.getRoot().getAbsolutePath(), "zmqtest.jks").toAbsolutePath().toString());
-        props.put("numSocket", 2);
-        SmartContext ctx = SmartContext.build(props);
-
-        ByteArrayOutputStream pubkeyBuffer = new ByteArrayOutputStream();
-        Files.copy( Paths.get(testFolder.getRoot().getAbsolutePath(), "zmqtest.pub").toAbsolutePath(), pubkeyBuffer);
-        Curve curve = new Curve();
-        byte[][] serverKeys = curve.keypair();
-
-        String rendezvous = "tcp://localhost:" + Tools.tryGetPort();
-        ZMQSink.Builder flowbuilder = new ZMQSink.Builder()
-                        .setMethod(Method.CONNECT)
-                        .setSource(rendezvous)
-                        .setSecurity("Curve")
-                        .setPrivateKey(serverKeys[1])
-                        .setPublicKey(serverKeys[0])
-                        .setServerKey(new String(pubkeyBuffer.toByteArray(), StandardCharsets.UTF_8));
-
-        dotest(ctx, (s) -> {
-            s.setDestination(rendezvous);
-            s.setMethod(Method.BIND.name());
-            s.setSecurity("Curve");
-        }, flowbuilder);
+    @Test
+    public void testBeans() throws ClassNotFoundException, IntrospectionException {
+        BeanChecks.beansCheck(logger, "loghub.senders.ZMQ"
+                              ,BeanInfo.build("method", String.class)
+                              ,BeanInfo.build("destination", String.class)
+                              ,BeanInfo.build("type", String.class)
+                              ,BeanInfo.build("hwm", Integer.TYPE)
+                              ,BeanInfo.build("serverKey", String.class)
+                              ,BeanInfo.build("security", String.class)
+                        );
     }
 
 }

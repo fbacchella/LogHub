@@ -16,11 +16,9 @@ import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.zeromq.SocketType;
-import org.zeromq.ZMQ.Error;
 import org.zeromq.ZMQ.Socket;
-import org.zeromq.ZPoller;
 
-import loghub.ContextRule;
+import loghub.ZMQFactory;
 import loghub.Event;
 import loghub.LogUtils;
 import loghub.Tools;
@@ -28,6 +26,7 @@ import loghub.ZMQFlow;
 import loghub.ZMQSink;
 import loghub.receivers.Receiver;
 import loghub.senders.Sender;
+import loghub.zmq.ZMQCheckedException;
 import loghub.zmq.ZMQHelper.Method;
 
 public class TestWithZMQ {
@@ -35,7 +34,7 @@ public class TestWithZMQ {
     private static Logger logger;
 
     @Rule
-    public ContextRule tctxt = new ContextRule();
+    public ZMQFactory tctxt = new ZMQFactory();
 
     @BeforeClass
     static public void configure() throws IOException {
@@ -46,23 +45,16 @@ public class TestWithZMQ {
 
     private CountDownLatch latch;
 
-    public boolean process(Socket socket, int eventMask) {
-        while ((socket.getEvents() & ZPoller.IN) != 0) {
-            String received = socket.recvStr();
-            logger.trace("received {}", received);
-            latch.countDown();
-            if (received == null) {
-                Error error = Error.findByCode(socket.errno());
-                logger.error("error with ZSocket {}: {}", socket, error.getMessage());
-                return false;
-            }
-        }
-        return true;
+    public String process(Socket socket) {
+        String received = socket.recvStr();
+        logger.trace("received {}", received);
+        latch.countDown();
+        return received;
     }
 
     @Ignore
     @Test(timeout=3000) 
-    public void testSimpleInput() throws InterruptedException, ConfigException, IOException, ExecutionException {
+    public void testSimpleInput() throws InterruptedException, ConfigException, IOException, ExecutionException, ZMQCheckedException {
         latch = new CountDownLatch(1);
 
         Properties conf = Tools.loadConf("simpleinput.conf");
@@ -84,17 +76,19 @@ public class TestWithZMQ {
                         .setType(SocketType.PUB)
                         .setSource(() -> String.format("message %s", count.incrementAndGet()).getBytes(StandardCharsets.UTF_8))
                         .setMsPause(250)
-                        .setCtx(tctxt.ctx);
+                        .setZmqFactory(tctxt.getFactory())
+                        ;
 
-        ZMQSink.Builder sinkbuilder = new ZMQSink.Builder()
-                        .setMethod(Method.CONNECT)
-                        .setType(SocketType.SUB)
-                        .setTopic(new byte[] {})
-                        .setSource("inproc://sender")
-                        .setLocalhandler(this::process)
-                        .setCtx(tctxt.ctx);
+        ZMQSink.Builder<String> sinkbuilder = ZMQSink.getBuilder();
+        sinkbuilder.setMethod(Method.CONNECT)
+                   .setType(SocketType.SUB)
+                   .setTopic(new byte[] {})
+                   .setSource("inproc://sender")
+                   .setReceive(this::process)
+                   .setZmqFactory(tctxt.getFactory())
+                   ;
 
-        try (ZMQSink receiver = sinkbuilder.build();
+        try (ZMQSink<String> receiver = sinkbuilder.build();
              ZMQFlow sender = flowbuilder.build();
             ) {
             Event received = conf.mainQueue.poll(1, TimeUnit.SECONDS);

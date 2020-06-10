@@ -1,28 +1,30 @@
 package loghub;
 
-import java.io.Closeable;
 import java.io.IOException;
-import java.util.function.BiFunction;
+import java.security.KeyStore.PrivateKeyEntry;
+import java.security.cert.Certificate;
+import java.util.function.Function;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.zeromq.SocketType;
-import org.zeromq.ZMQ.Error;
 import org.zeromq.ZMQ.Socket;
 import org.zeromq.ZPoller;
 
-import loghub.zmq.SmartContext;
+import loghub.zmq.ZMQCheckedException;
 import loghub.zmq.ZMQHandler;
+import loghub.zmq.ZMQHelper;
 import loghub.zmq.ZMQHelper.Method;
+import loghub.zmq.ZMQSocketFactory;
 import lombok.Setter;
 import lombok.experimental.Accessors;
 
 @Accessors(chain=true)
-public class ZMQSink implements Closeable {
+public class ZMQSink<M> extends Thread implements AutoCloseable {
 
     private static final Logger logger = LogManager.getLogger();
 
-    public static class Builder {
+    public static class Builder<M> {
         @Setter
         private String source = "tcp://localhost:2120";
         @Setter
@@ -34,31 +36,31 @@ public class ZMQSink implements Closeable {
         @Setter
         private String serverKey = null;
         @Setter
-        private byte[] privateKey = null;
-        @Setter
-        private byte[] publicKey = null;
+        PrivateKeyEntry keyEntry = null;
         @Setter
         private String security = null;
         @Setter
-        private SmartContext ctx;
+        private ZMQSocketFactory zmqFactory = null;
         @Setter
-        private BiFunction<Socket, Integer, Boolean> localhandler = null;
+        Function<Socket, M> receive = null;
         @Setter
         byte[] topic = null;
 
-        public ZMQSink build() {
-            return new ZMQSink(this);
+        private Builder() {};
+        public ZMQSink<M> build() {
+            return new ZMQSink<M>(this);
         }
     }
 
-    public volatile boolean running = false;
-    public final Thread eventSink;
-    private final ZMQHandler handler;
-    private final String source;
-    private Runnable handlerstopper = () -> {}; // Default to empty, don' fail on crossed start/stop
+    public static <M> Builder<M> getBuilder() {
+        return new Builder<M>();
+    }
 
-    private ZMQSink(Builder builder) {
-        this.handler = new ZMQHandler.Builder()
+    public volatile boolean running = false;
+    private final ZMQHandler<M> handler;
+
+    private ZMQSink(Builder<M> builder) {
+        handler = new ZMQHandler.Builder<M>()
                         .setHwm(builder.hwm)
                         .setSocketUrl(builder.source)
                         .setMethod(builder.method)
@@ -66,44 +68,46 @@ public class ZMQSink implements Closeable {
                         .setTopic(builder.topic)
                         .setLogger(logger)
                         .setName("ZMQSink")
-                        .setLocalHandler(builder.localhandler != null ? builder.localhandler: this::process)
+                        .setReceive(builder.receive)
                         .setMask(ZPoller.IN)
                         .setSecurity(builder.security)
-                        .setPrivateKey(builder.privateKey)
-                        .setPublicKey(builder.publicKey)
-                        .setServerKeyToken(builder.serverKey)
+                        .setKeyEntry(builder.keyEntry)
+                        .setServerPublicKeyToken(builder.serverKey)
+                        .setZfactory(builder.zmqFactory)
+                        .setEventCallback(ZMQHelper.getEventLogger(logger))
                         .build();
-        this.source = builder.source;
-        eventSink = ThreadBuilder.get().setTask(() -> {
-            ZMQSink.this.run();
-        }).setDaemon(false).setName("Sink").build(true);
+        setDaemon(true);
+        setName("Sink");
+        start();
     }
 
-    private void run() {
-        handlerstopper = handler.getStopper();
-        handler.run();
+    public Certificate getPublicKey() {
+        return handler.getCertificate();
+    }
+
+    public void run() {
+        try {
+            handler.start();
+            logger.debug("Sink started");
+            while (handler.isRunning()) {
+                logger.trace("Sink loop");
+                handler.dispatch(null);
+            }
+        } catch (ZMQCheckedException ex) {
+            logger.error("Failed handler dispatch", ex);
+        } finally {
+            handler.close();
+        }
     }
 
     @Override
-    public synchronized void close() throws IOException {
-        handlerstopper.run();
-        try {
-            eventSink.join();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
+    public synchronized void close() throws IOException, ZMQCheckedException {
+       handler.stopRunning();
     }
 
-    public boolean process(Socket socket, int eventMask) {
-        while ((socket.getEvents() & ZPoller.IN) != 0 && handler.isRunning()) {
-            byte[] received = socket.recv();
-            if (received == null) {
-                Error error = Error.findByCode(socket.errno());
-                logger.error("error with ZSocket {}: {}", source, error.getMessage());
-                return false;
-            }
-        }
-        return true;
+    @Override
+    public void interrupt() {
+        handler.interrupt(this, super::interrupt);
     }
 
 }

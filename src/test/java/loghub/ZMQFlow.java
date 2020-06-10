@@ -1,27 +1,26 @@
 package loghub;
 
-import java.io.Closeable;
 import java.io.IOException;
+import java.security.KeyStore.PrivateKeyEntry;
 import java.util.function.BiFunction;
 import java.util.function.Supplier;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.zeromq.SocketType;
-import org.zeromq.ZMQ;
 import org.zeromq.ZMQ.Socket;
 import org.zeromq.ZPoller;
 
-import loghub.zmq.SmartContext;
 import loghub.zmq.ZMQCheckedException;
 import loghub.zmq.ZMQHandler;
+import loghub.zmq.ZMQHelper;
 import loghub.zmq.ZMQHelper.Method;
+import loghub.zmq.ZMQSocketFactory;
 import lombok.Setter;
 import lombok.experimental.Accessors;
-import zmq.ZError;
 
 @Accessors(chain=true)
-public class ZMQFlow implements Closeable {
+public class ZMQFlow extends Thread implements AutoCloseable {
 
     private static final Logger logger = LogManager.getLogger();
 
@@ -37,19 +36,17 @@ public class ZMQFlow implements Closeable {
         @Setter
         private String serverKey = null;
         @Setter
-        private byte[] privateKey = null;
-        @Setter
-        private byte[] publicKey = null;
+        PrivateKeyEntry keyEntry = null;
         @Setter
         private String security = null;
-        @Setter
-        private SmartContext ctx;
         @Setter 
         private Supplier<byte[]> source;
         @Setter
         private int msPause;
         @Setter
         private BiFunction<Socket, Integer, Boolean> localhandler = null;
+        @Setter
+        private ZMQSocketFactory zmqFactory = null;
 
         public ZMQFlow build() {
             return new ZMQFlow(this);
@@ -57,60 +54,42 @@ public class ZMQFlow implements Closeable {
     }
 
     public volatile boolean running = false;
-    private final SmartContext ctx = SmartContext.getContext();
     private final Supplier<byte[]> source;
     private int msPause;
-    private final Thread eventSource;
-    private final ZMQHandler handler;
+    private final ZMQHandler<byte[]> handler;
 
     private ZMQFlow(Builder builder) {
-        this.handler = new ZMQHandler.Builder()
+        this.handler = new ZMQHandler.Builder<byte[]>()
                         .setHwm(builder.hwm)
                         .setSocketUrl(builder.destination)
                         .setMethod(builder.method)
                         .setType(builder.type)
                         .setLogger(logger)
                         .setName("ZMQSink")
-                        .setLocalHandler(null)
-                        .setMask(ZPoller.IN)
+                        .setSend(Socket::send)
+                        .setMask(ZPoller.OUT)
                         .setSecurity(builder.security)
-                        .setPrivateKey(builder.privateKey)
-                        .setPublicKey(builder.publicKey)
-                        .setServerKeyToken(builder.serverKey)
+                        .setKeyEntry(builder.keyEntry)
+                        .setServerPublicKeyToken(builder.serverKey)
+                        .setZfactory(builder.zmqFactory)
+                        .setEventCallback(ZMQHelper.getEventLogger(logger))
                         .build();
 
         this.source = builder.source;
         this.msPause = builder.msPause;
-        eventSource = ThreadBuilder.get().setTask(() -> {
-            try {
-                ZMQFlow.this.run();
-            } catch (ZMQCheckedException e) {
-                e.getCause();
-            }
-        }).setDaemon(false).setName("EventSource").build(true);
+        setDaemon(true);
+        setName("EventSource");
+        start();
     }
 
-    private void run() throws ZMQCheckedException {
+    public void run() {
         logger.debug("flow started");
-        Socket socket = null;
         try {
-            socket = handler.getSocket();
+            handler.start();
             running = true;
-            while (running && ctx.isRunning()) {
+            while (running) {
                 byte[] message = source.get();
-                synchronized (this) {
-                    if (running && ctx.isRunning()) {
-                        boolean sent = socket.send(message, ZMQ.DONTWAIT);
-                        if (! sent && socket.errno() != ZError.EAGAIN) {
-                            ZMQ.Error error = ZMQ.Error.findByCode(socket.errno());
-                            logger.error("send failed : {}", error.getMessage());
-                        } else if (! sent ){
-                            logger.debug("send: retry");
-                        } else {
-                            logger.trace("send: OK");
-                        }
-                    }
-                }
+                handler.dispatch(message);
                 try {
                     Thread.sleep(msPause);
                 } catch (InterruptedException e) {
@@ -118,26 +97,17 @@ public class ZMQFlow implements Closeable {
                     Thread.interrupted();
                 }
             } 
+        } catch (ZMQCheckedException ex) {
+            logger.error("Failed handler dispatch", ex);
         } finally {
-            try {
-                handler.close();
-            } catch (IOException e) {
-            }
-            if (socket != null) {
-                ctx.close(socket);
-            }
-            ctx.terminate();
+            handler.close();
         }
     }
 
     @Override
-    public synchronized void close() throws IOException {
+    public synchronized void close() throws IOException, ZMQCheckedException {
         running = false;
-        try {
-            eventSource.join();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
+        handler.stopRunning();
     }
 
 }

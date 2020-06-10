@@ -45,7 +45,7 @@ public class TestIntegrated {
     private static Logger logger ;
 
     @Rule
-    public ContextRule tctxt = new ContextRule();
+    public ZMQFactory tctxt = new ZMQFactory();
 
     @BeforeClass
     static public void configure() throws IOException {
@@ -73,8 +73,8 @@ public class TestIntegrated {
         JmxTimerMBean allevents_timer = JMX.newMBeanProxy(mbs, new ObjectName("metrics:name=Allevents.timer"), JmxTimerMBean.class);
         JmxCounterMBean allevents_inflight = JMX.newMBeanProxy(mbs, new ObjectName("metrics:name=Allevents.inflight"), JmxCounterMBean.class);
 
-        try (Socket sender = tctxt.ctx.newSocket(Method.CONNECT, SocketType.PUSH, "inproc://listener");
-             Socket receiver = tctxt.ctx.newSocket(Method.CONNECT, SocketType.PULL, "inproc://sender");) {
+        try (Socket sender = tctxt.getFactory().getBuilder(Method.CONNECT, SocketType.PUSH, "inproc://listener").build();
+             Socket receiver = tctxt.getFactory().getBuilder(Method.CONNECT, SocketType.PULL, "inproc://sender").build();) {
             sender.setHWM(200);
             receiver.setHWM(200);
             AtomicLong send = new AtomicLong();
@@ -82,7 +82,7 @@ public class TestIntegrated {
                 @Override
                 public void run() {
                     try {
-                        for (int i=0 ; i < 100 && tctxt.ctx.isRunning() ; i++) {
+                        for (int i=0 ; i < 5 ; i++) {
                             sender.send("message " + i);
                             send.incrementAndGet();
                             Thread.sleep(1);
