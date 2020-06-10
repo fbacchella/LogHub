@@ -22,6 +22,7 @@ import org.apache.logging.log4j.Logger;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.zeromq.SocketType;
@@ -59,7 +60,8 @@ public class TestIntegrated {
         JmxService.stop();
     }
 
-    @Test(timeout=10000)
+    @Ignore
+    @Test
     public void runStart() throws ConfigException, IOException, InterruptedException, IntrospectionException, InstanceNotFoundException, MalformedObjectNameException, ReflectionException, ZMQCheckedException {
         loghub.Stats.reset();
         String conffile = Configuration.class.getClassLoader().getResource("test.conf").getFile();
