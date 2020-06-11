@@ -10,6 +10,7 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLConnection;
 import java.net.UnknownHostException;
+import java.nio.channels.ClosedChannelException;
 import java.nio.charset.IllegalCharsetNameException;
 import java.nio.charset.UnsupportedCharsetException;
 import java.nio.file.DirectoryStream;
@@ -34,6 +35,7 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import javax.activation.MimetypesFileTypeMap;
+import javax.net.ssl.SSLHandshakeException;
 
 import org.apache.logging.log4j.Logger;
 
@@ -328,7 +330,7 @@ public final class Helpers {
     }
 
     /**
-     * It tries to extract a meaningfull message for any exception
+     * It tries to extract a meaningful message for any exception
      * @param t
      * @return
      */
@@ -352,6 +354,11 @@ public final class Helpers {
             message = "Illegal charset name: " + t.getMessage();
         } else if (t instanceof UnsupportedCharsetException) {
             message = "Unsupported charset name: " + t.getMessage();
+        } else if (t instanceof ClosedChannelException) {
+            message = "Closed channel";
+        } else if (t instanceof SSLHandshakeException) {
+            // SSLHandshakeException is a chain of the same message, keep the last one
+            builder.setLength(0);
         } else if (message == null) {
             message = t.getClass().getSimpleName();
         }
