@@ -341,17 +341,22 @@ public abstract class Receiver extends Thread implements Iterator<Event>, Closea
      * @param event
      */
     protected final boolean send(Event event) {
-        count.mark();
-        logger.debug("new event: {}", event);
-        Stats.received.incrementAndGet();
-        if(! event.inject(pipeline, outQueue, blocking)) {
-            event.end();
-            Stats.pipelineHanding(pipeline.getName(), PipelineStat.BLOCKIN);
-            Stats.newBlockedError("Listener " + getName() + " sending to " + pipeline.getName());
-            logger.debug("send failed from {}, pipeline destination {} blocked", () -> getName(), () -> pipeline.getName());
+        if (event == null) {
+            logger.debug("Received a null event");
             return false;
         } else {
-            return true;
+            count.mark();
+            logger.debug("new event: {}", event);
+            Stats.received.incrementAndGet();
+            if(! event.inject(pipeline, outQueue, blocking)) {
+                event.end();
+                Stats.pipelineHanding(pipeline.getName(), PipelineStat.BLOCKIN);
+                Stats.newBlockedError("Listener " + getName() + " sending to " + pipeline.getName());
+                logger.debug("send failed from {}, pipeline destination {} blocked", () -> getName(), () -> pipeline.getName());
+                return false;
+            } else {
+                return true;
+            }
         }
     }
 
