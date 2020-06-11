@@ -54,6 +54,8 @@ public class ContextLoader {
      */
     public static SSLContext build(Map<String, Object> properties) {
         logger.debug("Configuring ssl context with {}", () -> properties);
+        System.setProperty("jdk.tls.ephemeralDHKeySize", "2048");
+        System.setProperty("jdk.tls.rejectClientInitiatedRenegotiation", "true");
         SSLContext newCtxt = null;
         try {
             String sslContextName = properties.getOrDefault("context", "TLS").toString();

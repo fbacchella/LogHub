@@ -5,9 +5,11 @@ import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.security.GeneralSecurityException;
 import java.security.Principal;
+import java.util.Arrays;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
+import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLPeerUnverifiedException;
 import javax.net.ssl.SSLSession;
 import javax.security.auth.login.FailedLoginException;
@@ -185,6 +187,15 @@ public abstract class NettyIpServer<CF extends ComponentFactory<BS, BSC, InetSoc
         } else {
             engine = sslctx.createSSLEngine();
         }
+
+        SSLParameters params = engine.getSSLParameters();
+        String[] protocols = Arrays.stream(params.getProtocols()).filter(s -> ! s.startsWith("SSL")).filter(s -> ! "TLSv1".equals(s)).filter(s -> ! "TLSv1.1".equals(s)).toArray(String[]::new);
+        params.setProtocols(protocols);
+        String[] cipherSuites = Arrays.stream(params.getCipherSuites()).filter(s -> ! s.contains("CBC")).toArray(String[]::new);
+        params.setCipherSuites(cipherSuites);
+        params.setUseCipherSuitesOrder(true);
+        engine.setSSLParameters(params);
+
         engine.setUseClientMode(false);
         sslClientAuthentication.configureEngine(engine);
         return engine;
