@@ -19,6 +19,7 @@ import org.zeromq.SocketType;
 import org.zeromq.UncheckedZMQException;
 import org.zeromq.ZMQ.Event;
 import org.zeromq.ZMQ.Socket;
+import org.zeromq.ZMonitor;
 import org.zeromq.ZPoller;
 
 import loghub.AbstractBuilder;
@@ -74,7 +75,8 @@ public class ZMQHandler<M> implements AutoCloseable {
         BiFunction<Socket, M, Boolean> send = null;
         @Setter
         BiConsumer<Socket, Event> eventCallback = null;
-
+        @Setter
+        boolean selfLogEvents = false;
 
         public Builder<M> setServerPublicKeyToken(String serverKeyToken) {
             this.serverPublicKey = serverKeyToken != null ? ZMQHelper.parseServerIdentity(serverKeyToken) : null;
@@ -119,7 +121,11 @@ public class ZMQHandler<M> implements AutoCloseable {
         this.zfactory = builder.zfactory;
         this.send = builder.send;
         this.receive = builder.receive;
-        this.eventCallback = builder.eventCallback;
+        if (builder.selfLogEvents) {
+            this.eventCallback = this::logEvent;
+        } else {
+            this.eventCallback = builder.eventCallback;
+        }
         // Socket creation is delayed
         // So the socket is created in the using thread
         makeThreadLocal = () -> {
@@ -155,7 +161,7 @@ public class ZMQHandler<M> implements AutoCloseable {
             logger.trace("Socket end pair will be {}", socketEndPair);
             pooler.register(socket, mask | ZPoller.ERR);
             pooler.register(socketEndPair, ZPoller.IN | ZPoller.ERR);
-            if (eventCallback != null) {
+            if (eventCallback != null || builder.selfLogEvents) {
                 pooler.register(socketMonitor, ZPoller.IN | ZPoller.ERR);
             }
             running = true;
@@ -228,7 +234,7 @@ public class ZMQHandler<M> implements AutoCloseable {
                     }
                     if ((sEvents & ZPoller.IN) != 0) {
                         logEvent("Message signal", socket, sEvents);
-                        M received = this.receive.apply(socket);
+                        M received = receive.apply(socket);
                         if (received == null) {
                             throw new ZMQCheckedException(socket.errno());
                         } else {
@@ -325,4 +331,17 @@ public class ZMQHandler<M> implements AutoCloseable {
         return zfactory.getKeyEntry().getCertificate();
     }
 
+    public void logEvent(Socket s, Event e) {
+        ZMonitor.Event evType = ZMonitor.Event.findByCode(e.getEvent());
+        if (e.isError() && evType == ZMonitor.Event.HANDSHAKE_FAILED_PROTOCOL) {
+            logger.error("Socket {} {}: {}", () -> socketUrl, () -> evType, () -> e.resolveValue());
+        } else if (e.isError()) {
+            logger.warn("Socket {} {}: {}", () -> socketUrl, () -> evType, () -> e.resolveValue());
+        } else if (e.isWarn()) {
+            logger.warn("Socket {} {}: {}", () -> socketUrl, () -> evType, () -> e.resolveValue());
+        } else {
+            logger.debug("Socket {} {}: {}", () -> socketUrl, () -> evType, () -> e.resolveValue());
+        }
+    }
+ 
 }

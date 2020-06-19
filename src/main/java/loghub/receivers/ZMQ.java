@@ -61,6 +61,7 @@ public class ZMQ extends Receiver {
                 .setTopic(builder.topic.getBytes(StandardCharsets.UTF_8))
                 .setServerPublicKeyToken(builder.serverKey)
                 .setLogger(logger)
+                .setSelfLogEvents(true)
                 .setName("zmqhandler:" + getReceiverName())
                 .setReceive(Socket::recv)
                 .setMask(ZPoller.IN)
