@@ -138,10 +138,13 @@ public class ZMQHandler<M> implements AutoCloseable {
                                           .orElse(Mechanisms.NULL);
             switch (security) {
             case CURVE: 
-                logger.trace("Activating Curve security on a socket");
+                logger.debug("Activating Curve security on socket {}", socketUrl);
                 sbuilder.setCurveKeys(Optional.ofNullable(builder.keyEntry).orElse(zfactory.getKeyEntry()));
+                sbuilder.setCurveClient(builder.serverPublicKey);
+                sbuilder.setSecurity(security);
                 break;
             case NULL:
+                logger.debug("Activating Null security on socket {}", socketUrl);
                 break;
             default:
                 throw new IllegalArgumentException("Security  "+ builder.security + "not handled");

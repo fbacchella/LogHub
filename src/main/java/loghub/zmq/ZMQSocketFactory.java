@@ -113,6 +113,7 @@ public class ZMQSocketFactory implements AutoCloseable {
         if (zmqKeyStore != null) {
             try {
                 keyEntry = checkKeyStore(zmqKeyStore);
+                logger.debug("Using key store {}", zmqKeyStore);
             } catch (KeyStoreException | NoSuchAlgorithmException
                             | CertificateException | InvalidKeySpecException
                             | UnrecoverableEntryException | IOException | InvalidKeyException ex) {
