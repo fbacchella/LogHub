@@ -3,6 +3,7 @@ package loghub.senders;
 import java.beans.IntrospectionException;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -77,6 +78,8 @@ public class TestZMQSender {
         received.setLength(0);
         ZMQSocketFactory ctx = tctxt.getFactory();
 
+        Properties p = new Properties(Collections.singletonMap("zmq.keystore", Paths.get(testFolder.newFolder("server").getAbsolutePath(), "zmqtest.jks").toString()));
+
         String rendezvous = "tcp://localhost:" + Tools.tryGetPort();
 
         ZMQSink.Builder<String> sinkbuilder = ZMQSink.getBuilder();
@@ -107,7 +110,6 @@ public class TestZMQSender {
         builder.setDestination(rendezvous);
         configure.accept(builder);
 
-        Properties p = new Properties(Collections.singletonMap("zmq.keystore", Paths.get(testFolder.newFolder().getAbsolutePath(), "zmqtest.jks").toString()));
         try (ZMQSink<String> sink = sinkbuilder.build() ; ZMQ sender = builder.build()) {
             Thread.sleep(100);
             sender.setInQueue(queue);
@@ -144,57 +146,49 @@ public class TestZMQSender {
             s.setBatchSize(2);
         }, s -> s.setMethod(Method.BIND), "(\\[\\{\"message\":\\d+\\},\\{\"message\":\\d+\\}\\])+");
     }
+    
+    private String getRemoteIdentity(String dir) {
+        try {
+            Path keyPubpath = Paths.get(testFolder.getRoot().getPath(), dir, "zmqtest.pub");
+            try (ByteArrayOutputStream pubkeyBuffer = new ByteArrayOutputStream()) {
+                Files.copy(keyPubpath, pubkeyBuffer);
+                return new String(pubkeyBuffer.toByteArray(), StandardCharsets.UTF_8);
+            }
+        } catch (IOException ex) {
+            throw new UncheckedIOException(ex);
+        }
+    }
 
-//    @Test(timeout=5000)
-//    public void curveClient() throws IOException, InterruptedException, ZMQCheckedException {
-//        Path keyPubpath = Paths.get(testFolder.getRoot().getPath(), "secure", "zmqtest.pub");
-//        String keyPub;
-//        try (ByteArrayOutputStream pubkeyBuffer = new ByteArrayOutputStream()) {
-//            Files.copy(keyPubpath, pubkeyBuffer);
-//            keyPub = new String(pubkeyBuffer.toByteArray(), StandardCharsets.UTF_8);
-//        }
-//
-//        String rendezvous = "tcp://localhost:" + Tools.tryGetPort();
-//        ZMQSink.Builder flowbuilder = ZMQSink.getBuilder()
-//                        .setMethod(Method.CONNECT)
-//                        .setSource(rendezvous)
-//                        .setSecurity("Curve")
-//                        .setPrivateKey(serverKeys[1])
-//                        .setPublicKey(serverKeys[0]);
-//
-//        dotest((s) -> {
-//            s.setDestination(rendezvous);
-//            s.setMethod(Method.BIND.name());
-//            s.setServerKey("Curve "+ Base64.getEncoder().encodeToString(serverKeys[0]));
-//        }, flowbuilder, Mechanisms.CURVE, "(\\{\"message\":\\d+\\})+");
-//    }
+    @Test(timeout=5000)
+    public void curveClient() throws IOException, InterruptedException, ZMQCheckedException {
+        dotest(s -> {
+            s.setMethod(Method.BIND.name());
+            s.setSecurity("Curve");
+            s.setServerKey(getRemoteIdentity("secure"));
+        },
+               s -> s.setMethod(Method.CONNECT).setKeyEntry(tctxt.getFactory().getKeyEntry()).setSecurity("Curve"),
+                        "(\\{\"message\":\\d+\\})+");
+    }
 
     @Test(timeout=5000)
     public void curveServer() throws IOException, InterruptedException, ZMQCheckedException {
-        Path keyPubpath = Paths.get(testFolder.getRoot().getPath(), "secure", "zmqtest.pub");
-        String keyPub;
-        try (ByteArrayOutputStream pubkeyBuffer = new ByteArrayOutputStream()) {
-            Files.copy(keyPubpath, pubkeyBuffer);
-            keyPub = new String(pubkeyBuffer.toByteArray(), StandardCharsets.UTF_8);
-        }
         dotest(s -> {
             s.setMethod(Method.BIND.name());
-            s.setServerKey(keyPub);
             s.setSecurity("Curve");
         },
-        s -> s.setMethod(Method.CONNECT).setKeyEntry(tctxt.getFactory().getKeyEntry()).setServerKey(keyPub).setSecurity("Curve"),
-        "(\\{\"message\":\\d+\\})+");
+               s -> s.setMethod(Method.CONNECT).setKeyEntry(tctxt.getFactory().getKeyEntry()).setServerKey(getRemoteIdentity("server")).setSecurity("Curve"),
+                        "(\\{\"message\":\\d+\\})+");
     }
 
     @Test
     public void testBeans() throws ClassNotFoundException, IntrospectionException {
         BeanChecks.beansCheck(logger, "loghub.senders.ZMQ"
-                              ,BeanInfo.build("method", String.class)
-                              ,BeanInfo.build("destination", String.class)
-                              ,BeanInfo.build("type", String.class)
-                              ,BeanInfo.build("hwm", Integer.TYPE)
-                              ,BeanInfo.build("serverKey", String.class)
-                              ,BeanInfo.build("security", String.class)
+                              , BeanInfo.build("method", String.class)
+                              , BeanInfo.build("destination", String.class)
+                              , BeanInfo.build("type", String.class)
+                              , BeanInfo.build("hwm", Integer.TYPE)
+                              , BeanInfo.build("serverKey", String.class)
+                              , BeanInfo.build("security", String.class)
                         );
     }
 

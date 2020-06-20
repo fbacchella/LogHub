@@ -10,7 +10,6 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.stream.IntStream;
@@ -134,8 +133,6 @@ public abstract class Sender extends Thread implements Closeable {
     private final AtomicReference<Batch> batch = new AtomicReference<>();
     private final int flushInterval;
     private volatile boolean closed = false;
-    // Don't allow to stop while sending an event
-    private final Semaphore stopSemaphore = new Semaphore(1, true);
 
     public Sender(Builder<?  extends  Sender> builder) {
         filter = builder.filter;
@@ -243,11 +240,10 @@ public abstract class Sender extends Thread implements Closeable {
     }
 
     public final synchronized void stopSending() {
-        boolean locked = false;
         try {
-            stopSemaphore.acquire();
-            locked = true;
             closed = true;
+            interrupt();
+            customStopSending();
             if (isWithBatch()) {
                 List<Batch> missedBatches = new ArrayList<>();
                 // Empty the waiting batches list and put the end-of-processing mark instead
@@ -283,16 +279,7 @@ public abstract class Sender extends Thread implements Closeable {
                              + Helpers.resolveThrowableException(e), e);
                 logger.catching(Level.DEBUG, e);
             }
-            customStopSending();
-            interrupt();
-        } catch (InterruptedException ex) {
-            logger.error("Failed to stop collect: "
-                            + Helpers.resolveThrowableException(ex), ex);
-            Thread.currentThread().interrupt();
         } finally {
-            if (locked) {
-                stopSemaphore.release();
-            }
             try {
                 join();
             } catch (InterruptedException e) {
@@ -368,7 +355,6 @@ public abstract class Sender extends Thread implements Closeable {
                 break;
             }
             try {
-                stopSemaphore.acquire();
                 logger.trace("New event to send: {}", event);
                 boolean status = isWithBatch() ? queue(event): send(event);
                 if (! isAsync) {
@@ -379,14 +365,9 @@ public abstract class Sender extends Thread implements Closeable {
                     processStatus(event, status);
                 }
                 event = null;
-            } catch (InterruptedException e) {
-                interrupt();
-                break;
-            } catch (Throwable t) {
+             } catch (Throwable t) {
                 handleException(t);
                 processStatus(event, false);
-            } finally {
-                stopSemaphore.release();
             }
         }
     }

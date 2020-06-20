@@ -59,13 +59,13 @@ public class ZMQ extends Receiver {
                 .setMethod(Method.valueOf(builder.method.toUpperCase(Locale.ENGLISH)))
                 .setType(SocketType.valueOf(builder.type.toUpperCase(Locale.ENGLISH)))
                 .setTopic(builder.topic.getBytes(StandardCharsets.UTF_8))
+                .setSecurity(builder.security)
                 .setServerPublicKeyToken(builder.serverKey)
                 .setLogger(logger)
                 .setSelfLogEvents(true)
                 .setName("zmqhandler:" + getReceiverName())
                 .setReceive(Socket::recv)
                 .setMask(ZPoller.IN)
-                .setSecurity(builder.security)
                 ;
         this.listen = builder.listen;
     }
