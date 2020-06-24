@@ -209,7 +209,8 @@ class EventInstance extends Event {
 
 
     public void end() {
-        ctx.acknowledge();
+        //ctx can be null?
+        Optional.ofNullable(ctx).ifPresent(ConnectionContext::acknowledge);
         if (! test) {
             timer.close();
             executionStack.forEach(ExecutionStackElement::close);
