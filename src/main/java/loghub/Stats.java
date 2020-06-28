@@ -1,6 +1,8 @@
 package loghub;
 
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.atomic.AtomicLong;
@@ -9,30 +11,12 @@ import java.util.stream.Collectors;
 import com.codahale.metrics.MetricRegistry;
 
 import loghub.configuration.Properties;
+import loghub.receivers.Receiver;
+import loghub.senders.Sender;
 
 public final class Stats {
 
     static public enum PIPELINECOUNTERS {
-        BLOCKEDOUT {
-            @Override
-            public void instanciate(MetricRegistry metrics, String name) {
-                metrics.meter("Pipeline." + name + "." + prettyName());
-            }
-            @Override
-            public String prettyName() {
-                return "blocked.out";
-            }
-        },
-        BLOCKEDIN {
-            @Override
-            public void instanciate(MetricRegistry metrics, String name) {
-                metrics.meter("Pipeline." + name + "." + prettyName());
-            }
-            @Override
-            public String prettyName() {
-                return "blocked.in";
-            }
-        },
         LOOPOVERFLOW {
             @Override
             public void instanciate(MetricRegistry metrics, String name) {
@@ -125,8 +109,6 @@ public final class Stats {
         LOOPOVERFLOW,
         INFLIGHTUP,
         INFLIGHTDOWN,
-        BLOCKOUT,
-        BLOCKIN,
     }
 
     private Stats() {
@@ -151,11 +133,39 @@ public final class Stats {
         senderMessages.clear();
     }
 
-    public static synchronized void newDecodError(String msg) {
+    /*
+     * Handling Receivers events
+     */
+
+    public static synchronized void newReceivedEvent(Receiver r) {
+        Properties.metrics.meter("Receiver." + r.getReceiverName() + ".count").mark();
+        Stats.received.incrementAndGet();
+    }
+
+    public static synchronized void newReceivedMessage(Receiver r, int bytes) {
+        Properties.metrics.meter("Receiver." + r.getReceiverName() + ".bytes").mark(bytes);
+    }
+
+    public static synchronized void newDecodError(Receiver r, String msg) {
+        Properties.metrics.meter("Receiver." + r.getReceiverName() + ".failedDecode").mark();
         decoderFailures.incrementAndGet();
         if (! decodeMessage.offer(msg)) {
             decodeMessage.remove();
             decodeMessage.offer(msg);
+        }
+    }
+
+    public static synchronized void newBlockedError(Receiver r) {
+        Properties.metrics.meter("Receiver." + r.getReceiverName() + ".blocked").mark();
+        blocked.incrementAndGet();
+    }
+
+    public static synchronized void newReceivedError(Receiver r, String msg) {
+        failedReceived.incrementAndGet();
+        Properties.metrics.meter("Receiver." + r.getReceiverName() + ".failed").mark();
+        if (! receiverMessages.offer(msg)) {
+            receiverMessages.remove();
+            receiverMessages.offer(msg);
         }
     }
 
@@ -175,27 +185,11 @@ public final class Stats {
         }
     }
 
-    public static synchronized void newBlockedError(String msg) {
-        blocked.incrementAndGet();
-        if (! blockedMessage.offer(msg)) {
-            blockedMessage.remove();
-            blockedMessage.offer(msg);
-        }
-    }
-
     public static synchronized void newSenderError(String msg) {
         failedSend.incrementAndGet();
         if (! senderMessages.offer(msg)) {
             senderMessages.remove();
             senderMessages.offer(msg);
-        }
-    }
-
-    public static synchronized void newReceivedError(String msg) {
-        failedReceived.incrementAndGet();
-        if (! receiverMessages.offer(msg)) {
-            receiverMessages.remove();
-            receiverMessages.offer(msg);
         }
     }
 
@@ -251,14 +245,23 @@ public final class Stats {
         case INFLIGHTDOWN:
             Properties.metrics.counter(PIPELINECOUNTERS.INFLIGHT.metricName(name)).dec();
             break;
-        case BLOCKOUT:
-            Stats.blocked.incrementAndGet();
-            Properties.metrics.meter(PIPELINECOUNTERS.BLOCKEDOUT.metricName(name)).mark();
-            break;
-        case BLOCKIN:
-            Properties.metrics.meter(PIPELINECOUNTERS.BLOCKEDIN.metricName(name)).mark();
-            break;
         }
+    }
+
+    public static void populate(MetricRegistry metrics,
+                                Collection<Receiver> receivers,
+                                Map<String, Pipeline> namedPipeLine,
+                                Collection<Sender> senders) {
+        receivers.stream().map(Receiver::getReceiverName).forEach(r -> {
+            metrics.meter("Receiver." + r + ".count");
+            metrics.meter("Receiver." + r + ".bytes");
+            metrics.meter("Receiver." + r + ".failedDecode");
+            metrics.meter("Receiver." + r + ".failed");
+        });
+        // Extracts all the named pipelines and generate metrics for them
+        namedPipeLine.keySet().stream().forEach( i -> {
+            Arrays.stream(Stats.PIPELINECOUNTERS.values()).forEach( j -> j.instanciate(metrics, i));
+        });
     }
 
 }

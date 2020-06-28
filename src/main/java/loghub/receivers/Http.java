@@ -99,7 +99,7 @@ public class Http extends AbstractHttp {
                 logger.error("Can't decode content", ex.getDecodeException());
                 throw new HttpRequestFailure(HttpResponseStatus.BAD_REQUEST, "Content invalid for decoder");
             } catch (IllegalCharsetNameException | UnsupportedCharsetException ex) {
-                Stats.newReceivedError("Can't decode HTTP content: " + Helpers.resolveThrowableException(ex));
+                Stats.newReceivedError(Http.this, "Can't decode HTTP content: " + Helpers.resolveThrowableException(ex));
                 logger.debug("Can't decode HTTP content", ex);
                 throw new HttpRequestFailure(HttpResponseStatus.BAD_REQUEST, "Content invalid for decoder");
             }

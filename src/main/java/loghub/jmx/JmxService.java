@@ -9,6 +9,7 @@ import java.security.Principal;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Hashtable;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
@@ -146,7 +147,7 @@ public class JmxService {
 
     private static void startJmxReporter(Configuration conf) {
         ObjectNameFactory donf = new DefaultObjectNameFactory();
-        Pattern pipepattern = Pattern.compile("([^\\.]+)\\.([^\\.]+)\\.(.*)");
+        Pattern pipepattern = Pattern.compile("^([^\\.]+)\\.(.+?)\\.([a-zA-z0-9]+)$");
         reporter = JmxReporter.forRegistry(conf.metrics).createsObjectNamesWith(new ObjectNameFactory() {
             @Override
             public ObjectName createName(String type, String domain, String name) {
@@ -155,8 +156,12 @@ public class JmxService {
                     String service = m.group(1);
                     String servicename = m.group(2);
                     String metric = m.group(3);
+                    Hashtable<String, String> table = new Hashtable<>(3);
+                    table.put("type", service);
+                    table.put("servicename", ObjectName.quote(servicename));
+                    table.put("name", metric);
                     try {
-                        return new ObjectName(String.format("loghub:type=%s,servicename=%s,name=%s", service, servicename, metric));
+                        return new ObjectName("loghub", table);
                     } catch (MalformedObjectNameException e) {
                         return donf.createName(type, domain, name);
                     }

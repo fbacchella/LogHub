@@ -146,6 +146,7 @@ public class SnmpTrap extends Receiver implements CommandResponder {
             logger.error("can't bind to {}: {}", listenAddress, e.getMessage());
             return false;
         }
+        transport.addTransportListener((a,b,c,d) -> Stats.newReceivedMessage(this, c.remaining()));
         snmp = new Snmp(dispatcher, transport);
         try {
             snmp.listen();

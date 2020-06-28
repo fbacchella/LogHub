@@ -61,14 +61,13 @@ public class Udp extends NettyIpReceiver<Udp,
 
     @Override
     public final boolean configure(Properties properties, UdpServer.Builder builder) {
-        builder.setBufferSize(bufferSize)
-        .setThreadPrefix("UdpNettyReceiver");
+        builder.setBufferSize(bufferSize).setThreadPrefix("UdpNettyReceiver");
         return super.configure(properties, builder);
     }
 
     @Override
     public String getReceiverName() {
-        return "UdpNettyReceiver/" + getListenAddress();
+        return "UdpNettyReceiver/" + (getHost() == null ? "*" : getHost()) + ":" + getPort();
     }
 
     @Override

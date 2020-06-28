@@ -16,8 +16,6 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import com.codahale.metrics.Meter;
-
 import loghub.AbstractBuilder;
 import loghub.ConnectionContext;
 import loghub.Event;
@@ -26,7 +24,6 @@ import loghub.FilterException;
 import loghub.Helpers;
 import loghub.Pipeline;
 import loghub.Stats;
-import loghub.Stats.PipelineStat;
 import loghub.configuration.Properties;
 import loghub.decoders.DecodeException;
 import loghub.decoders.DecodeException.RuntimeDecodeException;
@@ -92,7 +89,6 @@ public abstract class Receiver extends Thread implements Iterator<Event>, Closea
     private BlockingQueue<Event> outQueue;
     private Pipeline pipeline;
     private final boolean blocking;
-    private Meter count;
     protected final Decoder decoder;
 
     protected Receiver(Builder<?  extends Receiver> builder){
@@ -124,7 +120,6 @@ public abstract class Receiver extends Thread implements Iterator<Event>, Closea
 
     public boolean configure(Properties properties) {
         setName("receiver." + getReceiverName());
-        count = Properties.metrics.meter("receiver." + getReceiverName());
         if (decoder != null) {
             return decoder.configure(properties, this);
         } else if (getClass().getAnnotation(SelfDecoder.class) == null) {
@@ -302,6 +297,7 @@ public abstract class Receiver extends Thread implements Iterator<Event>, Closea
     }
 
     protected final Stream<Event> decodeStream(ConnectionContext<?> ctx, byte[] msg, int offset, int size) {
+        Stats.newReceivedMessage(this, size);
         try {
             byte[] buffer;
             int bufferOffset;
@@ -330,7 +326,7 @@ public abstract class Receiver extends Thread implements Iterator<Event>, Closea
     }
 
     public void manageDecodeException(DecodeException ex) {
-        Stats.newDecodError(Helpers.resolveThrowableException(ex));
+        Stats.newDecodError(this, Helpers.resolveThrowableException(ex));
         logger.debug("invalid message received: {}", ex.getMessage());
         logger.catching(Level.DEBUG, ex.getCause() != null ? ex.getCause() : ex);
     }
@@ -345,16 +341,14 @@ public abstract class Receiver extends Thread implements Iterator<Event>, Closea
             logger.debug("Received a null event");
             return false;
         } else {
-            count.mark();
-            logger.debug("new event: {}", event);
-            Stats.received.incrementAndGet();
+            logger.trace("new event: {}", event);
             if(! event.inject(pipeline, outQueue, blocking)) {
                 event.end();
-                Stats.pipelineHanding(pipeline.getName(), PipelineStat.BLOCKIN);
-                Stats.newBlockedError("Listener " + getName() + " sending to " + pipeline.getName());
+                Stats.newBlockedError(this);
                 logger.debug("send failed from {}, pipeline destination {} blocked", () -> getName(), () -> pipeline.getName());
                 return false;
             } else {
+                Stats.newReceivedEvent(this);
                 return true;
             }
         }

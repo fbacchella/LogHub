@@ -122,7 +122,7 @@ public class EventsProcessor extends Thread {
                     try {
                         outQueues.get(event.getCurrentPipeline()).put(event);
                     } catch (InterruptedException e) {
-                        event.doMetric(PipelineStat.BLOCKOUT);
+                        event.doMetric(PipelineStat.FAILURE);
                         event.end();
                         Thread.currentThread().interrupt();
                     }

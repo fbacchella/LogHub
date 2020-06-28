@@ -3,7 +3,6 @@ package loghub.configuration;
 import java.nio.file.Paths;
 import java.security.NoSuchAlgorithmException;
 import java.security.URIParameter;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -170,10 +169,8 @@ public class Properties extends HashMap<String, Object> {
             formatters = Collections.emptyMap();
         }
 
-        // Extracts all the named pipelines and generate metrics for them
-        namedPipeLine.keySet().stream().forEach( i -> {
-            Arrays.stream(Stats.PIPELINECOUNTERS.values()).forEach( j -> j.instanciate(metrics.metrics, i));
-        });
+        Stats.populate(metrics.metrics, receivers, namedPipeLine, senders);
+
         metrics.counter("Allevents.inflight");
         metrics.timer("Allevents.timer");
         metrics.histogram("Steps");

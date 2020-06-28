@@ -151,7 +151,7 @@ public class Beats extends AbstractTcpReceiver<Beats, TcpServer, TcpServer.Build
 
     @Override
     public String getReceiverName() {
-        return "BeatsReceiver/" + getListenAddress();
+        return "BeatsReceiver/" + (getHost() == null ? "*" : getHost()) + ":" + getPort();
     }
 
     @Override

@@ -87,7 +87,7 @@ public class TcpLinesStream extends AbstractTcpReceiver<TcpLinesStream, TcpServe
 
     @Override
     public String getReceiverName() {
-        return "LineReceiver/" + getListenAddress();
+        return "LineReceiver/" + (getHost() == null ? "*" : getHost()) + ":" + getPort();
     }
 
     @Override
