@@ -248,36 +248,42 @@ public abstract class Receiver extends Thread implements Iterator<Event>, Closea
 
     protected final Event mapToEvent(ConnectionContext<?> ctx, Map<String, Object> content) {
         if (content == null || content.isEmpty()) {
-            manageDecodeException(new DecodeException("received null or empty event"));
+            manageDecodeException(new DecodeException("Received null or empty event"));
             Event.emptyEvent(ctx).end();
             return null;
         } else {
             try {
+                Event newEvent;
                 if (content instanceof Event) {
-                    return (Event) content;
+                    newEvent = (Event) content;
                 } else if (content.size() == 1 && content.containsKey(Event.class.getCanonicalName())) {
                     // Special case, the message contain a loghub event, sent from another loghub
                     @SuppressWarnings("unchecked")
                     Map<String, Object> eventContent = (Map<String, Object>) content.remove(Event.class.getCanonicalName());
                     @SuppressWarnings("unchecked")
-                    Map<String, Object> fields = (Map<String, Object>)eventContent.remove("@fields");
+                    Map<String, Object> fields = (Map<String, Object>) eventContent.remove("@fields");
                     @SuppressWarnings("unchecked")
                     Map<String, Object> metas = (Map<String, Object>) eventContent.remove("@METAS");
-                    Event newEvent = Event.emptyEvent(ctx);
+                    newEvent = Event.emptyEvent(ctx);
                     newEvent.putAll(fields);
                     Optional.ofNullable(eventContent.get(Event.TIMESTAMPKEY))
                     .filter(newEvent::setTimestamp)
                     .ifPresent(ts -> eventContent.remove(Event.TIMESTAMPKEY));
                     metas.forEach((i,j) -> newEvent.putMeta(i, j));
-                    return newEvent;
                 } else {
-                    Event event = Event.emptyEvent(ctx);
+                    newEvent = Event.emptyEvent(ctx);
                     Optional.ofNullable(content.get(timeStampField))
                     .filter(i -> i instanceof Date || i instanceof Instant || i instanceof Number)
-                    .filter(event::setTimestamp)
+                    .filter(newEvent::setTimestamp)
                     .ifPresent(ts -> content.remove(timeStampField));
-                    content.entrySet().stream().forEach( i -> event.put(i.getKey(), i.getValue()));
-                    return event;
+                    content.entrySet().stream().forEach(i -> newEvent.put(i.getKey(), i.getValue()));
+                }
+                if (newEvent.getConnectionContext() == null) {
+                    Stats.newReceivedError(this, "Received an event without context");
+                    newEvent.end();
+                    return null;
+                } else {
+                    return newEvent;
                 }
             } catch (RuntimeDecodeException ex) {
                 Event.emptyEvent(ctx).end();
@@ -329,7 +335,12 @@ public abstract class Receiver extends Thread implements Iterator<Event>, Closea
      */
     protected final boolean send(Event event) {
         if (event == null) {
-            logger.debug("Received a null event");
+            manageDecodeException(new DecodeException("Received null event"));
+            Event.emptyEvent(ConnectionContext.EMPTY).end();
+            return false;
+        } else if (event.getConnectionContext() == null) {
+            Stats.newReceivedError(this, "Received an event without context");
+            event.end();
             return false;
         } else {
             logger.trace("new event: {}", event);
