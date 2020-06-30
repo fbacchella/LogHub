@@ -53,7 +53,7 @@ public abstract class Decoder {
     }
 
     protected void manageDecodeException(ConnectionContext<?> connectionContext, DecodeException ex) {
-        receiver.manageDecodeException(new DecodeException("received null or empty event"));
+        receiver.manageDecodeException(ex);
         Event.emptyEvent(connectionContext).end();
     }
 
