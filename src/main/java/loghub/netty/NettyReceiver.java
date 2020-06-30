@@ -139,7 +139,7 @@ public abstract class NettyReceiver<R extends NettyReceiver<R, S, B, CF, BS, BSC
     protected final Stream<Event> decodeStream(ConnectionContext<?> ctx, ByteBuf bbuf) {
         try {
             Stats.newReceivedMessage(this, bbuf.readableBytes());
-            return decoder.decode(ctx, bbuf).map((m) -> mapToEvent(ctx, () -> bbuf != null && bbuf.isReadable(), () -> m)).filter(Objects::nonNull);
+            return decoder.decode(ctx, bbuf).map((m) -> mapToEvent(ctx, m)).filter(Objects::nonNull);
         } catch (DecodeException ex) {
             manageDecodeException(ex);
             return Stream.empty();

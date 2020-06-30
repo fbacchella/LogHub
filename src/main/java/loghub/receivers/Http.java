@@ -89,7 +89,7 @@ public class Http extends AbstractHttp {
                 if (p != null) {
                     cctx.setPrincipal(p);
                 }
-                mapsStream.filter(Objects::nonNull).map(m -> Http.this.mapToEvent(cctx, () -> ! m.isEmpty(), () -> m)).forEach(Http.this::send);
+                mapsStream.filter(Objects::nonNull).map(m -> Http.this.mapToEvent(cctx, m)).filter(Objects::nonNull).forEach(Http.this::send);
             } catch (DecodeException ex) {
                 Http.this.manageDecodeException(ex);
                 logger.error("Can't decode content", ex);

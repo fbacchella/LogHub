@@ -246,19 +246,14 @@ public abstract class Receiver extends Thread implements Iterator<Event>, Closea
         throw new NoSuchElementException();
     }
 
-    protected final Event mapToEvent(ConnectionContext<?> ctx, java.util.function.BooleanSupplier isValid, DecodeSupplier decoder) {
-        if (! isValid.getAsBoolean()) {
+    protected final Event mapToEvent(ConnectionContext<?> ctx, Map<String, Object> content) {
+        if (content == null || content.isEmpty()) {
             manageDecodeException(new DecodeException("received null or empty event"));
             Event.emptyEvent(ctx).end();
             return null;
         } else {
             try {
-                Map<String, Object>  content = decoder.get();
-                if (content == null) {
-                    Event.emptyEvent(ctx).end();
-                    manageDecodeException(new DecodeException("Received event with no usable body"));
-                    return null;
-                } else if (content instanceof Event) {
+                if (content instanceof Event) {
                     return (Event) content;
                 } else if (content.size() == 1 && content.containsKey(Event.class.getCanonicalName())) {
                     // Special case, the message contain a loghub event, sent from another loghub
@@ -288,10 +283,6 @@ public abstract class Receiver extends Thread implements Iterator<Event>, Closea
                 Event.emptyEvent(ctx).end();
                 manageDecodeException(ex.getDecodeException());
                 return null;
-            } catch (DecodeException ex) {
-                Event.emptyEvent(ctx).end();
-                manageDecodeException(ex);
-                return null;
             }
         }
     }
@@ -311,7 +302,7 @@ public abstract class Receiver extends Thread implements Iterator<Event>, Closea
                 bufferOffset = offset;
                 bufferSize = size;
             }
-            return decoder.decode(ctx, msg, offset, size).map((m) -> mapToEvent(ctx, () -> buffer != null && bufferSize > 0 && bufferOffset < bufferSize, () -> m)).filter(Objects::nonNull);
+            return decoder.decode(ctx, buffer, bufferOffset, bufferSize).map((m) -> mapToEvent(ctx, m)).filter(Objects::nonNull);
         } catch (DecodeException ex) {
             manageDecodeException(ex);
             return Stream.of();

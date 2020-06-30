@@ -225,7 +225,7 @@ public class SnmpTrap extends Receiver implements CommandResponder {
                 .map(SnmpTrap::getPrincipal)
                 .ifPresent(ctx::setPrincipal);
             }
-            send(mapToEvent(ctx, () -> true, () -> eventMap));
+            send(mapToEvent(ctx, eventMap));
         } catch (Exception ex) {
             Stats.newUnhandledException(ex);
         } finally {
