@@ -33,6 +33,7 @@ import io.netty.util.ByteProcessor;
 import io.netty.util.ByteProcessor.IndexOfProcessor;
 import loghub.BuilderClass;
 import loghub.Event;
+import loghub.Stats;
 import loghub.decoders.DecodeException;
 import loghub.netty.AbstractHttp;
 import loghub.netty.http.ContentType;
@@ -144,6 +145,7 @@ public class Journald extends AbstractHttp {
         private void processContent(ChannelHandlerContext ctx, HttpContent chunk, List<Object> out) throws Exception {
             Journald.this.logger.trace("New journald chunk of events, length {}", () -> chunk.content().readableBytes());
             ByteBuf chunkContent = chunk.content();
+            Stats.newReceivedMessage(Journald.this, chunkContent.readableBytes());
             chunksBuffer.addComponent(true, chunkContent);
             chunkContent.retain();
             // Parse content as a journal export format event
@@ -329,7 +331,7 @@ public class Journald extends AbstractHttp {
 
     @Override
     public String getReceiverName() {
-        return "Journald";
+        return "Journald/0.0.0.0/" + getPort();
     }
 
 }

@@ -2,13 +2,19 @@ package loghub;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
+import com.codahale.metrics.Counter;
+import com.codahale.metrics.Histogram;
+import com.codahale.metrics.Meter;
+import com.codahale.metrics.Metric;
 import com.codahale.metrics.MetricRegistry;
+import com.codahale.metrics.Timer;
 
 import loghub.configuration.Properties;
 import loghub.receivers.Receiver;
@@ -83,6 +89,42 @@ public final class Stats {
             return "Pipeline." + name + "." + prettyName();
         }
     }
+    
+    private static class ArrayWrapper {
+        private final Object[] content;
+
+        private ArrayWrapper(Object[] content) {
+            this.content = content;
+        }
+
+        @Override
+        public int hashCode() {
+            return Arrays.deepHashCode(content);
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (this == obj)
+                return true;
+            if (obj == null)
+                return false;
+            if (getClass() != obj.getClass())
+                return false;
+            ArrayWrapper other = (ArrayWrapper) obj;
+            if (!Arrays.deepEquals(content, other.content))
+                return false;
+            return true;
+        }
+
+        @Override
+        public String toString() {
+            return Arrays.toString(content);
+        }
+
+    }
+
+    // A cache metrics, as calculating a metric name can be costy.
+    private final static Map<ArrayWrapper, Metric> metrics = new HashMap<>();
 
     public final static AtomicLong received = new AtomicLong();
     public final static AtomicLong dropped = new AtomicLong();
@@ -114,6 +156,40 @@ public final class Stats {
     private Stats() {
     }
 
+    @SuppressWarnings("unchecked")
+    private static <T extends Metric> T resolveMetricCache(Class<T> metricClass, Object... path) {
+        ArrayWrapper wrapper = new ArrayWrapper(path);
+        return (T) metrics.computeIfAbsent(wrapper, k -> Stats.createMetric(metricClass, k.content));
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T extends Metric> T createMetric(Class<T> metricClass, Object[] path) {
+        String metricName = null;
+        if (path[0] instanceof Receiver) {
+            StringBuilder buffer = new StringBuilder();
+            Receiver r = (Receiver) path[0];
+            buffer.append("Receiver." + r.getReceiverName());
+            buffer.append(path[1]);
+        } else if (path[0] instanceof PIPELINECOUNTERS) {
+            PIPELINECOUNTERS pc = (PIPELINECOUNTERS) path[0];
+            metricName = pc.metricName(path[1].toString());
+        } else {
+            throw new IllegalArgumentException("Unhandled metric for " + path[0]);
+        }
+        if (metricClass.isAssignableFrom(Counter.class)) {
+            Counter c = Properties.metrics.counter(metricName);
+            return (T) c;
+        } else if (metricClass.isAssignableFrom(Histogram.class)) {
+            return (T) Properties.metrics.histogram(metricName);
+        } else if (metricClass.isAssignableFrom(Meter.class)) {
+            return (T) Properties.metrics.meter(metricName);
+        } else if (metricClass.isAssignableFrom(Timer.class)) {
+            return (T) Properties.metrics.meter(metricName);
+        } else {
+            throw new IllegalArgumentException("Unhandled metric type " + metricClass.getCanonicalName());
+        }
+    }
+
     public static synchronized void reset() {
         received.set(0);
         dropped.set(0);
@@ -138,16 +214,16 @@ public final class Stats {
      */
 
     public static synchronized void newReceivedEvent(Receiver r) {
-        Properties.metrics.meter("Receiver." + r.getReceiverName() + ".count").mark();
+        resolveMetricCache(Meter.class, r, "count").mark();
         Stats.received.incrementAndGet();
     }
 
     public static synchronized void newReceivedMessage(Receiver r, int bytes) {
-        Properties.metrics.meter("Receiver." + r.getReceiverName() + ".bytes").mark(bytes);
+        resolveMetricCache(Meter.class, r, "bytes").mark(bytes);
     }
 
     public static synchronized void newDecodError(Receiver r, String msg) {
-        Properties.metrics.meter("Receiver." + r.getReceiverName() + ".failedDecode").mark();
+        resolveMetricCache(Meter.class, r, "failedDecode").mark();
         decoderFailures.incrementAndGet();
         if (! decodeMessage.offer(msg)) {
             decodeMessage.remove();
@@ -156,13 +232,13 @@ public final class Stats {
     }
 
     public static synchronized void newBlockedError(Receiver r) {
-        Properties.metrics.meter("Receiver." + r.getReceiverName() + ".blocked").mark();
+        resolveMetricCache(Meter.class, r, "blocked").mark();
         blocked.incrementAndGet();
     }
 
     public static synchronized void newReceivedError(Receiver r, String msg) {
+        resolveMetricCache(Meter.class, r, "failed").mark();
         failedReceived.incrementAndGet();
-        Properties.metrics.meter("Receiver." + r.getReceiverName() + ".failed").mark();
         if (! receiverMessages.offer(msg)) {
             receiverMessages.remove();
             receiverMessages.offer(msg);
@@ -225,25 +301,25 @@ public final class Stats {
         switch(status) {
         case FAILURE:
             Stats.newProcessorError((ProcessingException) ex);
-            Properties.metrics.meter(PIPELINECOUNTERS.FAILED.metricName(name)).mark();
+            resolveMetricCache(Meter.class, PIPELINECOUNTERS.FAILED, name).mark();
             break;
         case DROP:
             Stats.dropped.incrementAndGet();
-            Properties.metrics.meter(PIPELINECOUNTERS.DROPPED.metricName(name)).mark();
+            resolveMetricCache(Meter.class, PIPELINECOUNTERS.DROPPED, name).mark();
             break;
         case EXCEPTION:
             Stats.newUnhandledException(ex);
-            Properties.metrics.counter(PIPELINECOUNTERS.EXCEPTION.metricName(name)).inc();
+            resolveMetricCache(Counter.class, PIPELINECOUNTERS.EXCEPTION, name).inc();
             break;
         case LOOPOVERFLOW:
             Stats.loopOverflow.incrementAndGet();
-            Properties.metrics.counter(PIPELINECOUNTERS.LOOPOVERFLOW.metricName(name)).inc();
+            resolveMetricCache(Counter.class, PIPELINECOUNTERS.LOOPOVERFLOW, name).inc();
             break;
         case INFLIGHTUP:
-            Properties.metrics.counter(PIPELINECOUNTERS.INFLIGHT.metricName(name)).inc();
+            resolveMetricCache(Counter.class, PIPELINECOUNTERS.INFLIGHT, name).inc();
             break;
         case INFLIGHTDOWN:
-            Properties.metrics.counter(PIPELINECOUNTERS.INFLIGHT.metricName(name)).dec();
+            resolveMetricCache(Counter.class, PIPELINECOUNTERS.INFLIGHT, name).dec();
             break;
         }
     }
@@ -257,6 +333,7 @@ public final class Stats {
             metrics.meter("Receiver." + r + ".bytes");
             metrics.meter("Receiver." + r + ".failedDecode");
             metrics.meter("Receiver." + r + ".failed");
+            metrics.meter("Receiver." + r + ".blocked");
         });
         // Extracts all the named pipelines and generate metrics for them
         namedPipeLine.keySet().stream().forEach( i -> {

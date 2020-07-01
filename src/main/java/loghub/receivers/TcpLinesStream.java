@@ -9,6 +9,7 @@ import io.netty.channel.ServerChannel;
 import io.netty.handler.codec.LineBasedFrameDecoder;
 import io.netty.util.CharsetUtil;
 import loghub.BuilderClass;
+import loghub.Helpers;
 import loghub.configuration.Properties;
 import loghub.decoders.StringCodec;
 import loghub.netty.AbstractTcpReceiver;
@@ -87,7 +88,7 @@ public class TcpLinesStream extends AbstractTcpReceiver<TcpLinesStream, TcpServe
 
     @Override
     public String getReceiverName() {
-        return "LineReceiver/" + (getHost() == null ? "*" : getHost()) + ":" + getPort();
+        return "LineReceiver/" + Helpers.ListenString(getHost()) + "/" + getPort();
     }
 
     @Override

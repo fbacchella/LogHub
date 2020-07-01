@@ -47,6 +47,7 @@ import org.snmp4j.util.ThreadPool;
 import fr.jrds.snmpcodec.OIDFormatter;
 import loghub.BuilderClass;
 import loghub.ConnectionContext;
+import loghub.Helpers;
 import loghub.IpConnectionContext;
 import loghub.Stats;
 import loghub.configuration.Properties;
@@ -361,7 +362,7 @@ public class SnmpTrap extends Receiver implements CommandResponder {
 
     @Override
     public String getReceiverName() {
-        return "SnmpTrap";
+        return "SnmpTrap/" + Helpers.ListenString(listen) + "/" + getPort();
     }
 
 }

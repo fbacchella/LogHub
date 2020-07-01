@@ -53,6 +53,7 @@ public class ZMQ extends Receiver {
 
     protected ZMQ(Builder builder) {
         super(builder);
+        this.listen = builder.listen;
         hbuilder = new ZMQHandler.Builder<>();
         hbuilder.setHwm(builder.hwm)
                 .setSocketUrl(builder.listen)
@@ -63,11 +64,10 @@ public class ZMQ extends Receiver {
                 .setServerPublicKeyToken(builder.serverKey)
                 .setLogger(logger)
                 .setSelfLogEvents(true)
-                .setName("zmqhandler:" + getReceiverName())
+                .setName("zmqhandler/" + listen.replaceFirst("://", "/").replace(':', '/').replaceFirst("\\*", "0.0.0.0"))
                 .setReceive(Socket::recv)
                 .setMask(ZPoller.IN)
                 ;
-        this.listen = builder.listen;
     }
 
     @Override
@@ -134,7 +134,7 @@ public class ZMQ extends Receiver {
 
     @Override
     public String getReceiverName() {
-        return "ZMQ:" + listen;
+        return "ZMQ_" + listen.replaceFirst("://", "/").replace(':', '/').replaceFirst("\\*", "0.0.0.0");
     }
 
 }

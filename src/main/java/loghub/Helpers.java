@@ -436,5 +436,15 @@ public final class Helpers {
         String newText = regexContent.matcher(p.getText()).replaceAll("$1");
         p.setText(newText);
     }
+    
+    public static String ListenString(String listen) {
+        if (listen == null) {
+            return "0.0.0.0";
+        } else if ("*".equals(listen)) {
+            return "0.0.0.0";
+        } else {
+            return listen;
+        }
+    }
 
 }

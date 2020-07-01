@@ -158,7 +158,7 @@ public class JmxService {
                     String metric = m.group(3);
                     Hashtable<String, String> table = new Hashtable<>(3);
                     table.put("type", service);
-                    table.put("servicename", ObjectName.quote(servicename));
+                    table.put("servicename", servicename);
                     table.put("name", metric);
                     try {
                         return new ObjectName("loghub", table);

@@ -12,6 +12,7 @@ import io.netty.channel.socket.DatagramPacket;
 import loghub.BuilderClass;
 import loghub.ConnectionContext;
 import loghub.Event;
+import loghub.Helpers;
 import loghub.IpConnectionContext;
 import loghub.configuration.Properties;
 import loghub.netty.BaseChannelConsumer;
@@ -67,7 +68,7 @@ public class Udp extends NettyIpReceiver<Udp,
 
     @Override
     public String getReceiverName() {
-        return "UdpNettyReceiver/" + (getHost() == null ? "*" : getHost()) + ":" + getPort();
+        return "UdpNettyReceiver/" + Helpers.ListenString(getHost()) + "/" + getPort();
     }
 
     @Override

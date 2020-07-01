@@ -159,7 +159,7 @@ public class Http extends AbstractHttp {
 
     @Override
     public String getReceiverName() {
-        return "HTTP/" + getPort();
+        return "HTTP/0.0.0.0/" + getPort();
     }
 
 }
