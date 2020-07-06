@@ -12,6 +12,7 @@ import javax.management.StandardMBean;
 import com.codahale.metrics.Counter;
 import com.codahale.metrics.Histogram;
 import com.codahale.metrics.Meter;
+import com.codahale.metrics.Timer;
 
 import loghub.senders.Sender;
 
@@ -24,7 +25,6 @@ public interface SenderMBean {
     public long getActiveBatches();
     public long getBatchesSize();
     public long getFlushDuration();
-    //public int getQueueSize();
 
     public class Implementation extends StandardMBean implements SenderMBean {
 
@@ -35,8 +35,7 @@ public interface SenderMBean {
         private final Meter error;
         private final Counter activeBatches;
         private final Histogram batchesSize;
-        private final Meter flushDuration;
-        //private final Gauge<Integer> queueSize;
+        private final Timer flushDuration;
 
         public Implementation(Sender s)
                         throws NotCompliantMBeanException, MalformedObjectNameException, InstanceAlreadyExistsException, MBeanRegistrationException {
@@ -49,9 +48,7 @@ public interface SenderMBean {
             error = Stats.getMetric(Meter.class, metricidentity, Stats.METRIC_SENDER_ERROR);
             activeBatches = Stats.getMetric(Counter.class, metricidentity, Stats.METRIC_SENDER_ACTIVEBATCHES);
             batchesSize = Stats.getMetric(Histogram.class, metricidentity, Stats.METRIC_SENDER_BATCHESSIZE);
-            flushDuration = Stats.getMetric(Meter.class, metricidentity, Stats.METRIC_SENDER_FLUSHDURATION);
-            //s.
-            //queueSize = (Gauge<Integer>) Stats.getMetric(Gauge.class, metricidentity, Stats.METRIC_SENDER_QUEUESIZE);
+            flushDuration = Stats.getMetric(Timer.class, metricidentity, Stats.METRIC_SENDER_FLUSHDURATION);
         }
 
         ObjectName getObjectName() throws MalformedObjectNameException {
