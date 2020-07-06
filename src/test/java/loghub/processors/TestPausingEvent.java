@@ -19,9 +19,9 @@ import loghub.Event;
 import loghub.LogUtils;
 import loghub.Processor;
 import loghub.ProcessorException;
-import loghub.Stats;
 import loghub.ThreadBuilder;
 import loghub.Tools;
+import loghub.metrics.Stats;
 
 public class TestPausingEvent {
 

@@ -32,8 +32,9 @@ import org.apache.logging.log4j.Logger;
 
 import com.codahale.metrics.Timer.Context;
 
-import loghub.Stats.PipelineStat;
 import loghub.configuration.Properties;
+import loghub.metrics.Stats;
+import loghub.metrics.Stats.PipelineStat;
 
 class EventInstance extends Event {
 
@@ -61,7 +62,7 @@ class EventInstance extends Event {
                 long elapsed = System.nanoTime() - startTime;
                 duration += elapsed;
             }
-            Properties.metrics.timer("Pipeline." + name + ".timer").update(duration, TimeUnit.NANOSECONDS);
+            Stats.timerUpdate(name, duration, TimeUnit.NANOSECONDS);
             duration = 0;
             running = false;
             startTime = Long.MIN_VALUE;
@@ -197,8 +198,7 @@ class EventInstance extends Event {
      */
     private void readResolve() {
         if (!test) {
-            timer = Properties.metrics.timer("Allevents.timer").time();
-            Properties.metrics.counter("Allevents.inflight").inc();
+            timer = Stats.eventTimer();
         } else {
             timer = null;
         }
@@ -213,8 +213,7 @@ class EventInstance extends Event {
         if (! test) {
             timer.close();
             executionStack.forEach(ExecutionStackElement::close);
-            Properties.metrics.counter("Allevents.inflight").dec();
-            Properties.metrics.histogram("Steps").update(stepsCount);
+            Stats.eventEnd(stepsCount);
         } else {
             synchronized(this) {
                 notify();

@@ -1,7 +1,6 @@
 package loghub.senders;
 
 import java.io.Closeable;
-import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -15,17 +14,10 @@ import java.util.function.Consumer;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-import javax.management.InstanceNotFoundException;
-import javax.management.MBeanRegistrationException;
-import javax.management.MBeanServer;
-import javax.management.MalformedObjectNameException;
-import javax.management.ObjectName;
-
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import com.codahale.metrics.Counter;
 import com.codahale.metrics.Timer;
 
 import loghub.AbstractBuilder;
@@ -34,33 +26,30 @@ import loghub.Event;
 import loghub.Filter;
 import loghub.FilterException;
 import loghub.Helpers;
-import loghub.Stats;
 import loghub.ThreadBuilder;
 import loghub.configuration.Properties;
 import loghub.encoders.EncodeException;
 import loghub.encoders.Encoder;
+import loghub.metrics.Stats;
 import lombok.Getter;
 import lombok.Setter;
 
 public abstract class Sender extends Thread implements Closeable {
 
     protected static class Batch extends ArrayList<EventFuture> {
-        private final Counter counter;
         private final Sender sender;
         Batch() {
             super(0);
             this.sender = null;
-            counter = null;
         }
         Batch(Sender sender) {
             super(sender.batchSize);
             this.sender = sender;
-            counter = Properties.metrics.counter("sender." + sender.getName() + ".activeBatches");
-            counter.inc();
+            Stats.newBatch(sender);
         }
         void finished() {
             super.stream().forEach(sender::processStatus);
-            counter.dec();
+            Optional.ofNullable(sender).ifPresent(Stats::doneBatch);
         }
         public EventFuture add(Event e) {
             EventFuture fe = new EventFuture(e);
@@ -192,14 +181,14 @@ public abstract class Sender extends Thread implements Closeable {
                     if (flushedBatch == NULLBATCH) {
                         break;
                     }
-                    Properties.metrics.histogram("sender." + getName() + ".batchesSize").update(flushedBatch.size());
+                    Stats.updateBatchSize(this, flushedBatch.size());
                     if (flushedBatch.isEmpty()) {
                         flushedBatch.finished();
                         continue;
                     } else {
                         lastFlush = System.currentTimeMillis();
                     }
-                    try (Timer.Context tctx = Properties.metrics.timer("sender." + getName() + ".flushDuration").time()) {
+                    try (Timer.Context tctx = Stats.batchFlushTimer(this)) {
                         flush(flushedBatch);
                         flushedBatch.forEach(fe -> fe.complete(true));
                     } catch (Throwable ex) {
@@ -264,20 +253,6 @@ public abstract class Sender extends Thread implements Closeable {
                         interrupt();
                     }
                 });
-            }
-            try {
-                MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
-                mbs.unregisterMBean(new ObjectName("loghub:type=sender,servicename="
-                                                   + getName()
-                                                   + ",name=connectionsPool"));
-            } catch (InstanceNotFoundException e) {
-                logger.debug("Failed to unregister mbeam: "
-                             + Helpers.resolveThrowableException(e), e);
-            } catch (MalformedObjectNameException
-                            | MBeanRegistrationException e) {
-                logger.error("Failed to unregister mbeam: "
-                             + Helpers.resolveThrowableException(e), e);
-                logger.catching(Level.DEBUG, e);
             }
         } finally {
             try {
@@ -397,13 +372,13 @@ public abstract class Sender extends Thread implements Closeable {
     protected void processStatus(EventFuture result) {
         try {
             if (result.get()) {
-                Stats.sent.incrementAndGet();
+                Stats.sentEvent(this);
             } else {
                 String message = result.getMessage();
                 if (message != null) {
-                    Stats.newSenderError(message);
+                    Stats.failedSentEvent(this, message);
                 } else {
-                    Stats.failedSend.incrementAndGet();
+                    Stats.failedSentEvent(this);
                 }
             }
         } catch (InterruptedException e) {
@@ -420,11 +395,11 @@ public abstract class Sender extends Thread implements Closeable {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         } catch (SendException e) {
-            Stats.newSenderError(Helpers.resolveThrowableException(e));
+            Stats.failedSentEvent(this, Helpers.resolveThrowableException(e));
             logger.error("Sending exception: {}", Helpers.resolveThrowableException(e));
             logger.catching(Level.DEBUG, e);
         } catch (EncodeException e) {
-            Stats.newSenderError(Helpers.resolveThrowableException(e));
+            Stats.failedSentEvent(this, Helpers.resolveThrowableException(e));
             logger.error("Sending exception: {}", Helpers.resolveThrowableException(e));
             logger.catching(Level.DEBUG, e);
         } catch (Error e) {
@@ -432,13 +407,13 @@ public abstract class Sender extends Thread implements Closeable {
                 throw e;
             } else {
                 String message = Helpers.resolveThrowableException(e);
-                Stats.newUnhandledException(e);
+                Stats.newUnhandledException(this, e);
                 logger.error("Unexpected exception: {}", message);
                 logger.catching(Level.ERROR, e);
             }
         } catch (Throwable e) {
             String message = Helpers.resolveThrowableException(e);
-            Stats.newUnhandledException(e);
+            Stats.newUnhandledException(this, e);
             logger.error("Unexpected exception: {}", message);
             logger.catching(Level.ERROR, e);
         }
@@ -446,15 +421,16 @@ public abstract class Sender extends Thread implements Closeable {
 
     protected void processStatus(Event event, boolean status) {
         if (status) {
-            Stats.sent.incrementAndGet();
+            Stats.sentEvent(this);
         } else {
-            Stats.failedSend.incrementAndGet();
-        }
+            Stats.failedSentEvent(this);
+         }
         event.end();
     }
 
     public void setInQueue(BlockingQueue<Event> inQueue) {
         this.inQueue = inQueue;
+        Stats.sendInQueueSize(this, inQueue::size);
     }
 
     @Override

@@ -26,9 +26,9 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.core.LoggerContext;
 
 import com.codahale.metrics.Counter;
-import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Histogram;
 import com.codahale.metrics.Meter;
+import com.codahale.metrics.Metric;
 import com.codahale.metrics.MetricRegistry;
 
 import groovy.lang.GroovyClassLoader;
@@ -40,12 +40,12 @@ import loghub.Helpers;
 import loghub.Pipeline;
 import loghub.Processor;
 import loghub.Source;
-import loghub.Stats;
 import loghub.ThreadBuilder;
 import loghub.VarFormatter;
-import loghub.jmx.ExceptionsMBean;
-import loghub.jmx.JmxService;
-import loghub.jmx.StatsMBean;
+import loghub.metrics.ExceptionsMBean;
+import loghub.metrics.JmxService;
+import loghub.metrics.Stats;
+import loghub.metrics.StatsMBean;
 import loghub.receivers.Receiver;
 import loghub.security.JWTHandler;
 import loghub.security.ssl.ContextLoader;
@@ -53,33 +53,6 @@ import loghub.senders.Sender;
 import loghub.zmq.ZMQSocketFactory;
 
 public class Properties extends HashMap<String, Object> {
-
-    public static final class MetricRegistryWrapper {
-        private MetricRegistry metrics = new MetricRegistry();
-
-        public Counter counter(String name) {
-            return metrics.counter(name);
-        }
-
-        public Histogram histogram(String name) {
-            return metrics.histogram(name);
-        }
-
-        public Meter meter(String name) {
-            return metrics.meter(name);
-        }
-
-        public com.codahale.metrics.Timer timer(String name) {
-            return metrics.timer(name);
-        }
-
-        public void reset() {
-            metrics = new MetricRegistry();
-            JmxService.stopMetrics();
-        }
-    };
-
-    public static final MetricRegistryWrapper metrics = new MetricRegistryWrapper();
 
     enum PROPSNAMES {
         CLASSLOADERNAME,
@@ -127,7 +100,7 @@ public class Properties extends HashMap<String, Object> {
     public Properties(Map<String, Object> properties) {
         super();
 
-        metrics.reset();
+        Stats.reset();
 
         ClassLoader cl = (ClassLoader) properties.remove(PROPSNAMES.CLASSLOADERNAME.toString());
         if (cl == null) {
@@ -169,11 +142,6 @@ public class Properties extends HashMap<String, Object> {
             formatters = Collections.emptyMap();
         }
 
-        Stats.populate(metrics.metrics, receivers, namedPipeLine, senders);
-
-        metrics.counter("Allevents.inflight");
-        metrics.timer("Allevents.timer");
-        metrics.histogram("Steps");
         cacheManager = new CacheManager(this);
 
         if (properties.containsKey("numWorkers")) {
@@ -208,11 +176,13 @@ public class Properties extends HashMap<String, Object> {
 
         try {
             jmxServiceConfiguration = JmxService.configuration()
-                            .setMetrics(metrics.metrics)
                             .setProperties(filterPrefix(properties, "jmx"))
                             .setSslContext(ssl)
                             .register(StatsMBean.Implementation.NAME, new StatsMBean.Implementation())
                             .register(ExceptionsMBean.Implementation.NAME, new ExceptionsMBean.Implementation())
+                            .registerReceivers(receivers)
+                            .registerSenders(senders)
+                            .registerPipelines(pipelines)
                             .setJaasConfig(jaasConfig);
         } catch (NotCompliantMBeanException | MalformedObjectNameException
                         | InstanceAlreadyExistsException
@@ -233,29 +203,7 @@ public class Properties extends HashMap<String, Object> {
         mainQueue = properties.containsKey(PROPSNAMES.MAINQUEUE.toString()) ? (BlockingQueue<Event>) properties.remove(PROPSNAMES.MAINQUEUE.toString()) :  new LinkedBlockingDeque<Event>();;
         outputQueues = properties.containsKey(PROPSNAMES.OUTPUTQUEUE.toString()) ? (Map<String, BlockingQueue<Event>>) properties.remove(PROPSNAMES.OUTPUTQUEUE.toString()) : null;
 
-        metrics.metrics.register(
-                                 "EventWaiting.mainloop",
-                                 new Gauge<Integer>() {
-                                     @Override
-                                     public Integer getValue() {
-                                         return mainQueue != null ? mainQueue.size() : 0;
-                                     }
-                                 });
-
-        if (outputQueues != null) {
-            for(Map.Entry<String, BlockingQueue<Event>> i: outputQueues.entrySet()) {
-                final BlockingQueue<Event> queue = i.getValue();
-                final String name = i.getKey();
-                metrics.metrics.register(
-                                         "EventWaiting.output." + name,
-                                         new Gauge<Integer>() {
-                                             @Override
-                                             public Integer getValue() {
-                                                 return queue.size();
-                                             }
-                                         });
-            }
-        }
+        Stats.waitingQueue(mainQueue::size);
 
         repository = new EventsRepository<Future<?>>(this);
 

@@ -15,7 +15,7 @@ import java.util.stream.Stream;
 import com.fasterxml.jackson.annotation.JsonIdentityInfo;
 import com.fasterxml.jackson.annotation.ObjectIdGenerators;
 
-import loghub.Stats.PipelineStat;
+import loghub.metrics.Stats.PipelineStat;
 
 @JsonIdentityInfo(generator = ObjectIdGenerators.IntSequenceGenerator.class)
 public abstract class Event extends HashMap<String, Object> implements Serializable {

@@ -16,16 +16,24 @@ import org.apache.logging.log4j.Logger;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timeout;
 import loghub.configuration.Properties;
+import loghub.metrics.Stats;
+import loghub.metrics.Stats.PipelineStat;
 
 public class EventsRepository<KEY> {
 
     private static class PauseContext<K> {
         private final PausedEvent<K> pausedEvent;
         private final Timeout task;
+        private final long startTime = System.nanoTime();
 
         private PauseContext(PausedEvent<K> pausedEvent, Timeout task) {
             this.pausedEvent = pausedEvent;
             this.task = task;
+            Stats.pauseEvent(pausedEvent.event.getCurrentPipeline());
+        }
+
+        private void restartEvent() {
+            Stats.restartEvent(pausedEvent.event.getCurrentPipeline(), startTime);
         }
 
         static <K> PauseContext<K> of(PausedEvent<K> paused, EventsRepository<K> repository) {
@@ -35,7 +43,6 @@ public class EventsRepository<KEY> {
             } else {
                 task = null;
             }
-            Properties.metrics.counter("paused").inc();
             return new PauseContext<K>(paused, task);
         }
     }
@@ -92,8 +99,8 @@ public class EventsRepository<KEY> {
         }
         if(ctx.task != null) {
             ctx.task.cancel();
-        } 
-        Properties.metrics.counter("paused").dec();
+        }
+        ctx.restartEvent();
         return ctx.pausedEvent;
     }
 
@@ -122,7 +129,7 @@ public class EventsRepository<KEY> {
         if (ctx.task != null) {
             ctx.task.cancel();
         }
-        Properties.metrics.counter("paused").dec();
+        ctx.restartEvent();
         logger.trace("Waking up event {}", ctx.pausedEvent.event);
         ctx.pausedEvent.event.insertProcessor(source.apply(ctx.pausedEvent));
         Event transformed = transform.apply(ctx.pausedEvent).apply(ctx.pausedEvent.event);
@@ -134,7 +141,7 @@ public class EventsRepository<KEY> {
         try {
             timeout(paused.key);
         } catch (Throwable ex) {
-            Stats.newUnhandledException(ex);
+            Stats.pipelineHanding(paused.event.getCurrentPipeline(), PipelineStat.EXCEPTION, ex);
             Level l;
             if (Helpers.isFatal(ex)) {
                 ex.printStackTrace();

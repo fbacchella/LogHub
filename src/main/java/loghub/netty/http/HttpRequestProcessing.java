@@ -1,11 +1,16 @@
 package loghub.netty.http;
 
+import static io.netty.handler.codec.http.HttpResponseStatus.OK;
+
 import java.util.function.Predicate;
+
+import com.codahale.metrics.Meter;
 
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.FullHttpRequest;
-import loghub.configuration.Properties;
+import loghub.metrics.Stats;
+
 
 public abstract class HttpRequestProcessing extends HttpHandler {
 
@@ -30,7 +35,7 @@ public abstract class HttpRequestProcessing extends HttpHandler {
     protected void subProcessing(FullHttpRequest request, ChannelHandlerContext ctx) throws HttpRequestFailure {
         processRequest(request, ctx);
         ctx.writeAndFlush(Unpooled.EMPTY_BUFFER);
-        Properties.metrics.meter("WebServer.status.200").mark();
+        Stats.getMetric(Meter.class, "WebServer.status." + OK.code()).mark();
     }
 
     protected abstract void processRequest(FullHttpRequest request, ChannelHandlerContext ctx) throws HttpRequestFailure;

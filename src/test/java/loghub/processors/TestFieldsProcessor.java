@@ -17,9 +17,9 @@ import org.junit.Test;
 import loghub.Event;
 import loghub.LogUtils;
 import loghub.ProcessorException;
-import loghub.Stats;
 import loghub.Tools;
 import loghub.UncheckedProcessorException;
+import loghub.metrics.Stats;
 
 /**
  * @author Fabrice Bacchella

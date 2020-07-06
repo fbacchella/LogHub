@@ -15,6 +15,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import javax.management.InstanceAlreadyExistsException;
+import javax.management.InstanceNotFoundException;
 import javax.management.MBeanRegistrationException;
 import javax.management.MBeanServer;
 import javax.management.MXBean;
@@ -280,7 +281,7 @@ public abstract class AbstractHttpSender extends Sender {
 
             try {
                 MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
-                mbs.registerMBean(new Implementation(cm), new ObjectName("loghub:type=sender,servicename=" + getName() + ",name=connectionsPool"));
+                mbs.registerMBean(new Implementation(cm), new ObjectName("loghub:type=Senders,servicename=" + getSenderName() + ",name=connectionsPool"));
             } catch (NotCompliantMBeanException | MalformedObjectNameException
                             | InstanceAlreadyExistsException | MBeanRegistrationException e) {
                 throw new RuntimeException("jmx configuration failed: " + Helpers.resolveThrowableException(e), e);
@@ -315,7 +316,6 @@ public abstract class AbstractHttpSender extends Sender {
     }
 
     protected HttpResponse doRequest(HttpRequest therequest) {
-
         HttpClientContext context = HttpClientContext.create();
         if (credsProvider != null) {
             context.setCredentialsProvider(credsProvider);
@@ -366,6 +366,24 @@ public abstract class AbstractHttpSender extends Sender {
                 logger.catching(Level.DEBUG, e);
                 return new HttpResponse(host, null, e, null);
             }
+        }
+    }
+
+    @Override
+    public void customStopSending() {
+        try {
+            MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
+            mbs.unregisterMBean(new ObjectName("loghub:type=sender,servicename="
+                                               + getName()
+                                               + ",name=connectionsPool"));
+        } catch (InstanceNotFoundException e) {
+            logger.debug("Failed to unregister mbeam: "
+                         + Helpers.resolveThrowableException(e), e);
+        } catch (MalformedObjectNameException
+                        | MBeanRegistrationException e) {
+            logger.error("Failed to unregister mbeam: "
+                         + Helpers.resolveThrowableException(e), e);
+            logger.catching(Level.DEBUG, e);
         }
     };
 

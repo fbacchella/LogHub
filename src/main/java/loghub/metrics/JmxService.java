@@ -1,4 +1,4 @@
-package loghub.jmx;
+package loghub.metrics;
 
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
@@ -6,6 +6,7 @@ import java.lang.reflect.UndeclaredThrowableException;
 import java.rmi.server.RMIClientSocketFactory;
 import java.rmi.server.RMIServerSocketFactory;
 import java.security.Principal;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -33,13 +34,15 @@ import javax.net.ssl.SSLContext;
 import javax.rmi.ssl.SslRMIServerSocketFactory;
 import javax.security.auth.Subject;
 
-import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.jmx.DefaultObjectNameFactory;
 import com.codahale.metrics.jmx.JmxReporter;
 import com.codahale.metrics.jmx.ObjectNameFactory;
 
 import loghub.Helpers;
+import loghub.Pipeline;
+import loghub.receivers.Receiver;
 import loghub.security.AuthenticationHandler;
+import loghub.senders.Sender;
 import lombok.Setter;
 import lombok.experimental.Accessors;
 
@@ -74,8 +77,6 @@ public class JmxService {
         private String jaasName = null;
         @Setter
         private javax.security.auth.login.Configuration jaasConfig = null;
-        @Setter
-        private MetricRegistry metrics = null;
 
         private final Map<ObjectName, Object> mbeans = new HashMap<>();
 
@@ -114,7 +115,73 @@ public class JmxService {
             return this;
         }
 
-    }
+        public Configuration registerReceivers(Collection<Receiver> receivers) {
+            receivers.forEach(r -> {
+                try {
+                    ReceiverMBean.Implementation rmb = new ReceiverMBean.Implementation(r);
+                    mbeans.put(rmb.getObjectName(), rmb);
+                } catch (NotCompliantMBeanException
+                                | MalformedObjectNameException
+                                | InstanceAlreadyExistsException
+                                | MBeanRegistrationException e) {
+                }
+            });
+            try {
+                ReceiverMBean.Implementation rmb = new ReceiverMBean.Implementation(null);
+                mbeans.put(rmb.getObjectName(), rmb);
+            } catch (NotCompliantMBeanException
+                            | MalformedObjectNameException
+                            | InstanceAlreadyExistsException
+                            | MBeanRegistrationException e) {
+            }
+            return this;
+        }
+
+        public Configuration registerSenders(Collection<Sender> senders) {
+            senders.forEach(s -> {
+                try {
+                    SenderMBean.Implementation smb = new SenderMBean.Implementation(s);
+                    mbeans.put(smb.getObjectName(), smb);
+                } catch (NotCompliantMBeanException
+                                | MalformedObjectNameException
+                                | InstanceAlreadyExistsException
+                                | MBeanRegistrationException e) {
+                }
+            });
+            try {
+                SenderMBean.Implementation smb = new SenderMBean.Implementation(null);
+                mbeans.put(smb.getObjectName(), smb);
+            } catch (NotCompliantMBeanException
+                            | MalformedObjectNameException
+                            | InstanceAlreadyExistsException
+                            | MBeanRegistrationException e) {
+            }
+            return this;
+        }
+
+        public Configuration registerPipelines(Collection<Pipeline> pipelines) {
+            pipelines.forEach(p -> {
+                PipelineMBean.Implementation pmb;
+                try {
+                    pmb = new PipelineMBean.Implementation(p.getName());
+                    mbeans.put(pmb.getObjectName(), pmb);
+                } catch (NotCompliantMBeanException
+                                | MalformedObjectNameException
+                                | InstanceAlreadyExistsException
+                                | MBeanRegistrationException e) {
+                }
+            });
+            try {
+                PipelineMBean.Implementation pmb = new PipelineMBean.Implementation(null);
+                mbeans.put(pmb.getObjectName(), pmb);
+            } catch (NotCompliantMBeanException | MalformedObjectNameException
+                            | InstanceAlreadyExistsException
+                            | MBeanRegistrationException e) {
+            }
+
+            return this;
+        }
+}
 
     private static JmxReporter reporter;
     private static MBeanServer mbs;
@@ -147,19 +214,26 @@ public class JmxService {
 
     private static void startJmxReporter(Configuration conf) {
         ObjectNameFactory donf = new DefaultObjectNameFactory();
-        Pattern pipepattern = Pattern.compile("^([^\\.]+)\\.(.+?)\\.([a-zA-z0-9]+)$");
-        reporter = JmxReporter.forRegistry(conf.metrics).createsObjectNamesWith(new ObjectNameFactory() {
+        Pattern pipepattern = Pattern.compile("^([^\\.]+)\\.(.+?)(\\.([a-zA-z0-9]+))?$");
+        reporter = JmxReporter.forRegistry(Stats.metricsRegistry).createsObjectNamesWith(new ObjectNameFactory() {
             @Override
             public ObjectName createName(String type, String domain, String name) {
                 Matcher m = pipepattern.matcher(name);
                 if (m.matches()) {
+                    Hashtable<String, String> table = new Hashtable<>(4);
                     String service = m.group(1);
-                    String servicename = m.group(2);
-                    String metric = m.group(3);
-                    Hashtable<String, String> table = new Hashtable<>(3);
                     table.put("type", service);
-                    table.put("servicename", servicename);
-                    table.put("name", metric);
+                    if (m.group(3) != null) {
+                        String servicename = m.group(2);
+                        String metric = m.group(4);
+                        table.put("servicename", servicename);
+                        //table.put("level", "details");
+                        table.put("name", metric);
+                    } else {
+                        String metric = m.group(2);
+                        table.put("name", metric);
+                        table.put("level", "details");
+                    }
                     try {
                         return new ObjectName("loghub", table);
                     } catch (MalformedObjectNameException e) {

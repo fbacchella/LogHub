@@ -25,6 +25,8 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.codahale.metrics.Meter;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFuture;
@@ -47,7 +49,7 @@ import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.handler.stream.ChunkedInput;
 import io.netty.util.AsciiString;
 import loghub.Helpers;
-import loghub.configuration.Properties;
+import loghub.metrics.Stats;
 
 @Sharable
 public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
@@ -241,7 +243,7 @@ public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRe
         response.headers().set(HttpHeaderNames.CONTENT_TYPE, "text/plain; charset=UTF-8");
         additionHeaders.entrySet().forEach( i-> response.headers().add(i.getKey(), i.getValue()));
         ctx.writeAndFlush(response);
-        Properties.metrics.meter("WebServer.status." + status.code()).mark();
+        Stats.getMetric(Meter.class, "WebServer.status." + status.code()).mark();
     }
 
     @Override
@@ -262,7 +264,7 @@ public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRe
             response.headers().set(HttpHeaderNames.CONTENT_TYPE, "text/plain; charset=UTF-8");
             failure.additionHeaders.entrySet().forEach( i-> response.headers().add(i.getKey(), i.getValue()));
             ctx.writeAndFlush(response);
-            Properties.metrics.meter("WebServer.status." + failure.status.code()).mark();
+            Stats.getMetric(Meter.class, "WebServer.status." + failure.status.code()).mark();
         } else {
             logger.error("Internal server errorr: {}", Helpers.resolveThrowableException(cause));
             logger.catching(Level.ERROR, cause);
@@ -271,7 +273,7 @@ public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRe
             HttpUtil.setKeepAlive(response, false);
             response.headers().set(HttpHeaderNames.CONTENT_TYPE, "text/plain; charset=UTF-8");
             ctx.writeAndFlush(response);
-            Properties.metrics.meter("WebServer.status." + SERVICE_UNAVAILABLE.code()).mark();;
+            Stats.getMetric(Meter.class, "WebServer.status." + SERVICE_UNAVAILABLE.code()).mark();
         }
     }
 

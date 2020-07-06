@@ -49,8 +49,8 @@ import loghub.BuilderClass;
 import loghub.ConnectionContext;
 import loghub.Helpers;
 import loghub.IpConnectionContext;
-import loghub.Stats;
 import loghub.configuration.Properties;
+import loghub.metrics.Stats;
 import loghub.snmp.Log4j2LogFactory;
 import lombok.Getter;
 import lombok.Setter;
@@ -228,7 +228,7 @@ public class SnmpTrap extends Receiver implements CommandResponder {
             }
             send(mapToEvent(ctx, eventMap));
         } catch (Exception ex) {
-            Stats.newUnhandledException(ex);
+            Stats.newUnhandledException(this, ex);
         } finally {
             trap.setProcessed(true);
         }

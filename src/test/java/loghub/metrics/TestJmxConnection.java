@@ -1,4 +1,4 @@
-package loghub.jmx;
+package loghub.metrics;
 
 import java.io.IOException;
 import java.io.StringReader;

@@ -19,14 +19,16 @@ import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
 
+import com.codahale.metrics.Meter;
+
 import loghub.BeanChecks;
 import loghub.BeanChecks.BeanInfo;
 import loghub.Event;
 import loghub.LogUtils;
-import loghub.Stats;
 import loghub.Tools;
 import loghub.configuration.ConfigurationTools;
 import loghub.configuration.Properties;
+import loghub.metrics.Stats;
 
 public class TestElasticSearch {
 
@@ -59,16 +61,15 @@ public class TestElasticSearch {
             ev.put("type", "junit");
             ev.put("value", "atest" + i);
             ev.setTimestamp(new Date(0));
-            Assert.assertTrue(es.send(ev));
+            Assert.assertTrue(es.queue(ev));
             Thread.sleep(1);
         }
         es.stopSending();
         es.close();
         Thread.sleep(1000);
-        Assert.assertEquals(count, Stats.sent.get());
+        Assert.assertEquals(count, Stats.getSent());
     }
 
-    @Ignore
     @Test
     public void testWithExpression() throws InterruptedException {
         Stats.reset();
@@ -90,16 +91,15 @@ public class TestElasticSearch {
             ev.putMeta("index", "testWithExpression-1970.01.01");
             ev.put("value", "atest" + i);
             ev.setTimestamp(new Date(0));
-            Assert.assertTrue(es.send(ev));
+            Assert.assertTrue(es.queue(ev));
             Thread.sleep(1);
         }
         es.stopSending();
         es.close();
         Thread.sleep(1000);
-        Assert.assertEquals(count, Stats.sent.get());
+        Assert.assertEquals(count, Stats.getSent());
     }
 
-    @Ignore
     @Test
     public void testEmptySend() throws InterruptedException {
         Stats.reset();
@@ -118,7 +118,7 @@ public class TestElasticSearch {
             Event ev = Tools.getEvent();
             ev.put("value", "atest" + i);
             ev.setTimestamp(new Date(0));
-            Assert.assertTrue(es.send(ev));
+            Assert.assertTrue(es.queue(ev));
             Thread.sleep(1);
         }
         es.stopSending();
@@ -152,9 +152,9 @@ public class TestElasticSearch {
         es.stopSending();
         es.close();
         Thread.sleep(2000);
-        Assert.assertEquals(count, Stats.sent.intValue());
-        Assert.assertEquals(0, Stats.processorFailures.intValue());
-        Assert.assertEquals(0, Properties.metrics.counter("Allevents.inflight").getCount());
+        Assert.assertEquals(count, Stats.getSent());
+        Assert.assertEquals(0, Stats.getFailed());
+        Assert.assertEquals(0, Stats.getMetric(Meter.class, "Allevents.inflight").getCount());
     }
 
     @Test
@@ -198,7 +198,7 @@ public class TestElasticSearch {
             ev.put("type", "junit");
             ev.put("value", new Date(0));
             ev.setTimestamp(new Date(0));
-            Assert.assertTrue(es.send(ev));
+            Assert.assertTrue(es.queue(ev));
             Thread.sleep(1);
         }
         for (int i = 0 ; i < count ; i++) {
@@ -206,14 +206,14 @@ public class TestElasticSearch {
             ev.put("type", "junit");
             ev.put("value", "atest" + i);
             ev.setTimestamp(new Date(0));
-            Assert.assertTrue(es.send(ev));
+            Assert.assertTrue(es.queue(ev));
             Thread.sleep(1);
         }
         es.stopSending();
         es.close();
         Thread.sleep(1000);
         Assert.assertEquals(count, Stats.getSenderError().size());
-        Assert.assertEquals(count * 2, Stats.sent.get());
+        Assert.assertEquals(count, Stats.getSent());
         logger.debug("Events failed: {}", () -> Stats.getSenderError());
     }
 

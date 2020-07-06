@@ -1,4 +1,4 @@
-package loghub.jmx;
+package loghub.metrics;
 
 import javax.management.InstanceAlreadyExistsException;
 import javax.management.MBeanRegistrationException;
@@ -14,20 +14,20 @@ import loghub.Helpers;
 public interface ExceptionsMBean {
     
     default public String[] getProcessorsFailures() {
-        return loghub.Stats.getErrors().stream()
+        return loghub.metrics.Stats.getErrors().stream()
                         .map(i -> Helpers.resolveThrowableException((Throwable)i))
                         .toArray(String[]::new)
                         ;
     }
 
     default public String[] getDecodersFailures() {
-        return loghub.Stats.getDecodeErrors().stream()
+        return loghub.metrics.Stats.getDecodeErrors().stream()
                         .toArray(String[]::new)
                         ;
     }
 
     default public String[] getUnhandledExceptions() {
-        return loghub.Stats.getExceptions().stream()
+        return loghub.metrics.Stats.getExceptions().stream()
                         .map( i -> {
                             StringBuffer exceptionDetails = new StringBuffer();
                             String exceptionMessage = Helpers.resolveThrowableException(i);
@@ -42,20 +42,14 @@ public interface ExceptionsMBean {
                         ;
     }
 
-    default public String[] getBlockingMessage() {
-        return loghub.Stats.getBlockedError().stream()
-                        .toArray(String[]::new)
-                        ;
-    }
-
     default public String[] getSendersFailures() {
-        return loghub.Stats.getSenderError().stream()
+        return Stats.getSenderError().stream()
                         .toArray(String[]::new)
                         ;
     }
 
     default public String[] getReceiversFailures() {
-        return loghub.Stats.getReceiverError().stream()
+        return Stats.getReceiverError().stream()
                         .toArray(String[]::new)
                         ;
     }
@@ -78,6 +72,5 @@ public interface ExceptionsMBean {
         }
 
     }
-
 
 }

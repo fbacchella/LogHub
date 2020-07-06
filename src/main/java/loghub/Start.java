@@ -22,7 +22,8 @@ import loghub.configuration.ConfigException;
 import loghub.configuration.Configuration;
 import loghub.configuration.Properties;
 import loghub.configuration.TestEventProcessing;
-import loghub.jmx.JmxService;
+import loghub.metrics.JmxService;
+import loghub.metrics.Stats;
 import loghub.processors.FieldsProcessor;
 import loghub.receivers.Receiver;
 import loghub.security.JWTHandler;
@@ -105,11 +106,11 @@ public class Start {
             .setTask(() -> {
                 long endtime = System.nanoTime();
                 double runtime = ((double)(endtime - starttime)) / 1.0e9;
-                System.out.format("received: %.2f/s\n", Stats.received.get() / runtime);
-                System.out.format("dropped: %.2f/s\n", Stats.dropped.get() / runtime);
-                System.out.format("sent: %.2f/s\n", Stats.sent.get() / runtime);
-                System.out.format("failures: %.2f/s\n", Stats.processorFailures.get() / runtime);
-                System.out.format("thrown: %.2f/s\n", Stats.thrown.get() / runtime);
+                System.out.format("Received: %.2f/s\n", Stats.getReceived() / runtime);
+                System.out.format("Dropped: %.2f/s\n", Stats.getDropped() / runtime);
+                System.out.format("Sent: %.2f/s\n", Stats.getSent() / runtime);
+                System.out.format("Failures: %.2f/s\n", Stats.getFailed() / runtime);
+                System.out.format("Exceptions: %.2f/s\n", Stats.getExceptionsCount() / runtime);
             })
             .build();
         }

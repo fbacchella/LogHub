@@ -11,7 +11,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.function.BiFunction;
 import java.util.stream.Stream;
 
-import loghub.Stats.PipelineStat;
+import loghub.metrics.Stats.PipelineStat;
 
 class EventWrapper extends Event {
     private final Event event;

@@ -1,6 +1,6 @@
-package loghub.jmx;
+package loghub.metrics;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
 import javax.management.InstanceAlreadyExistsException;
 import javax.management.MBeanRegistrationException;
@@ -13,20 +13,22 @@ public class TestStats {
 
     @Test
     public void test1() throws NotCompliantMBeanException, MalformedObjectNameException, InstanceAlreadyExistsException, MBeanRegistrationException {
-        loghub.Stats.reset();
+        Stats.reset();
         ExceptionsMBean exceptions = new ExceptionsMBean.Implementation();
         Exception e = new NullPointerException();
-        loghub.Stats.newUnhandledException(e);
-        assertEquals(String.format("NullPointerException at loghub.jmx.TestStats.test1 line %d", e.getStackTrace()[0].getLineNumber()), exceptions.getUnhandledExceptions()[0]);
+        Stats.newUnhandledException(e);
+        assertEquals(String.format("NullPointerException at loghub.metrics.TestStats.test1 line %d", e.getStackTrace()[0].getLineNumber()), exceptions.getUnhandledExceptions()[0]);
+        assertEquals(1, Stats.getExceptionsCount());
     }
 
     @Test
     public void test2() throws NotCompliantMBeanException, MalformedObjectNameException, InstanceAlreadyExistsException, MBeanRegistrationException {
-        loghub.Stats.reset();
+        Stats.reset();
         ExceptionsMBean exceptions = new ExceptionsMBean.Implementation();
         Exception e = new RuntimeException("some message");
-        loghub.Stats.newUnhandledException(e);
-        assertEquals(String.format("some message at loghub.jmx.TestStats.test2 line %d", e.getStackTrace()[0].getLineNumber()), exceptions.getUnhandledExceptions()[0]);
+        Stats.newUnhandledException(e);
+        assertEquals(String.format("some message at loghub.metrics.TestStats.test2 line %d", e.getStackTrace()[0].getLineNumber()), exceptions.getUnhandledExceptions()[0]);
+        assertEquals(1, Stats.getExceptionsCount());
     }
 
 }

@@ -53,7 +53,7 @@ public abstract class ClientFactory<CC extends Channel, SA extends SocketAddress
                     source.addHandlers(ch.pipeline());
                     ClientFactory.this.addErrorHandler(ch.pipeline(), logger);
                 } catch (Exception e) {
-                    loghub.Stats.newUnhandledException(e);
+                    loghub.metrics.Stats.newUnhandledException(e);
                     logger.error("Netty handler failed: {}", e.getMessage());
                     logger.catching(Level.DEBUG, e);
                 }

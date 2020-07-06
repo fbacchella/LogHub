@@ -21,11 +21,11 @@ import org.junit.rules.TemporaryFolder;
 import loghub.ConnectionContext;
 import loghub.Event;
 import loghub.LogUtils;
-import loghub.Stats;
 import loghub.Tools;
 import loghub.configuration.Properties;
 import loghub.encoders.EncodeException;
 import loghub.encoders.StringField;
+import loghub.metrics.Stats;
 
 public class TestFile {
 
@@ -118,21 +118,21 @@ public class TestFile {
     public void testOk() throws IOException, InterruptedException {
         send(i -> i.setTruncate(true), 1, true);
         send(i -> i.setTruncate(true), 1, true);
-        Assert.assertEquals(2L, Stats.sent.get());
+        Assert.assertEquals(2L, Stats.getSent());
     }
 
     @Test(timeout=2000)
     public void testOkAppend() throws IOException, InterruptedException {
         send(i -> i.setTruncate(false), 1, true);
         send(i -> i.setTruncate(false), 2, true);
-        Assert.assertEquals(2L, Stats.sent.get());
+        Assert.assertEquals(2L, Stats.getSent());
     }
 
     @Test(timeout=2000)
     public void testOkSeparator() throws IOException, InterruptedException {
         send(i -> {i.setTruncate(true) ; i.setSeparator("\n");}, 2, true);
         send(i -> i.setTruncate(true), 1, true);
-        Assert.assertEquals(2L, Stats.sent.get());
+        Assert.assertEquals(2L, Stats.getSent());
     }
 
     @Test
@@ -159,7 +159,7 @@ public class TestFile {
         fsend.close();
         fsend.send(ev);
         Thread.sleep(100);
-        Assert.assertEquals(1L, Stats.failedSend.get());
+        Assert.assertEquals(1L, Stats.getFailed());
     }
 
 }

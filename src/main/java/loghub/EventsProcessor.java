@@ -11,9 +11,9 @@ import org.apache.logging.log4j.Logger;
 
 import io.netty.util.concurrent.Future;
 import loghub.PausedEvent.Builder;
-import loghub.Stats.PipelineStat;
-import loghub.configuration.Properties;
 import loghub.configuration.TestEventProcessing;
+import loghub.metrics.Stats;
+import loghub.metrics.Stats.PipelineStat;
 import loghub.processors.Drop;
 import loghub.processors.Forker;
 import loghub.processors.Forwarder;
@@ -122,19 +122,17 @@ public class EventsProcessor extends Thread {
                     try {
                         outQueues.get(event.getCurrentPipeline()).put(event);
                     } catch (InterruptedException e) {
-                        event.doMetric(PipelineStat.FAILURE);
+                        event.doMetric(PipelineStat.EXCEPTION, e);
                         event.end();
                         Thread.currentThread().interrupt();
                     }
                 } else if (event.getCurrentPipeline() != null && ! outQueues.containsKey(event.getCurrentPipeline())){
-                    Stats.newUnhandledException(new IllegalArgumentException("No sender consumming pipeline " + event.getCurrentPipeline()));
+                    event.doMetric(PipelineStat.EXCEPTION, new IllegalArgumentException("No sender consumming pipeline " + event.getCurrentPipeline()));
                     logger.debug("No sender using pipeline {} for event {}", event.getCurrentPipeline(), event);
-                    Properties.metrics.meter("Allevents.failed").mark();
                     event.end();
                 } else {
-                    Stats.newUnhandledException(new IllegalStateException("Invalid end state for event, no pipeline"));
+                    event.doMetric(PipelineStat.EXCEPTION, new IllegalStateException("Invalid end state for event, no pipeline"));
                     logger.debug("Invalid end state for event {}", event);
-                    Properties.metrics.meter("Allevents.failed").mark();
                     event.end();
                 }
             }
