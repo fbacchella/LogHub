@@ -255,6 +255,10 @@ public abstract class AbstractHttpSender extends Sender {
         }
 
     }
+    
+    private ObjectName getObjectName() throws MalformedObjectNameException {
+        return new ObjectName("loghub:type=Senders,servicename=" + getSenderName() + ",name=connectionsPool");
+    }
 
     @Override
     public boolean configure(Properties properties) {
@@ -281,10 +285,11 @@ public abstract class AbstractHttpSender extends Sender {
 
             try {
                 MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
-                mbs.registerMBean(new Implementation(cm), new ObjectName("loghub:type=Senders,servicename=" + getSenderName() + ",name=connectionsPool"));
+                mbs.registerMBean(new Implementation(cm), getObjectName());
             } catch (NotCompliantMBeanException | MalformedObjectNameException
                             | InstanceAlreadyExistsException | MBeanRegistrationException e) {
-                throw new RuntimeException("jmx configuration failed: " + Helpers.resolveThrowableException(e), e);
+                logger.error("jmx configuration failed: " + Helpers.resolveThrowableException(e), e);
+                return false;
             }
 
             if (properties.ssl != null) {
@@ -373,9 +378,7 @@ public abstract class AbstractHttpSender extends Sender {
     public void customStopSending() {
         try {
             MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
-            mbs.unregisterMBean(new ObjectName("loghub:type=sender,servicename="
-                                               + getName()
-                                               + ",name=connectionsPool"));
+            mbs.unregisterMBean(getObjectName());
         } catch (InstanceNotFoundException e) {
             logger.debug("Failed to unregister mbeam: "
                          + Helpers.resolveThrowableException(e), e);
