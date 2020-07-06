@@ -25,12 +25,6 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.core.LoggerContext;
 
-import com.codahale.metrics.Counter;
-import com.codahale.metrics.Histogram;
-import com.codahale.metrics.Meter;
-import com.codahale.metrics.Metric;
-import com.codahale.metrics.MetricRegistry;
-
 import groovy.lang.GroovyClassLoader;
 import io.netty.util.concurrent.Future;
 import loghub.DashboardHttpServer;
@@ -98,8 +92,6 @@ public class Properties extends HashMap<String, Object> {
 
     @SuppressWarnings("unchecked")
     public Properties(Map<String, Object> properties) {
-        super();
-
         Stats.reset();
 
         ClassLoader cl = (ClassLoader) properties.remove(PROPSNAMES.CLASSLOADERNAME.toString());
