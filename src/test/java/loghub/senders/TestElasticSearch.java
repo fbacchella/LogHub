@@ -16,7 +16,6 @@ import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.config.Configurator;
 import org.junit.Assert;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import com.codahale.metrics.Meter;
@@ -43,7 +42,6 @@ public class TestElasticSearch {
         TimeZone.setDefault(TimeZone.getTimeZone("GMT"));
     }
 
-    @Ignore
     @Test
     public void testSend() throws InterruptedException {
         Stats.reset();
@@ -64,9 +62,8 @@ public class TestElasticSearch {
             Assert.assertTrue(es.queue(ev));
             Thread.sleep(1);
         }
-        es.stopSending();
-        es.close();
         Thread.sleep(1000);
+        es.close();
         Assert.assertEquals(count, Stats.getSent());
     }
 
@@ -79,8 +76,7 @@ public class TestElasticSearch {
         esbuilder.setTimeout(1);
         esbuilder.setBatchSize(10);
         esbuilder.setIndexX(ConfigurationTools.unWrap("[#index]", i -> i.expression()));
-        //esbuilder.setTypeX(ConfigurationTools.unWrap("[#type]", i -> i.expression()));
-        esbuilder.setTypeX(ConfigurationTools.unWrap("\"_doc\"", i -> i.expression()));
+        esbuilder.setTypeX(ConfigurationTools.unWrap("[#type]", i -> i.expression()));
         ElasticSearch es = esbuilder.build();
         es.setInQueue(new ArrayBlockingQueue<>(count));
         Assert.assertTrue("Elastic configuration failed", es.configure(new Properties(Collections.emptyMap())));
@@ -88,15 +84,15 @@ public class TestElasticSearch {
         for (int i = 0 ; i < count ; i++) {
             Event ev = Tools.getEvent();
             ev.putMeta("type", "junit");
-            ev.putMeta("index", "testWithExpression-1970.01.01");
+            ev.putMeta("index", "testwithexpression-1970.01.01");
             ev.put("value", "atest" + i);
             ev.setTimestamp(new Date(0));
             Assert.assertTrue(es.queue(ev));
             Thread.sleep(1);
         }
-        es.stopSending();
-        es.close();
         Thread.sleep(1000);
+        es.close();
+        Assert.assertEquals(0, Stats.getFailed());
         Assert.assertEquals(count, Stats.getSent());
     }
 
@@ -121,12 +117,10 @@ public class TestElasticSearch {
             Assert.assertTrue(es.queue(ev));
             Thread.sleep(1);
         }
-        es.stopSending();
         es.close();
         Thread.sleep(1000);
     }
 
-    @Ignore
     @Test
     public void testSendInQueue() throws InterruptedException {
         Stats.reset();
@@ -149,7 +143,6 @@ public class TestElasticSearch {
             logger.debug("sent {}", ev);
         }
         Thread.sleep(2000);
-        es.stopSending();
         es.close();
         Thread.sleep(2000);
         Assert.assertEquals(count, Stats.getSent());
@@ -179,7 +172,6 @@ public class TestElasticSearch {
         }
     }
 
-    @Ignore
     @Test
     public void testSomeFailed() throws InterruptedException {
         Stats.reset();
@@ -209,9 +201,14 @@ public class TestElasticSearch {
             Assert.assertTrue(es.queue(ev));
             Thread.sleep(1);
         }
-        es.stopSending();
         es.close();
         Thread.sleep(1000);
+        Assert.assertEquals(0, Stats.getDropped());
+        Assert.assertEquals(0, Stats.getExceptionsCount());
+        Assert.assertEquals(20, Stats.getFailed());
+        Assert.assertEquals(0, Stats.getInflight());
+        Assert.assertEquals(count * 2, Stats.getReceived());
+        Assert.assertEquals(count, Stats.getSent());
         Assert.assertEquals(count, Stats.getSenderError().size());
         Assert.assertEquals(count, Stats.getSent());
         logger.debug("Events failed: {}", () -> Stats.getSenderError());

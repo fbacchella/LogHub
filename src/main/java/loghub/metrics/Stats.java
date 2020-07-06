@@ -290,8 +290,8 @@ public final class Stats {
     }
 
     public static synchronized void failedSentEvent(Sender sender, String msg) {
-        getMetric(Meter.class, sender, METRIC_SENDER_ERROR).mark();
-        getMetric(Meter.class, Sender.class, METRIC_SENDER_ERROR).mark();
+        getMetric(Meter.class, sender, Stats.METRIC_SENDER_FAILEDSEND).mark();
+        getMetric(Meter.class, Sender.class, Stats.METRIC_SENDER_FAILEDSEND).mark();
         storeException(senderMessages, msg);
     }
 
@@ -377,7 +377,7 @@ public final class Stats {
     }
 
     public static long getReceived() {
-        return getMetric(Meter.class, Stats.class, Stats.METRIC_ALL_TIMER).getCount();
+        return getMetric(Timer.class, Stats.class, Stats.METRIC_ALL_TIMER).getCount();
     }
 
     public static long getDropped() {
@@ -399,7 +399,7 @@ public final class Stats {
     }
     
     public static long getInflight() {
-        return Stats.getMetric(Meter.class, Stats.class, Stats.METRIC_ALL_INFLIGHT).getCount();
+        return Stats.getMetric(Counter.class, Stats.class, Stats.METRIC_ALL_INFLIGHT).getCount();
 
     }
 

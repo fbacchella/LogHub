@@ -198,7 +198,7 @@ public class ElasticSearch extends AbstractHttpSender {
             for (Map<String, ?> i: items) {
                 @SuppressWarnings("unchecked")
                 Map<String, Map<String, ? extends Object>> index = (Map<String, Map<String, ? extends Object>>) i.get("index");
-                EventFuture f = tosend.get(eventIndex);
+                EventFuture f = tosend.get(eventIndex++);
                 if (! index.containsKey("error")) {
                     f.complete(true);
                 } else {
