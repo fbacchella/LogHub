@@ -24,12 +24,18 @@ public class EventsRepository<KEY> {
     private static class PauseContext<K> {
         private final PausedEvent<K> pausedEvent;
         private final Timeout task;
-        private final long startTime = System.nanoTime();
+        private final long startTime;
 
         private PauseContext(PausedEvent<K> pausedEvent, Timeout task) {
             this.pausedEvent = pausedEvent;
             this.task = task;
-            Stats.pauseEvent(pausedEvent.event.getCurrentPipeline());
+            // It current pipeline is null, it's new event
+            if (pausedEvent.event.getCurrentPipeline() != null) {
+                Stats.pauseEvent(pausedEvent.event.getCurrentPipeline());
+                startTime = System.nanoTime();
+            } else {
+                startTime = Long.MAX_VALUE;
+            }
         }
 
         private void restartEvent() {

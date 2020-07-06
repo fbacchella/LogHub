@@ -54,7 +54,7 @@ public final class Stats {
     static final String METRIC_ALL_INFLIGHT = "inflight";
     static final String METRIC_ALL_STEPS = "steps";
     static final String METRIC_PIPELINE_PAUSED = "paused";
-    static final String METRIC_PIPELINE_CURRENT_COUNT = "pausedCount";
+    static final String METRIC_PIPELINE_PAUSED_COUNT = "pausedCount";
 
     // A metrics cache, as calculating a metric name can be costly.
     private final static Map<Object, Map<String, Metric>> metricsCache = new ConcurrentHashMap<>(3);
@@ -263,16 +263,17 @@ public final class Stats {
     }
 
     public static void pauseEvent(String name) {
-        getMetric(Counter.class, String.class, METRIC_PIPELINE_CURRENT_COUNT).inc();
-        getMetric(Counter.class, name, METRIC_PIPELINE_CURRENT_COUNT).inc();
+        getMetric(Counter.class, String.class, METRIC_PIPELINE_PAUSED_COUNT).inc();
+        getMetric(Counter.class, name, METRIC_PIPELINE_PAUSED_COUNT).inc();
    }
 
     public static void restartEvent(String name, long startTime) {
-        getMetric(Timer.class, String.class, METRIC_PIPELINE_PAUSED).update(System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
-        getMetric(Counter.class, String.class, METRIC_PIPELINE_CURRENT_COUNT).dec();
-
-        getMetric(Timer.class, name, METRIC_PIPELINE_PAUSED).update(System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
-        getMetric(Counter.class, name, METRIC_PIPELINE_CURRENT_COUNT).dec();
+        if (startTime < Long.MAX_VALUE) {
+            getMetric(Timer.class, String.class, METRIC_PIPELINE_PAUSED).update(System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
+            getMetric(Timer.class, name, METRIC_PIPELINE_PAUSED).update(System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
+            getMetric(Counter.class, String.class, METRIC_PIPELINE_PAUSED_COUNT).dec();
+            getMetric(Counter.class, name, METRIC_PIPELINE_PAUSED_COUNT).dec();
+        }
    }
 
     /***************************\
