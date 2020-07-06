@@ -10,7 +10,6 @@ import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ProtocolException;
-import java.net.ServerSocket;
 import java.net.URL;
 import java.util.Base64;
 import java.util.Collections;
@@ -59,7 +58,7 @@ public class TestHttp {
     static public void configure() throws IOException {
         Tools.configure();
         logger = LogManager.getLogger();
-        LogUtils.setLevel(logger, Level.TRACE, "loghub.receivers.Http", "loghub.netty", "loghub.EventsProcessor", "loghub.security", "loghub.netty.http", "loghub.configuration");
+        LogUtils.setLevel(logger, Level.FATAL, "loghub.receivers.Http", "loghub.netty", "loghub.EventsProcessor", "loghub.security", "loghub.netty.http", "loghub.configuration");
     }
 
     private Http receiver = null;
@@ -69,10 +68,8 @@ public class TestHttp {
 
     public Http makeReceiver(Consumer<Http.Builder> prepare, Map<String, Object> propsMap) throws IOException {
         // Generate a locally binded random socket
-        ServerSocket socket = new ServerSocket(0, 10, InetAddress.getLoopbackAddress());
-        hostname = socket.getInetAddress().getHostAddress();
-        port = socket.getLocalPort();
-        socket.close();
+        port = Tools.tryGetPort();
+        hostname = InetAddress.getLoopbackAddress().getCanonicalHostName();
 
         queue = new ArrayBlockingQueue<>(1);
 
@@ -86,7 +83,7 @@ public class TestHttp {
         httpbuilder.setHost(hostname);
         httpbuilder.setPort(port);
         prepare.accept(httpbuilder);
-        
+
         receiver = httpbuilder.build();
         receiver.setOutQueue(queue);
         receiver.setPipeline(new Pipeline(Collections.emptyList(), "testhttp", null));
@@ -132,7 +129,7 @@ public class TestHttp {
         return result;
     }
 
-    @Test
+    @Test(timeout = 5000)
     public void testHttpPostJson() throws IOException {
         try (Http receiver = makeReceiver( i -> {}, Collections.emptyMap())) {
             doRequest(new URL("http", hostname, port, "/"),
@@ -152,9 +149,9 @@ public class TestHttp {
         }
     }
 
-    @Test
+    @Test(timeout = 5000)
     public void testHttpGet() throws IOException {
-        makeReceiver( i -> {}, Collections.emptyMap());
+        makeReceiver(i -> {}, Collections.emptyMap());
         doRequest(new URL("http", hostname, port, "/?a=1"),
                   new byte[]{},
                   i -> {}, 200);
@@ -165,20 +162,20 @@ public class TestHttp {
         Assert.assertEquals("1", a);
         Assert.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
         ConnectionContext<InetSocketAddress> ectxt = e.getConnectionContext();
+        Assert.assertNotNull(ectxt);
         Assert.assertTrue(ectxt.getLocalAddress() instanceof InetSocketAddress);
         Assert.assertTrue(ectxt.getRemoteAddress() instanceof InetSocketAddress);
         Assert.assertNull(((IpConnectionContext)ectxt).getSslParameters());
     }
 
-    @Test
+    @Test(timeout = 5000)
     public void testHttpsGet() throws IOException {
-        System.setProperty("javax.net.debug", "ssl");
-        makeReceiver( i -> { 
+        makeReceiver(i -> { 
             i.setWithSSL(true);
-            i.setSSLClientAuthentication("REQUIRED");
+            i.setSSLClientAuthentication("WANTED");
         },
-                      Collections.singletonMap("ssl.trusts", new String[] {getClass().getResource("/loghub.p12").getFile()})
-                        );
+                     Collections.singletonMap("ssl.trusts", new String[] {getClass().getResource("/loghub.p12").getFile()})
+                     );
         doRequest(new URL("https", hostname, port, "/?a=1"),
                   new byte[]{},
                   i -> {}, 200);
@@ -198,7 +195,7 @@ public class TestHttp {
                   i -> {}, 200);
     }
 
-    @Test
+    @Test(timeout = 5000)
     public void testHttpPostForm() throws IOException {
         makeReceiver( i -> {}, Collections.emptyMap());
         doRequest(new URL("http", hostname, port, "/"),
@@ -217,7 +214,7 @@ public class TestHttp {
         Assert.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
     }
 
-    @Test
+    @Test(timeout = 5000)
     public void testFailedAuthentication1() throws IOException {
         try {
             makeReceiver( i -> { i.setUser("user") ; i.setPassword("password");}, Collections.emptyMap());
@@ -225,13 +222,13 @@ public class TestHttp {
                       new byte[]{},
                       i -> {}, 401);
         } catch (IOException e) {
-            Assert.assertEquals("Server returned HTTP response code: 401 for URL: http://127.0.0.1:" + receiver.getPort() + "/?a=1", e.getMessage());
+            Assert.assertEquals("Server returned HTTP response code: 401 for URL: http://" + hostname + ":" + receiver.getPort() + "/?a=1", e.getMessage());
             return;
         }
         Assert.fail();
     }
 
-    @Test
+    @Test(timeout = 5000)
     public void testFailedAuthentication2() throws IOException {
         try {
             makeReceiver( i -> { i.setUser("user") ; i.setPassword("password");}, Collections.emptyMap());
@@ -243,13 +240,13 @@ public class TestHttp {
                           i.setRequestProperty("Authorization", "Basic " + authStr);
                       }, 401);
         } catch (IOException e) {
-            Assert.assertEquals("Server returned HTTP response code: 401 for URL: http://127.0.0.1:" + receiver.getPort() + "/?a=1", e.getMessage());
+            Assert.assertEquals("Server returned HTTP response code: 401 for URL: http://" + hostname + ":" + receiver.getPort() + "/?a=1", e.getMessage());
             return;
         }
         Assert.fail();
     }
 
-    @Test
+    @Test(timeout = 5000)
     public void testGoodPasswordAuthentication() throws IOException {
         makeReceiver( i -> { i.setUser("user") ; i.setPassword("password");}, Collections.emptyMap());
         URL dest = new URL("http", hostname, port, "/?a=1");
@@ -265,7 +262,7 @@ public class TestHttp {
         Assert.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
     }
 
-    @Test
+    @Test(timeout = 5000)
     public void testGoodJwtAuthentication() throws IOException {
         Map<String, Object> props = new HashMap<>();
         props.put("jwt.alg", "HMAC256");
@@ -286,7 +283,7 @@ public class TestHttp {
         Assert.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
     }
 
-    @Test
+    @Test(timeout = 5000)
     public void testGoodJwtAuthenticationAsPassword() throws IOException {
         Map<String, Object> props = new HashMap<>();
         props.put("jwt.alg", "HMAC256");
@@ -308,7 +305,7 @@ public class TestHttp {
         Assert.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
     }
 
-    @Test
+    @Test(timeout = 5000)
     public void manyDecoders() throws ConfigException, IOException {
         String confile = "input {" + 
                         "    loghub.receivers.Http {" + 
@@ -330,7 +327,7 @@ public class TestHttp {
         Assert.assertTrue(decs.containsKey("application/msgpack"));
     }
 
-    @Test
+    @Test(timeout = 5000)
     public void noExplicitDecoder() throws ConfigException, IOException {
         String confile = "input {" + 
                         "    loghub.receivers.Http {" + 
