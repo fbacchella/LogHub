@@ -352,7 +352,7 @@ public class Configuration {
         final int queuesDepth = newProperties.containsKey("queueDepth") ? (Integer) newProperties.remove("queueDepth") : DEFAULTQUEUEDEPTH;
         newProperties.put(Properties.PROPSNAMES.QUEUESDEPTH.toString(), queuesDepth);
 
-        BlockingQueue<Event> mainQueue = new ArrayBlockingQueue<Event>(queuesDepth);
+        BlockingQueue<Event> mainQueue = new ArrayBlockingQueue<Event>(queuesDepth, true);
         Map<String, BlockingQueue<Event>> outputQueues = new HashMap<>(namedPipeLine.size());
         conf.outputPipelines.forEach( i-> outputQueues.put(i, new ArrayBlockingQueue<Event>(queuesDepth)));
 
