@@ -36,7 +36,7 @@ public class InMemorySender extends Sender {
 
     @Override
     public String getSenderName() {
-        return null;
+        return toString();
     }
 
     public List<Event> getSendedEvents() {
