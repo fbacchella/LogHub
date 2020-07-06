@@ -75,7 +75,6 @@ public class File extends Sender {
         truncate = builder.truncate;
     }
 
-
     @Override
     public boolean configure(Properties properties) {
         try {
@@ -114,19 +113,6 @@ public class File extends Sender {
         } 
     }
 
-    /**
-     * Used by unit test, don't use it
-     */
-    @Override
-    public void close() {
-        try {
-            destination.close();
-        } catch (IOException e) {
-            logger.error("Failed to close {}: {}", fileName,
-                         Helpers.resolveThrowableException(e));
-            logger.catching(Level.DEBUG, e);
-        }
-    }
 
     @Override
     public void customStopSending() {
