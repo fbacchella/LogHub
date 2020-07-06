@@ -57,7 +57,7 @@ public class TestFile {
         }
     }
 
-    private static Logger logger = LogManager.getLogger();
+    private static Logger logger;
 
     @BeforeClass
     static public void configure() throws IOException {
@@ -108,7 +108,7 @@ public class TestFile {
         ctxt.getLocalAddress().acquire();
 
         if (close) {
-            fsend.stopSending();
+            fsend.close();
             Assert.assertEquals(expectedSize, new java.io.File(outFile).length());
         }
         return fsend;
@@ -118,21 +118,18 @@ public class TestFile {
     public void testOk() throws IOException, InterruptedException {
         send(i -> i.setTruncate(true), 1, true);
         send(i -> i.setTruncate(true), 1, true);
-        Assert.assertEquals(2L, Stats.getSent());
     }
 
     @Test(timeout=2000)
     public void testOkAppend() throws IOException, InterruptedException {
         send(i -> i.setTruncate(false), 1, true);
         send(i -> i.setTruncate(false), 2, true);
-        Assert.assertEquals(2L, Stats.getSent());
     }
 
     @Test(timeout=2000)
     public void testOkSeparator() throws IOException, InterruptedException {
         send(i -> {i.setTruncate(true) ; i.setSeparator("\n");}, 2, true);
         send(i -> i.setTruncate(true), 1, true);
-        Assert.assertEquals(2L, Stats.getSent());
     }
 
     @Test
