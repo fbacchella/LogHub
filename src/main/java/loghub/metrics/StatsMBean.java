@@ -8,6 +8,7 @@ import javax.management.NotCompliantMBeanException;
 import javax.management.ObjectName;
 import javax.management.StandardMBean;
 
+import com.codahale.metrics.Counter;
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.Timer;
 
@@ -30,6 +31,10 @@ public interface StatsMBean {
         return Stats.getMetric(Meter.class, Stats.class, Stats.METRIC_ALL_EXCEPTION).getCount();
     }
 
+    default public long getInflight() {
+        return Stats.getMetric(Counter.class, Stats.class, Stats.METRIC_ALL_INFLIGHT).getCount();
+    }
+
     public class Implementation extends StandardMBean implements StatsMBean {
 
         public final static ObjectName NAME;
@@ -44,6 +49,12 @@ public interface StatsMBean {
         public Implementation()
                         throws NotCompliantMBeanException, MalformedObjectNameException, InstanceAlreadyExistsException, MBeanRegistrationException {
             super(StatsMBean.class);
+            // Ensure that all metrics are created
+            getTotalEvents();
+            getReceivedMedianLifeTime();
+            getReceived95LifeTime();
+            getUnhandledExceptions();
+            getInflight();
         }
 
     }

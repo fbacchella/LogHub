@@ -103,87 +103,44 @@ body {
     };
   };
 
-  // Parse URL arguments
-  function getParameter(paramName) {
-    var searchString = window.location.search.substring(1),
-        i, val, params = searchString.split("&");
-
-    for (i=0;i<params.length;i++) {
-      val = params[i].split("=");
-      if (val[0] == paramName) {
-        return unescape(val[1]);
-      }
+    // Parse URL arguments
+    function getParameter(params, paramName, defVal) {
+        let param = params.get(paramName);
+        let value = param != null ? parseInt(unescape(param)) : defVal;
+        return ! isNaN(value) ? value : defVal;
     }
-    return null;
-  };
+  
+    let params = new URLSearchParams(window.location.search);
 
-  var nHistorical = getParameter("nHistorical") || 60;
-  var pollingInterval = getParameter("pollingInterval") || 5000;
-  var width = getParameter("width") || 400;
-  var height = getParameter("height") || 60;
-  var options = {nHistorical: nHistorical,
-                 pollingInterval: pollingInterval,
-                 width: width,
-                 height: height,
-                 container: "#metrics"};
+    let nHistorical = getParameter(params, "nHistorical", 60);
+    let pollingInterval = getParameter(params, "pollingInterval", 5000);
+    let width = getParameter(params, "width", 400);
+    let height = getParameter(params, "height", 60);
+    let options = {nHistorical: nHistorical,
+                   pollingInterval: pollingInterval,
+                   width: width,
+                   height: height,
+                   container: "#metrics"};
+    let xhr = new XMLHttpRequest();
+    
+    let metricName = unescape(params.get("q") ?? '/global');
 
-  function getValueSnag(res) {
-      return res["Value"];
-  }
+    xhr.addEventListener('readystatechange', function() {
+        if (xhr.readyState === XMLHttpRequest.DONE && xhr.status === 200) {
+            let metrics = JSON.parse(xhr.responseText);
+            for (metric of metrics) {
+                counterAndSparkline(metric.description,
+                                    metric.addendum, 
+                                    metric.url,
+                                    d3.format(metric.format),
+                                    new Function("res", metric.snag), options);
+            }
+        }
+    });
 
-  function getCountSnag(res) {
-      return res["Count"];
-  }
+    xhr.open('GET', '/metric' + metricName);
+    xhr.send(null);
 
-  function getOneMinuteRate(res) {
-      return res["OneMinuteRate"];
-  }
-
-  function getPercentileSnag(res) {
-      return res["50thPercentile"] / 1000;
-  }
-
-  function get95PercentileSnag(res) {
-      return res["95thPercentile"] / 1000;
-  }
-
-  var metrics = [
-      {description: "JVM Heap",
-       addendum: "bytes",
-       url: "/jmx/java.lang:type=Memory",
-       format: d3.format(",.3s"),
-       snag: function(res) { return res["HeapMemoryUsage"]["used"]; }},
-       {description: "Event received",
-           addendum: "e/s",
-           url: "/jmx/metrics:name=Allevents.timer",
-           format: d3.format(",.2s"),
-           snag: getOneMinuteRate},
-      {description: "In flight",
-       addendum: "Event being processed",
-       url: "/jmx/metrics:name=Allevents.inflight",
-       format: d3.format(","),
-       snag: getCountSnag},
-      {description: "95% latency",
-       addendum: "s",
-       url: "/jmx/metrics:name=Allevents.timer",
-       format: d3.format(",.2s"),
-       snag: get95PercentileSnag},
-       {description: "Event waiting",
-           addendum: "In the processing loop",
-           url: "/jmx/metrics:name=EventWaiting.mainloop",
-           format: d3.format(","),
-           snag: getValueSnag}
-       ]
-
-  for (i = 0; i < metrics.length; i++) {
-      var metric = metrics[i];
-      counterAndSparkline(metric.description,
-                          metric.addendum,
-                          metric.url,
-                          metric.format,
-                          metric.snag,
-                          options);
-  }
-
-})()</script>
+    })()
+</script>
 

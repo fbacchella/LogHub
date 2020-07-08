@@ -8,6 +8,8 @@ import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.FullHttpRequest;
 import loghub.configuration.Properties;
 import loghub.netty.http.AbstractHttpServer;
+import loghub.netty.http.GetMetric;
+import loghub.netty.http.GraphMetric;
 import loghub.netty.http.JmxProxy;
 import loghub.netty.http.JwtToken;
 import loghub.netty.http.ResourceFiles;
@@ -31,6 +33,8 @@ public class DashboardHttpServer extends AbstractHttpServer<DashboardHttpServer,
 
     private final SimpleChannelInboundHandler<FullHttpRequest> ROOTREDIRECT = new RootRedirect();
     private final SimpleChannelInboundHandler<FullHttpRequest> JMXPROXY = new JmxProxy();
+    private final SimpleChannelInboundHandler<FullHttpRequest> GETMETRIC = new GetMetric();
+    private final SimpleChannelInboundHandler<FullHttpRequest> GRAPHMETRIC = new GraphMetric();
     private final SimpleChannelInboundHandler<FullHttpRequest> TOKENGENERATOR;
     private final SimpleChannelInboundHandler<FullHttpRequest> TOKENFILTER;
 
@@ -51,6 +55,8 @@ public class DashboardHttpServer extends AbstractHttpServer<DashboardHttpServer,
         p.addLast(ROOTREDIRECT);
         p.addLast(new ResourceFiles());
         p.addLast(JMXPROXY);
+        p.addLast(GETMETRIC);
+        p.addLast(GRAPHMETRIC);
         if (TOKENGENERATOR != null && TOKENFILTER != null) {
             p.addLast(TOKENFILTER);
             p.addLast(TOKENGENERATOR);

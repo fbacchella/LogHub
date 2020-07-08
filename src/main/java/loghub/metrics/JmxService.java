@@ -190,8 +190,6 @@ public class JmxService {
     public static void start(Configuration conf) throws IOException {
         mbs = ManagementFactory.getPlatformMBeanServer();
 
-        startJmxReporter(conf);
-
         try {
             conf.mbeans.forEach((k,v) -> {
                 try {
@@ -206,6 +204,8 @@ public class JmxService {
         } catch (UndeclaredThrowableException ex) {
             throw new IllegalStateException("Unusuable JMX setup: " + Helpers.resolveThrowableException(ex.getCause()), ex);
         }
+
+        startJmxReporter(conf);
 
         if (conf.port >= 0) {
             server = startConnectorServer(conf);
