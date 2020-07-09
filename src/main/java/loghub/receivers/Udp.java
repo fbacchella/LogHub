@@ -68,7 +68,7 @@ public class Udp extends NettyIpReceiver<Udp,
 
     @Override
     public String getReceiverName() {
-        return "UdpNettyReceiver/" + Helpers.ListenString(getHost()) + "/" + getPort();
+        return "UdpReceiver/" + Helpers.ListenString(getHost()) + "/" + getPort();
     }
 
     @Override
