@@ -1,15 +1,12 @@
 package loghub.processors;
 
-import static org.junit.Assert.assertTrue;
-
 import java.io.IOException;
+import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoField;
 import java.util.Collections;
-import java.util.Date;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -17,6 +14,8 @@ import org.apache.logging.log4j.Logger;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
+
+import com.axibase.date.PatternResolver;
 
 import loghub.Event;
 import loghub.LogUtils;
@@ -42,9 +41,25 @@ public class TestDateParser {
         parse.setField(new String[] {"field"});
         Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
         Event event = Tools.getEvent();
-        event.put("field", DateTimeFormatter.ISO_DATE_TIME.format(ZonedDateTime.now()));
+        ZonedDateTime now = ZonedDateTime.now();
+        event.put("field", PatternResolver.createNewFormatter("iso").print(now));
         parse.process(event);
-        assertTrue("date not parsed", event.get("field") instanceof Date);
+        Instant parsedDate = (Instant) event.get("field");
+        Assert.assertEquals("date not parsed", now.toInstant(), parsedDate);
+    }
+
+    @Test
+    public void test1bis() throws ProcessorException {
+        DateParser parse = new DateParser();
+        parse.setPattern("yyyy-MM-ddTHH:mm:ss.SSSZ");
+        parse.setField(new String[] {"field"});
+        Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
+        Event event = Tools.getEvent();
+        ZonedDateTime now = ZonedDateTime.now();
+        event.put("field", PatternResolver.createNewFormatter("iso").print(now));
+        parse.process(event);
+        Instant parsedDate = (Instant) event.get("field");
+        Assert.assertEquals("date not parsed", now.toInstant(), parsedDate);
     }
 
     @Test
@@ -54,10 +69,10 @@ public class TestDateParser {
         parse.setField(new String[] {"field"});
         Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
         Event event = Tools.getEvent();
-        event.put("field", "1970-01-01T00:00:00.000000+01:00");
+        event.put("field", "1971-01-01T00:00:00.001001+01:00");
         parse.process(event);
-        Date date = (Date) event.get("field");
-        Assert.assertEquals("date not parsed", -3600000, date.getTime());
+        Instant date = (Instant) event.get("field");
+        Assert.assertEquals("date not parsed", "1970-12-31T23:00:00.001001Z", date.toString());
     }
 
     @Test
@@ -68,10 +83,10 @@ public class TestDateParser {
         parse.setField(new String[] {"field"});
         Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
         Event event = Tools.getEvent();
-        event.put("field", "1970-01-01T00:00:00");
+        event.put("field", "1971-01-01T00:00:00");
         parse.process(event);
-        Date date = (Date) event.get("field");
-        Assert.assertEquals("date not parsed", 0L, date.getTime());
+        Instant date = (Instant) event.get("field");
+        Assert.assertEquals("date not parsed", "1971-01-01T00:00:00Z", date.toString());
     }
 
     @Test
@@ -82,9 +97,8 @@ public class TestDateParser {
         Event event = Tools.getEvent();
         event.put("field", "Tue, 3 Jun 2008 11:05:30 +0110");
         parse.process(event);
-        Assert.assertTrue("date not parsed", event.get("field") instanceof Date);
-        Date date = (Date) event.get("field");
-        Assert.assertEquals("date not parsed", 1212486930000L, date.getTime());
+        Instant date = (Instant) event.get("field");
+        Assert.assertEquals("date not parsed", 1212486930000L, date.toEpochMilli());
     }
 
     @Test
@@ -97,8 +111,8 @@ public class TestDateParser {
         Event event = Tools.getEvent();
         event.put("field", "Jul 26 16:40:22");
         parse.process(event);
-        Date date = (Date) event.get("field");
-        OffsetDateTime t = OffsetDateTime.ofInstant(date.toInstant(), ZoneId.of("GMT"));
+        Instant date = (Instant) event.get("field");
+        OffsetDateTime t = OffsetDateTime.ofInstant(date, ZoneId.of("GMT"));
         int year = OffsetDateTime.now().get(ChronoField.YEAR);
         Assert.assertEquals("date not parsed", year, t.getLong(ChronoField.YEAR));
     }
@@ -113,8 +127,8 @@ public class TestDateParser {
         Event event = Tools.getEvent();
         event.put("field", "2016-08-04T18:57:37.238+0000");
         parse.process(event);
-        Date date = (Date) event.get("field");
-        OffsetDateTime t = OffsetDateTime.ofInstant(date.toInstant(), ZoneId.of("GMT"));
+        Instant date = (Instant) event.get("field");
+        OffsetDateTime t = OffsetDateTime.ofInstant(date, ZoneId.of("GMT"));
         Assert.assertEquals("date not parsed", 18, t.getLong(ChronoField.HOUR_OF_DAY));
     }
 
@@ -128,8 +142,8 @@ public class TestDateParser {
         Event event = Tools.getEvent();
         event.put("field", "Jul 26 16:40:22.238");
         parse.process(event);
-        Date date = (Date) event.get("field");
-        OffsetDateTime t = OffsetDateTime.ofInstant(date.toInstant(), ZoneId.of("GMT"));
+        Instant date = (Instant) event.get("field");
+        OffsetDateTime t = OffsetDateTime.ofInstant(date, ZoneId.of("GMT"));
         Assert.assertEquals("date not parsed", 14, t.getLong(ChronoField.HOUR_OF_DAY));
     }
 
@@ -151,8 +165,8 @@ public class TestDateParser {
         Event event = Tools.getEvent();
         event.put("field", parsedDate);
         Assert.assertTrue("failed to parse " + parsedDate + " with " + parseformat, parse.process(event));
-        Date date = (Date) event.get("field");
-        OffsetDateTime t = OffsetDateTime.ofInstant(date.toInstant(), ZoneId.of("GMT"));
+        Instant date = (Instant) event.get("field");
+        OffsetDateTime t = OffsetDateTime.ofInstant(date, ZoneId.of("GMT"));
         Assert.assertEquals("failed to parse " + parsedDate + " with " + parseformat, expectedHour, t.getLong(ChronoField.HOUR_OF_DAY));
     }
 
@@ -163,8 +177,9 @@ public class TestDateParser {
         checkTZ("GMT", "zzz", 7);
         checkTZ("CET", "zzz", 5);
         checkTZ("Europe/Paris", "VV", 5);
-        checkTZ("+0200", "ZZZ", 5);
+        checkTZ("+0200", "Z", 5);
         checkTZ("+02:00", "xxx", 5);
+        checkTZ("", "", 14);
     }
 
 }
