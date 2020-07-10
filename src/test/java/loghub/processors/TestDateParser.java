@@ -45,7 +45,8 @@ public class TestDateParser {
         event.put("field", PatternResolver.createNewFormatter("iso").print(now));
         parse.process(event);
         Instant parsedDate = (Instant) event.get("field");
-        Assert.assertEquals("date not parsed", now.toInstant(), parsedDate);
+        // ZonedDateTime is ms precision in J8 and µs in 11
+        Assert.assertEquals("date not parsed", now.toInstant().toEpochMilli(), parsedDate.toEpochMilli());
     }
 
     @Test
