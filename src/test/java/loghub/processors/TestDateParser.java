@@ -42,7 +42,7 @@ public class TestDateParser {
         Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
         Event event = Tools.getEvent();
         ZonedDateTime now = ZonedDateTime.now();
-        event.put("field", PatternResolver.createNewFormatter("iso").print(now));
+        event.put("field", PatternResolver.createNewFormatter("iso_nanos").print(now));
         parse.process(event);
         Instant parsedDate = (Instant) event.get("field");
         // ZonedDateTime is ms precision in J8 and µs in 11
@@ -57,7 +57,7 @@ public class TestDateParser {
         Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
         Event event = Tools.getEvent();
         ZonedDateTime now = ZonedDateTime.now();
-        event.put("field", PatternResolver.createNewFormatter("iso").print(now));
+        event.put("field", PatternResolver.createNewFormatter("iso_nanos").print(now));
         parse.process(event);
         Instant parsedDate = (Instant) event.get("field");
         Assert.assertEquals("date not parsed", now.toInstant(), parsedDate);
