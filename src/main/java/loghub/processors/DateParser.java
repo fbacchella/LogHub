@@ -8,6 +8,7 @@ import java.util.Locale;
 import java.util.Map;
 
 import com.axibase.date.DatetimeProcessor;
+import com.axibase.date.OnMissingDateComponentAction;
 import com.axibase.date.PatternResolver;
 
 import loghub.Event;
@@ -19,7 +20,7 @@ public class DateParser extends FieldsProcessor {
 
     private final static Map<String, DatetimeProcessor> NAMEDPATTERNS = new LinkedHashMap<String, DatetimeProcessor>();
     static {
-        NAMEDPATTERNS.put("ISO_DATE_TIME", PatternResolver.createNewFormatter("iso"));
+        NAMEDPATTERNS.put("ISO_DATE_TIME", PatternResolver.createNewFormatter("iso_nanos"));
         NAMEDPATTERNS.put("RFC_1123_DATE_TIME", PatternResolver.createNewFormatter("eee, d MMM yyyy HH:mm:ss Z"));
         NAMEDPATTERNS.put("milliseconds", PatternResolver.createNewFormatter("milliseconds"));
         NAMEDPATTERNS.put("seconds", PatternResolver.createNewFormatter("seconds"));
@@ -35,8 +36,12 @@ public class DateParser extends FieldsProcessor {
         if (patternsStrings != null) {
             patterns = Arrays.stream(patternsStrings)
                     .map(i -> {
+                        DatetimeProcessor namedProcessor = NAMEDPATTERNS.get(i);
+                        if (namedProcessor != null) {
+                            return namedProcessor;
+                        }
                         try {
-                            return (NAMEDPATTERNS.containsKey(i) ? NAMEDPATTERNS.get(i) : PatternResolver.createNewFormatter(i)).withLocale(locale).withDefaultZone(zone);
+                            return PatternResolver.createNewFormatter(i, zone, OnMissingDateComponentAction.SET_CURRENT).withLocale(locale);
                         } catch (IllegalArgumentException e) {
                             logger.error("invalid date time pattern '{}' : {}", i, Helpers.resolveThrowableException(e));
                             return null;
@@ -45,9 +50,34 @@ public class DateParser extends FieldsProcessor {
                     .toArray(DatetimeProcessor[]::new);
             ;
         } else {
-            patterns = NAMEDPATTERNS.values().stream().toArray(DatetimeProcessor[]::new);
+            patterns = NAMEDPATTERNS.values().toArray(new DatetimeProcessor[0]);
         }
         return patterns.length != 0 && Arrays.stream(patterns).allMatch(i -> i != null) && super.configure(properties);
+    }
+
+    /**
+     * Resolve the format used when trying to parse the date. Since DatetimeProcessor implementation don't
+     * override toString, using it for debugging is worthless.
+     * Instead, if user-provided pattern is specified, find it by index.
+     * Otherwise find the key in NAMEDPATTERNS map.
+     * If debug is disabled, just return null.
+     * @param index current patterns index
+     * @param processor DatetimeProcessor used for parsing
+     * @return date format
+     */
+    private String resolveCurrentlyUsedFormatIfDebug(int index, DatetimeProcessor processor) {
+        if (!logger.isDebugEnabled()) {
+            return null;
+        }
+        if (patternsStrings != null) {
+            return patternsStrings[index];
+        }
+        for (Map.Entry<String, DatetimeProcessor> entry : NAMEDPATTERNS.entrySet()) {
+            if (entry.getValue().equals(processor)) {
+                return entry.getKey();
+            }
+        }
+        return processor.toString();
     }
 
     /**
@@ -61,27 +91,17 @@ public class DateParser extends FieldsProcessor {
     public Object fieldFunction(Event event, Object value) throws ProcessorException {
         String dateString = value.toString();
         logger.debug("trying to parse {}", dateString);
-        for(DatetimeProcessor formatter: patterns) {
-            logger.trace("trying to parse {} with {}", dateString, formatter);
+        for (int i = 0; i < patterns.length; i++) {
+            DatetimeProcessor formatter = patterns[i];
+            String format = resolveCurrentlyUsedFormatIfDebug(i, formatter);
+            logger.trace("trying to parse {} with {}", dateString, format);
             try {
                 ZonedDateTime dateParsed = formatter.parse(dateString);
                 logger.trace("parsed {} as {}", dateString, dateParsed);
-
-                // Can't detect if date is missing, check for UNIX_EPOCH_YEAR and hope the best
-                if (dateParsed.getYear() == 1970) {
-                    ZonedDateTime now = ZonedDateTime.now();
-                    dateParsed = dateParsed.withYear(now.getYear());
-                    if (dateParsed.getMonthValue() == 1) {
-                        dateParsed = dateParsed.withMonth(now.getMonthValue());
-                        if (dateParsed.getDayOfMonth() == 1) {
-                            dateParsed = dateParsed.withDayOfMonth(now.getDayOfMonth());
-                        }
-                    }
-                }
                 logger.debug("Resolved to {}", dateParsed);
                 return dateParsed.toInstant();
             } catch (IllegalArgumentException e) {
-                logger.debug("failed to parse date with pattern {}: {}", () -> formatter.toString(), () -> e.getMessage());
+                logger.debug("failed to parse date with pattern {}: {}", format, e.getMessage());
                 //no problem, just wrong parser, keep going
             }
         }
