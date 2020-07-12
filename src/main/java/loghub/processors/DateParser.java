@@ -21,6 +21,7 @@ public class DateParser extends FieldsProcessor {
     private final static Map<String, DatetimeProcessor> NAMEDPATTERNS = new LinkedHashMap<String, DatetimeProcessor>();
     static {
         NAMEDPATTERNS.put("ISO_DATE_TIME", PatternResolver.createNewFormatter("iso_nanos"));
+        NAMEDPATTERNS.put("ISO_INSTANT", PatternResolver.createNewFormatter("iso_nanos"));
         NAMEDPATTERNS.put("RFC_1123_DATE_TIME", PatternResolver.createNewFormatter("eee, d MMM yyyy HH:mm:ss Z"));
         NAMEDPATTERNS.put("milliseconds", PatternResolver.createNewFormatter("milliseconds"));
         NAMEDPATTERNS.put("seconds", PatternResolver.createNewFormatter("seconds"));
