@@ -60,7 +60,6 @@ public class TestJmxConnection {
         Properties props = Configuration.parse(reader);
         JmxService.start(props.jmxServiceConfiguration);
         connect(hostip, loopbackip);
-        JmxService.stop();
     }
 
     @Test
@@ -70,7 +69,6 @@ public class TestJmxConnection {
         Properties props = Configuration.parse(reader);
         JmxService.start(props.jmxServiceConfiguration);
         connect(loopbackip, hostip);
-        JmxService.stop();
     }
 
     private void connect(String ip1, String ip2) throws IOException, InstanceNotFoundException {

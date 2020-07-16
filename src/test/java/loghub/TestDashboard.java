@@ -54,6 +54,11 @@ public class TestDashboard {
         JmxService.start(props.jmxServiceConfiguration);
     }
 
+    @After
+    public void stopJmx() throws IOException {
+        JmxService.stop();
+    }
+
     @Before
     public void startDashBoard() throws IllegalArgumentException, InterruptedException {
         dashboard = DashboardHttpServer.getBuilder().setPort(port).setHost("localhost").setThreadPrefix("TestDashboard").build();
