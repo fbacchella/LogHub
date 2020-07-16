@@ -22,7 +22,35 @@ public class DateParser extends FieldsProcessor {
     static {
         NAMEDPATTERNS.put("ISO_DATE_TIME", PatternResolver.createNewFormatter("iso_nanos"));
         NAMEDPATTERNS.put("ISO_INSTANT", PatternResolver.createNewFormatter("iso_nanos"));
-        NAMEDPATTERNS.put("RFC_1123_DATE_TIME", PatternResolver.createNewFormatter("eee, d MMM yyyy HH:mm:ss Z"));
+
+        /*
+                date-time   =  [ day "," ] date time       ; dd mm yy hh:mm:ss zzz
+                day         =  "Mon"  / "Tue" /  "Wed"  / "Thu"
+                               /  "Fri"  / "Sat" /  "Sun"
+                date        =  1*2DIGIT month 2DIGIT       ; day month year
+                                                           ;  e.g. 20 Jun 82
+                month       =  "Jan"  /  "Feb" /  "Mar"  /  "Apr"
+                            /  "May"  /  "Jun" /  "Jul"  /  "Aug"
+                            /  "Sep"  /  "Oct" /  "Nov"  /  "Dec"
+               time        =  hour zone                    ; ANSI and Military
+               hour        =  2DIGIT ":" 2DIGIT [":" 2DIGIT]
+                                                 ; 00:00:00 - 23:59:59
+               zone        =  "UT"  / "GMT"                ; Universal Time
+                                                           ; North American : UT
+                           /  "EST" / "EDT"                ;  Eastern:  - 5/ - 4
+                           /  "CST" / "CDT"                ;  Central:  - 6/ - 5
+                           /  "MST" / "MDT"                ;  Mountain: - 7/ - 6
+                           /  "PST" / "PDT"                ;  Pacific:  - 8/ - 7
+                           /  1ALPHA                       ; Military: Z = UT;
+                                                           ;  A:-1; (J not used)
+                                                           ;  M:-12; N:+1; Y:+12
+                           / ( ("+" / "-") 4DIGIT )        ; Local differential
+                                                           ;  hours+min. (HHMM)
+         */
+        NAMEDPATTERNS.put("RFC_822_WEEK_DAY", PatternResolver.createNewFormatter("eee, d MMM yyyy HH:mm:ss Z"));
+        NAMEDPATTERNS.put("RFC_822_SHORT", PatternResolver.createNewFormatter("d MMM yyyy HH:mm:ss Z"));
+        // "Mmm dd hh:mm:ss"
+        NAMEDPATTERNS.put("RFC_3164", PatternResolver.createNewFormatter("MMM d HH:mm:ss"));
         NAMEDPATTERNS.put("milliseconds", PatternResolver.createNewFormatter("milliseconds"));
         NAMEDPATTERNS.put("seconds", PatternResolver.createNewFormatter("seconds"));
     }
