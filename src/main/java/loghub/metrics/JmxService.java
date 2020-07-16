@@ -188,6 +188,7 @@ public class JmxService {
     private static JMXConnectorServer server;
 
     public static void start(Configuration conf) throws IOException {
+        System.out.println("Starting JMX service");
         mbs = ManagementFactory.getPlatformMBeanServer();
 
         try {
@@ -212,38 +213,40 @@ public class JmxService {
         }
     }
 
+    private static ObjectName createMetricName(String type, String domain, String name, ObjectNameFactory donf, Pattern pipepattern ) {
+        ObjectName metricName = null;
+        Matcher m = pipepattern.matcher(name);
+        if (m.matches()) {
+            Hashtable<String, String> table = new Hashtable<>(4);
+            String service = m.group(1);
+            table.put("type", service);
+            if (m.group(3) != null) {
+                String servicename = m.group(2);
+                String metric = m.group(4);
+                table.put("servicename", servicename);
+                table.put("name", metric);
+            } else {
+                String metric = m.group(2);
+                table.put("name", metric);
+                table.put("level", "details");
+            }
+            try {
+                metricName = new ObjectName("loghub", table);
+            } catch (MalformedObjectNameException e) {
+                metricName = donf.createName(type, domain, name);
+            }
+        } else {
+            metricName = donf.createName(type, domain, name);
+        }
+        registred.add(metricName);
+        return metricName;
+    }
+
     private static void startJmxReporter(Configuration conf) {
         ObjectNameFactory donf = new DefaultObjectNameFactory();
         Pattern pipepattern = Pattern.compile("^([^\\.]+)\\.(.+?)(\\.([a-zA-z0-9]+))?$");
-        reporter = JmxReporter.forRegistry(Stats.metricsRegistry).createsObjectNamesWith(new ObjectNameFactory() {
-            @Override
-            public ObjectName createName(String type, String domain, String name) {
-                Matcher m = pipepattern.matcher(name);
-                if (m.matches()) {
-                    Hashtable<String, String> table = new Hashtable<>(4);
-                    String service = m.group(1);
-                    table.put("type", service);
-                    if (m.group(3) != null) {
-                        String servicename = m.group(2);
-                        String metric = m.group(4);
-                        table.put("servicename", servicename);
-                        //table.put("level", "details");
-                        table.put("name", metric);
-                    } else {
-                        String metric = m.group(2);
-                        table.put("name", metric);
-                        table.put("level", "details");
-                    }
-                    try {
-                        return new ObjectName("loghub", table);
-                    } catch (MalformedObjectNameException e) {
-                        return donf.createName(type, domain, name);
-                    }
-                } else {
-                    return donf.createName(type, domain, name);
-                }
-            }
-        }).registerWith(mbs).build();
+        ObjectNameFactory factory = (t, d, n) -> createMetricName(t, d, n, donf, pipepattern);
+        reporter = JmxReporter.forRegistry(Stats.metricsRegistry).createsObjectNamesWith(factory).registerWith(mbs).build();
         reporter.start();
     }
 
@@ -308,6 +311,7 @@ public class JmxService {
     }
 
     public static void stop() {
+        System.out.println("Stopping JMX service");
         Optional.ofNullable(reporter).ifPresent(JmxReporter::stop);
         registred.forEach(t -> {
             try {
