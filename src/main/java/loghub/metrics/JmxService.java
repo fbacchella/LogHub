@@ -238,7 +238,6 @@ public class JmxService {
         } else {
             metricName = donf.createName(type, domain, name);
         }
-        registred.add(metricName);
         return metricName;
     }
 
