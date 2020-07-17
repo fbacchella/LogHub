@@ -134,6 +134,34 @@ public class TestDateParser {
     }
 
     @Test
+    public void testFailedIso() throws ProcessorException {
+        String fieldValue = "Jul 26 16:40:22";
+        DateParser parse = new DateParser();
+        parse.setPattern("iso");
+        parse.setTimezone("CET");
+        parse.setField(new String[] {"field"});
+        Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
+        Event event = Tools.getEvent();
+        event.put("field", fieldValue);
+        parse.process(event);
+        Assert.assertEquals(fieldValue, event.get("field"));
+    }
+
+    @Test
+    public void testFailedSyslog() throws ProcessorException {
+        String fieldValue = "2016-08-04T18:57:37.238+0000";
+        DateParser parse = new DateParser();
+        parse.setPattern("MMM dd HH:mm:ss");
+        parse.setTimezone("CET");
+        parse.setField(new String[] {"field"});
+        Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
+        Event event = Tools.getEvent();
+        event.put("field", fieldValue);
+        parse.process(event);
+        Assert.assertEquals(fieldValue, event.get("field"));
+    }
+
+    @Test
     public void testAgain2() throws ProcessorException {
         DateParser parse = new DateParser();
         parse.setPattern("MMM dd HH:mm:ss.SSS");

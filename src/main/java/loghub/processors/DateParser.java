@@ -2,10 +2,15 @@ package loghub.processors;
 
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.time.format.DateTimeParseException;
+import java.time.temporal.TemporalAccessor;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
+
+import org.apache.logging.log4j.Level;
 
 import com.axibase.date.DatetimeProcessor;
 import com.axibase.date.OnMissingDateComponentAction;
@@ -63,25 +68,27 @@ public class DateParser extends FieldsProcessor {
     @Override
     public boolean configure(Properties properties) {
         if (patternsStrings != null) {
+            // Keep null values, they are used to detect invalid patterns
             patterns = Arrays.stream(patternsStrings)
-                    .map(i -> {
-                        DatetimeProcessor namedProcessor = NAMEDPATTERNS.get(i);
-                        if (namedProcessor != null) {
-                            return namedProcessor;
-                        }
-                        try {
-                            return PatternResolver.createNewFormatter(i, zone, OnMissingDateComponentAction.SET_CURRENT).withLocale(locale);
-                        } catch (IllegalArgumentException e) {
-                            logger.error("invalid date time pattern '{}' : {}", i, Helpers.resolveThrowableException(e));
-                            return null;
-                        }
-                    })
-                    .toArray(DatetimeProcessor[]::new);
-            ;
+                             .map(this::resolveFromPattern)
+                             .toArray(DatetimeProcessor[]::new);
         } else {
-            patterns = NAMEDPATTERNS.values().toArray(new DatetimeProcessor[0]);
+            patterns = NAMEDPATTERNS.values().toArray(new DatetimeProcessor[NAMEDPATTERNS.size()]);
         }
         return patterns.length != 0 && Arrays.stream(patterns).allMatch(i -> i != null) && super.configure(properties);
+    }
+    
+    private DatetimeProcessor resolveFromPattern(String pattern) {
+        DatetimeProcessor namedProcessor = NAMEDPATTERNS.get(pattern);
+        if (namedProcessor != null) {
+            return namedProcessor;
+        }
+        try {
+            return PatternResolver.createNewFormatter(pattern, zone, OnMissingDateComponentAction.SET_CURRENT).withLocale(locale);
+        } catch (IllegalArgumentException e) {
+            logger.error("invalid date time pattern '{}' : {}", pattern, Helpers.resolveThrowableException(e));
+            return null;
+        }
     }
 
     /**
@@ -101,7 +108,7 @@ public class DateParser extends FieldsProcessor {
         if (patternsStrings != null) {
             return patternsStrings[index];
         }
-        for (Map.Entry<String, DatetimeProcessor> entry : NAMEDPATTERNS.entrySet()) {
+        for (Map.Entry<String, DatetimeProcessor> entry: NAMEDPATTERNS.entrySet()) {
             if (entry.getValue().equals(processor)) {
                 return entry.getKey();
             }
@@ -118,6 +125,9 @@ public class DateParser extends FieldsProcessor {
      */
     @Override
     public Object fieldFunction(Event event, Object value) throws ProcessorException {
+        if (value instanceof Date || value instanceof TemporalAccessor) {
+            return value;
+        }
         String dateString = value.toString();
         logger.debug("trying to parse {}", dateString);
         for (int i = 0; i < patterns.length; i++) {
@@ -127,11 +137,11 @@ public class DateParser extends FieldsProcessor {
             try {
                 ZonedDateTime dateParsed = formatter.parse(dateString);
                 logger.trace("parsed {} as {}", dateString, dateParsed);
-                logger.debug("Resolved to {}", dateParsed);
                 return dateParsed.toInstant();
-            } catch (IllegalArgumentException e) {
-                logger.debug("failed to parse date with pattern {}: {}", format, e.getMessage());
-                //no problem, just wrong parser, keep going
+            } catch (IllegalArgumentException | DateTimeParseException e) {
+                //no problem, just wrong parser, keep trying
+                logger.debug("failed to parse date with pattern {}: {}", () -> format, () -> Helpers.resolveThrowableException(e));
+                logger.catching(Level.TRACE, e);
             }
         }
         return FieldsProcessor.RUNSTATUS.FAILED;
