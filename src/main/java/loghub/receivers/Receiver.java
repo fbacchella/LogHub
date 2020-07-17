@@ -146,17 +146,7 @@ public abstract class Receiver extends Thread implements Iterator<Event>, Closea
         int looptry = 0;
         int wait = 100;
         while (! isInterrupted()) {
-            Iterable<Event> stream = new Iterable<Event>() {
-                @Override
-                public Iterator<Event> iterator() {
-                    Iterator<Event> i = Receiver.this.getIterator();
-                    if (i == null) {
-                        return Helpers.getEmptyIterator();
-                    } else {
-                        return i;
-                    }
-                }
-            };
+            Iterable<Event> stream = () -> Optional.ofNullable(Receiver.this.getIterator()).orElse(Helpers.getEmptyIterator());
             try {
                 for (Event e: stream) {
                     if (e != null) {
@@ -347,7 +337,7 @@ public abstract class Receiver extends Thread implements Iterator<Event>, Closea
             if(! event.inject(pipeline, outQueue, blocking)) {
                 event.end();
                 Stats.newBlockedError(this);
-                logger.debug("send failed from {}, pipeline destination {} blocked", () -> getName(), () -> pipeline.getName());
+                logger.debug("Send failed from {}, pipeline destination {} blocked", () -> getName(), () -> pipeline.getName());
                 return false;
             } else {
                 Stats.newReceivedEvent(this);

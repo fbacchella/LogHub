@@ -37,7 +37,7 @@ public class GraphMetric extends HttpRequestProcessing implements ChannelHandler
             URI uri = new URI(path);
             response.headers().set(HttpHeaderNames.LOCATION, "/static/index.html?q=" + URLEncoder.encode(uri.getPath(), "UTF-8"));
         } catch (URISyntaxException | UnsupportedEncodingException e) {
-            e.printStackTrace();
+            //Not reachable
         }
     }
 

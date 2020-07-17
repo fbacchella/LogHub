@@ -333,7 +333,6 @@ public abstract class Sender extends Thread implements Closeable {
                 logger.trace("New event to send: {}", event);
                 boolean status = isWithBatch() ? queue(event): send(event);
                 if (! isAsync) {
-                    // real async or in batch mode
                     processStatus(event, status);
                 } else if (isWithBatch() && ! status) {
                     // queue return false if this event was not batched
