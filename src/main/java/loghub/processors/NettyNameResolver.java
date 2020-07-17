@@ -35,6 +35,8 @@ import loghub.Event;
 import loghub.Helpers;
 import loghub.ProcessorException;
 import loghub.configuration.Properties;
+import lombok.Getter;
+import lombok.Setter;
 
 public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<DnsResponse,InetSocketAddress>> {
 
@@ -87,9 +89,22 @@ public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<Dn
         final Instant eol;
 
         DnsCacheEntry(AddressedEnvelope<DnsResponse, InetSocketAddress> enveloppe) {
-            answserRr = enveloppe.content().recordAt((DnsSection.ANSWER));
-            questionRr = (DnsQuestion) enveloppe.content().recordAt((DnsSection.QUESTION));
-            code = enveloppe.content().code();
+            DnsResponse resp = enveloppe.content();
+            // Some peoples return CNAME in PTR request so check we got the requested PTR
+            DnsRecord tmpAnswserRr = null;
+            int respCount = resp.count(DnsSection.ANSWER);
+            for (int i = 0; i < respCount; i++) {
+                tmpAnswserRr = resp.recordAt(DnsSection.ANSWER, i);
+                if (tmpAnswserRr.type() == DnsRecordType.PTR) {
+                    break;
+                } else {
+                    // Ensure that tmpAnswserRr will contains null if no PTR returned
+                    tmpAnswserRr = null;
+                }
+            }
+            answserRr = tmpAnswserRr;
+            questionRr = (DnsQuestion) resp.recordAt((DnsSection.QUESTION));
+            code = resp.code();
             // Default to 5s on failure, just to avoid wild loop
             // Also check than the answerRR is not null, some servers are happy to return ok on failure
             int ttl = (code.intValue() == NOERROR && answserRr != null) ? (int) answserRr.timeToLive() : 5;
@@ -128,8 +143,13 @@ public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<Dn
         return store(i.getValue());
     };
 
-    private DnsNameResolver resolver;
+
+    @Getter @Setter
+    private String resolver = null;
+    @Getter @Setter
     private int cacheSize = 10000;
+
+    private DnsNameResolver dnsResolver;
     private Cache<DnsCacheKey, DnsCacheEntry> hostCache;
 
     @Override
@@ -148,7 +168,7 @@ public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<Dn
             logger.error("Unknown resolver '{}': {}", getResolver(), e.getMessage());
             return false;
         }
-        resolver = builder.build();
+        dnsResolver = builder.build();
 
         hostCache = properties.cacheManager.getBuilder(DnsCacheKey.class, DnsCacheEntry.class)
                         .setName("NameResolver", resolverAddr)
@@ -157,8 +177,6 @@ public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<Dn
 
         return super.configure(properties);
     }
-
-    String resolverName = null;
 
     @Override
     public Object fieldFunction(Event event, Object addr)
@@ -199,7 +217,7 @@ public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<Dn
             if (found != null) {
                 return found;
             } else {
-                Future<AddressedEnvelope<DnsResponse, InetSocketAddress>> future = resolver.query(dnsquery);
+                Future<AddressedEnvelope<DnsResponse, InetSocketAddress>> future = dnsResolver.query(dnsquery);
                 throw new ProcessorException.PausedEventException(event, future);
             }
         } else if(addr instanceof String) {
@@ -208,20 +226,6 @@ public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<Dn
         } else {
             return false;
         }
-    }
-
-    /**
-     * @return the the IP of the resolver
-     */
-    public String getResolver() {
-        return resolverName;
-    }
-
-    /**
-     * @param resolver The IP of the resolver
-     */
-    public void setResolver(String resolver) {
-        this.resolverName = resolver;
     }
 
     @Override
@@ -255,20 +259,6 @@ public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<Dn
     }
 
     /**
-     * @return the cacheSize
-     */
-    public int getCacheSize() {
-        return cacheSize;
-    }
-
-    /**
-     * @param cacheSize the cacheSize to set
-     */
-    public void setCacheSize(int cacheSize) {
-        this.cacheSize = cacheSize;
-    }
-
-    /**
      * Used by test to warm up the cache
      * @param query
      * @param type
@@ -279,7 +269,7 @@ public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<Dn
         AddressedEnvelope<DnsResponse, InetSocketAddress> enveloppe = null;
         try {
             DnsQuestion dnsquery = new DefaultDnsQuestion(query, type);
-            Future<AddressedEnvelope<DnsResponse, InetSocketAddress>> future = resolver.query(dnsquery);
+            Future<AddressedEnvelope<DnsResponse, InetSocketAddress>> future = dnsResolver.query(dnsquery);
             enveloppe = future.get();
             hostCache.put(new DnsCacheKey(dnsquery), new DnsCacheEntry(enveloppe));
             return enveloppe.content().recordAt((DnsSection.ANSWER));
