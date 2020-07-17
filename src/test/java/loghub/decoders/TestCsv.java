@@ -61,7 +61,6 @@ public class TestCsv {
         Stream<Map<String, Object>> so = dec.decode(ConnectionContext.EMPTY, values.getBytes(StandardCharsets.UTF_8));
         @SuppressWarnings("unchecked")
         Map<String, Object>[] read = so.toArray(i -> new HashMap[i]);
-        System.out.println(Arrays.toString(read));
         Assert.assertEquals("1", read[0].get("a"));
         Assert.assertEquals("2", read[0].get("b"));
         Assert.assertEquals("3", read[0].get("c"));

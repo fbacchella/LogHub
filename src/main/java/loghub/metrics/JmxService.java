@@ -188,7 +188,6 @@ public class JmxService {
     private static JMXConnectorServer server;
 
     public static void start(Configuration conf) throws IOException {
-        System.out.println("Starting JMX service");
         mbs = ManagementFactory.getPlatformMBeanServer();
 
         try {
@@ -310,7 +309,6 @@ public class JmxService {
     }
 
     public static void stop() {
-        System.out.println("Stopping JMX service");
         Optional.ofNullable(reporter).ifPresent(JmxReporter::stop);
         registred.forEach(t -> {
             try {

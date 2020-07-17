@@ -25,15 +25,12 @@ import org.junit.rules.TemporaryFolder;
 import org.zeromq.SocketType;
 import org.zeromq.ZMQ;
 import org.zeromq.ZMQ.Socket;
-import org.zeromq.ZMonitor;
-import org.zeromq.ZMonitor.ZEvent;
 
 import fr.loghub.naclprovider.NaclCertificate;
 import fr.loghub.naclprovider.NaclPrivateKeySpec;
 import fr.loghub.naclprovider.NaclProvider;
 import fr.loghub.naclprovider.NaclPublicKeySpec;
 import loghub.LogUtils;
-import loghub.ThreadBuilder;
 import loghub.Tools;
 import loghub.ZMQFactory;
 import loghub.zmq.ZMQHelper.Method;
@@ -91,37 +88,6 @@ public class CurveTest {
         try (Socket server = serverBuilder.build();
              Socket client = clientBuilder.build()) {
             AtomicBoolean run = new AtomicBoolean(true);
-            Thread ts = ThreadBuilder.get().setTask(() -> {
-                try (ZMonitor zmon = tctxt.getFactory().getZMonitor(server) ) {
-                    zmon.add(ZMonitor.Event.ALL);
-                    zmon.verbose(true);
-                    zmon.start();
-                    ZEvent event;
-                    while ((event = zmon.nextEvent(1000)) != null && run.get()) {
-                        System.out.println("server: " + event);
-                    }
-                } catch (IOException e) {
-                    e.printStackTrace();
-                } catch (zmq.ZError.IOException e) {
-                    e.getCause().printStackTrace();
-                }
-                System.out.println("Done server");
-            }).setDaemon(true).build(true);
-            Thread tc = ThreadBuilder.get().setTask(() -> {
-                try (ZMonitor zmon = tctxt.getFactory().getZMonitor(client)) {
-                    zmon.add(ZMonitor.Event.ALL);
-                    zmon.start();
-                    ZEvent event;
-                    while ((event = zmon.nextEvent(1000)) != null && run.get()) {
-                        System.out.println("client: " + event);
-                    }
-                } catch (IOException e) {
-                    e.printStackTrace();
-                } catch (zmq.ZError.IOException e) {
-                    e.getCause().printStackTrace();
-                }
-                System.out.println("Done client");
-            }).setDaemon(true).build(true);
             Assert.assertEquals(ZMQ.Socket.Mechanism.CURVE,
                                 server.getMechanism());
             Assert.assertEquals(ZMQ.Socket.Mechanism.CURVE,
@@ -131,8 +97,6 @@ public class CurveTest {
                 Assert.assertEquals("Hello, World!", server.recvStr());
             } finally {
                 run.set(false);
-                ts.join();
-                tc.join();
             }
         }
     }
@@ -206,6 +170,7 @@ public class CurveTest {
         kpg.initialize(256);
         KeyPair kp = kpg.generateKeyPair();
         NaclCertificate certificate = new NaclCertificate(kp.getPublic());
+        @SuppressWarnings("unused")
         NaclPublicKeySpec pubkey = kf.getKeySpec(certificate.getPublicKey(), NaclPublicKeySpec.class);
     }
 
