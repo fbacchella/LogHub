@@ -22,6 +22,7 @@ import loghub.Helpers;
 import lombok.Data;
 
 @ContentType("application/json; charset=utf-8")
+@NoCache
 public class GetMetric extends HttpRequestProcessing implements ChannelHandler {
 
     private static final JsonFactory factory = new JsonFactory();
