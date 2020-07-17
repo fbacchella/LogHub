@@ -23,6 +23,7 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -54,8 +55,8 @@ public class TestDashboard {
         JmxService.start(props.jmxServiceConfiguration);
     }
 
-    @After
-    public void stopJmx() throws IOException {
+    @AfterClass
+    static public void stopJmx() throws IOException {
         JmxService.stop();
     }
 
