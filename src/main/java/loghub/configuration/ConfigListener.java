@@ -87,6 +87,7 @@ class ConfigListener extends RouteBaseListener {
     private static final Logger logger = LogManager.getLogger();
 
     private static enum StackMarker {
+        Path,
         Test,
         ObjectList,
         PipeNodeList,
@@ -481,6 +482,7 @@ class ConfigListener extends RouteBaseListener {
 
     @Override
     public void enterPath(PathContext ctx) {
+        stack.push(StackMarker.Path);
         WrapEvent we = new WrapEvent();
         we.setPathArray(convertEventVariable(ctx.eventVariable()));
         ProcessorInstance pi = new ProcessorInstance(we);
@@ -492,6 +494,16 @@ class ConfigListener extends RouteBaseListener {
         UnwrapEvent we = new UnwrapEvent();
         ProcessorInstance pi = new ProcessorInstance(we);
         stack.push(pi);
+        PipenodesList pipe = new PipenodesList();
+        Object o;
+        do {
+            o = stack.pop();
+            if (o instanceof ProcessorInstance) {
+                pipe.processors.add(0, (ProcessorInstance)o);
+            }
+            assert StackMarker.Path.equals(o) || (o instanceof ProcessorInstance) : o.getClass();
+        } while(! StackMarker.Path.equals(o));
+        stack.push(pipe);
     }
 
     @Override
