@@ -18,10 +18,10 @@ import loghub.senders.Sender;
 
 public interface SenderMBean {
     
-    public long getSent();
-    public long getFailedSend();
-    public long getException();
-    public long getError();
+    public long getCount();
+    public long getFailed();
+    public long getExceptions();
+    public long getErrors();
     public long getActiveBatches();
     public long getBatchesSize();
     public long getFlushDuration();
@@ -61,22 +61,22 @@ public interface SenderMBean {
         }
 
         @Override
-        public long getSent() {
+        public long getCount() {
             return sent.getCount();
         }
 
         @Override
-        public long getFailedSend() {
+        public long getFailed() {
             return failedSend.getCount();
         }
 
         @Override
-        public long getException() {
+        public long getExceptions() {
             return exception.getCount();
         }
 
         @Override
-        public long getError() {
+        public long getErrors() {
             return error.getCount();
         }
 

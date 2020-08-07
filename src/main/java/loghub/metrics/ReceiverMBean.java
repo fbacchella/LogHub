@@ -16,16 +16,11 @@ import loghub.receivers.Receiver;
 public interface ReceiverMBean {
 
     public long getCount();
-
     public long getBytes();
-
     public long getFailedDecode();
-
     public long getFailed();
-
     public long getBlocked();
-
-    public long getException();
+    public long getExceptions();
 
     public class Implementation extends StandardMBean implements ReceiverMBean {
 
@@ -78,7 +73,7 @@ public interface ReceiverMBean {
             return blocked.getCount();
         }
 
-        public long getException() {
+        public long getExceptions() {
             return exception.getCount();
         }
 

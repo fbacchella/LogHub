@@ -16,7 +16,7 @@ import com.codahale.metrics.Timer;
 public interface PipelineMBean {
 
     public long getLoopOverflow();
-    public long getException();
+    public long getExceptions();
     public long getDropped();
     public long getFailed();
     public long getInflight();
@@ -62,7 +62,7 @@ public interface PipelineMBean {
        }
 
         @Override
-        public long getException() {
+        public long getExceptions() {
             return exception.getCount();
         }
 
