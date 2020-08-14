@@ -1,19 +1,28 @@
 package loghub.receivers;
 
+import java.util.List;
+
 import org.apache.logging.log4j.Level;
 import org.logstash.beats.AckEncoder;
+import org.logstash.beats.Batch;
 import org.logstash.beats.BeatsHandler;
 import org.logstash.beats.BeatsParser;
 import org.logstash.beats.ConnectionHandler;
 import org.logstash.beats.IMessageListener;
 import org.logstash.beats.Message;
 
+import com.codahale.metrics.Histogram;
+
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.ByteBuf;
+import io.netty.channel.ChannelHandler.Sharable;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.ServerChannel;
+import io.netty.channel.SimpleChannelInboundHandler;
+import io.netty.handler.codec.DecoderException;
+import io.netty.handler.codec.MessageToMessageDecoder;
 import io.netty.handler.timeout.IdleStateHandler;
 import io.netty.util.concurrent.DefaultEventExecutorGroup;
 import io.netty.util.concurrent.EventExecutorGroup;
@@ -22,6 +31,8 @@ import loghub.ConnectionContext;
 import loghub.Event;
 import loghub.Helpers;
 import loghub.configuration.Properties;
+import loghub.decoders.DecodeException;
+import loghub.metrics.Stats;
 import loghub.netty.AbstractTcpReceiver;
 import loghub.netty.BaseChannelConsumer;
 import loghub.netty.ChannelConsumer;
@@ -53,10 +64,43 @@ public class Beats extends AbstractTcpReceiver<Beats, TcpServer, TcpServer.Build
         return new Builder();
     }
 
+    @Sharable
+    private class StatsHandler extends MessageToMessageDecoder<Batch> {
+
+        @Override
+        protected void decode(ChannelHandlerContext ctx, Batch msg, List<Object> out)
+                        throws Exception {
+            Stats.getMetric(Histogram.class, Beats.this, "batchesSize").update(msg.size());
+            out.add(msg);
+        }
+
+    }
+
+    @Sharable
+    private class BeatsErrorHandler extends SimpleChannelInboundHandler<Object> {
+
+        @Override
+        protected void channelRead0(ChannelHandlerContext ctx,
+                                    Object msg)
+                                                    throws Exception {
+            logger.warn("Not processed message {}", msg);
+        }
+
+        @Override
+        public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause)
+                        throws Exception {
+            // Forward non HTTP error
+            if (cause instanceof DecoderException) {
+                Beats.this.manageDecodeException(new DecodeException("Invalid beats message", cause.getCause() != null ? cause.getCause() : cause));
+            } else {
+                ctx.fireExceptionCaught(cause);
+            }
+        }
+    }
+
     private final IMessageListener messageListener;
     private final EventExecutorGroup idleExecutorGroup;
-    private final EventExecutorGroup beatsHandlerExecutorGroup;
-    
+
     @Getter
     private final int clientInactivityTimeoutSeconds;
     @Getter
@@ -69,7 +113,6 @@ public class Beats extends AbstractTcpReceiver<Beats, TcpServer, TcpServer.Build
         this.clientInactivityTimeoutSeconds = builder.clientInactivityTimeoutSeconds;
         this.maxPayloadSize = builder.maxPayloadSize;
         this.idleExecutorGroup = new DefaultEventExecutorGroup(builder.workers);
-        this.beatsHandlerExecutorGroup = new DefaultEventExecutorGroup(builder.workers);
         this.workers = builder.workers;
 
         this.messageListener = new IMessageListener() {
@@ -125,6 +168,10 @@ public class Beats extends AbstractTcpReceiver<Beats, TcpServer, TcpServer.Build
 
     @Override
     public ChannelConsumer<ServerBootstrap, ServerChannel> getConsumer() {
+        StatsHandler statsHandler = new StatsHandler();
+        BeatsErrorHandler errorHandler = new BeatsErrorHandler();
+        EventExecutorGroup beatsHandlerExecutorGroup = new DefaultEventExecutorGroup(workers);
+
         return new BaseChannelConsumer<Beats, ServerBootstrap, ServerChannel, ByteBuf>(this) {
             @Override
             public void addHandlers(ChannelPipeline pipe) {
@@ -136,7 +183,10 @@ public class Beats extends AbstractTcpReceiver<Beats, TcpServer, TcpServer.Build
                 pipe.addBefore("Sender", "Acker", new AckEncoder());
                 pipe.addBefore("Sender", "ConnectionHandler", new ConnectionHandler());
                 pipe.addBefore(beatsHandlerExecutorGroup, "Sender", "BeatsSplitter", new BeatsParser(maxPayloadSize));
+                pipe.addBefore(beatsHandlerExecutorGroup, "Sender", "BeatsStats", statsHandler);
                 pipe.addBefore(beatsHandlerExecutorGroup, "Sender", "BeatsHandler", new BeatsHandler(messageListener));
+                pipe.addAfter("Sender", "BeatsErrorHandler", errorHandler);
+                System.out.println(pipe);
             }
 
             @Override
@@ -166,6 +216,7 @@ public class Beats extends AbstractTcpReceiver<Beats, TcpServer, TcpServer.Build
 
     @Override
     public ByteBuf getContent(ByteBuf message) {
+        Stats.newReceivedMessage(this, message.readableBytes());
         return message;
     }
 
