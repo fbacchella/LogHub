@@ -98,7 +98,7 @@ public final class Stats {
     }
 
     @SuppressWarnings("unchecked")
-    static <T extends Metric> T register(Object key, String name, T newMetric) {
+    public static <T extends Metric> T register(Object key, String name, T newMetric) {
         metricsRegistry.register(getMetricName(key, name), newMetric);
         return (T) metricsCache.computeIfAbsent(key, k -> new ConcurrentHashMap<>()).put(name, newMetric);
     }
@@ -108,7 +108,7 @@ public final class Stats {
     }
 
     @SuppressWarnings("unchecked")
-    static <T extends Metric> T getMetric(Class<T> metricClass, Object key, String name) {
+    public static <T extends Metric> T getMetric(Class<T> metricClass, Object key, String name) {
         return (T) metricsCache.computeIfAbsent(key, k -> new ConcurrentHashMap<>()).computeIfAbsent(name, k -> Stats.createMetric(metricClass, key, name));
     }
 
@@ -398,10 +398,9 @@ public final class Stats {
     public static long getExceptionsCount() {
         return Stats.getMetric(Meter.class, Stats.class, Stats.METRIC_ALL_EXCEPTION).getCount();
     }
-    
+
     public static long getInflight() {
         return Stats.getMetric(Counter.class, Stats.class, Stats.METRIC_ALL_INFLIGHT).getCount();
-
     }
 
 }
