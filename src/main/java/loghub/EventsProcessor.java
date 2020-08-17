@@ -104,8 +104,15 @@ public class EventsProcessor extends Thread {
                     logger.trace("next processor is {}", processor);
                     // Send to another pipeline, loop in the main processing queue
                     Pipeline next = namedPipelines.get(event.getNextPipeline());
-                    event.refill(next);
-                    processor = event.next();
+                    if (next == null) {
+                        logger.error("Failed to forward to pipeline {} from {}, not found", event.getNextPipeline(), event.getCurrentPipeline());
+                        event.doMetric(PipelineStat.INFLIGHTDOWN);
+                        event.drop();
+                        break;
+                    } else {
+                        event.refill(next);
+                        processor = event.next();
+                    }
                 }
             }
             logger.trace("event is now {}", event);
