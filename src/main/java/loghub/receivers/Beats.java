@@ -186,7 +186,6 @@ public class Beats extends AbstractTcpReceiver<Beats, TcpServer, TcpServer.Build
                 pipe.addBefore(beatsHandlerExecutorGroup, "Sender", "BeatsStats", statsHandler);
                 pipe.addBefore(beatsHandlerExecutorGroup, "Sender", "BeatsHandler", new BeatsHandler(messageListener));
                 pipe.addAfter("Sender", "BeatsErrorHandler", errorHandler);
-                System.out.println(pipe);
             }
 
             @Override
