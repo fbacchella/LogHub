@@ -5,6 +5,7 @@ import java.nio.ByteBuffer;
 import java.time.DateTimeException;
 import java.time.Instant;
 
+import org.msgpack.core.MessagePackException;
 import org.msgpack.jackson.dataformat.ExtensionTypeCustomDeserializers;
 import org.msgpack.jackson.dataformat.MessagePackFactory;
 
@@ -14,6 +15,7 @@ import com.fasterxml.jackson.databind.ObjectReader;
 
 import loghub.BuilderClass;
 import loghub.ConnectionContext;
+import loghub.Helpers;
 
 /**
  * This transformer parse a msgpack object. If it's a map, all the elements are
@@ -92,7 +94,11 @@ public class Msgpack extends AbstractJackson {
     @Override
     protected Object decodeJackson(ConnectionContext<?> ctx, ObjectResolver gen)
                     throws DecodeException, IOException {
-        return gen.deserialize(reader);
+        try {
+            return gen.deserialize(reader);
+        } catch (MessagePackException ex) {
+            throw new DecodeException("Failed to decode Msgpack event: " + Helpers.resolveThrowableException(ex), ex);
+        }
     }
 
 }
