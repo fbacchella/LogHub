@@ -17,6 +17,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.SimpleChannelInboundHandler;
+import io.netty.channel.socket.DatagramChannel;
 import io.netty.handler.ssl.NotSslRecordException;
 import loghub.Helpers;
 import loghub.netty.servers.AbstractNettyServer;
@@ -51,8 +52,11 @@ public abstract class ComponentFactory<BS extends AbstractBootstrap<BS,BSC>, BSC
                 logger.warn("Not handled exception {} from {}", Helpers.resolveThrowableException(cause), ctx.channel().remoteAddress());
                 logger.throwing(Level.WARN, cause);
             }
-            ctx.close().await();
-            logger.warn("channel closed");
+            if (! (ctx.channel() instanceof DatagramChannel)) {
+                // UDP should not be close
+                ctx.close().await();
+                logger.warn("channel closed");
+            }
         }
     }
 
