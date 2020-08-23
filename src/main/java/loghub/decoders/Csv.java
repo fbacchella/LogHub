@@ -24,6 +24,8 @@ public class Csv extends AbstractStringJackson {
         @Setter
         private char separator= ',';
         @Setter
+        private String lineSeparator= "\n";
+        @Setter
         private String nullValue = "";
         @Setter
         private boolean header = false;
@@ -48,6 +50,7 @@ public class Csv extends AbstractStringJackson {
         sbuilder.setColumnSeparator(builder.separator);
         sbuilder.setNullValue(builder.nullValue);
         sbuilder.setUseHeader(builder.header);
+        sbuilder.setLineSeparator(builder.lineSeparator);
 
         reader =  JacksonBuilder.get(CsvMapper.class)
                 .setMapperSupplier(CsvMapper::new)

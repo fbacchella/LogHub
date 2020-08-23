@@ -1,8 +1,8 @@
 package loghub.decoders;
 
+import java.beans.IntrospectionException;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Stream;
@@ -14,6 +14,8 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import loghub.BeanChecks;
+import loghub.BeanChecks.BeanInfo;
 import loghub.ConnectionContext;
 import loghub.LogUtils;
 import loghub.Tools;
@@ -68,4 +70,18 @@ public class TestCsv {
         Assert.assertEquals("5", read[1].get("b"));
         Assert.assertEquals("6", read[1].get("c"));
     }
+
+    @Test
+    public void test_loghub_decoders_Csv() throws ClassNotFoundException, IntrospectionException {
+        BeanChecks.beansCheck(logger, "loghub.decoders.Csv"
+                ,BeanChecks.BeanInfo.build("columns", BeanChecks.LSTRING)
+                ,BeanChecks.BeanInfo.build("features", BeanChecks.LSTRING)
+                ,BeanInfo.build("separator", Character.TYPE)
+                ,BeanInfo.build("lineSeparator", String.class)
+                ,BeanInfo.build("nullValue", String.class)
+                ,BeanInfo.build("header", Boolean.TYPE)
+                ,BeanInfo.build("charset", String.class)
+                );
+    }
+
 }
