@@ -1,37 +1,34 @@
 package loghub.processors;
 
 import java.io.IOException;
-import java.io.StringReader;
 import java.util.Map;
 
 import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.jsontype.impl.StdTypeResolverBuilder;
+import com.fasterxml.jackson.databind.ObjectReader;
 
 import loghub.Event;
 import loghub.ProcessorException;
+import loghub.jackson.JacksonBuilder;
 import lombok.Getter;
 import lombok.Setter;
 
 public class ParseJson extends FieldsProcessor {
 
-    private static final JsonFactory factory = new JsonFactory();
-    private static final ThreadLocal<ObjectMapper> json = new ThreadLocal<ObjectMapper>() {
-        @Override
-        protected ObjectMapper initialValue() {
-            ObjectMapper mapper = new ObjectMapper(factory);
-            mapper.setDefaultTyping(StdTypeResolverBuilder.noTypeInfoBuilder());
-            return mapper;
-        }
-    };
-
     @Getter @Setter
     String atPrefix = "_";
+
+    private final ObjectReader reader;
+    
+    public ParseJson() {
+        reader = JacksonBuilder.get()
+                .setFactory(new JsonFactory())
+                .getReader();
+    }
 
     @Override
     public Object fieldFunction(Event event, Object value) throws ProcessorException {
         try {
-            Object o = json.get().readValue(new StringReader(value.toString()), Object.class);
+            Object o = reader.readValue(value.toString());
             if (o instanceof Map) {
                 @SuppressWarnings("unchecked")
                 Map<Object, Object> map = (Map<Object, Object>) o;

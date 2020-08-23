@@ -3,12 +3,11 @@ package loghub.decoders;
 import java.io.IOException;
 
 import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectReader;
-import com.fasterxml.jackson.databind.jsontype.impl.StdTypeResolverBuilder;
 
 import loghub.BuilderClass;
 import loghub.ConnectionContext;
+import loghub.jackson.JacksonBuilder;
 
 @BuilderClass(Json.Builder.class)
 public class Json extends AbstractStringJackson {
@@ -23,16 +22,13 @@ public class Json extends AbstractStringJackson {
         return new Builder();
     }
 
-    private static final ObjectReader reader;
-    static {
-        JsonFactory factory = new JsonFactory();
-        ObjectMapper mapper = new ObjectMapper(factory);
-        mapper.setDefaultTyping(StdTypeResolverBuilder.noTypeInfoBuilder());
-        reader = mapper.readerFor(OBJECTREF);
-    }
+    private final ObjectReader reader;
 
     protected Json(Builder builder) {
         super(builder);
+        reader = JacksonBuilder.get()
+                .setFactory(new JsonFactory())
+                .getReader();
     }
 
     @Override
