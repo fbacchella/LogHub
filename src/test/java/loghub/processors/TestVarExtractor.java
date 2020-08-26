@@ -68,4 +68,18 @@ public class TestVarExtractor {
         Assert.assertEquals("key message not found", "c", e.get("message"));
     }
 
+    @Test
+    public void testMixed() throws ProcessorException {
+        VarExtractor t = new VarExtractor();
+        t.setField(new String[] {".message"});
+        t.setParser("(?<name>[a-z]+)=(?<value>[^;]+);?");
+        Event e = Tools.getEvent();
+        e.put("message", "noise a=1;b=2;error;c=3");
+        e.process(t);
+        Assert.assertEquals("key a not found", "1", e.get("a"));
+        Assert.assertEquals("key b not found", "2", e.get("b"));
+        Assert.assertEquals("key c not found", "3", e.get("c"));
+        Assert.assertEquals("key message not found", "noise error;", e.get("message"));
+    }
+
 }

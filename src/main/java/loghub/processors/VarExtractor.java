@@ -25,7 +25,9 @@ public class VarExtractor extends FieldsProcessor {
         String message = fieldValue.toString();
         String after = message;
         Matcher m = matchersGenerator.get().reset(message);
+        StringBuffer skipped = new StringBuffer(message.length());
         while(m.find()) {
+            skipped.append(message.substring(m.regionStart(), m.start()));
             String key = m.group("name");
             String value = m.group("value");
             if (key != null && ! key.isEmpty()) {
@@ -35,11 +37,13 @@ public class VarExtractor extends FieldsProcessor {
                 }
             }
             after = message.substring(m.end());
+            m.region(m.end(), m.regionEnd());
         }
+        skipped.append(after);
         if (! parsed) {
             return FieldsProcessor.RUNSTATUS.FAILED;
-        } else if (after != null && ! after.isEmpty()) {
-            return after;
+        } else if (skipped.length() != 0) {
+            return skipped.toString();
         } else {
             return FieldsProcessor.RUNSTATUS.REMOVE;
         }
