@@ -28,8 +28,8 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TimeZone;
-import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -352,9 +352,9 @@ public class Configuration {
         final int queuesDepth = newProperties.containsKey("queueDepth") ? (Integer) newProperties.remove("queueDepth") : DEFAULTQUEUEDEPTH;
         newProperties.put(Properties.PROPSNAMES.QUEUESDEPTH.toString(), queuesDepth);
 
-        BlockingQueue<Event> mainQueue = new ArrayBlockingQueue<Event>(queuesDepth, true);
+        BlockingQueue<Event> mainQueue = new LinkedBlockingQueue<Event>(queuesDepth);
         Map<String, BlockingQueue<Event>> outputQueues = new HashMap<>(namedPipeLine.size());
-        conf.outputPipelines.forEach( i-> outputQueues.put(i, new ArrayBlockingQueue<Event>(queuesDepth)));
+        conf.outputPipelines.forEach( i-> outputQueues.put(i, new LinkedBlockingQueue<Event>(queuesDepth)));
 
         newProperties.put(Properties.PROPSNAMES.FORMATTERS.toString(), conf.formatters);
         newProperties.put(Properties.PROPSNAMES.MAINQUEUE.toString(), mainQueue);

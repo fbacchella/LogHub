@@ -5,10 +5,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.stream.IntStream;
@@ -139,7 +139,7 @@ public abstract class Sender extends Thread implements Closeable {
             isAsync = true;
             batchSize = builder.batchSize;
             threads = new Thread[builder.workers];
-            batches = new ArrayBlockingQueue<>(threads.length * 8);
+            batches = new LinkedBlockingQueue<>(threads.length * 8);
             publisher = getPublisher();
             batch.set(new Batch(this));
         } else {

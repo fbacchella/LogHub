@@ -3,8 +3,8 @@ package loghub.metrics;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Queue;
-import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.function.IntSupplier;
 import java.util.stream.Collectors;
@@ -59,12 +59,12 @@ public final class Stats {
     // A metrics cache, as calculating a metric name can be costly.
     private final static Map<Object, Map<String, Metric>> metricsCache = new ConcurrentHashMap<>(3);
 
-    private final static Queue<ProcessingException> processorExceptions = new ArrayBlockingQueue<>(100);
-    private final static Queue<Throwable> exceptions = new ArrayBlockingQueue<>(100);
-    private final static Queue<String> decodeMessage = new ArrayBlockingQueue<>(100);
-    private final static Queue<String> senderMessages = new ArrayBlockingQueue<>(100);
-    private final static Queue<String> receiverMessages = new ArrayBlockingQueue<>(100);
-    
+    private final static Queue<ProcessingException> processorExceptions = new LinkedBlockingQueue<>(100);
+    private final static Queue<Throwable> exceptions = new LinkedBlockingQueue<>(100);
+    private final static Queue<String> decodeMessage = new LinkedBlockingQueue<>(100);
+    private final static Queue<String> senderMessages = new LinkedBlockingQueue<>(100);
+    private final static Queue<String> receiverMessages = new LinkedBlockingQueue<>(100);
+
     static MetricRegistry metricsRegistry = new MetricRegistry();
 
     public enum PipelineStat {
