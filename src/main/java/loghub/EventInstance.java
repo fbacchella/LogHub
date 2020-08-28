@@ -269,12 +269,11 @@ class EventInstance extends Event {
     public Processor next() {
         stepsCount++;
         logger.debug("waiting processors {}", processors);
-        try {
-            return processors.pop();
-        } catch (NoSuchElementException e) {
+        Processor next = processors.poll();
+        if (next == null) {
             wevent = null;
-            return null;
         }
+        return next;
     }
 
     public void insertProcessor(Processor p) {
