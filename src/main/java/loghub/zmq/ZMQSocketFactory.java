@@ -238,8 +238,9 @@ public class ZMQSocketFactory implements AutoCloseable {
             return this;
         }
         public Socket build() throws ZMQCheckedException {
+            Socket socket = null;
             try {
-                Socket socket = context.createSocket(type);
+                socket = context.createSocket(type);
                 String url = endpoint + ":" + type.toString() + ":" + method.getSymbol();
                 socket.setIdentity(url.getBytes(StandardCharsets.UTF_8));
                 if (hwm >= 0) {
@@ -296,6 +297,9 @@ public class ZMQSocketFactory implements AutoCloseable {
                 logger.trace("new socket: {}={} in {}", url, socket, context);
                 return socket;
             } catch (UncheckedZMQException e) {
+                if (socket != null) {
+                    socket.close();
+                }
                 throw new ZMQCheckedException(e);
             }
         }
