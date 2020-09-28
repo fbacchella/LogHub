@@ -54,7 +54,7 @@ public abstract class ComponentFactory<BS extends AbstractBootstrap<BS,BSC>, BSC
             }
             if (! (ctx.channel() instanceof DatagramChannel)) {
                 // UDP should not be close
-                ctx.close().await();
+                ctx.close();
                 logger.warn("channel closed");
             }
         }
