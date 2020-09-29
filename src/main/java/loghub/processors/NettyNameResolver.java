@@ -10,7 +10,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.concurrent.ExecutionException;
 
 import javax.cache.Cache;
-import javax.cache.processor.EntryProcessor;
+import javax.cache.processor.MutableEntry;
 
 import io.netty.channel.AddressedEnvelope;
 import io.netty.channel.EventLoopGroup;
@@ -123,27 +123,6 @@ public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<Dn
     private static final int NOERROR = DnsResponseCode.NOERROR.intValue();
     private static final EventLoopGroup evg = new NioEventLoopGroup(1, new DefaultThreadFactory("dnsresolver"));
 
-    private final EntryProcessor<DnsCacheKey, DnsCacheEntry, Object> checkTTL = (i, j) -> {
-        if (i.exists() && i.getValue().eol.isBefore(Instant.now())) {
-            i.remove();
-            return null;
-        } else if (i.exists()) {
-            return store(i.getValue());
-        } else {
-            return null;
-        }
-    };
-
-    private final EntryProcessor<DnsCacheKey, DnsCacheEntry, Object> addEntry = (i, j) -> {
-        if (! i.exists()) {
-            @SuppressWarnings("unchecked")
-            AddressedEnvelope<DnsResponse, InetSocketAddress> enveloppe = (AddressedEnvelope<DnsResponse, InetSocketAddress>) j[0];
-            i.setValue(new DnsCacheEntry(enveloppe));
-        }
-        return store(i.getValue());
-    };
-
-
     @Getter @Setter
     private String resolver = null;
     @Getter @Setter
@@ -179,13 +158,12 @@ public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<Dn
     }
 
     @Override
-    public Object fieldFunction(Event event, Object addr)
-                    throws ProcessorException {
+    public Object fieldFunction(Event event, Object addr) throws ProcessorException {
         InetAddress ipaddr = null;
         String toresolv = null;
 
         // If a string was given, convert it to a Inet?Address
-        if(addr instanceof String) {
+        if (addr instanceof String) {
             try {
                 ipaddr = Helpers.parseIpAddres((String) addr);
             } catch (UnknownHostException e) {
@@ -194,7 +172,7 @@ public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<Dn
         } else if (addr instanceof InetAddress) {
             ipaddr = (InetAddress) addr;
         }
-        if(ipaddr instanceof Inet4Address) {
+        if (ipaddr instanceof Inet4Address) {
             Inet4Address ipv4 = (Inet4Address) ipaddr;
             byte[] parts = ipv4.getAddress();
             // the & 0xFF is needed because bytes are signed bytes
@@ -213,7 +191,7 @@ public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<Dn
         if (toresolv != null) {
             //If a query was build, use it
             DnsQuestion dnsquery = new DefaultDnsQuestion(toresolv, DnsRecordType.PTR);
-            Object found = hostCache.invoke(new DnsCacheKey(dnsquery), checkTTL);
+            Object found = hostCache.invoke(new DnsCacheKey(dnsquery), this::checkTTL);
             if (found != null) {
                 return found;
             } else {
@@ -221,10 +199,21 @@ public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<Dn
                 throw new ProcessorException.PausedEventException(event, future);
             }
         } else if(addr instanceof String) {
-            // if addr was a String, it's used a a hostname
+            // if addr was a String, it's used as an hostname
             return addr;
         } else {
             return false;
+        }
+    }
+
+    private Object checkTTL(MutableEntry<NettyNameResolver.DnsCacheKey,NettyNameResolver.DnsCacheEntry> i, Object[] j) {
+        if (i.exists() && i.getValue().eol.isBefore(Instant.now())) {
+            i.remove();
+            return null;
+        } else if (i.exists()) {
+            return store(i.getValue());
+        } else {
+            return null;
         }
     }
 
@@ -233,10 +222,19 @@ public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<Dn
         try {
             DnsResponse response = enveloppe.content();
             DnsQuestion questionRr = (DnsQuestion) response.recordAt((DnsSection.QUESTION));
-            return hostCache.invoke(new DnsCacheKey(questionRr), addEntry, enveloppe);
+            return hostCache.invoke(new DnsCacheKey(questionRr), this::addEntry, enveloppe);
         } finally {
             enveloppe.release();
         }
+    }
+
+    private Object addEntry(MutableEntry<NettyNameResolver.DnsCacheKey,NettyNameResolver.DnsCacheEntry> me, Object[] args) {
+        if (! me.exists()) {
+            @SuppressWarnings("unchecked")
+            AddressedEnvelope<DnsResponse, InetSocketAddress> enveloppe = (AddressedEnvelope<DnsResponse, InetSocketAddress>) args[0];
+            me.setValue(new DnsCacheEntry(enveloppe));
+        }
+        return store(me.getValue());
     }
 
     private Object store(DnsCacheEntry value) {
