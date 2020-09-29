@@ -1,17 +1,19 @@
 package loghub;
 
 import java.util.concurrent.FutureTask;
+import java.util.concurrent.ThreadFactory;
 import java.util.function.BiConsumer;
 
 import lombok.Setter;
 import lombok.experimental.Accessors;
 
-@Accessors(chain = true) @Setter
+@Accessors(chain = true)
+@Setter
 public class ThreadBuilder {
-    
+
     private static class ThreadCustomInterrupt extends Thread {
         private final BiConsumer<Thread, Runnable> interruptHandler;
-        volatile boolean interrupted;
+        private volatile boolean interrupted;
         ThreadCustomInterrupt(Runnable task, BiConsumer<Thread, Runnable> interruptHandler) {
             super(task);
             this.interruptHandler = interruptHandler;
@@ -38,17 +40,9 @@ public class ThreadBuilder {
     private Boolean daemon = null;
     private boolean shutdownHook = false;
     private Thread.UncaughtExceptionHandler exceptionHander =  null;
+    private ThreadFactory factory = null;
 
     private ThreadBuilder() {
-    }
-
-    public ThreadBuilder setName(String name) {
-        this.name = name;
-        return this;
-    }
-
-    public ThreadBuilder setDaemon(boolean on) {
-        return this;
     }
 
     public ThreadBuilder setCallable(FutureTask<?> task) {
@@ -65,7 +59,9 @@ public class ThreadBuilder {
             throw new IllegalArgumentException("A thread can't be both started and being a shutdown hook");
         }
         Thread t;
-        if (interrupter == null) {
+        if (factory != null) {
+            t = factory.newThread(task);
+        } else if (interrupter == null) {
             t = new Thread(task);
         } else {
             t = new ThreadCustomInterrupt(task, interrupter);

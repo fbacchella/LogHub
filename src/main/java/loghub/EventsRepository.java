@@ -60,9 +60,11 @@ public class EventsRepository<KEY> {
         private final ThreadFactory defaulttf = Executors.defaultThreadFactory();
         @Override
         public Thread newThread(Runnable r) {
-            Thread t = defaulttf.newThread(r);
-            t.setName("EventsRepository-timeoutmanager-" + counter.incrementAndGet());
-            return t;
+            return ThreadBuilder.get()
+                                .setTask(r)
+                                .setFactory(defaulttf)
+                                .setName("EventsRepository-timeoutmanager-" + counter.incrementAndGet())
+                                .build();
         }
     };
 
