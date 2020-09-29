@@ -361,7 +361,7 @@
                             <link>https://netty.io/4.0/api/</link>
                             <link>https://static.javadoc.io/org.snmp4j/snmp4j/${snmp4j.version}/</link>
                             <link>https://zeromq.github.io/jzmq/javadocs/</link>
-                            <link>https://logging.apache.org/log4j/2.0/log4j-api/apidocs</link>
+                            <link>https://logging.apache.org/log4j/${log4j}/log4j-api/apidocs</link>
                         </links>
                         <keywords>true</keywords>
                     </configuration>
