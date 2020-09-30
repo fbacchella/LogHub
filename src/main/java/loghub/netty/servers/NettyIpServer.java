@@ -46,7 +46,6 @@ public abstract class NettyIpServer<CF extends ComponentFactory<BS, BSC, InetSoc
         boolean useSSL = false;
         ClientAuthentication sslClientAuthentication = ClientAuthentication.NONE;
         String sslKeyAlias = null;
-        int backlog;
         int rcvBuf = -1;
         int sndBuf = -1;
         protected Builder() {
@@ -79,11 +78,6 @@ public abstract class NettyIpServer<CF extends ComponentFactory<BS, BSC, InetSoc
         @SuppressWarnings("unchecked")
         public B setSSLKeyAlias(String alias) {
             this.sslKeyAlias = alias;
-            return (B) this;
-        }
-        @SuppressWarnings("unchecked")
-        public B setBacklog(int backlog) {
-            this.backlog = backlog;
             return (B) this;
         }
         @SuppressWarnings("unchecked")
@@ -149,8 +143,6 @@ public abstract class NettyIpServer<CF extends ComponentFactory<BS, BSC, InetSoc
 
     @Override
     public void configureBootStrap(BS bootstrap, B builder) {
-        bootstrap.option(ChannelOption.SO_BACKLOG, builder.backlog);
-        bootstrap.option(ChannelOption.TCP_NODELAY, true);
         if (builder.rcvBuf >= 0) {
             bootstrap.option(ChannelOption.SO_RCVBUF, builder.rcvBuf);
         }

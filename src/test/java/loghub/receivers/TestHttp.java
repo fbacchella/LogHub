@@ -356,6 +356,9 @@ public class TestHttp {
                               ,BeanInfo.build("withSSL", Boolean.TYPE)
                               ,BeanInfo.build("SSLClientAuthentication", String.class)
                               ,BeanInfo.build("SSLKeyAlias", String.class)
+                              ,BeanInfo.build("backlog", Integer.TYPE)
+                              ,BeanInfo.build("sndBuf", Integer.TYPE)
+                              ,BeanInfo.build("rcvBuf", Integer.TYPE)
                         );
     }
 

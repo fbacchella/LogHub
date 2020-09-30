@@ -19,7 +19,13 @@ public class AbstractTcpServer<S extends AbstractTcpServer<S, B>,
     public abstract static class Builder<S extends AbstractTcpServer<S, B>,
                                          B extends AbstractTcpServer.Builder<S, B>
                                         > extends NettyIpServer.Builder<S, B, ServerBootstrap, ServerChannel> {
-        protected Builder() {
+        int backlog = -1;
+        @SuppressWarnings("unchecked")
+        public B setBacklog(int backlog) {
+            this.backlog = backlog;
+            return (B) this;
+        }
+       protected Builder() {
         }
     }
 
@@ -46,6 +52,10 @@ public class AbstractTcpServer<S extends AbstractTcpServer<S, B>,
 
     @Override
     public void configureBootStrap(ServerBootstrap bootstrap, B builder) {
+        if (builder.backlog >= 0) {
+            bootstrap.option(ChannelOption.SO_BACKLOG, builder.backlog);
+        }
+        bootstrap.option(ChannelOption.TCP_NODELAY, true);
         bootstrap.childOption(ChannelOption.SO_KEEPALIVE, true);
         super.configureBootStrap(bootstrap, builder);
     }
