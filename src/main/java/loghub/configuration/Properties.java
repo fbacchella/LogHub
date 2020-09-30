@@ -197,6 +197,7 @@ public class Properties extends HashMap<String, Object> {
 
         Stats.waitingQueue(mainQueue::size);
 
+        // The keys are future
         repository = new EventsRepository<Future<?>>(this);
 
         super.putAll(properties);

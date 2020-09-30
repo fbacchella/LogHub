@@ -1,17 +1,19 @@
- package loghub.processors;
+package loghub.processors;
 
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 
+import io.netty.util.concurrent.Future;
 import loghub.AsyncProcessor;
 import loghub.Event;
 import loghub.Processor;
 import loghub.ProcessorException;
 
-public abstract class AsyncFieldsProcessor<FI> extends FieldsProcessor {
+public abstract class AsyncFieldsProcessor<FI, F extends Future<FI>> extends FieldsProcessor {
 
-    private class AsyncFieldSubProcessor extends FieldSubProcessor implements AsyncProcessor<FI> {
+    private class AsyncFieldSubProcessor extends FieldSubProcessor implements AsyncProcessor<FI, F> {
 
         AsyncFieldSubProcessor(Iterator<String[]> processing) {
             super(processing);
@@ -59,12 +61,18 @@ public abstract class AsyncFieldsProcessor<FI> extends FieldsProcessor {
             return AsyncFieldsProcessor.this.getException();
         }
 
+        @Override
+        public BiConsumer<Event, F> getTimeoutHandler() {
+            return AsyncFieldsProcessor.this.getTimeoutHandler();
+        }
+
     }
 
     private int timeout = 10;
 
     public abstract Object asyncProcess(Event event, FI content) throws ProcessorException;
     public abstract boolean manageException(Event event, Exception e, String[] destination) throws ProcessorException;
+    public abstract BiConsumer<Event, F> getTimeoutHandler();
 
     @Override
     FieldSubProcessor getSubProcessor(Iterator<String[]> processing) {

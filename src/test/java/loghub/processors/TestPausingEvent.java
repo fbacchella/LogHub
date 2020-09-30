@@ -3,6 +3,8 @@ package loghub.processors;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.Collections;
+import java.util.concurrent.TimeoutException;
+import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 
 import org.apache.logging.log4j.Level;
@@ -14,6 +16,7 @@ import org.junit.Test;
 
 import io.netty.channel.DefaultEventLoop;
 import io.netty.util.concurrent.DefaultPromise;
+import io.netty.util.concurrent.Promise;
 import loghub.AsyncProcessor;
 import loghub.Event;
 import loghub.LogUtils;
@@ -46,7 +49,7 @@ public class TestPausingEvent {
     BiFunction<Event, Object, Boolean> onsucces;
     BiFunction<Event, Exception, Boolean> onexception;
 
-    private class SleepingProcessor extends Processor implements AsyncProcessor<Object> {
+    private class SleepingProcessor extends Processor implements AsyncProcessor<Object, Promise<Object>> {
 
         @Override
         public boolean processCallback(Event event, Object content)
@@ -77,11 +80,17 @@ public class TestPausingEvent {
                     Thread.sleep(200);
                     todo.run();
                 } catch (InterruptedException e) {
+                    // No nothing
                 }
             })
             .build(true);
             ;
             throw new ProcessorException.PausedEventException(event, future);
+        }
+
+        @Override
+        public BiConsumer<Event, Promise<Object>> getTimeoutHandler() {
+            return (e, p) -> p.setFailure(new TimeoutException());
         }
     }
 
@@ -93,7 +102,7 @@ public class TestPausingEvent {
         onsucces = (e, v) -> {e.put("message", v); return true;};
         Event e = Tools.getEvent();
         SleepingProcessor sp = new SleepingProcessor();
-        Tools.ProcessingStatus status = Tools.runProcessing(e, "main", Collections.singletonList(sp), (i,j) -> {});
+        Tools.ProcessingStatus status = Tools.runProcessing(e, "main", Collections.singletonList(sp), (i,j) -> { /* empty */ });
         e = status.mainQueue.take();
         long end = Instant.now().toEpochMilli();
         Assert.assertTrue(String.format("slept for %d ms",  end - started), end > started + 200);
@@ -110,7 +119,7 @@ public class TestPausingEvent {
         Groovy gp = new Groovy();
         gp.setScript("event.a = 1");
         sp.setFailure(gp);
-        Tools.ProcessingStatus status = Tools.runProcessing(e, "main", Collections.singletonList(sp), (i,j) -> {});
+        Tools.ProcessingStatus status = Tools.runProcessing(e, "main", Collections.singletonList(sp), (i,j) -> { /* empty */ });
         e = status.mainQueue.take();
         Assert.assertEquals(1, e.get("a"));
     }
@@ -126,7 +135,7 @@ public class TestPausingEvent {
         Groovy gp = new Groovy();
         gp.setScript("event.a = 1");
         sp.setFailure(gp);
-        Tools.ProcessingStatus status = Tools.runProcessing(e, "main", Collections.singletonList(sp), (i,j) -> {});
+        Tools.ProcessingStatus status = Tools.runProcessing(e, "main", Collections.singletonList(sp), (i,j) -> { /* empty */ });
         e = status.mainQueue.take();
         Assert.assertEquals(1, e.get("a"));
     }
@@ -145,7 +154,7 @@ public class TestPausingEvent {
         Groovy gp = new Groovy();
         gp.setScript("event.a = 1");
         sp.setException(gp);
-        Tools.ProcessingStatus status = Tools.runProcessing(e, "main", Collections.singletonList(sp), (i,j) -> {});
+        Tools.ProcessingStatus status = Tools.runProcessing(e, "main", Collections.singletonList(sp), (i,j) -> { /* empty */ });
         e = status.mainQueue.take();
         Assert.assertEquals(1, e.get("a"));
     }

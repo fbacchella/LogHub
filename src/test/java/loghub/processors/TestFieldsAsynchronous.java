@@ -5,6 +5,8 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.TimeoutException;
+import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
@@ -17,6 +19,7 @@ import org.junit.Test;
 
 import io.netty.channel.DefaultEventLoop;
 import io.netty.util.concurrent.DefaultPromise;
+import io.netty.util.concurrent.Promise;
 import loghub.Event;
 import loghub.LogUtils;
 import loghub.Processor;
@@ -47,7 +50,7 @@ public class TestFieldsAsynchronous {
     BiFunction<Event, Exception, Boolean> onexception;
     BiFunction<Event, TestFieldsAsynchronous, Object> transform;
 
-    private class SleepingProcessor extends AsyncFieldsProcessor<TestFieldsAsynchronous> {
+    private class SleepingProcessor extends AsyncFieldsProcessor<TestFieldsAsynchronous, Promise<TestFieldsAsynchronous>> {
 
         @Override
         public Object asyncProcess(Event event, TestFieldsAsynchronous content)
@@ -85,6 +88,11 @@ public class TestFieldsAsynchronous {
             .build(true);
             throw new ProcessorException.PausedEventException(event, f);
         }
+
+        @Override
+        public BiConsumer<Event, Promise<TestFieldsAsynchronous>> getTimeoutHandler() {
+            return (e, v) -> v.setFailure(new TimeoutException());
+        }
     }
 
     @Test(timeout=2000)
@@ -102,7 +110,7 @@ public class TestFieldsAsynchronous {
         e.put("b", 2);
         SleepingProcessor sp = new SleepingProcessor();
         sp.setFields(new String[] {"a", "b"});
-        Tools.ProcessingStatus status = Tools.runProcessing(e, "main", Collections.singletonList(sp), (i,j) -> {});
+        Tools.ProcessingStatus status = Tools.runProcessing(e, "main", Collections.singletonList(sp), (i,j) -> { /* empty */ });
         e = status.mainQueue.take();
         long end = Instant.now().toEpochMilli();
         Assert.assertTrue(String.format("slept for %d ms",  end - started), end > started + 200);
@@ -126,7 +134,7 @@ public class TestFieldsAsynchronous {
         SleepingProcessor sp = new SleepingProcessor();
         sp.setFields(new String[] {"a", "b"});
         sp.setDestination("${field}_done");
-        Tools.ProcessingStatus status = Tools.runProcessing(e, "main", Collections.singletonList(sp), (i,j) -> {});
+        Tools.ProcessingStatus status = Tools.runProcessing(e, "main", Collections.singletonList(sp), (i,j) -> { /* empty */ });
         e = status.mainQueue.take();
         long end = Instant.now().toEpochMilli();
         Assert.assertTrue(String.format("slept for %d ms",  end - started), end > started + 200);
@@ -145,7 +153,7 @@ public class TestFieldsAsynchronous {
         Groovy gp = new Groovy();
         gp.setScript("event.a = 2");
         sp.setFailure(gp);
-        Tools.ProcessingStatus status = Tools.runProcessing(e, "main", Collections.singletonList(sp), (i,j) -> {});
+        Tools.ProcessingStatus status = Tools.runProcessing(e, "main", Collections.singletonList(sp), (i,j) -> { /* empty */ });
         e = status.mainQueue.take();
         Assert.assertEquals(2, e.get("a"));
     }
@@ -176,7 +184,7 @@ public class TestFieldsAsynchronous {
         
         processors.add(sp);
         processors.add(gp2);
-        Tools.ProcessingStatus status = Tools.runProcessing(e, "main", processors, (i,j) -> {});
+        Tools.ProcessingStatus status = Tools.runProcessing(e, "main", processors, (i,j) -> { /* empty */ });
         e = status.mainQueue.take();
         Assert.assertEquals(true, e.get("failure"));
         Assert.assertEquals(true, e.get("b"));
@@ -196,7 +204,7 @@ public class TestFieldsAsynchronous {
         Groovy gp = new Groovy();
         gp.setScript("event.a = 2");
         sp.setFailure(gp);
-        Tools.ProcessingStatus status = Tools.runProcessing(e, "main", Collections.singletonList(sp), (i,j) -> {});
+        Tools.ProcessingStatus status = Tools.runProcessing(e, "main", Collections.singletonList(sp), (i,j) -> { /* empty */ });
         e = status.mainQueue.take();
         Assert.assertEquals(2, e.get("a"));
     }
@@ -219,7 +227,7 @@ public class TestFieldsAsynchronous {
         Groovy gp = new Groovy();
         gp.setScript("event.a = 2");
         sp.setException(gp);
-        Tools.ProcessingStatus status = Tools.runProcessing(e, "main", Collections.singletonList(sp), (i,j) -> {});
+        Tools.ProcessingStatus status = Tools.runProcessing(e, "main", Collections.singletonList(sp), (i,j) -> { /* empty */ });
         e = status.mainQueue.take();
         Assert.assertEquals(2, e.get("a"));
     }

@@ -17,7 +17,7 @@ import loghub.metrics.Stats.PipelineStat;
 import loghub.processors.Drop;
 import loghub.processors.Forker;
 import loghub.processors.Forwarder;
-import loghub.processors.FuturProcessor;
+import loghub.processors.FutureProcessor;
 import loghub.processors.UnwrapEvent;
 import loghub.processors.WrapEvent;
 
@@ -181,35 +181,40 @@ public class EventsProcessor extends Thread {
                 }
                 status = ProcessingStatus.CONTINUE;
             } catch (ProcessorException.PausedEventException ex) {
-                status = ProcessingStatus.PAUSED;
                 // First check if the process will be able to manage the call back
                 if (p instanceof AsyncProcessor) {
+                    @SuppressWarnings("unchecked")
+                    AsyncProcessor<?, Future<?>> ap = (AsyncProcessor<?, Future<?>>) p;
                     // The event to pause might be a transformation of the original event.
                     Event topause = ex.getEvent();
-                    AsyncProcessor<?> ap = (AsyncProcessor<?>) p;
                     // A paused event was catch, create a custom FuturProcess for it that will be awaken when event come back
                     Future<?> future = ex.getFuture();
-                    // Compilation fails if done in a one-liner
-                    Builder<Future<?>> builder = PausedEvent.builder(topause, future);
+                    // Compilation fails if builder is used directly
+                    PausedEvent.Builder<Future<?>> builder = PausedEvent.builder(topause, future);
                     PausedEvent<Future<?>> paused = builder
                                     .onSuccess(p.getSuccess())
                                     .onFailure(p.getFailure())
                                     .onException(p.getException())
                                     .expiration(ap.getTimeout(), TimeUnit.SECONDS)
+                                    .onTimeout(ap.getTimeoutHandler())
                                     .build();
                     //Create the processor that will process the call back processor
                     @SuppressWarnings({ "rawtypes", "unchecked"})
-                    FuturProcessor<?> pauser = new FuturProcessor(future, paused, ap);
-                    ex.getEvent().insertProcessor(pauser);
+                    FutureProcessor<?, ? extends Future<?>> pauser = new FutureProcessor(future, paused, ap);
+                    topause.insertProcessor(pauser);
 
                     //Store the callback informations
                     future.addListener(i -> {
-                        if (! paused.isDone()) {
-                            inQueue.put(topause);
-                        }
+                        inQueue.put(topause);
                         evrepo.cancel(future);
                     });
                     evrepo.pause(paused);
+                    status = ProcessingStatus.PAUSED;
+                } else {
+                    e.doMetric(Stats.PipelineStat.EXCEPTION, ex);
+                    logger.error("Paused event from a non async processor {}, can't handle", p.getName());
+                    logger.catching(Level.DEBUG, ex);
+                    status = ProcessingStatus.FAILED;
                 }
             } catch (ProcessorException.DroppedEventException ex) {
                 status = ProcessingStatus.DROPED;

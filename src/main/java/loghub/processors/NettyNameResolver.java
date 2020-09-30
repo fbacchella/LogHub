@@ -8,6 +8,7 @@ import java.net.UnknownHostException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.concurrent.ExecutionException;
+import java.util.function.BiConsumer;
 
 import javax.cache.Cache;
 import javax.cache.processor.MutableEntry;
@@ -38,7 +39,7 @@ import loghub.configuration.Properties;
 import lombok.Getter;
 import lombok.Setter;
 
-public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<DnsResponse,InetSocketAddress>> {
+public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<DnsResponse,InetSocketAddress>, Future<AddressedEnvelope<DnsResponse,InetSocketAddress>>> {
 
     private static class DnsCacheKey {
         private final String query;
@@ -134,7 +135,7 @@ public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<Dn
     @Override
     public boolean configure(Properties properties) {
         DnsNameResolverBuilder builder = new DnsNameResolverBuilder(evg.next())
-                        .queryTimeoutMillis(Math.max(getTimeout() - 1, 1) * 1000L)
+                        .queryTimeoutMillis(getTimeout() * 1000L)
                         .channelType(NioDatagramChannel.class)
                         ;
         InetSocketAddress resolverAddr = null;
@@ -278,6 +279,12 @@ public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<Dn
                 enveloppe.release();
             }
         }
+    }
+
+    @Override
+    public BiConsumer<Event, Future<AddressedEnvelope<DnsResponse, InetSocketAddress>>> getTimeoutHandler() {
+        // Self-timeout handler, no extenal help needed
+        return null;
     }
 
 }

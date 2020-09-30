@@ -1,10 +1,10 @@
 package loghub;
 
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiConsumer;
 import java.util.function.Function;
 
 import loghub.processors.Identity;
-import lombok.Getter;
 
 public class PausedEvent<KEY> {
 
@@ -22,12 +22,13 @@ public class PausedEvent<KEY> {
     public final Function<Event, Event> failureTransform;
     public final Function<Event, Event> timeoutTransform;
     public final Function<Event, Event> exceptionTransform;
+    public final BiConsumer<Event, KEY> timeoutHandler;
+    public boolean timeoutHandling;
 
     /**
      * A flag that avoid dual processing that might happens with time out
      */
-    @Getter
-    private boolean done = false;
+    private volatile boolean timeout = false;
 
     private PausedEvent(Builder<KEY>  builder) {
         this.event = builder.event;
@@ -42,10 +43,19 @@ public class PausedEvent<KEY> {
         this.failureTransform = builder.failureTransform;
         this.timeoutTransform = builder.expirationTransform;
         this.exceptionTransform = builder.exceptionTransform;
+        this.timeoutHandler = builder.timeoutHandler;
+        this.timeoutHandling = builder.timeoutHandling;
     }
 
-    public void done() {
-        done = true;
+    public void timeout(Event event, KEY key) {
+        timeout = true;
+        if (timeoutHandler != null) {
+            timeoutHandler.accept(event, key);
+        }
+    }
+
+    public boolean wasTimeout() {
+        return timeout;
     }
 
     @Override
@@ -78,6 +88,8 @@ public class PausedEvent<KEY> {
         private Function<Event, Event> failureTransform = i -> i;
         private Function<Event, Event> expirationTransform = i -> i;
         private Function<Event, Event> exceptionTransform = i -> i;
+        private BiConsumer<Event, KEY> timeoutHandler = null;
+        private boolean timeoutHandling = false;
 
         private Builder(Event event, KEY key) {
             this.event = event;
@@ -115,7 +127,8 @@ public class PausedEvent<KEY> {
         public Builder<KEY> onExpiration(Processor onExpiration, Function<Event, Event> expirationTransform) {
             this.onExpiration = onExpiration;
             this.expirationTransform = expirationTransform;
-            return this;
+            this.timeoutHandling = true;
+           return this;
         }
 
         public Builder<KEY> onException(Processor onException) {
@@ -126,6 +139,12 @@ public class PausedEvent<KEY> {
         public Builder<KEY> onException(Processor onException, Function<Event, Event> exceptionTransform) {
             this.onException = onException;
             this.exceptionTransform = exceptionTransform;
+            return this;
+        }
+
+        public Builder<KEY> onTimeout(BiConsumer<Event, KEY> timeoutHandler) {
+            this.timeoutHandler = timeoutHandler;
+            this.timeoutHandling = timeoutHandler != null;
             return this;
         }
 

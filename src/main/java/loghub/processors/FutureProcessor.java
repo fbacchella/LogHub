@@ -13,15 +13,15 @@ import loghub.PausedEvent;
 import loghub.Processor;
 import loghub.ProcessorException;
 
-public class FuturProcessor<FI> extends Processor {
+public class FutureProcessor<FI, F extends Future<FI>> extends Processor {
 
     private static final Logger FUTURLOGGER = LogManager.getLogger();
 
     private final Future<FI> future;
-    private final AsyncProcessor<FI> callback;
+    private final AsyncProcessor<FI, F> callback;
     private final PausedEvent<Future<FI>> pe;
 
-    public FuturProcessor(Future<FI> future, PausedEvent<Future<FI>> pe, AsyncProcessor<FI> callback) {
+    public FutureProcessor(Future<FI> future, PausedEvent<Future<FI>> pe, AsyncProcessor<FI, F> callback) {
         super(FUTURLOGGER);
         this.future = future;
         this.callback = callback;
@@ -42,8 +42,7 @@ public class FuturProcessor<FI> extends Processor {
         logger.trace("Delayed processing of {}", pe);
         FI content;
         try {
-            if (! pe.isDone()) {
-                pe.done();
+            if (! pe.wasTimeout()) {
                 content = future.get();
                 return callback.processCallback(event, content);
             } else {

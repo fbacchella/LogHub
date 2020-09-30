@@ -60,7 +60,7 @@ public class TestNettyNameResolver {
         return status;
     }
 
-    @Test(timeout=2000)
+    @Test(timeout=4000)
     public void badresolvertimeout() throws Throwable {
 
         Event e = Tools.getEvent();
@@ -71,7 +71,7 @@ public class TestNettyNameResolver {
             i.setResolver("169.254.1.1");
             i.setField(new String[] {"host"});
             i.setDestination("fqdn");
-            i.setTimeout(1);
+            i.setTimeout(2);
         }, e);
 
         e = status.mainQueue.take();

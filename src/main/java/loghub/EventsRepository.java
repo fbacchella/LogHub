@@ -44,7 +44,7 @@ public class EventsRepository<KEY> {
 
         static <K> PauseContext<K> of(PausedEvent<K> paused, EventsRepository<K> repository) {
             Timeout task;
-            if (paused.duration > 0 && paused.unit != null) {
+            if (paused.timeoutHandling && paused.duration > 0 && paused.unit != null) {
                 task = processExpiration.newTimeout(i -> repository.runTimeout(paused), paused.duration, paused.unit);
             } else {
                 task = null;
@@ -55,25 +55,21 @@ public class EventsRepository<KEY> {
 
     private static final Logger logger = LogManager.getLogger();
 
-    private static final ThreadFactory tf = new ThreadFactory() {
-        private final AtomicInteger counter = new AtomicInteger(0);
-        private final ThreadFactory defaulttf = Executors.defaultThreadFactory();
-        @Override
-        public Thread newThread(Runnable r) {
-            return ThreadBuilder.get()
-                                .setTask(r)
-                                .setFactory(defaulttf)
-                                .setName("EventsRepository-timeoutmanager-" + counter.incrementAndGet())
-                                .build();
-        }
-    };
-
-    private static final HashedWheelTimer processExpiration = new HashedWheelTimer(tf);
+    private static final HashedWheelTimer processExpiration;
     static {
+        ThreadFactory defaulttf = Executors.defaultThreadFactory();
+        AtomicInteger counter = new AtomicInteger(0);
+        processExpiration = new HashedWheelTimer( r -> 
+            ThreadBuilder.get()
+                         .setTask(r)
+                         .setFactory(defaulttf)
+                         .setName("EventsRepository-timeoutmanager-" + counter.incrementAndGet())
+                         .build()
+        );
         processExpiration.start();
     }
 
-    private final Map<KEY, PauseContext<KEY>> pausestack = new ConcurrentHashMap<>();
+    private final Map<KEY, PauseContext<KEY>> allPaused = new ConcurrentHashMap<>();
     private final BlockingQueue<Event> mainQueue;
 
     public EventsRepository(Properties properties) {
@@ -82,7 +78,7 @@ public class EventsRepository<KEY> {
 
     public PausedEvent<KEY> pause(PausedEvent<KEY> paused) {
         logger.trace("Pausing {}", paused);
-        return pausestack.computeIfAbsent(paused.key, k -> PauseContext.of(paused, this)).pausedEvent;
+        return allPaused.computeIfAbsent(paused.key, k -> PauseContext.of(paused, this)).pausedEvent;
     }
 
     /**
@@ -93,16 +89,17 @@ public class EventsRepository<KEY> {
      */
     public PausedEvent<KEY> getOrPause(KEY key, Function<KEY, PausedEvent<KEY>> creator) {
         logger.trace("looking for key {}", key);
-        return pausestack.computeIfAbsent(key, i -> {
+        return allPaused.computeIfAbsent(key, i -> {
             PausedEvent<KEY> paused = creator.apply(i);
             return PauseContext.of(paused, this);
         }).pausedEvent;
     }
 
     public PausedEvent<KEY> cancel(KEY key) {
-        PauseContext<KEY> ctx = pausestack.remove(key);
+        logger.trace("cancel {}", key);
+        PauseContext<KEY> ctx = allPaused.remove(key);
         if (ctx == null) {
-            logger.warn("removed illegal event with key {}", key);
+            logger.warn("Canceling unknown event with key {}", key);
             return null;
         }
         if(ctx.task != null) {
@@ -113,15 +110,18 @@ public class EventsRepository<KEY> {
     }
 
     public boolean succed(KEY key) {
+        logger.trace("succed {}", key);
         return awake(key, i -> i.onSuccess, i -> i.successTransform);
     }
 
     public boolean failed(KEY key) {
+        logger.trace("failed {}", key);
         return awake(key, i -> i.onFailure, i -> i.failureTransform);
     }
 
     public boolean timeout(KEY key) {
-        Optional.ofNullable(pausestack.get(key)).map(p -> p.pausedEvent).ifPresent(PausedEvent::done);
+        logger.trace("timeout {}", key);
+        Optional.ofNullable(allPaused.get(key)).map(p -> p.pausedEvent).ifPresent(pe -> pe.timeout(pe.event, key));
         return awake(key, i -> i.onTimeout, i -> i.timeoutTransform);
     }
 
@@ -130,7 +130,7 @@ public class EventsRepository<KEY> {
     }
 
     private boolean awake(KEY key, Function<PausedEvent<KEY>, Processor> source, Function<PausedEvent<KEY>, Function<Event, Event>> transform) {
-        PauseContext<KEY> ctx = pausestack.remove(key);
+        PauseContext<KEY> ctx = allPaused.remove(key);
         if (ctx == null) {
             return true;
         }
@@ -138,12 +138,16 @@ public class EventsRepository<KEY> {
             ctx.task.cancel();
         }
         ctx.restartEvent();
-        logger.trace("Waking up event {}", ctx.pausedEvent.event);
-        ctx.pausedEvent.event.insertProcessor(source.apply(ctx.pausedEvent));
-        Event transformed = transform.apply(ctx.pausedEvent).apply(ctx.pausedEvent.event);
+        PausedEvent<KEY> pausedEvent = ctx.pausedEvent;
+        Event event = pausedEvent.event;
+        logger.trace("Waking up event {}", event);
+        // Insert the processor that will execute the state (failure, success, timeout)
+        event.insertProcessor(source.apply(pausedEvent));
+        // Eventually transform the event before handling it
+        Event transformed = transform.apply(pausedEvent).apply(event);
         return mainQueue.offer(transformed);
     }
-    
+
     private void runTimeout(PausedEvent<KEY> paused) {
         // HashedWheelTimer silently swallows Throwable, we handle them ourselves
         try {
@@ -163,16 +167,16 @@ public class EventsRepository<KEY> {
     }
 
     public Event get(KEY key) {
-        return pausestack.get(key).pausedEvent.event;
+        return allPaused.get(key).pausedEvent.event;
     }
 
     public int waiting() {
-        return pausestack.size();
+        return allPaused.size();
     }
 
     @Override
     public String toString() {
-        return "EventsRepository [" + pausestack + "]";
+        return "EventsRepository [" + allPaused + "]";
     }
 
 }
