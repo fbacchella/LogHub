@@ -183,6 +183,25 @@ public class TestUdp {
         }
     }
 
+    /**
+     * Fails on non-linux
+     * @throws IOException
+     */
+    @Test
+    public void testMultiThreads() throws IOException {
+        int port = Tools.tryGetPort();
+        try (Udp r = getReceiver(b -> {
+            b.setBufferSize(4000);
+            b.setHost(InetAddress.getLoopbackAddress().getHostAddress());
+            b.setPort(port);
+            b.setWorkerThreads(4);
+            b.setPoller("EPOLL");
+        })) {
+            Assert.assertTrue(r.configure(new Properties(Collections.emptyMap())));
+            r.start();
+        }
+    }
+
     @Test
     public void testBeans() throws ClassNotFoundException, IntrospectionException {
         BeanChecks.beansCheck(logger, "loghub.receivers.Udp"
@@ -190,6 +209,8 @@ public class TestUdp {
                               , BeanInfo.build("port", Integer.TYPE)
                               , BeanInfo.build("bufferSize", Integer.TYPE)
                               , BeanInfo.build("filter", Filter.class)
+                              , BeanInfo.build("rcvBuf", Integer.TYPE)
+                              , BeanInfo.build("sndBuf", Integer.TYPE)
                         );
     }
 

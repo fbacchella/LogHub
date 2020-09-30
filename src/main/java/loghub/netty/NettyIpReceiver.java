@@ -24,18 +24,28 @@ public abstract class NettyIpReceiver<R extends NettyIpReceiver<R, S, B, CF, BS,
         private int port;
         @Setter
         private String host = null;
+        @Setter
+        int rcvBuf = -11;
+        @Setter
+        int sndBuf = -1;
     };
 
     @Getter
     private final int port;
     @Getter
     private final String host;
+    @Getter
+    private final int rcvBuf;
+    @Getter
+    private final int sndBuf;
 
    protected NettyIpReceiver(Builder<? extends NettyIpReceiver<R, S, B, CF, BS, BSC, SC, CC, SM>> builder) {
         super(builder);
         this.port = builder.port;
         // Ensure host is null if given empty string, to be resolved as "bind *" by InetSocketAddress;
         this.host = builder.host != null && !builder.host.isEmpty() ? builder.host : null;
+        this.rcvBuf = builder.rcvBuf;
+        this.sndBuf = builder.sndBuf;
     }
 
     @Override
@@ -47,7 +57,9 @@ public abstract class NettyIpReceiver<R extends NettyIpReceiver<R, S, B, CF, BS,
                    .useSSL(isWithSSL());
         }
         builder.setPort(port)
-               .setHost(host);
+               .setHost(host)
+               .setRcvBuf(rcvBuf)
+               .setSndBuf(sndBuf);
         return super.configure(properties, builder);
     }
 
