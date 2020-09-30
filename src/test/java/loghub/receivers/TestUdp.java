@@ -64,7 +64,7 @@ public class TestUdp {
     private void testsend(int size) throws IOException, InterruptedException {
         int port = Tools.tryGetPort();
         BlockingQueue<Event> receiver = new ArrayBlockingQueue<>(10);
-    
+
         // Generate a locally binded random socket
         try (DatagramSocket socket = new DatagramSocket(0, InetAddress.getLoopbackAddress());
              Udp r = getReceiver(b -> {
@@ -72,9 +72,7 @@ public class TestUdp {
                  b.setHost(InetAddress.getLoopbackAddress().getHostAddress());
                  b.setPort(port);
                  b.setDecoder(StringCodec.getBuilder().build());
-                
-             })
-                        ) {
+             })) {
             r.setOutQueue(receiver);
             r.setPipeline(new Pipeline(Collections.emptyList(), "testone", null));
             String hostname = socket.getLocalAddress().getHostAddress();
@@ -123,7 +121,7 @@ public class TestUdp {
     public void testCompressed() throws InterruptedException, IOException, FilterException {
         int port = Tools.tryGetPort();
         BlockingQueue<Event> receiver = new ArrayBlockingQueue<>(10);
-        
+
         Decompressor.Builder builder = Decompressor.getBuilder();
 
         Compressor.Builder cbuilder = Compressor.getBuilder();
@@ -139,9 +137,7 @@ public class TestUdp {
                  b.setPort(port);
                  b.setDecoder(StringCodec.getBuilder().build());
                  b.setFilter(builder.build());
-                
-             })
-                        ) {
+             })) {
             r.setOutQueue(receiver);
             r.setPipeline(new Pipeline(Collections.emptyList(), "testone", null));
             String hostname = socket.getLocalAddress().getHostAddress();
@@ -196,6 +192,7 @@ public class TestUdp {
             b.setPort(port);
             b.setWorkerThreads(4);
             b.setPoller("EPOLL");
+            b.setDecoder(StringCodec.getBuilder().build());
         })) {
             Assert.assertTrue(r.configure(new Properties(Collections.emptyMap())));
             r.start();
