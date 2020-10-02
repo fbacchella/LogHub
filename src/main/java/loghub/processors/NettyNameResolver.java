@@ -7,6 +7,7 @@ import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Arrays;
 import java.util.concurrent.ExecutionException;
 import java.util.function.BiConsumer;
 
@@ -35,6 +36,7 @@ import io.netty.util.concurrent.Future;
 import loghub.Event;
 import loghub.Helpers;
 import loghub.ProcessorException;
+import loghub.VarFormatter;
 import loghub.configuration.Properties;
 import lombok.Getter;
 import lombok.Setter;
@@ -123,6 +125,8 @@ public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<Dn
 
     private static final int NOERROR = DnsResponseCode.NOERROR.intValue();
     private static final EventLoopGroup evg = new NioEventLoopGroup(1, new DefaultThreadFactory("dnsresolver"));
+    private static final VarFormatter reverseFormatV4 = new VarFormatter("${#1%d}.${#2%d}.${#3%d}.${#4%d}.in-addr.arpa.");
+    private static final VarFormatter reverseFormatV6 = new VarFormatter("${#1%x}.${#2%x}.");
 
     @Getter @Setter
     private String resolver = null;
@@ -177,13 +181,13 @@ public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<Dn
             Inet4Address ipv4 = (Inet4Address) ipaddr;
             byte[] parts = ipv4.getAddress();
             // the & 0xFF is needed because bytes are signed bytes
-            toresolv = String.format("%d.%d.%d.%d.in-addr.arpa.", parts[3] & 0xFF , parts[2] & 0xFF , parts[1] & 0xFF, parts[0] & 0xFF);
+            toresolv = reverseFormatV4.format(Arrays.asList(parts[3] & 0xFF , parts[2] & 0xFF , parts[1] & 0xFF, parts[0] & 0xFF));
         } else if(ipaddr instanceof Inet6Address) {
             Inet6Address ipv6 = (Inet6Address) ipaddr;
             byte[] parts = ipv6.getAddress();
             StringBuilder buffer = new StringBuilder();
             for(int i = parts.length - 1; i >= 0; i--) {
-                buffer.append(String.format("%x.%x.", parts[i] & 0x0F, (parts[i] & 0xF0) >> 4));
+                buffer.append(reverseFormatV6.format(Arrays.asList(parts[i] & 0x0F, (parts[i] & 0xF0) >> 4)));
             }
             buffer.append("ip6.arpa");
             toresolv = buffer.toString();
