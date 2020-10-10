@@ -253,9 +253,21 @@ public class TestEtl {
     }
 
     @Test
-    public void testCastValue() throws ProcessorException {
+    public void testConvert() throws ProcessorException {
         Event ev =  RunEtl("(java.lang.Integer) [a]", i -> i.put("a", "1"));
         Assert.assertEquals(1, ev.remove("a"));
+        Assert.assertTrue(ev.isEmpty());
+    }
+
+    @Test
+    public void testConvertNull() throws ProcessorException {
+        Event ev = RunEtl("(java.lang.Integer) [a]", i -> {}, false);
+        Assert.assertTrue(ev.isEmpty());
+    }
+
+    @Test
+    public void testConvertNullPath() throws ProcessorException {
+        Event ev = RunEtl("(java.lang.Integer) [a b]", i -> {}, false);
         Assert.assertTrue(ev.isEmpty());
     }
 

@@ -74,9 +74,13 @@ public abstract class Etl extends Processor {
         private loghub.processors.Convert convert;
         @Override
         public boolean process(Event event) throws ProcessorException {
-            Object val = event.applyAtPath(Action.GET, lvalue, null, false);
-            event.applyAtPath(Action.PUT, lvalue, convert.fieldFunction(event, val));
-            return true;
+            if (Boolean.TRUE.equals(event.applyAtPath(Action.CONTAINS, lvalue, null, false))) {
+                Object val = event.applyAtPath(Action.GET, lvalue, null, false);
+                event.applyAtPath(Action.PUT, lvalue, convert.fieldFunction(event, val));
+                return true;
+            } else {
+                return false;
+            }
         }
         @Override
         public boolean configure(Properties properties) {
