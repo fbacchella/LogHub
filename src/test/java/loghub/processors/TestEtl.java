@@ -5,7 +5,12 @@ import java.time.Instant;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 import org.antlr.v4.runtime.RecognitionException;
@@ -18,12 +23,14 @@ import org.junit.Test;
 
 import loghub.ConnectionContext;
 import loghub.Event;
+import loghub.Event.Action;
+import loghub.EventsProcessor;
+import loghub.IgnoredEventException;
 import loghub.LogUtils;
 import loghub.Pipeline;
 import loghub.ProcessorException;
 import loghub.Tools;
 import loghub.VarFormatter;
-import loghub.Event.Action;
 import loghub.configuration.ConfigException;
 import loghub.configuration.ConfigurationTools;
 import loghub.configuration.Properties;
@@ -44,12 +51,19 @@ public class TestEtl {
     }
 
     private Event RunEtl(String exp, Consumer<Event> filer, boolean status) throws ProcessorException {
+        return RunEtl(exp, filer, status, null);
+    }
+    
+    private Event RunEtl(String exp, Consumer<Event> filer, boolean status, CompletableFuture<Event> holder) throws ProcessorException {
         Map<String, VarFormatter> formatters = new HashMap<>();
         Etl e =  ConfigurationTools.buildFromFragment(exp, i -> i.etl(), formatters);
         Map<String, Object> settings = new HashMap<>(1);
         settings.put("__FORMATTERS", formatters);
         e.configure(new Properties(settings));
         Event ev = Event.emptyEvent(ConnectionContext.EMPTY);
+        if (holder != null) {
+            holder.complete(ev);
+        }
         filer.accept(ev);
         Assert.assertEquals(status, e.process(ev));
         return ev;
@@ -299,15 +313,31 @@ public class TestEtl {
         Assert.assertTrue(ev.isEmpty());
     }
 
-    @Test
-    public void testNullMapping() throws ProcessorException {
-        Event ev =  RunEtl("[ a b ] @ [ a b ] {0: 1} ", i -> {}, false);
-        Assert.assertTrue(ev.isEmpty());
-    }
-
     @Test(expected=RecognitionException.class)
     public void testContextReadOnly() throws ProcessorException {
         RunEtl("[@context principal] = 1", i -> {});
+    }
+
+    @Test
+    public void testMappingNull() throws ProcessorException, InterruptedException, ExecutionException {
+        CompletableFuture<Event> holder = new CompletableFuture<>();
+        Assert.assertThrows(IgnoredEventException.class, () -> RunEtl("[ a b ] @ [ a b ] {0: 1} ", i -> {}, false, holder));
+        Assert.assertTrue(holder.get().isEmpty());
+    }
+
+    @Test
+    public void testElementNull() throws ProcessorException, InterruptedException, ExecutionException {
+        Event ev = RunEtl("[b] = [a]", i -> {}, true);
+        Assert.assertTrue(ev.containsKey("b"));
+        Assert.assertEquals(null, ev.remove("b"));
+        Assert.assertTrue(ev.isEmpty());
+    }
+
+    @Test
+    public void testPathNull() throws ProcessorException, InterruptedException, ExecutionException {
+        CompletableFuture<Event> holder = new CompletableFuture<>();
+        Assert.assertThrows(IgnoredEventException.class, () -> RunEtl("[c] = [a b]", i -> {}, true, holder));
+        Assert.assertTrue(holder.get().isEmpty());
     }
 
 }

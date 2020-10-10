@@ -77,6 +77,8 @@ public class Expression {
         localscript.setBinding(groovyBinding);
         try {
             return localscript.run();
+        } catch (IgnoredEventException e) {
+            throw e;
         } catch (Exception e) {
             throw event.buildException(String.format("failed expression '%s': %s", expression, Helpers.resolveThrowableException(e)));
         } finally {

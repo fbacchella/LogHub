@@ -8,6 +8,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 import java.util.function.BiFunction;
 import java.util.stream.Stream;
@@ -82,23 +83,39 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
             int startwalk = 0;
             if (".".equals(path[0])) {
                 current = getRealEvent();
-                key=path[1];
+                key = path[1];
                 startwalk = 1;
             }
             for (int i = startwalk ; i < path.length - 1; i++) {
-                Object peekNext = current.get(key);
+                String currentkey = key;
+                Optional<Object> peekNext = Optional.of(current).filter(c -> c.containsKey(currentkey)).map(c -> c.get(currentkey));
                 Map<String, Object> next;
-                if ( peekNext == null ) {
+                if (! peekNext.isPresent()) {
                     if (create) {
                         next = new HashMap<>();
                         current.put(path[i], next);
                     } else {
-                        return null;
+                        switch(f) {
+                        case GET:
+                        case SIZE:
+                            throw IgnoredEventException.INSTANCE;
+                        case CONTAINSVALUE:
+                        case CONTAINS:
+                            return false;
+                        case ISEMPTY:
+                            return true;
+                        case KEYSET:
+                            return Collections.emptySet();
+                        case VALUES:
+                            return Collections.emptySet();
+                        default:
+                            return null;
+                        }
                     }
-                } else if ( ! (peekNext instanceof Map) ) {
+                } else if (! (peekNext.get() instanceof Map)) {
                     throw buildException("Can descend into " + key + " from " + Arrays.toString(path) + " , it's not an object");
                 } else {
-                    next = (Map<String, Object>) peekNext;
+                    next = (Map<String, Object>) peekNext.get();
                 }
                 current = next;
                 key = path[i + 1];
