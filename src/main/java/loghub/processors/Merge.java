@@ -380,11 +380,11 @@ public class Merge extends Processor {
         }
         logger.trace("key: {} for {}", eventKey, event);
         PausedEvent<Object> current = repository.getOrPause(eventKey, i -> getPausedEvent(event, i));
-        // If we didn't get back the same event, we are actually merging a new event.
+        // If we didn't get back the same event, we are actually merging the event.
         if (event != current.event) {
             synchronized (current) {
                 logger.trace("merging {} in {}", event, current.event);
-                for(Map.Entry<String, Object> i: event.entrySet()) {
+                for (Map.Entry<String, Object> i: event.entrySet()) {
                     String key = i.getKey();
                     Object last = current.event.get(key);
                     Object next = i.getValue();
@@ -402,6 +402,7 @@ public class Merge extends Processor {
                 if (fire != null) {
                     Object dofire = fire.eval(current.event);
                     if (Boolean.TRUE.equals(dofire)) {
+                        logger.trace("fire {}", eventKey);
                         repository.succed(eventKey);
                     }
                 }
@@ -412,7 +413,8 @@ public class Merge extends Processor {
                 return true;
             }
         } else {
-            throw new ProcessorException.PausedEventException(event, null);
+            logger.trace("pausing {} in {}", event);
+            throw new ProcessorException.PausedEventException(event);
         }
     }
 

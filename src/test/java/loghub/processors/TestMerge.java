@@ -69,20 +69,9 @@ public class TestMerge {
         events.add(e1);
         events.add(e2);
 
-        try {
-            m.process(e1);
-            Assert.fail("Sould be ignored");
-        } catch (ProcessorException.DroppedEventException ex) {
-            Assert.fail("Sould not be dropped");
-        } catch (ProcessorException.PausedEventException ex) {
-        }
-        try {
-            Assert.assertTrue(m.process(e2));
-            Assert.fail("Sould be dropped");
-        } catch (ProcessorException.DroppedEventException ex) {
-        } catch (ProcessorException.PausedEventException ex) {
-            Assert.fail("Sould not be ignored");
-        }
+        ProcessorException.PausedEventException ex = Assert.assertThrows(ProcessorException.PausedEventException.class, () -> m.process(e1));
+        Assert.assertNull(ex.getFuture());
+        Assert.assertThrows(ProcessorException.DroppedEventException.class, () -> m.process(e2));
 
         Thread.yield();
         Event e = p.mainQueue.remove();
@@ -111,11 +100,8 @@ public class TestMerge {
         e.put("c", 3);
         e.put("d", 4);
         e.put("e", "5");
-        try {
-            m.process(e);
-            Assert.fail("Should not reach that line");
-        } catch (ProcessorException.PausedEventException e1) {
-        }
+        ProcessorException.PausedEventException ex = Assert.assertThrows(ProcessorException.PausedEventException.class, () -> m.process(e));
+        Assert.assertNull(ex.getFuture());
         Thread.sleep(2000);
         // Will throw exception if event was not fired
         p.mainQueue.element();
@@ -129,17 +115,14 @@ public class TestMerge {
         Assert.assertTrue(p.pipelines.stream().allMatch(i-> i.configure(p)));
         Merge m = (Merge) p.namedPipeLine.get("main").processors.stream().findFirst().get();
         Event e = Event.emptyEvent(ConnectionContext.EMPTY);
-        try {
-            e.setTimestamp(new Date(0));
-            e.put("a", 1);
-            e.put("b", 2);
-            e.put("c", 3);
-            e.put("d", '4');
-            e.put("e", "5");
-            m.process(e);
-            Assert.fail("Should not reach that line");
-        } catch (ProcessorException.PausedEventException ex) {
-        }
+        e.setTimestamp(new Date(0));
+        e.put("a", 1);
+        e.put("b", 2);
+        e.put("c", 3);
+        e.put("d", '4');
+        e.put("e", "5");
+        ProcessorException.PausedEventException ex = Assert.assertThrows(ProcessorException.PausedEventException.class, () -> m.process(e));
+        Assert.assertNull(ex.getFuture());
         Event e2 = Event.emptyEvent(ConnectionContext.EMPTY);
         e2.put("g", 1);
         e2.put("e", "5");

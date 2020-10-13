@@ -182,7 +182,7 @@ public class EventsProcessor extends Thread {
                 status = ProcessingStatus.CONTINUE;
             } catch (ProcessorException.PausedEventException ex) {
                 // First check if the process will be able to manage the call back
-                if (p instanceof AsyncProcessor) {
+                if (p instanceof AsyncProcessor && ex.getFuture() != null) {
                     @SuppressWarnings("unchecked")
                     AsyncProcessor<?, Future<?>> ap = (AsyncProcessor<?, Future<?>>) p;
                     // The event to pause might be a transformation of the original event.
@@ -198,7 +198,7 @@ public class EventsProcessor extends Thread {
                                     .expiration(ap.getTimeout(), TimeUnit.SECONDS)
                                     .onTimeout(ap.getTimeoutHandler())
                                     .build();
-                    //Create the processor that will process the call back processor
+                    // Create the processor that will process the call back processor
                     @SuppressWarnings({ "rawtypes", "unchecked"})
                     FutureProcessor<?, ? extends Future<?>> pauser = new FutureProcessor(future, paused, ap);
                     topause.insertProcessor(pauser);
@@ -210,6 +210,9 @@ public class EventsProcessor extends Thread {
                     });
                     evrepo.pause(paused);
                     status = ProcessingStatus.PAUSED;
+                } else if (ex.getFuture() == null) {
+                    // No future, internal handling of the pause
+                    status = ProcessingStatus.PAUSED;
                 } else {
                     e.doMetric(Stats.PipelineStat.EXCEPTION, ex);
                     logger.error("Paused event from a non async processor {}, can't handle", p.getName());
@@ -220,10 +223,10 @@ public class EventsProcessor extends Thread {
                 status = ProcessingStatus.DROPED;
                 e.doMetric(Stats.PipelineStat.DROP);
             } catch (IgnoredEventException ex) {
-                // A do nothing event
+                // A do nothing process
                 status = ProcessingStatus.CONTINUE;
             } catch (ProcessorException | UncheckedProcessorException ex) {
-                logger.debug("got a processing exception");
+                logger.debug("got a processing exception: {}", ex);
                 logger.catching(Level.DEBUG, ex);
                 Processor exceptionProcessor = p.getException();
                 if (exceptionProcessor != null) {
