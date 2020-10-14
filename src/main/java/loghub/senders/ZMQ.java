@@ -94,13 +94,14 @@ public class ZMQ extends Sender {
             latch.await();
             while (isRunning()) {
                 byte[] msg = exchanger.take();
-                handler.dispatch(msg);
+                try {
+                    handler.dispatch(msg);
+                } catch (ZMQCheckedException t) {
+                    handleException(t);
+                }
             }
-        } catch (ZMQCheckedException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
+        } catch (Throwable t) {
+            handleException(t);
         } finally {
             handler.close();
         }
