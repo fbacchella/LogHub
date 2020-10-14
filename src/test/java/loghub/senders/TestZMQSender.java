@@ -140,13 +140,21 @@ public class TestZMQSender {
     }
 
     @Test(timeout=5000)
-    public void batch() throws IOException, InterruptedException, ZMQCheckedException {
+    public void batchConnect() throws IOException, InterruptedException, ZMQCheckedException {
         dotest((s) -> {
             s.setMethod(Method.CONNECT.name());
             s.setBatchSize(2);
         }, s -> s.setMethod(Method.BIND), "(\\[\\{\"message\":\\d+\\},\\{\"message\":\\d+\\}\\])+");
     }
-    
+
+    @Test(timeout=5000)
+    public void batchBind() throws IOException, InterruptedException, ZMQCheckedException {
+        dotest((s) -> {
+            s.setMethod(Method.BIND.name());
+            s.setBatchSize(2);
+        }, s -> s.setMethod(Method.CONNECT), "(\\[\\{\"message\":\\d+\\},\\{\"message\":\\d+\\}\\])+");
+    }
+
     private String getRemoteIdentity(String dir) {
         try {
             Path keyPubpath = Paths.get(testFolder.getRoot().getPath(), dir, "zmqtest.pub");

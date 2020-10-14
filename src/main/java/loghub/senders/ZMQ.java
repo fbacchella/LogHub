@@ -1,10 +1,9 @@
 package loghub.senders;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.Locale;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.SynchronousQueue;
 
 import org.apache.logging.log4j.Level;
 import org.zeromq.SocketType;
@@ -15,6 +14,7 @@ import loghub.BuilderClass;
 import loghub.CanBatch;
 import loghub.Event;
 import loghub.Helpers;
+import loghub.ThreadBuilder;
 import loghub.configuration.Properties;
 import loghub.encoders.EncodeException;
 import loghub.zmq.ZMQCheckedException;
@@ -51,48 +51,64 @@ public class ZMQ extends Sender {
         return new Builder();
     }
 
-    private final ZMQHandler<byte[]>[] handlers;
-    private final ThreadLocal<Integer> threadId;
+    private final SynchronousQueue<byte[]> exchanger;
+    private final ZMQHandler<byte[]> handler;
+    private final Thread publisher;
     private final CountDownLatch latch;
 
-    @SuppressWarnings("unchecked")
     public ZMQ(Builder builder) {
         super(builder);
-        Method m = Method.valueOf(builder.getMethod().toUpperCase(Locale.ENGLISH));
         if (! isWithBatch()) {
-            handlers = new ZMQHandler[1];
-            threadId = null;
             latch = null;
+            exchanger = null;
+            publisher = null;
         } else {
-            handlers = new ZMQHandler[getWorkers()];
-            AtomicInteger threadCount = new AtomicInteger(0);
-            threadId = ThreadLocal.withInitial(threadCount::getAndIncrement);
-            latch = new CountDownLatch(getWorkers());
-            if (Method.BIND == m && getWorkers() > 1) {
-                throw new IllegalArgumentException("Can't start batch with more that one worker and BIND method");
-            }
+            latch = new CountDownLatch(1);
+            exchanger = new SynchronousQueue<>();
+            publisher = ThreadBuilder.get()
+                    .setTask(this::publisherRun)
+                    .setDaemon(true)
+                    .setName(getName() + "Sender")
+                    .build();
         }
-        for (int i = 0 ; i < handlers.length ; i++) {
-            handlers[i] = new ZMQHandler.Builder<byte[]>()
-                            .setHwm(builder.hwm)
-                            .setSocketUrl(builder.destination)
-                            .setMethod(m)
-                            .setType(SocketType.valueOf(builder.type.toUpperCase(Locale.ENGLISH)))
-                            .setSecurity(builder.security)
-                            .setServerPublicKeyToken(builder.serverKey)
-                            .setLogger(logger)
-                            .setSelfLogEvents(true)
-                            .setName(getName())
-                            .setSend(Socket::send)
-                            .setMask(ZPoller.OUT)
-                            .setLatch(latch)
-                            .build();
+        Method m = Method.valueOf(builder.getMethod().toUpperCase(Locale.ENGLISH));
+        handler = new ZMQHandler.Builder<byte[]>()
+                                .setHwm(builder.hwm)
+                                .setSocketUrl(builder.destination)
+                                .setMethod(m)
+                                .setType(SocketType.valueOf(builder.type.toUpperCase(Locale.ENGLISH)))
+                                .setSecurity(builder.security)
+                                .setServerPublicKeyToken(builder.serverKey)
+                                .setLogger(logger)
+                                .setSelfLogEvents(true)
+                                .setName(getName())
+                                .setSend(Socket::send)
+                                .setMask(ZPoller.OUT)
+                                .setLatch(latch)
+                                .build();
+    }
+
+    private void publisherRun() {
+        try {
+            handler.start();
+            latch.await();
+            while (isRunning()) {
+                byte[] msg = exchanger.take();
+                handler.dispatch(msg);
+            }
+        } catch (ZMQCheckedException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } finally {
+            handler.close();
         }
     }
 
     @Override
     public boolean configure(Properties properties) {
-        Arrays.stream(handlers).forEach(h -> h.setZfactory(properties.zSocketFactory) );
+        handler.setZfactory(properties.zSocketFactory);
         return super.configure(properties);
     }
 
@@ -100,6 +116,7 @@ public class ZMQ extends Sender {
     public void run() {
         if (isWithBatch()) {
             try {
+                publisher.start();
                 // If start withoud handlers threads started, it will fails
                 // This latch prevent that
                 latch.await();
@@ -109,34 +126,33 @@ public class ZMQ extends Sender {
             }
         } else {
             try {
-                handlers[0].start();
+                handler.start();
                 super.run();
-                handlers[0].close();
             } catch (ZMQCheckedException ex) {
-                logger.error("Failed to stop ZMQ handler: {}", Helpers.resolveThrowableException(ex));
+                logger.error("Failed to start ZMQ handler: {}", Helpers.resolveThrowableException(ex));
                 logger.catching(Level.DEBUG, ex);
+            } finally {
+                handler.close();
             }
         }
     }
 
     @Override
     public void customStopSending() {
-        Arrays.stream(handlers).forEach(t -> {
-            try {
-                logger.trace("Stopping handler {}", t);
-                t.stopRunning();
-            } catch (IOException | ZMQCheckedException ex) {
-                logger.error("Failed to stop ZMQ handler: {}", Helpers.resolveThrowableException(ex));
-                logger.catching(Level.DEBUG, ex);
-            }
-        });
+        try {
+            logger.trace("Stopping handler {}", handler);
+            handler.stopRunning();
+        } catch (IOException | ZMQCheckedException ex) {
+            logger.error("Failed to stop ZMQ handler: {}", Helpers.resolveThrowableException(ex));
+            logger.catching(Level.DEBUG, ex);
+        }
     }
 
     @Override
     public boolean send(Event event) throws SendException, EncodeException{
         try {
             byte[] msg = encode(event);
-            handlers[0].dispatch(msg);
+            handler.dispatch(msg);
             return true;
         } catch (ZMQCheckedException ex) {
             throw new SendException(ex);
@@ -149,60 +165,35 @@ public class ZMQ extends Sender {
     }
 
     @Override
-    protected Runnable getPublisher() {
-        Runnable parent = super.getPublisher();
-        return () -> {
-            try {
-                handlers[threadId.get()].start();
-                parent.run();
-            } catch (ZMQCheckedException ex) {
-                throw new IllegalStateException("Unable to start batch handler", ex);
-            } finally {
-                handlers[threadId.get()].close();
-            }
-        };
-    }
-
-    @Override
-    protected void flush(Batch batch)
-                    throws SendException, EncodeException {
+    protected void flush(Batch batch) throws SendException, EncodeException {
         byte[] msg = encode(batch);
         try {
-            handlers[threadId.get()].dispatch(msg);
-        } catch (ZMQCheckedException ex) {
-            throw new SendException(ex);
+            if (isRunning()) {
+                exchanger.put(msg);
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
         }
     }
 
     @Override
     public void interrupt() {
         if (! isWithBatch()) {
-            handlers[0].interrupt(this, super::interrupt);
+            handler.interrupt(this, super::interrupt);
         } else {
-            Arrays.stream(handlers).forEach(h -> {
-                try {
-                    h.stopRunning();
-                } catch (IOException | ZMQCheckedException ex) {
-                    logger.error("Failed to interrupt ZMQ handler: {}", Helpers.resolveThrowableException(ex));
-                    logger.catching(Level.DEBUG, ex);
-                }
-            });
+            try {
+                handler.stopRunning();
+            } catch (IOException | ZMQCheckedException ex) {
+                logger.error("Failed to interrupt ZMQ handler: {}", Helpers.resolveThrowableException(ex));
+                logger.catching(Level.DEBUG, ex);
+            }
             super.interrupt();
         }
     }
 
     @Override
     protected boolean isRunning() {
-        if (super.isRunning()) {
-            for (int i = 0 ; i < handlers.length ; i++) {
-                if (! handlers[i].isRunning()) {
-                    return false;
-                }
-            }
-            return true;
-        } else {
-            return false;
-        }
+        return super.isRunning() && handler.isRunning();
     }
 
 }
