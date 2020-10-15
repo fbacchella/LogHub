@@ -7,6 +7,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Function;
 
 import org.apache.logging.log4j.Level;
@@ -42,14 +45,19 @@ public class EventsRepository<KEY> {
             Stats.restartEvent(pausedEvent.event.getCurrentPipeline(), startTime);
         }
 
-        static <K> PauseContext<K> of(PausedEvent<K> paused, EventsRepository<K> repository) {
+        static <K> PauseContext<K> of(PausedEvent<K> paused, EventsRepository<K> repository, Lock lock) {
             Timeout task;
             if (paused.timeoutHandling && paused.duration > 0 && paused.unit != null) {
                 task = processExpiration.newTimeout(i -> repository.runTimeout(paused), paused.duration, paused.unit);
             } else {
                 task = null;
             }
-            return new PauseContext<K>(paused, task);
+            try {
+                lock.lock();
+                return new PauseContext<K>(paused, task);
+            } finally {
+                lock.unlock();
+            }
         }
     }
 
@@ -59,7 +67,7 @@ public class EventsRepository<KEY> {
     static {
         ThreadFactory defaulttf = Executors.defaultThreadFactory();
         AtomicInteger counter = new AtomicInteger(0);
-        processExpiration = new HashedWheelTimer( r -> 
+        processExpiration = new HashedWheelTimer(r -> 
             ThreadBuilder.get()
                          .setTask(r)
                          .setFactory(defaulttf)
@@ -71,6 +79,7 @@ public class EventsRepository<KEY> {
 
     private final Map<KEY, PauseContext<KEY>> allPaused = new ConcurrentHashMap<>();
     private final BlockingQueue<Event> mainQueue;
+    private final ReadWriteLock backPressureLock = new ReentrantReadWriteLock();
 
     public EventsRepository(Properties properties) {
         mainQueue = properties.mainQueue;
@@ -78,7 +87,7 @@ public class EventsRepository<KEY> {
 
     public PausedEvent<KEY> pause(PausedEvent<KEY> paused) {
         logger.trace("Pausing {}", paused);
-        return allPaused.computeIfAbsent(paused.key, k -> PauseContext.of(paused, this)).pausedEvent;
+        return allPaused.computeIfAbsent(paused.key, k -> PauseContext.of(paused, this, backPressureLock.readLock())).pausedEvent;
     }
 
     /**
@@ -91,7 +100,7 @@ public class EventsRepository<KEY> {
         logger.trace("looking for key {}", key);
         return allPaused.computeIfAbsent(key, i -> {
             PausedEvent<KEY> paused = creator.apply(i);
-            return PauseContext.of(paused, this);
+            return PauseContext.of(paused, this, backPressureLock.readLock());
         }).pausedEvent;
     }
 
@@ -109,30 +118,30 @@ public class EventsRepository<KEY> {
         return ctx.pausedEvent;
     }
 
-    public boolean succed(KEY key) {
+    public void succed(KEY key) throws InterruptedException {
         logger.trace("succed {}", key);
-        return awake(key, i -> i.onSuccess, i -> i.successTransform);
+        awake(key, i -> i.onSuccess, i -> i.successTransform);
     }
 
-    public boolean failed(KEY key) {
+    public void failed(KEY key) throws InterruptedException {
         logger.trace("failed {}", key);
-        return awake(key, i -> i.onFailure, i -> i.failureTransform);
+        awake(key, i -> i.onFailure, i -> i.failureTransform);
     }
 
-    public boolean timeout(KEY key) {
+    public void timeout(KEY key) throws InterruptedException {
         logger.trace("timeout {}", key);
         Optional.ofNullable(allPaused.get(key)).map(p -> p.pausedEvent).ifPresent(pe -> pe.timeout(pe.event, key));
-        return awake(key, i -> i.onTimeout, i -> i.timeoutTransform);
+        awake(key, i -> i.onTimeout, i -> i.timeoutTransform);
     }
 
-    public boolean exception(KEY key) {
-        return awake(key, i -> i.onException, i -> i.exceptionTransform);
+    public void exception(KEY key) throws InterruptedException {
+        awake(key, i -> i.onException, i -> i.exceptionTransform);
     }
 
-    private boolean awake(KEY key, Function<PausedEvent<KEY>, Processor> source, Function<PausedEvent<KEY>, Function<Event, Event>> transform) {
+    private void awake(KEY key, Function<PausedEvent<KEY>, Processor> source, Function<PausedEvent<KEY>, Function<Event, Event>> transform) throws InterruptedException {
         PauseContext<KEY> ctx = allPaused.remove(key);
         if (ctx == null) {
-            return true;
+            return;
         }
         if (ctx.task != null) {
             ctx.task.cancel();
@@ -145,7 +154,13 @@ public class EventsRepository<KEY> {
         event.insertProcessor(source.apply(pausedEvent));
         // Eventually transform the event before handling it
         Event transformed = transform.apply(pausedEvent).apply(event);
-        return mainQueue.offer(transformed);
+        Lock writeLock = backPressureLock.writeLock();
+        try {
+            writeLock.lock();
+            mainQueue.put(transformed);
+        } finally {
+            writeLock.unlock();
+        }
     }
 
     private void runTimeout(PausedEvent<KEY> paused) {
