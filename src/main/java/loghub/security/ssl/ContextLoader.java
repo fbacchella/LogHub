@@ -9,12 +9,14 @@ import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
 import java.security.Principal;
 import java.security.PrivateKey;
+import java.security.Provider;
 import java.security.SecureRandom;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.Arrays;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -28,10 +30,10 @@ import javax.net.ssl.X509ExtendedKeyManager;
 import javax.net.ssl.X509KeyManager;
 import javax.security.auth.x500.X500Principal;
 
-import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import loghub.Helpers;
 import loghub.netty.servers.AbstractNettyServer;
 
 public class ContextLoader {
@@ -42,27 +44,52 @@ public class ContextLoader {
     }
 
     /**
-     * <p>Construct a {@link javax.net.ssl.SSLContext} using the given properties as a set of attribures that definies how it will be configure.</p>
+     * <p>Construct a {@link javax.net.ssl.SSLContext} using the given properties as a set of attributes that defines how it will be configure.</p>
      * <p>The possible key ares</p>
      * <ul>
-     * <li>context: The SSL protocol to uses, as defined by {@link javax.net.ssl.SSLContext#getInstance(String protocol)}.</li>
-     * <li>trusts: a array of path to key store to use, they can be PEM encoded x509 files, java trust store or domain store configuration.</li>
-     * <li>issuers: a array of issuers DN that can be used to validate SSL client certificates.</li>
+     * <li><code>context</code>, The SSL protocol to use, as defined by {@link javax.net.ssl.SSLContext#getInstance(String protocol)}. Default to <code>TLS</code>.</li>
+     * <li><code>providername</code>, A optional security provider for the {@link javax.net.ssl.SSLContext}.</li>
+     * <li><code>providerclass</code>, A optional class that will used as a {@link java.security.Provider}, that will used to get the {@link javax.net.ssl.SSLContext}.</li>
+     * <li><code>issuers</code>, a array of issuers DN that can be used to validate x.509 clients certificates.</li>
+     * <li><code>ephemeralDHKeySize</code>, Can be used to override the <code>jdk.tls.ephemeralDHKeySiz</code> property. Default to 2048.</li>
+     * <li><code>rejectClientInitiatedRenegotiation</code>, can be used to override the <code>jdk.tls.rejectClientInitiatedRenegotiatio</code> property. Default to true.</li>
+     * <li><code>trusts</code>, a string array of trust source files or definitions.</li>
+     * <li><code>issuers</code>, an string array of DN of valid issuers for client authentication.</li>
+     * <li><code>securerandom</code>, The name of the {@link java.security.SecureRandom} that will be used, default to <code>NativePRNGNonBlocking</code>.</li>
      * </ul>
-     * @param properties
-     * @return a SSL context build according to the given properties
+     * Either <code>providername</code> or <code>providerclass</code> can be used. If both are defined, <code>providername</code> will be used.
+     * @param cl The class loader that will be used to find the {@link java.security.Provider} class if needed. It can be null.
+     * @param properties a set of properties.
+     * @return a SSL context built according to the given properties
      */
-    public static SSLContext build(Map<String, Object> properties) {
+    public static SSLContext build(ClassLoader cl, Map<String, Object> properties) {
         logger.debug("Configuring ssl context with {}", () -> properties);
-        System.setProperty("jdk.tls.ephemeralDHKeySize", "2048");
-        System.setProperty("jdk.tls.rejectClientInitiatedRenegotiation", "true");
+        if (properties.containsKey("ephemeralDHKeySize")) {
+            System.setProperty("jdk.tls.ephemeralDHKeySize", properties.get("ephemeralDHKeySize").toString());
+        } else {
+            System.setProperty("jdk.tls.ephemeralDHKeySize", "2048");
+        }
+        if (properties.containsKey("rejectClientInitiatedRenegotiation")) {
+            System.setProperty("jdk.tls.rejectClientInitiatedRenegotiation", properties.get("rejectClientInitiatedRenegotiation").toString());
+        } else {
+            System.setProperty("jdk.tls.rejectClientInitiatedRenegotiation", "true");
+        }
         SSLContext newCtxt = null;
         try {
             String sslContextName = properties.getOrDefault("context", "TLS").toString();
-            newCtxt = SSLContext.getInstance(sslContextName);
+            String sslProviderName =  properties.getOrDefault("providername", "").toString();
+            String sslProviderClass =  properties.getOrDefault("providerclass", "").toString();
+            if (! sslProviderName.isEmpty()) {
+                newCtxt = SSLContext.getInstance(sslContextName);
+            } else if (! sslProviderClass.isEmpty()) {
+                Provider p = loadByName(cl, sslProviderClass);
+                newCtxt = SSLContext.getInstance(sslContextName, p);
+            } else {
+                newCtxt = SSLContext.getInstance(sslContextName);
+            }
             KeyManager[] km = null;
             TrustManager[] tm = null;
-            SecureRandom sr = null;
+            SecureRandom sr = SecureRandom.getInstance(properties.getOrDefault("securerandom", "NativePRNGNonBlocking").toString());
             Object trusts = properties.get("trusts");
             X509KeyManager kmtranslator = null;
             if (trusts != null) {
@@ -171,10 +198,22 @@ public class ContextLoader {
             newCtxt.init(new KeyManager[] {kmtranslator}, tm, sr);
         } catch (NoSuchProviderException | NoSuchAlgorithmException | KeyManagementException | KeyStoreException | CertificateException | IOException | UnrecoverableKeyException e) {
             newCtxt = null;
-            logger.error("Can't configurer SSL context: {}", e.getMessage());
-            logger.throwing(Level.DEBUG, e);
+            logger.error(() -> "Failed to configure SSL context", e);
         }
         return newCtxt;
+    }
+
+    private static Provider loadByName(ClassLoader cl, String providerClassName) throws NoSuchProviderException {
+        try {
+            cl = Optional.ofNullable(cl).orElse(ContextLoader.class.getClassLoader());
+            @SuppressWarnings("unchecked")
+            Class<Provider> clazz = (Class<Provider>)cl.loadClass(providerClassName);
+            return clazz.newInstance();
+        } catch (ClassNotFoundException | InstantiationException | IllegalAccessException e) {
+            NoSuchProviderException nspe = new NoSuchProviderException("Can't load custom security provider: " + Helpers.resolveThrowableException(e));
+            nspe.addSuppressed(e);
+            throw nspe;
+        }
     }
 
 }

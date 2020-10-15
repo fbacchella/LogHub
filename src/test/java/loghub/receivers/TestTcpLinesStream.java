@@ -81,7 +81,7 @@ public class TestTcpLinesStream {
             );
             Map<String, Object> properties = new HashMap<>();
             properties.put("trusts", new String[] {getClass().getResource("/loghub.p12").getFile()});
-            SSLContext cssctx = ContextLoader.build(properties);
+            SSLContext cssctx = ContextLoader.build(null, properties);
             try(Socket socket = cssctx.getSocketFactory().createSocket(InetAddress.getLoopbackAddress(), port)) {
                 OutputStream os = socket.getOutputStream();
                 os.write("LogHub\n".getBytes(StandardCharsets.UTF_8));

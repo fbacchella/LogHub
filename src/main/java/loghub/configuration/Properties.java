@@ -148,7 +148,15 @@ public class Properties extends HashMap<String, Object> {
             maxSteps = 128;
         }
 
-        ssl = ContextLoader.build(properties.entrySet().stream().filter(i -> i.getKey().startsWith("ssl.")).collect(Collectors.toMap( i -> i.getKey().substring(4), j -> j.getValue())));
+        Map<String, Object> sslprops = properties.entrySet().stream().filter(i -> i.getKey().startsWith("ssl.")).collect(Collectors.toMap( i -> i.getKey().substring(4), j -> j.getValue()));
+        if (! sslprops.isEmpty()) {
+            ssl = ContextLoader.build(classloader, sslprops);
+            if (ssl == null) {
+                throw new ConfigException("SSLContext failed to configure");
+            }
+        } else {
+            ssl = null;
+        }
 
         jwtHandler = buildJwtAlgorithm(filterPrefix(properties, "jwt"));
 

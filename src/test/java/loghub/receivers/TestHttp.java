@@ -114,7 +114,7 @@ public class TestHttp {
             Map<String, Object> properties = new HashMap<>();
             properties.put("trusts", new String[] {getClass().getResource("/loghub.p12").getFile()});
             properties.put("issuers", new String[] {"CN=loghub CA"});
-            SSLContext cssctx = ContextLoader.build(properties);
+            SSLContext cssctx = ContextLoader.build(null, properties);
             cnx.setSSLSocketFactory(cssctx.getSocketFactory());
         }
         prepare.accept(conn);

@@ -350,6 +350,8 @@ public final class Helpers {
             message = "No such method: " + t.getMessage();
         } else if (t instanceof ArrayIndexOutOfBoundsException) {
             message = "Array out of bounds: " + message;
+        } else if (t instanceof ClassNotFoundException) {
+            message = "Class not found: " + message;
         } else if (t instanceof IllegalCharsetNameException) {
             message = "Illegal charset name: " + t.getMessage();
         } else if (t instanceof UnsupportedCharsetException) {

@@ -130,7 +130,7 @@ public class TestBeats {
             );
             Map<String, Object> properties = new HashMap<>();
             properties.put("trusts", new String[] {getClass().getResource("/loghub.p12").getFile()});
-            SSLContext cssctx = ContextLoader.build(properties);
+            SSLContext cssctx = ContextLoader.build(null, properties);
             List<Map<?, ?>> batch = Collections.singletonList(Collections.singletonMap("message", "LogHub"));
             Socket s = cssctx.getSocketFactory().createSocket();
             sendFrame(encode(batch), s);

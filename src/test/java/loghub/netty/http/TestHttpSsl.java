@@ -67,7 +67,7 @@ public class TestHttpSsl {
         properties.put("context", "TLSv1.2");
         properties.put("trusts", new String[] {getClass().getResource("/loghub.p12").getFile()});
         properties.putAll(props);
-        SSLContext newCtxt = ContextLoader.build(properties);
+        SSLContext newCtxt = ContextLoader.build(null, properties);
         Assert.assertEquals("TLSv1.2", newCtxt.getProtocol());
         return newCtxt;
     };
