@@ -315,7 +315,7 @@ public final class Stats {
     }
 
     public static void doneBatch(Sender sender) {
-        Stats.getMetric(Counter.class, sender, Stats.METRIC_SENDER_ACTIVEBATCHES).inc();
+        Stats.getMetric(Counter.class, sender, Stats.METRIC_SENDER_ACTIVEBATCHES).dec();
     }
 
 
