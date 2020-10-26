@@ -44,7 +44,7 @@ public final class Stats {
     static final String METRIC_SENDER_EXCEPTION = "exception";
     static final String METRIC_SENDER_ERROR = "error";
     static final String METRIC_SENDER_ACTIVEBATCHES = "activeBatches";
-    static final String METRIC_SENDER_BATCHESSIZE = "batchesSize";
+    static final String METRIC_SENDER_BATCHESDONE = "batchesDone";
     static final String METRIC_SENDER_FLUSHDURATION = "flushDuration";
     static final String METRIC_SENDER_QUEUESIZE = "queueSize";
 
@@ -303,7 +303,7 @@ public final class Stats {
     }
 
     public static void updateBatchSize(Sender sender, int batchSize) {
-        getMetric(Histogram.class, sender, Stats.METRIC_SENDER_BATCHESSIZE).update(batchSize);
+        getMetric(Histogram.class, sender, Stats.METRIC_SENDER_BATCHESDONE).update(batchSize);
     }
 
     public static Timer.Context batchFlushTimer(Sender sender) {
