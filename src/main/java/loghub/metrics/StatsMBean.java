@@ -19,11 +19,11 @@ public interface StatsMBean {
         return Stats.getMetric(Timer.class, Stats.class, Stats.METRIC_ALL_TIMER).getCount();
     }
 
-    default public double getReceivedMedianLifeTime() {
+    default public double getEventLifeTimeMedian() {
         return Stats.getMetric(Timer.class, Stats.class, Stats.METRIC_ALL_TIMER).getSnapshot().getMedian() / 1_000_000_000;
     }
 
-    default public double getReceived95LifeTime() {
+    default public double getEventLifeTime95() {
         return Stats.getMetric(Timer.class, Stats.class, Stats.METRIC_ALL_TIMER).getSnapshot().get95thPercentile() / 1_000_000_000;
     }
 
@@ -51,8 +51,8 @@ public interface StatsMBean {
             super(StatsMBean.class);
             // Ensure that all metrics are created
             getTotalEvents();
-            getReceivedMedianLifeTime();
-            getReceived95LifeTime();
+            getEventLifeTimeMedian();
+            getEventLifeTime95();
             getUnhandledExceptions();
             getInflight();
         }

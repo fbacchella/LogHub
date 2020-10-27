@@ -156,6 +156,8 @@ public abstract class Sender extends Thread implements Closeable {
     }
 
     public boolean configure(Properties properties) {
+        // Stats is reset before configure
+        Stats.sendInQueueSize(this, inQueue::size);
         if (threads != null) {
             buildSyncer(properties);
         }
@@ -309,15 +311,18 @@ public abstract class Sender extends Thread implements Closeable {
     }
 
     private byte[] genericEncoder(ByteSource bs) throws EncodeException {
+        byte[] encoded;
         if (filter != null) {
             try {
-                return filter.filter(bs.get());
+                encoded = filter.filter(bs.get());
             } catch (FilterException e) {
                 throw new EncodeException(e);
             }
         } else {
-            return bs.get();
+            encoded = bs.get();
         }
+        Stats.sentBytes(this, encoded.length);
+        return encoded;
     }
 
     public void run() {
@@ -429,7 +434,6 @@ public abstract class Sender extends Thread implements Closeable {
 
     public void setInQueue(BlockingQueue<Event> inQueue) {
         this.inQueue = inQueue;
-        Stats.sendInQueueSize(this, inQueue::size);
     }
 
     @Override

@@ -40,17 +40,18 @@ public final class Stats {
     static final String METRIC_PIPELINE_TIMER = "timer";
 
     static final String METRIC_SENDER_SENT = "sent";
+    static final String METRIC_SENDER_BYTES = "bytes";
     static final String METRIC_SENDER_FAILEDSEND = "failedSend";
     static final String METRIC_SENDER_EXCEPTION = "exception";
     static final String METRIC_SENDER_ERROR = "error";
     static final String METRIC_SENDER_ACTIVEBATCHES = "activeBatches";
-    static final String METRIC_SENDER_BATCHESDONE = "batchesDone";
+    static final String METRIC_SENDER_BATCHESSIZE = "batchesSize";
     static final String METRIC_SENDER_FLUSHDURATION = "flushDuration";
     static final String METRIC_SENDER_QUEUESIZE = "queueSize";
 
     static final String METRIC_ALL_WAITINGPROCESSING = "waitingProcessing";
     static final String METRIC_ALL_EXCEPTION = "thrown";
-    static final String METRIC_ALL_TIMER = "timer";
+    static final String METRIC_ALL_TIMER = "lifeTime";
     static final String METRIC_ALL_INFLIGHT = "inflight";
     static final String METRIC_ALL_STEPS = "steps";
     static final String METRIC_PIPELINE_PAUSED = "paused";
@@ -91,6 +92,10 @@ public final class Stats {
                 q.clear();
             }
         });
+        
+        // Register once this dummy metric
+        Gauge<Integer> nullGauge = () -> 0;
+        Stats.register(Sender.class, Stats.METRIC_SENDER_QUEUESIZE, nullGauge);
     }
 
     public static <T extends Metric> T register(String name, T newMetric) {
@@ -124,7 +129,7 @@ public final class Stats {
         } else if (metricClass == Timer.class) {
             return (T) metricsRegistry.timer(metricName);
         } else {
-            throw new IllegalArgumentException("Unhandled metric type " + metricClass.getCanonicalName());
+            throw new IllegalArgumentException("Unhandled metric type " + metricClass.getCanonicalName() + " for " + metricName);
         }
     }
 
@@ -160,7 +165,7 @@ public final class Stats {
         buffer.append(name);
         return buffer.toString();
     }
-    
+
     private static <T> void storeException(Queue<T> queue, T e) {
         synchronized(queue) {
             if (! queue.offer(e)) {
@@ -215,6 +220,16 @@ public final class Stats {
     /******************************\
      * Handling processors events *
     \******************************/
+    
+    public static Context startProcessingEvent() {
+        getMetric(Counter.class, String.class, METRIC_PIPELINE_INFLIGHT).inc();
+        return getMetric(Timer.class, String.class, METRIC_PIPELINE_TIMER).time();
+    }
+
+    public static void endProcessingEvent(Context tctxt) {
+        getMetric(Counter.class, String.class, METRIC_PIPELINE_INFLIGHT).dec();
+        tctxt.stop();
+    }
 
     public static void pipelineHanding(String name, PipelineStat status) {
         pipelineHanding(name, status, null);
@@ -246,26 +261,22 @@ public final class Stats {
             getMetric(Meter.class, name, METRIC_PIPELINE_LOOPOVERFLOW).mark();
             break;
         case INFLIGHTUP:
-            getMetric(Counter.class, String.class, METRIC_PIPELINE_INFLIGHT).inc();
             getMetric(Counter.class, name, METRIC_PIPELINE_INFLIGHT).inc();
             break;
         case INFLIGHTDOWN:
-            getMetric(Counter.class, String.class, METRIC_PIPELINE_INFLIGHT).dec();
             getMetric(Counter.class, name, METRIC_PIPELINE_INFLIGHT).dec();
             break;
         }
     }
 
-    public static void timerUpdate(String name, long duration,
-                                   TimeUnit tu) {
-        getMetric(Timer.class, String.class, METRIC_PIPELINE_TIMER).update(duration, tu);
+    public static void timerUpdate(String name, long duration, TimeUnit tu) {
         getMetric(Timer.class, name, METRIC_PIPELINE_TIMER).update(duration, tu);
     }
 
     public static void pauseEvent(String name) {
         getMetric(Counter.class, String.class, METRIC_PIPELINE_PAUSED_COUNT).inc();
         getMetric(Counter.class, name, METRIC_PIPELINE_PAUSED_COUNT).inc();
-   }
+    }
 
     public static void restartEvent(String name, long startTime) {
         if (startTime < Long.MAX_VALUE) {
@@ -274,7 +285,7 @@ public final class Stats {
             getMetric(Counter.class, String.class, METRIC_PIPELINE_PAUSED_COUNT).dec();
             getMetric(Counter.class, name, METRIC_PIPELINE_PAUSED_COUNT).dec();
         }
-   }
+    }
 
     /***************************\
      * Handling senders events *
@@ -283,6 +294,11 @@ public final class Stats {
     public static void sentEvent(Sender sender) {
         getMetric(Meter.class, sender, Stats.METRIC_SENDER_SENT).mark();
         getMetric(Meter.class, Sender.class, Stats.METRIC_SENDER_SENT).mark();
+    }
+
+    public static void sentBytes(Sender sender, int bytes) {
+        getMetric(Meter.class, sender, Stats.METRIC_SENDER_BYTES).mark(bytes);
+        getMetric(Meter.class, Sender.class, Stats.METRIC_SENDER_BYTES).mark(bytes);
     }
 
     public static void failedSentEvent(Sender sender) {
@@ -303,13 +319,13 @@ public final class Stats {
     }
 
     public static void updateBatchSize(Sender sender, int batchSize) {
-        getMetric(Histogram.class, sender, Stats.METRIC_SENDER_BATCHESDONE).update(batchSize);
+        getMetric(Histogram.class, sender, Stats.METRIC_SENDER_BATCHESSIZE).update(batchSize);
     }
 
     public static Timer.Context batchFlushTimer(Sender sender) {
         return getMetric(Timer.class, sender, Stats.METRIC_SENDER_FLUSHDURATION).time();
     }
-    
+
     public static void newBatch(Sender sender) {
         Stats.getMetric(Counter.class, sender, Stats.METRIC_SENDER_ACTIVEBATCHES).inc();
     }
@@ -317,7 +333,6 @@ public final class Stats {
     public static void doneBatch(Sender sender) {
         Stats.getMetric(Counter.class, sender, Stats.METRIC_SENDER_ACTIVEBATCHES).dec();
     }
-
 
     public static void sendInQueueSize(Sender s, IntSupplier source) {
         Gauge<Integer> queueGauge = source::getAsInt;
@@ -391,8 +406,8 @@ public final class Stats {
 
     public static long getFailed() {
         return getMetric(Meter.class, String.class, Stats.METRIC_PIPELINE_FAILED).getCount()
-               + getMetric(Meter.class, Receiver.class, Stats.METRIC_RECEIVER_FAILEDDECODE).getCount()
-               + getMetric(Meter.class, Sender.class, Stats.METRIC_SENDER_FAILEDSEND).getCount();
+                + getMetric(Meter.class, Receiver.class, Stats.METRIC_RECEIVER_FAILEDDECODE).getCount()
+                + getMetric(Meter.class, Sender.class, Stats.METRIC_SENDER_FAILEDSEND).getCount();
     }
 
     public static long getExceptionsCount() {

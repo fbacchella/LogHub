@@ -40,6 +40,7 @@ import loghub.Helpers;
 import loghub.ProcessorException;
 import loghub.configuration.Properties;
 import loghub.encoders.EncodeException;
+import loghub.metrics.Stats;
 import lombok.Setter;
 
 @AsyncSender
@@ -193,6 +194,7 @@ public class ElasticSearch extends AbstractHttpSender {
             }
         };
         Map<String, ? extends Object> response = doquery(request, "/_bulk", reader, Collections.emptyMap(), null);
+        Stats.sentBytes(this, content.length);
         if (response != null && Boolean.TRUE.equals(response.get("errors"))) {
             @SuppressWarnings("unchecked")
             List<Map<String, ?>> items = (List<Map<String, ?>>) response.get("items");

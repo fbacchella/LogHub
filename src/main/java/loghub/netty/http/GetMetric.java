@@ -88,7 +88,7 @@ public class GetMetric extends HttpRequestProcessing implements ChannelHandler {
            new MetricEntry("JVM Heap", "bytes", "/jmx/java.lang:type=Memory", ",.3s", "return res[\"HeapMemoryUsage\"][\"used\"]"),
            new MetricEntry("Event received", "e/s", "/jmx/loghub:type=Receivers,level=details,name=count", ",.2s", "return res[\"OneMinuteRate\"]"),
            new MetricEntry("In flight", "Event being processed", "/jmx/loghub:type=Global,level=details,name=inflight", ",", "return res[\"Count\"]"),
-           new MetricEntry("95% latency", "s", "/jmx/loghub:type=Global,level=details,name=timer", ",.2s", "return res[\"95thPercentile\"] / 1000"),
+           new MetricEntry("95% latency", "s", "/jmx/loghub:type=Global,level=details,name=lifeTime", ",.2s", "return res[\"95thPercentile\"] / 1000"),
            new MetricEntry("Event waiting", "In the processing loop", "/jmx/loghub:type=Global,level=details,name=waitingProcessing", ",", "return res[\"Value\"]"),
         };
     }

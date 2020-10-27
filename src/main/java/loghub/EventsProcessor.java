@@ -9,6 +9,8 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.codahale.metrics.Timer.Context;
+
 import io.netty.util.concurrent.Future;
 import loghub.PausedEvent.Builder;
 import loghub.configuration.TestEventProcessing;
@@ -63,6 +65,7 @@ public class EventsProcessor extends Thread {
                 final Event eventtemp  = event;
                 logger.trace("received {} in {}", () -> eventtemp, () -> eventtemp.getCurrentPipeline());
             }
+            Context tctxt = Stats.startProcessingEvent();
             Processor processor = event.next();
             while (processor != null) {
                 logger.trace("processing with {}", processor);
@@ -79,14 +82,12 @@ public class EventsProcessor extends Thread {
                         case DROPED: {
                             //It was a drop action
                             logger.debug("Dropped event {}", event);
-                            event.doMetric(PipelineStat.INFLIGHTDOWN);
                             event.drop();
                             break;
                         }
                         case FAILED: {
                             //Processing failed critically (with an exception) and no recovery was attempted
                             logger.debug("Failed event {}", event);
-                            event.doMetric(PipelineStat.INFLIGHTDOWN);
                             event.end();
                             break;
                         }
@@ -106,7 +107,6 @@ public class EventsProcessor extends Thread {
                     Pipeline next = namedPipelines.get(event.getNextPipeline());
                     if (next == null) {
                         logger.error("Failed to forward to pipeline {} from {}, not found", event.getNextPipeline(), event.getCurrentPipeline());
-                        event.doMetric(PipelineStat.INFLIGHTDOWN);
                         event.drop();
                         break;
                     } else {
@@ -143,6 +143,7 @@ public class EventsProcessor extends Thread {
                     event.end();
                 }
             }
+            Stats.endProcessingEvent(tctxt);
         }
     }
 

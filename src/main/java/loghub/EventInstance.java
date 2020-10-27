@@ -49,7 +49,7 @@ class EventInstance extends Event {
         private final String name;
 
         private long duration = 0;
-        private long startTime = Long.MIN_VALUE;
+        private long startTime = Long.MAX_VALUE;
         private boolean running;
 
         private ExecutionStackElement(String name) {
@@ -61,11 +61,12 @@ class EventInstance extends Event {
             if (running) {
                 long elapsed = System.nanoTime() - startTime;
                 duration += elapsed;
+                Stats.pipelineHanding(name, PipelineStat.INFLIGHTDOWN);
             }
             Stats.timerUpdate(name, duration, TimeUnit.NANOSECONDS);
             duration = 0;
             running = false;
-            startTime = Long.MIN_VALUE;
+            startTime = Long.MAX_VALUE;
         }
 
         private void pause() {
@@ -131,9 +132,8 @@ class EventInstance extends Event {
         public boolean process(Event event) throws ProcessorException {
             ExecutionStackElement.logger.trace("<-- {}({})", () -> event.getRealEvent().executionStack, () -> event);
             try {
-                event.doMetric(PipelineStat.INFLIGHTDOWN);
                 event.getRealEvent().executionStack.remove().close();
-            } catch (NoSuchElementException e1) {
+            } catch (NoSuchElementException ex) {
                 throw new ProcessorException(event.getRealEvent(), "Empty timer stack, bad state");
             }
             Optional.ofNullable(event.getRealEvent().executionStack.peek()).ifPresent(ExecutionStackElement::restart);
@@ -206,7 +206,6 @@ class EventInstance extends Event {
         wevent = null;
         executionStack = Collections.asLifoQueue(new ArrayDeque<>());
     }
-
 
     public void end() {
         Optional.ofNullable(ctx).ifPresent(ConnectionContext::acknowledge);
