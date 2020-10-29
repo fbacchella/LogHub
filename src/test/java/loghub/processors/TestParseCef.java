@@ -37,7 +37,7 @@ public class TestParseCef {
         parse.setField("content");
         Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
         Event event = Tools.getEvent();
-        event.put("content", "CEF:0|security|threatmanager|1.0|100|detected a \\| in packet|10|src=10.0.0.1 act=blocked a \\\\ dst=1.1.1.1 comment=with | in it comment2=with \\= in it comment3=with \\r in it");
+        event.put("content", "CEF:0|security|threatmanager|1.0|100|detected a \\| in packet|10|src=10.0.0.1 act=blocked a \\\\ dst=1.1.1.1 comment=with | in it comment2=with \\= in it comment3=with \\r in it  app=3");
         Assert.assertTrue(parse.process(event));
         @SuppressWarnings("unchecked")
         Map<String, Object> fields= (Map<String, Object>) event.get("cef_fields");
@@ -48,8 +48,8 @@ public class TestParseCef {
         }
         @SuppressWarnings("unchecked")
         Map<String, Object> extensions= (Map<String, Object>) event.get("cef_extensions");
-        String[] extensions_names = new String[]{"src", "act", "dst", "comment", "comment2", "comment3"};
-        Object[] extensions_values = new Object[]{"10.0.0.1", "blocked a \\", "1.1.1.1", "with | in it", "with = in it", "with \r in it"};
+        String[] extensions_names = new String[]{"src", "act", "dst", "comment", "comment2", "comment3", "app"};
+        Object[] extensions_values = new Object[]{"10.0.0.1", "blocked a \\", "1.1.1.1", "with | in it", "with = in it", "with \r in it", "3"};
         for (int i=0; i < extensions_names.length; i++) {
             Assert.assertEquals(extensions_values[i], extensions.get(extensions_names[i]));
         }

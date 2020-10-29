@@ -23,7 +23,7 @@ public class ParseCef extends Processor {
 
     private static final String[] COLUMNS = new String[]{"version", "device_vendor", "device_product", "device_version", "device_event_class_id", "name", "severity"};
     private static final Pattern fieldPattern = Pattern.compile("(?:[^\\|]|(?<=\\\\)\\|)+");
-    private static final Pattern extensionPattern = Pattern.compile("(?<key>[a-zA-Z0-9_]+)=(?<value>(?:[^ ]| (?![a-zA-Z0-9_]+=))+)");
+    private static final Pattern extensionPattern = Pattern.compile("(?<key>[a-zA-Z0-9_]+)=(?<value>(?:[^ ]| (?! *[a-zA-Z0-9_]+=))+)");
 
     @Getter @Setter
     private String field = "message";
