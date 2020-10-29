@@ -18,6 +18,7 @@ import io.netty.channel.ChannelPipeline;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.channel.socket.DatagramChannel;
+import io.netty.handler.codec.CodecException;
 import io.netty.handler.ssl.NotSslRecordException;
 import loghub.Helpers;
 import loghub.netty.servers.AbstractNettyServer;
@@ -46,7 +47,10 @@ public abstract class ComponentFactory<BS extends AbstractBootstrap<BS,BSC>, BSC
                 logger.warn("Failed SSL handshake from {}: {}", ctx.channel().remoteAddress(), Helpers.resolveThrowableException(cause));
                 logger.catching(Level.DEBUG, cause);
             } else if (cause instanceof IOException) {
-                logger.warn("IO Exception from {}: {}", ctx.channel().remoteAddress(), Helpers.resolveThrowableException(cause));
+                logger.warn("IO exception from {}: {}", ctx.channel().remoteAddress(), Helpers.resolveThrowableException(cause));
+                logger.catching(Level.DEBUG, cause);
+            } else if (cause instanceof CodecException) {
+                logger.warn("Codec exception from {}: {}", ctx.channel().remoteAddress(), Helpers.resolveThrowableException(cause));
                 logger.catching(Level.DEBUG, cause);
             } else {
                 logger.warn("Not handled exception {} from {}", Helpers.resolveThrowableException(cause), ctx.channel().remoteAddress());

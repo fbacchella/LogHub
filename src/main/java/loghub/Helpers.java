@@ -361,6 +361,9 @@ public final class Helpers {
         } else if (t instanceof SSLHandshakeException) {
             // SSLHandshakeException is a chain of the same message, keep the last one
             builder.setLength(0);
+        } else if (t instanceof InterruptedException) {
+            builder.setLength(0);
+            message = "Interrupted";
         } else if (message == null) {
             message = t.getClass().getSimpleName();
         }
