@@ -19,9 +19,13 @@ public abstract class Etl extends Processor {
         private String[] sourcePath;
         @Override
         public boolean process(Event event) throws ProcessorException {
-            Object old = event.applyAtPath(Action.REMOVE, sourcePath, null);
-            event.applyAtPath(Action.PUT, lvalue, old, true);
-            return true;
+            if (Boolean.TRUE.equals(event.applyAtPath(Action.CONTAINS, sourcePath, null, false))) {
+                Object old = event.applyAtPath(Action.REMOVE, sourcePath, null);
+                event.applyAtPath(Action.PUT, lvalue, old, true);
+                return true;
+            } else {
+                return false;
+            }
         }
         @Override
         public boolean configure(Properties properties) {
