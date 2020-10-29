@@ -13,12 +13,16 @@ import loghub.ProcessorException;
 import loghub.configuration.Properties;
 import loghub.jackson.Helpers;
 import loghub.jackson.JacksonBuilder;
+import lombok.Getter;
+import lombok.Setter;
 
 public class ParseCsv extends FieldsProcessor {
 
     private String[] columns = new String[0];
     private String[] features = new String[0];
     private char separator= ',';
+    @Getter @Setter
+    private char escapeChar = '\0';
     private String nullValue = "";
     private ObjectReader reader;
 
@@ -28,6 +32,10 @@ public class ParseCsv extends FieldsProcessor {
         Arrays.stream(columns).forEach(i -> sbuilder.addColumn(i.toString()));
         sbuilder.setColumnSeparator(separator);
         sbuilder.setNullValue(nullValue);
+        
+        if (escapeChar != '\0') {
+            sbuilder.setEscapeChar(escapeChar);
+        }
 
         reader =  JacksonBuilder.get(CsvMapper.class)
                 .setMapperSupplier(CsvMapper::new)
