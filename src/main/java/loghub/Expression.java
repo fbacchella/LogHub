@@ -1,16 +1,26 @@
 package loghub;
 
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.codehaus.groovy.control.CompilationFailedException;
+import org.codehaus.groovy.control.CompilationUnit;
 
 import groovy.lang.Binding;
 import groovy.lang.GroovyClassLoader;
 import groovy.lang.Script;
+import lombok.Getter;
 
+/**
+ * Evaluate groovy expressions.
+ * <p>
+ * It uses an internal compiled cache, for lazy compilation. But it still check expression during instantiation
+ * @author Fabrice Bacchella
+ *
+ */
 public class Expression {
 
     /**
@@ -28,38 +38,25 @@ public class Expression {
     private static final Logger logger = LogManager.getLogger();
 
     private static final Binding EMPTYBIDDING = new Binding();
+    private static final Map<String, ThreadLocal<Script>> compilationCache = new ConcurrentHashMap<>();
 
+    @Getter
     private final String expression;
     private Map<String, VarFormatter> formatters;
-    private final ThreadLocal<Script> groovyScript;
+    private final GroovyClassLoader loader;
 
-    @SuppressWarnings("unchecked")
     public Expression(String expression, GroovyClassLoader loader, Map<String, VarFormatter> formatters) throws ExpressionException {
         logger.trace("adding expression {}", expression);
+        try {
+            // Check the expression, but using a CompilationUnit is much faster than generating the execution class
+            CompilationUnit cu = new CompilationUnit(loader);
+            cu.addSource("", expression);
+            cu.compile();
+        } catch (CompilationFailedException ex) {
+            throw new ExpressionException(ex);
+        }
         this.expression = expression;
-        Class<Script> groovyClass;
-        try {
-            groovyClass = loader.parseClass(expression);
-        } catch (CompilationFailedException e) {
-            throw new ExpressionException(e);
-        }
-        groovyScript = ThreadLocal.withInitial(() -> {
-            try {
-                return groovyClass.newInstance();
-            } catch (IllegalAccessException | InstantiationException e) {
-                throw new UnsupportedOperationException(e);
-            }
-        });
-        // Not a real null test, if it fails it will throw an UnsupportedOperationException
-        // Try to catch it early instead of for each event
-        // Just for too smart compiler
-        try {
-            if (groovyScript.get() == null) {
-                throw new ExpressionException(new NullPointerException());
-            }
-        } catch (UnsupportedOperationException e) {
-            throw new ExpressionException(e);
-        }
+        this.loader = loader;
         this.formatters = formatters;
     }
 
@@ -70,9 +67,10 @@ public class Expression {
         groovyBinding.setVariable("formatters", formatters);
         Script localscript;
         try {
-            localscript = groovyScript.get();
+            // Lazy compilation, will only compile if expression is needed
+            localscript = compilationCache.computeIfAbsent(expression, this::compile).get();
         } catch (UnsupportedOperationException e) {
-            throw event.buildException(String.format("script compilation failed '%s': %s", expression, e.getCause().getMessage()));
+            throw event.buildException(String.format("script compilation failed '%s': %s", expression, Helpers.resolveThrowableException(e.getCause())), e);
         }
         localscript.setBinding(groovyBinding);
         try {
@@ -86,11 +84,21 @@ public class Expression {
         }
     }
 
-    /**
-     * @return the expression
-     */
-    public String getExpression() {
-        return expression;
+    @SuppressWarnings("unchecked")
+    private ThreadLocal<Script> compile(String unused) {
+        Class<Script> groovyClass;
+        try {
+            groovyClass = loader.parseClass(expression);
+        } catch (CompilationFailedException e) {
+            throw new UnsupportedOperationException(new ExpressionException(e));
+        }
+        return ThreadLocal.withInitial(() -> {
+            try {
+                return groovyClass.newInstance();
+            } catch (IllegalAccessException | InstantiationException e) {
+                throw new UnsupportedOperationException(e);
+            }
+        });
     }
 
     public static void logError(ExpressionException e, String source, Logger logger) {
@@ -101,6 +109,13 @@ public class Expression {
             logger.error("Critical groovy error for expression {}: {}", source, e.getMessage());
             logger.throwing(Level.DEBUG, e.getCause());
         }
+    }
+
+    /**
+     * Clear the compilation cache
+     */
+    public static void clearCache() {
+        compilationCache.clear();
     }
 
 }

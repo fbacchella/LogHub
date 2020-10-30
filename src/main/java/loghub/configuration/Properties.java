@@ -30,6 +30,7 @@ import io.netty.util.concurrent.Future;
 import loghub.DashboardHttpServer;
 import loghub.Event;
 import loghub.EventsRepository;
+import loghub.Expression;
 import loghub.Helpers;
 import loghub.Pipeline;
 import loghub.Processor;
@@ -93,6 +94,7 @@ public class Properties extends HashMap<String, Object> {
     @SuppressWarnings("unchecked")
     public Properties(Map<String, Object> properties) {
         Stats.reset();
+        Expression.clearCache();
 
         ClassLoader cl = (ClassLoader) properties.remove(PROPSNAMES.CLASSLOADERNAME.toString());
         if (cl == null) {
