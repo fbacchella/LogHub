@@ -39,6 +39,7 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import loghub.ConnectionContext;
 import loghub.Event;
 import loghub.EventsProcessor;
+import loghub.Helpers;
 
 public class TestEventProcessing {
 
@@ -111,7 +112,7 @@ public class TestEventProcessing {
 
             TestEventProcessing.setAppender();
 
-            props.pipelines.stream().forEach(i-> i.configure(props));
+            Helpers.parallelStartProcessor(props);
 
             Thread t = new EventsProcessor(props.mainQueue, props.outputQueues, props.namedPipeLine, props.maxSteps, props.repository);
             t.start();

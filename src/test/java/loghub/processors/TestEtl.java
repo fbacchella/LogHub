@@ -25,9 +25,9 @@ import loghub.ConnectionContext;
 import loghub.Event;
 import loghub.Event.Action;
 import loghub.EventsProcessor;
+import loghub.Helpers;
 import loghub.IgnoredEventException;
 import loghub.LogUtils;
-import loghub.Pipeline;
 import loghub.ProcessorException;
 import loghub.Tools;
 import loghub.VarFormatter;
@@ -53,7 +53,7 @@ public class TestEtl {
     private Event RunEtl(String exp, Consumer<Event> filer, boolean status) throws ProcessorException {
         return RunEtl(exp, filer, status, null);
     }
-    
+
     private Event RunEtl(String exp, Consumer<Event> filer, boolean status, CompletableFuture<Event> holder) throws ProcessorException {
         Map<String, VarFormatter> formatters = new HashMap<>();
         Etl e =  ConfigurationTools.buildFromFragment(exp, i -> i.etl(), formatters);
@@ -132,9 +132,7 @@ public class TestEtl {
     @Test
     public void test5() throws ProcessorException, InterruptedException, ConfigException, IOException {
         Properties conf = Tools.loadConf("etl.conf");
-        for(Pipeline pipe: conf.pipelines) {
-            Assert.assertTrue("configuration failed", pipe.configure(conf));
-        }
+        Helpers.parallelStartProcessor(conf);
         Event sent = Tools.getEvent();
         sent.put("a", "a");
 
@@ -146,9 +144,7 @@ public class TestEtl {
     @Test
     public void test7() throws ProcessorException, InterruptedException, ConfigException, IOException {
         Properties conf = Tools.loadConf("etl.conf");
-        for(Pipeline pipe: conf.pipelines) {
-            Assert.assertTrue("configuration failed", pipe.configure(conf));
-        }
+        Helpers.parallelStartProcessor(conf);
         Event sent = Tools.getEvent();
         Map<String, Object> b = new HashMap<>(1);
         b.put("c", 1);
@@ -161,9 +157,7 @@ public class TestEtl {
     @Test
     public void test8() throws ProcessorException, InterruptedException, ConfigException, IOException {
         Properties conf = Tools.loadConf("etl.conf");
-        for(Pipeline pipe: conf.pipelines) {
-            Assert.assertTrue("configuration failed", pipe.configure(conf));
-        }
+        Helpers.parallelStartProcessor(conf);
         Event sent = Tools.getEvent();
         sent.setTimestamp(new Date(1));
         Tools.runProcessing(sent, conf.namedPipeLine.get("timestamp"), conf);

@@ -10,6 +10,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import loghub.Event;
+import loghub.Helpers;
 import loghub.LogUtils;
 import loghub.Pipeline;
 import loghub.ProcessorException;
@@ -31,9 +32,7 @@ public class TestFire {
     @Test
     public void test() throws ProcessorException, InterruptedException, ConfigException, IOException {
         Properties conf = Tools.loadConf("fire.conf");
-        for(Pipeline pipe: conf.pipelines) {
-            Assert.assertTrue("configuration failed", pipe.configure(conf));
-        }
+        Helpers.parallelStartProcessor(conf);
         Event sent = Tools.getEvent();
         sent.put("count", 2);
 

@@ -3,6 +3,8 @@ package loghub;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 
 import loghub.configuration.Properties;
 
@@ -19,8 +21,11 @@ public class Pipeline {
         this.nextPipeline = nextPipeline;
     }
 
-    public boolean configure(Properties properties) {
-        return processors.stream().allMatch(i -> i.configure(properties));
+    public void configure(Properties properties, ExecutorService executor, List<Future<Boolean>> results) {
+        for (Processor p: processors) {
+            Future<Boolean> f =executor.submit(() -> p.configure(properties));
+            results.add(f);
+        }
     }
 
     @Override

@@ -32,9 +32,7 @@ public class Tools {
     public static Properties loadConf(Reader config) throws ConfigException, IOException {
         Properties props = Configuration.parse(config);
 
-        for(Pipeline pipe: props.pipelines) {
-            Assert.assertTrue("configuration failed", pipe.configure(props));
-        }
+        Helpers.parallelStartProcessor(props);
 
         return props;
     }
@@ -43,9 +41,7 @@ public class Tools {
         String conffile = Configuration.class.getClassLoader().getResource(configname).getFile();
         Properties props = Configuration.parse(conffile);
 
-        for(Pipeline pipe: props.pipelines) {
-            Assert.assertTrue("configuration failed", pipe.configure(props));
-        }
+        Helpers.parallelStartProcessor(props);
         return props;
     }
 

@@ -11,6 +11,7 @@ import org.junit.Test;
 
 import loghub.Event;
 import loghub.EventsProcessor;
+import loghub.Helpers;
 import loghub.LogUtils;
 import loghub.Pipeline;
 import loghub.ProcessorException;
@@ -32,9 +33,7 @@ public class TestTest {
     @Test
     public void testOK() throws InterruptedException, ProcessorException, ConfigException, IOException {
         Properties conf = Tools.loadConf("testclause.conf");
-        for(Pipeline pipe: conf.pipelines) {
-            Assert.assertTrue("configuration failed", pipe.configure(conf));
-        }
+        Helpers.parallelStartProcessor(conf);
         Event sent = Tools.getEvent();
         sent.put("a",1);
         Tools.runProcessing(sent, conf.namedPipeLine.get("main"), conf);
@@ -44,9 +43,7 @@ public class TestTest {
     @Test
     public void testKO() throws ProcessorException, InterruptedException, ConfigException, IOException {
         Properties conf = Tools.loadConf("testclause.conf");
-        for(Pipeline pipe: conf.pipelines) {
-            Assert.assertTrue("configuration failed", pipe.configure(conf));
-        }
+        Helpers.parallelStartProcessor(conf);
 
         Event sent = Tools.getEvent();
         sent.put("a",2);
@@ -58,9 +55,7 @@ public class TestTest {
     @Test(timeout=2000)
     public void testSub() throws InterruptedException, ProcessorException, ConfigException, IOException {
         Properties conf = Tools.loadConf("testclause.conf");
-        for(Pipeline pipe: conf.pipelines) {
-            Assert.assertTrue("configuration failed", pipe.configure(conf));
-        }
+        Helpers.parallelStartProcessor(conf);
 
         Event sent = Tools.getEvent();
         sent.put("a",2);

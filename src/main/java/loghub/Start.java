@@ -203,12 +203,7 @@ public class Start {
         // Used to remember if configuration process succeded
         AtomicBoolean failed = new AtomicBoolean(false);
 
-        props.pipelines.stream().forEach(i-> {
-            boolean pipeOk = i.configure(props);
-            failed.set(failed.get() || (! pipeOk));
-        });
-
-        failed.set(failed.get());
+        Helpers.parallelStartProcessor(props);
 
         for (Sender s: props.senders) {
             if (s.configure(props)) {

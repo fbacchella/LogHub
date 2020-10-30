@@ -17,13 +17,19 @@ import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -40,6 +46,7 @@ import javax.net.ssl.SSLHandshakeException;
 import org.apache.logging.log4j.Logger;
 
 import io.netty.util.NetUtil;
+import loghub.configuration.Properties;
 
 public final class Helpers {
 
@@ -441,7 +448,7 @@ public final class Helpers {
         String newText = regexContent.matcher(p.getText()).replaceAll("$1");
         p.setText(newText);
     }
-    
+
     public static String ListenString(String listen) {
         if (listen == null) {
             return "0.0.0.0";
@@ -449,6 +456,36 @@ public final class Helpers {
             return "0.0.0.0";
         } else {
             return listen;
+        }
+    }
+
+    /**
+     * Start processors with twice the number of processors. If one fails or interrupted, it will throws a {@link IllegalStateException}.
+     *
+     * @param props
+     */
+    public static void parallelStartProcessor(Properties props) {
+        // Running processor init in parallel, as Groovy expression parsing is slow
+        ExecutorService executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() * 2);
+        List<Future<Boolean>> results = new ArrayList<>(props.pipelines.size());
+        props.pipelines.forEach(p -> p.configure(props, executor, results));
+        executor.shutdown();
+        try {
+            executor.awaitTermination(Long.MAX_VALUE, TimeUnit.DAYS);
+            results.forEach(f -> {
+                try {
+                    boolean result = f.get();
+                    if (! result) {
+                        throw new IllegalStateException();
+                    }
+                } catch (ExecutionException ex) {
+                    throw new IllegalStateException(ex.getCause());
+                } catch (InterruptedException ex) {
+                    throw new IllegalStateException();
+                }
+            });
+        } catch (InterruptedException e1) {
+            throw new IllegalStateException();
         }
     }
 

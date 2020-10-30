@@ -17,6 +17,7 @@ import org.junit.Test;
 
 import loghub.ConnectionContext;
 import loghub.Event;
+import loghub.Helpers;
 import loghub.LogUtils;
 import loghub.ProcessorException;
 import loghub.Tools;
@@ -40,7 +41,7 @@ public class TestMerge {
         String conf= "pipeline[main] { merge {index: \"${e%s}\", seeds: {\"a\": 0, \"b\": \",\", \"d\": 0.0, \"e\": null, \"c\": [], \"count\": 'c', \"@timestamp\": '>', \"f\": {}}, doFire: [a] >= 2, forward: false}}";
 
         Properties p = Configuration.parse(new StringReader(conf));
-        Assert.assertTrue(p.pipelines.stream().allMatch(i-> i.configure(p)));
+        Helpers.parallelStartProcessor(p);
         Merge m = (Merge) p.namedPipeLine.get("main").processors.stream().findFirst().get();
 
         List<Event> events = new ArrayList<>();
@@ -91,7 +92,7 @@ public class TestMerge {
         String conf= "pipeline[main] { merge {index: \"${e%s}\", seeds: {\"a\": 0, \"b\": \",\", \"e\": 'c', \"c\": [], \"@timestamp\": null}, expiration: 1 }}";
 
         Properties p = Configuration.parse(new StringReader(conf));
-        Assert.assertTrue(p.pipelines.stream().allMatch(i-> i.configure(p)));
+        Helpers.parallelStartProcessor(p);
         Merge m = (Merge) p.namedPipeLine.get("main").processors.get(0);
         Event e = Event.emptyEvent(ConnectionContext.EMPTY);
         e.setTimestamp(new Date(0));
@@ -112,7 +113,7 @@ public class TestMerge {
         String conf= "pipeline[main] { merge {index: \"${e%s}\", doFire: true, default: \",\", onFire: [f] = 1, forward: true}}";
 
         Properties p = Configuration.parse(new StringReader(conf));
-        Assert.assertTrue(p.pipelines.stream().allMatch(i-> i.configure(p)));
+        Helpers.parallelStartProcessor(p);
         Merge m = (Merge) p.namedPipeLine.get("main").processors.stream().findFirst().get();
         Event e = Event.emptyEvent(ConnectionContext.EMPTY);
         e.setTimestamp(new Date(0));

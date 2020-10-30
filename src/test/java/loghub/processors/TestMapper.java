@@ -6,6 +6,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import loghub.Event;
+import loghub.Helpers;
 import loghub.Pipeline;
 import loghub.ProcessorException;
 import loghub.Tools;
@@ -17,9 +18,7 @@ public class TestMapper {
     @Test
     public void test1() throws ProcessorException, InterruptedException, ConfigException, IOException {
         Properties conf = Tools.loadConf("map.conf");
-        for (Pipeline pipe: conf.pipelines) {
-            Assert.assertTrue("configuration failed", pipe.configure(conf));
-        }
+        Helpers.parallelStartProcessor(conf);
         Event sent = Tools.getEvent();
         sent.put("a", 1);
 
@@ -30,9 +29,7 @@ public class TestMapper {
     @Test
     public void test2() throws ProcessorException, InterruptedException, ConfigException, IOException {
         Properties conf = Tools.loadConf("map.conf");
-        for (Pipeline pipe: conf.pipelines) {
-            Assert.assertTrue("configuration failed", pipe.configure(conf));
-        }
+        Helpers.parallelStartProcessor(conf);
         Event sent = Tools.getEvent();
         sent.put("a", 1);
 
@@ -43,9 +40,7 @@ public class TestMapper {
     @Test
     public void testNotMapped() throws ProcessorException, InterruptedException, ConfigException, IOException {
         Properties conf = Tools.loadConf("map.conf");
-        for (Pipeline pipe: conf.pipelines) {
-            Assert.assertTrue("configuration failed", pipe.configure(conf));
-        }
+        Helpers.parallelStartProcessor(conf);
         Event sent = Tools.getEvent();
         sent.put("a", 3);
 
@@ -56,9 +51,7 @@ public class TestMapper {
     @Test
     public void test4() throws ProcessorException, InterruptedException, ConfigException, IOException {
         Properties conf = Tools.loadConf("map.conf");
-        for (Pipeline pipe: conf.pipelines) {
-            Assert.assertTrue("configuration failed", pipe.configure(conf));
-        }
+        Helpers.parallelStartProcessor(conf);
         Event sent = Tools.getEvent();
         sent.put("a", 2L);
 
@@ -69,9 +62,7 @@ public class TestMapper {
     @Test
     public void testExpression() throws ProcessorException, InterruptedException, ConfigException, IOException {
         Properties conf = Tools.loadConf("map.conf");
-        for (Pipeline pipe: conf.pipelines) {
-            Assert.assertTrue("configuration failed", pipe.configure(conf));
-        }
+        Helpers.parallelStartProcessor(conf);
         Event sent = Tools.getEvent();
         sent.put("a", 2);
 

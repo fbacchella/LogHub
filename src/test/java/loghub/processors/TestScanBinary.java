@@ -9,6 +9,7 @@ import org.junit.Test;
 
 import loghub.ConnectionContext;
 import loghub.Event;
+import loghub.Helpers;
 import loghub.Pipeline;
 import loghub.ProcessorException;
 import loghub.Tools;
@@ -77,9 +78,7 @@ public class TestScanBinary {
     @Test
     public void testConfigFile() throws ProcessorException, InterruptedException, ConfigException, IOException {
         Properties conf = Tools.loadConf("scanbinary.conf");
-        for (Pipeline pipe: conf.pipelines) {
-            Assert.assertTrue("configuration failed", pipe.configure(conf));
-        }
+        Helpers.parallelStartProcessor(conf);
         Event sent = Tools.getEvent();
         sent.put("binary", 0b110101);
 
