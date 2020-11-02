@@ -8,6 +8,7 @@ import java.util.regex.Pattern;
 import loghub.Event;
 import loghub.Processor;
 import loghub.ProcessorException;
+import loghub.Event.Action;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -26,13 +27,13 @@ public class ParseCef extends Processor {
     private static final Pattern extensionPattern = Pattern.compile("(?<key>[a-zA-Z0-9_]+)=(?<value>(?:[^ ]| (?! *[a-zA-Z0-9_]+=))+)");
 
     @Getter @Setter
-    private String field = "message";
+    private String[] field = new String[] {"message"};
     private ThreadLocal<Matcher> fieldMatcherSource = ThreadLocal.withInitial(() -> fieldPattern.matcher(""));
     private ThreadLocal<Matcher> extensionMatcherSource = ThreadLocal.withInitial(() -> extensionPattern.matcher(""));
 
     @Override
     public boolean process(Event event) throws ProcessorException {
-        String message = event.get(field).toString();
+        String message = event.applyAtPath(Action.GET, field, null).toString();
         if (! message.startsWith("CEF:")) {
             throw event.buildException("not a CEF message: \"" + message + "\"");
         }
