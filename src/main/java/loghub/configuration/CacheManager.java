@@ -98,14 +98,16 @@ public class CacheManager {
             return this;
         }
         public Cache<K, V> build() {
-            Cache<K, V> cache = cacheManager.getCache(name, keyType, valueType);
-            if (cache != null) {
-                logger.debug("Reusing cache {}", name);
-                return cache;
-            } else {
-                logger.debug("creating cache {}", name);
-                ExtendedMutableConfiguration<K, V> config = ExtendedMutableConfiguration.of(builder2k);
-                return cacheManager.createCache(name, config);
+            synchronized (cacheManager) {
+                Cache<K, V> cache = cacheManager.getCache(name, keyType, valueType);
+                if (cache != null) {
+                    logger.debug("Reusing cache {}", name);
+                    return cache;
+                } else {
+                    logger.debug("creating cache {}", name);
+                    ExtendedMutableConfiguration<K, V> config = ExtendedMutableConfiguration.of(builder2k);
+                    return cacheManager.createCache(name, config);
+                }
             }
         }
     }
