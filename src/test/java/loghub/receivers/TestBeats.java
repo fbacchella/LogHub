@@ -1,5 +1,6 @@
 package loghub.receivers;
 
+import java.beans.IntrospectionException;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetAddress;
@@ -24,17 +25,23 @@ import org.apache.logging.log4j.Logger;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.logstash.beats.Message;
 import org.logstash.beats.Protocol;
 
+import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectWriter;
 
+import loghub.BeanChecks;
+import loghub.BeanChecks.BeanInfo;
 import loghub.Event;
+import loghub.Filter;
 import loghub.LogUtils;
 import loghub.Pipeline;
 import loghub.Tools;
 import loghub.configuration.Properties;
 import loghub.decoders.StringCodec;
+import loghub.jackson.JacksonBuilder;
 import loghub.security.ssl.ClientAuthentication;
 import loghub.security.ssl.ContextLoader;
 
@@ -49,10 +56,17 @@ public class TestBeats {
         LogUtils.setLevel(logger, Level.TRACE, "loghub.receivers.Beats", "org.logstash.beats");
     }
 
+    private final ObjectWriter writer;
+
     private Beats receiver;
     private int port;
     private BlockingQueue<Event> queue;
-    
+
+    public TestBeats() {
+        ObjectMapper mapper = JacksonBuilder.get().setFactory(new JsonFactory()).getMapper();
+        writer = mapper.writer();
+    }
+
     @Test(timeout=5000)
     public void testSimple() throws IOException, InterruptedException {
         try {
@@ -93,11 +107,11 @@ public class TestBeats {
             makeReceiver( i -> {/* */ }, Collections.emptyMap());
             ByteBuffer out = ByteBuffer.allocate(4096);
             out.put(Protocol.VERSION_2);
-            out.put((byte)'W');
+            out.put(Protocol.CODE_WINDOW_SIZE);
             out.putInt(2);
             // First message
             out.put(Protocol.VERSION_2);
-            out.put((byte)'J');
+            out.put(Protocol.CODE_JSON_FRAME);
             out.putInt(1);
             out.putInt(Integer.MAX_VALUE);
             out.putInt(0);
@@ -126,8 +140,8 @@ public class TestBeats {
                 // It should be required for a better test, needs to understand how to make client side TLS works
                 i.setSSLClientAuthentication(ClientAuthentication.WANTED.name());
             },
-                Collections.singletonMap("ssl.trusts", new String[] {getClass().getResource("/loghub.p12").getFile()})
-            );
+                    Collections.singletonMap("ssl.trusts", new String[] {getClass().getResource("/loghub.p12").getFile()})
+                    );
             Map<String, Object> properties = new HashMap<>();
             properties.put("trusts", new String[] {getClass().getResource("/loghub.p12").getFile()});
             SSLContext cssctx = ContextLoader.build(null, properties);
@@ -174,7 +188,7 @@ public class TestBeats {
         builder.setPort(port);
         builder.setDecoder(StringCodec.getBuilder().build());
         prepare.accept(builder);
-        
+
         receiver = new Beats(builder);
         receiver.setOutQueue(queue);
         receiver.setPipeline(new Pipeline(Collections.emptyList(), "testtcplinesstream", null));
@@ -182,36 +196,59 @@ public class TestBeats {
         receiver.start();
     }
 
-   private Beats getReceiver(String host, int port) {
+    private Beats getReceiver(String host, int port) {
         Beats.Builder builder = Beats.getBuilder();
         builder.setHost(host);
         builder.setPort(port);
         return builder.build();
     }
-   
-   private ByteBuffer encode(List<Map<?, ?>> batch) throws JsonProcessingException {
-       ByteBuffer out = ByteBuffer.allocate(4096);
-       out.put(Protocol.VERSION_2);
-       out.put((byte)'W');
-       out.putInt(batch.size());
 
-       // Aggregates the payload that we could decide to compress or not.
-       for (int i = 0; i < batch.size() ; i ++) {
-           encodeMessageWithJson(out, i, batch.get(i));
-       }
-       out.flip();
-       return out;
+    private ByteBuffer encode(List<Map<?, ?>> batch) throws JsonProcessingException {
+        ByteBuffer out = ByteBuffer.allocate(4096);
+        out.put(Protocol.VERSION_2);
+        out.put(Protocol.CODE_WINDOW_SIZE);
+        out.putInt(batch.size());
 
-   }
-   
-   private void encodeMessageWithJson(ByteBuffer payload, int sequence, Map<?, ?> message) throws JsonProcessingException {
-       payload.put(Protocol.VERSION_2);
-       payload.put((byte)'J');
-       payload.putInt(sequence);
+        // Aggregates the payload that we could decide to compress or not.
+        for (int i = 0; i < batch.size() ; i ++) {
+            encodeMessageWithJson(out, i, batch.get(i));
+        }
+        out.flip();
+        return out;
+    }
 
-       byte[] json = Message.MAPPER.get().writeValueAsBytes(message);
-       payload.putInt(json.length);
-       payload.put(json);
-   }
+    private void encodeMessageWithJson(ByteBuffer payload, int sequence, Map<?, ?> message) throws JsonProcessingException {
+        payload.put(Protocol.VERSION_2);
+        payload.put(Protocol.CODE_JSON_FRAME);
+        payload.putInt(sequence);
+
+        byte[] json = writer.writeValueAsBytes(message);
+        payload.putInt(json.length);
+        payload.put(json);
+    }
+
+    @Test
+    public void test_loghub_receivers_Beats() throws ClassNotFoundException, IntrospectionException {
+        BeanChecks.beansCheck(logger, "loghub.receivers.Beats"
+                              ,BeanInfo.build("timeStampField", String.class)
+                              ,BeanInfo.build("filter", Filter.class)
+                              ,BeanInfo.build("poller", String.class)
+                              ,BeanInfo.build("workerThreads", Integer.TYPE)
+                              ,BeanInfo.build("port", Integer.TYPE)
+                              ,BeanInfo.build("host", String.class)
+                              ,BeanInfo.build("rcvBuf", Integer.TYPE)
+                              ,BeanInfo.build("sndBuf", Integer.TYPE)
+                              ,BeanInfo.build("backlog", Integer.TYPE)
+                              ,BeanInfo.build("user", String.class)
+                              ,BeanInfo.build("password", String.class)
+                              ,BeanInfo.build("jaasName", String.class)
+                              ,BeanInfo.build("withSSL", Boolean.TYPE)
+                              ,BeanInfo.build("SSLClientAuthentication", String.class)
+                              ,BeanInfo.build("SSLKeyAlias", String.class)
+                              ,BeanInfo.build("clientInactivityTimeoutSeconds", Integer.TYPE)
+                              ,BeanInfo.build("maxPayloadSize", Integer.TYPE)
+                              ,BeanInfo.build("workers", Integer.TYPE)
+                        );
+    }
 
 }
