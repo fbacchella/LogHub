@@ -12,6 +12,8 @@ import org.logstash.beats.IMessageListener;
 import org.logstash.beats.Message;
 
 import com.codahale.metrics.Histogram;
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.databind.ObjectReader;
 
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.ByteBuf;
@@ -32,6 +34,7 @@ import loghub.Event;
 import loghub.Helpers;
 import loghub.configuration.Properties;
 import loghub.decoders.DecodeException;
+import loghub.jackson.JacksonBuilder;
 import loghub.metrics.Stats;
 import loghub.netty.AbstractTcpReceiver;
 import loghub.netty.BaseChannelConsumer;
@@ -100,6 +103,7 @@ public class Beats extends AbstractTcpReceiver<Beats, TcpServer, TcpServer.Build
 
     private final IMessageListener messageListener;
     private final EventExecutorGroup idleExecutorGroup;
+    private final ObjectReader reader;
 
     @Getter
     private final int clientInactivityTimeoutSeconds;
@@ -114,6 +118,9 @@ public class Beats extends AbstractTcpReceiver<Beats, TcpServer, TcpServer.Build
         this.maxPayloadSize = builder.maxPayloadSize;
         this.idleExecutorGroup = new DefaultEventExecutorGroup(builder.workers);
         this.workers = builder.workers;
+        this.reader = JacksonBuilder.get()
+                                    .setFactory(new JsonFactory())
+                                    .getReader();
 
         this.messageListener = new IMessageListener() {
 
@@ -182,7 +189,7 @@ public class Beats extends AbstractTcpReceiver<Beats, TcpServer, TcpServer.Build
                 pipe.addBefore(idleExecutorGroup, "Sender", "KeepAlive", new IdleStateHandler(clientInactivityTimeoutSeconds, 5, 0));
                 pipe.addBefore("Sender", "Acker", new AckEncoder());
                 pipe.addBefore("Sender", "ConnectionHandler", new ConnectionHandler());
-                pipe.addBefore(beatsHandlerExecutorGroup, "Sender", "BeatsSplitter", new BeatsParser(maxPayloadSize));
+                pipe.addBefore(beatsHandlerExecutorGroup, "Sender", "BeatsSplitter", new BeatsParser(maxPayloadSize, reader));
                 pipe.addBefore(beatsHandlerExecutorGroup, "Sender", "BeatsStats", statsHandler);
                 pipe.addBefore(beatsHandlerExecutorGroup, "Sender", "BeatsHandler", new BeatsHandler(messageListener));
                 pipe.addAfter("Sender", "BeatsErrorHandler", errorHandler);
