@@ -15,7 +15,7 @@
         <bootclasspath>${jdk.compile.home}/jre/lib/rt.jar</bootclasspath>
         <log4j>2.13.1</log4j>
         <antlr>4.8-1</antlr>
-        <jackson>2.10.3</jackson>
+        <jackson>2.11.3</jackson>
         <metrics>4.0.7</metrics>
         <cache2k>1.2.4.Final </cache2k>
         <mainClass>loghub.Start</mainClass>
