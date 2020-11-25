@@ -297,6 +297,18 @@ public class VarFormatter {
             case 'F': dtfPattern = "" ; break;
             // Date and time formatted as "%ta %tb %td %tT %tZ %tY", e.g. "Sun Jul 20 16:17:00 EDT 1969".
             case 'c': dtfPattern = "" ; break;
+            // The week number of the year (Monday as the first day of the week) as a decimal number (01-53).  If the week
+            // containing January 1 has four or more days in the new year, then it is week 1; otherwise it is the last week
+            // of the previous year, and the next week is week 1.
+            case 'V':
+                calToStr = i -> {
+                    // Ensure that result matches the description of %V
+                    i.setFirstDayOfWeek(2);
+                    i.setMinimalDaysInFirstWeek(4);
+                    DecimalFormat df = new DecimalFormat("00", DecimalFormatSymbols.getInstance(l));
+                    return df.format(i.get(Calendar.WEEK_OF_YEAR));
+                };
+                break;
             default: nfPattern = null ; dtfPattern = null ; field = null;
             }
             if(nfPattern != null) {

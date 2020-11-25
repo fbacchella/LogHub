@@ -1,6 +1,7 @@
 package loghub;
 
 import java.io.IOException;
+import java.time.Instant;
 import java.time.ZonedDateTime;
 import java.util.Arrays;
 import java.util.Collections;
@@ -108,6 +109,51 @@ public class TestVarFormatter {
         checkFormat(date, "%Ta");
         checkFormat(date, "%TA");
         checkFormat(date, "%Tp");
+    }
+    
+    @Test
+    public void testDate() {
+        // The values to test was generated using:
+        // // LANG=C TZ=UTC date -d 'YYYY-01-dd 00:00:00-00:00' '+%Y.%m.%d=%s %V'
+        long[] times = {
+                1230768000, // 2009.01.01=1230768000 01
+                1199145600, // 2008.01.01=1199145600 01
+                1167609600, // 2007.01.01=1167609600 01
+                1136073600, // 2006.01.01=1136073600 52
+                1104537600, // 2005.01.01=1104537600 53
+                1072915200, // 2004.01.01=1072915200 01
+                1041379200, // 2003.01.01=1041379200 01
+
+                1041465600, // 2003.01.02=1041465600 01
+                1041552000, // 2003.01.03=1041552000 01
+                1041638400, // 2003.01.04=1041638400 01
+                1041724800, // 2003.01.05=1041724800 01
+                1041811200, // 2003.01.06=1041811200 02
+                1041897600, // 2003.01.07=1041897600 02
+                1041984000, // 2003.01.08=1041984000 02
+        };
+        String[] weekNum = {
+                "01",
+                "01",
+                "01",
+                "52",
+                "53",
+                "01",
+                "01",
+                "01",
+                "01",
+                "01",
+                "01",
+                "02",
+                "02",
+                "02",
+              
+        };
+        VarFormatter formatter = new VarFormatter("${%t<UTC>V}", Locale.US);
+        for (int i = 0 ; i < times.length ; i++) {
+            String formatted = formatter.format(Instant.ofEpochSecond(times[i]));
+            Assert.assertEquals(weekNum[i], formatted);
+        }
     }
 
     @Test
