@@ -17,7 +17,9 @@ import java.time.chrono.ThaiBuddhistDate;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoField;
 import java.time.temporal.TemporalAccessor;
+import java.time.temporal.TemporalField;
 import java.time.temporal.TemporalQuery;
+import java.time.temporal.WeekFields;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
@@ -205,7 +207,7 @@ public class VarFormatter {
         private ZoneId tz;
         private DecimalFormat nf = null;
         private DateTimeFormatter dtf;
-        private ChronoField field;
+        private TemporalField field;
         private TemporalQuery<Long> transform;
         private Function<String, String> transformResult;
         private Supplier<String[]> symbols = null;
@@ -299,16 +301,8 @@ public class VarFormatter {
             case 'c': dtfPattern = "" ; break;
             // The week number of the year (Monday as the first day of the week) as a decimal number (01-53).  If the week
             // containing January 1 has four or more days in the new year, then it is week 1; otherwise it is the last week
-            // of the previous year, and the next week is week 1.
-            case 'V':
-                calToStr = i -> {
-                    // Ensure that result matches the description of %V
-                    i.setFirstDayOfWeek(2);
-                    i.setMinimalDaysInFirstWeek(4);
-                    DecimalFormat df = new DecimalFormat("00", DecimalFormatSymbols.getInstance(l));
-                    return df.format(i.get(Calendar.WEEK_OF_YEAR));
-                };
-                break;
+            // of the previous year, and the next week is week 1. Defined in ISO-8601
+            case 'V':  nfPattern = "00"; field = WeekFields.ISO.weekOfWeekBasedYear(); break;
             default: nfPattern = null ; dtfPattern = null ; field = null;
             }
             if(nfPattern != null) {
