@@ -2,8 +2,17 @@ package loghub;
 
 import java.io.IOException;
 import java.time.Instant;
+import java.time.LocalTime;
+import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.time.chrono.ChronoZonedDateTime;
+import java.time.chrono.HijrahDate;
+import java.time.chrono.JapaneseDate;
+import java.time.chrono.MinguoDate;
+import java.time.chrono.ThaiBuddhistDate;
+import java.time.temporal.TemporalAccessor;
 import java.util.Arrays;
+import java.util.Calendar;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
@@ -31,17 +40,49 @@ public class TestVarFormatter {
     }
 
     private void checkFormat(Object value, String format, boolean fail) {
+        if (value instanceof ChronoZonedDateTime) {
+            ChronoZonedDateTime<?> czdt = (ChronoZonedDateTime<?>) value;
+            if ("islamic-umalqura".equals(czdt.getChronology().getCalendarType()) && (
+                    "%tB".equalsIgnoreCase(format))
+                    || "%th".equalsIgnoreCase(format)
+                    || "%tc".equals(format)) {
+                // this chronology was not well supported in String.format
+                return;
+            }
+        }
         for(Locale l: Locale.getAvailableLocales()) {
             if ("tr".equals(l.getLanguage()) && "%TA".equals(format)) {
                 // Broken until Java 9
                 continue;
             }
+            /*if (value instanceof Instant && "%tC".equals(format) && "ja-JP-u-ca-japanese-x-lvariant-JP".equals(l.toLanguageTag())) {
+                continue;
+            }
+            if (value instanceof Instant && "%tC".equals(format) && "th-TH".equals(l.toLanguageTag())) {
+                continue;
+            }
+            if (value instanceof Instant && "%tC".equals(format) && "th-TH-u-nu-thai-x-lvariant-TH".equals(l.toLanguageTag())) {
+                continue;
+            }*/
             VarFormatter vf = new VarFormatter("${" + format + "}", l);
-            String printf = String.format(l, format, value);
-            String formatter = vf.format(value);
-            Assert.assertEquals("mismatch for " + format + " at locale " + l.toLanguageTag() + " with " + value.getClass().getSimpleName(), printf, formatter );
+            String printf;
+            if (value instanceof Instant) {
+                Instant i = (Instant) value;
+                TemporalAccessor ta = VarFormatter.resolveWithEra(l, ZonedDateTime.ofInstant(i, ZoneId.systemDefault()));
+                printf = String.format(l, format, ta);
+            } else {
+                printf = String.format(l, format, value);
+            }
+            try {
+                String formatter = vf.format(value);
+                Assert.assertEquals("mismatch for " + format + " at locale " + l.toLanguageTag() + " with " + value.getClass().getSimpleName(), printf, formatter );
+            } catch (IllegalArgumentException e) {
+                e.printStackTrace();
+                Assert.fail("mismatch for " + format + " at locale " + l.toLanguageTag() + " with " + value.getClass().getSimpleName() +": " + Helpers.resolveThrowableException(e));
+            }
         }
     }
+
     private void checkFormat(Object value, String format) {
         checkFormat(value, format, true);
     }
@@ -73,7 +114,7 @@ public class TestVarFormatter {
         checkFormat(Math.PI, "%+10.2f");
     }
 
-    private void testDate(Object date) {
+    private void checkDate(Object date) {
         checkFormat(date, "%tH");
         checkFormat(date, "%tI");
         checkFormat(date, "%tk");
@@ -99,20 +140,19 @@ public class TestVarFormatter {
         checkFormat(date, "%tm");
         checkFormat(date, "%td");
         checkFormat(date, "%te");
-        // checkFormat(new Date(), "%tR"); Not implemented
-        // checkFormat(new Date(), "%tT"); Not implemented
-        // checkFormat(new Date(), "%tr"); Not implemented
-        // checkFormat(new Date(), "%tD"); Not implemented
-        // checkFormat(new Date(), "%tF"); Not implemented
-        // checkFormat(new Date(), "%tc"); Not implemented
-
+        checkFormat(date, "%tR");
+        checkFormat(date, "%tT");
+        checkFormat(date, "%tr");
+        checkFormat(date, "%tD");
+        checkFormat(date, "%tF");
+        checkFormat(date, "%tc");
         checkFormat(date, "%Ta");
         checkFormat(date, "%TA");
         checkFormat(date, "%Tp");
     }
-    
+
     @Test
-    public void testDate() {
+    public void testWeek() {
         // The values to test was generated using:
         // // LANG=C TZ=UTC date -d 'YYYY-01-dd 00:00:00-00:00' '+%Y.%m.%d=%s %V'
         long[] times = {
@@ -123,7 +163,6 @@ public class TestVarFormatter {
                 1104537600, // 2005.01.01=1104537600 53
                 1072915200, // 2004.01.01=1072915200 01
                 1041379200, // 2003.01.01=1041379200 01
-
                 1041465600, // 2003.01.02=1041465600 01
                 1041552000, // 2003.01.03=1041552000 01
                 1041638400, // 2003.01.04=1041638400 01
@@ -147,7 +186,6 @@ public class TestVarFormatter {
                 "02",
                 "02",
                 "02",
-              
         };
         VarFormatter formatter = new VarFormatter("${%t<UTC>V}", Locale.US);
         for (int i = 0 ; i < times.length ; i++) {
@@ -157,25 +195,90 @@ public class TestVarFormatter {
     }
 
     @Test
-    public void testDateFormat() {
-        Date epoch = new Date(0);
-        Map<String, Object> values = Collections.singletonMap("var", epoch);
-        VarFormatter vf = new VarFormatter("${var%t<Europe/Paris>H}", Locale.US);
-        String formatter = vf.format(values);
-        Assert.assertEquals("mismatch for time zone parsing" , "01", formatter );
-        testDate(new Date());
-        testDate(ZonedDateTime.now());
+    public void testDateFormatDate() {
+        checkDate(new Date());
     }
 
     @Test
-    public void testLocale() {
-        Map<String, Object> values = Collections.singletonMap("var", 1);
-        // A locale with non common digit symbols
-        Locale l = Locale.forLanguageTag("hi-IN");
-        VarFormatter vf = new VarFormatter("${var%010d:" + l.toLanguageTag() + "}");
-        String printf = String.format(l, "%010d", 1);
-        String formatter = vf.format(values);
-        Assert.assertEquals("mismatch for time zone parsing" , printf, formatter );
+    public void testDateFormatZonedDateTime() {
+        checkDate(ZonedDateTime.now());
+    }
+
+    @Test
+    public void testDateFormatInstant() {
+        checkDate(Instant.now());
+    }
+
+    @Test
+    public void testDateFormatCalendar() {
+        checkDate(Calendar.getInstance());
+    }
+
+    @Test
+    public void testDateFormatHijrahChronology() {
+        ChronoZonedDateTime<HijrahDate> h = HijrahDate.now().atTime(LocalTime.now()).atZone(ZoneId.systemDefault());
+        System.out.println(h.getChronology().getCalendarType());
+        checkDate(h);
+    }
+
+    @Test
+    public void testDateFormatJapaneseChronology() {
+        ChronoZonedDateTime<JapaneseDate> h = JapaneseDate.now().atTime(LocalTime.now()).atZone(ZoneId.systemDefault());
+        checkDate(h);
+    }
+
+    @Test
+    public void testDateFormatMinguoChronology() {
+        ChronoZonedDateTime<MinguoDate> h = MinguoDate.now().atTime(LocalTime.now()).atZone(ZoneId.systemDefault());
+        checkDate(h);
+    }
+
+    @Test
+    public void testDateFormatThaiBuddhistChronology() {
+        ChronoZonedDateTime<ThaiBuddhistDate> h = ThaiBuddhistDate.now().atTime(LocalTime.now()).atZone(ZoneId.systemDefault());
+        checkDate(h);
+    }
+
+    @Test
+    public void testDefaultTz() {
+        ZonedDateTime now = ZonedDateTime.now();
+        VarFormatter vf = new VarFormatter("${%t<>Z}", Locale.US);
+        String formatter = vf.format(now);
+        Assert.assertEquals("Mismatch for time zone parsing" , String.format(Locale.US, "%tZ", ZonedDateTime.now()), formatter );
+    }
+
+    @Test
+    public void testPreservedTz() {
+        ZonedDateTime now = ZonedDateTime.now();
+        ZoneId other = null;
+        ZoneId system = ZoneId.systemDefault();
+        for (String ziName: ZoneId.getAvailableZoneIds()) {
+            ZoneId zi = ZoneId.of(ziName);
+            if (zi != system) {
+                other = zi;
+                break;
+            }
+        }
+        String formatting = String.format("${%%t<%s>Z}", other.getId());
+        VarFormatter vf = new VarFormatter(formatting, Locale.US);
+        String formatter = vf.format(now);
+        Assert.assertEquals("Mismatch for time zone parsing" , String.format(Locale.US, "%tZ", ZonedDateTime.now(other)), formatter );
+    }
+
+    @Test
+    public void testTimeZoneLocale() {
+        for (Locale l: Locale.getAvailableLocales()) {
+            for (String ziName: ZoneId.getAvailableZoneIds()) {
+                ZoneId zi = ZoneId.of(ziName);
+                ZonedDateTime now = ZonedDateTime.now(zi);
+                String printfz = String.format(l, "%tz", now);
+                String printfZ = String.format(l, "%tZ", now);
+                VarFormatter vfz = new VarFormatter(String.format("${%%t<%s>z}", ziName), l);
+                VarFormatter vfZ = new VarFormatter(String.format("${%%t<%s>Z}", ziName), l);
+                Assert.assertEquals(printfz, vfz.format(now));
+                Assert.assertEquals(printfZ, vfZ.format(now));
+            }
+        }
     }
 
     @Test
@@ -300,6 +403,22 @@ public class TestVarFormatter {
         List<String> obj = Arrays.asList(new String[] {"1", "2", "3"});
         String formatted = vf.format(obj);
         Assert.assertEquals("1\n1\n3", formatted);
+    }
+
+    @Test
+    public void formatAllImplicit() {
+        VarFormatter vf = new VarFormatter("${%s}", Locale.ENGLISH);
+        List<String> obj = Arrays.asList(new String[] {"1", "2", "3"});
+        String formatted = vf.format(obj);
+        Assert.assertEquals("[1, 2, 3]", formatted);
+    }
+
+    @Test
+    public void formatAllExplicit() {
+        VarFormatter vf = new VarFormatter("${.%s}", Locale.ENGLISH);
+        List<String> obj = Arrays.asList(new String[] {"1", "2", "3"});
+        String formatted = vf.format(obj);
+        Assert.assertEquals("[1, 2, 3]", formatted);
     }
 
     @Test(expected=IllegalArgumentException.class)
