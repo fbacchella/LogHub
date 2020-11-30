@@ -281,14 +281,14 @@ public class VarFormatter {
                 // RFC 822 style numeric time zone offset from GMT, e.g. -0800. This value will be adjusted as necessary for Daylight Saving Time.
                 ZoneRules zr = etz.getRules();
                 taToStr = ta -> {
-                    ZoneOffset offset = zr.getOffset(Instant.from(ta));
-                    Duration d = Duration.ofSeconds(offset.getTotalSeconds());
-                    long hours = d.toHours();
-                    long minutes = Math.abs(d.toMinutes() - d.toHours() * 60);
-                    DecimalFormat df = getDecimalFormat("00", l).get();
-                    return ((hours >= 0 ? "+" : "") + df.format(hours) + df.format(minutes));
+                    int offsetS = getTemporalAccessor(ta).get(ChronoField.OFFSET_SECONDS);
+                    char sign = offsetS < 0 ? '-' : '+';
+                    int minutes = Math.abs(offsetS) / 60;
+                    int offset = (minutes / 60) * 100 + (minutes % 60);
+                    DecimalFormat df = getDecimalFormat("0000", l).get();
+                    return sign + df.format(offset);
                 };
-                zoned = false;
+                zoned = true;
                 break;
             }
             case 'Z': {
@@ -419,7 +419,7 @@ public class VarFormatter {
             }
             case 'c': {
                 // Date and time formatted as "%ta %tb %td %tT %tZ %tY", e.g. "Sun Jul 20 16:17:00 EDT 1969".
-                DateTimeFormatter dtf = DateTimeFormatter.ofPattern("ccc MMM d HH:mm:ss zz yyyy", l).withDecimalStyle(DecimalStyle.of(l));
+                DateTimeFormatter dtf = DateTimeFormatter.ofPattern("eee MMM d HH:mm:ss zz yyyy", l).withDecimalStyle(DecimalStyle.of(l));
                 field = ChronoField.YEAR_OF_ERA;
                 taToStr = ta -> dtf.format(ta);
                 zoned = true;

@@ -51,19 +51,6 @@ public class TestVarFormatter {
             }
         }
         for(Locale l: Locale.getAvailableLocales()) {
-            if ("tr".equals(l.getLanguage()) && "%TA".equals(format)) {
-                // Broken until Java 9
-                continue;
-            }
-            /*if (value instanceof Instant && "%tC".equals(format) && "ja-JP-u-ca-japanese-x-lvariant-JP".equals(l.toLanguageTag())) {
-                continue;
-            }
-            if (value instanceof Instant && "%tC".equals(format) && "th-TH".equals(l.toLanguageTag())) {
-                continue;
-            }
-            if (value instanceof Instant && "%tC".equals(format) && "th-TH-u-nu-thai-x-lvariant-TH".equals(l.toLanguageTag())) {
-                continue;
-            }*/
             VarFormatter vf = new VarFormatter("${" + format + "}", l);
             String printf;
             if (value instanceof Instant) {

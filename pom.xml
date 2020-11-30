@@ -744,6 +744,11 @@
                             <name>maven.surefire</name>
                             <value>true</value>
                         </property>
+                        <property>
+                            <!-- Request by VarFormatter tests, locale and chronology handling changed in Java9+ -->
+                            <name>java.locale.providers</name>
+                            <value>CLDR</value>
+                        </property>
                     </systemProperties>
                     <trimStackTrace>false</trimStackTrace>
                 </configuration>
