@@ -40,17 +40,33 @@ public class TestVarFormatter {
     }
 
     private void checkFormat(Object value, String format, boolean fail) {
+        boolean isJava8 = "1.8".equals(System.getProperty("java.vm.specification.version"));
+        boolean isWithShortMonth = "%tB".equalsIgnoreCase(format)
+                || "%th".equalsIgnoreCase(format)
+                || "%tc".equals(format);
+        boolean isUpperCaseWeekFullName = "%TA".equals(format);
+        boolean isIslamicChronology;
         if (value instanceof ChronoZonedDateTime) {
             ChronoZonedDateTime<?> czdt = (ChronoZonedDateTime<?>) value;
-            if ("islamic-umalqura".equals(czdt.getChronology().getCalendarType()) && (
-                    "%tB".equalsIgnoreCase(format))
-                    || "%th".equalsIgnoreCase(format)
-                    || "%tc".equals(format)) {
-                // this chronology was not well supported in String.format
-                return;
-            }
+            isIslamicChronology = "islamic-umalqura".equals(czdt.getChronology().getCalendarType());
+        } else {
+            isIslamicChronology = false;
+        }
+        if (isIslamicChronology && isWithShortMonth) {
+            // this chronology is not well supported in String.format, for all versions up to 15
+            return;
         }
         for(Locale l: Locale.getAvailableLocales()) {
+            boolean isBrokenLangage = "mr".equals(l.getLanguage()) || "pa".equals(l.getLanguage()) || "te".equals(l.getLanguage());
+            boolean isWithDotlessI = "tr".equals(l.getLanguage()) ||"az".equals(l.getLanguage());
+            if (isWithDotlessI && isUpperCaseWeekFullName && isJava8) {
+                // Broken until Java 9
+                continue;
+            }
+            if (isBrokenLangage && isWithShortMonth && isJava8) {
+                // Broken until Java 9
+                continue;
+            }
             VarFormatter vf = new VarFormatter("${" + format + "}", l);
             String printf;
             if (value instanceof Instant) {

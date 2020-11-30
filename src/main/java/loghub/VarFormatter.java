@@ -9,10 +9,8 @@ import java.text.MessageFormat;
 import java.text.ParsePosition;
 import java.time.DateTimeException;
 import java.time.DayOfWeek;
-import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
-import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.chrono.ChronoLocalDate;
 import java.time.chrono.ChronoZonedDateTime;
@@ -279,7 +277,6 @@ public class VarFormatter {
             }
             case 'z': {
                 // RFC 822 style numeric time zone offset from GMT, e.g. -0800. This value will be adjusted as necessary for Daylight Saving Time.
-                ZoneRules zr = etz.getRules();
                 taToStr = ta -> {
                     int offsetS = getTemporalAccessor(ta).get(ChronoField.OFFSET_SECONDS);
                     char sign = offsetS < 0 ? '-' : '+';
