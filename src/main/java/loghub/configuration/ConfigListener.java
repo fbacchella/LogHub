@@ -55,6 +55,7 @@ import loghub.RouteParser.ObjectContext;
 import loghub.RouteParser.OutputContext;
 import loghub.RouteParser.OutputObjectlistContext;
 import loghub.RouteParser.PathContext;
+import loghub.RouteParser.PathElementContext;
 import loghub.RouteParser.PipelineContext;
 import loghub.RouteParser.PipenodeContext;
 import loghub.RouteParser.PipenodeListContext;
@@ -716,7 +717,7 @@ class ConfigListener extends RouteBaseListener {
         } else if (ev.MetaName() != null && ! withRoot) {
             return new String[] { ev.MetaName().getText() };
         } else {
-            List<String> path = ev.identifier().stream().map(i -> i.getText()).collect(Collectors.toList());
+            List<String> path = ev.pathElement().stream().map(this::filterpathElement).collect(Collectors.toList());
             if (withRoot ) {
                 if ( ! keyString.isEmpty()) {
                     path.add(0, keyString);
@@ -730,6 +731,10 @@ class ConfigListener extends RouteBaseListener {
             }
             return path.stream().toArray(String[]::new);
         }
+    }
+    
+    private String filterpathElement(PathElementContext pec) {
+        return pec.children.get(0).getText();
     }
 
     @Override

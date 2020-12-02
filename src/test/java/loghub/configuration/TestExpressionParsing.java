@@ -152,6 +152,13 @@ public class TestExpressionParsing {
     }
 
     @Test
+    public void testEventPathQuoted() throws ExpressionException, ProcessorException {
+        Event ev =  Tools.getEvent();
+        ev.put("a", Collections.singletonMap("b", "c"));
+        Assert.assertEquals("c", evalExpression("[\"a\" \"b\"]", ev));
+    }
+
+    @Test
     public void testTimestamp() throws ExpressionException, ProcessorException {
         Event ev =  Tools.getEvent();
         ev.setTimestamp(new Date(0));
