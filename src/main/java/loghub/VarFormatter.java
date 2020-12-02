@@ -464,7 +464,7 @@ public class VarFormatter {
             }
             case 'c': {
                 // Date and time formatted as "%ta %tb %td %tT %tZ %tY", e.g. "Sun Jul 20 16:17:00 EDT 1969".
-                DateTimeFormatter dtf = DateTimeFormatter.ofPattern("eee MMM d HH:mm:ss zz yyyy", l).withDecimalStyle(DecimalStyle.of(l));
+                DateTimeFormatter dtf = DateTimeFormatter.ofPattern("eee MMM dd HH:mm:ss zz yyyy", l).withDecimalStyle(DecimalStyle.of(l));
                 taToStr = (sb, ta) -> dtf.formatTo(ta, sb);
                 zoned = true;
                 chronologyCheck = true;
