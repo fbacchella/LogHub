@@ -1,38 +1,47 @@
 package loghub.processors;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 import loghub.Event;
+import loghub.Event.Action;
 import loghub.ProcessorException;
+import lombok.Getter;
+import lombok.Setter;
 
 public class SyslogPriority extends FieldsProcessor {
+    
+    private static final String[] ECSPATHFACILITY = new String[] {".", "log", "syslog", "facility"};
+    private static final String[] ECSPATHSEVERITY = new String[] {".", "log", "syslog", "severity"};
+    private static final String[] ECSPATHPRIORITY = new String[] {".", "log", "syslog", "priority"};
 
-    private  String[] facilitiesNames = new String[]{"kernel",
-                                                     "user-level",
-                                                     "mail",
-                                                     "daemon",
-                                                     "security/authorization",
-                                                     "syslogd",
-                                                     "line printer",
-                                                     "network news",
-                                                     "uucp",
-                                                     "clock",
-                                                     "security/authorization",
-                                                     "ftp",
-                                                     "ntp",
-                                                     "log audit",
-                                                     "log alert",
-                                                     "clock",
-                                                     "local0",
-                                                     "local1",
-                                                     "local2",
-                                                     "local3",
-                                                     "local4",
-                                                     "local5",
-                                                     "local6",
-                                                     "local7",
-                                                     "invalid facility",
+    private String[] facilitiesNames = new String[]{"kernel",
+                                                    "user-level",
+                                                    "mail",
+                                                    "daemon",
+                                                    "security/authorization",
+                                                    "syslogd",
+                                                    "line printer",
+                                                    "network news",
+                                                    "uucp",
+                                                    "clock",
+                                                    "security/authorization",
+                                                    "ftp",
+                                                    "ntp",
+                                                    "log audit",
+                                                    "log alert",
+                                                    "clock",
+                                                    "local0",
+                                                    "local1",
+                                                    "local2",
+                                                    "local3",
+                                                    "local4",
+                                                    "local5",
+                                                    "local6",
+                                                    "local7",
+                                                    "invalid facility",
     };
 
     private String[] severitiesNames = new String[] {"emergency",
@@ -45,13 +54,16 @@ public class SyslogPriority extends FieldsProcessor {
                                                      "debug",
     };
 
+    @Getter @Setter
     private boolean resolve = true;
+    @Getter @Setter
+    private boolean ecs = false;
 
     @Override
     public Object fieldFunction(Event event, Object priorityObject)
                     throws ProcessorException {
         int priority;
-        if(priorityObject instanceof String) {
+        if (priorityObject instanceof String) {
             try {
                 priority = Integer.parseInt((String) priorityObject);
             } catch (NumberFormatException e) {
@@ -60,16 +72,25 @@ public class SyslogPriority extends FieldsProcessor {
         } else if ( priorityObject instanceof Number) {
             priority = ((Number) priorityObject).intValue();
         } else {
-            throw event.buildException("Not a priority: " + priorityObject.toString());
+            throw event.buildException("Not a priority: " + Optional.ofNullable(priorityObject).map(Object::toString).orElse("null"));
         }
         int facility = (priority >> 3);
-        if (facility > 24) {
-            facility = 24;
-        }
+        Optional<String> facilityName = Optional.of(priorityObject).filter(f -> facility < 24 && (resolve || ecs)).map(f -> facilitiesNames[facility]);
         int severity = priority & 7;
         Map<String, Object> infos = new HashMap<>(2);
-        if (resolve) {
-            infos.put("facility", facilitiesNames[facility]);
+        if (ecs) {
+            Map<String, Object> facilityEntry = new HashMap<>(2);
+            facilityEntry.put("code", facility);
+            facilityName.ifPresent(s -> facilityEntry.put("name", s));
+            Map<String, Object> priorityEntry = new HashMap<>(2);
+            priorityEntry.put("code", severity);
+            priorityEntry.put("name", severitiesNames[severity]);
+            event.applyAtPath(Action.PUT, ECSPATHPRIORITY, priority, true);
+            event.applyAtPath(Action.PUT, ECSPATHFACILITY, facilityEntry, true);
+            event.applyAtPath(Action.PUT, ECSPATHSEVERITY, priorityEntry, true);
+            return RUNSTATUS.NOSTORE;
+        } else if (resolve) {
+            infos.put("facility",  facilityName.orElse(Integer.toString(facility)));
             infos.put("severity", severitiesNames[severity]);
         } else {
             infos.put("facility", facility);
@@ -87,42 +108,28 @@ public class SyslogPriority extends FieldsProcessor {
      * @return the severity
      */
     public String[] getSeverities() {
-        return severitiesNames;
+        return Arrays.copyOf(severitiesNames, severitiesNames.length);
     }
 
     /**
      * @param severitiesNames the severity to set
      */
     public void setSeverities(String[] severitiesNames) {
-        this.severitiesNames = severitiesNames;
+        this.severitiesNames = Arrays.copyOf(severitiesNames, severitiesNames.length);
     }
 
     /**
      * @return the facility
      */
     public String[] getFacilities() {
-        return facilitiesNames;
+        return Arrays.copyOf(facilitiesNames, facilitiesNames.length);
     }
 
     /**
      * @param facilitiesNames the facility to set
      */
     public void setFacilities(String[] facilitiesNames) {
-        this.facilitiesNames = facilitiesNames;
-    }
-
-    /**
-     * @return the resolve
-     */
-    public boolean isResolve() {
-        return resolve;
-    }
-
-    /**
-     * @param resolve the resolve to set
-     */
-    public void setResolve(boolean resolve) {
-        this.resolve = resolve;
+        this.facilitiesNames = Arrays.copyOf(facilitiesNames, facilitiesNames.length);
     }
 
 }
