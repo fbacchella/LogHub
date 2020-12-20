@@ -748,8 +748,9 @@
                         </property>
                         <property>
                             <!-- Request by VarFormatter tests, locale and chronology handling changed in Java9+ -->
+                            <!-- In java 8, only the value JRE works, in Java9+ both JRE and CLDR are OK -->
                             <name>java.locale.providers</name>
-                            <value>CLDR</value>
+                            <value>JRE</value>
                         </property>
                     </systemProperties>
                     <trimStackTrace>false</trimStackTrace>
