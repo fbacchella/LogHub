@@ -35,13 +35,16 @@ import loghub.LogUtils;
 import loghub.ThreadBuilder;
 import loghub.Tools;
 import loghub.encoders.EncodeException;
+import loghub.jackson.JacksonBuilder;
 import loghub.receivers.Receiver;
 
 public class TestMsgpack {
 
     private static Logger logger;
 
-    private final static ObjectMapper objectMapper = new ObjectMapper(new MessagePackFactory());
+    private final static ObjectMapper objectMapper = JacksonBuilder.get()
+                                                                   .setFactory(new MessagePackFactory())
+                                                                   .getMapper();
     private final static Map<String, Object> obj = new HashMap<String, Object>();
 
     static {
@@ -88,10 +91,9 @@ public class TestMsgpack {
         Value v = ValueFactory.newMap(destination);
 
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-        MessagePacker packer = MessagePack.newDefaultPacker(out);
-
-        packer.packValue(v);
-        packer.close();
+        try (MessagePacker packer = MessagePack.newDefaultPacker(out)) {
+            packer.packValue(v);
+        }
         byte[] packed = out.toByteArray();
 
         Map<String, Object> e = d.decode(ConnectionContext.EMPTY, packed).findAny().get();
@@ -116,10 +118,9 @@ public class TestMsgpack {
         Value v = ValueFactory.newMap(destination);
 
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-        MessagePacker packer = MessagePack.newDefaultPacker(out);
-
-        packer.packValue(v);
-        packer.close();
+        try (MessagePacker packer = MessagePack.newDefaultPacker(out)) {
+            packer.packValue(v);
+        }
         byte[] packed = out.toByteArray();
 
         Map<String, Object> e = d.decode(ConnectionContext.EMPTY, packed).findAny().get();
