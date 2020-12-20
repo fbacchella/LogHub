@@ -17,11 +17,12 @@
         <antlr>4.9</antlr>
         <jackson>2.12.0</jackson>
         <metrics>4.1.16</metrics>
-        <cache2k>1.6.0.Final</cache2k>
+        <cache2k>1.2.4.Final</cache2k>
         <mainClass>loghub.Start</mainClass>
         <surefire.version>3.0.0-M5</surefire.version>
         <cacheapi.version>1.1.1</cacheapi.version>
         <snmp4j.version>2.8.6</snmp4j.version>
+        <geoip2.version>2.15.0</geoip2.version>
         <dependency.locations.enabled>false</dependency.locations.enabled>
         <!-- Inderection needed to keep optionnal jacoco settings and external argument lines-->
         <arg.line></arg.line>
@@ -129,7 +130,7 @@
         <dependency>
             <groupId>com.maxmind.geoip2</groupId>
             <artifactId>geoip2</artifactId>
-            <version>2.13.1</version>
+            <version>${geoip2.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>com.fasterxml.jackson.core</groupId>
@@ -375,6 +376,7 @@
                             <link>https://www.javadoc.io/org.snmp4j/snmp4j/${snmp4j.version}/</link>
                             <link>https://zeromq.github.io/jzmq/javadocs/</link>
                             <link>https://logging.apache.org/log4j/${log4j}/log4j-api/apidocs</link>
+                            <link>https://maxmind.github.io/GeoIP2-java/doc/v${geoip2.version}/</link>
                         </links>
                         <keywords>true</keywords>
                     </configuration>

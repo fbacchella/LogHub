@@ -20,7 +20,8 @@ import javax.cache.processor.EntryProcessorException;
 
 import org.apache.logging.log4j.Level;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import com.maxmind.db.CacheKey;
+import com.maxmind.db.DecodedValue;
 import com.maxmind.db.NodeCache;
 import com.maxmind.db.NodeCache.Loader;
 import com.maxmind.geoip2.DatabaseReader;
@@ -69,7 +70,7 @@ public class Geoip2 extends FieldsProcessor {
         } else if (addr instanceof String) {
             try {
                 ipInfo = Helpers.parseIpAddres((String) addr);
-                if(ipInfo == null) {
+                if (ipInfo == null) {
                     throw event.buildException("can't read IP address " + addr);
                 }
             } catch (UnknownHostException e) {
@@ -228,14 +229,16 @@ public class Geoip2 extends FieldsProcessor {
         if (geoipdb == null) {
             geoipdb = Optional.ofNullable(properties.get("geoip2data")).map(i-> Paths.get(i.toString())).orElse(null);
         }
-        Cache<Integer, JsonNode> ehCache = properties.cacheManager.getBuilder(Integer.class, JsonNode.class)
+        @SuppressWarnings("rawtypes")
+        Cache<CacheKey, DecodedValue> ehCache = properties.cacheManager.getBuilder(CacheKey.class, DecodedValue.class)
                         .setCacheSize(cacheSize)
                         .setName("Geoip2", geoipdb != null ? geoipdb : "GeoLite2-City.mmdb")
                         .setExpiry(Policy.ETERNAL)
                         .build();
-        EntryProcessor<Integer, JsonNode, JsonNode> ep = (i, j) -> {
+        @SuppressWarnings("rawtypes")
+        EntryProcessor<CacheKey, DecodedValue, DecodedValue> ep = (i, j) -> {
             try {
-                JsonNode node = i.getValue();
+                DecodedValue node = i.getValue();
                 if (! i.exists()) {
                     Loader loader = (Loader)j[0];
                     node = loader.load(i.getKey());
