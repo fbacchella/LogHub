@@ -122,12 +122,6 @@
             <version>${antlr}</version>
         </dependency>
         <dependency>
-            <groupId>org.python</groupId>
-            <artifactId>jython</artifactId>
-            <version>2.7-b2</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
             <groupId>com.maxmind.geoip2</groupId>
             <artifactId>geoip2</artifactId>
             <version>${geoip2.version}</version>
