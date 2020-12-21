@@ -52,9 +52,9 @@ jobs:
                 paths:
                     - home/circleci/.m2/repository
                     - home/circleci/project/target
-    testsj13:
+    testsj15:
         docker:
-            - image: circleci/openjdk:13-jdk-buster
+            - image: circleci/openjdk:15-jdk-buster
         steps:
             - attach_workspace:
                 at: /tmp/ws
@@ -75,7 +75,7 @@ jobs:
                     mkdir -p /tmp/$CIRCLE_JOB
                     mvn -B test $SONAR -Pskip -Darg.line="-Xmx2048m -Djava.io.tmpdir=/tmp/$CIRCLE_JOB" -s .circleci/settings.xml
                 environment:
-                    JAVA_HOME: /usr/java/openjdk-13
+                    JAVA_HOME: /usr/local/openjdk-15
                     MAVEN_OPTS: "-Xmx1024m"
             - store_test_results:
                 path: target/surefire-reports
@@ -84,28 +84,6 @@ jobs:
                 paths:
                     - home/circleci/.m2/repository
                     - home/circleci/.sonar/cache
-    testsj15:
-        docker:
-            - image: circleci/openjdk:15-jdk-buster
-        steps:
-            - attach_workspace:
-                at: /tmp/ws
-            - run:
-                command: |
-                    mv -n /tmp/ws/home/circleci/.m2 /home/circleci/
-                    mv -n /tmp/ws/home/circleci/.sonar /home/circleci/
-                    mv -n /tmp/ws/home/circleci/project/* /home/circleci/project/
-                    mv -n /tmp/ws/home/circleci/project/.??* /home/circleci/project/
-            - run:
-                command: |
-                    mkdir -p /tmp/$CIRCLE_JOB
-                    mvn -B test -Pskip -Darg.line="-Xmx2048m -Djava.io.tmpdir=/tmp/$CIRCLE_JOB" -s .circleci/settings.xml
-                environment:
-                    JAVA_HOME: /usr/local/openjdk-15
-                    MAVEN_OPTS: "-Xmx512m"
-            - store_test_results:
-                path: target/surefire-reports
-            #don't persist_to_workspace, can't be done in parallel with testsj13
     testsj11:
         docker:
             - image: circleci/openjdk:11-buster
@@ -127,7 +105,7 @@ jobs:
                     MAVEN_OPTS: "-Xmx512m"
             - store_test_results:
                 path: target/surefire-reports
-            #don't persist_to_workspace, can't be done in parallel with testsj13
+            #don't persist_to_workspace, can't be done in parallel with testsj15
     testsj8:
         docker:
             - image: circleci/openjdk:8-buster
@@ -213,14 +191,14 @@ workflows:
       - testsj11:
           requires:
               - build
-      - testsj13:
+      - testsj15:
           requires:
               - build
       - publish:
           requires:
               - testsj8
               - testsj11
-              - testsj13
+              - testsj15
       - savecache:
           requires:
               - publish
