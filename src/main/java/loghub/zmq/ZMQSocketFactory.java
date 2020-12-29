@@ -257,6 +257,10 @@ public class ZMQSocketFactory implements AutoCloseable {
                 if (monitor != null) {
                     socket.monitor(monitor, ZMQ.EVENT_ALL);
                 }
+                socket.setTCPKeepAlive(1);
+                socket.setTCPKeepAliveCount(3);
+                socket.setTCPKeepAliveIdle(60);
+                socket.setTCPKeepAliveInterval(10);
                 switch (security) {
                 case CURVE:
                     if (pke != null) {
