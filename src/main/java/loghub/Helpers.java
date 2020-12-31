@@ -431,7 +431,7 @@ public final class Helpers {
         }
     }
 
-    public static void waitAllThreads(Stream<Thread> threads) {
+    public static void waitAllThreads(Stream<? extends Thread> threads) {
         threads.forEach(i -> {
             while ( ! i.isAlive()) {
                 try {
@@ -476,16 +476,16 @@ public final class Helpers {
                 try {
                     boolean result = f.get();
                     if (! result) {
-                        throw new IllegalStateException();
+                        throw new IllegalStateException("Failed to start a processor");
                     }
                 } catch (ExecutionException ex) {
-                    throw new IllegalStateException(ex.getCause());
+                    throw new IllegalStateException("Failed to start a processor: " + Helpers.resolveThrowableException(ex), ex.getCause());
                 } catch (InterruptedException ex) {
-                    throw new IllegalStateException();
+                    throw new IllegalStateException("Interrupted while starting a processor");
                 }
             });
-        } catch (InterruptedException e1) {
-            throw new IllegalStateException();
+        } catch (InterruptedException ex) {
+            throw new IllegalStateException("Interrupted while starting a processor");
         }
     }
 

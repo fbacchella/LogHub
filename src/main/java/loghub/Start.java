@@ -9,8 +9,8 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -30,6 +30,19 @@ import loghub.security.JWTHandler;
 import loghub.senders.Sender;
 
 public class Start {
+    
+    /**
+     * Used to define custom exit code, start at 10 because I don't know what exit code are reserver by the JVM
+     * For example, ExitOnOutOfMemoryError return 3
+     * @author Fabrice Bacchella
+     *
+     */
+    private static class ExitCode {
+        private static final int OK = 0;
+        private static final int INVALIDCONFIGURATION = 10;
+        public static final int FAILEDSTART = 11;
+        public static final int FAILEDSTARTCRITICAL = 12;
+    }
 
     @Parameter(names = {"--configfile", "-c"}, description = "File")
     String configFile = null;
@@ -56,7 +69,7 @@ public class Start {
     String signfile = null;
 
     String pipeLineTest = null;
-    int exitcode = 0;
+    int exitcode = ExitCode.OK;
 
     // To be executed before LogManager.getLogger() to ensure that log4j2 will use the basis context selector
     // Not the smart one for web app.
@@ -84,7 +97,7 @@ public class Start {
         }
         if (main.help) {
             jcom.usage();
-            System.exit(0);
+            System.exit(ExitCode.OK);
         }
         main.configure();
     }
@@ -97,7 +110,6 @@ public class Start {
         }
         if (pipeLineTest != null) {
             TestEventProcessing.check(pipeLineTest, configFile);
-            exitcode = 0;
         }
         if (dumpstats) {
             long starttime = System.nanoTime();
@@ -118,32 +130,33 @@ public class Start {
         try {
             if (configFile == null) {
                 System.err.println("No configuration file given");
-                exitcode = 1;
+                exitcode = ExitCode.INVALIDCONFIGURATION;
             } else {
                 Properties props = Configuration.parse(configFile);
                 if (sign) {
                     sign(signfile, props.jwtHandler);
-                    exitcode = 0;
                 } else if (!test) {
                     launch(props);
                     logger.warn("LogHub started");
-                    exitcode = 0;
                 } else if (testedprocessor != null) {
                     testProcessor(props, testedprocessor);
                 }
             }
         } catch (ConfigException e) {
             String message = Helpers.resolveThrowableException(e);
-            System.out.format("Error in %s: %s\n", e.getLocation(), message);
-            exitcode = 1;
-        } catch (IllegalStateException e) {
-            exitcode = 1;
-        } catch (RuntimeException e) {
-            e.printStackTrace();
-            exitcode = 1;
+            System.err.format("Error in %s: %s\n", e.getLocation(), message);
+            exitcode = ExitCode.INVALIDCONFIGURATION;
         } catch (IOException e) {
-            System.out.format("can't read configuration file %s: %s\n", configFile, e.getMessage());
-            exitcode = 11;
+            System.err.format("can't read configuration file %s: %s\n", configFile, e.getMessage());
+            exitcode = ExitCode.INVALIDCONFIGURATION;
+        } catch (IllegalStateException e) {
+            // Thrown by launch when a component failed to start, details are in the logs
+            System.err.format("Failed to start loghub: %s", e.getMessage());
+            exitcode = ExitCode.FAILEDSTART;
+        } catch (Throwable e) {
+            System.err.format("Failed to start loghub for an unhandled cause: %s", e.getMessage());
+            e.printStackTrace();
+            exitcode = ExitCode.FAILEDSTARTCRITICAL;
         }
         if (canexit && exitcode != 0) {
             System.exit(exitcode);
@@ -192,47 +205,68 @@ public class Start {
     }
 
     public void launch(Properties props) throws ConfigException, IOException {
+        // Used to remember if configuration process succeded
+        // So ensure that the whole configuration is tested instead needed
+        // many tests
+        boolean failed = false;
 
         for (Source s: props.sources.values()) {
-            if ( ! s.configure(props)) {
+            if (! s.configure(props)) {
                 logger.error("failed to start source {}", s.getName());
-                throw new IllegalStateException();
+                failed = true;
             };
         }
-
-        // Used to remember if configuration process succeded
-        AtomicBoolean failed = new AtomicBoolean(false);
 
         Helpers.parallelStartProcessor(props);
 
         for (Sender s: props.senders) {
-            if (s.configure(props)) {
-                s.start();
-            } else {
-                logger.error("failed to configure output {}", s.getName());
-                failed.set(true);
-            };
-        }
-
-        Set<EventsProcessor> allep = new HashSet<>(props.numWorkers);
-        for (int i = 0; i < props.numWorkers; i++) {
-            EventsProcessor t = new EventsProcessor(props.mainQueue, props.outputQueues, props.namedPipeLine, props.maxSteps, props.repository);
-            t.start();
-            allep.add(t);
-        }
-        Helpers.waitAllThreads(allep.stream().map(i -> (Thread) i ));
-
-        for (Receiver r: props.receivers) {
-            if (r.configure(props)) {
-                r.start();
-            } else {
-                logger.error("failed to configure input {}", r.getName());
-                failed.set(true);
+            try {
+                if (s.configure(props)) {
+                    s.start();
+                } else {
+                    logger.error("failed to configure sender {}", s.getName());
+                    failed = true;
+                };
+            } catch (Throwable e) {
+                if (Helpers.isFatal(e)) {
+                    throw e;
+                } else {
+                    logger.error("failed to start sender {}", s.getClass().getName());
+                    failed = true;
+                }
             }
         }
 
-        if (failed.get()) {
-            throw new IllegalStateException();
+        Set<EventsProcessor> allep = new HashSet<>(props.numWorkers);
+        if (! failed) {
+            for (int i = 0; i < props.numWorkers; i++) {
+                EventsProcessor t = new EventsProcessor(props.mainQueue, props.outputQueues, props.namedPipeLine, props.maxSteps, props.repository);
+                t.start();
+                allep.add(t);
+            }
+            Helpers.waitAllThreads(allep.stream());
+        }
+
+        for (Receiver r: props.receivers) {
+            try {
+                if (r.configure(props)) {
+                    r.start();
+                } else {
+                    logger.error("failed to configure receiver {}", r.getName());
+                    failed = true;
+                }
+            } catch (Throwable e) {
+                if (Helpers.isFatal(e)) {
+                    throw e;
+                } else {
+                    logger.error("failed to start receiver {}", r.getClass().getName());
+                    failed = true;
+                }
+            }
+        }
+
+        if (failed) {
+            throw new IllegalStateException("Failed to start a component, see logs for more details");
         }
 
         Runnable shutdown = () -> {
@@ -252,23 +286,24 @@ public class Start {
             JmxService.start(props.jmxServiceConfiguration);
         } catch (IOException e) {
             logger.error("JMX start failed: {}", Helpers.resolveThrowableException(e));
+            logger.catching(Level.DEBUG, e);
             shutdownAction.start();
-            throw new IllegalStateException();
+            throw new IllegalStateException("JMX start failed: " + Helpers.resolveThrowableException(e));
         }
         if (props.dashboardBuilder != null) {
             try {
                 props.dashboardBuilder.build();
             } catch (IllegalArgumentException e) {
                 logger.error("Unable to start HTTP dashboard: {}", Helpers.resolveThrowableException(e));
+                logger.catching(Level.DEBUG, e);
                 shutdownAction.start();
-                throw new IllegalStateException();
+                throw new IllegalStateException("Unable to start HTTP dashboard: " + Helpers.resolveThrowableException(e));
             } catch (InterruptedException e) {
                 shutdownAction.start();
                 Thread.currentThread().interrupt();
-                throw new IllegalStateException();
+                throw new IllegalStateException("Interrupted while starting dashboard");
             }
         }
-
     }
 
     public static void shutdown() {
