@@ -1,9 +1,10 @@
 package loghub.processors;
 
+import java.beans.IntrospectionException;
 import java.io.IOException;
+import java.io.StringReader;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.net.UnknownHostException;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
@@ -20,6 +21,8 @@ import org.junit.Test;
 import io.netty.channel.AddressedEnvelope;
 import io.netty.handler.codec.dns.DnsRecordType;
 import io.netty.handler.codec.dns.DnsResponse;
+import loghub.BeanChecks;
+import loghub.BeanChecks.BeanInfo;
 import loghub.Event;
 import loghub.LogUtils;
 import loghub.Processor;
@@ -36,12 +39,11 @@ public class TestNettyNameResolver {
     static public void configure() throws IOException {
         Tools.configure();
         logger = LogManager.getLogger();
-        LogUtils.setLevel(logger, Level.TRACE, "loghub.processors.NettyNameResolver");
+        LogUtils.setLevel(logger, Level.TRACE, "loghub.processors.NettyNameResolver", "io.netty.resolver.dns");
     }
 
-    private Tools.ProcessingStatus dorequest(Consumer<NettyNameResolver> setupProc, Event e, String... warmup) throws ProcessorException {
+    private Tools.ProcessingStatus dorequest(Consumer<NettyNameResolver> setupProc, Event e, String... warmup) throws ProcessorException, ConfigException, IOException {
         NettyNameResolver proc = new NettyNameResolver();
-        proc.setResolver("8.8.8.8");
         setupProc.accept(proc);
 
         BiConsumer<Properties, List<Processor>> prepare = (i, j) -> {
@@ -56,15 +58,13 @@ public class TestNettyNameResolver {
             }
         };
 
-        Tools.ProcessingStatus status = Tools.runProcessing(e, "main", Collections.singletonList(proc), prepare);
+        Tools.ProcessingStatus status = Tools.runProcessing(e, "main", Collections.singletonList(proc), prepare, getProperties());
         return status;
     }
 
     @Test(timeout=4000)
     public void badresolvertimeout() throws Throwable {
-
         Event e = Tools.getEvent();
-        /// resolving a.root-servers.net. in IPv4
         e.put("host", InetAddress.getByName("10.0.0.1"));
 
         Tools.ProcessingStatus status = dorequest(i -> {
@@ -72,6 +72,7 @@ public class TestNettyNameResolver {
             i.setField(new String[] {"host"});
             i.setDestination("fqdn");
             i.setTimeout(2);
+            i.setQueueDepth(0); // Avoid using semaphore
         }, e);
 
         e = status.mainQueue.take();
@@ -80,12 +81,10 @@ public class TestNettyNameResolver {
         Assert.assertEquals("resolution not paused", "PAUSED", status.status.get(2));
         Assert.assertEquals("Queue not empty: " + status.mainQueue, 0, status.mainQueue.size());
         Assert.assertEquals("Still waiting events: " + status.repository, 0, status.repository.waiting());
-
     }
 
     @Test(timeout=6000)
     public void badresolvernxdomain() throws Throwable {
-
         Event e = Tools.getEvent();
         /// resolve a no existing name
         e.put("host", InetAddress.getByName("169.254.1.1"));
@@ -104,7 +103,6 @@ public class TestNettyNameResolver {
 
     @Test(timeout=6000)
     public void arootasipv4addr() throws Throwable {
-
         Event e = Tools.getEvent();
         /// resolving a.root-servers.net. in IPv4
         e.put("host", InetAddress.getByName("198.41.0.4"));
@@ -121,8 +119,7 @@ public class TestNettyNameResolver {
     }
 
     @Test(timeout=6000)
-    public void arootasipv4string() throws ProcessorException, InterruptedException {
-
+    public void arootasipv4string() throws ProcessorException, InterruptedException, ConfigException, IOException {
         Event e = Tools.getEvent();
         /// resolving a.root-servers.net. in IPv4 as String
         e.put("host", "198.41.0.4");
@@ -136,13 +133,10 @@ public class TestNettyNameResolver {
         Assert.assertEquals("resolution failed", "a.root-servers.net", e.get("fqdn"));
         Assert.assertEquals("Queue not empty: " + status.mainQueue, 0, status.mainQueue.size());
         Assert.assertEquals("Still waiting events: " + status.repository, 0, status.repository.waiting());
-
     }
-
 
     @Test(timeout=6000)
     public void arootasipv6addr() throws Throwable {
-
         Event e = Tools.getEvent();
         /// resolving a.root-servers.net. in IPv6
         e.put("host", InetAddress.getByName("2001:503:ba3e::2:30"));
@@ -156,12 +150,10 @@ public class TestNettyNameResolver {
         Assert.assertEquals("resolution failed", "a.root-servers.net", e.get("fqdn"));
         Assert.assertEquals("Queue not empty: " + status.mainQueue, 0, status.mainQueue.size());
         Assert.assertEquals("Still waiting events: " + status.repository, 0, status.repository.waiting());
-
     }
 
     @Test(timeout=6000)
     public void arootasipv6string() throws ProcessorException, InterruptedException, ConfigException, IOException {
-
         Event e = Tools.getEvent();
         // resolving a.root-servers.net. in IPv6 as a String
         e.put("host", "2001:503:ba3e::2:30");
@@ -175,12 +167,10 @@ public class TestNettyNameResolver {
         Assert.assertEquals("resolution failed", "a.root-servers.net", e.get("fqdn"));
         Assert.assertEquals("Queue not empty: " + status.mainQueue, 0, status.mainQueue.size());
         Assert.assertEquals("Still waiting events: " + status.repository, 0, status.repository.waiting());
-
     }
 
     @Test(timeout=6000)
     public void resolvemany() throws ProcessorException, InterruptedException, ConfigException, IOException {
-
         Event e = Tools.getEvent();
         e.put("hostipv6str", "2001:503:ba3e::2:30");
         e.put("hostipv6inet",  InetAddress.getByName("2001:503:ba3e::2:30"));
@@ -208,11 +198,10 @@ public class TestNettyNameResolver {
     }
 
     @Test(timeout=2000)
-    public void testCaching() throws UnknownHostException, ProcessorException, InterruptedException, ExecutionException {
-
+    public void testCaching() throws ProcessorException, InterruptedException, ExecutionException, ConfigException, IOException {
         NettyNameResolver proc = new NettyNameResolver();
         proc.setResolver("8.8.8.8");
-        Assert.assertTrue(proc.configure(new Properties(Collections.emptyMap())));
+        Assert.assertTrue(proc.configure(getProperties()));
 
         Event e = Tools.getEvent();
         /// resolving a.root-servers.net. in IPv4
@@ -227,4 +216,28 @@ public class TestNettyNameResolver {
         // Will fail if the previous query was not cached
         Assert.assertEquals("a.root-servers.net", proc.fieldFunction(e, "198.41.0.4"));
     }
+
+    private Properties getProperties() throws ConfigException, IOException {
+        String conf = "queuesDepth: 10";
+        return Tools.loadConf(new StringReader(conf));
+    }
+
+    @Test
+    public void test_loghub_processors_NettyNameResolver() throws ClassNotFoundException, IntrospectionException {
+        BeanChecks.beansCheck(logger, "loghub.processors.NettyNameResolver"
+                              , BeanInfo.build("resolver", String.class)
+                              , BeanInfo.build("cacheSize", Integer.TYPE)
+                              , BeanInfo.build("timeout", Integer.TYPE)
+                              , BeanInfo.build("poller", String.class)
+                              , BeanInfo.build("destination", String.class)
+                              , BeanInfo.build("field", BeanChecks.LSTRING)
+                              , BeanInfo.build("fields", new Object[] {}.getClass())
+                              , BeanInfo.build("path", String.class)
+                              , BeanInfo.build("if", String.class)
+                              , BeanInfo.build("success", Processor.class)
+                              , BeanInfo.build("failure", Processor.class)
+                              , BeanInfo.build("exception", Processor.class)
+                        );
+    }
+
 }

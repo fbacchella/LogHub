@@ -1,5 +1,6 @@
 package loghub.processors;
 
+import java.lang.reflect.UndeclaredThrowableException;
 import java.net.Inet4Address;
 import java.net.Inet6Address;
 import java.net.InetAddress;
@@ -8,15 +9,22 @@ import java.net.UnknownHostException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
+import java.util.Locale;
+import java.util.Optional;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Semaphore;
 import java.util.function.BiConsumer;
 
 import javax.cache.Cache;
 import javax.cache.processor.MutableEntry;
 
+import org.apache.logging.log4j.Level;
+
 import io.netty.channel.AddressedEnvelope;
 import io.netty.channel.EventLoopGroup;
+import io.netty.channel.epoll.EpollDatagramChannel;
 import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.channel.socket.DatagramChannel;
 import io.netty.channel.socket.nio.NioDatagramChannel;
 import io.netty.handler.codec.dns.DefaultDnsQuestion;
 import io.netty.handler.codec.dns.DnsPtrRecord;
@@ -38,46 +46,20 @@ import loghub.Helpers;
 import loghub.ProcessorException;
 import loghub.VarFormatter;
 import loghub.configuration.Properties;
+import loghub.netty.POLLER;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
 
 public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<DnsResponse,InetSocketAddress>, Future<AddressedEnvelope<DnsResponse,InetSocketAddress>>> {
 
+    @EqualsAndHashCode
     private static class DnsCacheKey {
         private final String query;
         private final DnsRecordType type;
         public DnsCacheKey(DnsQuestion query) {
             this.query = query.name();
             this.type = query.type();
-        }
-        @Override
-        public int hashCode() {
-            final int prime = 31;
-            int result = 1;
-            result = prime * result + ((query == null) ? 0 : query.hashCode());
-            result = prime * result + ((type == null) ? 0 : type.hashCode());
-            return result;
-        }
-        @Override
-        public boolean equals(Object obj) {
-            if(this == obj)
-                return true;
-            if(obj == null)
-                return false;
-            if(getClass() != obj.getClass())
-                return false;
-            DnsCacheKey other = (DnsCacheKey) obj;
-            if(query == null) {
-                if(other.query != null)
-                    return false;
-            } else if(!query.equals(other.query))
-                return false;
-            if(type == null) {
-                if(other.type != null)
-                    return false;
-            } else if(!type.equals(other.type))
-                return false;
-            return true;
         }
         @Override
         public String toString() {
@@ -132,30 +114,51 @@ public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<Dn
     private String resolver = null;
     @Getter @Setter
     private int cacheSize = 10000;
+    @Getter @Setter
+    private String poller = POLLER.NIO.name();
+    @Getter @Setter
+    private int queueDepth = -1;
 
     private DnsNameResolver dnsResolver;
     private Cache<DnsCacheKey, DnsCacheEntry> hostCache;
+    private Optional<Semaphore> queryCount;
 
     @Override
     public boolean configure(Properties properties) {
+        Class<? extends DatagramChannel> channelType;
+        switch(POLLER.valueOf(poller.toUpperCase(Locale.ENGLISH))) {
+        case NIO:
+            channelType = NioDatagramChannel.class;
+            break;
+        case EPOLL:
+            channelType = EpollDatagramChannel.class;
+            break;
+        default:
+            channelType = null;
+            break;
+        }
+        
+        if (queueDepth < 0) {
+            queueDepth = Math.min(properties.queuesDepth, 32768);
+        }
+        queryCount = Optional.of(queueDepth).filter(i -> i > 0).map(Semaphore::new);
         DnsNameResolverBuilder builder = new DnsNameResolverBuilder(evg.next())
                         .queryTimeoutMillis(getTimeout() * 1000L)
-                        .channelType(NioDatagramChannel.class)
+                        .channelType(channelType)
                         ;
         InetSocketAddress resolverAddr = null;
-        try {
-            if (getResolver() != null) {
+        if (getResolver() != null) {
+            try {
                 resolverAddr = new InetSocketAddress(InetAddress.getByName(getResolver()), 53);
                 builder = builder.nameServerProvider(new SingletonDnsServerAddressStreamProvider(resolverAddr));
+            } catch (UnknownHostException e) {
+                logger.error("Unknown resolver '{}': {}", getResolver(), e.getMessage());
+                return false;
             }
-        } catch (UnknownHostException e) {
-            logger.error("Unknown resolver '{}': {}", getResolver(), e.getMessage());
-            return false;
         }
         dnsResolver = builder.build();
-
         hostCache = properties.cacheManager.getBuilder(DnsCacheKey.class, DnsCacheEntry.class)
-                        .setName("NameResolver", resolverAddr)
+                        .setName("NameResolver", dnsResolver)
                         .setCacheSize(cacheSize)
                         .build();
 
@@ -172,7 +175,7 @@ public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<Dn
             try {
                 ipaddr = Helpers.parseIpAddres((String) addr);
             } catch (UnknownHostException e) {
-                throw event.buildException("invalid IP address '" + addr + "': " + e.getMessage());
+                throw event.buildException("invalid IP address '" + addr + "': " + e.getMessage(), e);
             }
         } else if (addr instanceof InetAddress) {
             ipaddr = (InetAddress) addr;
@@ -200,10 +203,27 @@ public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<Dn
             if (found != null) {
                 return found;
             } else {
+                try {
+                    queryCount.ifPresent(t -> {
+                        try {
+                            t.acquire();
+                        } catch (InterruptedException e) {
+                            throw new UndeclaredThrowableException(e);
+                        }
+                    });
+                } catch (UndeclaredThrowableException e) {
+                    InterruptedException ex = (InterruptedException) e.getCause();
+                    logger.error("Interrupted while resolving {}", toresolv);
+                    logger.catching(Level.DEBUG, ex);
+                    return false;
+                }
                 Future<AddressedEnvelope<DnsResponse, InetSocketAddress>> future = dnsResolver.query(dnsquery);
+                queryCount.ifPresent(s -> {
+                    future.addListener(f -> s.release());
+                });
                 throw new ProcessorException.PausedEventException(event, future);
             }
-        } else if(addr instanceof String) {
+        } else if (addr instanceof String) {
             // if addr was a String, it's used as an hostname
             return addr;
         } else {
@@ -287,7 +307,7 @@ public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<Dn
 
     @Override
     public BiConsumer<Event, Future<AddressedEnvelope<DnsResponse, InetSocketAddress>>> getTimeoutHandler() {
-        // Self-timeout handler, no extenal help needed
+        // Self-timeout handler, no external help needed
         return null;
     }
 

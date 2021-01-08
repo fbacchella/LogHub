@@ -82,7 +82,10 @@ public class Tools {
     }
 
     public static ProcessingStatus runProcessing(Event sent, String pipename, List<Processor> steps, BiConsumer<Properties, List<Processor>> prepare) throws ProcessorException {
-        Properties props = new Properties(Collections.emptyMap());
+        return runProcessing(sent, pipename, steps, prepare, new Properties(Collections.emptyMap()));
+    }
+
+    public static ProcessingStatus runProcessing(Event sent, String pipename, List<Processor> steps, BiConsumer<Properties, List<Processor>> prepare, Properties props) throws ProcessorException {
         ProcessingStatus ps = new ProcessingStatus();
         ps.mainQueue = props.mainQueue;
         ps.status = new ArrayList<>();
