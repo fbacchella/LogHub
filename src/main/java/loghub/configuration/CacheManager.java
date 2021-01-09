@@ -11,6 +11,7 @@ import javax.cache.spi.CachingProvider;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.cache2k.Cache2kBuilder;
+import org.cache2k.extra.jmx.JmxSupport;
 import org.cache2k.jcache.ExtendedMutableConfiguration;
 
 public class CacheManager {
@@ -76,6 +77,7 @@ public class CacheManager {
                             ;
             this.keyType = keyType;
             this.valueType = valueType;
+            JmxSupport.enable(builder2k);
         }
         public Builder<K, V> setName(String name, Object parent) {
             this.name = String.format("%s@%08x", name, Integer.toUnsignedLong(parent.hashCode()));

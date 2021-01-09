@@ -17,7 +17,7 @@
         <antlr>4.9</antlr>
         <jackson>2.12.0</jackson>
         <metrics>4.1.16</metrics>
-        <cache2k>1.2.4.Final</cache2k>
+        <cache2k>2.0.0.Final</cache2k>
         <mainClass>loghub.Start</mainClass>
         <surefire.version>3.0.0-M5</surefire.version>
         <cacheapi.version>1.1.1</cacheapi.version>
@@ -134,13 +134,24 @@
         </dependency>
         <dependency>
             <groupId>org.cache2k</groupId>
-            <artifactId>cache2k-base-bom</artifactId>
+            <artifactId>cache2k-api</artifactId>
+            <version>${cache2k}</version>
+            <type>pom</type>
+        </dependency>
+        <dependency>
+            <groupId>org.cache2k</groupId>
+            <artifactId>cache2k-core</artifactId>
             <version>${cache2k}</version>
             <type>pom</type>
         </dependency>
         <dependency>
             <groupId>org.cache2k</groupId>
             <artifactId>cache2k-jcache</artifactId>
+            <version>${cache2k}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.cache2k</groupId>
+            <artifactId>cache2k-jmx</artifactId>
             <version>${cache2k}</version>
         </dependency>
         <dependency>
