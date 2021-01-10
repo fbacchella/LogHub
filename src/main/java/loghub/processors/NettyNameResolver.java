@@ -158,7 +158,7 @@ public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<Dn
         }
         dnsResolver = builder.build();
         hostCache = properties.cacheManager.getBuilder(DnsCacheKey.class, DnsCacheEntry.class)
-                        .setName("NameResolver", dnsResolver)
+                        .setName("NameResolver", resolverAddr != null ? resolverAddr : "default")
                         .setCacheSize(cacheSize)
                         .build();
 
