@@ -8,6 +8,7 @@ import java.net.UnknownHostException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -15,8 +16,8 @@ import java.util.Map;
 import java.util.Optional;
 
 import javax.cache.Cache;
-import javax.cache.processor.EntryProcessor;
 import javax.cache.processor.EntryProcessorException;
+import javax.cache.processor.MutableEntry;
 
 import org.apache.logging.log4j.Level;
 
@@ -39,8 +40,10 @@ import com.maxmind.geoip2.record.Subdivision;
 import loghub.Event;
 import loghub.Helpers;
 import loghub.ProcessorException;
-import loghub.configuration.Properties;
 import loghub.configuration.CacheManager.Policy;
+import loghub.configuration.Properties;
+import lombok.Getter;
+import lombok.Setter;
 
 public class Geoip2 extends FieldsProcessor {
 
@@ -58,7 +61,9 @@ public class Geoip2 extends FieldsProcessor {
 
     private Path geoipdb = null;
     private LocationType[] types = new LocationType[] {};
+    @Getter @Setter
     private String locale = null;
+    @Getter @Setter
     private int cacheSize = 100;
     private DatabaseReader reader;
 
@@ -96,7 +101,7 @@ public class Geoip2 extends FieldsProcessor {
             case "GeoIP2-City":
             case "GeoLite2-City": {
                 CityResponse response = reader.city(ipInfo);
-                if(response == null) {
+                if (response == null) {
                     throw event.buildException("City not found for " + ipInfo.toString());
                 }
                 country = response.getCountry();
@@ -112,7 +117,7 @@ public class Geoip2 extends FieldsProcessor {
             case "GeoIP2-Country":
             case "GeoLite2-Country": {
                 CountryResponse response = reader.country(ipInfo);
-                if(response == null) {
+                if (response == null) {
                     throw event.buildException("Country not found for " + ipInfo.toString());
                 }
                 country = response.getCountry();
@@ -229,29 +234,15 @@ public class Geoip2 extends FieldsProcessor {
         if (geoipdb == null) {
             geoipdb = Optional.ofNullable(properties.get("geoip2data")).map(i-> Paths.get(i.toString())).orElse(null);
         }
+
         @SuppressWarnings("rawtypes")
-        Cache<CacheKey, DecodedValue> ehCache = properties.cacheManager.getBuilder(CacheKey.class, DecodedValue.class)
+        Cache<CacheKey, DecodedValue> cache = properties.cacheManager.getBuilder(CacheKey.class, DecodedValue.class)
                         .setCacheSize(cacheSize)
                         .setName("Geoip2", geoipdb != null ? geoipdb : "GeoLite2-City.mmdb")
                         .setExpiry(Policy.ETERNAL)
                         .build();
-        @SuppressWarnings("rawtypes")
-        EntryProcessor<CacheKey, DecodedValue, DecodedValue> ep = (i, j) -> {
-            try {
-                DecodedValue node = i.getValue();
-                if (! i.exists()) {
-                    Loader loader = (Loader)j[0];
-                    node = loader.load(i.getKey());
-                    i.setValue(node);
-                }
-                return node;
-            } catch (Exception e) {
-                throw new EntryProcessorException(e);
-            }
-        };
-        NodeCache nc = (k, l) -> ehCache.invoke(k, ep, l);
-
-        if(geoipdb != null) {
+        NodeCache nc = (k, l) -> cache.invoke(k, this::extractValue, l);
+        if (geoipdb != null) {
             try {
                 reader = new DatabaseReader.Builder(geoipdb.toFile()).withCache(nc).build();
             } catch (IOException e) {
@@ -278,6 +269,23 @@ public class Geoip2 extends FieldsProcessor {
         return super.configure(properties);
     }
 
+    @SuppressWarnings("rawtypes")
+    private DecodedValue extractValue(MutableEntry<CacheKey, DecodedValue> i, Object... j) {
+        try {
+            DecodedValue node;
+            if (! i.exists()) {
+                Loader loader = (Loader)j[0];
+                node = loader.load(i.getKey());
+                i.setValue(node);
+            } else {
+                node = i.getValue();
+            }
+            return node;
+        } catch (IOException e) {
+            throw new EntryProcessorException(e);
+        }
+    }
+
     public String getGeoipdb() {
         return geoipdb.toString();
     }
@@ -286,16 +294,8 @@ public class Geoip2 extends FieldsProcessor {
         this.geoipdb = Paths.get(datfilepath);
     }
 
-    public String getLocale() {
-        return locale;
-    }
-
-    public void setLocale(String locale) {
-        this.locale = locale;
-    }
-
     public String[] getTypes() {
-        return null;
+        return Arrays.stream(types).map(LocationType::name).toArray(String[]::new);
     }
 
     public void setTypes(String[] types) {
@@ -303,20 +303,6 @@ public class Geoip2 extends FieldsProcessor {
         for(int i = 0; i < types.length ; i++) {
             this.types[i] = LocationType.valueOf(types[i].toUpperCase(Locale.ENGLISH));
         }
-    }
-
-    /**
-     * @return the cacheSize
-     */
-    public int getCacheSize() {
-        return cacheSize;
-    }
-
-    /**
-     * @param cacheSize the cacheSize to set
-     */
-    public void setCacheSize(int cacheSize) {
-        this.cacheSize = cacheSize;
     }
 
 }
