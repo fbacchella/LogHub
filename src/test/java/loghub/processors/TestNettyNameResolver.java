@@ -181,7 +181,7 @@ public class TestNettyNameResolver {
             i.setFields(new String[]{"*"});
             i.setDestination("fqdn_${field}");
             i.setTimeout(4);
-        } , e, "0.3.0.0.2.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.e.3.a.b.3.0.5.0.1.0.0.2.ip6.arpa", "4.0.41.198.in-addr.ptr");
+        } , e, "0.3.0.0.2.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.e.3.a.b.3.0.5.0.1.0.0.2.ip6.arpa", "4.0.41.198.in-addr.arpa");
 
         do {
             e = status.mainQueue.element();
