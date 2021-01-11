@@ -22,12 +22,11 @@ import javax.cache.processor.MutableEntry;
 import org.apache.logging.log4j.Level;
 
 import com.maxmind.db.CacheKey;
+import com.maxmind.db.DatabaseRecord;
 import com.maxmind.db.DecodedValue;
 import com.maxmind.db.NodeCache;
 import com.maxmind.db.NodeCache.Loader;
-import com.maxmind.geoip2.DatabaseReader;
-import com.maxmind.geoip2.exception.AddressNotFoundException;
-import com.maxmind.geoip2.exception.GeoIp2Exception;
+import com.maxmind.db.Reader;
 import com.maxmind.geoip2.model.CityResponse;
 import com.maxmind.geoip2.model.CountryResponse;
 import com.maxmind.geoip2.record.City;
@@ -65,7 +64,7 @@ public class Geoip2 extends FieldsProcessor {
     private String locale = null;
     @Getter @Setter
     private int cacheSize = 100;
-    private DatabaseReader reader;
+    private Reader reader;
 
     @Override
     public Object fieldFunction(Event event, Object addr) throws ProcessorException {
@@ -100,9 +99,9 @@ public class Geoip2 extends FieldsProcessor {
             switch(reader.getMetadata().getDatabaseType()) {
             case "GeoIP2-City":
             case "GeoLite2-City": {
-                CityResponse response = reader.city(ipInfo);
+                CityResponse response = Optional.ofNullable(reader.getRecord(ipInfo, CityResponse.class)).map(DatabaseRecord::getData).orElse(null);
                 if (response == null) {
-                    throw event.buildException("City not found for " + ipInfo.toString());
+                    return RUNSTATUS.FAILED;
                 }
                 country = response.getCountry();
                 city = response.getCity();
@@ -116,9 +115,9 @@ public class Geoip2 extends FieldsProcessor {
             }
             case "GeoIP2-Country":
             case "GeoLite2-Country": {
-                CountryResponse response = reader.country(ipInfo);
+                CountryResponse response = Optional.ofNullable(reader.getRecord(ipInfo, CountryResponse.class)).map(DatabaseRecord::getData).orElse(null);
                 if (response == null) {
-                    throw event.buildException("Country not found for " + ipInfo.toString());
+                    return RUNSTATUS.FAILED;
                 }
                 country = response.getCountry();
                 continent = response.getContinent();
@@ -126,20 +125,18 @@ public class Geoip2 extends FieldsProcessor {
                 represented_country = response.getRepresentedCountry();
                 break;
             }
+            case "GeoIP2-ISP":
             default:
-                throw event.buildException("Unknown database type: " + reader.getMetadata().getDatabaseType());
+                return Optional.ofNullable(reader.getRecord(ipInfo, Map.class)).map(DatabaseRecord::getData).orElse(null);
             }
-        } catch (AddressNotFoundException e) {
-            // not an error, just return a failure
-            return RUNSTATUS.FAILED;
-        } catch (IOException | GeoIp2Exception e) {
-            throw event.buildException("can't read geoip database", e);
+        } catch (IOException e) {
+            throw event.buildException("Can't read GeoIP database", e);
         }
 
         for(LocationType type: types) {
             switch(type) {
             case COUNTRY:
-                if(country != null) {
+                if (country != null) {
                     Map<String, Object> infos = new HashMap<>(2);
                     Optional.ofNullable(country.getIsoCode()).ifPresent(i -> infos.put("code", i));
                     Optional.ofNullable(country.getNames().get(locale)).ifPresent(i -> infos.put("name", i));
@@ -149,7 +146,7 @@ public class Geoip2 extends FieldsProcessor {
                 }
                 break;
             case REPRESENTEDCOUNTRY:
-                if(represented_country != null) {
+                if (represented_country != null) {
                     Map<String, Object> infos = new HashMap<>(2);
                     Optional.ofNullable(represented_country.getIsoCode()).ifPresent(i -> infos.put("code", i));
                     Optional.ofNullable(represented_country.getNames().get(locale)).ifPresent(i -> infos.put("name", i));
@@ -159,7 +156,7 @@ public class Geoip2 extends FieldsProcessor {
                 }
                 break;
             case REGISTREDCOUNTRY:
-                if(registred_country != null) {
+                if (registred_country != null) {
                     Map<String, Object> infos = new HashMap<>(2);
                     Optional.ofNullable(registred_country.getIsoCode()).ifPresent(i -> infos.put("code", i));
                     Optional.ofNullable(registred_country.getNames().get(locale)).ifPresent(i -> infos.put("name", i));
@@ -169,14 +166,14 @@ public class Geoip2 extends FieldsProcessor {
                 }
                 break;
             case CITY: {
-                if(city != null) {
+                if (city != null) {
                     Optional.ofNullable(city.getNames().get(locale)).ifPresent(i -> informations.put("city", i));
                 }
                 break;
             }
             case LOCATION:
                 Map<String, Object> infos = new HashMap<>(7);
-                if(location != null) {
+                if (location != null) {
                     Optional.ofNullable(location.getLatitude()).ifPresent(i -> infos.put("latitude", i));
                     Optional.ofNullable(location.getLongitude()).ifPresent(i -> infos.put("longitude", i));
                     Optional.ofNullable(location.getTimeZone()).ifPresent(i -> infos.put("timezone", i));
@@ -200,7 +197,7 @@ public class Geoip2 extends FieldsProcessor {
                 }
                 break;
             case SUBDIVISION:
-                if(subdivision != null) {
+                if (subdivision != null) {
                     List<Map<String, Object>> all = new ArrayList<>(subdivision.size());
                     for(Subdivision sub: subdivision) {
                         Map<String, Object> subdivisioninfo = new HashMap<>(2);
@@ -238,13 +235,13 @@ public class Geoip2 extends FieldsProcessor {
         @SuppressWarnings("rawtypes")
         Cache<CacheKey, DecodedValue> cache = properties.cacheManager.getBuilder(CacheKey.class, DecodedValue.class)
                         .setCacheSize(cacheSize)
-                        .setName("Geoip2", geoipdb != null ? geoipdb : "GeoLite2-City.mmdb")
+                        .setName("Geoip2", this)
                         .setExpiry(Policy.ETERNAL)
                         .build();
         NodeCache nc = (k, l) -> cache.invoke(k, this::extractValue, l);
         if (geoipdb != null) {
             try {
-                reader = new DatabaseReader.Builder(geoipdb.toFile()).withCache(nc).build();
+                reader = new Reader(geoipdb.toFile(), nc);
             } catch (IOException e) {
                 logger.error("can't read geoip database " + geoipdb.toString());
                 logger.throwing(Level.DEBUG, e);
@@ -258,7 +255,7 @@ public class Geoip2 extends FieldsProcessor {
                     return false;
                 } else {
                     InputStream embedded = new BufferedInputStream(is);
-                    reader = new DatabaseReader.Builder(embedded).withCache(nc).build();
+                    reader = new Reader(embedded, nc);
                 }
             } catch (IOException e) {
                 logger.error("Didn't find a default database");
