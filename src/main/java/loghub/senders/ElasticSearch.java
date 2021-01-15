@@ -48,6 +48,12 @@ import lombok.Setter;
 @SelfEncoder
 @BuilderClass(ElasticSearch.Builder.class)
 public class ElasticSearch extends AbstractHttpSender {
+    
+    enum TYPEHANDLING {
+        USING,
+        MIGRATING,
+        DEPRECATED,
+    }
 
     public static class Builder extends AbstractHttpSender.Builder<ElasticSearch> {
         @Setter
@@ -62,11 +68,18 @@ public class ElasticSearch extends AbstractHttpSender {
         private String templateName = "loghub";
         @Setter
         private String templatePath = null;
+
         @Setter
-        private boolean withTemplate = true;
+        private TYPEHANDLING typeHandling = TYPEHANDLING.USING;
         public Builder() {
             this.setPort(9200);
             this.setBatchSize(20);
+        }
+        public void setWithTemplate(boolean withTemplate) {
+            if (withTemplate == false) {
+                templatePath = null;
+                templateName = null;
+            }
         }
         @Override
         public ElasticSearch build() {
@@ -98,6 +111,7 @@ public class ElasticSearch extends AbstractHttpSender {
     private final String templateName;
     private URL templatePath;
     private final boolean withTemplate;
+    private final TYPEHANDLING typeHandling;
 
     private ThreadLocal<DateFormat> esIndexFormat;
     private final ThreadLocal<URL[]> UrlArrayCopy;
@@ -122,6 +136,7 @@ public class ElasticSearch extends AbstractHttpSender {
         type = builder.type;
         typeExpressionSrc = builder.typeX;
         indexExpressionSrc = builder.indexX;
+        typeHandling = builder.typeHandling;
         UrlArrayCopy = ThreadLocal.withInitial(() -> Arrays.copyOf(endPoints, endPoints.length));
         if (indexExpressionSrc == null) {
             esIndexFormat = ThreadLocal.withInitial( () -> {
@@ -261,7 +276,8 @@ public class ElasticSearch extends AbstractHttpSender {
                     ef.completeExceptionally(new EncodeException("No usable type for event"));
                     logger.debug("No usable type for event {}", e);
                     continue;
-                } else {
+                } else if (typeHandling != TYPEHANDLING.DEPRECATED){
+                    // Only put type informations is using old, pre 6.x handling of type
                     settings.put("_type", typevalue);
                 }
                 eventbuilder.append(jsonmapper.writeValueAsString(action));
@@ -314,7 +330,7 @@ public class ElasticSearch extends AbstractHttpSender {
 
     private Boolean checkTemplate(int major) {
         if (templatePath == null) {
-            templatePath = getClass().getResource("/estemplate." + major + ".json");
+            templatePath = getClass().getResource("/estemplate." + major + (typeHandling == TYPEHANDLING.DEPRECATED ? ".notype" : "") + ".json");
         }
         // Lets check for a template
         Map<Object, Object> wantedtemplate;
@@ -359,7 +375,7 @@ public class ElasticSearch extends AbstractHttpSender {
                 throw new UncheckedIOException(e);
             }
         };
-        Boolean needsrefresh = doquery(null, "/_template/" + templateName, checkTemplate, Collections.singletonMap(404, node -> true), null);
+        Boolean needsrefresh = doquery(null, "/_template/" + templateName + includeTypeName(), checkTemplate, Collections.singletonMap(404, node -> true), null);
         if (needsrefresh == null) {
             return false;
         } else if (needsrefresh) {
@@ -373,10 +389,14 @@ public class ElasticSearch extends AbstractHttpSender {
                 logger.catching(Level.DEBUG, e);
                 return false;
             }
-            return doquery(puttemplate, "/_template/" + templateName, node -> true, Collections.emptyMap(), false);
+            return doquery(puttemplate, "/_template/" + templateName + includeTypeName(), node -> true, Collections.emptyMap(), false);
         } else {
             return true;
         }
+    }
+
+    private String includeTypeName() {
+        return typeHandling == TYPEHANDLING.MIGRATING ? "?include_type_name=true": "";
     }
 
     private <T> T doquery(HttpRequest request, String filePart, Function<JsonNode, T> transform, Map<Integer, Function<JsonNode, T>> failureHandlers, T onFailure) {

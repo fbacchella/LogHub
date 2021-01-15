@@ -272,11 +272,14 @@ public abstract class AbstractHttpSender extends Sender {
             clientBuilder.setUserAgent(VersionInfo.getUserAgent("LogHub-HttpClient",
                                                                 "org.apache.http.client", HttpClientBuilder.class));
 
+            RegistryBuilder<ConnectionSocketFactory> registryBuilder = RegistryBuilder.<ConnectionSocketFactory>create()
+                    .register("http", PlainConnectionSocketFactory.getSocketFactory());
+ 
+            if (properties.ssl != null) {
+                registryBuilder.register("https", new SSLConnectionSocketFactory(properties.ssl));
+            }
             // Set the Configuration manager
-            Registry<ConnectionSocketFactory> registry = RegistryBuilder.<ConnectionSocketFactory>create()
-                            .register("http", PlainConnectionSocketFactory.getSocketFactory())
-                            .register("https", new SSLConnectionSocketFactory(properties.ssl))
-                            .build();
+            Registry<ConnectionSocketFactory> registry = registryBuilder.build();
             PoolingHttpClientConnectionManager cm = new PoolingHttpClientConnectionManager(registry);
             cm.setMaxTotal(getThreads() + 1);
             cm.setDefaultMaxPerRoute(getThreads() + 1);
@@ -326,7 +329,7 @@ public abstract class AbstractHttpSender extends Sender {
             context.setCredentialsProvider(credsProvider);
         }
 
-        RequestLine requestLine = new BasicRequestLine(therequest.verb, therequest.url.getPath(), therequest.httpVersion);
+        RequestLine requestLine = new BasicRequestLine(therequest.verb, therequest.url.getFile(), therequest.httpVersion);
         BasicHttpEntityEnclosingRequest request = new BasicHttpEntityEnclosingRequest(requestLine);
         if (therequest.content != null) {
             request.setEntity(therequest.content);

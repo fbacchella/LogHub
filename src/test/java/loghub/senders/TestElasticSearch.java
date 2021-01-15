@@ -29,6 +29,7 @@ import loghub.Tools;
 import loghub.configuration.ConfigurationTools;
 import loghub.configuration.Properties;
 import loghub.metrics.Stats;
+import loghub.senders.ElasticSearch.TYPEHANDLING;
 
 public class TestElasticSearch {
 
@@ -187,27 +188,27 @@ public class TestElasticSearch {
         esbuilder.setTimeout(1);
         esbuilder.setBatchSize(count * 2);
         esbuilder.setIndexformat("'testsomefailed-'yyyy.MM.dd");
-        ElasticSearch es = esbuilder.build();
-        es.setInQueue(new ArrayBlockingQueue<>(count));
-        Assert.assertTrue("Elastic configuration failed", es.configure(new Properties(Collections.emptyMap())));
-        es.start();
-        for (int i = 0 ; i < count ; i++) {
-            Event ev = Tools.getEvent();
-            ev.put("type", "junit");
-            ev.put("value", new Date(0));
-            ev.setTimestamp(new Date(0));
-            Assert.assertTrue(es.queue(ev));
-            Thread.sleep(1);
+        try (ElasticSearch es = esbuilder.build()) {
+            es.setInQueue(new ArrayBlockingQueue<>(count));
+            Assert.assertTrue("Elastic configuration failed", es.configure(new Properties(Collections.emptyMap())));
+            es.start();
+            for (int i = 0 ; i < count ; i++) {
+                Event ev = Tools.getEvent();
+                ev.put("type", "junit");
+                ev.put("value", new Date(0));
+                ev.setTimestamp(new Date(0));
+                Assert.assertTrue(es.queue(ev));
+                Thread.sleep(1);
+            }
+            for (int i = 0 ; i < count ; i++) {
+                Event ev = Tools.getEvent();
+                ev.put("type", "junit");
+                ev.put("value", "atest" + i);
+                ev.setTimestamp(new Date(0));
+                Assert.assertTrue(es.queue(ev));
+                Thread.sleep(1);
+            }
         }
-        for (int i = 0 ; i < count ; i++) {
-            Event ev = Tools.getEvent();
-            ev.put("type", "junit");
-            ev.put("value", "atest" + i);
-            ev.setTimestamp(new Date(0));
-            Assert.assertTrue(es.queue(ev));
-            Thread.sleep(1);
-        }
-        es.close();
         Thread.sleep(1000);
         Assert.assertEquals(0, Stats.getDropped());
         Assert.assertEquals(0, Stats.getExceptionsCount());
@@ -233,8 +234,11 @@ public class TestElasticSearch {
                               , BeanInfo.build("type", String.class)
                               , BeanInfo.build("typeX", String.class)
                               , BeanInfo.build("templatePath", String.class)
+                              , BeanInfo.build("templateName", String.class)
+                              , BeanInfo.build("withTemplate", Boolean.TYPE)
                               , BeanInfo.build("login", String.class)
                               , BeanInfo.build("password", String.class)
+                              , BeanInfo.build("typeHandling", TYPEHANDLING.class)
                         );
     }
 
