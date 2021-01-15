@@ -39,25 +39,26 @@ public class BeansManager {
         }
         try {
             Class<?> setArgType = setMethod.getParameterTypes()[0];
-            if(beanValue == null || setArgType.isAssignableFrom(beanValue.getClass())) {
-                setMethod.invoke(object, beanValue);
-            } else if (beanValue instanceof String){
-                Object argInstance = BeansManager.ConstructFromString(setArgType, (String) beanValue);
-                setMethod.invoke(object, argInstance);
-            } else if (beanValue instanceof Number){
-                setMethod.invoke(object, beanValue);
-            } else if (beanValue instanceof Boolean){
-                setMethod.invoke(object, (Boolean)beanValue.equals(Boolean.TRUE));
-            } else if(setArgType.isArray() && beanValue.getClass().isArray()) {
+            // Array check must be the first, to ensure that a copy of the array is used, not the original argument
+            if (setArgType.isArray() && beanValue.getClass().isArray()) {
                 // In case of an array, try a crude conversion, expect that type cast is possible
                 // for every element
                 int length = Array.getLength(beanValue);
                 Class<?> arrayType = setArgType.getComponentType();
                 Object newValue = Array.newInstance(arrayType, length);
-                for(int i = 0; i < length ; i++){
+                for (int i = 0; i < length ; i++){
                     Array.set(newValue, i, Array.get(beanValue, i));
                 }
                 setMethod.invoke(object, newValue);
+            } else if (beanValue == null || setArgType.isAssignableFrom(beanValue.getClass())) {
+                setMethod.invoke(object, beanValue);
+            } else if (beanValue instanceof String){
+                Object argInstance = BeansManager.ConstructFromString(setArgType, (String) beanValue);
+                setMethod.invoke(object, argInstance);
+            } else if (beanValue instanceof Number || beanValue instanceof Character) {
+                setMethod.invoke(object, beanValue);
+            } else if (beanValue instanceof Boolean) {
+                setMethod.invoke(object, (Boolean)beanValue.equals(Boolean.TRUE));
             } else {
                 String message = String.format("can't assign bean %s.%s with argument type %s", objectClassName, beanName, beanValue.getClass().getName());
                 throw new InvocationTargetException(new ClassCastException(message), String.format("Invalid bean %s", beanName));
@@ -78,33 +79,28 @@ public class BeansManager {
      * @return a convertion from String
      * @throws InvocationTargetException if it fails to construct the value
      */
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({ "unchecked", "rawtypes" })
     public static <T> T ConstructFromString(Class<T> clazz, String value) throws InvocationTargetException {
         try {
             Constructor<T> c = null;
             if (clazz == Integer.TYPE || Integer.class.equals(clazz)) {
                 return (T) Integer.valueOf(value);
-            }
-            else if (clazz == Double.TYPE || Integer.class.equals(clazz)) {
+            } else if (clazz == Double.TYPE || Integer.class.equals(clazz)) {
                 return (T) Double.valueOf(value);
-            }
-            else if (clazz == Float.TYPE || Float.class.equals(clazz)) {
+            } else if (clazz == Float.TYPE || Float.class.equals(clazz)) {
                 return (T) Float.valueOf(value);
-            }
-            else if (clazz == Byte.TYPE || Byte.class.equals(clazz)) {
+            } else if (clazz == Byte.TYPE || Byte.class.equals(clazz)) {
                 return (T) Byte.valueOf(value);
-            }
-            else if (clazz == Long.TYPE || Long.class.equals(clazz)) {
+            } else if (clazz == Long.TYPE || Long.class.equals(clazz)) {
                 return (T) Long.valueOf(value);
-            }
-            else if (clazz == Short.TYPE || Short.class.equals(clazz)) {
+            } else if (clazz == Short.TYPE || Short.class.equals(clazz)) {
                 return (T) Short.valueOf(value);
-            }
-            else if (clazz == Boolean.TYPE || Boolean.class.equals(clazz)) {
+            } else if (clazz == Boolean.TYPE || Boolean.class.equals(clazz)) {
                 c = (Constructor<T>)Boolean.class.getConstructor(String.class);
-            }
-            else if (clazz == Character.TYPE || Character.class.equals(clazz)) {
-                c = (Constructor<T>) Character.class.getConstructor(String.class);
+            } else if (clazz == Character.TYPE || Character.class.equals(clazz) && value.length() == 1) {
+                return (T) Character.valueOf(value.charAt(0));
+            } else if (Enum.class.isAssignableFrom(clazz)) {
+                return (T) Enum.valueOf((Class)clazz, value);
             } else {
                 c = clazz.getConstructor(String.class);
             }
