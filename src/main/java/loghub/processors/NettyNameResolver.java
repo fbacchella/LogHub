@@ -36,6 +36,7 @@ import io.netty.resolver.dns.SingletonDnsServerAddressStreamProvider;
 import io.netty.util.ReferenceCounted;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.netty.util.concurrent.Future;
+import loghub.AsyncProcessor;
 import loghub.Event;
 import loghub.Helpers;
 import loghub.ProcessorException;
@@ -192,7 +193,7 @@ public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<Dn
                 return found;
             } else {
                 Future<AddressedEnvelope<DnsResponse, InetSocketAddress>> future = dnsResolver.query(dnsquery);
-                throw new ProcessorException.PausedEventException(event, future);
+                throw new AsyncProcessor.PausedEventException(future);
             }
         } else if (addr instanceof String) {
             // if addr was a String, it's used as an hostname

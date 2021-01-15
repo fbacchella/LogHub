@@ -26,6 +26,7 @@ import loghub.Processor;
 import loghub.ProcessorException;
 import loghub.ThreadBuilder;
 import loghub.Tools;
+import loghub.AsyncProcessor;
 
 public class TestFieldsAsynchronous {
 
@@ -90,7 +91,7 @@ public class TestFieldsAsynchronous {
                 }
             })
             .build(true);
-            throw new ProcessorException.PausedEventException(event, f);
+            throw new AsyncProcessor.PausedEventException(f);
         }
 
         @Override

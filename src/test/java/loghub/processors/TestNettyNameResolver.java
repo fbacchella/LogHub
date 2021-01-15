@@ -21,6 +21,7 @@ import org.junit.Test;
 import io.netty.channel.AddressedEnvelope;
 import io.netty.handler.codec.dns.DnsRecordType;
 import io.netty.handler.codec.dns.DnsResponse;
+import loghub.AsyncProcessor;
 import loghub.BeanChecks;
 import loghub.BeanChecks.BeanInfo;
 import loghub.Event;
@@ -208,7 +209,7 @@ public class TestNettyNameResolver {
         e.put("host", InetAddress.getByName("198.41.0.4"));
         try {
             proc.fieldFunction(e, "198.41.0.4");
-        } catch (ProcessorException.PausedEventException e1) {
+        } catch (AsyncProcessor.PausedEventException e1) {
             @SuppressWarnings("unchecked")
             AddressedEnvelope<DnsResponse, InetSocketAddress> resp = (AddressedEnvelope<DnsResponse, InetSocketAddress>) e1.getFuture().await().get();
             Assert.assertEquals("a.root-servers.net", proc.asyncProcess(e, resp));

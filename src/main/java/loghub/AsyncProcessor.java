@@ -5,8 +5,26 @@ import java.util.concurrent.Semaphore;
 import java.util.function.BiConsumer;
 
 import io.netty.util.concurrent.Future;
+import lombok.Getter;
 
 public interface AsyncProcessor<FI, F extends Future<FI>> {
+    
+    public static class PausedEventException extends RuntimeException {
+
+        @Getter
+        private final Future<?> future;
+
+        public PausedEventException(Future<?> future) {
+            super("Paused event", null, false, false);
+            this.future = future;
+        }
+
+        public PausedEventException() {
+            super("Paused event", null, false, false);
+            this.future = null;
+        }
+
+    }
 
     public boolean processCallback(Event event, FI content) throws ProcessorException;
     public boolean manageException(Event event, Exception e) throws ProcessorException;

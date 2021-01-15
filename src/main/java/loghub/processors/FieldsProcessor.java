@@ -156,7 +156,7 @@ public abstract class FieldsProcessor extends Processor {
         } catch (UncheckedProcessorException ex) {
             try {
                 throw ex.getProcessoException();
-            } catch (ProcessorException.PausedEventException | ProcessorException.DroppedEventException e) {
+            } catch (ProcessorException.DroppedEventException e) {
                 throw e;
             } catch (UncheckedProcessorException e) {
                 ProcessorException newpe = event.buildException("Field with path \"" + Arrays.toString(currentField) + "\" invalid: " + e.getMessage(), (Exception) e.getProcessoException().getCause());

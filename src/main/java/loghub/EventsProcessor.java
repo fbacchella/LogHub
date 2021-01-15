@@ -202,13 +202,12 @@ public class EventsProcessor extends Thread {
                     e.insertProcessor(failureProcessor);
                 }
                 status = ProcessingStatus.CONTINUE;
-            } catch (ProcessorException.PausedEventException ex) {
+            } catch (AsyncProcessor.PausedEventException ex) {
                 // First check if the process will be able to manage the call back
                 if (p instanceof AsyncProcessor && ex.getFuture() != null) {
                     @SuppressWarnings("unchecked")
                     AsyncProcessor<?, Future<?>> ap = (AsyncProcessor<?, Future<?>>) p;
                     // The event to pause might be a transformation of the original event.
-                    Event topause = ex.getEvent();
                     // A paused event was catch, create a custom FuturProcess for it that will be awaken when event come back
                     Future<?> future = ex.getFuture();
                     // Wait if too much asynchronous event are waiting
@@ -230,7 +229,7 @@ public class EventsProcessor extends Thread {
                         status = ProcessingStatus.FAILED;
                     }
                     // Compilation fails if builder is used directly
-                    PausedEvent.Builder<Future<?>> builder = PausedEvent.builder(topause, future);
+                    PausedEvent.Builder<Future<?>> builder = PausedEvent.builder(e, future);
                     PausedEvent<Future<?>> paused = builder
                                     .onSuccess(p.getSuccess())
                                     .onFailure(p.getFailure())
@@ -242,7 +241,7 @@ public class EventsProcessor extends Thread {
                     // Create the processor that will process the call back processor
                     @SuppressWarnings({ "rawtypes", "unchecked"})
                     FutureProcessor<?, ? extends Future<?>> pauser = new FutureProcessor(future, paused, ap);
-                    topause.insertProcessor(pauser);
+                    e.insertProcessor(pauser);
                     //Store the callback informations
                     future.addListener(i -> {
                         ap.getLimiter().ifPresent(Semaphore::release);
@@ -250,8 +249,8 @@ public class EventsProcessor extends Thread {
                         // the listener must not call blocking call.
                         // So if the bounded queue block, use a non blocking queue dedicated
                         // to postpone processing of the offer.
-                        if (! inQueue.offer(topause)) {
-                            blockedAsync.put(topause);
+                        if (! inQueue.offer(e)) {
+                            blockedAsync.put(e);
                         }
                     });
                     status = ProcessingStatus.PAUSED;

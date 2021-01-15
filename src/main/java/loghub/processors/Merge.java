@@ -14,6 +14,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
+import loghub.AsyncProcessor;
 import loghub.Event;
 import loghub.EventsRepository;
 import loghub.Expression;
@@ -418,7 +419,7 @@ public class Merge extends Processor {
             }
         } else {
             logger.trace("pausing {} in {}", event);
-            throw new ProcessorException.PausedEventException(event);
+            throw new AsyncProcessor.PausedEventException();
         }
     }
 

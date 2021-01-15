@@ -15,6 +15,7 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import loghub.AsyncProcessor;
 import loghub.ConnectionContext;
 import loghub.Event;
 import loghub.Helpers;
@@ -70,7 +71,7 @@ public class TestMerge {
         events.add(e1);
         events.add(e2);
 
-        ProcessorException.PausedEventException ex = Assert.assertThrows(ProcessorException.PausedEventException.class, () -> m.process(e1));
+        AsyncProcessor.PausedEventException ex = Assert.assertThrows(AsyncProcessor.PausedEventException.class, () -> m.process(e1));
         Assert.assertNull(ex.getFuture());
         Assert.assertThrows(ProcessorException.DroppedEventException.class, () -> m.process(e2));
 
@@ -101,7 +102,7 @@ public class TestMerge {
         e.put("c", 3);
         e.put("d", 4);
         e.put("e", "5");
-        ProcessorException.PausedEventException ex = Assert.assertThrows(ProcessorException.PausedEventException.class, () -> m.process(e));
+        AsyncProcessor.PausedEventException ex = Assert.assertThrows(AsyncProcessor.PausedEventException.class, () -> m.process(e));
         Assert.assertNull(ex.getFuture());
         Thread.sleep(2000);
         // Will throw exception if event was not fired
@@ -122,7 +123,7 @@ public class TestMerge {
         e.put("c", 3);
         e.put("d", '4');
         e.put("e", "5");
-        ProcessorException.PausedEventException ex = Assert.assertThrows(ProcessorException.PausedEventException.class, () -> m.process(e));
+        AsyncProcessor.PausedEventException ex = Assert.assertThrows(AsyncProcessor.PausedEventException.class, () -> m.process(e));
         Assert.assertNull(ex.getFuture());
         Event e2 = Event.emptyEvent(ConnectionContext.EMPTY);
         e2.put("g", 1);

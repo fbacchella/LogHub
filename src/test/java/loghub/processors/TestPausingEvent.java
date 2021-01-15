@@ -84,8 +84,8 @@ public class TestPausingEvent {
                 }
             })
             .build(true);
-            ;
-            throw new ProcessorException.PausedEventException(event, future);
+
+            throw new AsyncProcessor.PausedEventException(future);
         }
 
         @Override
