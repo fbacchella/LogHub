@@ -238,6 +238,7 @@ public class EventsProcessor extends Thread {
                                     .expiration(ap.getTimeout(), TimeUnit.SECONDS)
                                     .onTimeout(ap.getTimeoutHandler())
                                     .build();
+                    evrepo.pause(paused);
                     // Create the processor that will process the call back processor
                     @SuppressWarnings({ "rawtypes", "unchecked"})
                     FutureProcessor<?, ? extends Future<?>> pauser = new FutureProcessor(future, paused, ap);
@@ -253,7 +254,6 @@ public class EventsProcessor extends Thread {
                             blockedAsync.put(topause);
                         }
                     });
-                    evrepo.pause(paused);
                     status = ProcessingStatus.PAUSED;
                 } else if (ex.getFuture() == null) {
                     // No future, internal handling of the pause
