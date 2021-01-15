@@ -29,7 +29,6 @@ import loghub.Tools;
 
 public class TestFieldsAsynchronous {
 
-
     private static Logger logger;
 
     @BeforeClass
@@ -51,6 +50,11 @@ public class TestFieldsAsynchronous {
     BiFunction<Event, TestFieldsAsynchronous, Object> transform;
 
     private class SleepingProcessor extends AsyncFieldsProcessor<TestFieldsAsynchronous, Promise<TestFieldsAsynchronous>> {
+
+        
+        public SleepingProcessor() {
+            this.setQueueDepth(10);
+        }
 
         @Override
         public Object asyncProcess(Event event, TestFieldsAsynchronous content)
