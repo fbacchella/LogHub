@@ -1,6 +1,5 @@
 package loghub.processors;
 
-import java.lang.reflect.UndeclaredThrowableException;
 import java.net.Inet4Address;
 import java.net.Inet6Address;
 import java.net.InetAddress;
@@ -10,15 +9,11 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.Locale;
-import java.util.Optional;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Semaphore;
 import java.util.function.BiConsumer;
 
 import javax.cache.Cache;
 import javax.cache.processor.MutableEntry;
-
-import org.apache.logging.log4j.Level;
 
 import io.netty.channel.AddressedEnvelope;
 import io.netty.channel.EventLoopGroup;
@@ -116,12 +111,9 @@ public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<Dn
     private int cacheSize = 10000;
     @Getter @Setter
     private String poller = POLLER.NIO.name();
-    @Getter @Setter
-    private int queueDepth = -1;
 
     private DnsNameResolver dnsResolver;
     private Cache<DnsCacheKey, DnsCacheEntry> hostCache;
-    private Optional<Semaphore> queryCount;
 
     @Override
     public boolean configure(Properties properties) {
@@ -137,11 +129,7 @@ public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<Dn
             channelType = null;
             break;
         }
-        
-        if (queueDepth < 0) {
-            queueDepth = Math.min(properties.queuesDepth, 32768);
-        }
-        queryCount = Optional.of(queueDepth).filter(i -> i > 0).map(Semaphore::new);
+
         DnsNameResolverBuilder builder = new DnsNameResolverBuilder(evg.next())
                         .queryTimeoutMillis(getTimeout() * 1000L)
                         .channelType(channelType)
@@ -203,24 +191,7 @@ public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<Dn
             if (found != null) {
                 return found;
             } else {
-                try {
-                    queryCount.ifPresent(t -> {
-                        try {
-                            t.acquire();
-                        } catch (InterruptedException e) {
-                            throw new UndeclaredThrowableException(e);
-                        }
-                    });
-                } catch (UndeclaredThrowableException e) {
-                    InterruptedException ex = (InterruptedException) e.getCause();
-                    logger.error("Interrupted while resolving {}", toresolv);
-                    logger.catching(Level.DEBUG, ex);
-                    return false;
-                }
                 Future<AddressedEnvelope<DnsResponse, InetSocketAddress>> future = dnsResolver.query(dnsquery);
-                queryCount.ifPresent(s -> {
-                    future.addListener(f -> s.release());
-                });
                 throw new ProcessorException.PausedEventException(event, future);
             }
         } else if (addr instanceof String) {

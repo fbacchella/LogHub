@@ -2,6 +2,8 @@ package loghub.processors;
 
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.Optional;
+import java.util.concurrent.Semaphore;
 import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 
@@ -10,6 +12,9 @@ import loghub.AsyncProcessor;
 import loghub.Event;
 import loghub.Processor;
 import loghub.ProcessorException;
+import loghub.configuration.Properties;
+import lombok.Getter;
+import lombok.Setter;
 
 public abstract class AsyncFieldsProcessor<FI, F extends Future<FI>> extends FieldsProcessor {
 
@@ -66,13 +71,35 @@ public abstract class AsyncFieldsProcessor<FI, F extends Future<FI>> extends Fie
             return AsyncFieldsProcessor.this.getTimeoutHandler();
         }
 
+        @Override
+        public Optional<Semaphore> getLimiter() {
+            return queryCount;
+        }
+
     }
 
     private int timeout = 10;
 
+    @Getter @Setter
+    private int queueDepth = -1;
+
     public abstract Object asyncProcess(Event event, FI content) throws ProcessorException;
     public abstract boolean manageException(Event event, Exception e, String[] destination) throws ProcessorException;
     public abstract BiConsumer<Event, F> getTimeoutHandler();
+
+    private Optional<Semaphore> queryCount;
+
+    @Override
+    public boolean configure(Properties properties) {
+        if (queueDepth == 0 ) {
+            queryCount = Optional.empty();
+        } else if (queueDepth < 0) {
+            queryCount = Optional.of(new Semaphore(Math.min(properties.queuesDepth, 32768)));
+        } else {
+            queryCount = Optional.of(new Semaphore(Math.min(queueDepth, 32768)));
+        }
+        return super.configure(properties);
+    }
 
     @Override
     FieldSubProcessor getSubProcessor(Iterator<String[]> processing) {

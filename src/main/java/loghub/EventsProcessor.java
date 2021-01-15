@@ -1,7 +1,10 @@
 package loghub;
 
+import java.lang.reflect.UndeclaredThrowableException;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -12,7 +15,6 @@ import org.apache.logging.log4j.Logger;
 import com.codahale.metrics.Timer.Context;
 
 import io.netty.util.concurrent.Future;
-import loghub.PausedEvent.Builder;
 import loghub.configuration.TestEventProcessing;
 import loghub.metrics.Stats;
 import loghub.metrics.Stats.PipelineStat;
@@ -40,6 +42,10 @@ public class EventsProcessor extends Thread {
     private final Map<String,Pipeline> namedPipelines;
     private final int maxSteps;
     private final EventsRepository<Future<?>> evrepo;
+    
+    // Used to handle events async processing
+    private final BlockingQueue<Event> blockedAsync = new LinkedBlockingQueue<>();
+    private Event lastblockedAsync = null;
 
     public EventsProcessor(BlockingQueue<Event> inQueue, Map<String, BlockingQueue<Event>> outQueues, Map<String,Pipeline> namedPipelines, int maxSteps, EventsRepository<Future<?>> evrepo) {
         this.inQueue = inQueue;
@@ -54,6 +60,21 @@ public class EventsProcessor extends Thread {
     @Override
     public void run() {
         while (! isInterrupted()) {
+            Event lasttryblockedAsync;
+            // Used to detect if a an async processor was blocked
+            // blockedAsync is the queue of such events.
+            // lasttryblockedAsync is kind of flag that is used to detect that blockedAsync.poll() or inQueue.offer() succeeded.
+            do {
+                lasttryblockedAsync = lastblockedAsync;
+                if (lastblockedAsync != null) {
+                    if (inQueue.offer(lastblockedAsync)) {
+                        lastblockedAsync = blockedAsync.poll();
+                    }
+                } else {
+                    lastblockedAsync = blockedAsync.poll();
+                }
+            } while (lasttryblockedAsync != lastblockedAsync);
+
             Event event = null;
             try {
                 event = inQueue.take();
@@ -190,6 +211,24 @@ public class EventsProcessor extends Thread {
                     Event topause = ex.getEvent();
                     // A paused event was catch, create a custom FuturProcess for it that will be awaken when event come back
                     Future<?> future = ex.getFuture();
+                    // Wait if too much asynchronous event are waiting
+                    try {
+                        ap.getLimiter().ifPresent(t -> {
+                            try {
+                                t.acquire();
+                            } catch (InterruptedException iex) {
+                                throw new UndeclaredThrowableException(iex);
+                            }
+                        });
+                    } catch (UndeclaredThrowableException uex) {
+                        Thread.currentThread().interrupt();
+                        InterruptedException iex = (InterruptedException) uex.getCause();
+                        e.doMetric(Stats.PipelineStat.FAILURE, iex);
+                        logger.error("Interrupted");
+                        logger.catching(Level.DEBUG, iex);
+                        future.cancel(true);
+                        status = ProcessingStatus.FAILED;
+                    }
                     // Compilation fails if builder is used directly
                     PausedEvent.Builder<Future<?>> builder = PausedEvent.builder(topause, future);
                     PausedEvent<Future<?>> paused = builder
@@ -203,11 +242,16 @@ public class EventsProcessor extends Thread {
                     @SuppressWarnings({ "rawtypes", "unchecked"})
                     FutureProcessor<?, ? extends Future<?>> pauser = new FutureProcessor(future, paused, ap);
                     topause.insertProcessor(pauser);
-
                     //Store the callback informations
                     future.addListener(i -> {
-                        inQueue.put(topause);
+                        ap.getLimiter().ifPresent(Semaphore::release);
                         evrepo.cancel(future);
+                        // the listener must not call blocking call.
+                        // So if the bounded queue block, use a non blocking queue dedicated
+                        // to postpone processing of the offer.
+                        if (! inQueue.offer(topause)) {
+                            blockedAsync.put(topause);
+                        }
                     });
                     evrepo.pause(paused);
                     status = ProcessingStatus.PAUSED;

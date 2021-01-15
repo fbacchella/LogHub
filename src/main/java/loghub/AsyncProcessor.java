@@ -1,5 +1,7 @@
 package loghub;
 
+import java.util.Optional;
+import java.util.concurrent.Semaphore;
 import java.util.function.BiConsumer;
 
 import io.netty.util.concurrent.Future;
@@ -15,5 +17,7 @@ public interface AsyncProcessor<FI, F extends Future<FI>> {
      */
     public BiConsumer<Event, F> getTimeoutHandler();
     public int getTimeout();
-
+    public default Optional<Semaphore> getLimiter() {
+        return Optional.empty();
+    }
 }
