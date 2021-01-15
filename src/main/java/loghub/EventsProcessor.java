@@ -162,7 +162,7 @@ public class EventsProcessor extends Thread {
                     event.doMetric(PipelineStat.EXCEPTION, new IllegalStateException("Invalid end state for event, no pipeline"));
                     logger.debug("Invalid end state for event {}", event);
                     event.end();
-                }
+                } 
             }
             Stats.endProcessingEvent(tctxt);
         }

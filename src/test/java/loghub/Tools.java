@@ -122,21 +122,12 @@ public class Tools {
     }
 
     public static int tryGetPort() {
-        ServerSocket ss = null;
-        try {
-            ss = new ServerSocket(0);
+        
+        try (ServerSocket ss = new ServerSocket(0)){
             ss.setReuseAddress(true);
             return ss.getLocalPort();
         } catch (IOException e) {
             return -1;
-        } finally {
-            if (ss != null) {
-                try {
-                    ss.close();
-                } catch (IOException e) {
-                    /* should not be thrown */
-                }
-            }
         }
     }
 

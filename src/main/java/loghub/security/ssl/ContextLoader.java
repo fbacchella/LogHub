@@ -109,7 +109,7 @@ public class ContextLoader {
                 kmf.init(ks, "".toCharArray());
                 km = kmf.getKeyManagers();
                 X509ExtendedKeyManager origkm = (X509ExtendedKeyManager) km[0];
-                final Set<Principal> validIssuers;
+                Set<Principal> validIssuers;
                 if (properties.containsKey("issuers") && properties.get("issuers") instanceof Object[]) {
                     Object[] issuers = (Object[]) properties.get("issuers");
                     validIssuers = Arrays.stream(issuers).map(Object::toString).map( i -> {

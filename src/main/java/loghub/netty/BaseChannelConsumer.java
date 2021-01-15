@@ -78,7 +78,7 @@ public class BaseChannelConsumer<R extends NettyReceiver<?, ?, ?, ?, BS, BSC, ?,
             out.add(content);
         }
     }
-    
+
     private class LocalContextExtractor extends ContextExtractor<SM> {
         public LocalContextExtractor(NettyReceiver<?, ?, ?, ?, ?, ?, ?, ?, ?, SM> r) {
             super(r);
@@ -104,7 +104,7 @@ public class BaseChannelConsumer<R extends NettyReceiver<?, ?, ?, ?, BS, BSC, ?,
     @Override
     public void addHandlers(ChannelPipeline p) {
         p.addFirst(ContextExtractor.NAME, extractor);
-        p.addLast("ContentExtracotr", new ContentExtractor());
+        p.addLast("ContentExtractor", new ContentExtractor());
         filter.ifPresent(i -> {
             p.addLast("Filter", i);
         });

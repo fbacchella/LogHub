@@ -39,6 +39,7 @@ public abstract class Sender extends Thread implements Closeable {
     protected static class Batch extends ArrayList<EventFuture> {
         private final Sender sender;
         Batch() {
+            // Used for null batch, an always empty batch
             super(0);
             this.sender = null;
         }
@@ -172,7 +173,8 @@ public abstract class Sender extends Thread implements Closeable {
     }
 
     /**
-     * A runnable that will be affected to threads. It consumes event and send them as bulk
+     * A runnable that will be affected to publishing threads. It consumes event and send them as bulk
+     * 
      * @return
      */
     protected Runnable getPublisher() {
@@ -265,7 +267,7 @@ public abstract class Sender extends Thread implements Closeable {
             }
         }
     }
-    
+
     protected void customStopSending() {
         // Empty
     }
@@ -344,7 +346,7 @@ public abstract class Sender extends Thread implements Closeable {
                     processStatus(event, status);
                 }
                 event = null;
-             } catch (Throwable t) {
+            } catch (Throwable t) {
                 handleException(t);
                 processStatus(event, false);
             }
@@ -358,7 +360,7 @@ public abstract class Sender extends Thread implements Closeable {
     public boolean isWithBatch() {
         return threads != null;
     }
-    
+
     public int getWorkers() {
         return threads != null ? threads.length : 0;
     }
@@ -428,7 +430,7 @@ public abstract class Sender extends Thread implements Closeable {
             Stats.sentEvent(this);
         } else {
             Stats.failedSentEvent(this);
-         }
+        }
         event.end();
     }
 

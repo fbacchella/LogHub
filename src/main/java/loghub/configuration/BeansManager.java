@@ -82,28 +82,28 @@ public class BeansManager {
     public static <T> T ConstructFromString(Class<T> clazz, String value) throws InvocationTargetException {
         try {
             Constructor<T> c = null;
-            if(clazz == Integer.TYPE || Integer.class.equals(clazz)) {
+            if (clazz == Integer.TYPE || Integer.class.equals(clazz)) {
                 return (T) Integer.valueOf(value);
             }
-            else if(clazz == Double.TYPE || Integer.class.equals(clazz)) {
+            else if (clazz == Double.TYPE || Integer.class.equals(clazz)) {
                 return (T) Double.valueOf(value);
             }
-            else if(clazz == Float.TYPE || Float.class.equals(clazz)) {
+            else if (clazz == Float.TYPE || Float.class.equals(clazz)) {
                 return (T) Float.valueOf(value);
             }
-            else if(clazz == Byte.TYPE || Byte.class.equals(clazz)) {
+            else if (clazz == Byte.TYPE || Byte.class.equals(clazz)) {
                 return (T) Byte.valueOf(value);
             }
-            else if(clazz == Long.TYPE || Long.class.equals(clazz)) {
+            else if (clazz == Long.TYPE || Long.class.equals(clazz)) {
                 return (T) Long.valueOf(value);
             }
-            else if(clazz == Short.TYPE || Short.class.equals(clazz)) {
+            else if (clazz == Short.TYPE || Short.class.equals(clazz)) {
                 return (T) Short.valueOf(value);
             }
-            else if(clazz == Boolean.TYPE || Boolean.class.equals(clazz)) {
+            else if (clazz == Boolean.TYPE || Boolean.class.equals(clazz)) {
                 c = (Constructor<T>)Boolean.class.getConstructor(String.class);
             }
-            else if(clazz == Character.TYPE || Character.class.equals(clazz)) {
+            else if (clazz == Character.TYPE || Character.class.equals(clazz)) {
                 c = (Constructor<T>) Character.class.getConstructor(String.class);
             } else {
                 c = clazz.getConstructor(String.class);

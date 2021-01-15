@@ -267,7 +267,6 @@ public class ZMQHandler<M> implements AutoCloseable {
     @Override
     public void close() {
         assert Thread.currentThread() == runningThread;
-        assert ! running;
         Stream.of(socket, socketEndPair, socketMonitor)
         .filter(Objects::nonNull)
         .forEach(this::close);

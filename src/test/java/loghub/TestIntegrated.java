@@ -54,7 +54,7 @@ public class TestIntegrated {
         logger = LogManager.getLogger();
         LogUtils.setLevel(logger, Level.DEBUG, "loghub.EventsProcessor");
     }
-    
+
     @After
     public void endJmx() {
         JmxService.stop();

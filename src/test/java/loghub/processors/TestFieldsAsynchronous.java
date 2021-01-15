@@ -181,7 +181,7 @@ public class TestFieldsAsynchronous {
 
         Groovy gp2 = new Groovy();
         gp2.setScript("event.b = true");
-        
+
         processors.add(sp);
         processors.add(gp2);
         Tools.ProcessingStatus status = Tools.runProcessing(e, "main", processors, (i,j) -> { /* empty */ });

@@ -32,8 +32,9 @@ import loghub.senders.Sender;
 public class Start {
     
     /**
-     * Used to define custom exit code, start at 10 because I don't know what exit code are reserver by the JVM
-     * For example, ExitOnOutOfMemoryError return 3
+     * Used to define custom exit code, start at 10 because I don't know what exit code are reserver by the JVM.
+     * For example, ExitOnOutOfMemoryError return 3.
+     * 
      * @author Fabrice Bacchella
      *
      */

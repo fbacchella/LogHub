@@ -113,7 +113,6 @@ public class TestExpressionParsing {
     @Test
     public void testFormatterContextPrincipal() throws ExpressionException, ProcessorException {
         String format = "${#1%s}-${#2%tY}.${#2%tm}.${#2%td}";
-        String formatHash = Integer.toHexString(format.hashCode());
         Event ev =  Event.emptyEvent(new ConnectionContext<Object>() {
             @Override
             public Object getLocalAddress() {
@@ -138,7 +137,6 @@ public class TestExpressionParsing {
     @Test
     public void testFormatterEvent() throws ExpressionException, ProcessorException {
         String format = "${a}";
-        String formatHash = Integer.toHexString(format.hashCode());
         Event ev =  Tools.getEvent();
         ev.put("a", 1);
         Assert.assertEquals("1", evalExpression("\"" + format + "\"", ev));

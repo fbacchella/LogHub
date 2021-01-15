@@ -18,7 +18,7 @@ public class ParseJson extends FieldsProcessor {
     String atPrefix = "_";
 
     private final ObjectReader reader;
-    
+
     public ParseJson() {
         reader = JacksonBuilder.get()
                 .setFactory(new JsonFactory())

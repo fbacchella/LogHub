@@ -173,7 +173,7 @@ public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<Dn
             byte[] parts = ipv4.getAddress();
             // the & 0xFF is needed because bytes are signed bytes
             toresolv = reverseFormatV4.format(Arrays.asList(parts[3] & 0xFF , parts[2] & 0xFF , parts[1] & 0xFF, parts[0] & 0xFF));
-        } else if(ipaddr instanceof Inet6Address) {
+        } else if (ipaddr instanceof Inet6Address) {
             Inet6Address ipv6 = (Inet6Address) ipaddr;
             byte[] parts = ipv6.getAddress();
             StringBuilder buffer = new StringBuilder();

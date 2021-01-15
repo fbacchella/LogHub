@@ -181,7 +181,7 @@ public class JmxService {
 
             return this;
         }
-}
+    }
 
     private static JmxReporter reporter;
     private static MBeanServer mbs;

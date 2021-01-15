@@ -25,7 +25,7 @@ public abstract class NettyIpReceiver<R extends NettyIpReceiver<R, S, B, CF, BS,
         @Setter
         private String host = null;
         @Setter
-        int rcvBuf = -11;
+        int rcvBuf = -1;
         @Setter
         int sndBuf = -1;
     };

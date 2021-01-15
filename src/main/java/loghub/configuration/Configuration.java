@@ -322,7 +322,7 @@ public class Configuration {
 
     private Properties analyze(ConfigListener conf) throws ConfigException {
 
-        final Map<String, Object> newProperties = new HashMap<String, Object>(conf.properties.size() + Properties.PROPSNAMES.values().length + System.getProperties().size());
+        Map<String, Object> newProperties = new HashMap<String, Object>(conf.properties.size() + Properties.PROPSNAMES.values().length + System.getProperties().size());
 
         // Resolvers properties found and and it to new properties
         @SuppressWarnings("unchecked")
@@ -349,7 +349,7 @@ public class Configuration {
         newProperties.put(Properties.PROPSNAMES.NAMEDPIPELINES.toString(), namedPipeLine);
 
         //Find the queue depth
-        final int queuesDepth = newProperties.containsKey("queueDepth") ? (Integer) newProperties.remove("queueDepth") : DEFAULTQUEUEDEPTH;
+        int queuesDepth = newProperties.containsKey("queueDepth") ? (Integer) newProperties.remove("queueDepth") : DEFAULTQUEUEDEPTH;
         newProperties.put(Properties.PROPSNAMES.QUEUESDEPTH.toString(), queuesDepth);
 
         BlockingQueue<Event> mainQueue = new LinkedBlockingQueue<Event>(queuesDepth);
@@ -381,11 +381,11 @@ public class Configuration {
 
         // Fill the senders list
         senders = new ArrayList<>();
-        for(Output o: conf.outputs) {
-            if(o.piperef == null || ! namedPipeLine.containsKey(o.piperef)) {
+        for (Output o: conf.outputs) {
+            if (o.piperef == null || ! namedPipeLine.containsKey(o.piperef)) {
                 throw new IllegalArgumentException("Invalid output, no source pipeline: " + o);
             }
-            for(ConfigListener.ObjectWrapped<Sender> desc: o.sender) {
+            for (ConfigListener.ObjectWrapped<Sender> desc: o.sender) {
                 BlockingQueue<Event> out = outputQueues.get(o.piperef);
                 Sender s = desc.wrapped;
                 s.setInQueue(out);
