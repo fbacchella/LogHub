@@ -57,7 +57,7 @@ public class ElasticSearch extends AbstractHttpSender {
 
     public static class Builder extends AbstractHttpSender.Builder<ElasticSearch> {
         @Setter
-        private String type = "type";
+        private String type = null;
         @Setter
         private String typeX = null;
         @Setter
@@ -266,19 +266,21 @@ public class ElasticSearch extends AbstractHttpSender {
                 } else {
                     settings.put("_index", indexvalue);
                 }
-                String typevalue;
-                if (typeExpression != null) {
-                    typevalue = Optional.ofNullable(typeExpression.eval(e)).map( i-> i.toString()).orElse(null);
-                } else {
-                    typevalue = Optional.ofNullable(esjson.remove(type)).map(i -> i.toString()).orElse(null);
-                }
-                if (typevalue == null || typevalue.isEmpty()) {
-                    ef.completeExceptionally(new EncodeException("No usable type for event"));
-                    logger.debug("No usable type for event {}", e);
-                    continue;
-                } else if (typeHandling != TYPEHANDLING.DEPRECATED){
-                    // Only put type informations is using old, pre 6.x handling of type
-                    settings.put("_type", typevalue);
+                if (typeHandling != TYPEHANDLING.DEPRECATED) {
+                    String typevalue = "_doc";
+                    if (typeExpression != null) {
+                        typevalue = Optional.ofNullable(typeExpression.eval(e)).map(i -> i.toString()).orElse(null);
+                    } else if (type != null) {
+                        typevalue = Optional.ofNullable(esjson.remove(type)).map(i -> i.toString()).orElse(null);
+                    }
+                    if (typevalue == null || typevalue.isEmpty()) {
+                        ef.completeExceptionally(new EncodeException("No usable type for event"));
+                        logger.debug("No usable type for event {}", e);
+                        continue;
+                    } else {
+                        // Only put type informations is using old, pre 6.x handling of type
+                        settings.put("_type", typevalue);
+                    } 
                 }
                 eventbuilder.append(jsonmapper.writeValueAsString(action));
                 eventbuilder.append("\n");
