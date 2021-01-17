@@ -3,7 +3,9 @@ package loghub.senders;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.io.Reader;
+import java.io.StringReader;
 import java.io.UncheckedIOException;
 import java.lang.management.ManagementFactory;
 import java.net.ConnectException;
@@ -11,8 +13,10 @@ import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.nio.charset.Charset;
 import java.security.GeneralSecurityException;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 import javax.management.InstanceAlreadyExistsException;
 import javax.management.InstanceNotFoundException;
@@ -24,36 +28,37 @@ import javax.management.NotCompliantMBeanException;
 import javax.management.ObjectName;
 import javax.management.StandardMBean;
 
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpHost;
-import org.apache.http.HttpVersion;
-import org.apache.http.RequestLine;
-import org.apache.http.auth.AuthScope;
-import org.apache.http.auth.UsernamePasswordCredentials;
-import org.apache.http.client.CredentialsProvider;
-import org.apache.http.client.config.RequestConfig;
-import org.apache.http.client.entity.EntityBuilder;
-import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.client.protocol.HttpClientContext;
-import org.apache.http.config.ConnectionConfig;
-import org.apache.http.config.Registry;
-import org.apache.http.config.RegistryBuilder;
-import org.apache.http.config.SocketConfig;
-import org.apache.http.conn.ConnectionPoolTimeoutException;
-import org.apache.http.conn.HttpHostConnectException;
-import org.apache.http.conn.routing.HttpRoute;
-import org.apache.http.conn.socket.ConnectionSocketFactory;
-import org.apache.http.conn.socket.PlainConnectionSocketFactory;
-import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
-import org.apache.http.entity.ByteArrayEntity;
-import org.apache.http.impl.client.BasicCredentialsProvider;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClientBuilder;
-import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
-import org.apache.http.message.BasicHttpEntityEnclosingRequest;
-import org.apache.http.message.BasicRequestLine;
-import org.apache.http.pool.ConnPoolControl;
-import org.apache.http.util.VersionInfo;
+import org.apache.hc.client5.http.HttpHostConnectException;
+import org.apache.hc.client5.http.HttpRoute;
+import org.apache.hc.client5.http.auth.AuthScope;
+import org.apache.hc.client5.http.auth.CredentialsStore;
+import org.apache.hc.client5.http.auth.UsernamePasswordCredentials;
+import org.apache.hc.client5.http.config.RequestConfig;
+import org.apache.hc.client5.http.impl.auth.BasicCredentialsProvider;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
+import org.apache.hc.client5.http.impl.classic.HttpClientBuilder;
+import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager;
+import org.apache.hc.client5.http.protocol.HttpClientContext;
+import org.apache.hc.client5.http.socket.ConnectionSocketFactory;
+import org.apache.hc.client5.http.socket.PlainConnectionSocketFactory;
+import org.apache.hc.client5.http.ssl.SSLConnectionSocketFactory;
+import org.apache.hc.core5.http.ClassicHttpRequest;
+import org.apache.hc.core5.http.HttpEntity;
+import org.apache.hc.core5.http.HttpHost;
+import org.apache.hc.core5.http.HttpVersion;
+import org.apache.hc.core5.http.Method;
+import org.apache.hc.core5.http.config.Registry;
+import org.apache.hc.core5.http.config.RegistryBuilder;
+import org.apache.hc.core5.http.io.SocketConfig;
+import org.apache.hc.core5.http.io.entity.HttpEntities;
+import org.apache.hc.core5.http.message.BasicClassicHttpRequest;
+import org.apache.hc.core5.http.message.BasicHeader;
+import org.apache.hc.core5.io.CloseMode;
+import org.apache.hc.core5.io.IOCallback;
+import org.apache.hc.core5.pool.ConnPoolControl;
+import org.apache.hc.core5.util.TimeValue;
+import org.apache.hc.core5.util.VersionInfo;
 import org.apache.logging.log4j.Level;
 
 import loghub.Helpers;
@@ -83,7 +88,7 @@ public abstract class AbstractHttpSender extends Sender {
         private String verb = "GET";
         private HttpVersion httpVersion = HttpVersion.HTTP_1_1;
         private URL url = null;
-        private final Map<String, String> headers = new HashMap<>();
+        private final List<BasicHeader> headers = new ArrayList<>();
         private HttpEntity content = null;
         public String getVerb() {
             return verb;
@@ -95,7 +100,7 @@ public abstract class AbstractHttpSender extends Sender {
             return httpVersion.toString();
         }
         public void setHttpVersion(int major, int minor) {
-            this.httpVersion = (HttpVersion) httpVersion.forVersion(major, minor);
+            this.httpVersion = HttpVersion.get(major, minor);
         }
         public URL getUrl() {
             return url;
@@ -104,32 +109,38 @@ public abstract class AbstractHttpSender extends Sender {
             this.url = url;
         }
         public void addHeader(String header, String value) {
-            headers.put(header, value);
+            headers.add(new BasicHeader(header, value));
         }
         public void clearHeaders() {
             headers.clear();
         }
-        public void setContent(byte[] content) {
-            this.content = new ByteArrayEntity(content);
+        public void setTypeAndContent(ContentType mimeType, byte[] content) throws IOException {
+            this.content = HttpEntities.createGzipped(content, mimeType.realType);
         }
-        public void setTypeAndContent(String mimeType, Charset charset, byte[] content) throws IOException {
-            EntityBuilder builder = EntityBuilder.create()
-                            .setBinary(content)
-                            .setContentType(org.apache.http.entity.ContentType.create(mimeType, charset));
-            this.content = builder.build();
+        public void setTypeAndContent(ContentType mimeType, ContentWriter source) throws IOException {
+            IOCallback<OutputStream> cp = source::writeTo;
+            content = HttpEntities.createGzipped(cp, mimeType.realType);
         }
+    }
+
+    protected static interface ContentWriter {
+        void writeTo(OutputStream outStream) throws IOException;
     }
 
     protected enum ContentType {
 
-        APPLICATION_OCTET_STREAM (org.apache.http.entity.ContentType.APPLICATION_OCTET_STREAM ),
-        APPLICATION_JSON(org.apache.http.entity.ContentType.APPLICATION_JSON),
-        TEXT_XML(org.apache.http.entity.ContentType.TEXT_XML);
+        APPLICATION_OCTET_STREAM (org.apache.hc.core5.http.ContentType.APPLICATION_OCTET_STREAM ),
+        APPLICATION_JSON(org.apache.hc.core5.http.ContentType.APPLICATION_JSON),
+        TEXT_XML(org.apache.hc.core5.http.ContentType.TEXT_XML);
 
-        private final org.apache.http.entity.ContentType realType;
+        private final org.apache.hc.core5.http.ContentType realType;
 
-        ContentType(org.apache.http.entity.ContentType realType) {
+        private ContentType(org.apache.hc.core5.http.ContentType realType) {
             this.realType = realType;
+        }
+        
+        public Charset getCharset() {
+            return realType.getCharset();
         }
 
         @Override
@@ -141,52 +152,50 @@ public abstract class AbstractHttpSender extends Sender {
 
     protected class HttpResponse implements Closeable {
         private final HttpHost host;
-        private final CloseableHttpResponse response;
+        private final Optional<CloseableHttpResponse> response;
         private final IOException socketException;
         private final GeneralSecurityException sslexception;
+        private final Optional<org.apache.hc.core5.http.ContentType> ct;
+        private final Optional<HttpEntity> resultBody;
 
         private HttpResponse(HttpHost host, CloseableHttpResponse response, IOException socketException, GeneralSecurityException sslexception) {
-            super();
             this.host = host;
-            this.response = response;
+            this.response = Optional.ofNullable(response);
             this.socketException = socketException;
             this.sslexception = sslexception;
+            resultBody = this.response.map(CloseableHttpResponse::getEntity);
+            ct = resultBody.map(HttpEntity::getContentType).map(org.apache.hc.core5.http.ContentType::parse);
         }
         public String getMimeType() {
-            HttpEntity resultBody = response.getEntity();
-            org.apache.http.entity.ContentType ct = org.apache.http.entity.ContentType.get(resultBody);
-            if (ct !=  null) {
-                return ct.getMimeType();
-            } else {
-                return "";
-            }
+            return ct.map(org.apache.hc.core5.http.ContentType::getMimeType).orElse(ContentType.APPLICATION_OCTET_STREAM.toString());
         }
         public String getHost() {
             return host.toURI();
         }
-        public void close() {
-            try {
-                if (response != null) {
-                    response.close();
-                }
-            } catch (IOException e) {
-                throw new UncheckedIOException(e);
+        @Override
+        public void close() throws IOException {
+            if (response.isPresent()) {
+                response.get().close();
             }
         }
         public Reader getContentReader() throws IOException {
-            HttpEntity resultBody = response.getEntity();
-            org.apache.http.entity.ContentType ct = org.apache.http.entity.ContentType.get(resultBody);
-            Charset charset = ct.getCharset();
-            if (charset == null) {
-                charset = Charset.defaultCharset();
+            try {
+                return resultBody.map(e -> {
+                    try {
+                        return (Reader) new InputStreamReader(e.getContent(), ct.map(org.apache.hc.core5.http.ContentType::getCharset).orElse(Charset.defaultCharset()));
+                    } catch (IOException ex) {
+                        throw new UncheckedIOException(ex);
+                    }
+                }).orElse(new StringReader(""));
+            } catch (UncheckedIOException e) {
+                throw e.getCause();
             }
-            return new InputStreamReader(resultBody.getContent(), charset);
         }
         public int getStatus() {
-            return response.getStatusLine().getStatusCode();
+            return response.map(CloseableHttpResponse::getCode).orElse(-1);
         }
         public String getStatusMessage() {
-            return response.getStatusLine().getReasonPhrase();
+            return response.map(CloseableHttpResponse::getReasonPhrase).orElse("");
         }
         public boolean isConnexionFailed() {
             return socketException != null || sslexception != null;
@@ -232,9 +241,8 @@ public abstract class AbstractHttpSender extends Sender {
         }
     }
 
-    // Beans
     private final int timeout;
-    private CredentialsProvider credsProvider = null;
+    private final CredentialsStore credsProvider;
 
     private CloseableHttpClient client = null;
     protected final URL[] endPoints;
@@ -247,15 +255,15 @@ public abstract class AbstractHttpSender extends Sender {
         String user = builder.user != null ? builder.user : builder.login;
         if (user != null && builder.password != null) {
             credsProvider = new BasicCredentialsProvider();
-            for(URL i: endPoints) {
-                credsProvider.setCredentials(
-                                             new AuthScope(i.getHost(), i.getPort()), 
-                                             new UsernamePasswordCredentials(user, builder.password));
+            for (URL i: endPoints) {
+                credsProvider.setCredentials(new AuthScope(i.getHost(), i.getPort()), 
+                                             new UsernamePasswordCredentials(user, builder.password.toCharArray()));
             }
+        } else {
+            credsProvider = null;
         }
-
     }
-    
+
     private ObjectName getObjectName() throws MalformedObjectNameException {
         return new ObjectName("loghub:type=Senders,servicename=" + getSenderName() + ",name=connectionsPool");
     }
@@ -263,28 +271,29 @@ public abstract class AbstractHttpSender extends Sender {
     @Override
     public boolean configure(Properties properties) {
         if (super.configure(properties)) {
-            if(endPoints.length == 0) {
+            if (endPoints.length == 0) {
+                logger.error("New usable endpoints defined");
                 return false;
             }
 
-            // The HTTP connection management
-            HttpClientBuilder clientBuilder = HttpClientBuilder.create();
-            clientBuilder.setUserAgent(VersionInfo.getUserAgent("LogHub-HttpClient",
-                                                                "org.apache.http.client", HttpClientBuilder.class));
-
-            RegistryBuilder<ConnectionSocketFactory> registryBuilder = RegistryBuilder.<ConnectionSocketFactory>create()
-                    .register("http", PlainConnectionSocketFactory.getSocketFactory());
- 
+            // Build the registry
+            RegistryBuilder<ConnectionSocketFactory> registryBuilder = RegistryBuilder.<ConnectionSocketFactory>create();
+            registryBuilder.register("http", PlainConnectionSocketFactory.getSocketFactory());
             if (properties.ssl != null) {
                 registryBuilder.register("https", new SSLConnectionSocketFactory(properties.ssl));
             }
-            // Set the Configuration manager
             Registry<ConnectionSocketFactory> registry = registryBuilder.build();
+
+            // Build HTTP the connection manager
             PoolingHttpClientConnectionManager cm = new PoolingHttpClientConnectionManager(registry);
-            cm.setMaxTotal(getThreads() + 1);
-            cm.setDefaultMaxPerRoute(getThreads() + 1);
-            cm.setValidateAfterInactivity(timeout * 1000);
-            clientBuilder.setConnectionManager(cm);
+            cm.setMaxTotal(getThreads());
+            cm.setDefaultMaxPerRoute(getThreads());
+            cm.setValidateAfterInactivity(TimeValue.ofSeconds(1));
+            cm.setDefaultSocketConfig(SocketConfig.custom()
+                                                  .setTcpNoDelay(true)
+                                                  .setSoKeepAlive(true)
+                                                  .setSoTimeout(timeout, TimeUnit.SECONDS)
+                                                  .build());
 
             try {
                 MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
@@ -295,25 +304,16 @@ public abstract class AbstractHttpSender extends Sender {
                 return false;
             }
 
-            if (properties.ssl != null) {
-                clientBuilder.setSSLContext(properties.ssl);
-            }
-
+            // Build the client
+            HttpClientBuilder clientBuilder = HttpClientBuilder.create();
+            VersionInfo vi = VersionInfo.loadVersionInfo("org.apache.hc.client5", properties.classloader);
+            clientBuilder.setUserAgent(String.format("LogHub-HttpClient/%s (Java/%s)", vi.getRelease(), System.getProperty("java.version")));
+            clientBuilder.setConnectionManager(cm);
             clientBuilder.setDefaultRequestConfig(RequestConfig.custom()
-                                                  .setConnectionRequestTimeout(timeout * 1000)
-                                                  .setConnectTimeout(timeout * 1000)
-                                                  .setSocketTimeout(timeout * 1000)
+                                                  .setConnectionRequestTimeout(timeout, TimeUnit.SECONDS)
+                                                  .setConnectTimeout(timeout, TimeUnit.SECONDS)
                                                   .build());
-            clientBuilder.setDefaultSocketConfig(SocketConfig.custom()
-                                                 .setTcpNoDelay(true)
-                                                 .setSoKeepAlive(true)
-                                                 .setSoTimeout(timeout * 1000)
-                                                 .build());
-            clientBuilder.setDefaultConnectionConfig(ConnectionConfig.custom()
-                                                     .build());
             clientBuilder.disableCookieManagement();
-
-            clientBuilder.setRetryHandler((i,j, k) -> false);
 
             client = clientBuilder.build();
 
@@ -328,33 +328,29 @@ public abstract class AbstractHttpSender extends Sender {
         if (credsProvider != null) {
             context.setCredentialsProvider(credsProvider);
         }
-
-        RequestLine requestLine = new BasicRequestLine(therequest.verb, therequest.url.getFile(), therequest.httpVersion);
-        BasicHttpEntityEnclosingRequest request = new BasicHttpEntityEnclosingRequest(requestLine);
+        HttpHost host = new HttpHost(therequest.url.getProtocol(),
+                therequest.url.getHost(),
+                therequest.url.getPort());
+        Method method = Method.valueOf(therequest.verb);
+        ClassicHttpRequest request = new BasicClassicHttpRequest(method, host, therequest.url.getFile());
         if (therequest.content != null) {
             request.setEntity(therequest.content);
         }
-        therequest.headers.forEach((i,j) -> request.addHeader(i, j));
-        HttpHost host = new HttpHost(therequest.url.getHost(),
-                            therequest.url.getPort(),
-                            therequest.url.getProtocol());
+        therequest.headers.forEach(request::addHeader);
         try {
             CloseableHttpResponse response = client.execute(host, request, context);
             return new HttpResponse(host, response, null, null);
-        } catch (ConnectionPoolTimeoutException e) {
-            logger.error("All connections slots to {} used.", host);
-            return new HttpResponse(host, null, e, null);
         } catch (HttpHostConnectException e) {
             String message = "";
             try {
                 throw e.getCause();
-            } catch (ConnectException e1) {
+            } catch (ConnectException ex) {
                 message = String.format("Connection to %s refused", host);
-            } catch (SocketTimeoutException e1) {
+            } catch (SocketTimeoutException ex) {
                 message = String.format("Slow response from %s", host);
-            } catch (Throwable e1) {
+            } catch (Throwable ex) {
                 // Don't worry, it was wrapped in HttpHostConnectException, so we're never catching a fatal exception here
-                message = String.format("Connection to %s failed: %s", host, Helpers.resolveThrowableException(e1));
+                message = String.format("Connection to %s failed: %s", host, Helpers.resolveThrowableException(ex));
             }
             logger.error(message);
             logger.catching(Level.DEBUG, e.getCause());
@@ -379,6 +375,7 @@ public abstract class AbstractHttpSender extends Sender {
 
     @Override
     public void customStopSending() {
+        client.close(CloseMode.GRACEFUL);
         try {
             MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
             mbs.unregisterMBean(getObjectName());

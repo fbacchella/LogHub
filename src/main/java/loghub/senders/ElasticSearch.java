@@ -2,6 +2,7 @@ package loghub.senders;
 
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.io.UncheckedIOException;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -22,13 +23,12 @@ import java.util.stream.Stream;
 
 import org.apache.logging.log4j.Level;
 
-import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.json.JsonWriteFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
 import io.netty.util.CharsetUtil;
 import loghub.BuilderClass;
@@ -40,6 +40,7 @@ import loghub.Helpers;
 import loghub.ProcessorException;
 import loghub.configuration.Properties;
 import loghub.encoders.EncodeException;
+import loghub.jackson.JacksonBuilder;
 import loghub.metrics.Stats;
 import lombok.Setter;
 
@@ -68,9 +69,9 @@ public class ElasticSearch extends AbstractHttpSender {
         private String templateName = "loghub";
         @Setter
         private String templatePath = null;
-
         @Setter
         private TYPEHANDLING typeHandling = TYPEHANDLING.USING;
+
         public Builder() {
             this.setPort(9200);
             this.setBatchSize(20);
@@ -90,18 +91,13 @@ public class ElasticSearch extends AbstractHttpSender {
         return new Builder();
     }
 
-    private static final JsonFactory factory = new JsonFactory();
-    private static final ThreadLocal<ObjectMapper> json = new ThreadLocal<ObjectMapper>() {
-        @Override
-        protected ObjectMapper initialValue() {
-            return new ObjectMapper(factory)
-                            .configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false)
-                            .configure(JsonWriteFeature.ESCAPE_NON_ASCII.mappedFeature(), true)
-                            .registerModule(new JavaTimeModule());
-        }
-    };
-
-    private static final ThreadLocal<DateFormat> ISO8601 = ThreadLocal.withInitial( () -> new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ"));
+    private static final ObjectMapper json = JacksonBuilder.get()
+            .setMapperSupplier(ObjectMapper::new)
+            .setConfigurator(m -> m.configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false).configure(JsonWriteFeature.ESCAPE_NON_ASCII.mappedFeature(), true))
+            .getMapper();
+    private static final ObjectReader jsonreader = json.readerFor(Map.class);
+    private static final byte[] lf = "\n".getBytes(CharsetUtil.UTF_8);
+    private static final int FLUSHBYTES = 8192;
 
     private final String type;
     private final String typeExpressionSrc;
@@ -190,12 +186,8 @@ public class ElasticSearch extends AbstractHttpSender {
         HttpRequest request = new HttpRequest();
         // This list contains the event futures that will be effectively sent to ES
         List<EventFuture> tosend = new ArrayList<EventFuture>(documents.size());
-        byte[] content = putContent(documents, tosend);
-        if (content.length == 0) {
-            return;
-        }
         try {
-            request.setTypeAndContent("application/json", CharsetUtil.UTF_8, content);
+            request.setTypeAndContent(ContentType.APPLICATION_JSON, os -> putContent(documents, tosend, os));
         } catch (IOException e) {
             throw new SendException(e);
         }
@@ -203,13 +195,12 @@ public class ElasticSearch extends AbstractHttpSender {
         Function<JsonNode, Map<String, ? extends Object>> reader;
         reader = node -> {
             try {
-                return json.get().readerFor(Map.class).readValue(node);
+                return jsonreader.readValue(node);
             } catch (IOException e) {
                 throw new UncheckedIOException(e);
             }
         };
         Map<String, ? extends Object> response = doquery(request, "/_bulk", reader, Collections.emptyMap(), null);
-        Stats.sentBytes(this, content.length);
         if (response != null && Boolean.TRUE.equals(response.get("errors"))) {
             @SuppressWarnings("unchecked")
             List<Map<String, ?>> items = (List<Map<String, ?>>) response.get("items");
@@ -238,21 +229,18 @@ public class ElasticSearch extends AbstractHttpSender {
         }
     }
 
-    private byte[] putContent(List<EventFuture> events, List<EventFuture> toprocess) {
-        StringBuilder builder = new StringBuilder();
-        StringBuilder eventbuilder = new StringBuilder();
+    private void putContent(List<EventFuture> events, List<EventFuture> toprocess, OutputStream os) throws IOException {
         Map<String, String> settings = new HashMap<>(2);
         Map<String, Object> action = Collections.singletonMap("index", settings);
         Map<String, Object> esjson = new HashMap<>();
-        ObjectMapper jsonmapper = json.get();
-        int validEvents = 0;
+        ObjectMapper jsonmapper = json;
+        int sent = 0;
         for (EventFuture ef: events) {
             try {
                 Event e = ef.getEvent();
-                eventbuilder.setLength(0);
                 esjson.clear();
                 esjson.putAll(e);
-                esjson.put("@timestamp", ISO8601.get().format(e.getTimestamp()));
+                esjson.put("@timestamp", e.getTimestamp());
                 String indexvalue;
                 if (indexExpression != null) {
                     indexvalue = Optional.ofNullable(indexExpression.eval(e)).map( i-> i.toString()).orElse(null);
@@ -282,12 +270,14 @@ public class ElasticSearch extends AbstractHttpSender {
                         settings.put("_type", typevalue);
                     } 
                 }
-                eventbuilder.append(jsonmapper.writeValueAsString(action));
-                eventbuilder.append("\n");
-                eventbuilder.append(jsonmapper.writeValueAsString(esjson));
-                eventbuilder.append("\n");
-                builder.append(eventbuilder);
-                validEvents++;
+                sent += sendbytes(os, jsonmapper.writeValueAsString(action).getBytes(CharsetUtil.UTF_8));
+                sent += sendbytes(os, lf);
+                sent += sendbytes(os, jsonmapper.writeValueAsString(esjson).getBytes(CharsetUtil.UTF_8));
+                sent += sendbytes(os, lf);
+                if (sent > FLUSHBYTES) {
+                    os.flush();
+                    sent = 0;
+                }
                 toprocess.add(ef);
             } catch (JsonProcessingException | ProcessorException ex) {
                 ef.completeExceptionally(ex);
@@ -295,11 +285,13 @@ public class ElasticSearch extends AbstractHttpSender {
                 continue;
             }
         }
-        if (validEvents == 0) {
-            return new byte[] {};
-        } else {
-            return builder.toString().getBytes(CharsetUtil.UTF_8);
-        }
+        os.flush();
+    }
+
+    private int sendbytes(OutputStream os, byte[] bytes) throws IOException {
+        os.write(bytes);
+        Stats.sentBytes(this, bytes.length);
+        return bytes.length;
     }
 
     private int checkMajorVersion() {
@@ -350,7 +342,7 @@ public class ElasticSearch extends AbstractHttpSender {
                             .map( i -> {
                                 try {
                                     @SuppressWarnings("unchecked")
-                                    Map<Object, Object> localtemplate = json.get().readValue(i, Map.class);
+                                    Map<Object, Object> localtemplate = jsonreader.readValue(i, Map.class);
                                     return localtemplate;
                                 } catch (IOException e) {
                                     throw new UncheckedIOException(e);
@@ -369,7 +361,7 @@ public class ElasticSearch extends AbstractHttpSender {
         wantedtemplate.put("version", wantedVersion);
         Function<JsonNode, Boolean> checkTemplate = node -> {
             try {
-                Map<?, ?> foundTemplate = json.get().treeToValue(node, Map.class);
+                Map<?, ?> foundTemplate = jsonreader.treeToValue(node, Map.class);
                 Map<?, ?> templateMap = (Map<?, ?>) foundTemplate.get(templateName);
                 Optional<Integer> opt = Optional.ofNullable((Integer)templateMap.get("version"));
                 return opt.map(i-> i != wantedVersion).orElseGet(() -> true);
@@ -384,8 +376,8 @@ public class ElasticSearch extends AbstractHttpSender {
             HttpRequest puttemplate = new HttpRequest();
             puttemplate.setVerb("PUT");
             try {
-                String jsonbody = json.get().writeValueAsString(wantedtemplate);
-                puttemplate.setTypeAndContent("application/json", CharsetUtil.UTF_8, jsonbody.getBytes(CharsetUtil.UTF_8));
+                String jsonbody = json.writeValueAsString(wantedtemplate);
+                puttemplate.setTypeAndContent(ContentType.APPLICATION_JSON, jsonbody.getBytes(ContentType.APPLICATION_JSON.getCharset()));
             } catch (IOException e) {
                 logger.fatal("Can't build buffer: {}", () -> e);
                 logger.catching(Level.DEBUG, e);
@@ -422,7 +414,7 @@ public class ElasticSearch extends AbstractHttpSender {
                 int status = response.getStatus();
                 String responseMimeType = response.getMimeType();
                 if ((status - status % 100) == 200 && "application/json".equals(responseMimeType)) {
-                    JsonNode node = json.get().readTree(response.getContentReader());
+                    JsonNode node = jsonreader.readTree(response.getContentReader());
                     return transform.apply(node);
                 } else if ((status - status % 100) == 200 || (status - status % 100) == 500) {
                     // This node return 200 but not a application/json, or a 500
@@ -430,11 +422,11 @@ public class ElasticSearch extends AbstractHttpSender {
                     logger.warn("Broken node: {}, returned '{} {}' {}", newEndPoint, status, response.getStatusMessage(), response.getMimeType());
                     continue;
                 } else if (failureHandlers.containsKey(status) && "application/json".equals(responseMimeType)){
-                    JsonNode node = json.get().readTree(response.getContentReader());
+                    JsonNode node = jsonreader.readTree(response.getContentReader());
                     // Only ES failures can be handled
                     return failureHandlers.get(status).apply(node);
                 } else if ("application/json".equals(responseMimeType)){
-                    JsonNode node = json.get().readTree(response.getContentReader());
+                    JsonNode node = jsonreader.readTree(response.getContentReader());
                     logger.error("Invalid query: {} {}, return '{} {}'", request.getVerb(), newEndPoint, status, response.getStatusMessage());
                     logger.debug("error body: {}", () -> node.toString());
                 } else {
