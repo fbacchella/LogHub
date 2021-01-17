@@ -39,24 +39,23 @@ import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
 import org.apache.hc.client5.http.impl.classic.HttpClientBuilder;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager;
+import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
 import org.apache.hc.client5.http.protocol.HttpClientContext;
-import org.apache.hc.client5.http.socket.ConnectionSocketFactory;
-import org.apache.hc.client5.http.socket.PlainConnectionSocketFactory;
-import org.apache.hc.client5.http.ssl.SSLConnectionSocketFactory;
+import org.apache.hc.client5.http.ssl.SSLConnectionSocketFactoryBuilder;
 import org.apache.hc.core5.http.ClassicHttpRequest;
 import org.apache.hc.core5.http.HttpEntity;
 import org.apache.hc.core5.http.HttpHost;
 import org.apache.hc.core5.http.HttpVersion;
 import org.apache.hc.core5.http.Method;
-import org.apache.hc.core5.http.config.Registry;
-import org.apache.hc.core5.http.config.RegistryBuilder;
 import org.apache.hc.core5.http.io.SocketConfig;
 import org.apache.hc.core5.http.io.entity.HttpEntities;
 import org.apache.hc.core5.http.message.BasicClassicHttpRequest;
 import org.apache.hc.core5.http.message.BasicHeader;
+import org.apache.hc.core5.http.ssl.TLS;
 import org.apache.hc.core5.io.CloseMode;
 import org.apache.hc.core5.io.IOCallback;
 import org.apache.hc.core5.pool.ConnPoolControl;
+import org.apache.hc.core5.pool.PoolReusePolicy;
 import org.apache.hc.core5.util.TimeValue;
 import org.apache.hc.core5.util.VersionInfo;
 import org.apache.logging.log4j.Level;
@@ -276,24 +275,25 @@ public abstract class AbstractHttpSender extends Sender {
                 return false;
             }
 
-            // Build the registry
-            RegistryBuilder<ConnectionSocketFactory> registryBuilder = RegistryBuilder.<ConnectionSocketFactory>create();
-            registryBuilder.register("http", PlainConnectionSocketFactory.getSocketFactory());
-            if (properties.ssl != null) {
-                registryBuilder.register("https", new SSLConnectionSocketFactory(properties.ssl));
-            }
-            Registry<ConnectionSocketFactory> registry = registryBuilder.build();
-
             // Build HTTP the connection manager
-            PoolingHttpClientConnectionManager cm = new PoolingHttpClientConnectionManager(registry);
-            cm.setMaxTotal(getThreads());
-            cm.setDefaultMaxPerRoute(getThreads());
-            cm.setValidateAfterInactivity(TimeValue.ofSeconds(1));
-            cm.setDefaultSocketConfig(SocketConfig.custom()
-                                                  .setTcpNoDelay(true)
-                                                  .setSoKeepAlive(true)
-                                                  .setSoTimeout(timeout, TimeUnit.SECONDS)
-                                                  .build());
+            PoolingHttpClientConnectionManagerBuilder cmBuilder = PoolingHttpClientConnectionManagerBuilder.create()
+                    .setMaxConnTotal(getThreads())
+                    .setMaxConnPerRoute(getThreads())
+                    .setDefaultSocketConfig(SocketConfig.custom()
+                                                        .setTcpNoDelay(true)
+                                                        .setSoKeepAlive(true)
+                                                        .setSoTimeout(timeout, TimeUnit.SECONDS)
+                                                        .build())
+                    .setValidateAfterInactivity(TimeValue.ofSeconds(1))
+                    .setConnPoolPolicy(PoolReusePolicy.FIFO);
+            
+            if (properties.ssl != null) {
+                cmBuilder.setSSLSocketFactory(SSLConnectionSocketFactoryBuilder.create()
+                         .setSslContext(properties.ssl)
+                         .setTlsVersions(TLS.V_1_3, TLS.V_1_2)
+                         .build());
+            }
+            PoolingHttpClientConnectionManager cm = cmBuilder.build();
 
             try {
                 MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();

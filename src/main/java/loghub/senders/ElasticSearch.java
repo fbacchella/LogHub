@@ -254,6 +254,7 @@ public class ElasticSearch extends AbstractHttpSender {
                 } else {
                     settings.put("_index", indexvalue);
                 }
+                // Only put type informations is using old, pre 7.x handling of type
                 if (typeHandling != TYPEHANDLING.DEPRECATED) {
                     String typevalue = "_doc";
                     if (typeExpression != null) {
@@ -266,7 +267,6 @@ public class ElasticSearch extends AbstractHttpSender {
                         logger.debug("No usable type for event {}", e);
                         continue;
                     } else {
-                        // Only put type informations is using old, pre 6.x handling of type
                         settings.put("_type", typevalue);
                     } 
                 }
