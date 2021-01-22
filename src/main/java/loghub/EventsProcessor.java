@@ -47,7 +47,7 @@ public class EventsProcessor extends Thread {
     private final BlockingQueue<Event> blockedAsync = new LinkedBlockingQueue<>();
     private Event lastblockedAsync = null;
 
-    public EventsProcessor(BlockingQueue<Event> inQueue, Map<String, BlockingQueue<Event>> outQueues, Map<String,Pipeline> namedPipelines, int maxSteps, EventsRepository<Future<?>> evrepo) {
+    public EventsProcessor(PriorityBlockingQueue inQueue, Map<String, BlockingQueue<Event>> outQueues, Map<String,Pipeline> namedPipelines, int maxSteps, EventsRepository<Future<?>> evrepo) {
         this.inQueue = inQueue;
         this.outQueues = outQueues;
         this.namedPipelines = namedPipelines;

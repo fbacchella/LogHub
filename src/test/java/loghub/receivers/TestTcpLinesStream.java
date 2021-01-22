@@ -9,8 +9,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
@@ -26,6 +24,7 @@ import org.junit.Test;
 import loghub.Event;
 import loghub.LogUtils;
 import loghub.Pipeline;
+import loghub.PriorityBlockingQueue;
 import loghub.Tools;
 import loghub.configuration.Properties;
 import loghub.decoders.StringCodec;
@@ -45,7 +44,7 @@ public class TestTcpLinesStream {
 
     private TcpLinesStream receiver;
     private int port;
-    private BlockingQueue<Event> queue;
+    private PriorityBlockingQueue queue;
 
     @Test(timeout=5000)
     public void testSimple() throws IOException, InterruptedException {
@@ -101,7 +100,7 @@ public class TestTcpLinesStream {
 
     private void makeReceiver(Consumer<TcpLinesStream.Builder> prepare, Map<String, Object> propsMap) {
         port = Tools.tryGetPort();
-        queue = new ArrayBlockingQueue<>(1);
+        queue = new PriorityBlockingQueue();
         TcpLinesStream.Builder builder = TcpLinesStream.getBuilder();
         builder.setPort(port);
         builder.setDecoder(StringCodec.getBuilder().build());
@@ -118,7 +117,7 @@ public class TestTcpLinesStream {
     public void testAlreadyBinded() throws IOException {
         try (ServerSocket ss = new ServerSocket(0, 1, InetAddress.getLoopbackAddress());
              TcpLinesStream r = getReceiver(InetAddress.getLoopbackAddress().getHostAddress(), ss.getLocalPort())) {
-            BlockingQueue<Event> receiver = new ArrayBlockingQueue<>(10);
+            PriorityBlockingQueue receiver = new PriorityBlockingQueue();
             r.setOutQueue(receiver);
             r.setPipeline(new Pipeline(Collections.emptyList(), "testone", null));
             Assert.assertFalse(r.configure(new Properties(Collections.emptyMap())));

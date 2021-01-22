@@ -2,8 +2,6 @@ package loghub.netty;
 
 import java.io.IOException;
 import java.util.Collections;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ThreadFactory;
 
 import org.apache.logging.log4j.Level;
@@ -36,6 +34,7 @@ import loghub.ConnectionContext;
 import loghub.Event;
 import loghub.LogUtils;
 import loghub.Pipeline;
+import loghub.PriorityBlockingQueue;
 import loghub.Tools;
 import loghub.configuration.Properties;
 import loghub.decoders.StringCodec;
@@ -191,7 +190,7 @@ public class TestServer {
     @Test(timeout=2000)
     public void testSimple() throws InterruptedException {
         Properties empty = new Properties(Collections.emptyMap());
-        BlockingQueue<Event> receiver = new ArrayBlockingQueue<>(1);
+        PriorityBlockingQueue receiver = new PriorityBlockingQueue();
         TesterReceiver.Builder builder = TesterReceiver.getBuilder();
         
         try(TesterReceiver r = builder.build()) {

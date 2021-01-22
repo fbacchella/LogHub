@@ -2,7 +2,6 @@ package loghub;
 
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
@@ -78,7 +77,7 @@ public class EventsRepository<KEY> {
     }
 
     private final Map<KEY, PauseContext<KEY>> allPaused = new ConcurrentHashMap<>();
-    private final BlockingQueue<Event> mainQueue;
+    private final PriorityBlockingQueue mainQueue;
     private final ReadWriteLock backPressureLock = new ReentrantReadWriteLock();
 
     public EventsRepository(Properties properties) {

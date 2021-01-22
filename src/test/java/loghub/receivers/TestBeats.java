@@ -12,8 +12,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
@@ -38,6 +36,7 @@ import loghub.Event;
 import loghub.Filter;
 import loghub.LogUtils;
 import loghub.Pipeline;
+import loghub.PriorityBlockingQueue;
 import loghub.Tools;
 import loghub.configuration.Properties;
 import loghub.decoders.StringCodec;
@@ -60,7 +59,7 @@ public class TestBeats {
 
     private Beats receiver;
     private int port;
-    private BlockingQueue<Event> queue;
+    private PriorityBlockingQueue queue;
 
     public TestBeats() {
         ObjectMapper mapper = JacksonBuilder.get().setFactory(new JsonFactory()).getMapper();
@@ -164,7 +163,7 @@ public class TestBeats {
     public void testAlreadyBinded() throws IOException {
         try (ServerSocket ss = new ServerSocket(0, 1, InetAddress.getLoopbackAddress());
              Beats r = getReceiver(InetAddress.getLoopbackAddress().getHostAddress(), ss.getLocalPort())) {
-            BlockingQueue<Event> receiver = new ArrayBlockingQueue<>(10);
+            PriorityBlockingQueue receiver = new PriorityBlockingQueue();
             r.setOutQueue(receiver);
             r.setPipeline(new Pipeline(Collections.emptyList(), "testone", null));
             Assert.assertFalse(r.configure(new Properties(Collections.emptyMap())));
@@ -183,7 +182,7 @@ public class TestBeats {
 
     private void makeReceiver(Consumer<Beats.Builder> prepare, Map<String, Object> propsMap) {
         port = Tools.tryGetPort();
-        queue = new ArrayBlockingQueue<>(1);
+        queue = new PriorityBlockingQueue();
         Beats.Builder builder = Beats.getBuilder();
         builder.setPort(port);
         builder.setDecoder(StringCodec.getBuilder().build());

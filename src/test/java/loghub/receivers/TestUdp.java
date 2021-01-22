@@ -8,8 +8,6 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
 import java.util.function.Consumer;
 
 import org.apache.commons.compress.compressors.CompressorStreamFactory;
@@ -30,6 +28,7 @@ import loghub.Filter;
 import loghub.FilterException;
 import loghub.LogUtils;
 import loghub.Pipeline;
+import loghub.PriorityBlockingQueue;
 import loghub.Tools;
 import loghub.configuration.Properties;
 import loghub.decoders.StringCodec;
@@ -63,7 +62,7 @@ public class TestUdp {
 
     private void testsend(int size) throws IOException, InterruptedException {
         int port = Tools.tryGetPort();
-        BlockingQueue<Event> receiver = new ArrayBlockingQueue<>(10);
+        PriorityBlockingQueue receiver = new PriorityBlockingQueue();
 
         // Generate a locally binded random socket
         try (DatagramSocket socket = new DatagramSocket(0, InetAddress.getLoopbackAddress());
@@ -120,7 +119,7 @@ public class TestUdp {
     @Test(timeout=5000)
     public void testCompressed() throws InterruptedException, IOException, FilterException {
         int port = Tools.tryGetPort();
-        BlockingQueue<Event> receiver = new ArrayBlockingQueue<>(10);
+        PriorityBlockingQueue receiver = new PriorityBlockingQueue();
 
         Decompressor.Builder builder = Decompressor.getBuilder();
 
@@ -172,7 +171,7 @@ public class TestUdp {
                  b.setPort(ss.getLocalPort());
                  b.setDecoder(StringCodec.getBuilder().build());
              })) {
-            BlockingQueue<Event> receiver = new ArrayBlockingQueue<>(10);
+            PriorityBlockingQueue receiver = new PriorityBlockingQueue();
             r.setOutQueue(receiver);
             r.setPipeline(new Pipeline(Collections.emptyList(), "testone", null));
             Assert.assertFalse(r.configure(new Properties(Collections.emptyMap())));

@@ -7,7 +7,6 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.BlockingQueue;
 import java.util.function.BiFunction;
 import java.util.stream.Stream;
 
@@ -199,7 +198,7 @@ class EventWrapper extends Event {
     }
 
     @Override
-    public boolean inject(Pipeline pipeline, BlockingQueue<Event> mainqueue, boolean blocking) {
+    public boolean inject(Pipeline pipeline, PriorityBlockingQueue mainqueue, boolean blocking) {
         return event.inject(pipeline, mainqueue, blocking);
     }
 
@@ -211,7 +210,7 @@ class EventWrapper extends Event {
         event.refill(pipeline);
     }
 
-    public boolean inject(Event ev, BlockingQueue<Event> mainqueue) {
+    public boolean inject(Event ev, PriorityBlockingQueue mainqueue) {
         return event.inject(ev, mainqueue);
     }
 

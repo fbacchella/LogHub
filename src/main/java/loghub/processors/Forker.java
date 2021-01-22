@@ -1,9 +1,8 @@
 package loghub.processors;
 
-import java.util.concurrent.BlockingQueue;
-
 import loghub.Event;
 import loghub.Pipeline;
+import loghub.PriorityBlockingQueue;
 import loghub.Processor;
 import loghub.configuration.Properties;
 
@@ -17,7 +16,7 @@ public class Forker extends Processor {
 
     private String destination;
     private Pipeline pipeDestination;
-    private BlockingQueue<Event> mainQueue;
+    private PriorityBlockingQueue mainQueue;
 
     @Override
     public boolean process(Event event) {

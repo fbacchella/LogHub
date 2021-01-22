@@ -8,6 +8,7 @@ import loghub.ConnectionContext;
 import loghub.Event;
 import loghub.Expression;
 import loghub.Pipeline;
+import loghub.PriorityBlockingQueue;
 import loghub.Processor;
 import loghub.ProcessorException;
 import loghub.Expression.ExpressionException;
@@ -20,7 +21,7 @@ public class FireEvent extends Processor {
     private Map<String[], Expression> expressions;
     private String destination;
     private Pipeline pipeDestination;
-    private BlockingQueue<Event> mainQueue;
+    private PriorityBlockingQueue mainQueue;
 
     @Override
     public boolean configure(Properties properties) {

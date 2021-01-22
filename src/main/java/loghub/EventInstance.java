@@ -20,7 +20,6 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Queue;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
@@ -331,7 +330,7 @@ class EventInstance extends Event {
     /* (non-Javadoc)
      * @see loghub.Event#inject(loghub.Pipeline, java.util.concurrent.BlockingQueue, boolean)
      */
-    public boolean inject(Pipeline pipeline, BlockingQueue<Event> mainqueue, boolean blocking) {
+    public boolean inject(Pipeline pipeline, PriorityBlockingQueue mainqueue, boolean blocking) {
         nextPipeline = pipeline.nextPipeline;
         Optional<String>pipeName = Optional.ofNullable(pipeline.getName());
         pipeName.map(EventInstance::getPre).ifPresent(this::appendProcessor);
@@ -340,7 +339,7 @@ class EventInstance extends Event {
         pipeName.map(EventInstance::getPost).ifPresent(this::appendProcessor);
         if (blocking) {
             try {
-                mainqueue.put(this);
+                mainqueue.putBlocking(this);
                 return true;
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
@@ -354,7 +353,7 @@ class EventInstance extends Event {
     /* (non-Javadoc)
      * @see loghub.Event#inject(loghub.Event, java.util.concurrent.BlockingQueue)
      */
-    public boolean inject(Event ev, BlockingQueue<Event> mainqueue) {
+    public boolean inject(Event ev, PriorityBlockingQueue mainqueue) {
         EventInstance master = ev.getRealEvent();
         currentPipeline = master.currentPipeline;
         nextPipeline = master.nextPipeline;

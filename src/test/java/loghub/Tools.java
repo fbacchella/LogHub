@@ -9,7 +9,6 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -67,7 +66,7 @@ public class Tools {
     }
 
     public static class ProcessingStatus {
-        public BlockingQueue<Event> mainQueue;
+        public PriorityBlockingQueue mainQueue;
         public List<String> status;
         public EventsRepository<Future<?>> repository;
         @Override

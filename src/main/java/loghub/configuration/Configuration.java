@@ -48,6 +48,7 @@ import loghub.Event;
 import loghub.Helpers.ThrowingConsumer;
 import loghub.Helpers.ThrowingPredicate;
 import loghub.Pipeline;
+import loghub.PriorityBlockingQueue;
 import loghub.RouteLexer;
 import loghub.RouteParser;
 import loghub.RouteParser.ArrayContext;
@@ -68,6 +69,7 @@ public class Configuration {
     private static final Logger logger = LogManager.getLogger();
 
     private static final int DEFAULTQUEUEDEPTH = 100;
+    private static final int DEFAULTQUEUEWEIGHT = 4;
 
     private List<Receiver> receivers;
     private Set<String> inputpipelines = new HashSet<>();
@@ -329,7 +331,7 @@ public class Configuration {
         Function<Object, Object> resolve = i -> {
             return ((i instanceof ConfigListener.ObjectWrapped) ? ((ConfigListener.ObjectWrapped<Object>) i).wrapped : i);
         };
-        conf.properties.entrySet().stream().forEach( i-> newProperties.put(i.getKey(), resolve.apply(i.getValue())));
+        conf.properties.entrySet().stream().forEach(i-> newProperties.put(i.getKey(), resolve.apply(i.getValue())));
 
         Map<String, Pipeline> namedPipeLine = new HashMap<>(conf.pipelines.size());
 
@@ -351,8 +353,11 @@ public class Configuration {
         //Find the queue depth
         int queuesDepth = newProperties.containsKey("queueDepth") ? (Integer) newProperties.remove("queueDepth") : DEFAULTQUEUEDEPTH;
         newProperties.put(Properties.PROPSNAMES.QUEUESDEPTH.toString(), queuesDepth);
+        
+        // Find the queue weight
+        int queueWeight = newProperties.containsKey("queueWeigth") ? (Integer) newProperties.remove("queueWeigth") : DEFAULTQUEUEWEIGHT;
 
-        BlockingQueue<Event> mainQueue = new LinkedBlockingQueue<Event>(queuesDepth);
+        PriorityBlockingQueue mainQueue = new PriorityBlockingQueue(queuesDepth, queueWeight);
         Map<String, BlockingQueue<Event>> outputQueues = new HashMap<>(namedPipeLine.size());
         conf.outputPipelines.forEach( i-> outputQueues.put(i, new LinkedBlockingQueue<Event>(queuesDepth)));
 

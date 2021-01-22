@@ -33,6 +33,7 @@ import loghub.EventsRepository;
 import loghub.Expression;
 import loghub.Helpers;
 import loghub.Pipeline;
+import loghub.PriorityBlockingQueue;
 import loghub.Processor;
 import loghub.Source;
 import loghub.ThreadBuilder;
@@ -77,7 +78,7 @@ public class Properties extends HashMap<String, Object> {
     public final Map<String, VarFormatter> formatters;
     public final JmxService.Configuration jmxServiceConfiguration;
     public final int numWorkers;
-    public final BlockingQueue<Event> mainQueue;
+    public final PriorityBlockingQueue mainQueue;
     public final Map<String, BlockingQueue<Event>> outputQueues;
     public final int queuesDepth;
     public final int maxSteps;
@@ -202,7 +203,7 @@ public class Properties extends HashMap<String, Object> {
 
         // Default values are for tests, so the build unusable queuing environment
         queuesDepth = properties.containsKey(PROPSNAMES.QUEUESDEPTH.toString()) ? (int) properties.remove(PROPSNAMES.QUEUESDEPTH.toString()) : 0;
-        mainQueue = properties.containsKey(PROPSNAMES.MAINQUEUE.toString()) ? (BlockingQueue<Event>) properties.remove(PROPSNAMES.MAINQUEUE.toString()) : new LinkedBlockingDeque<Event>();
+        mainQueue = properties.containsKey(PROPSNAMES.MAINQUEUE.toString()) ? (PriorityBlockingQueue) properties.remove(PROPSNAMES.MAINQUEUE.toString()) : new PriorityBlockingQueue();
         outputQueues = properties.containsKey(PROPSNAMES.OUTPUTQUEUE.toString()) ? (Map<String, BlockingQueue<Event>>) properties.remove(PROPSNAMES.OUTPUTQUEUE.toString()) : null;
 
         Stats.waitingQueue(mainQueue::size);

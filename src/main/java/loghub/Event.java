@@ -9,7 +9,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.BlockingQueue;
 import java.util.function.BiFunction;
 import java.util.stream.Stream;
 
@@ -164,7 +163,7 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
      * @param blocking does it block or fails if the queue is full.
      * @return true if event was injected in the pipeline.
      */
-    public abstract boolean inject(Pipeline pipeline, BlockingQueue<Event> mainqueue, boolean blocking);
+    public abstract boolean inject(Pipeline pipeline, PriorityBlockingQueue mainqueue, boolean blocking);
 
     /**
      * This method inject a new event in a pipeline as
@@ -176,7 +175,7 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
      * @param mainqueue
      * @return true if event was injected in the pipeline.
      */
-    public boolean inject(Pipeline pipeline, BlockingQueue<Event> mainqueue) {
+    public boolean inject(Pipeline pipeline, PriorityBlockingQueue mainqueue) {
         return inject(pipeline, mainqueue, false);
     }
 
@@ -188,7 +187,13 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
      */
     public abstract void refill(Pipeline pipeline);
 
-    public abstract boolean inject(Event master, BlockingQueue<Event> mainqueue);
+    /**
+     * Inject this event in the processing pipelines, using another event as a reference for the state.
+     * @param master
+     * @param mainqueue
+     * @return
+     */
+    public abstract boolean inject(Event master, PriorityBlockingQueue mainqueue);
 
     public abstract void finishPipeline();
 

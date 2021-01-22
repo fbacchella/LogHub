@@ -5,8 +5,6 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.util.Collections;
 import java.util.Map;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
 import java.util.function.Consumer;
 
 import org.apache.logging.log4j.Level;
@@ -19,9 +17,9 @@ import org.junit.Test;
 
 import loghub.BeanChecks;
 import loghub.BeanChecks.BeanInfo;
-import loghub.Event;
 import loghub.LogUtils;
 import loghub.Pipeline;
+import loghub.PriorityBlockingQueue;
 import loghub.Tools;
 import loghub.configuration.Properties;
 
@@ -37,7 +35,7 @@ public class TestJournald {
     }
 
     private Journald receiver = null;
-    private BlockingQueue<Event> queue;
+    private PriorityBlockingQueue queue;
     private String hostname;
     private int port;
 
@@ -53,7 +51,7 @@ public class TestJournald {
         hostname =  InetAddress.getLoopbackAddress().getHostAddress();
         port = Tools.tryGetPort();
 
-        queue = new ArrayBlockingQueue<>(1);
+        queue = new PriorityBlockingQueue();
 
         Journald.Builder httpbuilder = Journald.getBuilder();
         httpbuilder.setHost(hostname);

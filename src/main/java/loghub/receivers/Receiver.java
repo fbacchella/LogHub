@@ -9,7 +9,6 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.BlockingQueue;
 import java.util.stream.Stream;
 
 import org.apache.logging.log4j.Level;
@@ -23,6 +22,7 @@ import loghub.Filter;
 import loghub.FilterException;
 import loghub.Helpers;
 import loghub.Pipeline;
+import loghub.PriorityBlockingQueue;
 import loghub.configuration.Properties;
 import loghub.decoders.DecodeException;
 import loghub.decoders.DecodeException.RuntimeDecodeException;
@@ -86,7 +86,7 @@ public abstract class Receiver extends Thread implements Iterator<Event>, Closea
     @Getter
     private final Filter filter;
 
-    private BlockingQueue<Event> outQueue;
+    private PriorityBlockingQueue outQueue;
     private Pipeline pipeline;
     private final boolean blocking;
     protected final Decoder decoder;
@@ -352,7 +352,7 @@ public abstract class Receiver extends Thread implements Iterator<Event>, Closea
         return jaasName != null;
     }
 
-    public void setOutQueue(BlockingQueue<Event> outQueue) {
+    public void setOutQueue(PriorityBlockingQueue outQueue) {
         this.outQueue = outQueue;
     }
 

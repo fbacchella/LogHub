@@ -16,8 +16,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
 import java.util.function.Consumer;
 import java.util.regex.Pattern;
 
@@ -42,6 +40,7 @@ import loghub.Event;
 import loghub.IpConnectionContext;
 import loghub.LogUtils;
 import loghub.Pipeline;
+import loghub.PriorityBlockingQueue;
 import loghub.Tools;
 import loghub.configuration.ConfigException;
 import loghub.configuration.Properties;
@@ -62,7 +61,7 @@ public class TestHttp {
     }
 
     private Http receiver = null;
-    private BlockingQueue<Event> queue;
+    private PriorityBlockingQueue queue;
     private String hostname;
     private int port;
 
@@ -71,7 +70,7 @@ public class TestHttp {
         port = Tools.tryGetPort();
         hostname = InetAddress.getLoopbackAddress().getCanonicalHostName();
 
-        queue = new ArrayBlockingQueue<>(1);
+        queue = new PriorityBlockingQueue();
 
         Json.Builder builder = Json.getBuilder();
         builder.setCharset("UTF-8");

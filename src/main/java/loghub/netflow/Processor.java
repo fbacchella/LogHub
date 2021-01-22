@@ -6,13 +6,14 @@ import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 
 import loghub.Event;
+import loghub.PriorityBlockingQueue;
 import loghub.ProcessorException;
 import loghub.configuration.Properties;
 import loghub.netflow.TemplateBasePacket.TemplateType;
 
 public class Processor extends loghub.Processor {
 
-    private BlockingQueue<Event> mainQueue;
+    private PriorityBlockingQueue mainQueue;
 
     @Override
     public boolean configure(Properties properties) {

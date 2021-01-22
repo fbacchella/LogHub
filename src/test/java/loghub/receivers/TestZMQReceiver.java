@@ -8,8 +8,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collections;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
@@ -29,6 +27,7 @@ import loghub.BeanChecks.BeanInfo;
 import loghub.Event;
 import loghub.LogUtils;
 import loghub.Pipeline;
+import loghub.PriorityBlockingQueue;
 import loghub.Tools;
 import loghub.ZMQFactory;
 import loghub.ZMQFlow;
@@ -70,7 +69,7 @@ public class TestZMQReceiver {
 
         AtomicInteger count = new AtomicInteger(0);
         flowbuilder.setSource(() -> String.format("message %s", count.incrementAndGet()).getBytes(StandardCharsets.UTF_8)); 
-        BlockingQueue<Event> receiveQueue = new ArrayBlockingQueue<>(100);
+        PriorityBlockingQueue receiveQueue = new PriorityBlockingQueue();
         ZMQ.Builder builder = ZMQ.getBuilder();
         builder.setType(Sockets.PULL.name());
         builder.setDecoder(StringCodec.getBuilder().build());

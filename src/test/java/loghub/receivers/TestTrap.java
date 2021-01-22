@@ -5,8 +5,6 @@ import java.net.InetAddress;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -31,6 +29,7 @@ import org.snmp4j.transport.DefaultUdpTransportMapping;
 import loghub.Event;
 import loghub.LogUtils;
 import loghub.Pipeline;
+import loghub.PriorityBlockingQueue;
 import loghub.Tools;
 import loghub.configuration.Properties;
 
@@ -61,7 +60,7 @@ public class TestTrap {
     @Ignore
     @Test
     public void testbig() throws InterruptedException, IOException {
-        BlockingQueue<Event> receiver = new ArrayBlockingQueue<>(2);
+        PriorityBlockingQueue receiver = new PriorityBlockingQueue();
         SnmpTrap.Builder builder = SnmpTrap.getBuilder();
         builder.setPort(0);
 
@@ -96,7 +95,7 @@ public class TestTrap {
     @Ignore
     @Test
     public void testTrapv2() throws InterruptedException, IOException {
-        BlockingQueue<Event> receiver = new ArrayBlockingQueue<>(2);
+        PriorityBlockingQueue receiver = new PriorityBlockingQueue();
         SnmpTrap.Builder builder = SnmpTrap.getBuilder();
         builder.setPort(0);
 
@@ -128,7 +127,7 @@ public class TestTrap {
     @Ignore
     @Test
     public void testtrapv1Generic() throws InterruptedException, IOException {
-        BlockingQueue<Event> receiver = new ArrayBlockingQueue<>(2);
+        PriorityBlockingQueue receiver = new PriorityBlockingQueue();
         SnmpTrap.Builder builder = SnmpTrap.getBuilder();
         builder.setPort(0);
 
@@ -164,7 +163,7 @@ public class TestTrap {
     @Ignore
     @Test
     public void testtrapv1Specific() throws InterruptedException, IOException {
-        BlockingQueue<Event> receiver = new ArrayBlockingQueue<>(2);
+        PriorityBlockingQueue receiver = new PriorityBlockingQueue();
         SnmpTrap.Builder builder = SnmpTrap.getBuilder();
         builder.setPort(0);
 
