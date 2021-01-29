@@ -1,6 +1,7 @@
 package loghub.senders;
 
 import java.io.Closeable;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -9,6 +10,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.stream.IntStream;
@@ -121,7 +123,7 @@ public abstract class Sender extends Thread implements Closeable {
     private final BlockingQueue<Batch> batches;
     private final Runnable publisher;
     private final AtomicReference<Batch> batch = new AtomicReference<>();
-    private final int flushInterval;
+    private final long flushInterval;
     private volatile boolean closed = false;
 
     public Sender(Builder<?  extends  Sender> builder) {
@@ -136,7 +138,7 @@ public abstract class Sender extends Thread implements Closeable {
             builder.workers = Math.max(1, builder.workers);
         }
         if (builder.batchSize > 0 && getClass().getAnnotation(CanBatch.class) != null) {
-            flushInterval = builder.flushInterval * 1000;
+            flushInterval = TimeUnit.SECONDS.toMillis(builder.flushInterval);
             isAsync = true;
             batchSize = builder.batchSize;
             threads = new Thread[builder.workers];
@@ -228,7 +230,7 @@ public abstract class Sender extends Thread implements Closeable {
                 logger.catching(Level.DEBUG, e);
             }
         };
-        properties.registerScheduledTask(getName() + "Flusher" , flush, 5000);
+        properties.registerScheduledTask(getName() + "Flusher" , flush, flushInterval);
         Helpers.waitAllThreads(Arrays.stream(threads));
     }
 
@@ -400,11 +402,7 @@ public abstract class Sender extends Thread implements Closeable {
             throw t;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-        } catch (SendException e) {
-            Stats.failedSentEvent(this, Helpers.resolveThrowableException(e));
-            logger.error("Sending exception: {}", Helpers.resolveThrowableException(e));
-            logger.catching(Level.DEBUG, e);
-        } catch (EncodeException e) {
+        } catch (SendException | EncodeException | IOException e) {
             Stats.failedSentEvent(this, Helpers.resolveThrowableException(e));
             logger.error("Sending exception: {}", Helpers.resolveThrowableException(e));
             logger.catching(Level.DEBUG, e);
