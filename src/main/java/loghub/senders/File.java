@@ -50,8 +50,7 @@ public class File extends Sender {
 
         @Override
         public void failed(Throwable ex, Event event) {
-            File.this.handleException(ex);
-            File.this.processStatus(event, false);
+            File.this.handleException(ex, event);
         }
 
     };

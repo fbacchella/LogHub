@@ -88,6 +88,10 @@ public abstract class Sender extends Thread implements Closeable {
             this.complete(false);
             this.message = message;
         }
+        public void failure(Throwable t) {
+            this.complete(false);
+            this.message = Helpers.resolveThrowableException(t);
+        }
         public boolean isNotDone() {
             return ! isDone();
         }
@@ -349,8 +353,7 @@ public abstract class Sender extends Thread implements Closeable {
                 }
                 event = null;
             } catch (Throwable t) {
-                handleException(t);
-                processStatus(event, false);
+                handleException(t, event);
             }
         }
     }
@@ -382,52 +385,54 @@ public abstract class Sender extends Thread implements Closeable {
             if (result.get()) {
                 Stats.sentEvent(this);
             } else {
-                String message = result.getMessage();
-                if (message != null) {
-                    Stats.failedSentEvent(this, message);
-                } else {
-                    Stats.failedSentEvent(this);
-                }
+                Stats.failedSentEvent(this, result.getMessage(), result.event);
             }
+            result.event.end();
         } catch (InterruptedException e) {
+            result.event.end();
             interrupt();
         } catch (ExecutionException e) {
-            handleException(e.getCause());
+            handleException(e.getCause(), result.event);
         }
-        result.event.end();
     }
 
-    protected void handleException(Throwable t) {
+
+    protected void handleException(Throwable t, Event event) {
         try {
             throw t;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-        } catch (SendException | EncodeException | IOException e) {
-            Stats.failedSentEvent(this, Helpers.resolveThrowableException(e));
-            logger.error("Sending exception: {}", Helpers.resolveThrowableException(e));
-            logger.catching(Level.DEBUG, e);
-        } catch (Error e) {
-            if (Helpers.isFatal(e)) {
-                throw e;
+        } catch (SendException | EncodeException | IOException ex) {
+            Stats.failedSentEvent(this, ex, event);
+            logger.error("Sending exception: {}", Helpers.resolveThrowableException(ex));
+            logger.catching(Level.DEBUG, ex);
+        } catch (Error ex) {
+            if (Helpers.isFatal(ex)) {
+                throw ex;
             } else {
-                String message = Helpers.resolveThrowableException(e);
-                Stats.newUnhandledException(this, e);
-                logger.error("Unexpected exception: {}", message);
-                logger.catching(Level.ERROR, e);
+                Stats.newUnhandledException(this, ex, event);
+                logger.error("Unexpected exception: {}", Helpers.resolveThrowableException(ex));
+                logger.catching(Level.ERROR, ex);
             }
-        } catch (Throwable e) {
-            String message = Helpers.resolveThrowableException(e);
-            Stats.newUnhandledException(this, e);
-            logger.error("Unexpected exception: {}", message);
-            logger.catching(Level.ERROR, e);
+        } catch (Throwable ex) {
+            Stats.newUnhandledException(this, ex, event);
+            logger.error("Unexpected exception: {}", Helpers.resolveThrowableException(ex));
+            logger.catching(Level.ERROR, ex);
         }
+        if (event != null) {
+            event.end();
+        }
+    }
+
+    protected void handleException(Throwable t) {
+        handleException(t, null);
     }
 
     protected void processStatus(Event event, boolean status) {
         if (status) {
             Stats.sentEvent(this);
         } else {
-            Stats.failedSentEvent(this);
+            Stats.failedSentEvent(this, event);
         }
         event.end();
     }

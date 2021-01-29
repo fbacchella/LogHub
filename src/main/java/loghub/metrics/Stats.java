@@ -19,6 +19,8 @@ import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
 import com.codahale.metrics.Timer.Context;
 
+import loghub.Event;
+import loghub.Helpers;
 import loghub.ProcessingException;
 import loghub.receivers.Receiver;
 import loghub.senders.Sender;
@@ -57,7 +59,7 @@ public final class Stats {
     static final String METRIC_PIPELINE_PAUSED = "paused";
     static final String METRIC_PIPELINE_PAUSED_COUNT = "pausedCount";
 
-    // A metrics cache, as calculating a metric name can be costly.
+    // A metrics cache, as calculating a metric name can be expensive.
     private final static Map<Object, Map<String, Metric>> metricsCache = new ConcurrentHashMap<>(3);
 
     private final static Queue<ProcessingException> processorExceptions = new LinkedBlockingQueue<>(100);
@@ -301,20 +303,37 @@ public final class Stats {
         getMetric(Meter.class, Sender.class, Stats.METRIC_SENDER_BYTES).mark(bytes);
     }
 
-    public static void failedSentEvent(Sender sender) {
-        getMetric(Meter.class, sender, Stats.METRIC_SENDER_FAILEDSEND).mark();
-        getMetric(Meter.class, Sender.class, Stats.METRIC_SENDER_FAILEDSEND).mark();
+    public static void failedSentEvent(Sender sender, Event ev) {
+        failedSentEvent(sender, (String) null, ev);
     }
 
     public static synchronized void failedSentEvent(Sender sender, String msg) {
-        getMetric(Meter.class, sender, Stats.METRIC_SENDER_FAILEDSEND).mark();
-        getMetric(Meter.class, Sender.class, Stats.METRIC_SENDER_FAILEDSEND).mark();
-        storeException(senderMessages, msg);
+        failedSentEvent(sender, msg, null);
+    }
+
+    public static synchronized void failedSentEvent(Sender sender, Throwable t, Event ev) {
+        failedSentEvent(sender, Helpers.resolveThrowableException(t), ev);
+    }
+
+    public static synchronized void failedSentEvent(Sender sender, String msg, Event ev) {
+        if (ev != null) {
+            getMetric(Meter.class, sender, Stats.METRIC_SENDER_FAILEDSEND).mark();
+            getMetric(Meter.class, Sender.class, Stats.METRIC_SENDER_FAILEDSEND).mark();
+        }
+        if (msg != null) {
+            storeException(senderMessages, msg);
+        }
     }
 
     public static void newUnhandledException(Sender sender, Throwable ex) {
-        getMetric(Meter.class, sender, METRIC_SENDER_EXCEPTION).mark();
-        getMetric(Meter.class, Sender.class, METRIC_SENDER_EXCEPTION).mark();
+        newUnhandledException(sender, ex, null);
+    }
+
+    public static void newUnhandledException(Sender sender, Throwable ex, Event ev) {
+        if (ev != null) {
+            getMetric(Meter.class, sender, METRIC_SENDER_EXCEPTION).mark();
+            getMetric(Meter.class, Sender.class, METRIC_SENDER_EXCEPTION).mark();
+        }
         storeException(exceptions, ex);
     }
 
