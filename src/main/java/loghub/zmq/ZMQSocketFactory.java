@@ -46,13 +46,16 @@ import zmq.io.mechanism.Mechanisms;
 
 public class ZMQSocketFactory implements AutoCloseable {
 
+    // Needed to ensure the NaCl Provided is loaded
+    private static final KeyFactory NACLKEYFACTORY = ZMQHelper.NACLKEYFACTORY;
+
     public static final String KEYNAME = "loghubzmqpair";
     public static final int DEFAULTLINGER = 1000;
 
     private static final Logger logger = LogManager.getLogger();
 
     private final ZContext context;
-    //private final ThreadLocal<ZContext> localContext;
+
     @Getter
     private final PrivateKeyEntry keyEntry;
     private final Thread terminator;
@@ -136,6 +139,8 @@ public class ZMQSocketFactory implements AutoCloseable {
         case "application/x-java-bc-keystore":
             keystoretype = "BKS";
             break;
+        case "application/x-pkcs12":
+            throw new IllegalArgumentException("P12 can't handle custom certificate type");
         default:
             throw new IllegalArgumentException("Unsupported key store type");
         }
@@ -145,7 +150,7 @@ public class ZMQSocketFactory implements AutoCloseable {
 
         if (! Files.exists(zmqKeyStore)) {
             logger.debug("Creating a new keystore at {}", zmqKeyStore);
-            KeyFactory kf = ZMQHelper.NACLKEYFACTORY;
+            KeyFactory kf = NACLKEYFACTORY;
             ks.load(null);
 
             KeyPairGenerator kpg = KeyPairGenerator.getInstance(kf.getAlgorithm());
@@ -265,9 +270,9 @@ public class ZMQSocketFactory implements AutoCloseable {
                 case CURVE:
                     if (pke != null) {
                         try {
-                            NaclPublicKeySpec pubkey = ZMQHelper.NACLKEYFACTORY.getKeySpec(pke.getCertificate().getPublicKey(), NaclPublicKeySpec.class);
+                            NaclPublicKeySpec pubkey = NACLKEYFACTORY.getKeySpec(pke.getCertificate().getPublicKey(), NaclPublicKeySpec.class);
                             ZMQCheckedException.checkOption(socket.setCurvePublicKey(pubkey.getBytes()), socket);
-                            NaclPrivateKeySpec privateKey = ZMQHelper.NACLKEYFACTORY.getKeySpec(pke.getPrivateKey(), NaclPrivateKeySpec.class);
+                            NaclPrivateKeySpec privateKey = NACLKEYFACTORY.getKeySpec(pke.getPrivateKey(), NaclPrivateKeySpec.class);
                             ZMQCheckedException.checkOption(socket.setCurveSecretKey(privateKey.getBytes()), socket);
                         } catch (InvalidKeySpecException e) {
                             throw new IllegalArgumentException("Invalide curve keys pair");
@@ -276,7 +281,7 @@ public class ZMQSocketFactory implements AutoCloseable {
                         ZMQCheckedException.checkOption(socket.setCurveServer(serverPublicKey == null), socket);
                         if (serverPublicKey != null) {
                             try {
-                                NaclPublicKeySpec pubkey = ZMQHelper.NACLKEYFACTORY.getKeySpec(serverPublicKey.getPublicKey(), NaclPublicKeySpec.class);
+                                NaclPublicKeySpec pubkey = NACLKEYFACTORY.getKeySpec(serverPublicKey.getPublicKey(), NaclPublicKeySpec.class);
                                 ZMQCheckedException.checkOption(socket.setCurveServerKey(pubkey.getBytes()), socket);
                             } catch (InvalidKeySpecException e) {
                                 throw new IllegalArgumentException("Invalide remote public curve key");

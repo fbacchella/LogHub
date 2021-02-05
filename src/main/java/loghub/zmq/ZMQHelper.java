@@ -23,7 +23,7 @@ import zmq.socket.Sockets;
 
 public class ZMQHelper {
 
-    public static final String CURVEPREFIX="Curve";
+    public static final String CURVEPREFIX = "Curve";
 
     public static final KeyFactory NACLKEYFACTORY;
     static {
