@@ -29,6 +29,7 @@ import loghub.Helpers;
 import loghub.Pipeline;
 import loghub.Processor;
 import loghub.RouteBaseListener;
+import loghub.RouteLexer;
 import loghub.RouteParser.ArrayContext;
 import loghub.RouteParser.BeanContext;
 import loghub.RouteParser.BooleanLiteralContext;
@@ -921,6 +922,27 @@ class ConfigListener extends RouteBaseListener {
         } else if (ctx.arrayIndex != null) {
             Object subexpression = stack.pop();
             expression = String.format("%s[%s]", subexpression, ctx.arrayIndex.getText());
+        } else if (ctx.stringFunction != null) {
+            Object subexpression = stack.pop();
+            switch (ctx.stringFunction.getType()) {
+            case RouteLexer.Trim:
+                expression = String.format("(%s)?.toString()?.trim()", subexpression);
+                break;
+            case RouteLexer.Capitalize:
+                expression = String.format("(%s)?.toString()?.capitalize()", subexpression);
+                break;
+            case RouteLexer.IsBlank:
+                expression = String.format("((%s)?.toString() ?: \"\").isBlank()", subexpression);
+                break;
+            case RouteLexer.Normalize:
+                expression = String.format("(%s)?.toString()?.normalize()", subexpression);
+                break;
+            case RouteLexer.Uncapitalize:
+                expression = String.format("(%s)?.toString()?.uncapitalize()", subexpression);
+                break;
+            default:
+                // Can’t be reached
+            }
         }
         expressionDepth--;
         if(expressionDepth == 0) {

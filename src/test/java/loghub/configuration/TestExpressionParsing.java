@@ -231,4 +231,22 @@ public class TestExpressionParsing {
         Assert.assertEquals(35710, localAddr.getPort());
     }
 
+    private Object resolve(String function, String value) throws ExpressionException, ProcessorException {
+        Event ev =  Tools.getEvent();
+        ev.put("a", value);
+        return evalExpression(String.format("%s([a])", function),ev);
+    }
+
+    @Test
+    public void testStringOperator() throws ExpressionException, ProcessorException {
+        Assert.assertEquals("abc", resolve("trim", " abc "));
+        Assert.assertEquals("Abc", resolve("capitalize", "abc"));
+        Assert.assertEquals("abc", resolve("uncapitalize", "Abc"));
+        Assert.assertEquals(false, resolve("isBlank", "abc"));
+        Assert.assertEquals(true, resolve("isBlank", ""));
+        Assert.assertEquals(true, resolve("isBlank", " "));
+        Assert.assertEquals(true, resolve("isBlank", null));
+        Assert.assertEquals("a\nb\nc\nd", resolve("normalize", "a\nb\r\nc\rd"));
+    }
+
 }

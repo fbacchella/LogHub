@@ -120,7 +120,14 @@ expression
     |   e1 = expression opm=matchOperator patternLiteral
     |   '(' e3 = expression ')'
     |   expression '[' arrayIndex=IntegerLiteral ']'
+    |   stringFunction = (Trim | Capitalize | IsBlank | Normalize | Uncapitalize) '(' expression ')'
     ;
+
+Trim: 'trim';
+Capitalize: 'capitalize';
+Uncapitalize: 'uncapitalize';
+IsBlank: 'isBlank';
+Normalize: 'normalize';
 
 expressionsList
     : '(' expression ( ','  expression )* ','? ')'
