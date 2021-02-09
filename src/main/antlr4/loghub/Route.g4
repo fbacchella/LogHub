@@ -181,7 +181,7 @@ source
     : '%' identifier
     ;
 
-eventVariable: '[' root='.'? (key='@timestamp' | (key='@context' (pathElement ( pathElement)*))? | MetaName | (pathElement ( pathElement)*)) ']' ;
+eventVariable: '[' indirect='<-'? root='.'? (key='@timestamp' | (key='@context' (pathElement ( pathElement)*))? | MetaName | (pathElement ( pathElement)*)) ']' ;
 
 pathElement: identifier | StringLiteral ;
 

@@ -175,6 +175,25 @@ public class TestEtl {
     }
 
     @Test
+    public void testAssignIndirect() throws ProcessorException {
+        Etl e = parseEtl("[<- a] = 1");
+        Event ev = Event.emptyEvent(ConnectionContext.EMPTY);
+        ev.put("a", "b");
+        Assert.assertTrue(e.process(ev));
+        Assert.assertEquals(1, ev.remove("b"));
+        Assert.assertEquals("b", ev.remove("a"));
+        Assert.assertTrue(ev.isEmpty());
+    }
+
+    @Test
+    public void testAssignIndirectMissing() throws ProcessorException {
+        Etl e = parseEtl("[<- a] = 1");
+        Event ev = Event.emptyEvent(ConnectionContext.EMPTY);
+        Assert.assertTrue(e.process(ev));
+        Assert.assertTrue(ev.isEmpty());
+    }
+
+    @Test
     public void testRename() throws ProcessorException {
         Event ev =  RunEtl("[a] < [b]", i -> i.put("b", 1));
         Assert.assertEquals(1, ev.remove("a"));

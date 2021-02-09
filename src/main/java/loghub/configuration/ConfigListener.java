@@ -718,7 +718,7 @@ class ConfigListener extends RouteBaseListener {
             return new String[] { ev.MetaName().getText() };
         } else {
             List<String> path = ev.pathElement().stream().map(this::filterpathElement).collect(Collectors.toList());
-            if (withRoot ) {
+            if (withRoot) {
                 if ( ! keyString.isEmpty()) {
                     path.add(0, keyString);
                 } else if (ev.MetaName() != null) {
@@ -728,6 +728,9 @@ class ConfigListener extends RouteBaseListener {
             } else if (Event.CONTEXTKEY.equals(keyString)) {
                 // The . at path start prevents the resolution of specific variables
                 path.add(0, ev.key.getText());
+            }
+            if (ev.indirect != null) {
+                path.add(0, ev.indirect.getText());
             }
             return path.stream().toArray(String[]::new);
         }

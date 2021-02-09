@@ -55,6 +55,15 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
 
     @SuppressWarnings("unchecked")
     public Object applyAtPath(Action f, String[] path, Object value, boolean create) throws ProcessorException {
+        if ("<-".equals(path[0])) {
+            path = Optional.ofNullable(applyAtPath(Action.GET, Arrays.copyOfRange(path, 1, path.length), false))
+                    .map(Object::toString)
+                    .map(s -> new String[] {s.toString()})
+                    .orElse(null);
+            if (path == null) {
+                return null;
+            }
+        }
         Map<String, Object> current = this;
         String key = path[0];
         if (key != null && key.startsWith("#")) {
