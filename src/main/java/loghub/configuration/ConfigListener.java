@@ -943,6 +943,8 @@ class ConfigListener extends RouteBaseListener {
             default:
                 // Can’t be reached
             }
+        } else if (ctx.now != null) {
+            expression = "java.time.Instant.now()";
         }
         expressionDepth--;
         if(expressionDepth == 0) {

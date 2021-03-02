@@ -121,6 +121,7 @@ expression
     |   '(' e3 = expression ')'
     |   expression '[' arrayIndex=IntegerLiteral ']'
     |   stringFunction = (Trim | Capitalize | IsBlank | Normalize | Uncapitalize) '(' expression ')'
+    |   now = 'now'
     ;
 
 Trim: 'trim';

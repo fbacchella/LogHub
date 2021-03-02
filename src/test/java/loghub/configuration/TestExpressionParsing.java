@@ -3,6 +3,7 @@ package loghub.configuration;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.security.Principal;
+import java.time.Instant;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
@@ -247,6 +248,12 @@ public class TestExpressionParsing {
         Assert.assertEquals(true, resolve("isBlank", " "));
         Assert.assertEquals(true, resolve("isBlank", null));
         Assert.assertEquals("a\nb\nc\nd", resolve("normalize", "a\nb\r\nc\rd"));
+    }
+
+    @Test
+    public void testNow() throws ExpressionException, ProcessorException {
+        Instant now = (Instant) evalExpression("now");
+        Assert.assertTrue(Math.abs(Instant.now().getEpochSecond() - now.getEpochSecond()) < 1);
     }
 
 }
