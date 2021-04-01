@@ -24,6 +24,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.StringTokenizer;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -37,6 +38,7 @@ import java.util.function.Predicate;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -487,6 +489,11 @@ public final class Helpers {
         } catch (InterruptedException ex) {
             throw new IllegalStateException("Interrupted while starting a processor");
         }
+    }
+    
+    public static List<String> pathElements(String path) {
+        StringTokenizer tokenize = new StringTokenizer(path, ".");
+        return Collections.list(tokenize).stream().map(Object::toString).collect(Collectors.toList());
     }
 
 }

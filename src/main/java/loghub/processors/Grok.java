@@ -15,7 +15,9 @@ import org.apache.logging.log4j.Level;
 import io.krakens.grok.api.GrokCompiler;
 import io.krakens.grok.api.Match;
 import loghub.Event;
+import loghub.Event.Action;
 import loghub.Helpers;
+import loghub.ProcessorException;
 import loghub.configuration.Properties;
 
 public class Grok extends FieldsProcessor {
@@ -48,7 +50,7 @@ public class Grok extends FieldsProcessor {
     }
 
     @Override
-    public Object fieldFunction(Event event, Object value) {
+    public Object fieldFunction(Event event, Object value) throws ProcessorException {
         Match gm = grok.match(value.toString());
         //Results from grok needs to be cleaned
         Map<String, Object> captures = gm.capture();
@@ -83,7 +85,7 @@ public class Grok extends FieldsProcessor {
             }
             // . is a special field name, it mean a value to put back in the original field
             if (! ".".equals(destinationField) ) {
-                event.put(destinationField, stored);
+                event.applyAtPath(Action.PUT, Helpers.pathElements(destinationField).stream().toArray(String[]::new), stored, true);
             } else {
                 returned = stored;
             }

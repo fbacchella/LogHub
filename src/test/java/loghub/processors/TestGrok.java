@@ -14,6 +14,7 @@ import loghub.Event;
 import loghub.LogUtils;
 import loghub.ProcessorException;
 import loghub.Tools;
+import loghub.Event.Action;
 import loghub.configuration.Properties;
 
 public class TestGrok {
@@ -75,8 +76,8 @@ public class TestGrok {
         Event e = Tools.getEvent();
         e.put("message", "fetching user_deny.db entry for 'someone'");
         e.process(grok);
-
         Assert.assertEquals("invalid syslog line matching", 2, e.size());
+        Assert.assertEquals("invalid syslog line matching", "someone", e.get("imap_user"));
     }
 
     @Test
@@ -116,6 +117,38 @@ public class TestGrok {
         e.put("host", "www.yahoo.com");
         Tools.runProcessing(e, "main", Collections.singletonList(grok));
         Assert.assertEquals("invalid FQDN matching", "www", e.get("remotehost"));
+    }
+
+    @Test
+    public void TestWithPath() throws ProcessorException {
+        Grok grok = new Grok();
+        grok.setFields(new String[]{"remotehost"});
+        grok.setPattern("%{HOSTNAME:google.com}\\.google\\.com");
+
+        Properties props = new Properties(Collections.emptyMap());
+
+        Assert.assertTrue("Failed to configure grok", grok.configure(props));
+
+        Event e = Tools.getEvent();
+        e.put("remotehost", "www.google.com");
+        Tools.runProcessing(e, "main", Collections.singletonList(grok));
+        Assert.assertEquals("invalid FQDN matching", "www", e.applyAtPath(Action.GET, new String[] {"google", "com"}, null));
+    }
+
+    @Test
+    public void TestTyped() throws ProcessorException {
+        Grok grok = new Grok();
+        grok.setField(new String[] {"message"});
+        grok.setPattern("%{INT:value:long}");
+
+        Properties props = new Properties(Collections.emptyMap());
+
+        Assert.assertTrue("Failed to configure grok", grok.configure(props));
+
+        Event e = Tools.getEvent();
+        e.put("message", "1");
+        e.process(grok);
+        Assert.assertEquals("invalid line matching", 1L, e.get("value"));
     }
 
     @Test

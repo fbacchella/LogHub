@@ -66,6 +66,7 @@ import loghub.RouteParser.SourcedefContext;
 import loghub.RouteParser.StringLiteralContext;
 import loghub.RouteParser.TestContext;
 import loghub.RouteParser.TestExpressionContext;
+import loghub.RouteParser.VarPathContext;
 import loghub.Source;
 import loghub.VarFormatter;
 import loghub.processors.AnonymousSubPipeline;
@@ -711,41 +712,41 @@ class ConfigListener extends RouteBaseListener {
     }
 
     private String[] convertEventVariable(EventVariableContext ev) {
-        boolean withRoot = ev.root != null;
-        String keyString = Optional.ofNullable(ev.key).map(Token::getText).orElse("");
-        if (Event.TIMESTAMPKEY.equals(keyString) && ! withRoot) {
-            return new String[] { keyString };
-        } else if (ev.MetaName() != null && ! withRoot) {
+        if (ev.ts != null) {
+            return new String[] { Event.TIMESTAMPKEY };
+        } else if (ev.ctx != null) {
+            List<String> path = convertEventVariable(ev.varPath());
+            path.add(0, Event.CONTEXTKEY);
+            return path.stream().toArray(String[]::new);
+        } else if (ev.MetaName() != null) {
             return new String[] { ev.MetaName().getText() };
         } else {
-            List<String> path = ev.pathElement().stream().map(this::filterpathElement).collect(Collectors.toList());
-            if (withRoot) {
-                if ( ! keyString.isEmpty()) {
-                    path.add(0, keyString);
-                } else if (ev.MetaName() != null) {
-                    path.add(0, ev.MetaName().getText());
-                }
+            List<String> path = convertEventVariable(ev.varPath());
+            if (ev.root != null) {
                 path.add(0, ".");
-            } else if (Event.CONTEXTKEY.equals(keyString)) {
-                // The . at path start prevents the resolution of specific variables
-                path.add(0, ev.key.getText());
             }
             if (ev.indirect != null) {
-                path.add(0, ev.indirect.getText());
+                path.add(0, Event.INDIRECTMARK);
             }
             return path.stream().toArray(String[]::new);
         }
     }
-    
+    private List<String> convertEventVariable(VarPathContext vp) {
+        if (vp.QualifiedIdentifier() != null) {
+            return Helpers.pathElements(vp.QualifiedIdentifier().getText());
+        } else {
+            return vp.pathElement().stream().map(this::filterpathElement).collect(Collectors.toList());
+        }
+    }
+
     private String filterpathElement(PathElementContext pec) {
         return pec.children.get(0).getText();
     }
 
     @Override
     public void exitEtl(EtlContext ctx) {
-
         // Check that the lvalue (the destination) is not the context, it's read only
-        Token root = ctx.eventVariable(0).key;
+        Token root = ctx.eventVariable(0).ctx;
         if (root != null && Event.CONTEXTKEY.equals(root.getText())) {
             throw new RecognitionException("Context can't be a lvalue for " + ctx.getText(), parser, stream, ctx);
         }

@@ -158,6 +158,13 @@ public class TestExpressionParsing {
     }
 
     @Test
+    public void testEventPathDotted() throws ExpressionException, ProcessorException {
+        Event ev =  Tools.getEvent();
+        ev.put("a", Collections.singletonMap("b", "c"));
+        Assert.assertEquals("c", evalExpression("[a.b]", ev));
+    }
+
+    @Test
     public void testTimestamp() throws ExpressionException, ProcessorException {
         Event ev =  Tools.getEvent();
         ev.setTimestamp(new Date(0));
@@ -229,6 +236,25 @@ public class TestExpressionParsing {
         Object value = evalExpression("[ @context principal name ] == \"user\"", ev);
         Assert.assertEquals(true, value);
         InetSocketAddress localAddr = (InetSocketAddress) evalExpression("[ @context localAddress]", ev, Collections.singletonMap("h_" + formatHash, new VarFormatter(format)));
+        Assert.assertEquals(35710, localAddr.getPort());
+    }
+
+    @Test
+    public void testDottedContext() throws ExpressionException, ProcessorException {
+        String format = "user";
+        String formatHash = Integer.toHexString(format.hashCode());
+
+        Event ev =  Event.emptyEvent(new IpConnectionContext(new InetSocketAddress("127.0.0.1", 35710), new InetSocketAddress("localhost", 80), null));
+        Principal p = new Principal() {
+            @Override
+            public String getName() {
+                return "user";
+            }
+        };
+        ev.getConnectionContext().setPrincipal(p);
+        Object value = evalExpression("[ @context.principal.name ] == \"user\"", ev);
+        Assert.assertEquals(true, value);
+        InetSocketAddress localAddr = (InetSocketAddress) evalExpression("[ @context.localAddress]", ev, Collections.singletonMap("h_" + formatHash, new VarFormatter(format)));
         Assert.assertEquals(35710, localAddr.getPort());
     }
 

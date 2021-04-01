@@ -22,6 +22,7 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
 
     public static final String TIMESTAMPKEY = "@timestamp";
     public static final String CONTEXTKEY = "@context";
+    public static final String INDIRECTMARK = "<-";
 
     public enum Action {
         GET((i,j,k) -> i.get(j)),
@@ -55,7 +56,7 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
 
     @SuppressWarnings("unchecked")
     public Object applyAtPath(Action f, String[] path, Object value, boolean create) throws ProcessorException {
-        if ("<-".equals(path[0])) {
+        if (INDIRECTMARK.equals(path[0])) {
             path = Optional.ofNullable(applyAtPath(Action.GET, Arrays.copyOfRange(path, 1, path.length), false))
                     .map(Object::toString)
                     .map(s -> new String[] {s.toString()})

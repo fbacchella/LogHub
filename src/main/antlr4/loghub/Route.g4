@@ -189,7 +189,9 @@ source
     : '%' identifier
     ;
 
-eventVariable: '[' indirect='<-'? root='.'? (key='@timestamp' | (key='@context' (pathElement ( pathElement)*))? | MetaName | (pathElement ( pathElement)*)) ']' ;
+eventVariable: '[' (ts='@timestamp' | (ctx='@context' ('.'? varPath)?) | (indirect='<-'? (MetaName | (root='.'? varPath)))) ']' ;
+
+varPath: (pathElement pathElement*) | QualifiedIdentifier;
 
 pathElement: identifier | StringLiteral ;
 
