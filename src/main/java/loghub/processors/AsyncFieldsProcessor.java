@@ -12,6 +12,7 @@ import loghub.AsyncProcessor;
 import loghub.Event;
 import loghub.Processor;
 import loghub.ProcessorException;
+import loghub.VariablePath;
 import loghub.configuration.Properties;
 import lombok.Getter;
 import lombok.Setter;
@@ -20,7 +21,7 @@ public abstract class AsyncFieldsProcessor<FI, F extends Future<FI>> extends Fie
 
     private class AsyncFieldSubProcessor extends FieldSubProcessor implements AsyncProcessor<FI, F> {
 
-        AsyncFieldSubProcessor(Iterator<String[]> processing) {
+        AsyncFieldSubProcessor(Iterator<VariablePath> processing) {
             super(processing);
         }
 
@@ -84,7 +85,7 @@ public abstract class AsyncFieldsProcessor<FI, F extends Future<FI>> extends Fie
     private int queueDepth = -1;
 
     public abstract Object asyncProcess(Event event, FI content) throws ProcessorException;
-    public abstract boolean manageException(Event event, Exception e, String[] destination) throws ProcessorException;
+    public abstract boolean manageException(Event event, Exception e, VariablePath variablePath) throws ProcessorException;
     public abstract BiConsumer<Event, F> getTimeoutHandler();
 
     private Optional<Semaphore> queryCount;
@@ -102,11 +103,11 @@ public abstract class AsyncFieldsProcessor<FI, F extends Future<FI>> extends Fie
     }
 
     @Override
-    FieldSubProcessor getSubProcessor(Iterator<String[]> processing) {
+    FieldSubProcessor getSubProcessor(Iterator<VariablePath> processing) {
         return new AsyncFieldSubProcessor(processing);
     }
 
-    boolean doExecution(Event event, String[] field) throws ProcessorException {
+    boolean doExecution(Event event, VariablePath field) throws ProcessorException {
         delegate(Collections.singleton(field), event);
         // never reached code
         return false;

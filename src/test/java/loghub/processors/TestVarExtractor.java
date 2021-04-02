@@ -14,6 +14,7 @@ import loghub.Event;
 import loghub.LogUtils;
 import loghub.ProcessorException;
 import loghub.Tools;
+import loghub.VariablePath;
 
 public class TestVarExtractor {
 
@@ -30,7 +31,7 @@ public class TestVarExtractor {
     public void test1() throws ProcessorException {
         VarExtractor t = new VarExtractor();
         t.setPath("sub");
-        t.setField(new String[] {".message"});
+        t.setField(VariablePath.of(".message"));
         t.setParser("(?<name>[a-z]+)[=:](?<value>[^;]+);?");
         Event e = Tools.getEvent();
         e.put("message", "a=1;b:2;c");
@@ -45,7 +46,7 @@ public class TestVarExtractor {
     @Test
     public void test2() throws ProcessorException {
         VarExtractor t = new VarExtractor();
-        t.setField(new String[] {".message"});
+        t.setField(VariablePath.of(".message"));
         t.setParser("(?<name>[a-z]+)[=:](?<value>[^;]+);?");
         Event e = Tools.getEvent();
         e.put("message", "a=1;b:2");
@@ -58,8 +59,7 @@ public class TestVarExtractor {
     @Test
     public void test3() throws ProcessorException {
         VarExtractor t = new VarExtractor();
-        t.setField(new String[] {".message"});
-
+        t.setField(VariablePath.of(".message"));
         Event e = Tools.getEvent();
         e.put("message", "a=1;b:2;c");
         e.process(t);
@@ -71,7 +71,7 @@ public class TestVarExtractor {
     @Test
     public void testMixed() throws ProcessorException {
         VarExtractor t = new VarExtractor();
-        t.setField(new String[] {".message"});
+        t.setField(VariablePath.of(".message"));
         t.setParser("(?<name>[a-z]+)=(?<value>[^;]+);?");
         Event e = Tools.getEvent();
         e.put("message", "noise a=1;b=2;error;c=3");

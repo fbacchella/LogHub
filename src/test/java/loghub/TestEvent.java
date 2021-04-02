@@ -48,17 +48,17 @@ public class TestEvent {
     public void TestPath() throws ProcessorException {
         Event e = Tools.getEvent();
         e.setTimestamp(new Date(0));
-        e.applyAtPath(Action.PUT, new String[]{"a", "b", "c"}, 1, true);
+        e.applyAtPath(Action.PUT, VariablePath.of(new String[]{"a", "b", "c"}), 1, true);
         e.put("d", 2);
-        e.applyAtPath(Action.PUT, new String[]{"e"}, 3, true);
-        e.applyAtPath(Action.PUT, new String[]{"#f"}, 4, true);
+        e.applyAtPath(Action.PUT, VariablePath.of(new String[]{"e"}), 3, true);
+        e.applyAtPath(Action.PUT, VariablePath.ofMeta("f"), 4, true);
         Assert.assertEquals("wrong number of keys", 3, e.keySet().size());
-        Assert.assertEquals("Didn't resolve the path correctly",  1, e.applyAtPath(Action.GET, new String[]{"a", "b", "c"}, null));
-        Assert.assertEquals("Didn't resolve the path correctly",  1, e.applyAtPath(Action.REMOVE, new String[]{"a", "b", "c"}, null));
-        Assert.assertEquals("Didn't resolve the path correctly",  2, e.applyAtPath(Action.GET, new String[]{"d"}, null) );
+        Assert.assertEquals("Didn't resolve the path correctly",  1, e.applyAtPath(Action.GET, VariablePath.of(new String[]{"a", "b", "c"}), null));
+        Assert.assertEquals("Didn't resolve the path correctly",  1, e.applyAtPath(Action.REMOVE, VariablePath.of(new String[]{"a", "b", "c"}), null));
+        Assert.assertEquals("Didn't resolve the path correctly",  2, e.applyAtPath(Action.GET, VariablePath.of(new String[]{"d"}), null) );
         Assert.assertEquals("Didn't resolve the path correctly",  4, e.getMeta("f") );
         Assert.assertEquals("Didn't resolve the path correctly",  3, e.get("e") );
-        Assert.assertEquals("Didn't resolve the path correctly",  new Date(0), e.applyAtPath(Action.GET, new String[]{"@timestamp"}, null));
+        Assert.assertEquals("Didn't resolve the path correctly",  new Date(0), e.applyAtPath(Action.GET, VariablePath.TIMESTAMP, null));
     }
 
     @Test

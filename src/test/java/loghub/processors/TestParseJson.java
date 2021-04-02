@@ -18,6 +18,7 @@ import loghub.Event;
 import loghub.LogUtils;
 import loghub.ProcessorException;
 import loghub.Tools;
+import loghub.VariablePath;
 import loghub.configuration.Properties;
 
 public class TestParseJson {
@@ -34,7 +35,7 @@ public class TestParseJson {
     @Test
     public void testSuccess() throws ProcessorException {
         ParseJson parse = new ParseJson();
-        parse.setField(new String[] {"message"});
+        parse.setField(VariablePath.of(new String[] {"message"}));
         parse.setAtPrefix("|");
         Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
         Event event = Tools.getEvent();
@@ -50,7 +51,7 @@ public class TestParseJson {
     @Test(expected=ProcessorException.class)
     public void testFailure() throws ProcessorException {
         ParseJson parse = new ParseJson();
-        parse.setField(new String[] {"message"});
+        parse.setField(VariablePath.of(new String[] {"message"}));
         Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
         Event event = Tools.getEvent();
         event.put("message", "{");

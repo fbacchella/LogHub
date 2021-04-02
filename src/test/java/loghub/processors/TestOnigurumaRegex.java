@@ -8,6 +8,7 @@ import org.junit.Test;
 import loghub.Event;
 import loghub.ProcessorException;
 import loghub.Tools;
+import loghub.VariablePath;
 import loghub.configuration.Properties;
 
 public class TestOnigurumaRegex {
@@ -15,7 +16,7 @@ public class TestOnigurumaRegex {
     @Test
     public void testLoadPatterns1() throws ProcessorException {
         OnigurumaRegex grok = new OnigurumaRegex();
-        grok.setField(new String[] {"message"});
+        grok.setField(VariablePath.of(new String[] {"message"}));
         grok.setPattern("<(?<syslog_pri>\\d+)>(?<message>.*)");
 
         Properties props = new Properties(Collections.emptyMap());
@@ -33,7 +34,7 @@ public class TestOnigurumaRegex {
     @Test
     public void testLoadPatterns2() throws ProcessorException {
         OnigurumaRegex grok = new OnigurumaRegex();
-        grok.setField(new String[] {"message"});
+        grok.setField(VariablePath.of(new String[] {"message"}));
         grok.setPattern("<(?<syslog_pri>\\d+)>(?<char>.)(?<char>.)(?<message>.*)");
 
         Properties props = new Properties(Collections.emptyMap());
@@ -45,7 +46,7 @@ public class TestOnigurumaRegex {
     @Test
     public void testLoadPatterns3() throws ProcessorException {
         OnigurumaRegex grok = new OnigurumaRegex();
-        grok.setField(new String[] {"message"});
+        grok.setField(VariablePath.of(new String[] {"message"}));
         grok.setPattern("^(?<prefix>\\*|\\.)?(?<message>.*)");
 
         Properties props = new Properties(Collections.emptyMap());
@@ -63,7 +64,7 @@ public class TestOnigurumaRegex {
     @Test
     public void testUtf1() throws ProcessorException {
         OnigurumaRegex grok = new OnigurumaRegex();
-        grok.setField(new String[] {"message"});
+        grok.setField(VariablePath.of(new String[] {"message"}));
         grok.setPattern("<(?<syslog_pri>\\d+)>(?<message>.*)");
 
         Properties props = new Properties(Collections.emptyMap());
@@ -81,7 +82,7 @@ public class TestOnigurumaRegex {
     @Test
     public void testUtf2() throws ProcessorException {
         OnigurumaRegex grok = new OnigurumaRegex();
-        grok.setField(new String[] {"message"});
+        grok.setField(VariablePath.of(new String[] {"message"}));
         grok.setPattern("<(?<syslog_pri>\\d+)>(?<message>é.*)");
 
         Properties props = new Properties(Collections.emptyMap());
@@ -99,7 +100,7 @@ public class TestOnigurumaRegex {
     @Test
     public void testNoNamedPattern() throws ProcessorException {
         OnigurumaRegex grok = new OnigurumaRegex();
-        grok.setField(new String[] {"message"});
+        grok.setField(VariablePath.of(new String[] {"message"}));
         grok.setPattern(".*");
 
         Properties props = new Properties(Collections.emptyMap());
@@ -114,7 +115,7 @@ public class TestOnigurumaRegex {
     @Test
     public void testBadPattern() throws ProcessorException {
         OnigurumaRegex grok = new OnigurumaRegex();
-        grok.setField(new String[] {"message"});
+        grok.setField(VariablePath.of(new String[] {"message"}));
         grok.setPattern("*");
 
         Properties props = new Properties(Collections.emptyMap());

@@ -23,7 +23,10 @@ import loghub.Processor;
 import loghub.ProcessorException;
 import loghub.UncheckedProcessorException;
 import loghub.VarFormatter;
+import loghub.VariablePath;
 import loghub.configuration.Properties;
+import lombok.Getter;
+import lombok.Setter;
 
 public abstract class FieldsProcessor extends Processor {
 
@@ -41,19 +44,21 @@ public abstract class FieldsProcessor extends Processor {
         REMOVE
     }
 
-    private String[] field = new String[] {"message"};
+    private VariablePath field = VariablePath.of(new String[]{"message"});
     private VarFormatter destinationFormat = null;
     private Pattern[] patterns = new Pattern[]{};
     private String[] globs = new String[] {};
+    @Getter @Setter
+    private VariablePath destinationPath = null;
 
     protected class FieldSubProcessor extends Processor {
 
-        final Iterator<String[]> processing;
+        final Iterator<VariablePath> processing;
 
         // Will be used by AsyncFieldSubProcessor
-        protected String[] toprocess;
+        protected VariablePath toprocess;
 
-        FieldSubProcessor(Iterator<String[]> processing) {
+        FieldSubProcessor(Iterator<VariablePath> processing) {
             super(FieldsProcessor.this.logger);
             this.processing = processing;
         }
@@ -78,7 +83,7 @@ public abstract class FieldsProcessor extends Processor {
         }
 
         @Override
-        public String[] getPathArray() {
+        public VariablePath getPathArray() {
             return FieldsProcessor.this.getPathArray();
         }
 
@@ -96,12 +101,12 @@ public abstract class FieldsProcessor extends Processor {
     @Override
     public boolean process(Event event) throws ProcessorException {
         if (patterns.length != 0) {
-            Set<String[]> nextfields = new HashSet<>();
+            Set<VariablePath> nextfields = new HashSet<>();
             //Build a set of fields that needs to be processed
             for (String eventField: new HashSet<>(event.keySet())) {
                 for (Pattern p: patterns) {
                     if (p.matcher(eventField).matches()) {
-                        nextfields.add(new String[] {eventField});
+                        nextfields.add(VariablePath.of(new String[] {eventField}));
                         break;
                     }
                 }
@@ -124,11 +129,11 @@ public abstract class FieldsProcessor extends Processor {
         }
     }
 
-    boolean doExecution(Event event, String[] currentField) throws ProcessorException {
+    boolean doExecution(Event event, VariablePath currentField) throws ProcessorException {
         return filterField(event, currentField);
     }
 
-    private boolean filterField(Event event, String[] currentField) throws ProcessorException {
+    private boolean filterField(Event event, VariablePath currentField) throws ProcessorException {
         logger.trace("transforming field {} on {}", currentField, event);
         Object value = event.applyAtPath(Action.GET, currentField, null);
         if (getClass().getAnnotation(ProcessNullField.class) == null && value == null) {
@@ -144,7 +149,7 @@ public abstract class FieldsProcessor extends Processor {
         return processField(event, currentField, resolver);
     }
 
-    protected boolean processField(Event event, String[] currentField, Supplier<Object> resolver) throws ProcessorException {
+    protected boolean processField(Event event, VariablePath currentField, Supplier<Object> resolver) throws ProcessorException {
         try {
             Object processed = resolver.get();
             if ( ! (processed instanceof RUNSTATUS)) {
@@ -159,11 +164,11 @@ public abstract class FieldsProcessor extends Processor {
             } catch (ProcessorException.DroppedEventException e) {
                 throw e;
             } catch (UncheckedProcessorException e) {
-                ProcessorException newpe = event.buildException("Field with path \"" + Arrays.toString(currentField) + "\" invalid: " + e.getMessage(), (Exception) e.getProcessoException().getCause());
+                ProcessorException newpe = event.buildException("Field with path \"[" + currentField.toString() + "]\" invalid: " + e.getMessage(), (Exception) e.getProcessoException().getCause());
                 newpe.setStackTrace(e.getStackTrace());
                 throw newpe;
             } catch (ProcessorException e) {
-                ProcessorException newpe = event.buildException("Field with path \"" + Arrays.toString(currentField) + "\" invalid: " + e.getMessage(), (Exception) e.getCause());
+                ProcessorException newpe = event.buildException("Field with path \"[" + currentField.toString() + "]\" invalid: " + e.getMessage(), (Exception) e.getCause());
                 newpe.setStackTrace(e.getStackTrace());
                 throw newpe;
             }
@@ -172,8 +177,8 @@ public abstract class FieldsProcessor extends Processor {
 
     public abstract Object fieldFunction(Event event, Object value) throws ProcessorException;
 
-    void delegate(Set<String[]> nextfields, Event event) {
-        Iterator<String[]> processing = nextfields.iterator();
+    void delegate(Set<VariablePath> nextfields, Event event) {
+        Iterator<VariablePath> processing = nextfields.iterator();
         Processor fieldProcessor = getSubProcessor(processing);
         if (processing.hasNext()) {
             event.insertProcessor(fieldProcessor);
@@ -181,15 +186,17 @@ public abstract class FieldsProcessor extends Processor {
         throw IgnoredEventException.INSTANCE;
     }
 
-    FieldSubProcessor getSubProcessor(Iterator<String[]> processing) {
+    FieldSubProcessor getSubProcessor(Iterator<VariablePath> processing) {
         return new FieldSubProcessor(processing);
     }
 
-    protected final String[] getDestination(String[] currentField) {
-        if (destinationFormat == null) {
-            return currentField;
+    protected VariablePath getDestination(VariablePath currentField) {
+        if (destinationPath != null) {
+            return destinationPath;
+        } else if (destinationFormat != null) {
+            return VariablePath.of(new String[] {destinationFormat.format(Collections.singletonMap("field", currentField.get(currentField.length() -1)))});
         } else {
-            return new String[] {destinationFormat.format(Collections.singletonMap("field", currentField[currentField.length - 1]))};
+            return currentField;
         }
     }
 
@@ -206,11 +213,11 @@ public abstract class FieldsProcessor extends Processor {
         }
     }
 
-    public String[] getField() {
+    public VariablePath getField() {
         return field;
     }
 
-    public void setField(String[] field) {
+    public void setField(VariablePath field) {
         this.field = field;
     }
 

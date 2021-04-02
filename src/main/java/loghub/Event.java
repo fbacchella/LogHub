@@ -2,7 +2,6 @@ package loghub;
 
 import java.io.Serializable;
 import java.time.Instant;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
@@ -10,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.BiFunction;
+import java.util.function.Function;
 import java.util.stream.Stream;
 
 import com.fasterxml.jackson.annotation.JsonIdentityInfo;
@@ -50,31 +50,40 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
         return new EventInstance(ctx, true);
     }
 
-    public Object applyAtPath(Action f, String[] path, Object value) throws ProcessorException {
+    public Object applyAtPath(Action f, VariablePath path, Object value) throws ProcessorException {
         return applyAtPath(f, path, value, false);
     }
 
     @SuppressWarnings("unchecked")
-    public Object applyAtPath(Action f, String[] path, Object value, boolean create) throws ProcessorException {
-        if (INDIRECTMARK.equals(path[0])) {
-            path = Optional.ofNullable(applyAtPath(Action.GET, Arrays.copyOfRange(path, 1, path.length), false))
-                    .map(Object::toString)
-                    .map(s -> new String[] {s.toString()})
-                    .orElse(null);
-            if (path == null) {
+    public Object applyAtPath(Action f, VariablePath path, Object value, boolean create) throws ProcessorException {
+        if (path.isIndirect()) {
+            Function<Object, String[]> convert = o -> {
+                if (o instanceof String[]) {
+                    return (String[]) o;
+                } else if (o.getClass().isArray()) {
+                    return new String[] {};
+                } else {
+                    return new String[] {o.toString()};
+                }
+            };
+            path = Optional.ofNullable(applyAtPath(Action.GET, VariablePath.of(path), false))
+                    .map(convert)
+                    .map(VariablePath::of)
+                    .orElse(VariablePath.EMPTY);
+            if (path == VariablePath.EMPTY) {
                 return null;
             }
         }
         Map<String, Object> current = this;
-        String key = path[0];
-        if (key != null && key.startsWith("#")) {
-            return f.action.apply(getMetas(), key.substring(1), value);
-        } else if (TIMESTAMPKEY.equals(key)) {
+        String key = null;
+        if (path.isMeta()) {
+            return f.action.apply(getMetas(), path.get(0), value);
+        } else if (path.isTimestamp()) {
             switch(f) {
             case GET: return getTimestamp();
             case PUT: {
                 if (!setTimestamp(value)) {
-                    throw buildException(String.valueOf(value) + " is not usable as a timestamp from path " + Arrays.toString(path));
+                    throw buildException(String.valueOf(value) + " is not usable as a timestamp from path " + path);
                 };
                 return null;
             }
@@ -88,21 +97,38 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
             case VALUES: return Collections.singleton(getTimestamp());
             default: return null;
             }
+        } else if (path == VariablePath.EMPTY) {
+            switch(f) {
+            case GET:
+            case PUT:
+            case REMOVE:
+            case CONTAINS:
+                throw new IllegalArgumentException("No variable specifed for " + f);
+            case SIZE:
+            case ISEMPTY:
+            case CLEAR:
+            case CONTAINSVALUE:
+            case KEYSET:
+            case VALUES:
+                return f.action.apply(this, null, null);
+            default: return null;
+            }
         } else {
+            key = path.get(0);
             int startwalk = 0;
-            if (".".equals(path[0])) {
+            if (".".equals(path.get(0))) {
                 current = getRealEvent();
-                key = path[1];
+                key = path.get(1);
                 startwalk = 1;
             }
-            for (int i = startwalk ; i < path.length - 1; i++) {
+            for (int i = startwalk ; i < path.length() - 1; i++) {
                 String currentkey = key;
                 Optional<Object> peekNext = Optional.of(current).filter(c -> c.containsKey(currentkey)).map(c -> c.get(currentkey));
                 Map<String, Object> next;
                 if (! peekNext.isPresent()) {
                     if (create) {
                         next = new HashMap<>();
-                        current.put(path[i], next);
+                        current.put(path.get(i), next);
                     } else {
                         switch(f) {
                         case GET:
@@ -122,15 +148,19 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
                         }
                     }
                 } else if (! (peekNext.get() instanceof Map)) {
-                    throw buildException("Can descend into " + key + " from " + Arrays.toString(path) + " , it's not an object");
+                    throw buildException("Can descend into " + key + " from " + path + " , it's not an object");
                 } else {
                     next = (Map<String, Object>) peekNext.get();
                 }
                 current = next;
-                key = path[i + 1];
+                key = path.get(i + 1);
             }
             return f.action.apply(current, key, value);
         }
+    }
+
+    public void clearMetas() {
+        getMetas().clear();
     }
 
     abstract Map<String, Object> getMetas();
@@ -159,8 +189,25 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
         return new UncheckedProcessorException(new ProcessorException(getRealEvent(), message));
     }
 
+    
+    /**
+     * Used in groovy code
+     * @param path
+     * @return
+     * @throws ProcessorException
+     */
     public Object getPath(String...path) throws ProcessorException {
-        return applyAtPath(Action.GET, path, null, false);
+        return applyAtPath(Action.GET, VariablePath.of(path), null, false);
+    }
+
+    /**
+     * Used in groovy code
+     * @param path
+     * @return
+     * @throws ProcessorException
+     */
+    public Object getIndirectPath(String...path) throws ProcessorException {
+        return applyAtPath(Action.GET, VariablePath.ofIndirect(path), null, false);
     }
 
     /**

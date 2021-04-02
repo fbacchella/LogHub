@@ -18,6 +18,7 @@ import loghub.Event;
 import loghub.LogUtils;
 import loghub.ProcessorException;
 import loghub.Tools;
+import loghub.VariablePath;
 import loghub.Event.Action;
 import loghub.configuration.Properties;
 
@@ -36,7 +37,7 @@ public class TestSyslogPriority {
     @Test
     public void TestResolvedString() throws ProcessorException {
         SyslogPriority sp = new SyslogPriority();
-        sp.setField(new String[] {"message"});
+        sp.setField(VariablePath.of(new String[] {"message"}));
 
         Properties props = new Properties(Collections.emptyMap());
 
@@ -54,7 +55,7 @@ public class TestSyslogPriority {
     @Test
     public void TestResolvedStringEcs() throws ProcessorException {
         SyslogPriority sp = new SyslogPriority();
-        sp.setField(new String[] {"message"});
+        sp.setField(VariablePath.of(new String[] {"message"}));
         sp.setEcs(true);
 
         Properties props = new Properties(Collections.emptyMap());
@@ -64,17 +65,17 @@ public class TestSyslogPriority {
         Event e = Tools.getEvent();
         e.put("message", "38");
         Assert.assertTrue(e.process(sp));
-        Assert.assertEquals("informational", e.applyAtPath(Action.GET, new String[] {"log", "syslog", "severity", "name"}, null));
-        Assert.assertEquals(6, e.applyAtPath(Action.GET, new String[] {"log", "syslog", "severity", "code"}, null));
-        Assert.assertEquals("security/authorization", e.applyAtPath(Action.GET, new String[] {"log", "syslog", "facility", "name"}, null));
-        Assert.assertEquals(4, e.applyAtPath(Action.GET, new String[] {"log", "syslog", "facility", "code"}, null));
-        Assert.assertEquals(38, e.applyAtPath(Action.GET, new String[] {"log", "syslog", "priority"}, null));
+        Assert.assertEquals("informational", e.applyAtPath(Action.GET, VariablePath.of(new String[] {"log", "syslog", "severity", "name"}), null));
+        Assert.assertEquals(6, e.applyAtPath(Action.GET, VariablePath.of(new String[] {"log", "syslog", "severity", "code"}), null));
+        Assert.assertEquals("security/authorization", e.applyAtPath(Action.GET, VariablePath.of(new String[] {"log", "syslog", "facility", "name"}), null));
+        Assert.assertEquals(4, e.applyAtPath(Action.GET, VariablePath.of(new String[] {"log", "syslog", "facility", "code"}), null));
+        Assert.assertEquals(38, e.applyAtPath(Action.GET, VariablePath.of(new String[] {"log", "syslog", "priority"}), null));
     }
 
     @Test
     public void TestResolvedStringEcsOverflow() throws ProcessorException {
         SyslogPriority sp = new SyslogPriority();
-        sp.setField(new String[] {"message"});
+        sp.setField(VariablePath.of(new String[] {"message"}));
         sp.setEcs(true);
 
         Properties props = new Properties(Collections.emptyMap());
@@ -84,20 +85,20 @@ public class TestSyslogPriority {
         Event e = Tools.getEvent();
         e.put("message", 255);
         Assert.assertTrue(e.process(sp));
-        Assert.assertEquals("debug", e.applyAtPath(Action.GET, new String[] {"log", "syslog", "severity", "name"}, null));
-        Assert.assertEquals(7, e.applyAtPath(Action.GET, new String[] {"log", "syslog", "severity", "code"}, null));
-        Assert.assertEquals(null, e.applyAtPath(Action.GET, new String[] {"log", "syslog", "facility", "name"}, null));
-        Map<?, ?> facility = (Map<?, ?>) e.applyAtPath(Action.GET, new String[] {"log", "syslog", "facility"}, null);
+        Assert.assertEquals("debug", e.applyAtPath(Action.GET, VariablePath.of(new String[] {"log", "syslog", "severity", "name"}), null));
+        Assert.assertEquals(7, e.applyAtPath(Action.GET, VariablePath.of(new String[] {"log", "syslog", "severity", "code"}), null));
+        Assert.assertEquals(null, e.applyAtPath(Action.GET, VariablePath.of(new String[] {"log", "syslog", "facility", "name"}), null));
+        Map<?, ?> facility = (Map<?, ?>) e.applyAtPath(Action.GET, VariablePath.of(new String[] {"log", "syslog", "facility"}), null);
         Assert.assertEquals(1, facility.size());
-        Assert.assertEquals(null, e.applyAtPath(Action.GET, new String[] {"log", "syslog", "facility", "name"}, null));
-        Assert.assertEquals(31, e.applyAtPath(Action.GET, new String[] {"log", "syslog", "facility", "code"}, null));
+        Assert.assertEquals(null, e.applyAtPath(Action.GET, VariablePath.of(new String[] {"log", "syslog", "facility", "name"}), null));
+        Assert.assertEquals(31, e.applyAtPath(Action.GET, VariablePath.of(new String[] {"log", "syslog", "facility", "code"}), null));
     }
 
     @SuppressWarnings("unchecked")
     @Test
     public void TestNotResolvedString() throws ProcessorException {
         SyslogPriority sp = new SyslogPriority();
-        sp.setField(new String[] {"message"});
+        sp.setField(VariablePath.of(new String[] {"message"}));
         sp.setResolve(false);
 
         Properties props = new Properties(Collections.emptyMap());
@@ -117,7 +118,7 @@ public class TestSyslogPriority {
     @Test
     public void TestResolvedNumber() throws ProcessorException {
         SyslogPriority sp = new SyslogPriority();
-        sp.setField(new String[] {"message"});
+        sp.setField(VariablePath.of(new String[] {"message"}));
 
         Properties props = new Properties(Collections.emptyMap());
 
@@ -136,7 +137,7 @@ public class TestSyslogPriority {
     @Test
     public void TestNotResolvedNumber() throws ProcessorException {
         SyslogPriority sp = new SyslogPriority();
-        sp.setField(new String[] {"message"});
+        sp.setField(VariablePath.of(new String[] {"message"}));
         sp.setResolve(false);
 
         Properties props = new Properties(Collections.emptyMap());
@@ -155,7 +156,7 @@ public class TestSyslogPriority {
     @Test(expected=ProcessorException.class)
     public void TestNotMatch() throws ProcessorException {
         SyslogPriority sp = new SyslogPriority();
-        sp.setField(new String[] {"message"});
+        sp.setField(VariablePath.of(new String[] {"message"}));
 
         Properties props = new Properties(Collections.emptyMap());
 

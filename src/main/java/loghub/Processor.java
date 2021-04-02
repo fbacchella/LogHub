@@ -1,8 +1,5 @@
 package loghub;
 
-import java.util.Arrays;
-import java.util.Optional;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -11,12 +8,9 @@ import loghub.configuration.Properties;
 
 public abstract class Processor {
 
-    // Some processor are created on fly, using a static empty path reduce the memory pressure
-    private static final String[] EMPTYPATH = new String[]{};
-
     protected final Logger logger;
 
-    private String[] path = EMPTYPATH;
+    private VariablePath path = VariablePath.EMPTY;
     private Expression ifexpression = null;
     private Processor success = null;
     private Processor failure = null;
@@ -60,11 +54,11 @@ public abstract class Processor {
         return toString();
     }
 
-    public void setPathArray(String[] path) {
+    public void setPathArray(VariablePath path) {
         this.path = path;
     }
 
-    public String[] getPathArray() {
+    public VariablePath getPathArray() {
         return path;
     }
 
@@ -72,15 +66,14 @@ public abstract class Processor {
      * @return the fieldprefix
      */
     public String getPath() {
-        Optional<String> o = Arrays.stream(path).reduce( (i,j) -> i + "." + j);
-        return o.isPresent() ? o.get() : "";
+        return path.toString();
     }
 
     /**
      * @param fieldprefix the fieldprefix to set
      */
     public void setPath(String fieldprefix) {
-        this.path = fieldprefix.split("\\.");
+        this.path = VariablePath.of(VariablePath.pathElements(fieldprefix));
     }
 
     public void setIf(String ifsource) {

@@ -2,23 +2,23 @@ package loghub.processors;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.BlockingQueue;
 
 import loghub.ConnectionContext;
 import loghub.Event;
+import loghub.Event.Action;
 import loghub.Expression;
+import loghub.Expression.ExpressionException;
 import loghub.Pipeline;
 import loghub.PriorityBlockingQueue;
 import loghub.Processor;
 import loghub.ProcessorException;
-import loghub.Expression.ExpressionException;
-import loghub.Event.Action;
+import loghub.VariablePath;
 import loghub.configuration.Properties;
 
 public class FireEvent extends Processor {
 
-    private Map<String[], String> fields;
-    private Map<String[], Expression> expressions;
+    private Map<VariablePath, String> fields;
+    private Map<VariablePath, Expression> expressions;
     private String destination;
     private Pipeline pipeDestination;
     private PriorityBlockingQueue mainQueue;
@@ -26,7 +26,7 @@ public class FireEvent extends Processor {
     @Override
     public boolean configure(Properties properties) {
         expressions = new HashMap<>(fields.size());
-        for(Map.Entry<String[], String> i: fields.entrySet()) {
+        for(Map.Entry<VariablePath, String> i: fields.entrySet()) {
             try {
                 Expression ex = new Expression(i.getValue(), properties.groovyClassLoader, properties.formatters);
                 expressions.put(i.getKey(), ex);
@@ -47,7 +47,7 @@ public class FireEvent extends Processor {
     @Override
     public boolean process(Event event) throws ProcessorException {
         Event newEvent = Event.emptyEvent(ConnectionContext.EMPTY);
-        for(Map.Entry<String[], Expression> e: expressions.entrySet()) {
+        for (Map.Entry<VariablePath, Expression> e: expressions.entrySet()) {
             Object value = e.getValue().eval(event);
             newEvent.applyAtPath(Action.PUT, e.getKey(), value);
         }
@@ -62,14 +62,14 @@ public class FireEvent extends Processor {
     /**
      * @return the fields
      */
-    public Map<String[], String> getFields() {
+    public Map<VariablePath, String> getFields() {
         return fields;
     }
 
     /**
      * @param fields the fields to set
      */
-    public void setFields(Map<String[], String> fields) {
+    public void setFields(Map<VariablePath, String> fields) {
         this.fields = fields;
     }
 

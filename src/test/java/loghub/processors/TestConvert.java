@@ -16,6 +16,7 @@ import loghub.Event;
 import loghub.LogUtils;
 import loghub.ProcessorException;
 import loghub.Tools;
+import loghub.VariablePath;
 import loghub.configuration.Properties;
 
 public class TestConvert {
@@ -31,7 +32,7 @@ public class TestConvert {
     
     private void check(String className, Class<?> reference, String invalue, Object outvalue) throws ProcessorException {
         Convert cv = new Convert();
-        cv.setField(new String[] {"message"});
+        cv.setField(VariablePath.of("message"));
         cv.setClassName(className);
 
         Properties props = new Properties(Collections.emptyMap());

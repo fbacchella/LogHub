@@ -16,6 +16,7 @@ import loghub.Event;
 import loghub.LogUtils;
 import loghub.ProcessorException;
 import loghub.Tools;
+import loghub.VariablePath;
 import loghub.configuration.Properties;
 
 public class TestParseCsv {
@@ -33,7 +34,7 @@ public class TestParseCsv {
     public void test1() throws ProcessorException {
         ParseCsv parse = new ParseCsv();
         parse.setHeaders(new String[]{"a", "b", "c", "d"});
-        parse.setField(new String[] {"message"});
+        parse.setField(VariablePath.of(new String[] {"message"}));
         parse.setColumnSeparator(';');
         parse.setFeatures(new String[]{"TRIM_SPACES"});
         Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));

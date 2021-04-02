@@ -1,6 +1,5 @@
 package loghub;
 
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
@@ -14,22 +13,21 @@ import loghub.metrics.Stats.PipelineStat;
 
 class EventWrapper extends Event {
     private final Event event;
-    private String[] path;
+    private VariablePath path;
 
     EventWrapper(Event event) {
         this.event = event;
         this.setTimestamp(event.getTimestamp());
     }
 
-    EventWrapper(Event event, String[] path) {
+    EventWrapper(Event event, VariablePath path) {
         this.event = event;
         this.setTimestamp(event.getTimestamp());
-        this.path = Arrays.copyOf(path, path.length + 1);
+        this.path = path;
     }
 
     public void setProcessor(Processor processor) {
-        String[] ppath = processor.getPathArray();
-        path = Arrays.copyOf(ppath, ppath.length + 1);
+        path = processor.getPathArray();
     }
 
     @Override
@@ -41,19 +39,12 @@ class EventWrapper extends Event {
         return action(f, key, value, false);
     }
 
-    private Object action(Action f, String key, final Object value, boolean create) throws ProcessorException {
-        final String[] lpath;
-        if(key == null) {
+    private Object action(Action f, String key, Object value, boolean create) throws ProcessorException {
+        final VariablePath lpath;
+        if (key == null) {
             lpath = path;
-        } else if(key.startsWith(".")) {
-            String[] tpath = key.substring(1).split(".");
-            lpath = tpath.length == 0 ? new String[] {key.substring(1)} : tpath;
-        } else if(key.startsWith("@") || key.startsWith("#")) {
-            // If key is a meta, don't append the path
-            lpath = new String[] {key};
         } else {
-            path[path.length - 1] = key;
-            lpath = path;
+            lpath = path.append(key);
         }
         return event.applyAtPath(f, lpath, value, create);
     }

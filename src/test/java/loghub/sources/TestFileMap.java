@@ -15,6 +15,7 @@ import loghub.Event;
 import loghub.LogUtils;
 import loghub.ProcessorException;
 import loghub.Tools;
+import loghub.VariablePath;
 import loghub.Tools.ProcessingStatus;
 import loghub.configuration.ConfigException;
 import loghub.configuration.ConfigurationTools;
@@ -52,7 +53,7 @@ public class TestFileMap {
 
         Mapper p = new Mapper();
         p.setExpression(ConfigurationTools.unWrap("[type]", i -> i.expression()));
-        p.setLvalue(new String[] {"type"});
+        p.setLvalue(VariablePath.of(new String[] {"type"}));
         p.setMap(s);
 
         Event e = Tools.getEvent();

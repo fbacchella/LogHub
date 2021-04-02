@@ -17,6 +17,7 @@ import loghub.Event;
 import loghub.LogUtils;
 import loghub.ProcessorException;
 import loghub.Tools;
+import loghub.VariablePath;
 import loghub.configuration.Properties;
 
 public class TestParseCef {
@@ -33,7 +34,7 @@ public class TestParseCef {
     @Test
     public void testCef() throws ProcessorException {
         ParseCef parse = new ParseCef();
-        parse.setField(new String[]{"content"});
+        parse.setField(VariablePath.of(new String[]{"content"}));
         Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
         Event event = Tools.getEvent();
         event.put("content", "CEF:0|security|threatmanager|1.0|100|detected a \\| in packet|10|src=10.0.0.1 act=blocked a \\\\ dst=1.1.1.1 comment=with | in it comment2=with \\= in it comment3=with \\r in it  app=3");
@@ -57,7 +58,7 @@ public class TestParseCef {
     @Test
     public void test_loghub_processors_ParseCsv() throws ClassNotFoundException, IntrospectionException {
         BeanChecks.beansCheck(logger, "loghub.processors.ParseCef"
-                              ,BeanChecks.BeanInfo.build("field", BeanChecks.LSTRING)
+                                    ,BeanChecks.BeanInfo.build("field", VariablePath.class)
                         );
     }
 

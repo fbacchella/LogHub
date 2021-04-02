@@ -18,6 +18,7 @@ import loghub.Event;
 import loghub.Event.Action;
 import loghub.Helpers;
 import loghub.ProcessorException;
+import loghub.VariablePath;
 import loghub.configuration.Properties;
 
 public class Grok extends FieldsProcessor {
@@ -85,7 +86,7 @@ public class Grok extends FieldsProcessor {
             }
             // . is a special field name, it mean a value to put back in the original field
             if (! ".".equals(destinationField) ) {
-                event.applyAtPath(Action.PUT, Helpers.pathElements(destinationField).stream().toArray(String[]::new), stored, true);
+                event.applyAtPath(Action.PUT, VariablePath.of(destinationField), stored, true);
             } else {
                 returned = stored;
             }

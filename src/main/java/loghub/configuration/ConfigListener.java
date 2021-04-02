@@ -69,6 +69,7 @@ import loghub.RouteParser.TestExpressionContext;
 import loghub.RouteParser.VarPathContext;
 import loghub.Source;
 import loghub.VarFormatter;
+import loghub.VariablePath;
 import loghub.processors.AnonymousSubPipeline;
 import loghub.processors.Drop;
 import loghub.processors.Etl;
@@ -262,18 +263,17 @@ class ConfigListener extends RouteBaseListener {
     public void exitBean(BeanContext ctx) {
         String beanName = null;
         ObjectWrapped<Object> beanValue = stack.popTyped();
-        if(ctx.condition != null) {
-            beanName = ctx.condition.getText();
-        } else if (ctx.expression() != null) {
-            beanName = "if";
-        } else if (ctx.fev != null) {
+        if (ctx.fev != null) {
             stack.push(beanValue);
-            beanName = "field";
-            String[] ev = convertEventVariable(ctx.fev);
+            beanName = "destination".equals(ctx.bn.getText()) ? "destinationPath" : ctx.bn.getText();
+            VariablePath ev = convertEventVariable(ctx.fev);
             beanValue = (ObjectWrapped<Object>) new ObjectWrapped(ev);
         } else if (ctx.fsv != null) {
-            beanName = "field";
-            beanValue = (ObjectWrapped<Object>) new ObjectWrapped(new String[] {ctx.fsv.getText()});
+            beanName = ctx.bn.getText();
+            Object value = "field".equals(beanName) ? VariablePath.of(ctx.fsv.getText()) : ctx.fsv.getText();
+            beanValue = (ObjectWrapped<Object>) new ObjectWrapped(value);
+        } else if (ctx.bn != null) {
+            beanName = ctx.bn.getText();
         } else {
             beanName = ctx.beanName().getText();
         }
@@ -677,12 +677,12 @@ class ConfigListener extends RouteBaseListener {
     @Override
     public void exitFire(FireContext ctx) {
         FireEvent fire = new FireEvent();
-        Map<String[], String> fields = new HashMap<>();
+        Map<VariablePath, String> fields = new HashMap<>();
         int count = ctx.eventVariable().size() - 1;
         while(! StackMarker.Fire.equals(stack.peek()) ) {
             Object o = stack.pop();
             if(o instanceof ObjectWrapped) {
-                String[] lvalue = convertEventVariable(ctx.eventVariable().get(count--));
+                VariablePath lvalue = convertEventVariable(ctx.eventVariable().get(count--));
                 fields.put(lvalue, ((ObjectWrapped<String>) o).wrapped);
             } else if (o instanceof PipeRefName){
                 PipeRefName name = (PipeRefName) o;
@@ -711,29 +711,28 @@ class ConfigListener extends RouteBaseListener {
         stack.push(StackMarker.Etl);
     }
 
-    private String[] convertEventVariable(EventVariableContext ev) {
+    private VariablePath convertEventVariable(EventVariableContext ev) {
         if (ev.ts != null) {
-            return new String[] { Event.TIMESTAMPKEY };
+            return VariablePath.TIMESTAMP;
         } else if (ev.ctx != null) {
-            List<String> path = convertEventVariable(ev.varPath());
-            path.add(0, Event.CONTEXTKEY);
-            return path.stream().toArray(String[]::new);
+            return VariablePath.ofContext(convertEventVariable(ev.varPath()));
         } else if (ev.MetaName() != null) {
-            return new String[] { ev.MetaName().getText() };
+            return VariablePath.ofMeta(ev.MetaName().getText().substring(1));
         } else {
             List<String> path = convertEventVariable(ev.varPath());
             if (ev.root != null) {
                 path.add(0, ".");
             }
             if (ev.indirect != null) {
-                path.add(0, Event.INDIRECTMARK);
+                return VariablePath.ofIndirect(path);
+            } else {
+                return VariablePath.of(path);
             }
-            return path.stream().toArray(String[]::new);
         }
     }
     private List<String> convertEventVariable(VarPathContext vp) {
         if (vp.QualifiedIdentifier() != null) {
-            return Helpers.pathElements(vp.QualifiedIdentifier().getText());
+            return VariablePath.pathElements(vp.QualifiedIdentifier().getText());
         } else {
             return vp.pathElement().stream().map(this::filterpathElement).collect(Collectors.toList());
         }
@@ -746,8 +745,7 @@ class ConfigListener extends RouteBaseListener {
     @Override
     public void exitEtl(EtlContext ctx) {
         // Check that the lvalue (the destination) is not the context, it's read only
-        Token root = ctx.eventVariable(0).ctx;
-        if (root != null && Event.CONTEXTKEY.equals(root.getText())) {
+        if (ctx.eventVariable(0) != null && ctx.eventVariable(0).ctx != null) {
             throw new RecognitionException("Context can't be a lvalue for " + ctx.getText(), parser, stream, ctx);
         }
 
@@ -870,27 +868,9 @@ class ConfigListener extends RouteBaseListener {
             }
         } else if (ctx.l != null) {
             expression = ctx.l.getText();
-        } else if (ctx.ev != null && ctx.ev.MetaName() != null) {
-            expression = "event.getMeta(\"" + ctx.ev.MetaName().getText().substring(1) + "\")";
         } else if (ctx.ev != null) {
-            StringBuilder buffer = new StringBuilder("event");
-            String[] path = convertEventVariable(ctx.ev);
-            if (Event.TIMESTAMPKEY.equals(path[0])) {
-                buffer.append(".getTimestamp()");
-            } else if (Event.CONTEXTKEY.equals(path[0])) {
-                buffer.append(".getConnectionContext()");
-                Arrays.stream(path, 1, path.length).forEach( i-> {
-                    buffer.append(".").append(i);
-                });
-            } else {
-                buffer.append(".getPath(");
-                buffer.append(Arrays.stream(path)
-                              .map(s -> '"' + s + '"')
-                              .collect(Collectors.joining(","))
-                                );
-                buffer.append(")");
-            }
-            expression = buffer.toString();
+            VariablePath path = convertEventVariable(ctx.ev);
+            expression = path.rubyExpression();
         } else if (ctx.qi != null) {
             expression = ctx.qi.getText();
         } else if (ctx.opu != null) {

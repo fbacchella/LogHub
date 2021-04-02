@@ -31,6 +31,7 @@ import loghub.LogUtils;
 import loghub.ProcessorException;
 import loghub.Tools;
 import loghub.VarFormatter;
+import loghub.VariablePath;
 import loghub.configuration.ConfigException;
 import loghub.configuration.ConfigurationTools;
 import loghub.configuration.Properties;
@@ -78,45 +79,45 @@ public class TestEtl {
     @Test
     public void test1() throws ProcessorException {
         Etl.Assign etl = new Etl.Assign();
-        etl.setLvalue(new String[]{"a", "b"});
+        etl.setLvalue(VariablePath.of(new String[]{"a", "b"}));
         etl.setExpression("event.c + 1");
         boolean done = etl.configure(new Properties(Collections.emptyMap()));
         Assert.assertTrue("configuration failed", done);
         Event event = Tools.getEvent();
         event.put("c", 0);
         event.process(etl);
-        Assert.assertEquals("evaluation failed", 1, event.applyAtPath(Action.GET, new String[] {"a", "b"}, null, false));
+        Assert.assertEquals("evaluation failed", 1, event.applyAtPath(Action.GET, VariablePath.of(new String[] {"a", "b"}), null, false));
     }
 
     @Test
     public void test2() throws ProcessorException {
         Etl etl = new Etl.Remove();
-        etl.setLvalue(new String[]{"a"});
+        etl.setLvalue(VariablePath.of(new String[]{"a"}));
         boolean done = etl.configure(new Properties(Collections.emptyMap()));
         Assert.assertTrue("configuration failed", done);
         Event event = Tools.getEvent();
         event.put("a", 0);
         etl.process(event);
-        Assert.assertEquals("evaluation failed", null, event.applyAtPath(Action.GET, new String[] {"a"}, null, false));
+        Assert.assertEquals("evaluation failed", null, event.applyAtPath(Action.GET, VariablePath.of(new String[] {"a"}), null, false));
     }
 
     @Test
     public void test3() throws ProcessorException {
         Etl.Rename etl = new Etl.Rename();
-        etl.setLvalue(new String[]{"b"});
-        etl.setSource(new String[]{"a"});
+        etl.setLvalue(VariablePath.of(new String[]{"b"}));
+        etl.setSource(VariablePath.of(new String[]{"a"}));
         boolean done = etl.configure(new Properties(Collections.emptyMap()));
         Assert.assertTrue("configuration failed", done);
         Event event = Tools.getEvent();
         event.put("a", 0);
         etl.process(event);
-        Assert.assertEquals("evaluation failed", 0, event.applyAtPath(Action.GET, new String[] {"b"}, null, false));
+        Assert.assertEquals("evaluation failed", 0, event.applyAtPath(Action.GET, VariablePath.of(new String[] {"b"}), null, false));
     }
 
     @Test
     public void test4() throws ProcessorException {
         Etl.Assign etl = new Etl.Assign();
-        etl.setLvalue(new String[]{"a"});
+        etl.setLvalue(VariablePath.of(new String[]{"a"}));
         etl.setExpression("formatters.a.format(event.getTimestamp())");
         Map<String, VarFormatter> formats = Collections.singletonMap("a", new VarFormatter("${%t<GMT>H}"));
         Map<String, Object> properties = new HashMap<>();
@@ -186,6 +187,35 @@ public class TestEtl {
     }
 
     @Test
+    public void testAssignIndirectValue() throws ProcessorException {
+        Etl e = parseEtl("[a] = [<- b]");
+        Event ev = Event.emptyEvent(ConnectionContext.EMPTY);
+        ev.put("b", "c");
+        ev.put("c", 1);
+        Assert.assertTrue(e.process(ev));
+        System.out.println(ev);
+        Assert.assertEquals("c", ev.remove("b"));
+        Assert.assertEquals(1, ev.remove("a"));
+        Assert.assertEquals(1, ev.remove("c"));
+        System.out.println(ev);
+        Assert.assertTrue(ev.isEmpty());
+    }
+
+    @Test
+    public void testRenameIndirectValue() throws ProcessorException {
+        Etl e = parseEtl("[a] < [<- b]");
+        Event ev = Event.emptyEvent(ConnectionContext.EMPTY);
+        ev.put("b", "c");
+        ev.put("c", 1);
+        Assert.assertTrue(e.process(ev));
+        System.out.println(ev);
+        Assert.assertEquals("c", ev.remove("b"));
+        Assert.assertEquals(1, ev.remove("a"));
+        System.out.println(ev);
+        Assert.assertTrue(ev.isEmpty());
+    }
+
+    @Test
     public void testAssignIndirectMissing() throws ProcessorException {
         Etl e = parseEtl("[<- a] = 1");
         Event ev = Event.emptyEvent(ConnectionContext.EMPTY);
@@ -197,6 +227,20 @@ public class TestEtl {
     public void testRename() throws ProcessorException {
         Event ev =  RunEtl("[a] < [b]", i -> i.put("b", 1));
         Assert.assertEquals(1, ev.remove("a"));
+        Assert.assertTrue(ev.isEmpty());
+    }
+
+    @Test
+    public void testRenameIndirecDeep() throws ProcessorException {
+        Map<String, Object> amap = Collections.singletonMap("b", "c");
+        Event ev =  RunEtl("[<- a b] < [d]", i -> {
+            i.put("a", amap);
+            i.put("d", 1);
+        });
+        Assert.assertEquals(1, ev.remove("c"));
+        Assert.assertEquals(null, ev.remove("d"));
+        Assert.assertSame(amap, ev.remove("a"));
+        Assert.assertEquals(null, ev.remove("a"));
         Assert.assertTrue(ev.isEmpty());
     }
 

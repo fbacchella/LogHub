@@ -4,10 +4,29 @@
 
 grammar Route;
 
+@parser::members {
+    enum SECTION {
+        INPUT,
+        PIPELINE,
+        OUTPUT,
+    }
+    SECTION currentSection;
+    boolean inSection(SECTION s) {
+        return s==currentSection;
+    }
+}
+
 configuration: (pipeline|input|output|sources|property)+ EOF;
-pipeline: 'pipeline' '[' identifier ']' '{' pipenodeList? '}' ( '|' '$' finalpiperef) ?;
-input: 'input' '{'  inputObjectlist '}' ('|' '$' piperef)?;
-output: 'output' ('$' piperef '|' )? '{' outputObjectlist '}';
+pipeline
+    : {currentSection=SECTION.PIPELINE;} 'pipeline' '[' identifier ']' '{' pipenodeList? '}' ( '|' '$' finalpiperef) ? {currentSection=null;}
+    ;
+
+input
+    : {currentSection=SECTION.INPUT;}'input' '{' inputObjectlist '}' ('|' '$' piperef)? {currentSection=null;}
+    ;
+output
+    : {currentSection=SECTION.OUTPUT;} 'output' ('$' piperef '|' )? '{' outputObjectlist '}' {currentSection=null;}
+    ;
 inputObjectlist: (object (',' object)*)? ','?;
 outputObjectlist: (object (',' object)*)? ','?;
 pipenodeList: ( (pipenode | '+' forkpiperef ) (('+' forkpiperef)|('|' pipenode))*) ('>' forwardpiperef)?
@@ -33,10 +52,14 @@ pipenode
 object: QualifiedIdentifier beansDescription ; 
 beansDescription: ('{' (bean (',' bean)*)? ','? '}')? ;
 
+// All defined bean names must be replicated as identifier
 bean
-    : 'if' ':' expression
-    | condition=('success' | 'failure' | 'exception') ':' pipenode
-    | 'field' ':' (fsv=stringLiteral | fev=eventVariable)
+    : {inSection(SECTION.INPUT)}?    (bn='decoder' ':' object)
+    | {inSection(SECTION.PIPELINE)}? (bn='if' ':' expression)
+    | {inSection(SECTION.PIPELINE)}? (bn=('success' | 'failure' | 'exception') ':' pipenode)
+    | {inSection(SECTION.PIPELINE)}? (bn='field' ':' (fsv=stringLiteral | fev=eventVariable))
+    | {inSection(SECTION.PIPELINE)}? (bn='destination' ':' (fsv=stringLiteral | fev=eventVariable))
+    | {inSection(SECTION.OUTPUT)}?   (bn='encoder' ':' object)
     | (beanName ':' beanValue)
     ;
 
@@ -208,7 +231,8 @@ sourcedef
     ;
 
 identifier
-    :'index' | 'seeds' | 'doFire' | 'onFire' | 'expiration' | 'forward' | 'default' | 'merge' | 'inPipeline' | 'path' | 'bean' | 'field' | 'input' | 'in'
+    :'index' | 'seeds' | 'doFire' | 'onFire' | 'expiration' | 'forward' | 'default' | 'merge' | 'inPipeline' | 'path' | 'bean' | 'field' | 'input' | 'in' | 'decoder'
+    | 'if' | 'success' | 'failure' | 'exception' | 'field' | 'destination' | 'encoder'
     | Identifier
     ;
 

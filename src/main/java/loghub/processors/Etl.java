@@ -9,14 +9,15 @@ import loghub.Expression;
 import loghub.Expression.ExpressionException;
 import loghub.Processor;
 import loghub.ProcessorException;
+import loghub.VariablePath;
 import loghub.configuration.Properties;
 
 public abstract class Etl extends Processor {
 
-    protected String[] lvalue;
+    protected VariablePath lvalue;
 
     public static class Rename extends Etl{
-        private String[] sourcePath;
+        private VariablePath sourcePath;
         @Override
         public boolean process(Event event) throws ProcessorException {
             if (Boolean.TRUE.equals(event.applyAtPath(Action.CONTAINS, sourcePath, null, false))) {
@@ -31,10 +32,10 @@ public abstract class Etl extends Processor {
         public boolean configure(Properties properties) {
             return super.configure(properties);
         }
-        public String[] getSource() {
+        public VariablePath getSource() {
             return sourcePath;
         }
-        public void setSource(String[] source) {
+        public void setSource(VariablePath source) {
             this.sourcePath = source;
         }
     }
@@ -111,11 +112,11 @@ public abstract class Etl extends Processor {
 
     public abstract boolean process(Event event) throws ProcessorException; 
 
-    public String[] getLvalue() {
+    public VariablePath getLvalue() {
         return lvalue;
     }
 
-    public void setLvalue(String[] lvalue) {
+    public void setLvalue(VariablePath lvalue) {
         this.lvalue = lvalue;
     }
 

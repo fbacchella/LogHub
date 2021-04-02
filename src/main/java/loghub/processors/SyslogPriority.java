@@ -8,14 +8,15 @@ import java.util.Optional;
 import loghub.Event;
 import loghub.Event.Action;
 import loghub.ProcessorException;
+import loghub.VariablePath;
 import lombok.Getter;
 import lombok.Setter;
 
 public class SyslogPriority extends FieldsProcessor {
     
-    private static final String[] ECSPATHFACILITY = new String[] {".", "log", "syslog", "facility"};
-    private static final String[] ECSPATHSEVERITY = new String[] {".", "log", "syslog", "severity"};
-    private static final String[] ECSPATHPRIORITY = new String[] {".", "log", "syslog", "priority"};
+    private static final VariablePath ECSPATHFACILITY = VariablePath.of(new String[] {".", "log", "syslog", "facility"}) ;
+    private static final VariablePath ECSPATHSEVERITY = VariablePath.of(new String[] {".", "log", "syslog", "severity"});
+    private static final VariablePath ECSPATHPRIORITY = VariablePath.of(new String[] {".", "log", "syslog", "priority"});
 
     private String[] facilitiesNames = new String[]{"kernel",
                                                     "user-level",

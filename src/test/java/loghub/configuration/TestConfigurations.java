@@ -267,7 +267,7 @@ public class TestConfigurations {
                         "";
         Properties  p = Configuration.parse(new StringReader(confile));
         DecodeUrl pr = (DecodeUrl) p.namedPipeLine.get("field").processors.get(0);
-        Assert.assertEquals("a", pr.getField()[0]);
+        Assert.assertEquals("a", pr.getField().get(0));
     }
 
     @Test
@@ -278,8 +278,8 @@ public class TestConfigurations {
                         "";
         Properties  p =  Configuration.parse(new StringReader(confile));
         DecodeUrl pr = (DecodeUrl) p.namedPipeLine.get("fields").processors.get(0);
-        Assert.assertEquals("a", pr.getField()[0]);
-        Assert.assertEquals("b", pr.getField()[1]);
+        Assert.assertEquals("a", pr.getField().get(0));
+        Assert.assertEquals("b", pr.getField().get(1));
     }
 
     @Test

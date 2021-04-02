@@ -14,6 +14,7 @@ import loghub.Event;
 import loghub.LogUtils;
 import loghub.ProcessorException;
 import loghub.Tools;
+import loghub.VariablePath;
 import loghub.Event.Action;
 import loghub.configuration.Properties;
 
@@ -31,7 +32,7 @@ public class TestGrok {
     @Test
     public void TestLoadPatterns1() throws ProcessorException {
         Grok grok = new Grok();
-        grok.setField(new String[] {"message"});
+        grok.setField(VariablePath.of(new String[] {"message"}));
         grok.setPattern("%{COMBINEDAPACHELOG}");
 
         Properties props = new Properties(Collections.emptyMap());
@@ -48,7 +49,7 @@ public class TestGrok {
     @Test
     public void TestLoadPatterns2() throws ProcessorException {
         Grok grok = new Grok();
-        grok.setField(new String[] {"message"});
+        grok.setField(VariablePath.of(new String[] {"message"}));
         grok.setPattern("(?:%{SYSLOG_LINE})");
 
         Properties props = new Properties(Collections.emptyMap());
@@ -65,7 +66,7 @@ public class TestGrok {
     @Test
     public void TestLoadPatterns3() throws ProcessorException {
         Grok grok = new Grok();
-        grok.setField(new String[] {"message"});
+        grok.setField(VariablePath.of(new String[] {"message"}));
         grok.setCustomPatterns(Collections.singletonMap("FETCHING", "fetching user_deny.db entry"));
         grok.setPattern("%{FETCHING:message} for '%{USERNAME:imap_user}'");
 
@@ -132,13 +133,13 @@ public class TestGrok {
         Event e = Tools.getEvent();
         e.put("remotehost", "www.google.com");
         Tools.runProcessing(e, "main", Collections.singletonList(grok));
-        Assert.assertEquals("invalid FQDN matching", "www", e.applyAtPath(Action.GET, new String[] {"google", "com"}, null));
+        Assert.assertEquals("invalid FQDN matching", "www", e.applyAtPath(Action.GET, VariablePath.of(new String[] {"google", "com"}) , null));
     }
 
     @Test
     public void TestTyped() throws ProcessorException {
         Grok grok = new Grok();
-        grok.setField(new String[] {"message"});
+        grok.setField(VariablePath.of(new String[] {"message"}));
         grok.setPattern("%{INT:value:long}");
 
         Properties props = new Properties(Collections.emptyMap());

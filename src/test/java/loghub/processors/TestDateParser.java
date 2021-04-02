@@ -21,6 +21,7 @@ import loghub.Event;
 import loghub.LogUtils;
 import loghub.ProcessorException;
 import loghub.Tools;
+import loghub.VariablePath;
 import loghub.configuration.Properties;
 
 public class TestDateParser {
@@ -38,7 +39,7 @@ public class TestDateParser {
     public void test1() throws ProcessorException {
         DateParser parse = new DateParser();
         parse.setPattern("ISO_DATE_TIME");
-        parse.setField(new String[] {"field"});
+        parse.setField(VariablePath.of("field"));
         Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
         Event event = Tools.getEvent();
         ZonedDateTime now = ZonedDateTime.now();
@@ -53,7 +54,7 @@ public class TestDateParser {
     public void test1bis() throws ProcessorException {
         DateParser parse = new DateParser();
         parse.setPattern("yyyy-MM-ddTHH:mm:ss.SSSZ");
-        parse.setField(new String[] {"field"});
+        parse.setField(VariablePath.of("field"));
         Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
         Event event = Tools.getEvent();
         ZonedDateTime now = ZonedDateTime.now();
@@ -67,7 +68,7 @@ public class TestDateParser {
     public void test2() throws ProcessorException {
         DateParser parse = new DateParser();
         parse.setPattern("yyyy-MM-dd'T'HH:m:ss.SSSSSSXXX");
-        parse.setField(new String[] {"field"});
+        parse.setField(VariablePath.of("field"));
         Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
         Event event = Tools.getEvent();
         event.put("field", "1971-01-01T00:00:00.001001+01:00");
@@ -81,7 +82,7 @@ public class TestDateParser {
         DateParser parse = new DateParser();
         parse.setPattern("yyyy-MM-dd'T'HH:m:ss");
         parse.setTimezone("Z");
-        parse.setField(new String[] {"field"});
+        parse.setField(VariablePath.of("field"));
         Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
         Event event = Tools.getEvent();
         event.put("field", "1971-01-01T00:00:00");
@@ -93,7 +94,7 @@ public class TestDateParser {
     @Test
     public void test4() throws ProcessorException {
         DateParser parse = new DateParser();
-        parse.setField(new String[] {"field"});
+        parse.setField(VariablePath.of("field"));
         Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
         Event event = Tools.getEvent();
         event.put("field", "Tue, 3 Jun 2008 11:05:30 +0110");
@@ -107,7 +108,7 @@ public class TestDateParser {
         DateParser parse = new DateParser();
         parse.setPattern("MMM dd HH:mm:ss");
         parse.setTimezone("Z");
-        parse.setField(new String[] {"field"});
+        parse.setField(VariablePath.of("field"));
         Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
         Event event = Tools.getEvent();
         event.put("field", "Jul 26 16:40:22");
@@ -123,7 +124,7 @@ public class TestDateParser {
         DateParser parse = new DateParser();
         parse.setPattern("yyyy-MM-dd'T'HH:m:ss.SSSxx");
         parse.setTimezone("CET");
-        parse.setField(new String[] {"field"});
+        parse.setField(VariablePath.of("field"));
         Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
         Event event = Tools.getEvent();
         event.put("field", "2016-08-04T18:57:37.238+0000");
@@ -139,7 +140,7 @@ public class TestDateParser {
         DateParser parse = new DateParser();
         parse.setPattern("iso");
         parse.setTimezone("CET");
-        parse.setField(new String[] {"field"});
+        parse.setField(VariablePath.of("field"));
         Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
         Event event = Tools.getEvent();
         event.put("field", fieldValue);
@@ -153,7 +154,7 @@ public class TestDateParser {
         DateParser parse = new DateParser();
         parse.setPattern("MMM dd HH:mm:ss");
         parse.setTimezone("CET");
-        parse.setField(new String[] {"field"});
+        parse.setField(VariablePath.of("field"));
         Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
         Event event = Tools.getEvent();
         event.put("field", fieldValue);
@@ -166,7 +167,7 @@ public class TestDateParser {
         DateParser parse = new DateParser();
         parse.setPattern("MMM dd HH:mm:ss.SSS");
         parse.setTimezone("CET");
-        parse.setField(new String[] {"field"});
+        parse.setField(VariablePath.of("field"));
         Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
         Event event = Tools.getEvent();
         event.put("field", "Jul 26 16:40:22.238");
@@ -189,7 +190,7 @@ public class TestDateParser {
         DateParser parse = new DateParser();
         parse.setPatterns(new String[] {parseformat});
         parse.setTimezone("America/Los_Angeles");
-        parse.setField(new String[] {"field"});
+        parse.setField(VariablePath.of("field"));
         Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
         Event event = Tools.getEvent();
         event.put("field", parsedDate);

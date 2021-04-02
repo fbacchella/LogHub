@@ -14,6 +14,7 @@ import loghub.Event;
 import loghub.LogUtils;
 import loghub.ProcessorException;
 import loghub.Tools;
+import loghub.VariablePath;
 import loghub.Event.Action;
 import loghub.configuration.Properties;
 
@@ -31,7 +32,7 @@ public class TestUserAgent {
     @Test
     public void test1() throws ProcessorException {
         UserAgent ua = new UserAgent();
-        ua.setField(new String[] {"User-Agent"});
+        ua.setField(VariablePath.of(new String[] {"User-Agent"}));
         ua.setCacheSize(10);
         ua.setDestination("agent");
         Assert.assertTrue("configuration failed", ua.configure(new Properties(Collections.emptyMap())));
@@ -41,14 +42,14 @@ public class TestUserAgent {
         Event event = Tools.getEvent();
         event.put("User-Agent", uaString);
         Assert.assertTrue(ua.process(event));
-        Object family = event.applyAtPath(Action.GET, new String[] {"agent", "userAgent", "family"}, null, false);
+        Object family = event.applyAtPath(Action.GET, VariablePath.of(new String[] {"agent", "userAgent", "family"}), null, false);
         Assert.assertEquals("can't find user agent parsing", "Mobile Safari", family);
     }
 
     @Test
     public void testDownload() throws ProcessorException {
         UserAgent ua = new UserAgent();
-        ua.setField(new String[] {"User-Agent"});
+        ua.setField(VariablePath.of(new String[] {"User-Agent"}));
         ua.setCacheSize(10);
         ua.setDestination("agent");
         ua.setAgentsUrl(TestUserAgent.class.getClassLoader().getResource("regexes.yaml").toString());

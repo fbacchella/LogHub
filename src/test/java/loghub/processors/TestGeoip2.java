@@ -10,6 +10,7 @@ import org.junit.Test;
 import loghub.Event;
 import loghub.ProcessorException;
 import loghub.Tools;
+import loghub.VariablePath;
 import loghub.configuration.Properties;
 
 public class TestGeoip2 {
@@ -18,7 +19,7 @@ public class TestGeoip2 {
     public void testProcess() throws ProcessorException {
         Properties props = new Properties(Collections.emptyMap());
         Geoip2 geoip = new Geoip2();
-        geoip.setField(new String[] {"ip"});
+        geoip.setField(VariablePath.of(new String[] {"ip"}));
         geoip.setDestination("geoip");
         Geoip2.LocationType[] types = Geoip2.LocationType.values();
         String[] typesNames = new String[types.length];

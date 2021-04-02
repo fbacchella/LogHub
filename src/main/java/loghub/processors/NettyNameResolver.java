@@ -41,6 +41,7 @@ import loghub.Event;
 import loghub.Helpers;
 import loghub.ProcessorException;
 import loghub.VarFormatter;
+import loghub.VariablePath;
 import loghub.configuration.Properties;
 import loghub.netty.POLLER;
 import lombok.EqualsAndHashCode;
@@ -245,7 +246,7 @@ public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<Dn
     }
 
     @Override
-    public boolean manageException(Event event, Exception ex, String[]  destination) throws ProcessorException {
+    public boolean manageException(Event event, Exception ex, VariablePath destination) throws ProcessorException {
         if (ex instanceof DnsNameResolverException) {
             return false;
         } else {

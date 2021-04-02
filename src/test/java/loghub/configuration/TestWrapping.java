@@ -43,8 +43,8 @@ public class TestWrapping {
         Assert.assertEquals(1, processed.getMeta("d"));
         Assert.assertEquals(0L, processed.getTimestamp().getTime());
         Assert.assertEquals("b", processed.get("e"));
-        Assert.assertEquals(1, processed.get("#f"));
-        Assert.assertEquals(2, processed.get("@timestamp"));
+        Assert.assertEquals(1, ((Map<String, Object>)processed.get("a")).get("#f"));
+        Assert.assertEquals(2, ((Map<String, Object>)processed.get("a")).get("@timestamp"));
         ep.stopProcessing();
     }
 

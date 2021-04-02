@@ -26,6 +26,7 @@ import loghub.Processor;
 import loghub.ProcessorException;
 import loghub.ThreadBuilder;
 import loghub.Tools;
+import loghub.VariablePath;
 import loghub.AsyncProcessor;
 
 public class TestFieldsAsynchronous {
@@ -65,7 +66,7 @@ public class TestFieldsAsynchronous {
 
         @Override
         public boolean manageException(Event event, Exception e,
-                                       String[] destination)
+                                       VariablePath destination)
                                                        throws ProcessorException {
             try {
                 return onexception.apply(event, e);
@@ -154,7 +155,7 @@ public class TestFieldsAsynchronous {
         Event e = Tools.getEvent();
         e.put("a", 1);
         SleepingProcessor sp = new SleepingProcessor();
-        sp.setField(new String[] {"a"});
+        sp.setField(VariablePath.of(new String[] {"a"}));
         Groovy gp = new Groovy();
         gp.setScript("event.a = 2");
         sp.setFailure(gp);
@@ -177,7 +178,7 @@ public class TestFieldsAsynchronous {
         Event e = Tools.getEvent();
         e.put("a", 1);
         SleepingProcessor sp = new SleepingProcessor();
-        sp.setField(new String[] {"a"});
+        sp.setField(VariablePath.of(new String[] {"a"}));
         sp.setTimeout(1);
         Groovy gp = new Groovy();
         gp.setScript("event.failure = true");
@@ -205,7 +206,7 @@ public class TestFieldsAsynchronous {
         Event e = Tools.getEvent();
         e.put("a", 1);
         SleepingProcessor sp = new SleepingProcessor();
-        sp.setField(new String[] {"a"});
+        sp.setField(VariablePath.of(new String[] {"a"}));
         Groovy gp = new Groovy();
         gp.setScript("event.a = 2");
         sp.setFailure(gp);
@@ -228,7 +229,7 @@ public class TestFieldsAsynchronous {
         Event e = Tools.getEvent();
         e.put("a", 1);
         SleepingProcessor sp = new SleepingProcessor();
-        sp.setField(new String[] {"a"});
+        sp.setField(VariablePath.of(new String[] {"a"}));
         Groovy gp = new Groovy();
         gp.setScript("event.a = 2");
         sp.setException(gp);

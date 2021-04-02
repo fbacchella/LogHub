@@ -173,6 +173,16 @@ public class TestExpressionParsing {
     }
 
     @Test
+    public void testNotTimestamp() throws ExpressionException, ProcessorException {
+        Event ev =  Tools.getEvent();
+        ev.setTimestamp(new Date(0));
+        ev.put(Event.TIMESTAMPKEY, 1);
+
+        Object v = evalExpression("[ \"@timestamp\" ]", ev);
+        Assert.assertEquals(1, v);
+    }
+
+    @Test
     public void testMeta() throws ExpressionException, ProcessorException {
         Event ev =  Tools.getEvent();
         ev.putMeta("a", 1);
