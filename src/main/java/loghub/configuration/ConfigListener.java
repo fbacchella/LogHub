@@ -850,21 +850,28 @@ class ConfigListener extends RouteBaseListener {
     @Override
     public void exitExpression(ExpressionContext ctx) {
         String expression = null;
-        if(ctx.sl != null) {
+        if (ctx.sl != null) {
             String format = ctx.sl.getText();
-            String key = "h_" + Integer.toHexString(format.hashCode());
-            try {
-                formatters.put(key, new VarFormatter(format));
-            } catch (IllegalArgumentException ex) {
-                logger.catching(Level.DEBUG, ex);
-                throw new RecognitionException(ex.getMessage(), parser, stream, ctx);
-            }
-            String subexpression;
-            if (ctx.expressionsList() != null) {
-                subexpression = (String) stack.pop();
-                expression = String.format("formatters.%s.format(%s)", key, subexpression);
+            VarFormatter vf = new VarFormatter(format);
+            if (vf.isEmpty()) {
+                expression = String.format("\"%s\"", format.replace("\"", "\\\""));
+                if (ctx.expressionsList() != null) {
+                    stack.pop();
+                }
             } else {
-                expression = String.format("formatters.%s.format(event)", key);
+                String key = "h_" + Integer.toHexString(format.hashCode());
+                try {
+                    formatters.put(key, new VarFormatter(format));
+                } catch (IllegalArgumentException ex) {
+                    logger.catching(Level.DEBUG, ex);
+                    throw new RecognitionException(ex.getMessage(), parser, stream, ctx);
+                }
+                if (ctx.expressionsList() != null) {
+                    String subexpression = (String) stack.pop();
+                    expression = String.format("formatters.%s.format(%s)", key, subexpression);
+                } else {
+                    expression = String.format("formatters.%s.format(event)", key);
+                }
             }
         } else if (ctx.l != null) {
             expression = ctx.l.getText();

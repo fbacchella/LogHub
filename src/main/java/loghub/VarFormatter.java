@@ -46,6 +46,8 @@ import java.util.regex.Pattern;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import lombok.Getter;
+
 public class VarFormatter {
 
     public static final DontCareFieldPosition INSTANCE = new DontCareFieldPosition(); 
@@ -551,6 +553,8 @@ public class VarFormatter {
     private ZoneId tz = ZoneId.systemDefault();
     private Locale locale;
     private final String format;
+    @Getter
+    private final boolean empty;
 
     public VarFormatter(String format) {
         this(format, Locale.getDefault());
@@ -577,6 +581,7 @@ public class VarFormatter {
             mf.setFormat(i, resolveFormat(formats.get(i)));
         }
         if (mapper.size() != 0) {
+            empty = false;
             mapper.keySet().stream().reduce((i,j) ->  {
                 if (i.getClass() != j.getClass()) {
                     throw new IllegalArgumentException("Can't mix indexed with object resolution");
@@ -584,6 +589,8 @@ public class VarFormatter {
                     return j;
                 }
             });
+        } else {
+            empty = true;
         }
     }
 
