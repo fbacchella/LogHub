@@ -13,10 +13,10 @@
         <maven.compiler.target>1.8</maven.compiler.target>
         <jdk.compile.home>${jdk.8.home}</jdk.compile.home>
         <bootclasspath>${jdk.compile.home}/jre/lib/rt.jar</bootclasspath>
-        <log4j>2.14.0</log4j>
-        <antlr>4.9</antlr>
-        <jackson>2.12.0</jackson>
-        <metrics>4.1.16</metrics>
+        <log4j>2.14.1</log4j>
+        <antlr>4.9.2</antlr>
+        <jackson>2.12.2</jackson>
+        <metrics>4.1.18</metrics>
         <cache2k>2.0.0.Final</cache2k>
         <mainClass>loghub.Start</mainClass>
         <surefire.version>3.0.0-M5</surefire.version>
@@ -67,7 +67,7 @@
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
-            <version>4.13.1</version>
+            <version>4.13.2</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -167,7 +167,7 @@
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-all</artifactId>
-            <version>4.1.56.Final</version>
+            <version>4.1.63.Final</version>
         </dependency>
         <dependency>
             <groupId>io.dropwizard.metrics</groupId>
@@ -222,7 +222,7 @@
         <dependency>
             <groupId>org.jruby.joni</groupId>
             <artifactId>joni</artifactId>
-            <version>2.1.40</version>
+            <version>2.1.41</version>
         </dependency>
         <dependency>
             <groupId>org.apache.kafka</groupId>
@@ -232,18 +232,18 @@
         <dependency>
             <groupId>com.beust</groupId>
             <artifactId>jcommander</artifactId>
-            <version>1.78</version>
+            <version>1.81</version>
         </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
-            <version>1.18.16</version>
+            <version>1.18.20</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>com.auth0</groupId>
             <artifactId>java-jwt</artifactId>
-            <version>3.12.0</version>
+            <version>3.14.0</version>
         </dependency>
         <dependency>
             <groupId>io.krakens</groupId>
@@ -253,7 +253,7 @@
         <dependency>
             <groupId>com.github.ua-parser</groupId>
             <artifactId>uap-java</artifactId>
-            <version>1.5.0</version>
+            <version>1.5.2</version>
             <exclusions>
                 <exclusion>
                     <!-- Excluded because caching is done using cache2k -->
@@ -282,12 +282,12 @@
         <dependency>
             <groupId>org.tukaani</groupId>
             <artifactId>xz</artifactId>
-            <version>1.8</version>
+            <version>1.9</version>
         </dependency>
         <dependency>
             <groupId>com.github.luben</groupId>
             <artifactId>zstd-jni</artifactId>
-            <version>1.4.8-1</version>
+            <version>1.4.9-2</version>
         </dependency>
         <dependency>
             <groupId>org.brotli</groupId>
@@ -299,18 +299,18 @@
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-transport-native-unix-common</artifactId>
-            <version>4.1.56.Final</version>
+            <version>4.1.63.Final</version>
         </dependency>
         <dependency>
             <groupId>org.bouncycastle</groupId>
             <artifactId>bcprov-jdk15on</artifactId>
-            <version>1.67</version>
+            <version>1.68</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.bouncycastle</groupId>
             <artifactId>bctls-jdk15on</artifactId>
-            <version>1.67</version>
+            <version>1.68</version>
             <scope>test</scope>
         </dependency>
         <dependency>
