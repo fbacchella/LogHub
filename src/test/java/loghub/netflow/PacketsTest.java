@@ -21,9 +21,6 @@ import loghub.IpConnectionContext;
 import loghub.LogUtils;
 import loghub.Tools;
 import loghub.decoders.Decoder;
-import loghub.netflow.NetflowDecoder;
-import loghub.netflow.NetflowPacket;
-import loghub.netflow.PacketFactory;
 
 public class PacketsTest {
 

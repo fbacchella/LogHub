@@ -134,7 +134,7 @@ public class VarFormatter {
         public Object parseObject(String source, ParsePosition pos) {
             throw new UnsupportedOperationException("Can't parse an object");
         }
-    };
+    }
 
     private static final class RightJustifyFormat extends Format {
         private final Format f;

@@ -193,11 +193,9 @@ public class TestEtl {
         ev.put("b", "c");
         ev.put("c", 1);
         Assert.assertTrue(e.process(ev));
-        System.out.println(ev);
         Assert.assertEquals("c", ev.remove("b"));
         Assert.assertEquals(1, ev.remove("a"));
         Assert.assertEquals(1, ev.remove("c"));
-        System.out.println(ev);
         Assert.assertTrue(ev.isEmpty());
     }
 
@@ -208,10 +206,8 @@ public class TestEtl {
         ev.put("b", "c");
         ev.put("c", 1);
         Assert.assertTrue(e.process(ev));
-        System.out.println(ev);
         Assert.assertEquals("c", ev.remove("b"));
         Assert.assertEquals(1, ev.remove("a"));
-        System.out.println(ev);
         Assert.assertTrue(ev.isEmpty());
     }
 

@@ -24,9 +24,9 @@ import loghub.decoders.DecodeException;
 import loghub.receivers.SelfDecoder;
 
 public class BaseChannelConsumer<R extends NettyReceiver<?, ?, ?, ?, BS, BSC, ?, ?, ?, SM>,
-                                     BS extends AbstractBootstrap<BS,BSC>, 
-                                     BSC extends Channel,
-                                     SM> implements ChannelConsumer<BS, BSC> {
+                                 BS extends AbstractBootstrap<BS, BSC>, 
+                                 BSC extends Channel,
+                                 SM> implements ChannelConsumer<BS, BSC> {
 
     private static final Logger logger = LogManager.getLogger();
 

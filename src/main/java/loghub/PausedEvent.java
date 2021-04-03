@@ -23,7 +23,7 @@ public class PausedEvent<KEY> {
     public final Function<Event, Event> timeoutTransform;
     public final Function<Event, Event> exceptionTransform;
     public final BiConsumer<Event, KEY> timeoutHandler;
-    public boolean timeoutHandling;
+    public final boolean timeoutHandling;
 
     /**
      * A flag that avoid dual processing that might happens with time out

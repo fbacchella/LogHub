@@ -3,7 +3,6 @@ package loghub.netflow;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.BlockingQueue;
 
 import loghub.Event;
 import loghub.PriorityBlockingQueue;

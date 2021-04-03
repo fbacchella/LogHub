@@ -136,16 +136,16 @@ public class EventsProcessor extends Thread {
                     }
                 }
             }
-            logger.trace("event is now {}", event);
-            // Processing of the event is finished, what to do next with it ?
-            // Detect if will send to another pipeline, or just wait for a sender to take it
             if (event != null) {
+                logger.trace("event is now {}", event);
+                // Processing of the event is finished without being abandonned, what to do next with it ?
+                // Detect if will send to another pipeline, or just wait for a sender to take it
                 if (event.isTest()) {
                     // A test event, it will not be send an output queue
                     // Checked after pipeline forwarding, but before output sending
                     TestEventProcessing.log(event);
                     event.end();
-                } else if (event.getCurrentPipeline() != null && outQueues.containsKey(event.getCurrentPipeline())){
+                } else if (event.getCurrentPipeline() != null && outQueues.containsKey(event.getCurrentPipeline())) {
                     // Put in the output queue, where the wanting output will come to take it
                     try {
                         outQueues.get(event.getCurrentPipeline()).put(event);

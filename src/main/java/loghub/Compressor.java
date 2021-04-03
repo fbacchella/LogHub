@@ -19,11 +19,11 @@ public class Compressor extends AbstractCompDecomp {
          public Compressor build() {
             return new Compressor(this);
         }
-    };
+    }
+
     public static Builder getBuilder() {
         return new Builder();
     }
-
 
     @Getter
     protected final String format;

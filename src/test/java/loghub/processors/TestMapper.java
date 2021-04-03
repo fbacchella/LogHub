@@ -7,7 +7,6 @@ import org.junit.Test;
 
 import loghub.Event;
 import loghub.Helpers;
-import loghub.Pipeline;
 import loghub.ProcessorException;
 import loghub.Tools;
 import loghub.configuration.ConfigException;

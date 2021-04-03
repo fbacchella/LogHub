@@ -77,7 +77,7 @@ public class UserAgent extends FieldsProcessor {
             }
         } else {
             is = properties.classloader.getResourceAsStream("ua_parser/regexes.yaml");
-            if(is == null) {
+            if (is == null) {
                 logger.error("ua_parser/regexes.yaml is not in the classpath or can't be loaded");
                 return false;
             }

@@ -15,7 +15,6 @@ import org.junit.Test;
 
 import loghub.LogUtils;
 import loghub.Tools;
-import loghub.netflow.IpfixInformationElements;
 
 public class IpfixInformationElementsTest {
 

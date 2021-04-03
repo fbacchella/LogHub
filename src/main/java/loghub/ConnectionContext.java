@@ -10,9 +10,9 @@ public abstract class ConnectionContext<A> implements Serializable {
         public String getName() {
             return "";
         }
-    };
+    }
 
-    private static Principal EMPTYPRINCIPAL = new EmptyPrincipal();
+    private static final Principal EMPTYPRINCIPAL = new EmptyPrincipal();
 
     public static final ConnectionContext<Object> EMPTY = new ConnectionContext<Object>() {
 
@@ -39,7 +39,7 @@ public abstract class ConnectionContext<A> implements Serializable {
 
     private Principal peerPrincipal;
 
-    public ConnectionContext() {
+    protected ConnectionContext() {
         peerPrincipal = EMPTYPRINCIPAL;
     }
 

@@ -1,5 +1,6 @@
 package loghub;
 
+import java.lang.reflect.InvocationTargetException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -94,8 +95,8 @@ public class Expression {
         }
         return ThreadLocal.withInitial(() -> {
             try {
-                return groovyClass.newInstance();
-            } catch (IllegalAccessException | InstantiationException e) {
+                return groovyClass.getConstructor().newInstance();
+            } catch (IllegalAccessException | InstantiationException | IllegalArgumentException | InvocationTargetException | NoSuchMethodException | SecurityException e) {
                 throw new UnsupportedOperationException(e);
             }
         });

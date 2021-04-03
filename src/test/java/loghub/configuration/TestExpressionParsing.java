@@ -169,7 +169,7 @@ public class TestExpressionParsing {
     public void testTimestamp() throws ExpressionException, ProcessorException {
         Event ev =  Tools.getEvent();
         ev.setTimestamp(new Date(0));
-        Date ts = (Date) evalExpression("[ @timestamp ]",ev);
+        Date ts = (Date) evalExpression("[ @timestamp ]", ev);
         Assert.assertEquals(0L, ts.getTime());
     }
 
@@ -187,7 +187,7 @@ public class TestExpressionParsing {
     public void testMeta() throws ExpressionException, ProcessorException {
         Event ev =  Tools.getEvent();
         ev.putMeta("a", 1);
-        Number i = (Number) evalExpression("[ #a ]",ev);
+        Number i = (Number) evalExpression("[ #a ]", ev);
         Assert.assertEquals(1, i.intValue());
     }
 

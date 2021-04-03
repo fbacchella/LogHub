@@ -220,7 +220,6 @@ public class TestVarFormatter {
     @Test
     public void testDateFormatHijrahChronology() {
         ChronoZonedDateTime<HijrahDate> h = HijrahDate.now().atTime(LocalTime.now()).atZone(ZoneId.systemDefault());
-        System.out.println(h.getChronology().getCalendarType());
         checkDate(h);
     }
 

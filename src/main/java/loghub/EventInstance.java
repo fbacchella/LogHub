@@ -87,7 +87,7 @@ class EventInstance extends Event {
         }
     }
 
-    static private final class PreSubpipline extends Processor {
+    private static final class PreSubpipline extends Processor {
 
         private final String pipename;
 
@@ -120,7 +120,7 @@ class EventInstance extends Event {
         }
     }
 
-    static private final class PostSubpipline extends Processor {
+    private static final class PostSubpipline extends Processor {
 
         @Override
         public boolean configure(Properties properties) {
@@ -361,6 +361,7 @@ class EventInstance extends Event {
         return mainqueue.offer(this);
     }
 
+    @Override
     public void finishPipeline() {
         executionStack.forEach(ExecutionStackElement::close);
         executionStack.clear();

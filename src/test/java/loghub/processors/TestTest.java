@@ -13,7 +13,6 @@ import loghub.Event;
 import loghub.EventsProcessor;
 import loghub.Helpers;
 import loghub.LogUtils;
-import loghub.Pipeline;
 import loghub.ProcessorException;
 import loghub.Tools;
 import loghub.configuration.ConfigException;

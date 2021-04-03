@@ -36,7 +36,7 @@ public class ProcessorTest {
         LogUtils.setLevel(logger, Level.TRACE);
     }
 
-    @Test
+    @Test(timeout=1000)
     public void test() throws IOException, DecodeException, ProcessorException, InterruptedException {
         Processor p = new Processor();
 

@@ -27,8 +27,8 @@ public class MultiKeyStoreProvider extends Provider {
         NAME = initname;
         PROVIDERNAME = providerinitname;
     }
-    
-    static class SubKeyStore implements KeyStore.LoadStoreParameter {
+
+    public static class SubKeyStore implements KeyStore.LoadStoreParameter {
 
         final Map<String, String> substores = new HashMap<>();
         final Map<String, String> subtruststores = new HashMap<>();

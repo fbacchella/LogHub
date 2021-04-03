@@ -18,17 +18,17 @@ public abstract class Processor {
     private String ifsource = null;
     private String id = null;
 
-    public Processor() {
+    protected Processor() {
         logger = LogManager.getLogger(Helpers.getFirstInitClass());
     }
 
-    public Processor(Logger logger) {
+    protected Processor(Logger logger) {
         this.logger = logger;
     }
 
     public boolean configure(Properties properties) {
         logger.debug("configuring {}", this);
-        if(ifsource != null) {
+        if (ifsource != null) {
             try {
                 ifexpression = new Expression(ifsource, properties.groovyClassLoader, properties.formatters);
             } catch (ExpressionException e) {
@@ -36,13 +36,13 @@ public abstract class Processor {
                 return false;
             }
         }
-        if(success != null && ! success.configure(properties)) {
+        if (success != null && ! success.configure(properties)) {
             return false;
         }
-        if(failure != null && ! failure.configure(properties)) {
+        if( failure != null && ! failure.configure(properties)) {
             return false;
         }
-        if(exception != null && ! exception.configure(properties)) {
+        if (exception != null && ! exception.configure(properties)) {
             return false;
         }
         return true;

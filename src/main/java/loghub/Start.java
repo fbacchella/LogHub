@@ -84,7 +84,7 @@ public class Start {
     // It's exported for tests
     private static Thread shutdownAction;
 
-    static public void main(final String[] args) {
+    public static void main(final String[] args) {
         Start main = new Start();
         JCommander jcom = JCommander
                         .newBuilder()
@@ -104,7 +104,6 @@ public class Start {
     }
 
     private void configure() {
-
         if (testedprocessor != null) {
             test = true;
             dumpstats = false;
@@ -119,11 +118,11 @@ public class Start {
             .setTask(() -> {
                 long endtime = System.nanoTime();
                 double runtime = ((double)(endtime - starttime)) / 1.0e9;
-                System.out.format("Received: %.2f/s\n", Stats.getReceived() / runtime);
-                System.out.format("Dropped: %.2f/s\n", Stats.getDropped() / runtime);
-                System.out.format("Sent: %.2f/s\n", Stats.getSent() / runtime);
-                System.out.format("Failures: %.2f/s\n", Stats.getFailed() / runtime);
-                System.out.format("Exceptions: %.2f/s\n", Stats.getExceptionsCount() / runtime);
+                System.out.format("Received: %.2f/s%n", Stats.getReceived() / runtime);
+                System.out.format("Dropped: %.2f/s%n", Stats.getDropped() / runtime);
+                System.out.format("Sent: %.2f/s%\n", Stats.getSent() / runtime);
+                System.out.format("Failures: %.2f/s%n", Stats.getFailed() / runtime);
+                System.out.format("Exceptions: %.2f/s%n", Stats.getExceptionsCount() / runtime);
             })
             .build();
         }

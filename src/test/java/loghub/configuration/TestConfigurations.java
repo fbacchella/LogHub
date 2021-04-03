@@ -12,14 +12,13 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
-import loghub.ZMQFactory;
 import loghub.Event;
 import loghub.EventsProcessor;
 import loghub.LogUtils;
 import loghub.ProcessorException;
 import loghub.Tools;
+import loghub.ZMQFactory;
 import loghub.processors.DecodeUrl;
 import loghub.processors.Identity;
 import loghub.processors.SyslogPriority;
@@ -30,9 +29,6 @@ public class TestConfigurations {
 
     @Rule
     public ZMQFactory tctxt = new ZMQFactory();
-
-    @Rule
-    public ExpectedException thrown = ExpectedException.none();
 
     @BeforeClass
     static public void configure() throws IOException {
@@ -216,23 +212,23 @@ public class TestConfigurations {
 
     @Test
     public void testMissingPipeInput() throws ConfigException, IOException {
-        thrown.expect(ConfigException.class);
-        thrown.expectMessage("Invalid input, no destination pipeline");
-
-        String confile = "input { loghub.receivers.TimeSerie } | $pipe";
-        Configuration.parse(new StringReader(confile));
+        ConfigException ex = Assert.assertThrows(ConfigException.class, () -> {
+            String confile = "input { loghub.receivers.TimeSerie } | $pipe";
+            Configuration.parse(new StringReader(confile));
+        });
+        Assert.assertTrue(ex.getMessage().startsWith("Invalid input, no destination pipeline"));
     }
 
     @Test
     public void testBadBean() throws ConfigException, IOException {
-        thrown.expect(ConfigException.class);
-        thrown.expectMessage("Unknown bean 'bad' for loghub.processors.Identity");
-
-        String confile = "pipeline[bad] {\n" + 
-                        "   loghub.processors.Identity {bad: true}\n" + 
-                        "}\n" + 
-                        "";
-        Configuration.parse(new StringReader(confile));
+        ConfigException ex = Assert.assertThrows(ConfigException.class, () -> {
+            String confile = "pipeline[bad] {\n" + 
+                    "   loghub.processors.Identity {bad: true}\n" + 
+                    "}\n" + 
+                    "";
+            Configuration.parse(new StringReader(confile));
+        });
+        Assert.assertEquals("Unknown bean 'bad' for loghub.processors.Identity", ex.getMessage());
     }
 
     @Test

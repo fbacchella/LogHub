@@ -8,7 +8,7 @@ public class ProcessorException extends Exception implements ProcessingException
         public DroppedEventException(Event event) {
             super(event, "dropped");
         }
-    };
+    }
 
     @Getter
     private final Event event;

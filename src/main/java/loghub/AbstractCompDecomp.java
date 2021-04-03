@@ -20,10 +20,10 @@ import lombok.ToString;
 abstract class AbstractCompDecomp implements Filter {
 
     @EqualsAndHashCode(callSuper=true) @ToString
-    public static abstract class Builder<B extends AbstractCompDecomp> extends AbstractBuilder<B> {
+    public abstract static class Builder<B extends AbstractCompDecomp> extends AbstractBuilder<B> {
         @Setter
         protected int memoryLimitInKb = -1;
-    };
+    }
 
     protected final CompressorStreamFactory csf;
 

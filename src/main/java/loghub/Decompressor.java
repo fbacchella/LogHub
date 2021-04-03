@@ -12,7 +12,8 @@ public class Decompressor extends AbstractCompDecomp {
          public Decompressor build() {
             return new Decompressor(this);
         }
-    };
+    }
+
     public static Builder getBuilder() {
         return new Builder();
     }

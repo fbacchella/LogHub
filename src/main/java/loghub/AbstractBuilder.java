@@ -15,7 +15,7 @@ public abstract class AbstractBuilder<B extends Object> {
 
     private static final Map<Class<? extends AbstractBuilder< ? extends Object>>, Map<String, Method>> cache = new HashMap<>();
 
-    private Method resolve(String beanName) throws IntrospectionException {
+    private Method resolve(String beanName) {
         if (!cache.containsKey(getClass())) {
             @SuppressWarnings("unchecked")
             Class<? extends AbstractBuilder< ? extends Object>> clazz = (Class<? extends AbstractBuilder<? extends Object>>) getClass();

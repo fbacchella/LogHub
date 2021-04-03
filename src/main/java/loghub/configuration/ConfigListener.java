@@ -4,13 +4,11 @@ import java.beans.IntrospectionException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -18,13 +16,11 @@ import org.antlr.v4.runtime.IntStream;
 import org.antlr.v4.runtime.Parser;
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.RecognitionException;
-import org.antlr.v4.runtime.Token;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import loghub.AbstractBuilder;
-import loghub.Event;
 import loghub.Helpers;
 import loghub.Pipeline;
 import loghub.Processor;
@@ -314,11 +310,13 @@ class ConfigListener extends RouteBaseListener {
             logger.debug("Loading {} with {}", qualifiedName, classLoader);
             Class<?> objectClass = classLoader.loadClass(qualifiedName);
             AbstractBuilder<?> builder = AbstractBuilder.resolve(objectClass);
-            return new ObjectWrapped<Object>(builder != null ? builder: objectClass.newInstance());
+            return new ObjectWrapped<Object>(builder != null ? builder: objectClass.getConstructor().newInstance());
         } catch (ClassNotFoundException e) {
             throw new RecognitionException("Unknown class " + qualifiedName, parser, stream, ctx);
-        } catch (InstantiationException | IllegalAccessException e) {
+        } catch (InstantiationException | IllegalAccessException | NoSuchMethodException | IllegalArgumentException | SecurityException e) {
             throw new RecognitionException("Unsuable class " + qualifiedName + ": " + Helpers.resolveThrowableException(e), parser, stream, ctx);
+        } catch (InvocationTargetException e) {
+            throw new RecognitionException("Unsuable class " + qualifiedName + ": " + Helpers.resolveThrowableException(e.getCause()), parser, stream, ctx);
         }
     }
 
@@ -942,6 +940,7 @@ class ConfigListener extends RouteBaseListener {
                 expression = String.format("(%s)?.toString()?.uncapitalize()", subexpression);
                 break;
             default:
+                assert false;
                 // Can’t be reached
             }
         } else if (ctx.now != null) {
@@ -949,7 +948,7 @@ class ConfigListener extends RouteBaseListener {
         }
         expressionDepth--;
         if(expressionDepth == 0) {
-            stack.push( new ObjectWrapped<String>(expression));
+            stack.push(new ObjectWrapped<String>(expression));
         } else {
             stack.push(expression);
         }

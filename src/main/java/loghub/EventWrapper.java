@@ -35,7 +35,7 @@ class EventWrapper extends Event {
         return event.entrySet();
     }
 
-    private Object action(Action f, String key, final Object value) throws ProcessorException {
+    private Object action(Action f, String key, Object value) throws ProcessorException {
         return action(f, key, value, false);
     }
 
@@ -60,7 +60,7 @@ class EventWrapper extends Event {
 
     @Override
     public void putAll(Map<? extends String, ? extends Object> m) {
-        m.entrySet().stream().forEach( i->  put(i.getKey(), i.getValue()) );
+        m.entrySet().stream().forEach(i->  put(i.getKey(), i.getValue()));
     }
 
     @Override
@@ -99,7 +99,7 @@ class EventWrapper extends Event {
     public int size() {
         Integer size;
         try {
-            size = (Integer) action( Action.SIZE, null, null);
+            size = (Integer) action(Action.SIZE, null, null);
             return size != null ? size : 0;
         } catch (ProcessorException e) {
             throw new UncheckedProcessorException(e);
@@ -109,7 +109,7 @@ class EventWrapper extends Event {
     @Override
     public boolean isEmpty() {
         try {
-            return (Boolean) action(Action.ISEMPTY, null, null) == true;
+            return (Boolean) action(Action.ISEMPTY, null, null);
         } catch (ProcessorException e) {
             throw new UncheckedProcessorException(e);
         }
@@ -205,6 +205,7 @@ class EventWrapper extends Event {
         return event.inject(ev, mainqueue);
     }
 
+    @Override
     public void finishPipeline() {
         event.finishPipeline();
     }

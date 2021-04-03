@@ -417,7 +417,7 @@ public final class Helpers {
 
     @SuppressWarnings("unchecked")
     public static <T> Iterator<T> getEmptyIterator() {
-        return (Iterator<T>) EMTPYITERATOR;
+        return EMTPYITERATOR;
     }
 
     // Implementing Durstenfeld shuffle (see https://en.wikipedia.org/wiki/Fisher–Yates_shuffle#The_modern_algorithm)
@@ -443,7 +443,7 @@ public final class Helpers {
         });
     }
 
-    private static final Pattern regexContent = Pattern.compile("\\\\(\r|\n){1,2}?");
+    private static final Pattern regexContent = Pattern.compile("\\\\([\r\n]){1,2}?");
     public static void cleanPattern(RouteLexer p) {
         String newText = regexContent.matcher(p.getText()).replaceAll("$1");
         p.setText(newText);
