@@ -854,7 +854,20 @@ class ConfigListener extends RouteBaseListener {
             String format = ctx.sl.getText();
             VarFormatter vf = new VarFormatter(format);
             if (vf.isEmpty()) {
-                expression = String.format("\"%s\"", format.replace("\"", "\\\""));
+                StringBuffer buffer = new StringBuffer("\"");
+                format.chars().mapToObj(i -> {
+                    if (Character.isISOControl(i)) {
+                        return String.format("\\u%04X", i);
+                    } else if (i == '\\') {
+                        return "\\\\";
+                    } else if (i == '"') {
+                        return "\\\"";
+                    } else {
+                        return String.valueOf(Character.toChars(i));
+                    }
+                }).forEach(buffer::append);
+                buffer.append("\"");
+                expression = buffer.toString();
                 if (ctx.expressionsList() != null) {
                     stack.pop();
                 }

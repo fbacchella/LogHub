@@ -7,6 +7,7 @@ import java.time.Instant;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 
 import org.apache.logging.log4j.Level;
@@ -284,6 +285,26 @@ public class TestExpressionParsing {
         Assert.assertEquals(true, resolve("isBlank", " "));
         Assert.assertEquals(true, resolve("isBlank", null));
         Assert.assertEquals("a\nb\nc\nd", resolve("normalize", "a\nb\r\nc\rd"));
+    }
+    
+    @Test
+    public void testComplexString() throws ExpressionException, ProcessorException {
+        Event ev =  Tools.getEvent();
+        String toEval = "a\"\\\t\n\r" + String.valueOf(Character.toChars(0x10000));
+        StringBuffer buffer = new StringBuffer();
+        toEval.chars().mapToObj(i -> {
+            if (Character.isISOControl(i)) {
+                return String.format("\\u%04X", i);
+            } else if (i == '\\') {
+                return "\\\\";
+            } else if (i == '"') {
+                return "\\\"";
+            } else {
+                return String.valueOf(Character.toChars(i));
+            }
+        }).forEach(buffer::append);
+        String expression = String.format(Locale.US, "\"%s\"", buffer);
+        Assert.assertEquals(toEval, evalExpression(expression, ev));
     }
 
     @Test
