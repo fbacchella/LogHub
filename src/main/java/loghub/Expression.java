@@ -1,8 +1,13 @@
 package loghub;
 
 import java.lang.reflect.InvocationTargetException;
+import java.util.AbstractMap;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.Optional;
+import java.util.Set;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -36,14 +41,45 @@ public class Expression {
         }
     }
 
+    private static class BindingMap extends AbstractMap<String, Object> {
+
+        private Event event;
+        private Map<String, VarFormatter> formatters;
+        private final Binding binding;
+        BindingMap() {
+            this.binding = new Binding(this);
+        }
+        @Override
+        public Set<Entry<String, Object>> entrySet() {
+            return Collections.emptySet();
+        }
+        @Override
+        public Object get(Object key) {
+            switch (key.toString()) {
+            case "event": return event;
+            case "formatters": return formatters;
+            default: return null;
+            }
+        }
+
+    }
+
     private static final Logger logger = LogManager.getLogger();
 
     private static final Binding EMPTYBIDDING = new Binding();
-    private static final Map<String, ThreadLocal<Script>> compilationCache = new ConcurrentHashMap<>();
+    private static final Set<Map<String, Script>> scriptsMaps = new HashSet<>();
+    private static final ThreadLocal<Map<String, Script>> compilationCache = ThreadLocal.withInitial(() -> {
+        Map<String, Script> m = new HashMap<>();
+        synchronized(scriptsMaps) {
+            scriptsMaps.add(m);
+        }
+        return m;
+    });
+    private static final ThreadLocal<BindingMap> bindings = ThreadLocal.withInitial(BindingMap::new);
 
     @Getter
     private final String expression;
-    private Map<String, VarFormatter> formatters;
+    private final Map<String, VarFormatter> formatters;
     private final GroovyClassLoader loader;
 
     public Expression(String expression, GroovyClassLoader loader, Map<String, VarFormatter> formatters) throws ExpressionException {
@@ -63,43 +99,36 @@ public class Expression {
 
     public synchronized Object eval(Event event) throws ProcessorException {
         logger.trace("Evaluating script {} with formatters {}", expression, formatters);
-        Binding groovyBinding = new Binding();
-        groovyBinding.setVariable("event", event);
-        groovyBinding.setVariable("formatters", formatters);
-        Script localscript;
+        BindingMap bmap = bindings.get();
+        bmap.formatters = this.formatters;
+        bmap.event = event;
+        Optional<Script> optls = Optional.empty();
         try {
             // Lazy compilation, will only compile if expression is needed
-            localscript = compilationCache.computeIfAbsent(expression, this::compile).get();
+            Script localscript = Optional.of(compilationCache.get().computeIfAbsent(expression, this::compile)).get();
+            localscript.setBinding(bmap.binding);
+            return localscript.run();
         } catch (UnsupportedOperationException e) {
             throw event.buildException(String.format("script compilation failed '%s': %s", expression, Helpers.resolveThrowableException(e.getCause())), e);
-        }
-        localscript.setBinding(groovyBinding);
-        try {
-            return localscript.run();
         } catch (IgnoredEventException e) {
             throw e;
         } catch (Exception e) {
             throw event.buildException(String.format("failed expression '%s': %s", expression, Helpers.resolveThrowableException(e)));
         } finally {
-            localscript.setBinding(EMPTYBIDDING);
+            optls.ifPresent(b -> b.setBinding(EMPTYBIDDING));
+            bmap.formatters = null;
+            bmap.event = null;
         }
     }
 
     @SuppressWarnings("unchecked")
-    private ThreadLocal<Script> compile(String unused) {
-        Class<Script> groovyClass;
+    private Script compile(String unused) {
         try {
-            groovyClass = loader.parseClass(expression);
-        } catch (CompilationFailedException e) {
+            Class<Script> groovyClass = loader.parseClass(expression);
+            return groovyClass.getConstructor().newInstance();
+        } catch (CompilationFailedException | IllegalAccessException | InstantiationException | IllegalArgumentException | InvocationTargetException | NoSuchMethodException | SecurityException e) {
             throw new UnsupportedOperationException(new ExpressionException(e));
         }
-        return ThreadLocal.withInitial(() -> {
-            try {
-                return groovyClass.getConstructor().newInstance();
-            } catch (IllegalAccessException | InstantiationException | IllegalArgumentException | InvocationTargetException | NoSuchMethodException | SecurityException e) {
-                throw new UnsupportedOperationException(e);
-            }
-        });
     }
 
     public static void logError(ExpressionException e, String source, Logger logger) {
@@ -116,7 +145,9 @@ public class Expression {
      * Clear the compilation cache
      */
     public static void clearCache() {
-        compilationCache.clear();
+        synchronized(scriptsMaps) {
+            scriptsMaps.forEach(Map::clear);
+        }
     }
 
 }
