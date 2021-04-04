@@ -97,7 +97,7 @@ public class Expression {
         this.formatters = formatters;
     }
 
-    public synchronized Object eval(Event event) throws ProcessorException {
+    public Object eval(Event event) throws ProcessorException {
         logger.trace("Evaluating script {} with formatters {}", expression, formatters);
         BindingMap bmap = bindings.get();
         bmap.formatters = this.formatters;
