@@ -18,12 +18,14 @@ class EventWrapper extends Event {
     EventWrapper(Event event) {
         this.event = event;
         this.setTimestamp(event.getTimestamp());
+        this.path = VariablePath.EMPTY;
     }
 
     EventWrapper(Event event, VariablePath path) {
         this.event = event;
         this.setTimestamp(event.getTimestamp());
         this.path = path;
+        event.applyAtPath(Action.ISEMPTY, path, null, true);
     }
 
     public void setProcessor(Processor processor) {
@@ -40,7 +42,7 @@ class EventWrapper extends Event {
     }
 
     private Object action(Action f, String key, Object value, boolean create) throws ProcessorException {
-        final VariablePath lpath;
+        VariablePath lpath;
         if (key == null) {
             lpath = path;
         } else {

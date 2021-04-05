@@ -25,19 +25,31 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
     public static final String INDIRECTMARK = "<-";
 
     public enum Action {
-        GET((i,j,k) -> i.get(j)),
-        PUT((i, j, k) -> i.put(j, k)),
-        REMOVE((i, j, k) -> i.remove(j)),
-        CONTAINS((i, j, k) -> i.containsKey(j)),
-        SIZE((i, j, k) -> i.size()),
-        ISEMPTY((i, j, k) -> i.isEmpty()),
-        CLEAR((i, j, k) -> {i.clear(); return null;}),
-        CONTAINSVALUE((i, j, k) -> i.containsValue(k)),
-        KEYSET((i, j, k) -> i.keySet()),
-        VALUES((i, j, k) -> i.values()),
+        GET(false, (i,j,k) -> i.get(j)),
+        PUT(false, (i, j, k) -> i.put(j, k)),
+        REMOVE(false, (i, j, k) -> i.remove(j)),
+        CONTAINS(false, (i, j, k) -> i.containsKey(j)),
+        CONTAINSVALUE(true, (c, k, v) -> Action.asMap(c, k).containsValue(v)),
+        SIZE(true, (c, k, v) -> Action.asMap(c, k).size()),
+        ISEMPTY(true, (c, k, v) -> Action.asMap(c, k).isEmpty()),
+        CLEAR(true, (c, k, v) -> {asMap(c, k).clear(); return null;}),
+        KEYSET(true, (c, k, v) -> Action.asMap(c, k).keySet()),
+        VALUES(true, (c, k, v) -> Action.asMap(c, k).values()),
         ;
+        @SuppressWarnings("unchecked")
+        private static Map<String, Object> asMap(Map<String, Object>c , String k) {
+            if (k == null) {
+                return c;
+            } else if (c.containsKey(k) && c.get(k) instanceof Map){
+                return (Map<String, Object>)c.get(k);
+            } else {
+                return Collections.emptyMap();
+            }
+        }
         public final Helpers.TriFunction<Map<String, Object>, String, Object, Object> action;
-        Action (Helpers.TriFunction<Map<String, Object>, String, Object, Object> action){
+        public final boolean mapAction;
+        Action (boolean mapAction, Helpers.TriFunction<Map<String, Object>, String, Object, Object> action){
+            this.mapAction = mapAction;
             this.action = action;
         }
     }
@@ -50,12 +62,12 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
         return new EventInstance(ctx, true);
     }
 
-    public Object applyAtPath(Action f, VariablePath path, Object value) throws ProcessorException {
+    public Object applyAtPath(Action f, VariablePath path, Object value) {
         return applyAtPath(f, path, value, false);
     }
 
     @SuppressWarnings("unchecked")
-    public Object applyAtPath(Action f, VariablePath path, Object value, boolean create) throws ProcessorException {
+    public Object applyAtPath(Action f, VariablePath path, Object value, boolean create) {
         if (path.isIndirect()) {
             Function<Object, String[]> convert = o -> {
                 if (o instanceof String[]) {
@@ -83,7 +95,7 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
             case GET: return getTimestamp();
             case PUT: {
                 if (!setTimestamp(value)) {
-                    throw buildException(String.valueOf(value) + " is not usable as a timestamp from path " + path);
+                    throw new IllegalArgumentException(String.valueOf(value) + " is not usable as a timestamp from path " + path);
                 };
                 return null;
             }
@@ -115,45 +127,47 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
             }
         } else {
             key = path.get(0);
-            int startwalk = 0;
-            if (".".equals(path.get(0))) {
-                current = getRealEvent();
-                key = path.get(1);
-                startwalk = 1;
-            }
-            for (int i = startwalk ; i < path.length() - 1; i++) {
-                String currentkey = key;
-                Optional<Object> peekNext = Optional.of(current).filter(c -> c.containsKey(currentkey)).map(c -> c.get(currentkey));
-                Map<String, Object> next;
-                if (! peekNext.isPresent()) {
-                    if (create) {
-                        next = new HashMap<>();
-                        current.put(path.get(i), next);
-                    } else {
-                        switch(f) {
-                        case GET:
-                        case SIZE:
-                            throw IgnoredEventException.INSTANCE;
-                        case CONTAINSVALUE:
-                        case CONTAINS:
-                            return false;
-                        case ISEMPTY:
-                            return true;
-                        case KEYSET:
-                            return Collections.emptySet();
-                        case VALUES:
-                            return Collections.emptySet();
-                        default:
-                            return null;
-                        }
-                    }
-                } else if (! (peekNext.get() instanceof Map)) {
-                    throw buildException("Can descend into " + key + " from " + path + " , it's not an object");
+            for (int i = 0 ; i < path.length() - 1; i++) {
+                String currentkey = path.get(i);
+                if (".".equals(currentkey)) {
+                    current = getRealEvent();
+                    key = path.get(i + 1);
                 } else {
-                    next = (Map<String, Object>) peekNext.get();
+                    Optional<Object> peekNext = Optional.of(current).filter(c -> c.containsKey(currentkey)).map(c -> c.get(currentkey));
+                    Map<String, Object> next;
+                    if (! peekNext.isPresent()) {
+                        if (create) {
+                            next = new HashMap<>();
+                            current.put(path.get(i), next);
+                        } else {
+                            switch(f) {
+                            case GET:
+                            case SIZE:
+                                throw IgnoredEventException.INSTANCE;
+                            case CONTAINSVALUE:
+                            case CONTAINS:
+                                return false;
+                            case ISEMPTY:
+                                return true;
+                            case KEYSET:
+                                return Collections.emptySet();
+                            case VALUES:
+                                return Collections.emptySet();
+                            default:
+                                return null;
+                            }
+                        }
+                    } else if (! (peekNext.get() instanceof Map)) {
+                        throw new IllegalArgumentException("Can descend into " + key + " from " + path + " , it's not an object");
+                    } else {
+                        next = (Map<String, Object>) peekNext.get();
+                    }
+                    current = next;
                 }
-                current = next;
                 key = path.get(i + 1);
+            }
+            if (create && f.mapAction && ! current.containsKey(key)) {
+                current.put(key, new HashMap<>());
             }
             return f.action.apply(current, key, value);
         }

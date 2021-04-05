@@ -29,12 +29,22 @@ public class TestWrapping {
         LogUtils.setLevel(logger, Level.TRACE, "loghub.Event", "loghub.EventsProcessor", "loghub");
     }
 
-    @SuppressWarnings("unchecked")
     @Test
-    public void testSourceLoading() throws ConfigException, IOException, ProcessorException, InterruptedException {
-        Properties conf = Tools.loadConf("wrap.conf");
+    public void testSourceLoadingContains() throws ConfigException, IOException, ProcessorException, InterruptedException {
         Event ev = Event.emptyEvent(null);
-        ev.put("a", new HashMap<Object, Object>());
+        ev.put("a", new HashMap<String, Object>());
+        checkEvent(ev);
+    }
+
+    @Test
+    public void testSourceLoadingNotContains() throws ConfigException, IOException, ProcessorException, InterruptedException {
+        Event ev = Event.emptyEvent(null);
+        checkEvent(ev);
+    }
+    
+    @SuppressWarnings("unchecked")
+    private void checkEvent(Event ev) throws ConfigException, IOException, InterruptedException {
+        Properties conf = Tools.loadConf("wrap.conf");
         EventsProcessor ep = new EventsProcessor(conf.mainQueue, conf.outputQueues, conf.namedPipeLine, conf.maxSteps, conf.repository);
         ev.inject(conf.namedPipeLine.get("main"), conf.mainQueue);
         ep.start();
