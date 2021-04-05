@@ -67,6 +67,7 @@ public abstract class FieldsProcessor extends Processor {
         public boolean process(Event event) throws ProcessorException {
             toprocess = processing.next();
             if (processing.hasNext()) {
+                // Still variables to process, so reinsert this process
                 event.insertProcessor(this);
             }
             boolean containsKey =  Boolean.TRUE.equals(event.applyAtPath(Action.CONTAINS, toprocess, null));
@@ -101,6 +102,7 @@ public abstract class FieldsProcessor extends Processor {
     @Override
     public boolean process(Event event) throws ProcessorException {
         if (patterns.length != 0) {
+            // Patterns found, try to process many variables
             Set<VariablePath> nextfields = new HashSet<>();
             //Build a set of fields that needs to be processed
             for (String eventField: new HashSet<>(event.keySet())) {
@@ -115,12 +117,10 @@ public abstract class FieldsProcessor extends Processor {
             // Add a sub processor that will loop on itself until fields are exhausted
             if (nextfields.size() > 0) {
                 delegate(nextfields, event);
-                // never reached code
-                return false;
-            } else {
-                throw IgnoredEventException.INSTANCE;
             }
+            throw IgnoredEventException.INSTANCE;
         } else {
+            // A single variable to process
             if (Boolean.TRUE.equals(event.applyAtPath(Action.CONTAINS, field, null))) {
                 return doExecution(event, field);
             } else {
@@ -183,7 +183,6 @@ public abstract class FieldsProcessor extends Processor {
         if (processing.hasNext()) {
             event.insertProcessor(fieldProcessor);
         }
-        throw IgnoredEventException.INSTANCE;
     }
 
     FieldSubProcessor getSubProcessor(Iterator<VariablePath> processing) {
