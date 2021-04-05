@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.StringJoiner;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
@@ -74,13 +75,28 @@ public abstract class VariablePath {
         public String get(int index) {
             return path[index];
         }
+        String smartPathPrint() {
+            if (path.length == 1 && ".".equals(path[0])) {
+                return ".";
+            } else {
+                StringJoiner joiner = new StringJoiner(".");
+                for (int i=0; i < path.length; i++) {
+                    if (i == 0 && ".".equals(path[i])) {
+                        joiner.add("");
+                    } else {
+                        joiner.add(path[i]);
+                    }
+                }
+                return joiner.toString();
+            }
+        }
         abstract VariablePath newInstance(String[] newPath);
     }
 
     private static class TimeStamp extends FixedLenght {
         @Override
         public String toString() {
-            return Event.TIMESTAMPKEY;
+            return "[" + Event.TIMESTAMPKEY + "]";
         }
 
         @Override
@@ -107,7 +123,7 @@ public abstract class VariablePath {
         }
         @Override
         public String toString() {
-            return "#" + key;
+            return "[#" + key + "]";
         }
         @Override
         public boolean isMeta() {
@@ -131,7 +147,7 @@ public abstract class VariablePath {
         }
         @Override
         public String toString() {
-            return Event.CONTEXTKEY +'.' + String.join(".", path);
+            return "[" + Event.CONTEXTKEY +'.' + String.join(".", path) + "]";
         }
         @Override
         public boolean isContext() {
@@ -152,7 +168,7 @@ public abstract class VariablePath {
         }
         @Override
         public String toString() {
-            return Event.INDIRECTMARK +' ' + String.join(".", path);
+            return "[" + Event.INDIRECTMARK +' ' + smartPathPrint() + "]";
         }
         @Override
         public boolean isIndirect() {
@@ -180,7 +196,7 @@ public abstract class VariablePath {
         }
         @Override
         public String toString() {
-            return String.join(".", path);
+            return "[" + smartPathPrint() + "]";
         }
         @Override
         VariablePath newInstance(String[] newPath) {
