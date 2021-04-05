@@ -1,10 +1,12 @@
 package loghub;
 
 import java.lang.reflect.InvocationTargetException;
+import java.text.MessageFormat;
 import java.util.AbstractMap;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -28,6 +30,12 @@ import lombok.Getter;
  *
  */
 public class Expression {
+
+    // Groovy will catch IgnoredEventException and process it with InvocationTargerException, so prevent that
+    private static final MessageFormat GROOVYTEMPLATE = new MessageFormat(
+                "import loghub.IgnoredEventException; try '{' {0} '}' catch (IgnoredEventException e) '{' e '}'",
+                Locale.ENGLISH
+            );
 
     /**
      * Used to wrap some too generic or RuntimeException and catch it, to have a better management
@@ -107,7 +115,12 @@ public class Expression {
             // Lazy compilation, will only compile if expression is needed
             Script localscript = Optional.of(compilationCache.get().computeIfAbsent(expression, this::compile)).get();
             localscript.setBinding(bmap.binding);
-            return localscript.run();
+            Object result = localscript.run();
+            if (result instanceof IgnoredEventException) {
+                throw (IgnoredEventException) result;
+            } else {
+                return result;
+            }
         } catch (UnsupportedOperationException e) {
             throw event.buildException(String.format("script compilation failed '%s': %s", expression, Helpers.resolveThrowableException(e.getCause())), e);
         } catch (IgnoredEventException e) {
@@ -124,7 +137,8 @@ public class Expression {
     @SuppressWarnings("unchecked")
     private Script compile(String unused) {
         try {
-            Class<Script> groovyClass = loader.parseClass(expression);
+            String groovyScript = GROOVYTEMPLATE.format(new Object[] {expression}, new StringBuffer(), VarFormatter.INSTANCE).toString();
+            Class<Script> groovyClass = loader.parseClass(groovyScript);
             return groovyClass.getConstructor().newInstance();
         } catch (CompilationFailedException | IllegalAccessException | InstantiationException | IllegalArgumentException | InvocationTargetException | NoSuchMethodException | SecurityException e) {
             throw new UnsupportedOperationException(new ExpressionException(e));
