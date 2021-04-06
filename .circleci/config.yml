@@ -130,7 +130,7 @@ jobs:
             #don't persist_to_workspace, can't be done in parallel with testsj13
     publish:
         docker:
-            - image: circleci/openjdk:13-jdk-buster
+            - image: circleci/openjdk:16-jdk-buster
         steps:
             - attach_workspace:
                 at: /tmp/ws
@@ -151,7 +151,7 @@ jobs:
                     echo "publishing jobs: $PUBLISH"
                     mvn -B $PUBLISH -Pskip -Dmaven.test.skip=true -s .circleci/settings.xml
                 environment:
-                    JAVA_HOME: /usr/java/openjdk-13
+                    JAVA_HOME: /usr/local/openjdk-16
                     MAVEN_OPTS: "-Dorg.slf4j.simpleLogger.log.org.apache.maven.plugins.shade=ERROR -Xmx2048m"
             - persist_to_workspace:
                 root: /
