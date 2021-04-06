@@ -90,6 +90,12 @@ public abstract class VariablePath {
                 return joiner.toString();
             }
         }
+        void getArguments(StringBuilder buffer) {
+            buffer.append(Arrays.stream(path)
+                    .map(s -> '"' + s + '"')
+                    .collect(Collectors.joining(","))
+                    );
+        }
         abstract VariablePath newInstance(String[] newPath);
     }
 
@@ -181,11 +187,8 @@ public abstract class VariablePath {
         @Override
         public String rubyExpression() {
             StringBuilder buffer = new StringBuilder("event");
-            buffer.append(".getIndirectPath(");
-            buffer.append(Arrays.stream(path)
-                    .map(s -> '"' + s + '"')
-                    .collect(Collectors.joining(","))
-                    );
+            buffer.append(".getGroovyIndirectPath(");
+            getArguments(buffer);
             buffer.append(")");
             return buffer.toString();
         }
@@ -205,11 +208,8 @@ public abstract class VariablePath {
         @Override
         public String rubyExpression() {
             StringBuilder buffer = new StringBuilder("event");
-            buffer.append(".getPath(");
-            buffer.append(Arrays.stream(path)
-                    .map(s -> '"' + s + '"')
-                    .collect(Collectors.joining(","))
-                    );
+            buffer.append(".getGroovyPath(");
+            getArguments(buffer);
             buffer.append(")");
             return buffer.toString();
         }

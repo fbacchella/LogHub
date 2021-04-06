@@ -205,23 +205,35 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
 
     
     /**
-     * Used in groovy code
+     * Used in groovy code only
      * @param path
      * @return
-     * @throws ProcessorException
      */
-    public Object getPath(String...path) throws ProcessorException {
-        return applyAtPath(Action.GET, VariablePath.of(path), null, false);
+    public Object getGroovyPath(String... path) {
+        try {
+            return applyAtPath(Action.GET, VariablePath.of(path), null, false);
+        }
+        catch (IgnoredEventException ex) {
+            // Groovy catches all exceptions and process them before it rethrows them
+            // This generate a lot of useless process for IgnoredEventException, so transform it in return value
+            return IgnoredEventException.INSTANCE;
+        }
     }
 
     /**
-     * Used in groovy code
+     * Used in groovy code only
      * @param path
      * @return
-     * @throws ProcessorException
      */
-    public Object getIndirectPath(String...path) throws ProcessorException {
-        return applyAtPath(Action.GET, VariablePath.ofIndirect(path), null, false);
+    public Object getGroovyIndirectPath(String... path) {
+        try {
+            return applyAtPath(Action.GET, VariablePath.ofIndirect(path), null, false);
+        }
+        catch (IgnoredEventException ex) {
+            // Groovy catches all exceptions and process them before it rethrows them
+            // This generate a lot of useless process for IgnoredEventException, so transform it in return value
+            return IgnoredEventException.INSTANCE;
+        }
     }
 
     /**
