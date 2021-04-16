@@ -105,14 +105,10 @@ public class Expression {
         Optional<Script> optls = Optional.empty();
         try {
             // Lazy compilation, will only compile if expression is needed
-            Script localscript = Optional.of(compilationCache.get().computeIfAbsent(expression, this::compile)).get();
+            optls = Optional.of(compilationCache.get().computeIfAbsent(expression, this::compile));
+            Script localscript = optls.get();
             localscript.setBinding(bmap.binding);
-            Object result = localscript.run();
-            if (result instanceof IgnoredEventException) {
-                throw IgnoredEventException.INSTANCE;
-            } else {
-                return result;
-            }
+            return localscript.run();
         } catch (UnsupportedOperationException e) {
             throw event.buildException(String.format("script compilation failed '%s': %s", expression, Helpers.resolveThrowableException(e.getCause())), e);
         } catch (IgnoredEventException e) {
