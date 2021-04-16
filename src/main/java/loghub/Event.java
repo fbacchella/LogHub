@@ -210,14 +210,7 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
      * @return
      */
     public Object getGroovyPath(String... path) {
-        try {
-            return applyAtPath(Action.GET, VariablePath.of(path), null, false);
-        }
-        catch (IgnoredEventException ex) {
-            // Groovy catches all exceptions and process them before it rethrows them
-            // This generate a lot of useless process for IgnoredEventException, so transform it in return value
-            return IgnoredEventException.INSTANCE;
-        }
+        return applyAtPath(Action.GET, VariablePath.of(path), null, false);
     }
 
     /**
@@ -226,14 +219,7 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
      * @return
      */
     public Object getGroovyIndirectPath(String... path) {
-        try {
-            return applyAtPath(Action.GET, VariablePath.ofIndirect(path), null, false);
-        }
-        catch (IgnoredEventException ex) {
-            // Groovy catches all exceptions and process them before it rethrows them
-            // This generate a lot of useless process for IgnoredEventException, so transform it in return value
-            return IgnoredEventException.INSTANCE;
-        }
+        return applyAtPath(Action.GET, VariablePath.ofIndirect(path), null, false);
     }
 
     /**

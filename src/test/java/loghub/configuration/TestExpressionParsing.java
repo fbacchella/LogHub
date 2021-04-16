@@ -20,6 +20,7 @@ import org.junit.Test;
 import loghub.ConnectionContext;
 import loghub.Event;
 import loghub.Expression;
+import loghub.IgnoredEventException;
 import loghub.Expression.ExpressionException;
 import loghub.IpConnectionContext;
 import loghub.LogUtils;
@@ -195,7 +196,15 @@ public class TestExpressionParsing {
     public void testArray() throws ExpressionException, ProcessorException {
         Event ev =  Tools.getEvent();
         ev.put("a", new Integer[] { 1, 2, 3});
-        Number i = (Number) evalExpression("[a][0]",ev);
+        Number i = (Number) evalExpression("[a][0]", ev);
+        Assert.assertEquals(1, i.intValue());
+    }
+
+    @Test(expected=ProcessorException.class)
+    public void testArrayFailed() throws ExpressionException, ProcessorException {
+        Event ev =  Tools.getEvent();
+        ev.put("a", new Integer[] { 1, 2, 3});
+        Number i = (Number) evalExpression("[a][3]", ev);
         Assert.assertEquals(1, i.intValue());
     }
 
@@ -229,6 +238,21 @@ public class TestExpressionParsing {
         ev.put("a", "abc");
         Object found = evalExpression("([a] =~ /d.*/)[2]",ev);
         Assert.assertEquals(null, found);
+    }
+
+    @Test
+    public void testStringLitteral() throws ExpressionException, ProcessorException {
+        String format = "b";
+        Event ev =  Tools.getEvent();
+        ev.put("a", 1);
+        Assert.assertEquals("b", evalExpression("\"" + format + "\"", ev));
+    }
+
+    @Test(expected=IgnoredEventException.class)
+    public void complete() throws ExpressionException, ProcessorException {
+        Event ev =  Tools.getEvent();
+        ev.put("a", "abc");
+        evalExpression("([ssl \"ssl_client_verify\"] == \"\" || [ssl ssl_client_verify] == \"NONE\") && [ssl ssl_client_s_dn] == \"\" ", ev);
     }
 
     @Test
