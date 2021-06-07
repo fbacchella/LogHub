@@ -15,13 +15,13 @@
         <bootclasspath>${jdk.compile.home}/jre/lib/rt.jar</bootclasspath>
         <log4j>2.14.1</log4j>
         <antlr>4.9.2</antlr>
-        <jackson>2.12.2</jackson>
-        <metrics>4.1.18</metrics>
+        <jackson>2.12.3</jackson>
+        <metrics>4.2.0</metrics>
         <cache2k>2.0.0.Final</cache2k>
         <mainClass>loghub.Start</mainClass>
         <surefire.version>3.0.0-M5</surefire.version>
         <cacheapi.version>1.1.1</cacheapi.version>
-        <snmp4j.version>2.8.6</snmp4j.version>
+        <snmp4j.version>2.8.7</snmp4j.version>
         <geoip2.version>2.15.0</geoip2.version>
         <dependency.locations.enabled>false</dependency.locations.enabled>
         <!-- Inderection needed to keep optionnal jacoco settings and external argument lines-->
@@ -73,7 +73,7 @@
         <dependency>
             <groupId>org.msgpack</groupId>
             <artifactId>jackson-dataformat-msgpack</artifactId>
-            <version>0.8.22</version>
+            <version>0.8.24</version>
             <exclusions>
                 <exclusion>
                     <groupId>com.fasterxml.jackson.core</groupId>
@@ -98,7 +98,7 @@
         <dependency>
             <groupId>org.apache.httpcomponents.client5</groupId>
             <artifactId>httpclient5</artifactId>
-            <version>5.0.3</version>
+            <version>5.1</version>
         </dependency>
         <dependency>
             <groupId>org.snmp4j</groupId>
@@ -108,7 +108,7 @@
         <dependency>
             <groupId>org.codehaus.groovy</groupId>
             <artifactId>groovy</artifactId>
-            <version>3.0.7</version>
+            <version>3.0.8</version>
         </dependency>
         <dependency>
             <groupId>org.antlr</groupId>
@@ -167,7 +167,7 @@
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-all</artifactId>
-            <version>4.1.63.Final</version>
+            <version>4.1.65.Final</version>
         </dependency>
         <dependency>
             <groupId>io.dropwizard.metrics</groupId>
@@ -243,7 +243,7 @@
         <dependency>
             <groupId>com.auth0</groupId>
             <artifactId>java-jwt</artifactId>
-            <version>3.14.0</version>
+            <version>3.16.0</version>
         </dependency>
         <dependency>
             <groupId>io.krakens</groupId>
@@ -287,7 +287,7 @@
         <dependency>
             <groupId>com.github.luben</groupId>
             <artifactId>zstd-jni</artifactId>
-            <version>1.4.9-2</version>
+            <version>1.5.0-1</version>
         </dependency>
         <dependency>
             <groupId>org.brotli</groupId>
@@ -299,7 +299,7 @@
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-transport-native-unix-common</artifactId>
-            <version>4.1.63.Final</version>
+            <version>4.1.65.Final</version>
         </dependency>
         <dependency>
             <groupId>org.bouncycastle</groupId>
@@ -316,7 +316,7 @@
         <dependency>
             <groupId>com.ibm.icu</groupId>
             <artifactId>icu4j</artifactId>
-            <version>68.2</version>
+            <version>69.1</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
