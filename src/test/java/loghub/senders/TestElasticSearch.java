@@ -2,6 +2,7 @@ package loghub.senders;
 
 import java.beans.IntrospectionException;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -222,7 +223,7 @@ public class TestElasticSearch {
     }
 
     @Test
-    public void testBeans() throws ClassNotFoundException, IntrospectionException {
+    public void testBeans() throws ClassNotFoundException, IntrospectionException, InvocationTargetException {
         BeanChecks.beansCheck(logger, "loghub.senders.ElasticSearch"
                               , BeanInfo.build("workers", Integer.TYPE)
                               , BeanInfo.build("batchSize", Integer.TYPE)

@@ -1,7 +1,9 @@
 package loghub.receivers;
 
+import java.beans.IntrospectionException;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.lang.reflect.InvocationTargetException;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -21,7 +23,10 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import loghub.BeanChecks;
+import loghub.BeanChecks.BeanInfo;
 import loghub.Event;
+import loghub.Filter;
 import loghub.LogUtils;
 import loghub.Pipeline;
 import loghub.PriorityBlockingQueue;
@@ -157,6 +162,25 @@ public class TestTcpLinesStream {
         builder.setHost(host);
         builder.setPort(port);
         return builder.build();
+    }
+
+    @Test
+    public void test_loghub_receivers_Beats() throws ClassNotFoundException, IntrospectionException, InvocationTargetException {
+        BeanChecks.beansCheck(logger, "loghub.receivers.TcpLinesStream"
+                              , BeanInfo.build("maxLength", Integer.TYPE)
+                              , BeanInfo.build("timeStampField", String.class)
+                              , BeanInfo.build("filter", Filter.class)
+                              , BeanInfo.build("poller", String.class)
+                              , BeanInfo.build("workerThreads", Integer.TYPE)
+                              , BeanInfo.build("port", Integer.TYPE)
+                              , BeanInfo.build("host", String.class)
+                              , BeanInfo.build("rcvBuf", Integer.TYPE)
+                              , BeanInfo.build("sndBuf", Integer.TYPE)
+                              , BeanInfo.build("backlog", Integer.TYPE)
+                              , BeanInfo.build("withSSL", Boolean.TYPE)
+                              , BeanInfo.build("SSLClientAuthentication", String.class)
+                              , BeanInfo.build("SSLKeyAlias", String.class)
+                        );
     }
 
 }

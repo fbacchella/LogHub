@@ -3,6 +3,7 @@ package loghub.receivers;
 import java.beans.IntrospectionException;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.lang.reflect.InvocationTargetException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
@@ -227,26 +228,26 @@ public class TestBeats {
     }
 
     @Test
-    public void test_loghub_receivers_Beats() throws ClassNotFoundException, IntrospectionException {
+    public void test_loghub_receivers_Beats() throws ClassNotFoundException, IntrospectionException, InvocationTargetException {
         BeanChecks.beansCheck(logger, "loghub.receivers.Beats"
-                              ,BeanInfo.build("timeStampField", String.class)
-                              ,BeanInfo.build("filter", Filter.class)
-                              ,BeanInfo.build("poller", String.class)
-                              ,BeanInfo.build("workerThreads", Integer.TYPE)
-                              ,BeanInfo.build("port", Integer.TYPE)
-                              ,BeanInfo.build("host", String.class)
-                              ,BeanInfo.build("rcvBuf", Integer.TYPE)
-                              ,BeanInfo.build("sndBuf", Integer.TYPE)
-                              ,BeanInfo.build("backlog", Integer.TYPE)
-                              ,BeanInfo.build("user", String.class)
-                              ,BeanInfo.build("password", String.class)
-                              ,BeanInfo.build("jaasName", String.class)
-                              ,BeanInfo.build("withSSL", Boolean.TYPE)
-                              ,BeanInfo.build("SSLClientAuthentication", String.class)
-                              ,BeanInfo.build("SSLKeyAlias", String.class)
-                              ,BeanInfo.build("clientInactivityTimeoutSeconds", Integer.TYPE)
-                              ,BeanInfo.build("maxPayloadSize", Integer.TYPE)
-                              ,BeanInfo.build("workers", Integer.TYPE)
+                              , BeanInfo.build("timeStampField", String.class)
+                              , BeanInfo.build("filter", Filter.class)
+                              , BeanInfo.build("poller", String.class)
+                              , BeanInfo.build("workerThreads", Integer.TYPE)
+                              , BeanInfo.build("port", Integer.TYPE)
+                              , BeanInfo.build("host", String.class)
+                              , BeanInfo.build("rcvBuf", Integer.TYPE)
+                              , BeanInfo.build("sndBuf", Integer.TYPE)
+                              , BeanInfo.build("backlog", Integer.TYPE)
+                              , BeanInfo.build("user", String.class)
+                              , BeanInfo.build("password", String.class)
+                              , BeanInfo.build("jaasName", String.class)
+                              , BeanInfo.build("withSSL", Boolean.TYPE)
+                              , BeanInfo.build("SSLClientAuthentication", String.class)
+                              , BeanInfo.build("SSLKeyAlias", String.class)
+                              , BeanInfo.build("clientInactivityTimeoutSeconds", Integer.TYPE)
+                              , BeanInfo.build("maxPayloadSize", Integer.TYPE)
+                              , BeanInfo.build("workers", Integer.TYPE)
                         );
     }
 

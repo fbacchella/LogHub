@@ -7,6 +7,7 @@ import static org.junit.Assert.assertTrue;
 import java.beans.IntrospectionException;
 import java.io.IOException;
 import java.io.StringReader;
+import java.lang.reflect.InvocationTargetException;
 import java.net.InetSocketAddress;
 
 import org.apache.logging.log4j.Level;
@@ -58,9 +59,9 @@ public class TestFork {
     }
 
     @Test
-    public void test_loghub_processors_Forker() throws ClassNotFoundException, IntrospectionException {
+    public void test_loghub_processors_Forker() throws ClassNotFoundException, IntrospectionException, InvocationTargetException {
         BeanChecks.beansCheck(logger, "loghub.processors.Forker"
-                              ,BeanChecks.BeanInfo.build("destination", String.class)
+                              , BeanChecks.BeanInfo.build("destination", String.class)
                         );
     }
 

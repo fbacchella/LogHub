@@ -2,6 +2,7 @@ package loghub.decoders;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.time.Instant;
@@ -171,7 +172,7 @@ public class TestMsgpack {
     }
 
     @Test
-    public void testDecoder() throws JsonProcessingException {
+    public void testDecoder() throws JsonProcessingException, InvocationTargetException {
 
         byte[] bs = objectMapper.writeValueAsBytes(obj);
 

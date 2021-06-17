@@ -40,7 +40,7 @@ public abstract class AbstractBuilder<B extends Object> {
 
     public abstract B build();
 
-    public static <B extends Object> AbstractBuilder<B> resolve(Class<B> objectClass){
+    public static <B extends Object> AbstractBuilder<B> resolve(Class<B> objectClass) throws InvocationTargetException{
         BuilderClass bca = objectClass.getAnnotation(BuilderClass.class);
         if (bca != null) {
             try {
@@ -50,7 +50,7 @@ public abstract class AbstractBuilder<B extends Object> {
             } catch (InstantiationException | IllegalAccessException
                             | IllegalArgumentException | NoSuchMethodException
                             | SecurityException | InvocationTargetException e) {
-                return null;
+                throw new InvocationTargetException(e, "The builder is unusable: " + Helpers.resolveThrowableException(e));
             }
         } else {
             return null;

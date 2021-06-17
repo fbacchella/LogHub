@@ -2,6 +2,7 @@ package loghub.processors;
 
 import java.beans.IntrospectionException;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.Map;
@@ -168,7 +169,7 @@ public class TestSyslogPriority {
     }
 
     @Test
-    public void test_loghub_processors_SyslogPriority() throws ClassNotFoundException, IntrospectionException {
+    public void test_loghub_processors_SyslogPriority() throws ClassNotFoundException, IntrospectionException, InvocationTargetException {
         BeanChecks.beansCheck(logger, "loghub.processors.SyslogPriority"
                               , BeanChecks.BeanInfo.build("Facilities", BeanChecks.LSTRING)
                               , BeanChecks.BeanInfo.build("Severities", BeanChecks.LSTRING)

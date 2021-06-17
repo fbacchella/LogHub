@@ -2,6 +2,7 @@ package loghub.receivers;
 
 import java.beans.IntrospectionException;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.net.InetAddress;
 import java.util.Collections;
 import java.util.Map;
@@ -73,15 +74,15 @@ public class TestJournald {
     }
 
     @Test
-    public void test_loghub_receivers_Journald() throws ClassNotFoundException, IntrospectionException {
+    public void test_loghub_receivers_Journald() throws ClassNotFoundException, IntrospectionException, InvocationTargetException {
         BeanChecks.beansCheck(logger, "loghub.receivers.Journald"
-                              ,BeanInfo.build("useJwt", Boolean.TYPE)
-                              ,BeanInfo.build("user", String.class)
-                              ,BeanInfo.build("password", String.class)
-                              ,BeanInfo.build("jaasName", String.class)
-                              ,BeanInfo.build("withSSL", Boolean.TYPE)
-                              ,BeanInfo.build("SSLClientAuthentication", String.class)
-                              ,BeanInfo.build("SSLKeyAlias", String.class)
+                              , BeanInfo.build("useJwt", Boolean.TYPE)
+                              , BeanInfo.build("user", String.class)
+                              , BeanInfo.build("password", String.class)
+                              , BeanInfo.build("jaasName", String.class)
+                              , BeanInfo.build("withSSL", Boolean.TYPE)
+                              , BeanInfo.build("SSLClientAuthentication", String.class)
+                              , BeanInfo.build("SSLKeyAlias", String.class)
                         );
     }
 

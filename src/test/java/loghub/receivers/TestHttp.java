@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.StringReader;
 import java.io.UncheckedIOException;
+import java.lang.reflect.InvocationTargetException;
 import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -345,19 +346,19 @@ public class TestHttp {
     }
 
     @Test
-    public void test_loghub_receivers_Http() throws ClassNotFoundException, IntrospectionException {
+    public void test_loghub_receivers_Http() throws ClassNotFoundException, IntrospectionException, InvocationTargetException {
         BeanChecks.beansCheck(logger, "loghub.receivers.Http"
-                              ,BeanInfo.build("decoders", Map.class)
-                              ,BeanInfo.build("useJwt", Boolean.TYPE)
-                              ,BeanInfo.build("user", String.class)
-                              ,BeanInfo.build("password", String.class)
-                              ,BeanInfo.build("jaasName", String.class)
-                              ,BeanInfo.build("withSSL", Boolean.TYPE)
-                              ,BeanInfo.build("SSLClientAuthentication", String.class)
-                              ,BeanInfo.build("SSLKeyAlias", String.class)
-                              ,BeanInfo.build("backlog", Integer.TYPE)
-                              ,BeanInfo.build("sndBuf", Integer.TYPE)
-                              ,BeanInfo.build("rcvBuf", Integer.TYPE)
+                              , BeanInfo.build("decoders", Map.class)
+                              , BeanInfo.build("useJwt", Boolean.TYPE)
+                              , BeanInfo.build("user", String.class)
+                              , BeanInfo.build("password", String.class)
+                              , BeanInfo.build("jaasName", String.class)
+                              , BeanInfo.build("withSSL", Boolean.TYPE)
+                              , BeanInfo.build("SSLClientAuthentication", String.class)
+                              , BeanInfo.build("SSLKeyAlias", String.class)
+                              , BeanInfo.build("backlog", Integer.TYPE)
+                              , BeanInfo.build("sndBuf", Integer.TYPE)
+                              , BeanInfo.build("rcvBuf", Integer.TYPE)
                         );
     }
 

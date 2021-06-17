@@ -2,6 +2,7 @@ package loghub.processors;
 
 import java.beans.IntrospectionException;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -59,9 +60,9 @@ public class TestParseJson {
     }
 
     @Test
-    public void test_loghub_processors_ParseJson() throws ClassNotFoundException, IntrospectionException {
+    public void test_loghub_processors_ParseJson() throws ClassNotFoundException, IntrospectionException, InvocationTargetException {
         BeanChecks.beansCheck(logger, "loghub.processors.ParseJson"
-                              ,BeanChecks.BeanInfo.build("atPrefix", String.class)
+                              , BeanChecks.BeanInfo.build("atPrefix", String.class)
                         );
     }
 
