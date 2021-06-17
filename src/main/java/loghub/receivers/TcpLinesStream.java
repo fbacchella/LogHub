@@ -21,7 +21,7 @@ import lombok.Setter;
 public class TcpLinesStream extends AbstractTcpReceiver<TcpLinesStream, TcpServer, TcpServer.Builder, ByteBuf> implements ConsumerProvider<TcpLinesStream, ServerBootstrap, ServerChannel> {
 
     public static class Builder extends AbstractTcpReceiver.Builder<TcpLinesStream> {
-        Builder() {
+        public Builder() {
             super();
             // A ready to use TcpLinesStream: single line text message.
             StringCodec.Builder sbuilder = new StringCodec.Builder();
