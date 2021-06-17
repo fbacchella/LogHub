@@ -27,6 +27,8 @@ import loghub.Pipeline;
 import loghub.PriorityBlockingQueue;
 import loghub.Tools;
 import loghub.configuration.Properties;
+import loghub.decoders.Decoder;
+import loghub.decoders.Json;
 import loghub.decoders.StringCodec;
 import loghub.security.ssl.ClientAuthentication;
 import loghub.security.ssl.ContextLoader;
@@ -69,6 +71,28 @@ public class TestTcpLinesStream {
     }
 
     @Test(timeout=5000)
+    public void testJson() throws IOException, InterruptedException {
+        try {
+            makeReceiver( i -> {}, Collections.emptyMap(), () -> Json.getBuilder().build());
+            try(Socket socket = new Socket(InetAddress.getLoopbackAddress(), port);) {
+                OutputStream os = socket.getOutputStream();
+                os.write("{\"program\": \"LogHub\"}\n".getBytes(StandardCharsets.UTF_8));
+                os.flush();
+            }
+            Event e = queue.poll(1, TimeUnit.SECONDS);
+            Assert.assertNotNull(e);
+            String message = (String) e.get("program");
+            Assert.assertEquals("LogHub", message);
+            Assert.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
+        } catch (IOException | InterruptedException | RuntimeException e) {
+            if (receiver != null) {
+                receiver.stopReceiving();
+            }
+            throw e;
+        }
+    }
+
+    @Test(timeout=5000)
     public void testSSL() throws IOException, InterruptedException {
         try {
             makeReceiver( i -> {
@@ -99,11 +123,15 @@ public class TestTcpLinesStream {
     }
 
     private void makeReceiver(Consumer<TcpLinesStream.Builder> prepare, Map<String, Object> propsMap) {
+        makeReceiver(prepare, propsMap, () -> StringCodec.getBuilder().build());
+    }
+
+    private void makeReceiver(Consumer<TcpLinesStream.Builder> prepare, Map<String, Object> propsMap, java.util.function.Supplier<Decoder> decodsup) {
         port = Tools.tryGetPort();
         queue = new PriorityBlockingQueue();
         TcpLinesStream.Builder builder = TcpLinesStream.getBuilder();
         builder.setPort(port);
-        builder.setDecoder(StringCodec.getBuilder().build());
+        builder.setDecoder(decodsup.get());
         prepare.accept(builder);
         
         receiver = new TcpLinesStream(builder);
