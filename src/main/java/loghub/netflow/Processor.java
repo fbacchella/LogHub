@@ -51,7 +51,7 @@ public class Processor extends loghub.Processor {
                     newEvent.put("optionsUUID", lastOptionsUuid[0]);
                 }
             }
-            newEvent.inject(event, mainQueue);
+            newEvent.reinject(event, mainQueue);
         });
 
         return true;

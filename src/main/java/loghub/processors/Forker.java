@@ -29,7 +29,7 @@ public class Forker extends Processor {
             return false;
         }
 
-        newEvent.inject(pipeDestination, mainQueue);
+        newEvent.reinject(pipeDestination, mainQueue);
         return true;
     }
 

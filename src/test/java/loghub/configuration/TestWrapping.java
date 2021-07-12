@@ -46,7 +46,7 @@ public class TestWrapping {
     private void checkEvent(Event ev) throws ConfigException, IOException, InterruptedException {
         Properties conf = Tools.loadConf("wrap.conf");
         EventsProcessor ep = new EventsProcessor(conf.mainQueue, conf.outputQueues, conf.namedPipeLine, conf.maxSteps, conf.repository);
-        ev.inject(conf.namedPipeLine.get("main"), conf.mainQueue);
+        ev.inject(conf.namedPipeLine.get("main"), conf.mainQueue, false);
         ep.start();
         Event processed = conf.outputQueues.get("main").poll(1, TimeUnit.SECONDS);
         Assert.assertEquals("b", ((Map<String, Object>)processed.get("a")).get("c"));

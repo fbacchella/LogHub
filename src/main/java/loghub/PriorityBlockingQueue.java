@@ -8,6 +8,8 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -61,6 +63,14 @@ public class PriorityBlockingQueue extends AbstractQueue<Event>
     private final Lock readLock = masterlock.readLock();
     private final Lock writeLock = masterlock.readLock();
     private final Lock selectLock = new ReentrantLock();
+    
+    // A lock that will prevent ingestions of new events in receivers
+    // The write lock can be held when a generic blocked sitation is detected
+    private final ReadWriteLock backpressureLock = new ReentrantReadWriteLock();
+    private final Lock backpressureReadLock = backpressureLock.readLock();
+    private final Lock backpressureWriteLock = backpressureLock.readLock();
+    // The injection thread that will process asynchronously injected events.
+    private final ExecutorService asyncInjectors = Executors.newSingleThreadExecutor(r -> ThreadBuilder.get().setName("AsyncInternalInjector").setDaemon(false).build());
 
     @Getter
     private final int weight;
@@ -115,6 +125,76 @@ public class PriorityBlockingQueue extends AbstractQueue<Event>
     }
 
     /**
+     * <p>A method that will synchronously inject an event in the processing pipeline.</p>
+     * <p>It should be used only by receivers, because it hangs or drop events if asynchronous events are waiting
+     * to be injected<p>
+     * <p>If blocking is set to false, it fails if there is no capacity available. However it hangs until
+     * space is available.</p>
+     * @param ev The event to inject.
+     * @param blocking fails or block when queue is full.
+     * @return
+     */
+    public boolean inject(Event ev, boolean blocking) {
+        if (blocking) {
+            boolean locked = false;
+            try {
+                backpressureReadLock.lockInterruptibly();
+                locked = true;
+                putBlocking(ev);
+                return true;
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return false;
+            } finally {
+                // InterruptedException can happens before or after locking
+                // as it's thrown from lockInterruptibly or putBlocking.
+                if (locked) {
+                    backpressureReadLock.unlock();
+                }
+            }
+        } else {
+            if (backpressureReadLock.tryLock()) {
+                try {
+                    return offer(ev);
+                } finally {
+                    backpressureReadLock.unlock();
+                }
+            } else {
+                return false;
+            }
+        }
+    }
+
+    /**
+     * <p>A method that will asynchronously inject an event in the processing pipeline.</p>
+     * <p>It should be called only by processors. If the queue is full, the injection thread
+     * will hangs receivers using {@link #inject(Event, boolean)} to
+     * allow the pipeline to process waiting events.</p>
+     * @param ev
+     */
+    public void asyncInject(Event ev) {
+        // If offer success, no need to delay injection in the injection thread
+        if (! offer(ev)) {
+            asyncInjectors.execute(() -> internalAsyncAdd(ev));
+        }
+    }
+
+    private void internalAsyncAdd(Event e) {
+        // If offer fails, hold the write lock, so no more events collected from receiver
+        // until the queue has capacity again
+        if (! offer(e)) {
+            try {
+                backpressureWriteLock.lock();
+                put(e);
+            } catch (InterruptedException e1) {
+                Thread.currentThread().interrupt();
+            } finally {
+                backpressureWriteLock.unlock();
+            }
+        }
+    }
+
+    /**
      * Inserts the {@link Event} into the high priority queue if it is possible to do
      * so immediately without violating capacity restrictions, returning
      * {@code true} upon success and throwing an
@@ -157,7 +237,7 @@ public class PriorityBlockingQueue extends AbstractQueue<Event>
     }
 
     /**
-     * Inserts the specified {@link Event} into the asynchronous queue, waiting if necessary
+     * Inserts the specified {@link Event} into the high priority queue, waiting if necessary
      * for space to become available.
      *
      * @param e the {@link Event} to add
@@ -200,7 +280,7 @@ public class PriorityBlockingQueue extends AbstractQueue<Event>
     }
 
     /**
-     * Inserts the {@link Event} into the asynchronous queue if it is possible to do
+     * Inserts the {@link Event} into the high priority queue if it is possible to do
      * so immediately without violating capacity restrictions, returning
      * {@code true} upon success and {@code false} if no space is currently
      * available. When using a capacity-restricted queue, this method is

@@ -51,7 +51,8 @@ public class FireEvent extends Processor {
             Object value = e.getValue().eval(event);
             newEvent.applyAtPath(Action.PUT, e.getKey(), value);
         }
-        return newEvent.inject(pipeDestination, mainQueue);
+        newEvent.reinject(pipeDestination, mainQueue);
+        return true;
     }
 
     @Override

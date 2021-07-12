@@ -62,7 +62,7 @@ public class TestTest {
         conf.mainQueue.add(sent);
 
         EventsProcessor ep = new EventsProcessor(conf.mainQueue, conf.outputQueues, conf.namedPipeLine, conf.maxSteps, conf.repository);
-        sent.inject(conf.namedPipeLine.get("subpipe"), conf.mainQueue);
+        sent.inject(conf.namedPipeLine.get("subpipe"), conf.mainQueue, true);
         ep.start();
 
         Event received = conf.outputQueues.get("subpipe").take();

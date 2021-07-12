@@ -58,7 +58,7 @@ public class Tools {
 
     public static void runProcessing(Event sent, Pipeline pipe, Properties props) throws ProcessorException {
         EventsProcessor ep = new EventsProcessor(props.mainQueue, props.outputQueues, props.namedPipeLine, props.maxSteps, props.repository);
-        sent.inject(pipe, props.mainQueue);
+        sent.inject(pipe, props.mainQueue, false);
         Processor processor;
         while ((processor = sent.next()) != null) {
             ep.process(sent, processor);
@@ -95,7 +95,7 @@ public class Tools {
         EventsProcessor ep = new EventsProcessor(props.mainQueue, props.outputQueues, namedPipeLine, 100, props.repository);
         steps.forEach( i -> Assert.assertTrue(i.configure(props)));
         prepare.accept(props, steps);
-        sent.inject(pipe, props.mainQueue);
+        sent.inject(pipe, props.mainQueue, false);
         Event toprocess;
         Processor processor;
         // Process all the events, will hang forever if it don't finish

@@ -68,7 +68,7 @@ public class TestConfigurations {
 
         Event sent = Tools.getEvent();
         sent.put("message", "1");
-        sent.inject(conf.namedPipeLine.get("pipeone"), conf.mainQueue);
+        sent.inject(conf.namedPipeLine.get("pipeone"), conf.mainQueue, true);
 
         try {
             Event re = conf.outputQueues.get("main").poll(1, TimeUnit.SECONDS);
@@ -87,7 +87,7 @@ public class TestConfigurations {
 
         try {
             Event sent = Tools.getEvent();
-            sent.inject(conf.namedPipeLine.get("mainfork"), conf.mainQueue);
+            sent.inject(conf.namedPipeLine.get("mainfork"), conf.mainQueue, true);
             Event forked = conf.outputQueues.get("forked").poll(1, TimeUnit.SECONDS);
             Event initial = conf.outputQueues.get("mainfork").poll(1, TimeUnit.SECONDS);
             Assert.assertEquals(1, forked.size());
@@ -107,7 +107,7 @@ public class TestConfigurations {
 
         try {
             Event sent = Tools.getEvent();
-            sent.inject(conf.namedPipeLine.get("mainforward"), conf.mainQueue);
+            sent.inject(conf.namedPipeLine.get("mainforward"), conf.mainQueue, true);
             Event forwarded = conf.outputQueues.get("forked").poll(1, TimeUnit.SECONDS);
             Event initial = conf.outputQueues.get("mainforward").poll(1, TimeUnit.SECONDS);
             Assert.assertEquals(1, forwarded.size());
@@ -245,9 +245,9 @@ public class TestConfigurations {
 
         Event sent = Tools.getEvent();
         sent.put("b", "a\nb1");
-        sent.inject(conf.namedPipeLine.get("pattern"), conf.mainQueue);
+        sent.inject(conf.namedPipeLine.get("pattern"), conf.mainQueue, true);
         try {
-            sent.inject(conf.namedPipeLine.get("pattern"), conf.mainQueue);
+            sent.inject(conf.namedPipeLine.get("pattern"), conf.mainQueue, true);
             Event received = conf.outputQueues.get("pattern").poll(1, TimeUnit.SECONDS);
             Assert.assertEquals(1, received.get("a"));
         } finally {

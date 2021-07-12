@@ -195,16 +195,22 @@ class EventWrapper extends Event {
         return event.inject(pipeline, mainqueue, blocking);
     }
 
+    @Override
+    public void reinject(Pipeline pipeline, PriorityBlockingQueue mainqueue) {
+        event.reinject(pipeline, mainqueue);
+    }
+
+    @Override
+    public void reinject(Event ev, PriorityBlockingQueue mainqueue) {
+        event.reinject(ev, mainqueue);
+    }
+
     /* (non-Javadoc)
      * @see loghub.Event#refill(loghub.Pipeline)
      */
     @Override
     public void refill(Pipeline pipeline) {
         event.refill(pipeline);
-    }
-
-    public boolean inject(Event ev, PriorityBlockingQueue mainqueue) {
-        return event.inject(ev, mainqueue);
     }
 
     @Override

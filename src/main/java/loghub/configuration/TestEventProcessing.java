@@ -146,7 +146,7 @@ public class TestEventProcessing {
                 if (eventDate != null) {
                     ev.setTimestamp(eventDate);
                 }
-                ev.inject(props.namedPipeLine.get(pipeLineTest), props.mainQueue);
+                ev.inject(props.namedPipeLine.get(pipeLineTest), props.mainQueue, false);
             }
 
             Thread.currentThread().join();

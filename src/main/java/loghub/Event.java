@@ -223,9 +223,7 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
     }
 
     /**
-     * This method inject a new event in a pipeline as
-     * a top processing pipeline. Not to be used for sub-processing pipeline. It can only
-     * be used for a new event.
+     * This method inject a new event in the processing pipeline. Used by receivers when creating new events.
      * 
      * @param pipeline the pipeline with the processes to inject 
      * @param mainqueue the waiting queue
@@ -235,18 +233,21 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
     public abstract boolean inject(Pipeline pipeline, PriorityBlockingQueue mainqueue, boolean blocking);
 
     /**
-     * This method inject a new event in a pipeline as
-     * a top processing pipeline. Not to be used for sub-processing pipeline. It can only
-     * be used for a new event.
-     * <p>It will not block if the queue is full</p>
+     * This method inject a new event in the processing pipeline. Used by processors that want to inject new events.
+     * <p>It will not block if the queue is full.</p>
      * 
      * @param pipeline
      * @param mainqueue
-     * @return true if event was injected in the pipeline.
      */
-    public boolean inject(Pipeline pipeline, PriorityBlockingQueue mainqueue) {
-        return inject(pipeline, mainqueue, false);
-    }
+    public abstract void reinject(Pipeline pipeline, PriorityBlockingQueue mainqueue);
+
+    /**
+     * Inject this event in the processing pipelines, using another event as a reference for the state.
+     * <p>It will not block if the queue is full.</p>
+     * @param reference
+     * @param mainqueue
+     */
+    public abstract void reinject(Event reference, PriorityBlockingQueue mainqueue);
 
     /**
      * Refill this event with the content of this pipeline. Used when forwarding an event 
@@ -255,14 +256,6 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
      * @param pipeline
      */
     public abstract void refill(Pipeline pipeline);
-
-    /**
-     * Inject this event in the processing pipelines, using another event as a reference for the state.
-     * @param master
-     * @param mainqueue
-     * @return
-     */
-    public abstract boolean inject(Event master, PriorityBlockingQueue mainqueue);
 
     public abstract void finishPipeline();
 

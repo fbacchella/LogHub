@@ -337,28 +337,28 @@ class EventInstance extends Event {
         pipeName.ifPresent(s -> currentPipeline = s);
         appendProcessors(pipeline.processors);
         pipeName.map(EventInstance::getPost).ifPresent(this::appendProcessor);
-        if (blocking) {
-            try {
-                mainqueue.putBlocking(this);
-                return true;
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                return false;
-            }
-        } else {
-            return mainqueue.offer(this);
-        }
+        return mainqueue.inject(this, blocking);
+    }
+
+    public void reinject(Pipeline pipeline, PriorityBlockingQueue mainqueue) {
+        nextPipeline = pipeline.nextPipeline;
+        Optional<String>pipeName = Optional.ofNullable(pipeline.getName());
+        pipeName.map(EventInstance::getPre).ifPresent(this::appendProcessor);
+        pipeName.ifPresent(s -> currentPipeline = s);
+        appendProcessors(pipeline.processors);
+        pipeName.map(EventInstance::getPost).ifPresent(this::appendProcessor);
+        mainqueue.asyncInject(this);
     }
 
     /* (non-Javadoc)
      * @see loghub.Event#inject(loghub.Event, java.util.concurrent.BlockingQueue)
      */
-    public boolean inject(Event ev, PriorityBlockingQueue mainqueue) {
+    public void reinject(Event ev, PriorityBlockingQueue mainqueue) {
         EventInstance master = ev.getRealEvent();
         currentPipeline = master.currentPipeline;
         nextPipeline = master.nextPipeline;
         appendProcessors(master.processors);
-        return mainqueue.offer(this);
+        mainqueue.asyncInject(this);
     }
 
     @Override

@@ -6,9 +6,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReadWriteLock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Function;
 
 import org.apache.logging.log4j.Level;
@@ -44,19 +41,14 @@ public class EventsRepository<KEY> {
             Stats.restartEvent(pausedEvent.event.getCurrentPipeline(), startTime);
         }
 
-        static <K> PauseContext<K> of(PausedEvent<K> paused, EventsRepository<K> repository, Lock lock) {
+        static <K> PauseContext<K> of(PausedEvent<K> paused, EventsRepository<K> repository) {
             Timeout task;
             if (paused.timeoutHandling && paused.duration > 0 && paused.unit != null) {
                 task = processExpiration.newTimeout(i -> repository.runTimeout(paused), paused.duration, paused.unit);
             } else {
                 task = null;
             }
-            try {
-                lock.lock();
-                return new PauseContext<K>(paused, task);
-            } finally {
-                lock.unlock();
-            }
+            return new PauseContext<K>(paused, task);
         }
     }
 
@@ -78,7 +70,6 @@ public class EventsRepository<KEY> {
 
     private final Map<KEY, PauseContext<KEY>> allPaused = new ConcurrentHashMap<>();
     private final PriorityBlockingQueue mainQueue;
-    private final ReadWriteLock backPressureLock = new ReentrantReadWriteLock();
 
     public EventsRepository(Properties properties) {
         mainQueue = properties.mainQueue;
@@ -86,7 +77,7 @@ public class EventsRepository<KEY> {
 
     public PausedEvent<KEY> pause(PausedEvent<KEY> paused) {
         logger.trace("Pausing {}", paused);
-        return allPaused.computeIfAbsent(paused.key, k -> PauseContext.of(paused, this, backPressureLock.readLock())).pausedEvent;
+        return allPaused.computeIfAbsent(paused.key, k -> PauseContext.of(paused, this)).pausedEvent;
     }
 
     /**
@@ -99,7 +90,7 @@ public class EventsRepository<KEY> {
         logger.trace("looking for key {}", key);
         return allPaused.computeIfAbsent(key, i -> {
             PausedEvent<KEY> paused = creator.apply(i);
-            return PauseContext.of(paused, this, backPressureLock.readLock());
+            return PauseContext.of(paused, this);
         }).pausedEvent;
     }
 
@@ -110,7 +101,7 @@ public class EventsRepository<KEY> {
             logger.warn("Canceling unknown event with key {}", key);
             return null;
         }
-        if(ctx.task != null) {
+        if (ctx.task != null) {
             ctx.task.cancel();
         }
         ctx.restartEvent();
@@ -153,13 +144,7 @@ public class EventsRepository<KEY> {
         event.insertProcessor(source.apply(pausedEvent));
         // Eventually transform the event before handling it
         Event transformed = transform.apply(pausedEvent).apply(event);
-        Lock writeLock = backPressureLock.writeLock();
-        try {
-            writeLock.lock();
-            mainQueue.put(transformed);
-        } finally {
-            writeLock.unlock();
-        }
+        mainQueue.asyncInject(transformed);
     }
 
     private void runTimeout(PausedEvent<KEY> paused) {
