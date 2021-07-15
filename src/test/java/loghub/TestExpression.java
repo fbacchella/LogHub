@@ -1,7 +1,10 @@
 package loghub;
 
 import java.io.IOException;
+import java.time.Instant;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.Date;
 import java.util.Map;
 
 import org.apache.logging.log4j.Level;
@@ -67,6 +70,26 @@ public class TestExpression {
         ExpressionException ex = Assert.assertThrows(ExpressionException.class, 
                 () -> new Expression(expressionScript, new Properties(Collections.emptyMap()).groovyClassLoader, Collections.emptyMap()));
         Assert.assertEquals(MultipleCompilationErrorsException.class, ex.getCause().getClass());
+    }
+
+    @Test
+    public void testDateDiff() throws ExpressionException, ProcessorException {
+        Instant now = Instant.now();
+        Event ev = Tools.getEvent();
+        ev.put("a", now.minusMillis(100));
+        ev.put("b", now);
+        ev.put("c", Date.from(now.minusMillis(100)));
+        ev.put("d", Date.from(now));
+        String[] scripts = new String[] { "event.a - event.b", "event.b - event.c", "event.c - event.d", "event.d - event.a"};
+        Arrays.stream(scripts).forEach(s -> {
+            try {
+                Expression exp = new Expression(s, new Properties(Collections.emptyMap()).groovyClassLoader, Collections.emptyMap());
+                double f = Math.abs((double) exp.eval(ev));
+                Assert.assertEquals(s, 100e-3, f, 1e-3);
+            } catch (ExpressionException | ProcessorException e) {
+                throw new RuntimeException(e);
+            }
+        });
     }
 
 }
