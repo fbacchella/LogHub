@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.logging.log4j.Level;
@@ -15,6 +16,7 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import groovy.lang.MissingMethodException;
 import loghub.Expression.ExpressionException;
 import loghub.configuration.Properties;
 
@@ -76,20 +78,31 @@ public class TestExpression {
     public void testDateDiff() throws ExpressionException, ProcessorException {
         Instant now = Instant.now();
         Event ev = Tools.getEvent();
-        ev.put("a", now.minusMillis(100));
+        ev.put("a", now.minusMillis(1100));
         ev.put("b", now);
-        ev.put("c", Date.from(now.minusMillis(100)));
+        ev.put("c", Date.from(now.minusMillis(1100)));
         ev.put("d", Date.from(now));
         String[] scripts = new String[] { "event.a - event.b", "event.b - event.c", "event.c - event.d", "event.d - event.a"};
+        Map<String, Double> results = new HashMap<>(scripts.length);
         Arrays.stream(scripts).forEach(s -> {
             try {
                 Expression exp = new Expression(s, new Properties(Collections.emptyMap()).groovyClassLoader, Collections.emptyMap());
-                double f = Math.abs((double) exp.eval(ev));
-                Assert.assertEquals(s, 100e-3, f, 1e-3);
+                double f = (double) exp.eval(ev);
+                results.put(s, f);
             } catch (ExpressionException | ProcessorException e) {
                 throw new RuntimeException(e);
             }
         });
+        Assert.assertEquals("event.a - event.b", -1.1, results.get("event.a - event.b"), 1e-3);
+        Assert.assertEquals("event.b - event.c", 1.1, results.get("event.b - event.c"), 1e-3);
+        Assert.assertEquals("event.c - event.d", -1.1, results.get("event.c - event.d"), 1e-3);
+        Assert.assertEquals("event.d - event.a", 1.1, results.get("event.d - event.a"), 1e-3);
+        ProcessorException pe = Assert.assertThrows(ProcessorException.class, () -> {
+            Expression exp = new Expression("event.c -1", new Properties(Collections.emptyMap()).groovyClassLoader, Collections.emptyMap());
+            exp.eval(ev);
+            Assert.fail();
+        });
+        Assert.assertEquals(MissingMethodException.class, pe.getCause().getClass());
     }
 
 }

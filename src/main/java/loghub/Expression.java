@@ -114,7 +114,7 @@ public class Expression {
         } catch (IgnoredEventException e) {
             throw e;
         } catch (Exception e) {
-            throw event.buildException(String.format("failed expression '%s': %s", expression, Helpers.resolveThrowableException(e)));
+            throw event.buildException(String.format("failed expression '%s': %s", expression, Helpers.resolveThrowableException(e)), e);
         } finally {
             optls.ifPresent(b -> b.setBinding(EMPTYBIDDING));
             bmap.formatters = null;

@@ -22,13 +22,13 @@ public abstract class TimeDiff extends DelegatingMetaClass {
         if (! "minus".equals(methodName) || arguments.length != 1) {
             return super.invokeMethod(object, methodName, arguments);
         }
-        Temporal arg1 = resolveTime(object);
-        Temporal arg2 = resolveTime(arguments[0]);
-        if (arg1 == null || arg2 == null) {
+        Temporal arg1 = null;
+        Temporal arg2 = null;
+        if ((arg2 = resolveTime(arguments[0])) == null || (arg1 = resolveTime(object)) == null) {
             return super.invokeMethod(object, methodName, arguments);
         }
-        Duration d = Duration.between(arg1, arg2);
-        return (double) d.getSeconds() + (double)d.getNano()*1e-9;
+        Duration d = Duration.between(arg2, arg1);
+        return d.getSeconds() + d.getNano()*1e-9;
     }
 
     private Temporal resolveTime(Object object) {
