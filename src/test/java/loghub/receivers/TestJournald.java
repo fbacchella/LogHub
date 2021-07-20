@@ -83,6 +83,7 @@ public class TestJournald {
                               , BeanInfo.build("withSSL", Boolean.TYPE)
                               , BeanInfo.build("SSLClientAuthentication", String.class)
                               , BeanInfo.build("SSLKeyAlias", String.class)
+                              , BeanInfo.build("blocking", Boolean.TYPE)
                         );
     }
 

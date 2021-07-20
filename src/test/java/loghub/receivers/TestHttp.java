@@ -359,6 +359,7 @@ public class TestHttp {
                               , BeanInfo.build("backlog", Integer.TYPE)
                               , BeanInfo.build("sndBuf", Integer.TYPE)
                               , BeanInfo.build("rcvBuf", Integer.TYPE)
+                              , BeanInfo.build("blocking", Boolean.TYPE)
                         );
     }
 

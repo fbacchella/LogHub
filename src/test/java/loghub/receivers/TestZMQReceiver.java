@@ -162,6 +162,7 @@ public class TestZMQReceiver {
                               , BeanInfo.build("hwm", Integer.TYPE)
                               , BeanInfo.build("serverKey", String.class)
                               , BeanInfo.build("security", String.class)
+                              , BeanInfo.build("blocking", Boolean.TYPE)
                         );
     }
 

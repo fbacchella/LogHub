@@ -248,6 +248,7 @@ public class TestBeats {
                               , BeanInfo.build("clientInactivityTimeoutSeconds", Integer.TYPE)
                               , BeanInfo.build("maxPayloadSize", Integer.TYPE)
                               , BeanInfo.build("workers", Integer.TYPE)
+                              , BeanInfo.build("blocking", Boolean.TYPE)
                         );
     }
 

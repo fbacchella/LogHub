@@ -63,7 +63,7 @@ public abstract class Receiver extends Thread implements Iterator<Event>, Closea
         @Setter
         private Filter filter;
         @Setter
-        private boolean backpressure = true;
+        private boolean blocking = true;
     };
 
     protected final Logger logger;
@@ -96,7 +96,7 @@ public abstract class Receiver extends Thread implements Iterator<Event>, Closea
     protected Receiver(Builder<? extends Receiver> builder){
         setDaemon(true);
         logger = LogManager.getLogger(Helpers.getFirstInitClass());
-        blocking = isBlocking() && builder.backpressure;
+        blocking = isBlocking() && builder.blocking;
         this.decoder = builder.decoder;
         this.withSSL = builder.withSSL;
         this.SSLClientAuthentication = ClientAuthentication.valueOf(builder.SSLClientAuthentication.toUpperCase(Locale.ENGLISH));
