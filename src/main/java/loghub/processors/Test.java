@@ -2,10 +2,10 @@ package loghub.processors;
 
 import loghub.Event;
 import loghub.Expression;
+import loghub.Expression.ExpressionException;
 import loghub.IgnoredEventException;
 import loghub.Processor;
 import loghub.ProcessorException;
-import loghub.Expression.ExpressionException;
 import loghub.configuration.Properties;
 
 public class Test extends Processor {
@@ -41,19 +41,15 @@ public class Test extends Processor {
 
     @Override
     public boolean process(Event event) throws ProcessorException {
-        if (ifClause != null) {
-            Boolean testResult;
-            try {
-                testResult = Boolean.TRUE.equals(ifClause.eval(event));
-            } catch (IgnoredEventException e) {
-                testResult = false;
-            }
-            Processor nextTransformer = testResult ? thenTransformer : elseTransformer;
-            event.insertProcessor(nextTransformer);
-            return testResult;
-        } else {
-            throw event.buildException(errorMessage);
+        Boolean testResult;
+        try {
+            testResult = Boolean.TRUE.equals(ifClause.eval(event));
+        } catch (IgnoredEventException e) {
+            testResult = false;
         }
+        Processor nextTransformer = testResult ? thenTransformer : elseTransformer;
+        event.insertProcessor(nextTransformer);
+        return testResult;
     }
 
     @Override
@@ -63,15 +59,13 @@ public class Test extends Processor {
 
     @Override
     public boolean configure(Properties properties) {
-        thenTransformer.configure(properties);
-        elseTransformer.configure(properties);
         try {
             ifClause = new Expression(ifClauseSource, properties.groovyClassLoader, properties.formatters);
+            return super.configure(properties) && thenTransformer.configure(properties) && elseTransformer.configure(properties);
         } catch (ExpressionException e) {
             Expression.logError(e, ifClauseSource, logger);
             return false;
         }
-        return super.configure(properties);
     }
 
 }
