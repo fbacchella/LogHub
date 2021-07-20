@@ -51,6 +51,17 @@ public class TestTest {
         Assert.assertEquals("conversion not expected", 2, sent.get("c"));
     }
 
+    @Test
+    public void testMissingPath() throws ProcessorException, InterruptedException, ConfigException, IOException {
+        Properties conf = Tools.loadConf("testclause.conf");
+        Helpers.parallelStartProcessor(conf);
+
+        Event sent = Tools.getEvent();
+
+        Tools.runProcessing(sent, conf.namedPipeLine.get("missingpath"), conf);
+        Assert.assertEquals(2, sent.get("c"));
+    }
+
     @Test(timeout=2000)
     public void testSub() throws InterruptedException, ProcessorException, ConfigException, IOException {
         Properties conf = Tools.loadConf("testclause.conf");

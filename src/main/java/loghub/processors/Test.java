@@ -2,6 +2,7 @@ package loghub.processors;
 
 import loghub.Event;
 import loghub.Expression;
+import loghub.IgnoredEventException;
 import loghub.Processor;
 import loghub.ProcessorException;
 import loghub.Expression.ExpressionException;
@@ -40,10 +41,19 @@ public class Test extends Processor {
 
     @Override
     public boolean process(Event event) throws ProcessorException {
-        Boolean testResult = Boolean.TRUE.equals(ifClause.eval(event));
-        Processor nextTransformer = testResult ? thenTransformer : elseTransformer;
-        event.insertProcessor(nextTransformer);
-        return testResult;
+        if (ifClause != null) {
+            Boolean testResult;
+            try {
+                testResult = Boolean.TRUE.equals(ifClause.eval(event));
+            } catch (IgnoredEventException e) {
+                testResult = false;
+            }
+            Processor nextTransformer = testResult ? thenTransformer : elseTransformer;
+            event.insertProcessor(nextTransformer);
+            return testResult;
+        } else {
+            throw event.buildException(errorMessage);
+        }
     }
 
     @Override

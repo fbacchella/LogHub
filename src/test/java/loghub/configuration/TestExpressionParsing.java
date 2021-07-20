@@ -166,6 +166,12 @@ public class TestExpressionParsing {
         Assert.assertEquals("c", evalExpression("[a.b]", ev));
     }
 
+    @Test(expected=IgnoredEventException.class)
+    public void testEventPathMissing() throws ExpressionException, ProcessorException {
+        Event ev =  Tools.getEvent();
+        evalExpression("[a b]", ev);
+    }
+
     @Test
     public void testTimestamp() throws ExpressionException, ProcessorException {
         Event ev =  Tools.getEvent();
