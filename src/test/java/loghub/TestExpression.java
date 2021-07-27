@@ -36,7 +36,7 @@ public class TestExpression {
     public void test1() throws ExpressionException, ProcessorException {
         VarFormatter format = new VarFormatter("${value}");
         Map<String, VarFormatter> formatters = Collections.singletonMap("faaf", format);
-        String expressionScript = "event.value == formatters.faaf.format(event)";
+        String expressionScript = "event.getGroovyPath(\"value\") == formatters.faaf.format(event)";
         Expression expression = new Expression(expressionScript, new Properties(Collections.emptyMap()).groovyClassLoader, formatters);
         Event ev = Tools.getEvent();
         ev.put("value", "a");
@@ -48,7 +48,7 @@ public class TestExpression {
     public void test2() throws ExpressionException, ProcessorException {
         VarFormatter format = new VarFormatter("${b}");
         Map<String, VarFormatter> formatters = Collections.singletonMap("faaf", format);
-        String expressionScript = "event.a.b + formatters.faaf.format(event.a)";
+        String expressionScript = "event.getGroovyPath(\"a\", \"b\") + formatters.faaf.format(event.a)";
         Expression expression = new Expression(expressionScript, new Properties(Collections.emptyMap()).groovyClassLoader, formatters);
         Event ev = Tools.getEvent();
         ev.put("a", Collections.singletonMap("b", 1));
@@ -68,7 +68,7 @@ public class TestExpression {
     @Test
     public void testFailsCompilation() throws ExpressionException, ProcessorException {
         // An expression valid in loghub, but not in groovy, should be catched
-        String expressionScript = "event.getPath(\"host\") instanceof formatters.h_473e3665.format(event)";
+        String expressionScript = "event.getGroovyPath(\"host\") instanceof formatters.h_473e3665.format(event)";
         ExpressionException ex = Assert.assertThrows(ExpressionException.class, 
                 () -> new Expression(expressionScript, new Properties(Collections.emptyMap()).groovyClassLoader, Collections.emptyMap()));
         Assert.assertEquals(MultipleCompilationErrorsException.class, ex.getCause().getClass());

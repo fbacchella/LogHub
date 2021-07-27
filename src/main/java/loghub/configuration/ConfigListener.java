@@ -884,6 +884,8 @@ class ConfigListener extends RouteBaseListener {
                     expression = String.format("formatters.%s.format(event)", key);
                 }
             }
+        } else if (ctx.nl != null) {
+            expression = "null";
         } else if (ctx.l != null) {
             expression = ctx.l.getText();
         } else if (ctx.ev != null) {
@@ -911,7 +913,13 @@ class ConfigListener extends RouteBaseListener {
             }
             Object post = stack.pop();
             Object pre = stack.pop();
-            expression = pre + " " + opb + " " + post;
+            if ("instanceof".equals(opb)) {
+                expression = String.format("%s instanceof %s", pre, post);
+            } else if (ctx.e1.nl != null) {
+                expression = "loghub.NoValue.INSTANCE " + opb + " " + post;
+            } else {
+                expression = String.format("%s %s ex.protect(%s, \"%s\", %s)", pre, opb, pre, opb, post);
+            }
         } else if (ctx.e3 != null) {
             Object subexpression = stack.pop();
             expression = "(" + subexpression + ")";
@@ -923,26 +931,7 @@ class ConfigListener extends RouteBaseListener {
             expression = String.format("%s[%s]", subexpression, ctx.arrayIndex.getText());
         } else if (ctx.stringFunction != null) {
             Object subexpression = stack.pop();
-            switch (ctx.stringFunction.getType()) {
-            case RouteLexer.Trim:
-                expression = String.format("(%s)?.toString()?.trim()", subexpression);
-                break;
-            case RouteLexer.Capitalize:
-                expression = String.format("(%s)?.toString()?.capitalize()", subexpression);
-                break;
-            case RouteLexer.IsBlank:
-                expression = String.format("((%s)?.toString() ?: \"\").isBlank()", subexpression);
-                break;
-            case RouteLexer.Normalize:
-                expression = String.format("(%s)?.toString()?.normalize()", subexpression);
-                break;
-            case RouteLexer.Uncapitalize:
-                expression = String.format("(%s)?.toString()?.uncapitalize()", subexpression);
-                break;
-            default:
-                assert false;
-                // Can’t be reached
-            }
+            expression =  String.format("ex.stringMethod(\"%s\", %s)", ctx.stringFunction.getText(), subexpression);
         } else if (ctx.now != null) {
             expression = "java.time.Instant.now()";
         }

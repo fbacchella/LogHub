@@ -10,6 +10,8 @@ import loghub.Expression;
 import loghub.ProcessorException;
 import loghub.Event.Action;
 import loghub.Expression.ExpressionException;
+import loghub.IgnoredEventException;
+import loghub.NoValue;
 import loghub.configuration.Properties;
 
 public class Mapper extends Etl {
@@ -40,8 +42,10 @@ public class Mapper extends Etl {
     @Override
     public boolean process(Event event) throws ProcessorException {
         Object key = script.eval(event);
-        if(key == null) {
+        if (key == null) {
             return false;
+        } else if (key == NoValue.INSTANCE) {
+            throw IgnoredEventException.INSTANCE;
         }
         // Map only uses integer number as key, as parsing number only generate integer
         // So ensure the the key is an integer

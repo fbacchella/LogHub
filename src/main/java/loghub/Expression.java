@@ -14,6 +14,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.codehaus.groovy.control.CompilationFailedException;
 import org.codehaus.groovy.control.CompilationUnit;
+import org.codehaus.groovy.runtime.StringGroovyMethods;
 
 import groovy.lang.Binding;
 import groovy.lang.GroovyClassLoader;
@@ -44,7 +45,7 @@ public class Expression {
     private static class BindingMap extends AbstractMap<String, Object> {
 
         private Event event;
-        private Map<String, VarFormatter> formatters;
+        private Expression ex;
         private final Binding binding;
         BindingMap() {
             this.binding = new Binding(this);
@@ -57,7 +58,8 @@ public class Expression {
         public Object get(Object key) {
             switch (key.toString()) {
             case "event": return event;
-            case "formatters": return formatters;
+            case "formatters": return ex.formatters;
+            case "ex": return ex;
             default: return null;
             }
         }
@@ -100,8 +102,8 @@ public class Expression {
     public Object eval(Event event) throws ProcessorException {
         logger.trace("Evaluating script {} with formatters {}", expression, formatters);
         BindingMap bmap = bindings.get();
-        bmap.formatters = this.formatters;
         bmap.event = event;
+        bmap.ex = this;
         Optional<Script> optls = Optional.empty();
         try {
             // Lazy compilation, will only compile if expression is needed
@@ -117,7 +119,7 @@ public class Expression {
             throw event.buildException(String.format("failed expression '%s': %s", expression, Helpers.resolveThrowableException(e)), e);
         } finally {
             optls.ifPresent(b -> b.setBinding(EMPTYBIDDING));
-            bmap.formatters = null;
+            bmap.ex = null;
             bmap.event = null;
         }
     }
@@ -129,6 +131,68 @@ public class Expression {
             return groovyClass.getConstructor().newInstance();
         } catch (CompilationFailedException | IllegalAccessException | InstantiationException | IllegalArgumentException | InvocationTargetException | NoSuchMethodException | SecurityException e) {
             throw new UnsupportedOperationException(new ExpressionException(e));
+        }
+    }
+
+    public Object protect(Object arg1, String op, Object arg2) {
+        switch (op) {
+        case "**":
+        case "*":
+        case "/":
+        case "+":
+        case "-":
+        case "<<":
+        case ">>":
+        case ">>>":
+        case "<":
+        case "<=":
+        case ">":
+        case ">=":
+        case "<=>":
+        case "^":
+        case "&":
+        case "|":
+            if (arg2 instanceof NoValue || arg1 instanceof NoValue) {
+                throw IgnoredEventException.INSTANCE;
+            } else {
+                return arg2;
+            }
+        case "&&":
+        case "||":
+        case "==":
+        case "===":
+        case "!=":
+            if (arg2 instanceof NoValue && arg1 == null) {
+                return null;
+            } else if (arg1 instanceof NoValue && arg2 == null) {
+                return NoValue.INSTANCE;
+            } else {
+                return arg2;
+            }
+        default: return arg2;
+        }
+    }
+
+    public Object stringMethod(String method, Object arg) {
+        if (arg instanceof NoValue) {
+            throw IgnoredEventException.INSTANCE;
+        } else {
+          switch (method) {
+          case "trim":
+              return arg == null ? null : arg.toString().trim();
+          case "capitalize":
+              return arg == null ? null : StringGroovyMethods.capitalize(arg.toString());
+          case "uncapitalize":
+              return arg == null ? null : StringGroovyMethods.uncapitalize(arg.toString());
+          case "isBlank":
+              return arg == null ? true : arg.toString().trim().isEmpty();
+          case "normalize":
+              return arg == null ? null : StringGroovyMethods.normalize(arg.toString());
+          default:
+              assert false: method;
+              // Can’t be reached
+              throw IgnoredEventException.INSTANCE;
+          }
         }
     }
 

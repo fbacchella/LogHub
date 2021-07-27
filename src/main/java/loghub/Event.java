@@ -7,6 +7,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -68,22 +69,35 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
 
     @SuppressWarnings("unchecked")
     public Object applyAtPath(Action f, VariablePath path, Object value, boolean create) {
+        if (value == NoValue.INSTANCE) {
+            switch (f) {
+            case PUT:
+            case REMOVE:
+                return NoValue.INSTANCE;
+            case CONTAINS:
+            case CONTAINSVALUE:
+                return false;
+            default:
+                // skip
+            }
+        }
         if (path.isIndirect()) {
             Function<Object, String[]> convert = o -> {
                 if (o instanceof String[]) {
                     return (String[]) o;
-                } else if (o.getClass().isArray()) {
-                    return new String[] {};
+                } else if (o.getClass().isArray() || o == NoValue.INSTANCE) {
+                    return null;
                 } else {
                     return new String[] {o.toString()};
                 }
             };
             path = Optional.ofNullable(applyAtPath(Action.GET, VariablePath.of(path), false))
                     .map(convert)
+                    .filter(Objects::nonNull)
                     .map(VariablePath::of)
                     .orElse(VariablePath.EMPTY);
             if (path == VariablePath.EMPTY) {
-                return null;
+                return NoValue.INSTANCE;
             }
         }
         Map<String, Object> current = this;
@@ -140,22 +154,7 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
                             next = new HashMap<>();
                             current.put(path.get(i), next);
                         } else {
-                            switch(f) {
-                            case GET:
-                            case SIZE:
-                                throw IgnoredEventException.INSTANCE;
-                            case CONTAINSVALUE:
-                            case CONTAINS:
-                                return false;
-                            case ISEMPTY:
-                                return true;
-                            case KEYSET:
-                                return Collections.emptySet();
-                            case VALUES:
-                                return Collections.emptySet();
-                            default:
-                                return null;
-                            }
+                            return keyMissing(f);
                         }
                     } else if (! (peekNext.get() instanceof Map)) {
                         throw new IllegalArgumentException("Can descend into " + key + " from " + path + " , it's not an object");
@@ -168,8 +167,30 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
             }
             if (create && f.mapAction && ! current.containsKey(key)) {
                 current.put(key, new HashMap<>());
+            } else if (! current.containsKey(key) && f != Action.PUT) {
+                return keyMissing(f);
             }
             return f.action.apply(current, key, value);
+        }
+    }
+
+    private Object keyMissing(Action f) {
+        switch(f) {
+        case GET:
+            return NoValue.INSTANCE;
+        case SIZE:
+            throw IgnoredEventException.INSTANCE;
+        case CONTAINSVALUE:
+        case CONTAINS:
+            return false;
+        case ISEMPTY:
+            return true;
+        case KEYSET:
+            return Collections.emptySet();
+        case VALUES:
+            return Collections.emptySet();
+        default:
+            return null;
         }
     }
 

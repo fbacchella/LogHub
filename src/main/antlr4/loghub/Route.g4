@@ -134,7 +134,8 @@ testExpression: expression;
 
 expression
     :   sl = stringLiteral ( expressionsList )?
-    |   l = literal
+    |   nl = nullLiteral
+    |   l = nonStringliteral
     |   ev = eventVariable
     |   qi = QualifiedIdentifier
     |   opu = unaryOperator e2 = expression
@@ -279,6 +280,14 @@ literal
     |   floatingPointLiteral
     |   characterLiteral
     |   stringLiteral
+    |   booleanLiteral
+    |   nullLiteral
+    ;
+
+nonStringliteral
+    :   integerLiteral
+    |   floatingPointLiteral
+    |   characterLiteral
     |   booleanLiteral
     |   nullLiteral
     ;

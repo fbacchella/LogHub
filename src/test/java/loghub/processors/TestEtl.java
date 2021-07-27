@@ -28,6 +28,7 @@ import loghub.EventsProcessor;
 import loghub.Helpers;
 import loghub.IgnoredEventException;
 import loghub.LogUtils;
+import loghub.NoValue;
 import loghub.ProcessorException;
 import loghub.Tools;
 import loghub.VarFormatter;
@@ -98,7 +99,7 @@ public class TestEtl {
         Event event = Tools.getEvent();
         event.put("a", 0);
         etl.process(event);
-        Assert.assertEquals("evaluation failed", null, event.applyAtPath(Action.GET, VariablePath.of(new String[] {"a"}), null, false));
+        Assert.assertEquals("evaluation failed", NoValue.INSTANCE, event.applyAtPath(Action.GET, VariablePath.of(new String[] {"a"}), null, false));
     }
 
     @Test
@@ -374,23 +375,20 @@ public class TestEtl {
     @Test
     public void testMappingNull() throws ProcessorException, InterruptedException, ExecutionException {
         CompletableFuture<Event> holder = new CompletableFuture<>();
-        Assert.assertThrows(IgnoredEventException.class, () -> RunEtl("[ a b ] @ [ a b ] {0: 1} ", i -> {}, false, holder));
+        Assert.assertThrows(IgnoredEventException.class, () -> RunEtl("[ a b ] @ [ a b ] {0: 1} ", i -> {}, true, holder));
         Assert.assertTrue(holder.get().isEmpty());
     }
 
     @Test
     public void testElementNull() throws ProcessorException, InterruptedException, ExecutionException {
         Event ev = RunEtl("[b] = [a]", i -> {}, true);
-        Assert.assertTrue(ev.containsKey("b"));
-        Assert.assertEquals(null, ev.remove("b"));
         Assert.assertTrue(ev.isEmpty());
     }
 
     @Test
     public void testPathNull() throws ProcessorException, InterruptedException, ExecutionException {
-        CompletableFuture<Event> holder = new CompletableFuture<>();
-        Assert.assertThrows(IgnoredEventException.class, () -> RunEtl("[c] = [a b]", i -> {}, true, holder));
-        Assert.assertTrue(holder.get().isEmpty());
+        Event ev = RunEtl("[c] = [a b]", i -> {});
+        Assert.assertTrue(ev.isEmpty());
     }
 
 }

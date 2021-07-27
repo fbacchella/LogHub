@@ -20,8 +20,8 @@ import org.junit.Test;
 import loghub.ConnectionContext;
 import loghub.Event;
 import loghub.Expression;
-import loghub.IgnoredEventException;
 import loghub.Expression.ExpressionException;
+import loghub.IgnoredEventException;
 import loghub.IpConnectionContext;
 import loghub.LogUtils;
 import loghub.ProcessorException;
@@ -166,10 +166,63 @@ public class TestExpressionParsing {
         Assert.assertEquals("c", evalExpression("[a.b]", ev));
     }
 
-    @Test(expected=IgnoredEventException.class)
-    public void testEventPathMissing() throws ExpressionException, ProcessorException {
+    @Test
+    public void testEventPathMissingOperatorBinary() throws ExpressionException, ProcessorException {
         Event ev =  Tools.getEvent();
-        evalExpression("[a b]", ev);
+        Object[] tryExpression = new Object[] {
+                "null == [a b]", true,
+                "[a b] == null", true,
+                "[a b] === null", true,
+                "null == [a b]", true,
+                "2 == [a b]", false,
+                "[a b] == 2", false,
+                "[a b] != null", false,
+                "[a b] instanceof java.lang.Integer", false,
+                "2 ** [a b]", IgnoredEventException.class,
+                "[a b] ** 2", IgnoredEventException.class,
+                "[a b] * 2 ", IgnoredEventException.class,
+                "2 + [a b]", IgnoredEventException.class,
+                "2 - [a b]", IgnoredEventException.class,
+                "2 * [a b]", IgnoredEventException.class,
+                "2 / [a b]", IgnoredEventException.class,
+                "2 << [a b]", IgnoredEventException.class,
+                "2 >> [a b]", IgnoredEventException.class,
+                "2 >>> [a b]", IgnoredEventException.class,
+                "2 <= [a b]", IgnoredEventException.class,
+                "2 >= [a b]", IgnoredEventException.class,
+                "2 < [a b]", IgnoredEventException.class,
+                "2 > [a b]", IgnoredEventException.class,
+                "2 <=> [a b]", IgnoredEventException.class,
+                "[a b] <=> 2", IgnoredEventException.class,
+                "2 .^ [a b]", IgnoredEventException.class,
+                "2 .| [a b]", IgnoredEventException.class,
+                "2 .& [a b]", IgnoredEventException.class,
+                "true && [a b]", false,
+                "false || [a b]", false,
+                "2 in [a b]", false,
+                "~ [a b]", IgnoredEventException.class,
+                ".~ [a b]", IgnoredEventException.class,
+                "! [a b]", true,
+                "+ [a b]", IgnoredEventException.class,
+                "- [a b]", IgnoredEventException.class,
+                };
+        Map<String, Object> tests = new HashMap<>(tryExpression.length / 2);
+        for (int i = 0; i < tryExpression.length; ) {
+            tests.put(tryExpression[i++].toString(), tryExpression[i++]);
+        }
+        tests.forEach((x, r) -> {
+            try {
+                Object o = evalExpression(x, ev);
+                Assert.assertEquals(x, r, o);
+            } catch (IgnoredEventException e) {
+                if ( r != IgnoredEventException.class) {
+                    Assert.fail(x);
+                }
+            } catch (ExpressionException | ProcessorException e) {
+                e.printStackTrace();
+                Assert.fail(x);
+            }
+        });
     }
 
     @Test
@@ -252,13 +305,6 @@ public class TestExpressionParsing {
         Event ev =  Tools.getEvent();
         ev.put("a", 1);
         Assert.assertEquals("b", evalExpression("\"" + format + "\"", ev));
-    }
-
-    @Test(expected=IgnoredEventException.class)
-    public void complete() throws ExpressionException, ProcessorException {
-        Event ev =  Tools.getEvent();
-        ev.put("a", "abc");
-        evalExpression("([ssl \"ssl_client_verify\"] == \"\" || [ssl ssl_client_verify] == \"NONE\") && [ssl ssl_client_s_dn] == \"\" ", ev);
     }
 
     @Test
