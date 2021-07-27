@@ -28,6 +28,13 @@ public abstract class EventMetaClass extends DelegatingMetaClass {
             }
             return ev.getGroovyPath(path);
         }
+        case "getGroovyIndirectPath": {
+            String[] path = new String[arguments.length];
+            for (int i= 0 ; i < arguments.length ; i++) {
+                path[i] = arguments[i].toString();
+            }
+            return ev.getGroovyIndirectPath(path);
+        }
         default: {
             return super.invokeMethod(object, methodName, arguments);
         }
