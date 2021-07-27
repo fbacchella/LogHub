@@ -42,7 +42,6 @@ public class SyslogPriority extends FieldsProcessor {
                                                     "local5",
                                                     "local6",
                                                     "local7",
-                                                    "invalid facility",
     };
 
     private String[] severitiesNames = new String[] {"emergency",
@@ -70,14 +69,21 @@ public class SyslogPriority extends FieldsProcessor {
             } catch (NumberFormatException e) {
                 throw event.buildException("Not a number: " + priorityObject.toString());
             }
-        } else if ( priorityObject instanceof Number) {
+        } else if (priorityObject instanceof Number) {
             priority = ((Number) priorityObject).intValue();
         } else {
-            throw event.buildException("Not a priority: " + Optional.ofNullable(priorityObject).map(Object::toString).orElse("null"));
+            throw event.buildException("Not a priority: " + Optional.ofNullable(priorityObject).map(Object::toString).orElse(null));
         }
         int facility = (priority >> 3);
-        Optional<String> facilityName = Optional.of(priorityObject).filter(f -> facility < 24 && (resolve || ecs)).map(f -> facilitiesNames[facility]);
         int severity = priority & 7;
+        Optional<String> facilityName = null;
+        String severityName = null;
+        if (resolve || ecs) {
+            facilityName = Optional.of(priorityObject)
+                                   .filter(f -> facility < 24)
+                                   .map(f -> facilitiesNames[facility]);
+            severityName = severitiesNames[severity];
+        }
         Map<String, Object> infos = new HashMap<>(2);
         if (ecs) {
             Map<String, Object> facilityEntry = new HashMap<>(2);
@@ -85,14 +91,14 @@ public class SyslogPriority extends FieldsProcessor {
             facilityName.ifPresent(s -> facilityEntry.put("name", s));
             Map<String, Object> priorityEntry = new HashMap<>(2);
             priorityEntry.put("code", severity);
-            priorityEntry.put("name", severitiesNames[severity]);
+            priorityEntry.put("name", severityName);
             event.applyAtPath(Action.PUT, ECSPATHPRIORITY, priority, true);
             event.applyAtPath(Action.PUT, ECSPATHFACILITY, facilityEntry, true);
             event.applyAtPath(Action.PUT, ECSPATHSEVERITY, priorityEntry, true);
             return RUNSTATUS.NOSTORE;
         } else if (resolve) {
-            infos.put("facility",  facilityName.orElse(Integer.toString(facility)));
-            infos.put("severity", severitiesNames[severity]);
+            infos.put("facility", facilityName.orElse(Integer.toString(facility)));
+            infos.put("severity", severityName);
         } else {
             infos.put("facility", facility);
             infos.put("severity", severity);

@@ -17,6 +17,7 @@ import org.junit.Test;
 import loghub.BeanChecks;
 import loghub.Event;
 import loghub.LogUtils;
+import loghub.NoValue;
 import loghub.ProcessorException;
 import loghub.Tools;
 import loghub.VariablePath;
@@ -88,10 +89,8 @@ public class TestSyslogPriority {
         Assert.assertTrue(e.process(sp));
         Assert.assertEquals("debug", e.applyAtPath(Action.GET, VariablePath.of(new String[] {"log", "syslog", "severity", "name"}), null));
         Assert.assertEquals(7, e.applyAtPath(Action.GET, VariablePath.of(new String[] {"log", "syslog", "severity", "code"}), null));
-        Assert.assertEquals(null, e.applyAtPath(Action.GET, VariablePath.of(new String[] {"log", "syslog", "facility", "name"}), null));
-        Map<?, ?> facility = (Map<?, ?>) e.applyAtPath(Action.GET, VariablePath.of(new String[] {"log", "syslog", "facility"}), null);
-        Assert.assertEquals(1, facility.size());
-        Assert.assertEquals(null, e.applyAtPath(Action.GET, VariablePath.of(new String[] {"log", "syslog", "facility", "name"}), null));
+
+        Assert.assertEquals(NoValue.INSTANCE, e.applyAtPath(Action.GET, VariablePath.of(new String[] {"log", "syslog", "facility", "name"}), null));
         Assert.assertEquals(31, e.applyAtPath(Action.GET, VariablePath.of(new String[] {"log", "syslog", "facility", "code"}), null));
     }
 
@@ -132,6 +131,23 @@ public class TestSyslogPriority {
         String facility = (String)((Map<String, Object>)e.get("message")).get("facility");
         Assert.assertEquals("informational", severity);
         Assert.assertEquals("security/authorization", facility);
+    }
+
+    @Test
+    public void TestResolvedStringOverflow() throws ProcessorException {
+        SyslogPriority sp = new SyslogPriority();
+        sp.setField(VariablePath.of(new String[] {"message"}));
+        sp.setEcs(false);
+
+        Properties props = new Properties(Collections.emptyMap());
+
+        Assert.assertTrue(sp.configure(props));
+
+        Event e = Tools.getEvent();
+        e.put("message", 255);
+        Assert.assertTrue(e.process(sp));
+        Assert.assertEquals("debug", e.applyAtPath(Action.GET, VariablePath.of(new String[] {"message", "severity"}), null));
+        Assert.assertEquals("31", e.applyAtPath(Action.GET, VariablePath.of(new String[] {"message", "facility"}), null));
     }
 
     @SuppressWarnings("unchecked")
