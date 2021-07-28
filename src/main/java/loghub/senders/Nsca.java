@@ -1,5 +1,6 @@
 package loghub.senders;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -133,7 +134,7 @@ public class Nsca extends Sender {
         try {
             sender.send(payload);
             return true;
-        } catch (NagiosException e) {
+        } catch (NagiosException | IOException e) {
             throw new SendException(e);
         }
     }

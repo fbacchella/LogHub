@@ -182,7 +182,7 @@
         <dependency>
             <groupId>com.github.jsendnsca</groupId>
             <artifactId>jsendnsca</artifactId>
-            <version>2.2.0</version>
+            <version>2.1.1</version>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
