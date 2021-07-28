@@ -165,18 +165,42 @@ public class TestExpressionParsing {
         ev.put("a", Collections.singletonMap("b", "c"));
         Assert.assertEquals("c", evalExpression("[a.b]", ev));
     }
+    
+    private void enumerateExpressions(Event ev, Object[] tryExpression) {
+        Map<String, Object> tests = new HashMap<>(tryExpression.length / 2);
+        for (int i = 0; i < tryExpression.length; ) {
+            tests.put(tryExpression[i++].toString(), tryExpression[i++]);
+        }
+        tests.forEach((x, r) -> {
+            try {
+                Object o = evalExpression(x, ev);
+                Assert.assertEquals(x, r, o);
+            } catch (IgnoredEventException e) {
+                if ( r != IgnoredEventException.class) {
+                    Assert.fail(x);
+                }
+            } catch (ProcessorException e) {
+                if ( r != ProcessorException.class) {
+                    e.printStackTrace();
+                    Assert.fail(x);
+                }
+            } catch (ExpressionException e) {
+                e.printStackTrace();
+                Assert.fail(x);
+            }
+        });
+    }
 
     @Test
-    public void testEventPathMissingOperatorBinary() throws ExpressionException, ProcessorException {
+    public void testValueMissing() throws ExpressionException, ProcessorException {
         Event ev =  Tools.getEvent();
         Object[] tryExpression = new Object[] {
                 "null == [a b]", true,
                 "[a b] == null", true,
-                "[a b] === null", true,
-                "null == [a b]", true,
+                "[a b] != null", false,
+                "[a b] === null", false,
                 "2 == [a b]", false,
                 "[a b] == 2", false,
-                "[a b] != null", false,
                 "[a b] instanceof java.lang.Integer", false,
                 "2 ** [a b]", IgnoredEventException.class,
                 "[a b] ** 2", IgnoredEventException.class,
@@ -205,24 +229,69 @@ public class TestExpressionParsing {
                 "! [a b]", true,
                 "+ [a b]", IgnoredEventException.class,
                 "- [a b]", IgnoredEventException.class,
-                };
-        Map<String, Object> tests = new HashMap<>(tryExpression.length / 2);
-        for (int i = 0; i < tryExpression.length; ) {
-            tests.put(tryExpression[i++].toString(), tryExpression[i++]);
-        }
-        tests.forEach((x, r) -> {
-            try {
-                Object o = evalExpression(x, ev);
-                Assert.assertEquals(x, r, o);
-            } catch (IgnoredEventException e) {
-                if ( r != IgnoredEventException.class) {
-                    Assert.fail(x);
-                }
-            } catch (ExpressionException | ProcessorException e) {
-                e.printStackTrace();
-                Assert.fail(x);
-            }
-        });
+        };
+        enumerateExpressions(ev, tryExpression);
+    }
+
+    @Test
+    public void testNullValue() throws ExpressionException, ProcessorException {
+        Event ev =  Tools.getEvent();
+        ev.put("a", null);
+        Object[] tryExpression = new Object[] {
+                "null == [a]", true,
+                "[a] == null", true,
+                "[a] != null", false,
+                "[a] === null", true,
+                "2 == [a]", false,
+                "[a] == 2", false,
+                "[a] instanceof java.lang.Integer", false,
+                "2 ** [a]", IgnoredEventException.class,
+                "[a] ** 2", IgnoredEventException.class,
+                "[a] * 2 ", IgnoredEventException.class,
+                "2 + [a]", IgnoredEventException.class,
+                "2 - [a]", IgnoredEventException.class,
+                "2 * [a]", IgnoredEventException.class,
+                "2 / [a]", IgnoredEventException.class,
+                "2 << [a]", IgnoredEventException.class,
+                "2 >> [a]", IgnoredEventException.class,
+                "2 >>> [a]", IgnoredEventException.class,
+                "2 <= [a]", IgnoredEventException.class,
+                "2 >= [a]", IgnoredEventException.class,
+                "2 < 3", true,
+                "2 < [a]", IgnoredEventException.class,
+                "2 > [a]", IgnoredEventException.class,
+                "2 <=> [a]", IgnoredEventException.class,
+                "[a] <=> 2", IgnoredEventException.class,
+                "2 .^ [a]", IgnoredEventException.class,
+                "2 .| [a]", IgnoredEventException.class,
+                "2 .& [a]", IgnoredEventException.class,
+                "true && [a]", false,
+                "false || [a]", false,
+                "2 in [a]", false,
+                "~ [a]", IgnoredEventException.class,
+                ".~ [a]", IgnoredEventException.class,
+                "! [a]", true,
+                "+ [a]", IgnoredEventException.class,
+                "- [a]", IgnoredEventException.class,
+        };
+        enumerateExpressions(ev, tryExpression);
+    }
+
+    @Test
+    public void testComparaison() throws ExpressionException, ProcessorException {
+        Event ev =  Tools.getEvent();
+        Object[] tryExpression = new Object[] {
+                "2 <=> 3", Integer.compare(2, 3),
+                "3 <=> 2", Integer.compare(3, 2),
+                "2 <=> 2", Integer.compare(2, 2),
+                "2 < 3", 2 < 3,
+                "3 > 2", 3 > 2,
+                "2 <= 3", 2 <= 3,
+                "3 <= 2", 3 <= 2,
+                "2 <= 2", 2 <= 2,
+                "2 >= 2", 2 >= 2,
+        };
+        enumerateExpressions(ev, tryExpression);
     }
 
     @Test

@@ -3,29 +3,29 @@ package groovy.runtime.metaclass.loghub;
 import groovy.lang.DelegatingMetaClass;
 import groovy.lang.MetaClass;
 import loghub.IgnoredEventException;
-import loghub.NoValue;
+import loghub.NullOrMissingValue;
 
-public class NoValueMetaClass extends DelegatingMetaClass {
+public class NullOrNoneValueMetaClass extends DelegatingMetaClass {
 
-    public NoValueMetaClass(Class<?> theClass) {
+    public NullOrNoneValueMetaClass(Class<?> theClass) {
         super(theClass);
     }
 
-    public NoValueMetaClass(MetaClass theClass) {
+    public NullOrNoneValueMetaClass(MetaClass theClass) {
         super(theClass);
     }
 
     @Override
     public Object invokeMethod(Object object, String methodName, Object[] arguments) {
+        NullOrMissingValue val = (NullOrMissingValue) object;
         switch (methodName) {
-        case "equals": return NoValue.INSTANCE.equals(arguments[0]);
-        case "compareTo": return NoValue.INSTANCE.equals(arguments[0]);
+        case "equals": return val.equals(arguments[0]);
+        case "compareTo": return val.compareTo(arguments[0]);
         case "isCase": return false;
         case "asBoolean": return false;
         default:
             throw IgnoredEventException.INSTANCE;
         }
     }
-    
-    
+
 }

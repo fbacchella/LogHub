@@ -19,6 +19,7 @@ import loghub.Event;
 import loghub.EventsRepository;
 import loghub.Expression;
 import loghub.Expression.ExpressionException;
+import loghub.NullOrMissingValue;
 import loghub.PausedEvent;
 import loghub.Processor;
 import loghub.ProcessorException;
@@ -269,7 +270,7 @@ public class Merge extends Processor {
             }
         }
         static BiFunction<Object, Object, Object> getCumulator(Object o) {
-            if (o == null) {
+            if (o == null || o instanceof NullOrMissingValue) {
                 return Cumulator.DROP.cumulate(o);
             } else if (o instanceof String) {
                 return Cumulator.STRING.cumulate(o);
@@ -387,11 +388,11 @@ public class Merge extends Processor {
                 logger.trace("merging {} in {}", event, current.event);
                 for (Map.Entry<String, Object> i: event.entrySet()) {
                     String key = i.getKey();
-                    Object last = current.event.get(key);
-                    Object next = i.getValue();
+                    Object last = current.event.get(key) instanceof NullOrMissingValue ? null : current.event.get(key);
+                    Object next = i.getValue() instanceof NullOrMissingValue ? null : i.getValue();
                     BiFunction<Object, Object, Object> m =  cumulators.computeIfAbsent(key, j -> Cumulator.getCumulator(defaultSeedType));
                     Object newValue = m.apply(last, next);
-                    if (newValue != null) {
+                    if (newValue != null && ! (newValue instanceof NullOrMissingValue)) {
                         current.event.put(key, newValue);
                     }
                 }

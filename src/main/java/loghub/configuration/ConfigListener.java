@@ -8,6 +8,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -885,7 +886,7 @@ class ConfigListener extends RouteBaseListener {
                 }
             }
         } else if (ctx.nl != null) {
-            expression = "null";
+            expression = "loghub.NullOrMissingValue.NULL";
         } else if (ctx.l != null) {
             expression = ctx.l.getText();
         } else if (ctx.ev != null) {
@@ -915,10 +916,12 @@ class ConfigListener extends RouteBaseListener {
             Object pre = stack.pop();
             if ("instanceof".equals(opb)) {
                 expression = String.format("%s instanceof %s", pre, post);
-            } else if (ctx.e1.nl != null) {
-                expression = "loghub.NoValue.INSTANCE " + opb + " " + post;
+            } else if ("<=>".equals(opb) || "<=".equals(opb) || "<".equals(opb) || ">=".equals(opb) || ">".equals(opb)) {
+                // Groovy use compareTo for both == and comparaisons. So compareTo will only be used for ==, and a custom compare is used for
+                // everything else.
+                expression = String.format(Locale.ENGLISH, "ex.compare(\"%s\", %s, %s)", opb, pre, post);
             } else {
-                expression = String.format("%s %s ex.protect(%s, \"%s\", %s)", pre, opb, pre, opb, post);
+                expression = String.format(Locale.ENGLISH, "ex.nullfilter(%s, \"%s\") %s ex.protect(\"%s\", %s)", pre, opb, opb, opb, post);
             }
         } else if (ctx.e3 != null) {
             Object subexpression = stack.pop();

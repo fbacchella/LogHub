@@ -69,11 +69,11 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
 
     @SuppressWarnings("unchecked")
     public Object applyAtPath(Action f, VariablePath path, Object value, boolean create) {
-        if (value == NoValue.INSTANCE) {
+        if (value == NullOrMissingValue.MISSING) {
             switch (f) {
             case PUT:
             case REMOVE:
-                return NoValue.INSTANCE;
+                return NullOrMissingValue.MISSING;
             case CONTAINS:
             case CONTAINSVALUE:
                 return false;
@@ -85,7 +85,7 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
             Function<Object, String[]> convert = o -> {
                 if (o instanceof String[]) {
                     return (String[]) o;
-                } else if (o.getClass().isArray() || o == NoValue.INSTANCE) {
+                } else if (o.getClass().isArray() || o == NullOrMissingValue.MISSING) {
                     return null;
                 } else {
                     return new String[] {o.toString()};
@@ -97,7 +97,7 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
                     .map(VariablePath::of)
                     .orElse(VariablePath.EMPTY);
             if (path == VariablePath.EMPTY) {
-                return NoValue.INSTANCE;
+                return NullOrMissingValue.MISSING;
             }
         }
         Map<String, Object> current = this;
@@ -170,14 +170,14 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
             } else if (! current.containsKey(key) && f != Action.PUT) {
                 return keyMissing(f);
             }
-            return f.action.apply(current, key, value);
+            return f.action.apply(current, key, value == NullOrMissingValue.NULL ? null : value);
         }
     }
 
     private Object keyMissing(Action f) {
         switch(f) {
         case GET:
-            return NoValue.INSTANCE;
+            return NullOrMissingValue.MISSING;
         case SIZE:
             throw IgnoredEventException.INSTANCE;
         case CONTAINSVALUE:
@@ -231,7 +231,7 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
      * @return
      */
     public Object getGroovyPath(String... path) {
-        return applyAtPath(Action.GET, VariablePath.of(path), null, false);
+        return Optional.ofNullable(applyAtPath(Action.GET, VariablePath.of(path), null, false)).orElse(NullOrMissingValue.NULL);
     }
 
     /**
@@ -240,7 +240,7 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
      * @return
      */
     public Object getGroovyIndirectPath(String... path) {
-        return applyAtPath(Action.GET, VariablePath.ofIndirect(path), null, false);
+        return Optional.ofNullable(applyAtPath(Action.GET, VariablePath.ofIndirect(path), null, false)).orElse(NullOrMissingValue.NULL);
     }
 
     /**

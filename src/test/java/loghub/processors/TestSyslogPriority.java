@@ -17,7 +17,7 @@ import org.junit.Test;
 import loghub.BeanChecks;
 import loghub.Event;
 import loghub.LogUtils;
-import loghub.NoValue;
+import loghub.NullOrMissingValue;
 import loghub.ProcessorException;
 import loghub.Tools;
 import loghub.VariablePath;
@@ -90,7 +90,7 @@ public class TestSyslogPriority {
         Assert.assertEquals("debug", e.applyAtPath(Action.GET, VariablePath.of(new String[] {"log", "syslog", "severity", "name"}), null));
         Assert.assertEquals(7, e.applyAtPath(Action.GET, VariablePath.of(new String[] {"log", "syslog", "severity", "code"}), null));
 
-        Assert.assertEquals(NoValue.INSTANCE, e.applyAtPath(Action.GET, VariablePath.of(new String[] {"log", "syslog", "facility", "name"}), null));
+        Assert.assertEquals(NullOrMissingValue.MISSING, e.applyAtPath(Action.GET, VariablePath.of(new String[] {"log", "syslog", "facility", "name"}), null));
         Assert.assertEquals(31, e.applyAtPath(Action.GET, VariablePath.of(new String[] {"log", "syslog", "facility", "code"}), null));
     }
 

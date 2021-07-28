@@ -11,7 +11,7 @@ import loghub.ProcessorException;
 import loghub.Event.Action;
 import loghub.Expression.ExpressionException;
 import loghub.IgnoredEventException;
-import loghub.NoValue;
+import loghub.NullOrMissingValue;
 import loghub.configuration.Properties;
 
 public class Mapper extends Etl {
@@ -44,7 +44,7 @@ public class Mapper extends Etl {
         Object key = script.eval(event);
         if (key == null) {
             return false;
-        } else if (key == NoValue.INSTANCE) {
+        } else if (key == NullOrMissingValue.MISSING) {
             throw IgnoredEventException.INSTANCE;
         }
         // Map only uses integer number as key, as parsing number only generate integer

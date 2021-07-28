@@ -28,7 +28,7 @@ import loghub.EventsProcessor;
 import loghub.Helpers;
 import loghub.IgnoredEventException;
 import loghub.LogUtils;
-import loghub.NoValue;
+import loghub.NullOrMissingValue;
 import loghub.ProcessorException;
 import loghub.Tools;
 import loghub.VarFormatter;
@@ -99,7 +99,7 @@ public class TestEtl {
         Event event = Tools.getEvent();
         event.put("a", 0);
         etl.process(event);
-        Assert.assertEquals("evaluation failed", NoValue.INSTANCE, event.applyAtPath(Action.GET, VariablePath.of(new String[] {"a"}), null, false));
+        Assert.assertEquals("evaluation failed", NullOrMissingValue.MISSING, event.applyAtPath(Action.GET, VariablePath.of(new String[] {"a"}), null, false));
     }
 
     @Test
@@ -170,10 +170,34 @@ public class TestEtl {
     @Test
     public void testAssign() throws ProcessorException {
         Etl e = parseEtl("[a] = 1");
-        Event ev = Event.emptyEvent(ConnectionContext.EMPTY);
+        Event ev = Tools.getEvent();
         Assert.assertTrue(e.process(ev));
         Assert.assertEquals(1, ev.remove("a"));
         Assert.assertTrue(ev.isEmpty());
+    }
+
+    @Test
+    public void testElementMissing() throws ProcessorException, InterruptedException, ExecutionException {
+        CompletableFuture<Event> holder = new CompletableFuture<>();
+        Assert.assertThrows(IgnoredEventException.class, () -> RunEtl("[b] = [a]", i -> {}, true, holder));
+        Assert.assertTrue(holder.get().isEmpty());
+    }
+
+    @Test
+    public void testPathMissing() throws ProcessorException, InterruptedException, ExecutionException {
+        CompletableFuture<Event> holder = new CompletableFuture<>();
+        Assert.assertThrows(IgnoredEventException.class, () -> RunEtl("[c] = [a b]", i -> {}, true, holder));
+        Assert.assertTrue(holder.get().isEmpty());
+    }
+
+    @Test
+    public void testElementNull() throws ProcessorException, InterruptedException, ExecutionException {
+        Event ev =  RunEtl("[b] = [a]", i -> {i.put("a", NullOrMissingValue.NULL);});
+        Assert.assertTrue(ev.containsKey("b"));
+        Assert.assertNull(ev.get("b"));
+        // Ensure that JUnis is not doing any magic tricks when checking NotNull
+        Assert.assertNotNull(NullOrMissingValue.NULL);
+
     }
 
     @Test
@@ -377,18 +401,6 @@ public class TestEtl {
         CompletableFuture<Event> holder = new CompletableFuture<>();
         Assert.assertThrows(IgnoredEventException.class, () -> RunEtl("[ a b ] @ [ a b ] {0: 1} ", i -> {}, true, holder));
         Assert.assertTrue(holder.get().isEmpty());
-    }
-
-    @Test
-    public void testElementNull() throws ProcessorException, InterruptedException, ExecutionException {
-        Event ev = RunEtl("[b] = [a]", i -> {}, true);
-        Assert.assertTrue(ev.isEmpty());
-    }
-
-    @Test
-    public void testPathNull() throws ProcessorException, InterruptedException, ExecutionException {
-        Event ev = RunEtl("[c] = [a b]", i -> {});
-        Assert.assertTrue(ev.isEmpty());
     }
 
 }

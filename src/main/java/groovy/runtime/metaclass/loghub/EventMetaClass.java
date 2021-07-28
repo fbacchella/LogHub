@@ -36,6 +36,7 @@ public abstract class EventMetaClass extends DelegatingMetaClass {
             return ev.getGroovyIndirectPath(path);
         }
         default: {
+            assert false;
             return super.invokeMethod(object, methodName, arguments);
         }
         }
