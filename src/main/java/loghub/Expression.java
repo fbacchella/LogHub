@@ -280,7 +280,7 @@ public class Expression {
         if (cause instanceof CompilationFailedException) {
             logger.error("Groovy compilation failed for expression {}: {}", source, e.getMessage());
         } else {
-            logger.error("Critical groovy error for expression {}: {}", source, e.getMessage());
+            logger.error("Critical groovy error for expression {}: {}", source, Helpers.resolveThrowableException(cause));
             logger.throwing(Level.DEBUG, e.getCause());
         }
     }

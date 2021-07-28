@@ -343,7 +343,7 @@ public final class Helpers {
      */
     public static String resolveThrowableException(Throwable t) {
         StringBuilder builder = new StringBuilder();
-        while(t.getCause() != null) {
+        while (t.getCause() != null) {
             String message = t.getMessage();
             if (message == null) {
                 message = t.getClass().getSimpleName();

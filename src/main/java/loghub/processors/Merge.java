@@ -30,8 +30,8 @@ public class Merge extends Processor {
     private enum Cumulator {
         STRING {
             @Override
-            BiFunction<Object, Object, Object> cumulate(final Object seed) {
-                final String stringSeed = seed == null ? "" : seed.toString();
+            BiFunction<Object, Object, Object> cumulate(Object seed) {
+                String stringSeed = seed == null ? "" : seed.toString();
                 return (last, next) -> last == null ? new StringBuilder().append(next).toString() : new StringBuilder(last.toString()).append(stringSeed).append(next).toString();
             }
         },
@@ -56,8 +56,8 @@ public class Merge extends Processor {
                 return newList;
             }
             @Override
-            BiFunction<Object, Object, Object> cumulate(final Object seed) {
-                final List<Object> listSeed = object2list(seed);
+            BiFunction<Object, Object, Object> cumulate(Object seed) {
+                List<Object> listSeed = object2list(seed);
                 return (last, next) -> {
                     List<Object> newList = object2list(last);
                     if (last == null) {
@@ -215,7 +215,7 @@ public class Merge extends Processor {
         },
         ;
 
-        abstract BiFunction<Object, Object, Object> cumulate(final Object seed);
+        abstract BiFunction<Object, Object, Object> cumulate(Object seed);
         private static boolean toBoolean(Object o) {
             if ( o == null) {
                 return false;

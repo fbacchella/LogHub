@@ -853,7 +853,7 @@ class ConfigListener extends RouteBaseListener {
             String format = ctx.sl.getText();
             VarFormatter vf = new VarFormatter(format);
             if (vf.isEmpty()) {
-                StringBuffer buffer = new StringBuffer("\"");
+                StringBuilder buffer = new StringBuilder("\"");
                 format.chars().mapToObj(i -> {
                     if (Character.isISOControl(i)) {
                         return String.format("\\u%04X", i);

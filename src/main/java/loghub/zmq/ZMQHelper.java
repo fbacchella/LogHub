@@ -78,7 +78,7 @@ public class ZMQHelper {
         String[] keyInfos = information.split(" +");
         if (CURVEPREFIX.equals(keyInfos[0]) && keyInfos.length == 2) {
             try {
-                byte[]  serverPublicKey = Base64.getDecoder() .decode(keyInfos[1].trim());
+                byte[] serverPublicKey = Base64.getDecoder().decode(keyInfos[1].trim());
                 NaclPublicKeySpec keyspec = new NaclPublicKeySpec(serverPublicKey);
                 return new NaclCertificate(NACLKEYFACTORY.generatePublic(keyspec));
             } catch (IllegalArgumentException | InvalidKeyException | InvalidKeySpecException e) {
