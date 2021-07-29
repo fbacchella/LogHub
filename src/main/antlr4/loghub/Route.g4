@@ -132,16 +132,31 @@ test: testExpression '?' (pipenode | '>' forwardpiperef | '+' forkpiperef ) (':'
 
 testExpression: expression;
 
+// The rules from https://groovy-lang.org/operators.html#_operator_precedence needs to be explicited
+// because expressions are rewritten
 expression
     :   sl = stringLiteral ( expressionsList )?
     |   nl = nullLiteral
     |   l = nonStringliteral
     |   ev = eventVariable
     |   qi = QualifiedIdentifier
-    |   opu = unaryOperator e2 = expression
     |   'new' newclass = qualifiedIdentifier '(' expression ')'
-    |   e1 = expression opb=binaryOperator e2=expression
+    |   op1=('.~'|'!') e1=expression
+    |   e1 = expression op2='**' e2=expression
+    |   op3=('+'|'-') e1=expression
+    |   e1 = expression op4=('*'|'/'|'%') e2=expression
+    |   e1 = expression op5=('+'|'-') e2=expression
+    |   e1 = expression op6=('<<'|'>>'|'>>>') e2=expression
+    |   e1 = expression op7=('<'|'<='|'>'|'>=') e2=expression
+    |   e1 = expression op7bis=('in'|'!in'|'instanceof'|'!instanceof') e2=expression
+    |   e1 = expression op8=('=='|'!='|'<=>') e2=expression
+    |   e1 = expression op8bis=('==='|'!==') e2=expression
     |   e1 = expression opm=matchOperator patternLiteral
+    |   e1 = expression op9='.&' e2=expression
+    |   e1 = expression op10='.^' e2=expression
+    |   e1 = expression op11='.|' e2=expression
+    |   e1 = expression op12='&&' e2=expression
+    |   e1 = expression op13='||' e2=expression
     |   '(' e3 = expression ')'
     |   expression '[' arrayIndex=IntegerLiteral ']'
     |   stringFunction = (Trim | Capitalize | IsBlank | Normalize | Uncapitalize) '(' expression ')'
@@ -156,42 +171,6 @@ Normalize: 'normalize';
 
 expressionsList
     : '(' expression ( ','  expression )* ','? ')'
-    ;
-
-unaryOperator
-    :   '~'
-    |   '.~'
-    |   '!'
-    |   '+'
-    |   '-'
-    ;
-
-binaryOperator
-    :   '**'
-    |   '*'
-    |   '/'
-    |   '%'
-    |   '+'
-    |   '-'
-    |   '<<'
-    |   '>>>'
-    |   '>>'
-    |   '<='
-    |   '>='
-    |   '>'
-    |   '<'
-    |   'instanceof'
-    |   'in'
-    |   '=='
-    |   '==='
-    |   '!='
-    |   '<=>'
-    |   '!=='
-    |   '.&'
-    |   '.^'
-    |   '.|'
-    |   '&&'
-    |   '||'
     ;
 
 matchOperator

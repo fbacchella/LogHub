@@ -1,6 +1,7 @@
 package loghub.configuration;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.net.InetSocketAddress;
 import java.security.Principal;
 import java.time.Instant;
@@ -165,7 +166,7 @@ public class TestExpressionParsing {
         ev.put("a", Collections.singletonMap("b", "c"));
         Assert.assertEquals("c", evalExpression("[a.b]", ev));
     }
-    
+
     private void enumerateExpressions(Event ev, Object[] tryExpression) {
         Map<String, Object> tests = new HashMap<>(tryExpression.length / 2);
         for (int i = 0; i < tryExpression.length; ) {
@@ -181,14 +182,52 @@ public class TestExpressionParsing {
                 }
             } catch (ProcessorException e) {
                 if ( r != ProcessorException.class) {
-                    e.printStackTrace();
                     Assert.fail(x);
                 }
             } catch (ExpressionException e) {
-                e.printStackTrace();
                 Assert.fail(x);
             }
         });
+    }
+
+    @Test
+    public void testOperators() throws ExpressionException, ProcessorException {
+        Event ev =  Tools.getEvent();
+        Object[] tryExpression = new Object[] {
+                "1 instanceof java.lang.Integer", true,
+                "2 ** 3", 8,
+                "2 ** (999999999 +1)", Double.NaN,
+                "2 * 2 ", 4,
+                "2 + 4", 6,
+                "2 - 1", 1,
+                "2 * 3", 6,
+                "7 % 3", 1,
+                "8 / 4", 2,
+                "4 / 8", BigDecimal.valueOf(0.5),
+                "1 << 2", 4,
+                "4 >> 2", 1,
+                "4 >>> 2", 1,
+                "2 <= 2", true,
+                "2 >= 1", true,
+                "2 < 2", false,
+                "2 > 2]", false,
+                "2 == 2", true,
+                "2 === 2", true,
+                "2 <=> 2", 0,
+                "2 <=> 1", 1,
+                "1 <=> 2", -1,
+                "3 .^ 2", 1,
+                "2 .| 1", 3,
+                "2 .& 1", 0,
+                ".~ 1", -2,
+                "+2", 2,
+                "-2", -2,
+                "!1", false,
+                "!0", true,
+                "!true", false,
+                "!false", true,
+        };
+        enumerateExpressions(ev, tryExpression);
     }
 
     @Test
@@ -224,7 +263,6 @@ public class TestExpressionParsing {
                 "true && [a b]", false,
                 "false || [a b]", false,
                 "2 in [a b]", false,
-                "~ [a b]", IgnoredEventException.class,
                 ".~ [a b]", IgnoredEventException.class,
                 "! [a b]", true,
                 "+ [a b]", IgnoredEventException.class,
@@ -268,7 +306,6 @@ public class TestExpressionParsing {
                 "true && [a]", false,
                 "false || [a]", false,
                 "2 in [a]", false,
-                "~ [a]", IgnoredEventException.class,
                 ".~ [a]", IgnoredEventException.class,
                 "! [a]", true,
                 "+ [a]", IgnoredEventException.class,
@@ -431,7 +468,7 @@ public class TestExpressionParsing {
         Assert.assertEquals(true, resolve("isBlank", null));
         Assert.assertEquals("a\nb\nc\nd", resolve("normalize", "a\nb\r\nc\rd"));
     }
-    
+
     @Test
     public void testComplexString() throws ExpressionException, ProcessorException {
         Event ev =  Tools.getEvent();

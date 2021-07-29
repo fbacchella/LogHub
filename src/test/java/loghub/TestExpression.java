@@ -2,6 +2,8 @@ package loghub;
 
 import java.io.IOException;
 import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
@@ -16,7 +18,6 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import groovy.lang.MissingMethodException;
 import loghub.Expression.ExpressionException;
 import loghub.configuration.Properties;
 
@@ -97,12 +98,41 @@ public class TestExpression {
         Assert.assertEquals("event.b - event.c", 1.1, results.get("event.b - event.c"), 1e-3);
         Assert.assertEquals("event.c - event.d", -1.1, results.get("event.c - event.d"), 1e-3);
         Assert.assertEquals("event.d - event.a", 1.1, results.get("event.d - event.a"), 1e-3);
-        ProcessorException pe = Assert.assertThrows(ProcessorException.class, () -> {
+        Assert.assertThrows(IgnoredEventException.class, () -> {
             Expression exp = new Expression("event.c -1", new Properties(Collections.emptyMap()).groovyClassLoader, Collections.emptyMap());
             exp.eval(ev);
             Assert.fail();
         });
-        Assert.assertEquals(MissingMethodException.class, pe.getCause().getClass());
+    }
+
+    @Test
+    public void dateCompare() {
+        Instant now = Instant.now();
+        Event ev = Tools.getEvent();
+        ev.put("a", now);
+        ev.put("b", Date.from(now));
+        ev.put("c", ZonedDateTime.ofInstant(now, ZoneId.systemDefault()));
+        ev.put("d", 1);
+        String[] scripts = new String[] { "ex.compare(\"<=>\", event.a, event.b)", "ex.compare(\"<=>\", event.b, event.c)", "ex.compare(\"<=>\", event.c, event.a)"};
+        Map<String, Integer> results = new HashMap<>(scripts.length);
+        Arrays.stream(scripts).forEach(s -> {
+            try {
+                Expression exp = new Expression(s, new Properties(Collections.emptyMap()).groovyClassLoader, Collections.emptyMap());
+                Integer f = (Integer) exp.eval(ev);
+                results.put(s, f);
+            } catch (ExpressionException | ProcessorException e) {
+                throw new RuntimeException(e);
+            }
+        });
+        Assert.assertEquals(scripts.length, results.size());
+        results.forEach((k,v) -> {
+            Assert.assertEquals(k, 0, v.intValue());
+        });
+        Assert.assertThrows(IgnoredEventException.class, () -> {
+            Expression exp = new Expression("ex.compare(\"<=>\", event.a, event.d)", new Properties(Collections.emptyMap()).groovyClassLoader, Collections.emptyMap());
+            exp.eval(ev);
+            Assert.fail();
+        });
     }
 
 }

@@ -3,7 +3,7 @@ package loghub;
 import java.util.Objects;
 
 
-public abstract class NullOrMissingValue implements Comparable<Object> {
+public abstract class NullOrMissingValue {
 
     public static final NullOrMissingValue MISSING = new NullOrMissingValue() {
         @Override
@@ -32,12 +32,11 @@ public abstract class NullOrMissingValue implements Comparable<Object> {
         return obj == null || obj instanceof NullOrMissingValue;
     }
 
-    @Override
-    public int compareTo(Object obj) {
+    public boolean compareTo(Object obj) {
         if (obj == null || obj instanceof NullOrMissingValue) {
-            return 0;
+            return true;
         } else {
-            return -1;
+            return false;
         }
     }
 

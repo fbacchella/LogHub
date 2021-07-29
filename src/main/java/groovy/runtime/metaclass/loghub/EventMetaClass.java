@@ -4,7 +4,7 @@ import groovy.lang.DelegatingMetaClass;
 import groovy.lang.MetaClass;
 import loghub.Event;
 
-public abstract class EventMetaClass extends DelegatingMetaClass {
+public class EventMetaClass extends DelegatingMetaClass {
 
     public EventMetaClass(Class<?> theClass) {
         super(theClass);

@@ -3,8 +3,12 @@ package loghub;
 import java.lang.reflect.InvocationTargetException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.time.DateTimeException;
+import java.time.Instant;
+import java.time.temporal.TemporalAccessor;
 import java.util.AbstractMap;
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -17,6 +21,8 @@ import org.apache.logging.log4j.Logger;
 import org.codehaus.groovy.control.CompilationFailedException;
 import org.codehaus.groovy.control.CompilationUnit;
 import org.codehaus.groovy.runtime.StringGroovyMethods;
+import org.codehaus.groovy.runtime.typehandling.DefaultTypeTransformation;
+import org.codehaus.groovy.runtime.typehandling.NumberMath;
 
 import groovy.lang.Binding;
 import groovy.lang.GroovyClassLoader;
@@ -24,7 +30,9 @@ import groovy.lang.GroovySystem;
 import groovy.lang.MetaClassRegistry;
 import groovy.lang.Script;
 import groovy.runtime.metaclass.java.lang.NumberMetaClass;
+import groovy.runtime.metaclass.loghub.EventMetaClass;
 import groovy.runtime.metaclass.loghub.NullOrNoneValueMetaClass;
+import groovy.runtime.metaclass.loghub.TimeDiff;
 import lombok.Getter;
 
 /**
@@ -45,6 +53,14 @@ public class Expression {
 
         for (Class<?> c: new Class[] {Integer.class, Byte.class, Double.class, Float.class, Long.class, Short.class, BigDecimal.class, BigInteger.class}) {
             registry.setMetaClass(c, new NumberMetaClass(c));
+        }
+
+        for (Class<?> c: new Class[] {Date.class, Instant.class}) {
+            registry.setMetaClass(c, new TimeDiff(c));
+        }
+
+        for (Class<?> c: new Class[] {EventWrapper.class, EventInstance.class, Event.class}) {
+            registry.setMetaClass(c, new EventMetaClass(c));
         }
     }
 
@@ -228,11 +244,15 @@ public class Expression {
 
 
     public Object compare(String operator, Object arg1, Object arg2) {
-        if (arg1 instanceof NullOrMissingValue || arg2 instanceof NullOrMissingValue) {
+        if (! "!=".equals(operator) && ! "==".equals(operator) && (arg1 instanceof NullOrMissingValue || arg2 instanceof NullOrMissingValue)) {
             throw IgnoredEventException.INSTANCE;
-        } else if (arg1 instanceof Comparable && arg2 instanceof Comparable){
+        } else if ((arg1 instanceof Comparable && arg2 instanceof Comparable)){
             int compare = compareObjects(arg1, arg2);
             switch (operator) {
+            case "!=":
+                return compare != 0;
+            case "==":
+                return compare == 0;
             case "<":
                 return compare < 0;
             case ">":
@@ -247,31 +267,67 @@ public class Expression {
                 assert false;
                 throw IgnoredEventException.INSTANCE;
             }
+        } else if ("==".equals(operator) && arg1 != null) {
+            return arg1.equals(arg2);
+        } else if ("!=".equals(operator) && arg1 != null) {
+            return ! arg1.equals(arg2);
+        } else if ("!=".equals(operator) && arg1 == null && (arg2 == null || arg2 instanceof NullOrMissingValue)) {
+            return false;
+        } else if ("==".equals(operator) && arg1 == null && (arg2 == null || arg2 instanceof NullOrMissingValue)) {
+            return true;
         } else {
             throw IgnoredEventException.INSTANCE;
         }
     }
-    
+
     private int compareObjects(Object arg1, Object arg2) {
-        if (arg1 instanceof Float && arg2 instanceof Float) {
-            return Float.compare(((Float)arg1).floatValue(), ((Float)arg2).floatValue());
-        } else if (arg1 instanceof Double && arg2 instanceof Double) {
-            return Double.compare(((Double)arg1).doubleValue(), ((Double)arg2).doubleValue());
-        } else if (arg1 instanceof Float && arg2 instanceof Double
-                   || arg1 instanceof Double && arg2 instanceof Float) {
-            return Double.compare(((Number)arg1).doubleValue(), ((Number)arg2).doubleValue());
-        } else if (arg1 instanceof BigInteger && arg2 instanceof BigInteger) {
-            return ((BigInteger)arg1).compareTo((BigInteger)arg2);
-        } else if (arg1 instanceof BigDecimal && arg2 instanceof BigDecimal) {
-            return ((BigDecimal)arg1).compareTo((BigDecimal)arg2);
-        } else if (arg1 instanceof Number && arg2 instanceof Number) {
-            return Long.compare(((Number)arg1).longValue(), ((Number)arg2).longValue());
+        if (arg1 instanceof Number && arg2 instanceof Number) {
+            return NumberMath.compareTo((Number)arg1, (Number)arg2);
+        } else if (arg1 instanceof Date && arg2 instanceof TemporalAccessor) {
+            try {
+                long t1 = ((Date)arg1).getTime();
+                long t2 = Instant.from((TemporalAccessor)arg2).toEpochMilli();
+                return Long.compare(t1, t2);
+            } catch (DateTimeException e) {
+                throw IgnoredEventException.INSTANCE;
+            }
+        } else if (arg2 instanceof Date && arg1 instanceof TemporalAccessor) {
+            try {
+                long t2 = ((Date)arg2).getTime();
+                long t1 = Instant.from((TemporalAccessor)arg1).toEpochMilli();
+                return Long.compare(t1, t2);
+            } catch (DateTimeException e) {
+                throw IgnoredEventException.INSTANCE;
+            }
+        } else if (arg1 instanceof TemporalAccessor && arg2 instanceof TemporalAccessor) {
+            // Groovy can't compare Instant and ZonedDateTime
+            try {
+                Instant t1 = Instant.from((TemporalAccessor)arg1);
+                Instant t2 = Instant.from((TemporalAccessor)arg2);
+                return t1.compareTo(t2);
+            } catch (DateTimeException e) {
+                throw IgnoredEventException.INSTANCE;
+            }
         } else if (arg1 instanceof Comparable && arg1.getClass().isAssignableFrom(arg2.getClass())) {
-            @SuppressWarnings({ "unchecked", "rawtypes" })
-            int compare = ((Comparable)arg1).compareTo(arg2);
-            return compare;
+            try {
+                @SuppressWarnings({ "unchecked", "rawtypes" })
+                int compare = ((Comparable)arg1).compareTo(arg2);
+                return compare;
+            } catch (ClassCastException ex1) {
+                try {
+                    // Perhaps groovy is smarter
+                    return DefaultTypeTransformation.compareTo(arg1, arg2);
+                } catch (Exception ex2) {
+                    throw IgnoredEventException.INSTANCE;
+                }
+            }
         } else {
-            throw IgnoredEventException.INSTANCE;
+            try {
+                //Used as the last hope, it's very slow
+                return DefaultTypeTransformation.compareTo(arg1, arg2);
+            } catch (Exception e) {
+                throw IgnoredEventException.INSTANCE;
+            }
         }
     }
 

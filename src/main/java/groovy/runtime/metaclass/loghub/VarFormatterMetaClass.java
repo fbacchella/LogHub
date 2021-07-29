@@ -20,6 +20,7 @@ public class VarFormatterMetaClass extends DelegatingMetaClass {
         switch(methodName) {
         case "format": return vf.format(arguments[0]);
         default: {
+            assert false;
             return super.invokeMethod(object, methodName, arguments);
         }
         }

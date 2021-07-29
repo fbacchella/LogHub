@@ -894,35 +894,99 @@ class ConfigListener extends RouteBaseListener {
             expression = path.rubyExpression();
         } else if (ctx.qi != null) {
             expression = ctx.qi.getText();
-        } else if (ctx.opu != null) {
-            String opu = ctx.opu.getText();
-            opu = ".~".equals(opu) ? "~" : opu;
-            expression = opu + " " + stack.pop();
         } else if (ctx.opm != null) {
             Object pre = stack.pop();
             expression = pre + " " + ctx.opm.getText() + " " + ctx.patternLiteral().getText();
             if ("=~".equals(ctx.opm.getText())) {
                 expression = String.format("(((%s)?:[])[0]?:[])", expression);
             }
-        } else if (ctx.opb != null) {
-            String opb = ctx.opb.getText();
-            // because of use of | as a pipe symbol, it can't be used for the binary 'or'
-            // So for users simplicity and consistency, all binary operators are prefixed by a '.'
-            // but then it must be removed for groovy
-            if(opb.length() == 2 && opb.startsWith(".")) {
-                opb = opb.substring(1);
-            }
+        } else if (ctx.op1 != null) {
+            // '.~'|'!'
+            String op1 = ctx.op1.getText();
+            op1 = ".~".equals(op1) ? "~" : op1;
+            expression = op1 + " " + stack.pop();
+        } else if (ctx.op2 != null) {
+            // '**'
+            String op2 = ctx.op2.getText();
             Object post = stack.pop();
             Object pre = stack.pop();
-            if ("instanceof".equals(opb)) {
-                expression = String.format("%s instanceof %s", pre, post);
-            } else if ("<=>".equals(opb) || "<=".equals(opb) || "<".equals(opb) || ">=".equals(opb) || ">".equals(opb)) {
-                // Groovy use compareTo for both == and comparaisons. So compareTo will only be used for ==, and a custom compare is used for
-                // everything else.
-                expression = String.format(Locale.ENGLISH, "ex.compare(\"%s\", %s, %s)", opb, pre, post);
-            } else {
-                expression = String.format(Locale.ENGLISH, "ex.nullfilter(%s, \"%s\") %s ex.protect(\"%s\", %s)", pre, opb, opb, opb, post);
-            }
+            expression = String.format(Locale.ENGLISH, "ex.nullfilter(%s, \"%s\") %s ex.protect(\"%s\", %s)", pre, op2, op2, op2, post);
+        } else if (ctx.op3 != null) {
+            // '+'|'-'
+            String op3 = ctx.op3.getText();
+            expression = op3 + " " + stack.pop();
+        } else if (ctx.op4 != null) {
+            // '*'|'/'|'%'
+            String op = ctx.op4.getText();
+            Object post = stack.pop();
+            Object pre = stack.pop();
+            expression = String.format(Locale.ENGLISH, "ex.nullfilter(%s, \"%s\") %s ex.protect(\"%s\", %s)", pre, op, op, op, post);
+        } else if (ctx.op5 != null) {
+            // '+'|'-'
+            String op = ctx.op5.getText();
+            Object post = stack.pop();
+            Object pre = stack.pop();
+            expression = String.format(Locale.ENGLISH, "ex.nullfilter(%s, \"%s\") %s ex.protect(\"%s\", %s)", pre, op, op, op, post);
+        } else if (ctx.op6 != null) {
+            // '<<'|'>>'|'>>>'
+            String op = ctx.op6.getText();
+            Object post = stack.pop();
+            Object pre = stack.pop();
+            expression = String.format(Locale.ENGLISH, "ex.nullfilter(%s, \"%s\") %s ex.protect(\"%s\", %s)", pre, op, op, op, post);
+        } else if (ctx.op7 != null) {
+            // '<'|'<='|'>'|'>='
+            String op = ctx.op7.getText();
+            Object post = stack.pop();
+            Object pre = stack.pop();
+            expression = String.format(Locale.ENGLISH, "ex.compare(\"%s\", %s, %s)", op, pre, post);
+        } else if (ctx.op7bis != null) {
+            // 'in'|'!in'|'instanceof'|'!instanceof'
+            String op = ctx.op7bis.getText();
+            Object post = stack.pop();
+            Object pre = stack.pop();
+            expression = String.format("%s %s %s", pre, op, post);
+        } else if (ctx.op8 != null) {
+            // '=='|'!='|'<=>'
+            String op = ctx.op8.getText();
+            Object post = stack.pop();
+            Object pre = stack.pop();
+            expression = String.format(Locale.ENGLISH, "ex.compare(\"%s\", %s, %s)", op, pre, post);
+        } else if (ctx.op8bis != null) {
+            // '==='|'!=='
+            String op = ctx.op8bis.getText();
+            Object post = stack.pop();
+            Object pre = stack.pop();
+            expression = String.format(Locale.ENGLISH, "ex.nullfilter(%s, \"%s\") %s ex.protect(\"%s\", %s)", pre, op, op, op, post);
+        } else if (ctx.op9 != null) {
+            // '.&'
+            String op = ctx.op9.getText().substring(1);
+            Object post = stack.pop();
+            Object pre = stack.pop();
+            expression = String.format(Locale.ENGLISH, "ex.nullfilter(%s, \"%s\") %s ex.protect(\"%s\", %s)", pre, op, op, op, post);
+        } else if (ctx.op10 != null) {
+            // '.^'
+            String op = ctx.op10.getText().substring(1);
+            Object post = stack.pop();
+            Object pre = stack.pop();
+            expression = String.format(Locale.ENGLISH, "ex.nullfilter(%s, \"%s\") %s ex.protect(\"%s\", %s)", pre, op, op, op, post);
+        } else if (ctx.op11 != null) {
+            // '.|'
+            String op = ctx.op11.getText().substring(1);
+            Object post = stack.pop();
+            Object pre = stack.pop();
+            expression = String.format(Locale.ENGLISH, "ex.nullfilter(%s, \"%s\") %s ex.protect(\"%s\", %s)", pre, op, op, op, post);
+        } else if (ctx.op12 != null) {
+            // '&&'
+            String op = ctx.op12.getText();
+            Object post = stack.pop();
+            Object pre = stack.pop();
+            expression = String.format(Locale.ENGLISH, "ex.nullfilter(%s, \"%s\") %s ex.protect(\"%s\", %s)", pre, op, op, op, post);
+        } else if (ctx.op13 != null) {
+            // '||'
+            String op = ctx.op13.getText();
+            Object post = stack.pop();
+            Object pre = stack.pop();
+            expression = String.format(Locale.ENGLISH, "ex.nullfilter(%s, \"%s\") %s ex.protect(\"%s\", %s)", pre, op, op, op, post);
         } else if (ctx.e3 != null) {
             Object subexpression = stack.pop();
             expression = "(" + subexpression + ")";
