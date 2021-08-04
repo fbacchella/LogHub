@@ -1,8 +1,12 @@
 package loghub.configuration;
 
+import java.io.BufferedReader;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.math.BigDecimal;
 import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
 import java.security.Principal;
 import java.time.Instant;
 import java.util.Collections;
@@ -10,6 +14,8 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -493,6 +499,22 @@ public class TestExpressionParsing {
     public void testNow() throws ExpressionException, ProcessorException {
         Instant now = (Instant) evalExpression("now");
         Assert.assertTrue(Math.abs(Instant.now().getEpochSecond() - now.getEpochSecond()) < 1);
+    }
+    
+    @Test
+    public void testKeywordAsIdentifier() throws IOException {
+        Pattern keywordidentifierPattern = Pattern.compile("'([a-zA-Z][a-zA-Z0-9$_]+)'=\\d+");
+        Matcher m = keywordidentifierPattern.matcher("");
+        try (BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream("target/generated-sources/antlr4/Route.tokens"), StandardCharsets.UTF_8))) {
+            br.lines()
+              .map(m::reset)
+              .filter(Matcher::matches)
+              .map(ma -> ma.group(1))
+              .map(s -> "[" + s + "]")
+              .forEach(s -> {
+                  parseExpression(s, Collections.emptyMap());
+               });
+        }
     }
 
 }
