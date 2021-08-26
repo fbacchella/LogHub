@@ -17,7 +17,7 @@
         <antlr>4.9.2</antlr>
         <jackson>2.12.4</jackson>
         <metrics>4.2.3</metrics>
-        <cache2k>2.0.0.Final</cache2k>
+        <cache2k>2.2.1.Final</cache2k>
         <mainClass>loghub.Start</mainClass>
         <surefire.version>3.0.0-M5</surefire.version>
         <cacheapi.version>1.1.1</cacheapi.version>
@@ -167,7 +167,7 @@
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-all</artifactId>
-            <version>4.1.66.Final</version>
+            <version>4.1.67.Final</version>
         </dependency>
         <dependency>
             <groupId>io.dropwizard.metrics</groupId>
@@ -217,7 +217,7 @@
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-csv</artifactId>
-            <version>1.8</version>
+            <version>1.9.0</version>
         </dependency>
         <dependency>
             <groupId>org.jruby.joni</groupId>
@@ -287,7 +287,7 @@
         <dependency>
             <groupId>com.github.luben</groupId>
             <artifactId>zstd-jni</artifactId>
-            <version>1.5.0-3</version>
+            <version>1.5.0-4</version>
         </dependency>
         <dependency>
             <groupId>org.brotli</groupId>
@@ -299,7 +299,7 @@
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-transport-native-unix-common</artifactId>
-            <version>4.1.66.Final</version>
+            <version>4.1.67.Final</version>
         </dependency>
         <dependency>
             <groupId>org.bouncycastle</groupId>
