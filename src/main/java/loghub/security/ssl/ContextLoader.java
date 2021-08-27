@@ -34,6 +34,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import loghub.Helpers;
+import loghub.configuration.ConfigException;
 import loghub.netty.servers.AbstractNettyServer;
 
 public class ContextLoader {
@@ -76,20 +77,26 @@ public class ContextLoader {
         }
         SSLContext newCtxt = null;
         try {
-            String sslContextName = properties.getOrDefault("context", "TLS").toString();
+            String sslContextName = properties.getOrDefault("context", "TLSv1.2").toString();
             String sslProviderName =  properties.getOrDefault("providername", "").toString();
             String sslProviderClass =  properties.getOrDefault("providerclass", "").toString();
+            String keyManagerAlgorithm = properties.getOrDefault("keymanageralgorithm", KeyManagerFactory.getDefaultAlgorithm()).toString();
+            String trustManagerAlgorithm = properties.getOrDefault("trustmanageralgorithm", KeyManagerFactory.getDefaultAlgorithm()).toString();
+            String secureRandom = properties.getOrDefault("securerandom", "NativePRNGNonBlocking").toString();
+
+            Provider secureProvider = null;
+            if (! sslProviderClass.isEmpty()) {
+                secureProvider = loadByName(cl, sslProviderClass);
+            }
+
             if (! sslProviderName.isEmpty()) {
-                newCtxt = SSLContext.getInstance(sslContextName);
-            } else if (! sslProviderClass.isEmpty()) {
-                Provider p = loadByName(cl, sslProviderClass);
-                newCtxt = SSLContext.getInstance(sslContextName, p);
+                newCtxt = SSLContext.getInstance(sslContextName, sslProviderName);
             } else {
-                newCtxt = SSLContext.getInstance(sslContextName);
+                newCtxt = doprovide(sslContextName, secureProvider, SSLContext::getInstance, SSLContext::getInstance);
             }
             KeyManager[] km = null;
             TrustManager[] tm = null;
-            SecureRandom sr = SecureRandom.getInstance(properties.getOrDefault("securerandom", "NativePRNGNonBlocking").toString());
+            SecureRandom sr = SecureRandom.getInstance(secureRandom);
             Object trusts = properties.get("trusts");
             X509KeyManager kmtranslator = null;
             if (trusts != null) {
@@ -101,11 +108,11 @@ public class ContextLoader {
                 }
                 KeyStore ks = KeyStore.getInstance(MultiKeyStoreProvider.NAME, MultiKeyStoreProvider.PROVIDERNAME);
                 ks.load(param);
-                TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+                TrustManagerFactory tmf = doprovide(trustManagerAlgorithm, secureProvider, TrustManagerFactory::getInstance, TrustManagerFactory::getInstance);
                 tmf.init(ks);
                 tm = tmf.getTrustManagers();
 
-                KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+                KeyManagerFactory kmf = doprovide(keyManagerAlgorithm, secureProvider, KeyManagerFactory::getInstance, KeyManagerFactory::getInstance);
                 kmf.init(ks, "".toCharArray());
                 km = kmf.getKeyManagers();
                 X509ExtendedKeyManager origkm = (X509ExtendedKeyManager) km[0];
@@ -196,7 +203,7 @@ public class ContextLoader {
                 };
             }
             newCtxt.init(new KeyManager[] {kmtranslator}, tm, sr);
-        } catch (NoSuchProviderException | NoSuchAlgorithmException | KeyManagementException | KeyStoreException | CertificateException | IOException | UnrecoverableKeyException e) {
+        } catch (NoSuchProviderException | NoSuchAlgorithmException | KeyManagementException | KeyStoreException | UnrecoverableKeyException | ConfigException | CertificateException | IOException e) {
             newCtxt = null;
             logger.error(() -> "Failed to configure SSL context", e);
         }
@@ -214,6 +221,25 @@ public class ContextLoader {
             nspe.addSuppressed(e);
             throw nspe;
         }
+    }
+
+    private interface GetInstanceWithProvider<T> {
+        T getInstance(String name, Provider provider) throws NoSuchAlgorithmException;
+    }
+
+    private interface GetInstance<T> {
+        T getInstance(String name) throws NoSuchAlgorithmException;
+    }
+
+    private static <T> T doprovide(String name, Provider provider, GetInstanceWithProvider<T> p1, GetInstance<T> p2) throws NoSuchAlgorithmException {
+        if (provider != null) {
+            try {
+                return p1.getInstance(name, provider);
+            } catch (NoSuchAlgorithmException ex) {
+                // Just fails, will try without an explicit provider
+            }
+        }
+        return p2.getInstance(name);
     }
 
 }
