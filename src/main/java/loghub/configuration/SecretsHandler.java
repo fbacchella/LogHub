@@ -1,10 +1,12 @@
 package loghub.configuration;
 
+import java.io.BufferedInputStream;
 import java.io.Closeable;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.channels.Channels;
@@ -64,15 +66,19 @@ public class SecretsHandler implements Closeable {
             throw new IllegalStateException("Keystore environment unusable", ex);
         }
     }
-    
+
     private static URI toURI(String storePath) {
         try {
             URI storeURI = new URI(storePath);
-            if (storeURI.getScheme() == null) {
-                storeURI = new URI("file:" + storePath);
+            if (storeURI.getScheme() == null || "file".equals(storeURI.getScheme())) {
+                // No scheme means file
+                // Also URI can’t really parse file URI in a useful way
+                // So it will be handled directly by using path
+                return Paths.get(storePath.replaceFirst("^file:", "")).toAbsolutePath().toUri();
+            } else {
+                return storeURI.normalize();
             }
-            return storeURI;
-        } catch (URISyntaxException ex) {
+        } catch (URISyntaxException | FileSystemNotFoundException ex) {
             throw new IllegalArgumentException("Invalid path for secret store: " + Helpers.resolveThrowableException(ex));
         }
     }
@@ -96,12 +102,26 @@ public class SecretsHandler implements Closeable {
     private KeyStore load() throws IOException {
         try {
             KeyStore tempks = KeyStore.getInstance("JCEKS");
-            try (InputStream is = storePath.toURL().openStream()) {
+            try (InputStream is = new BufferedInputStream(getReader())) {
                 tempks.load(is, NOPASSWORD);
             }
             return tempks;
         } catch (KeyStoreException | NoSuchAlgorithmException | CertificateException ex) {
             throw new IllegalStateException("Keystore environment unusable", ex);
+        }
+    }
+
+    private InputStream getReader() throws IOException {
+        try{
+            // Try the simple embeded URL readers
+            return storePath.toURL().openStream();
+        } catch (MalformedURLException ex){
+            // Try improved file system providers
+            try {
+                return Files.newInputStream(Paths.get(storePath));
+            } catch (FileSystemNotFoundException e) {
+                throw new IllegalArgumentException("Unsupported secret source");
+            }
         }
     }
 
@@ -112,26 +132,21 @@ public class SecretsHandler implements Closeable {
     private void save(boolean create) throws IOException {
         if (modified) {
             try {
-                Path source;
-                try {
-                    source = Paths.get(storePath);
-                } catch (FileSystemNotFoundException ex) {
-                    throw new IllegalArgumentException("Can't create a secret store on this storage: " + Helpers.resolveThrowableException(ex));
-                }
-                if (source.getFileSystem().isReadOnly()) {
+                Path store = Paths.get(storePath);
+                if (store.getFileSystem().isReadOnly()) {
                     throw new IllegalArgumentException("Can't create a secret store on a read-only storage");
                 }
-                if (create && Files.exists(source)) {
+                if (create && Files.exists(store)) {
                     throw new IllegalArgumentException("Can't overwrite existing secret store");
                 } else if (create) {
                     Set<PosixFilePermission> defaultPerms = new HashSet<>();
                     defaultPerms.add(PosixFilePermission.OWNER_READ);
                     defaultPerms.add(PosixFilePermission.OWNER_WRITE);
-                    Files.createFile(source, PosixFilePermissions.asFileAttribute(defaultPerms));
-                } else if (!create && !Files.exists(source)) {
+                    Files.createFile(store, PosixFilePermissions.asFileAttribute(defaultPerms));
+                } else if (!create && !Files.exists(store)) {
                     throw new IllegalStateException("Secret store vanished");
                 }
-                try (FileChannel fc = FileChannel.open(source, StandardOpenOption.WRITE);
+                try (FileChannel fc = FileChannel.open(store, StandardOpenOption.WRITE);
                      OutputStream os = Channels.newOutputStream(fc)) {
                     ks.store(os, NOPASSWORD);
                 }
@@ -154,6 +169,9 @@ public class SecretsHandler implements Closeable {
 
     public void add(String alias, byte[] secret) throws IOException {
         try {
+            if (ks.containsAlias(alias)) {
+                throw new IllegalArgumentException("Alias already exists, remove it before adding: " + alias);
+            }
             SecretKey generatedSecret = new SecretKeySpec(secret, "RAW");
             KeyStore.PasswordProtection keyStorePP = new KeyStore.PasswordProtection(NOPASSWORD);
             ks.setEntry(alias, new KeyStore.SecretKeyEntry(generatedSecret), keyStorePP);

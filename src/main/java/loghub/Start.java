@@ -50,6 +50,7 @@ public class Start {
         public static final int FAILEDSTART = 11;
         public static final int FAILEDSTARTCRITICAL = 12;
         public static final int OPERATIONFAILED = 13;
+        public static final int INVALIDARGUMENTS = 14;
     }
 
     private static final String SECRETS_CMD = "secrets";
@@ -63,7 +64,7 @@ public class Start {
         @Parameter(names = {"--file", "-f"}, description = "Password file")
         String fromFile = null;
         @Parameter(names = {"--console", "-c"}, description = "Read from console")
-        boolean fromConsole = true;
+        boolean fromConsole = false;
         @Parameter(names = {"--stdin", "-i"}, description = "Read from stdin")
         boolean fromStdin = false;
 
@@ -89,6 +90,10 @@ public class Start {
             }
             if ((fromConsole ? 1 : 0) + (fromStdin ? 1 : 0) + (secretValue != null ? 1 : 0) + (fromFile != null ? 1 : 0) > 1) {
                 throw new IllegalStateException("Multiple secret sources given, pick one");
+            }
+            if ((fromConsole ? 1 : 0) + (fromStdin ? 1 : 0) + (secretValue != null ? 1 : 0) + (fromFile != null ? 1 : 0) == 0) {
+                // The default input is console
+                fromConsole = true;
             }
             if (add) {
                 try (SecretsHandler sh = SecretsHandler.load(storeFile)) {
@@ -185,6 +190,7 @@ public class Start {
             jcom.parse(args);
         } catch (ParameterException e) {
             System.err.println(e.getMessage());
+            System.exit(ExitCode.INVALIDARGUMENTS);
         }
         if (main.help) {
             jcom.usage();
