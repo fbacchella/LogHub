@@ -67,7 +67,8 @@ beanName
     : identifier
     ;
 
-beanValue: object | literal | array | map | expression;
+beanValue: object | array | map | literal | secret | expression;
+
 finalpiperef: piperef;
 
 piperef:  identifier;
@@ -131,6 +132,10 @@ path
 test: testExpression '?' (pipenode | '>' forwardpiperef | '+' forkpiperef ) (':' (pipenode | '>' forwardpiperef | '+' forkpiperef ))? ;
 
 testExpression: expression;
+
+secret: '*' id=Identifier ('.' SecretAttribute )? ;
+
+SecretAttribute: 'text' | 'blob';
 
 // The rules from https://groovy-lang.org/operators.html#_operator_precedence needs to be explicited
 // because expressions are rewritten

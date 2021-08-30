@@ -77,6 +77,7 @@ public class Configuration {
     private Map<String, Source> sources = new HashMap<>();
     private List<Sender> senders;
     private ClassLoader classLoader = Configuration.class.getClassLoader();
+    private SecretsHandler secrets = null;
 
     Configuration() {
     }
@@ -105,6 +106,7 @@ public class Configuration {
             RouteParser.ConfigurationContext tree = getTree(cs, conflistener);
             Set<String> lockedProperties = resolveProperties(tree, conflistener, propertiesContext);
             conflistener.classLoader = classLoader;
+            conflistener.secrets = secrets;
 
             resolveSources(tree, conflistener);
             walker.walk(conflistener, tree);
@@ -269,6 +271,16 @@ public class Configuration {
         }
         lockedProperties.add("log4j.configURL");
         lockedProperties.add("log4j.configFile");
+        
+        if (propertiesContext.containsKey("secrets.source")) {
+            try {
+                String secretsSource = getStringLitteral(propertiesContext.remove("secrets.source").beanValue());
+                secrets = SecretsHandler.load(secretsSource);
+                lockedProperties.add("secrets.source");
+            } catch (IOException ex) {
+                throw new ConfigException("can't load secret store: " + ex.getMessage(), conflistener.stream.getSourceName(), pc.start, ex);
+            }
+        }
 
         return lockedProperties;
     }

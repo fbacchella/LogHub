@@ -2,6 +2,7 @@ package loghub.configuration;
 
 import java.beans.IntrospectionException;
 import java.lang.reflect.InvocationTargetException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -59,6 +60,7 @@ import loghub.RouteParser.PipenodeContext;
 import loghub.RouteParser.PipenodeListContext;
 import loghub.RouteParser.PiperefContext;
 import loghub.RouteParser.PropertyContext;
+import loghub.RouteParser.SecretContext;
 import loghub.RouteParser.SourcedefContext;
 import loghub.RouteParser.StringLiteralContext;
 import loghub.RouteParser.TestContext;
@@ -205,6 +207,7 @@ class ConfigListener extends RouteBaseListener {
     Parser parser;
     IntStream stream;
     ClassLoader classLoader = ConfigListener.class.getClassLoader();
+    SecretsHandler secrets = null;
 
     @Override
     public void enterPiperef(PiperefContext ctx) {
@@ -253,6 +256,21 @@ class ConfigListener extends RouteBaseListener {
     @Override
     public void enterNullLiteral(NullLiteralContext ctx) {
         pushLiteral(ctx, null);
+    }
+
+    
+    @Override
+    public void exitSecret(SecretContext ctx) {
+        if (secrets == null) {
+            
+        } else {
+            byte[] secret = secrets.get(ctx.id.getText());
+            if (ctx.SecretAttribute() == null || ! "blob".equals(ctx.SecretAttribute().getText())) {
+                pushLiteral(ctx, new String(secret, StandardCharsets.UTF_8));
+            } else {
+                pushLiteral(ctx, secret);
+            }
+        }
     }
 
     @SuppressWarnings({ "unchecked", "rawtypes" })
