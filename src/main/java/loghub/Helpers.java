@@ -19,6 +19,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.List;
@@ -131,6 +132,103 @@ public final class Helpers {
 
         R applyThrows(final T elem1, final U elem2) throws Exception;
     }
+
+    public static final Comparator<String> NATURALSORTSTRING = (s1, s2) -> {
+        if (s2 == null || s1 == null) {
+            return 0;
+        }
+
+        s1 = s1.toLowerCase();
+        s2 = s2.toLowerCase();
+
+        int lengthFirstStr = s1.length();
+        int lengthSecondStr = s2.length();
+
+        int index1 = 0;
+        int index2 = 0;
+
+        while (index1 < lengthFirstStr && index2 < lengthSecondStr) {
+            char ch1 = s1.charAt(index1);
+            char ch2 = s2.charAt(index2);
+
+            char[] space1 = new char[lengthFirstStr];
+            char[] space2 = new char[lengthSecondStr];
+
+            int loc1 = 0;
+            int loc2 = 0;
+
+            do {
+                space1[loc1++] = ch1;
+                index1++;
+
+                if(index1 < lengthFirstStr) {
+                    ch1 = s1.charAt(index1);
+                } else {
+                    break;
+                }
+            } while (Character.isDigit(ch1) == Character.isDigit(space1[0]));
+
+            do {
+                space2[loc2++] = ch2;
+                index2++;
+
+                if(index2 < lengthSecondStr) {
+                    ch2 = s2.charAt(index2);
+                } else {
+                    break;
+                }
+            } while (Character.isDigit(ch2) == Character.isDigit(space2[0]));
+
+            String str1 = new String(space1);
+            String str2 = new String(space2);
+
+            int result;
+
+            if(Character.isDigit(space1[0]) && Character.isDigit(space2[0])) {
+                try {
+                    Long firstNumberToCompare = Long.parseLong(str1.trim());
+                    Long secondNumberToCompare = Long.parseLong(str2.trim());
+                    result = firstNumberToCompare.compareTo(secondNumberToCompare);
+                } catch (NumberFormatException e) {
+                    // Something prevent the number parsing, do a string
+                    // comparaison
+                    result = str1.compareTo(str2);
+                }
+            } else {
+                result = str1.compareTo(str2);
+            }
+
+            if(result != 0) {
+                return result;
+            }
+        }
+        return lengthFirstStr - lengthSecondStr;
+    };
+
+    public static final Comparator<Path> NATURALSORTPATH = (p1, p2) -> {
+        p1 = p1.normalize();
+        p2 = p2.normalize();
+
+        if (p1.getNameCount() == 0 || p2.getNameCount() == 0) {
+            return Integer.compare(p1.getNameCount(), p2.getNameCount());
+        }
+
+        Iterator<Path> i1 = p1.iterator();
+        Iterator<Path> i2 = p2.iterator();
+        while(i1.hasNext() && i2.hasNext()) {
+            int sort = NATURALSORTSTRING.compare(i1.next().toString(), i2.next().toString());
+            if (sort != 0 ) {
+                return sort;
+            }
+        }
+        if (i1.hasNext() && ! i2.hasNext()) {
+            return 1;
+        } else if (i2.hasNext() && ! i1.hasNext()) {
+            return -1;
+        } else {
+            return 0;
+        }
+    };
 
     public static <E> Iterable<E> enumIterable(Enumeration<E> e){
         return new Iterable<E>() {

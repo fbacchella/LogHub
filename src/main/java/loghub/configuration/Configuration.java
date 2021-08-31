@@ -45,6 +45,7 @@ import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.LoggerContext;
 
 import loghub.Event;
+import loghub.Helpers;
 import loghub.Helpers.ThrowingConsumer;
 import loghub.Helpers.ThrowingPredicate;
 import loghub.Pipeline;
@@ -77,7 +78,6 @@ public class Configuration {
     private Map<String, Source> sources = new HashMap<>();
     private List<Sender> senders;
     private ClassLoader classLoader = Configuration.class.getClassLoader();
-    private SecretsHandler secrets = null;
 
     Configuration() {
     }
@@ -106,7 +106,6 @@ public class Configuration {
             RouteParser.ConfigurationContext tree = getTree(cs, conflistener);
             Set<String> lockedProperties = resolveProperties(tree, conflistener, propertiesContext);
             conflistener.classLoader = classLoader;
-            conflistener.secrets = secrets;
 
             resolveSources(tree, conflistener);
             walker.walk(conflistener, tree);
@@ -128,7 +127,7 @@ public class Configuration {
             };
             if (propertiesContext.containsKey("includes")) {
                 Arrays.stream(getStringOrArrayLitteral(propertiesContext.remove("includes").beanValue()))
-                .forEach( sourceName -> {
+                .forEach(sourceName -> {
                     Path sourcePath = Paths.get(sourceName);
                     if (Files.isRegularFile(sourcePath)) {
                         // A file is given
@@ -136,7 +135,7 @@ public class Configuration {
                     } else if (Files.isDirectory(sourcePath)) {
                         // A directory is given
                         try {
-                            Files.list(sourcePath).forEach( i -> parseSubFile.accept(i));
+                            Files.list(sourcePath).sorted(Helpers.NATURALSORTPATH).forEach( i -> parseSubFile.accept(i));
                         } catch (IOException e) {
                             throw new ConfigException(e.getMessage(), sourceName, e);
                         }
@@ -179,7 +178,7 @@ public class Configuration {
                     sp.source = (Source) conflistener.getObject(className, sdc).wrapped;
                     conflistener.sources.put(name, sp);
                 } else {
-                    throw new RecognitionException("Source redifined", conflistener.parser, conflistener.stream, sdc);
+                    throw new RecognitionException("Source redefined", conflistener.parser, conflistener.stream, sdc);
                 }
             }
         }
@@ -271,12 +270,13 @@ public class Configuration {
         }
         lockedProperties.add("log4j.configURL");
         lockedProperties.add("log4j.configFile");
-        
+
         if (propertiesContext.containsKey("secrets.source")) {
             try {
                 String secretsSource = getStringLitteral(propertiesContext.remove("secrets.source").beanValue());
-                secrets = SecretsHandler.load(secretsSource);
+                conflistener.secrets = SecretsHandler.load(secretsSource);
                 lockedProperties.add("secrets.source");
+                logger.debug("Loaded secrets source " + secretsSource);
             } catch (IOException ex) {
                 throw new ConfigException("can't load secret store: " + ex.getMessage(), conflistener.stream.getSourceName(), pc.start, ex);
             }
