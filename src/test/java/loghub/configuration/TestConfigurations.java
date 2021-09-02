@@ -300,8 +300,8 @@ public class TestConfigurations {
         Path confincludes = Paths.get(TestConfigurations.class.getClassLoader().getResource("includes").getFile());
         Path relativePath = Paths.get(".").toAbsolutePath().normalize().relativize(confincludes.normalize().toAbsolutePath());
         for (String confile: new String[] {
-                String.format("includes: \"%s/?.conf\"", confincludes),
                 String.format("includes: \"%s/?.conf\"", relativePath),
+                String.format("includes: \"%s/?.conf\"", confincludes),
                 String.format("includes: \"%s/recurse.conf\"", confincludes),
                 String.format("includes: \"%s\"", confincludes),
                 String.format("includes: \"%s\"", relativePath),
@@ -314,7 +314,7 @@ public class TestConfigurations {
         }
         
         ConfigException failed = Assert.assertThrows(ConfigException.class, () -> Configuration.parse(new StringReader(String.format("includes: \"%s/none.conf\"", relativePath))));
-        Assert.assertEquals("Configuration file target/test-classes/includes/none.conf not found", failed.getMessage());
+        Assert.assertEquals("No Configuration files found", failed.getMessage());
     }
 
 }

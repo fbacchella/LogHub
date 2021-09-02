@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
+import java.io.UncheckedIOException;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -30,9 +31,9 @@ import java.util.Set;
 import java.util.TimeZone;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
@@ -78,6 +79,8 @@ public class Configuration {
     private ClassLoader classLoader = Configuration.class.getClassLoader();
     private SecretsHandler secrets = null;
     private Map<String, String> lockedProperties = new HashMap<>();
+    private final Set<Path> loadedConfigurationFiles = new HashSet<>();
+    private final ConfigErrorListener errListener = new ConfigErrorListener();
 
     Configuration() {
     }
@@ -107,7 +110,7 @@ public class Configuration {
         }
     }
 
-    private void findStreams(CharStream cs, List<Tree> trees) {
+    private boolean findStreams(CharStream cs, List<Tree> trees) {
         //Passing the input to the lexer to create tokens
         RouteLexer lexer = new RouteLexer(cs);
 
@@ -115,28 +118,48 @@ public class Configuration {
         //Passing the tokens to the parser to create the parse tree.
         RouteParser parser = new RouteParser(tokens);
         parser.removeErrorListeners();
-        ConfigErrorListener errListener = new ConfigErrorListener();
         parser.addErrorListener(errListener);
         Tree tree = Tree.of(cs, parser.configuration(), parser);
+        scanProperty(tree);
         trees.add(tree);
-        tree.config.property().stream()
+        return tree.config.property().stream()
           .filter(p -> "includes".equals(p.propertyName().getText()))
-          .forEach(pc -> {
-              Arrays.stream(getStringOrArrayLitteral(pc.beanValue()))
+          .map(pc -> {
+              return Arrays.stream(getStringOrArrayLitteral(pc.beanValue()))
                     .map(Paths::get)
-                    .forEach(p -> consumeIncludes(p, trees));
-          });
+                    .map(p -> consumeIncludes(p, trees))
+                    .reduce(Boolean.FALSE, (a, b) -> a || b);
+          })
+         .reduce((a, b) -> a || b).orElse(true);
     }
 
     private CharStream pathToCharStream(Path sourcePath) {
         try {
+            logger.debug("Loading a configuration from {}", sourcePath);
             return CharStreams.fromPath(sourcePath);
-        } catch (IOException e) {
-            throw new ConfigException(e.getMessage(), sourcePath.toString(), e);
+        } catch (IOException ex) {
+            throw new ConfigException(ex.getMessage(), sourcePath.toString(), ex);
         }
     }
 
-    private void consumeIncludes(Path sourcePath, List<Tree> trees) {
+    private boolean loadStream(Stream<Path> files, List<Tree> trees) {
+        return files.filter(p -> {
+                 Path realPath;
+                 try {
+                     realPath = p.toRealPath();
+                     return (! Files.isHidden(p) && loadedConfigurationFiles.add(realPath));
+                 } catch (IOException ex) {
+                     throw new UncheckedIOException(ex);
+                 }
+             })
+             .sorted(Helpers.NATURALSORTPATH)
+             .map(this::pathToCharStream)
+             .map(cs -> findStreams(cs, trees))
+             .reduce(Boolean.FALSE, (a, b) -> a || b);
+    }
+
+    private boolean consumeIncludes(Path sourcePath, List<Tree> trees) {
+        boolean found = false;
         if ( ! Files.exists(sourcePath)) {
             // It might be a glob pattern
             Path progress = sourcePath.isAbsolute() ? sourcePath.getRoot() : Paths.get(".").normalize();
@@ -150,37 +173,38 @@ public class Configuration {
                 }
             }
             PathMatcher pm = progress.getFileSystem().getPathMatcher("glob:" + sourcePath);
-            AtomicReference<Boolean> found = new AtomicReference<>(false);
             try {
-                Files.find(progress, 1000, (p, a) -> pm.matches(p))
-                     .map(this::pathToCharStream)
-                     .peek(p -> found.set(true))
-                     .forEach(cs -> findStreams(cs, trees));
-                if (! found.get()) {
-                    throw new ConfigException("Configuration file " + sourcePath + " not found", sourcePath.toString());
-                }
-            } catch (IOException e) {
+                found = loadStream(Files.find(progress, 1000, (p, a) -> pm.matches(p)), trees);
+            } catch (IOException | UncheckedIOException e) {
                 throw new ConfigException(e.getMessage(), sourcePath.toString(), e);
             }
         } else if (Files.isDirectory(sourcePath)) {
             // A directory is given
             try {
-                Files.list(sourcePath)
-                     .sorted(Helpers.NATURALSORTPATH)
-                     .map(this::pathToCharStream)
-                     .forEach(cs -> findStreams(cs, trees));
-            } catch (IOException e) {
+                found = loadStream(Files.list(sourcePath), trees);
+            } catch (IOException | UncheckedIOException e) {
                 throw new ConfigException(e.getMessage(), sourcePath.toString(), e);
             }
         } else {
-            // Something to directly read is given
-            findStreams(pathToCharStream(sourcePath), trees);
-        }
+            try {
+                // Something to directly read is given
+                if (loadedConfigurationFiles.add(sourcePath.toRealPath())) {
+                    found = findStreams(pathToCharStream(sourcePath), trees);
+                }
+            } catch (IOException e) {
+                throw new ConfigException(e.getMessage(), sourcePath.toString(), e);
+            }
+         }
+        return found;
     }
 
     private void scanProperty(Tree tree) {
         for (PropertyContext pc: tree.config.property()) {
             String propertyName = pc.propertyName().getText();
+            // Don’t change order, it's meaningfull
+            // locale and timezone first, to check for output format
+            // classloader might be used by log4j2
+            // everything else must be set latter
             switch(propertyName) {
             case "locale":
             {
@@ -285,11 +309,11 @@ public class Configuration {
         try {
 
             List<Tree> trees = new ArrayList<>();
-            findStreams(cs, trees);
 
-            trees.forEach(t -> {
-                scanProperty(t);
-            });
+            boolean found = findStreams(cs, trees);
+            if (! found) {
+                throw new ConfigException("No Configuration files found");
+            }
 
             ConfigListener conflistener = ConfigListener.builder()
                                                         .classLoader(classLoader)
