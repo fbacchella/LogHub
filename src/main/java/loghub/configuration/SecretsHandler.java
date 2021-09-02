@@ -36,6 +36,7 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
 import loghub.Helpers;
+import lombok.NonNull;
 
 public class SecretsHandler implements Closeable {
 
@@ -51,7 +52,7 @@ public class SecretsHandler implements Closeable {
     private final URI storePath;
     private boolean modified = false;
 
-    public static SecretsHandler load(String storePath) throws IOException {
+    public static SecretsHandler load(@NonNull String storePath) throws IOException {
         try {
             return new SecretsHandler(toURI(storePath), ACTION.LOAD);
         } catch (KeyStoreException | NoSuchAlgorithmException | CertificateException ex) {
@@ -59,12 +60,16 @@ public class SecretsHandler implements Closeable {
         }
     }
 
-    public static SecretsHandler create(String storePath) throws IOException {
+    public static SecretsHandler create(@NonNull String storePath) throws IOException {
         try {
             return new SecretsHandler(toURI(storePath), ACTION.CREATE);
         } catch (KeyStoreException | NoSuchAlgorithmException | CertificateException ex) {
             throw new IllegalStateException("Keystore environment unusable", ex);
         }
+    }
+
+    public static SecretsHandler empty() {
+        return new SecretsHandler();
     }
 
     private static URI toURI(String storePath) {
@@ -99,6 +104,16 @@ public class SecretsHandler implements Closeable {
         }
     }
 
+    private SecretsHandler() {
+        this.storePath = null;
+        try {
+            ks = KeyStore.getInstance("JCEKS");
+        } catch (KeyStoreException ex) {
+            throw new IllegalStateException("Keystore environment unusable", ex);
+        }
+
+    }
+
     private KeyStore load() throws IOException {
         try {
             KeyStore tempks = KeyStore.getInstance("JCEKS");
@@ -130,7 +145,7 @@ public class SecretsHandler implements Closeable {
     }
 
     private void save(boolean create) throws IOException {
-        if (modified) {
+        if (modified && storePath != null) {
             try {
                 Path store = Paths.get(storePath);
                 if (store.getFileSystem().isReadOnly()) {
