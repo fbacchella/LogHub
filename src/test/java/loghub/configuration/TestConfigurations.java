@@ -2,6 +2,8 @@ package loghub.configuration;
 
 import java.io.IOException;
 import java.io.StringReader;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 
@@ -291,6 +293,28 @@ public class TestConfigurations {
             Assert.assertEquals("Unsupported charset name: NONE", e.getMessage());
             Assert.assertEquals("file <unknown>, line 2:42", e.getLocation());
         }
+    }
+
+    @Test
+    public void testInclude() throws ConfigException, IOException {
+        Path confincludes = Paths.get(TestConfigurations.class.getClassLoader().getResource("includes").getFile());
+        Path relativePath = Paths.get(".").toAbsolutePath().normalize().relativize(confincludes.normalize().toAbsolutePath());
+        for (String confile: new String[] {
+                String.format("includes: \"%s/?.conf\"", confincludes),
+                String.format("includes: \"%s/?.conf\"", relativePath),
+                String.format("includes: \"%s/recurse.conf\"", confincludes),
+                String.format("includes: \"%s\"", confincludes),
+                String.format("includes: \"%s\"", relativePath),
+                String.format("includes: [\"%s/a.conf\", \"%s/b.conf\"]", relativePath, confincludes),
+        }) {
+            logger.info("trying {}", confile);
+            Properties p =  Configuration.parse(new StringReader(confile));
+            Assert.assertTrue((Boolean)p.get("a"));
+            Assert.assertTrue((Boolean)p.get("b"));
+        }
+        
+        ConfigException failed = Assert.assertThrows(ConfigException.class, () -> Configuration.parse(new StringReader(String.format("includes: \"%s/none.conf\"", relativePath))));
+        Assert.assertEquals("Configuration file target/test-classes/includes/none.conf not found", failed.getMessage());
     }
 
 }

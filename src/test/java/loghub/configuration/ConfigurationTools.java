@@ -8,7 +8,6 @@ import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.ParserRuleContext;
-import org.antlr.v4.runtime.tree.ParseTreeWalker;
 import org.junit.Assert;
 
 import loghub.RouteLexer;
@@ -39,9 +38,8 @@ public class ConfigurationTools {
         parser.addErrorListener(errListener);
 
         T tree = extractor.apply(parser);
-        ConfigListener conf = new ConfigListener();
-        ParseTreeWalker walker = new ParseTreeWalker();
-        walker.walk(conf, tree);
+        ConfigListener conf = ConfigListener.builder().build();
+        conf.startWalk(tree, fragment, parser);
         Object o = null;
         if (conf.stack.size() >= 1) {
             o = conf.stack.pop();

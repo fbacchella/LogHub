@@ -5,7 +5,6 @@ import java.io.IOException;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
-import org.antlr.v4.runtime.tree.ParseTreeWalker;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -58,9 +57,8 @@ public class TestParser {
         parser.addErrorListener(errListener);
         loghub.RouteParser.ConfigurationContext tree = parser.configuration(); // begin parsing at init rule
 
-        ConfigListener conf = new ConfigListener();
-        ParseTreeWalker walker = new ParseTreeWalker();
-        walker.walk(conf, tree);
+        ConfigListener conf = ConfigListener.builder().build();
+        conf.startWalk(tree, cs, parser);
         Assert.assertEquals("stack not empty :" + conf.stack, 0, conf.stack.size());
         for(String s: new String[] {"oneref", "main", "groovy"}) {
             Assert.assertTrue("pipeline " + s + " not found", conf.pipelines.containsKey(s));
@@ -86,9 +84,8 @@ public class TestParser {
         parser.addErrorListener(errListener);
         loghub.RouteParser.ConfigurationContext tree = parser.configuration(); // begin parsing at init rule
 
-        ConfigListener conf = new ConfigListener();
-        ParseTreeWalker walker = new ParseTreeWalker();
-        walker.walk(conf, tree);
+        ConfigListener conf = ConfigListener.builder().build();
+        conf.startWalk(tree, cs, parser);
         Assert.assertEquals("stack not empty :" + conf.stack, 0, conf.stack.size());
         ConfigListener.PipenodesList main = conf.pipelines.get("main");
         ProcessorInstance p = (ProcessorInstance) main.processors.get(0);

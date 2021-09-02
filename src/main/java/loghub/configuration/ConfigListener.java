@@ -14,10 +14,12 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.IntStream;
 import org.antlr.v4.runtime.Parser;
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.RecognitionException;
+import org.antlr.v4.runtime.tree.ParseTreeWalker;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -27,7 +29,7 @@ import loghub.Helpers;
 import loghub.Pipeline;
 import loghub.Processor;
 import loghub.RouteBaseListener;
-import loghub.RouteLexer;
+import loghub.RouteParser;
 import loghub.RouteParser.ArrayContext;
 import loghub.RouteParser.BeanContext;
 import loghub.RouteParser.BooleanLiteralContext;
@@ -84,6 +86,7 @@ import loghub.processors.UnwrapEvent;
 import loghub.processors.WrapEvent;
 import loghub.receivers.Receiver;
 import loghub.senders.Sender;
+import lombok.Builder;
 
 class ConfigListener extends RouteBaseListener {
 
@@ -201,13 +204,27 @@ class ConfigListener extends RouteBaseListener {
 
     private String currentPipeLineName = null;
     private int expressionDepth = 0;
+    private final ParseTreeWalker walker = new ParseTreeWalker();
 
-    private Set<String> lockedProperties = new HashSet<>();
+    private final ClassLoader classLoader;
+    private final SecretsHandler secrets;
+    private final Map<String, String> lockedProperties;
 
-    Parser parser;
-    IntStream stream;
-    ClassLoader classLoader = ConfigListener.class.getClassLoader();
-    SecretsHandler secrets = null;
+    private Parser parser;
+    private IntStream stream;
+
+    @Builder
+    private ConfigListener(ClassLoader classLoader, SecretsHandler secrets, Map<String, String> lockedProperties) {
+        this.classLoader = classLoader != null ? classLoader : ConfigListener.class.getClassLoader();
+        this.secrets = secrets != null ? secrets : SecretsHandler.empty();
+        this.lockedProperties = lockedProperties != null ? lockedProperties : new HashMap<>();
+    }
+
+    public void startWalk(ParserRuleContext config, CharStream stream, RouteParser parser) {
+        this.stream = stream;
+        this.parser = parser;
+        walker.walk(this, config);
+    }
 
     @Override
     public void enterPiperef(PiperefContext ctx) {
@@ -638,10 +655,10 @@ class ConfigListener extends RouteBaseListener {
         Object value = stack.pop();
         String key = ctx.propertyName().getText();
         // Avoid reprocess already processed properties
-        if (!lockedProperties.contains(key)) {
+        if (!lockedProperties.containsKey(key) || lockedProperties.get(key).equals(ctx.beanValue().getText())) {
             properties.put(key, value);
         } else {
-            throw new RecognitionException("redefined property", parser, stream, ctx);
+            throw new RecognitionException("redefined property " + key, parser, stream, ctx);
         }
     }
 
@@ -1026,13 +1043,6 @@ class ConfigListener extends RouteBaseListener {
         } else {
             stack.push(expression);
         }
-    }
-
-    /**
-     * @param topLevelConfigFile the topLevelConfigFile to set
-     */
-    public void lockProperty(String property) {
-        lockedProperties.add(property);
     }
 
 }
