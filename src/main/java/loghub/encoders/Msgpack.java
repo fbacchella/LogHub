@@ -1,31 +1,26 @@
 package loghub.encoders;
 
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
 import org.msgpack.jackson.dataformat.MessagePackFactory;
 
 import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.Version;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 
 import loghub.BuilderClass;
 import loghub.CanBatch;
-import loghub.Event;
 import loghub.jackson.EventSerializer;
+import loghub.jackson.JacksonBuilder;
 import loghub.jackson.MsgpackTimeSerializer.DateSerializer;
 import loghub.jackson.MsgpackTimeSerializer.InstantSerializer;
 import lombok.Setter;
 
 @BuilderClass(Msgpack.Builder.class)
 @CanBatch
-public class Msgpack extends Encoder {
+public class Msgpack extends AbstractJacksonEncoder<Msgpack.Builder> {
 
-    public static class Builder extends Encoder.Builder<Msgpack> {
+    public static class Builder extends AbstractJacksonEncoder.Builder<Msgpack> {
         @Setter
-        private boolean forwardEvent = false;
+        public boolean forwardEvent = false;
         @Override
         public Msgpack build() {
             return new Msgpack(this);
@@ -36,55 +31,32 @@ public class Msgpack extends Encoder {
     }
 
     private static final JsonFactory factory = new MessagePackFactory();
-    private static final ThreadLocal<ObjectMapper> msgpackAsEvent;
-    private static final ThreadLocal<ObjectMapper> msgpackAsMap;
+    private static final SimpleModule dateModuleEvent;
+    private static final SimpleModule dateModuleMap;
     static {
-        // The are shared by ObjectMapper in a unknown way, don't create useless instance.
+        // The are shared by ObjectMapper, don't create useless instances.
         DateSerializer ds = new DateSerializer();
         InstantSerializer is = new InstantSerializer();
         EventSerializer es = new EventSerializer();
-        msgpackAsEvent = ThreadLocal.withInitial(() ->  {
-            ObjectMapper mapper = new ObjectMapper(factory);
-            SimpleModule dateModule = new SimpleModule("LogHub", new Version(1, 0, 0, null, "loghub", "MsgpackAsEvent"));
-            dateModule.addSerializer(ds);
-            dateModule.addSerializer(is);
-            dateModule.addSerializer(es);
-            mapper.registerModule(dateModule);
-            return mapper;
-        });
-        msgpackAsMap = ThreadLocal.withInitial(() ->  {
-            ObjectMapper mapper = new ObjectMapper(factory);
-            SimpleModule dateModule = new SimpleModule("LogHub", new Version(1, 0, 0, null, "loghub", "MsgpackAsMap"));
-            dateModule.addSerializer(ds);
-            dateModule.addSerializer(is);
-            mapper.registerModule(dateModule);
-            return mapper;
-        });
+        dateModuleEvent = new SimpleModule("LogHub", new Version(1, 0, 0, null, "loghub", "MsgpackAsEvent"));
+        dateModuleEvent.addSerializer(ds);
+        dateModuleEvent.addSerializer(is);
+        dateModuleEvent.addSerializer(es);
+        dateModuleMap = new SimpleModule("LogHub", new Version(1, 0, 0, null, "loghub", "MsgpackAsMap"));
+        dateModuleMap.addSerializer(ds);
+        dateModuleMap.addSerializer(is);
     }
-
-    private final ThreadLocal<ObjectMapper> mapper;
 
     private Msgpack(Builder builder) {
         super(builder);
-        mapper = builder.forwardEvent ? msgpackAsEvent : msgpackAsMap;
     }
 
     @Override
-    public byte[] encode(Event event) throws EncodeException {
-        try {
-            return mapper.get().writeValueAsBytes(event);
-        } catch (JsonProcessingException e) {
-            throw new EncodeException("Failed to encode to MsgPack", e);
-        }
-    }
-
-    @Override
-    public byte[] encode(Stream<Event> events) throws EncodeException {
-        try {
-            return mapper.get().writeValueAsBytes(events.collect(Collectors.toList()));
-        } catch (JsonProcessingException e) {
-            throw new EncodeException("Failed to encode to MsgPack", e);
-        }
+    protected JacksonBuilder<?> getWriterBuilder(Builder builder) {
+        return JacksonBuilder.get()
+                .setFactory(factory)
+                .module(builder.forwardEvent ? dateModuleEvent : dateModuleMap)
+                ;
     }
 
 }

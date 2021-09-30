@@ -3,17 +3,17 @@ package loghub.decoders;
 import java.io.IOException;
 import java.io.InputStream;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectReader;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufInputStream;
 import loghub.ConnectionContext;
 import loghub.Helpers;
+import loghub.jackson.JacksonBuilder;
 
-public abstract class AbstractJackson extends Decoder {
+public abstract class AbstractJacksonDecoder<JB extends AbstractJacksonDecoder.Builder<? extends AbstractJacksonDecoder<JB>>> extends Decoder {
 
-    public abstract static class Builder<B extends AbstractJackson> extends Decoder.Builder<B> {
+    public abstract static class Builder<B extends AbstractJacksonDecoder<?>> extends Decoder.Builder<B> {
     };
 
     @FunctionalInterface
@@ -21,13 +21,16 @@ public abstract class AbstractJackson extends Decoder {
         Object deserialize(ObjectReader reader) throws DecodeException, IOException;
     }
 
-    protected static final TypeReference<Object> OBJECTREF = new TypeReference<Object>() { };
+    private final ObjectReader reader;
 
-    protected AbstractJackson(Builder<? extends AbstractJackson> builder) {
+    protected AbstractJacksonDecoder(JB builder) {
         super(builder);
+        this.reader = getReaderBuilder(builder).getReader();
     }
 
-    @Override
+    protected abstract JacksonBuilder<?> getReaderBuilder(JB builder);
+
+   @Override
     public Object decodeObject(ConnectionContext<?> ctx, byte[] msg, int offset, int length) throws DecodeException {
         return runDecodeJackson(ctx, reader -> reader.readValue(msg, offset, length));
     }
@@ -36,7 +39,7 @@ public abstract class AbstractJackson extends Decoder {
     public Object decodeObject(ConnectionContext<?> ctx, ByteBuf bbuf) throws DecodeException {
         return runDecodeJackson(ctx, reader -> reader.readValue((InputStream)new ByteBufInputStream(bbuf)));
     }
-    
+
     protected final Object runDecodeJackson(ConnectionContext<?> ctx, ObjectResolver gen) throws DecodeException {
         try {
             return decodeJackson(ctx, gen);
@@ -45,6 +48,9 @@ public abstract class AbstractJackson extends Decoder {
         }
     }
 
-    protected abstract Object decodeJackson(ConnectionContext<?> ctx, ObjectResolver gen) throws DecodeException, IOException;
+    protected Object decodeJackson(ConnectionContext<?> ctx, ObjectResolver gen)
+            throws DecodeException, IOException {
+        return gen.deserialize(reader);
+    }
 
 }

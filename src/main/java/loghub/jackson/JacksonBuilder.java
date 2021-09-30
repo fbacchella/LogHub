@@ -1,12 +1,13 @@
 package loghub.jackson;
 
-import java.util.HashMap;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-import com.fasterxml.jackson.core.FormatFeature;
 import com.fasterxml.jackson.core.FormatSchema;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.Version;
@@ -22,6 +23,7 @@ import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.fasterxml.jackson.module.afterburner.AfterburnerModule;
 
+import loghub.Helpers;
 import lombok.Setter;
 import lombok.Singular;
 import lombok.experimental.Accessors;
@@ -30,16 +32,15 @@ import lombok.experimental.Accessors;
 public class JacksonBuilder<T extends ObjectMapper> {
 
     public static final TypeReference<Object> OBJECTREF = new TypeReference<Object>() { /* empty */ };
-    public static final TypeReference<HashMap<?, ?>> HAHSMAPREF = new TypeReference<HashMap<?, ?>>() { /* empty */ };
 
     @Setter
     JsonFactory factory = null;
     @Setter
     private FormatSchema schema = null;
-    @Setter @Singular
+
     Set<Module> modules = new HashSet<>();
-    @Setter @Singular
-    Set<FormatFeature> features = new HashSet<>();
+
+    Set<Enum<?>> features = new HashSet<>();
     @Setter @Singular
     Set<JsonSerializer<?>> serialiazers  = new HashSet<>();
     @Setter
@@ -50,7 +51,21 @@ public class JacksonBuilder<T extends ObjectMapper> {
     Consumer<T> configurator = null;
 
     public static <T extends ObjectMapper> JacksonBuilder<T> get(Class<T> clazz) {
-        return new JacksonBuilder<T>();
+        JacksonBuilder<T> jb = new JacksonBuilder<T>();
+        try {
+            Constructor<T> cons = clazz.getConstructor();
+            jb.mapperSupplier = () -> {
+                try {
+                    return cons.newInstance();
+                } catch (InstantiationException | IllegalAccessException | IllegalArgumentException
+                        | InvocationTargetException ex) {
+                    throw new IllegalStateException("Unusable Jackson mapper " + clazz.getName() + ": " + Helpers.resolveThrowableException(ex), ex);
+                }
+            };
+        } catch (NoSuchMethodException | SecurityException ex) {
+            throw new IllegalStateException("Unusable Jackson mapper " + clazz.getName() + ": " + Helpers.resolveThrowableException(ex), ex);
+        }
+        return jb;
     }
 
     public static JacksonBuilder<ObjectMapper> get() {
@@ -69,7 +84,7 @@ public class JacksonBuilder<T extends ObjectMapper> {
     }
 
     public ObjectWriter getWriter() {
-        ObjectWriter writer = getMapper().writerFor(typeReference != null ? typeReference: HAHSMAPREF);
+        ObjectWriter writer = getMapper().writerFor(typeReference != null ? typeReference: OBJECTREF);
         if (schema != null) {
             writer = writer.with(schema);
         }
@@ -78,7 +93,7 @@ public class JacksonBuilder<T extends ObjectMapper> {
 
     @SuppressWarnings("unchecked")
     public T getMapper() {
-        T mapper = null;
+        T mapper;
 
         if (factory != null) {
             mapper = (T) new ObjectMapper(factory);
@@ -90,6 +105,7 @@ public class JacksonBuilder<T extends ObjectMapper> {
         if (configurator != null) {
             configurator.accept(mapper);
         }
+        features.forEach(f -> enable(mapper, f));
         mapper.setDefaultTyping(StdTypeResolverBuilder.noTypeInfoBuilder());
         mapper.registerModule(new JavaTimeModule());
         mapper.registerModule(new Jdk8Module());
@@ -101,6 +117,27 @@ public class JacksonBuilder<T extends ObjectMapper> {
         }
         modules.forEach(mapper::registerModule);
         return mapper;
+    }
+    
+    public JacksonBuilder<T> feature(Enum<?> e) {
+        features.add(e);
+        return this;
+    }
+
+    public JacksonBuilder<T> module(Module m) {
+        modules.add(m);
+        return this;
+    }
+
+    private void enable(T mapper, Enum<?> f) {
+        try {
+            @SuppressWarnings("unchecked")
+            Class<? extends Enum<?>> eclass = (Class<? extends Enum<?>>) f.getClass();
+            Method m = mapper.getClass().getMethod("enable", eclass);
+            m.invoke(mapper, f);
+        } catch (NoSuchMethodException | SecurityException | IllegalAccessException | IllegalArgumentException | InvocationTargetException ex) {
+            throw new IllegalStateException("Unsuable feature " + f.name() + ": " + Helpers.resolveThrowableException(ex), ex);
+        }
     }
 
 }

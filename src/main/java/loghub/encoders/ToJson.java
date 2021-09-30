@@ -1,40 +1,22 @@
 package loghub.encoders;
 
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 
 import loghub.BuilderClass;
 import loghub.CanBatch;
-import loghub.Event;
-import loghub.Helpers;
+import loghub.jackson.JacksonBuilder;
 import lombok.Setter;
 
 @BuilderClass(ToJson.Builder.class)
 @CanBatch
-public class ToJson extends Encoder {
+public class ToJson extends AbstractJacksonEncoder<ToJson.Builder> {
     
-    public static class Builder extends Encoder.Builder<ToJson> {
-        private boolean compressed = false;
-        private boolean stream = false;
+    public static class Builder extends AbstractJacksonEncoder.Builder<ToJson> {
         @Setter
-        private String shortmessagefield = "shortmessage";
+        private boolean pretty = false;
         @Setter
-        private String fullmessagefield = null;
-        public Builder setCompressed(Boolean compressed) {
-            this.compressed = compressed;
-            this.stream = compressed ? false : this.stream;
-            return this;
-        }
-        public Builder setStream(Boolean stream) {
-            this.stream = stream;
-            this.compressed = stream ? false: this.compressed;
-            return this;
-        }
+        private boolean dateAsText = false;
         @Override
         public ToJson build() {
             return new ToJson(this);
@@ -44,34 +26,19 @@ public class ToJson extends Encoder {
         return new Builder();
     }
 
-    private static final JsonFactory factory = new JsonFactory();
-    private static final ThreadLocal<ObjectMapper> json = new ThreadLocal<ObjectMapper>() {
-        @Override
-        protected ObjectMapper initialValue() {
-            return new ObjectMapper(factory).configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false);
-        }
-    };
-
     private ToJson(Builder builder) {
         super(builder);
     }
 
     @Override
-    public byte[] encode(Event event) throws EncodeException {
-        try {
-            return json.get().writeValueAsBytes(event);
-        } catch (JsonProcessingException e) {
-            throw new EncodeException("Failed to encode to JSON: " + Helpers.resolveThrowableException(e), e);
+    protected JacksonBuilder<?> getWriterBuilder(Builder builder) {
+        JacksonBuilder<JsonMapper> jbuilder = JacksonBuilder.get(JsonMapper.class)
+                .setConfigurator(om -> om.configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, ! (builder.pretty || builder.dateAsText)))
+                ;
+        if (builder.pretty) {
+            jbuilder.feature(SerializationFeature.INDENT_OUTPUT);
         }
-    }
-
-    @Override
-    public byte[] encode(Stream<Event> events) throws EncodeException {
-        try {
-            return json.get().writeValueAsBytes(events.collect(Collectors.toList()));
-        } catch (JsonProcessingException e) {
-            throw new EncodeException("Failed to encode to JSON: " + Helpers.resolveThrowableException(e), e);
-        }
+        return jbuilder;
     }
 
 }

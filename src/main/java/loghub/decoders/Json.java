@@ -1,20 +1,19 @@
 package loghub.decoders;
 
-import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.databind.ObjectReader;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 
 import loghub.BuilderClass;
-import loghub.ConnectionContext;
 import loghub.jackson.JacksonBuilder;
 
 @BuilderClass(Json.Builder.class)
-public class Json extends AbstractStringJackson {
+public class Json extends AbstractStringJackson<Json.Builder> {
 
     public static class Builder extends AbstractStringJackson.Builder<Json> {
         @Override
         public Json build() {
+            this.charset = StandardCharsets.UTF_8.name();
             return new Json(this);
         }
     };
@@ -22,19 +21,13 @@ public class Json extends AbstractStringJackson {
         return new Builder();
     }
 
-    private final ObjectReader reader;
-
     protected Json(Builder builder) {
         super(builder);
-        reader = JacksonBuilder.get()
-                .setFactory(new JsonFactory())
-                .getReader();
     }
 
     @Override
-    protected Object decodeJackson(ConnectionContext<?> ctx, ObjectResolver gen)
-                    throws DecodeException, IOException {
-        return gen.deserialize(reader);
+    protected JacksonBuilder<?> getReaderBuilder(Builder builder) {
+        return JacksonBuilder.get(JsonMapper.class);
     }
 
 }

@@ -6,8 +6,6 @@ import org.msgpack.core.MessagePackException;
 import org.msgpack.jackson.dataformat.ExtensionTypeCustomDeserializers;
 import org.msgpack.jackson.dataformat.MessagePackFactory;
 
-import com.fasterxml.jackson.databind.ObjectReader;
-
 import loghub.BuilderClass;
 import loghub.ConnectionContext;
 import loghub.Helpers;
@@ -22,9 +20,9 @@ import loghub.jackson.MsgpackTimeDeserializer;
  *
  */
 @BuilderClass(Msgpack.Builder.class)
-public class Msgpack extends AbstractJackson {
+public class Msgpack extends AbstractJacksonDecoder<Msgpack.Builder> {
 
-    public static class Builder extends AbstractJackson.Builder<Msgpack> {
+    public static class Builder extends AbstractJacksonDecoder.Builder<Msgpack> {
         @Override
         public Msgpack build() {
             return new Msgpack(this);
@@ -34,13 +32,11 @@ public class Msgpack extends AbstractJackson {
         return new Builder();
     }
 
-    private static final ObjectReader reader;
+    private static final MessagePackFactory factory;
     static {
         ExtensionTypeCustomDeserializers extTypeCustomDesers = new ExtensionTypeCustomDeserializers();
         extTypeCustomDesers.addCustomDeser((byte) -1, new MsgpackTimeDeserializer());
-        reader = JacksonBuilder.get()
-                .setFactory(new MessagePackFactory().setExtTypeCustomDesers(extTypeCustomDesers))
-                .getReader();
+        factory = new MessagePackFactory().setExtTypeCustomDesers(extTypeCustomDesers);
     }
 
     private Msgpack(Builder builder) {
@@ -48,10 +44,16 @@ public class Msgpack extends AbstractJackson {
     }
 
     @Override
+    protected JacksonBuilder<?> getReaderBuilder(Builder builder) {
+        return JacksonBuilder.get()
+                             .setFactory(factory);
+    }
+
+    @Override
     protected Object decodeJackson(ConnectionContext<?> ctx, ObjectResolver gen)
             throws DecodeException, IOException {
         try {
-            return gen.deserialize(reader);
+            return super.decodeJackson(ctx, gen);
         } catch (MessagePackException ex) {
             throw new DecodeException("Failed to decode Msgpack event: " + Helpers.resolveThrowableException(ex), ex);
         }

@@ -10,8 +10,7 @@ import org.msgpack.jackson.dataformat.ExtensionTypeCustomDeserializers;
 public class MsgpackTimeDeserializer implements ExtensionTypeCustomDeserializers.Deser {
 
     @Override
-    public Object deserialize(byte[] data) throws IOException
-    {
+    public Object deserialize(byte[] data) throws IOException {
         ByteBuffer content = ByteBuffer.wrap(data);
         long seconds = 0;
         int nanoseconds = 0;

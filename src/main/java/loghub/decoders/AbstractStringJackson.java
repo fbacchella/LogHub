@@ -9,16 +9,16 @@ import io.netty.buffer.ByteBuf;
 import loghub.ConnectionContext;
 import lombok.Setter;
 
-public abstract class AbstractStringJackson extends AbstractJackson implements TextDecoder {
+public abstract class AbstractStringJackson<JB extends AbstractStringJackson.Builder<? extends AbstractStringJackson<JB>>> extends AbstractJacksonDecoder<JB> implements TextDecoder {
 
-    public abstract static class Builder<B extends AbstractStringJackson> extends AbstractJackson.Builder<B> {
+    public abstract static class Builder<B extends AbstractStringJackson<?>> extends AbstractJacksonDecoder.Builder<B> {
         @Setter
-        private String charset = Charset.defaultCharset().name();
+        protected String charset = Charset.defaultCharset().name();
     };
 
     private final Charset charset;
 
-    protected AbstractStringJackson(Builder<? extends AbstractStringJackson> builder) {
+    protected AbstractStringJackson(JB builder) {
         super(builder);
         charset = Charset.forName(builder.charset);
     }
