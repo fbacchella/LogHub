@@ -5,7 +5,7 @@ version: 2.1
 jobs:
     checkout:
         docker:
-            - image: circleci/openjdk:16-jdk-buster
+            - image: circleci/openjdk:17-jdk-buster
         steps:
             - checkout
             - restore_cache:
