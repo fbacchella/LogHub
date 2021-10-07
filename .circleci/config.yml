@@ -15,7 +15,7 @@ jobs:
                 # A bug in dependency:go-offline, see https://issues.apache.org/jira/browse/MDEP-688
                 command: "mvn -B dependency:resolve dependency:resolve-plugins -Psonar,versions -s .circleci/settings.xml"
                 environment:
-                    JAVA_HOME: /usr/local/openjdk-16
+                    JAVA_HOME: /usr/local/openjdk-17
                     MAVEN_OPTS: "-Xmx1024m"
             - persist_to_workspace:
                 root: /
@@ -33,7 +33,7 @@ jobs:
                     - openjdk-8
     build:
         docker:
-            - image: circleci/openjdk:16-jdk-buster
+            - image: circleci/openjdk:17-jdk-buster
         steps:
             - attach_workspace:
                 at: /tmp/ws
@@ -45,16 +45,16 @@ jobs:
             - run:
                 command: mvn -B clean compile -s .circleci/settings.xml
                 environment:
-                    JAVA_HOME: /usr/local/openjdk-16
+                    JAVA_HOME: /usr/local/openjdk-17
                     MAVEN_OPTS: "-Xmx2048m"
             - persist_to_workspace:
                 root: /
                 paths:
                     - home/circleci/.m2/repository
                     - home/circleci/project/target
-    testsj16:
+    testsj17:
         docker:
-            - image: circleci/openjdk:16-jdk-buster
+            - image: circleci/openjdk:17-jdk-buster
         steps:
             - attach_workspace:
                 at: /tmp/ws
@@ -75,7 +75,7 @@ jobs:
                     mkdir -p /tmp/$CIRCLE_JOB
                     mvn -B test $SONAR -Pskip -Darg.line="-Xmx2048m -Djava.io.tmpdir=/tmp/$CIRCLE_JOB" -s .circleci/settings.xml
                 environment:
-                    JAVA_HOME: /usr/local/openjdk-16
+                    JAVA_HOME: /usr/local/openjdk-17
                     MAVEN_OPTS: "-Xmx1024m"
             - store_test_results:
                 path: target/surefire-reports
@@ -151,7 +151,7 @@ jobs:
                     echo "publishing jobs: $PUBLISH"
                     mvn -B $PUBLISH -Pskip -Dmaven.test.skip=true -s .circleci/settings.xml
                 environment:
-                    JAVA_HOME: /usr/local/openjdk-16
+                    JAVA_HOME: /usr/local/openjdk-17
                     MAVEN_OPTS: "-Dorg.slf4j.simpleLogger.log.org.apache.maven.plugins.shade=ERROR -Xmx2048m"
             - persist_to_workspace:
                 root: /
@@ -191,14 +191,14 @@ workflows:
       - testsj11:
           requires:
               - build
-      - testsj16:
+      - testsj17:
           requires:
               - build
       - publish:
           requires:
               - testsj8
               - testsj11
-              - testsj16
+              - testsj17
       - savecache:
           requires:
               - publish
