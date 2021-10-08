@@ -11,8 +11,6 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
-        <jdk.compile.home>${jdk.8.home}</jdk.compile.home>
-        <bootclasspath>${jdk.compile.home}/jre/lib/rt.jar;${jdk.compile.home}/jre/lib/jce.jar</bootclasspath>
         <log4j>2.14.1</log4j>
         <antlr>4.9.2</antlr>
         <jackson>2.13.0</jackson>
@@ -24,7 +22,7 @@
         <snmp4j.version>2.8.7</snmp4j.version>
         <geoip2.version>2.15.0</geoip2.version>
         <dependency.locations.enabled>false</dependency.locations.enabled>
-        <!-- Inderection needed to keep optionnal jacoco settings and external argument lines-->
+        <!-- Indirection needed to keep optionnal jacoco settings and external argument lines-->
         <arg.line></arg.line>
         <argLine>${arg.line}</argLine>
     </properties>
@@ -409,13 +407,6 @@
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-surefire-plugin</artifactId>
                     <version>${surefire.version}</version>
-                    <dependencies>
-                        <dependency>
-                            <groupId>org.apache.maven.surefire</groupId>
-                            <artifactId>surefire-junit47</artifactId>
-                            <version>${surefire.version}</version>
-                        </dependency>
-                    </dependencies>
                 </plugin>
                 <plugin>
                     <groupId>org.jacoco</groupId>
@@ -468,14 +459,14 @@
                 <version>3.1.1</version>
             </extension>
             <extension>
-                <groupId>org.apache.maven.surefire</groupId>
-                <artifactId>surefire-junit47</artifactId>
-                <version>${surefire.version}</version>
+                <groupId>junit</groupId>
+                <artifactId>junit</artifactId>
+                <version>4.0</version>
             </extension>
             <extension>
                 <groupId>org.apache.maven.surefire</groupId>
                 <artifactId>surefire-junit4</artifactId>
-                <version>3.0.0-M3</version>
+                <version>${surefire.version}</version>
             </extension>
             <!-- Yes many versions are needed -->
             <extension>
@@ -552,21 +543,6 @@
                 <groupId>org.apache.maven.shared</groupId>
                 <artifactId>maven-artifact-transfer</artifactId>
                 <version>0.9.0</version>
-            </extension>
-            <extension>
-                <groupId>org.apache.maven.wagon</groupId>
-                <artifactId>wagon-ssh</artifactId>
-                <version>2.0</version>
-            </extension>
-            <extension>
-                <groupId>org.apache.maven.wagon</groupId>
-                <artifactId>wagon-ssh-external</artifactId>
-                <version>2.7</version>
-            </extension>
-            <extension>
-                <groupId>org.apache.maven.wagon</groupId>
-                <artifactId>wagon-ssh-external</artifactId>
-                <version>3.3.3</version>
             </extension>
             <extension>
                 <groupId>org.apache.maven.wagon</groupId>
@@ -669,9 +645,49 @@
                 <version>3.2.1</version>
             </extension>
             <extension>
-                <groupId>org.sonarsource.scanner.api</groupId>
-                <artifactId>sonar-scanner-api</artifactId>
-                <version>2.16.1.361</version>
+                <groupId>org.apache.felix</groupId>
+                <artifactId>maven-bundle-plugin</artifactId>
+                <version>5.1.1</version>
+            </extension>
+            <extension>
+                <groupId>org.apache.maven.skins</groupId>
+                <artifactId>maven-default-skin</artifactId>
+                <version>1.3</version>
+            </extension>
+            <extension>
+                <groupId>org.eluder.coveralls</groupId>
+                <artifactId>coveralls-maven-plugin</artifactId>
+                <version>4.3.0</version>
+            </extension>
+            <extension>
+                <groupId>org.apache.felix</groupId>
+                <artifactId>maven-bundle-plugin</artifactId>
+                <version>5.1.2</version>
+            </extension>
+            <extension>
+                <groupId>kr.motd.maven</groupId>
+                <artifactId>os-maven-plugin</artifactId>
+                <version>1.7.0</version>
+            </extension>
+            <extension>
+                <groupId>org.apache.maven.wagon</groupId>
+                <artifactId>wagon-ssh-external</artifactId>
+                <version>3.4.3</version>
+            </extension>
+            <extension>
+                <groupId>org.apache.maven.wagon</groupId>
+                <artifactId>wagon-ssh</artifactId>
+                <version>2.0</version>
+            </extension>
+            <extension>
+                <groupId>org.jvnet.wagon-svn</groupId>
+                <artifactId>wagon-svn</artifactId>
+                <version>1.9</version>
+            </extension>
+            <extension>
+                <groupId>io.takari.maven.plugins</groupId>
+                <artifactId>takari-lifecycle-plugin</artifactId>
+                <version>1.12.3</version>
             </extension>
         </extensions>
         <plugins>
@@ -874,6 +890,10 @@
             <build>
                 <plugins>
                     <plugin>
+                        <groupId>org.sonarsource.scanner.maven</groupId>
+                        <artifactId>sonar-maven-plugin</artifactId>
+                    </plugin>
+                    <plugin>
                         <groupId>org.jacoco</groupId>
                         <artifactId>jacoco-maven-plugin</artifactId>
                         <executions>
@@ -913,6 +933,65 @@
                     </plugin>
                 </plugins>
             </reporting>
+        </profile>
+        <profile>
+            <!-- With this profile, it's possible to used the latest jvm but 
+                still get jar compatible with pre-9 JVM. It's activated when jdk.compile.home 
+                is defined. Example: JAVA_HOME=$JAVA14_HOME mvn compile -Djdk.compile.home=$JAVA8_HOME 
+                ! -->
+            <id>crosscompile</id>
+            <activation>
+                <property>
+                    <name>jdk.compile.home</name>
+                </property>
+            </activation>
+            <properties>
+                <bootclasspath>${jdk.compile.home}/jre/lib/rt.jar:${jdk.compile.home}/jre/lib/jce.jar</bootclasspath>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-compiler-plugin</artifactId>
+                        <configuration>
+                            <compilerArgs>
+                                <arg>-Xbootclasspath:${bootclasspath}</arg>
+                                <arg>-Xlint:deprecation</arg>
+                            </compilerArgs>
+                            <!-- needed for maven-plugin-javadoc to find the 
+                                source version to use -->
+                            <source>${maven.compiler.source}</source>
+                            <target>${maven.compiler.target}</target>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <!-- The default compile settings, when jdk.compile.home is not defined -->
+            <id>nocrosscompile</id>
+            <activation>
+                <property>
+                    <name>!jdk.compile.home</name>
+                </property>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-compiler-plugin</artifactId>
+                        <configuration>
+                            <compilerArgs>
+                                <arg>-Xlint:deprecation</arg>
+                            </compilerArgs>
+                            <!-- needed for maven-plugin-javadoc to find the 
+                                source version to use -->
+                            <source>${maven.compiler.source}</source>
+                            <target>${maven.compiler.target}</target>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
         </profile>
     </profiles>
 
