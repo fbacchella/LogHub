@@ -8,7 +8,6 @@ import java.net.UnknownHostException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
-import java.util.Locale;
 import java.util.concurrent.ExecutionException;
 import java.util.function.BiConsumer;
 
@@ -17,10 +16,6 @@ import javax.cache.processor.MutableEntry;
 
 import io.netty.channel.AddressedEnvelope;
 import io.netty.channel.EventLoopGroup;
-import io.netty.channel.epoll.EpollDatagramChannel;
-import io.netty.channel.nio.NioEventLoopGroup;
-import io.netty.channel.socket.DatagramChannel;
-import io.netty.channel.socket.nio.NioDatagramChannel;
 import io.netty.handler.codec.dns.DefaultDnsQuestion;
 import io.netty.handler.codec.dns.DnsPtrRecord;
 import io.netty.handler.codec.dns.DnsQuestion;
@@ -103,7 +98,7 @@ public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<Dn
     }
 
     private static final int NOERROR = DnsResponseCode.NOERROR.intValue();
-    private static final EventLoopGroup evg = new NioEventLoopGroup(1, new DefaultThreadFactory("dnsresolver"));
+    private static final EventLoopGroup EVENTLOOPGROUP = POLLER.DEFAULTPOLLER.getEventLoopGroup(1, new DefaultThreadFactory("dnsresolver"));
     private static final VarFormatter reverseFormatV4 = new VarFormatter("${#1%d}.${#2%d}.${#3%d}.${#4%d}.in-addr.arpa.");
     private static final VarFormatter reverseFormatV6 = new VarFormatter("${#1%x}.${#2%x}.");
 
@@ -112,29 +107,17 @@ public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<Dn
     @Getter @Setter
     private int cacheSize = 10000;
     @Getter @Setter
-    private String poller = POLLER.NIO.name();
+    private String poller = null;
 
     private DnsNameResolver dnsResolver;
     private Cache<DnsCacheKey, DnsCacheEntry> hostCache;
 
     @Override
     public boolean configure(Properties properties) {
-        Class<? extends DatagramChannel> channelType;
-        switch(POLLER.valueOf(poller.toUpperCase(Locale.ENGLISH))) {
-        case NIO:
-            channelType = NioDatagramChannel.class;
-            break;
-        case EPOLL:
-            channelType = EpollDatagramChannel.class;
-            break;
-        default:
-            channelType = null;
-            break;
-        }
-
-        DnsNameResolverBuilder builder = new DnsNameResolverBuilder(evg.next())
+        DnsNameResolverBuilder builder = new DnsNameResolverBuilder(EVENTLOOPGROUP.next())
                         .queryTimeoutMillis(getTimeout() * 1000L)
-                        .channelType(channelType)
+                        .channelFactory(POLLER.DEFAULTPOLLER::datagramChannelProvider)
+                        .socketChannelFactory(POLLER.DEFAULTPOLLER::clientChannelProvider)
                         ;
         InetSocketAddress resolverAddr = null;
         if (getResolver() != null) {

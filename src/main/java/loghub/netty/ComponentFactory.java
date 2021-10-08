@@ -16,12 +16,15 @@ import io.netty.channel.ChannelHandler.Sharable;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.EventLoopGroup;
+import io.netty.channel.ServerChannel;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.channel.socket.DatagramChannel;
+import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.CodecException;
 import io.netty.handler.ssl.NotSslRecordException;
 import loghub.Helpers;
 import loghub.netty.servers.AbstractNettyServer;
+import lombok.Getter;
 
 public abstract class ComponentFactory<BS extends AbstractBootstrap<BS,BSC>, BSC extends Channel, SA extends SocketAddress> {
 
@@ -64,8 +67,28 @@ public abstract class ComponentFactory<BS extends AbstractBootstrap<BS,BSC>, BSC
         }
     }
 
-    public abstract EventLoopGroup getEventLoopGroup(int threads, ThreadFactory threadFactory);
-    public abstract ChannelFactory<BSC> getInstance();
+    @Getter
+    private final POLLER poller;
+
+    public ComponentFactory(POLLER poller) {
+        this.poller = poller;
+    }
+
+    public EventLoopGroup getEventLoopGroup(int threads, ThreadFactory threadFactory) {
+        return poller.getEventLoopGroup(threads, threadFactory);
+    }
+
+    public abstract ChannelFactory<? extends BSC> getInstance();
+
+    public ServerChannel serverChannelProvider() {
+        return poller.serverChannelProvider();
+    }
+    public SocketChannel clientChannelProvider() {
+        return poller.clientChannelProvider();
+    }
+    public DatagramChannel datagramChannelProvider() {
+        return poller.datagramChannelProvider();
+    }
     public abstract BS getBootStrap();
     public abstract void group(int threads, ThreadFactory threadFactory);
     public abstract Runnable finisher();

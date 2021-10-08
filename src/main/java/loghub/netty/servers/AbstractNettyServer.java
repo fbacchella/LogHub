@@ -54,7 +54,7 @@ public abstract class AbstractNettyServer<CF extends ComponentFactory<BS, BSC, S
                                         > {
         AuthenticationHandler authHandler = null;
         int threadsCount;
-        POLLER poller = POLLER.NIO;
+        POLLER poller = POLLER.DEFAULTPOLLER;
         ChannelConsumer<BS, BSC> consumer;
         String threadPrefix;
         @SuppressWarnings("unchecked")
@@ -69,7 +69,7 @@ public abstract class AbstractNettyServer<CF extends ComponentFactory<BS, BSC, S
         }
         @SuppressWarnings("unchecked")
         public B setPoller(String poller) {
-            this.poller = POLLER.valueOf(poller);
+            this.poller = POLLER.resolve(poller);
             return (B) this;
         }
         @SuppressWarnings("unchecked")

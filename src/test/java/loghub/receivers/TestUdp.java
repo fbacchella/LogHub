@@ -191,7 +191,7 @@ public class TestUdp {
             b.setHost(InetAddress.getLoopbackAddress().getHostAddress());
             b.setPort(port);
             b.setWorkerThreads(4);
-            b.setPoller("EPOLL");
+            b.setPoller("DEFAULT");
             b.setDecoder(StringCodec.getBuilder().build());
         })) {
             Assert.assertTrue(r.configure(new Properties(Collections.emptyMap())));

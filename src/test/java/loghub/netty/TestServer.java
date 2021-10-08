@@ -61,12 +61,9 @@ public class TestServer {
     };
 
     private static class TesterFactory extends ServerFactory<LocalChannel, LocalAddress> {
-        private static final ChannelFactory<ServerChannel> channelfactory = new ChannelFactory<ServerChannel>() {
-            @Override 
-            public LocalServerChannel newChannel() {
-                return new LocalServerChannel();
-            }
-        };
+        public TesterFactory() {
+            super(POLLER.DEFAULTPOLLER);
+        }
 
         @Override
         public EventLoopGroup getEventLoopGroup(int threads, ThreadFactory threadFactory) {
@@ -75,7 +72,7 @@ public class TestServer {
 
         @Override
         public ChannelFactory<ServerChannel> getInstance() {
-            return channelfactory;
+            return LocalServerChannel::new;
         }
     };
 

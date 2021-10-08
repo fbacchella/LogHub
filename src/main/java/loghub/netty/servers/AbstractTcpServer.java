@@ -11,6 +11,7 @@ import io.netty.channel.ChannelOption;
 import io.netty.channel.ServerChannel;
 import io.netty.channel.epoll.EpollChannelOption;
 import io.netty.channel.socket.ServerSocketChannel;
+import loghub.netty.POLLER;
 import loghub.netty.TcpFactory;
 
 public class AbstractTcpServer<S extends AbstractTcpServer<S, B>,
@@ -58,9 +59,11 @@ public class AbstractTcpServer<S extends AbstractTcpServer<S, B>,
         }
         bootstrap.option(ChannelOption.TCP_NODELAY, true);
         bootstrap.childOption(ChannelOption.SO_KEEPALIVE, true);
-        bootstrap.childOption(EpollChannelOption.TCP_KEEPCNT, 3);
-        bootstrap.childOption(EpollChannelOption.TCP_KEEPIDLE , 60);
-        bootstrap.childOption(EpollChannelOption.TCP_KEEPINTVL , 10);
+        if (poller == POLLER.EPOLL) {
+            bootstrap.childOption(EpollChannelOption.TCP_KEEPCNT, 3);
+            bootstrap.childOption(EpollChannelOption.TCP_KEEPIDLE , 60);
+            bootstrap.childOption(EpollChannelOption.TCP_KEEPINTVL , 10);
+        }
         super.configureBootStrap(bootstrap, builder);
     }
 

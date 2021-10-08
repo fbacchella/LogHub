@@ -21,6 +21,11 @@ public abstract class ClientFactory<CC extends Channel, SA extends SocketAddress
     private EventLoopGroup workerGroup;
     private Bootstrap bootstrap;
 
+
+    public ClientFactory(POLLER poller) {
+        super(poller);
+    }
+
     @Override
     public Bootstrap getBootStrap() {
         bootstrap = new Bootstrap();

@@ -48,10 +48,11 @@ public class AbstractUdpServer<S extends AbstractUdpServer<S, B>,
             bootstrap.option(ChannelOption.RCVBUF_ALLOCATOR, new FixedRecvByteBufAllocator(builder.bufferSize));
         }
         // Needed because Netty's UDP is not multi-thread, see http://marrachem.blogspot.fr/2014/09/multi-threaded-udp-server-with-netty-on.html
-        if (poller == POLLER.EPOLL && builder.threadsCount > 1) {
+        if ((poller == POLLER.EPOLL || poller == POLLER.KQUEUE) && builder.threadsCount > 1) {
             bootstrap.option(UnixChannelOption.SO_REUSEPORT, true);
-        } else if (poller != POLLER.EPOLL && builder.threadsCount > 1){
-            logger.warn("Multiple worker, but not using EPOLL, it's useless");
+        } else if (poller != POLLER.EPOLL && poller != POLLER.KQUEUE && builder.threadsCount > 1){
+            logger.warn("Multiple worker, but not using unix poller, it's useless");
+            builder.threadsCount = 1;
         }
         super.configureBootStrap(bootstrap, builder);
     }

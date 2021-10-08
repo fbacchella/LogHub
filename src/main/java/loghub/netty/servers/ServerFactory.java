@@ -15,12 +15,17 @@ import io.netty.channel.ServerChannel;
 import loghub.Helpers;
 import loghub.netty.ChannelConsumer;
 import loghub.netty.ComponentFactory;
+import loghub.netty.POLLER;
 
 public abstract class ServerFactory<CC extends Channel, SA extends SocketAddress> extends ComponentFactory<ServerBootstrap, ServerChannel, SA> {
 
     private EventLoopGroup bossGroup;
     private EventLoopGroup workerGroup;
     private ServerBootstrap bootstrap;
+
+    public ServerFactory(POLLER poller) {
+        super(poller);
+    }
 
     @Override
     public ServerBootstrap getBootStrap() {
