@@ -112,7 +112,7 @@ public enum POLLER {
     public abstract SocketChannel clientChannelProvider();
     public abstract DatagramChannel datagramChannelProvider();
     public abstract EventLoopGroup getEventLoopGroup(int threads, ThreadFactory threadFactory);
-    public static POLLER DEFAULTPOLLER;
+    public static final POLLER DEFAULTPOLLER;
     static {
         if (EPOLL.isAvailable()) {
             DEFAULTPOLLER = EPOLL;
