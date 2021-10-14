@@ -50,6 +50,7 @@ import loghub.security.JWTHandler;
 import loghub.security.ssl.ContextLoader;
 import loghub.senders.Sender;
 import loghub.zmq.ZMQSocketFactory;
+import lombok.AllArgsConstructor;
 
 public class Properties extends HashMap<String, Object> {
 
@@ -69,6 +70,15 @@ public class Properties extends HashMap<String, Object> {
             return "__" + super.toString();
         }
     };
+
+    @AllArgsConstructor
+    private static class FunctionalTimerTask extends TimerTask {
+        private final Runnable task;
+        @Override
+        public void run() {
+            task.run();
+        }
+    }
 
     public final ClassLoader classloader;
     public final Map<String, Pipeline> namedPipeLine;
@@ -255,15 +265,13 @@ public class Properties extends HashMap<String, Object> {
      * @param period time in milliseconds between successive task executions.
      */
     public void registerScheduledTask(String name, Runnable task, long period) {
-        TimerTask collector = new TimerTask () {
-            public void run() {
-                ThreadBuilder.get()
-                .setDaemon(true)
-                .setName(name)
-                .setTask(task)
-                .build(true);
-            }
-        };
+        TimerTask collector = new FunctionalTimerTask(() -> {
+            ThreadBuilder.get()
+                         .setDaemon(true)
+                         .setName(name)
+                         .setTask(task)
+                         .build(true);
+        });
         timer.scheduleAtFixedRate(collector, period, period);
     }
 
