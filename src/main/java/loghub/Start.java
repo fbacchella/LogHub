@@ -346,14 +346,11 @@ public class Start {
             }
         }
 
-        Set<EventsProcessor> allep = new HashSet<>(props.numWorkers);
         if (! failed) {
-            for (int i = 0; i < props.numWorkers; i++) {
-                EventsProcessor t = new EventsProcessor(props.mainQueue, props.outputQueues, props.namedPipeLine, props.maxSteps, props.repository);
-                t.start();
-                allep.add(t);
+            for (EventsProcessor ep: props.eventsprocessors) {
+                ep.start();
             }
-            Helpers.waitAllThreads(allep.stream());
+            Helpers.waitAllThreads(props.eventsprocessors.stream());
         }
 
         for (Receiver r: props.receivers) {
@@ -380,7 +377,7 @@ public class Start {
 
         Runnable shutdown = () -> {
             props.receivers.forEach( i -> i.stopReceiving());
-            allep.forEach(i -> i.stopProcessing());
+            props.eventsprocessors.forEach(i -> i.stopProcessing());
             props.senders.forEach( i -> i.stopSending());
             JmxService.stop();
         };

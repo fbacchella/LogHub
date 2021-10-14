@@ -6,7 +6,9 @@ import java.security.URIParameter;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.BlockingQueue;
@@ -29,6 +31,7 @@ import groovy.lang.GroovyClassLoader;
 import io.netty.util.concurrent.Future;
 import loghub.DashboardHttpServer;
 import loghub.Event;
+import loghub.EventsProcessor;
 import loghub.EventsRepository;
 import loghub.Expression;
 import loghub.Helpers;
@@ -89,6 +92,7 @@ public class Properties extends HashMap<String, Object> {
     public final DashboardHttpServer.Builder dashboardBuilder;
     public final CacheManager cacheManager;
     public final ZMQSocketFactory zSocketFactory;
+    public final Set<EventsProcessor> eventsprocessors;
 
     public final Timer timer = new Timer("loghubtimer", true);
 
@@ -210,6 +214,13 @@ public class Properties extends HashMap<String, Object> {
 
         // The keys are future
         repository = new EventsRepository<Future<?>>(this);
+
+        Set<EventsProcessor> allep = new HashSet<>(numWorkers);
+        for (int i = 0; i < numWorkers; i++) {
+            EventsProcessor t = new EventsProcessor(mainQueue, outputQueues, namedPipeLine, maxSteps, repository);
+            allep.add(t);
+        }
+        eventsprocessors = Collections.unmodifiableSet(allep);
 
         super.putAll(properties);
     }
