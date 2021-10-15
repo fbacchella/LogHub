@@ -2,6 +2,7 @@ package loghub;
 
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 
 import org.apache.logging.log4j.LogManager;
@@ -84,4 +85,13 @@ public class ThreadBuilder {
         if (start) t.start();
         return t;
     }
+
+    public ThreadFactory getFactory(String prefix) {
+        AtomicInteger threadCount = new AtomicInteger(0);
+        VarFormatter formatter = new VarFormatter("${#1%s}-${#2%d}");
+        return r -> this.setTask(r)
+                        .setName(formatter.argsFormat(prefix, threadCount.incrementAndGet()))
+                        .build();
+    }
+
 }

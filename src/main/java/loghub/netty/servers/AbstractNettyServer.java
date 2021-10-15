@@ -11,10 +11,10 @@ import io.netty.bootstrap.AbstractBootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelPipeline;
 import io.netty.util.AttributeKey;
-import io.netty.util.concurrent.DefaultThreadFactory;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import io.netty.util.internal.logging.Log4J2LoggerFactory;
 import loghub.Helpers;
+import loghub.ThreadBuilder;
 import loghub.netty.ChannelConsumer;
 import loghub.netty.ComponentFactory;
 import loghub.netty.ConsumerProvider;
@@ -124,7 +124,9 @@ public abstract class AbstractNettyServer<CF extends ComponentFactory<BS, BSC, S
         finisher = factory.finisher();
         BS bootstrap = factory.getBootStrap();
         configureBootStrap(bootstrap, builder);
-        ThreadFactory threadFactory = new DefaultThreadFactory(builder.threadPrefix + "/" + address.toString(), true);
+        ThreadFactory threadFactory = ThreadBuilder.get()
+                                                   .setDaemon(true)
+                                                   .getFactory(builder.threadPrefix + "/" + address.toString());
         factory.group(builder.threadsCount, threadFactory);
         factory.addChildhandlers(builder.consumer, this, logger);
         factory.addHandlers(builder.consumer, this, logger);

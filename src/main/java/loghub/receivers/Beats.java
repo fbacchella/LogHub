@@ -32,6 +32,7 @@ import loghub.BuilderClass;
 import loghub.ConnectionContext;
 import loghub.Event;
 import loghub.Helpers;
+import loghub.ThreadBuilder;
 import loghub.configuration.Properties;
 import loghub.decoders.DecodeException;
 import loghub.jackson.JacksonBuilder;
@@ -103,6 +104,7 @@ public class Beats extends AbstractTcpReceiver<Beats, TcpServer, TcpServer.Build
 
     private final IMessageListener messageListener;
     private final EventExecutorGroup idleExecutorGroup;
+    private final EventExecutorGroup beatsHandlerExecutorGroup;
     private final ObjectReader reader;
 
     @Getter
@@ -116,7 +118,8 @@ public class Beats extends AbstractTcpReceiver<Beats, TcpServer, TcpServer.Build
         super(builder);
         this.clientInactivityTimeoutSeconds = builder.clientInactivityTimeoutSeconds;
         this.maxPayloadSize = builder.maxPayloadSize;
-        this.idleExecutorGroup = new DefaultEventExecutorGroup(builder.workers);
+        this.idleExecutorGroup = new DefaultEventExecutorGroup(builder.workers, ThreadBuilder.get().setDaemon(true).getFactory(getReceiverName() + "/idle"));
+        this.beatsHandlerExecutorGroup = new DefaultEventExecutorGroup(builder.workers, ThreadBuilder.get().setDaemon(true).getFactory(getReceiverName() + "/beatsHandler"));
         this.workers = builder.workers;
         this.reader = JacksonBuilder.get()
                                     .setFactory(new JsonFactory())
@@ -177,7 +180,6 @@ public class Beats extends AbstractTcpReceiver<Beats, TcpServer, TcpServer.Build
     public ChannelConsumer<ServerBootstrap, ServerChannel> getConsumer() {
         StatsHandler statsHandler = new StatsHandler();
         BeatsErrorHandler errorHandler = new BeatsErrorHandler();
-        EventExecutorGroup beatsHandlerExecutorGroup = new DefaultEventExecutorGroup(workers);
 
         return new BaseChannelConsumer<Beats, ServerBootstrap, ServerChannel, ByteBuf>(this) {
             @Override
@@ -214,6 +216,11 @@ public class Beats extends AbstractTcpReceiver<Beats, TcpServer, TcpServer.Build
     public void close() {
         try {
             idleExecutorGroup.shutdownGracefully().sync();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        try {
+            beatsHandlerExecutorGroup.shutdownGracefully().sync();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }

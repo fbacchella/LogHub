@@ -56,15 +56,7 @@ public class EventsRepository<KEY> {
 
     private static final HashedWheelTimer processExpiration;
     static {
-        ThreadFactory defaulttf = Executors.defaultThreadFactory();
-        AtomicInteger counter = new AtomicInteger(0);
-        processExpiration = new HashedWheelTimer(r -> 
-            ThreadBuilder.get()
-                         .setTask(r)
-                         .setFactory(defaulttf)
-                         .setName("EventsRepository-timeoutmanager-" + counter.incrementAndGet())
-                         .build()
-        );
+        processExpiration = new HashedWheelTimer(ThreadBuilder.get().setDaemon(true).getFactory("EventsRepository-timeoutmanager"));
         processExpiration.start();
     }
 

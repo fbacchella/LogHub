@@ -29,12 +29,12 @@ import io.netty.resolver.dns.DnsNameResolverBuilder;
 import io.netty.resolver.dns.DnsNameResolverException;
 import io.netty.resolver.dns.SingletonDnsServerAddressStreamProvider;
 import io.netty.util.ReferenceCounted;
-import io.netty.util.concurrent.DefaultThreadFactory;
 import io.netty.util.concurrent.Future;
 import loghub.AsyncProcessor;
 import loghub.Event;
 import loghub.Helpers;
 import loghub.ProcessorException;
+import loghub.ThreadBuilder;
 import loghub.VarFormatter;
 import loghub.VariablePath;
 import loghub.configuration.Properties;
@@ -98,7 +98,7 @@ public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<Dn
     }
 
     private static final int NOERROR = DnsResponseCode.NOERROR.intValue();
-    private static final EventLoopGroup EVENTLOOPGROUP = POLLER.DEFAULTPOLLER.getEventLoopGroup(1, new DefaultThreadFactory("dnsresolver"));
+    private static final EventLoopGroup EVENTLOOPGROUP = POLLER.DEFAULTPOLLER.getEventLoopGroup(1, ThreadBuilder.get().setDaemon(false).getFactory("dnsresolver"));
     private static final VarFormatter reverseFormatV4 = new VarFormatter("${#1%d}.${#2%d}.${#3%d}.${#4%d}.in-addr.arpa.");
     private static final VarFormatter reverseFormatV6 = new VarFormatter("${#1%x}.${#2%x}.");
 
