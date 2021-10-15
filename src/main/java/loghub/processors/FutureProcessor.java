@@ -12,6 +12,7 @@ import loghub.Helpers;
 import loghub.PausedEvent;
 import loghub.Processor;
 import loghub.ProcessorException;
+import loghub.Start;
 
 public class FutureProcessor<FI, F extends Future<FI>> extends Processor {
 
@@ -49,9 +50,10 @@ public class FutureProcessor<FI, F extends Future<FI>> extends Processor {
                 return false;
             }
         } catch (ExecutionException e) {
-            // Don't try to manage fatal errors, they are re-thrown directly
             if (Helpers.isFatal(e.getCause())) {
-                throw (Error) e.getCause();
+                logger.fatal("Caught a fatal exception", e);
+                Start.fatalException(e);
+                return false;
             } else {
                 return callback.manageException(event, (Exception) e.getCause());
             }

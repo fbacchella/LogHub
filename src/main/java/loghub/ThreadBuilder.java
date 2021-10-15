@@ -4,6 +4,9 @@ import java.util.concurrent.FutureTask;
 import java.util.concurrent.ThreadFactory;
 import java.util.function.BiConsumer;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import lombok.Setter;
 import lombok.experimental.Accessors;
 
@@ -34,12 +37,20 @@ public class ThreadBuilder {
         return new ThreadBuilder();
     }
 
+    private static final Logger logger = LogManager.getLogger();
+
+    public static final Thread.UncaughtExceptionHandler DEFAULTUNCAUGHTEXCEPTIONHANDLER =  (t, e) -> {
+        logger.fatal("Unhandled exception in thread " + t.getName(), e);
+        Start.fatalException(e);
+    };
+
     private Runnable task;
     private BiConsumer<Thread, Runnable> interrupter = null;
     private String name = null;
     private Boolean daemon = null;
     private boolean shutdownHook = false;
-    private Thread.UncaughtExceptionHandler exceptionHander =  null;
+    private Thread.UncaughtExceptionHandler exceptionHandler = DEFAULTUNCAUGHTEXCEPTIONHANDLER;
+
     private ThreadFactory factory = null;
 
     private ThreadBuilder() {
@@ -69,7 +80,7 @@ public class ThreadBuilder {
         if (daemon != null) t.setDaemon(daemon);
         if (name != null) t.setName(name);
         if (shutdownHook) Runtime.getRuntime().addShutdownHook(t);
-        if (exceptionHander != null) t.setUncaughtExceptionHandler(exceptionHander);
+        if (exceptionHandler != null) t.setUncaughtExceptionHandler(exceptionHandler);
         if (start) t.start();
         return t;
     }

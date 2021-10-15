@@ -284,11 +284,13 @@ public class EventsProcessor extends Thread {
                 // We received a fatal exception
                 // Can't do nothing but die
                 if (Helpers.isFatal(ex)) {
-                    throw ex;
+                    logger.fatal("Caught a critical exception", e);
+                    Start.fatalException(ex);
+                } else {
+                    e.doMetric(Stats.PipelineStat.EXCEPTION, ex);
+                    logger.error("failed to transform event {} with unmanaged error {}", e, Helpers.resolveThrowableException(ex));
+                    logger.catching(Level.DEBUG, ex);
                 }
-                e.doMetric(Stats.PipelineStat.EXCEPTION, ex);
-                logger.error("failed to transform event {} with unmanaged error {}", e, Helpers.resolveThrowableException(ex));
-                logger.catching(Level.DEBUG, ex);
                 status = ProcessingStatus.FAILED;
             }
         }

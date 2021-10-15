@@ -153,15 +153,13 @@ public class EventsRepository<KEY> {
             timeout(paused.key);
         } catch (Throwable ex) {
             Stats.pipelineHanding(paused.event.getCurrentPipeline(), PipelineStat.EXCEPTION, ex);
-            Level l;
             if (Helpers.isFatal(ex)) {
-                ex.printStackTrace();
-                l = Level.FATAL;
+                logger.fatal("Caught a critical exception", ex);
+                Start.fatalException(ex);
             } else {
-                l = Level.ERROR;
+                logger.error("Async timeout handler failed: {}", Helpers.resolveThrowableException(ex));
+                logger.catching(Level.DEBUG, ex);
             }
-            logger.log(l, "Async timeout handler failed: {}", Helpers.resolveThrowableException(ex));
-            logger.catching(Level.DEBUG, ex);
         }
     }
 

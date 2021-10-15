@@ -120,4 +120,9 @@ public class BaseChannelConsumer<R extends NettyReceiver<?, ?, ?, ?, BS, BSC, ?,
         logger.catching(Level.DEBUG, cause);
     }
 
+    @Override
+    public void logFatalException(Throwable ex) {
+        logger.fatal("Caught fatal exception", ex);
+    }
+
 }

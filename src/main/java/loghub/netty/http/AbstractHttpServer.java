@@ -81,6 +81,11 @@ public abstract class AbstractHttpServer<S extends AbstractHttpServer<S, B>,
         ctx.pipeline().addAfter("HttpObjectAggregator", "FatalErrorHandler", getFatalErrorHandler());
     }
 
+    @Override
+    public void logFatalException(Throwable ex) {
+        logger.fatal("Caught fatal exception", ex);
+    }
+
     private HttpRequestProcessing getFatalErrorHandler() {
         return new HttpRequestProcessing() {
             @Override

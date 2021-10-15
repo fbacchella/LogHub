@@ -9,4 +9,5 @@ public interface ChannelConsumer<BS extends AbstractBootstrap<BS, BSC>, BSC exte
     public void addHandlers(ChannelPipeline pipe);
     public default void addOptions(BS bootstrap) { }
     public void exception(ChannelHandlerContext ctx, Throwable cause) throws Exception;
+    public void logFatalException(Throwable ex);
 }

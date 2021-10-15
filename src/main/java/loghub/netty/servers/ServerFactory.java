@@ -13,6 +13,7 @@ import io.netty.channel.ChannelInitializer;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.ServerChannel;
 import loghub.Helpers;
+import loghub.Start;
 import loghub.netty.ChannelConsumer;
 import loghub.netty.ComponentFactory;
 import loghub.netty.POLLER;
@@ -64,7 +65,8 @@ public abstract class ServerFactory<CC extends Channel, SA extends SocketAddress
             @Override
             public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
                 if (Helpers.isFatal(cause)) {
-                    throw (Exception) cause;
+                    source.logFatalException(cause);
+                    Start.fatalException(cause);
                 } else {
                     source.exception(ctx, cause);
                 }

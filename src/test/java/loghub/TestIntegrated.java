@@ -22,11 +22,11 @@ import org.apache.logging.log4j.Logger;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.zeromq.SocketType;
 import org.zeromq.ZMQ.Socket;
+import org.zeromq.ZMQException;
 
 import com.codahale.metrics.jmx.JmxReporter.JmxCounterMBean;
 import com.codahale.metrics.jmx.JmxReporter.JmxMeterMBean;
@@ -52,7 +52,7 @@ public class TestIntegrated {
     static public void configure() throws IOException {
         Tools.configure();
         logger = LogManager.getLogger();
-        LogUtils.setLevel(logger, Level.DEBUG, "loghub.EventsProcessor");
+        LogUtils.setLevel(logger, Level.DEBUG, "loghub.EventsProcessor", "loghub.zmq", "loghub.ZMQFactory");
     }
 
     @After
@@ -60,47 +60,42 @@ public class TestIntegrated {
         JmxService.stop();
     }
 
-    @Ignore
-    @Test
+    @Test(timeout=10000)
     public void runStart() throws ConfigException, IOException, InterruptedException, IntrospectionException, InstanceNotFoundException, MalformedObjectNameException, ReflectionException, ZMQCheckedException {
         loghub.metrics.Stats.reset();
         String conffile = Configuration.class.getClassLoader().getResource("test.conf").getFile();
         Start.main(new String[] {"--canexit", "-c", conffile});
         Thread.sleep(500);
-
+        
         MBeanServer mbs =  ManagementFactory.getPlatformMBeanServer(); 
         StatsMBean stats = JMX.newMBeanProxy(mbs, StatsMBean.Implementation.NAME, StatsMBean.class);
         Assert.assertNotNull(stats);
         ExceptionsMBean exceptions = JMX.newMBeanProxy(mbs, ExceptionsMBean.Implementation.NAME, ExceptionsMBean.class);
-
-        JmxTimerMBean allevents_timer = JMX.newMBeanProxy(mbs, new ObjectName("metrics:name=Allevents.timer,type=timers"), JmxTimerMBean.class);
-        JmxCounterMBean allevents_inflight = JMX.newMBeanProxy(mbs, new ObjectName("metrics:type=counters,name=Allevents.inflight"), JmxCounterMBean.class);
 
         try (Socket sender = tctxt.getFactory().getBuilder(Method.CONNECT, SocketType.PUSH, "inproc://listener").build();
              Socket receiver = tctxt.getFactory().getBuilder(Method.CONNECT, SocketType.PULL, "inproc://sender").build();) {
             sender.setHWM(200);
             receiver.setHWM(200);
             AtomicLong send = new AtomicLong();
-            Thread t = new Thread() {
-                @Override
-                public void run() {
-                    try {
-                        for (int i=0 ; i < 5 ; i++) {
-                            sender.send("message " + i);
-                            send.incrementAndGet();
-                            Thread.sleep(1);
-                        }
-                    } catch (InterruptedException e) {
+            ThreadBuilder.get().setTask(() -> {
+                try {
+                    for (int i=0 ; i < 5 ; i++) {
+                        sender.send("message " + i);
+                        send.incrementAndGet();
+                        Thread.sleep(1);
                     }
-                    logger.debug("All events sent");
+                } catch (InterruptedException | ZMQException e) {
                 }
-            };
-            t.start();
+                logger.debug("All events sent");
+            })
+                         .setDaemon(true)
+                         .setExceptionHandler(null)
+                         .build(true);
             Pattern messagePattern = Pattern.compile("\\{\"a\":1,\"b\":\"(google-public-dns-a|8.8.8.8|dns\\.google)\",\"message\":\"message \\d+\"\\}");
-            while(send.get() < 5 || allevents_inflight.getCount() != 0) {
-                logger.debug("send: {}, in flight: {}", send.get(), allevents_inflight.getCount());
+            while(send.get() < 5 || loghub.metrics.Stats.getInflight() != 0) {
+                logger.debug("send: {}, in flight: {}", send.get(), loghub.metrics.Stats.getInflight());
                 while (receiver.getEvents() > 0) {
-                    logger.debug("in flight: {}", allevents_inflight.getCount());
+                    logger.debug("in flight: {}", loghub.metrics.Stats.getInflight());
                     String content = receiver.recvStr();
                     Assert.assertTrue(content, messagePattern.matcher(content).find());
                     Thread.sleep(1);
@@ -122,10 +117,10 @@ public class TestIntegrated {
             logger.debug(Arrays.toString(exceptions.getProcessorsFailures()));
             logger.debug(Arrays.toString(exceptions.getUnhandledExceptions()));
             long received = Stats.getReceived();
-            Assert.assertEquals(0L, allevents_inflight.getCount());
-            Assert.assertEquals(received, allevents_timer.getCount());
+            Assert.assertEquals(0L, loghub.metrics.Stats.getInflight());
+            Assert.assertEquals(received, loghub.metrics.Stats.getReceived());
             Assert.assertEquals(received, blocked + Stats.getSent());
-        };
+        }
         Start.shutdown();
     }
 

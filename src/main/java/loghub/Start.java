@@ -7,9 +7,8 @@ import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
+import java.util.Timer;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -36,7 +35,7 @@ import loghub.senders.Sender;
 import lombok.ToString;
 
 public class Start {
-    
+
     /**
      * Used to define custom exit code, start at 10 because I don't know what exit code are reserver by the JVM.
      * For example, ExitOnOutOfMemoryError return 3.
@@ -47,13 +46,50 @@ public class Start {
     private static class ExitCode {
         private static final int OK = 0;
         private static final int INVALIDCONFIGURATION = 10;
-        public static final int FAILEDSTART = 11;
-        public static final int FAILEDSTARTCRITICAL = 12;
-        public static final int OPERATIONFAILED = 13;
-        public static final int INVALIDARGUMENTS = 14;
+        private static final int FAILEDSTART = 11;
+        private static final int FAILEDSTARTCRITICAL = 12;
+        private static final int OPERATIONFAILED = 13;
+        private static final int INVALIDARGUMENTS = 14;
+        private static final int CRITICALFAILURE = 99;
     }
 
     private static final String SECRETS_CMD = "secrets";
+
+    // Prevent launching fatal shutdown many times
+    // Reset in constructor
+    private static boolean catchedcritical = false;
+
+    // Keep a reference to allow external shutdown of the processing.
+    // Needed by some tests
+    private static Thread shutdownAction;
+
+    // Memorize canexit, needed when loghub.Start is tested
+    private static boolean testscanexit;
+
+    /**
+     * To be called when a fatal exception is detected. It will generate a shutdown with a failure exit code.<br>
+     * To be called when a thread catch any unhandled exception, or anytime when a critical exception is catched
+     * @param t the uncatched exception
+     */
+    public synchronized static void fatalException(Throwable t) {
+        // No emergency exist on InterruptedException, it's already a controlled shutdown
+        if (! (t instanceof InterruptedException) && ! catchedcritical) {
+            System.err.println("Caught a fatal exception");
+            t.printStackTrace();
+            shutdown();
+            if (testscanexit) {
+                System.exit(ExitCode.CRITICALFAILURE);
+            }
+        }
+    }
+
+    static synchronized void shutdown() {
+        if (shutdownAction != null) {
+            shutdownAction.run();
+            Runtime.getRuntime().removeShutdownHook(shutdownAction);
+            shutdownAction = null;
+        }
+    }
 
     @Parameters(commandNames={SECRETS_CMD})
     @ToString
@@ -145,22 +181,23 @@ public class Start {
     private boolean help;
 
     @Parameter(names = {"--test", "-t"}, description = "Test mode")
-    boolean test = false;
+    private boolean test = false;
 
     @Parameter(names = {"--stats", "-s"}, description = "Dump stats on exit")
-    boolean dumpstats = false;
+    private boolean dumpstats = false;
 
+    // Default to false, set to true in the main method, because it should not be able to stop during tests
     @Parameter(names = "--canexit", description = "Prevent call to System.exit(), for JUnit tests only", hidden = true)
-    boolean canexit = true;
+    private boolean canexit = false;
 
     @Parameter(names = {"--testprocessor", "-p"}, description = "A field processor to test")
-    String testedprocessor = null;
+    private String testedprocessor = null;
 
     @Parameter(names = {"--sign", "-S"}, description = "Sign a JWT token")
-    boolean sign = false;
+    private boolean sign = false;
 
     @Parameter(names = {"--signfile", "-F"}, description = "The jwt token to sign")
-    String signfile = null;
+    private String signfile = null;
 
     String pipeLineTest = null;
     int exitcode = ExitCode.OK;
@@ -174,11 +211,9 @@ public class Start {
 
     private static final Logger logger = LogManager.getLogger();
 
-    // It's exported for tests
-    private static Thread shutdownAction;
-
     public static void main(final String[] args) {
         Start main = new Start();
+        main.canexit = true;
         CommandPassword passwd = new CommandPassword();
         JCommander jcom = JCommander
                         .newBuilder()
@@ -196,6 +231,7 @@ public class Start {
             jcom.usage();
             System.exit(ExitCode.OK);
         }
+        testscanexit = main.canexit;
         if (SECRETS_CMD.equals(jcom.getParsedCommand())) {
             try {
                 passwd.process();
@@ -212,6 +248,12 @@ public class Start {
         }
     }
 
+    Start() {
+        // Reset catched criticaly, Start can be used many time in tests.
+        catchedcritical = false;
+        shutdownAction = null;
+    }
+
     private void configure() {
         if (testedprocessor != null) {
             test = true;
@@ -219,21 +261,6 @@ public class Start {
         }
         if (pipeLineTest != null) {
             TestEventProcessing.check(pipeLineTest, configFile);
-        }
-        if (dumpstats) {
-            long starttime = System.nanoTime();
-            ThreadBuilder.get()
-            .setShutdownHook(true)
-            .setTask(() -> {
-                long endtime = System.nanoTime();
-                double runtime = ((double)(endtime - starttime)) / 1.0e9;
-                System.out.format("Received: %.2f/s%n", Stats.getReceived() / runtime);
-                System.out.format("Dropped: %.2f/s%n", Stats.getDropped() / runtime);
-                System.out.format("Sent: %.2f/s%\n", Stats.getSent() / runtime);
-                System.out.format("Failures: %.2f/s%n", Stats.getFailed() / runtime);
-                System.out.format("Exceptions: %.2f/s%n", Stats.getExceptionsCount() / runtime);
-            })
-            .build();
         }
 
         try {
@@ -252,25 +279,24 @@ public class Start {
                 }
             }
         } catch (ConfigException e) {
-            String message = Helpers.resolveThrowableException(e);
-            System.err.format("Error in %s: %s\n", e.getLocation(), message);
+            System.err.format("Error in %s: %s\n", e.getLocation(), e.getMessage());
             exitcode = ExitCode.INVALIDCONFIGURATION;
         } catch (IOException e) {
-            System.err.format("can't read configuration file %s: %s\n", configFile, e.getMessage());
+            System.err.format("Can't read configuration file %s: %s\n", configFile, Helpers.resolveThrowableException(e));
             exitcode = ExitCode.INVALIDCONFIGURATION;
         } catch (IllegalStateException e) {
             // Thrown by launch when a component failed to start, details are in the logs
-            System.err.format("Failed to start loghub: %s", e.getMessage());
+            System.err.format("Failed to start loghub: %s\n", Helpers.resolveThrowableException(e));
             exitcode = ExitCode.FAILEDSTART;
         } catch (Throwable e) {
-            System.err.format("Failed to start loghub for an unhandled cause: %s", e.getMessage());
+            System.err.format("Failed to start loghub for an unhandled cause: %s\n", Helpers.resolveThrowableException(e));
             e.printStackTrace();
             exitcode = ExitCode.FAILEDSTARTCRITICAL;
         }
         if (canexit && exitcode != 0) {
             System.exit(exitcode);
         } else if (exitcode != 0) {
-            throw new RuntimeException();
+            throw new RuntimeException("Exit code would be " + exitcode);
         }
     }
 
@@ -314,10 +340,33 @@ public class Start {
     }
 
     public void launch(Properties props) throws ConfigException, IOException {
+        try {
+            JmxService.start(props.jmxServiceConfiguration);
+        } catch (IOException e) {
+            logger.error("JMX start failed: {}", Helpers.resolveThrowableException(e));
+            logger.catching(Level.DEBUG, e);
+            throw new IllegalStateException("JMX start failed: " + Helpers.resolveThrowableException(e));
+        }
+
+        if (props.dashboardBuilder != null) {
+            try {
+                props.dashboardBuilder.build();
+            } catch (IllegalArgumentException e) {
+                logger.error("Unable to start HTTP dashboard: {}", Helpers.resolveThrowableException(e));
+                logger.catching(Level.DEBUG, e);
+                throw new IllegalStateException("Unable to start HTTP dashboard: " + Helpers.resolveThrowableException(e));
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IllegalStateException("Interrupted while starting dashboard");
+            }
+        }
+
         // Used to remember if configuration process succeded
         // So ensure that the whole configuration is tested instead needed
         // many tests
         boolean failed = false;
+
+        long starttime = System.nanoTime();
 
         for (Source s: props.sources.values()) {
             if (! s.configure(props)) {
@@ -329,6 +378,7 @@ public class Start {
         Helpers.parallelStartProcessor(props);
 
         for (Sender s: props.senders) {
+            s.setUncaughtExceptionHandler(ThreadBuilder.DEFAULTUNCAUGHTEXCEPTIONHANDLER);
             try {
                 if (s.configure(props)) {
                     s.start();
@@ -348,15 +398,20 @@ public class Start {
 
         if (! failed) {
             for (EventsProcessor ep: props.eventsprocessors) {
+                ep.setUncaughtExceptionHandler(ThreadBuilder.DEFAULTUNCAUGHTEXCEPTIONHANDLER);
                 ep.start();
             }
             Helpers.waitAllThreads(props.eventsprocessors.stream());
         }
 
         for (Receiver r: props.receivers) {
+            r.setUncaughtExceptionHandler(ThreadBuilder.DEFAULTUNCAUGHTEXCEPTIONHANDLER);
             try {
                 if (r.configure(props)) {
-                    r.start();
+                    // Only start if not failed. Avoid swallowing events and latter discard them
+                    if (! failed) {
+                        r.start();
+                    }
                 } else {
                     logger.error("failed to configure receiver {}", r.getName());
                     failed = true;
@@ -375,47 +430,54 @@ public class Start {
             throw new IllegalStateException("Failed to start a component, see logs for more details");
         }
 
+        // The shutdown runnable needs to be able to run on degraded JVM,
+        // so reduced allocation and executed code inside
+        Receiver[] receivers = props.receivers.stream().toArray(Receiver[]::new);
+        EventsProcessor[] eventProcessors = props.eventsprocessors.stream().toArray(EventsProcessor[]::new);
+        Sender[] senders = props.senders.stream().toArray(Sender[]::new);
+        Timer loghubtimer = props.timer;
         Runnable shutdown = () -> {
-            props.receivers.forEach( i -> i.stopReceiving());
-            props.eventsprocessors.forEach(i -> i.stopProcessing());
-            props.senders.forEach( i -> i.stopSending());
-            JmxService.stop();
-        };
-        shutdownAction = ThreadBuilder.get()
-                        .setDaemon(false)
-                        .setTask(shutdown)
-                        .setName("StopEventsProcessors")
-                        .setShutdownHook(true)
-                        .build();
-
-        try {
-            JmxService.start(props.jmxServiceConfiguration);
-        } catch (IOException e) {
-            logger.error("JMX start failed: {}", Helpers.resolveThrowableException(e));
-            logger.catching(Level.DEBUG, e);
-            shutdownAction.start();
-            throw new IllegalStateException("JMX start failed: " + Helpers.resolveThrowableException(e));
-        }
-        if (props.dashboardBuilder != null) {
-            try {
-                props.dashboardBuilder.build();
-            } catch (IllegalArgumentException e) {
-                logger.error("Unable to start HTTP dashboard: {}", Helpers.resolveThrowableException(e));
-                logger.catching(Level.DEBUG, e);
-                shutdownAction.start();
-                throw new IllegalStateException("Unable to start HTTP dashboard: " + Helpers.resolveThrowableException(e));
-            } catch (InterruptedException e) {
-                shutdownAction.start();
-                Thread.currentThread().interrupt();
-                throw new IllegalStateException("Interrupted while starting dashboard");
+            loghubtimer.cancel();
+            for (int i = 0 ; i < receivers.length ; i++) {
+                Receiver r = receivers[i];
+                r.stopReceiving();
+                receivers[i] = null;
             }
-        }
+            for (int i = 0 ; i < eventProcessors.length ; i++) {
+                EventsProcessor ep = eventProcessors[i];
+                ep.stopProcessing();
+                eventProcessors[i] = null;
+            }
+            for (int i = 0 ; i < senders.length ; i++) {
+                Sender s = senders[i];
+                s.stopSending();
+                senders[i] = null;
+            }
+            JmxService.stop();
+            if (dumpstats) {
+                long endtime = System.nanoTime();
+                double runtime = ((double)(endtime - starttime)) / 1.0e9;
+                System.out.format("Received: %.2f/s\n", Stats.getReceived() / runtime);
+                System.out.format("Dropped: %.2f/s\n", Stats.getDropped() / runtime);
+                System.out.format("Sent: %.2f/s\n", Stats.getSent() / runtime);
+                System.out.format("Failures: %.2f/s\n", Stats.getFailed() / runtime);
+                System.out.format("Exceptions: %.2f/s\n", Stats.getExceptionsCount() / runtime);
+            }
+        };
+
+        shutdownAction = ThreadBuilder.get()
+                                      .setDaemon(false) // not a daemon, so it will prevent stopping the JVM until finished
+                                      .setTask(shutdown)
+                                      .setName("StopEventsProcessing")
+                                      .setShutdownHook(true)
+                                      .setExceptionHandler(null)
+                                      .build(false);
+
     }
 
-    public static void shutdown() {
-        if (shutdownAction != null) {
-            shutdownAction.run();
-        }
+    void setCanexit(boolean canexit) {
+        this.canexit = canexit;
+        Start.testscanexit = canexit;
     }
 
 }
