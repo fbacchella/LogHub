@@ -594,12 +594,16 @@ public class VarFormatter {
         }
     }
 
+    public String argsFormat(Object... arg) throws IllegalArgumentException {
+        return format(arg);
+    }
+
     @SuppressWarnings("unchecked")
     public String format(Object arg) throws IllegalArgumentException {
         Map<String, Object> variables;
         Object mapperType = mapper.keySet().stream().findAny().orElse("");
-        if (( mapperType instanceof Number) && ! ( arg instanceof List)) {
-            throw new IllegalArgumentException("Given a non-list to a format expecting only a list");
+        if (( mapperType instanceof Number) && ! ( arg instanceof List || arg instanceof Object[])) {
+            throw new IllegalArgumentException("Given a non-list to a format expecting only a list or an array");
         } else if (arg instanceof Map) {
             variables = (Map<String, Object>) arg;
         } else {
@@ -611,7 +615,7 @@ public class VarFormatter {
                 resolved[mapping.getValue()] = checkArgType(arg);
                 continue;
             }
-            if (mapperType instanceof Number) {
+            if (mapperType instanceof Number && ! arg.getClass().isArray()) {
                 int i = ((Number) mapping.getKey()).intValue();
                 int j = ((Number) mapping.getValue()).intValue();
                 List<Object> l = (List<Object>) arg;
@@ -619,6 +623,14 @@ public class VarFormatter {
                     throw new IllegalArgumentException("index out of range");
                 }
                 resolved[i] = checkArgType(l.get(j - 1));
+            } else if (mapperType instanceof Number && arg instanceof Object[]) {
+                int i = ((Number) mapping.getKey()).intValue();
+                int j = ((Number) mapping.getValue()).intValue();
+                Object[] a = (Object[]) arg;
+                if (j > a.length) {
+                    throw new IllegalArgumentException("index out of range");
+                }
+                resolved[i] = checkArgType(a[j - 1]);
             } else {
                 String[] path = mapping.getKey().toString().split("\\.");
                 if (path.length == 1) {

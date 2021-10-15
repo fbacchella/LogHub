@@ -344,6 +344,13 @@ public class TestVarFormatter {
     }
 
     @Test
+    public void formatArgs() {
+        VarFormatter vf = new VarFormatter("${#1%s} ${#1%s} ${#3%s}", Locale.ENGLISH);
+        String formatted = vf.argsFormat("1", "2", "3");
+        Assert.assertEquals("1 1 3", formatted);
+    }
+
+    @Test
     public void formatArray() {
         VarFormatter vf = new VarFormatter("${#1%s} ${#1%s} ${#3%s}", Locale.ENGLISH);
         List<String> obj = Arrays.asList(new String[] {"1", "2", "3"});
