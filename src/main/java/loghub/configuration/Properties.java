@@ -265,13 +265,13 @@ public class Properties extends HashMap<String, Object> {
      * @param period time in milliseconds between successive task executions.
      */
     public void registerScheduledTask(String name, Runnable task, long period) {
-        TimerTask collector = new FunctionalTimerTask(() -> {
+        TimerTask collector = new FunctionalTimerTask(() -> 
             ThreadBuilder.get()
                          .setDaemon(true)
                          .setName(name)
                          .setTask(task)
-                         .build(true);
-        });
+                         .build(true)
+        );
         timer.scheduleAtFixedRate(collector, period, period);
     }
 

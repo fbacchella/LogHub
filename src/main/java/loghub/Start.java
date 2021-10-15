@@ -71,7 +71,7 @@ public class Start {
      * To be called when a thread catch any unhandled exception, or anytime when a critical exception is catched
      * @param t the uncatched exception
      */
-    public synchronized static void fatalException(Throwable t) {
+    public static synchronized void fatalException(Throwable t) {
         // No emergency exist on InterruptedException, it's already a controlled shutdown
         if (! (t instanceof InterruptedException) && ! catchedcritical) {
             System.err.println("Caught a fatal exception");
@@ -279,14 +279,14 @@ public class Start {
                 }
             }
         } catch (ConfigException e) {
-            System.err.format("Error in %s: %s\n", e.getLocation(), e.getMessage());
+            System.err.format("Error in %s: %s%n", e.getLocation(), e.getMessage());
             exitcode = ExitCode.INVALIDCONFIGURATION;
         } catch (IOException e) {
-            System.err.format("Can't read configuration file %s: %s\n", configFile, Helpers.resolveThrowableException(e));
+            System.err.format("Can't read configuration file %s: %s%n", configFile, Helpers.resolveThrowableException(e));
             exitcode = ExitCode.INVALIDCONFIGURATION;
         } catch (IllegalStateException e) {
             // Thrown by launch when a component failed to start, details are in the logs
-            System.err.format("Failed to start loghub: %s\n", Helpers.resolveThrowableException(e));
+            System.err.format("Failed to start loghub: %s%n", Helpers.resolveThrowableException(e));
             exitcode = ExitCode.FAILEDSTART;
         } catch (Throwable e) {
             System.err.format("Failed to start loghub for an unhandled cause: %s\n", Helpers.resolveThrowableException(e));
@@ -457,11 +457,11 @@ public class Start {
             if (dumpstats) {
                 long endtime = System.nanoTime();
                 double runtime = ((double)(endtime - starttime)) / 1.0e9;
-                System.out.format("Received: %.2f/s\n", Stats.getReceived() / runtime);
-                System.out.format("Dropped: %.2f/s\n", Stats.getDropped() / runtime);
-                System.out.format("Sent: %.2f/s\n", Stats.getSent() / runtime);
-                System.out.format("Failures: %.2f/s\n", Stats.getFailed() / runtime);
-                System.out.format("Exceptions: %.2f/s\n", Stats.getExceptionsCount() / runtime);
+                System.out.format("Received: %.2f/s%n", Stats.getReceived() / runtime);
+                System.out.format("Dropped: %.2f/s%n", Stats.getDropped() / runtime);
+                System.out.format("Sent: %.2f/s%n", Stats.getSent() / runtime);
+                System.out.format("Failures: %.2f/s%n", Stats.getFailed() / runtime);
+                System.out.format("Exceptions: %.2f/s%n", Stats.getExceptionsCount() / runtime);
             }
         };
 

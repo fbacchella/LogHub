@@ -40,7 +40,7 @@ public class ThreadBuilder {
     private static final Logger logger = LogManager.getLogger();
 
     public static final Thread.UncaughtExceptionHandler DEFAULTUNCAUGHTEXCEPTIONHANDLER =  (t, e) -> {
-        logger.fatal("Unhandled exception in thread " + t.getName(), e);
+        logger.fatal("Unhandled exception in thread {}", t.getName(), e);
         Start.fatalException(e);
     };
 

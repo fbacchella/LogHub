@@ -284,7 +284,7 @@ public class EventsProcessor extends Thread {
                 // We received a fatal exception
                 // Can't do nothing but die
                 if (Helpers.isFatal(ex)) {
-                    logger.fatal("Caught a critical exception", e);
+                    logger.fatal("Caught a critical exception", ex);
                     Start.fatalException(ex);
                 } else {
                     e.doMetric(Stats.PipelineStat.EXCEPTION, ex);
