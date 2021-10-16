@@ -1,20 +1,20 @@
 package loghub.netty.http;
 
-import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
-
 import java.io.UnsupportedEncodingException;
 import java.lang.management.ManagementFactory;
 import java.net.URLDecoder;
+import java.util.AbstractMap;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import javax.management.AttributeNotFoundException;
 import javax.management.InstanceNotFoundException;
 import javax.management.IntrospectionException;
-import javax.management.JMException;
 import javax.management.MBeanAttributeInfo;
+import javax.management.MBeanException;
 import javax.management.MBeanInfo;
 import javax.management.MBeanServer;
 import javax.management.MalformedObjectNameException;
@@ -23,10 +23,10 @@ import javax.management.ReflectionException;
 import javax.management.openmbean.CompositeData;
 import javax.management.openmbean.TabularData;
 
-import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -35,14 +35,16 @@ import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.util.CharsetUtil;
+import loghub.jackson.JacksonBuilder;
 
 @NoCache
 @ContentType("application/json; charset=utf-8")
 public class JmxProxy extends HttpRequestProcessing {
 
     private static final MBeanServer server = ManagementFactory.getPlatformMBeanServer();
-    private static final JsonFactory factory = new JsonFactory();
-    private static final ThreadLocal<ObjectMapper> json = ThreadLocal.withInitial(() -> new ObjectMapper(factory).configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false));
+    private static final ObjectWriter writer = JacksonBuilder.get(JsonMapper.class)
+                                                             .setConfigurator(om -> om.configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false))
+                                                             .getWriter();
 
     @Override
     public boolean acceptRequest(HttpRequest request) {
@@ -61,61 +63,58 @@ public class JmxProxy extends HttpRequestProcessing {
         }
         try {
             Set<ObjectName> objectinstance = server.queryNames(new ObjectName(name), null);
-            ObjectName found = objectinstance.stream().
-                    findAny()
-                    .orElseThrow(() -> new HttpRequestFailure(HttpResponseStatus.NOT_FOUND, String.format("malformed object name '%s'", name)));
+            if (objectinstance.isEmpty()) {
+                throw new HttpRequestFailure(HttpResponseStatus.NOT_FOUND, String.format("malformed object name '%s'", name));
+            }
+            ObjectName found = objectinstance.stream()
+                                             .findAny()
+                                             .get();
             MBeanInfo info = server.getMBeanInfo(found);
             MBeanAttributeInfo[] attrInfo = info.getAttributes();
             Map<String, Object> mbeanmap = new HashMap<>(attrInfo.length);
-            try {
-                Arrays.stream(attrInfo)
-                .map(i -> i.getName())
-                .forEach(i -> {
-                    try {
-                        Object o = resolveAttribute(server.getAttribute(found, i));
-                        if (o != null) {
-                            mbeanmap.put(i, o);
-                        }
-                    } catch (JMException e) {
-                        String message = String.format("Failure reading attribue %s from %s: %s}", i, name, e.getMessage());
-                        logger.error(message);
-                        logger.debug(e);
-                        throw new RuntimeException(message);
-                    }
-                });
-            } catch (RuntimeException e) {
-                // Capture the JMException that might have been previously thrown, and transform it in an HTTP processing exception
-                throw new HttpRequestFailure(HttpResponseStatus.INTERNAL_SERVER_ERROR, e.getMessage());
-            }
-            String serialized = json.get().writeValueAsString(mbeanmap);
+            Arrays.stream(attrInfo).map(i -> resolveAttributeValue(found, i))
+                                   .forEach(i -> mbeanmap.put(i.getKey(), i.getValue()));
+            String serialized = writer.writeValueAsString(mbeanmap);
             ByteBuf content = Unpooled.copiedBuffer(serialized + "\r\n", CharsetUtil.UTF_8);
             writeResponse(ctx, request, content, content.readableBytes());
+        } catch (IllegalStateException e) {
+            String message = String.format("Failure reading attribute %s from %s: %s}", e.getMessage(), name, e.getCause().getMessage());
+            logger.error(message, e.getCause());
+            throw new HttpRequestFailure(HttpResponseStatus.INTERNAL_SERVER_ERROR, e.getMessage());
         } catch (MalformedObjectNameException e) {
-            throw new HttpRequestFailure(BAD_REQUEST, String.format("malformed object name '%s': %s", name, e.getMessage()));
-        } catch (IntrospectionException | ReflectionException | RuntimeException | JsonProcessingException e) {
-            Throwable t = e;
-            while ( t.getCause() != null) {
-                t = t.getCause();
-            }
-            throw new HttpRequestFailure(BAD_REQUEST, String.format("malformed object content '%s': %s", name, e.getMessage()));
+            throw new HttpRequestFailure(HttpResponseStatus.BAD_REQUEST, String.format("malformed object name '%s': %s", name, e.getMessage()));
+        } catch (IntrospectionException | ReflectionException | JsonProcessingException e) {
+            String message = String.format("malformed object content '%s': %s", name, e.getMessage());
+            logger.error(message, e);
+            throw new HttpRequestFailure(HttpResponseStatus.INTERNAL_SERVER_ERROR, message);
         } catch (InstanceNotFoundException e) {
-            throw new HttpRequestFailure(HttpResponseStatus.NOT_FOUND, String.format("malformed object name '%s': %s", name, e.getMessage()));
+            logger.error(e.getMessage(), e);
+            throw new HttpRequestFailure(HttpResponseStatus.NOT_FOUND, String.format("Instance '%s' not found", name));
         }
+    }
 
+    private Map.Entry<String, Object> resolveAttributeValue(ObjectName oname, MBeanAttributeInfo attr) {
+        String attrName = attr.getName();
+        try {
+            Object o = resolveAttribute(server.getAttribute(oname, attrName));
+            return new AbstractMap.SimpleImmutableEntry<String, Object>(attrName, o);
+        } catch (InstanceNotFoundException | AttributeNotFoundException | ReflectionException | MBeanException ex) {
+            throw new IllegalStateException(attrName, ex);
+        }
     }
 
     private Object resolveAttribute(Object o) {
         logger.trace("found a {}", () -> o.getClass().getCanonicalName());
-        if(o instanceof CompositeData) {
+        if (o instanceof CompositeData) {
             CompositeData co = (CompositeData) o;
             Map<String, Object> content = new HashMap<>();
             co.getCompositeType().keySet().forEach( i-> {
                 content.put(i, resolveAttribute(co.get(i)));
             });
             return content;
-        } else if(o instanceof ObjectName) {
+        } else if (o instanceof ObjectName) {
             return null;
-        } else if(o instanceof TabularData) {
+        } else if (o instanceof TabularData) {
             TabularData td = (TabularData) o;
             Object[] content = new Object[td.size()];
             AtomicInteger i = new AtomicInteger(0);
