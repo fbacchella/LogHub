@@ -15,7 +15,7 @@ public abstract class AbstractJacksonEncoder<JB extends AbstractJacksonEncoder.B
     public abstract static class Builder<E extends AbstractJacksonEncoder<?>> extends Encoder.Builder<E> {
     };
 
-    private final ObjectWriter writer;
+    protected final ObjectWriter writer;
 
     protected AbstractJacksonEncoder(JB builder) {
         super(builder);

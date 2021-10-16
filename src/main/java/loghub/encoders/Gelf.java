@@ -2,6 +2,7 @@ package loghub.encoders;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Arrays;
@@ -11,17 +12,17 @@ import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.zip.GZIPOutputStream;
 
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 
 import loghub.BuilderClass;
 import loghub.Event;
+import loghub.jackson.JacksonBuilder;
 import lombok.Setter;
 
 @BuilderClass(Gelf.Builder.class)
-public class Gelf extends Encoder {
+public class Gelf extends AbstractJacksonEncoder<Gelf.Builder> {
 
-    public static class Builder extends Encoder.Builder<Gelf> {
+    public static class Builder extends AbstractJacksonEncoder.Builder<Gelf> {
         private boolean compressed = false;
         private boolean stream = false;
         @Setter
@@ -54,12 +55,9 @@ public class Gelf extends Encoder {
         try {
             hostname = InetAddress.getLocalHost().getHostName();
         } catch (UnknownHostException e) {
-            throw new RuntimeException(e);
+            throw new UncheckedIOException(e);
         }
     }
-
-    private static final JsonFactory factory = new JsonFactory();
-    private static final ThreadLocal<ObjectMapper> json = ThreadLocal.withInitial(() -> new ObjectMapper(factory));
 
     private final boolean compressed;
     private final boolean stream;
@@ -88,10 +86,10 @@ public class Gelf extends Encoder {
             }
             gelfcontent.put("timestamp", event.getTimestamp().getTime() / 1000.0);
             event.entrySet().stream()
-            .filter( i ->  ! "id".equals(i.getKey()))
-            .filter( i -> fieldpredicate.test(i.getKey()))
-            .forEach( i -> gelfcontent.put( "_" + i.getKey(), i.getValue()));
-            byte[] buffer1 = json.get().writeValueAsBytes(gelfcontent);
+                            .filter(i ->  ! "id".equals(i.getKey()))
+                            .filter(i -> fieldpredicate.test(i.getKey()))
+                            .forEach(i -> gelfcontent.put( "_" + i.getKey(), i.getValue()));
+            byte[] buffer1 = writer.writeValueAsBytes(gelfcontent);
             byte[] buffer2;
             if (compressed) {
                 try (ByteArrayOutputStream bos = new ByteArrayOutputStream();
@@ -109,6 +107,11 @@ public class Gelf extends Encoder {
         } catch (IOException e) {
             throw new EncodeException("Failed to encode to GELF", e);
         }
+    }
+
+    @Override
+    protected JacksonBuilder<?> getWriterBuilder(Builder builder) {
+        return JacksonBuilder.get(JsonMapper.class);
     }
 
 }
