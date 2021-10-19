@@ -4,27 +4,33 @@ import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.DomainLoadStoreParameter;
 import java.security.Key;
+import java.security.KeyFactory;
 import java.security.KeyStore;
 import java.security.KeyStore.LoadStoreParameter;
 import java.security.KeyStoreException;
 import java.security.KeyStoreSpi;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.security.PrivateKey;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
+import java.security.cert.X509Certificate;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.Date;
@@ -46,24 +52,27 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
     private static final Logger logger = LogManager.getLogger(MultiKeyStoreProvider.class);
 
     static private final CertificateFactory cf;
+    static private final KeyFactory kf;
     static private final MessageDigest digest;
     static {
         try {
             cf = CertificateFactory.getInstance("X.509");
             digest = MessageDigest.getInstance("MD5");
+            kf = KeyFactory.getInstance("RSA");
         } catch (CertificateException | NoSuchAlgorithmException e) {
-            throw new RuntimeException(e);
+            throw new IllegalStateException("Missing security algorithms", e);
         }
     }
 
     private static final Pattern MARKERS;
     static {
-        String rkey = "(?<rkey>PRIVATE KEY)";
-        String ukey = "(?<ukey>PUBLIC KEY)";
+        String privateKey = "(?<prk>PRIVATE KEY)";
+        String rsakey = "(?<rprk>RSA PRIVATE KEY)";
+        String pubKey = "(?<puk>PUBLIC KEY)";
         String cert = "(?<cert>CERTIFICATE)";
         String epk = "(?<epk>ENCRYPTED PRIVATE KEY)";
         String begin = String.format("(?<begin>-+BEGIN .*-+)");
-        String end = String.format("(?<end>-+END (?:%s|%s|%s|%s)-+)", rkey, ukey, cert, epk);
+        String end = String.format("(?<end>-+END (?:%s|%s|%s|%s|%s)-+)", privateKey, rsakey, pubKey, cert, epk);
         MARKERS = Pattern.compile(String.format("(?:%s)|(?:%s)|.*?", begin, end));
     }
     private static final Base64.Decoder decoder = Base64.getDecoder();
@@ -78,7 +87,7 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
             first.load(null, null);
             stores.add(first);
         } catch (KeyStoreException | NoSuchAlgorithmException | CertificateException | IOException e) {
-            throw new RuntimeException(e);
+            throw new IllegalStateException("Missing security algorithms", e);
         }
     }
 
@@ -142,27 +151,22 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
 
     @Override
     public void engineSetKeyEntry(String alias, Key key, char[] password, Certificate[] chain) throws KeyStoreException {
+        throw new UnsupportedOperationException("Read-only key store");
     }
 
     @Override
     public void engineSetKeyEntry(String alias, byte[] key, Certificate[] chain) throws KeyStoreException {
+        throw new UnsupportedOperationException("Read-only key store");
     }
 
     @Override
     public void engineSetCertificateEntry(String alias, Certificate cert) throws KeyStoreException {
+        throw new UnsupportedOperationException("Read-only key store");
     }
 
     @Override
     public void engineDeleteEntry(String alias) throws KeyStoreException {
-        for (KeyStore ks: stores) {
-            try {
-                if (ks.containsAlias(alias)) {
-                    ks.deleteEntry(alias);
-                }
-            } catch (KeyStoreException e) {
-                // This keystore is broken, just skip it
-            }
-        }
+        throw new UnsupportedOperationException("Read-only key store");
     }
 
     /**
@@ -301,17 +305,17 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
 
     @Override
     public void engineStore(OutputStream stream, char[] password) throws IOException, NoSuchAlgorithmException, CertificateException {
-        throw new UnsupportedOperationException();
+        throw new UnsupportedOperationException("Non persistent key store");
     }
 
     @Override
     public void engineLoad(InputStream stream, char[] password) throws IOException, NoSuchAlgorithmException, CertificateException {
-        throw new UnsupportedOperationException();
+        throw new UnsupportedOperationException("Non persistent key store");
     }
 
     @Override
     public void engineLoad(LoadStoreParameter param) throws IOException, NoSuchAlgorithmException, CertificateException {
-        if ( param instanceof SubKeyStore) {
+        if (param instanceof SubKeyStore) {
             SubKeyStore subparams = (SubKeyStore) param;
             subparams.substores.forEach((i,j) -> {
                 try {
@@ -322,7 +326,7 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
                 }
             });
         } else {
-            throw new UnsupportedOperationException();
+            throw new UnsupportedOperationException("Needs a SubKeyStore param, not a " + param.getClass().getCanonicalName());
         }
     }
 
@@ -333,20 +337,42 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
         }
         if ("system".equals(path)) {
             String operatingSystem = System.getProperty("os.name", "");
-            KeyStore systemks = null;
+            String[] systemStores = new String[] {};
+            
             if (operatingSystem.startsWith("Mac")) {
-                systemks = KeyStore.getInstance("KeychainStore");
+                systemStores = new String[] {"KeychainStore"};
             } else if (operatingSystem.startsWith("Windows")){
-                systemks = KeyStore.getInstance("Windows-ROOT");
+                systemStores = new String[] {"Windows-ROOT", "Windows-MY"};
             }
-            if (systemks != null) {
-                systemks.load(null, password.toCharArray());
-                stores.add(systemks);
+            if (systemStores.length > 0) {
+                Arrays.stream(systemStores)
+                .forEach(n -> {
+                    try {
+                        KeyStore ks = KeyStore.getInstance(n);
+                        ks.load(null, "".toCharArray());
+                        stores.add(ks);
+                    } catch (KeyStoreException | NoSuchAlgorithmException | CertificateException | IOException e) {
+                    }
+                });
+            } else {
+                // Paths where linux might store certs
+                for (String certsPath: new String[] {
+                        "/etc/ssl/certs/ca-certificates.crt",
+                        "/etc/pki/tls/cert.pem",
+                        "/etc/ssl/cert.pem",
+                        "/etc/pki/ca-trust/extracted/openssl/ca-bundle.trust.crt",
+                        "/usr/share/pki/ca-trust-legacy/ca-bundle.legacy.default.crt",
+                }) {
+                    if (Files.isReadable(Paths.get(certsPath))) {
+                        loadPem(certsPath);
+                        break;
+                    }
+                }
             }
         } else if ("default".equals(path)) {
             String[] paths = new String[] {
-                                           System.getProperty("java.home") + File.separator + "lib" + File.separator + "security" + File.separator + "jssecacerts",
-                                           System.getProperty("java.home") + File.separator + "lib" + File.separator + "security" + File.separator + "cacerts"
+                    System.getProperty("java.home") + File.separator + "lib" + File.separator + "security" + File.separator + "jssecacerts",
+                    System.getProperty("java.home") + File.separator + "lib" + File.separator + "security" + File.separator + "cacerts"
             };
             for (String storePathName: paths) {
                 Path storePath = Paths.get(storePathName);
@@ -363,7 +389,9 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
             DomainLoadStoreParameter params = new DomainLoadStoreParameter(URI.create(path), Collections.singletonMap("password", new KeyStore.PasswordProtection(password.toCharArray())));
             KeyStore ks = KeyStore.getInstance("DKS");
             ks.load(params);
-        } else {
+        } else if (Paths.get(path).endsWith("cacerts")) {
+            loadKeystore("JKS", path, "changeit");
+       } else {
             switch(Helpers.getMimeType(path)) {
             case "application/x-pkcs12":
                 loadKeystore("PKCS12", path, password);
@@ -406,38 +434,80 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
     }
 
     private void loadPem(String filename) {
+        Certificate cert = null;
+        PrivateKey key = null;
+        String alias = encoder.encodeToString(filename.getBytes());
+        int count = 0;
         logger.trace("Loading pem certificate {}", filename);
-        try (BufferedReader br = new BufferedReader(new FileReader(filename))) {
+        try (BufferedReader br = Files.newBufferedReader(Paths.get(filename), StandardCharsets.UTF_8)) {
             String line;
             StringBuilder buffer = new StringBuilder();
             while ((line = br.readLine()) != null) {
                 Matcher matcher = MARKERS.matcher(line);
                 matcher.matches();
                 if (matcher.group("begin") != null) {
+                    count++;
                     buffer.setLength(0);
                 } else if (matcher.group("end") != null){
                     try {
                         byte[] content = decoder.decode(buffer.toString());
-                        String alias = encoder.encodeToString(filename.getBytes());
                         digest.reset();
-                        // If object already seen, don't add it again
-                        if (stores.get(0).containsAlias(alias)) {
-                            continue;
-                        }
                         if (matcher.group("cert") != null) {
-                            Certificate cert = cf.generateCertificate(new ByteArrayInputStream(content));
-                            KeyStore.TrustedCertificateEntry entry = new KeyStore.TrustedCertificateEntry(cert);
-                            stores.get(0).setEntry(alias, entry, null);
+                            if (cert != null) {
+                                addEntry(alias + "_" + count, cert, key);
+                                cert = null;
+                                key = null;
+                            }
+                            cert = cf.generateCertificate(new ByteArrayInputStream(content));
+                        } else if (matcher.group("prk") != null){
+                            if (key != null) {
+                                throw new IllegalStateException("Multiple key in a PEM file" + filename);
+                            }
+                            PKCS8EncodedKeySpec keyspec = new PKCS8EncodedKeySpec(content);
+                            key = kf.generatePrivate(keyspec);
+                            // If not cert found, the key will be save at the next entry, hopfully a cert
+                            if (cert != null) {
+                                addEntry(alias + count, cert, key);
+                                cert = null;
+                                key = null;
+                            }
+                        } else {
+                            throw new IllegalArgumentException("Unknown PEM entry in file " + filename);
                         }
-                    } catch (CertificateException | KeyStoreException e) {
-                        throw new IllegalArgumentException("Invalid certificate in " + filename, e);
+                    } catch (CertificateException | KeyStoreException | InvalidKeySpecException e) {
+                        throw new IllegalArgumentException("Invalid PEM entry in file " + filename, e);
                     }
                 } else {
                     buffer.append(line);
                 }
             }
+            // trying to load last entry
+            addEntry(alias, cert, key);
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            throw new IllegalArgumentException("Invalid PEM file " + filename, e);
+        } catch (KeyStoreException e) {
+            throw new IllegalArgumentException("Invalid PEM entry in file " + filename, e);
+        }
+    }
+
+    private void addEntry(String alias, Certificate cert, PrivateKey key) throws KeyStoreException {
+        if (cert != null && "X.509".equals(cert.getType())) {
+            X509Certificate x509cert = (X509Certificate) cert;
+            alias = x509cert.getSubjectDN().getName();
+        }
+        if (cert == null) {
+            // No certificate found to import
+            return;
+        } else if (stores.get(0).containsAlias(alias)) {
+            logger.warn("Duplicate entry " + alias);
+            // If object already seen, don't add it again
+            return;
+        } else  if (key != null) {
+            KeyStore.PrivateKeyEntry entry = new KeyStore.PrivateKeyEntry(key, new Certificate[] {cert});
+            stores.get(0).setEntry(alias, entry, new KeyStore.PasswordProtection(new char[] {}));
+        } else if (key == null) {
+            KeyStore.TrustedCertificateEntry entry = new KeyStore.TrustedCertificateEntry(cert);
+            stores.get(0).setEntry(alias, entry, null);
         }
     }
 
