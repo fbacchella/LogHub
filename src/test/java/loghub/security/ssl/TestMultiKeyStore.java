@@ -1,7 +1,10 @@
 package loghub.security.ssl;
 
 import java.io.IOException;
+import java.net.URI;
+import java.security.DomainLoadStoreParameter;
 import java.security.KeyStore;
+import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
 import java.util.Collections;
@@ -34,6 +37,7 @@ public class TestMultiKeyStore {
 
         // Extracted from package1.pem
         Assert.assertTrue(mks.engineEntryInstanceOf("cn=localhost", KeyStore.PrivateKeyEntry.class));
+        Assert.assertTrue(mks.engineIsKeyEntry("cn=localhost"));
         // Extracted from loghub.p12
         Assert.assertTrue(mks.engineEntryInstanceOf("loghub ca", KeyStore.PrivateKeyEntry.class));
         Assert.assertTrue(mks.engineEntryInstanceOf("localhost (loghub ca)", KeyStore.PrivateKeyEntry.class));
@@ -41,6 +45,26 @@ public class TestMultiKeyStore {
         Assert.assertTrue(mks.engineEntryInstanceOf("password", KeyStore.SecretKeyEntry.class));
         Assert.assertEquals(5, Collections.list(mks.engineAliases()).size());
     }
+    
+    @Test
+    public void loadDomain() throws KeyStoreException, NoSuchAlgorithmException, CertificateException, IOException {
+        DomainLoadStoreParameter params = new DomainLoadStoreParameter(URI.create("file:src/test/resources/crypto/domain.policy"), Collections.emptyMap());
+        KeyStore ks = KeyStore.getInstance("DKS");
+        ks.load(params);
+
+        MultiKeyStoreSpi mks = load("src/test/resources/crypto/domain.policy");
+
+        // Domain keystore is buggy, just check consistency of results
+        Assert.assertEquals(ks.entryInstanceOf("loghubca loghub ca",KeyStore.PrivateKeyEntry.class),
+                            mks.engineEntryInstanceOf("loghubca loghub ca", KeyStore.PrivateKeyEntry.class));
+        Assert.assertEquals(ks.entryInstanceOf("loghubca localhost (loghub ca)", KeyStore.PrivateKeyEntry.class),
+                            mks.engineEntryInstanceOf("loghubca localhost (loghub ca)", KeyStore.PrivateKeyEntry.class));
+        Assert.assertEquals(ks.entryInstanceOf("loghubca junit (loghub ca)", KeyStore.PrivateKeyEntry.class),
+                            mks.engineEntryInstanceOf("loghubca junit (loghub ca)", KeyStore.PrivateKeyEntry.class));
+        Assert.assertEquals(ks.entryInstanceOf("loghubca password", KeyStore.SecretKeyEntry.class),
+                            mks.engineEntryInstanceOf("loghubca password", KeyStore.SecretKeyEntry.class));
+        Assert.assertEquals(4, Collections.list(mks.engineAliases()).size());
+   }
 
     @Test
     public void loadinversed() throws NoSuchAlgorithmException, CertificateException, IOException {
@@ -97,6 +121,7 @@ public class TestMultiKeyStore {
         }
         MultiKeyStoreSpi mks = new MultiKeyStoreSpi();
         mks.engineLoad(sks);
+        Assert.assertEquals(mks.engineSize(), Collections.list(mks.engineAliases()).size());
         return mks;
     }
 

@@ -1,0 +1,5 @@
+domain loghub {
+    keystore loghubca
+        keystoreType="PKCS12"
+        keystoreURI="src/test/resources/loghub.p12";
+};

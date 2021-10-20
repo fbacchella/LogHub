@@ -49,11 +49,11 @@ import loghub.security.ssl.MultiKeyStoreProvider.SubKeyStore;
 
 public class MultiKeyStoreSpi extends KeyStoreSpi {
 
-    private static final Logger logger = LogManager.getLogger(MultiKeyStoreProvider.class);
+    private static final Logger logger = LogManager.getLogger();
 
-    static private final CertificateFactory cf;
-    static private final KeyFactory kf;
-    static private final MessageDigest digest;
+    private static final CertificateFactory cf;
+    private static final KeyFactory kf;
+    private static final MessageDigest digest;
     static {
         try {
             cf = CertificateFactory.getInstance("X.509");
@@ -71,7 +71,7 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
         String pubKey = "(?<puk>PUBLIC KEY)";
         String cert = "(?<cert>CERTIFICATE)";
         String epk = "(?<epk>ENCRYPTED PRIVATE KEY)";
-        String begin = String.format("(?<begin>-+BEGIN .*-+)");
+        String begin = "(?<begin>-+BEGIN .*-+)";
         String end = String.format("(?<end>-+END (?:%s|%s|%s|%s|%s)-+)", privateKey, rsakey, pubKey, cert, epk);
         MARKERS = Pattern.compile(String.format("(?:%s)|(?:%s)|.*?", begin, end));
     }
@@ -100,6 +100,7 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
                     return val;
                 }
             } catch (KeyStoreException e) {
+                // This keystore is broken, just skip it
             }
         }
         return null;
@@ -114,9 +115,10 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
                     return val;
                 }
             } catch (KeyStoreException e) {
+                // This keystore is broken, just skip it
             }
         }
-        return null;
+        return new Certificate[] {};
     }
 
     @Override
@@ -199,7 +201,6 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
     public Enumeration<String> engineAliases() {
         Iterator<KeyStore> iter = stores.iterator();
         return new Enumeration<String>(){
-            //private KeyStore cur = null;
             private Enumeration<String> enumerator = null;
             @Override
             public boolean hasMoreElements() {
@@ -352,6 +353,7 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
                         ks.load(null, "".toCharArray());
                         stores.add(ks);
                     } catch (KeyStoreException | NoSuchAlgorithmException | CertificateException | IOException e) {
+                        // This keystore is broken, just skip it
                     }
                 });
             } else {
@@ -386,9 +388,15 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
             }
         } else if (path.toLowerCase().endsWith(".policy")) {
             logger.trace("Loading domaine store {}", path);
-            DomainLoadStoreParameter params = new DomainLoadStoreParameter(URI.create(path), Collections.singletonMap("password", new KeyStore.PasswordProtection(password.toCharArray())));
+            URI tryURI = URI.create(path);
+            if (tryURI.getScheme() == null) {
+                tryURI = URI.create("file:" + path);
+            }
+            // No defined way to forward each entry password, so hope they are not protected
+            DomainLoadStoreParameter params = new DomainLoadStoreParameter(tryURI, Collections.emptyMap());
             KeyStore ks = KeyStore.getInstance("DKS");
             ks.load(params);
+            stores.add(ks);
         } else if (Paths.get(path).endsWith("cacerts")) {
             loadKeystore("JKS", path, "changeit");
        } else {
@@ -449,33 +457,29 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
                     count++;
                     buffer.setLength(0);
                 } else if (matcher.group("end") != null){
-                    try {
-                        byte[] content = decoder.decode(buffer.toString());
-                        digest.reset();
-                        if (matcher.group("cert") != null) {
-                            if (cert != null) {
-                                addEntry(alias + "_" + count, cert, key);
-                                cert = null;
-                                key = null;
-                            }
-                            cert = cf.generateCertificate(new ByteArrayInputStream(content));
-                        } else if (matcher.group("prk") != null){
-                            if (key != null) {
-                                throw new IllegalStateException("Multiple key in a PEM file" + filename);
-                            }
-                            PKCS8EncodedKeySpec keyspec = new PKCS8EncodedKeySpec(content);
-                            key = kf.generatePrivate(keyspec);
-                            // If not cert found, the key will be save at the next entry, hopfully a cert
-                            if (cert != null) {
-                                addEntry(alias + count, cert, key);
-                                cert = null;
-                                key = null;
-                            }
-                        } else {
-                            throw new IllegalArgumentException("Unknown PEM entry in file " + filename);
+                    byte[] content = decoder.decode(buffer.toString());
+                    digest.reset();
+                    if (matcher.group("cert") != null) {
+                        if (cert != null) {
+                            addEntry(alias + "_" + count, cert, key);
+                            cert = null;
+                            key = null;
                         }
-                    } catch (CertificateException | KeyStoreException | InvalidKeySpecException e) {
-                        throw new IllegalArgumentException("Invalid PEM entry in file " + filename, e);
+                        cert = cf.generateCertificate(new ByteArrayInputStream(content));
+                    } else if (matcher.group("prk") != null){
+                        if (key != null) {
+                            throw new IllegalStateException("Multiple key in a PEM file" + filename);
+                        }
+                        PKCS8EncodedKeySpec keyspec = new PKCS8EncodedKeySpec(content);
+                        key = kf.generatePrivate(keyspec);
+                        // If not cert found, the key will be save at the next entry, hopfully a cert
+                        if (cert != null) {
+                            addEntry(alias + count, cert, key);
+                            cert = null;
+                            key = null;
+                        }
+                    } else {
+                        throw new IllegalArgumentException("Unknown PEM entry in file " + filename);
                     }
                 } else {
                     buffer.append(line);
@@ -485,7 +489,7 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
             addEntry(alias, cert, key);
         } catch (IOException e) {
             throw new IllegalArgumentException("Invalid PEM file " + filename, e);
-        } catch (KeyStoreException e) {
+        } catch (CertificateException | KeyStoreException | InvalidKeySpecException e) {
             throw new IllegalArgumentException("Invalid PEM entry in file " + filename, e);
         }
     }
@@ -493,19 +497,17 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
     private void addEntry(String alias, Certificate cert, PrivateKey key) throws KeyStoreException {
         if (cert != null && "X.509".equals(cert.getType())) {
             X509Certificate x509cert = (X509Certificate) cert;
-            alias = x509cert.getSubjectDN().getName();
+            alias = x509cert.getSubjectX500Principal().getName();
         }
         if (cert == null) {
             // No certificate found to import
-            return;
         } else if (stores.get(0).containsAlias(alias)) {
-            logger.warn("Duplicate entry " + alias);
+            logger.warn("Duplicate entry {}", alias);
             // If object already seen, don't add it again
-            return;
         } else  if (key != null) {
             KeyStore.PrivateKeyEntry entry = new KeyStore.PrivateKeyEntry(key, new Certificate[] {cert});
             stores.get(0).setEntry(alias, entry, new KeyStore.PasswordProtection(new char[] {}));
-        } else if (key == null) {
+        } else {
             KeyStore.TrustedCertificateEntry entry = new KeyStore.TrustedCertificateEntry(cert);
             stores.get(0).setEntry(alias, entry, null);
         }
