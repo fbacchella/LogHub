@@ -89,9 +89,27 @@ public class ThreadBuilder {
     public ThreadFactory getFactory(String prefix) {
         AtomicInteger threadCount = new AtomicInteger(0);
         VarFormatter formatter = new VarFormatter("${#1%s}-${#2%d}");
-        return r -> this.setTask(r)
-                        .setName(formatter.argsFormat(prefix, threadCount.incrementAndGet()))
-                        .build();
+        // A local ThreadBuilder, so the original ThreadBuilder can be reused
+        ThreadBuilder newBuilder = new ThreadBuilder();
+        newBuilder.task = null;
+        newBuilder.interrupter = interrupter;
+        newBuilder.name = null;
+        newBuilder.daemon = daemon;
+        newBuilder.shutdownHook = shutdownHook;
+        newBuilder.exceptionHandler = exceptionHandler;
+
+        return r -> {
+            // synchronized so the ThreadFactory is thread safe
+            synchronized (newBuilder) {
+                Thread t = newBuilder.setTask(r)
+                                     .setName(formatter.argsFormat(prefix, threadCount.incrementAndGet()))
+                                     .build();
+                // Don’t hold references to the task or the name
+                newBuilder.task = null;
+                newBuilder.name = null;
+                return t;
+            }
+        };
     }
 
 }
