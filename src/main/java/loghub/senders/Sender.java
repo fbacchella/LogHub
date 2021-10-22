@@ -158,9 +158,6 @@ public abstract class Sender extends Thread implements Closeable {
             batches = null;
             publisher = null;
         }
-        this.setUncaughtExceptionHandler((t,e) -> {
-            logger.error("Uncatched Exception: " + Helpers.resolveThrowableException(e), e);
-        });
     }
 
     public boolean configure(Properties properties) {
