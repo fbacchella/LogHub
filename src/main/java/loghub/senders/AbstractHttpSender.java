@@ -15,6 +15,7 @@ import java.nio.charset.Charset;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
@@ -62,7 +63,9 @@ import org.apache.logging.log4j.Level;
 
 import loghub.Helpers;
 import loghub.configuration.Properties;
+import lombok.Getter;
 import lombok.Setter;
+import lombok.experimental.Accessors;
 
 public abstract class AbstractHttpSender extends Sender {
 
@@ -83,42 +86,39 @@ public abstract class AbstractHttpSender extends Sender {
         private String[] destinations;
     };
 
-    protected class HttpRequest {
+    @Accessors(fluent = false, chain = true)
+    protected static class HttpRequest {
+        @Getter @Setter
         private String verb = "GET";
         private HttpVersion httpVersion = HttpVersion.HTTP_1_1;
-        private URL url = null;
+        @Getter @Setter
+        private URL url;
         private final List<BasicHeader> headers = new ArrayList<>();
-        private HttpEntity content = null;
-        public String getVerb() {
-            return verb;
-        }
-        public void setVerb(String verb) {
-            this.verb = verb.toUpperCase().intern();
-        }
+        private HttpEntity content;
+
         public String getHttpVersion() {
             return httpVersion.toString();
         }
-        public void setHttpVersion(int major, int minor) {
+        public HttpRequest setHttpVersion(int major, int minor) {
             this.httpVersion = HttpVersion.get(major, minor);
+            return this;
         }
-        public URL getUrl() {
-            return url;
-        }
-        public void setUrl(URL url) {
-            this.url = url;
-        }
-        public void addHeader(String header, String value) {
+        public HttpRequest addHeader(String header, String value) {
             headers.add(new BasicHeader(header, value));
+            return this;
         }
-        public void clearHeaders() {
+        public HttpRequest clearHeaders() {
             headers.clear();
+            return this;
         }
-        public void setTypeAndContent(ContentType mimeType, byte[] content) throws IOException {
+        public HttpRequest setTypeAndContent(ContentType mimeType, byte[] content) throws IOException {
             this.content = HttpEntities.createGzipped(content, mimeType.realType);
+            return this;
         }
-        public void setTypeAndContent(ContentType mimeType, ContentWriter source) throws IOException {
+        public HttpRequest setTypeAndContent(ContentType mimeType, ContentWriter source) throws IOException {
             IOCallback<OutputStream> cp = source::writeTo;
             content = HttpEntities.createGzipped(cp, mimeType.realType);
+            return this;
         }
     }
 
@@ -331,7 +331,7 @@ public abstract class AbstractHttpSender extends Sender {
         HttpHost host = new HttpHost(therequest.url.getProtocol(),
                 therequest.url.getHost(),
                 therequest.url.getPort());
-        Method method = Method.valueOf(therequest.verb);
+        Method method = Method.valueOf(therequest.verb.toUpperCase(Locale.ENGLISH));
         ClassicHttpRequest request = new BasicClassicHttpRequest(method, host, therequest.url.getFile());
         if (therequest.content != null) {
             request.setEntity(therequest.content);
