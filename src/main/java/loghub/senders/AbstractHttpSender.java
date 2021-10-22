@@ -343,9 +343,13 @@ public abstract class AbstractHttpSender extends Sender {
         } catch (HttpHostConnectException e) {
             String message = "";
             try {
-                throw e.getCause();
+                if (e.getCause() != null) {
+                    throw e.getCause();
+                } else {
+                    message = String.format("Comunication with %s failed: %s", host, Helpers.resolveThrowableException(e));
+                }
             } catch (ConnectException ex) {
-                message = String.format("Connection to %s refused", host);
+                message = String.format("Comunication to %s refused", host);
             } catch (SocketTimeoutException ex) {
                 message = String.format("Slow response from %s", host);
             } catch (Throwable ex) {
