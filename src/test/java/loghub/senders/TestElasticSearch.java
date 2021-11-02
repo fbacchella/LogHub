@@ -240,6 +240,7 @@ public class TestElasticSearch {
                               , BeanInfo.build("login", String.class)
                               , BeanInfo.build("password", String.class)
                               , BeanInfo.build("typeHandling", TYPEHANDLING.class)
+                              , BeanInfo.build("ilm", Boolean.TYPE)
                         );
     }
 

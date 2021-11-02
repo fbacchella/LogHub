@@ -13,12 +13,15 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.TimeZone;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.apache.logging.log4j.Level;
@@ -71,6 +74,8 @@ public class ElasticSearch extends AbstractHttpSender {
         private String templatePath = null;
         @Setter
         private TYPEHANDLING typeHandling = TYPEHANDLING.USING;
+        @Setter
+        private boolean ilm = false;
 
         public Builder() {
             this.setPort(9200);
@@ -108,6 +113,7 @@ public class ElasticSearch extends AbstractHttpSender {
     private URL templatePath;
     private final boolean withTemplate;
     private final TYPEHANDLING typeHandling;
+    private final boolean ilm;
 
     private ThreadLocal<DateFormat> esIndexFormat;
     private final ThreadLocal<URL[]> UrlArrayCopy;
@@ -133,6 +139,7 @@ public class ElasticSearch extends AbstractHttpSender {
         typeExpressionSrc = builder.typeX;
         indexExpressionSrc = builder.indexX;
         typeHandling = builder.typeHandling;
+        ilm = builder.ilm;
         UrlArrayCopy = ThreadLocal.withInitial(() -> Arrays.copyOf(endPoints, endPoints.length));
         if (indexExpressionSrc == null) {
             esIndexFormat = ThreadLocal.withInitial( () -> {
@@ -180,12 +187,35 @@ public class ElasticSearch extends AbstractHttpSender {
     public boolean send(Event e) {
         throw new UnsupportedOperationException("Can't send single event");
     }
+    
+    private String eventIndex(Event e) throws ProcessorException {
+        if (indexExpression != null) {
+            return Optional.ofNullable(indexExpression.eval(e)).map( i-> i.toString()).orElse(null);
+        } else {
+            return esIndexFormat.get().format(e.getTimestamp());
+        }
+    }
 
     @Override
     protected void flush(Batch documents) throws SendException {
         HttpRequest request = new HttpRequest();
         // This list contains the event futures that will be effectively sent to ES
         List<EventFuture> tosend = new ArrayList<EventFuture>(documents.size());
+
+        // First pass to check that all needed indices will be present and usable
+        Set<String> indices = documents.stream().map(ef -> {
+            try {
+                return eventIndex(ef.getEvent());
+            } catch (ProcessorException ex) {
+                // Ignore, will be handled latter
+                return null;
+            }
+        })
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        checkIndices(indices);
+
+        // We can go on with the documents creations
         try {
             request.setTypeAndContent(ContentType.APPLICATION_JSON, os -> putContent(documents, tosend, os));
         } catch (IOException e) {
@@ -233,7 +263,6 @@ public class ElasticSearch extends AbstractHttpSender {
         Map<String, String> settings = new HashMap<>(2);
         Map<String, Object> action = Collections.singletonMap("index", settings);
         Map<String, Object> esjson = new HashMap<>();
-        ObjectMapper jsonmapper = json;
         int sent = 0;
         for (EventFuture ef: events) {
             try {
@@ -242,11 +271,7 @@ public class ElasticSearch extends AbstractHttpSender {
                 esjson.putAll(e);
                 esjson.put("@timestamp", e.getTimestamp());
                 String indexvalue;
-                if (indexExpression != null) {
-                    indexvalue = Optional.ofNullable(indexExpression.eval(e)).map( i-> i.toString()).orElse(null);
-                } else {
-                    indexvalue = esIndexFormat.get().format(e.getTimestamp());
-                }
+                indexvalue = eventIndex(e);
                 if (indexvalue == null || indexvalue.isEmpty()) {
                     ef.completeExceptionally(new EncodeException("No usable index name for event"));
                     logger.debug("No usable index name for event {}", e);
@@ -270,9 +295,9 @@ public class ElasticSearch extends AbstractHttpSender {
                         settings.put("_type", typevalue);
                     } 
                 }
-                sent += sendbytes(os, jsonmapper.writeValueAsString(action).getBytes(CharsetUtil.UTF_8));
+                sent += sendbytes(os, json.writeValueAsString(action).getBytes(CharsetUtil.UTF_8));
                 sent += sendbytes(os, lf);
-                sent += sendbytes(os, jsonmapper.writeValueAsString(esjson).getBytes(CharsetUtil.UTF_8));
+                sent += sendbytes(os, json.writeValueAsString(esjson).getBytes(CharsetUtil.UTF_8));
                 sent += sendbytes(os, lf);
                 if (sent > FLUSHBYTES) {
                     os.flush();
@@ -320,6 +345,147 @@ public class ElasticSearch extends AbstractHttpSender {
             }
         };
         return doquery(null, "/", transform, Collections.emptyMap(), -1);
+    }
+
+    public void checkIndices(Set<String> indices) throws SendException {
+        Set<String> missing = new HashSet<>();
+        Set<String> readonly = new HashSet<>();
+        if (doCheckIndices(indices, missing, readonly)) {
+            if (! readonly.isEmpty()) {
+                waitIndices(indices);
+            }
+            if (ilm && ! missing.isEmpty()) {
+                createIndicesWithIML(missing);
+            }
+        } else {
+            logger.error("Indices not checked before a bulk operation");
+        }
+    }
+
+    /**
+     * Wait for all the read only indicies to be OK.
+     * @param indices the indices in read only mode
+     * @throws SendException
+     */
+    private synchronized void waitIndices(Set<String> indices) throws SendException {
+        int wait = 1;
+        Set<String> missing = new HashSet<>();
+        Set<String> readonly = new HashSet<>();
+        try {
+            do {
+                Thread.sleep(wait);
+                if (! doCheckIndices(indices, missing, readonly)) {
+                    break;
+                }
+                // An exponential back off, that double on each step
+                // and wait one hour max between each try
+                wait = Math.min(2 * wait, 3600 * 1000);
+            } while (!readonly.isEmpty());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new SendException(e);
+        }
+    }
+
+    /**
+     * If ILM is activated, missing indices will be created. <p>
+     * Always append -000001 at creation, no other values make sense
+     * @param indices The indices to create
+     * @throws SendException
+     */
+    private synchronized void createIndicesWithIML(Set<String> indices) throws SendException {
+        Set<String> missing = new HashSet<>();
+        Set<String> readonly = new HashSet<>();
+        doCheckIndices(indices, missing, readonly);
+        if (missing.isEmpty()) {
+            return;
+        }
+        StringBuffer filePart = new StringBuffer();
+        Function<JsonNode, Boolean> transform = node -> {
+            return true;
+        };
+
+        // Creating the missing indices
+        for (String i: missing) {
+            filePart.setLength(0);
+            filePart.append("/");
+            filePart.append(i);
+            filePart.append("-000001");
+            HttpRequest request = new HttpRequest().setVerb("PUT");
+            try {
+                request.setTypeAndContent(ContentType.APPLICATION_JSON, os -> {
+                    Map<String, Object> index = Collections.singletonMap(i, Collections.emptyMap());
+                    Map<String, Object> body = Collections.singletonMap("aliases", index);
+                    os.write(json.writeValueAsBytes(body));
+                });
+            } catch (IOException e) {
+                throw new SendException(e);
+            }
+            doquery(request, filePart.toString(), transform, Collections.emptyMap(), null);
+        }
+    }
+
+    /**
+     * Used to detect indices where read_only_allow_delete is set to true
+     * @param indices Indices to check
+     * @param missing A set that will contains missing indices after the check.
+     * @param readonly A set that will contains indices in read only mode after the check.
+     * @return
+     */
+    private boolean doCheckIndices(Set<String> indices, Set<String> missing, Set<String> readonly) {
+        missing.clear();
+        readonly.clear();
+        StringBuffer filePart = new StringBuffer();
+        filePart.append("/");
+        filePart.append(String.join(",", indices));
+        filePart.append("/_settings/index.number_of_shards,index.blocks.read_only_allow_delete?allow_no_indices=true&ignore_unavailable=true&flat_settings=true");
+        Map<String, String> aliases = getAliases(indices);
+        Function<JsonNode, Boolean> transform = node -> {
+            scanResults(node, aliases, missing, readonly);
+            return Boolean.TRUE;
+        };
+        return doquery(null, filePart.toString(), transform, Collections.emptyMap(), Boolean.FALSE);
+    }
+
+    private Map<String, String> getAliases(Set<String> indices) {
+        StringBuffer filePart = new StringBuffer();
+        filePart.append(String.join(",", indices));
+        filePart.append("/_alias?ignore_unavailable=true");
+        Map<String, String> aliases = new HashMap<>(indices.size());
+        indices.forEach(s -> aliases.put(s, s));
+        Function<JsonNode, Boolean> transform = node -> {
+            node.fieldNames().forEachRemaining(s -> {
+                JsonNode aliasesNode = node.get(s).get("aliases");
+                aliasesNode.fieldNames().forEachRemaining(ss -> {
+                    if (indices.contains(ss)) {
+                        aliases.put(ss, s);
+                    }
+                });
+            });
+            return Boolean.TRUE;
+        };
+        if (doquery(null, filePart.toString(), transform, Collections.emptyMap(), Boolean.FALSE)) {
+            return aliases;
+        } else {
+            return Collections.emptyMap();
+        }
+    }
+
+   void scanResults(JsonNode node, Map<String, String> aliases, Set<String> missing, Set<String> readonly) {
+        for (Map.Entry<String, String> e: aliases.entrySet()) {
+            Optional<Boolean> status = Optional.ofNullable(node.get(e.getValue()))
+                    .map(n -> n.get("settings"))
+                    .map(n -> {
+                        return Optional.ofNullable(n.get("index.blocks.read_only_allow_delete"))
+                                .map(b -> b.asBoolean())
+                                .orElse(false);
+                    });
+            if (! status.isPresent()) {
+                missing.add(e.getKey());
+            } else if (status.get()) {
+                readonly.add(e.getKey());
+            }
+        }
     }
 
     private Boolean checkTemplate(int major) {
@@ -373,8 +539,7 @@ public class ElasticSearch extends AbstractHttpSender {
         if (needsrefresh == null) {
             return false;
         } else if (needsrefresh) {
-            HttpRequest puttemplate = new HttpRequest();
-            puttemplate.setVerb("PUT");
+            HttpRequest puttemplate = new HttpRequest().setVerb("PUT");
             try {
                 String jsonbody = json.writeValueAsString(wantedtemplate);
                 puttemplate.setTypeAndContent(ContentType.APPLICATION_JSON, jsonbody.getBytes(ContentType.APPLICATION_JSON.getCharset()));
@@ -407,6 +572,7 @@ public class ElasticSearch extends AbstractHttpSender {
                 continue;
             }
             request.setUrl(newEndPoint);
+            logger.trace("{} {}", request.getVerb(), request.getUrl());
             try (HttpResponse response = doRequest(request)) {
                 if (response.isConnexionFailed()) {
                     continue;
