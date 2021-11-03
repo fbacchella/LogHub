@@ -168,12 +168,12 @@ public class ElasticSearch extends AbstractHttpSender {
                 Expression.logError(e, processedSrc, logger);
                 return false;
             }
-            // Check version
-            int major = checkMajorVersion();
-            if (major < 0) {
-                return false;
-            }
             if (withTemplate) {
+                // Check version
+                int major = checkMajorVersion();
+                if (major < 0) {
+                    return false;
+                }
                 return checkTemplate(major);
             } else {
                 return true;
@@ -350,15 +350,23 @@ public class ElasticSearch extends AbstractHttpSender {
     public void checkIndices(Set<String> indices) throws SendException {
         Set<String> missing = new HashSet<>();
         Set<String> readonly = new HashSet<>();
-        if (doCheckIndices(indices, missing, readonly)) {
-            if (! readonly.isEmpty()) {
-                waitIndices(indices);
+        int wait = 1;
+        while (! doCheckIndices(indices, missing, readonly)) {
+            try {
+                // An exponential back off, that double on each step
+                // and wait one hour max between each try
+                Thread.sleep(wait);
+                wait = Math.min(2 * wait, 3600 * 1000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new SendException(e);
             }
-            if (ilm && ! missing.isEmpty()) {
-                createIndicesWithIML(missing);
-            }
-        } else {
-            logger.error("Indices not checked before a bulk operation");
+        }
+        if (! readonly.isEmpty()) {
+            waitIndices(indices);
+        }
+        if (ilm && ! missing.isEmpty()) {
+            createIndicesWithIML(missing);
         }
     }
 
