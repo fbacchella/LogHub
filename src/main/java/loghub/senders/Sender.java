@@ -266,8 +266,7 @@ public abstract class Sender extends Thread implements Closeable {
             try {
                 join();
             } catch (InterruptedException e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
+                Thread.currentThread().interrupt();
             }
         }
     }
