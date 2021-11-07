@@ -5,13 +5,12 @@ import java.net.URLDecoder;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.FullHttpRequest;
@@ -19,14 +18,16 @@ import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.util.CharsetUtil;
 import loghub.Helpers;
+import loghub.jackson.JacksonBuilder;
 import lombok.Data;
 
 @ContentType("application/json; charset=utf-8")
 @NoCache
 public class GetMetric extends HttpRequestProcessing implements ChannelHandler {
 
-    private static final JsonFactory factory = new JsonFactory();
-    private static final ThreadLocal<ObjectMapper> json = ThreadLocal.withInitial(() -> new ObjectMapper(factory).configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false));
+    private static final ObjectWriter writer = JacksonBuilder.get(JsonMapper.class)
+            .setConfigurator(om -> om.configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false))
+            .getWriter();
 
     private static final Pattern partsExtractor = Pattern.compile("/metric/(?<metricname>(?<type>[a-z]+?)(s?|(/(?<name>.*))))");
 
@@ -49,6 +50,7 @@ public class GetMetric extends HttpRequestProcessing implements ChannelHandler {
     protected void processRequest(FullHttpRequest request,
                                   ChannelHandlerContext ctx)
                                                   throws HttpRequestFailure {
+        ByteBuf content = ctx.alloc().buffer();
         try {
             Matcher m = partsExtractor.matcher(URLDecoder.decode(request.uri(), "UTF-8"));
             if (m.matches()) {
@@ -69,8 +71,10 @@ public class GetMetric extends HttpRequestProcessing implements ChannelHandler {
                 default:
                     throw new HttpRequestFailure(HttpResponseStatus.BAD_REQUEST, String.format("Unsupported metric name: %s", m.group("metricname")));
                 }
-                String serialized = json.get().writeValueAsString(metrics);
-                ByteBuf content = Unpooled.copiedBuffer(serialized + "\r\n", CharsetUtil.UTF_8);
+                String serialized = writer.writeValueAsString(metrics);
+                content.ensureWritable(serialized.length() + 2);
+                content.writeCharSequence(serialized, CharsetUtil.UTF_8);
+                content.writeCharSequence("\r\n", CharsetUtil.UTF_8);
                 writeResponse(ctx, request, content, content.readableBytes());
             } else {
                 throw new HttpRequestFailure(HttpResponseStatus.BAD_REQUEST, String.format("Unsupported metric name: %s", request.uri().replace("/metric/", "")));
@@ -80,6 +84,8 @@ public class GetMetric extends HttpRequestProcessing implements ChannelHandler {
         } catch (JsonProcessingException e) {
             logger.error("Unable to handle json response", e);
             throw new HttpRequestFailure(HttpResponseStatus.INTERNAL_SERVER_ERROR, String.format("Unable to handle json response: %s", Helpers.resolveThrowableException(e)));
+        } finally {
+            content.release();
         }
     }
 
@@ -106,7 +112,7 @@ public class GetMetric extends HttpRequestProcessing implements ChannelHandler {
            new MetricEntry("Event received", "e/s", pathBase + "count", ",.2s", "return res[\"OneMinuteRate\"]"),
         };
     }
-    
+
     private MetricEntry[] getSenderMetrics(String name) {
         String pathBase;
         if (name == null) {
@@ -132,4 +138,5 @@ public class GetMetric extends HttpRequestProcessing implements ChannelHandler {
            new MetricEntry("Dropped", "e/s", pathBase + "dropped", ",.2s", "return res[\"OneMinuteRate\"]"),
         };
     }
+
 }
