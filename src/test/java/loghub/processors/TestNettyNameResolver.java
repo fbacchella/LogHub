@@ -6,6 +6,7 @@ import java.io.StringReader;
 import java.lang.reflect.InvocationTargetException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.URL;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
@@ -220,6 +221,46 @@ public class TestNettyNameResolver {
         Assert.assertEquals("a.root-servers.net", proc.fieldFunction(e, "198.41.0.4"));
     }
 
+    @Test(timeout=2000)
+    public void testResolvConf() throws ProcessorException, InterruptedException, ExecutionException, ConfigException, IOException {
+        NettyNameResolver proc = new NettyNameResolver();
+        URL etcResolvConfURL = this.getClass().getClassLoader().getResource("resolv.conf");
+        proc.setEtcResolvConf(etcResolvConfURL.getFile());
+        Assert.assertTrue(proc.configure(getProperties()));
+
+        Event e = Tools.getEvent();
+        /// resolving a.root-servers.net. in IPv4
+        e.put("host", InetAddress.getByName("198.41.0.4"));
+        try {
+            proc.fieldFunction(e, "198.41.0.4");
+        } catch (AsyncProcessor.PausedEventException e1) {
+            @SuppressWarnings("unchecked")
+            AddressedEnvelope<DnsResponse, InetSocketAddress> resp = (AddressedEnvelope<DnsResponse, InetSocketAddress>) e1.getFuture().await().get();
+            Assert.assertEquals("a.root-servers.net", proc.asyncProcess(e, resp));
+        }
+        // Will fail if the previous query was not cached
+        Assert.assertEquals("a.root-servers.net", proc.fieldFunction(e, "198.41.0.4"));
+    }
+
+    @Test(timeout=2000)
+    public void testDefault() throws ProcessorException, InterruptedException, ExecutionException, ConfigException, IOException {
+        NettyNameResolver proc = new NettyNameResolver();
+        Assert.assertTrue(proc.configure(getProperties()));
+
+        Event e = Tools.getEvent();
+        /// resolving a.root-servers.net. in IPv4
+        e.put("host", InetAddress.getByName("198.41.0.4"));
+        try {
+            proc.fieldFunction(e, "198.41.0.4");
+        } catch (AsyncProcessor.PausedEventException e1) {
+            @SuppressWarnings("unchecked")
+            AddressedEnvelope<DnsResponse, InetSocketAddress> resp = (AddressedEnvelope<DnsResponse, InetSocketAddress>) e1.getFuture().await().get();
+            Assert.assertEquals("a.root-servers.net", proc.asyncProcess(e, resp));
+        }
+        // Will fail if the previous query was not cached
+        Assert.assertEquals("a.root-servers.net", proc.fieldFunction(e, "198.41.0.4"));
+    }
+
     private Properties getProperties() throws ConfigException, IOException {
         String conf = "queuesDepth: 10";
         return Tools.loadConf(new StringReader(conf));
@@ -229,6 +270,9 @@ public class TestNettyNameResolver {
     public void test_loghub_processors_NettyNameResolver() throws ClassNotFoundException, IntrospectionException, InvocationTargetException {
         BeanChecks.beansCheck(logger, "loghub.processors.NettyNameResolver"
                               , BeanInfo.build("resolver", String.class)
+                              , BeanInfo.build("etcResolvConf", String.class)
+                              , BeanInfo.build("etcResolverDir", String.class)
+                              , BeanInfo.build("defaultResolver", Boolean.TYPE)
                               , BeanInfo.build("cacheSize", Integer.TYPE)
                               , BeanInfo.build("timeout", Integer.TYPE)
                               , BeanInfo.build("poller", String.class)

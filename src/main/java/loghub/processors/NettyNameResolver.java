@@ -1,10 +1,12 @@
 package loghub.processors;
 
+import java.io.IOException;
 import java.net.Inet4Address;
 import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
+import java.nio.file.Paths;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
@@ -27,7 +29,9 @@ import io.netty.handler.codec.dns.DnsSection;
 import io.netty.resolver.dns.DnsNameResolver;
 import io.netty.resolver.dns.DnsNameResolverBuilder;
 import io.netty.resolver.dns.DnsNameResolverException;
+import io.netty.resolver.dns.DnsServerAddressStreamProviders;
 import io.netty.resolver.dns.SingletonDnsServerAddressStreamProvider;
+import io.netty.resolver.dns.UnixResolverDnsServerAddressStreamProvider;
 import io.netty.util.ReferenceCounted;
 import io.netty.util.concurrent.Future;
 import loghub.AsyncProcessor;
@@ -103,6 +107,12 @@ public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<Dn
     private static final VarFormatter reverseFormatV6 = new VarFormatter("${#1%x}.${#2%x}.");
 
     @Getter @Setter
+    private boolean defaultResolver = true;
+    @Getter @Setter
+    private String etcResolvConf = null;
+    @Getter @Setter
+    private String etcResolverDir = null;
+    @Getter @Setter
     private String resolver = null;
     @Getter @Setter
     private int cacheSize = 10000;
@@ -120,18 +130,42 @@ public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<Dn
                         .socketChannelFactory(POLLER.DEFAULTPOLLER::clientChannelProvider)
                         ;
         InetSocketAddress resolverAddr = null;
-        if (getResolver() != null) {
+        Object parent = null;
+        if (etcResolvConf != null && etcResolverDir == null) {
+            try {
+                builder = builder.nameServerProvider(new UnixResolverDnsServerAddressStreamProvider(Paths.get(etcResolvConf).toFile()));
+                parent = etcResolvConf;
+            } catch (IOException ex) {
+                logger.error("Unusable resolv.conf {}: {}", etcResolvConf, Helpers.resolveThrowableException(ex));
+                return false;
+            }
+        } else if (etcResolvConf != null && etcResolverDir != null) {
+            try {
+                builder = builder.nameServerProvider(new UnixResolverDnsServerAddressStreamProvider(etcResolvConf, etcResolverDir));
+                parent = etcResolvConf + "/" + etcResolverDir;
+            } catch (IOException ex) {
+                logger.error("Unusable resolv.conf/resolvers dir {}/{}: {}", etcResolvConf, etcResolverDir, Helpers.resolveThrowableException(ex));
+                return false;
+            }
+        } else if (resolver != null) {
             try {
                 resolverAddr = new InetSocketAddress(InetAddress.getByName(getResolver()), 53);
                 builder = builder.nameServerProvider(new SingletonDnsServerAddressStreamProvider(resolverAddr));
+                parent = resolverAddr;
             } catch (UnknownHostException e) {
                 logger.error("Unknown resolver '{}': {}", getResolver(), e.getMessage());
                 return false;
             }
+        } else if (defaultResolver) {
+            builder = builder.nameServerProvider(DnsServerAddressStreamProviders.platformDefault());
+            parent = "platformDefault";
+        } else {
+            logger.error("No resolver enabled");
+            return false;
         }
         dnsResolver = builder.build();
         hostCache = properties.cacheManager.getBuilder(DnsCacheKey.class, DnsCacheEntry.class)
-                        .setName("NameResolver", resolverAddr != null ? resolverAddr : "default")
+                        .setName("NameResolver", parent)
                         .setCacheSize(cacheSize)
                         .build();
 
@@ -233,7 +267,7 @@ public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<Dn
         if (ex instanceof DnsNameResolverException) {
             return false;
         } else {
-            throw event.buildException("name resolution failed: " + ex.getMessage(), ex);
+            throw event.buildException("name resolution failed: " + Helpers.resolveThrowableException(ex), ex);
         }
     }
 
