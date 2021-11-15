@@ -31,7 +31,7 @@ import loghub.decoders.DecodeException.RuntimeDecodeException;
 import loghub.metrics.Stats;
 import loghub.decoders.Decoder;
 import loghub.decoders.TextDecoder;
-import loghub.netty.AbstractHttp;
+import loghub.netty.AbstractHttpReceiver;
 import loghub.netty.http.ContentType;
 import loghub.netty.http.HttpRequestFailure;
 import loghub.netty.http.HttpRequestProcessing;
@@ -44,7 +44,7 @@ import lombok.Setter;
 @Blocking(true)
 @SelfDecoder
 @BuilderClass(Http.Builder.class)
-public class Http extends AbstractHttp {
+public class Http extends AbstractHttpReceiver {
 
     @NoCache
     @RequestAccept(methods= {"GET", "PUT", "POST"})
@@ -122,7 +122,7 @@ public class Http extends AbstractHttp {
 
     }
 
-    public static class Builder extends AbstractHttp.Builder<Http> {
+    public static class Builder extends AbstractHttpReceiver.Builder<Http> {
         @Setter
         private Map<String, Decoder> decoders = Collections.emptyMap();
 

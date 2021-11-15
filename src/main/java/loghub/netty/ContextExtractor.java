@@ -9,7 +9,7 @@ import io.netty.util.ReferenceCounted;
 
 @Sharable
 public class ContextExtractor<SM> extends MessageToMessageDecoder<SM> {
-    
+
     public static final String NAME = "SourceResolver";
 
     private final NettyReceiver<?, ?, ?, ?, ?, ?, ?, ?, ?, SM> r;
@@ -34,4 +34,5 @@ public class ContextExtractor<SM> extends MessageToMessageDecoder<SM> {
         }
         out.add(msg);
     }
+
 }

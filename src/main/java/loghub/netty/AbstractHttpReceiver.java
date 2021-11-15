@@ -10,18 +10,18 @@ import loghub.netty.http.HttpRequestProcessing;
 import loghub.receivers.Blocking;
 
 @Blocking(true)
-public abstract class AbstractHttp extends AbstractTcpReceiver<AbstractHttp, AbstractHttp.HttpReceiverServer, AbstractHttp.HttpReceiverServer.Builder, HttpMessage> {
+public abstract class AbstractHttpReceiver extends AbstractTcpReceiver<AbstractHttpReceiver, AbstractHttpReceiver.HttpReceiverServer, AbstractHttpReceiver.HttpReceiverServer.Builder, HttpMessage> {
 
     protected static class HttpReceiverServer extends AbstractHttpServer<HttpReceiverServer, HttpReceiverServer.Builder> {
 
         public static class Builder extends AbstractHttpServer.Builder<HttpReceiverServer, Builder> {
             HttpRequestProcessing requestProcessor;
-            AbstractHttp receiver;
+            AbstractHttpReceiver receiver;
             public Builder setReceiveHandler(HttpRequestProcessing requestProcessor) {
                 this.requestProcessor = requestProcessor;
                 return this;
             }
-            public Builder setReceiver(AbstractHttp receiver) {
+            public Builder setReceiver(AbstractHttpReceiver receiver) {
                 this.receiver = receiver;
                 return this;
             }
@@ -45,16 +45,16 @@ public abstract class AbstractHttp extends AbstractTcpReceiver<AbstractHttp, Abs
                 p.addLast("Authentication", new AccessControl(getAuthHandler()));
                 logger.debug("Added authentication");
             }
-            p.addLast(ContextExtractor.NAME, resolver);
+            p.addBefore("HttpObjectAggregator", ContextExtractor.NAME, resolver);
             p.addLast("RequestProcessor", requestProcessor);
         }
 
     }
 
-    public static abstract class Builder<B extends AbstractHttp> extends AbstractTcpReceiver.Builder<B> {
+    public static abstract class Builder<B extends AbstractHttpReceiver> extends AbstractTcpReceiver.Builder<B> {
     };
 
-    protected AbstractHttp(Builder<? extends AbstractHttp>  builder) {
+    protected AbstractHttpReceiver(Builder<? extends AbstractHttpReceiver>  builder) {
         super(builder);
     }
 
@@ -69,7 +69,7 @@ public abstract class AbstractHttp extends AbstractTcpReceiver<AbstractHttp, Abs
         return super.configure(properties, builder);
     }
 
-    protected void settings(loghub.netty.AbstractHttp.HttpReceiverServer.Builder builder) {
+    protected void settings(loghub.netty.AbstractHttpReceiver.HttpReceiverServer.Builder builder) {
         // Empty
     }
 

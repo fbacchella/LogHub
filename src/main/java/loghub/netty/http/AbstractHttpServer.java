@@ -60,7 +60,7 @@ public abstract class AbstractHttpServer<S extends AbstractHttpServer<S, B>,
     public void addHandlers(ChannelPipeline p) {
         p.addLast("HttpServerCodec", new HttpServerCodec());
         p.addLast("httpKeepAlive", new HttpServerKeepAliveHandler());
-        p.addLast("HttpContentCompressor", new HttpContentCompressor(9, 15, 8));
+        p.addLast("HttpContentCompressor", new HttpContentCompressor());
         p.addLast("ChunkedWriteHandler", new ChunkedWriteHandler());
         p.addLast("HttpObjectAggregator", aggregatorSupplier.get());
         try {

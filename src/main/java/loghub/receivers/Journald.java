@@ -35,7 +35,7 @@ import loghub.BuilderClass;
 import loghub.Event;
 import loghub.decoders.DecodeException;
 import loghub.metrics.Stats;
-import loghub.netty.AbstractHttp;
+import loghub.netty.AbstractHttpReceiver;
 import loghub.netty.http.ContentType;
 import loghub.netty.http.HttpRequestFailure;
 import loghub.netty.http.HttpRequestProcessing;
@@ -44,7 +44,7 @@ import loghub.netty.http.RequestAccept;
 @Blocking
 @SelfDecoder
 @BuilderClass(Journald.Builder.class)
-public class Journald extends AbstractHttp {
+public class Journald extends AbstractHttpReceiver {
 
     private static final AttributeKey<Boolean> VALIDJOURNALD = AttributeKey.newInstance(Journald.class.getCanonicalName() + "." + Boolean.class.getName());
     private static final AttributeKey<List<Event>> EVENTS = AttributeKey.newInstance(Journald.class.getCanonicalName() + "." + List.class.getName());
@@ -87,7 +87,7 @@ public class Journald extends AbstractHttp {
     private static final Pattern ANSIPATTERN = Pattern.compile("\u001B\\[[;\\d]*[ -/]*[@-~]");
 
     /**
-     * This aggregator swallows valid journald events, that are sended as chunk by systemd-journal-upload
+     * This aggregator swallows valid journald events, that are sent as chunk by systemd-journal-upload
      * Other parts (the header) and non-valid requests are forwarded as-is, to be handled by the usual processing
      * @author Fabrice Bacchella
      *
@@ -256,6 +256,8 @@ public class Journald extends AbstractHttp {
                 eventVars.get(USERDFIELDS).clear();
                 eventVars.get(TRUSTEDFIELDS).clear();
                 events.add(e);
+            } else {
+                Journald.this.logger.warn("No journald event {}", eventVars);
             }
         }
 
@@ -290,7 +292,7 @@ public class Journald extends AbstractHttp {
 
     }
 
-    public static class Builder extends AbstractHttp.Builder<Journald> {
+    public static class Builder extends AbstractHttpReceiver.Builder<Journald> {
         @Override
         public Journald build() {
             return new Journald(this);
