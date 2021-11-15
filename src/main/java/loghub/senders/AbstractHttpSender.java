@@ -16,7 +16,9 @@ import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 import javax.management.InstanceAlreadyExistsException;
@@ -31,11 +33,11 @@ import javax.management.StandardMBean;
 
 import org.apache.hc.client5.http.HttpHostConnectException;
 import org.apache.hc.client5.http.HttpRoute;
-import org.apache.hc.client5.http.auth.AuthScope;
-import org.apache.hc.client5.http.auth.CredentialsStore;
+import org.apache.hc.client5.http.auth.AuthScheme;
+import org.apache.hc.client5.http.auth.Credentials;
 import org.apache.hc.client5.http.auth.UsernamePasswordCredentials;
 import org.apache.hc.client5.http.config.RequestConfig;
-import org.apache.hc.client5.http.impl.auth.BasicCredentialsProvider;
+import org.apache.hc.client5.http.impl.auth.BasicScheme;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
 import org.apache.hc.client5.http.impl.classic.HttpClientBuilder;
@@ -128,7 +130,7 @@ public abstract class AbstractHttpSender extends Sender {
 
     protected enum ContentType {
 
-        APPLICATION_OCTET_STREAM (org.apache.hc.core5.http.ContentType.APPLICATION_OCTET_STREAM ),
+        APPLICATION_OCTET_STREAM(org.apache.hc.core5.http.ContentType.APPLICATION_OCTET_STREAM),
         APPLICATION_JSON(org.apache.hc.core5.http.ContentType.APPLICATION_JSON),
         TEXT_XML(org.apache.hc.core5.http.ContentType.TEXT_XML);
 
@@ -241,10 +243,11 @@ public abstract class AbstractHttpSender extends Sender {
     }
 
     private final int timeout;
-    private final CredentialsStore credsProvider;
+    private final AuthScheme defaultAuth;
 
     private CloseableHttpClient client = null;
     protected final URL[] endPoints;
+    private final Map<URL, HttpHost> hosts;
 
     public AbstractHttpSender(Builder<? extends AbstractHttpSender> builder) {
         super(builder);
@@ -253,13 +256,19 @@ public abstract class AbstractHttpSender extends Sender {
         // Two names for login/user
         String user = builder.user != null ? builder.user : builder.login;
         if (user != null && builder.password != null) {
-            credsProvider = new BasicCredentialsProvider();
-            for (URL i: endPoints) {
-                credsProvider.setCredentials(new AuthScope(i.getHost(), i.getPort()), 
-                                             new UsernamePasswordCredentials(user, builder.password.toCharArray()));
-            }
+            BasicScheme basicAuth = new BasicScheme();
+            Credentials creds = new UsernamePasswordCredentials(user, builder.password.toCharArray());
+            basicAuth.initPreemptive(creds);
+            defaultAuth = basicAuth;
         } else {
-            credsProvider = null;
+            defaultAuth = null;
+        }
+        hosts = new ConcurrentHashMap<>(endPoints.length);
+        for (URL u: endPoints) {
+            HttpHost host = new HttpHost(u.getProtocol(),
+                         u.getHost(),
+                         u.getPort());
+            hosts.put(u, host);
         }
     }
 
@@ -286,7 +295,7 @@ public abstract class AbstractHttpSender extends Sender {
                                                         .build())
                     .setValidateAfterInactivity(TimeValue.ofSeconds(1))
                     .setConnPoolPolicy(PoolReusePolicy.FIFO);
-            
+
             if (properties.ssl != null) {
                 cmBuilder.setSSLSocketFactory(SSLConnectionSocketFactoryBuilder.create()
                          .setSslContext(properties.ssl)
@@ -325,12 +334,15 @@ public abstract class AbstractHttpSender extends Sender {
 
     protected HttpResponse doRequest(HttpRequest therequest) {
         HttpClientContext context = HttpClientContext.create();
-        if (credsProvider != null) {
-            context.setCredentialsProvider(credsProvider);
+
+        HttpHost host = hosts.computeIfAbsent(therequest.url, u -> {
+           return new HttpHost(u.getProtocol(),
+                               u.getHost(),
+                               u.getPort());
+        });
+        if (defaultAuth != null) {
+            context.resetAuthExchange(host, defaultAuth);
         }
-        HttpHost host = new HttpHost(therequest.url.getProtocol(),
-                therequest.url.getHost(),
-                therequest.url.getPort());
         Method method = Method.valueOf(therequest.verb.toUpperCase(Locale.ENGLISH));
         ClassicHttpRequest request = new BasicClassicHttpRequest(method, host, therequest.url.getFile());
         if (therequest.content != null) {
@@ -338,6 +350,7 @@ public abstract class AbstractHttpSender extends Sender {
         }
         therequest.headers.forEach(request::addHeader);
         try {
+            // Don't close CloseableHttpResponse, it's handle by HttpResponse
             CloseableHttpResponse response = client.execute(host, request, context);
             return new HttpResponse(host, response, null, null);
         } catch (HttpHostConnectException e) {
