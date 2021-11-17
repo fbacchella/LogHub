@@ -17,11 +17,15 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import io.netty.util.ByteProcessor;
 import io.netty.util.ByteProcessor.IndexOfProcessor;
+import loghub.BuilderClass;
 import loghub.ConnectionContext;
 import loghub.Event;
+import lombok.Data;
 
+@BuilderClass(JournaldExport.Builder.class)
 public class JournaldExport extends Decoder {
 
     public static class Builder extends Decoder.Builder<JournaldExport> {
@@ -45,6 +49,7 @@ public class JournaldExport extends Decoder {
         }
     };
 
+    @Data
     private static class EventVars {
         final HashMap<String, Object> userFields = new HashMap<String, Object>();
         final HashMap<String, Object> trustedFields = new HashMap<String, Object>();
@@ -72,6 +77,12 @@ public class JournaldExport extends Decoder {
     }
 
     @Override
+    protected Object decodeObject(ConnectionContext<?> connectionContext, byte[] msg, int offset, int length) throws DecodeException {
+        ByteBuf buffer = Unpooled.wrappedBuffer(msg, offset, length);
+        return decodeObject(connectionContext, buffer);
+    }
+
+    @Override
     public Object decodeObject(ConnectionContext<?> ctx, ByteBuf chunksBuffer) throws DecodeException {
         List<Event> events = new ArrayList<Event>();
         EventVars eventVars = threadEventVars.get();
@@ -86,7 +97,7 @@ public class JournaldExport extends Decoder {
             chunksBuffer.readByte();
             if (eolPos == 0) {
                 // An empty line, event separator
-                events.add(newEvent(ctx, eventVars));
+                Optional.ofNullable(newEvent(ctx, eventVars)).ifPresent(events::add);
             } else {
                 // Fields are extracted in place, to avoid many useless strings copy
 
@@ -118,7 +129,7 @@ public class JournaldExport extends Decoder {
                 } else {
                     // A binary field
                     int size = -1;
-                    if (chunksBuffer.readableBytes() > 8 ) {
+                    if (chunksBuffer.readableBytes() > 8) {
                         long contentSize = chunksBuffer.readLongLE();
                         try {
                             size = Math.toIntExact(contentSize);
@@ -135,7 +146,7 @@ public class JournaldExport extends Decoder {
                             continue;
                         } else {
                             // size includes the final LF
-                            Object value = readBinary(size - 1, chunksBuffer);
+                            Object value = readBinary(size, chunksBuffer);
                             // Read the EOL
                             chunksBuffer.readByte();
                             eventVars.get(userField).put(key, value);

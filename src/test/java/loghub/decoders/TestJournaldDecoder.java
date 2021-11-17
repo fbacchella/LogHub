@@ -3,7 +3,6 @@ package loghub.decoders;
 import java.beans.IntrospectionException;
 import java.io.IOException;
 import java.io.InputStream;
-import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -68,24 +67,25 @@ public class TestJournaldDecoder {
         check(events);
     }
 
+    @SuppressWarnings("unchecked")
     private void check(List<Map<String, Object>> events) {
         Assert.assertEquals(4, events.size());
         events.forEach(e -> Assert.assertTrue(e instanceof Event));
         Event ev = (Event) events.get(0);
         Assert.assertEquals(1637065000943L, ev.getTimestamp().getTime());
-        @SuppressWarnings("unchecked")
         String message = (String) ((Map<String, Object>)ev.get("fields_user")).get("message");
-        Assert.assertEquals("Upload to http://xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx failed: Send failure: Broken pipe", message);
-        @SuppressWarnings("unchecked")
+        Assert.assertEquals("Upload to http://xxxxxxxxxxxxxxxxxxxxxxxxxxxxx/upload failed: Send failure: Broken pipe", message);
         String uid = (String) ((Map<String, Object>)ev.get("fields_trusted")).get("uid");
         Assert.assertEquals("461", uid);
 
         // Checks the last event
         ev = (Event) events.get(3);
         Assert.assertEquals(1637065006095L, ev.getTimestamp().getTime());
+        events.forEach(e -> Assert.assertFalse(((Map<String, Object>)e.get("fields_trusted")).containsKey("realtime_timestamp")));
+        events.forEach(e -> Assert.assertFalse(((Map<String, Object>)e.get("fields_trusted")).containsKey("source_realtime_timestamp")));
     }
 
-    public void test_loghub_decoders_JournaldExport() throws ClassNotFoundException, IntrospectionException, InvocationTargetException {
+    public void test_loghub_decoders_JournaldExport() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.decoders.JournaldExport");
     }
 
