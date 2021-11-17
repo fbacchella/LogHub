@@ -4,6 +4,7 @@ import java.beans.IntrospectionException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -83,6 +84,11 @@ public class TestJournaldDecoder {
         Assert.assertEquals(1637065006095L, ev.getTimestamp().getTime());
         events.forEach(e -> Assert.assertFalse(((Map<String, Object>)e.get("fields_trusted")).containsKey("realtime_timestamp")));
         events.forEach(e -> Assert.assertFalse(((Map<String, Object>)e.get("fields_trusted")).containsKey("source_realtime_timestamp")));
+        
+        events.stream().map(e -> (Event) e)
+                       .map(Event::getTimestamp)
+                       .map(Date::getTime)
+                       .forEach(i -> Assert.assertTrue(i <= 1637065006095L));
     }
 
     public void test_loghub_decoders_JournaldExport() throws IntrospectionException, ReflectiveOperationException {

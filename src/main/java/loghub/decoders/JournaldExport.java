@@ -41,6 +41,15 @@ public class JournaldExport extends Decoder {
 
     private static final String TRUSTEDFIELDS = "fields_trusted";
     private static final String USERDFIELDS = "fields_user";
+    
+    // Four fields stores a time stamp in journald, only REALTIME one one are usefull
+    // trusted journal fields
+    private static final String TIMESTAMP_SM = "SOURCE_MONOTONIC_TIMESTAMP".toLowerCase(Locale.ENGLISH);
+    private static final String TIMESTAMP_SR = "SOURCE_REALTIME_TIMESTAMP".toLowerCase(Locale.ENGLISH);
+    // Address fields
+    // MONOTONIC_TIMESTAMP is skipped any way, it's an address field
+    private static final String TIMESTAMP_R = "REALTIME_TIMESTAMP".toLowerCase(Locale.ENGLISH);
+
     private static final ByteProcessor FIND_EQUAL = new IndexOfProcessor((byte)'=');
     private static final ByteProcessor NON_UNDERSCORE = new ByteProcessor() {
         @Override
@@ -116,10 +125,11 @@ public class JournaldExport extends Decoder {
                 if (equalPos > 0) {
                     // '=' found, simple key value case
 
-                    if (startKey == 2 && ! "realtime_timestamp".equals(key)) {
-                        // fields starting with __ are privates, skip them
+                    if ((startKey == 2 && ! TIMESTAMP_R.equals(key)) || TIMESTAMP_SM.equals(key)) {
+                        // fields starting with __ are address fields, skip them
                         // but we keep __REALTIME_TIMESTAMP, as _SOURCE_REALTIME_TIMESTAMP is
                         // not always present
+                        // _SOURCE_MONOTONIC_TIMESTAMP is useless too
                         continue;
                     }
                     // A equal was found, a simple textual field
@@ -197,10 +207,10 @@ public class JournaldExport extends Decoder {
     private Event newEvent(ConnectionContext<?> ctx, EventVars eventVars) {
         if (! eventVars.trustedFields.isEmpty()) {
             Event e = Event.emptyEvent(ctx);
-            String timestampString = (String) Optional.ofNullable(eventVars.trustedFields.remove("source_realtime_timestamp"))
-                                                      .orElse(eventVars.trustedFields.remove("realtime_timestamp"));
-            // Ensure that realtime_timestamp is removed anyway
-            eventVars.trustedFields.remove("realtime_timestamp");
+            String timestampString = (String) Optional.ofNullable(eventVars.trustedFields.remove(TIMESTAMP_SR))
+                                                      .orElse(eventVars.trustedFields.remove(TIMESTAMP_R));
+            // Ensure that __REALTIME_TIMESTAMP is always removed
+            eventVars.trustedFields.remove(TIMESTAMP_R);
             if (timestampString != null) {
                 long timestamp = Long.parseLong(timestampString);
                 long seconds = Math.floorDiv(timestamp, (long)1e6);
