@@ -186,8 +186,6 @@ public class JournaldExport extends Decoder {
     private Event newEvent(ConnectionContext<?> ctx, EventVars eventVars) {
         if (! eventVars.trustedFields.isEmpty()) {
             Event e = Event.emptyEvent(ctx);
-            e.put(USERDFIELDS, new HashMap<String, Object>(eventVars.userFields));
-            e.put(TRUSTEDFIELDS, new HashMap<String, Object>(eventVars.trustedFields));
             String timestampString = (String) Optional.ofNullable(eventVars.trustedFields.remove("source_realtime_timestamp"))
                                                       .orElse(eventVars.trustedFields.remove("realtime_timestamp"));
             // Ensure that realtime_timestamp is removed anyway
@@ -198,6 +196,8 @@ public class JournaldExport extends Decoder {
                 long nano = (timestamp % (long)1e6) * 1000L;
                 e.setTimestamp(Instant.ofEpochSecond(seconds, nano));
             }
+            e.put(USERDFIELDS, new HashMap<String, Object>(eventVars.userFields));
+            e.put(TRUSTEDFIELDS, new HashMap<String, Object>(eventVars.trustedFields));
             eventVars.clear();
             return e;
         } else {
