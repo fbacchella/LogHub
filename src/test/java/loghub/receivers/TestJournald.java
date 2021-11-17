@@ -1,9 +1,15 @@
 package loghub.receivers;
 
 import java.beans.IntrospectionException;
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.lang.reflect.InvocationTargetException;
+import java.net.HttpURLConnection;
 import java.net.InetAddress;
+import java.net.URL;
 import java.util.Collections;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -67,10 +73,37 @@ public class TestJournald {
         receiver.start();
         return receiver;
     }
-    
+
     @Test
-    public void testStart() throws IOException {
-        makeReceiver( i -> {}, Collections.emptyMap());
+    public void testStart() throws Exception {
+        try (Journald r = makeReceiver(i -> {}, Collections.emptyMap())) {
+            URL journaldURL = new URL("http://localhost:" + port + "/upload");
+            HttpURLConnection cnx = (HttpURLConnection) journaldURL.openConnection();
+            cnx.setChunkedStreamingMode(1024);
+            cnx.setRequestMethod("POST");
+            cnx.setRequestProperty("Content-Type", "application/vnd.fdo.journal");
+            cnx.setDoOutput(true);
+            byte[] buf = new byte[4096];
+            try (OutputStream os = cnx.getOutputStream();
+                InputStream is = getClass().getClassLoader().getResourceAsStream("binaryjournald")) {
+                int len;
+                while ((len = is.read(buf))>0){
+                    os.write(buf, 0, len);
+                }
+            }
+            try (InputStreamReader is = new InputStreamReader(cnx.getInputStream(), "utf-8");
+                 BufferedReader br = new BufferedReader(is);
+                ) {
+                      StringBuilder response = new StringBuilder();
+                      String responseLine = null;
+                      while ((responseLine = br.readLine()) != null) {
+                          response.append(responseLine.trim());
+                      }
+                      Assert.assertEquals("OK.", response.toString());
+            }
+            Assert.assertEquals(4, queue.size());
+            // The events content is not tested, already done with the JournaldExport decoder
+        }
     }
 
     @Test

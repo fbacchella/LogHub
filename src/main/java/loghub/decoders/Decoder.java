@@ -106,7 +106,9 @@ public abstract class Decoder {
     }
 
     private Map<String, Object> decodeMap(ConnectionContext<?> ctx, Object o) throws DecodeException {
-        if (o instanceof Map) {
+        if (o instanceof Event) {
+            return (Event) o;
+        } else if (o instanceof Map) {
             @SuppressWarnings("unchecked")
             Map<Object, Object> map = (Map<Object, Object>) o;
             Map<String, Object> newMap = new HashMap<>(map.size());
