@@ -36,7 +36,7 @@ public class IpfixInformationElementsTest {
             values.computeIfAbsent("Data Type Semantics", (i) -> new HashSet<>()).add(v.semantics);
             values.computeIfAbsent("Status", (i) -> new HashSet<>()).add(v.semantics);
             values.computeIfAbsent("Units", (i) -> new HashSet<>()).add(v.units);
-            values.computeIfAbsent("Requester", (i) -> new HashSet<>()).add(v.requester);
+            values.computeIfAbsent("Additional Information", (i) -> new HashSet<>()).add(v.additional);
         });
         Assert.assertNotEquals(0, values.size());
         values.forEach((i, j) -> {

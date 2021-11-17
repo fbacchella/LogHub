@@ -6,25 +6,33 @@ import java.io.Reader;
 import java.io.UncheckedIOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.StringJoiner;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
-import org.apache.commons.csv.CSVFormat;
-import org.apache.commons.csv.CSVRecord;
+import com.fasterxml.jackson.annotation.JsonPropertyOrder;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.MappingIterator;
+import com.fasterxml.jackson.databind.ObjectReader;
+import com.fasterxml.jackson.dataformat.csv.CsvMapper;
+import com.fasterxml.jackson.dataformat.csv.CsvSchema;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.util.CharsetUtil;
+import loghub.jackson.JacksonBuilder;
+import lombok.Data;
 
 class IpfixInformationElements {
 
-    static class Element{
+    @Data
+    @JsonPropertyOrder({"elementId","name","type","semantics","status","description",
+                        "units","range","additional","references","revision","date"})
+    static class Element {
         public final int elementId;
         public final String name;
         public final String type;
@@ -33,25 +41,26 @@ class IpfixInformationElements {
         public final String description;
         public final String units;
         public final String range;
+        public final String additional;
         public final String references;
-        public final String requester;
         public final String revision;
         public final String date;
 
-        Element(Map<String, String> content) {
-            elementId = Integer.parseInt(content.get("ElementID"));
-            name = content.get("Name");
-            type = content.get("Abstract Data Type");
-            semantics = content.get("Data Type Semantics");
-            status = content.get("Status");
-            description = content.get("Description");
-            units = content.get("Units");
-            range = content.get("Range");
-            references = content.get("References");
-            requester = content.get("Requester");
-            revision = content.get("Revision");
-            date = content.get("Date");
+        Element() {
+            elementId = 0;
+            this.name = "";
+            this.type = "";
+            this.semantics = "";
+            this.status = "";
+            this.description = "";
+            this.units = "";
+            this.range = "";
+            this.additional = "";
+            this.references = "";
+            this.revision = "";
+            this.date = "";
         }
+
     }
 
     private static class MacAddress {
@@ -95,37 +104,36 @@ class IpfixInformationElements {
 
     }
 
+    private static final ThreadLocal<byte[]> buffer4 = ThreadLocal.withInitial(() -> new byte[4]);
+    private static final ThreadLocal<byte[]> buffer16 = ThreadLocal.withInitial(() -> new byte[16]);
+
     // Downloaded from https://www.iana.org/assignments/ipfix/ipfix-information-elements.csv
     private static final String CSVSOURCE="ipfix-information-elements.csv";
-    private static final Pattern RANGEPATTERN = Pattern.compile("\\d+-\\d+");
 
     public final Map<Integer, Element> elements;
 
     public IpfixInformationElements() throws IOException {
-        Reader in = new InputStreamReader(getClass().getClassLoader().getResourceAsStream(CSVSOURCE));
-        Iterable<CSVRecord> records = CSVFormat.RFC4180.builder()
-                                                       .setHeader()
-                                                       .setSkipHeaderRecord(true)
-                                                       .build()
-                                                       .parse(in);
-        Map<Integer, Element> buildElements = new HashMap<>();
-        Matcher mtch = RANGEPATTERN.matcher("");
-        for (CSVRecord record : records) {
-            if (mtch.reset(record.get(0)).matches()) {
-                continue;
+        CsvMapper mapper = JacksonBuilder.get(CsvMapper.class).getMapper();
+        CsvSchema elementSchema = mapper.schemaFor(Element.class).withHeader();
+        ObjectReader csvReader = mapper.readerFor(Element.class).with(elementSchema);
+        try (Reader in = new InputStreamReader(getClass().getClassLoader().getResourceAsStream(CSVSOURCE), StandardCharsets.US_ASCII)) {
+            Map<Integer, Element> buildElements = new HashMap<>();
+            MappingIterator<Element> i = csvReader.readValues(in);
+            while (i.hasNextValue()) {
+                try {
+                    Element e = i.nextValue();
+                    buildElements.put(e.elementId, e);
+                } catch (JsonMappingException ex) {
+                    // skip failing lines
+                }
             }
-            Element e = new Element(record.toMap());
-            buildElements.put(e.elementId, e);
+            elements = Collections.unmodifiableMap(buildElements);
         }
-        elements = Collections.unmodifiableMap(buildElements);
     }
 
     public String getName(int i) {
         return elements.containsKey(i) ? elements.get(i).name : Integer.toString(i);
     }
-
-    private static final ThreadLocal<byte[]> buffer4 = ThreadLocal.withInitial(() -> new byte[4]);
-    private static final ThreadLocal<byte[]> buffer16 = ThreadLocal.withInitial(() -> new byte[16]);
 
     public Object getValue(int i, ByteBuf bbuf) {
         try {
@@ -141,13 +149,27 @@ class IpfixInformationElements {
             } else if ("ipv6Address".equals(e.type) && bbuf.isReadable(16)) {
                 bbuf.readBytes(buffer16.get());
                 return InetAddress.getByAddress(buffer16.get());
+            } else if ("dateTimeSeconds".equals(e.type)) {
+                long value = readNumValue(bbuf);
+                return Instant.ofEpochSecond(value);
             } else if ("dateTimeMilliseconds".equals(e.type)) {
                 long value = readNumValue(bbuf);
-                return new Date(value);
+                return Instant.ofEpochMilli(value);
+            } else if ("dateTimeMicroseconds".equals(e.type)) {
+                long value = readNumValue(bbuf);
+                return Instant.ofEpochSecond(0, value * 1000);
+            } else if ("dateTimeNanoseconds".equals(e.type)) {
+                long value = readNumValue(bbuf);
+                return Instant.ofEpochSecond(0, value);
+            } else if ("float64".equals(e.type) && bbuf.isReadable(8)) {
+                return bbuf.readDouble();
             } else if (e.type.startsWith("unsigned")) {
                 return readUnsignedNumValue(bbuf);
             } else if (e.type.startsWith("signed")) {
                 return readNumValue(bbuf);
+            } else if ("boolean".equals(e.type) && bbuf.isReadable(8)) {
+                byte value = bbuf.readByte();
+                return value == 1;
             } else if ("applicationId".equals(e.name)) {
                 byte[] buffer = new byte[bbuf.readableBytes()];
                 bbuf.readBytes(buffer);
@@ -162,13 +184,12 @@ class IpfixInformationElements {
                 bbuf.readBytes(buffer);
                 return buffer;
             } else if ("macAddress".equals(e.type) && bbuf.isReadable(6)) {
+                // newly allocated byte[] as it will be stored directly in MacAddress
                 byte[] buffer = new byte[6];
                 bbuf.readBytes(buffer);
                 return new MacAddress(buffer);
             } else if ("string".equals(e.type)) {
-                byte[] buffer = new byte[bbuf.readableBytes()];
-                bbuf.readBytes(buffer);
-                return new String(buffer, CharsetUtil.UTF_8);
+                return bbuf.toString(CharsetUtil.UTF_8);
             } else {
                 throw new RuntimeException("unmannage type: " + e.name);
             }
