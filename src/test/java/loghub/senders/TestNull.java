@@ -2,7 +2,6 @@ package loghub.senders;
 
 import java.beans.IntrospectionException;
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
 import java.util.Collections;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.Semaphore;
@@ -87,7 +86,7 @@ public class TestNull {
     }
 
     @Test
-    public void testBeans() throws ClassNotFoundException, IntrospectionException, InvocationTargetException {
+    public void testBeans() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.senders.Null"
                               , BeanInfo.build("workers", Integer.TYPE)
                               , BeanInfo.build("batchSize", Integer.TYPE)

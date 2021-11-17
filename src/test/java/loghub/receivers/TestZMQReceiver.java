@@ -3,7 +3,6 @@ package loghub.receivers;
 import java.beans.IntrospectionException;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -154,7 +153,7 @@ public class TestZMQReceiver {
     }
 
     @Test
-    public void testBeans() throws ClassNotFoundException, IntrospectionException, InvocationTargetException {
+    public void testBeans() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.receivers.ZMQ"
                               , BeanInfo.build("method", String.class)
                               , BeanInfo.build("listen", String.class)

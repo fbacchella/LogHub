@@ -91,6 +91,7 @@ public class TestJournaldDecoder {
                        .forEach(i -> Assert.assertTrue(i <= 1637065006095L));
     }
 
+    @Test
     public void test_loghub_decoders_JournaldExport() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.decoders.JournaldExport");
     }

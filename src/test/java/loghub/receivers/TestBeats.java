@@ -3,7 +3,6 @@ package loghub.receivers;
 import java.beans.IntrospectionException;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.lang.reflect.InvocationTargetException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
@@ -228,7 +227,7 @@ public class TestBeats {
     }
 
     @Test
-    public void test_loghub_receivers_Beats() throws ClassNotFoundException, IntrospectionException, InvocationTargetException {
+    public void test_loghub_receivers_Beats() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.receivers.Beats"
                               , BeanInfo.build("timeStampField", String.class)
                               , BeanInfo.build("filter", Filter.class)

@@ -4,7 +4,6 @@ import java.beans.IntrospectionException;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.lang.reflect.InvocationTargetException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -190,7 +189,7 @@ public class TestZMQSender {
     }
 
     @Test
-    public void testBeans() throws ClassNotFoundException, IntrospectionException, InvocationTargetException {
+    public void testBeans() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.senders.ZMQ"
                               , BeanInfo.build("method", String.class)
                               , BeanInfo.build("destination", String.class)

@@ -2,7 +2,6 @@ package loghub.receivers;
 
 import java.beans.IntrospectionException;
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
@@ -200,7 +199,7 @@ public class TestUdp {
     }
 
     @Test
-    public void testBeans() throws ClassNotFoundException, IntrospectionException, InvocationTargetException {
+    public void testBeans() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.receivers.Udp"
                               , BeanInfo.build("host", String.class)
                               , BeanInfo.build("port", Integer.TYPE)

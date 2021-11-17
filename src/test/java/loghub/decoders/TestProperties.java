@@ -2,7 +2,6 @@ package loghub.decoders;
 
 import java.beans.IntrospectionException;
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
@@ -59,7 +58,7 @@ public class TestProperties {
     }
 
     @Test
-    public void test_loghub_decoders_Properties() throws ClassNotFoundException, IntrospectionException, InvocationTargetException {
+    public void test_loghub_decoders_Properties() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.decoders.Properties"
                 , BeanInfo.build("keyValueSeparator", String.class)
                 , BeanInfo.build("pathSeparator", String.class)

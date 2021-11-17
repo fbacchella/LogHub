@@ -6,7 +6,6 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.StringReader;
 import java.io.UncheckedIOException;
-import java.lang.reflect.InvocationTargetException;
 import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -346,7 +345,7 @@ public class TestHttp {
     }
 
     @Test
-    public void test_loghub_receivers_Http() throws ClassNotFoundException, IntrospectionException, InvocationTargetException {
+    public void test_loghub_receivers_Http() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.receivers.Http"
                               , BeanInfo.build("decoders", Map.class)
                               , BeanInfo.build("useJwt", Boolean.TYPE)

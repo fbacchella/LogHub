@@ -2,7 +2,6 @@ package loghub.processors;
 
 import java.beans.IntrospectionException;
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
 import java.util.Collections;
 
 import org.apache.logging.log4j.Level;
@@ -49,7 +48,7 @@ public class TestParseCsv {
     }
 
     @Test
-    public void test_loghub_processors_ParseCsv() throws ClassNotFoundException, IntrospectionException, InvocationTargetException {
+    public void test_loghub_processors_ParseCsv() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.processors.ParseCsv"
                               , BeanChecks.BeanInfo.build("headers", BeanChecks.LSTRING)
                               , BeanChecks.BeanInfo.build("columnSeparator", Character.class)

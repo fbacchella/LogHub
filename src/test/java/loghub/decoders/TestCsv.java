@@ -2,7 +2,6 @@ package loghub.decoders;
 
 import java.beans.IntrospectionException;
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
@@ -73,7 +72,7 @@ public class TestCsv {
     }
 
     @Test
-    public void test_loghub_decoders_Csv() throws ClassNotFoundException, IntrospectionException, InvocationTargetException {
+    public void test_loghub_decoders_Csv() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.decoders.Csv"
                 , BeanChecks.BeanInfo.build("columns", BeanChecks.LSTRING)
                 , BeanChecks.BeanInfo.build("features", BeanChecks.LSTRING)

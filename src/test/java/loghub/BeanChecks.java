@@ -5,7 +5,8 @@ import static java.util.Locale.ENGLISH;
 import java.beans.IntrospectionException;
 import java.beans.PropertyDescriptor;
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Modifier;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -42,13 +43,17 @@ public class BeanChecks {
         LogUtils.setLevel(logger, Level.TRACE);
     }
 
-    public static void beansCheck(Logger callerLogger, String className, BeanInfo... beans) throws IntrospectionException, ClassNotFoundException, InvocationTargetException {
+    public static void beansCheck(Logger callerLogger, String className, BeanInfo... beans) throws ReflectiveOperationException, IntrospectionException {
         Class<? extends Object> testedClass = BeanChecks.class.getClassLoader().loadClass(className);
         // Tests that the abstract builder can resolver the Builder class if provided
         AbstractBuilder.resolve(testedClass);
         BuilderClass bca = testedClass.getAnnotation(BuilderClass.class);
         if (bca != null) {
             testedClass = bca.value();
+        } else {
+            Constructor<?> init = testedClass.getConstructor();
+            int mod = init.getModifiers();
+            Assert.assertTrue(Modifier.isPublic(mod));
         }
         for (BeanInfo bi: beans) {
             PropertyDescriptor bean;

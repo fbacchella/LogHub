@@ -3,7 +3,6 @@ package loghub.processors;
 import java.beans.IntrospectionException;
 import java.io.IOException;
 import java.io.StringReader;
-import java.lang.reflect.InvocationTargetException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URL;
@@ -267,7 +266,7 @@ public class TestNettyNameResolver {
     }
 
     @Test
-    public void test_loghub_processors_NettyNameResolver() throws ClassNotFoundException, IntrospectionException, InvocationTargetException {
+    public void test_loghub_processors_NettyNameResolver() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.processors.NettyNameResolver"
                               , BeanInfo.build("resolver", String.class)
                               , BeanInfo.build("etcResolvConf", String.class)

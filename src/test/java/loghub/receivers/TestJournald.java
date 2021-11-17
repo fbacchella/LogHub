@@ -6,7 +6,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
-import java.lang.reflect.InvocationTargetException;
 import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.URL;
@@ -107,7 +106,7 @@ public class TestJournald {
     }
 
     @Test
-    public void test_loghub_receivers_Journald() throws ClassNotFoundException, IntrospectionException, InvocationTargetException {
+    public void test_loghub_receivers_Journald() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.receivers.Journald"
                               , BeanInfo.build("useJwt", Boolean.TYPE)
                               , BeanInfo.build("user", String.class)
