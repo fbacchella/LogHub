@@ -28,18 +28,20 @@ import org.apache.logging.log4j.core.layout.PatternLayout;
 import org.apache.logging.log4j.message.Message;
 import org.apache.logging.log4j.util.StringBuilderFormattable;
 
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.json.JsonWriteFeature;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.MappingIterator;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 
 import loghub.ConnectionContext;
 import loghub.Event;
 import loghub.EventsProcessor;
 import loghub.Helpers;
+import loghub.jackson.JacksonBuilder;
 
 public class TestEventProcessing {
 
@@ -47,17 +49,13 @@ public class TestEventProcessing {
     public static final String APPENDERNAME = "eventtester";
     public static final Level LOGLEVEL = Level.INFO;
 
-    private static final JsonFactory factory = new JsonFactory();
-    private static final ThreadLocal<ObjectMapper> json = new ThreadLocal<ObjectMapper>() {
-        @Override
-        protected ObjectMapper initialValue() {
-            return new ObjectMapper(factory)
-                            .configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false)
-                            .configure(JsonGenerator.Feature.ESCAPE_NON_ASCII, true)
-                            .configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true)
-                            ;
-        }
-    };
+    private static final ObjectMapper jsonmapper = JacksonBuilder.get(JsonMapper.class)
+                                            .setConfigurator(m -> {
+                                                m.configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false)
+                                                 .configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true);
+                                            })
+                                            .feature(JsonWriteFeature.ESCAPE_NON_ASCII)
+                                            .getMapper();
 
     private static final class EventJsonFormatter implements Message, StringBuilderFormattable {
         private static final ThreadLocal<DateFormat> ISO8601 = ThreadLocal.withInitial(() -> new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ"));
@@ -74,7 +72,6 @@ public class TestEventProcessing {
             esjson.putAll(event);
             esjson.put("@timestamp", ISO8601.get().format(event.getTimestamp()));
 
-            ObjectMapper jsonmapper = json.get();
             try {
                 buffer.append(jsonmapper.writeValueAsString(esjson));
             } catch (JsonProcessingException e) {
@@ -117,8 +114,7 @@ public class TestEventProcessing {
             Thread t = new EventsProcessor(props.mainQueue, props.outputQueues, props.namedPipeLine, props.maxSteps, props.repository);
             t.start();
 
-            ObjectMapper mapper = new ObjectMapper(factory);
-            ObjectReader reader = mapper.reader().forType(Map.class);
+            ObjectReader reader = JacksonBuilder.get(JsonMapper.class).setTypeReference(new TypeReference<Map<?, ?>>() {}).getReader();
 
             MappingIterator<Map<String, Object>> i = reader.readValues(new InputStreamReader(System.in, "UTF-8"));
 
