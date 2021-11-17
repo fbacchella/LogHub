@@ -72,7 +72,7 @@ public class FileMap extends HashMap<Object, Object> implements Source {
             }
             boolean withHeaders;
             if ( key != null && value != null) {
-                fbuilder.setSkipHeaderRecord(true);
+                fbuilder.setHeader().setSkipHeaderRecord(true);
                 withHeaders = true;
             } else if (keyColumn > 0 && valueColumn > 0) {
                 fbuilder.setSkipHeaderRecord(false);
