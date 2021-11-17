@@ -103,7 +103,11 @@ class IpfixInformationElements {
 
     public IpfixInformationElements() throws IOException {
         Reader in = new InputStreamReader(getClass().getClassLoader().getResourceAsStream(CSVSOURCE));
-        Iterable<CSVRecord> records = CSVFormat.RFC4180.withFirstRecordAsHeader().parse(in);
+        Iterable<CSVRecord> records = CSVFormat.RFC4180.builder()
+                                                       .setHeader()
+                                                       .setSkipHeaderRecord(true)
+                                                       .build()
+                                                       .parse(in);
         Map<Integer, Element> buildElements = new HashMap<>();
         Matcher mtch = RANGEPATTERN.matcher("");
         for (CSVRecord record : records) {

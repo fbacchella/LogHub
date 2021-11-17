@@ -6,15 +6,15 @@ import java.net.URISyntaxException;
 import java.net.URLEncoder;
 
 import io.netty.buffer.Unpooled;
-import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelInboundHandler;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 
-public class GraphMetric extends HttpRequestProcessing implements ChannelHandler {
+public class GraphMetric extends HttpRequestProcessing implements ChannelInboundHandler {
 
     @Override
     public boolean acceptRequest(HttpRequest request) {

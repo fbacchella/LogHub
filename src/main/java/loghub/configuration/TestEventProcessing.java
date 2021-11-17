@@ -171,9 +171,9 @@ public class TestEventProcessing {
         }
         Layout<String> layout = PatternLayout.newBuilder().withPattern("%msg%n").withConfiguration(config).build();
         Appender jsonappender = ConsoleAppender.newBuilder()
-                        .withName(APPENDERNAME)
+                        .setName(APPENDERNAME)
                         .setTarget(ConsoleAppender.Target.SYSTEM_ERR)
-                        .withLayout(layout)
+                        .setLayout(layout)
                         .setConfiguration(config)
                         .build();
         jsonappender.start();

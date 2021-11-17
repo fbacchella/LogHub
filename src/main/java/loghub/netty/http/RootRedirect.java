@@ -3,8 +3,8 @@ package loghub.netty.http;
 import java.util.Date;
 
 import io.netty.buffer.Unpooled;
-import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelInboundHandler;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpRequest;
@@ -12,7 +12,7 @@ import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 
 @RequestAccept(path="/")
-public class RootRedirect extends HttpRequestProcessing implements ChannelHandler {
+public class RootRedirect extends HttpRequestProcessing implements ChannelInboundHandler {
 
     @Override
     protected void processRequest(FullHttpRequest request, ChannelHandlerContext ctx) throws HttpRequestFailure {

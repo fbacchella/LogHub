@@ -11,8 +11,8 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelInboundHandler;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
@@ -23,7 +23,7 @@ import lombok.Data;
 
 @ContentType("application/json; charset=utf-8")
 @NoCache
-public class GetMetric extends HttpRequestProcessing implements ChannelHandler {
+public class GetMetric extends HttpRequestProcessing implements ChannelInboundHandler {
 
     private static final ObjectWriter writer = JacksonBuilder.get(JsonMapper.class)
             .setConfigurator(om -> om.configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false))

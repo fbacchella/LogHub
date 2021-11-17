@@ -33,7 +33,7 @@ public class TestGroovy {
         try(GroovyClassLoader groovyClassLoader = new GroovyClassLoader()) {
             @SuppressWarnings("unchecked")
             Class<Script> theParsedClass = groovyClassLoader.parseClass(script);
-            Script groovyScript = theParsedClass.newInstance();
+            Script groovyScript = theParsedClass.getConstructor().newInstance();
             Binding groovyBinding = new Binding();
             Event event = new EventInstance(ConnectionContext.EMPTY);
             event.put("a", Collections.singletonMap("b", 1));

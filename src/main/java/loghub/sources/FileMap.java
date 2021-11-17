@@ -52,19 +52,19 @@ public class FileMap extends HashMap<Object, Object> implements Source {
 
     private Map<Object, Object> mapFromCsv() {
         try(Reader in = new FileReader(mappingFile)) {
-            CSVFormat format;
+            CSVFormat.Builder fbuilder;
             switch (csvFormat.toUpperCase()) {
             case "EXCEL":
-                format = CSVFormat.EXCEL;
+                fbuilder = CSVFormat.EXCEL.builder();
                 break;
             case "RFC4180":
-                format = CSVFormat.RFC4180;
+                fbuilder = CSVFormat.RFC4180.builder();
                 break;
             case "TDF":
-                format = CSVFormat.TDF;
+                fbuilder = CSVFormat.TDF.builder();
                 break;
             case "DEFAULT":
-                format = CSVFormat.DEFAULT;
+                fbuilder = CSVFormat.DEFAULT.builder();
                 break;
             default:
                 logger.error("Unknown CSV format name");
@@ -72,16 +72,16 @@ public class FileMap extends HashMap<Object, Object> implements Source {
             }
             boolean withHeaders;
             if ( key != null && value != null) {
-                format = format.withFirstRecordAsHeader();
+                fbuilder.setSkipHeaderRecord(true);
                 withHeaders = true;
             } else if (keyColumn > 0 && valueColumn > 0) {
-                format = format.withSkipHeaderRecord(false);
+                fbuilder.setSkipHeaderRecord(false);
                 withHeaders = false;
             } else {
                 logger.error("Neither column name or number defined");
                 return null;
             }
-            Iterable<CSVRecord> records = format.parse(in);
+            Iterable<CSVRecord> records = fbuilder.build().parse(in);
             Map<Object, Object> mapping = new HashMap<>();
             for (CSVRecord record : records) {
                 if (withHeaders) {
