@@ -37,7 +37,7 @@ public class TestJournald {
     static public void configure() throws IOException {
         Tools.configure();
         logger = LogManager.getLogger();
-        LogUtils.setLevel(logger, Level.TRACE, "loghub.receivers.Journald", "loghub.netty", "loghub.EventsProcessor", "loghub.security", "loghub.netty.http", "loghub.configuration");
+        LogUtils.setLevel(logger, Level.TRACE, "loghub.receivers.Journald", "loghub.netty", "loghub.decoders.JournaldExport");
     }
 
     private Journald receiver = null;

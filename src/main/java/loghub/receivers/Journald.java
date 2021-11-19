@@ -79,7 +79,7 @@ public class Journald extends AbstractHttpReceiver {
         }
 
         private void processStart(ChannelHandlerContext ctx, HttpObject msg, List<Object> out) throws Exception {
-            Journald.this.logger.debug("New journald post {}", msg);
+            Journald.this.logger.debug("New journald POST: {}", msg);
             HttpRequest headers = (HttpRequest) msg;
             String contentType = Optional.ofNullable(headers.headers().get("Content-Type")).orElse("");
             String uri = headers.uri().replace("//", "/");
@@ -122,6 +122,12 @@ public class Journald extends AbstractHttpReceiver {
             valid = false;
             ctx.channel().attr(VALIDJOURNALD).set(valid);
             events.clear();
+        }
+
+        @Override
+        public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+            decoder.channelInactive();
+            super.channelInactive(ctx);
         }
 
     }

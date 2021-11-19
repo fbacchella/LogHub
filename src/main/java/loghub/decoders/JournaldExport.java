@@ -91,6 +91,7 @@ public class JournaldExport extends Decoder {
 
     protected JournaldExport(Builder builder) {
         super(builder);
+        logger.debug("New journald export decoder");
     }
 
     @Override
@@ -225,12 +226,18 @@ public class JournaldExport extends Decoder {
             }
             e.put(USERDFIELDS, new HashMap<String, Object>(eventVars.userFields));
             e.put(TRUSTEDFIELDS, new HashMap<String, Object>(eventVars.trustedFields));
+            logger.trace("New event parsed: {}", e);
             eventVars.clear();
             return e;
         } else {
            logger.warn("Not a journald event {}", eventVars);
            return null;
         }
+    }
+
+    public void channelInactive() {
+        logger.debug("Channel is now inactive");
+        threadEventVars.remove();
     }
 
 }
