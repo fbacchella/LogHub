@@ -69,6 +69,9 @@ public class JournaldExport extends Decoder {
             userFields.clear();
             trustedFields.clear();
         }
+        boolean isEmpty (){
+            return userFields.isEmpty() && trustedFields.isEmpty();
+        }
     }
 
     private static final Pattern ANSIPATTERN = Pattern.compile("\u001B\\[[;\\d]*[ -/]*[@-~]");
@@ -77,7 +80,12 @@ public class JournaldExport extends Decoder {
         return StandardCharsets.UTF_8.newDecoder().onUnmappableCharacter(CodingErrorAction.REPORT).onMalformedInput(CodingErrorAction.REPORT);
     });
 
-    private static final ThreadLocal<EventVars> threadEventVars = ThreadLocal.withInitial( () -> {
+    /**
+     * When using as a decoder within a non Netty receiver, threads handle a single flow of events.
+     * When used within a HTTP Journald receiver, a single thread might process multiple HTTP connection. But the decoder is
+     * local, so it’s not shared either.
+     */
+    private final ThreadLocal<EventVars> threadEventVars = ThreadLocal.withInitial( () -> {
         return new EventVars();
     });
 
@@ -205,7 +213,7 @@ public class JournaldExport extends Decoder {
     }
 
     private Event newEvent(ConnectionContext<?> ctx, EventVars eventVars) {
-        if (! eventVars.trustedFields.isEmpty()) {
+        if (! eventVars.isEmpty()) {
             Event e = Event.emptyEvent(ctx);
             String timestampString = (String) Optional.ofNullable(eventVars.trustedFields.remove(TIMESTAMP_SR))
                                                       .orElse(eventVars.trustedFields.remove(TIMESTAMP_R));
@@ -213,16 +221,14 @@ public class JournaldExport extends Decoder {
             eventVars.trustedFields.remove(TIMESTAMP_R);
             if (timestampString != null) {
                 long timestamp = Long.parseLong(timestampString);
-                long seconds = Math.floorDiv(timestamp, (long)1e6);
-                long nano = (timestamp % (long)1e6) * 1000L;
-                e.setTimestamp(Instant.ofEpochSecond(seconds, nano));
+                e.setTimestamp(Instant.ofEpochSecond(0, timestamp * 1000));
             }
             e.put(USERDFIELDS, new HashMap<String, Object>(eventVars.userFields));
             e.put(TRUSTEDFIELDS, new HashMap<String, Object>(eventVars.trustedFields));
             eventVars.clear();
             return e;
         } else {
-           logger.warn("No journald event {}", eventVars);
+           logger.warn("Not a journald event {}", eventVars);
            return null;
         }
     }
