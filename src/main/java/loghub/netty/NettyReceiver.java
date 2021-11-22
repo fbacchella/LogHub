@@ -37,7 +37,7 @@ public abstract class NettyReceiver<R extends NettyReceiver<R, S, B, CF, BS, BSC
 
     public abstract static class Builder<B extends NettyReceiver<?, ?, ?, ?,?, ?, ?, ?, ?, ?>> extends Receiver.Builder<B> {
         @Setter
-        String poller = "NIO";
+        String poller = "DEFAULT";
         @Setter
         int workerThreads = 1;
     };
