@@ -279,10 +279,12 @@ class ConfigListener extends RouteBaseListener {
     @Override
     public void exitSecret(SecretContext ctx) {
         if (secrets == null) {
-            
+            throw new RecognitionException("No secrets source defined, but a secret used", parser, stream, ctx);
         } else {
             byte[] secret = secrets.get(ctx.id.getText());
-            if (ctx.SecretAttribute() == null || ! "blob".equals(ctx.SecretAttribute().getText())) {
+            if (secret == null) {
+                throw new RecognitionException("Unknown secret: " + ctx.id.getText(), parser, stream, ctx);
+            } else if (ctx.SecretAttribute() == null || ! "blob".equals(ctx.SecretAttribute().getText())) {
                 pushLiteral(ctx, new String(secret, StandardCharsets.UTF_8));
             } else {
                 pushLiteral(ctx, secret);
