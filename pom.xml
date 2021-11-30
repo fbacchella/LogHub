@@ -12,15 +12,15 @@
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
         <log4j>2.14.1</log4j>
-        <antlr>4.9.2</antlr>
+        <antlr>4.9.3</antlr>
         <jackson>2.13.0</jackson>
         <metrics>4.2.4</metrics>
-        <cache2k>2.2.1.Final</cache2k>
+        <cache2k>2.4.1.Final</cache2k>
         <mainClass>loghub.Start</mainClass>
         <surefire.version>3.0.0-M5</surefire.version>
         <cacheapi.version>1.1.1</cacheapi.version>
         <snmp4j.version>2.8.7</snmp4j.version>
-        <geoip2.version>2.15.0</geoip2.version>
+        <geoip2.version>2.16.1</geoip2.version>
         <dependency.locations.enabled>false</dependency.locations.enabled>
         <!-- Indirection needed to keep optionnal jacoco settings and external argument lines-->
         <arg.line></arg.line>
@@ -71,7 +71,7 @@
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-core</artifactId>
-            <version>4.0.0</version>
+            <version>4.1.0</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -102,7 +102,7 @@
         <dependency>
             <groupId>org.apache.httpcomponents.client5</groupId>
             <artifactId>httpclient5</artifactId>
-            <version>5.1</version>
+            <version>5.1.2</version>
         </dependency>
         <dependency>
             <groupId>org.snmp4j</groupId>
@@ -171,7 +171,7 @@
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-all</artifactId>
-            <version>4.1.68.Final</version>
+            <version>4.1.70.Final</version>
         </dependency>
         <dependency>
             <groupId>io.dropwizard.metrics</groupId>
@@ -200,7 +200,7 @@
             <artifactId>jackson-dataformat-properties</artifactId>
             <version>${jackson}</version>
         </dependency>
-         <dependency>
+        <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-annotations</artifactId>
             <version>${jackson}</version>
@@ -210,7 +210,7 @@
             <artifactId>jackson-module-afterburner</artifactId>
             <version>${jackson}</version>
         </dependency>
-       <dependency>
+        <dependency>
             <groupId>com.fasterxml.jackson.datatype</groupId>
             <artifactId>jackson-datatype-jsr310</artifactId>
             <version>${jackson}</version>
@@ -312,7 +312,7 @@
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-transport-native-unix-common</artifactId>
-            <version>4.1.68.Final</version>
+            <version>4.1.70.Final</version>
         </dependency>
         <dependency>
             <groupId>org.bouncycastle</groupId>
@@ -324,12 +324,6 @@
             <groupId>org.bouncycastle</groupId>
             <artifactId>bctls-jdk15on</artifactId>
             <version>1.69</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.ibm.icu</groupId>
-            <artifactId>icu4j</artifactId>
-            <version>69.1</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
@@ -453,6 +447,11 @@
                     <groupId>org.codehaus.mojo</groupId>
                     <artifactId>versions-maven-plugin</artifactId>
                     <version>2.8.1</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-shade-plugin</artifactId>
+                    <version>3.2.4</version>
                 </plugin>
             </plugins>
         </pluginManagement>
