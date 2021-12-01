@@ -33,11 +33,11 @@ import javax.management.StandardMBean;
 
 import org.apache.hc.client5.http.HttpHostConnectException;
 import org.apache.hc.client5.http.HttpRoute;
-import org.apache.hc.client5.http.auth.AuthScheme;
-import org.apache.hc.client5.http.auth.Credentials;
+import org.apache.hc.client5.http.auth.AuthScope;
+import org.apache.hc.client5.http.auth.CredentialsProvider;
 import org.apache.hc.client5.http.auth.UsernamePasswordCredentials;
 import org.apache.hc.client5.http.config.RequestConfig;
-import org.apache.hc.client5.http.impl.auth.BasicScheme;
+import org.apache.hc.client5.http.impl.auth.BasicCredentialsProvider;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
 import org.apache.hc.client5.http.impl.classic.HttpClientBuilder;
@@ -243,7 +243,7 @@ public abstract class AbstractHttpSender extends Sender {
     }
 
     private final int timeout;
-    private final AuthScheme defaultAuth;
+    private final CredentialsProvider credsProvider;
 
     private CloseableHttpClient client = null;
     protected final URL[] endPoints;
@@ -256,12 +256,13 @@ public abstract class AbstractHttpSender extends Sender {
         // Two names for login/user
         String user = builder.user != null ? builder.user : builder.login;
         if (user != null && builder.password != null) {
-            BasicScheme basicAuth = new BasicScheme();
-            Credentials creds = new UsernamePasswordCredentials(user, builder.password.toCharArray());
-            basicAuth.initPreemptive(creds);
-            defaultAuth = basicAuth;
+            BasicCredentialsProvider provider = new BasicCredentialsProvider();
+            UsernamePasswordCredentials creds = new UsernamePasswordCredentials(user, builder.password.toCharArray());
+            AuthScope scope = new AuthScope(null, -1);
+            provider.setCredentials(scope, creds);
+            credsProvider = provider;
         } else {
-            defaultAuth = null;
+            credsProvider = null;
         }
         hosts = new ConcurrentHashMap<>(endPoints.length);
         for (URL u: endPoints) {
@@ -323,6 +324,9 @@ public abstract class AbstractHttpSender extends Sender {
                                                   .setConnectTimeout(timeout, TimeUnit.SECONDS)
                                                   .build());
             clientBuilder.disableCookieManagement();
+            if (credsProvider != null) {
+                clientBuilder.setDefaultCredentialsProvider(credsProvider);
+            }
 
             client = clientBuilder.build();
 
@@ -340,9 +344,7 @@ public abstract class AbstractHttpSender extends Sender {
                                u.getHost(),
                                u.getPort());
         });
-        if (defaultAuth != null) {
-            context.resetAuthExchange(host, defaultAuth);
-        }
+
         Method method = Method.valueOf(therequest.verb.toUpperCase(Locale.ENGLISH));
         ClassicHttpRequest request = new BasicClassicHttpRequest(method, host, therequest.url.getFile());
         if (therequest.content != null) {
