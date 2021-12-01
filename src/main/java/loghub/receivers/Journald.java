@@ -9,13 +9,19 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelPipeline;
+import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.FullHttpRequest;
+import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpContent;
+import io.netty.handler.codec.http.HttpMessage;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpObject;
 import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import io.netty.handler.codec.http.HttpUtil;
+import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.util.AttributeKey;
 import loghub.BuilderClass;
@@ -39,6 +45,11 @@ public class Journald extends AbstractHttpReceiver {
 
     private static final ThreadLocal<ByteBuf> OkResponse = ThreadLocal.withInitial( () -> Unpooled.copiedBuffer("OK.\n", StandardCharsets.UTF_8));
 
+    private static final FullHttpResponse CONTINUE =
+            new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.CONTINUE, Unpooled.EMPTY_BUFFER);
+    private static final FullHttpResponse EXPECTATION_FAILED = new DefaultFullHttpResponse(
+            HttpVersion.HTTP_1_1, HttpResponseStatus.EXPECTATION_FAILED, Unpooled.EMPTY_BUFFER);
+
     /**
      * This aggregator swallows valid journald events, that are sent as chunk by systemd-journal-upload
      * Other parts (the header) and non-valid requests are forwarded as-is, to be handled by the usual processing
@@ -48,14 +59,14 @@ public class Journald extends AbstractHttpReceiver {
     class JournaldAgregator extends HttpObjectAggregator {
 
         // Old the current list of events
-        // They will be send only at the end of the batch, so journald-upload don't try to republish events in case of broken connection
         private final List<Event> events = new ArrayList<>();
         // This variable hold the state of the current stream
         // Once broken don't try to recover
         private boolean valid = false;
         private CompositeByteBuf chunksBuffer;
-        // A local decoder as this decoder is statefull, it should not be shared, event within a single thread
+        // A local decoder as this decoder is statefull, it should not be shared, event within a thread
         private final JournaldExport decoder = JournaldExport.getBuilder().build();
+        private boolean expect100Continue = false;
 
         public JournaldAgregator() {
             super(32768);
@@ -78,9 +89,15 @@ public class Journald extends AbstractHttpReceiver {
             }
         }
 
+        @Override
+        protected Object newContinueResponse(HttpMessage start, int maxContentLength, ChannelPipeline pipeline) {
+            return ! valid ? EXPECTATION_FAILED : super.newContinueResponse(start, maxContentLength, pipeline);
+        }
+
         private void processStart(ChannelHandlerContext ctx, HttpObject msg, List<Object> out) throws Exception {
             Journald.this.logger.debug("New journald POST: {}", msg);
             HttpRequest headers = (HttpRequest) msg;
+            expect100Continue = HttpUtil.is100ContinueExpected(headers);
             String contentType = Optional.ofNullable(headers.headers().get("Content-Type")).orElse("");
             String uri = headers.uri().replace("//", "/");
             HttpMethod method = headers.method();
@@ -104,9 +121,15 @@ public class Journald extends AbstractHttpReceiver {
                    .forEach(events::add);
             chunksBuffer.discardReadBytes();
 
+            // Flush the current chunk and acknowledge it
+            if (expect100Continue && events.size() > 0) {
+                events.forEach(Journald.this::send);
+                events.clear();
+                ctx.write(CONTINUE);
+            }
+
             // end of POST, clean everything and forward data
             if (isLastContentMessage(chunk)) {
-                chunksBuffer.release();
                 ctx.channel().attr(VALIDJOURNALD).set(valid);
                 if (valid) {
                     ctx.channel().attr(EVENTS).set(new ArrayList<>(events));
@@ -114,6 +137,9 @@ public class Journald extends AbstractHttpReceiver {
                 // Reset because the aggregator might be reused
                 valid = false;
                 events.clear();
+                expect100Continue = false;
+                chunksBuffer.release();
+                chunksBuffer = null;
                 super.decode(ctx, LastHttpContent.EMPTY_LAST_CONTENT, out);
             }
         }
