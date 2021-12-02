@@ -2,6 +2,7 @@ package loghub.receivers;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -14,13 +15,14 @@ import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpContent;
+import io.netty.handler.codec.http.HttpExpectationFailedEvent;
 import io.netty.handler.codec.http.HttpMessage;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpObject;
 import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import io.netty.handler.codec.http.HttpUtil;
+import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.util.AttributeKey;
@@ -40,15 +42,11 @@ import loghub.netty.http.RequestAccept;
 @BuilderClass(Journald.Builder.class)
 public class Journald extends AbstractHttpReceiver {
 
-    private static final AttributeKey<Boolean> VALIDJOURNALD = AttributeKey.newInstance(Journald.class.getCanonicalName() + "." + Boolean.class.getName());
-    private static final AttributeKey<List<Event>> EVENTS = AttributeKey.newInstance(Journald.class.getCanonicalName() + "." + List.class.getName());
+    private static final AttributeKey<Boolean> VALIDJOURNALD = AttributeKey.newInstance(Journald.class.getCanonicalName() + ".VALIDJOURNALD");
+    private static final AttributeKey<List<Event>> EVENTS = AttributeKey.newInstance(Journald.class.getCanonicalName() + ".EVENTS");
 
-    private static final ThreadLocal<ByteBuf> OkResponse = ThreadLocal.withInitial( () -> Unpooled.copiedBuffer("OK.\n", StandardCharsets.UTF_8));
-
-    private static final FullHttpResponse CONTINUE =
-            new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.CONTINUE, Unpooled.EMPTY_BUFFER);
-    private static final FullHttpResponse EXPECTATION_FAILED = new DefaultFullHttpResponse(
-            HttpVersion.HTTP_1_1, HttpResponseStatus.EXPECTATION_FAILED, Unpooled.EMPTY_BUFFER);
+    private static final FullHttpResponse BAD_REQUEST =
+            new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.BAD_REQUEST, wrapResponse("Require POST /upload with type application/vnd.fdo.journal"));
 
     /**
      * This aggregator swallows valid journald events, that are sent as chunk by systemd-journal-upload
@@ -59,14 +57,13 @@ public class Journald extends AbstractHttpReceiver {
     class JournaldAgregator extends HttpObjectAggregator {
 
         // Old the current list of events
-        private final List<Event> events = new ArrayList<>();
+        private List<Event> events;
         // This variable hold the state of the current stream
         // Once broken don't try to recover
         private boolean valid = false;
         private CompositeByteBuf chunksBuffer;
-        // A local decoder as this decoder is statefull, it should not be shared, event within a thread
+        // A local decoder as this aggregator is statefull, it should not be shared, event within a thread
         private final JournaldExport decoder = JournaldExport.getBuilder().build();
-        private boolean expect100Continue = false;
 
         public JournaldAgregator() {
             super(32768);
@@ -91,13 +88,17 @@ public class Journald extends AbstractHttpReceiver {
 
         @Override
         protected Object newContinueResponse(HttpMessage start, int maxContentLength, ChannelPipeline pipeline) {
-            return ! valid ? EXPECTATION_FAILED : super.newContinueResponse(start, maxContentLength, pipeline);
+            if (! valid) {
+                pipeline.fireUserEventTriggered(HttpExpectationFailedEvent.INSTANCE);
+                return BAD_REQUEST.retainedDuplicate();
+            } else {
+                return super.newContinueResponse(start, maxContentLength, pipeline);
+            }
         }
 
         private void processStart(ChannelHandlerContext ctx, HttpObject msg, List<Object> out) throws Exception {
-            Journald.this.logger.debug("New journald POST: {}", msg);
+            Journald.this.logger.debug("New journald query: {}", msg);
             HttpRequest headers = (HttpRequest) msg;
-            expect100Continue = HttpUtil.is100ContinueExpected(headers);
             String contentType = Optional.ofNullable(headers.headers().get("Content-Type")).orElse("");
             String uri = headers.uri().replace("//", "/");
             HttpMethod method = headers.method();
@@ -106,48 +107,44 @@ public class Journald extends AbstractHttpReceiver {
                             && "/upload".equals(uri)) {
                 valid = true;
             }
-            chunksBuffer = ctx.alloc().compositeBuffer();
+            events = new ArrayList<>();
+            chunksBuffer = Unpooled.compositeBuffer();
             super.decode(ctx, msg, out);
         }
 
         private void processContent(ChannelHandlerContext ctx, HttpContent chunk, List<Object> out) throws Exception {
-            Journald.this.logger.trace("New journald chunk of events, length {}", () -> chunk.content().readableBytes());
+            Journald.this.logger.debug("New journald chunk of events, length {}", () -> chunk.content().readableBytes());
             ByteBuf chunkContent = chunk.content();
-            Stats.newReceivedMessage(Journald.this, chunkContent.readableBytes());
-            chunksBuffer.addComponent(true, chunkContent);
-            chunkContent.retain();
-            decoder.decode(getConnectionContext(ctx), chunksBuffer)
-                   .map(m -> (Event) m)
-                   .forEach(events::add);
-            chunksBuffer.discardReadBytes();
-
-            // Flush the current chunk and acknowledge it
-            if (expect100Continue && events.size() > 0) {
-                events.forEach(Journald.this::send);
-                events.clear();
-                ctx.write(CONTINUE);
+            if (chunkContent.readableBytes() != 0) {
+                //System.out.format("r=%d w=%d c=%d %s%n", chunkContent.readerIndex(), chunkContent.writerIndex(), chunkContent.capacity(), isLastContentMessage(chunk));
+                Stats.newReceivedMessage(Journald.this, chunkContent.readableBytes());
+                chunksBuffer.addComponent(true, chunkContent);
+                chunkContent.retain();
+                decoder.decode(getConnectionContext(ctx), chunksBuffer)
+                       .map(m -> (Event) m)
+                       .forEach(events::add);
+                chunksBuffer.discardReadComponents();
             }
-
             // end of POST, clean everything and forward data
             if (isLastContentMessage(chunk)) {
+                assert chunksBuffer.numComponents() == 0 : chunksBuffer.numComponents();
+                assert chunksBuffer.readerIndex() == chunksBuffer.writerIndex();
                 ctx.channel().attr(VALIDJOURNALD).set(valid);
-                if (valid) {
-                    ctx.channel().attr(EVENTS).set(new ArrayList<>(events));
-                }
+                ctx.channel().attr(EVENTS).set(events);
                 // Reset because the aggregator might be reused
                 valid = false;
-                events.clear();
-                expect100Continue = false;
-                chunksBuffer.release();
+                events = null;
+                chunksBuffer.discardReadComponents();
                 chunksBuffer = null;
                 super.decode(ctx, LastHttpContent.EMPTY_LAST_CONTENT, out);
             }
         }
 
         private void streamFailure(ChannelHandlerContext ctx) {
+            events.clear();
             valid = false;
             ctx.channel().attr(VALIDJOURNALD).set(valid);
-            events.clear();
+            ctx.channel().attr(EVENTS).set(Collections.emptyList());
         }
 
         @Override
@@ -180,12 +177,11 @@ public class Journald extends AbstractHttpReceiver {
         protected void processRequest(FullHttpRequest request,
                                       ChannelHandlerContext ctx)
                                                       throws HttpRequestFailure {
-            if (Boolean.FALSE.equals(ctx.channel().attr(VALIDJOURNALD).get())) {
-                throw new HttpRequestFailure(HttpResponseStatus.BAD_REQUEST, "Not a valid journald request");
-            } else {
+            if (Boolean.TRUE.equals(ctx.channel().attr(VALIDJOURNALD).get())) {
                 ctx.channel().attr(EVENTS).get().forEach(Journald.this::send);
-                ByteBuf okbuf = OkResponse.get().readerIndex(0).retain();
-                writeResponse(ctx, request, HttpResponseStatus.ACCEPTED, okbuf, 4);
+                writeResponse(ctx, request, HttpResponseStatus.ACCEPTED, wrapResponse("OK.\n"), 4);
+            } else {
+                throw new HttpRequestFailure(HttpResponseStatus.BAD_REQUEST, "Not a valid journald request");
             }
         }
 
@@ -194,7 +190,12 @@ public class Journald extends AbstractHttpReceiver {
     @Override
     protected void settings(HttpReceiverServer.Builder builder) {
         super.settings(builder);
-        builder.setAggregatorSupplier(() -> new JournaldAgregator()).setReceiveHandler(new JournaldUploadHandler()).setThreadPrefix("Journald");
+        builder.setAggregatorSupplier(() -> new JournaldAgregator())
+               .setReceiveHandler(new JournaldUploadHandler())
+               .setWorkerThreads(8)
+               // journald-upload uses 16kiB chunk buffers, the default HttpServerCodec uses 8kiB bytebuf
+               .setServerCodecSupplier(() -> new HttpServerCodec(512, 1024, 32768, true, 32768, false, false))
+               .setThreadPrefix("Journald");
     }
 
     @Override
@@ -204,6 +205,10 @@ public class Journald extends AbstractHttpReceiver {
 
     public JournaldAgregator getAggregator() {
         return new JournaldAgregator();
+    }
+    
+    private static ByteBuf wrapResponse(String message) {
+        return Unpooled.copiedBuffer(message, StandardCharsets.UTF_8);
     }
 
 }

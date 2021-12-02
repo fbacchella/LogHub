@@ -41,7 +41,7 @@ public class JournaldExport extends Decoder {
 
     private static final String TRUSTEDFIELDS = "fields_trusted";
     private static final String USERDFIELDS = "fields_user";
-    
+
     // Four fields stores a time stamp in journald, only REALTIME one one are usefull
     // trusted journal fields
     private static final String TIMESTAMP_SM = "SOURCE_MONOTONIC_TIMESTAMP".toLowerCase(Locale.ENGLISH);

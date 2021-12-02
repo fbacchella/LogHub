@@ -33,12 +33,18 @@ public abstract class AbstractHttpServer<S extends AbstractHttpServer<S, B>,
                                          B extends AbstractHttpServer.Builder<S, B>
                                         > extends AbstractTcpServer.Builder<S, B> {
         Supplier<HttpObjectAggregator> aggregatorSupplier;
+        Supplier<HttpServerCodec> serverCodecSupplier;
         int maxContentLength = 1048576;
         protected Builder() {
         }
         @SuppressWarnings("unchecked")
         public B setAggregatorSupplier(Supplier<HttpObjectAggregator> aggregatorSupplier) {
             this.aggregatorSupplier = aggregatorSupplier;
+            return (B) this;
+        }
+        @SuppressWarnings("unchecked")
+        public B setServerCodecSupplier(Supplier<HttpServerCodec> serverCodecSupplier) {
+            this.serverCodecSupplier = serverCodecSupplier;
             return (B) this;
         }
         @SuppressWarnings("unchecked")
@@ -50,15 +56,17 @@ public abstract class AbstractHttpServer<S extends AbstractHttpServer<S, B>,
 
     private final SimpleChannelInboundHandler<FullHttpRequest> NOTFOUND = new NotFound();
     private final Supplier<HttpObjectAggregator> aggregatorSupplier;
+    private final Supplier<HttpServerCodec> serverCodecSupplier;
 
     protected AbstractHttpServer(B builder) throws IllegalArgumentException, InterruptedException {
         super(builder);
-        aggregatorSupplier = Optional.ofNullable(builder.aggregatorSupplier).orElseGet(() -> () -> new HttpObjectAggregator(builder.maxContentLength));
+        aggregatorSupplier = Optional.ofNullable(builder.aggregatorSupplier).orElse(() -> new HttpObjectAggregator(builder.maxContentLength));
+        serverCodecSupplier = Optional.ofNullable(builder.serverCodecSupplier).orElse(HttpServerCodec::new);
     }
 
     @Override
     public void addHandlers(ChannelPipeline p) {
-        p.addLast("HttpServerCodec", new HttpServerCodec());
+        p.addLast("HttpServerCodec", serverCodecSupplier.get());
         p.addLast("httpKeepAlive", new HttpServerKeepAliveHandler());
         p.addLast("HttpContentCompressor", new HttpContentCompressor());
         p.addLast("ChunkedWriteHandler", new ChunkedWriteHandler());
