@@ -453,6 +453,8 @@ public final class Helpers {
         // Helping resolve bad exception's message
         if (t instanceof NoSuchMethodException) {
             message = "No such method: " + t.getMessage();
+        } else if (t instanceof java.lang.NegativeArraySizeException) {
+            message = "Negative array size: " + message;
         } else if (t instanceof ArrayIndexOutOfBoundsException) {
             message = "Array out of bounds: " + message;
         } else if (t instanceof ClassNotFoundException) {
