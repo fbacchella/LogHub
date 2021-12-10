@@ -283,7 +283,7 @@
         <dependency>
             <groupId>fr.loghub</groupId>
             <artifactId>netty-beats</artifactId>
-            <version>1.0.0-SNAPSHOT</version>
+            <version>1.0</version>
         </dependency>
         <!-- **************** -->
         <!-- Compress dependencies -->
@@ -309,11 +309,6 @@
         </dependency>
         <!-- end of compress dependencies -->
         <!-- **************** -->
-        <dependency>
-            <groupId>io.netty</groupId>
-            <artifactId>netty-transport-native-unix-common</artifactId>
-            <version>4.1.70.Final</version>
-        </dependency>
         <dependency>
             <groupId>org.bouncycastle</groupId>
             <artifactId>bcprov-jdk15on</artifactId>
