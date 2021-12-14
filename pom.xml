@@ -11,7 +11,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
-        <log4j>2.15.0</log4j>
+        <log4j>2.16.0</log4j>
         <antlr>4.9.3</antlr>
         <jackson>2.13.0</jackson>
         <metrics>4.2.4</metrics>
