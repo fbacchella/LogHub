@@ -10,6 +10,7 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLConnection;
 import java.net.UnknownHostException;
+import java.nio.CharBuffer;
 import java.nio.channels.ClosedChannelException;
 import java.nio.charset.IllegalCharsetNameException;
 import java.nio.charset.UnsupportedCharsetException;
@@ -17,6 +18,7 @@ import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.text.Collator;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -133,13 +135,14 @@ public final class Helpers {
         R applyThrows(final T elem1, final U elem2) throws Exception;
     }
 
+    private static final Collator defaultCollator = Collator.getInstance();
+
     public static final Comparator<String> NATURALSORTSTRING = (s1, s2) -> {
-        if (s2 == null || s1 == null) {
-            return 0;
+        if (s1 == null || s2 == null) {
+            throw new NullPointerException();
         }
 
-        s1 = s1.toLowerCase();
-        s2 = s2.toLowerCase();
+        int result = 0;
 
         int lengthFirstStr = s1.length();
         int lengthSecondStr = s2.length();
@@ -147,18 +150,20 @@ public final class Helpers {
         int index1 = 0;
         int index2 = 0;
 
+        CharBuffer space1 = CharBuffer.allocate(lengthFirstStr);
+        CharBuffer space2 = CharBuffer.allocate(lengthSecondStr);
+
         while (index1 < lengthFirstStr && index2 < lengthSecondStr) {
+            space1.clear();
+            space2.clear();
+
             char ch1 = s1.charAt(index1);
+            boolean isDigit1 = Character.isDigit(ch1);
             char ch2 = s2.charAt(index2);
-
-            char[] space1 = new char[lengthFirstStr];
-            char[] space2 = new char[lengthSecondStr];
-
-            int loc1 = 0;
-            int loc2 = 0;
+            boolean isDigit2 = Character.isDigit(ch2);
 
             do {
-                space1[loc1++] = ch1;
+                space1.append(ch1);
                 index1++;
 
                 if(index1 < lengthFirstStr) {
@@ -166,10 +171,10 @@ public final class Helpers {
                 } else {
                     break;
                 }
-            } while (Character.isDigit(ch1) == Character.isDigit(space1[0]));
+            } while (Character.isDigit(ch1) == isDigit1);
 
             do {
-                space2[loc2++] = ch2;
+                space2.append(ch2);
                 index2++;
 
                 if(index2 < lengthSecondStr) {
@@ -177,32 +182,38 @@ public final class Helpers {
                 } else {
                     break;
                 }
-            } while (Character.isDigit(ch2) == Character.isDigit(space2[0]));
+            } while (Character.isDigit(ch2) == isDigit2);
 
-            String str1 = new String(space1);
-            String str2 = new String(space2);
+            String str1 = space1.flip().toString();
+            String str2 = space2.flip().toString();
 
-            int result;
-
-            if(Character.isDigit(space1[0]) && Character.isDigit(space2[0])) {
+            if (isDigit1 && isDigit2) {
                 try {
-                    Long firstNumberToCompare = Long.parseLong(str1.trim());
-                    Long secondNumberToCompare = Long.parseLong(str2.trim());
-                    result = firstNumberToCompare.compareTo(secondNumberToCompare);
+                    long firstNumberToCompare = Long.parseLong(str1);
+                    long secondNumberToCompare = Long.parseLong(str2);
+                    result = Long.compare(firstNumberToCompare, secondNumberToCompare);
+                    if (result == 0) {
+                        // 1 == 01 is true with a number, but not with a string, check for a string equality
+                        result = defaultCollator.compare(str1, str2);
+                    }
                 } catch (NumberFormatException e) {
                     // Something prevent the number parsing, do a string
-                    // comparaison
-                    result = str1.compareTo(str2);
+                    // comparison
+                    result = defaultCollator.compare(str1, str2);
                 }
             } else {
-                result = str1.compareTo(str2);
+                result = defaultCollator.compare(str1, str2);
             }
-
-            if(result != 0) {
-                return result;
+            // A difference was found, exit the loop
+            if (result != 0) {
+                break;
             }
         }
-        return lengthFirstStr - lengthSecondStr;
+        // one string might be a substring of the other, check that
+        if (result == 0) {
+            result = lengthFirstStr - lengthSecondStr;
+        }
+        return result;
     };
 
     public static final Comparator<Path> NATURALSORTPATH = (p1, p2) -> {
