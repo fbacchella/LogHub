@@ -41,7 +41,7 @@ public class Test extends Processor {
 
     @Override
     public boolean process(Event event) throws ProcessorException {
-        Boolean testResult;
+        boolean testResult;
         try {
             testResult = Boolean.TRUE.equals(ifClause.eval(event));
         } catch (IgnoredEventException e) {
