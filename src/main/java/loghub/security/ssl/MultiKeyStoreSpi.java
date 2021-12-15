@@ -380,8 +380,9 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
                 Path storePath = Paths.get(storePathName);
                 if (Files.exists(storePath)) {
                     KeyStore ks = KeyStore.getInstance("jks");
-                    InputStream is = new FileInputStream(storePathName);
-                    ks.load(is, null);
+                    try (InputStream is = new FileInputStream(storePathName);) {
+                        ks.load(is, null);
+                    }
                     stores.add(ks);
                     break;
                 }
@@ -421,10 +422,12 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
                 break;
             case "application/pkix-cert":
                 String alias = encoder.encodeToString(digest.digest(path.getBytes()));
-                Certificate cert = cf.generateCertificate(new FileInputStream(path));
-                KeyStore.TrustedCertificateEntry entry = new KeyStore.TrustedCertificateEntry(cert);
-                digest.reset();
-                stores.get(0).setEntry(alias, entry, null);
+                try (FileInputStream fis = new FileInputStream(path)){
+                    Certificate cert = cf.generateCertificate(fis);
+                    KeyStore.TrustedCertificateEntry entry = new KeyStore.TrustedCertificateEntry(cert);
+                    digest.reset();
+                    stores.get(0).setEntry(alias, entry, null);
+                }
                 break;
             default:
                 throw new NoSuchAlgorithmException("Not managed file '" + path +"'");

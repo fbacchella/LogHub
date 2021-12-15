@@ -271,8 +271,9 @@ public final class Helpers {
                 if ( p.toFile().isDirectory()) {
                     try (DirectoryStream<Path> ds = Files.newDirectoryStream(p)) {
                         for (Path entry: ds) {
-                            InputStream is = new FileInputStream(entry.toFile());
-                            reader.accept(is);
+                            try (InputStream is = new FileInputStream(entry.toFile())) {
+                                reader.accept(is);
+                            }
                         }
                     }
                 }
