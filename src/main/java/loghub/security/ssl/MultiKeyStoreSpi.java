@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -37,6 +38,7 @@ import java.util.Date;
 import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -197,34 +199,41 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
         return totry;
     }
 
+    private Enumeration<String> findNext(Enumeration<String> enumerator, Iterator<KeyStore> iter) {
+        while (enumerator == null || ! enumerator.hasMoreElements()) {
+            KeyStore cur = findNonEmpty(iter);
+            // The last keystore found was empty or no more to try, keystore enumeration is finished
+            if (cur == null) {
+                enumerator = null;
+                break;
+            }
+            try {
+                enumerator = cur.aliases();
+            } catch (KeyStoreException e) {
+                // This keystore is broken, just skip it
+            }
+        }
+        return enumerator;
+    }
+
     @Override
     public Enumeration<String> engineAliases() {
         Iterator<KeyStore> iter = stores.iterator();
+
         return new Enumeration<String>(){
-            private Enumeration<String> enumerator = null;
+            private Enumeration<String> enumerator = findNext(null, iter);
             @Override
             public boolean hasMoreElements() {
-                // The current enumerator is empty or non valid, looking for the next one
-                while (enumerator == null || ! enumerator.hasMoreElements()) {
-                    // drop old enumerator
-                    enumerator = null;
-                    KeyStore cur = findNonEmpty(iter);
-                    // The last keystore found was empty or no more to try, keystore enumeration is finished
-                    if (cur == null) {
-                        break;
-                    }
-                    try {
-                        enumerator = cur.aliases();
-                    } catch (KeyStoreException e) {
-                        // This keystore is broken, just skip it
-                    }
-                }
+                enumerator = findNext(enumerator, iter);
                 // If was unable to find a valid new enumerator, enumeration is finished
                 return enumerator != null;
             }
 
             @Override
             public String nextElement() {
+                if (enumerator == null) {
+                    throw new NoSuchElementException();
+                }
                 return enumerator.nextElement();
             }
 
@@ -459,7 +468,7 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
                 if (matcher.group("begin") != null) {
                     count++;
                     buffer.setLength(0);
-                } else if (matcher.group("end") != null){
+                } else if (matcher.group("end") != null) {
                     byte[] content = decoder.decode(buffer.toString());
                     digest.reset();
                     if (matcher.group("cert") != null) {
@@ -469,15 +478,18 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
                             key = null;
                         }
                         cert = cf.generateCertificate(new ByteArrayInputStream(content));
-                    } else if (matcher.group("prk") != null){
+                    } else if (matcher.group("prk") != null || matcher.group("rprk") != null){
                         if (key != null) {
                             throw new IllegalStateException("Multiple key in a PEM file" + filename);
                         }
+                        if (matcher.group("rprk") != null) {
+                            content = convertPkcs1(content);
+                        }
                         PKCS8EncodedKeySpec keyspec = new PKCS8EncodedKeySpec(content);
                         key = kf.generatePrivate(keyspec);
-                        // If not cert found, the key will be save at the next entry, hopfully a cert
+                        // If not cert found, the key will be save at the next entry, hopefully a cert
                         if (cert != null) {
-                            addEntry(alias + count, cert, key);
+                            addEntry(alias + "_" + count, cert, key);
                             cert = null;
                             key = null;
                         }
@@ -495,6 +507,28 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
         } catch (CertificateException | KeyStoreException | InvalidKeySpecException e) {
             throw new IllegalArgumentException("Invalid PEM entry in file " + filename, e);
         }
+    }
+
+    /**
+     * Wrap PKCS#1 bytes as a PCKS1#8 buffer by prefixing with the right header
+     * @param pkcs1Bytes
+     * @return
+     */
+    private byte[] convertPkcs1(byte[] pkcs1Bytes) {
+        int pkcs1Length = pkcs1Bytes.length;
+        int totalLength = pkcs1Length + 22;
+        int bufferLength = totalLength + 4;
+        byte[] pkcs8Header = new byte[] {
+                0x30, (byte) 0x82, (byte) ((totalLength >> 8) & 0xff), (byte) (totalLength & 0xff), // Sequence + total length
+                0x2, 0x1, 0x0, // Integer (0)
+                0x30, 0xD, 0x6, 0x9, 0x2A, (byte) 0x86, 0x48, (byte) 0x86, (byte) 0xF7, 0xD, 0x1, 0x1, 0x1, 0x5, 0x0, // Sequence: 1.2.840.113549.1.1.1, NULL
+                0x4, (byte) 0x82, (byte) ((pkcs1Length >> 8) & 0xff), (byte) (pkcs1Length & 0xff) // Octet string + length
+        };
+        byte[] pkcs8bytes = new byte[bufferLength];
+        ByteBuffer pkcs8buffer = ByteBuffer.wrap(pkcs8bytes);
+        pkcs8buffer.put(pkcs8Header);
+        pkcs8buffer.put(pkcs1Bytes);
+        return pkcs8bytes;
     }
 
     private void addEntry(String alias, Certificate cert, PrivateKey key) throws KeyStoreException {

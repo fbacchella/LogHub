@@ -6,7 +6,9 @@ import java.security.DomainLoadStoreParameter;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
+import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
+import java.security.interfaces.RSAPrivateCrtKey;
 import java.util.Collections;
 
 import org.apache.logging.log4j.Level;
@@ -81,6 +83,16 @@ public class TestMultiKeyStore {
     }
 
     @Test
+    public void loadrsakeypem()
+            throws NoSuchAlgorithmException, CertificateException, IOException, UnrecoverableKeyException {
+        MultiKeyStoreSpi mks = load("src/test/resources/crypto/package3.pem");
+        Assert.assertEquals(1, mks.engineSize());
+        String alias = mks.engineAliases().nextElement();
+        RSAPrivateCrtKey key = (RSAPrivateCrtKey) mks.engineGetKey(alias, new char[0]);
+        Assert.assertEquals(65537, key.getPublicExponent().intValue());
+    }
+
+    @Test
     public void loadcacert() throws NoSuchAlgorithmException, CertificateException, IOException {
         String javahome = System.getProperty("java.home");
         MultiKeyStoreSpi mks = load(javahome + "/lib/security/cacerts");
@@ -105,13 +117,6 @@ public class TestMultiKeyStore {
     public void loadsystem() throws NoSuchAlgorithmException, CertificateException, IOException {
         MultiKeyStoreSpi mks = load("system");
         Assert.assertTrue(Collections.list(mks.engineAliases()).size() > 1);
-    }
-
-    @Test
-    public void loadfailedpem() throws NoSuchAlgorithmException, CertificateException, IOException {
-        IllegalArgumentException ex = Assert.assertThrows(IllegalArgumentException.class, 
-                                                          () -> load("src/test/resources/crypto/junitkey.pem"));
-        Assert.assertEquals("Unknown PEM entry in file src/test/resources/crypto/junitkey.pem", ex.getMessage());
     }
 
     private MultiKeyStoreSpi load(String... paths) throws NoSuchAlgorithmException, CertificateException, IOException {
