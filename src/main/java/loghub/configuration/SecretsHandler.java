@@ -8,7 +8,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.MalformedURLException;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
 import java.nio.file.FileSystemNotFoundException;
@@ -54,7 +53,7 @@ public class SecretsHandler implements Closeable {
 
     public static SecretsHandler load(@NonNull String storePath) throws IOException {
         try {
-            return new SecretsHandler(toURI(storePath), ACTION.LOAD);
+            return new SecretsHandler(Helpers.FileUri(storePath), ACTION.LOAD);
         } catch (KeyStoreException | NoSuchAlgorithmException | CertificateException ex) {
             throw new IllegalStateException("Keystore environment unusable", ex);
         }
@@ -62,7 +61,7 @@ public class SecretsHandler implements Closeable {
 
     public static SecretsHandler create(@NonNull String storePath) throws IOException {
         try {
-            return new SecretsHandler(toURI(storePath), ACTION.CREATE);
+            return new SecretsHandler(Helpers.FileUri(storePath), ACTION.CREATE);
         } catch (KeyStoreException | NoSuchAlgorithmException | CertificateException ex) {
             throw new IllegalStateException("Keystore environment unusable", ex);
         }
@@ -70,22 +69,6 @@ public class SecretsHandler implements Closeable {
 
     public static SecretsHandler empty() {
         return new SecretsHandler();
-    }
-
-    private static URI toURI(String storePath) {
-        try {
-            URI storeURI = new URI(storePath);
-            if (storeURI.getScheme() == null || "file".equals(storeURI.getScheme())) {
-                // No scheme means file
-                // Also URI can’t really parse file URI in a useful way
-                // So it will be handled directly by using path
-                return Paths.get(storePath.replaceFirst("^file:", "")).toAbsolutePath().toUri();
-            } else {
-                return storeURI.normalize();
-            }
-        } catch (URISyntaxException | FileSystemNotFoundException ex) {
-            throw new IllegalArgumentException("Invalid path for secret store: " + Helpers.resolveThrowableException(ex));
-        }
     }
 
     private SecretsHandler(URI storePath, ACTION action) throws FileNotFoundException, KeyStoreException, NoSuchAlgorithmException, CertificateException, IOException {
