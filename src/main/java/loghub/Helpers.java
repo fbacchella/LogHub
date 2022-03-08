@@ -245,17 +245,12 @@ public final class Helpers {
     };
 
     public static <E> Iterable<E> enumIterable(Enumeration<E> e){
-        return new Iterable<E>() {
-            @Override
-            public Iterator<E> iterator() {
-                return new Iterator<E>() {
-                    @Override public boolean hasNext() {
-                        return e.hasMoreElements();
-                    }
-                    @Override public E next() {
-                        return e.nextElement();
-                    }
-                };
+        return () -> new Iterator<E>() {
+            @Override public boolean hasNext() {
+                return e.hasMoreElements();
+            }
+            @Override public E next() {
+                return e.nextElement();
             }
         };
     }

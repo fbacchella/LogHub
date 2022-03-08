@@ -17,26 +17,22 @@ public class MultiKeyStoreProvider extends Provider {
     
     private static final Logger logger = LogManager.getLogger();
 
-    private static final String initname = "LKS";
-    private static final String providerinitname = "LOGHUB";
+    private static final String INITNAME = "LKS";
+    private static final String PROVIDERINITNAME = "LOGHUB";
     // Not accessed directly, to ensure that the static {} initializing clause is executed
     public static final String NAME;
     public static final String PROVIDERNAME;
 
     static {
         Security.insertProviderAt(new MultiKeyStoreProvider(), Security.getProviders().length + 1);
-        NAME = initname;
-        PROVIDERNAME = providerinitname;
+        NAME = INITNAME;
+        PROVIDERNAME = PROVIDERINITNAME;
     }
 
     public static class SubKeyStore implements KeyStore.LoadStoreParameter {
 
         final Set<String> substores = new LinkedHashSet<>();
         final Set<String> subtruststores = new LinkedHashSet<>();
-
-        public SubKeyStore() {
-
-        }
 
         public void addSubStore(String substore) {
             substores.add(substore);
@@ -54,11 +50,11 @@ public class MultiKeyStoreProvider extends Provider {
     }
 
     MultiKeyStoreProvider() {
-        super(providerinitname, 0.1, "A simple provider for loghub");
+        super(PROVIDERINITNAME, 0.1, "A simple provider for loghub");
         logger.debug("Creating {}", this);
         List<String> aliases = Collections.emptyList();
         Map<String,String> attributes = Collections.emptyMap();
-        Service s = new Service(this, "KeyStore", initname, MultiKeyStoreSpi.class.getCanonicalName(), aliases, attributes);
+        Service s = new Service(this, "KeyStore", INITNAME, MultiKeyStoreSpi.class.getCanonicalName(), aliases, attributes);
         putService(s);
     }
 

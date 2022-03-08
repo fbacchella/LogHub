@@ -408,7 +408,7 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
             Map<String, Object> fileParams = qsd.parameters().entrySet().stream()
                                                 .filter(e -> e.getValue() != null)
                                                 .map(e -> new AbstractMap.SimpleImmutableEntry<>(e.getKey(), e.getValue().get(e.getValue().size() -1)))
-                                                .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue()));
+                                                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
             fileParams.put(DEFAULT_ALIAS, encoder.encodeToString(digest.digest(path.getBytes())));
             if (pathURI.getPath().toLowerCase().endsWith(".policy")) {
                 loadDomain(pathURI, fileParams);
@@ -466,7 +466,7 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
         logger.debug("Loading domain store {}", path);
         Map<String, KeyStore.ProtectionParameter> domainParameters = fileParams.entrySet().stream()
                                                          .map(this::mapProtectionParameter)
-                                                         .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue()));
+                                                         .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
         DomainLoadStoreParameter params = new DomainLoadStoreParameter(path, domainParameters);
         KeyStore ks = KeyStore.getInstance("DKS");
         ks.load(params);
