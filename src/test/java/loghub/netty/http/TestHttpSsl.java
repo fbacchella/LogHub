@@ -65,7 +65,7 @@ public class TestHttpSsl {
     Function<Map<String, Object> , SSLContext> getContext = (props) -> {
         Map<String, Object> properties = new HashMap<>();
         properties.put("context", "TLSv1.2");
-        properties.put("trusts", new String[] {getClass().getResource("/loghub.p12").getFile()});
+        properties.put("trusts", Tools.getDefaultKeyStore());
         properties.putAll(props);
         SSLContext newCtxt = ContextLoader.build(null, properties);
         Assert.assertEquals("TLSv1.2", newCtxt.getProtocol());

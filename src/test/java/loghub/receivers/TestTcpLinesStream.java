@@ -104,10 +104,10 @@ public class TestTcpLinesStream {
                 // It should be required for a better test, needs to understand how to make client side TLS works
                 i.setSSLClientAuthentication(ClientAuthentication.WANTED.name());
             },
-                Collections.singletonMap("ssl.trusts", new String[] {getClass().getResource("/loghub.p12").getFile()})
+                new HashMap<>(Collections.singletonMap("ssl.trusts", new String[] {getClass().getResource("/loghub.p12").getFile()}))
             );
             Map<String, Object> properties = new HashMap<>();
-            properties.put("trusts", new String[] {getClass().getResource("/loghub.p12").getFile()});
+            properties.put("trusts", Tools.getDefaultKeyStore());
             SSLContext cssctx = ContextLoader.build(null, properties);
             try(Socket socket = cssctx.getSocketFactory().createSocket(InetAddress.getLoopbackAddress(), port)) {
                 OutputStream os = socket.getOutputStream();

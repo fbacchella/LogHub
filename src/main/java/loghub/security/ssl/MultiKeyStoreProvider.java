@@ -1,13 +1,14 @@
 package loghub.security.ssl;
 
 import java.security.KeyStore;
+import java.security.KeyStore.ProtectionParameter;
 import java.security.Provider;
 import java.security.Security;
-import java.security.KeyStore.ProtectionParameter;
 import java.util.Collections;
-import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -30,33 +31,24 @@ public class MultiKeyStoreProvider extends Provider {
 
     public static class SubKeyStore implements KeyStore.LoadStoreParameter {
 
-        final Map<String, String> substores = new HashMap<>();
-        final Map<String, String> subtruststores = new HashMap<>();
-        private final ProtectionParameter protection;
+        final Set<String> substores = new LinkedHashSet<>();
+        final Set<String> subtruststores = new LinkedHashSet<>();
 
         public SubKeyStore() {
-            this.protection = new KeyStore.PasswordProtection("".toCharArray());
+
         }
 
-        public SubKeyStore(String password) {
-            this.protection = new KeyStore.PasswordProtection(password.toCharArray());
+        public void addSubStore(String substore) {
+            substores.add(substore);
         }
 
-        public SubKeyStore(String substore, ProtectionParameter protection) {
-            this.protection = protection;
-        }
-
-        public void addSubStore(String substore, String password) {
-            substores.put(substore, password);
-        }
-
-        public void addSubTrustStore(String substore, String password) {
-            subtruststores.put(substore, password);
+        public void addSubTrustStore(String substore) {
+            subtruststores.add(substore);
         }
 
         @Override
         public ProtectionParameter getProtectionParameter() {
-            return protection;
+            return MultiKeyStoreSpi.EMPTYPROTECTION;
         }
 
     }

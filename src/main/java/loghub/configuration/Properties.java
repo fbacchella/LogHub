@@ -1,13 +1,20 @@
 package loghub.configuration;
 
+import java.io.IOException;
 import java.nio.file.Paths;
+import java.security.KeyStore;
+import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
 import java.security.URIParameter;
+import java.security.cert.CertificateException;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -15,6 +22,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import javax.management.InstanceAlreadyExistsException;
@@ -48,6 +56,7 @@ import loghub.metrics.StatsMBean;
 import loghub.receivers.Receiver;
 import loghub.security.JWTHandler;
 import loghub.security.ssl.ContextLoader;
+import loghub.security.ssl.MultiKeyStoreProvider;
 import loghub.senders.Sender;
 import loghub.zmq.ZMQSocketFactory;
 import lombok.AllArgsConstructor;
@@ -96,6 +105,7 @@ public class Properties extends HashMap<String, Object> {
     public final int queuesDepth;
     public final int maxSteps;
     public final EventsRepository<Future<?>> repository;
+    public final KeyStore securityStore;
     public final SSLContext ssl;
     public final javax.security.auth.login.Configuration jaasConfig;
     public final JWTHandler jwtHandler;
@@ -164,7 +174,11 @@ public class Properties extends HashMap<String, Object> {
         } else {
             maxSteps = 128;
         }
-
+        Supplier<KeyStore> sup = () -> Optional.ofNullable(properties.remove("ssl.trusts")).map(this::getKeyStore).orElse(null);
+        securityStore = Optional.ofNullable(properties.remove("securityStore")).map(this::getKeyStore).orElseGet(sup);
+        if (securityStore != null) {
+            properties.put("ssl.trusts", securityStore);
+        }
         Map<String, Object> sslprops = properties.entrySet().stream().filter(i -> i.getKey().startsWith("ssl.")).collect(Collectors.toMap( i -> i.getKey().substring(4), j -> j.getValue()));
         if (! sslprops.isEmpty()) {
             ssl = ContextLoader.build(classloader, sslprops);
@@ -320,6 +334,22 @@ public class Properties extends HashMap<String, Object> {
     public void replaceAll(
                            BiFunction<? super String, ? super Object, ? extends Object> function) {
         throw new UnsupportedOperationException("read only");
+    }
+
+    private KeyStore getKeyStore(Object trusts) {
+        try {
+            MultiKeyStoreProvider.SubKeyStore param = new MultiKeyStoreProvider.SubKeyStore();
+            if (trusts instanceof Object[]) {
+                Arrays.stream((Object[]) trusts).forEach(i -> param.addSubStore(i.toString()));
+            } else {
+                param.addSubStore(trusts.toString());
+            }
+            KeyStore ks = KeyStore.getInstance(MultiKeyStoreProvider.NAME, MultiKeyStoreProvider.PROVIDERNAME);
+            ks.load(param);
+            return ks;
+        } catch (KeyStoreException | NoSuchProviderException | NoSuchAlgorithmException | CertificateException | IOException ex) {
+            throw new ConfigException("Secret store can’t be used:" + Helpers.resolveThrowableException(ex), ex);
+        }
     }
 
 }

@@ -139,10 +139,10 @@ public class TestBeats {
                 // It should be required for a better test, needs to understand how to make client side TLS works
                 i.setSSLClientAuthentication(ClientAuthentication.WANTED.name());
             },
-                    Collections.singletonMap("ssl.trusts", new String[] {getClass().getResource("/loghub.p12").getFile()})
+                    new HashMap<>(Collections.singletonMap("ssl.trusts", getClass().getResource("/loghub.p12").getFile()))
                     );
             Map<String, Object> properties = new HashMap<>();
-            properties.put("trusts", new String[] {getClass().getResource("/loghub.p12").getFile()});
+            properties.put("trusts", Tools.getDefaultKeyStore());
             SSLContext cssctx = ContextLoader.build(null, properties);
             List<Map<?, ?>> batch = Collections.singletonList(Collections.singletonMap("message", "LogHub"));
             Socket s = cssctx.getSocketFactory().createSocket();

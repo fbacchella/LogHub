@@ -1,6 +1,5 @@
 package loghub.security.ssl;
 
-import java.io.IOException;
 import java.net.Socket;
 import java.security.KeyManagementException;
 import java.security.KeyStore;
@@ -12,7 +11,6 @@ import java.security.PrivateKey;
 import java.security.Provider;
 import java.security.SecureRandom;
 import java.security.UnrecoverableKeyException;
-import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.Arrays;
 import java.util.Map;
@@ -35,6 +33,7 @@ import org.apache.logging.log4j.Logger;
 
 import loghub.Helpers;
 import loghub.configuration.ConfigException;
+import loghub.configuration.Properties;
 import loghub.netty.servers.AbstractNettyServer;
 
 public class ContextLoader {
@@ -100,14 +99,12 @@ public class ContextLoader {
             Object trusts = properties.get("trusts");
             X509KeyManager kmtranslator = null;
             if (trusts != null) {
-                MultiKeyStoreProvider.SubKeyStore param = new MultiKeyStoreProvider.SubKeyStore("");
-                if (trusts instanceof Object[]) {
-                    Arrays.stream((Object[]) trusts).forEach( i -> param.addSubStore(i.toString(), null));
+                KeyStore ks;
+                if (trusts instanceof KeyStore) {
+                    ks = (KeyStore)trusts;
                 } else {
-                    param.addSubStore(trusts.toString(), null);
+                    throw new IllegalArgumentException("Trusts is not an instance of KeyStore");
                 }
-                KeyStore ks = KeyStore.getInstance(MultiKeyStoreProvider.NAME, MultiKeyStoreProvider.PROVIDERNAME);
-                ks.load(param);
                 TrustManagerFactory tmf = doprovide(trustManagerAlgorithm, secureProvider, TrustManagerFactory::getInstance, TrustManagerFactory::getInstance);
                 tmf.init(ks);
                 tm = tmf.getTrustManagers();
@@ -154,9 +151,15 @@ public class ContextLoader {
 
                     @Override
                     public String chooseEngineServerAlias(String keyType, Principal[] issuers, SSLEngine engine) {
+                        logger.trace("{} {} {}", keyType.toString(), Arrays.toString(issuers), engine.toString());
                         // The engine was build with a alias as the hint, return it
                         if (engine != null && engine.getPeerPort() == AbstractNettyServer.DEFINEDSSLALIAS && getPrivateKey(engine.getPeerHost()) != null) {
-                            return engine.getPeerHost();
+                            String alias = engine.getPeerHost();
+                            if (keyType.equals(getPrivateKey(alias).getAlgorithm())) {
+                                return engine.getPeerHost();
+                            } else {
+                                return origkm.chooseEngineServerAlias(keyType, issuers, engine);
+                            }
                         } else if (engine != null && engine.getPeerPort() == AbstractNettyServer.DEFINEDSSLALIAS) {
                             return null;
                         } else {
@@ -203,7 +206,7 @@ public class ContextLoader {
                 };
             }
             newCtxt.init(new KeyManager[] {kmtranslator}, tm, sr);
-        } catch (NoSuchProviderException | NoSuchAlgorithmException | KeyManagementException | KeyStoreException | UnrecoverableKeyException | ConfigException | CertificateException | IOException e) {
+        } catch (NoSuchProviderException | NoSuchAlgorithmException | KeyManagementException | KeyStoreException | UnrecoverableKeyException | ConfigException e) {
             newCtxt = null;
             logger.error(() -> "Failed to configure SSL context", e);
         }

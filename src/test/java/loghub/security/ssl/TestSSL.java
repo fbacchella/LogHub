@@ -1,7 +1,12 @@
 package loghub.security.ssl;
 
 import java.io.IOException;
+import java.security.KeyStore;
+import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
+import java.security.cert.CertificateException;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -29,13 +34,15 @@ public class TestSSL {
     }
 
     @Test
-    public void testContextLoader() throws NoSuchAlgorithmException {
+    public void testContextLoader()
+            throws NoSuchAlgorithmException, KeyStoreException, NoSuchProviderException, CertificateException,
+            IOException {
         Map<String, Object> properties = new HashMap<>();
         properties.put("context", "TLSV1.2");
         properties.put("providerclass", "org.bouncycastle.jsse.provider.BouncyCastleJsseProvider");
         properties.put("ephemeralDHKeySize", 1024);
         properties.put("rejectClientInitiatedRenegotiation", 1024);
-        properties.put("trusts", new Object[] {"src/test/resources/loghub.p12"});
+        properties.put("trusts", Tools.getDefaultKeyStore());
         properties.put("issuers", new Object[] {"CN=Issuer,DC=loghub,DC=fr"});
 
         SSLContext newCtxt = ContextLoader.build(TestSSL.class.getClassLoader(), properties);

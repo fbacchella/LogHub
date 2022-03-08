@@ -3,6 +3,11 @@ package loghub;
 import java.io.IOException;
 import java.io.Reader;
 import java.net.ServerSocket;
+import java.security.KeyStore;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
+import java.security.cert.CertificateException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
@@ -19,6 +24,7 @@ import io.netty.util.concurrent.Future;
 import loghub.configuration.ConfigException;
 import loghub.configuration.Configuration;
 import loghub.configuration.Properties;
+import loghub.security.ssl.MultiKeyStoreProvider;
 
 public class Tools {
 
@@ -28,10 +34,30 @@ public class Tools {
         LogUtils.configure();
     }
 
-    public static Properties loadConf(Reader config) throws ConfigException, IOException {
+    public static KeyStore getDefaultKeyStore() {
+        return getKeyStore(Tools.class.getResource("/loghub.p12").getFile());
+    }
+
+    public static KeyStore getKeyStore(String... paths) {
+        try {
+            MultiKeyStoreProvider.SubKeyStore param = new MultiKeyStoreProvider.SubKeyStore();
+            for(String path: paths) {
+                param.addSubStore(path);
+            }
+            KeyStore ks = KeyStore.getInstance(MultiKeyStoreProvider.NAME, MultiKeyStoreProvider.PROVIDERNAME);
+            ks.load(param);
+            return ks;
+        } catch (KeyStoreException | NoSuchProviderException | IOException | NoSuchAlgorithmException | CertificateException ex) {
+            throw  new RuntimeException(ex);
+        }
+    }
+
+     public static Properties loadConf(Reader config) throws ConfigException, IOException {
         Properties props = Configuration.parse(config);
 
         Helpers.parallelStartProcessor(props);
+
+        props.receivers.forEach(r -> Assert.assertTrue("configuration failed", r.configure(props)));
 
         return props;
     }
@@ -93,7 +119,7 @@ public class Tools {
 
         Map<String, Pipeline> namedPipeLine = Collections.singletonMap(pipename, pipe);
         EventsProcessor ep = new EventsProcessor(props.mainQueue, props.outputQueues, namedPipeLine, 100, props.repository);
-        steps.forEach( i -> Assert.assertTrue(i.configure(props)));
+        steps.forEach(i -> Assert.assertTrue(i.configure(props)));
         prepare.accept(props, steps);
         sent.inject(pipe, props.mainQueue, false);
         Event toprocess;
@@ -131,7 +157,7 @@ public class Tools {
     }
 
     public static boolean isInMaven() {
-        return "true".equals(System.getProperty("maven.surefire", "false"));
+        return System.getProperty("surefire.real.class.path") != null || System.getProperty("surefire.test.class.path") != null;
     }
 
     public static final Function<Date, Boolean> isRecent = i -> { long now = new Date().getTime() ; return (i.getTime() > (now - 60000)) && (i.getTime() < (now + 60000));};

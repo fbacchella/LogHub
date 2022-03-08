@@ -111,7 +111,7 @@ public class TestHttp {
                 }
             });
             Map<String, Object> properties = new HashMap<>();
-            properties.put("trusts", new String[] {getClass().getResource("/loghub.p12").getFile()});
+            properties.put("trusts", Tools.getDefaultKeyStore());
             properties.put("issuers", new String[] {"CN=loghub CA"});
             SSLContext cssctx = ContextLoader.build(null, properties);
             cnx.setSSLSocketFactory(cssctx.getSocketFactory());
@@ -173,7 +173,7 @@ public class TestHttp {
             i.setWithSSL(true);
             i.setSSLClientAuthentication("WANTED");
         },
-                     Collections.singletonMap("ssl.trusts", new String[] {getClass().getResource("/loghub.p12").getFile()})
+                     new HashMap<>(Collections.singletonMap("ssl.trusts", getClass().getResource("/loghub.p12").getFile()))
                      );
         doRequest(new URL("https", hostname, port, "/?a=1"),
                   new byte[]{},

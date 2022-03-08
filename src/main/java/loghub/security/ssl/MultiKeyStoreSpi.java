@@ -3,9 +3,9 @@ package loghub.security.ssl;
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.URI;
 import java.nio.ByteBuffer;
@@ -13,7 +13,9 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.security.AlgorithmParameters;
 import java.security.DomainLoadStoreParameter;
+import java.security.GeneralSecurityException;
 import java.security.Key;
 import java.security.KeyFactory;
 import java.security.KeyStore;
@@ -30,22 +32,33 @@ import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
+import java.util.AbstractMap;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.Date;
 import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+
+import javax.crypto.Cipher;
+import javax.crypto.EncryptedPrivateKeyInfo;
+import javax.crypto.SecretKey;
+import javax.crypto.SecretKeyFactory;
+import javax.crypto.spec.PBEKeySpec;
+import javax.naming.InvalidNameException;
+import javax.naming.ldap.LdapName;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import io.netty.handler.codec.http.QueryStringDecoder;
 import loghub.Helpers;
 import loghub.security.ssl.MultiKeyStoreProvider.SubKeyStore;
 
@@ -65,14 +78,17 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
             throw new IllegalStateException("Missing security algorithms", e);
         }
     }
+    private static final String DEFAULT_ALIAS = "__default_alias__";
+    private static final String MIME_TYPE = "content-type";
+    public static final KeyStore.ProtectionParameter EMPTYPROTECTION = new KeyStore.PasswordProtection(new char[] {});
 
     private static final Pattern MARKERS;
     static {
-        String privateKey = "(?<prk>PRIVATE KEY)";
+        String epk = "(?<epk>ENCRYPTED PRIVATE KEY)"; //encrypted PKCS#8 key
+        String privateKey = "(?<prk>PRIVATE KEY)";    //not encrypted PKCS#8
         String rsakey = "(?<rprk>RSA PRIVATE KEY)";
         String pubKey = "(?<puk>PUBLIC KEY)";
         String cert = "(?<cert>CERTIFICATE)";
-        String epk = "(?<epk>ENCRYPTED PRIVATE KEY)";
         String begin = "(?<begin>-+BEGIN .*-+)";
         String end = String.format("(?<end>-+END (?:%s|%s|%s|%s|%s)-+)", privateKey, rsakey, pubKey, cert, epk);
         MARKERS = Pattern.compile(String.format("(?:%s)|(?:%s)|.*?", begin, end));
@@ -233,10 +249,10 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
             public String nextElement() {
                 if (enumerator == null) {
                     throw new NoSuchElementException();
+                } else {
+                    return enumerator.nextElement();
                 }
-                return enumerator.nextElement();
             }
-
         };
     }
 
@@ -324,48 +340,33 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
     }
 
     @Override
-    public void engineLoad(LoadStoreParameter param) throws IOException, NoSuchAlgorithmException, CertificateException {
+    public void engineLoad(LoadStoreParameter param) {
         if (param instanceof SubKeyStore) {
             SubKeyStore subparams = (SubKeyStore) param;
-            subparams.substores.forEach((i,j) -> {
+            for (String i: subparams.substores) {
                 try {
-                    addStore(i, j);
-                } catch (KeyStoreException | NoSuchAlgorithmException | CertificateException | IOException e) {
-                    logger.error("Unable to load keystore {}: {}", i, Helpers.resolveThrowableException(e));
-                    logger.catching(Level.DEBUG, e);
+                    addStore(i);
+                } catch (IOException | GeneralSecurityException ex) {
+                    logger.error("Unable to load keystore {}: {}", i, Helpers.resolveThrowableException(ex));
+                    logger.catching(Level.DEBUG, ex);
                 }
-            });
+            }
         } else {
             throw new UnsupportedOperationException("Needs a SubKeyStore param, not a " + param.getClass().getCanonicalName());
         }
     }
 
-    private void addStore(String path, String password) throws KeyStoreException, NoSuchAlgorithmException, CertificateException, IOException {
-        logger.debug("Will load keystore {}", path);
-        if (password == null) {
-            password = "";
-        }
+    private void addStore(String path) throws GeneralSecurityException, IOException {
         if ("system".equals(path)) {
+            logger.debug("Loading OS dependent certificates");
             String operatingSystem = System.getProperty("os.name", "");
             String[] systemStores = new String[] {};
             
             if (operatingSystem.startsWith("Mac")) {
                 systemStores = new String[] {"KeychainStore"};
             } else if (operatingSystem.startsWith("Windows")){
-                systemStores = new String[] {"Windows-ROOT", "Windows-MY"};
-            }
-            if (systemStores.length > 0) {
-                Arrays.stream(systemStores)
-                .forEach(n -> {
-                    try {
-                        KeyStore ks = KeyStore.getInstance(n);
-                        ks.load(null, "".toCharArray());
-                        stores.add(ks);
-                    } catch (KeyStoreException | NoSuchAlgorithmException | CertificateException | IOException e) {
-                        // This keystore is broken, just skip it
-                    }
-                });
-            } else {
+                systemStores = new String[] {"Windows-MY", "Windows-ROOT"};
+            } else if (operatingSystem.startsWith("Linux")) {
                 // Paths where linux might store certs
                 for (String certsPath: new String[] {
                         "/etc/ssl/certs/ca-certificates.crt",
@@ -375,12 +376,20 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
                         "/usr/share/pki/ca-trust-legacy/ca-bundle.legacy.default.crt",
                 }) {
                     if (Files.isReadable(Paths.get(certsPath))) {
-                        loadPem(certsPath);
+                        loadPem(Paths.get(certsPath).toUri(), Collections.emptyMap());
                         break;
                     }
                 }
             }
+            if (systemStores.length > 0) {
+                for (String n: systemStores) {
+                    KeyStore ks = KeyStore.getInstance(n);
+                    ks.load(null, "".toCharArray());
+                    stores.add(ks);
+                }
+            }
         } else if ("default".equals(path)) {
+            logger.debug("Loading current JVM default certificates");
             String[] paths = new String[] {
                     System.getProperty("java.home") + File.separator + "lib" + File.separator + "security" + File.separator + "jssecacerts",
                     System.getProperty("java.home") + File.separator + "lib" + File.separator + "security" + File.separator + "cacerts"
@@ -388,124 +397,154 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
             for (String storePathName: paths) {
                 Path storePath = Paths.get(storePathName);
                 if (Files.exists(storePath)) {
-                    KeyStore ks = KeyStore.getInstance("jks");
-                    try (InputStream is = new FileInputStream(storePathName);) {
-                        ks.load(is, null);
-                    }
-                    stores.add(ks);
+                    loadKeystore("JKS", storePath.toUri(), Collections.singletonMap("password", "changeit"));
                     break;
                 }
             }
-        } else if (path.toLowerCase().endsWith(".policy")) {
-            logger.trace("Loading domaine store {}", path);
-            URI tryURI = URI.create(path);
-            if (tryURI.getScheme() == null) {
-                tryURI = URI.create("file:" + path);
-            }
-            // No defined way to forward each entry password, so hope they are not protected
-            DomainLoadStoreParameter params = new DomainLoadStoreParameter(tryURI, Collections.emptyMap());
-            KeyStore ks = KeyStore.getInstance("DKS");
-            ks.load(params);
-            stores.add(ks);
-        } else if (Paths.get(path).endsWith("cacerts")) {
-            loadKeystore("JKS", path, "changeit");
-       } else {
-            switch(Helpers.getMimeType(path)) {
-            case "application/x-pkcs12":
-                loadKeystore("PKCS12", path, password);
-                break;
-            case "application/x-java-keystore":
-                loadKeystore("JKS", path, password);
-                break;
-            case "application/x-java-jce-keystore":
-                loadKeystore("JCEKS", path, password);
-                break;
-            case "application/x-java-bc-keystore":
-                loadKeystore("BKS", path, password);
-                break;
-            case "application/x-java-bc-uber-keystore":
-                loadKeystore("Keystore.UBER", path, password);
-                break;
-            case "application/x-pem-file":
-                loadPem(path);
-                break;
-            case "application/pkix-cert":
-                String alias = encoder.encodeToString(digest.digest(path.getBytes()));
-                try (FileInputStream fis = new FileInputStream(path)){
-                    Certificate cert = cf.generateCertificate(fis);
-                    KeyStore.TrustedCertificateEntry entry = new KeyStore.TrustedCertificateEntry(cert);
-                    digest.reset();
-                    stores.get(0).setEntry(alias, entry, null);
+        } else {
+            URI pathURI = Helpers.FileUri(path);
+            QueryStringDecoder qsd = new QueryStringDecoder(pathURI);
+            // Stream to only keep the last value of any parameter
+            Map<String, Object> fileParams = qsd.parameters().entrySet().stream()
+                                                .filter(e -> e.getValue() != null)
+                                                .map(e -> new AbstractMap.SimpleImmutableEntry<>(e.getKey(), e.getValue().get(e.getValue().size() -1)))
+                                                .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue()));
+            fileParams.put(DEFAULT_ALIAS, encoder.encodeToString(digest.digest(path.getBytes())));
+            if (pathURI.getPath().toLowerCase().endsWith(".policy")) {
+                loadDomain(pathURI, fileParams);
+            } else if (Paths.get(pathURI.getPath()).endsWith("cacerts")) {
+                fileParams.computeIfAbsent("password", (k) -> "changeit");
+                loadKeystore("JKS", pathURI, fileParams);
+            } else {
+                switch(resolveMimeType(pathURI, fileParams)) {
+                case "application/x-pkcs12":
+                    loadKeystore("PKCS12", pathURI, fileParams);
+                    break;
+                case "application/x-java-keystore":
+                    loadKeystore("JKS", pathURI, fileParams);
+                    break;
+                case "application/x-java-jce-keystore":
+                    loadKeystore("JCEKS", pathURI, fileParams);
+                    break;
+                case "application/x-java-bc-keystore":
+                    loadKeystore("BKS", pathURI, fileParams);
+                    break;
+                case "application/x-java-bc-uber-keystore":
+                    loadKeystore("Keystore.UBER", pathURI, fileParams);
+                    break;
+                case "application/x-pem-file":
+                    loadPem(pathURI, fileParams);
+                    break;
+                case "application/pkix-cert":
+                    loadCert(pathURI, fileParams);
+                    break;
+                default:
+                    throw new NoSuchAlgorithmException("Not managed file '" + path +"'");
                 }
-                break;
-            default:
-                throw new NoSuchAlgorithmException("Not managed file '" + path +"'");
             }
         }
     }
 
-    private void loadKeystore(String type, String filename, String password) throws KeyStoreException, NoSuchAlgorithmException, CertificateException, IOException {
-        logger.trace("Loading keystore {} as {}", filename, type);
+    private String resolveMimeType(URI path, Map<String, Object> params) {
+        if (params.containsKey(MIME_TYPE)) {
+            return params.get(MIME_TYPE).toString();
+        } else {
+            return Helpers.getMimeType(path.getPath());
+        }
+    }
+
+    private Map.Entry<String, KeyStore.ProtectionParameter> mapProtectionParameter(Map.Entry<String, Object> e) {
+        return new AbstractMap.SimpleImmutableEntry<>(
+                e.getKey(),
+                new KeyStore.PasswordProtection(e.getValue().toString().toCharArray())
+        );
+    }
+
+    private void loadDomain(URI path, Map<String, Object> fileParams)
+            throws KeyStoreException, CertificateException, IOException, NoSuchAlgorithmException {
+        logger.debug("Loading domain store {}", path);
+        Map<String, KeyStore.ProtectionParameter> domainParameters = fileParams.entrySet().stream()
+                                                         .map(this::mapProtectionParameter)
+                                                         .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue()));
+        DomainLoadStoreParameter params = new DomainLoadStoreParameter(path, domainParameters);
+        KeyStore ks = KeyStore.getInstance("DKS");
+        ks.load(params);
+        stores.add(ks);
+    }
+
+    private void loadCert(URI path, Map<String, Object> fileParams)
+            throws CertificateException, IOException, KeyStoreException {
+        logger.debug("Loading binary certificate {}", path);
+        try (InputStream fis = path.toURL().openStream()){
+            Certificate cert = cf.generateCertificate(fis);
+            addEntry(Collections.singletonList(cert), null, fileParams);
+        }
+    }
+
+    private void loadKeystore(String type, URI path, Map<String, Object> fileParams) throws KeyStoreException, NoSuchAlgorithmException, CertificateException, IOException {
+        logger.debug("Loading keystore {} as {}", path, type);
         KeyStore ks = KeyStore.getInstance(type);
-        try (InputStream is = new FileInputStream(filename)) {
+        String password = (String) fileParams.getOrDefault("password", "");
+        try (InputStream is = path.toURL().openStream()) {
             ks.load(is, password.toCharArray());
             stores.add(ks);
         }
     }
 
-    private void loadPem(String filename) {
-        Certificate cert = null;
+    /**
+     * Two kind of PEM files are expected:
+     * <ul>
+     *     <li>A list of certificates, they are imported as separated certificates entries.</li>
+     *     <li>A private key, and one or more certificates. It’s used a certificate chain and are added as a single entry.</li>
+     * </ul>
+     * If no alias is provided for the secret key, the first value of the dn for the leaf certificate will be used.
+     * @param path the URI to the pem file
+     * @param fileParams some parameters, it can contain the alias that will be used for the secret key.
+     * @throws CertificateException
+     * @throws IOException
+     * @throws InvalidKeySpecException
+     * @throws KeyStoreException
+     */
+    private void loadPem(URI path, Map<String, Object> fileParams) throws IOException, GeneralSecurityException
+    {
+        logger.debug("Loading PEM {}", path);
+        List<Certificate> certs = new ArrayList<>(1);
         PrivateKey key = null;
-        String alias = encoder.encodeToString(filename.getBytes());
-        int count = 0;
-        logger.trace("Loading pem certificate {}", filename);
-        try (BufferedReader br = Files.newBufferedReader(Paths.get(filename), StandardCharsets.UTF_8)) {
+        try (BufferedReader br = new BufferedReader(new InputStreamReader(path.toURL().openStream(), StandardCharsets.UTF_8))) {
             String line;
             StringBuilder buffer = new StringBuilder();
             while ((line = br.readLine()) != null) {
                 Matcher matcher = MARKERS.matcher(line);
                 matcher.matches();
                 if (matcher.group("begin") != null) {
-                    count++;
                     buffer.setLength(0);
                 } else if (matcher.group("end") != null) {
                     byte[] content = decoder.decode(buffer.toString());
                     digest.reset();
                     if (matcher.group("cert") != null) {
-                        if (cert != null) {
-                            addEntry(alias + "_" + count, cert, key);
-                            cert = null;
-                            key = null;
-                        }
-                        cert = cf.generateCertificate(new ByteArrayInputStream(content));
-                    } else if (matcher.group("prk") != null || matcher.group("rprk") != null){
+                        certs.add(cf.generateCertificate(new ByteArrayInputStream(content)));
+                    } else if (matcher.group("prk") != null ||
+                            matcher.group("rprk") != null ||
+                            matcher.group("epk") != null){
                         if (key != null) {
-                            throw new IllegalStateException("Multiple key in a PEM file" + filename);
+                            throw new IllegalArgumentException("Multiple key in a PEM file" + path);
                         }
                         if (matcher.group("rprk") != null) {
                             content = convertPkcs1(content);
                         }
+                        if (matcher.group("epk") != null) {
+                            content = decrypteEncryptedPkcs8(content, fileParams.get("password").toString());
+                        }
                         PKCS8EncodedKeySpec keyspec = new PKCS8EncodedKeySpec(content);
                         key = kf.generatePrivate(keyspec);
-                        // If not cert found, the key will be save at the next entry, hopefully a cert
-                        if (cert != null) {
-                            addEntry(alias + "_" + count, cert, key);
-                            cert = null;
-                            key = null;
-                        }
                     } else {
-                        throw new IllegalArgumentException("Unknown PEM entry in file " + filename);
+                        throw new IllegalArgumentException("Unknown PEM entry in file " + path);
                     }
                 } else {
                     buffer.append(line);
                 }
             }
-            // trying to load last entry
-            addEntry(alias, cert, key);
-        } catch (IOException e) {
-            throw new IllegalArgumentException("Invalid PEM file " + filename, e);
-        } catch (CertificateException | KeyStoreException | InvalidKeySpecException e) {
-            throw new IllegalArgumentException("Invalid PEM entry in file " + filename, e);
+            addEntry(certs, key, fileParams);
         }
     }
 
@@ -531,23 +570,73 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
         return pkcs8bytes;
     }
 
-    private void addEntry(String alias, Certificate cert, PrivateKey key) throws KeyStoreException {
-        if (cert != null && "X.509".equals(cert.getType())) {
-            X509Certificate x509cert = (X509Certificate) cert;
-            alias = x509cert.getSubjectX500Principal().getName();
+    private void addEntry(List<Certificate> certs, PrivateKey key, Map<String, Object> params) throws KeyStoreException {
+        if (certs.size() == 0) {
+            throw new IllegalArgumentException("No certificates to store");
         }
-        if (cert == null) {
-            // No certificate found to import
-        } else if (stores.get(0).containsAlias(alias)) {
-            logger.warn("Duplicate entry {}", alias);
+        String alias = (String) params.get("alias");
+        if (alias == null) {
+            for (Certificate cert: certs) {
+                if ("X.509".equals(cert.getType())) {
+                    X509Certificate x509cert = (X509Certificate) cert;
+                    if (x509cert.getBasicConstraints() == -1) {
+                        // The leaf certificate
+                        alias = resolveAlias(cert, params);
+                        break;
+                    }
+                }
+            }
+        }
+        if (alias == null) {
+            alias = (String) params.get(DEFAULT_ALIAS);
+        }
+        if (key != null && stores.get(0).containsAlias(alias)) {
             // If object already seen, don't add it again
-        } else  if (key != null) {
-            KeyStore.PrivateKeyEntry entry = new KeyStore.PrivateKeyEntry(key, new Certificate[] {cert});
-            stores.get(0).setEntry(alias, entry, new KeyStore.PasswordProtection(new char[] {}));
+            logger.warn("Duplicate entry {}", alias);
+        } else if (key != null) {
+            KeyStore.PrivateKeyEntry entry = new KeyStore.PrivateKeyEntry(key, certs.stream().toArray(Certificate[]::new));
+            stores.get(0).setEntry(alias, entry, EMPTYPROTECTION);
         } else {
-            KeyStore.TrustedCertificateEntry entry = new KeyStore.TrustedCertificateEntry(cert);
-            stores.get(0).setEntry(alias, entry, null);
+            for (Certificate cert: certs) {
+                String certAlias = resolveAlias(cert, params);
+                KeyStore.TrustedCertificateEntry entry = new KeyStore.TrustedCertificateEntry(cert);
+                stores.get(0).setEntry(certAlias, entry, null);
+            }
         }
+    }
+
+    private String resolveAlias(Certificate cert, Map<String, Object> params) {
+        String certalias = null;
+        if ("X.509".equals(cert.getType())) {
+            X509Certificate x509cert = (X509Certificate) cert;
+            try {
+                LdapName ldapDN = new LdapName(x509cert.getSubjectX500Principal().getName());
+                // Order of values are inversed between LDAP and X.509, so get the last one.
+                certalias = ldapDN.getRdn(ldapDN.size() - 1).getValue().toString();
+            } catch (InvalidNameException e) {
+            }
+        }
+        return  certalias;
+    }
+
+    private byte[] decrypteEncryptedPkcs8(byte[] epk, String password)
+            throws IOException, GeneralSecurityException
+    {
+        EncryptedPrivateKeyInfo epki = new EncryptedPrivateKeyInfo(epk);
+
+        String encAlg = epki.getAlgName();
+
+        AlgorithmParameters encAlgParams = epki.getAlgParameters();
+        PBEKeySpec pbeKeySpec = new PBEKeySpec(password.toCharArray());
+        SecretKeyFactory keyFact = SecretKeyFactory.getInstance(encAlg);
+        SecretKey pbeKey = keyFact.generateSecret(pbeKeySpec);
+
+        Cipher cipher = Cipher.getInstance(encAlg);
+
+        cipher.init(Cipher.DECRYPT_MODE, pbeKey, encAlgParams);
+        PKCS8EncodedKeySpec privateKeySpec = epki.getKeySpec(cipher);
+
+        return privateKeySpec.getEncoded();
     }
 
 }
