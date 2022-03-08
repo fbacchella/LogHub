@@ -90,6 +90,27 @@ public class TestMultiKeyStore {
     }
 
     @Test
+    public void loadwrongpem() throws NoSuchAlgorithmException, CertificateException, IOException {
+        MultiKeyStoreSpi mks = load("src/test/resources/crypto/openssh.pem");
+
+        Assert.assertEquals(0, mks.engineSize());
+    }
+
+    @Test
+    public void loadwrongtype() throws NoSuchAlgorithmException, CertificateException, IOException {
+        MultiKeyStoreSpi mks = load("src/test/resources/etl.conf");
+
+        Assert.assertEquals(0, mks.engineSize());
+    }
+
+    @Test
+    public void loadmissing() throws NoSuchAlgorithmException, CertificateException, IOException {
+        MultiKeyStoreSpi mks = load("__nofile__.pem");
+
+        Assert.assertEquals(0, mks.engineSize());
+    }
+
+    @Test
     public void loadrsakeypem()
             throws NoSuchAlgorithmException, CertificateException, IOException, UnrecoverableKeyException {
         MultiKeyStoreSpi mks = load("src/test/resources/crypto/package3.pem");

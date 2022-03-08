@@ -346,7 +346,7 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
             for (String i: subparams.substores) {
                 try {
                     addStore(i);
-                } catch (IOException | GeneralSecurityException ex) {
+                } catch (RuntimeException | IOException | GeneralSecurityException ex) {
                     logger.error("Unable to load keystore {}: {}", i, Helpers.resolveThrowableException(ex));
                     logger.catching(Level.DEBUG, ex);
                 }
@@ -416,7 +416,8 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
                 fileParams.computeIfAbsent("password", (k) -> "changeit");
                 loadKeystore("JKS", pathURI, fileParams);
             } else {
-                switch(resolveMimeType(pathURI, fileParams)) {
+                String mimetype = resolveMimeType(pathURI, fileParams);
+                switch(mimetype) {
                 case "application/x-pkcs12":
                     loadKeystore("PKCS12", pathURI, fileParams);
                     break;
@@ -439,7 +440,7 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
                     loadCert(pathURI, fileParams);
                     break;
                 default:
-                    throw new NoSuchAlgorithmException("Not managed file '" + path +"'");
+                    throw new NoSuchAlgorithmException("Not managed file type: " + mimetype);
                 }
             }
         }
@@ -527,7 +528,7 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
                             matcher.group("rprk") != null ||
                             matcher.group("epk") != null){
                         if (key != null) {
-                            throw new IllegalArgumentException("Multiple key in a PEM file" + path);
+                            throw new IllegalArgumentException("Multiple key in a PEM");
                         }
                         if (matcher.group("rprk") != null) {
                             content = convertPkcs1(content);
@@ -538,7 +539,7 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
                         PKCS8EncodedKeySpec keyspec = new PKCS8EncodedKeySpec(content);
                         key = kf.generatePrivate(keyspec);
                     } else {
-                        throw new IllegalArgumentException("Unknown PEM entry in file " + path);
+                        throw new IllegalArgumentException("Unknown entry type in PEM");
                     }
                 } else {
                     buffer.append(line);
@@ -576,15 +577,24 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
         }
         String alias = (String) params.get("alias");
         if (alias == null) {
-            for (Certificate cert: certs) {
+            Iterator<Certificate> iter = certs.iterator();
+            Certificate leaf = null;
+            while (iter.hasNext()) {
+                Certificate cert = iter.next();
                 if ("X.509".equals(cert.getType())) {
                     X509Certificate x509cert = (X509Certificate) cert;
                     if (x509cert.getBasicConstraints() == -1) {
                         // The leaf certificate
-                        alias = resolveAlias(cert, params);
+                        leaf = cert;
+                        iter.remove();
                         break;
                     }
                 }
+            }
+            if (leaf != null) {
+                alias = resolveAlias(leaf, params);
+                // Ensure that the leaf certificate is the first
+                certs.add(0, leaf);
             }
         }
         if (alias == null) {
