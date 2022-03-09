@@ -7,6 +7,15 @@ import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeParseException;
+import java.time.temporal.ChronoUnit;
+import java.util.AbstractMap;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
 import java.util.Map;
 import java.util.Timer;
 
@@ -14,6 +23,11 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.auth0.jwt.JWT;
+import com.auth0.jwt.JWTCreator;
+import com.axibase.date.DatetimeProcessor;
+import com.axibase.date.PatternResolver;
+import com.beust.jcommander.IStringConverter;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
@@ -54,6 +68,7 @@ public class Start {
     }
 
     private static final String SECRETS_CMD = "secrets";
+    private static final String JWT_CMD = "jwt";
 
     // Prevent launching fatal shutdown many times
     // Reset in constructor
@@ -171,7 +186,78 @@ public class Start {
             }
             return secret;
         }
+    }
 
+    @Parameters(commandNames={JWT_CMD})
+    @ToString
+    static class CommandJwt {
+        public static class ClaimConverter implements IStringConverter<AbstractMap.SimpleImmutableEntry<String, String>> {
+            @Override
+            public AbstractMap.SimpleImmutableEntry<String, String> convert(String value) {
+                String[] s = value.split("=");
+                if (s.length != 2) {
+                    System.err.println("bad claim: " + value);
+                    System.exit(ExitCode.INVALIDARGUMENTS);
+                }
+                return new AbstractMap.SimpleImmutableEntry(s[0], s[1]);
+            }
+        }
+
+        @Parameter(names = {"--gen"}, description = "Generate a JWT token")
+        private boolean generate = false;
+
+        @Parameter(names = {"--subject", "-s"}, description = "Generate a JWT token")
+        private String subject = null;
+
+        @Parameter(names = {"--validity", "-v"}, description = "The jwt token validity in days")
+        private long validity = -1;
+
+        @Parameter(names = {"--claim", "-c"}, description = "Add a claim", converter = ClaimConverter.class)
+        private List<AbstractMap.SimpleImmutableEntry<String, String>> claims = new ArrayList<>();
+
+        @Parameter(names = {"--sign"}, description = "Sign a JWT token")
+        private boolean sign = false;
+
+        @Parameter(names = {"--signfile", "-f"}, description = "The jwt token to sign")
+        private String signfile = null;
+
+        void process(JWTHandler handler) throws IOException {
+            if (sign) {
+                sign(signfile, handler);
+            } else if (generate) {
+                generate(subject, handler);
+            }
+        }
+
+        private void generate(String subject, JWTHandler handler) {
+            JWTCreator.Builder builder = JWT.create()
+                    .withSubject(subject)
+                    .withIssuedAt(new Date());
+            for (Map.Entry<String, String> claim: claims) {
+                builder.withClaim(claim.getKey(), claim.getValue());
+            }
+            if (validity > 0) {
+                Instant end = ZonedDateTime.now(ZoneOffset.UTC).plus(validity, ChronoUnit.DAYS).toInstant();
+                builder.withExpiresAt(Date.from(end));
+            }
+            System.out.println(handler.getToken(builder));
+            System.exit(ExitCode.OK);
+        }
+
+        private void sign(String signfile, JWTHandler handler) {
+            if (signfile == null) {
+                System.err.println("No JWT payload");
+            }
+            try {
+                byte[] buffer = Files.readAllBytes(Paths.get(signfile));
+                String token = handler.sign(new String(buffer, StandardCharsets.UTF_8));
+                System.out.println(token);
+                System.exit(ExitCode.OK);
+            } catch (IOException e) {
+                System.err.println("Can't read JWT payload: " + Helpers.resolveThrowableException(e));
+                logger.catching(e);
+            }
+        }
     }
 
     @Parameter(names = {"--configfile", "-c"}, description = "File")
@@ -193,11 +279,8 @@ public class Start {
     @Parameter(names = {"--testprocessor", "-p"}, description = "A field processor to test")
     private String testedprocessor = null;
 
-    @Parameter(names = {"--sign", "-S"}, description = "Sign a JWT token")
-    private boolean sign = false;
-
-    @Parameter(names = {"--signfile", "-F"}, description = "The jwt token to sign")
-    private String signfile = null;
+    @Parameter(names = {"--timepattern"}, description = "A time pattern to test")
+    private String timepattern = null;
 
     String pipeLineTest = null;
     int exitcode = ExitCode.OK;
@@ -215,10 +298,13 @@ public class Start {
         Start main = new Start();
         main.canexit = true;
         CommandPassword passwd = new CommandPassword();
+        CommandJwt jwt = new CommandJwt();
         JCommander jcom = JCommander
                         .newBuilder()
                         .addObject(main)
                         .addCommand(passwd)
+                        .addCommand(jwt)
+                        .acceptUnknownOptions(true)
                         .build();
 
         try {
@@ -242,6 +328,31 @@ public class Start {
                 System.err.println("Secret store state broken: " + Helpers.resolveThrowableException(ex));
                 ex.printStackTrace();
                 System.exit(ExitCode.OPERATIONFAILED);
+            }
+        } else if (JWT_CMD.equals(jcom.getParsedCommand())) {
+            if (main.configFile == null) {
+                System.err.println("No configuration file given");
+                System.exit(ExitCode.INVALIDCONFIGURATION);
+            }
+            try {
+                Properties props = Configuration.parse(main.configFile);
+                jwt.process(props.jwtHandler);
+            } catch (IOException | IllegalArgumentException ex) {
+                System.err.println("JWT operation failed: " + Helpers.resolveThrowableException(ex));
+                System.exit(ExitCode.OPERATIONFAILED);
+            } catch (IllegalStateException ex) {
+                System.err.println("JWT state broken: " + Helpers.resolveThrowableException(ex));
+                ex.printStackTrace();
+                System.exit(ExitCode.OPERATIONFAILED);
+            }
+        } else if (main.timepattern != null) {
+            DatetimeProcessor tested = PatternResolver.createNewFormatter(main.timepattern);
+            for (String date: jcom.getUnknownOptions()) {
+                try {
+                    System.out.format("%s -> %s%n", date, tested.parse(date));
+                } catch (IllegalArgumentException | DateTimeParseException ex) {
+                    System.out.format("%s failed%n", date);
+                }
             }
         } else {
             main.configure();
@@ -269,9 +380,7 @@ public class Start {
                 exitcode = ExitCode.INVALIDCONFIGURATION;
             } else {
                 Properties props = Configuration.parse(configFile);
-                if (sign) {
-                    sign(signfile, props.jwtHandler);
-                } else if (!test) {
+                if (!test) {
                     launch(props);
                     logger.warn("LogHub started");
                 } else if (testedprocessor != null) {
@@ -300,19 +409,6 @@ public class Start {
         }
     }
 
-    private void sign(String signfile, JWTHandler handler) {
-        if (signfile == null) {
-            System.err.println("No JWT payload");
-        }
-        try {
-            byte[] buffer = Files.readAllBytes(Paths.get(signfile));
-            String token = handler.sign(new String(buffer, StandardCharsets.UTF_8));
-            System.out.println(token);
-        } catch (IOException e) {
-            System.err.println("Can't read JWT payload: " + Helpers.resolveThrowableException(e));
-            logger.catching(e);
-        }
-    }
 
     private void testProcessor(Properties props, String testedprocessor2) {
         Processor p = props.identifiedProcessors.get(testedprocessor2);

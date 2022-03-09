@@ -139,8 +139,8 @@ public class JWTHandler {
             throw new IllegalArgumentException("Unhandled signing algorithm: " + builder.alg);
         }
         this.verifier = JWT.require(alg)
-                        .withIssuer(builder.issuer)
-                        .build();
+                           .withIssuer(builder.issuer)
+                           .build();
     }
 
     public String getToken(Principal p) {
@@ -160,6 +160,12 @@ public class JWTHandler {
             builder = filler.apply(builder);
         }
         return builder.sign(alg);
+    }
+
+    public String getToken(JWTCreator.Builder builder) {
+        return builder.withIssuer(issuer)
+                      .withIssuedAt(new Date())
+                      .sign(alg);
     }
 
     public JWTPrincipal verifyToken(String token) throws JWTVerificationException {
