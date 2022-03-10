@@ -24,7 +24,7 @@ import loghub.security.AuthenticationHandler;
 
 public class AccessControl extends HttpFilter {
 
-    private static final Pattern AUTHDETAILS = Pattern.compile("(?<scheme>\\p{ASCII}+) (?<value>.+)");
+    private static final Pattern AUTHDETAILS = Pattern.compile("(?<scheme>\\p{Alnum}+)\\h+(?<value>.+)");
 
     private final AuthenticationHandler authhandler;
 

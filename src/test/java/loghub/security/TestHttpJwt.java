@@ -6,6 +6,7 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.Base64;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.apache.logging.log4j.Level;
@@ -63,18 +64,29 @@ public class TestHttpJwt {
     @Test
     public void TestTokenGeneration() throws IOException {
         URL theurl = new URL(String.format("http://localhost:%d/token", serverPort));
-        HttpURLConnection cnx = (HttpURLConnection) theurl.openConnection();
-        String userpass = "user:password";
-        String basicAuth = "Basic " + new String(Base64.getEncoder().encode(userpass.getBytes()));
-        cnx.setRequestProperty ("Authorization", basicAuth);
-        cnx.connect();
-        BufferedReader bf = new BufferedReader(new InputStreamReader(cnx.getInputStream()));
-        String token = bf.readLine();
-
-        cnx = (HttpURLConnection) theurl.openConnection();
-        cnx.setRequestProperty ("Authorization", "Bearer " + token);
-        cnx.connect();
-        Assert.assertEquals(200, cnx.getResponseCode());
+        HttpURLConnection cnx = null;
+        String token = null;
+        try {
+            cnx = (HttpURLConnection) theurl.openConnection();
+            String userpass = "user:password";
+            String basicAuth = "Basic " + new String(Base64.getEncoder().encode(userpass.getBytes()));
+            cnx.setRequestProperty ("Authorization", basicAuth);
+            cnx.connect();
+            BufferedReader bf = new BufferedReader(new InputStreamReader(cnx.getInputStream()));
+            token = bf.readLine();
+        } finally {
+            Optional.ofNullable(cnx).ifPresent(HttpURLConnection::disconnect);
+        }
+        Assert.assertNotNull(token);
+        try {
+            cnx = (HttpURLConnection) theurl.openConnection();
+            // Extra space to ensure that parsing is resilient
+            cnx.setRequestProperty ("Authorization", "Bearer  " + token);
+            cnx.connect();
+            Assert.assertEquals(200, cnx.getResponseCode());
+        } finally {
+            Optional.ofNullable(cnx).ifPresent(HttpURLConnection::disconnect);
+        }
     }
 
 }
