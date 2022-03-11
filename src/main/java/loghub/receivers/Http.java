@@ -103,7 +103,7 @@ public class Http extends AbstractHttpReceiver {
                 logger.debug("Can't decode HTTP content", ex);
                 throw new HttpRequestFailure(HttpResponseStatus.BAD_REQUEST, "Content invalid for decoder");
             }
-            ByteBuf content = Unpooled.copiedBuffer("{'decoded': true}\r\n", StandardCharsets.UTF_8);
+            ByteBuf content = Unpooled.copiedBuffer("{\"decoded\": true}\r\n", StandardCharsets.UTF_8);
             writeResponse(ctx, request, content, content.readableBytes());
         }
 
