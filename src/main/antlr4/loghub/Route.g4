@@ -223,6 +223,7 @@ identifier
     | 'new' | 'instanceof' | 'now'
     | 'sources' | 'true' | 'false' | 'null' | 'drop'
     | 'trim' | 'capitalize' | 'uncapitalize' | 'isBlank' | 'normalize'
+    | 'text' | 'blob'
     | Identifier
     ;
 
