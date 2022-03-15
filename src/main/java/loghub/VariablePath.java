@@ -151,9 +151,13 @@ public abstract class VariablePath {
         private Context(String[] path) {
             super(path);
         }
+        private String pathSuffix() {
+            return path.length == 0 ? "" :
+                    '.' + String.join(".", path);
+        }
         @Override
         public String toString() {
-            return "[" + Event.CONTEXTKEY +'.' + String.join(".", path) + "]";
+            return "[" + Event.CONTEXTKEY + pathSuffix() + "]";
         }
         @Override
         public boolean isContext() {
@@ -165,7 +169,7 @@ public abstract class VariablePath {
         }
         @Override
         public String rubyExpression() {
-            return "event.getConnectionContext()." + String.join(".", path);
+            return "event.getConnectionContext()" + pathSuffix();
         }
     }
     private static class Indirect extends VariableLength {

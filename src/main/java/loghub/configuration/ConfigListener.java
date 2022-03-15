@@ -750,12 +750,14 @@ class ConfigListener extends RouteBaseListener {
     private VariablePath convertEventVariable(EventVariableContext ev) {
         if (ev.ts != null) {
             return VariablePath.TIMESTAMP;
+        } else if (ev.ctx != null && ev.vp1 == null ) {
+            return VariablePath.ofContext(Collections.emptyList());
         } else if (ev.ctx != null) {
-            return VariablePath.ofContext(convertEventVariable(ev.varPath()));
+            return VariablePath.ofContext(convertEventVariable(ev.vp1));
         } else if (ev.MetaName() != null) {
             return VariablePath.ofMeta(ev.MetaName().getText().substring(1));
         } else {
-            List<String> path = convertEventVariable(ev.varPath());
+            List<String> path = convertEventVariable(ev.vp2);
             if (ev.root != null) {
                 path.add(0, ".");
             }

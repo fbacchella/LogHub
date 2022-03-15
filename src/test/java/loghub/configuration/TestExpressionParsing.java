@@ -173,6 +173,13 @@ public class TestExpressionParsing {
         Assert.assertEquals("c", evalExpression("[a.b]", ev));
     }
 
+    @Test
+    public void testContextPattern() throws ExpressionException, ProcessorException {
+        Event ev =  Tools.getEvent();
+        String result = (String) evalExpression("\"${#1%s} ${#2%s}\"([@context], [@context principal]) ", ev);
+        Assert.assertTrue(Pattern.matches("loghub.ConnectionContext\\$1@[a-f0-9]+ loghub.ConnectionContext\\$EmptyPrincipal@[a-f0-9]+", result));
+    }
+
     private void enumerateExpressions(Event ev, Object[] tryExpression) {
         Map<String, Object> tests = new HashMap<>(tryExpression.length / 2);
         for (int i = 0; i < tryExpression.length; ) {
@@ -432,9 +439,9 @@ public class TestExpressionParsing {
             }
         };
         ev.getConnectionContext().setPrincipal(p);
-        Object value = evalExpression("[ @context principal name ] == \"user\"", ev);
+        Object value = evalExpression("[@context principal name ] == \"user\"", ev);
         Assert.assertEquals(true, value);
-        InetSocketAddress localAddr = (InetSocketAddress) evalExpression("[ @context localAddress]", ev, Collections.singletonMap("h_" + formatHash, new VarFormatter(format)));
+        InetSocketAddress localAddr = (InetSocketAddress) evalExpression("[@context localAddress]", ev, Collections.singletonMap("h_" + formatHash, new VarFormatter(format)));
         Assert.assertEquals(35710, localAddr.getPort());
     }
 
