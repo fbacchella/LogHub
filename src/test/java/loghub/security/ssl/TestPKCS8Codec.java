@@ -28,11 +28,21 @@ public class TestPKCS8Codec {
         );
         algos.forEach(a -> {
             try {
-                KeyPairGenerator keyGen = KeyPairGenerator.getInstance(a);
-                KeyPair kp = keyGen.generateKeyPair();
-                byte[] content = kp.getPrivate().getEncoded();
-                PKCS8Codec codec = new PKCS8Codec(ByteBuffer.wrap(content));
-                codec.read();
+                boolean available;
+                // check that the algo is available in this JVM
+                try {
+                    KeyFactory.getInstance(a);
+                    available = true;
+                } catch (NoSuchAlgorithmException e) {
+                    available = false;
+                }
+                if (available) {
+                    KeyPairGenerator keyGen = KeyPairGenerator.getInstance(a);
+                    KeyPair kp = keyGen.generateKeyPair();
+                    byte[] content = kp.getPrivate().getEncoded();
+                    PKCS8Codec codec = new PKCS8Codec(ByteBuffer.wrap(content));
+                    codec.read();
+                }
             } catch (NoSuchAlgorithmException ex) {
                 throw new IllegalArgumentException(ex);
             }
