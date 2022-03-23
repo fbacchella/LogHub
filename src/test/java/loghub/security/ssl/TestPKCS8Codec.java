@@ -83,7 +83,8 @@ public class TestPKCS8Codec {
                     kf.generatePrivate(keyspec);
                 } catch (NoSuchAlgorithmException e) {
                     // No ED25519 on java 1.9
-                    if ("pkcs8/ED25519.pk8".equals(f) && System.getProperty("java.version").startsWith("1.8.")) {
+                    if ("pkcs8/ED25519.pk8".equals(f) &&
+                            (System.getProperty("java.version").startsWith("1.8.") || System.getProperty("java.version").startsWith("11."))) {
                         continue;
                     } else {
                         throw e;
