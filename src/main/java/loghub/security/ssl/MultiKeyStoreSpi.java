@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.lang.reflect.UndeclaredThrowableException;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -42,6 +43,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -66,14 +68,13 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
 
     private static final Logger logger = LogManager.getLogger();
 
+    private static final Map<String, KeyFactory> kfmap = new ConcurrentHashMap<>();
     private static final CertificateFactory cf;
-    private static final KeyFactory kf;
     private static final MessageDigest digest;
     static {
         try {
             cf = CertificateFactory.getInstance("X.509");
             digest = MessageDigest.getInstance("MD5");
-            kf = KeyFactory.getInstance("RSA");
         } catch (CertificateException | NoSuchAlgorithmException e) {
             throw new IllegalStateException("Missing security algorithms", e);
         }
@@ -534,10 +535,12 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
                             content = convertPkcs1(content);
                         }
                         if (matcher.group("epk") != null) {
-                            content = decrypteEncryptedPkcs8(content, fileParams.get("password").toString());
+                            content = decrypteEncryptedPkcs8(content, fileParams.getOrDefault("password", "").toString());
                         }
+                        PKCS8Codec codec = new PKCS8Codec(ByteBuffer.wrap(content));
+                        codec.read();
                         PKCS8EncodedKeySpec keyspec = new PKCS8EncodedKeySpec(content);
-                        key = kf.generatePrivate(keyspec);
+                        key = kfmap.computeIfAbsent(codec.getAlgoOidString(), this::resolveFactory).generatePrivate(keyspec);
                     } else {
                         throw new IllegalArgumentException("Unknown entry type in PEM");
                     }
@@ -546,6 +549,14 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
                 }
             }
             addEntry(certs, key, fileParams);
+        }
+    }
+
+    private KeyFactory resolveFactory(String protocol) {
+        try {
+            return KeyFactory.getInstance(protocol);
+        } catch (NoSuchAlgorithmException ex) {
+            throw new UndeclaredThrowableException(ex);
         }
     }
 
