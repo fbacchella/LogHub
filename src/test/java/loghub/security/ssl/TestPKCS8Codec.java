@@ -1,10 +1,14 @@
 package loghub.security.ssl;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.ByteBuffer;
+import java.security.KeyFactory;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.stream.Stream;
 
 import org.junit.Test;
@@ -47,6 +51,46 @@ public class TestPKCS8Codec {
                 throw new IllegalArgumentException(ex);
             }
         });
+    }
+
+    // for s in *.pem; do
+    // d=${s%.pem}.pk8
+    // openssl pkcs8 -in $s -inform pem -out $d -outform der -nocrypt -topk8
+    // done
+    @Test
+    public void fromFile() throws IOException, InvalidKeySpecException, NoSuchAlgorithmException {
+        String[] files = {
+                "pkcs8/DSA_2048.pk8",
+                "pkcs8/DSA_4096.pk8",
+                "pkcs8/ED25519.pk8",
+                "pkcs8/RSA_2048.pk8",
+                "pkcs8/RSA_4096.pk8",
+                "pkcs8/prime192v1.pk8",
+                "pkcs8/prime256v1.pk8",
+                "pkcs8/secp224r1.pk8",
+                "pkcs8/secp384r1.pk8",
+                "pkcs8/secp521r1.pk8"
+        };
+        for (String f: files) {
+            try (InputStream is = getClass().getClassLoader().getResourceAsStream(f)) {
+                try {
+                    byte[] buffer = new byte[4096];
+                    is.read(buffer);
+                    PKCS8Codec codec = new PKCS8Codec(ByteBuffer.wrap(buffer));
+                    codec.read();
+                    PKCS8EncodedKeySpec keyspec = new PKCS8EncodedKeySpec(buffer);
+                    KeyFactory kf = KeyFactory.getInstance(codec.getAlgo());
+                    kf.generatePrivate(keyspec);
+                } catch (NoSuchAlgorithmException e) {
+                    // No ED25519 on java 1.9
+                    if ("pkcs8/ED25519.pk8".equals(f) && System.getProperty("java.version").startsWith("1.8.")) {
+                        continue;
+                    } else {
+                        throw e;
+                    }
+                }
+            }
+        }
     }
 
 }

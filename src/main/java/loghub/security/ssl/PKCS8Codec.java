@@ -2,9 +2,19 @@ package loghub.security.ssl;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 public class PKCS8Codec extends SimpleBerCodec {
+
+    // In older JVM, some mapping where missing, needs to explicit them
+    private static final Map<String, String> algoMapping = new HashMap<>();
+    static {
+        algoMapping.put("1.2.840.113549.1.1.1","RSA");
+        algoMapping.put("1.3.101.112","Ed25519");
+        algoMapping.put("1.2.840.10045.2.1","EC");
+    }
 
     private int[] oid;
     private byte[] key;
@@ -78,8 +88,9 @@ public class PKCS8Codec extends SimpleBerCodec {
         return oid.clone();
     }
 
-    public String getAlgoOidString() {
-        return Arrays.stream(oid).mapToObj(i-> Integer.toString(i)).collect(Collectors.joining("."));
+    public String getAlgo() {
+        String algoOid = Arrays.stream(oid).mapToObj(i-> Integer.toString(i)).collect(Collectors.joining("."));
+        return algoMapping.getOrDefault(algoOid, algoOid);
     }
 
     public void setAlgoOid(int[] oid) {

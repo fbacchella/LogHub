@@ -540,7 +540,7 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
                         PKCS8Codec codec = new PKCS8Codec(ByteBuffer.wrap(content));
                         codec.read();
                         PKCS8EncodedKeySpec keyspec = new PKCS8EncodedKeySpec(content);
-                        key = kfmap.computeIfAbsent(codec.getAlgoOidString(), this::resolveFactory).generatePrivate(keyspec);
+                        key = kfmap.computeIfAbsent(codec.getAlgo(), this::resolveFactory).generatePrivate(keyspec);
                     } else {
                         throw new IllegalArgumentException("Unknown entry type in PEM");
                     }
