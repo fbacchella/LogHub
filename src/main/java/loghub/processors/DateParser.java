@@ -1,5 +1,6 @@
 package loghub.processors;
 
+import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeParseException;
@@ -127,24 +128,47 @@ public class DateParser extends FieldsProcessor {
     public Object fieldFunction(Event event, Object value) throws ProcessorException {
         if (value instanceof Date || value instanceof TemporalAccessor) {
             return value;
-        }
-        String dateString = value.toString();
-        logger.debug("trying to parse {}", dateString);
-        for (int i = 0; i < patterns.length; i++) {
-            DatetimeProcessor formatter = patterns[i];
-            String format = resolveCurrentlyUsedFormatIfDebug(i, formatter);
-            logger.trace("trying to parse {} with {}", dateString, format);
-            try {
-                ZonedDateTime dateParsed = formatter.parse(dateString);
-                logger.trace("parsed {} as {}", dateString, dateParsed);
-                return dateParsed.toInstant();
-            } catch (IllegalArgumentException | DateTimeParseException e) {
-                //no problem, just wrong parser, keep trying
-                logger.debug("failed to parse date with pattern {}: {}", () -> format, () -> Helpers.resolveThrowableException(e));
-                logger.catching(Level.TRACE, e);
+        } else if (value instanceof Number) {
+            // If parsing a number, only the first formatter is used
+            return resolveFromNumber(event, patterns[0], (Number) value);
+        } else {
+            String dateString = value.toString();
+            logger.debug("trying to parse {}", dateString);
+            for (int i = 0; i < patterns.length; i++) {
+                DatetimeProcessor formatter = patterns[i];
+                String format = resolveCurrentlyUsedFormatIfDebug(i, formatter);
+                logger.trace("trying to parse {} with {}", dateString, format);
+                try {
+                    ZonedDateTime dateParsed = formatter.parse(dateString);
+                    logger.trace("parsed {} as {}", dateString, dateParsed);
+                    return dateParsed.toInstant();
+                } catch (IllegalArgumentException | DateTimeParseException e) {
+                    //no problem, just wrong parser, keep trying
+                    logger.debug("failed to parse date with pattern {}: {}", () -> format, () -> Helpers.resolveThrowableException(e));
+                    logger.catching(Level.TRACE, e);
+                }
             }
+            return FieldsProcessor.RUNSTATUS.FAILED;
         }
-        return FieldsProcessor.RUNSTATUS.FAILED;
+     }
+
+    private Object resolveFromNumber(Event event, DatetimeProcessor formatter, Number value) throws ProcessorException {
+        boolean isInstant = formatter == NAMEDPATTERNS.get("seconds");
+        boolean isDate = formatter == NAMEDPATTERNS.get("milliseconds");
+        Number n = (Number) value;
+        if (n instanceof Float || n instanceof Double){
+            double d = n.doubleValue();
+            // The cast round toward 0
+            long seconds = ((long)d);
+            long nano = ((long)(d * 1e9) % 1_000_000_000l);
+            return Instant.ofEpochSecond(seconds, nano);
+        } else if (isInstant) {
+            return Instant.ofEpochSecond(n.longValue(), 0);
+        } else if (isDate) {
+            return Instant.ofEpochMilli(n.longValue());
+        } else {
+            throw event.buildException("Don't know how to parse date value " + value);
+        }
     }
 
     /**

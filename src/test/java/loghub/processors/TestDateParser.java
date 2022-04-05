@@ -7,6 +7,8 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoField;
 import java.util.Collections;
+import java.util.Date;
+import java.util.function.Function;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -175,6 +177,57 @@ public class TestDateParser {
         Instant date = (Instant) event.get("field");
         OffsetDateTime t = OffsetDateTime.ofInstant(date, ZoneId.of("GMT"));
         Assert.assertEquals("date not parsed", 14, t.getLong(ChronoField.HOUR_OF_DAY));
+    }
+
+    @Test
+    public void testNumberInstantFloat() throws ProcessorException {
+        DateParser processor = new DateParser();
+        processor.setPattern("seconds");
+        processor.setTimezone("CET");
+        processor.setField(VariablePath.of("field"));
+        Assert.assertTrue(processor.configure(new Properties(Collections.emptyMap())));
+
+        Function<Instant, Number> tonumber = (i) -> 1.0 * (i.getEpochSecond()) + i.getNano()/1e9;
+        resolve(processor, Instant.ofEpochSecond(155, 330000000), tonumber);
+        resolve(processor, Instant.ofEpochSecond(155, 30), tonumber);
+        resolve(processor, Instant.ofEpochSecond(-155, 330000000), tonumber);
+        resolve(processor, Instant.ofEpochSecond(-155, -330000000), tonumber);
+        resolve(processor, Instant.ofEpochSecond(-155, 30), tonumber);
+    }
+
+    @Test
+    public void testNumberInstantInteger() throws ProcessorException {
+        DateParser processor = new DateParser();
+        processor.setPattern("seconds");
+        processor.setTimezone("CET");
+        processor.setField(VariablePath.of("field"));
+        Assert.assertTrue(processor.configure(new Properties(Collections.emptyMap())));
+
+        Function<Instant, Number> tonumber = (i) -> i.getEpochSecond();
+        resolve(processor, Instant.ofEpochSecond(155, 0), tonumber);
+        resolve(processor, Instant.ofEpochSecond(-155, 0), tonumber);
+    }
+
+    @Test
+    public void testNumberDate() throws ProcessorException {
+        DateParser processor = new DateParser();
+        processor.setPattern("milliseconds");
+        processor.setTimezone("CET");
+        processor.setField(VariablePath.of("field"));
+        Assert.assertTrue(processor.configure(new Properties(Collections.emptyMap())));
+
+        Function<Instant, Number> tonumber = Instant::toEpochMilli;
+        resolve(processor, new Date(155).toInstant(), tonumber);
+        resolve(processor, new Date(-155).toInstant(), tonumber);
+    }
+
+    private void resolve(DateParser processor, Instant instant,
+                         Function<Instant, Number> tonumber) throws ProcessorException {
+        Event event = Tools.getEvent();
+        event.put("field", tonumber.apply(instant));
+        processor.process(event);
+        Instant o = (Instant) event.get("field");
+        Assert.assertEquals(instant, o);
     }
 
     @Test
