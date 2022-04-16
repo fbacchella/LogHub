@@ -13,7 +13,7 @@
         <maven.compiler.target>1.8</maven.compiler.target>
         <log4j>2.17.2</log4j>
         <antlr>4.10.1</antlr>
-        <jackson>2.13.2</jackson>
+        <jackson>2.13.2.1</jackson>
         <metrics>4.2.9</metrics>
         <cache2k>2.6.1.Final</cache2k>
         <mainClass>loghub.Start</mainClass>
