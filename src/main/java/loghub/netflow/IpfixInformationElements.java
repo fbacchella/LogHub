@@ -32,7 +32,7 @@ class IpfixInformationElements {
     @Data
     @JsonPropertyOrder({"elementId","name","type","semantics","status","description",
                         "units","range","additional","references","revision","date"})
-    static class Element {
+    public static class Element {
         public final int elementId;
         public final String name;
         public final String type;
@@ -46,7 +46,7 @@ class IpfixInformationElements {
         public final String revision;
         public final String date;
 
-        Element() {
+        public Element() {
             elementId = 0;
             this.name = "";
             this.type = "";
