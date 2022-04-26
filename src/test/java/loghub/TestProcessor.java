@@ -10,6 +10,10 @@ import loghub.processors.Identity;
 
 public class TestProcessor {
 
+    private Expression getExpression(String expressionScript) throws Expression.ExpressionException {
+        return new Expression(expressionScript, new Properties(Collections.emptyMap()).groovyClassLoader, Collections.emptyMap());
+    }
+
     @Test
     public void testPath() {
         Processor p = new Processor() {
@@ -33,36 +37,36 @@ public class TestProcessor {
     }
 
     @Test
-    public void testIf() throws ProcessorException {
+    public void testIf() throws ProcessorException, Expression.ExpressionException {
         Event e = new EventInstance(ConnectionContext.EMPTY);
 
         Processor p = new Identity();
 
-        p.setIf("true");
+        p.setIf(getExpression("true"));
         p.configure(new Properties(Collections.emptyMap()));
         Assert.assertTrue(p.isprocessNeeded(e));
 
-        p.setIf("false");
+        p.setIf(getExpression("false"));
         p.configure(new Properties(Collections.emptyMap()));
         Assert.assertFalse(p.isprocessNeeded(e));
 
-        p.setIf("0");
+        p.setIf(getExpression("0"));
         p.configure(new Properties(Collections.emptyMap()));
         Assert.assertFalse(p.isprocessNeeded(e));
 
-        p.setIf("1");
+        p.setIf(getExpression("1"));
         p.configure(new Properties(Collections.emptyMap()));
         Assert.assertTrue(p.isprocessNeeded(e));
 
-        p.setIf("0.1");
+        p.setIf(getExpression("0.1"));
         p.configure(new Properties(Collections.emptyMap()));
         Assert.assertTrue(p.isprocessNeeded(e));
 
-        p.setIf("\"bob\"");
+        p.setIf(getExpression("\"bob\""));
         p.configure(new Properties(Collections.emptyMap()));
         Assert.assertTrue(p.isprocessNeeded(e));
 
-        p.setIf("\"\"");
+        p.setIf(getExpression("\"\""));
         p.configure(new Properties(Collections.emptyMap()));
         Assert.assertFalse(p.isprocessNeeded(e));
     }

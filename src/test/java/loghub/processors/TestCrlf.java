@@ -13,6 +13,7 @@ import org.junit.Test;
 
 import loghub.BeanChecks;
 import loghub.Event;
+import loghub.Expression;
 import loghub.LogUtils;
 import loghub.Processor;
 import loghub.ProcessorException;
@@ -57,7 +58,7 @@ public class TestCrlf {
     }
 
     @Test
-    public void test_loghub_processors_NettyNameResolver() throws IntrospectionException, ReflectiveOperationException {
+    public void test_loghub_processors_Crlf() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.processors.Crlf"
                 , BeanChecks.BeanInfo.build("format", String.class)
                 , BeanChecks.BeanInfo.build("escape", Boolean.TYPE)
@@ -65,7 +66,7 @@ public class TestCrlf {
                 , BeanChecks.BeanInfo.build("field", VariablePath.class)
                 , BeanChecks.BeanInfo.build("fields", new Object[] {}.getClass())
                 , BeanChecks.BeanInfo.build("path", String.class)
-                , BeanChecks.BeanInfo.build("if", String.class)
+                , BeanChecks.BeanInfo.build("if", Expression.class)
                 , BeanChecks.BeanInfo.build("success", Processor.class)
                 , BeanChecks.BeanInfo.build("failure", Processor.class)
                 , BeanChecks.BeanInfo.build("exception", Processor.class)

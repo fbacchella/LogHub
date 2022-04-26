@@ -25,6 +25,7 @@ import loghub.ConnectionContext;
 import loghub.Event;
 import loghub.Event.Action;
 import loghub.EventsProcessor;
+import loghub.Expression;
 import loghub.Helpers;
 import loghub.IgnoredEventException;
 import loghub.LogUtils;
@@ -78,11 +79,12 @@ public class TestEtl {
     }
 
     @Test
-    public void test1() throws ProcessorException {
+    public void test1() throws ProcessorException, Expression.ExpressionException {
+        Properties props = new Properties(Collections.emptyMap());
         Etl.Assign etl = new Etl.Assign();
         etl.setLvalue(VariablePath.of(new String[]{"a", "b"}));
-        etl.setExpression("event.c + 1");
-        boolean done = etl.configure(new Properties(Collections.emptyMap()));
+        etl.setExpression(new Expression("event.c + 1", props.groovyClassLoader, props.formatters));
+        boolean done = etl.configure(props);
         Assert.assertTrue("configuration failed", done);
         Event event = Tools.getEvent();
         event.put("c", 0);
@@ -116,14 +118,15 @@ public class TestEtl {
     }
 
     @Test
-    public void test4() throws ProcessorException {
-        Etl.Assign etl = new Etl.Assign();
-        etl.setLvalue(VariablePath.of(new String[]{"a"}));
-        etl.setExpression("formatters.a.format(event.getTimestamp())");
+    public void test4() throws ProcessorException, Expression.ExpressionException {
         Map<String, VarFormatter> formats = Collections.singletonMap("a", new VarFormatter("${%t<GMT>H}"));
         Map<String, Object> properties = new HashMap<>();
         properties.put("__FORMATTERS", formats);
-        boolean done = etl.configure(new Properties(properties));
+        Properties props = new Properties(properties);
+        Etl.Assign etl = new Etl.Assign();
+        etl.setLvalue(VariablePath.of(new String[]{"a"}));
+        etl.setExpression(new Expression("formatters.a.format(event.getTimestamp())", props.groovyClassLoader, props.formatters));
+        boolean done = etl.configure(props);
         Assert.assertTrue("configuration failed", done);
         Event event = Tools.getEvent();
         event.setTimestamp(new Date(3600 * 1000));

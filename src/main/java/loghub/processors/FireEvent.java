@@ -1,13 +1,11 @@
 package loghub.processors;
 
-import java.util.HashMap;
 import java.util.Map;
 
 import loghub.ConnectionContext;
 import loghub.Event;
 import loghub.Event.Action;
 import loghub.Expression;
-import loghub.Expression.ExpressionException;
 import loghub.Pipeline;
 import loghub.PriorityBlockingQueue;
 import loghub.Processor;
@@ -17,7 +15,6 @@ import loghub.configuration.Properties;
 
 public class FireEvent extends Processor {
 
-    private Map<VariablePath, String> fields;
     private Map<VariablePath, Expression> expressions;
     private String destination;
     private Pipeline pipeDestination;
@@ -25,16 +22,6 @@ public class FireEvent extends Processor {
 
     @Override
     public boolean configure(Properties properties) {
-        expressions = new HashMap<>(fields.size());
-        for(Map.Entry<VariablePath, String> i: fields.entrySet()) {
-            try {
-                Expression ex = new Expression(i.getValue(), properties.groovyClassLoader, properties.formatters);
-                expressions.put(i.getKey(), ex);
-            } catch (ExpressionException e) {
-                logger.error("invalid expression for field {}: {}", i.getKey(), i.getValue());
-                return false;
-            }
-        }
         if( ! properties.namedPipeLine.containsKey(destination)) {
             logger.error("invalid destination for forked event: {}", destination);
             return false;
@@ -63,15 +50,15 @@ public class FireEvent extends Processor {
     /**
      * @return the fields
      */
-    public Map<VariablePath, String> getFields() {
-        return fields;
+    public Map<VariablePath, Expression> getFields() {
+        return expressions;
     }
 
     /**
      * @param fields the fields to set
      */
-    public void setFields(Map<VariablePath, String> fields) {
-        this.fields = fields;
+    public void setFields(Map<VariablePath, Expression> fields) {
+        this.expressions = Map.copyOf(fields);
     }
 
     /**

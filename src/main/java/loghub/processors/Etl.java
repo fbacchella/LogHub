@@ -1,16 +1,14 @@
 package loghub.processors;
 
-import org.apache.logging.log4j.Level;
-import org.codehaus.groovy.control.CompilationFailedException;
-
 import loghub.Event;
 import loghub.Event.Action;
 import loghub.Expression;
-import loghub.Expression.ExpressionException;
 import loghub.Processor;
 import loghub.ProcessorException;
 import loghub.VariablePath;
 import loghub.configuration.Properties;
+import lombok.Getter;
+import lombok.Setter;
 
 public abstract class Etl extends Processor {
 
@@ -41,36 +39,13 @@ public abstract class Etl extends Processor {
     }
 
     public static class Assign extends Etl {
-        private String expression;
-        private Expression script;
+        @Getter @Setter
+        private Expression expression;
         @Override
         public boolean process(Event event) throws ProcessorException {
-            Object o = script.eval(event);
+            Object o = expression.eval(event);
             event.applyAtPath(Action.PUT, lvalue, o, true);
             return true;
-        }
-        @Override
-        public boolean configure(Properties properties) {
-            try {
-                script = new Expression(expression, properties.groovyClassLoader, properties.formatters);
-            } catch (ExpressionException e) {
-                Throwable cause = e.getCause();
-                if (cause instanceof CompilationFailedException) {
-                    logger.error("invalid groovy expression: {}", e.getMessage());
-                    return false;
-                } else {
-                    logger.error("Critical groovy error: {}", e.getCause().getMessage());
-                    logger.throwing(Level.DEBUG, e.getCause());
-                    return false;
-                }
-            }
-            return super.configure(properties);
-        }
-        public String getExpression() {
-            return expression;
-        }
-        public void setExpression(String expression) {
-            this.expression = expression;
         }
     }
 

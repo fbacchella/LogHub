@@ -2,6 +2,7 @@ package loghub.configuration;
 
 import java.beans.IntrospectionException;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.UndeclaredThrowableException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -24,7 +25,9 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import groovy.lang.GroovyClassLoader;
 import loghub.AbstractBuilder;
+import loghub.Expression;
 import loghub.Helpers;
 import loghub.Pipeline;
 import loghub.Processor;
@@ -209,15 +212,17 @@ class ConfigListener extends RouteBaseListener {
     private final ClassLoader classLoader;
     private final SecretsHandler secrets;
     private final Map<String, String> lockedProperties;
+    private final GroovyClassLoader groovyClassLoader;
 
     private Parser parser;
     private IntStream stream;
 
     @Builder
-    private ConfigListener(ClassLoader classLoader, SecretsHandler secrets, Map<String, String> lockedProperties) {
+    private ConfigListener(ClassLoader classLoader, SecretsHandler secrets, Map<String, String> lockedProperties, GroovyClassLoader groovyClassLoader) {
         this.classLoader = classLoader != null ? classLoader : ConfigListener.class.getClassLoader();
         this.secrets = secrets != null ? secrets : SecretsHandler.empty();
         this.lockedProperties = lockedProperties != null ? lockedProperties : new HashMap<>();
+        this.groovyClassLoader = classLoader != null ? groovyClassLoader : new GroovyClassLoader(this.classLoader);
     }
 
     public void startWalk(ParserRuleContext config, CharStream stream, RouteParser parser) {
@@ -331,10 +336,18 @@ class ConfigListener extends RouteBaseListener {
                 AbstractBuilder<Object> builder = (AbstractBuilder<Object>) beanObject.wrapped;
                 builder.set(beanName, beanValue.wrapped);
             } else {
-                BeansManager.beanSetter(beanObject.wrapped, beanName, beanValue.wrapped);
+                BeansManager.beanSetter(beanObject.wrapped, beanName, beanValue.wrapped, this::compile);
             }
-        } catch (IntrospectionException | InvocationTargetException e) {
+        } catch (IntrospectionException | InvocationTargetException | UndeclaredThrowableException e) {
             throw new RecognitionException(Helpers.resolveThrowableException(e), parser, stream, ctx);
+        }
+    }
+
+    private Expression compile(String expression) {
+        try {
+            return new Expression(expression, groovyClassLoader, formatters);
+        } catch (Expression.ExpressionException ex) {
+            throw new UndeclaredThrowableException(ex);
         }
     }
 
@@ -573,7 +586,7 @@ class ConfigListener extends RouteBaseListener {
                 Pipenode t = (Pipenode) o;
                 clauses.add(0, t);
             } else if (o instanceof ObjectWrapped) {
-                test.setTest(((ObjectWrapped<String>)o).wrapped);
+                test.setTest(((ObjectWrapped<Expression>)o).wrapped);
             }
         } while (! StackMarker.Test.equals(o));
         assert clauses.size() == 1 || clauses.size() == 2;
@@ -713,13 +726,13 @@ class ConfigListener extends RouteBaseListener {
     @Override
     public void exitFire(FireContext ctx) {
         FireEvent fire = new FireEvent();
-        Map<VariablePath, String> fields = new HashMap<>();
+        Map<VariablePath, Expression> fields = new HashMap<>();
         int count = ctx.eventVariable().size() - 1;
         while(! StackMarker.Fire.equals(stack.peek()) ) {
             Object o = stack.pop();
             if(o instanceof ObjectWrapped) {
                 VariablePath lvalue = convertEventVariable(ctx.eventVariable().get(count--));
-                fields.put(lvalue, ((ObjectWrapped<String>) o).wrapped);
+                fields.put(lvalue, ((ObjectWrapped<Expression>) o).wrapped);
             } else if (o instanceof PipeRefName){
                 PipeRefName name = (PipeRefName) o;
                 fire.setDestination(name.piperef);
@@ -734,7 +747,7 @@ class ConfigListener extends RouteBaseListener {
 
     @Override
     public void exitLog(LogContext ctx) {
-        ObjectWrapped<String> expression = stack.popTyped();
+        ObjectWrapped<Expression> expression = stack.popTyped();
         Log log = new Log();
         log.setLevel(ctx.level().getText());
         log.setPipeName(currentPipeLineName);
@@ -800,7 +813,7 @@ class ConfigListener extends RouteBaseListener {
         }
         case("="): {
             @SuppressWarnings("unchecked")
-            ObjectWrapped<String> expression = (ObjectWrapped<String>) stack.pop();
+            ObjectWrapped<Expression> expression = (ObjectWrapped<Expression>) stack.pop();
             etl = new Etl.Assign();
             ((Etl.Assign)etl).setExpression(expression.wrapped);
             break;
@@ -814,7 +827,7 @@ class ConfigListener extends RouteBaseListener {
             etl = new Mapper();
             ObjectWrapped<Map<Object, Object>> wrapmap = stack.popTyped();
             Map<Object, Object> map = wrapmap.wrapped;
-            ObjectWrapped<String> expression = stack.popTyped();
+            ObjectWrapped<Expression> expression = stack.popTyped();
             ((Mapper) etl).setMap(map);
             ((Mapper) etl).setExpression(expression.wrapped);
             break;
@@ -1043,7 +1056,11 @@ class ConfigListener extends RouteBaseListener {
         }
         expressionDepth--;
         if(expressionDepth == 0) {
-            stack.push(new ObjectWrapped<String>(expression));
+            try {
+                stack.push(new ObjectWrapped(new Expression(expression, this.groovyClassLoader, this.formatters)));
+            } catch (Expression.ExpressionException e) {
+                throw new RecognitionException(Helpers.resolveThrowableException(e), parser, stream, ctx);
+            }
         } else {
             stack.push(expression);
         }

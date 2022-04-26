@@ -7,6 +7,9 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Optional;
+import java.util.function.Function;
+
+import loghub.Expression;
 
 public class BeansManager {
 
@@ -21,16 +24,78 @@ public class BeansManager {
      * @param beanValue the bean value
      * @throws InvocationTargetException if unable to set bean
      */
-    static public void beanSetter(Object beanObject, String beanName, Object beanValue) throws InvocationTargetException, IntrospectionException {
+    static public void beanSetter(Object beanObject, String beanName, Object beanValue, Function<String, Expression> compiler) throws InvocationTargetException, IntrospectionException {
         Method setMethod;
         try {
-            Optional<PropertyDescriptor> beanopt =  Optional.ofNullable(new PropertyDescriptor(beanName, beanObject.getClass()));
-            setMethod = beanopt.map(PropertyDescriptor::getWriteMethod).orElse(null);
+            if (! asExpression(beanObject, beanName, beanValue, compiler)) {
+                setMethod = Optional.ofNullable(new PropertyDescriptor(beanName, beanObject.getClass()))
+                                    .map(PropertyDescriptor::getWriteMethod)
+                                    .orElse(null);
+            } else {
+                return;
+            }
         } catch (IntrospectionException e) {
             // new PropertyDescriptor throws a useless message, will delegate it.
             setMethod = null;
         }
         beanSetter(beanName, beanObject, beanObject.getClass().getName(), setMethod, beanValue);
+    }
+
+    /**
+     * Given an object, a bean name and a bean value, try to set the bean.
+     *
+     * @param beanObject the object to set
+     * @param beanName the bean to set
+     * @param beanValue the bean value
+     * @throws InvocationTargetException if unable to set bean
+     */
+    static public void beanSetter(Object beanObject, String beanName, Object beanValue) throws InvocationTargetException, IntrospectionException {
+        Method setMethod;
+        try {
+            setMethod = Optional.ofNullable(new PropertyDescriptor(beanName, beanObject.getClass()))
+                                .map(PropertyDescriptor::getWriteMethod)
+                                .orElse(null);
+
+        } catch (IntrospectionException e) {
+            // new PropertyDescriptor throws a useless message, will delegate it.
+            setMethod = null;
+        }
+        beanSetter(beanName, beanObject, beanObject.getClass().getName(), setMethod, beanValue);
+    }
+
+    /**
+     * If the bean is an Expression, it can't be detected using the class of the value.
+     * And not all value can be used directly, String and char needs wrapping.
+     * @param beanObject
+     * @param beanName
+     * @param beanValue
+     * @return
+     * @throws IntrospectionException
+     * @throws InvocationTargetException
+     */
+    static private boolean asExpression(Object beanObject, String beanName, Object beanValue, Function<String, Expression> compiler)
+            throws IntrospectionException, InvocationTargetException {
+        try {
+            Method setMethod = Optional.ofNullable(new PropertyDescriptor(beanName, Expression.class))
+                                       .map(PropertyDescriptor::getWriteMethod)
+                                       .orElse(null);
+            if (setMethod != null) {
+                // it's indeed an expression bean, but we need to check the argument to be able to parse it
+                String expressionScript;
+                if (beanValue instanceof String) {
+                    expressionScript = String.format("\"%s\"", beanValue);
+                } else if  (beanValue instanceof Character) {
+                    expressionScript = String.format("\'%s\'", beanValue);
+                } else {
+                    expressionScript = beanValue.toString();
+                }
+                Expression expression = compiler.apply(expressionScript);
+                beanSetter(beanName, beanObject, Expression.class.getName(), setMethod, expression);
+                return true;
+            }
+        } finally {
+            return false;
+        }
     }
 
     static public void beanSetter(String beanName, Object object, String objectClassName, Method setMethod, Object beanValue) throws InvocationTargetException, IntrospectionException {

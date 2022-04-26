@@ -46,13 +46,12 @@ public class TestExpressionParsing {
         LogUtils.setLevel(logger, Level.TRACE, "loghub.configuration", "loghub.Expression", "loghub.VarFormatter");
     }
 
-    private String parseExpression(String exp, Map<String, VarFormatter> formats) {
+    private Expression parseExpression(String exp, Map<String, VarFormatter> formats) {
         return ConfigurationTools.unWrap(exp, i -> i.expression(), formats);
     }
 
     private Object evalExpression(String exp, Event ev, Map<String, VarFormatter> formats) throws ExpressionException, ProcessorException {
-        Expression expression = new Expression(parseExpression(exp, formats), new Properties(Collections.emptyMap()).groovyClassLoader, formats);
-        return expression.eval(ev);
+        return parseExpression(exp, formats).eval(ev);
     }
 
     private Object evalExpression(String exp, Event ev) throws ExpressionException, ProcessorException {

@@ -2,26 +2,19 @@ package loghub.processors;
 
 import loghub.Event;
 import loghub.Expression;
-import loghub.Expression.ExpressionException;
 import loghub.IgnoredEventException;
 import loghub.Processor;
 import loghub.ProcessorException;
 import loghub.configuration.Properties;
+import lombok.Getter;
+import lombok.Setter;
 
 public class Test extends Processor {
 
-    private Expression ifClause;
-    private String ifClauseSource;
+    @Getter @Setter
+    private Expression test;
     private Processor thenTransformer;
     private Processor elseTransformer = new Identity();
-
-    public String getTest() {
-        return ifClauseSource;
-    }
-
-    public void setTest(String ifClauseSource) {
-        this.ifClauseSource = ifClauseSource;
-    }
 
     public Processor getThen() {
         return thenTransformer;
@@ -43,7 +36,7 @@ public class Test extends Processor {
     public boolean process(Event event) throws ProcessorException {
         boolean testResult;
         try {
-            testResult = Boolean.TRUE.equals(ifClause.eval(event));
+            testResult = Boolean.TRUE.equals(test.eval(event));
         } catch (IgnoredEventException e) {
             testResult = false;
         }
@@ -59,13 +52,7 @@ public class Test extends Processor {
 
     @Override
     public boolean configure(Properties properties) {
-        try {
-            ifClause = new Expression(ifClauseSource, properties.groovyClassLoader, properties.formatters);
-            return super.configure(properties) && thenTransformer.configure(properties) && elseTransformer.configure(properties);
-        } catch (ExpressionException e) {
-            Expression.logError(e, ifClauseSource, logger);
-            return false;
-        }
+        return super.configure(properties) && thenTransformer.configure(properties) && elseTransformer.configure(properties);
     }
 
 }

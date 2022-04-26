@@ -44,6 +44,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.LoggerContext;
 
+import groovy.lang.GroovyClassLoader;
 import loghub.Event;
 import loghub.Helpers;
 import loghub.Helpers.ThrowingConsumer;
@@ -77,6 +78,7 @@ public class Configuration {
     private Map<String, Source> sources = new HashMap<>();
     private List<Sender> senders;
     private ClassLoader classLoader = Configuration.class.getClassLoader();
+    private GroovyClassLoader groovyClassLoader = new GroovyClassLoader(classLoader);
     private SecretsHandler secrets = null;
     private Map<String, String> lockedProperties = new HashMap<>();
     private final Set<Path> loadedConfigurationFiles = new HashSet<>();
@@ -239,6 +241,7 @@ public class Configuration {
                     try {
                         logger.debug("Looking for plugins in {}", (Object[])path);
                         classLoader = doClassLoader(path);
+                        groovyClassLoader = new GroovyClassLoader(classLoader);
                     } catch (IOException ex) {
                         throw new ConfigException("can't load plugins: " + ex.getMessage(), tree.stream.getSourceName(), pc.start, ex);
                     } 
@@ -317,6 +320,7 @@ public class Configuration {
 
             ConfigListener conflistener = ConfigListener.builder()
                                                         .classLoader(classLoader)
+                                                        .groovyClassLoader(groovyClassLoader)
                                                         .secrets(secrets)
                                                         .lockedProperties(lockedProperties)
                                                         .build();

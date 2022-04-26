@@ -65,6 +65,7 @@ public class Properties extends HashMap<String, Object> {
 
     enum PROPSNAMES {
         CLASSLOADERNAME,
+        GROOVYCLASSLOADERNAME,
         NAMEDPIPELINES,
         FORMATTERS,
         MAINQUEUE,
@@ -121,11 +122,10 @@ public class Properties extends HashMap<String, Object> {
         Stats.reset();
         Expression.clearCache();
 
-        ClassLoader cl = (ClassLoader) properties.remove(PROPSNAMES.CLASSLOADERNAME.toString());
-        if (cl == null) {
-            cl = Properties.class.getClassLoader();
-        }
-        classloader = cl;
+        classloader = Optional.ofNullable((ClassLoader) properties.remove(PROPSNAMES.CLASSLOADERNAME.toString()))
+                              .orElseGet(() ->Properties.class.getClassLoader());
+        groovyClassLoader = Optional.ofNullable((GroovyClassLoader) properties.remove(PROPSNAMES.GROOVYCLASSLOADERNAME.toString()))
+                                    .orElseGet(() ->new GroovyClassLoader(classloader));
 
         if (properties.containsKey("log4j.defaultlevel")) {
             String levelname = (String) properties.remove("log4j.defaultlevel");
@@ -142,8 +142,6 @@ public class Properties extends HashMap<String, Object> {
         receivers = properties.containsKey(PROPSNAMES.RECEIVERS.toString()) ? (Collection<Receiver>) properties.remove(PROPSNAMES.RECEIVERS.toString()) : Collections.emptyList();
 
         senders = properties.containsKey(PROPSNAMES.SENDERS.toString()) ? (Collection<Sender>) properties.remove(PROPSNAMES.SENDERS.toString()) : Collections.emptyList();
-
-        groovyClassLoader = new GroovyClassLoader(cl);
 
         Map<String, Processor> _identifiedProcessors = new HashMap<String, Processor>();
         pipelines.forEach( i-> i.processors.forEach( j -> {

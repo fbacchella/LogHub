@@ -28,14 +28,6 @@ public abstract class Processor {
 
     public boolean configure(Properties properties) {
         logger.debug("configuring {}", this);
-        if (ifsource != null) {
-            try {
-                ifexpression = new Expression(ifsource, properties.groovyClassLoader, properties.formatters);
-            } catch (ExpressionException e) {
-                Expression.logError(e, ifsource, logger);
-                return false;
-            }
-        }
         if (success != null && ! success.configure(properties)) {
             return false;
         }
@@ -76,12 +68,12 @@ public abstract class Processor {
         this.path = VariablePath.of(VariablePath.pathElements(fieldprefix));
     }
 
-    public void setIf(String ifsource) {
-        this.ifsource = ifsource;
+    public void setIf(Expression ifexpression) {
+        this.ifexpression = ifexpression;
     }
 
-    public String getIf() {
-        return ifsource;
+    public Expression getIf() {
+        return ifexpression;
     }
 
     public boolean isprocessNeeded(Event event) throws ProcessorException {

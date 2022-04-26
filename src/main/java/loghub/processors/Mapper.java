@@ -2,46 +2,25 @@ package loghub.processors;
 
 import java.util.Map;
 
-import org.apache.logging.log4j.Level;
-import org.codehaus.groovy.control.CompilationFailedException;
-
 import loghub.Event;
-import loghub.Expression;
-import loghub.ProcessorException;
 import loghub.Event.Action;
-import loghub.Expression.ExpressionException;
+import loghub.Expression;
 import loghub.IgnoredEventException;
 import loghub.NullOrMissingValue;
-import loghub.configuration.Properties;
+import loghub.ProcessorException;
+import lombok.Getter;
+import lombok.Setter;
 
 public class Mapper extends Etl {
 
     private Map<Object, Object> map;
-    private String expression;
 
-    private Expression script;
-
-    @Override
-    public boolean configure(Properties properties) {
-        try {
-            script = new Expression(expression, properties.groovyClassLoader, properties.formatters);
-        } catch (ExpressionException e) {
-            Throwable cause = e.getCause();
-            if (cause instanceof CompilationFailedException) {
-                logger.error("invalid groovy expression: {}", e.getMessage());
-                return false;
-            } else {
-                logger.error("Critical groovy error: {}", e.getCause().getMessage());
-                logger.throwing(Level.DEBUG, e.getCause());
-                return false;
-            }
-        }
-        return super.configure(properties);
-    }
+    @Getter @Setter
+    private Expression expression;
 
     @Override
     public boolean process(Event event) throws ProcessorException {
-        Object key = script.eval(event);
+        Object key = expression.eval(event);
         if (key == null) {
             return false;
         } else if (key == NullOrMissingValue.MISSING) {
@@ -73,13 +52,6 @@ public class Mapper extends Etl {
      */
     public void setMap(Map<Object, Object> map) {
         this.map = map;
-    }
-
-    public String getExpression() {
-        return expression;
-    }
-    public void setExpression(String expression) {
-        this.expression = expression;
     }
 
 }

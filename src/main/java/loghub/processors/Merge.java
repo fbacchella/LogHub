@@ -24,6 +24,8 @@ import loghub.PausedEvent;
 import loghub.Processor;
 import loghub.ProcessorException;
 import loghub.configuration.Properties;
+import lombok.Getter;
+import lombok.Setter;
 
 public class Merge extends Processor {
 
@@ -315,10 +317,9 @@ public class Merge extends Processor {
         return i;
     };
 
-    private String indexSource;
+    @Getter @Setter
     private Expression index;
 
-    private String fireSource = null;
     private Expression fire = null;
 
     private Object defaultSeedType = new Object[]{};
@@ -333,7 +334,7 @@ public class Merge extends Processor {
 
     @Override
     public boolean configure(Properties properties) {
-        if (indexSource == null) {
+        if (index == null) {
             return false;
         }
         repository = new EventsRepository<Object>(properties);
@@ -343,20 +344,8 @@ public class Merge extends Processor {
         for (Entry<String, Object> i: seeds.entrySet()) {
             cumulators.put(i.getKey(), Cumulator.getCumulator(i.getValue()));
         }
-        try {
-            index = new Expression(indexSource, properties.groovyClassLoader, properties.formatters);
-        } catch (ExpressionException ex) {
-            Expression.logError(ex, indexSource, logger);
-            return false;
-        }
         // Prepare fire only if test and processor given for that
-        if (fireSource != null && fireProcessor != null) {
-            try {
-                fire = new Expression(fireSource, properties.groovyClassLoader, properties.formatters);
-            } catch (ExpressionException e) {
-                Expression.logError(e, fireSource, logger);
-                return false;
-            } 
+        if (fire != null && fireProcessor != null) {
             if (! fireProcessor.configure(properties)) {
                 return false;
             }
@@ -442,7 +431,7 @@ public class Merge extends Processor {
 
     @Override
     public String getName() {
-        return "Merge/" + indexSource;
+        return "Merge/" + index.getExpression();
     }
 
     public Map<String, Object> getSeeds() {
@@ -451,14 +440,6 @@ public class Merge extends Processor {
 
     public void setSeeds(Map<String, Object> seeds) {
         this.seeds = seeds;
-    }
-
-    public String getIndex() {
-        return indexSource;
-    }
-
-    public void setIndex(String index) {
-        this.indexSource = index;
     }
 
     public Processor getOnExpire() {
@@ -477,12 +458,12 @@ public class Merge extends Processor {
         this.fireProcessor = continueProcessor;
     }
 
-    public String getDoFire() {
-        return fireSource;
+    public Expression getDoFire() {
+        return fire;
     }
 
-    public void setDoFire(String fireSource) {
-        this.fireSource = fireSource;
+    public void setDoFire(Expression fire) {
+        this.fire = fire;
     }
 
     /**

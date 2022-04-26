@@ -26,6 +26,7 @@ import loghub.AsyncProcessor;
 import loghub.BeanChecks;
 import loghub.BeanChecks.BeanInfo;
 import loghub.Event;
+import loghub.Expression;
 import loghub.LogUtils;
 import loghub.Processor;
 import loghub.ProcessorException;
@@ -279,7 +280,7 @@ public class TestNettyNameResolver {
                               , BeanInfo.build("field", VariablePath.class)
                               , BeanInfo.build("fields", new Object[] {}.getClass())
                               , BeanInfo.build("path", String.class)
-                              , BeanInfo.build("if", String.class)
+                              , BeanInfo.build("if", Expression.class)
                               , BeanInfo.build("success", Processor.class)
                               , BeanInfo.build("failure", Processor.class)
                               , BeanInfo.build("exception", Processor.class)

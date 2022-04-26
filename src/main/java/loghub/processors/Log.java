@@ -1,24 +1,18 @@
 package loghub.processors;
 
-import java.util.HashMap;
-import java.util.Map;
-
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.codehaus.groovy.control.CompilationFailedException;
 
 import loghub.Event;
 import loghub.Expression;
 import loghub.Processor;
 import loghub.ProcessorException;
-import loghub.Expression.ExpressionException;
 import loghub.configuration.Properties;
 
 public class Log extends Processor {
 
-    private String message;
-    private Expression expression;
+    private Expression expression = null;
     private Logger customLogger;
     private String pipeName;
     private Level level;
@@ -26,19 +20,6 @@ public class Log extends Processor {
     @Override
     public boolean configure(Properties properties) {
         customLogger = LogManager.getLogger("loghub.eventlogger." + pipeName);
-        try {
-            expression = new Expression(message, properties.groovyClassLoader, properties.formatters);
-        } catch (ExpressionException e) {
-            Throwable cause = e.getCause();
-            if (cause instanceof CompilationFailedException) {
-                logger.error("invalid groovy expression: {}", e.getMessage());
-                return false;
-            } else {
-                logger.error("Critical groovy error: {}", e.getCause().getMessage());
-                logger.throwing(Level.DEBUG, e.getCause());
-                return false;
-            }
-        }
         return super.configure(properties);
     }
 
@@ -47,9 +28,6 @@ public class Log extends Processor {
         if (customLogger == null) {
             throw event.buildException("Undefined logger");
         } else if (customLogger.isEnabled(level)) {
-            Map<String, Object> esjson = new HashMap<>(event.size());
-            esjson.putAll(event);
-            esjson.put("@timestamp", event.getTimestamp());
             customLogger.log(level, expression.eval(event));
             return true;
         } else {
@@ -93,15 +71,12 @@ public class Log extends Processor {
     /**
      * @return the message
      */
-    public String getMessage() {
-        return message;
+    public Expression getMessage() {
+        return expression;
     }
 
-    /**
-     * @param message the expression to set
-     */
-    public void setMessage(String message) {
-        this.message = message;
+    public void setMessage(Expression expression) {
+        this.expression = expression;
     }
 
 }
