@@ -34,11 +34,11 @@ import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.SerializationFeature;
 
 import io.netty.util.CharsetUtil;
+import loghub.AbstractBuilder;
 import loghub.BuilderClass;
 import loghub.CanBatch;
 import loghub.Event;
 import loghub.Expression;
-import loghub.Expression.ExpressionException;
 import loghub.Helpers;
 import loghub.ProcessorException;
 import loghub.configuration.Properties;
@@ -59,15 +59,13 @@ public class ElasticSearch extends AbstractHttpSender {
         DEPRECATED,
     }
 
-    public static class Builder extends AbstractHttpSender.Builder<ElasticSearch> {
+    public static class Builder extends AbstractHttpSender.Builder<ElasticSearch> implements AbstractBuilder.WithCompiler {
         @Setter
-        private String type = null;
+        private Expression type = null;
         @Setter
-        private String typeX = null;
+        private String dateformat = null;
         @Setter
-        private String indexformat = "'loghub-'yyyy.MM.dd";
-        @Setter
-        private String indexX = null;
+        private Expression index = null;
         @Setter
         private String templateName = "loghub";
         @Setter
@@ -76,6 +74,8 @@ public class ElasticSearch extends AbstractHttpSender {
         private TYPEHANDLING typeHandling = TYPEHANDLING.USING;
         @Setter
         private boolean ilm = false;
+        @Setter
+        Function<String, Expression> compiler;
 
         public Builder() {
             this.setPort(9200);
@@ -104,18 +104,15 @@ public class ElasticSearch extends AbstractHttpSender {
     private static final byte[] lf = "\n".getBytes(CharsetUtil.UTF_8);
     private static final int FLUSHBYTES = 8192;
 
-    private final String type;
-    private final String typeExpressionSrc;
-    private Expression typeExpression;
-    private final String indexExpressionSrc;
-    private Expression indexExpression;
+    private final Expression type;
+    private final Expression index;
     private final String templateName;
     private URL templatePath;
     private final boolean withTemplate;
     private final TYPEHANDLING typeHandling;
     private final boolean ilm;
 
-    private ThreadLocal<DateFormat> esIndexFormat;
+    private final ThreadLocal<DateFormat> esIndexFormat;
     private final ThreadLocal<URL[]> UrlArrayCopy;
 
     public ElasticSearch(Builder builder) {
@@ -135,19 +132,24 @@ public class ElasticSearch extends AbstractHttpSender {
                 }
             }
         }
-        type = builder.type;
-        typeExpressionSrc = builder.typeX;
-        indexExpressionSrc = builder.indexX;
-        typeHandling = builder.typeHandling;
-        ilm = builder.ilm;
-        UrlArrayCopy = ThreadLocal.withInitial(() -> Arrays.copyOf(endPoints, endPoints.length));
-        if (indexExpressionSrc == null) {
+        // If a index date format was given use it
+        // If neither index date format or index expression is given, uses a default value: 'loghub-'yyyy.MM.dd
+        if (builder.dateformat != null || builder.index == null) {
             esIndexFormat = ThreadLocal.withInitial( () -> {
-                DateFormat df = new SimpleDateFormat(builder.indexformat);
+                String dateformat = Optional.ofNullable(builder.dateformat).orElse("'loghub-'yyyy.MM.dd");
+                DateFormat df = new SimpleDateFormat(dateformat);
                 df.setTimeZone(TimeZone.getTimeZone("UTC"));
                 return df;
             });
+        } else {
+            esIndexFormat = null;
         }
+        type = Optional.ofNullable(builder.type).orElseGet(() -> builder.compiler.apply("\"_doc\""));
+        // If no index expression was given, it will be handler by builder.dateformat pattern, so return an empty string
+        index = Optional.ofNullable(builder.index).orElseGet(() -> builder.compiler.apply("\"\""));
+        typeHandling = builder.typeHandling;
+        ilm = builder.ilm;
+        UrlArrayCopy = ThreadLocal.withInitial(() -> Arrays.copyOf(endPoints, endPoints.length));
     }
 
     @Override
@@ -155,19 +157,6 @@ public class ElasticSearch extends AbstractHttpSender {
         if (super.configure(properties)) {
             // Used to log a possible failure
             String processedSrc = null;
-            try {
-                if (typeExpressionSrc != null) {
-                    processedSrc = typeExpressionSrc;
-                    typeExpression = new Expression(typeExpressionSrc, properties.groovyClassLoader, properties.formatters);
-                }
-                if (indexExpressionSrc != null) {
-                    processedSrc = indexExpressionSrc;
-                    indexExpression = new Expression(indexExpressionSrc, properties.groovyClassLoader, properties.formatters);
-                }
-            } catch (ExpressionException e) {
-                Expression.logError(e, processedSrc, logger);
-                return false;
-            }
             if (withTemplate) {
                 // Check version
                 int major = checkMajorVersion();
@@ -188,12 +177,13 @@ public class ElasticSearch extends AbstractHttpSender {
         throw new UnsupportedOperationException("Can't send single event");
     }
     
-    private String eventIndex(Event e) throws ProcessorException {
-        if (indexExpression != null) {
-            return Optional.ofNullable(indexExpression.eval(e)).map( i-> i.toString()).orElse(null);
-        } else {
-            return esIndexFormat.get().format(e.getTimestamp());
+    private String eventIndex(Event event) throws ProcessorException {
+        // if evaluation of the expression returns null, it failed and default to the loghub index;
+        String indexname = Optional.ofNullable(index.eval(event)).map(Object::toString).orElse("loghub");
+        if (esIndexFormat != null) {
+            indexname = indexname + esIndexFormat.get().format(event.getTimestamp());
         }
+        return indexname;
     }
 
     @Override
@@ -281,13 +271,8 @@ public class ElasticSearch extends AbstractHttpSender {
                 }
                 // Only put type informations is using old, pre 7.x handling of type
                 if (typeHandling != TYPEHANDLING.DEPRECATED) {
-                    String typevalue = "_doc";
-                    if (typeExpression != null) {
-                        typevalue = Optional.ofNullable(typeExpression.eval(e)).map(i -> i.toString()).orElse(null);
-                    } else if (type != null) {
-                        typevalue = Optional.ofNullable(esjson.remove(type)).map(i -> i.toString()).orElse(null);
-                    }
-                    if (typevalue == null || typevalue.isEmpty()) {
+                    String typevalue = Optional.ofNullable(type.eval(e)).map(Object::toString).get();
+                    if (typevalue == null || typevalue.isBlank()) {
                         ef.completeExceptionally(new EncodeException("No usable type for event"));
                         logger.debug("No usable type for event {}", e);
                         continue;

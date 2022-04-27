@@ -2,6 +2,7 @@ package loghub.senders;
 
 import java.beans.IntrospectionException;
 import java.io.IOException;
+import java.lang.reflect.UndeclaredThrowableException;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -9,6 +10,7 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.TimeZone;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.function.Function;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -21,10 +23,13 @@ import org.junit.Test;
 
 import com.codahale.metrics.Meter;
 
+import groovy.lang.GroovyClassLoader;
 import loghub.BeanChecks;
 import loghub.BeanChecks.BeanInfo;
 import loghub.Event;
+import loghub.Expression;
 import loghub.LogUtils;
+import loghub.RouteParser;
 import loghub.Tools;
 import loghub.configuration.ConfigurationTools;
 import loghub.configuration.Properties;
@@ -34,6 +39,15 @@ import loghub.senders.ElasticSearch.TYPEHANDLING;
 public class TestElasticSearch {
 
     private static Logger logger;
+
+    private static final GroovyClassLoader clloader = new GroovyClassLoader(TestElasticSearch.class.getClassLoader());
+    private static final Function<String, Expression> compiler = s -> {
+        try {
+            return new Expression(s, clloader, Collections.emptyMap());
+        } catch (Expression.ExpressionException e) {
+            throw new UndeclaredThrowableException(e);
+        }
+    };
 
     @BeforeClass
     static public void configure() throws IOException {
@@ -50,9 +64,11 @@ public class TestElasticSearch {
         Stats.reset();
         int count = 20;
         ElasticSearch.Builder esbuilder = new ElasticSearch.Builder();
+        esbuilder.setCompiler(compiler);
         esbuilder.setDestinations(new String[]{"http://localhost:9200", });
         esbuilder.setTimeout(1);
         esbuilder.setBatchSize(10);
+        esbuilder.setType(compiler.apply("\"type\""));
         try (ElasticSearch es = esbuilder.build()) {
             es.setInQueue(new ArrayBlockingQueue<>(count));
             Assert.assertTrue("Elastic configuration failed", es.configure(new Properties(Collections.emptyMap())));
@@ -79,8 +95,8 @@ public class TestElasticSearch {
         esbuilder.setDestinations(new String[]{"http://localhost:9200"});
         esbuilder.setTimeout(1);
         esbuilder.setBatchSize(10);
-        esbuilder.setIndexX(ConfigurationTools.unWrap("[#index]", i -> i.expression()));
-        esbuilder.setTypeX(ConfigurationTools.unWrap("[#type]", i -> i.expression()));
+        esbuilder.setIndex(ConfigurationTools.unWrap("[#index]", RouteParser::expression));
+        esbuilder.setType(ConfigurationTools.unWrap("[#type]", RouteParser::expression));
         try (ElasticSearch es = esbuilder.build()) {
             es.setInQueue(new ArrayBlockingQueue<>(count));
             Assert.assertTrue("Elastic configuration failed", es.configure(new Properties(Collections.emptyMap())));
@@ -109,8 +125,8 @@ public class TestElasticSearch {
         esbuilder.setDestinations(new String[]{"http://localhost:9200"});
         esbuilder.setTimeout(1);
         esbuilder.setBatchSize(10);
-        esbuilder.setIndexX(ConfigurationTools.unWrap("[#index]", i -> i.expression()));
-        esbuilder.setTypeX(ConfigurationTools.unWrap("[#type]", i -> i.expression()));
+        esbuilder.setIndex(ConfigurationTools.unWrap("[#index]", RouteParser::expression));
+        esbuilder.setType(ConfigurationTools.unWrap("[#type]", RouteParser::expression));
         try (ElasticSearch es = esbuilder.build()) {
             es.setInQueue(new ArrayBlockingQueue<>(count));
             Assert.assertTrue("Elastic configuration failed", es.configure(new Properties(Collections.emptyMap())));
@@ -136,6 +152,7 @@ public class TestElasticSearch {
         esbuilder.setDestinations(new String[]{"http://localhost:9200"});
         esbuilder.setTimeout(5);
         esbuilder.setBatchSize(10);
+        esbuilder.setCompiler(compiler);
         try (ElasticSearch es = esbuilder.build()) {
             es.setInQueue(queue);
             Assert.assertTrue("Elastic configuration failed", es.configure(new Properties(Collections.emptyMap())));
@@ -187,7 +204,8 @@ public class TestElasticSearch {
         esbuilder.setDestinations(new String[]{"http://localhost:9200", });
         esbuilder.setTimeout(1);
         esbuilder.setBatchSize(count * 2);
-        esbuilder.setIndexformat("'testsomefailed-'yyyy.MM.dd");
+        esbuilder.setDateformat("'testsomefailed-'yyyy.MM.dd");
+        esbuilder.setCompiler(compiler);
         try (ElasticSearch es = esbuilder.build()) {
             es.setInQueue(new ArrayBlockingQueue<>(count));
             Assert.assertTrue("Elastic configuration failed", es.configure(new Properties(Collections.emptyMap())));
@@ -208,6 +226,7 @@ public class TestElasticSearch {
                 Assert.assertTrue(es.queue(ev));
                 Thread.sleep(1);
             }
+            Thread.sleep(2000);
         }
         Thread.sleep(1000);
         Assert.assertEquals(0, Stats.getDropped());
@@ -228,11 +247,10 @@ public class TestElasticSearch {
                               , BeanInfo.build("batchSize", Integer.TYPE)
                               , BeanInfo.build("flushInterval", Integer.TYPE)
                               , BeanInfo.build("destinations", BeanChecks.LSTRING)
-                              , BeanInfo.build("indexX", String.class)
+                              , BeanInfo.build("index", Expression.class)
                               , BeanInfo.build("timeout", Integer.TYPE)
-                              , BeanInfo.build("indexformat", String.class)
-                              , BeanInfo.build("type", String.class)
-                              , BeanInfo.build("typeX", String.class)
+                              , BeanInfo.build("dateformat", String.class)
+                              , BeanInfo.build("type", Expression.class)
                               , BeanInfo.build("templatePath", String.class)
                               , BeanInfo.build("templateName", String.class)
                               , BeanInfo.build("withTemplate", Boolean.TYPE)
