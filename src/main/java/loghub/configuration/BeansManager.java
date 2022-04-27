@@ -1,19 +1,33 @@
 package loghub.configuration;
 
 import java.beans.IntrospectionException;
-import java.beans.PropertyDescriptor;
+import java.beans.Introspector;
 import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.Optional;
-import java.util.function.Function;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import loghub.Expression;
 
 public class BeansManager {
 
-    private BeansManager() {
+    private final Map<Class<?>, Map<String, Method>> beans = new HashMap<>();
+
+    private Method beanResolver(Object beanObject, String beanName) {
+        return beans.computeIfAbsent(beanObject.getClass(), c -> {
+            try {
+                return Stream.of(Introspector.getBeanInfo(c, Object.class).getPropertyDescriptors())
+                             .filter(pd -> pd.getWriteMethod() != null)
+                             .collect(Collectors.toMap(pd -> pd.getName(), pd -> pd.getWriteMethod()));
+            } catch (IntrospectionException e) {
+                return Collections.emptyMap();
+            }
+        }).get(beanName);
     }
 
     /**
@@ -24,81 +38,19 @@ public class BeansManager {
      * @param beanValue the bean value
      * @throws InvocationTargetException if unable to set bean
      */
-    static public void beanSetter(Object beanObject, String beanName, Object beanValue, Function<String, Expression> compiler) throws InvocationTargetException, IntrospectionException {
-        Method setMethod;
-        try {
-            if (! asExpression(beanObject, beanName, beanValue, compiler)) {
-                setMethod = Optional.ofNullable(new PropertyDescriptor(beanName, beanObject.getClass()))
-                                    .map(PropertyDescriptor::getWriteMethod)
-                                    .orElse(null);
-            } else {
-                return;
-            }
-        } catch (IntrospectionException e) {
-            // new PropertyDescriptor throws a useless message, will delegate it.
-            setMethod = null;
+    public void beanSetter(Object beanObject, String beanName, Object beanValue) throws InvocationTargetException, IntrospectionException {
+        Method setMethod = beanResolver(beanObject, beanName);
+        if (setMethod == null) {
+            throw new IntrospectionException("Unknown bean '" + beanName + "' for " + beanObject.getClass().getName().replace("$Builder", ""));
         }
-        beanSetter(beanName, beanObject, beanObject.getClass().getName(), setMethod, beanValue);
+        if (setMethod.getParameterTypes()[0] == Expression.class) {
+            // If it's not already an expression, it's a constant value that was not detected by the parser
+            beanValue = beanValue instanceof Expression ? (Expression) beanValue : new Expression(beanValue);
+        }
+        beanSetter(beanName, beanObject, beanObject.getClass().getName().replace("$Builder", ""), setMethod, beanValue);
     }
 
-    /**
-     * Given an object, a bean name and a bean value, try to set the bean.
-     *
-     * @param beanObject the object to set
-     * @param beanName the bean to set
-     * @param beanValue the bean value
-     * @throws InvocationTargetException if unable to set bean
-     */
-    static public void beanSetter(Object beanObject, String beanName, Object beanValue) throws InvocationTargetException, IntrospectionException {
-        Method setMethod;
-        try {
-            setMethod = Optional.ofNullable(new PropertyDescriptor(beanName, beanObject.getClass()))
-                                .map(PropertyDescriptor::getWriteMethod)
-                                .orElse(null);
-
-        } catch (IntrospectionException e) {
-            // new PropertyDescriptor throws a useless message, will delegate it.
-            setMethod = null;
-        }
-        beanSetter(beanName, beanObject, beanObject.getClass().getName(), setMethod, beanValue);
-    }
-
-    /**
-     * If the bean is an Expression, it can't be detected using the class of the value.
-     * And not all value can be used directly, String and char needs wrapping.
-     * @param beanObject
-     * @param beanName
-     * @param beanValue
-     * @return
-     * @throws IntrospectionException
-     * @throws InvocationTargetException
-     */
-    static private boolean asExpression(Object beanObject, String beanName, Object beanValue, Function<String, Expression> compiler)
-            throws IntrospectionException, InvocationTargetException {
-        try {
-            Method setMethod = Optional.ofNullable(new PropertyDescriptor(beanName, Expression.class))
-                                       .map(PropertyDescriptor::getWriteMethod)
-                                       .orElse(null);
-            if (setMethod != null) {
-                // it's indeed an expression bean, but we need to check the argument to be able to parse it
-                String expressionScript;
-                if (beanValue instanceof String) {
-                    expressionScript = String.format("\"%s\"", beanValue);
-                } else if  (beanValue instanceof Character) {
-                    expressionScript = String.format("\'%s\'", beanValue);
-                } else {
-                    expressionScript = beanValue.toString();
-                }
-                Expression expression = compiler.apply(expressionScript);
-                beanSetter(beanName, beanObject, Expression.class.getName(), setMethod, expression);
-                return true;
-            }
-        } finally {
-            return false;
-        }
-    }
-
-    static public void beanSetter(String beanName, Object object, String objectClassName, Method setMethod, Object beanValue) throws InvocationTargetException, IntrospectionException {
+    public void beanSetter(String beanName, Object object, String objectClassName, Method setMethod, Object beanValue) throws InvocationTargetException, IntrospectionException {
         if (setMethod == null) {
             throw new IntrospectionException("Unknown bean '" + beanName + "' for " + objectClassName);
         }
@@ -118,7 +70,7 @@ public class BeansManager {
             } else if (beanValue == null || setArgType.isAssignableFrom(beanValue.getClass())) {
                 setMethod.invoke(object, beanValue);
             } else if (beanValue instanceof String){
-                Object argInstance = BeansManager.ConstructFromString(setArgType, (String) beanValue);
+                Object argInstance = BeansManager.constructFromString(setArgType, (String) beanValue);
                 setMethod.invoke(object, argInstance);
             } else if (beanValue instanceof Number || beanValue instanceof Character) {
                 setMethod.invoke(object, beanValue);
@@ -145,9 +97,9 @@ public class BeansManager {
      * @throws InvocationTargetException if it fails to construct the value
      */
     @SuppressWarnings({ "unchecked", "rawtypes" })
-    public static <T> T ConstructFromString(Class<T> clazz, String value) throws InvocationTargetException {
+    public static <T> T constructFromString(Class<T> clazz, String value) throws InvocationTargetException {
         try {
-            Constructor<T> c = null;
+            Constructor<T> c;
             if (clazz == Integer.TYPE || Integer.class.equals(clazz)) {
                 return (T) Integer.valueOf(value);
             } else if (clazz == Double.TYPE || Integer.class.equals(clazz)) {
@@ -170,18 +122,11 @@ public class BeansManager {
                 c = clazz.getConstructor(String.class);
             }
             return c.newInstance(value);
-        } catch (SecurityException e) {
-            throw new InvocationTargetException(e, clazz.getName());
-        } catch (NoSuchMethodException e) {
-            throw new InvocationTargetException(e, clazz.getName());
-        } catch (IllegalArgumentException e) {
-            throw new InvocationTargetException(e, clazz.getName());
-        } catch (InstantiationException e) {
-            throw new InvocationTargetException(e, clazz.getName());
-        } catch (IllegalAccessException e) {
-            throw new InvocationTargetException(e, clazz.getName());
-        } catch (InvocationTargetException e) {
-            throw e;
+        } catch (SecurityException | NoSuchMethodException | IllegalArgumentException |
+                 InstantiationException | IllegalAccessException ex) {
+            throw new InvocationTargetException(ex, clazz.getName());
+        } catch (InvocationTargetException ex) {
+            throw ex;
         }
     }
 

@@ -213,6 +213,7 @@ class ConfigListener extends RouteBaseListener {
     private final SecretsHandler secrets;
     private final Map<String, String> lockedProperties;
     private final GroovyClassLoader groovyClassLoader;
+    private final BeansManager beansManager;
 
     private Parser parser;
     private IntStream stream;
@@ -223,6 +224,7 @@ class ConfigListener extends RouteBaseListener {
         this.secrets = secrets != null ? secrets : SecretsHandler.empty();
         this.lockedProperties = lockedProperties != null ? lockedProperties : new HashMap<>();
         this.groovyClassLoader = classLoader != null ? groovyClassLoader : new GroovyClassLoader(this.classLoader);
+        this.beansManager = new BeansManager();
     }
 
     public void startWalk(ParserRuleContext config, CharStream stream, RouteParser parser) {
@@ -331,23 +333,9 @@ class ConfigListener extends RouteBaseListener {
         assert (beanName != null);
         assert (beanValue != null);
         try {
-            if (beanObject.wrapped instanceof AbstractBuilder) {
-                @SuppressWarnings("unchecked")
-                AbstractBuilder<Object> builder = (AbstractBuilder<Object>) beanObject.wrapped;
-                builder.set(beanName, beanValue.wrapped);
-            } else {
-                BeansManager.beanSetter(beanObject.wrapped, beanName, beanValue.wrapped, this::compile);
-            }
+            beansManager.beanSetter(beanObject.wrapped, beanName, beanValue.wrapped);
         } catch (IntrospectionException | InvocationTargetException | UndeclaredThrowableException e) {
             throw new RecognitionException(Helpers.resolveThrowableException(e), parser, stream, ctx);
-        }
-    }
-
-    private Expression compile(String expression) {
-        try {
-            return new Expression(expression, groovyClassLoader, formatters);
-        } catch (Expression.ExpressionException ex) {
-            throw new UndeclaredThrowableException(ex);
         }
     }
 
@@ -371,6 +359,14 @@ class ConfigListener extends RouteBaseListener {
             throw new RecognitionException("Unsuable class " + qualifiedName + ": " + Helpers.resolveThrowableException(e), parser, stream, ctx);
         } catch (InvocationTargetException e) {
             throw new RecognitionException("Unsuable class " + qualifiedName + ": " + Helpers.resolveThrowableException(e.getCause()), parser, stream, ctx);
+        }
+    }
+
+    private Expression compile(String expression) {
+        try {
+            return new Expression(expression, groovyClassLoader, formatters);
+        } catch (Expression.ExpressionException ex) {
+            throw new UndeclaredThrowableException(ex);
         }
     }
 

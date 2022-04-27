@@ -117,6 +117,7 @@ public class Expression {
     private final String expression;
     private final Map<String, VarFormatter> formatters;
     private final GroovyClassLoader loader;
+    private final Object literal;
 
     public Expression(String expression, GroovyClassLoader loader, Map<String, VarFormatter> formatters) throws ExpressionException {
         logger.trace("adding expression {}", expression);
@@ -131,33 +132,51 @@ public class Expression {
         this.expression = expression;
         this.loader = loader;
         this.formatters = formatters;
+        this.literal = null;
+    }
+
+    /**
+     * The parser can send a literal when a expression was expected. Just store it to be returned
+     *
+     * @param literal the literal value
+     */
+    public Expression(Object literal) {
+        this.expression = null;
+        this.formatters = null;
+        this.loader = null;
+        this.literal = literal;
     }
 
     public Object eval(Event event) throws ProcessorException {
-        logger.trace("Evaluating script {} with formatters {}", expression, formatters);
-        BindingMap bmap = bindings.get();
-        bmap.event = event;
-        bmap.ex = this;
-        Optional<Script> optls = Optional.empty();
-        try {
-            // Lazy compilation, will only compile if expression is needed
-            optls = Optional.of(compilationCache.get().computeIfAbsent(expression, this::compile));
-            Script localscript = optls.get();
-            localscript.setBinding(bmap.binding);
-            return Optional.ofNullable(localscript.run())
-                           .map(o -> { if (o == NullOrMissingValue.MISSING) throw IgnoredEventException.INSTANCE; else return o;})
-                           .map(o -> { if (o == NullOrMissingValue.NULL) return null; else return o;})
-                           .orElse(null);
-        } catch (UnsupportedOperationException e) {
-            throw event.buildException(String.format("script compilation failed '%s': %s", expression, Helpers.resolveThrowableException(e.getCause())), e);
-        } catch (IgnoredEventException e) {
-            throw e;
-        } catch (Exception e) {
-            throw event.buildException(String.format("failed expression '%s': %s", expression, Helpers.resolveThrowableException(e)), e);
-        } finally {
-            optls.ifPresent(b -> b.setBinding(EMPTYBIDDING));
-            bmap.ex = null;
-            bmap.event = null;
+        // It's a constant expression, no need to evaluate it
+        if (literal != null) {
+            return literal;
+        } else {
+            logger.trace("Evaluating script {} with formatters {}", expression, formatters);
+            BindingMap bmap = bindings.get();
+            bmap.event = event;
+            bmap.ex = this;
+            Optional<Script> optls = Optional.empty();
+            try {
+                // Lazy compilation, will only compile if expression is needed
+                optls = Optional.of(compilationCache.get().computeIfAbsent(expression, this::compile));
+                Script localscript = optls.get();
+                localscript.setBinding(bmap.binding);
+                return Optional.ofNullable(localscript.run())
+                        .map(o -> { if (o == NullOrMissingValue.MISSING) throw IgnoredEventException.INSTANCE; else return o;})
+                        .map(o -> { if (o == NullOrMissingValue.NULL) return null; else return o;})
+                        .orElse(null);
+            } catch (UnsupportedOperationException e) {
+                throw event.buildException(String.format("script compilation failed '%s': %s", expression, Helpers.resolveThrowableException(e.getCause())), e);
+            } catch (IgnoredEventException e) {
+                throw e;
+            } catch (Exception e) {
+                throw event.buildException(String.format("failed expression '%s': %s", expression, Helpers.resolveThrowableException(e)), e);
+            } finally {
+                optls.ifPresent(b -> b.setBinding(EMPTYBIDDING));
+                bmap.ex = null;
+                bmap.event = null;
+            }
         }
     }
 
@@ -241,7 +260,6 @@ public class Expression {
             return arg;
         }
     }
-
 
     public Object compare(String operator, Object arg1, Object arg2) {
         if (! "!=".equals(operator) && ! "==".equals(operator) && (arg1 instanceof NullOrMissingValue || arg2 instanceof NullOrMissingValue)) {

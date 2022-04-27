@@ -44,7 +44,7 @@ public class Convert extends FieldsProcessor {
                     o = Long.valueOf(valueStr);
                     break;
                 default:
-                    o = BeansManager.ConstructFromString(clazz, valueStr);
+                    o = BeansManager.constructFromString(clazz, valueStr);
                     break;
                 }
                 return o;
