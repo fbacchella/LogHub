@@ -7,11 +7,19 @@ import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import loghub.configuration.BeansManager;
 
 public abstract class AbstractBuilder<B extends Object> {
+
+    /**
+     * To be used when the build object might need an expression builder
+     */
+    public interface WithCompiler {
+        public void setCompiler(Function<String, Expression> compiler);
+    }
 
     private static final Map<Class<? extends AbstractBuilder< ? extends Object>>, Map<String, Method>> cache = new HashMap<>();
 

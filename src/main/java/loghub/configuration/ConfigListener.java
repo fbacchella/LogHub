@@ -361,6 +361,9 @@ class ConfigListener extends RouteBaseListener {
             logger.debug("Loading {} with {}", qualifiedName, classLoader);
             Class<?> objectClass = classLoader.loadClass(qualifiedName);
             AbstractBuilder<?> builder = AbstractBuilder.resolve(objectClass);
+            if (builder instanceof AbstractBuilder.WithCompiler) {
+                ((AbstractBuilder.WithCompiler)builder).setCompiler(this::compile);
+            }
             return new ObjectWrapped<Object>(builder != null ? builder : objectClass.getConstructor().newInstance());
         } catch (ClassNotFoundException e) {
             throw new RecognitionException("Unknown class " + qualifiedName, parser, stream, ctx);
