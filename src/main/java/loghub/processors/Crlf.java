@@ -22,9 +22,8 @@ public class Crlf extends FieldsProcessor {
         }
     }
 
-    private Format format;
-    @Getter
-    @Setter
+    private Format format = Format.KEEP;
+    @Getter @Setter
     private boolean escape;
 
     @Override
