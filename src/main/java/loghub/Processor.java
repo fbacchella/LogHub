@@ -3,7 +3,6 @@ package loghub;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import loghub.Expression.ExpressionException;
 import loghub.configuration.Properties;
 
 public abstract class Processor {
@@ -15,7 +14,6 @@ public abstract class Processor {
     private Processor success = null;
     private Processor failure = null;
     private Processor exception = null;
-    private String ifsource = null;
     private String id = null;
 
     protected Processor() {

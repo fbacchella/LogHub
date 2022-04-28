@@ -1,9 +1,6 @@
 package loghub;
 
 import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.function.Function;
 
 public abstract class AbstractBuilder<B extends Object> {
@@ -14,8 +11,6 @@ public abstract class AbstractBuilder<B extends Object> {
     public interface WithCompiler {
         public void setCompiler(Function<String, Expression> compiler);
     }
-
-    private static final Map<Class<? extends AbstractBuilder< ? extends Object>>, Map<String, Method>> cache = new HashMap<>();
 
     public abstract B build();
 

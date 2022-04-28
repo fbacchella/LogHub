@@ -19,7 +19,6 @@ import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingDeque;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -75,6 +74,7 @@ public class Properties extends HashMap<String, Object> {
         RECEIVERS,
         SENDERS,
         SOURCES;
+
         @Override
         public String toString() {
             return "__" + super.toString();
@@ -123,7 +123,7 @@ public class Properties extends HashMap<String, Object> {
         Expression.clearCache();
 
         classloader = Optional.ofNullable((ClassLoader) properties.remove(PROPSNAMES.CLASSLOADERNAME.toString()))
-                              .orElseGet(() ->Properties.class.getClassLoader());
+                              .orElseGet(Properties.class::getClassLoader);
         groovyClassLoader = Optional.ofNullable((GroovyClassLoader) properties.remove(PROPSNAMES.GROOVYCLASSLOADERNAME.toString()))
                                     .orElseGet(() ->new GroovyClassLoader(classloader));
 
@@ -329,8 +329,7 @@ public class Properties extends HashMap<String, Object> {
     }
 
     @Override
-    public void replaceAll(
-                           BiFunction<? super String, ? super Object, ? extends Object> function) {
+    public void replaceAll(BiFunction<? super String, ? super Object, ? extends Object> function) {
         throw new UnsupportedOperationException("read only");
     }
 

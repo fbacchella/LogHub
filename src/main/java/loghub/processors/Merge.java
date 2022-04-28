@@ -18,7 +18,6 @@ import loghub.AsyncProcessor;
 import loghub.Event;
 import loghub.EventsRepository;
 import loghub.Expression;
-import loghub.Expression.ExpressionException;
 import loghub.NullOrMissingValue;
 import loghub.PausedEvent;
 import loghub.Processor;
@@ -345,10 +344,8 @@ public class Merge extends Processor {
             cumulators.put(i.getKey(), Cumulator.getCumulator(i.getValue()));
         }
         // Prepare fire only if test and processor given for that
-        if (fire != null && fireProcessor != null) {
-            if (! fireProcessor.configure(properties)) {
-                return false;
-            }
+        if (fire != null && fireProcessor != null && ! fireProcessor.configure(properties)) {
+            return false;
         }
         if (expirationProcessor != null && ! expirationProcessor.configure(properties)) {
             return false;

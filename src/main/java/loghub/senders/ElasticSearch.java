@@ -156,7 +156,6 @@ public class ElasticSearch extends AbstractHttpSender {
     public boolean configure(Properties properties) {
         if (super.configure(properties)) {
             // Used to log a possible failure
-            String processedSrc = null;
             if (withTemplate) {
                 // Check version
                 int major = checkMajorVersion();
@@ -178,7 +177,7 @@ public class ElasticSearch extends AbstractHttpSender {
     }
     
     private String eventIndex(Event event) throws ProcessorException {
-        // if evaluation of the expression returns null, it failed and default to the loghub index;
+        // if evaluation of the expression returns null, it failed and default to the loghub index
         String indexname = Optional.ofNullable(index.eval(event)).map(Object::toString).orElse("loghub");
         if (esIndexFormat != null) {
             indexname = indexname + esIndexFormat.get().format(event.getTimestamp());
@@ -227,12 +226,12 @@ public class ElasticSearch extends AbstractHttpSender {
             int eventIndex = 0;
             for (Map<String, ?> i: items) {
                 @SuppressWarnings("unchecked")
-                Map<String, Map<String, ? extends Object>> index = (Map<String, Map<String, ? extends Object>>) i.get("index");
+                Map<String, Map<String, ? extends Object>> errorindex = (Map<String, Map<String, ? extends Object>>) i.get("index");
                 EventFuture f = tosend.get(eventIndex++);
-                if (! index.containsKey("error")) {
+                if (! errorindex.containsKey("error")) {
                     f.complete(true);
                 } else {
-                    Map<String, ? extends Object> error =  Optional.ofNullable((Map<String, ? extends Object>) index.get("error")).orElse(Collections.emptyMap());
+                    Map<String, ? extends Object> error =  Optional.ofNullable((Map<String, ? extends Object>) errorindex.get("error")).orElse(Collections.emptyMap());
                     String type = (String) error.get("type");
                     String errorReason = (String) error.get("reason");
                     Optional<Map<?, ?>> errorCause = Optional.ofNullable((Map<?, ?>) error.get("caused_by"));
@@ -271,7 +270,7 @@ public class ElasticSearch extends AbstractHttpSender {
                 }
                 // Only put type informations is using old, pre 7.x handling of type
                 if (typeHandling != TYPEHANDLING.DEPRECATED) {
-                    String typevalue = Optional.ofNullable(type.eval(e)).map(Object::toString).get();
+                    String typevalue = Optional.ofNullable(type.eval(e)).map(Object::toString).orElse(null);
                     if (typevalue == null || typevalue.isBlank()) {
                         ef.completeExceptionally(new EncodeException("No usable type for event"));
                         logger.debug("No usable type for event {}", e);
@@ -587,7 +586,7 @@ public class ElasticSearch extends AbstractHttpSender {
                 } else if ("application/json".equals(responseMimeType)){
                     JsonNode node = jsonreader.readTree(response.getContentReader());
                     logger.error("Invalid query: {} {}, return '{} {}'", request.getVerb(), newEndPoint, status, response.getStatusMessage());
-                    logger.debug("error body: {}", () -> node.toString());
+                    logger.debug("Error body: {}", node);
                 } else {
                     // Valid, but not good request, useless to try something else
                     logger.error("Invalid query: {} {}, return '{} {}', {}", request.getVerb(), newEndPoint, status, response.getStatusMessage(), responseMimeType);

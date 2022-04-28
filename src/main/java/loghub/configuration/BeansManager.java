@@ -1,7 +1,9 @@
 package loghub.configuration;
 
+import java.beans.FeatureDescriptor;
 import java.beans.IntrospectionException;
 import java.beans.Introspector;
+import java.beans.PropertyDescriptor;
 import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -23,7 +25,7 @@ public class BeansManager {
             try {
                 return Stream.of(Introspector.getBeanInfo(c, Object.class).getPropertyDescriptors())
                              .filter(pd -> pd.getWriteMethod() != null)
-                             .collect(Collectors.toMap(pd -> pd.getName(), pd -> pd.getWriteMethod()));
+                             .collect(Collectors.toMap(FeatureDescriptor::getName, PropertyDescriptor::getWriteMethod));
             } catch (IntrospectionException e) {
                 return Collections.emptyMap();
             }

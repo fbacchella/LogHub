@@ -1056,7 +1056,7 @@ class ConfigListener extends RouteBaseListener {
         expressionDepth--;
         if(expressionDepth == 0) {
             try {
-                stack.push(new ObjectWrapped(new Expression(expression, this.groovyClassLoader, this.formatters)));
+                stack.push(new ObjectWrapped<>(new Expression(expression, groovyClassLoader, formatters)));
             } catch (Expression.ExpressionException e) {
                 throw new RecognitionException(Helpers.resolveThrowableException(e), parser, stream, ctx);
             }
