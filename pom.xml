@@ -11,7 +11,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.release>11</maven.compiler.release>
         <log4j>2.17.2</log4j>
-        <antlr>4.10.1</antlr>
+        <antlr>4.9.3</antlr>
         <jackson>2.13.2</jackson>
         <metrics>4.2.9</metrics>
         <cache2k>2.6.1.Final</cache2k>
