@@ -12,6 +12,7 @@ import com.axibase.date.DatetimeProcessor;
 import com.axibase.date.PatternResolver;
 
 import loghub.BuilderClass;
+import loghub.CanBatch;
 import loghub.Event;
 import loghub.Expression;
 import loghub.Helpers;
@@ -19,6 +20,7 @@ import loghub.ProcessorException;
 import lombok.Setter;
 
 @BuilderClass(Syslog.Builder.class)
+@CanBatch
 public class Syslog extends Encoder {
 
     private static final byte[] BOM = new byte[]{(byte) 0xEF, (byte) 0xBB, (byte) 0xBF};
