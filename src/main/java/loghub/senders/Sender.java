@@ -189,7 +189,7 @@ public abstract class Sender extends Thread implements Closeable {
                     if (flushedBatch == NULLBATCH) {
                         break;
                     }
-                    Stats.updateBatchSize(this, flushedBatch.size());
+                    Stats.flushingBatch(this, flushedBatch.size());
                     if (flushedBatch.isEmpty()) {
                         flushedBatch.finished();
                         continue;

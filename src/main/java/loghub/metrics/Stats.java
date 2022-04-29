@@ -46,8 +46,10 @@ public final class Stats {
     static final String METRIC_SENDER_FAILEDSEND = "failedSend";
     static final String METRIC_SENDER_EXCEPTION = "exception";
     static final String METRIC_SENDER_ERROR = "error";
+    static final String METRIC_SENDER_WAITINGBATCHESCOUNT = "waitingBatches";
     static final String METRIC_SENDER_ACTIVEBATCHES = "activeBatches";
     static final String METRIC_SENDER_BATCHESSIZE = "batchesSize";
+    static final String METRIC_SENDER_DONEBATCHES = "doneBatches";
     static final String METRIC_SENDER_FLUSHDURATION = "flushDuration";
     static final String METRIC_SENDER_QUEUESIZE = "queueSize";
 
@@ -337,7 +339,9 @@ public final class Stats {
         storeException(exceptions, ex);
     }
 
-    public static void updateBatchSize(Sender sender, int batchSize) {
+    public static void flushingBatch(Sender sender, int batchSize) {
+        Stats.getMetric(Counter.class, sender, Stats.METRIC_SENDER_WAITINGBATCHESCOUNT).dec();
+        Stats.getMetric(Counter.class, sender, Stats.METRIC_SENDER_ACTIVEBATCHES).inc();
         getMetric(Histogram.class, sender, Stats.METRIC_SENDER_BATCHESSIZE).update(batchSize);
     }
 
@@ -346,11 +350,12 @@ public final class Stats {
     }
 
     public static void newBatch(Sender sender) {
-        Stats.getMetric(Counter.class, sender, Stats.METRIC_SENDER_ACTIVEBATCHES).inc();
+        Stats.getMetric(Counter.class, sender, Stats.METRIC_SENDER_WAITINGBATCHESCOUNT).inc();
     }
 
     public static void doneBatch(Sender sender) {
         Stats.getMetric(Counter.class, sender, Stats.METRIC_SENDER_ACTIVEBATCHES).dec();
+        Stats.getMetric(Meter.class, sender, Stats.METRIC_SENDER_DONEBATCHES).mark();
     }
 
     public static void sendInQueueSize(Sender s, IntSupplier source) {

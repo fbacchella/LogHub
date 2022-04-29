@@ -25,6 +25,7 @@ public interface SenderMBean {
     public long getFailed();
     public long getExceptions();
     public long getErrors();
+    public long getWaitingBatches();
     public long getActiveBatches();
     public long getDoneBatches();
     public double getFlushDurationMedian();
@@ -39,7 +40,9 @@ public interface SenderMBean {
         private final Meter failedSend;
         private final Meter exception;
         private final Meter error;
+        private final Counter waitingBatches;
         private final Counter activeBatches;
+        private final Meter doneBatches;
         private final Histogram batchesSize;
         private final Timer flushDuration;
         private final Supplier<Gauge<Integer>> queueSize;
@@ -55,8 +58,10 @@ public interface SenderMBean {
             failedSend = Stats.getMetric(Meter.class, metricidentity, Stats.METRIC_SENDER_FAILEDSEND);
             exception = Stats.getMetric(Meter.class, metricidentity, Stats.METRIC_SENDER_EXCEPTION);
             error = Stats.getMetric(Meter.class, metricidentity, Stats.METRIC_SENDER_ERROR);
+            waitingBatches = Stats.getMetric(Counter.class, metricidentity, Stats.METRIC_SENDER_WAITINGBATCHESCOUNT);
             activeBatches = Stats.getMetric(Counter.class, metricidentity, Stats.METRIC_SENDER_ACTIVEBATCHES);
             batchesSize = Stats.getMetric(Histogram.class, metricidentity, Stats.METRIC_SENDER_BATCHESSIZE);
+            doneBatches = Stats.getMetric(Meter.class, metricidentity, Stats.METRIC_SENDER_DONEBATCHES);
             flushDuration = Stats.getMetric(Timer.class, metricidentity, Stats.METRIC_SENDER_FLUSHDURATION);
             queueSize = () -> Stats.getMetric(Gauge.class, metricidentity, Stats.METRIC_SENDER_QUEUESIZE);
         }
@@ -96,13 +101,18 @@ public interface SenderMBean {
         }
 
         @Override
+        public long getWaitingBatches() {
+            return waitingBatches.getCount();
+        }
+
+        @Override
         public long getActiveBatches() {
             return activeBatches.getCount();
         }
 
         @Override
         public long getDoneBatches() {
-            return batchesSize.getCount();
+            return doneBatches.getCount();
         }
 
         @Override
