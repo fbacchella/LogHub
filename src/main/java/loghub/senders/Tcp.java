@@ -14,6 +14,7 @@ import jdk.net.ExtendedSocketOptions;
 import loghub.BuilderClass;
 import loghub.CanBatch;
 import loghub.Event;
+import loghub.Helpers;
 import loghub.configuration.Properties;
 import loghub.encoders.EncodeException;
 import lombok.Setter;
@@ -64,7 +65,8 @@ public class Tcp extends Sender {
 
     private SocketChannel newSocket() {
         try {
-            return SocketChannel.open(new InetSocketAddress(destination, port));
+            SocketChannel socket = SocketChannel.open();
+            return socket;
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
@@ -82,7 +84,7 @@ public class Tcp extends Sender {
     private void closeSocket() {
         try {
             localsocket.get().close();
-        } catch (IOException e) {
+        } catch (IOException | UncheckedIOException ex) {
             // Don't care, can be ignored
         } finally {
             localsocket.remove();
@@ -90,7 +92,12 @@ public class Tcp extends Sender {
         }
     }
 
-    private void connect() {
+    private void gotException(Throwable t) {
+        closeSocket();
+        logger.error("Can't communicate with '{}:{}': {}", destination, port, Helpers.resolveThrowableException(t));
+    }
+
+    private boolean connect() {
         logger.debug("Connecting to {}:{}", destination, port);
         closeSocket();
         try {
@@ -101,41 +108,43 @@ public class Tcp extends Sender {
             socket.setOption(ExtendedSocketOptions.TCP_KEEPCOUNT, 5);
             socket.setOption(ExtendedSocketOptions.TCP_KEEPIDLE, 5);
             socket.setOption(ExtendedSocketOptions.TCP_KEEPINTERVAL, 5);
+            socket.socket().connect(new InetSocketAddress(destination, port), 1000);
             localsocketcheck.get().set(new Date().getTime());
-        } catch (IOException e) {
-            localsocket.remove();
-            localsocketcheck.remove();
-            logger.error("Can't resolve destination address '{}': {}", destination, e.getMessage());
-            try {
-                Thread.sleep(5000);
-            } catch (InterruptedException ex) {
-                Thread.currentThread().interrupt();
-            }
+            return true;
+        } catch (IOException | UncheckedIOException ex) {
+            gotException(ex);
+            return false;
         }
     }
 
     private boolean isSocketAlive() {
-        if (! localsocket.get().isConnected()) {
-            return false;
-        }
-        // Do an active check only once per second
-        if (new Date().getTime() - localsocketcheck.get().get() > 1000) {
-            try {
-                localsocket.get().write(ByteBuffer.allocate(0));
-                localsocketcheck.get().set(new Date().getTime());
-                return true;
-            } catch (IOException ex) {
+        try {
+            if (! localsocket.get().isConnected()) {
                 return false;
             }
-        } else {
+            // Do an active check only once per second
+            if (new Date().getTime() - localsocketcheck.get().get() > 1000) {
+                localsocket.get().write(ByteBuffer.allocate(0));
+                localsocketcheck.get().set(new Date().getTime());
+            }
             return true;
+        } catch (UncheckedIOException | IOException ex) {
+            gotException(ex);
+            return false;
         }
     }
 
     @Override
     public boolean send(Event event) throws EncodeException, SendException {
-        while (isRunning() && ! isSocketAlive()) {
-            connect();
+        long sleep = 100;
+        while (isRunning() && ! isSocketAlive() && !connect()) {
+            try {
+                Thread.sleep(sleep *2);
+                sleep = Math.min(sleep * 2, 5 * 60 * 1000);
+            } catch (InterruptedException ex2) {
+                Thread.currentThread().interrupt();
+                break;
+            }
         }
         if (! isRunning()) {
             return false;
@@ -152,9 +161,9 @@ public class Tcp extends Sender {
             }
             localsocketcheck.get().set(new Date().getTime());
             return true;
-        } catch (IOException e) {
-            closeSocket();
-            throw new SendException(e);
+        } catch (IOException | UncheckedIOException ex) {
+            gotException(ex);
+            throw new SendException(ex);
         }
     }
 
