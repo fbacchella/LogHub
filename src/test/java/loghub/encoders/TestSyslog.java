@@ -83,7 +83,7 @@ public class TestSyslog {
 
         byte[] resultbytes = encoder.encode(e);
         String result = new String(resultbytes, StandardCharsets.US_ASCII);
-        Assert.assertEquals("<165> Thu Jan 01 00:00:00.0000 1970 HOSTNAME unit test", result);
+        Assert.assertEquals("<165>2 1970-01-01T00:00:00.0000Z HOSTNAME APP-NAME PROCID MSGID [loghub] unit test", result);
     }
 
     @Test
