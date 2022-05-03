@@ -10,6 +10,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.concurrent.atomic.AtomicLong;
 
+import com.codahale.metrics.Meter;
+
 import jdk.net.ExtendedSocketOptions;
 import loghub.BuilderClass;
 import loghub.CanBatch;
@@ -17,6 +19,7 @@ import loghub.Event;
 import loghub.Helpers;
 import loghub.configuration.Properties;
 import loghub.encoders.EncodeException;
+import loghub.metrics.Stats;
 import lombok.Setter;
 
 @BuilderClass(Tcp.Builder.class)
@@ -74,9 +77,13 @@ public class Tcp extends Sender {
 
     @Override
     public boolean configure(Properties properties) {
+        // Register metrics
+        Stats.getMetric(Meter.class, this, "socketconnect");
+        Stats.getMetric(Meter.class, this, "socketReset");
         if (port >= 0 && destination != null) {
             return super.configure(properties);
         } else {
+            logger.error("Invalid TCP destination: {}:{}", destination, port);
             return false;
         }
     }
@@ -92,9 +99,13 @@ public class Tcp extends Sender {
         }
     }
 
-    private void gotException(Throwable t) {
-        closeSocket();
-        logger.error("Can't communicate with '{}:{}': {}", destination, port, Helpers.resolveThrowableException(t));
+    @Override
+    protected void handleException(Throwable t, Event event) {
+        if (t instanceof IOException || t instanceof UncheckedIOException) {
+            Stats.getMetric(Meter.class, this, "socketReset").mark();
+            closeSocket();
+        }
+        super.handleException(t, event);
     }
 
     private boolean connect() {
@@ -110,9 +121,10 @@ public class Tcp extends Sender {
             socket.setOption(ExtendedSocketOptions.TCP_KEEPINTERVAL, 5);
             socket.socket().connect(new InetSocketAddress(destination, port), 1000);
             localsocketcheck.get().set(new Date().getTime());
+            Stats.getMetric(Meter.class, this, "socketConnect").mark();
             return true;
         } catch (IOException | UncheckedIOException ex) {
-            gotException(ex);
+            handleException(ex);
             return false;
         }
     }
@@ -129,7 +141,7 @@ public class Tcp extends Sender {
             }
             return true;
         } catch (UncheckedIOException | IOException ex) {
-            gotException(ex);
+            handleException(ex);
             return false;
         }
     }
@@ -162,7 +174,6 @@ public class Tcp extends Sender {
             localsocketcheck.get().set(new Date().getTime());
             return true;
         } catch (IOException | UncheckedIOException ex) {
-            gotException(ex);
             throw new SendException(ex);
         }
     }
@@ -181,7 +192,7 @@ public class Tcp extends Sender {
 
     @Override
     public String getSenderName() {
-        return "TCP/" + destination + ":" + port;
+        return "TCP/" + destination + "/" + port;
     }
 
     @Override
