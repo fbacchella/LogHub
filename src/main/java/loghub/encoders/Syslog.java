@@ -4,8 +4,11 @@ import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import com.axibase.date.DatetimeProcessor;
@@ -55,6 +58,8 @@ public class Syslog extends Encoder {
         @Setter
         private String charset = StandardCharsets.US_ASCII.name();
         @Setter
+        private String dateFormat = null;
+        @Setter
         private int secFrac = 3;
 
         @Override
@@ -69,29 +74,17 @@ public class Syslog extends Encoder {
 
     private final DatetimeProcessor dateFormatter;
 
-    @Setter
     private final Format format;
-    @Setter
     private final Charset charset;
-    @Setter
     private final Expression severity;
-    @Setter
     private final Expression facility;
-    @Setter
     private final int version;
-    @Setter
     private final Expression hostname;
-    @Setter
     private final Expression appname;
-    @Setter
     private final Expression procid;
-    @Setter
     private final Expression msgid;
-    @Setter
     private final Expression timestamp;
-    @Setter
     private final Expression message;
-    @Setter
     private final boolean withbom;
 
     private Syslog(Syslog.Builder builder) {
@@ -113,6 +106,19 @@ public class Syslog extends Encoder {
             IntStream.range(0, builder.secFrac).forEach(i -> timestampformat.append("S"));
             timestampformat.append("Z");
             dateFormatter = PatternResolver.createNewFormatter(timestampformat.toString()).withDefaultZone(ZoneId.of("UTC"));
+        } else if (format == Format.RFC3164) {
+            StringBuilder timestampformat;
+            if (builder.dateFormat == null) {
+                timestampformat = new StringBuilder("eee MMM dd HH:mm:ss");
+                if (builder.secFrac > 0) {
+                    timestampformat.append(".");
+                    IntStream.range(0, builder.secFrac).forEach(i -> timestampformat.append("S"));
+                }
+                timestampformat.append(" yyyy");
+            } else {
+                timestampformat = new StringBuilder(builder.dateFormat);
+            }
+            dateFormatter = PatternResolver.createNewFormatter(timestampformat.toString()).withDefaultZone(ZoneId.of("UTC"));
         } else {
             dateFormatter = null;
         }
@@ -123,8 +129,64 @@ public class Syslog extends Encoder {
         switch (format) {
         case RFC5424:
             return formatRfc5424(event);
+        case RFC3164:
+            return formatRfc3164(event);
         default:
             throw new UnsupportedOperationException("Not support syslog format: " + format.name());
+        }
+    }
+
+    private int getPriority(Event event) throws EncodeException, ProcessorException {
+        //Resoving facility
+        int realfacility;
+        Object tryfacility = facility.eval(event);
+        if (tryfacility instanceof Number) {
+            realfacility = ((Number) tryfacility).intValue();
+        } else {
+            try {
+                realfacility = Integer.parseInt(tryfacility.toString());
+            } catch (NumberFormatException e) {
+                throw new EncodeException("Invalid facility: " + tryfacility);
+            }
+        }
+        if (realfacility < 0 || realfacility > 23) {
+            throw new EncodeException("Invalid facility: " + tryfacility);
+        }
+
+        //Resoving severity
+        int realseverity;
+        Object tryseverity = severity.eval(event);
+        if (tryseverity instanceof Number) {
+            realseverity = ((Number) tryseverity).intValue();
+        } else {
+            try {
+                realseverity = Integer.parseInt(tryseverity.toString());
+            } catch (NumberFormatException e) {
+                throw  new EncodeException("Invalid severity: " + tryseverity);
+            }
+        }
+        if (realseverity < 0 || realseverity > 7) {
+            throw new EncodeException("Invalid severity: " + tryseverity);
+        }
+        return realfacility * 8 + realseverity;
+    }
+
+    private byte[] formatRfc3164(Event event) throws EncodeException {
+        try {
+            List<String> parts = new ArrayList<>(3);
+            parts.add("<" + getPriority((event)) + ">");
+            if (dateFormatter != null) {
+                parts.add(dateFormatter.print(event.getTimestamp().getTime()));
+            }
+            if (hostname != null) {
+                Optional.ofNullable(hostname.eval(event)).map(Object::toString).ifPresent(parts::add);
+            }
+            if (message != null) {
+                Optional.ofNullable(message.eval(event)).map(Object::toString).ifPresent(parts::add);
+            }
+            return parts.stream().collect(Collectors.joining(" ")).getBytes(StandardCharsets.US_ASCII);
+        } catch (ProcessorException ex) {
+            throw new EncodeException("Can't encode syslog message: " + Helpers.resolveThrowableException(ex), ex);
         }
     }
 
@@ -132,40 +194,7 @@ public class Syslog extends Encoder {
         try {
             StringBuilder syslogline = new StringBuilder();
             syslogline.append("<");
-
-            //Resoving facility
-            int realfacility;
-            Object tryfacility = facility.eval(event);
-            if (tryfacility instanceof Number) {
-                realfacility = ((Number) tryfacility).intValue();
-            } else {
-                try {
-                    realfacility = Integer.parseInt(tryfacility.toString());
-                } catch (NumberFormatException e) {
-                    throw new EncodeException("Invalid facility: " + tryfacility);
-                }
-            }
-            if (realfacility < 0 || realfacility > 23) {
-                throw new EncodeException("Invalid facility: " + tryfacility);
-            }
-
-            //Resoving severity
-            int realseverity;
-            Object tryseverity = severity.eval(event);
-            if (tryseverity instanceof Number) {
-                realseverity = ((Number) tryseverity).intValue();
-            } else {
-                try {
-                realseverity = Integer.parseInt(tryseverity.toString());
-                } catch (NumberFormatException e) {
-                    throw  new EncodeException("Invalid severity: " + tryseverity);
-                }
-            }
-            if (realseverity < 0 || realseverity > 7) {
-                throw new EncodeException("Invalid severity: " + tryseverity);
-            }
-
-            syslogline.append(realfacility * 8 + realseverity);
+            syslogline.append(getPriority((event)));
             syslogline.append(">");
             syslogline.append(version).append(" ");
             syslogline.append(dateFormatter.print(event.getTimestamp().getTime())).append(" ");
@@ -188,8 +217,8 @@ public class Syslog extends Encoder {
                 buffer.put(prefix).put(BOM).put(msgbytes);
                 return buffer.array();
             }
-        } catch (ProcessorException e) {
-            throw new EncodeException("Can't encode syslog message: " + Helpers.resolveThrowableException(e), e);
+        } catch (ProcessorException ex) {
+            throw new EncodeException("Can't encode syslog message: " + Helpers.resolveThrowableException(ex), ex);
         }
     }
 

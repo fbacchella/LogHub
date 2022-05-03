@@ -59,6 +59,21 @@ public class TestSyslog {
     }
 
     @Test
+    public void testRfc3164() throws EncodeException, Expression.ExpressionException {
+        Syslog.Builder builder = getSampleBuilder();
+        builder.setFormat("rFc3164");
+        Syslog encoder = builder.build();
+        Assert.assertTrue(encoder.configure(new Properties(Collections.emptyMap()), InMemorySender.getBuilder().build()));
+        Event e = Tools.getEvent();
+        e.setTimestamp(new Date(0));
+        e.put("message", "unit test");
+
+        byte[] resultbytes = encoder.encode(e);
+        String result = new String(resultbytes, StandardCharsets.US_ASCII);
+        Assert.assertEquals("<165> Thu Jan 01 00:00:00.0000 1970 HOSTNAME unit test", result);
+    }
+
+    @Test
     public void testfull() throws EncodeException, Expression.ExpressionException {
         Syslog encoder = getSampleBuilder().build();
         Assert.assertTrue(encoder.configure(new Properties(Collections.emptyMap()), InMemorySender.getBuilder().build()));
@@ -68,7 +83,7 @@ public class TestSyslog {
 
         byte[] resultbytes = encoder.encode(e);
         String result = new String(resultbytes, StandardCharsets.US_ASCII);
-        Assert.assertEquals("<165>2 1970-01-01T00:00:00.0000Z HOSTNAME APP-NAME PROCID MSGID [loghub] unit test", result);
+        Assert.assertEquals("<165> Thu Jan 01 00:00:00.0000 1970 HOSTNAME unit test", result);
     }
 
     @Test
@@ -128,6 +143,7 @@ public class TestSyslog {
                 , BeanChecks.BeanInfo.build("message", Expression.class)
                 , BeanChecks.BeanInfo.build("withbom", Boolean.TYPE)
                 , BeanChecks.BeanInfo.build("charset", String.class)
+                , BeanChecks.BeanInfo.build("dateFormat", String.class)
         );
     }
 
