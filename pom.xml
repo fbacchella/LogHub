@@ -219,7 +219,11 @@
             <artifactId>jackson-datatype-jdk8</artifactId>
             <version>${jackson}</version>
         </dependency>
-        <!-- end of Jackson dependencies -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.dataformat</groupId>
+            <artifactId>jackson-dataformat-xml</artifactId>
+            <version>${jackson}</version>
+        </dependency>        <!-- end of Jackson dependencies -->
         <!-- *************************** -->
         <dependency>
             <groupId>com.sun.activation</groupId>
