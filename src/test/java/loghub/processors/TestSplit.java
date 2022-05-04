@@ -56,9 +56,9 @@ public class TestSplit {
     }
 
     @Test
-    public void test_loghub_processors_Crlf() throws IntrospectionException, ReflectiveOperationException {
-        BeanChecks.beansCheck(logger, "loghub.processors.Crlf"
-                , BeanChecks.BeanInfo.build("regex", String.class)
+    public void test_loghub_processors_Split() throws IntrospectionException, ReflectiveOperationException {
+        BeanChecks.beansCheck(logger, "loghub.processors.Split"
+                , BeanChecks.BeanInfo.build("pattern", String.class)
                 , BeanChecks.BeanInfo.build("destination", String.class)
                 , BeanChecks.BeanInfo.build("field", VariablePath.class)
                 , BeanChecks.BeanInfo.build("fields", new Object[] {}.getClass())
