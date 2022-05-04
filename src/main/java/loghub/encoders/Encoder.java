@@ -40,6 +40,15 @@ public abstract class Encoder {
         }
     }
 
+    /**
+     * A encoder to be used within processor, so don't check on sender
+     * @param properties
+     * @return
+     */
+    public boolean configure(Properties properties) {
+        return true;
+    }
+
     public byte[] encode(Stream<Event> events) throws EncodeException {
         throw new UnsupportedOperationException("Can't batch events");
     }
