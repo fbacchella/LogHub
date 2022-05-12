@@ -101,7 +101,11 @@ public class Tcp extends Sender {
 
     @Override
     protected void handleException(Throwable t, Event event) {
-        if (t instanceof IOException || t instanceof UncheckedIOException) {
+        Throwable cause = t;
+        if (cause instanceof SendException && cause.getCause() != null) {
+            cause = cause.getCause();
+        }
+        if (cause instanceof IOException || cause instanceof UncheckedIOException) {
             Stats.getMetric(Meter.class, this, "socketReset").mark();
             closeSocket();
         }
