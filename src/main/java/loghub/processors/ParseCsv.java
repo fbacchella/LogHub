@@ -32,7 +32,7 @@ public class ParseCsv extends FieldsProcessor {
         Arrays.stream(columns).forEach(i -> sbuilder.addColumn(i.toString()));
         sbuilder.setColumnSeparator(separator);
         sbuilder.setNullValue(nullValue);
-        
+
         if (escapeChar != '\0') {
             sbuilder.setEscapeChar(escapeChar);
         }

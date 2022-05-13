@@ -199,15 +199,15 @@ public class Geoip2 extends FieldsProcessor {
             case SUBDIVISION:
                 if (subdivision != null) {
                     List<Map<String, Object>> all = new ArrayList<>(subdivision.size());
-                    for(Subdivision sub: subdivision) {
+                    for (Subdivision sub: subdivision) {
                         Map<String, Object> subdivisioninfo = new HashMap<>(2);
                         Optional.ofNullable(sub.getIsoCode()).ifPresent(i -> subdivisioninfo.put("code", i));
                         Optional.ofNullable(sub.getNames().get(locale)).ifPresent(i -> subdivisioninfo.put("name", i));
-                        if(subdivisioninfo.size() > 0) {
+                        if (subdivisioninfo.size() > 0) {
                             all.add(subdivisioninfo);
                         }
                     }
-                    if(all.size() > 0) {
+                    if (all.size() > 0) {
                         informations.put("subdivisions", all);
                     }
                 }

@@ -15,12 +15,12 @@ import org.junit.Test;
 
 import loghub.BeanChecks;
 import loghub.Event;
+import loghub.Event.Action;
 import loghub.LogUtils;
 import loghub.NullOrMissingValue;
 import loghub.ProcessorException;
 import loghub.Tools;
 import loghub.VariablePath;
-import loghub.Event.Action;
 import loghub.configuration.Properties;
 
 public class TestSyslogPriority {

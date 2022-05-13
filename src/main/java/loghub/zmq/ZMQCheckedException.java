@@ -48,7 +48,7 @@ public class ZMQCheckedException extends Exception {
         }
         setStackTrace(e.getStackTrace());
     }
-    
+
     private static Exception filterCause(UncheckedZMQException e) {
         if (e instanceof ZError.IOException) {
             return (java.io.IOException) e.getCause();

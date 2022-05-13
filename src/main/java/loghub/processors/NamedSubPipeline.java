@@ -25,7 +25,7 @@ public class NamedSubPipeline extends Processor implements SubPipeline {
     @Override
     public boolean configure(Properties properties) {
         pipe = properties.namedPipeLine.get(pipeRef);
-        if(pipe == null) {
+        if (pipe == null) {
             logger.error("pipeline '{}' not found", pipeRef);
             return false;
         }

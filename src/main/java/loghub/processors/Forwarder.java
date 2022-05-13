@@ -24,7 +24,6 @@ public class Forwarder extends Processor {
     public void forward(Event event) {
         event.finishPipeline();
         event.refill(pipeDestination);
-
     }
 
     /**

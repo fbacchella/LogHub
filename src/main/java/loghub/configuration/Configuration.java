@@ -397,7 +397,7 @@ public class Configuration {
         Function<Object, Object> resolve = i -> {
             return ((i instanceof ConfigListener.ObjectWrapped) ? ((ConfigListener.ObjectWrapped<Object>) i).wrapped : i);
         };
-        conf.properties.entrySet().stream().forEach(i-> newProperties.put(i.getKey(), resolve.apply(i.getValue())));
+        conf.properties.entrySet().stream().forEach(i -> newProperties.put(i.getKey(), resolve.apply(i.getValue())));
 
         Map<String, Pipeline> namedPipeLine = new HashMap<>(conf.pipelines.size());
 
