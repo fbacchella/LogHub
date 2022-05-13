@@ -67,6 +67,17 @@ public class TestExpression {
     }
 
     @Test
+    public void testStringFormat() throws ExpressionException, ProcessorException {
+        String format = "${a%s} ${b%02d}";
+        Expression expression = new Expression(format);
+        Event ev = Tools.getEvent();
+        ev.put("a", "1");
+        ev.put("b", 2);
+        Object o = expression.eval(ev);
+        Assert.assertEquals("1 02", o);
+    }
+
+    @Test
     public void testFailsCompilation() throws ExpressionException, ProcessorException {
         // An expression valid in loghub, but not in groovy, should be catched
         String expressionScript = "event.getGroovyPath(\"host\") instanceof formatters.h_473e3665.format(event)";

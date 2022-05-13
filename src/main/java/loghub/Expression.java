@@ -136,21 +136,31 @@ public class Expression {
     }
 
     /**
-     * The parser can send a literal when a expression was expected. Just store it to be returned
+     * The parser can send a literal when a expression was expected. Just store it to be returned.
+     * If it's a String value, it's easier to handle it as a formatter that will be applied to the event.
      *
      * @param literal the literal value
      */
     public Expression(Object literal) {
+        if (literal instanceof String) {
+            this.formatters = Collections.singletonMap("__FORMATTER_", new VarFormatter((String) literal));
+            this.literal = null;
+        } else {
+            this.formatters = null;
+            this.literal = literal;
+        }
         this.expression = null;
-        this.formatters = null;
         this.loader = null;
-        this.literal = literal;
     }
 
     public Object eval(Event event) throws ProcessorException {
-        // It's a constant expression, no need to evaluate it
+
         if (literal != null) {
+            // It's a constant expression, no need to evaluate it
             return literal;
+        } else if (expression == null) {
+            // A string expression was given, it might have been a format string to apply to the event
+            return this.formatters.get("__FORMATTER_").format(event);
         } else {
             logger.trace("Evaluating script {} with formatters {}", expression, formatters);
             BindingMap bmap = bindings.get();
