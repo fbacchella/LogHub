@@ -7,11 +7,13 @@ import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
 
+import loghub.BuilderClass;
 import loghub.Event;
 import loghub.configuration.Properties;
 import loghub.encoders.EncodeException;
 import lombok.Setter;
 
+@BuilderClass(Udp.Builder.class)
 public class Udp extends Sender {
 
     public static class Builder extends Sender.Builder<Udp> {
@@ -23,6 +25,9 @@ public class Udp extends Sender {
         public Udp build() {
             return new Udp(this);
         }
+    }
+    public static Udp.Builder getBuilder() {
+        return new Udp.Builder();
     }
 
     private final int port;
