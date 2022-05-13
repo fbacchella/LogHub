@@ -26,6 +26,9 @@ import lombok.Setter;
 @CanBatch
 public class Tcp extends Sender {
 
+    private static final String METRIC_SOCKET_CONNECT = "socketConnect";
+    private static final String METRIC_SOCKET_RESET = "socketReset";
+
     public static class Builder extends Sender.Builder<Tcp> {
         @Setter
         private String destination = "127.0.0.1";
@@ -78,8 +81,8 @@ public class Tcp extends Sender {
     @Override
     public boolean configure(Properties properties) {
         // Register metrics
-        Stats.getMetric(Meter.class, this, "socketconnect");
-        Stats.getMetric(Meter.class, this, "socketReset");
+        Stats.getMetric(Meter.class, this, METRIC_SOCKET_CONNECT);
+        Stats.getMetric(Meter.class, this, METRIC_SOCKET_RESET);
         if (port >= 0 && destination != null) {
             return super.configure(properties);
         } else {
@@ -106,7 +109,7 @@ public class Tcp extends Sender {
             cause = cause.getCause();
         }
         if (cause instanceof IOException || cause instanceof UncheckedIOException) {
-            Stats.getMetric(Meter.class, this, "socketReset").mark();
+            Stats.getMetric(Meter.class, this, METRIC_SOCKET_RESET).mark();
             closeSocket();
         }
         super.handleException(t, event);
@@ -125,7 +128,7 @@ public class Tcp extends Sender {
             socket.setOption(ExtendedSocketOptions.TCP_KEEPINTERVAL, 5);
             socket.socket().connect(new InetSocketAddress(destination, port), 1000);
             localsocketcheck.get().set(new Date().getTime());
-            Stats.getMetric(Meter.class, this, "socketConnect").mark();
+            Stats.getMetric(Meter.class, this, METRIC_SOCKET_CONNECT).mark();
             return true;
         } catch (IOException | UncheckedIOException ex) {
             handleException(ex);
