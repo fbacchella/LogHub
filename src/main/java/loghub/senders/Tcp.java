@@ -16,7 +16,6 @@ import jdk.net.ExtendedSocketOptions;
 import loghub.BuilderClass;
 import loghub.CanBatch;
 import loghub.Event;
-import loghub.Helpers;
 import loghub.configuration.Properties;
 import loghub.encoders.EncodeException;
 import loghub.metrics.Stats;
@@ -48,8 +47,8 @@ public class Tcp extends Sender {
     private final int port;
     private final String destination;
     private final ThreadLocal<ByteBuffer[]> localmessagevector;
-    private ThreadLocal<SocketChannel> localsocket = ThreadLocal.withInitial(this::newSocket);
-    private ThreadLocal<AtomicLong> localsocketcheck = ThreadLocal.withInitial(AtomicLong::new);
+    private final ThreadLocal<SocketChannel> localsocket = ThreadLocal.withInitial(this::newSocket);
+    private final ThreadLocal<AtomicLong> localsocketcheck = ThreadLocal.withInitial(AtomicLong::new);
 
     private Tcp(Builder builder) {
         super(builder);
@@ -71,8 +70,7 @@ public class Tcp extends Sender {
 
     private SocketChannel newSocket() {
         try {
-            SocketChannel socket = SocketChannel.open();
-            return socket;
+            return SocketChannel.open();
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
@@ -159,7 +157,7 @@ public class Tcp extends Sender {
         while (isRunning() && ! isSocketAlive() && !connect()) {
             try {
                 Thread.sleep(sleep *2);
-                sleep = Math.min(sleep * 2, 5 * 60 * 1000);
+                sleep = Math.min(sleep * 2, 5l * 60 * 1000);
             } catch (InterruptedException ex2) {
                 Thread.currentThread().interrupt();
                 break;
@@ -173,8 +171,8 @@ public class Tcp extends Sender {
             if (localmessagevector != null) {
                 ByteBuffer[] messagevector = localmessagevector.get();
                 messagevector[0] = content;
+                messagevector[1].clear();
                 localsocket.get().write(messagevector);
-                messagevector[1].flip();
             } else {
                 localsocket.get().write(content);
             }
@@ -206,6 +204,7 @@ public class Tcp extends Sender {
     public void close() {
         super.close();
         closeSocket();
+        localmessagevector.remove();
     }
 
 }
