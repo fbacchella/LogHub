@@ -34,7 +34,6 @@ import org.apache.logging.log4j.Logger;
 
 import loghub.Helpers;
 import loghub.configuration.ConfigException;
-import loghub.configuration.Properties;
 import loghub.netty.servers.AbstractNettyServer;
 
 public class ContextLoader {
