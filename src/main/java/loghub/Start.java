@@ -46,6 +46,7 @@ import loghub.processors.FieldsProcessor;
 import loghub.receivers.Receiver;
 import loghub.security.JWTHandler;
 import loghub.senders.Sender;
+import loghub.sources.Source;
 import lombok.ToString;
 
 public class Start {
@@ -464,9 +465,9 @@ public class Start {
 
         long starttime = System.nanoTime();
 
-        for (Source s: props.sources.values()) {
-            if (! s.configure(props)) {
-                logger.error("failed to start source {}", s.getName());
+        for (Map.Entry<String, Source> s: props.sources.entrySet()) {
+            if (! s.getValue().configure(props)) {
+                logger.error("failed to start source {}", s.getKey());
                 failed = true;
             };
         }

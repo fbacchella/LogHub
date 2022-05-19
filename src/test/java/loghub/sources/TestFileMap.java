@@ -37,18 +37,21 @@ public class TestFileMap {
     public void testSourceLoading() throws ConfigException, IOException {
         Properties conf = Tools.loadConf("sources.conf", false);
         conf.sources.values().forEach(i -> Assert.assertTrue(i.configure(conf)));
-        FileMap s = (FileMap) conf.sources.get("source1");
-        Assert.assertEquals("Reserved", s.get("0"));
+        FileMap s1 = (FileMap) conf.sources.get("source1");
+        Assert.assertEquals("Reserved", s1.get("0"));
+        FileMap s2 = (FileMap) conf.sources.get("source2");
+        Assert.assertEquals(1, s2.get("a"));
     }
 
     @Test
     public void testone() throws ProcessorException {
         URL ifpixurl = getClass().getResource("/ipfix-information-elements.csv");
-        FileMap s = new FileMap();
-        s.setMappingFile(ifpixurl.getFile());
-        s.setCsvFormat("RFC4180");
-        s.setKeyName("ElementID");
-        s.setValueName("Name");
+        FileMap.Builder builder = FileMap.getBuilder();
+        builder.setMappingFile(ifpixurl.getFile());
+        builder.setCsvFormat("RFC4180");
+        builder.setKeyName("ElementID");
+        builder.setValueName("Name");
+        FileMap s = builder.build();
         s.configure(null);
 
         Mapper p = new Mapper();
@@ -62,6 +65,27 @@ public class TestFileMap {
         ProcessingStatus ps = Tools.runProcessing(e, "main", Collections.singletonList(p));
         Event ep = ps.mainQueue.remove();
         Assert.assertEquals("octetDeltaCount", ep.get("type"));
+    }
+
+    @Test
+    public void testJson() throws ProcessorException {
+        URL jsonurl = getClass().getResource("/mapping.json");
+        FileMap.Builder builder = FileMap.getBuilder();
+        builder.setMappingFile(jsonurl.getFile());
+        FileMap s = builder.build();
+        s.configure(null);
+
+        Mapper p = new Mapper();
+        p.setExpression(ConfigurationTools.unWrap("[type]", i -> i.expression()));
+        p.setLvalue(VariablePath.of(new String[] {"type"}));
+        p.setMap(s);
+
+        Event e = Tools.getEvent();
+        e.put("type", "a");
+
+        ProcessingStatus ps = Tools.runProcessing(e, "main", Collections.singletonList(p));
+        Event ep = ps.mainQueue.remove();
+        Assert.assertEquals(1, ep.get("type"));
     }
 
 }

@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import org.antlr.v4.runtime.CharStream;
@@ -71,7 +72,7 @@ import loghub.RouteParser.StringLiteralContext;
 import loghub.RouteParser.TestContext;
 import loghub.RouteParser.TestExpressionContext;
 import loghub.RouteParser.VarPathContext;
-import loghub.Source;
+import loghub.sources.Source;
 import loghub.VarFormatter;
 import loghub.VariablePath;
 import loghub.processors.AnonymousSubPipeline;
@@ -163,11 +164,6 @@ class ConfigListener extends RouteBaseListener {
         }
     }
 
-    static class SourceProvider {
-        Source source; 
-        Map<Object, Object> map;
-    }
-
     static final class ProcessorInstance extends ObjectWrapped<Processor> implements Pipenode {
         ProcessorInstance(ObjectWrapped<Processor> wrapper) {
             super(wrapper.wrapped);
@@ -202,7 +198,7 @@ class ConfigListener extends RouteBaseListener {
     final List<Output> outputs = new ArrayList<>();
     final Map<String, Object> properties = new HashMap<>();
     final Map<String, VarFormatter> formatters = new HashMap<>();
-    final Map<String, SourceProvider> sources = new HashMap<>();
+    final Map<String, AtomicReference<Source>> sources = new HashMap<>();
     final Set<String> outputPipelines = new HashSet<>();
 
     private String currentPipeLineName = null;
@@ -372,14 +368,8 @@ class ConfigListener extends RouteBaseListener {
 
     @Override
     public void enterObject(ObjectContext ctx) {
-        if (stack.peek() instanceof SourceProvider) {
-            SourceProvider sp = stack.popTyped();
-            ObjectWrapped<Source> wrapper = new ObjectWrapped<>(sp.source);
-            stack.push(wrapper);
-        } else {
-            String qualifiedName = ctx.QualifiedIdentifier().getText();
-            stack.push(getObject(qualifiedName, ctx));
-        }
+        String qualifiedName = ctx.QualifiedIdentifier().getText();
+        stack.push(getObject(qualifiedName, ctx));
     }
 
     @Override
@@ -677,16 +667,9 @@ class ConfigListener extends RouteBaseListener {
     }
 
     @Override
-    public void enterSourcedef(SourcedefContext ctx) {
-        String sourceName = ctx.identifier().getText();
-        SourceProvider sp = sources.get(sourceName);
-        sp.source.setName(sourceName);
-        stack.push(sp);
-    }
-
-    @Override
     public void exitSourcedef(SourcedefContext ctx) {
-        stack.pop();
+        ObjectWrapped<Source> source = (ObjectWrapped<Source>) stack.pop();
+        sources.get(ctx.identifier().getText()).set(source.wrapped);
     }
 
     @Override
@@ -871,7 +854,7 @@ class ConfigListener extends RouteBaseListener {
             if (! sources.containsKey(sourceName)) {
                 throw new RecognitionException("Undefined source " + sourceName, parser, stream, ctx);
             }
-            Source s = sources.get(sourceName).source;
+            Source s = sources.get(sourceName).get();
             stack.push(new ObjectWrapped<Source>(s));
         }
     }

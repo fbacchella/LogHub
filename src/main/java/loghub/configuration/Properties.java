@@ -45,7 +45,7 @@ import loghub.Helpers;
 import loghub.Pipeline;
 import loghub.PriorityBlockingQueue;
 import loghub.Processor;
-import loghub.Source;
+import loghub.sources.Source;
 import loghub.ThreadBuilder;
 import loghub.VarFormatter;
 import loghub.metrics.ExceptionsMBean;

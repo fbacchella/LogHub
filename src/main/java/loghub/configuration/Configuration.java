@@ -31,6 +31,7 @@ import java.util.Set;
 import java.util.TimeZone;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -59,7 +60,7 @@ import loghub.RouteParser.LiteralContext;
 import loghub.RouteParser.PropertyContext;
 import loghub.RouteParser.SourcedefContext;
 import loghub.RouteParser.SourcesContext;
-import loghub.Source;
+import loghub.sources.Source;
 import loghub.configuration.ConfigListener.Input;
 import loghub.configuration.ConfigListener.Output;
 import loghub.receivers.Receiver;
@@ -345,11 +346,7 @@ public class Configuration {
             for (SourcedefContext sdc: sc.sourcedef()) {
                 String name = sdc.identifier().getText();
                 if (! conflistener.sources.containsKey("name")) {
-                    String className = sdc.object().QualifiedIdentifier().getText();
-                    // Pre-create source object
-                    ConfigListener.SourceProvider sp = new ConfigListener.SourceProvider();
-                    sp.source = (Source) conflistener.getObject(className, sdc).wrapped;
-                    conflistener.sources.put(name, sp);
+                    conflistener.sources.put(name, new AtomicReference<>());
                 } else {
                     throw new RecognitionException("Source redefined", tree.parser, tree.stream, sdc);
                 }
@@ -470,8 +467,8 @@ public class Configuration {
         newProperties.put(Properties.PROPSNAMES.SENDERS.toString(), senders);
 
         sources = conf.sources.entrySet().stream()
-                        .map( e -> new AbstractMap.SimpleEntry<String, Source>(e.getKey(), e.getValue().source))
-                        .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue()))
+                        .map(e -> new AbstractMap.SimpleEntry<>(e.getKey(), e.getValue().get()))
+                        .collect(Collectors.toMap(AbstractMap.SimpleEntry::getKey, AbstractMap.SimpleEntry::getValue))
                         ;
         newProperties.put(Properties.PROPSNAMES.SOURCES.toString(), Collections.unmodifiableMap(sources));
 
