@@ -112,7 +112,7 @@ public class Http extends AbstractHttpReceiver {
     private Map<String, Object> resolveCgi(String message) {
         QueryStringDecoder qsd = new QueryStringDecoder(message);
         return qsd.parameters().entrySet().stream()
-                        .collect(Collectors.toMap(i -> i.getKey(), j -> {
+                        .collect(Collectors.toMap(Map.Entry::getKey, j -> {
                             if (j.getValue().size() == 1) {
                                 return (Object) j.getValue().get(0);
                             } else {

@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import org.apache.logging.log4j.Level;
 
@@ -59,7 +60,7 @@ public class Grok extends FieldsProcessor {
             return FieldsProcessor.RUNSTATUS.FAILED;
         }
         Object returned = FieldsProcessor.RUNSTATUS.NOSTORE;
-        for (Map.Entry<String, Object> e: gm.capture().entrySet()) {
+        for (Map.Entry<String, Object> e: captures.entrySet()) {
             String destinationField = e.getKey();
             Object stored;
             // Dirty hack to filter non named regex
@@ -73,7 +74,7 @@ public class Grok extends FieldsProcessor {
             if (e.getValue() instanceof List) {
                 List<?> listvalue = (List<?>) e.getValue();
                 List<String> newvalues = new ArrayList<>();
-                listvalue.stream().filter( i -> i != null).map(i -> i.toString()).forEach(newvalues::add);
+                listvalue.stream().filter(Objects::nonNull).map(Object::toString).forEach(newvalues::add);
                 if (newvalues.size() == 0) {
                     continue;
                 } else if (newvalues.size() == 1) {

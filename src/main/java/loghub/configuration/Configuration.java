@@ -166,7 +166,7 @@ public class Configuration {
         if ( ! Files.exists(sourcePath)) {
             // It might be a glob pattern
             Path progress = sourcePath.isAbsolute() ? sourcePath.getRoot() : Paths.get(".").normalize();
-            Iterable<Path> iter = () -> sourcePath.iterator(); 
+            Iterable<Path> iter = sourcePath::iterator;
             for (Path p: iter) {
                 Path trypath = progress.resolve(p);
                 if (! Files.exists(trypath)) {
@@ -363,7 +363,7 @@ public class Configuration {
 
         String contentString;
         if (ac != null) {
-            return ac.beanValue().stream().map( i -> i.getText()).toArray(String[]::new);
+            return ac.beanValue().stream().map(RuleContext::getText).toArray(String[]::new);
         } else if ((contentString = getStringLitteral(beanValue)) != null) {
             return new String[] {contentString};
         } else {
@@ -499,7 +499,7 @@ public class Configuration {
         ThrowingConsumer<Path> toUrl = i -> urls.add(i.toUri().toURL());
         Arrays.stream(pathElements)
         .map(i -> Paths.get(i.toString()))
-        .filter(i -> Files.isReadable(i))
+        .filter(Files::isReadable)
         .filter(filterReadable)
         .filter(i -> (Files.isRegularFile(i) && i.toString().endsWith(".jar")) || Files.isDirectory(i))
         .forEach( i-> {

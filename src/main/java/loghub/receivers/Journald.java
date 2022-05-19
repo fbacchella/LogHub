@@ -121,7 +121,7 @@ public class Journald extends AbstractHttpReceiver {
                 chunksBuffer.addComponent(true, chunkContent);
                 chunkContent.retain();
                 decoder.decode(getConnectionContext(ctx), chunksBuffer)
-                       .map(m -> (Event) m)
+                       .map(Event.class::cast)
                        .forEach(events::add);
                 chunksBuffer.discardReadComponents();
             }
@@ -190,7 +190,7 @@ public class Journald extends AbstractHttpReceiver {
     @Override
     protected void settings(HttpReceiverServer.Builder builder) {
         super.settings(builder);
-        builder.setAggregatorSupplier(() -> new JournaldAgregator())
+        builder.setAggregatorSupplier(JournaldAgregator::new)
                .setReceiveHandler(new JournaldUploadHandler())
                .setWorkerThreads(8)
                // journald-upload uses 16kiB chunk buffers, the default HttpServerCodec uses 8kiB bytebuf

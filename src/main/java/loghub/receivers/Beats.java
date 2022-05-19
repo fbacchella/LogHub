@@ -150,7 +150,7 @@ public class Beats extends AbstractTcpReceiver<Beats, TcpServer, TcpServer.Build
 
             @Override
             public void onNewMessage(ChannelHandlerContext ctx, Message beatsMessage) {
-                logger.trace("new beats message {}", () -> beatsMessage.getData());
+                logger.trace("new beats message {}", beatsMessage::getData);
                 ConnectionContext<?> cctx = ctx.channel().attr(NettyReceiver.CONNECTIONCONTEXTATTRIBUTE).get();
                 Event newEvent = Event.emptyEvent(cctx);
                 beatsMessage.getData().forEach((i,j) -> {

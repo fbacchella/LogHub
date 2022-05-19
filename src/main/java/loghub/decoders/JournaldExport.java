@@ -85,9 +85,7 @@ public class JournaldExport extends Decoder {
      * When used within a HTTP Journald receiver, a single thread might process multiple HTTP connection. But the decoder is
      * local, so it’s not shared either.
      */
-    private final ThreadLocal<EventVars> threadEventVars = ThreadLocal.withInitial( () -> {
-        return new EventVars();
-    });
+    private final ThreadLocal<EventVars> threadEventVars = ThreadLocal.withInitial(EventVars::new);
 
     protected JournaldExport(Builder builder) {
         super(builder);

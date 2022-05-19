@@ -10,6 +10,7 @@ import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 
 import org.apache.logging.log4j.Level;
 
@@ -76,7 +77,7 @@ public class DateParser extends FieldsProcessor {
         } else {
             patterns = NAMEDPATTERNS.values().toArray(new DatetimeProcessor[NAMEDPATTERNS.size()]);
         }
-        return patterns.length != 0 && Arrays.stream(patterns).allMatch(i -> i != null) && super.configure(properties);
+        return patterns.length != 0 && Arrays.stream(patterns).allMatch(Objects::nonNull) && super.configure(properties);
     }
     
     private DatetimeProcessor resolveFromPattern(String pattern) {

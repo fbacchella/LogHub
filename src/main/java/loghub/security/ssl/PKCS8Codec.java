@@ -89,7 +89,7 @@ public class PKCS8Codec extends SimpleBerCodec {
     }
 
     public String getAlgo() {
-        String algoOid = Arrays.stream(oid).mapToObj(i-> Integer.toString(i)).collect(Collectors.joining("."));
+        String algoOid = Arrays.stream(oid).mapToObj(Integer::toString).collect(Collectors.joining("."));
         return algoMapping.getOrDefault(algoOid, algoOid);
     }
 

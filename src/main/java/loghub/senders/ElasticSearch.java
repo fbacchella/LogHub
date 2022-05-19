@@ -469,7 +469,7 @@ public class ElasticSearch extends AbstractHttpSender {
                     .map(n -> n.get("settings"))
                     .map(n -> {
                         return Optional.ofNullable(n.get("index.blocks.read_only_allow_delete"))
-                                .map(b -> b.asBoolean())
+                                .map(JsonNode::asBoolean)
                                 .orElse(false);
                     });
             if (! status.isPresent()) {

@@ -261,7 +261,7 @@ public abstract class Receiver extends Thread implements Iterator<Event>, Closea
                     Optional.ofNullable(eventContent.get(Event.TIMESTAMPKEY))
                     .filter(newEvent::setTimestamp)
                     .ifPresent(ts -> eventContent.remove(Event.TIMESTAMPKEY));
-                    metas.forEach((i,j) -> newEvent.putMeta(i, j));
+                    metas.forEach(newEvent::putMeta);
                 } else {
                     newEvent = Event.emptyEvent(ctx);
                     Optional.ofNullable(content.get(timeStampField))
@@ -339,7 +339,7 @@ public abstract class Receiver extends Thread implements Iterator<Event>, Closea
             if(! event.inject(pipeline, outQueue, blocking)) {
                 event.end();
                 Stats.newBlockedError(this);
-                logger.debug("Send failed from {}, pipeline destination {} blocked", () -> getName(), () -> pipeline.getName());
+                logger.debug("Send failed from {}, pipeline destination {} blocked", this::getName, () -> pipeline.getName());
                 return false;
             } else {
                 Stats.newReceivedEvent(this);

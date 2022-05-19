@@ -5,6 +5,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
@@ -83,12 +84,12 @@ public abstract class Decoder {
         } else if (o instanceof Iterable){
             @SuppressWarnings("unchecked")
             Iterable<Object> i = (Iterable<Object>) o;
-            return StreamSupport.stream(i.spliterator(), false).map(getDecodeMap(ctx)).filter(m -> m != null);
+            return StreamSupport.stream(i.spliterator(), false).map(getDecodeMap(ctx)).filter(Objects::nonNull);
         } else if (o instanceof Iterator){
             @SuppressWarnings("unchecked")
             Iterator<Object> iter = (Iterator<Object>) o;
             Iterable<Object> i = () -> iter;
-            return StreamSupport.stream(i.spliterator(), false).map(getDecodeMap(ctx)).filter(m -> m != null);
+            return StreamSupport.stream(i.spliterator(), false).map(getDecodeMap(ctx)).filter(Objects::nonNull);
         }  else {
             return Stream.of(decodeMap(ctx, o));
         }

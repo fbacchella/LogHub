@@ -153,7 +153,7 @@ public abstract class NettyIpServer<CF extends ComponentFactory<BS, BSC, InetSoc
     }
 
     public void addSslHandler(ChannelPipeline p) {
-        logger.debug("adding an SSL handler on {}", () -> p.channel());
+        logger.debug("adding an SSL handler on {}", p::channel);
         SSLEngine engine = getEngine();
         SslHandler sslHandler = new SslHandler(engine);
         p.addFirst("ssl", sslHandler);

@@ -123,7 +123,7 @@ public class SnmpTrap extends Receiver implements CommandResponder {
             String[] mibdirs = null;
             try {
                 mibdirs = Arrays.stream((Object[]) properties.get("mibdirs"))
-                                .map( i -> i.toString())
+                                .map(Object::toString)
                                 .toArray(String[]::new);
                 formatter = OIDFormatter.register(mibdirs);
             } catch (ClassCastException e) {

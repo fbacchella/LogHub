@@ -333,13 +333,13 @@ public class ZMQHandler<M> implements AutoCloseable {
     public void logEvent(Socket s, Event e) {
         ZMonitor.Event evType = ZMonitor.Event.findByCode(e.getEvent());
         if (e.isError() && evType == ZMonitor.Event.HANDSHAKE_FAILED_PROTOCOL) {
-            logger.error("Socket {} {}: {}", () -> socketUrl, () -> evType, () -> e.resolveValue());
+            logger.error("Socket {} {}: {}", () -> socketUrl, () -> evType, e::resolveValue);
         } else if (e.isError()) {
-            logger.warn("Socket {} {}: {}", () -> socketUrl, () -> evType, () -> e.resolveValue());
+            logger.warn("Socket {} {}: {}", () -> socketUrl, () -> evType, e::resolveValue);
         } else if (e.isWarn()) {
-            logger.warn("Socket {} {}: {}", () -> socketUrl, () -> evType, () -> e.resolveValue());
+            logger.warn("Socket {} {}: {}", () -> socketUrl, () -> evType, e::resolveValue);
         } else {
-            logger.debug("Socket {} {}: {}", () -> socketUrl, () -> evType, () -> e.resolveValue());
+            logger.debug("Socket {} {}: {}", () -> socketUrl, () -> evType, e::resolveValue);
         }
     }
  

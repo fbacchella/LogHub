@@ -84,7 +84,7 @@ public class EventsProcessor extends Thread {
             }
             { // Needed because eventtemp must be final
                 final Event eventtemp  = event;
-                logger.trace("received {} in {}", () -> eventtemp, () -> eventtemp.getCurrentPipeline());
+                logger.trace("received {} in {}", () -> eventtemp, eventtemp::getCurrentPipeline);
             }
             Context tctxt = Stats.startProcessingEvent();
             Processor processor = event.next();
@@ -183,7 +183,7 @@ public class EventsProcessor extends Thread {
             status = ProcessingStatus.DROPED;
             e.doMetric(Stats.PipelineStat.DROP);
         } else if (e.processingDone() > maxSteps) {
-            logger.error("Too much steps for an event in pipeline. Done {} steps, still {} left, throwing away", () -> e.processingDone(), () -> e.processingLeft());
+            logger.error("Too much steps for an event in pipeline. Done {} steps, still {} left, throwing away", e::processingDone, e::processingLeft);
             logger.debug("Thrown event: {}", e);
             e.doMetric(Stats.PipelineStat.LOOPOVERFLOW);
             status = ProcessingStatus.FAILED;

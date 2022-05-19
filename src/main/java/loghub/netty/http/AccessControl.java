@@ -42,7 +42,7 @@ public class AccessControl extends HttpFilter {
         Principal peerPrincipal = ctx.channel().attr(PRINCIPALATTRIBUTE).get();
         if (peerPrincipal != null) {
             Principal pp = peerPrincipal;
-            logger.debug("Already extracted principal: \"{}\"", () -> pp.getName());
+            logger.debug("Already extracted principal: \"{}\"", pp::getName);
             //not null, someone (probably TLS) already done the job, nice !
             return;
         }
@@ -85,7 +85,7 @@ public class AccessControl extends HttpFilter {
                     throw new HttpRequestFailure(HttpResponseStatus.UNAUTHORIZED, "Bad authentication", Collections.singletonMap(HttpHeaderNames.WWW_AUTHENTICATE, "Basic realm=\"loghub\", charset=\"UTF-8\""));
                 }
                 Principal pp = peerPrincipal;
-                logger.debug("Principal resolved as \"{}\" using scheme {}", () -> pp.getName(), () -> matcher.group("scheme"));
+                logger.debug("Principal resolved as \"{}\" using scheme {}", pp::getName, () -> matcher.group("scheme"));
             } else {
                 // We found an Authorization header but it was unusable
                 if (request.headers().get(HttpHeaderNames.AUTHORIZATION) != null) {

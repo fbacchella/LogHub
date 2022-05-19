@@ -177,7 +177,7 @@ public class Properties extends HashMap<String, Object> {
         if (securityStore != null) {
             properties.put("ssl.trusts", securityStore);
         }
-        Map<String, Object> sslprops = properties.entrySet().stream().filter(i -> i.getKey().startsWith("ssl.")).collect(Collectors.toMap( i -> i.getKey().substring(4), j -> j.getValue()));
+        Map<String, Object> sslprops = properties.entrySet().stream().filter(i -> i.getKey().startsWith("ssl.")).collect(Collectors.toMap( i -> i.getKey().substring(4), Entry::getValue));
         if (! sslprops.isEmpty()) {
             ssl = ContextLoader.build(classloader, sslprops);
             if (ssl == null) {
@@ -265,7 +265,7 @@ public class Properties extends HashMap<String, Object> {
         return input
                         .entrySet()
                         .stream()
-                        .filter(i -> i.getKey().startsWith(prefixKey)).collect(Collectors.toMap(i -> i.getKey().substring(prefixLenght), j -> j.getValue()));
+                        .filter(i -> i.getKey().startsWith(prefixKey)).collect(Collectors.toMap(i -> i.getKey().substring(prefixLenght), Entry::getValue));
     }
 
     /**

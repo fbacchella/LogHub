@@ -74,7 +74,7 @@ public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRe
             if (filter != null && ! filter.isEmpty()) {
                 this.urlFilter = Pattern.compile(filter).asPredicate();
             } else if (path != null && ! path.isEmpty()) {
-                this.urlFilter = i -> path.equals(i);
+                this.urlFilter = path::equals;
             } else {
                 this.urlFilter = i -> true;
             }
@@ -231,7 +231,7 @@ public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRe
     }
 
     private void failure(ChannelHandlerContext ctx, HttpRequest request, HttpResponseStatus status, String message, Map<AsciiString, Object> additionHeaders) {
-        logger.warn("{} {}: {} transfer complete: {}", () -> request.method(), () -> request.uri(), () -> status.code(), () -> message);
+        logger.warn("{} {}: {} transfer complete: {}", request::method, request::uri, status::code, () -> message);
         FullHttpResponse response = new DefaultFullHttpResponse(
                                                                 HTTP_1_1, status, 
                                                                 Unpooled.copiedBuffer(message + "\r\n", StandardCharsets.UTF_8));
