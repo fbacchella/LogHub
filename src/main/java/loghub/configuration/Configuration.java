@@ -41,6 +41,7 @@ import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.RecognitionException;
+import org.antlr.v4.runtime.RuleContext;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.LoggerContext;
@@ -387,7 +388,7 @@ public class Configuration {
 
     private Properties analyze(ConfigListener conf) throws ConfigException {
 
-        Map<String, Object> newProperties = new HashMap<String, Object>(conf.properties.size() + Properties.PROPSNAMES.values().length + System.getProperties().size());
+        Map<String, Object> newProperties = new HashMap<>(conf.properties.size() + Properties.PROPSNAMES.values().length + System.getProperties().size());
 
         // Resolvers properties found and and it to new properties
         @SuppressWarnings("unchecked")
@@ -422,7 +423,7 @@ public class Configuration {
 
         PriorityBlockingQueue mainQueue = new PriorityBlockingQueue(queuesDepth, queueWeight);
         Map<String, BlockingQueue<Event>> outputQueues = new HashMap<>(namedPipeLine.size());
-        conf.outputPipelines.forEach( i-> outputQueues.put(i, new LinkedBlockingQueue<Event>(queuesDepth)));
+        conf.outputPipelines.forEach( i-> outputQueues.put(i, new LinkedBlockingQueue<>(queuesDepth)));
 
         newProperties.put(Properties.PROPSNAMES.FORMATTERS.toString(), conf.formatters);
         newProperties.put(Properties.PROPSNAMES.MAINQUEUE.toString(), mainQueue);
@@ -475,7 +476,7 @@ public class Configuration {
         // Allows the system properties to override any properties given in the configuration file
         // But only if they are not some of the special internal properties
         Set<String> privatepropsnames = new HashSet<>(Properties.PROPSNAMES.values().length);
-        Arrays.stream(Properties.PROPSNAMES.values()).forEach(i -> privatepropsnames.add(i.toString()));;
+        Arrays.stream(Properties.PROPSNAMES.values()).forEach(i -> privatepropsnames.add(i.toString()));
         System.getProperties().entrySet().stream().filter(i -> ! privatepropsnames.contains(i.getKey())).forEach(i -> newProperties.put(i.getKey().toString(), i.getValue()));
         return new Properties(newProperties);
     }
