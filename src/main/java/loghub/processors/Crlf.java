@@ -3,11 +3,12 @@ package loghub.processors;
 import java.util.Locale;
 import java.util.stream.Collectors;
 
+import loghub.BuilderClass;
 import loghub.Event;
 import loghub.ProcessorException;
-import lombok.Getter;
 import lombok.Setter;
 
+@BuilderClass(Crlf.Builder.class)
 public class Crlf extends FieldsProcessor {
 
     private enum Format {
@@ -22,9 +23,27 @@ public class Crlf extends FieldsProcessor {
         }
     }
 
-    private Format format = Format.KEEP;
-    @Getter @Setter
-    private boolean escape;
+    public static class Builder extends FieldsProcessor.Builder<Crlf> {
+        @Setter
+        private String format = Format.KEEP.name();
+        @Setter
+        private boolean escape;
+        public Crlf build() {
+            return new Crlf(this);
+        }
+    }
+    public static Crlf.Builder getBuilder() {
+        return new Crlf.Builder();
+    }
+
+    private final Format format;
+    private final boolean escape;
+
+    public Crlf(Builder builder) {
+        super(builder);
+        this.format = Format.valueOf(builder.format.toUpperCase(Locale.ENGLISH));
+        this.escape = builder.escape;
+    }
 
     @Override
     public Object fieldFunction(Event event, Object value) throws ProcessorException {
@@ -37,18 +56,6 @@ public class Crlf extends FieldsProcessor {
         } else {
             String separator = escape ? format.separator.replace("\r", "\\r").replace("\n", "\\n") :  format.separator ;
             return message.lines().collect(Collectors.joining(separator));
-        }
-    }
-
-    public String getFormat() {
-        return format.name();
-    }
-
-    public void setFormat(String format) {
-        if (format == null || format.isBlank()) {
-            this.format = Format.KEEP;
-        } else {
-            this.format = Format.valueOf(format.toUpperCase(Locale.ENGLISH));
         }
     }
 

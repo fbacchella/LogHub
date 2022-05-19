@@ -44,6 +44,19 @@ public abstract class FieldsProcessor extends Processor {
         REMOVE
     }
 
+    public abstract static class Builder<FP extends FieldsProcessor> extends Processor.Builder<FP> {
+        @Setter
+        private VariablePath field = VariablePath.of(new String[]{"message"});
+        @Setter
+        private VarFormatter destinationFormat = null;
+        @Setter
+        private Pattern[] patterns = new Pattern[]{};
+        @Setter
+        private String[] globs = new String[] {};
+        @Setter
+        private VariablePath destinationPath = null;
+    }
+
     private VariablePath field = VariablePath.of(new String[]{"message"});
     private VarFormatter destinationFormat = null;
     private Pattern[] patterns = new Pattern[]{};
@@ -88,6 +101,19 @@ public abstract class FieldsProcessor extends Processor {
             return FieldsProcessor.this.getPathArray();
         }
 
+    }
+
+    protected FieldsProcessor(Builder<? extends FieldsProcessor> builder) {
+        super(builder);
+        field = VariablePath.of(new String[]{"message"});
+        destinationFormat = null;
+        patterns = new Pattern[]{};
+        globs = new String[] {};
+        destinationPath = null;
+    }
+
+    protected FieldsProcessor() {
+        // Empty constructor
     }
 
     @Override

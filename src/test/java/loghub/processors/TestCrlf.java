@@ -20,6 +20,7 @@ import loghub.ProcessorException;
 import loghub.Tools;
 import loghub.VariablePath;
 import loghub.configuration.Properties;
+import loghub.receivers.Beats;
 
 public class TestCrlf {
 
@@ -46,9 +47,10 @@ public class TestCrlf {
     }
 
     private void test(String format, boolean escape, String input, String output) throws ProcessorException {
-        Crlf parse = new Crlf();
-        parse.setEscape(escape);
-        parse.setFormat(format);
+        Crlf.Builder builder = Crlf.getBuilder();
+        builder.setEscape(escape);
+        builder.setFormat(format);
+        Crlf parse = new Crlf(builder);
         parse.setField(VariablePath.of("field"));
         Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
         Event event = Tools.getEvent();

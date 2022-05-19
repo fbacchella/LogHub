@@ -4,8 +4,24 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import loghub.configuration.Properties;
+import lombok.Setter;
 
 public abstract class Processor {
+
+    public abstract static class Builder<B extends Processor> extends AbstractBuilder<B> {
+        @Setter
+        private VariablePath path = VariablePath.EMPTY;
+        @Setter
+        private Expression ifexpression = null;
+        @Setter
+        private Processor success = null;
+        @Setter
+        private Processor failure = null;
+        @Setter
+        private Processor exception = null;
+        @Setter
+        private String id = null;
+    }
 
     protected final Logger logger;
 
@@ -22,6 +38,16 @@ public abstract class Processor {
 
     protected Processor(Logger logger) {
         this.logger = logger;
+    }
+
+    protected Processor(Builder<? extends Processor> builder) {
+        logger = LogManager.getLogger(Helpers.getFirstInitClass());;
+        path = builder.path;
+        ifexpression = builder.ifexpression;
+        success = builder.success;
+        failure = builder.failure;
+        exception = builder.exception;
+        id = builder.id;
     }
 
     public boolean configure(Properties properties) {
