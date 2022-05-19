@@ -28,7 +28,7 @@ public abstract class NettyIpReceiver<R extends NettyIpReceiver<R, S, B, CF, BS,
         int rcvBuf = -1;
         @Setter
         int sndBuf = -1;
-    };
+    }
 
     @Getter
     private final int port;

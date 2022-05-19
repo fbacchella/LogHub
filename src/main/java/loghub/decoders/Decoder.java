@@ -28,7 +28,7 @@ public abstract class Decoder {
     public abstract static class Builder<B extends Decoder> extends AbstractBuilder<B> {
         @Setter
         private String field = "message";
-    };
+    }
 
     @FunctionalInterface
     public static interface ObjectDecoder {

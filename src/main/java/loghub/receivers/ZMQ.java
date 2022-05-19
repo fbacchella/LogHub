@@ -42,7 +42,7 @@ public class ZMQ extends Receiver {
         public ZMQ build() {
             return new ZMQ(this);
         }
-    };
+    }
     public static Builder getBuilder() {
         return new Builder();
     }

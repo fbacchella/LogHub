@@ -25,7 +25,7 @@ public class TimeSerie extends Receiver {
         public TimeSerie build() {
             return new TimeSerie(this);
         }
-    };
+    }
     public static Builder getBuilder() {
         return new Builder();
     }

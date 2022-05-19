@@ -33,7 +33,7 @@ public class JournaldExport extends Decoder {
         public JournaldExport build() {
             return new JournaldExport(this);
         }
-    };
+    }
 
     public static Builder getBuilder() {
         return new Builder();

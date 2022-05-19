@@ -33,7 +33,7 @@ public class TcpLinesStream extends AbstractTcpReceiver<TcpLinesStream, TcpServe
         public TcpLinesStream build() {
             return new TcpLinesStream(this);
         }
-    };
+    }
     public static Builder getBuilder() {
         return new Builder();
     }

@@ -21,7 +21,7 @@ public class ToJson extends AbstractJacksonEncoder<ToJson.Builder> {
         public ToJson build() {
             return new ToJson(this);
         }
-    };
+    }
     public static Builder getBuilder() {
         return new Builder();
     }

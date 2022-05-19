@@ -64,7 +64,7 @@ public abstract class Receiver extends Thread implements Iterator<Event>, Closea
         private Filter filter;
         @Setter
         private boolean blocking = true;
-    };
+    }
 
     protected final Logger logger;
 
@@ -226,7 +226,7 @@ public abstract class Receiver extends Thread implements Iterator<Event>, Closea
     }
 
     protected void startStream() {
-    };
+    }
 
     @Override
     public boolean hasNext() {

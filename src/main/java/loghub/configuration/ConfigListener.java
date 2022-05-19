@@ -107,7 +107,7 @@ class ConfigListener extends RouteBaseListener {
         Fire,
         Etl,
         Map;
-    };
+    }
 
     static final class Input {
         final List<ObjectWrapped<Receiver>> receiver;
@@ -135,7 +135,7 @@ class ConfigListener extends RouteBaseListener {
         }
     }
 
-    static interface Pipenode {};
+    static interface Pipenode {}
 
     static final class PipenodesList implements Pipenode {
         final List<ProcessorInstance> processors = new ArrayList<>();
@@ -176,7 +176,7 @@ class ConfigListener extends RouteBaseListener {
             return "ProcessorInstance$" + wrapped.getClass().getSimpleName() + "@" + System.identityHashCode(wrapped);
         }
 
-    };
+    }
 
     static final class TypedStack extends ArrayDeque<Object> {
         public <T> T popTyped() {
@@ -189,7 +189,7 @@ class ConfigListener extends RouteBaseListener {
             T temp = (T) peek();
             return temp;
         }
-    };
+    }
 
     final TypedStack stack = new TypedStack();
 
@@ -844,7 +844,7 @@ class ConfigListener extends RouteBaseListener {
                 }
                 ObjectWrapped<Object> key = (ObjectWrapped<Object>) stack.pop();
                 map.put(key.wrapped, value);
-            };
+            }
             stack.push(new ObjectWrapped<Map<?, ?>>(map));
         } else {
             Object o = stack.pop();

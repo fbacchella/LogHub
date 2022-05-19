@@ -152,7 +152,7 @@ public class Log4j2LogFactory extends LogFactory {
             return parent.getAppenders().values().iterator();
         }
 
-    };
+    }
 
     private static final Map<Object, LogAdapter> adapters = new ConcurrentHashMap<>();
 

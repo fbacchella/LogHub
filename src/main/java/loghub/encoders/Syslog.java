@@ -38,21 +38,21 @@ public class Syslog extends Encoder {
         @Setter
         private Expression severity = new Expression("-");
         @Setter
-        private Expression facility = new Expression("-");;
+        private Expression facility = new Expression("-");
         @Setter
         private int version = 1;
         @Setter
-        private Expression hostname = new Expression("-");;
+        private Expression hostname = new Expression("-");
         @Setter
-        private Expression appname = new Expression("-");;
+        private Expression appname = new Expression("-");
         @Setter
-        private Expression procid = new Expression("-");;
+        private Expression procid = new Expression("-");
         @Setter
-        private Expression msgid = new Expression("-");;
+        private Expression msgid = new Expression("-");
         @Setter
-        private Expression timestamp = new Expression("-");;
+        private Expression timestamp = new Expression("-");
         @Setter
-        private Expression message = new Expression("-");;
+        private Expression message = new Expression("-");
         @Setter
         private boolean withbom = false;
         @Setter

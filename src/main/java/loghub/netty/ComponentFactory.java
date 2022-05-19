@@ -93,7 +93,7 @@ public abstract class ComponentFactory<BS extends AbstractBootstrap<BS,BSC>, BSC
     public abstract void group(int threads, ThreadFactory threadFactory);
     public abstract Runnable finisher();
     public abstract void addChildhandlers(ChannelConsumer<BS, BSC> source, AbstractNettyServer<?, BS, BSC, ?, SA, ?, ?> server, Logger logger);
-    public void addHandlers(ChannelConsumer<BS, BSC> source, AbstractNettyServer<?, BS, BSC, ?, SA, ?, ?> server, Logger logger) { };
+    public void addHandlers(ChannelConsumer<BS, BSC> source, AbstractNettyServer<?, BS, BSC, ?, SA, ?, ?> server, Logger logger) { }
     protected void addErrorHandler(ChannelPipeline p, Logger logger) {
         p.addLast("errorhandler", new ErrorHandler(logger));
     }

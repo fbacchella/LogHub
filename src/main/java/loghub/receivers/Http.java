@@ -107,7 +107,7 @@ public class Http extends AbstractHttpReceiver {
             writeResponse(ctx, request, content, content.readableBytes());
         }
 
-    };
+    }
 
     private Map<String, Object> resolveCgi(String message) {
         QueryStringDecoder qsd = new QueryStringDecoder(message);
@@ -130,7 +130,7 @@ public class Http extends AbstractHttpReceiver {
         public Http build() {
             return new Http(this);
         }
-    };
+    }
     public static Builder getBuilder() {
         return new Builder();
     }

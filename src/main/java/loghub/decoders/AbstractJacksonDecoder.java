@@ -14,7 +14,7 @@ import loghub.jackson.JacksonBuilder;
 public abstract class AbstractJacksonDecoder<JB extends AbstractJacksonDecoder.Builder<? extends AbstractJacksonDecoder<JB>>> extends Decoder {
 
     public abstract static class Builder<B extends AbstractJacksonDecoder<?>> extends Decoder.Builder<B> {
-    };
+    }
 
     @FunctionalInterface
     public static interface ObjectResolver {

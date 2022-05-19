@@ -16,7 +16,7 @@ public class Json extends AbstractStringJackson<Json.Builder> {
             this.charset = StandardCharsets.UTF_8.name();
             return new Json(this);
         }
-    };
+    }
     public static Builder getBuilder() {
         return new Builder();
     }

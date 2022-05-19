@@ -837,7 +837,7 @@ public class VarFormatter {
             df.setNegativeSuffix(")");
         }
         if (flags.withsign) {
-            df.setPositivePrefix("+");;
+            df.setPositivePrefix("+");
         }
         if (! integer) {
             df.setMinimumFractionDigits(precision);

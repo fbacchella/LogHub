@@ -71,7 +71,7 @@ public class SnmpTrap extends Receiver implements CommandResponder {
         authenticationFailure,
         egpNeighborLoss,
         enterpriseSpecific
-    };
+    }
 
     private static final byte TAG1 = (byte) 0x9f;
     private static final byte TAG_FLOAT = (byte) 0x78;
@@ -90,7 +90,7 @@ public class SnmpTrap extends Receiver implements CommandResponder {
         public SnmpTrap build() {
             return new SnmpTrap(this);
         }
-    };
+    }
     public static Builder getBuilder() {
         return new Builder();
     }

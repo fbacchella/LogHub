@@ -469,7 +469,7 @@ public class Start {
             if (! s.getValue().configure(props)) {
                 logger.error("failed to start source {}", s.getKey());
                 failed = true;
-            };
+            }
         }
 
         Helpers.parallelStartProcessor(props);
@@ -482,7 +482,7 @@ public class Start {
                 } else {
                     logger.error("failed to configure sender {}", s.getName());
                     failed = true;
-                };
+                }
             } catch (Throwable e) {
                 if (Helpers.isFatal(e)) {
                     throw e;

@@ -30,7 +30,7 @@ public abstract class AbstractTcpReceiver<R extends AbstractTcpReceiver<R, S, B,
     public abstract static class Builder<B extends AbstractTcpReceiver<?, ?, ?, ?>> extends NettyIpReceiver.Builder<B> {
         @Setter
         private int backlog = -1;
-    };
+    }
 
     @Getter
     private final int backlog;

@@ -109,7 +109,7 @@ public abstract class Sender extends Thread implements Closeable {
         protected int flushInterval = 5;
         @Setter
         private Filter filter;
-    };
+    }
 
     protected final Logger logger;
 

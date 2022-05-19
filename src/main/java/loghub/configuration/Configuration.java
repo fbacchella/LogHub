@@ -488,7 +488,7 @@ public class Configuration {
         public String toString() {
             return "Loghub's class loader";
         }
-    };
+    }
 
     ClassLoader doClassLoader(Object[] pathElements) throws IOException {
 

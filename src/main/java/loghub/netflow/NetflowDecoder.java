@@ -21,7 +21,7 @@ public class NetflowDecoder extends Decoder {
         public NetflowDecoder build() {
             return new NetflowDecoder(this);
         }
-    };
+    }
     public static Builder getBuilder() {
         return new Builder();
     }

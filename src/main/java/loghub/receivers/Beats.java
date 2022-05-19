@@ -63,7 +63,7 @@ public class Beats extends AbstractTcpReceiver<Beats, TcpServer, TcpServer.Build
         public Beats build() {
             return new Beats(this);
         }
-    };
+    }
     public static Builder getBuilder() {
         return new Builder();
     }

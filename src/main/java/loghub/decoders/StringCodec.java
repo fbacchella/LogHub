@@ -17,7 +17,7 @@ public class StringCodec extends Decoder {
         public StringCodec build() {
             return new StringCodec(this);
         }
-    };
+    }
 
     public static Builder getBuilder() {
         return new Builder();

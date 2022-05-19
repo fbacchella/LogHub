@@ -299,7 +299,7 @@ public abstract class VariablePath {
                 elements.add(path.substring(curs, next));
                 curs = next + 1;
             }
-        };
+        }
         if (curs != path.length()) {
             elements.add(path.substring(curs, path.length()));
         }

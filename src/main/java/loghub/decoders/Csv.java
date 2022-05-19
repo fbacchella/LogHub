@@ -31,7 +31,7 @@ public class Csv extends AbstractStringJackson<Csv.Builder> {
         public Csv build() {
             return new Csv(this);
         }
-    };
+    }
 
     public static Builder getBuilder() {
         return new Builder();

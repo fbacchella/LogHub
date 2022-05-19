@@ -79,7 +79,7 @@ public class Properties extends HashMap<String, Object> {
         public String toString() {
             return "__" + super.toString();
         }
-    };
+    }
 
     @AllArgsConstructor
     private static class FunctionalTimerTask extends TimerTask {

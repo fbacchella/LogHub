@@ -110,7 +110,7 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
             case PUT: {
                 if (!setTimestamp(value)) {
                     throw new IllegalArgumentException(String.valueOf(value) + " is not usable as a timestamp from path " + path);
-                };
+                }
                 return null;
             }
             case REMOVE: return getTimestamp();

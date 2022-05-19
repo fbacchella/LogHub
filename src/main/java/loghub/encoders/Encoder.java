@@ -18,7 +18,7 @@ public abstract class Encoder {
     public abstract static class Builder<B extends Encoder> extends AbstractBuilder<B> {
         @Setter
         private String field = "message";
-    };
+    }
 
     private static final StackLocator stacklocator = StackLocator.getInstance();
 

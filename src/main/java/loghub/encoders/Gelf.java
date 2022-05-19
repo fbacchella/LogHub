@@ -43,7 +43,7 @@ public class Gelf extends AbstractJacksonEncoder<Gelf.Builder> {
         public Gelf build() {
             return new Gelf(this);
         }
-    };
+    }
     public static Builder getBuilder() {
         return new Builder();
     }

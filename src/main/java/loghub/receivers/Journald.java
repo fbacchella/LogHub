@@ -160,7 +160,7 @@ public class Journald extends AbstractHttpReceiver {
         public Journald build() {
             return new Journald(this);
         }
-    };
+    }
     public static Builder getBuilder() {
         return new Builder();
     }

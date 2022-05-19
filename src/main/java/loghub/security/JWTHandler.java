@@ -32,7 +32,7 @@ public class JWTHandler {
         private final DecodedJWT jwt;
         JWTPrincipal(DecodedJWT jwt) {
             this.jwt = jwt;
-        };
+        }
         @Override
         public String getName() {
             return jwt.getSubject();
@@ -92,7 +92,7 @@ public class JWTHandler {
             return jwt.getClaims();
         }
 
-    };
+    }
 
     public static class Builder {
         private String issuer  = "LogHub";

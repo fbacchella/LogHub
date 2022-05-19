@@ -42,7 +42,7 @@ public class Udp extends NettyIpReceiver<Udp,
         public Udp build() {
             return new Udp(this);
         }
-    };
+    }
     public static Builder getBuilder() {
         return new Builder();
     }

@@ -68,7 +68,7 @@ public class File extends Sender {
         if (builder.separator.length() > 0) {
             separatorBytes = builder.separator.getBytes(StandardCharsets.UTF_8);
         } else {
-            separatorBytes = new byte[] {};;
+            separatorBytes = new byte[] {};
         }
         fileName = builder.fileName;
         truncate = builder.truncate;

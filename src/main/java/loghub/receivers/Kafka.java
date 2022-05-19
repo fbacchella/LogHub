@@ -61,7 +61,7 @@ public class Kafka extends Receiver {
         public Kafka build() {
             return new Kafka(this);
         }
-    };
+    }
     public static Builder getBuilder() {
         return new Builder();
     }

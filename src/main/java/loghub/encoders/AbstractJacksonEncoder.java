@@ -13,7 +13,7 @@ import loghub.jackson.JacksonBuilder;
 public abstract class AbstractJacksonEncoder<JB extends AbstractJacksonEncoder.Builder<? extends AbstractJacksonEncoder<JB>>> extends Encoder {
 
     public abstract static class Builder<E extends AbstractJacksonEncoder<?>> extends Encoder.Builder<E> {
-    };
+    }
 
     protected final ObjectWriter writer;
 

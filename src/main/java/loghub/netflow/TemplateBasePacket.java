@@ -55,7 +55,7 @@ public abstract class TemplateBasePacket implements NetflowPacket {
     enum TemplateType {
         Records,
         Options
-    };
+    }
 
     private static final Logger logger = LogManager.getLogger();
 

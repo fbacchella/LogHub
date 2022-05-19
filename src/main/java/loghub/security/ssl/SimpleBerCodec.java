@@ -155,7 +155,7 @@ public abstract class SimpleBerCodec {
         topbuffer.put((byte) 0); // place holder for size;
         int startpos = topbuffer.position();
         fill.accept(topbuffer);
-        int endpos = topbuffer.position();;
+        int endpos = topbuffer.position();
         topbuffer.put(sizepos, (byte) (endpos - startpos));
     }
 

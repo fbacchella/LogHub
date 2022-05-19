@@ -55,7 +55,7 @@ public class Geoip2 extends FieldsProcessor {
         CONTINENT,
         POSTAL,
         SUBDIVISION,
-    };
+    }
 
 
     private Path geoipdb = null;

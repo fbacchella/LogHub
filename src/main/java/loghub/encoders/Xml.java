@@ -24,7 +24,7 @@ public class Xml extends AbstractJacksonEncoder<Xml.Builder> {
         public Xml build() {
             return new Xml(this);
         }
-    };
+    }
     public static Builder getBuilder() {
         return new Builder();
     }

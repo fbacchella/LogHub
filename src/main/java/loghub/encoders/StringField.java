@@ -30,7 +30,7 @@ public class StringField extends Encoder {
         public StringField build() {
             return new StringField(this);
         }
-    };
+    }
     public static Builder getBuilder() {
         return new Builder();
     }

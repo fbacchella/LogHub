@@ -14,7 +14,7 @@ public abstract class AbstractStringJackson<JB extends AbstractStringJackson.Bui
     public abstract static class Builder<B extends AbstractStringJackson<?>> extends AbstractJacksonDecoder.Builder<B> {
         @Setter
         protected String charset = Charset.defaultCharset().name();
-    };
+    }
 
     private final Charset charset;
 

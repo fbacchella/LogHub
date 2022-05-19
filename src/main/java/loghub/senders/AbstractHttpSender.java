@@ -77,7 +77,7 @@ public abstract class AbstractHttpSender extends Sender {
         @Setter
         private String password = null;
         @Setter
-        private String login = null;;
+        private String login = null;
         @Setter
         private String user = null;
         @Setter
@@ -86,7 +86,7 @@ public abstract class AbstractHttpSender extends Sender {
         private int port = -1;
         @Setter
         private String[] destinations;
-    };
+    }
 
     @Accessors(fluent = false, chain = true)
     protected static class HttpRequest {
@@ -149,7 +149,7 @@ public abstract class AbstractHttpSender extends Sender {
             return realType.toString();
         }
 
-    };
+    }
 
     protected class HttpResponse implements Closeable {
         private final HttpHost host;
@@ -378,7 +378,7 @@ public abstract class AbstractHttpSender extends Sender {
             Throwable rootCause = e;
             while (rootCause.getCause() != null){
                 rootCause = rootCause.getCause();
-            };
+            }
             // A TLS exception, will not help to retry
             if (rootCause instanceof GeneralSecurityException) {
                 logger.error("Secure comunication with {} failed: {}", host, Helpers.resolveThrowableException(rootCause));
@@ -407,6 +407,6 @@ public abstract class AbstractHttpSender extends Sender {
                          + Helpers.resolveThrowableException(e), e);
             logger.catching(Level.DEBUG, e);
         }
-    };
+    }
 
 }

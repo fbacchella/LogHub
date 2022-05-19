@@ -25,7 +25,7 @@ public class Msgpack extends AbstractJacksonEncoder<Msgpack.Builder> {
         public Msgpack build() {
             return new Msgpack(this);
         }
-    };
+    }
     public static Builder getBuilder() {
         return new Builder();
     }

@@ -24,7 +24,7 @@ public class Properties extends AbstractStringJackson<Properties.Builder> {
         public Properties build() {
             return new Properties(this);
         }
-    };
+    }
 
     public static Builder getBuilder() {
         return new Builder();

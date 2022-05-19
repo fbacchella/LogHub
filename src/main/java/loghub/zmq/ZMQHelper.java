@@ -46,7 +46,7 @@ public class ZMQHelper {
             this.type = type;
             this.endpoint = endpoint;
         }
-    };
+    }
 
     public enum Method {
         CONNECT {

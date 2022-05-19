@@ -21,7 +21,7 @@ public class SerializedObject extends Decoder {
             return new SerializedObject(this);
         }
 
-    };
+    }
 
     private SerializedObject(Builder builder) {
         super(builder);
