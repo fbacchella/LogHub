@@ -48,7 +48,7 @@ import lombok.experimental.Accessors;
 
 public class JmxService {
 
-    static final public PROTOCOL DEFAULTPROTOCOL = PROTOCOL.rmi;
+    public static final PROTOCOL DEFAULTPROTOCOL = PROTOCOL.rmi;
     public static enum PROTOCOL {
         rmi,
         jmxmp,
@@ -58,7 +58,7 @@ public class JmxService {
         return new Configuration();
     }
 
-    private final static Set<ObjectName> registred = new HashSet<>();
+    private static final Set<ObjectName> registred = new HashSet<>();
 
     @Accessors(chain = true)
     public static class Configuration {

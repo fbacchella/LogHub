@@ -47,7 +47,7 @@ public abstract class AbstractNettyServer<CF extends ComponentFactory<BS, BSC, S
 
     public static final int DEFINEDSSLALIAS=-2;
 
-    public static abstract class Builder<S extends AbstractNettyServer<?, ?, ?, ?, ?, S, B>,
+    public abstract static class Builder<S extends AbstractNettyServer<?, ?, ?, ?, ?, S, B>,
                                          B extends AbstractNettyServer.Builder<S, B, BS, BSC>,
                                          BS extends AbstractBootstrap<BS, BSC>,
                                          BSC extends Channel

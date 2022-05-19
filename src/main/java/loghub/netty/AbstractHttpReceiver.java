@@ -51,7 +51,7 @@ public abstract class AbstractHttpReceiver extends AbstractTcpReceiver<AbstractH
 
     }
 
-    public static abstract class Builder<B extends AbstractHttpReceiver> extends AbstractTcpReceiver.Builder<B> {
+    public abstract static class Builder<B extends AbstractHttpReceiver> extends AbstractTcpReceiver.Builder<B> {
     };
 
     protected AbstractHttpReceiver(Builder<? extends AbstractHttpReceiver>  builder) {

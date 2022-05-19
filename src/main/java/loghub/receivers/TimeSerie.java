@@ -16,7 +16,7 @@ import lombok.Setter;
 @BuilderClass(TimeSerie.Builder.class)
 public class TimeSerie extends Receiver {
 
-    private final static AtomicLong r = new AtomicLong(0);
+    private static final AtomicLong r = new AtomicLong(0);
 
     public static class Builder extends Receiver.Builder<TimeSerie> {
         @Setter

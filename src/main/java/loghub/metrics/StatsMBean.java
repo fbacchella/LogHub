@@ -15,29 +15,29 @@ import com.codahale.metrics.Timer;
 @MXBean
 public interface StatsMBean {
 
-    default public long getTotalEvents() {
+    public default long getTotalEvents() {
         return Stats.getMetric(Timer.class, Stats.class, Stats.METRIC_ALL_TIMER).getCount();
     }
 
-    default public double getEventLifeTimeMedian() {
+    public default double getEventLifeTimeMedian() {
         return Stats.getMetric(Timer.class, Stats.class, Stats.METRIC_ALL_TIMER).getSnapshot().getMedian() / 1_000_000_000;
     }
 
-    default public double getEventLifeTime95() {
+    public default double getEventLifeTime95() {
         return Stats.getMetric(Timer.class, Stats.class, Stats.METRIC_ALL_TIMER).getSnapshot().get95thPercentile() / 1_000_000_000;
     }
 
-    default public long getUnhandledExceptions() {
+    public default long getUnhandledExceptions() {
         return Stats.getMetric(Meter.class, Stats.class, Stats.METRIC_ALL_EXCEPTION).getCount();
     }
 
-    default public long getInflight() {
+    public default long getInflight() {
         return Stats.getMetric(Counter.class, Stats.class, Stats.METRIC_ALL_INFLIGHT).getCount();
     }
 
     public class Implementation extends StandardMBean implements StatsMBean {
 
-        public final static ObjectName NAME;
+        public static final ObjectName NAME;
         static {
             try {
                 NAME = ObjectName.getInstance("loghub", "type", "Global");

@@ -12,21 +12,21 @@ import loghub.Helpers;
 
 @MXBean
 public interface ExceptionsMBean {
-    
-    default public String[] getProcessorsFailures() {
+
+    public default String[] getProcessorsFailures() {
         return loghub.metrics.Stats.getErrors().stream()
                         .map(i -> Helpers.resolveThrowableException((Throwable)i))
                         .toArray(String[]::new)
                         ;
     }
 
-    default public String[] getDecodersFailures() {
+    public default String[] getDecodersFailures() {
         return loghub.metrics.Stats.getDecodeErrors().stream()
                         .toArray(String[]::new)
                         ;
     }
 
-    default public String[] getUnhandledExceptions() {
+    public default String[] getUnhandledExceptions() {
         return loghub.metrics.Stats.getExceptions().stream()
                         .map( i -> {
                             StringBuffer exceptionDetails = new StringBuffer();
@@ -42,13 +42,13 @@ public interface ExceptionsMBean {
                         ;
     }
 
-    default public String[] getSendersFailures() {
+    public default String[] getSendersFailures() {
         return Stats.getSenderError().stream()
                         .toArray(String[]::new)
                         ;
     }
 
-    default public String[] getReceiversFailures() {
+    public default String[] getReceiversFailures() {
         return Stats.getReceiverError().stream()
                         .toArray(String[]::new)
                         ;
@@ -57,7 +57,7 @@ public interface ExceptionsMBean {
 
     public class Implementation extends StandardMBean implements ExceptionsMBean {
 
-        public final static ObjectName NAME;
+        public static final ObjectName NAME;
         static {
             try {
                 NAME = ObjectName.getInstance("loghub", "type", "Exceptions");

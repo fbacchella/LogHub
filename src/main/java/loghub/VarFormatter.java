@@ -69,7 +69,7 @@ public class VarFormatter {
 
     }
 
-    private final static class Flags {
+    private static final class Flags {
         public final boolean leftjustified;
         public final boolean alternateform;
         public final boolean withsign;

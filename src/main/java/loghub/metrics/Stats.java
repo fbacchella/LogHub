@@ -62,13 +62,13 @@ public final class Stats {
     static final String METRIC_PIPELINE_PAUSED_COUNT = "pausedCount";
 
     // A metrics cache, as calculating a metric name can be expensive.
-    private final static Map<Object, Map<String, Metric>> metricsCache = new ConcurrentHashMap<>(3);
+    private static final Map<Object, Map<String, Metric>> metricsCache = new ConcurrentHashMap<>(3);
 
-    private final static Queue<ProcessingException> processorExceptions = new LinkedBlockingQueue<>(100);
-    private final static Queue<Throwable> exceptions = new LinkedBlockingQueue<>(100);
-    private final static Queue<String> decodeMessage = new LinkedBlockingQueue<>(100);
-    private final static Queue<String> senderMessages = new LinkedBlockingQueue<>(100);
-    private final static Queue<String> receiverMessages = new LinkedBlockingQueue<>(100);
+    private static final Queue<ProcessingException> processorExceptions = new LinkedBlockingQueue<>(100);
+    private static final Queue<Throwable> exceptions = new LinkedBlockingQueue<>(100);
+    private static final Queue<String> decodeMessage = new LinkedBlockingQueue<>(100);
+    private static final Queue<String> senderMessages = new LinkedBlockingQueue<>(100);
+    private static final Queue<String> receiverMessages = new LinkedBlockingQueue<>(100);
 
     static MetricRegistry metricsRegistry = new MetricRegistry();
 

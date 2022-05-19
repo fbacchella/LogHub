@@ -73,9 +73,9 @@ public class SnmpTrap extends Receiver implements CommandResponder {
         enterpriseSpecific
     };
 
-    static final private byte TAG1 = (byte) 0x9f;
-    static final private byte TAG_FLOAT = (byte) 0x78;
-    static final private byte TAG_DOUBLE = (byte) 0x79;
+    private static final byte TAG1 = (byte) 0x9f;
+    private static final byte TAG_FLOAT = (byte) 0x78;
+    private static final byte TAG_DOUBLE = (byte) 0x79;
 
     public static class Builder extends Receiver.Builder<SnmpTrap> {
         @Setter
@@ -95,7 +95,7 @@ public class SnmpTrap extends Receiver implements CommandResponder {
         return new Builder();
     }
 
-    static private boolean reconfigured = false;
+    private static boolean reconfigured = false;
 
     @Getter
     private final String protocol;
