@@ -51,7 +51,7 @@ public class JacksonBuilder<T extends ObjectMapper> {
     Consumer<T> configurator = null;
 
     public static <T extends ObjectMapper> JacksonBuilder<T> get(Class<T> clazz) {
-        JacksonBuilder<T> jb = new JacksonBuilder<T>();
+        JacksonBuilder<T> jb = new JacksonBuilder<>();
         try {
             Constructor<T> cons = clazz.getConstructor();
             jb.mapperSupplier = () -> {
@@ -69,7 +69,7 @@ public class JacksonBuilder<T extends ObjectMapper> {
     }
 
     public static JacksonBuilder<ObjectMapper> get() {
-        return new JacksonBuilder<ObjectMapper>();
+        return new JacksonBuilder<>();
     }
 
     private JacksonBuilder() {

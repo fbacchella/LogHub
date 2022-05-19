@@ -695,7 +695,7 @@ class ConfigListener extends RouteBaseListener {
 
     @Override
     public void exitDrop(DropContext ctx) {
-        ObjectWrapped<Drop> drop = new ObjectWrapped<Drop>(new Drop());
+        ObjectWrapped<Drop> drop = new ObjectWrapped<>(new Drop());
         stack.push(drop);
     }
 

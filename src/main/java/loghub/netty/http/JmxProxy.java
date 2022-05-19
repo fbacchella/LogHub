@@ -97,7 +97,7 @@ public class JmxProxy extends HttpRequestProcessing {
         String attrName = attr.getName();
         try {
             Object o = resolveAttribute(server.getAttribute(oname, attrName));
-            return new AbstractMap.SimpleImmutableEntry<String, Object>(attrName, o);
+            return new AbstractMap.SimpleImmutableEntry<>(attrName, o);
         } catch (InstanceNotFoundException | AttributeNotFoundException | ReflectionException | MBeanException ex) {
             throw new IllegalStateException(attrName, ex);
         }

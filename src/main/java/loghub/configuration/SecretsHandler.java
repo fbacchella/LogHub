@@ -217,7 +217,7 @@ public class SecretsHandler implements Closeable {
             .map(a -> {
                 try {
                     KeyStore.SecretKeyEntry ske = (KeyStore.SecretKeyEntry)ks.getEntry(a, NOPROTECTION);
-                    return new SimpleImmutableEntry<String, KeyStore.SecretKeyEntry>(a, ske);
+                    return new SimpleImmutableEntry<>(a, ske);
                 } catch (NoSuchAlgorithmException | UnrecoverableEntryException | KeyStoreException e) {
                     return null;
                 }

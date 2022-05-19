@@ -126,7 +126,7 @@ public class CacheManager {
     }
 
     public <K, V> Builder<K, V> getBuilder(Class<K> keyType, Class<V> ValueType) {
-        return new Builder<K, V>(keyType, ValueType);
+        return new Builder<>(keyType, ValueType);
     }
 
 }

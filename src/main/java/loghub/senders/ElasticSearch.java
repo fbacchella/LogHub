@@ -189,7 +189,7 @@ public class ElasticSearch extends AbstractHttpSender {
     protected void flush(Batch documents) throws SendException {
         HttpRequest request = new HttpRequest();
         // This list contains the event futures that will be effectively sent to ES
-        List<EventFuture> tosend = new ArrayList<EventFuture>(documents.size());
+        List<EventFuture> tosend = new ArrayList<>(documents.size());
 
         // First pass to check that all needed indices will be present and usable
         Set<String> indices = documents.stream().map(ef -> {

@@ -60,8 +60,8 @@ public class JournaldExport extends Decoder {
 
     @Data
     private static class EventVars {
-        final HashMap<String, Object> userFields = new HashMap<String, Object>();
-        final HashMap<String, Object> trustedFields = new HashMap<String, Object>();
+        final HashMap<String, Object> userFields = new HashMap<>();
+        final HashMap<String, Object> trustedFields = new HashMap<>();
         Map<String, Object> get(boolean userField) {
             return userField ? userFields : trustedFields;
         }
@@ -100,7 +100,7 @@ public class JournaldExport extends Decoder {
 
     @Override
     public Object decodeObject(ConnectionContext<?> ctx, ByteBuf chunksBuffer) throws DecodeException {
-        List<Event> events = new ArrayList<Event>();
+        List<Event> events = new ArrayList<>();
         EventVars eventVars = threadEventVars.get();
         // Parse content as a journal export format event
         // See https://www.freedesktop.org/wiki/Software/systemd/export/ for specifications

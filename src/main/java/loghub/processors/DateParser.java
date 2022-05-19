@@ -25,7 +25,7 @@ import loghub.configuration.Properties;
 
 public class DateParser extends FieldsProcessor {
 
-    private static final Map<String, DatetimeProcessor> NAMEDPATTERNS = new LinkedHashMap<String, DatetimeProcessor>();
+    private static final Map<String, DatetimeProcessor> NAMEDPATTERNS = new LinkedHashMap<>();
     static {
         NAMEDPATTERNS.put("ISO_DATE_TIME", PatternResolver.createNewFormatter("iso_nanos"));
         NAMEDPATTERNS.put("ISO_INSTANT", PatternResolver.createNewFormatter("iso_nanos"));

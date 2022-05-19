@@ -36,7 +36,7 @@ public abstract class AbstractHttpReceiver extends AbstractTcpReceiver<AbstractH
         protected HttpReceiverServer(Builder builder) throws IllegalArgumentException, InterruptedException {
             super(builder);
             this.requestProcessor = builder.requestProcessor;
-            this.resolver = new ContextExtractor<HttpMessage>(HttpMessage.class, builder.receiver);
+            this.resolver = new ContextExtractor<>(HttpMessage.class, builder.receiver);
         }
 
         @Override

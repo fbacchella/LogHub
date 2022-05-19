@@ -48,7 +48,7 @@ public class EventsRepository<KEY> {
             } else {
                 task = null;
             }
-            return new PauseContext<K>(paused, task);
+            return new PauseContext<>(paused, task);
         }
     }
 

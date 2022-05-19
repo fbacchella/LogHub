@@ -143,7 +143,7 @@ public class Properties extends HashMap<String, Object> {
 
         senders = properties.containsKey(PROPSNAMES.SENDERS.toString()) ? (Collection<Sender>) properties.remove(PROPSNAMES.SENDERS.toString()) : Collections.emptyList();
 
-        Map<String, Processor> _identifiedProcessors = new HashMap<String, Processor>();
+        Map<String, Processor> _identifiedProcessors = new HashMap<>();
         pipelines.forEach( i-> i.processors.forEach( j -> {
             String id = j.getId();
             if (id != null) {
@@ -235,7 +235,7 @@ public class Properties extends HashMap<String, Object> {
         Stats.waitingQueue(mainQueue::size);
 
         // The keys are future
-        repository = new EventsRepository<Future<?>>(this);
+        repository = new EventsRepository<>(this);
 
         Set<EventsProcessor> allep = new HashSet<>(numWorkers);
         for (int i = 0; i < numWorkers; i++) {

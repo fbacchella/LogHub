@@ -85,7 +85,7 @@ public class ZMQHandler<M> implements AutoCloseable {
 
         @Override
         public ZMQHandler<M> build() {
-            return new ZMQHandler<M>(this);
+            return new ZMQHandler<>(this);
         }
     }
 

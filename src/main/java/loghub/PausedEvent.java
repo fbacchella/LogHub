@@ -69,7 +69,7 @@ public class PausedEvent<KEY> {
      */
 
     public static <KEY> Builder<KEY> builder(Event event, KEY key) {
-        return new Builder<KEY>(event, key);
+        return new Builder<>(event, key);
     }
 
     /**
@@ -149,7 +149,7 @@ public class PausedEvent<KEY> {
         }
 
         public PausedEvent<KEY> build() {
-            return new PausedEvent<KEY>(this);
+            return new PausedEvent<>(this);
         }
     }
 

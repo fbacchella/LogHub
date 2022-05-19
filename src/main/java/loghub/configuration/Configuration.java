@@ -492,7 +492,7 @@ public class Configuration {
 
     ClassLoader doClassLoader(Object[] pathElements) throws IOException {
 
-        final Collection<URL> urls = new ArrayList<URL>();
+        final Collection<URL> urls = new ArrayList<>();
 
         // Needed for all the lambda that throws exception
         ThrowingPredicate<Path> filterReadable = i -> ! Files.isHidden(i);

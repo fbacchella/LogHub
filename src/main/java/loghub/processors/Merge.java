@@ -75,12 +75,12 @@ public class Merge extends Processor {
             @SuppressWarnings("unchecked")
             private Map<Object, Object> object2Map(Object source) {
                 if (source == null) {
-                    return new HashMap<Object, Object>();
+                    return new HashMap<>();
                 } else if (source instanceof Map) {
                     return (Map<Object, Object>) source;
                 } else {
                     // Can't fill a map with a single value, a key is needed
-                    return new HashMap<Object, Object>();
+                    return new HashMap<>();
                 }
             }
             @SuppressWarnings("unchecked")
@@ -336,7 +336,7 @@ public class Merge extends Processor {
         if (index == null) {
             return false;
         }
-        repository = new EventsRepository<Object>(properties);
+        repository = new EventsRepository<>(properties);
         cumulators = new ConcurrentHashMap<>(seeds.size() + 1);
         // Default to timestamp is to keep the first
         cumulators.put("@timestamp", Cumulator.FIRST.cumulate(null));

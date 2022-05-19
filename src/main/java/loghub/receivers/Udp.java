@@ -91,7 +91,7 @@ public class Udp extends NettyIpReceiver<Udp,
 
     @Override
     public BaseChannelConsumer<Udp, Bootstrap, Channel, DatagramPacket> getConsumer() {
-        return new BaseChannelConsumer<Udp, Bootstrap, Channel, DatagramPacket>(this);
+        return new BaseChannelConsumer<>(this);
     }
 
 }
