@@ -41,11 +41,14 @@ public class TestSplit {
         Assert.assertEquals("[, a, b, c, ]", r1.toString());
         r1 = test(",", false,",a,b,c,");
         Assert.assertEquals("[a, b, c]", r1.toString());
+        r1 = test("#", false,"#a#b#c#");
+        Assert.assertEquals("[a, b, c]", r1.toString());
     }
 
-    private List<String> test(String Pattern, boolean keepempty, String message) throws ProcessorException {
+    @SuppressWarnings("unchecked")
+    private List<String> test(String pattern, boolean keepempty, String message) throws ProcessorException {
         Split parse = new Split();
-        parse.setPattern(",");
+        parse.setPattern(pattern);
         parse.setKeepempty(keepempty);
         parse.setField(VariablePath.of("field"));
         Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
@@ -59,9 +62,9 @@ public class TestSplit {
     public void test_loghub_processors_Split() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.processors.Split"
                 , BeanChecks.BeanInfo.build("pattern", String.class)
-                , BeanChecks.BeanInfo.build("destination", String.class)
+                , BeanChecks.BeanInfo.build("destination", VariablePath.class)
                 , BeanChecks.BeanInfo.build("field", VariablePath.class)
-                , BeanChecks.BeanInfo.build("fields", new Object[] {}.getClass())
+                , BeanChecks.BeanInfo.build("fields", Object[].class)
                 , BeanChecks.BeanInfo.build("path", String.class)
                 , BeanChecks.BeanInfo.build("if", Expression.class)
                 , BeanChecks.BeanInfo.build("success", Processor.class)
