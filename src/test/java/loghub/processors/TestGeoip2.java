@@ -20,7 +20,7 @@ public class TestGeoip2 {
         Properties props = new Properties(Collections.emptyMap());
         Geoip2 geoip = new Geoip2();
         geoip.setField(VariablePath.of(new String[] {"ip"}));
-        geoip.setDestination("geoip");
+        geoip.setDestination(VariablePath.of("geoip"));
         Geoip2.LocationType[] types = Geoip2.LocationType.values();
         String[] typesNames = new String[types.length];
         for(int i = 0 ; i < types.length ; i++) {
