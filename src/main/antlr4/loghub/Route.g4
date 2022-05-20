@@ -218,7 +218,7 @@ sourcedef
 
 identifier
     :'index' | 'seeds' | 'doFire' | 'onFire' | 'expiration' | 'forward' | 'default' | 'merge' | 'inPipeline' | 'path' | 'bean' | 'field' | 'input' | 'in' | 'decoder'
-    | 'if' | 'success' | 'failure' | 'exception' | 'field' | 'fields' | 'destination' | 'encoder' | 'log' | 'fire' | 'pipeline' | 'output' | 'onExpiration'
+    | 'if' | 'success' | 'failure' | 'exception' | 'field' | 'fields' | 'destination' | 'destinationTemplate' | 'encoder' | 'log' | 'fire' | 'pipeline' | 'output' | 'onExpiration'
     | 'defaultMeta' | 'map'
     | 'FATAL' | 'ERROR' | 'WARN' | 'INFO' | 'DEBUG' | 'TRACE'
     | 'new' | 'instanceof' | 'now'
