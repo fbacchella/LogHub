@@ -18,9 +18,9 @@ import loghub.LogUtils;
 import loghub.Processor;
 import loghub.ProcessorException;
 import loghub.Tools;
+import loghub.VarFormatter;
 import loghub.VariablePath;
 import loghub.configuration.Properties;
-import loghub.receivers.Beats;
 
 public class TestCrlf {
 
@@ -35,18 +35,16 @@ public class TestCrlf {
 
     @Test
     public void testConversion() throws ProcessorException {
-        test("CRlf", false, "a\rb\nc\r\nd", "a\r\nb\r\nc\r\nd");
-        test("CRlf", true, "a\rb\nc\r\nd", "a\\r\\nb\\r\\nc\\r\\nd");
-        test("CR", false, "a\rb\nc\r\nd", "a\rb\rc\rd");
-        test("CR", true, "a\rb\nc\r\nd", "a\\rb\\rc\\rd");
-        test("LF", false, "a\rb\nc\r\nd", "a\nb\nc\nd");
-        test("lf", true, "a\rb\nc\r\nd", "a\\nb\\nc\\nd");
-        test(null, false, "a\rb\nc\r\nd", "a\rb\nc\r\nd");
-        test("", true, "a\rb\nc\r\nd", "a\\rb\\nc\\r\\nd");
-        test("kEEp", true, "a\rb\nc\r\nd", "a\\rb\\nc\\r\\nd");
+        test(Crlf.Format.CRLF, false, "a\rb\nc\r\nd", "a\r\nb\r\nc\r\nd");
+        test(Crlf.Format.CRLF, true, "a\rb\nc\r\nd", "a\\r\\nb\\r\\nc\\r\\nd");
+        test(Crlf.Format.CR, false, "a\rb\nc\r\nd", "a\rb\rc\rd");
+        test(Crlf.Format.CR, true, "a\rb\nc\r\nd", "a\\rb\\rc\\rd");
+        test(Crlf.Format.LF, false, "a\rb\nc\r\nd", "a\nb\nc\nd");
+        test(Crlf.Format.LF, true, "a\rb\nc\r\nd", "a\\nb\\nc\\nd");
+        test(Crlf.Format.KEEP, true, "a\rb\nc\r\nd", "a\\rb\\nc\\r\\nd");
     }
 
-    private void test(String format, boolean escape, String input, String output) throws ProcessorException {
+    private void test(Crlf.Format format, boolean escape, String input, String output) throws ProcessorException {
         Crlf.Builder builder = Crlf.getBuilder();
         builder.setEscape(escape);
         builder.setFormat(format);
@@ -62,12 +60,13 @@ public class TestCrlf {
     @Test
     public void test_loghub_processors_Crlf() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.processors.Crlf"
-                , BeanChecks.BeanInfo.build("format", String.class)
+                , BeanChecks.BeanInfo.build("format", Crlf.Format.class)
                 , BeanChecks.BeanInfo.build("escape", Boolean.TYPE)
-                , BeanChecks.BeanInfo.build("destination", String.class)
+                , BeanChecks.BeanInfo.build("destination", VariablePath.class)
+                , BeanChecks.BeanInfo.build("destinationTemplate", VarFormatter.class)
                 , BeanChecks.BeanInfo.build("field", VariablePath.class)
                 , BeanChecks.BeanInfo.build("fields", new Object[] {}.getClass())
-                , BeanChecks.BeanInfo.build("path", String.class)
+                , BeanChecks.BeanInfo.build("path", VariablePath.class)
                 , BeanChecks.BeanInfo.build("if", Expression.class)
                 , BeanChecks.BeanInfo.build("success", Processor.class)
                 , BeanChecks.BeanInfo.build("failure", Processor.class)

@@ -1,6 +1,5 @@
 package loghub.processors;
 
-import java.util.Locale;
 import java.util.stream.Collectors;
 
 import loghub.BuilderClass;
@@ -11,7 +10,7 @@ import lombok.Setter;
 @BuilderClass(Crlf.Builder.class)
 public class Crlf extends FieldsProcessor {
 
-    private enum Format {
+    enum Format {
         CRLF("\r\n"),
         CR("\r"),
         LF("\n"),
@@ -25,7 +24,7 @@ public class Crlf extends FieldsProcessor {
 
     public static class Builder extends FieldsProcessor.Builder<Crlf> {
         @Setter
-        private String format = Format.KEEP.name();
+        private Format format = Format.KEEP;
         @Setter
         private boolean escape;
         public Crlf build() {
@@ -41,7 +40,7 @@ public class Crlf extends FieldsProcessor {
 
     public Crlf(Builder builder) {
         super(builder);
-        this.format = Format.valueOf(builder.format.toUpperCase(Locale.ENGLISH));
+        this.format = builder.format;
         this.escape = builder.escape;
     }
 
