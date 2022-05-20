@@ -20,14 +20,15 @@ import org.junit.Test;
 import io.netty.channel.DefaultEventLoop;
 import io.netty.util.concurrent.DefaultPromise;
 import io.netty.util.concurrent.Promise;
+import loghub.AsyncProcessor;
 import loghub.Event;
 import loghub.LogUtils;
 import loghub.Processor;
 import loghub.ProcessorException;
 import loghub.ThreadBuilder;
 import loghub.Tools;
+import loghub.VarFormatter;
 import loghub.VariablePath;
-import loghub.AsyncProcessor;
 
 public class TestFieldsAsynchronous {
 
@@ -139,7 +140,7 @@ public class TestFieldsAsynchronous {
         e.put("b", 2);
         SleepingProcessor sp = new SleepingProcessor();
         sp.setFields(new String[] {"a", "b"});
-        sp.setDestination("${field}_done");
+        sp.setDestinationTemplate(new VarFormatter("${field}_done"));
         Tools.ProcessingStatus status = Tools.runProcessing(e, "main", Collections.singletonList(sp), (i,j) -> { /* empty */ });
         e = status.mainQueue.take();
         long end = Instant.now().toEpochMilli();

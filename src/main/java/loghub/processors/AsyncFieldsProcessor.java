@@ -39,7 +39,7 @@ public abstract class AsyncFieldsProcessor<FI, F extends Future<FI>> extends Fie
 
         @Override
         public boolean manageException(Event event, Exception e) throws ProcessorException {
-            return AsyncFieldsProcessor.this.manageException(event, e, getDestination(toprocess));
+            return AsyncFieldsProcessor.this.manageException(event, e, resolveDestination(toprocess));
         }
 
         @Override

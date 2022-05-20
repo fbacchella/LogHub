@@ -19,6 +19,7 @@ import loghub.LogUtils;
 import loghub.ProcessorException;
 import loghub.Tools;
 import loghub.UncheckedProcessorException;
+import loghub.VarFormatter;
 import loghub.metrics.Stats;
 
 /**
@@ -52,7 +53,7 @@ public class TestFieldsProcessor {
 
         };
 
-        p.setDestination("${field}_done");
+        p.setDestinationTemplate(new VarFormatter("${field}_done"));
         p.setFields(new String[] {"a", "b"});
         Event e = Tools.getEvent();
         e.put("a", 1);
@@ -79,7 +80,7 @@ public class TestFieldsProcessor {
 
         };
 
-        p.setDestination("${field}_done");
+        p.setDestinationTemplate(new VarFormatter("${field}_done"));
         p.setFields(new String[] {"a", "b"});
         Event e = Tools.getEvent();
         e.put("a", 1);
@@ -110,7 +111,7 @@ public class TestFieldsProcessor {
 
         };
 
-        p.setDestination("${field}_done");
+        p.setDestinationTemplate(new VarFormatter("${field}_done"));
         p.setFields(new String[] {"a", "b"});
         Event e = Tools.getEvent();
         e.put("a", 1);

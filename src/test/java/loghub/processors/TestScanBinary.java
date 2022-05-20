@@ -57,7 +57,7 @@ public class TestScanBinary {
         fs.setFieldsLength(new Integer[] {3, 2, 1});
         fs.configure(new Properties(Collections.emptyMap()));
         fs.setField(VariablePath.of(new String[] {"binary"}));
-        fs.setDestination("value");
+        fs.setDestination(VariablePath.of("value"));
 
         Event e = Event.emptyEvent(ConnectionContext.EMPTY);
         e.put("binary", 0b110101);

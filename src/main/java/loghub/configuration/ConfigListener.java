@@ -302,12 +302,12 @@ class ConfigListener extends RouteBaseListener {
         ObjectWrapped<Object> beanValue = stack.popTyped();
         if (ctx.fev != null) {
             stack.push(beanValue);
-            beanName = "destination".equals(ctx.bn.getText()) ? "destinationPath" : ctx.bn.getText();
+            beanName = ctx.bn.getText();
             VariablePath ev = convertEventVariable(ctx.fev);
             beanValue = (ObjectWrapped<Object>) new ObjectWrapped(ev);
         } else if (ctx.fsv != null) {
             beanName = ctx.bn.getText();
-            Object value = "field".equals(beanName) ? VariablePath.of(ctx.fsv.getText()) : ctx.fsv.getText();
+            Object value = VariablePath.of(ctx.fsv.getText());
             beanValue = (ObjectWrapped<Object>) new ObjectWrapped(value);
         } else if (ctx.bn != null) {
             beanName = ctx.bn.getText();

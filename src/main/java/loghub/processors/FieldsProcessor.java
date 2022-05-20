@@ -46,23 +46,22 @@ public abstract class FieldsProcessor extends Processor {
 
     public abstract static class Builder<FP extends FieldsProcessor> extends Processor.Builder<FP> {
         @Setter
-        private VariablePath field = VariablePath.of(new String[]{"message"});
+        private VariablePath destination;
         @Setter
-        private VarFormatter destinationFormat = null;
+        private VarFormatter destinationTemplate;
         @Setter
-        private Pattern[] patterns = new Pattern[]{};
+        private VariablePath field;
         @Setter
-        private String[] globs = new String[] {};
-        @Setter
-        private VariablePath destinationPath = null;
+        private Object[] fields;
     }
 
     private VariablePath field = VariablePath.of(new String[]{"message"});
-    private VarFormatter destinationFormat = null;
     private Pattern[] patterns = new Pattern[]{};
     private String[] globs = new String[] {};
     @Getter @Setter
-    private VariablePath destinationPath = null;
+    private VariablePath destination = null;
+    @Getter @Setter
+    private VarFormatter destinationTemplate = null;
 
     protected class FieldSubProcessor extends Processor {
 
@@ -105,11 +104,28 @@ public abstract class FieldsProcessor extends Processor {
 
     protected FieldsProcessor(Builder<? extends FieldsProcessor> builder) {
         super(builder);
-        field = VariablePath.of(new String[]{"message"});
-        destinationFormat = null;
-        patterns = new Pattern[]{};
-        globs = new String[] {};
-        destinationPath = null;
+        if (builder.destinationTemplate != null) {
+            this.destination = null;
+            this.destinationTemplate = builder.destinationTemplate;
+        } else if (builder.destination != null) {
+            this.destination = builder.destination;
+            this.destinationTemplate = null;
+        } else {
+            this.destination = null;
+            this.destinationTemplate = null;
+        }
+        this.field = builder.field;
+        if (builder.fields != null) {
+            this.globs = new String[builder.fields.length];
+            this.patterns = new Pattern[builder.fields.length];
+            for (int i = 0 ; i < builder.fields.length ; i++) {
+                this.globs[i] = builder.fields[i].toString();
+                this.patterns[i] = Helpers.convertGlobToRegex(this.globs[i]);
+            }
+        } else {
+            this.globs = new String[0];
+            this.patterns = new Pattern[0];
+        }
     }
 
     protected FieldsProcessor() {
@@ -179,7 +195,7 @@ public abstract class FieldsProcessor extends Processor {
         try {
             Object processed = resolver.get();
             if ( ! (processed instanceof RUNSTATUS)) {
-                event.applyAtPath(Action.PUT, getDestination(currentField), processed);
+                event.applyAtPath(Action.PUT, resolveDestination(currentField), processed);
             } else if (processed == RUNSTATUS.REMOVE) {
                 event.applyAtPath(Action.REMOVE, currentField, null);
             }
@@ -201,6 +217,18 @@ public abstract class FieldsProcessor extends Processor {
         }
     }
 
+    protected VariablePath resolveDestination(VariablePath currentField) {
+        if (destinationTemplate != null) {
+            return VariablePath.of(new String[] {
+                    destinationTemplate.format(Collections.singletonMap("field", currentField.get(currentField.length() -1)))
+            });
+        } else if (destination != null) {
+            return destination;
+        } else {
+            return currentField;
+        }
+    }
+
     public abstract Object fieldFunction(Event event, Object value) throws ProcessorException;
 
     void delegate(Set<VariablePath> nextfields, Event event) {
@@ -213,16 +241,6 @@ public abstract class FieldsProcessor extends Processor {
 
     FieldSubProcessor getSubProcessor(Iterator<VariablePath> processing) {
         return new FieldSubProcessor(processing);
-    }
-
-    protected VariablePath getDestination(VariablePath currentField) {
-        if (destinationPath != null) {
-            return destinationPath;
-        } else if (destinationFormat != null) {
-            return VariablePath.of(new String[] {destinationFormat.format(Collections.singletonMap("field", currentField.get(currentField.length() -1)))});
-        } else {
-            return currentField;
-        }
     }
 
     public Object[] getFields() {
@@ -244,20 +262,6 @@ public abstract class FieldsProcessor extends Processor {
 
     public void setField(VariablePath field) {
         this.field = field;
-    }
-
-    /**
-     * @return the destination
-     */
-    public String getDestination() {
-        return destinationFormat.toString();
-    }
-
-    /**
-     * @param destination the destination to set
-     */
-    public void setDestination(String destination) {
-        this.destinationFormat = new VarFormatter(destination);
     }
 
 }

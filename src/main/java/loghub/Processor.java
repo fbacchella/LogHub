@@ -1,5 +1,7 @@
 package loghub;
 
+import java.util.Optional;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -10,8 +12,7 @@ public abstract class Processor {
 
     public abstract static class Builder<B extends Processor> extends AbstractBuilder<B> {
         @Setter
-        private VariablePath path = VariablePath.EMPTY;
-        @Setter
+        private VariablePath path = null;
         private Expression ifexpression = null;
         @Setter
         private Processor success = null;
@@ -21,6 +22,9 @@ public abstract class Processor {
         private Processor exception = null;
         @Setter
         private String id = null;
+        public void setIf(Expression ifexpression) {
+            this.ifexpression = ifexpression;
+        }
     }
 
     protected final Logger logger;
@@ -41,8 +45,9 @@ public abstract class Processor {
     }
 
     protected Processor(Builder<? extends Processor> builder) {
-        logger = LogManager.getLogger(Helpers.getFirstInitClass());;
-        path = builder.path;
+        logger = LogManager.getLogger(Helpers.getFirstInitClass());
+        path = Optional.ofNullable(builder.path)
+                       .orElse(VariablePath.EMPTY);
         ifexpression = builder.ifexpression;
         success = builder.success;
         failure = builder.failure;
@@ -89,7 +94,7 @@ public abstract class Processor {
      * @param fieldprefix the fieldprefix to set
      */
     public void setPath(String fieldprefix) {
-        this.path = VariablePath.of(VariablePath.pathElements(fieldprefix));
+        this.path = VariablePath.of(fieldprefix);
     }
 
     public void setIf(Expression ifexpression) {

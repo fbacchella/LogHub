@@ -34,7 +34,7 @@ public class TestUserAgent {
         UserAgent ua = new UserAgent();
         ua.setField(VariablePath.of(new String[] {"User-Agent"}));
         ua.setCacheSize(10);
-        ua.setDestination("agent");
+        ua.setDestination(VariablePath.of("agent"));
         Assert.assertTrue("configuration failed", ua.configure(new Properties(Collections.emptyMap())));
 
         String uaString = "Mozilla/5.0 (iPhone; CPU iPhone OS 5_1_1 like Mac OS X) AppleWebKit/534.46 (KHTML, like Gecko) Version/5.1 Mobile/9B206 Safari/7534.48.3";
@@ -51,7 +51,7 @@ public class TestUserAgent {
         UserAgent ua = new UserAgent();
         ua.setField(VariablePath.of(new String[] {"User-Agent"}));
         ua.setCacheSize(10);
-        ua.setDestination("agent");
+        ua.setDestination(VariablePath.of("agent"));
         ua.setAgentsUrl(TestUserAgent.class.getClassLoader().getResource("regexes.yaml").toString());
         Assert.assertTrue("configuration failed", ua.configure(new Properties(Collections.emptyMap())));
     }
