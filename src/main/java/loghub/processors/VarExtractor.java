@@ -25,7 +25,7 @@ public class VarExtractor extends FieldsProcessor {
         String message = fieldValue.toString();
         String after = message;
         Matcher m = matchersGenerator.get().reset(message);
-        StringBuffer skipped = new StringBuffer(message.length());
+        StringBuilder skipped = new StringBuilder(message.length());
         while(m.find()) {
             skipped.append(message.substring(m.regionStart(), m.start()));
             String key = m.group("name");
