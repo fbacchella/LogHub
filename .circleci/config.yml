@@ -2,7 +2,7 @@ version: 2.1
 jobs:
     checkout:
         docker:
-            - image: circleci/openjdk:18-jdk-buster
+            - image: cimg/openjdk:17.0
         steps:
             - checkout
             - restore_cache:
@@ -12,7 +12,6 @@ jobs:
                 # A bug in dependency:go-offline, see https://issues.apache.org/jira/browse/MDEP-688
                 command: "mvn -B dependency:resolve dependency:resolve-plugins sonar:help jacoco:help -Psonar,versions -s .circleci/settings.xml"
                 environment:
-                    JAVA_HOME: /usr/local/openjdk-18
                     MAVEN_OPTS: "-Xmx1024m"
             - persist_to_workspace:
                 root: /
@@ -22,7 +21,7 @@ jobs:
                     - home/circleci/project
     build:
         docker:
-            - image: circleci/openjdk:18-jdk-buster
+            - image: cimg/openjdk:17.0
         steps:
             - attach_workspace:
                 at: /tmp/ws
@@ -34,16 +33,15 @@ jobs:
             - run:
                 command: mvn -B clean compile -s .circleci/settings.xml
                 environment:
-                    JAVA_HOME: /usr/local/openjdk-18
                     MAVEN_OPTS: "-Xmx2048m"
             - persist_to_workspace:
                 root: /
                 paths:
                     - home/circleci/.m2/repository
                     - home/circleci/project/target
-    testsj18:
+    testsj17:
         docker:
-            - image: circleci/openjdk:18-jdk-buster
+            - image: cimg/openjdk:17.0
         steps:
             - attach_workspace:
                 at: /tmp/ws
@@ -64,7 +62,6 @@ jobs:
                     mkdir -p /tmp/$CIRCLE_JOB
                     mvn -B test $SONAR -Pskip -Darg.line="-Xmx2048m -Djava.io.tmpdir=/tmp/$CIRCLE_JOB" -s .circleci/settings.xml
                 environment:
-                    JAVA_HOME: /usr/local/openjdk-18
                     MAVEN_OPTS: "-Xmx1024m"
             - store_test_results:
                 path: target/surefire-reports
@@ -73,31 +70,9 @@ jobs:
                 paths:
                     - home/circleci/.m2/repository
                     - home/circleci/.sonar/cache
-    testsj17:
-        docker:
-            - image: circleci/openjdk:17-buster
-        steps:
-            - attach_workspace:
-                  at: /tmp/ws
-            - run:
-                  command: |
-                      mv -n /tmp/ws/home/circleci/.m2 /home/circleci/
-                      mv -n /tmp/ws/home/circleci/.sonar /home/circleci/
-                      mv -n /tmp/ws/home/circleci/project/* /home/circleci/project/
-                      mv -n /tmp/ws/home/circleci/project/.??* /home/circleci/project/
-            - run:
-                  command: |
-                      mkdir -p /tmp/$CIRCLE_JOB
-                      mvn -B test -Pskip -Darg.line="-Xmx2048m -Djava.io.tmpdir=/tmp/$CIRCLE_JOB --finalization=disabled" -s .circleci/settings.xml
-                  environment:
-                      JAVA_HOME: /usr/local/openjdk-17
-                      MAVEN_OPTS: "-Xmx512m"
-            - store_test_results:
-                  path: target/surefire-reports
-            #don't persist_to_workspace, can't be done in parallel with testsj14
     testsj11:
         docker:
-            - image: circleci/openjdk:11-buster
+            - image: cimg/openjdk:17.0
         steps:
             - attach_workspace:
                 at: /tmp/ws
@@ -112,14 +87,13 @@ jobs:
                     mkdir -p /tmp/$CIRCLE_JOB
                     mvn -B test -Pskip -Darg.line="-Xmx2048m -Djava.io.tmpdir=/tmp/$CIRCLE_JOB" -s .circleci/settings.xml
                 environment:
-                    JAVA_HOME: /usr/local/openjdk-11
                     MAVEN_OPTS: "-Xmx512m"
             - store_test_results:
                 path: target/surefire-reports
             #don't persist_to_workspace, can't be done in parallel with testsj14
     publish:
         docker:
-            - image: circleci/openjdk:18-jdk-buster
+            - image: cimg/openjdk:17.0
         steps:
             - attach_workspace:
                 at: /tmp/ws
@@ -151,7 +125,7 @@ jobs:
                     - home/circleci/.sonar/cache
     savecache:
         docker:
-            - image: circleci/openjdk:18-jdk-buster
+            - image: cimg/openjdk:17.0
         steps:
             - attach_workspace:
                 at: /tmp/ws
@@ -174,9 +148,6 @@ workflows:
       - build:
           requires:
               - checkout
-      - testsj18:
-            requires:
-                - build
       - testsj17:
             requires:
                 - build
@@ -187,7 +158,6 @@ workflows:
           requires:
               - testsj11
               - testsj17
-              - testsj18
       - savecache:
           requires:
               - publish
