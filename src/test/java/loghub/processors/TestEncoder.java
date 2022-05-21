@@ -46,7 +46,7 @@ public class TestEncoder {
     @Test
     public void testSyslogLine() throws IOException, ProcessorException {
         Syslog.Builder syslogBuilder = Syslog.getBuilder();
-        syslogBuilder.setFormat("rfc3164");
+        syslogBuilder.setFormat(Syslog.Format.RFC3164);
         syslogBuilder.setDateFormat(null);
         syslogBuilder.setSeverity(new Expression(0));
         syslogBuilder.setFacility(new Expression(0));

@@ -37,15 +37,16 @@ public class TestSyslog {
 
     @Test
     public void testParsing() {
-        ConfigurationTools.parseFragment("output { loghub.senders.Stdout { encoder: loghub.encoders.Syslog { }}}", i -> i.output());
-        ConfigurationTools.parseFragment("output { loghub.senders.Stdout { encoder: loghub.encoders.Syslog {format: \"rfc5424\" }}}", i -> i.output());
+        ConfigurationTools.parseFragment("output { loghub.senders.Stdout { encoder: loghub.encoders.Syslog { }}}", RouteParser::output);
+        ConfigurationTools.parseFragment("output { loghub.senders.Stdout { encoder: loghub.encoders.Syslog {format: \"RFC5424\" }}}", RouteParser::output);
     }
 
     private Syslog.Builder getSampleBuilder() {
         Syslog.Builder builder = Syslog.getBuilder();
         builder.setCharset("UTF-8");
-        builder.setFormat("rFc5424");
+        builder.setFormat(Syslog.Format.RFC5424);
         builder.setVersion(2);
+        builder.setDefaultTimeZone("UTC");
         // 5 and 20 are taken from the RFC and are said generate a priority of 165
         builder.setSeverity(new Expression(5));
         builder.setFacility(new Expression("20"));
@@ -59,9 +60,9 @@ public class TestSyslog {
     }
 
     @Test
-    public void testRfc3164() throws EncodeException, Expression.ExpressionException {
+    public void testRfc3164() throws EncodeException {
         Syslog.Builder builder = getSampleBuilder();
-        builder.setFormat("rFc3164");
+        builder.setFormat(Syslog.Format.RFC3164);
         Syslog encoder = builder.build();
         Assert.assertTrue(encoder.configure(new Properties(Collections.emptyMap()), InMemorySender.getBuilder().build()));
         Event e = Tools.getEvent();
@@ -74,7 +75,7 @@ public class TestSyslog {
     }
 
     @Test
-    public void testfull() throws EncodeException, Expression.ExpressionException {
+    public void testfull() throws EncodeException {
         Syslog encoder = getSampleBuilder().build();
         Assert.assertTrue(encoder.configure(new Properties(Collections.emptyMap()), InMemorySender.getBuilder().build()));
         Event e = Tools.getEvent();
@@ -87,7 +88,7 @@ public class TestSyslog {
     }
 
     @Test
-    public void testbom() throws EncodeException, Expression.ExpressionException {
+    public void testbom() throws EncodeException {
         Syslog.Builder builder = getSampleBuilder();
         builder.setWithbom(true);
         Syslog encoder = builder.build();
@@ -106,7 +107,7 @@ public class TestSyslog {
     }
 
     @Test
-    public void testbadseverity() throws EncodeException, Expression.ExpressionException {
+    public void testbadseverity() {
         Syslog.Builder builder = getSampleBuilder();
         builder.setSeverity(new Expression(8));
         Syslog encoder = builder.build();
@@ -117,7 +118,7 @@ public class TestSyslog {
     }
 
     @Test
-    public void testbadfacility() throws EncodeException, Expression.ExpressionException {
+    public void testbadfacility() {
         Syslog.Builder builder = getSampleBuilder();
         builder.setFacility(new Expression(24));
         Syslog encoder = builder.build();
@@ -130,7 +131,7 @@ public class TestSyslog {
     @Test
     public void test_loghub_processors_Syslog() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.encoders.Syslog"
-                , BeanChecks.BeanInfo.build("format", String.class)
+                , BeanChecks.BeanInfo.build("format", Syslog.Format.class)
                 , BeanChecks.BeanInfo.build("severity", Expression.class)
                 , BeanChecks.BeanInfo.build("facility", Expression.class)
                 , BeanChecks.BeanInfo.build("version", Integer.TYPE)

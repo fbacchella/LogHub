@@ -3,12 +3,13 @@ package loghub.encoders;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
-import java.util.Locale;
 import java.util.Optional;
-import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import com.axibase.date.DatetimeProcessor;
@@ -27,14 +28,14 @@ import lombok.Setter;
 public class Syslog extends Encoder {
 
     private static final byte[] BOM = new byte[]{(byte) 0xEF, (byte) 0xBB, (byte) 0xBF};
-    private enum Format {
+    public enum Format {
         RFC5424,
         RFC3164
     }
 
     public static class Builder extends Encoder.Builder<Syslog> {
         @Setter
-        private String format = Format.RFC5424.name();
+        private Format format = Format.RFC5424;
         @Setter
         private Expression severity = new Expression("-");
         @Setter
@@ -49,18 +50,30 @@ public class Syslog extends Encoder {
         private Expression procid = new Expression("-");
         @Setter
         private Expression msgid = new Expression("-");
+        /**
+         * Default to the event timestamp, if it return a number, it's millisecond since Unix epoch
+         * @param the expression for the timestamp value
+         */
         @Setter
-        private Expression timestamp = new Expression("-");
+        private Expression timestamp = null;
         @Setter
         private Expression message = new Expression("-");
         @Setter
         private boolean withbom = false;
         @Setter
         private String charset = StandardCharsets.US_ASCII.name();
+        /**
+         * If RFC3164, setting to null or empty string, not timestamp will not be displayed
+         */
         @Setter
         private String dateFormat = null;
         @Setter
         private int secFrac = 3;
+        @Setter
+        private String defaultTimeZone = ZoneId.systemDefault().getId();
+        private Builder() {
+
+        }
 
         @Override
         public Syslog build() {
@@ -80,16 +93,17 @@ public class Syslog extends Encoder {
     private final Expression facility;
     private final int version;
     private final Expression hostname;
+    private final Expression timestamp;
     private final Expression appname;
     private final Expression procid;
     private final Expression msgid;
-    private final Expression timestamp;
     private final Expression message;
     private final boolean withbom;
+    private final ZoneId defaultTimeZone;
 
     private Syslog(Syslog.Builder builder) {
         super(builder);
-        this.format = Format.valueOf(builder.format.toUpperCase(Locale.ENGLISH));
+        this.format = builder.format;
         this.charset = Charset.forName(builder.charset);
         this.severity = builder.severity;
         this.facility = builder.facility;
@@ -98,30 +112,33 @@ public class Syslog extends Encoder {
         this.appname = builder.appname;
         this.procid = builder.procid;
         this.msgid = builder.msgid;
-        this.timestamp = builder.timestamp;
         this.message = builder.message;
         this.withbom = builder.withbom;
+        this.timestamp = builder.timestamp;
+        this.defaultTimeZone = ZoneId.of(builder.defaultTimeZone);
+        final StringBuilder timestampformat = new StringBuilder();
         if (format == Format.RFC5424) {
-            StringBuilder timestampformat = new StringBuilder("yyyy-MM-dd'T'HH:mm:ss.");
+            timestampformat.append("yyyy-MM-dd'T'HH:mm:ss.");
             IntStream.range(0, builder.secFrac).forEach(i -> timestampformat.append("S"));
-            timestampformat.append("Z");
-            dateFormatter = PatternResolver.createNewFormatter(timestampformat.toString()).withDefaultZone(ZoneId.of("UTC"));
+            timestampformat.append("ZZ");
         } else if (format == Format.RFC3164) {
-            StringBuilder timestampformat;
             if (builder.dateFormat == null) {
-                timestampformat = new StringBuilder("eee MMM dd HH:mm:ss");
+                timestampformat.append("eee MMM dd HH:mm:ss");
                 if (builder.secFrac > 0) {
                     timestampformat.append(".");
                     IntStream.range(0, builder.secFrac).forEach(i -> timestampformat.append("S"));
                 }
                 timestampformat.append(" yyyy");
-            } else {
-                timestampformat = new StringBuilder(builder.dateFormat);
+            } else if (! builder.dateFormat.isBlank()){
+                timestampformat.append(builder.dateFormat);
             }
-            dateFormatter = PatternResolver.createNewFormatter(timestampformat.toString()).withDefaultZone(ZoneId.of("UTC"));
-        } else {
-            dateFormatter = null;
         }
+        dateFormatter = Optional.of(timestampformat)
+                                .filter(s -> s.length() != 0)
+                                .map(StringBuilder::toString)
+                                .map(PatternResolver::createNewFormatter)
+                                .map(f -> f.withDefaultZone(defaultTimeZone))
+                                .orElse(null);
     }
 
     @Override
@@ -153,7 +170,7 @@ public class Syslog extends Encoder {
             throw new EncodeException("Invalid facility: " + tryfacility);
         }
 
-        //Resoving severity
+        //Resolving severity
         int realseverity;
         Object tryseverity = severity.eval(event);
         if (tryseverity instanceof Number) {
@@ -176,7 +193,7 @@ public class Syslog extends Encoder {
             List<String> parts = new ArrayList<>(3);
             parts.add("<" + getPriority((event)) + ">");
             if (dateFormatter != null) {
-                parts.add(dateFormatter.print(event.getTimestamp().getTime()));
+                parts.add(dateFormatter.print(getEventTimeStamp(event)));
             }
             if (hostname != null) {
                 Optional.ofNullable(hostname.eval(event)).map(Object::toString).ifPresent(parts::add);
@@ -184,7 +201,7 @@ public class Syslog extends Encoder {
             if (message != null) {
                 Optional.ofNullable(message.eval(event)).map(Object::toString).ifPresent(parts::add);
             }
-            return parts.stream().collect(Collectors.joining(" ")).getBytes(StandardCharsets.US_ASCII);
+            return String.join(" ", parts).getBytes(StandardCharsets.US_ASCII);
         } catch (ProcessorException ex) {
             throw new EncodeException("Can't encode syslog message: " + Helpers.resolveThrowableException(ex), ex);
         }
@@ -197,7 +214,7 @@ public class Syslog extends Encoder {
             syslogline.append(getPriority((event)));
             syslogline.append(">");
             syslogline.append(version).append(" ");
-            syslogline.append(dateFormatter.print(event.getTimestamp().getTime())).append(" ");
+            syslogline.append(dateFormatter.print(getEventTimeStamp(event))).append(" ");
             syslogline.append(hostname.eval(event)).append(" ");
             syslogline.append(appname.eval(event)).append(" ");
             syslogline.append(procid.eval(event)).append(" ");
@@ -222,4 +239,22 @@ public class Syslog extends Encoder {
         }
     }
 
+    private ZonedDateTime getEventTimeStamp(Event event) throws ProcessorException {
+        if (timestamp == null) {
+            return event.getTimestamp().toInstant().atZone(defaultTimeZone);
+        } else {
+            Object time = timestamp.eval(event);
+            if (time instanceof Number) {
+                return Instant.ofEpochMilli(((Number) time).longValue()).atZone(defaultTimeZone);
+            } else if (time instanceof Date) {
+                return ((Date)time).toInstant().atZone(defaultTimeZone);
+            } else if (time instanceof Instant) {
+                return ((Instant) time).atZone(defaultTimeZone);
+            } else if (time instanceof ZonedDateTime) {
+                return (ZonedDateTime) time;
+            } else {
+                throw event.buildException("Not usable timestamp " + time);
+            }
+        }
+    }
 }
