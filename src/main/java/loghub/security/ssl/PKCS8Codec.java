@@ -53,7 +53,7 @@ public class PKCS8Codec extends SimpleBerCodec {
      */
     @Override
     protected int resolveOidPart(byte[] element) {
-        StringBuffer buffer = new StringBuffer(element.length *2);
+        StringBuilder buffer = new StringBuilder(element.length *2);
         for (byte b: element) {
             buffer.append(String.format("%02x", b));
         }

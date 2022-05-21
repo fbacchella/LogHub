@@ -29,7 +29,7 @@ public interface ExceptionsMBean {
     public default String[] getUnhandledExceptions() {
         return loghub.metrics.Stats.getExceptions().stream()
                         .map( i -> {
-                            StringBuffer exceptionDetails = new StringBuffer();
+                            StringBuilder exceptionDetails = new StringBuilder();
                             String exceptionMessage = Helpers.resolveThrowableException(i);
                             exceptionDetails.append(exceptionMessage);
                             StackTraceElement[] stack = (i.getCause() != null ? i.getCause() : i).getStackTrace();

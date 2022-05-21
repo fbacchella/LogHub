@@ -388,7 +388,7 @@ public class ElasticSearch extends AbstractHttpSender {
         if (missing.isEmpty()) {
             return;
         }
-        StringBuffer filePart = new StringBuffer();
+        StringBuilder filePart = new StringBuilder();
         Function<JsonNode, Boolean> transform = node -> {
             return true;
         };
@@ -419,7 +419,7 @@ public class ElasticSearch extends AbstractHttpSender {
     private boolean doCheckIndices(Set<String> indices, Set<String> missing, Set<String> readonly) {
         missing.clear();
         readonly.clear();
-        StringBuffer filePart = new StringBuffer();
+        StringBuilder filePart = new StringBuilder();
         filePart.append("/");
         filePart.append(String.join(",", indices));
         filePart.append("/_settings/index.number_of_shards,index.blocks.read_only_allow_delete?allow_no_indices=true&ignore_unavailable=true&flat_settings=true");
@@ -432,7 +432,7 @@ public class ElasticSearch extends AbstractHttpSender {
     }
 
     private Map<String, String> getAliases(Set<String> indices) {
-        StringBuffer filePart = new StringBuffer();
+        StringBuilder filePart = new StringBuilder();
         filePart.append(String.join(",", indices));
         filePart.append("/_alias?ignore_unavailable=true");
         Map<String, String> aliases = new HashMap<>(indices.size());
