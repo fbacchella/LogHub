@@ -71,10 +71,6 @@ public class Syslog extends Encoder {
         private int secFrac = 3;
         @Setter
         private String defaultTimeZone = ZoneId.systemDefault().getId();
-        private Builder() {
-
-        }
-
         @Override
         public Syslog build() {
             return new Syslog(this);
