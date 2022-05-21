@@ -230,11 +230,11 @@ public class ZMQSocketFactory implements AutoCloseable {
             this.type = type;
             this.endpoint = endpoint;
         }
-        public SocketBuilder setCurveKeys(PrivateKeyEntry pke) throws ZMQCheckedException {
+        public SocketBuilder setCurveKeys(PrivateKeyEntry pke) {
             this.pke = pke;
             return this;
         }
-        public SocketBuilder setCurveClient(Certificate serverPublicKey) throws ZMQCheckedException {
+        public SocketBuilder setCurveClient(Certificate serverPublicKey) {
             this.serverPublicKey = serverPublicKey;
             return this;
         }

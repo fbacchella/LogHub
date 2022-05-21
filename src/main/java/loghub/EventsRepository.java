@@ -97,23 +97,23 @@ public class EventsRepository<KEY> {
         return ctx.pausedEvent;
     }
 
-    public void succed(KEY key) throws InterruptedException {
+    public void succed(KEY key) {
         logger.trace("succed {}", key);
         awake(key, i -> i.onSuccess, i -> i.successTransform);
     }
 
-    public void failed(KEY key) throws InterruptedException {
+    public void failed(KEY key) {
         logger.trace("failed {}", key);
         awake(key, i -> i.onFailure, i -> i.failureTransform);
     }
 
-    public void timeout(KEY key) throws InterruptedException {
+    public void timeout(KEY key) {
         logger.trace("timeout {}", key);
         Optional.ofNullable(allPaused.get(key)).map(p -> p.pausedEvent).ifPresent(pe -> pe.timeout(pe.event, key));
         awake(key, i -> i.onTimeout, i -> i.timeoutTransform);
     }
 
-    public void exception(KEY key) throws InterruptedException {
+    public void exception(KEY key) {
         awake(key, i -> i.onException, i -> i.exceptionTransform);
     }
 

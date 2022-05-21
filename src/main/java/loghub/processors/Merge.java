@@ -391,11 +391,7 @@ public class Merge extends Processor {
                     Object dofire = fire.eval(current.event);
                     if (Boolean.TRUE.equals(dofire)) {
                         logger.trace("fire {}", eventKey);
-                        try {
-                            repository.succed(eventKey);
-                        } catch (InterruptedException e) {
-                            throw event.buildException("Merge interrupted", e);
-                        }
+                        repository.succed(eventKey);
                     }
                 }
             }

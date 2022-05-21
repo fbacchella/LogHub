@@ -381,7 +381,7 @@ public class ElasticSearch extends AbstractHttpSender {
      * @param indices The indices to create
      * @throws SendException
      */
-    private synchronized void createIndicesWithIML(Set<String> indices) throws SendException {
+    private synchronized void createIndicesWithIML(Set<String> indices) {
         Set<String> missing = new HashSet<>();
         Set<String> readonly = new HashSet<>();
         doCheckIndices(indices, missing, readonly);

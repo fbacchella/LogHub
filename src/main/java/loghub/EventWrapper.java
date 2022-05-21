@@ -37,7 +37,7 @@ class EventWrapper extends Event {
         return event.entrySet();
     }
 
-    private Object action(Action f, String key, Object value) throws ProcessorException {
+    private Object action(Action f, String key, Object value) {
         return action(f, key, value, false);
     }
 
@@ -63,29 +63,17 @@ class EventWrapper extends Event {
 
     @Override
     public Object get(Object key) {
-        try {
-            return action(Action.GET, key.toString(), null);
-        } catch (ProcessorException e) {
-            throw new UncheckedProcessorException(e);
-        }
+        return action(Action.GET, key.toString(), null);
     }
 
     @Override
     public Object remove(Object key) {
-        try {
-            return action(Action.REMOVE, key.toString(), null);
-        } catch (ProcessorException e) {
-            throw new UncheckedProcessorException(e);
-        }
+        return action(Action.REMOVE, key.toString(), null);
     }
 
     @Override
     public boolean containsKey(Object key) {
-        try {
-            return Boolean.TRUE.equals(action(Action.CONTAINS, key.toString(), null));
-        } catch (ProcessorException e) {
-            throw new UncheckedProcessorException(e);
-        }
+        return Boolean.TRUE.equals(action(Action.CONTAINS, key.toString(), null));
     }
 
     @Override
@@ -96,64 +84,40 @@ class EventWrapper extends Event {
     @Override
     public int size() {
         Integer size;
-        try {
-            size = (Integer) action(Action.SIZE, null, null);
-            return size != null ? size : 0;
-        } catch (ProcessorException e) {
-            throw new UncheckedProcessorException(e);
-        }
+        size = (Integer) action(Action.SIZE, null, null);
+        return size != null ? size : 0;
     }
 
     @Override
     public boolean isEmpty() {
-        try {
-            return (Boolean) action(Action.ISEMPTY, null, null);
-        } catch (ProcessorException e) {
-            throw new UncheckedProcessorException(e);
-        }
+        return (Boolean) action(Action.ISEMPTY, null, null);
     }
 
     @Override
     public void clear() {
-        try {
-            action(Action.CLEAR, null, null);
-        } catch (ProcessorException e) {
-            throw new UncheckedProcessorException(e);
-        }
+        action(Action.CLEAR, null, null);
     }
 
     @Override
     public boolean containsValue(Object value) {
-        try {
-            return Boolean.TRUE.equals(action(Action.CONTAINSVALUE, null, null));
-        } catch (ProcessorException e) {
-            throw new UncheckedProcessorException(e);
-        }
+        return Boolean.TRUE.equals(action(Action.CONTAINSVALUE, null, null));
     }
 
     @SuppressWarnings("unchecked")
     @Override
     public Set<String> keySet() {
-        try {
-            Object found = action(Action.KEYSET, null, null);
-            if(found != null) {
-                return (Set<String>) found;
-            } else {
-                return Collections.emptySet();
-            }
-        } catch (ProcessorException e) {
-            throw new UncheckedProcessorException(e);
+        Object found = action(Action.KEYSET, null, null);
+        if(found != null) {
+            return (Set<String>) found;
+        } else {
+            return Collections.emptySet();
         }
     }
 
     @SuppressWarnings("unchecked")
     @Override
     public Collection<Object> values() {
-        try {
-            return (Collection<Object>) action( Action.VALUES, null, null);
-        } catch (ProcessorException e) {
-            throw new UncheckedProcessorException(e);
-        }
+        return (Collection<Object>) action( Action.VALUES, null, null);
     }
 
     @Override
