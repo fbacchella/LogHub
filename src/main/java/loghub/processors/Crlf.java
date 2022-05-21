@@ -50,7 +50,7 @@ public class Crlf extends FieldsProcessor {
             return value;
         }
         String message = (String) value;
-        if (format == Format.KEEP && escape) {
+        if (format == Format.KEEP) {
             return message.replace("\r", "\\r").replace("\n", "\\n");
         } else {
             String separator = escape ? format.separator.replace("\r", "\\r").replace("\n", "\\n") :  format.separator ;

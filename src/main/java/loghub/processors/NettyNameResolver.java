@@ -253,7 +253,7 @@ public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<Dn
     }
 
     private Object store(DnsCacheEntry value) {
-        if (value.answserRr != null && value.answserRr instanceof DnsPtrRecord) {
+        if (value.answserRr instanceof DnsPtrRecord) {
             // DNS responses end the query with a ., substring removes it.
             DnsPtrRecord ptr = (DnsPtrRecord) value.answserRr;
             return ptr.hostname().substring(0, ptr.hostname().length() - 1);

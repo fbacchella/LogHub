@@ -132,7 +132,7 @@ public class SecretsHandler implements Closeable {
                     defaultPerms.add(PosixFilePermission.OWNER_READ);
                     defaultPerms.add(PosixFilePermission.OWNER_WRITE);
                     Files.createFile(store, PosixFilePermissions.asFileAttribute(defaultPerms));
-                } else if (!create && !Files.exists(store)) {
+                } else if (!Files.exists(store)) {
                     throw new IllegalStateException("Secret store vanished");
                 }
                 try (FileChannel fc = FileChannel.open(store, StandardOpenOption.WRITE);

@@ -46,51 +46,49 @@ public class AccessControl extends HttpFilter {
             //not null, someone (probably TLS) already done the job, nice !
             return;
         }
-        if (peerPrincipal == null) {
-            //String authorization = ;
-            Matcher matcher = Optional.ofNullable(request.headers().get(HttpHeaderNames.AUTHORIZATION)).map(AUTHDETAILS::matcher).filter(Matcher::matches).orElse(null);
-            if (matcher!= null) {
-                switch(matcher.group("scheme").toLowerCase(Locale.US)) {
-                case "bearer":
-                    if (authhandler.isWithJwt()) {
-                        peerPrincipal = authhandler.checkJwt(matcher.group("value"));
-                    }
-                    break;
-                case "basic": {
-                    char[] content;
-                    try {
-                        byte[] decoded = Base64.getDecoder().decode(matcher.group("value"));
-                        content = StandardCharsets.UTF_8.decode(ByteBuffer.wrap(decoded)).array();
-                        Arrays.fill(decoded, (byte)0);
-                    } catch (IllegalArgumentException e) {
-                        logger.warn("Invalid basic authentication scheme details: {}", e.getMessage());
-                        throw new HttpRequestFailure(HttpResponseStatus.BAD_REQUEST, "Invalid basic authentication scheme details", Collections.emptyMap());
-                    }
-                    int sep = 0;
-                    for ( ; sep < content.length ; sep++) {
-                        if (content[sep] == ':') break;
-                    }
-                    String login = new String(content, 0, sep);
-                    char[] passwd = Arrays.copyOfRange(content, sep + 1, content.length);
-                    Arrays.fill(content, '\0');
-                    peerPrincipal = authhandler.checkLoginPassword(login, passwd);
-                    Arrays.fill(passwd, '\0');
-                    break;
+        //String authorization = ;
+        Matcher matcher = Optional.ofNullable(request.headers().get(HttpHeaderNames.AUTHORIZATION)).map(AUTHDETAILS::matcher).filter(Matcher::matches).orElse(null);
+        if (matcher!= null) {
+            switch(matcher.group("scheme").toLowerCase(Locale.US)) {
+            case "bearer":
+                if (authhandler.isWithJwt()) {
+                    peerPrincipal = authhandler.checkJwt(matcher.group("value"));
                 }
-                default:
-                    throw new HttpRequestFailure(HttpResponseStatus.BAD_REQUEST, "Unknown authentication scheme " + matcher.group("scheme"), Collections.emptyMap());
+                break;
+            case "basic": {
+                char[] content;
+                try {
+                    byte[] decoded = Base64.getDecoder().decode(matcher.group("value"));
+                    content = StandardCharsets.UTF_8.decode(ByteBuffer.wrap(decoded)).array();
+                    Arrays.fill(decoded, (byte)0);
+                } catch (IllegalArgumentException e) {
+                    logger.warn("Invalid basic authentication scheme details: {}", e.getMessage());
+                    throw new HttpRequestFailure(HttpResponseStatus.BAD_REQUEST, "Invalid basic authentication scheme details", Collections.emptyMap());
                 }
-                // Bad login/password
-                if (peerPrincipal == null) {
-                    throw new HttpRequestFailure(HttpResponseStatus.UNAUTHORIZED, "Bad authentication", Collections.singletonMap(HttpHeaderNames.WWW_AUTHENTICATE, "Basic realm=\"loghub\", charset=\"UTF-8\""));
+                int sep = 0;
+                for ( ; sep < content.length ; sep++) {
+                    if (content[sep] == ':') break;
                 }
-                Principal pp = peerPrincipal;
-                logger.debug("Principal resolved as \"{}\" using scheme {}", pp::getName, () -> matcher.group("scheme"));
-            } else {
-                // We found an Authorization header but it was unusable
-                if (request.headers().get(HttpHeaderNames.AUTHORIZATION) != null) {
-                    throw new HttpRequestFailure(HttpResponseStatus.BAD_REQUEST, "Invalid authentication header", Collections.emptyMap());
-                }
+                String login = new String(content, 0, sep);
+                char[] passwd = Arrays.copyOfRange(content, sep + 1, content.length);
+                Arrays.fill(content, '\0');
+                peerPrincipal = authhandler.checkLoginPassword(login, passwd);
+                Arrays.fill(passwd, '\0');
+                break;
+            }
+            default:
+                throw new HttpRequestFailure(HttpResponseStatus.BAD_REQUEST, "Unknown authentication scheme " + matcher.group("scheme"), Collections.emptyMap());
+            }
+            // Bad login/password
+            if (peerPrincipal == null) {
+                throw new HttpRequestFailure(HttpResponseStatus.UNAUTHORIZED, "Bad authentication", Collections.singletonMap(HttpHeaderNames.WWW_AUTHENTICATE, "Basic realm=\"loghub\", charset=\"UTF-8\""));
+            }
+            Principal pp = peerPrincipal;
+            logger.debug("Principal resolved as \"{}\" using scheme {}", pp::getName, () -> matcher.group("scheme"));
+        } else {
+            // We found an Authorization header but it was unusable
+            if (request.headers().get(HttpHeaderNames.AUTHORIZATION) != null) {
+                throw new HttpRequestFailure(HttpResponseStatus.BAD_REQUEST, "Invalid authentication header", Collections.emptyMap());
             }
         }
         // No authorization header, request one

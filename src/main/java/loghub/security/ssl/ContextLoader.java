@@ -137,7 +137,7 @@ public class ContextLoader {
                             return Arrays.stream(issuers)
                                             .filter(validIssuers::contains)
                                             .toArray(Principal[]::new);
-                        } else if (validIssuers != null && issuers == null){
+                        } else if (validIssuers != null){
                             return validIssuers.stream().toArray(Principal[]::new);
                         } else {
                             return issuers;
@@ -153,14 +153,14 @@ public class ContextLoader {
                     public String chooseEngineServerAlias(String keyType, Principal[] issuers, SSLEngine engine) {
                         logger.trace("{} {} {}", keyType.toString(), Arrays.toString(issuers), engine.toString());
                         // The engine was build with a alias as the hint, return it
-                        if (engine != null && engine.getPeerPort() == AbstractNettyServer.DEFINEDSSLALIAS && getPrivateKey(engine.getPeerHost()) != null) {
+                        if (engine.getPeerPort() == AbstractNettyServer.DEFINEDSSLALIAS && getPrivateKey(engine.getPeerHost()) != null) {
                             String alias = engine.getPeerHost();
                             if (keyType.equals(getPrivateKey(alias).getAlgorithm())) {
                                 return engine.getPeerHost();
                             } else {
                                 return origkm.chooseEngineServerAlias(keyType, issuers, engine);
                             }
-                        } else if (engine != null && engine.getPeerPort() == AbstractNettyServer.DEFINEDSSLALIAS) {
+                        } else if (engine.getPeerPort() == AbstractNettyServer.DEFINEDSSLALIAS) {
                             return null;
                         } else {
                             return origkm.chooseEngineServerAlias(keyType, issuers, engine);
