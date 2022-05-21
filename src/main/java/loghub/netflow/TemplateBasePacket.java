@@ -93,7 +93,7 @@ public abstract class TemplateBasePacket implements NetflowPacket {
         public String toString() {
             StringBuilder buffer = new StringBuilder();
             for(int i = 0 ; i < types.size() ; i++) {
-                buffer.append(String.format("%d[%d]%s, ", types.get(i).longValue(), sizes.get(i), areScops.get(i) ? "S" : ""));
+                buffer.append(String.format("%d[%d]%s, ", types.get(i).longValue(), sizes.get(i), Boolean.TRUE.equals(areScops.get(i)) ? "S" : ""));
             }
             buffer.delete(buffer.length() - 2 , buffer.length());
             return buffer.toString();

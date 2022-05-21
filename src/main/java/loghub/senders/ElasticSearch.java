@@ -448,7 +448,7 @@ public class ElasticSearch extends AbstractHttpSender {
             });
             return Boolean.TRUE;
         };
-        if (doquery(null, filePart.toString(), transform, Collections.emptyMap(), Boolean.FALSE)) {
+        if (Boolean.TRUE.equals(doquery(null, filePart.toString(), transform, Collections.emptyMap(), Boolean.FALSE))) {
             return aliases;
         } else {
             return Collections.emptyMap();
@@ -466,7 +466,7 @@ public class ElasticSearch extends AbstractHttpSender {
                     });
             if (! status.isPresent()) {
                 missing.add(e.getKey());
-            } else if (status.get()) {
+            } else if (Boolean.TRUE.equals(status.get())) {
                 readonly.add(e.getKey());
             }
         }

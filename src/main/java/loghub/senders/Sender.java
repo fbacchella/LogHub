@@ -380,7 +380,7 @@ public abstract class Sender extends Thread implements Closeable {
 
     protected void processStatus(EventFuture result) {
         try {
-            if (result.get()) {
+            if (Boolean.TRUE.equals(result.get())) {
                 Stats.sentEvent(this);
             } else {
                 Stats.failedSentEvent(this, result.getMessage(), result.event);

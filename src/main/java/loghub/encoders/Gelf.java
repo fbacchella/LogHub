@@ -29,14 +29,14 @@ public class Gelf extends AbstractJacksonEncoder<Gelf.Builder> {
         private String shortmessagefield = "shortmessage";
         @Setter
         private String fullmessagefield = null;
-        public Builder setCompressed(Boolean compressed) {
+        public Builder setCompressed(boolean compressed) {
             this.compressed = compressed;
-            this.stream = compressed ? false : this.stream;
+            this.stream = !compressed && this.stream;
             return this;
         }
-        public Builder setStream(Boolean stream) {
+        public Builder setStream(boolean stream) {
             this.stream = stream;
-            this.compressed = stream ? false: this.compressed;
+            this.compressed = !stream && this.compressed;
             return this;
         }
         @Override

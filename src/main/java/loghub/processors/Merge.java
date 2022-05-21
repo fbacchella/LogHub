@@ -240,7 +240,7 @@ public class Merge extends Processor {
             } else if (o instanceof Number ) {
                 return ((Number) o).longValue();
             } else if (o instanceof Boolean) {
-                return (long) ((Boolean) o ? 1 : 0);
+                return (long) (Boolean.TRUE.equals(o) ? 1 : 0);
             } else if (o instanceof String) {
                 try {
                     return Long.parseLong(o.toString());
@@ -259,7 +259,7 @@ public class Merge extends Processor {
             } else if (o instanceof Number ) {
                 return ((Number) o).doubleValue();
             } else if (o instanceof Boolean) {
-                return (double) ((Boolean) o ? 1.0 : 0.0);
+                return (double) (Boolean.TRUE.equals(o) ? 1.0 : 0.0);
             } else if (o instanceof String) {
                 try {
                     return Double.parseDouble(o.toString());
@@ -287,9 +287,9 @@ public class Merge extends Processor {
                 default:
                     return Cumulator.LIST.cumulate(o);
                 }
-            } else if (o instanceof Boolean && (Boolean) o) {
+            } else if (o instanceof Boolean && Boolean.TRUE.equals(o)) {
                 return Cumulator.AND.cumulate(o);
-            } else if (o instanceof Boolean && ! (Boolean) o) {
+            } else if (o instanceof Boolean && Boolean.TRUE.equals(! (Boolean) o)) {
                 return Cumulator.OR.cumulate(o);
             } else if ((o instanceof Integer || o instanceof Long) && ((Number) o).longValue() == 0) {
                 return Cumulator.ADD.cumulate(o);

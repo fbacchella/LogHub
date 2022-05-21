@@ -226,7 +226,7 @@ public class ZMQHandler<M> implements AutoCloseable {
                     // A event on the main socket, end the loop
                     if ((sEvents & ZPoller.OUT) != 0) {
                         logEvent("Message signal", socket, sEvents);
-                        if (! send.apply(socket, message)) {
+                        if (Boolean.FALSE.equals( send.apply(socket, message))) {
                             throw new ZMQCheckedException(socket.errno());
                         }
                         return null;
