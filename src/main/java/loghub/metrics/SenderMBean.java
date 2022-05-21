@@ -3,8 +3,6 @@ package loghub.metrics;
 import java.util.Hashtable;
 import java.util.function.Supplier;
 
-import javax.management.InstanceAlreadyExistsException;
-import javax.management.MBeanRegistrationException;
 import javax.management.MalformedObjectNameException;
 import javax.management.NotCompliantMBeanException;
 import javax.management.ObjectName;
@@ -49,7 +47,7 @@ public interface SenderMBean {
 
         @SuppressWarnings("unchecked")
         public Implementation(Sender s)
-                        throws NotCompliantMBeanException, MalformedObjectNameException, InstanceAlreadyExistsException, MBeanRegistrationException {
+                        throws NotCompliantMBeanException {
             super(SenderMBean.class);
             this.s = s;
             Object metricidentity = s != null ? s : Sender.class;

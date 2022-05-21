@@ -1,6 +1,5 @@
 package loghub;
 
-import java.io.IOException;
 import java.io.InputStream;
 import java.util.function.Function;
 
@@ -35,7 +34,7 @@ public class CachingParser extends Parser {
 
     // ------------------------------------------
 
-    public CachingParser(int cacheSize, Properties props) throws IOException {
+    public CachingParser(int cacheSize, Properties props) {
         super();
         cacheClient = props.cacheManager.getBuilder(String.class, Client.class).setName("UA-client", this).build();
         cacheUserAgent = props.cacheManager.getBuilder(String.class, UserAgent.class).setName("UA-useragent", this).build();

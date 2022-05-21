@@ -121,18 +121,14 @@ public class JmxService {
                     ReceiverMBean.Implementation rmb = new ReceiverMBean.Implementation(r);
                     mbeans.put(rmb.getObjectName(), rmb);
                 } catch (NotCompliantMBeanException
-                                | MalformedObjectNameException
-                                | InstanceAlreadyExistsException
-                                | MBeanRegistrationException e) {
+                                | MalformedObjectNameException e) {
                 }
             });
             try {
                 ReceiverMBean.Implementation rmb = new ReceiverMBean.Implementation(null);
                 mbeans.put(rmb.getObjectName(), rmb);
             } catch (NotCompliantMBeanException
-                            | MalformedObjectNameException
-                            | InstanceAlreadyExistsException
-                            | MBeanRegistrationException e) {
+                            | MalformedObjectNameException e) {
             }
             return this;
         }
@@ -143,18 +139,14 @@ public class JmxService {
                     SenderMBean.Implementation smb = new SenderMBean.Implementation(s);
                     mbeans.put(smb.getObjectName(), smb);
                 } catch (NotCompliantMBeanException
-                                | MalformedObjectNameException
-                                | InstanceAlreadyExistsException
-                                | MBeanRegistrationException e) {
+                                | MalformedObjectNameException e) {
                 }
             });
             try {
                 SenderMBean.Implementation smb = new SenderMBean.Implementation(null);
                 mbeans.put(smb.getObjectName(), smb);
             } catch (NotCompliantMBeanException
-                            | MalformedObjectNameException
-                            | InstanceAlreadyExistsException
-                            | MBeanRegistrationException e) {
+                            | MalformedObjectNameException e) {
             }
             return this;
         }
@@ -166,17 +158,13 @@ public class JmxService {
                     pmb = new PipelineMBean.Implementation(p.getName());
                     mbeans.put(pmb.getObjectName(), pmb);
                 } catch (NotCompliantMBeanException
-                                | MalformedObjectNameException
-                                | InstanceAlreadyExistsException
-                                | MBeanRegistrationException e) {
+                                | MalformedObjectNameException e) {
                 }
             });
             try {
                 PipelineMBean.Implementation pmb = new PipelineMBean.Implementation(null);
                 mbeans.put(pmb.getObjectName(), pmb);
-            } catch (NotCompliantMBeanException | MalformedObjectNameException
-                            | InstanceAlreadyExistsException
-                            | MBeanRegistrationException e) {
+            } catch (NotCompliantMBeanException | MalformedObjectNameException e) {
             }
 
             return this;

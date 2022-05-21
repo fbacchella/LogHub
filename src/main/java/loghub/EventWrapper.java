@@ -41,7 +41,7 @@ class EventWrapper extends Event {
         return action(f, key, value, false);
     }
 
-    private Object action(Action f, String key, Object value, boolean create) throws ProcessorException {
+    private Object action(Action f, String key, Object value, boolean create) {
         VariablePath lpath;
         if (key == null) {
             lpath = path;
@@ -53,11 +53,7 @@ class EventWrapper extends Event {
 
     @Override
     public Object put(String key, Object value) {
-        try {
-            return action(Action.PUT, key, value, true);
-        } catch (ProcessorException e) {
-            throw new UncheckedProcessorException(e);
-        }
+        return action(Action.PUT, key, value, true);
     }
 
     @Override

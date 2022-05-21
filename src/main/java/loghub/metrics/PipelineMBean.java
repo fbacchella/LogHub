@@ -2,8 +2,6 @@ package loghub.metrics;
 
 import java.util.Hashtable;
 
-import javax.management.InstanceAlreadyExistsException;
-import javax.management.MBeanRegistrationException;
 import javax.management.MalformedObjectNameException;
 import javax.management.NotCompliantMBeanException;
 import javax.management.ObjectName;
@@ -35,7 +33,7 @@ public interface PipelineMBean {
         private final Timer timer;
 
         public Implementation(String name)
-                        throws NotCompliantMBeanException, MalformedObjectNameException, InstanceAlreadyExistsException, MBeanRegistrationException {
+                        throws NotCompliantMBeanException {
             super(PipelineMBean.class);
             this.name = name;
             Object metricidentity = name != null ? name : String.class;

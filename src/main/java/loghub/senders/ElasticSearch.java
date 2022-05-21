@@ -205,11 +205,7 @@ public class ElasticSearch extends AbstractHttpSender {
         checkIndices(indices);
 
         // We can go on with the documents creations
-        try {
-            request.setTypeAndContent(ContentType.APPLICATION_JSON, os -> putContent(documents, tosend, os));
-        } catch (IOException e) {
-            throw new SendException(e);
-        }
+        request.setTypeAndContent(ContentType.APPLICATION_JSON, os -> putContent(documents, tosend, os));
         request.setVerb("POST");
         Function<JsonNode, Map<String, ? extends Object>> reader;
         reader = node -> {
@@ -404,15 +400,11 @@ public class ElasticSearch extends AbstractHttpSender {
             filePart.append(i);
             filePart.append("-000001");
             HttpRequest request = new HttpRequest().setVerb("PUT");
-            try {
-                request.setTypeAndContent(ContentType.APPLICATION_JSON, os -> {
-                    Map<String, Object> index = Collections.singletonMap(i, Collections.emptyMap());
-                    Map<String, Object> body = Collections.singletonMap("aliases", index);
-                    os.write(json.writeValueAsBytes(body));
-                });
-            } catch (IOException e) {
-                throw new SendException(e);
-            }
+            request.setTypeAndContent(ContentType.APPLICATION_JSON, os -> {
+                Map<String, Object> index = Collections.singletonMap(i, Collections.emptyMap());
+                Map<String, Object> body = Collections.singletonMap("aliases", index);
+                os.write(json.writeValueAsBytes(body));
+            });
             doquery(request, filePart.toString(), transform, Collections.emptyMap(), null);
         }
     }

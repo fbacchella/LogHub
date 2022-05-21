@@ -1,6 +1,5 @@
 package loghub.zmq;
 
-import java.io.IOException;
 import java.security.KeyStore.PrivateKeyEntry;
 import java.security.cert.Certificate;
 import java.util.Locale;
@@ -289,7 +288,7 @@ public class ZMQHandler<M> implements AutoCloseable {
         }
     }
 
-    public void stopRunning() throws IOException, ZMQCheckedException {
+    public void stopRunning() throws ZMQCheckedException {
         if (isRunning()) {
             logger.trace("Stop handling messages");
             running = false;
@@ -311,7 +310,7 @@ public class ZMQHandler<M> implements AutoCloseable {
         } else {
             try {
                 stopRunning();
-            } catch (IOException | ZMQCheckedException ex) {
+            } catch (ZMQCheckedException ex) {
                 logger.error("Failed to handle interrupt: {}", Helpers.resolveThrowableException(ex), ex);
             }
         }

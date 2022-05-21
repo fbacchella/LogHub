@@ -1,6 +1,5 @@
 package loghub.receivers;
 
-import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 
@@ -111,7 +110,7 @@ public class ZMQ extends Receiver {
     public void close() {
         try {
             handler.stopRunning();
-        } catch (IOException | ZMQCheckedException ex) {
+        } catch (ZMQCheckedException ex) {
             logger.error("Failed ZMQ socket close : {}", Helpers.resolveThrowableException(ex));
             logger.catching(Level.DEBUG, ex);
         }
@@ -121,7 +120,7 @@ public class ZMQ extends Receiver {
     public void stopReceiving() {
         try {
             handler.stopRunning();
-        } catch (IOException | ZMQCheckedException ex) {
+        } catch (ZMQCheckedException ex) {
             logger.error("Failed receiver ZMQ stop : {}", Helpers.resolveThrowableException(ex));
             logger.catching(Level.DEBUG, ex);
         }

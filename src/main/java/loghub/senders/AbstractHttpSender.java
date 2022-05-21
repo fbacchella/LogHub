@@ -113,11 +113,11 @@ public abstract class AbstractHttpSender extends Sender {
             headers.clear();
             return this;
         }
-        public HttpRequest setTypeAndContent(ContentType mimeType, byte[] content) throws IOException {
+        public HttpRequest setTypeAndContent(ContentType mimeType, byte[] content) {
             this.content = HttpEntities.createGzipped(content, mimeType.realType);
             return this;
         }
-        public HttpRequest setTypeAndContent(ContentType mimeType, ContentWriter source) throws IOException {
+        public HttpRequest setTypeAndContent(ContentType mimeType, ContentWriter source) {
             IOCallback<OutputStream> cp = source::writeTo;
             content = HttpEntities.createGzipped(cp, mimeType.realType);
             return this;
@@ -219,8 +219,7 @@ public abstract class AbstractHttpSender extends Sender {
 
     public class Implementation extends StandardMBean implements HttpClientStatsMBean {
         private final ConnPoolControl<HttpRoute> pool;
-        public Implementation(ConnPoolControl<HttpRoute> pool)
-                        throws NotCompliantMBeanException, MalformedObjectNameException, InstanceAlreadyExistsException, MBeanRegistrationException {
+        public Implementation(ConnPoolControl<HttpRoute> pool) throws NotCompliantMBeanException {
             super(HttpClientStatsMBean.class);
             this.pool = pool;
         }

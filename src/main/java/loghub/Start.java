@@ -222,7 +222,7 @@ public class Start {
         @Parameter(names = {"--signfile", "-f"}, description = "The jwt token to sign")
         private String signfile = null;
 
-        void process(JWTHandler handler) throws IOException {
+        void process(JWTHandler handler) {
             if (sign) {
                 sign(signfile, handler);
             } else if (generate) {

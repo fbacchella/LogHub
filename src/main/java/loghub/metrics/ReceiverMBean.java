@@ -2,8 +2,6 @@ package loghub.metrics;
 
 import java.util.Hashtable;
 
-import javax.management.InstanceAlreadyExistsException;
-import javax.management.MBeanRegistrationException;
 import javax.management.MalformedObjectNameException;
 import javax.management.NotCompliantMBeanException;
 import javax.management.ObjectName;
@@ -32,7 +30,7 @@ public interface ReceiverMBean {
         private final Meter exception;
         private final Receiver r;
         public Implementation(Receiver r)
-                        throws NotCompliantMBeanException, MalformedObjectNameException, InstanceAlreadyExistsException, MBeanRegistrationException {
+                        throws NotCompliantMBeanException {
             super(ReceiverMBean.class);
             Object metricidentity = r != null ? r : Receiver.class;
             count = Stats.getMetric(Meter.class, metricidentity, Stats.METRIC_RECEIVER_COUNT);

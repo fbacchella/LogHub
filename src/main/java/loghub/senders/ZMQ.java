@@ -1,6 +1,5 @@
 package loghub.senders;
 
-import java.io.IOException;
 import java.util.Locale;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.SynchronousQueue;
@@ -143,7 +142,7 @@ public class ZMQ extends Sender {
         try {
             logger.trace("Stopping handler {}", handler);
             handler.stopRunning();
-        } catch (IOException | ZMQCheckedException ex) {
+        } catch (ZMQCheckedException ex) {
             logger.error("Failed to stop ZMQ handler: {}", Helpers.resolveThrowableException(ex));
             logger.catching(Level.DEBUG, ex);
         }
@@ -184,7 +183,7 @@ public class ZMQ extends Sender {
         } else {
             try {
                 handler.stopRunning();
-            } catch (IOException | ZMQCheckedException ex) {
+            } catch (ZMQCheckedException ex) {
                 logger.error("Failed to interrupt ZMQ handler: {}", Helpers.resolveThrowableException(ex));
                 logger.catching(Level.DEBUG, ex);
             }

@@ -117,7 +117,7 @@ public class EventsRepository<KEY> {
         awake(key, i -> i.onException, i -> i.exceptionTransform);
     }
 
-    private void awake(KEY key, Function<PausedEvent<KEY>, Processor> source, Function<PausedEvent<KEY>, Function<Event, Event>> transform) throws InterruptedException {
+    private void awake(KEY key, Function<PausedEvent<KEY>, Processor> source, Function<PausedEvent<KEY>, Function<Event, Event>> transform) {
         PauseContext<KEY> ctx = allPaused.remove(key);
         if (ctx == null) {
             return;
