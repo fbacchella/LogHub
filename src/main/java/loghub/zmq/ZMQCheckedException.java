@@ -1,9 +1,6 @@
 package loghub.zmq;
 
 import java.io.IOException;
-import java.net.SocketException;
-import java.nio.channels.ClosedByInterruptException;
-import java.nio.channels.ClosedChannelException;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.Logger;
@@ -36,7 +33,7 @@ public class ZMQCheckedException extends Exception {
         super(filterCause(e));
         if (e instanceof ZError.IOException) {
             IOException cause = (java.io.IOException) e.getCause();
-            error = ZMQ.Error.findByCode(exccode(cause));
+            error = ZMQ.Error.findByCode(ZError.exccode(cause));
         } else if (e instanceof ZError.CtxTerminatedException) {
             error = ZMQ.Error.ETERM;
         } else if (e instanceof ZError.InstantiationException) {
@@ -63,18 +60,6 @@ public class ZMQCheckedException extends Exception {
 
     public ZMQCheckedException(ZMQ.Error error) {
         this.error = error;
-    }
-
-    private static int exccode(java.io.IOException e) {
-        if (e instanceof SocketException) {
-            return ZError.ESOCKET;
-        } else if (e instanceof ClosedByInterruptException) {
-            return ZError.EINTR;
-        } else if (e instanceof ClosedChannelException) {
-            return ZError.ENOTCONN;
-        } else {
-            return ZError.EIOEXC;
-        }
     }
 
     public ZMQ.Error getError() {
