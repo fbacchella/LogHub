@@ -2,6 +2,7 @@ package loghub.senders;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -399,7 +400,7 @@ public abstract class Sender extends Thread implements Closeable {
             throw t;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-        } catch (SendException | EncodeException | IOException ex) {
+        } catch (SendException | EncodeException | IOException | UncheckedIOException ex) {
             Stats.failedSentEvent(this, ex, event);
             logger.error("Sending exception: {}", Helpers.resolveThrowableException(ex));
             logger.catching(Level.DEBUG, ex);
