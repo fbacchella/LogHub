@@ -120,9 +120,7 @@ public class File extends Sender {
                          Helpers.resolveThrowableException(e));
             logger.catching(Level.DEBUG, e);
             return false;
-        } catch (Exception e) {
-            return false;
-        } 
+        }
     }
 
     @Override

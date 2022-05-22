@@ -102,21 +102,27 @@ public class TestFile {
     }
 
     @Test(timeout=2000)
+    public void testEncodeError() throws IOException, InterruptedException, EncodeException {
+        outFile = Paths.get(folder.getRoot().getCanonicalPath(), "file1").toAbsolutePath().toString();
+        EvalExpression.Builder builder1 = EvalExpression.getBuilder();
+        builder1.setFormat(new loghub.Expression("${message%s}"));
+
+        File.Builder fb = File.getBuilder();
+        fb.setFileName(outFile);
+        SenderTools.send(fb);
+    }
+
+    @Test(timeout=2000)
     public void testFailing() throws IOException, InterruptedException, SendException, EncodeException {
         @SuppressWarnings("resource")
         File fsend = send(i -> {}, -1, false);
-        new java.io.File(fsend.getName()).setWritable(false, false);
         Files.setPosixFilePermissions(fsend.getFileName(), Collections.emptySet());
         Event ev = Tools.getEvent();
         ev.put("message", 2);
         fsend.close();
         fsend.send(ev);
         Thread.sleep(100);
-        Assert.assertEquals(1, Stats.getMetric(Meter.class, Sender.class, "failedSend").getCount());
-        Assert.assertEquals(0, Stats.getMetric(Meter.class, String.class, "failed").getCount());
-        Assert.assertEquals(0, Stats.getMetric(Meter.class, Receiver.class, "failedDecode").getCount());
-        Assert.assertEquals(1, Stats.getMetric(Meter.class, Sender.class, "failedSend").getCount());
-        Assert.assertEquals(1, Stats.getSenderError().size());
+        Assert.assertEquals(1, Stats.getFailed());
         Assert.assertEquals(1, Stats.getSenderError().size());
         Assert.assertTrue(Stats.getSenderError().contains("Closed channel"));
         Assert.assertEquals(1L, Stats.getFailed());

@@ -27,6 +27,7 @@ import loghub.Event;
 import loghub.LogUtils;
 import loghub.Tools;
 import loghub.configuration.Properties;
+import loghub.encoders.EncodeException;
 import loghub.encoders.ToJson;
 
 public class TestTcp {
@@ -104,6 +105,15 @@ public class TestTcp {
         content.get(dst);
         String message = new String(dst, StandardCharsets.UTF_8);
         Assert.assertEquals("{\"message\":1}\n\r{\"message\":2}\n\r", message);
+    }
+
+    @Test(timeout=2000)
+    public void testEncodeError() throws IOException, InterruptedException, EncodeException {
+        Tcp.Builder builder = Tcp.getBuilder();
+        builder.setDestination("localhost");
+        builder.setPort(port);
+        builder.setSeparator("\n\r");
+        SenderTools.send(builder);
     }
 
     @Test

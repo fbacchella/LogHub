@@ -38,6 +38,7 @@ import loghub.Tools;
 import loghub.ZMQFactory;
 import loghub.ZMQSink;
 import loghub.configuration.Properties;
+import loghub.encoders.EncodeException;
 import loghub.encoders.ToJson;
 import loghub.zmq.ZMQCheckedException;
 import loghub.zmq.ZMQHelper.Method;
@@ -186,6 +187,15 @@ public class TestZMQSender {
         },
                s -> s.setMethod(Method.CONNECT).setKeyEntry(tctxt.getFactory().getKeyEntry()).setServerKey(getRemoteIdentity("server")).setSecurity("Curve"),
                         "(\\{\"message\":\\d+\\})+");
+    }
+
+    @Test(timeout=2000)
+    public void testEncodeError() throws IOException, InterruptedException, EncodeException {
+        ZMQ.Builder builder = ZMQ.getBuilder();
+        builder.setEncoder(ToJson.getBuilder().build());
+        builder.setType(Sockets.PUSH.name());
+        builder.setDestination("tcp://localhost:" + Tools.tryGetPort());
+        SenderTools.send(builder);
     }
 
     @Test
