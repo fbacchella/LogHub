@@ -24,7 +24,7 @@ import loghub.LogUtils;
 import loghub.Tools;
 import loghub.configuration.Properties;
 import loghub.encoders.EncodeException;
-import loghub.encoders.StringField;
+import loghub.encoders.EvalExpression;
 import loghub.metrics.Stats;
 
 public class TestFile {
@@ -59,9 +59,9 @@ public class TestFile {
 
     private File send(Consumer<File.Builder> prepare, long expectedSize, boolean close) throws IOException, InterruptedException {
         outFile = Paths.get(folder.getRoot().getCanonicalPath(), "file1").toAbsolutePath().toString();
-        StringField.Builder builder1 = StringField.getBuilder();
-        builder1.setFormat("${message%s}");
-        StringField sf = builder1.build();
+        EvalExpression.Builder builder1 = EvalExpression.getBuilder();
+        builder1.setFormat(new loghub.Expression("${message%s}"));
+        EvalExpression sf = builder1.build();
 
         File.Builder fb = File.getBuilder();
         fb.setFileName(outFile);
@@ -102,20 +102,6 @@ public class TestFile {
     public void testOkSeparator() throws IOException, InterruptedException {
         send(i -> {i.setTruncate(true) ; i.setSeparator("\n");}, 2, true);
         send(i -> i.setTruncate(true), 1, true);
-    }
-
-    @Test
-    public void testBrokenFormatter() throws InterruptedException, IOException {
-        outFile = Paths.get(folder.getRoot().getCanonicalPath(), "file1").toAbsolutePath().toString();
-        StringField.Builder builder1 = StringField.getBuilder();
-        builder1.setFormat("${");
-        StringField sf = builder1.build();
-        File.Builder builder = File.getBuilder();
-        builder.setFileName(outFile);
-        builder.setEncoder(sf);
-        File fsend = builder.build();
-        fsend.setInQueue(queue);
-        Assert.assertFalse(fsend.configure(new Properties(Collections.emptyMap())));
     }
 
     @Test(timeout=2000)

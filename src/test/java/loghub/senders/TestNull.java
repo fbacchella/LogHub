@@ -23,7 +23,7 @@ import loghub.LogUtils;
 import loghub.Tools;
 import loghub.configuration.Properties;
 import loghub.encoders.Encoder;
-import loghub.encoders.StringField;
+import loghub.encoders.EvalExpression;
 
 public class TestNull {
 
@@ -71,9 +71,9 @@ public class TestNull {
 
     @Test
     public void testEncode() throws InterruptedException {
-        StringField.Builder builder1 = StringField.getBuilder();
-        builder1.setFormat("${message%s}");
-        StringField sf = builder1.build();
+        EvalExpression.Builder builder1 = EvalExpression.getBuilder();
+        builder1.setFormat(new loghub.Expression("${message%s}"));
+        EvalExpression sf = builder1.build();
 
         send(b -> b.setEncode(true), sf);
         Assert.assertTrue(queue.isEmpty());
