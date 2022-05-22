@@ -114,7 +114,6 @@ jobs:
                     echo "publishing jobs: $PUBLISH"
                     mvn -B $PUBLISH -Pskip -Dmaven.test.skip=true -s .circleci/settings.xml
                 environment:
-                    JAVA_HOME: /usr/local/openjdk-18
                     MAVEN_OPTS: "-Dorg.slf4j.simpleLogger.log.org.apache.maven.plugins.shade=ERROR -Xmx2048m"
             - store_artifacts:
                 path: /home/circleci/.m2/repository/fr/loghub/loghub
