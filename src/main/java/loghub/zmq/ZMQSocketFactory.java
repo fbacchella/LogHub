@@ -23,6 +23,7 @@ import java.security.cert.CertificateException;
 import java.security.spec.InvalidKeySpecException;
 import java.util.Map;
 
+import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.zeromq.SocketType;
@@ -106,6 +107,11 @@ public class ZMQSocketFactory implements AutoCloseable {
         logger.debug("New ZMQ socket factory instance");
         context = new ZContext(numSocket);
         context.setLinger(linger);
+        context.setNotificationExceptionHandler((t, e) -> {
+            logger.warn("Handler exception in poller: {}", () -> Helpers.resolveThrowableException(e));
+            logger.catching(Level.DEBUG, e);
+        });
+
         terminator = ThreadBuilder.get()
                                   .setDaemon(true)
                                   .setName("ZMQTerminator")
@@ -202,6 +208,10 @@ public class ZMQSocketFactory implements AutoCloseable {
 
     public ZPoller getZPoller() {
         return new ZPoller(context);
+    }
+    
+    public void setExceptionHandler(Thread.UncaughtExceptionHandler handler) {
+        context.setUncaughtExceptionHandler(handler);
     }
 
     @Accessors(chain=true)
