@@ -1,5 +1,6 @@
 package loghub.senders;
 
+import java.beans.IntrospectionException;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -18,6 +19,9 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import com.codahale.metrics.Meter;
+
+import loghub.BeanChecks;
 import loghub.ConnectionContext;
 import loghub.Event;
 import loghub.LogUtils;
@@ -26,6 +30,7 @@ import loghub.configuration.Properties;
 import loghub.encoders.EncodeException;
 import loghub.encoders.EvalExpression;
 import loghub.metrics.Stats;
+import loghub.receivers.Receiver;
 
 public class TestFile {
 
@@ -35,19 +40,11 @@ public class TestFile {
     static public void configure() throws IOException {
         Tools.configure();
         logger = LogManager.getLogger();
-        LogUtils.setLevel(logger, Level.TRACE, "loghub.senders.File", "loghub.encoders.StringField");
+        LogUtils.setLevel(logger, Level.TRACE, "loghub.senders.File", "loghub.encoders");
     }
 
     @Rule
-    public TemporaryFolder folder;
-    {
-        try {
-            folder = new TemporaryFolder();
-        } catch (Exception e) {
-            e.printStackTrace();
-            throw e;
-        }
-    }
+    public TemporaryFolder folder = new TemporaryFolder();
 
     private String outFile;
     private final ArrayBlockingQueue<Event> queue = new ArrayBlockingQueue<>(10);
@@ -106,15 +103,32 @@ public class TestFile {
 
     @Test(timeout=2000)
     public void testFailing() throws IOException, InterruptedException, SendException, EncodeException {
+        @SuppressWarnings("resource")
         File fsend = send(i -> {}, -1, false);
         new java.io.File(fsend.getName()).setWritable(false, false);
-        Files.setPosixFilePermissions(Paths.get(fsend.getFileName()), Collections.emptySet());
+        Files.setPosixFilePermissions(fsend.getFileName(), Collections.emptySet());
         Event ev = Tools.getEvent();
         ev.put("message", 2);
         fsend.close();
         fsend.send(ev);
         Thread.sleep(100);
+        Assert.assertEquals(1, Stats.getMetric(Meter.class, Sender.class, "failedSend").getCount());
+        Assert.assertEquals(0, Stats.getMetric(Meter.class, String.class, "failed").getCount());
+        Assert.assertEquals(0, Stats.getMetric(Meter.class, Receiver.class, "failedDecode").getCount());
+        Assert.assertEquals(1, Stats.getMetric(Meter.class, Sender.class, "failedSend").getCount());
+        Assert.assertEquals(1, Stats.getSenderError().size());
+        Assert.assertEquals(1, Stats.getSenderError().size());
+        Assert.assertTrue(Stats.getSenderError().contains("Closed channel"));
         Assert.assertEquals(1L, Stats.getFailed());
+    }
+
+    @Test
+    public void test_loghub_senders_File() throws IntrospectionException, ReflectiveOperationException {
+        BeanChecks.beansCheck(logger, "loghub.senders.File"
+                , BeanChecks.BeanInfo.build("fileName", String.class)
+                , BeanChecks.BeanInfo.build("truncate", Boolean.TYPE)
+                , BeanChecks.BeanInfo.build("separator", String.class)
+        );
     }
 
 }

@@ -1,27 +1,34 @@
 package loghub.senders;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.channels.AsynchronousFileChannel;
 import java.nio.channels.CompletionHandler;
 import java.nio.channels.NonWritableChannelException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.OpenOption;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.logging.log4j.Level;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
 import loghub.BuilderClass;
+import loghub.CanBatch;
 import loghub.Event;
 import loghub.Helpers;
+import loghub.ThreadBuilder;
 import loghub.configuration.Properties;
 import loghub.encoders.EncodeException;
 import lombok.Getter;
 import lombok.Setter;
 
 @AsyncSender
+@CanBatch
 @BuilderClass(File.Builder.class)
 public class File extends Sender {
 
@@ -41,7 +48,7 @@ public class File extends Sender {
         return new Builder();
     }
   
-    private final CompletionHandler<Integer, Event> handler = new CompletionHandler<Integer, Event>() {
+    private final CompletionHandler<Integer, Event> handler = new CompletionHandler<>() {
 
         @Override
         public void completed(Integer result, Event event) {
@@ -56,7 +63,7 @@ public class File extends Sender {
     };
 
     @Getter
-    private final String fileName;
+    private final Path fileName;
     private final byte[] separatorBytes;
     private final boolean truncate;
 
@@ -65,26 +72,31 @@ public class File extends Sender {
 
     public File(Builder builder) {
         super(builder);
-        if (builder.separator.length() > 0) {
+        if (! builder.separator.isEmpty()) {
             separatorBytes = builder.separator.getBytes(StandardCharsets.UTF_8);
         } else {
             separatorBytes = new byte[] {};
         }
-        fileName = builder.fileName;
+        fileName = Paths.get(builder.fileName);
         truncate = builder.truncate;
     }
 
     @Override
     public boolean configure(Properties properties) {
+        ExecutorService executor = Executors.newCachedThreadPool(ThreadBuilder.get()
+                                                                              .setDaemon(true)
+                                                                              .getFactory("AsyncIO"));
+        Set<OpenOption> optionsSet = Set.of(StandardOpenOption.WRITE, StandardOpenOption.CREATE);
+
         try {
-            destination = AsynchronousFileChannel.open(Paths.get(fileName), StandardOpenOption.WRITE, StandardOpenOption.CREATE);
-            // Failed to used StandardOpenOption.(APPEND vs CREATE), so truncate if need after creation
+            destination = AsynchronousFileChannel.open(fileName, optionsSet, executor);
+            // Failed to used StandardOpenOption.(APPEND vs CREATE), so truncate it if needed after creation
             if (truncate) {
                 destination.truncate(0);
             }
             position = new AtomicLong(destination.size());
         } catch (IOException | UnsupportedOperationException e) {
-            logger.error("error openening output file {}: {}", fileName, Helpers.resolveThrowableException(e));
+            logger.error("error opening output file {}: {}", () -> fileName, () -> Helpers.resolveThrowableException(e));
             logger.catching(Level.DEBUG, e);
             return false;
         }
@@ -95,25 +107,37 @@ public class File extends Sender {
     public boolean send(Event event) throws SendException, EncodeException {
         try {
             byte[] msg = getEncoder().encode(event);
-            ByteBuf buffer = Unpooled.buffer(msg.length
-                                             + separatorBytes.length);
-            buffer.writeBytes(msg);
-            buffer.writeBytes(separatorBytes);
-            long writepose = position.getAndAdd(msg.length
+            ByteBuffer buffer = ByteBuffer.allocate(msg.length + separatorBytes.length) ;
+            buffer.put(msg);
+            buffer.put(separatorBytes);
+            buffer.flip();
+            long writepos = position.getAndAdd((long)msg.length
                                                 + separatorBytes.length);
-            destination.write(buffer.nioBuffer(), writepose, event,
-                              handler);
+            destination.write(buffer, writepos, event, handler);
             return true;
         } catch (IllegalArgumentException | NonWritableChannelException e) {
             logger.error("error writing event to {}: {}", fileName,
                          Helpers.resolveThrowableException(e));
             logger.catching(Level.DEBUG, e);
             return false;
+        } catch (Exception e) {
+            return false;
         } 
     }
 
-
     @Override
+    protected void flush(Batch batch) {
+        batch.forEach(ev -> {
+            try {
+                boolean status = send(ev.getEvent());
+                ev.complete(status);
+            } catch (SendException | EncodeException ex) {
+                ev.completeExceptionally(ex);
+            }
+        });
+    }
+
+   @Override
     public void customStopSending() {
         if (destination.isOpen()) {
             try {
@@ -122,8 +146,7 @@ public class File extends Sender {
                 destination.force(true);
                 destination.close();
             } catch (IOException e) {
-                logger.error("Failed to close {}: {}", fileName,
-                             Helpers.resolveThrowableException(e));
+                logger.error("Failed to close {}: {}", () -> fileName, () -> Helpers.resolveThrowableException(e));
                 logger.catching(Level.DEBUG, e);
             } 
         }
