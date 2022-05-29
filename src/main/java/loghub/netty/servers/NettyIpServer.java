@@ -22,10 +22,10 @@ import io.netty.handler.ssl.SslHandler;
 import io.netty.util.AttributeKey;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
-import loghub.netty.ComponentFactory;
+import loghub.netty.AbstractHandler;
 import loghub.security.ssl.ClientAuthentication;
 
-public abstract class NettyIpServer<CF extends ComponentFactory<BS, BSC, InetSocketAddress>,
+public abstract class NettyIpServer<CF extends AbstractHandler<BS, BSC, InetSocketAddress>,
                                     BS extends AbstractBootstrap<BS, BSC>,
                                     BSC extends Channel,
                                     SC extends Channel,

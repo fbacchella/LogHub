@@ -25,7 +25,7 @@ public abstract class AbstractTcpReceiver<R extends AbstractTcpReceiver<R, S, B,
                                           S extends AbstractTcpServer<S, B>,
                                           B extends AbstractTcpServer.Builder<S, B>,
                                           SM
-                                         > extends NettyIpReceiver<R, S, B, TcpFactory, ServerBootstrap, ServerChannel, ServerSocketChannel, SocketChannel, SM> {
+                                         > extends NettyIpReceiver<R, S, B, TcpServerHandler, ServerBootstrap, ServerChannel, ServerSocketChannel, SocketChannel, SM> {
 
     public abstract static class Builder<B extends AbstractTcpReceiver<?, ?, ?, ?>> extends NettyIpReceiver.Builder<B> {
         @Setter

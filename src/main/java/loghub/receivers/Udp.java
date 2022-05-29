@@ -18,7 +18,7 @@ import loghub.configuration.Properties;
 import loghub.netty.BaseChannelConsumer;
 import loghub.netty.ConsumerProvider;
 import loghub.netty.NettyIpReceiver;
-import loghub.netty.UdpFactory;
+import loghub.netty.UdpHandler;
 import loghub.netty.servers.UdpServer;
 import lombok.Getter;
 import lombok.Setter;
@@ -26,8 +26,7 @@ import lombok.Setter;
 @BuilderClass(Udp.Builder.class)
 public class Udp extends NettyIpReceiver<Udp,
                                          UdpServer,
-                                         UdpServer.Builder,
-                                         UdpFactory, 
+                                         UdpServer.Builder, UdpHandler,
                                          Bootstrap,
                                          Channel,
                                          DatagramChannel,

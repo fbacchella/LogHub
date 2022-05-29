@@ -39,7 +39,6 @@ import loghub.Tools;
 import loghub.configuration.Properties;
 import loghub.decoders.StringCodec;
 import loghub.netty.servers.AbstractNettyServer;
-import loghub.netty.servers.ServerFactory;
 
 public class TestServer {
 
@@ -60,8 +59,8 @@ public class TestServer {
         }
     };
 
-    private static class TesterFactory extends ServerFactory<LocalChannel, LocalAddress> {
-        public TesterFactory() {
+    private static class TesterHandler extends ServerHandler<LocalChannel, LocalAddress> {
+        public TesterHandler() {
             super(POLLER.DEFAULTPOLLER);
         }
 
@@ -76,7 +75,7 @@ public class TestServer {
         }
     };
 
-    private static class TesterServer extends AbstractNettyServer<TesterFactory, ServerBootstrap, ServerChannel, LocalServerChannel, LocalAddress, TesterServer, TesterServer.Builder> {
+    private static class TesterServer extends AbstractNettyServer<TesterHandler, ServerBootstrap, ServerChannel, LocalServerChannel, LocalAddress, TesterServer, TesterServer.Builder> {
 
         public static class Builder extends  AbstractNettyServer.Builder<TesterServer, TesterServer.Builder, ServerBootstrap, ServerChannel> {
             public TesterServer build() throws IllegalStateException, InterruptedException {
@@ -91,8 +90,8 @@ public class TestServer {
         }
 
         @Override
-        protected TesterFactory getNewFactory() {
-            return new TesterFactory();
+        protected TesterHandler getNewFactory() {
+            return new TesterHandler();
         }
 
         @Override
@@ -117,7 +116,7 @@ public class TestServer {
     }
 
     @CloseOnError
-    private static class TesterReceiver extends NettyReceiver<TesterReceiver, TesterServer, TesterServer.Builder, TesterFactory, ServerBootstrap, ServerChannel, LocalServerChannel, LocalChannel, LocalAddress, Object>
+    private static class TesterReceiver extends NettyReceiver<TesterReceiver, TesterServer, TesterServer.Builder, TesterHandler, ServerBootstrap, ServerChannel, LocalServerChannel, LocalChannel, LocalAddress, Object>
                                         implements ConsumerProvider<TesterReceiver, ServerBootstrap, ServerChannel>{
 
         public static class Builder extends NettyReceiver.Builder<TesterReceiver> {

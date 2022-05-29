@@ -14,7 +14,8 @@ import io.netty.channel.ChannelInitializer;
 import io.netty.channel.EventLoopGroup;
 import loghub.netty.servers.AbstractNettyServer;
 
-public abstract class ClientFactory<CC extends Channel, SA extends SocketAddress> extends ComponentFactory<Bootstrap, Channel, SA> {
+public abstract class ClientHandler<CC extends Channel, SA extends SocketAddress> extends
+        AbstractHandler<Bootstrap, Channel, SA> {
 
     private static final Logger logger = LogManager.getLogger();
 
@@ -22,7 +23,7 @@ public abstract class ClientFactory<CC extends Channel, SA extends SocketAddress
     private Bootstrap bootstrap;
 
 
-    public ClientFactory(POLLER poller) {
+    public ClientHandler(POLLER poller) {
         super(poller);
     }
 
@@ -56,7 +57,7 @@ public abstract class ClientFactory<CC extends Channel, SA extends SocketAddress
                 try {
                     server.addHandlers(ch.pipeline());
                     source.addHandlers(ch.pipeline());
-                    ClientFactory.this.addErrorHandler(ch.pipeline(), logger);
+                    ClientHandler.this.addErrorHandler(ch.pipeline(), logger);
                 } catch (Exception e) {
                     loghub.metrics.Stats.newUnhandledException(e);
                     logger.error("Netty handler failed: {}", e.getMessage());

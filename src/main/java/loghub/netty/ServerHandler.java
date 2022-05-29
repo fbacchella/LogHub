@@ -1,4 +1,4 @@
-package loghub.netty.servers;
+package loghub.netty;
 
 import java.net.SocketAddress;
 import java.util.concurrent.ThreadFactory;
@@ -14,17 +14,16 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.channel.ServerChannel;
 import loghub.Helpers;
 import loghub.Start;
-import loghub.netty.ChannelConsumer;
-import loghub.netty.ComponentFactory;
-import loghub.netty.POLLER;
+import loghub.netty.servers.AbstractNettyServer;
 
-public abstract class ServerFactory<CC extends Channel, SA extends SocketAddress> extends ComponentFactory<ServerBootstrap, ServerChannel, SA> {
+public abstract class ServerHandler<CC extends Channel, SA extends SocketAddress> extends
+        AbstractHandler<ServerBootstrap, ServerChannel, SA> {
 
     private EventLoopGroup bossGroup;
     private EventLoopGroup workerGroup;
     private ServerBootstrap bootstrap;
 
-    public ServerFactory(POLLER poller) {
+    public ServerHandler(POLLER poller) {
         super(poller);
     }
 
@@ -59,7 +58,7 @@ public abstract class ServerFactory<CC extends Channel, SA extends SocketAddress
                 if (server != source) {
                     source.addHandlers(ch.pipeline());
                 }
-                ServerFactory.this.addErrorHandler(ch.pipeline(), logger);
+                ServerHandler.this.addErrorHandler(ch.pipeline(), logger);
             }
 
             @Override

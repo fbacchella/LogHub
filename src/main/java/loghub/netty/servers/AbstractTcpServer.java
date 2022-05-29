@@ -12,11 +12,11 @@ import io.netty.channel.ServerChannel;
 import io.netty.channel.epoll.EpollChannelOption;
 import io.netty.channel.socket.ServerSocketChannel;
 import loghub.netty.POLLER;
-import loghub.netty.TcpFactory;
+import loghub.netty.TcpServerHandler;
 
 public class AbstractTcpServer<S extends AbstractTcpServer<S, B>,
                                B extends AbstractTcpServer.Builder<S, B>
-                              > extends NettyIpServer<TcpFactory, ServerBootstrap, ServerChannel, ServerSocketChannel, S, B> {
+                              > extends NettyIpServer<TcpServerHandler, ServerBootstrap, ServerChannel, ServerSocketChannel, S, B> {
 
     public abstract static class Builder<S extends AbstractTcpServer<S, B>,
                                          B extends AbstractTcpServer.Builder<S, B>
@@ -68,8 +68,8 @@ public class AbstractTcpServer<S extends AbstractTcpServer<S, B>,
     }
 
     @Override
-    protected TcpFactory getNewFactory() {
-        return new TcpFactory(poller);
+    protected TcpServerHandler getNewFactory() {
+        return new TcpServerHandler(poller);
     }
 
     @Override

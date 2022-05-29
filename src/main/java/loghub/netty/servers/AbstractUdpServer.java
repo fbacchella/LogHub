@@ -14,11 +14,11 @@ import io.netty.channel.FixedRecvByteBufAllocator;
 import io.netty.channel.socket.DatagramChannel;
 import io.netty.channel.unix.UnixChannelOption;
 import loghub.netty.POLLER;
-import loghub.netty.UdpFactory;
+import loghub.netty.UdpHandler;
 
 public class AbstractUdpServer<S extends AbstractUdpServer<S, B>,
                                B extends AbstractUdpServer.Builder<S, B>
-                              > extends NettyIpServer<UdpFactory, Bootstrap, Channel, DatagramChannel, S, B> {
+                              > extends NettyIpServer<UdpHandler, Bootstrap, Channel, DatagramChannel, S, B> {
 
     public abstract static class Builder<S extends AbstractUdpServer<S, B>, 
                                          B extends AbstractUdpServer.Builder<S, B>
@@ -38,8 +38,8 @@ public class AbstractUdpServer<S extends AbstractUdpServer<S, B>,
     private Set<Channel> channels;
 
     @Override
-    protected UdpFactory getNewFactory() {
-        return new UdpFactory(poller);
+    protected UdpHandler getNewFactory() {
+        return new UdpHandler(poller);
     }
 
     @Override

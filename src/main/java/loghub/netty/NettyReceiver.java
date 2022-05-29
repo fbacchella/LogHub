@@ -25,7 +25,7 @@ import lombok.Setter;
 public abstract class NettyReceiver<R extends NettyReceiver<R, S, B, CF, BS, BSC, SC, CC, SA, SM>,
                                     S extends AbstractNettyServer<CF, BS, BSC, SC, SA, S, B>,
                                     B extends AbstractNettyServer.Builder<S, B, BS, BSC>,
-                                    CF extends ComponentFactory<BS, BSC, SA>,
+                                    CF extends AbstractHandler<BS, BSC, SA>,
                                     BS extends AbstractBootstrap<BS,BSC>, 
                                     BSC extends Channel,
                                     SC extends Channel,

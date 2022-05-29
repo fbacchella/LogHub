@@ -26,7 +26,7 @@ import loghub.Helpers;
 import loghub.netty.servers.AbstractNettyServer;
 import lombok.Getter;
 
-public abstract class ComponentFactory<BS extends AbstractBootstrap<BS,BSC>, BSC extends Channel, SA extends SocketAddress> {
+public abstract class AbstractHandler<BS extends AbstractBootstrap<BS,BSC>, BSC extends Channel, SA extends SocketAddress> {
 
     @Sharable
     private static class ErrorHandler extends SimpleChannelInboundHandler<Object> {
@@ -37,13 +37,11 @@ public abstract class ComponentFactory<BS extends AbstractBootstrap<BS,BSC>, BSC
 
         @Override
         protected void channelRead0(ChannelHandlerContext ctx,
-                                    Object msg)
-                                                    throws Exception {
+                                    Object msg) {
             logger.warn("Not processed message {}", msg);
         }
         @Override
-        public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause)
-                        throws Exception {
+        public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
             if (cause.getCause() instanceof NotSslRecordException) {
                 logger.warn("Not a SSL connexion from {} on SSL listen", ctx.channel().remoteAddress());
             } else if (cause.getCause() instanceof SSLHandshakeException) {
@@ -70,7 +68,7 @@ public abstract class ComponentFactory<BS extends AbstractBootstrap<BS,BSC>, BSC
     @Getter
     private final POLLER poller;
 
-    public ComponentFactory(POLLER poller) {
+    public AbstractHandler(POLLER poller) {
         this.poller = poller;
     }
 

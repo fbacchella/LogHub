@@ -15,8 +15,8 @@ import io.netty.util.internal.logging.InternalLoggerFactory;
 import io.netty.util.internal.logging.Log4J2LoggerFactory;
 import loghub.Helpers;
 import loghub.ThreadBuilder;
+import loghub.netty.AbstractHandler;
 import loghub.netty.ChannelConsumer;
-import loghub.netty.ComponentFactory;
 import loghub.netty.ConsumerProvider;
 import loghub.netty.POLLER;
 import loghub.security.AuthenticationHandler;
@@ -30,7 +30,7 @@ import loghub.security.AuthenticationHandler;
  * @param <SC>  Server channel
  * @param <SA>  Socket Address
  */
-public abstract class AbstractNettyServer<CF extends ComponentFactory<BS, BSC, SA>,
+public abstract class AbstractNettyServer<CF extends AbstractHandler<BS, BSC, SA>,
                                           BS extends AbstractBootstrap<BS, BSC>,
                                           BSC extends Channel,
                                           SC extends Channel,
