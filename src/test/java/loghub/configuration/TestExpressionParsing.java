@@ -16,6 +16,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -373,16 +375,44 @@ public class TestExpressionParsing {
     public void testArray() throws ExpressionException, ProcessorException {
         Event ev =  Tools.getEvent();
         ev.put("a", new Integer[] { 1, 2, 3});
-        Number i = (Number) evalExpression("[a][0]", ev);
-        Assert.assertEquals(1, i.intValue());
+        Number i = (Number) evalExpression("[a][2]", ev);
+        Assert.assertEquals(3, i.intValue());
+    }
+
+    @Test(expected=IgnoredEventException.class)
+    public void testArrayOutOfBound() throws ExpressionException, ProcessorException {
+        Event ev =  Tools.getEvent();
+        ev.put("a", new Integer[] { 1, 2, 3});
+        evalExpression("[a][3]", ev);
+    }
+
+    @Test
+    public void testList() throws ExpressionException, ProcessorException {
+        Event ev =  Tools.getEvent();
+        ev.put("a", Stream.of(1, 2, 3).collect(Collectors.toList()));
+        Number i = (Number) evalExpression("[a][2]", ev);
+        Assert.assertEquals(3, i.intValue());
+    }
+
+    @Test(expected=IgnoredEventException.class)
+    public void testListOutOfBound() throws ExpressionException, ProcessorException {
+        Event ev =  Tools.getEvent();
+        ev.put("a", Stream.of(1, 2, 3).collect(Collectors.toList()));
+        evalExpression("[a][3]", ev);
+    }
+
+    @Test(expected=IgnoredEventException.class)
+    public void testMissingArray() throws ExpressionException, ProcessorException {
+        Event ev =  Tools.getEvent();
+        ev.put("a", new Integer[] { 1, 2, 3});
+        evalExpression("[b][3]", ev);
     }
 
     @Test(expected=ProcessorException.class)
-    public void testArrayFailed() throws ExpressionException, ProcessorException {
+    public void testNotArray() throws ExpressionException, ProcessorException {
         Event ev =  Tools.getEvent();
-        ev.put("a", new Integer[] { 1, 2, 3});
-        Number i = (Number) evalExpression("[a][3]", ev);
-        Assert.assertEquals(1, i.intValue());
+        ev.put("a", 1);
+        evalExpression("[a][0]", ev);
     }
 
     @Test

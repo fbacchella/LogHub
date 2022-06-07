@@ -11,6 +11,7 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -154,7 +155,6 @@ public class Expression {
     }
 
     public Object eval(Event event) throws ProcessorException {
-
         if (literal != null) {
             // It's a constant expression, no need to evaluate it
             return literal;
@@ -268,6 +268,30 @@ public class Expression {
             return NullOrMissingValue.NULL;
         } else {
             return arg;
+        }
+    }
+
+    public Object getIterableIndex(Object iterable, int index) {
+        if (Object[].class.isAssignableFrom(iterable.getClass())) {
+            Object[] a = (Object[]) iterable;
+            if (a.length > index) {
+                return a[index];
+            } else {
+                throw IgnoredEventException.INSTANCE;
+            }
+        } else if (iterable instanceof List) {
+            List l = (List) iterable;
+            if (l.size() > index) {
+                return l.get(index);
+            } else {
+                throw IgnoredEventException.INSTANCE;
+            }
+        } else if (iterable == null || iterable == NullOrMissingValue.NULL) {
+            return NullOrMissingValue.NULL;
+        } else if (iterable == NullOrMissingValue.MISSING) {
+            throw IgnoredEventException.INSTANCE;
+        } else {
+            throw new IllegalArgumentException("Array operation on not iterable object");
         }
     }
 

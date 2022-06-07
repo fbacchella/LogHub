@@ -24,6 +24,8 @@ public class ExpressionMetaClass extends DelegatingMetaClass {
             return ((Expression) object).nullfilter(arguments[0], arguments[1].toString());
         } else if ("compare".equals(methodName)) {
             return ((Expression) object).compare(arguments[0].toString(), arguments[1], arguments[2]);
+        } else if ("getIterableIndex".equals(methodName)) {
+            return ((Expression) object).getIterableIndex(arguments[0], (Integer)arguments[1]);
         } else {
             assert false;
             return super.invokeMethod(object, methodName, arguments);
