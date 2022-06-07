@@ -458,12 +458,11 @@ public class TestExpressionParsing {
         Assert.assertEquals("c", i);
     }
 
-    @Test
+    @Test(expected = IgnoredEventException.class)
     public void testFailedPatternArray() throws ExpressionException, ProcessorException {
         Event ev =  Tools.getEvent();
         ev.put("a", "abc");
-        Object found = evalExpression("([a] =~ /d.*/)[2]",ev);
-        Assert.assertEquals(null, found);
+        evalExpression("([a] =~ /d.*/)[2]",ev);
     }
 
     @Test
