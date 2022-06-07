@@ -372,6 +372,25 @@ public class TestExpressionParsing {
     }
 
     @Test
+    public void testArrayJoin() throws ExpressionException, ProcessorException {
+        Event ev =  Tools.getEvent();
+        ev.put("a", new Integer[] { 1, 2, 3});
+        ev.put("b", new Integer[] { 4, 5, 6});
+        Object[] i = (Object[]) evalExpression("[a] + [b]", ev);
+        Assert.assertArrayEquals(new Integer[]{1, 2, 3, 4, 5, 6}, i);
+    }
+
+    @Test
+    public void testArrayMixed() throws ExpressionException, ProcessorException {
+        Event ev =  Tools.getEvent();
+        ev.put("a", new Integer[] { 1, 2, 3});
+        ev.put("b", Stream.of(4, 5, 6).collect(Collectors.toList()));
+        ev.put("c", Stream.of(7, 8, 9).collect(Collectors.toSet()));
+        Object[] i = (Object[]) evalExpression("[a] + [b] + [c]", ev);
+        Assert.assertArrayEquals(new Integer[]{1, 2, 3, 4, 5, 6, 7, 8, 9}, i);
+    }
+
+    @Test
     public void testArray() throws ExpressionException, ProcessorException {
         Event ev =  Tools.getEvent();
         ev.put("a", new Integer[] { 1, 2, 3});
