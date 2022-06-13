@@ -2,10 +2,12 @@ package loghub.processors;
 
 import java.io.IOException;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -404,6 +406,40 @@ public class TestEtl {
         CompletableFuture<Event> holder = new CompletableFuture<>();
         Assert.assertThrows(IgnoredEventException.class, () -> RunEtl("[ a b ] @ [ a b ] {0: 1} ", i -> {}, true, holder));
         Assert.assertTrue(holder.get().isEmpty());
+    }
+
+    @Test
+    public void testAppend() throws ProcessorException {
+        Event ev1 =  RunEtl("[a] =+ 1", i -> i.put("a", new int[]{0}));
+        int[] v1 = (int[]) ev1.get("a");
+        Assert.assertEquals(0, v1[0]);
+        Assert.assertEquals(1, v1[1]);
+
+        Event ev1b =  RunEtl("[a] =+ 1", i -> i.put("a", new long[]{0L}));
+        long[] v1b= (long[]) ev1b.get("a");
+        Assert.assertEquals(0L, v1b[0]);
+        Assert.assertEquals(1L, v1b[1]);
+
+        Event ev2 =  RunEtl("[a] =+ 1", i -> i.put("a", new Integer[]{0}));
+        Integer[] v2 = (Integer[]) ev2.get("a");
+        Assert.assertEquals(Integer.valueOf(0), v2[0]);
+        Assert.assertEquals(Integer.valueOf(1), v2[1]);
+
+        Event ev2b =  RunEtl("[a] =+ 1", i -> i.put("a", new Number[]{0L}));
+        Number[] v2b = (Number[]) ev2b.get("a");
+        Assert.assertEquals(Long.valueOf(0), v2b[0]);
+        Assert.assertEquals(Integer.valueOf(1), v2b[1]);
+
+        Event ev3 =  RunEtl("[a] =+ 1", i -> i.put("a", new ArrayList<>(List.of("0"))));
+        List<Object> v3 = (List<Object>) ev3.get("a");
+        Assert.assertEquals("0", v3.get(0));
+        Assert.assertEquals(Integer.valueOf(1), v3.get(1));
+
+        Event ev4 =  RunEtl("[a] =+ 1", i -> i.put("a", "0"));
+        String v4 = (String) ev4.get("a");
+        Assert.assertEquals("01", v4);
+
+        Assert.assertThrows(IgnoredEventException.class, () -> RunEtl("[a] =+ 1", i -> {}, false));
     }
 
 }

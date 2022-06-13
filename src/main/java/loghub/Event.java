@@ -2,6 +2,9 @@ package loghub;
 
 import java.io.Serializable;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
@@ -26,6 +29,7 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
     public static final String INDIRECTMARK = "<-";
 
     public enum Action {
+        APPEND(true, Action::Append),
         GET(false, (i,j,k) -> i.get(j)),
         PUT(false, (i, j, k) -> i.put(j, k)),
         REMOVE(false, (i, j, k) -> i.remove(j)),
@@ -45,6 +49,69 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
                 return (Map<String, Object>)c.get(k);
             } else {
                 return Collections.emptyMap();
+            }
+        }
+        private static boolean Append(Map<String, Object>c , String k, Object v) {
+            if (k == null) {
+                return false;
+            } else if (c.containsKey(k)){
+                Object oldVal = c.get(k);
+                if (oldVal == null || oldVal == NullOrMissingValue.MISSING || oldVal == NullOrMissingValue.NULL) {
+                    return true;
+                } else if (oldVal instanceof String) {
+                    c.put(k, oldVal + v.toString());
+                    return true;
+                } else if (oldVal instanceof Collection) {
+                    ((Collection<Object>) oldVal).add(v);
+                    return true;
+                } else if (oldVal instanceof byte[] && v instanceof Number) {
+                    byte[] oldValArray = (byte[]) oldVal;
+                    byte[] newVal = Arrays.copyOf(oldValArray, oldValArray.length + 1);
+                    newVal[oldValArray.length] = ((Number) v).byteValue();
+                    c.put(k, newVal);
+                    return true;
+                } else if (oldVal instanceof short[] && v instanceof Number) {
+                    short[] oldValArray = (short[]) oldVal;
+                    short[] newVal = Arrays.copyOf(oldValArray, oldValArray.length + 1);
+                    newVal[oldValArray.length] = ((Number) v).shortValue();
+                    c.put(k, newVal);
+                    return true;
+                } else if (oldVal instanceof int[] && v instanceof Number) {
+                    int[] oldValArray = (int[]) oldVal;
+                    int[] newVal = Arrays.copyOf(oldValArray, oldValArray.length + 1);
+                    newVal[oldValArray.length] = ((Number) v).intValue();
+                    c.put(k, newVal);
+                    return true;
+                } else if (oldVal instanceof long[] && v instanceof Number) {
+                    long[] oldValArray = (long[]) oldVal;
+                    long[] newVal = Arrays.copyOf(oldValArray, oldValArray.length + 1);
+                    newVal[oldValArray.length] = ((Number) v).longValue();
+                    c.put(k, newVal);
+                    return true;
+                } else if (oldVal instanceof float[] && v instanceof Number) {
+                    float[] oldValArray = (float[]) oldVal;
+                    float[] newVal = Arrays.copyOf(oldValArray, oldValArray.length + 1);
+                    newVal[oldValArray.length] = ((Number) v).floatValue();
+                    c.put(k, newVal);
+                    return true;
+                } else if (oldVal instanceof double[] && v instanceof Number) {
+                    double[] oldValArray = (double[]) oldVal;
+                    double[] newVal = Arrays.copyOf(oldValArray, oldValArray.length + 1);
+                    newVal[oldValArray.length] = ((Number) v).doubleValue();
+                    c.put(k, newVal);
+                    return true;
+                } else if (oldVal.getClass().isArray() && oldVal.getClass().getComponentType().isAssignableFrom(v.getClass())) {
+                    Object[] oldValArray = (Object[]) oldVal;
+                    Object[] newVal = Arrays.copyOf(oldValArray, oldValArray.length + 1);
+                    newVal[oldValArray.length] = v;
+                    c.put(k, newVal);
+                    return true;
+                } else {
+                    return false;
+                }
+            } else {
+                c.put(k, new ArrayList<>(List.of(v)));
+                return true;
             }
         }
         public final Helpers.TriFunction<Map<String, Object>, String, Object, Object> action;

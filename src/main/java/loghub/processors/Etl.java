@@ -3,6 +3,7 @@ package loghub.processors;
 import loghub.Event;
 import loghub.Event.Action;
 import loghub.Expression;
+import loghub.IgnoredEventException;
 import loghub.Processor;
 import loghub.ProcessorException;
 import loghub.VariablePath;
@@ -46,6 +47,22 @@ public abstract class Etl extends Processor {
             Object o = expression.eval(event);
             event.applyAtPath(Action.PUT, lvalue, o, true);
             return true;
+        }
+    }
+
+    public static class Append extends Etl {
+        @Getter @Setter
+        private Expression expression;
+        @Override
+        public boolean process(Event event) throws ProcessorException {
+            Object o = expression.eval(event);
+            System.err.println("process " + o);
+            Boolean status = (Boolean) event.applyAtPath(Action.APPEND, lvalue, o, false);
+            if (status == null) {
+                throw IgnoredEventException.INSTANCE;
+            } else {
+                return status;
+            }
         }
     }
 

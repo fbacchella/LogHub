@@ -122,6 +122,7 @@ etl
     : eventVariable op='<' s=eventVariable
     | eventVariable op='-'
     | eventVariable op='=' expression
+    | eventVariable op='=+' expression
     | eventVariable op='@' e=expression map
     | op='(' QualifiedIdentifier ')' eventVariable
     ;

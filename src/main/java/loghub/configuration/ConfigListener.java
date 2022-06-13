@@ -800,6 +800,13 @@ class ConfigListener extends RouteBaseListener {
             ((Etl.Assign)etl).setExpression(expression.wrapped);
             break;
         }
+        case("+<"): {
+            @SuppressWarnings("unchecked")
+            ObjectWrapped<Expression> expression = (ObjectWrapped<Expression>) stack.pop();
+            etl = new Etl.Append();
+            ((Etl.Append)etl).setExpression(expression.wrapped);
+            break;
+        }
         case("("): {
             etl = new Etl.Convert();
             ((Etl.Convert)etl).setClassName(ctx.QualifiedIdentifier().getText());
