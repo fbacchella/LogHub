@@ -1,13 +1,14 @@
 package loghub.processors;
 
 import java.io.BufferedInputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.net.InetAddress;
+import java.net.URI;
 import java.net.UnknownHostException;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -15,7 +16,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Collectors;
+import java.util.concurrent.atomic.AtomicReference;
 
 import javax.cache.Cache;
 import javax.cache.processor.EntryProcessorException;
@@ -42,6 +43,7 @@ import loghub.BuilderClass;
 import loghub.Event;
 import loghub.Helpers;
 import loghub.ProcessorException;
+import loghub.configuration.CacheManager;
 import loghub.configuration.CacheManager.Policy;
 import loghub.configuration.Properties;
 import lombok.Getter;
@@ -70,6 +72,8 @@ public class Geoip2 extends FieldsProcessor {
         private String locale = Locale.getDefault().getCountry();
         @Setter
         private int cacheSize = 100;
+        @Setter
+        private String refresh = "";
         public Geoip2 build() {
             return new Geoip2(this);
         }
@@ -79,14 +83,16 @@ public class Geoip2 extends FieldsProcessor {
     }
 
     @Getter
-    private Path geoipdb;
+    private URI geoipdb;
     private final LocationType[] types;
     @Getter
     private final String locale;
     @Getter
     private final int cacheSize;
     @Getter
-    private Reader reader;
+    private final AtomicReference<Reader> reader;
+    @Getter
+    private Duration delay;
 
     public Geoip2(Builder builder) {
         super(builder);
@@ -100,15 +106,20 @@ public class Geoip2 extends FieldsProcessor {
         }
         this.geoipdb = Optional.ofNullable(builder.geoipdb)
                                .map(Helpers::FileUri)
-                               .map(Paths::get)
                                .orElse(null);
         this.locale = Locale.forLanguageTag(builder.locale).getLanguage();
         this.cacheSize = builder.cacheSize;
+        if (!builder.refresh.trim().isEmpty()) {
+            this.delay = Duration.parse(builder.refresh);
+        } else {
+            this.delay = null;
+        }
+        this.reader = new AtomicReference<>(null);
     }
 
-    private <T> DatabaseRecord<T> resolveIp(InetAddress ip, Class<T> clazz) {
+    private <T> DatabaseRecord<T> resolveIp(Reader lreader, InetAddress ip, Class<T> clazz) {
         try {
-            return reader.getRecord(ip, clazz);
+            return lreader.getRecord(ip, clazz);
         } catch (IOException ex) {
             throw new UncheckedIOException(ex);
         }
@@ -116,6 +127,11 @@ public class Geoip2 extends FieldsProcessor {
 
     @Override
     public Object fieldFunction(Event event, Object addr) throws ProcessorException {
+        // A local copy of the reader, to ensure a consistent usage
+        Reader lreader = reader.get();
+        if (lreader == null) {
+            return RUNSTATUS.FAILED;
+        }
         InetAddress ipInfo;
         if (addr instanceof InetAddress) {
             ipInfo = (InetAddress) addr;
@@ -143,11 +159,11 @@ public class Geoip2 extends FieldsProcessor {
 
         Map<String, Object> informations = new HashMap<>();
         try {
-            switch(reader.getMetadata().getDatabaseType()) {
+            switch(lreader.getMetadata().getDatabaseType()) {
             case "GeoIP2-City":
             case "GeoLite2-City": {
-                CityResponse response = Optional.of(reader)
-                                                .map(r -> resolveIp(ipInfo, CityResponse.class))
+                CityResponse response = Optional.of(lreader)
+                                                .map(r -> resolveIp(r, ipInfo, CityResponse.class))
                                                 .map(DatabaseRecord::getData)
                                                 .orElse(null);
                 if (response == null) {
@@ -165,8 +181,8 @@ public class Geoip2 extends FieldsProcessor {
             }
             case "GeoIP2-Country":
             case "GeoLite2-Country": {
-                CountryResponse response = Optional.of(reader)
-                                                   .map(r -> resolveIp(ipInfo, CountryResponse.class))
+                CountryResponse response = Optional.of(lreader)
+                                                   .map(r -> resolveIp(r, ipInfo, CountryResponse.class))
                                                    .map(DatabaseRecord::getData)
                                                    .orElse(null);
                 if (response == null) {
@@ -180,8 +196,8 @@ public class Geoip2 extends FieldsProcessor {
             }
             case "GeoIP2-ISP":
             default:
-                return Optional.of(reader)
-                               .map(r -> resolveIp(ipInfo, Map.class))
+                return Optional.of(lreader)
+                               .map(r -> resolveIp(r, ipInfo, Map.class))
                                .map(DatabaseRecord::getData)
                                .orElse(null);
             }
@@ -280,42 +296,60 @@ public class Geoip2 extends FieldsProcessor {
     @Override
     public boolean configure(Properties properties) {
         @SuppressWarnings("rawtypes")
-        Cache<CacheKey, DecodedValue> cache = properties.cacheManager.getBuilder(CacheKey.class, DecodedValue.class)
+        CacheManager.Builder<CacheKey, DecodedValue> cacheBuilder = properties.cacheManager.getBuilder(CacheKey.class, DecodedValue.class)
                 .setCacheSize(cacheSize)
                 .setName("Geoip2", this)
-                .setExpiry(Policy.ETERNAL)
-                .build();
-        NodeCache nc = (k, l) -> cache.invoke(k, this::extractValue, l);
+                .setExpiry(Policy.ETERNAL);
         // Kept for compatibility
         if (geoipdb == null) {
-            geoipdb = Optional.ofNullable(properties.get("geoip2data")).map(i-> Paths.get(i.toString())).orElse(null);
+            geoipdb = Optional.ofNullable(properties.get("geoip2data"))
+                              .map(Object::toString)
+                              .map(Helpers::FileUri)
+                              .orElse(null);
         }
+        refresh(cacheBuilder);
+        if (delay != null) {
+            properties.registerScheduledTask("refreshgeoip", () -> refresh(cacheBuilder), delay.toMillis());
+        }
+        return super.configure(properties);
+    }
 
-        if (geoipdb != null) {
+    private void refresh(CacheManager.Builder<CacheKey, DecodedValue> builder) {
+        Cache<CacheKey, DecodedValue> cache = builder.build();
+        NodeCache nc = (k, l) -> cache.invoke(k, this::extractValue, l);
+        Reader lreader = null;
+        if (geoipdb != null && "file".equals(geoipdb.getScheme())) {
             try {
-                reader = new Reader(geoipdb.toFile(), nc);
+                lreader = new Reader(new File(geoipdb.getPath()), nc);
             } catch (IOException e) {
                 logger.error("can't read geoip database {}", geoipdb);
                 logger.throwing(Level.DEBUG, e);
-                return false;
+            }
+        } else if (geoipdb != null) {
+            try (InputStream is = geoipdb.toURL().openStream()){
+                lreader = new Reader(is, nc);
+            } catch (IOException e) {
+                logger.error("can't read geoip database {}", geoipdb);
+                logger.throwing(Level.DEBUG, e);
             }
         } else {
             try {
-                InputStream is = properties.classloader.getResourceAsStream("GeoLite2-City.mmdb");
-                if (is == null) {
-                    logger.error("Didn't find a default database");
-                    return false;
-                } else {
-                    InputStream embedded = new BufferedInputStream(is);
-                    reader = new Reader(embedded, nc);
+                try (InputStream is = Geoip2.class.getResourceAsStream("GeoLite2-City.mmdb")) {
+                    if (is == null) {
+                        logger.error("Didn't find a default database");
+                    } else {
+                        InputStream embedded = new BufferedInputStream(is);
+                        lreader = new Reader(embedded, nc);
+                    }
                 }
             } catch (IOException e) {
                 logger.error("Didn't find a default database");
                 logger.throwing(Level.DEBUG, e);
-                return false;
             }
         }
-        return super.configure(properties);
+        if (lreader != null) {
+            reader.set(lreader);
+        }
     }
 
     @SuppressWarnings("rawtypes")

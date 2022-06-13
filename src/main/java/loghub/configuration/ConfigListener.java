@@ -800,7 +800,7 @@ class ConfigListener extends RouteBaseListener {
             ((Etl.Assign)etl).setExpression(expression.wrapped);
             break;
         }
-        case("+<"): {
+        case("=+"): {
             @SuppressWarnings("unchecked")
             ObjectWrapped<Expression> expression = (ObjectWrapped<Expression>) stack.pop();
             etl = new Etl.Append();
