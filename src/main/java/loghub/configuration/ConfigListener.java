@@ -1035,6 +1035,9 @@ class ConfigListener extends RouteBaseListener {
             expression =  String.format("ex.stringMethod(\"%s\", %s)", ctx.stringFunction.getText(), subexpression);
         } else if (ctx.now != null) {
             expression = "java.time.Instant.now()";
+        } else if (ctx.isEmpty != null) {
+            Object subexpression = stack.pop();
+            expression = String.format("ex.isEmpty(%s)", subexpression);
         }
         expressionDepth--;
         if(expressionDepth == 0) {

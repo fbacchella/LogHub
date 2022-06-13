@@ -571,4 +571,42 @@ public class TestExpressionParsing {
         }
     }
 
+    @Test
+    public void testIsEmptyTrue() throws ProcessorException, ExpressionException {
+        for (Object o: new Object[] {
+                "",
+                Collections.emptyMap(),
+                Collections.emptyList(),
+                Collections.emptySet(),
+                null,
+                new int[]{},
+                new Integer[]{},
+                new Object[]{}
+        }) {
+            Event ev =  Tools.getEvent();
+            ev.put("a", o);
+            Assert.assertTrue((boolean) evalExpression("isEmpty([a])", ev));
+        }
+        Event ev =  Tools.getEvent();
+        System.err.println(evalExpression("isEmpty([a])", ev));
+        Assert.assertTrue((boolean) evalExpression("isEmpty([a])", ev));
+    }
+
+    @Test
+    public void testIsEmptyFalse() throws ProcessorException, ExpressionException {
+        for (Object o: new Object[] {
+                " ",
+                Collections.singletonMap("a", "b"),
+                Collections.singletonList(""),
+                Collections.singleton(""),
+                new int[]{1},
+                new Integer[]{1},
+                new Object[]{""}
+        }) {
+            Event ev =  Tools.getEvent();
+            ev.put("a", o);
+            Assert.assertFalse((boolean) evalExpression("isEmpty([a])", ev));
+        }
+    }
+
 }

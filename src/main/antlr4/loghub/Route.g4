@@ -167,6 +167,7 @@ expression
     |   expression '[' arrayIndex=IntegerLiteral ']'
     |   stringFunction = (Trim | Capitalize | IsBlank | Normalize | Uncapitalize) '(' expression ')'
     |   now = 'now'
+    |   isEmpty = 'isEmpty' '(' expression ')'
     ;
 
 Trim: 'trim';
@@ -221,7 +222,7 @@ identifier
     | 'if' | 'success' | 'failure' | 'exception' | 'field' | 'fields' | 'destination' | 'destinationTemplate' | 'encoder' | 'log' | 'fire' | 'pipeline' | 'output' | 'onExpiration'
     | 'defaultMeta' | 'map'
     | 'FATAL' | 'ERROR' | 'WARN' | 'INFO' | 'DEBUG' | 'TRACE'
-    | 'new' | 'instanceof' | 'now'
+    | 'new' | 'instanceof' | 'now' | 'isEmpty'
     | 'sources' | 'true' | 'false' | 'null' | 'drop'
     | 'trim' | 'capitalize' | 'uncapitalize' | 'isBlank' | 'normalize'
     | 'text' | 'blob'

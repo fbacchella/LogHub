@@ -16,17 +16,16 @@ public class ExpressionMetaClass extends DelegatingMetaClass {
 
     @Override
     public Object invokeMethod(Object object, String methodName, Object[] arguments) {
-        if ("protect".equals(methodName)) {
-            return ((Expression) object).protect(arguments[0].toString(), arguments[1]);
-        } else if ("stringMethod".equals(methodName)) {
-            return ((Expression) object).stringMethod(arguments[0].toString(), arguments[1]);
-        } else if ("nullfilter".equals(methodName)) {
-            return ((Expression) object).nullfilter(arguments[0], arguments[1].toString());
-        } else if ("compare".equals(methodName)) {
-            return ((Expression) object).compare(arguments[0].toString(), arguments[1], arguments[2]);
-        } else if ("getIterableIndex".equals(methodName)) {
-            return ((Expression) object).getIterableIndex(arguments[0], (Integer)arguments[1]);
-        } else {
+        assert object instanceof Expression;
+        Expression ex = (Expression) object;
+        switch (methodName) {
+        case "protect": return ex.protect(arguments[0].toString(), arguments[1]);
+        case "stringMethod": return ex.stringMethod(arguments[0].toString(), arguments[1]);
+        case "nullfilter": return ex.nullfilter(arguments[0], arguments[1].toString());
+        case "compare": return ex.compare(arguments[0].toString(), arguments[1], arguments[2]);
+        case "getIterableIndex": return ex.getIterableIndex(arguments[0], (Integer)arguments[1]);
+        case "isEmpty": return ex.isEmpty(arguments[0]);
+        default:
             assert false;
             return super.invokeMethod(object, methodName, arguments);
         }

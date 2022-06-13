@@ -1,5 +1,6 @@
 package loghub;
 
+import java.lang.reflect.Array;
 import java.lang.reflect.InvocationTargetException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -7,6 +8,7 @@ import java.time.DateTimeException;
 import java.time.Instant;
 import java.time.temporal.TemporalAccessor;
 import java.util.AbstractMap;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
@@ -260,6 +262,22 @@ public class Expression {
                 // Can’t be reached
                 throw IgnoredEventException.INSTANCE;
             }
+        }
+    }
+
+    public Object isEmpty(Object arg) {
+        if (arg == null || arg == NullOrMissingValue.MISSING || arg == NullOrMissingValue.NULL) {
+            return true;
+        } else if (arg instanceof String) {
+            return ((String) arg).isEmpty();
+        } else if (arg instanceof Collection) {
+            return ((Collection) arg).isEmpty();
+        } else if (arg instanceof Map) {
+            return ((Map) arg).isEmpty();
+        } else if (arg.getClass().isArray()) {
+            return Array.getLength(arg) == 0;
+        } else {
+            return false;
         }
     }
 
