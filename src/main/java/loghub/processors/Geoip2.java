@@ -1,6 +1,5 @@
 package loghub.processors;
 
-import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -338,8 +337,7 @@ public class Geoip2 extends FieldsProcessor {
                     if (is == null) {
                         logger.error("Didn't find a default database");
                     } else {
-                        InputStream embedded = new BufferedInputStream(is);
-                        lreader = new Reader(embedded, nc);
+                        lreader = new Reader(is, nc);
                     }
                 }
             } catch (IOException e) {
