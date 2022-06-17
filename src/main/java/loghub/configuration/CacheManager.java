@@ -2,10 +2,15 @@ package loghub.configuration;
 
 import java.time.Duration;
 import java.time.temporal.TemporalUnit;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import javax.cache.Cache;
 import javax.cache.Caching;
+import javax.cache.configuration.CacheEntryListenerConfiguration;
+import javax.cache.configuration.Factory;
+import javax.cache.integration.CacheLoader;
 import javax.cache.spi.CachingProvider;
 
 import org.apache.logging.log4j.LogManager;
@@ -69,6 +74,9 @@ public class CacheManager {
         private final Cache2kBuilder<K, V> builder2k;
         private final Class<K> keyType;
         private final Class<V> valueType;
+        private final Set<CacheEntryListenerConfiguration<K, V>> listeners = new HashSet<>();
+        private Factory<? extends CacheLoader<K,V>> factory = null;
+        private boolean storeByValue = true;
         private Builder(Class<K> keyType, Class<V> valueType) {
             builder2k = Cache2kBuilder.of(keyType, valueType)
                             .permitNullValues(false)
@@ -99,17 +107,38 @@ public class CacheManager {
             builder2k.entryCapacity(cacheSize);
             return this;
         }
+        public Builder<K, V> addListenerConfiguration(
+                CacheEntryListenerConfiguration<K, V> config) {
+            listeners.add(config);
+            return this;
+        }
+        public Builder<K, V> setCacheLoaderFactory(Factory<? extends CacheLoader<K,V>> factory) {
+            this.factory = factory;
+            return this;
+        }
+        public Builder<K, V> storeByValue(boolean storeByValue) {
+            this.storeByValue = storeByValue;
+            return this;
+        }
         public Cache<K, V> build() {
             synchronized (cacheManager) {
                 Cache<K, V> cache = cacheManager.getCache(name, keyType, valueType);
                 if (cache != null) {
                     logger.debug("Reusing cache {}", name);
-                    return cache;
                 } else {
                     logger.debug("creating cache {}", name);
                     ExtendedMutableConfiguration<K, V> config = ExtendedMutableConfiguration.of(builder2k);
-                    return cacheManager.createCache(name, config);
+                    if (! listeners.isEmpty()) {
+                        listeners.forEach(config::addCacheEntryListenerConfiguration);
+                    }
+                    if (factory != null) {
+                        config.setReadThrough(true);
+                        config.setCacheLoaderFactory(factory);
+                    }
+                    config.setStoreByValue(storeByValue);
+                    cache = cacheManager.createCache(name, config);
                 }
+                return cache;
             }
         }
     }
@@ -125,8 +154,8 @@ public class CacheManager {
         }
     }
 
-    public <K, V> Builder<K, V> getBuilder(Class<K> keyType, Class<V> ValueType) {
-        return new Builder<>(keyType, ValueType);
+    public <K, V> Builder<K, V> getBuilder(Class<K> keyType, Class<V> valueType) {
+        return new Builder<>(keyType, valueType);
     }
 
 }

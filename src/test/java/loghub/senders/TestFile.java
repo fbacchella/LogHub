@@ -19,18 +19,17 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import com.codahale.metrics.Meter;
-
 import loghub.BeanChecks;
 import loghub.ConnectionContext;
 import loghub.Event;
+import loghub.Expression;
 import loghub.LogUtils;
+import loghub.ProcessorException;
 import loghub.Tools;
 import loghub.configuration.Properties;
 import loghub.encoders.EncodeException;
 import loghub.encoders.EvalExpression;
 import loghub.metrics.Stats;
-import loghub.receivers.Receiver;
 
 public class TestFile {
 
@@ -61,7 +60,7 @@ public class TestFile {
         EvalExpression sf = builder1.build();
 
         File.Builder fb = File.getBuilder();
-        fb.setFileName(outFile);
+        fb.setFileName(new Expression(outFile));
         fb.setEncoder(sf);
         prepare.accept(fb);
         File fsend = fb.build();
@@ -108,30 +107,37 @@ public class TestFile {
         builder1.setFormat(new loghub.Expression("${message%s}"));
 
         File.Builder fb = File.getBuilder();
-        fb.setFileName(outFile);
+        fb.setFileName(new Expression(outFile));
         SenderTools.send(fb);
     }
 
     @Test(timeout=2000)
-    public void testFailing() throws IOException, InterruptedException, SendException, EncodeException {
+    public void testFailing()
+            throws IOException, InterruptedException, SendException, EncodeException, ProcessorException {
         @SuppressWarnings("resource")
         File fsend = send(i -> {}, -1, false);
-        Files.setPosixFilePermissions(fsend.getFileName(), Collections.emptySet());
+        Files.setPosixFilePermissions(Paths.get(fsend.getFileName().eval(null).toString()), Collections.emptySet());
         Event ev = Tools.getEvent();
         ev.put("message", 2);
-        fsend.close();
+        // This one should pass, as cache is reused
         fsend.send(ev);
-        Thread.sleep(100);
+        fsend.close();
+        ev.put("message", 3);
+        fsend.send(ev);
+        //Ensure flush, aka try write
+        fsend.customStopSending();
+        Assert.assertEquals(2, Stats.getSent());
         Assert.assertEquals(1, Stats.getFailed());
         Assert.assertEquals(1, Stats.getSenderError().size());
-        Assert.assertTrue(Stats.getSenderError().contains("Closed channel"));
+        Assert.assertTrue(Stats.getSenderError().stream().findFirst().get().contains("Access denied to file "));
         Assert.assertEquals(1L, Stats.getFailed());
     }
 
     @Test
     public void test_loghub_senders_File() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.senders.File"
-                , BeanChecks.BeanInfo.build("fileName", String.class)
+                , BeanChecks.BeanInfo.build("fileName", Expression.class)
+                , BeanChecks.BeanInfo.build("cacheSize", Integer.TYPE)
                 , BeanChecks.BeanInfo.build("truncate", Boolean.TYPE)
                 , BeanChecks.BeanInfo.build("separator", String.class)
         );

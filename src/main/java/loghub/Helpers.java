@@ -16,6 +16,7 @@ import java.nio.CharBuffer;
 import java.nio.channels.ClosedChannelException;
 import java.nio.charset.IllegalCharsetNameException;
 import java.nio.charset.UnsupportedCharsetException;
+import java.nio.file.AccessDeniedException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.FileSystemNotFoundException;
 import java.nio.file.Files;
@@ -473,6 +474,8 @@ public final class Helpers {
             message = "Illegal charset name: " + t.getMessage();
         } else if (t instanceof UnsupportedCharsetException) {
             message = "Unsupported charset name: " + t.getMessage();
+        } else if (t instanceof AccessDeniedException) {
+            message = "Access denied to file " + t.getMessage();
         } else if (t instanceof ClosedChannelException) {
             message = "Closed channel";
         } else if (t instanceof SSLHandshakeException) {
