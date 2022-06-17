@@ -2,9 +2,8 @@
 
 package loghub.receivers;
 
-import java.util.Iterator;
-import java.util.NoSuchElementException;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Stream;
 
 import loghub.BuilderClass;
 import loghub.ConnectionContext;
@@ -20,7 +19,7 @@ public class TimeSerie extends Receiver {
 
     public static class Builder extends Receiver.Builder<TimeSerie> {
         @Setter
-        private int frequency = 1000;
+        private double frequency = 1000.0f;
         @Override
         public TimeSerie build() {
             return new TimeSerie(this);
@@ -31,7 +30,7 @@ public class TimeSerie extends Receiver {
     }
 
     @Getter
-    private final int frequency;
+    private final double frequency;
 
     protected TimeSerie(Builder builder) {
         super(builder);
@@ -39,30 +38,24 @@ public class TimeSerie extends Receiver {
     }
 
     @Override
-    protected Iterator<Event> getIterator() {
-        return new Iterator<Event>() {
-            @Override
-            public boolean hasNext() {
-                try {
-                    Thread.sleep((int)(1.0/frequency * 1000));
-                    return true;
-                } catch (InterruptedException ex) {
-                    Thread.currentThread().interrupt();
-                    return false;
-                }
-            }
-
-            @Override
-            public Event next() {
-                if (Thread.interrupted()) {
-                    throw new NoSuchElementException();
-                } else {
+    protected Stream<Event> getStream() {
+        return Stream.iterate(null,
+                this::sleep,
+                e -> {
                     Event event = Event.emptyEvent(ConnectionContext.EMPTY);
                     event.put("message", Long.toString(r.getAndIncrement()));
                     return event;
-                }
-            }
-        };
+                });
+    }
+
+    private boolean sleep(Event e) {
+        try {
+            Thread.sleep((int) (1.0f / frequency * 1000));
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            return false;
+        }
+        return ! Thread.currentThread().isInterrupted();
     }
 
     @Override

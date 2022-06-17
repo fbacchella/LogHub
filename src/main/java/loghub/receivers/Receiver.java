@@ -3,12 +3,11 @@ package loghub.receivers;
 import java.io.Closeable;
 import java.time.Instant;
 import java.util.Date;
-import java.util.Iterator;
 import java.util.Locale;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Stream;
 
 import org.apache.logging.log4j.Level;
@@ -34,7 +33,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 @Blocking(false)
-public abstract class Receiver extends Thread implements Iterator<Event>, Closeable {
+public abstract class Receiver extends Thread implements Closeable {
 
     @FunctionalInterface
     public static interface DecodeSupplier {
@@ -143,37 +142,36 @@ public abstract class Receiver extends Thread implements Iterator<Event>, Closea
         return authHandler;
     }
 
+    @Override
     public void run() {
-        int eventseen = 0;
+        AtomicLong eventseen = new AtomicLong();
         int looptry = 0;
         int wait = 100;
         while (! isInterrupted()) {
-            Iterable<Event> stream = () -> Optional.ofNullable(Receiver.this.getIterator()).orElse(Helpers.getEmptyIterator());
-            try {
-                for (Event e: stream) {
+            getStream().forEach(e -> {
+                try {
                     if (e != null) {
                         logger.trace("new message received: {}", e);
-                        eventseen++;
+                        eventseen.incrementAndGet();
                         //Wrap, but not a problem, just count as 1
-                        if(eventseen < 0) {
-                            eventseen = 1;
+                        if (eventseen.get() < 0) {
+                            eventseen.set(1);
                         }
                         send(e);
                     }
+                } catch (Exception ex) {
+                    logger.error("Failed received event: {}", Helpers.resolveThrowableException(ex));
+                    logger.catching(Level.DEBUG, ex);
                 }
-            } catch (Exception e) {
-                eventseen = 0;
-                logger.error("Failed received event: " + Helpers.resolveThrowableException(e));
-                logger.catching(Level.DEBUG, e);
-            }
+            });
             // The previous loop didn't catch anything
             // So try some recovery
-            if(eventseen == 0) {
+            if (eventseen.get() == 0) {
                 looptry++;
                 logger.debug("event seen = 0, try = {}", looptry);
                 // A little magic, give the CPU to other threads
                 Thread.yield();
-                if(looptry > 3) {
+                if (looptry > 3) {
                     try {
                         Thread.sleep(wait);
                         wait = wait * 2;
@@ -191,6 +189,10 @@ public abstract class Receiver extends Thread implements Iterator<Event>, Closea
         close();
     }
 
+    protected Stream<Event> getStream() {
+        return Stream.empty();
+    }
+
     /**
      * This empty method is called when processing is stopped, it should be
      * overridden for clean up and called by the receiving thread. It usually called
@@ -205,37 +207,6 @@ public abstract class Receiver extends Thread implements Iterator<Event>, Closea
      */
     public void stopReceiving() {
         interrupt();
-    }
-
-    /**
-     * This method call startStream and return this as an iterator. 
-     * In this case, startStream will be called once and then hasNext and next will be used to iterate.
-     * If overridden, startStream, hasNext and next methods will never be called, and the user is
-     * in charge of preparing the iterator.
-     * @return an iterator or null in case of failure
-     */
-    protected Iterator<Event> getIterator() {
-        try {
-            startStream();
-            return this;
-        } catch (Exception e) {
-            logger.error("unable to start receiver stream: {}", e.getMessage());
-            logger.catching(Level.DEBUG, e);
-            return null;
-        }
-    }
-
-    protected void startStream() {
-    }
-
-    @Override
-    public boolean hasNext() {
-        return false;
-    }
-
-    @Override
-    public Event next() {
-        throw new NoSuchElementException();
     }
 
     protected final Event mapToEvent(ConnectionContext<?> ctx, Map<String, Object> content) {
@@ -259,15 +230,15 @@ public abstract class Receiver extends Thread implements Iterator<Event>, Closea
                     newEvent = Event.emptyEvent(ctx);
                     newEvent.putAll(fields);
                     Optional.ofNullable(eventContent.get(Event.TIMESTAMPKEY))
-                    .filter(newEvent::setTimestamp)
-                    .ifPresent(ts -> eventContent.remove(Event.TIMESTAMPKEY));
+                            .filter(newEvent::setTimestamp)
+                            .ifPresent(ts -> eventContent.remove(Event.TIMESTAMPKEY));
                     metas.forEach(newEvent::putMeta);
                 } else {
                     newEvent = Event.emptyEvent(ctx);
                     Optional.ofNullable(content.get(timeStampField))
-                    .filter(i -> i instanceof Date || i instanceof Instant || i instanceof Number)
-                    .filter(newEvent::setTimestamp)
-                    .ifPresent(ts -> content.remove(timeStampField));
+                            .filter(i -> i instanceof Date || i instanceof Instant || i instanceof Number)
+                            .filter(newEvent::setTimestamp)
+                            .ifPresent(ts -> content.remove(timeStampField));
                     content.entrySet().stream().forEach(i -> newEvent.put(i.getKey(), i.getValue()));
                 }
                 if (newEvent.getConnectionContext() == null) {
@@ -300,7 +271,7 @@ public abstract class Receiver extends Thread implements Iterator<Event>, Closea
                 bufferOffset = offset;
                 bufferSize = size;
             }
-            return decoder.decode(ctx, buffer, bufferOffset, bufferSize).map((m) -> mapToEvent(ctx, m)).filter(Objects::nonNull);
+            return decoder.decode(ctx, buffer, bufferOffset, bufferSize).map(m -> mapToEvent(ctx, m)).filter(Objects::nonNull);
         } catch (DecodeException ex) {
             manageDecodeException(ex);
             return Stream.of();

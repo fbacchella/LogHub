@@ -61,7 +61,7 @@ public class TestMsgpack {
     static public void configure() throws IOException {
         Tools.configure();
         logger = LogManager.getLogger();
-        LogUtils.setLevel(logger, Level.TRACE);
+        LogUtils.setLevel(logger, Level.TRACE, "loghub.encoders.Msgpack");
     }
 
     @Test
@@ -156,14 +156,15 @@ public class TestMsgpack {
             super(builder);
             this.bs = bs;
         }
+
         @Override
         public String getReceiverName() {
             return null;
         }
 
         @Override
-        public Event next() {
-            return decodeStream(ConnectionContext.EMPTY, bs).findAny().get();
+        public Stream<Event> getStream() {
+            return decodeStream(ConnectionContext.EMPTY, bs);
         }
 
         @Override
@@ -181,8 +182,8 @@ public class TestMsgpack {
         Msgpack d = AbstractBuilder.resolve(Msgpack.class).build();
         builder.setDecoder(d);
 
-        try (Receiver r = builder.build(bs)) {
-            Event e = r.next();
+        try (TestReceiver r = builder.build(bs)) {
+            Event e = r.getStream().findAny().get();
             testContent(e);
         }
     }
