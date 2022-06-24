@@ -39,6 +39,7 @@ import loghub.ProcessorException;
 import loghub.ThreadBuilder;
 import loghub.configuration.Properties;
 import loghub.encoders.EncodeException;
+import loghub.metrics.Stats;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -192,6 +193,7 @@ public class File extends Sender {
             FileEntry fe = filecache.get(outputFile);
             long writePosition = fe.position.getAndAdd((long)msg.length + separatorBytes.length);
             fe.destination.write(buffer, writePosition, event, handler);
+            Stats.sentBytes(this, buffer.limit());
             return true;
         } catch (CacheException ex) {
             Throwable rootCause = ex;
@@ -214,6 +216,13 @@ public class File extends Sender {
                 ev.complete(status);
             } catch (SendException | EncodeException ex) {
                 ev.completeExceptionally(ex);
+            }
+        });
+        filecache.iterator().forEachRemaining(e -> {
+            try {
+                e.getValue().destination.force(false);
+            } catch (IOException ex) {
+                logger.warn("Can't flush {}: {}", e.getKey(), Helpers.resolveThrowableException(ex));
             }
         });
     }
