@@ -1,7 +1,5 @@
 package loghub.netty.http;
 
-import static loghub.netty.servers.AbstractNettyServer.PRINCIPALATTRIBUTE;
-
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.Principal;
@@ -21,6 +19,8 @@ import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import loghub.security.AuthenticationHandler;
+
+import static loghub.netty.transport.NettyTransport.PRINCIPALATTRIBUTE;
 
 public class AccessControl extends HttpFilter {
 

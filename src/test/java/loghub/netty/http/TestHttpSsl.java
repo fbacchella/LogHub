@@ -82,7 +82,7 @@ public class TestHttpSsl {
         }
     }
 
-    private static class CustomServer extends AbstractHttpServer<CustomServer, CustomServer.Builder> {
+    private static class CustomServer extends AbstractHttpServer {
         private static class Builder extends AbstractHttpServer.Builder<CustomServer, Builder> {
             @Override
             public CustomServer build() throws IllegalArgumentException, InterruptedException {
@@ -109,7 +109,7 @@ public class TestHttpSsl {
                         .setPort(serverPort)
                         .setSSLClientAuthentication(ClientAuthentication.REQUIRED)
                         .setSSLContext(getContext.apply(sslprops))
-                        .useSSL(true);
+                        .withSSL(true);
 
         server = c.apply(builder).build();
     }

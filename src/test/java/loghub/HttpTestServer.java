@@ -16,7 +16,7 @@ public class HttpTestServer extends ExternalResource {
 
     private static Logger logger = LogManager.getLogger();
 
-    private AbstractHttpServer<?, ?> server;
+    private AbstractHttpServer server;
     private final HttpHandler[] handlers;
     private SSLContext ssl;
     private int port;
@@ -29,7 +29,7 @@ public class HttpTestServer extends ExternalResource {
         this.port = port;
     }
 
-    private static class CustomServer extends AbstractHttpServer<CustomServer, CustomServer.Builder> {
+    private static class CustomServer extends AbstractHttpServer {
         private static class Builder extends AbstractHttpServer.Builder<CustomServer, CustomServer.Builder> {
             HttpHandler[] handlers = null;
             @Override
@@ -53,7 +53,7 @@ public class HttpTestServer extends ExternalResource {
         CustomServer.Builder builder = new CustomServer.Builder();
         builder.handlers = handlers;
         builder.setThreadPrefix("TestServer");
-        server = builder.setPort(port).setSSLContext(ssl).useSSL(ssl != null).build();
+        server = builder.setPort(port).setSSLContext(ssl).withSSL(ssl != null).build();
     }
 
     @Override

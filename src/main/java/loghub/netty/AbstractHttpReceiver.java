@@ -10,7 +10,7 @@ import loghub.netty.http.HttpRequestProcessing;
 import loghub.receivers.Blocking;
 
 @Blocking(true)
-public abstract class AbstractHttpReceiver extends AbstractTcpReceiver<AbstractHttpReceiver, AbstractHttpReceiver.HttpReceiverServer, AbstractHttpReceiver.HttpReceiverServer.Builder, HttpMessage> {
+public abstract class AbstractHttpReceiver extends NettyReceiver<HttpMessage> {
 
     protected static class HttpReceiverServer extends AbstractHttpServer<HttpReceiverServer, HttpReceiverServer.Builder> {
 
@@ -25,7 +25,6 @@ public abstract class AbstractHttpReceiver extends AbstractTcpReceiver<AbstractH
                 this.receiver = receiver;
                 return this;
             }
-            @Override
             public HttpReceiverServer build() throws IllegalArgumentException, InterruptedException {
                 return new HttpReceiverServer(this);
             }
@@ -41,32 +40,17 @@ public abstract class AbstractHttpReceiver extends AbstractTcpReceiver<AbstractH
 
         @Override
         public void addModelHandlers(ChannelPipeline p) {
-            if (getAuthHandler() != null) {
-                p.addLast("Authentication", new AccessControl(getAuthHandler()));
-                logger.debug("Added authentication");
-            }
             p.addBefore("HttpObjectAggregator", ContextExtractor.NAME, resolver);
             p.addLast("RequestProcessor", requestProcessor);
         }
 
     }
 
-    public abstract static class Builder<B extends AbstractHttpReceiver> extends AbstractTcpReceiver.Builder<B> {
+    public abstract static class Builder<B extends AbstractHttpReceiver> extends NettyReceiver.Builder<B> {
     }
 
     protected AbstractHttpReceiver(Builder<? extends AbstractHttpReceiver>  builder) {
         super(builder);
-    }
-
-    @Override
-    protected HttpReceiverServer.Builder getServerBuilder() {
-        return new HttpReceiverServer.Builder().setReceiver(this);
-    }
-
-    @Override
-    public boolean configure(Properties properties, HttpReceiverServer.Builder builder) {
-        settings(builder);
-        return super.configure(properties, builder);
     }
 
     protected void settings(loghub.netty.AbstractHttpReceiver.HttpReceiverServer.Builder builder) {

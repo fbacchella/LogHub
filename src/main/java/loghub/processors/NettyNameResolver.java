@@ -42,7 +42,7 @@ import loghub.ThreadBuilder;
 import loghub.VarFormatter;
 import loghub.VariablePath;
 import loghub.configuration.Properties;
-import loghub.netty.POLLER;
+import loghub.netty.transport.POLLER;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;

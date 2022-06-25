@@ -13,16 +13,19 @@ import loghub.netty.AbstractTcpReceiver;
 import loghub.netty.BaseChannelConsumer;
 import loghub.netty.ChannelConsumer;
 import loghub.netty.ConsumerProvider;
+import loghub.netty.NettyReceiver;
 import loghub.netty.servers.TcpServer;
+import loghub.netty.transport.TRANSPORT;
 import lombok.Getter;
 import lombok.Setter;
 
 @BuilderClass(TcpLinesStream.Builder.class)
-public class TcpLinesStream extends AbstractTcpReceiver<TcpLinesStream, TcpServer, TcpServer.Builder, ByteBuf> implements ConsumerProvider<TcpLinesStream, ServerBootstrap, ServerChannel> {
+public class TcpLinesStream extends NettyReceiver<ByteBuf> implements ConsumerProvider {
 
-    public static class Builder extends AbstractTcpReceiver.Builder<TcpLinesStream> {
+    public static class Builder extends NettyReceiver.Builder<TcpLinesStream> {
         public Builder() {
             super();
+            this.setTransport(TRANSPORT.TCP);
             // A ready to use TcpLinesStream: single line text message.
             StringCodec.Builder sbuilder = new StringCodec.Builder();
             this.setDecoder(sbuilder.build());
@@ -47,8 +50,8 @@ public class TcpLinesStream extends AbstractTcpReceiver<TcpLinesStream, TcpServe
     }
 
     @Override
-    public ChannelConsumer<ServerBootstrap, ServerChannel> getConsumer() {
-        return new BaseChannelConsumer<TcpLinesStream, ServerBootstrap, ServerChannel, ByteBuf>(this) {
+    public ChannelConsumer getConsumer() {
+        return new BaseChannelConsumer<>(this) {
             @Override
             public void addHandlers(ChannelPipeline pipe) {
                 super.addHandlers(pipe);
@@ -58,14 +61,9 @@ public class TcpLinesStream extends AbstractTcpReceiver<TcpLinesStream, TcpServe
     }
 
     @Override
-    protected TcpServer.Builder getServerBuilder() {
-        return TcpServer.getBuilder();
-    }
-
-    @Override
-    public boolean configure(Properties properties, TcpServer.Builder builder) {
+    public boolean configure(Properties properties) {
         builder.setThreadPrefix("LineReceiver");
-        return super.configure(properties, builder);
+        return super.configure(properties);
     }
 
     @Override

@@ -23,10 +23,7 @@ import loghub.Helpers;
 import loghub.decoders.DecodeException;
 import loghub.receivers.SelfDecoder;
 
-public class BaseChannelConsumer<R extends NettyReceiver<?, ?, ?, ?, BS, BSC, ?, ?, ?, SM>,
-                                 BS extends AbstractBootstrap<BS, BSC>, 
-                                 BSC extends Channel,
-                                 SM> implements ChannelConsumer<BS, BSC> {
+public class BaseChannelConsumer<R extends NettyReceiver<SM>, SM> implements ChannelConsumer {
 
     private static final Logger logger = LogManager.getLogger();
 
@@ -80,7 +77,7 @@ public class BaseChannelConsumer<R extends NettyReceiver<?, ?, ?, ?, BS, BSC, ?,
     }
 
     private class LocalContextExtractor extends ContextExtractor<SM> {
-        public LocalContextExtractor(NettyReceiver<?, ?, ?, ?, ?, ?, ?, ?, ?, SM> r) {
+        public LocalContextExtractor(NettyReceiver<SM> r) {
             super(r);
         }
     }

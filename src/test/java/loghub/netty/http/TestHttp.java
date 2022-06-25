@@ -21,7 +21,7 @@ import loghub.Tools;
 
 public class TestHttp {
 
-    private static class CustomServer extends AbstractHttpServer<CustomServer, CustomServer.Builder> {
+    private static class CustomServer extends AbstractHttpServer {
         private static class Builder extends AbstractHttpServer.Builder<CustomServer, Builder> {
             ChannelHandler customHandler;
             @Override
@@ -57,7 +57,7 @@ public class TestHttp {
                         .setThreadPrefix("TestHttp")
                         .setConsumer(server)
                         .setPort(serverPort)
-                        .useSSL(false);
+                        .withSSL(false);
 
         server = c.apply(builder).build();
     }

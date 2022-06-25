@@ -4,37 +4,34 @@ import java.util.Optional;
 import java.util.function.Supplier;
 
 import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
-import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.ChannelPipelineException;
-import io.netty.channel.ServerChannel;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpContentCompressor;
 import io.netty.handler.codec.http.HttpObjectAggregator;
-import io.netty.handler.codec.http.HttpRequest;
-import io.netty.handler.codec.http.HttpResponse;
-import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.codec.http.HttpServerKeepAliveHandler;
 import io.netty.handler.stream.ChunkedWriteHandler;
 import loghub.Helpers;
 import loghub.netty.ChannelConsumer;
-import loghub.netty.servers.AbstractTcpServer;
+import loghub.netty.servers.NettyServer;
+import loghub.security.AuthenticationHandler;
 
-public abstract class AbstractHttpServer<S extends AbstractHttpServer<S, B>, 
-                                         B extends AbstractHttpServer.Builder<S, B>
-                                        > extends AbstractTcpServer<S, B> implements ChannelConsumer<ServerBootstrap, ServerChannel> {
+public abstract class AbstractHttpServer<B extends AbstractHttpServer.Builder>
+        implements ChannelConsumer {
 
-    public abstract static class Builder<S extends AbstractHttpServer<S, B>,
-                                         B extends AbstractHttpServer.Builder<S, B>
-                                        > extends AbstractTcpServer.Builder<S, B> {
+    public abstract static class Builder<S extends AbstractHttpServer,
+                                         B extends AbstractHttpServer.Builder<S,B>
+                                        > extends NettyServer.Builder<S,B> {
         Supplier<HttpObjectAggregator> aggregatorSupplier;
         Supplier<HttpServerCodec> serverCodecSupplier;
         int maxContentLength = 1048576;
+        AuthenticationHandler authHandler = null;
         protected Builder() {
         }
         @SuppressWarnings("unchecked")
@@ -54,12 +51,16 @@ public abstract class AbstractHttpServer<S extends AbstractHttpServer<S, B>,
         }
     }
 
-    private final SimpleChannelInboundHandler<FullHttpRequest> NOTFOUND = new NotFound();
+    private static final SimpleChannelInboundHandler<FullHttpRequest> NOT_FOUND = new NotFound();
+    private static final SimpleChannelInboundHandler<FullHttpRequest> FATAL_ERROR = new FatalErrorHandler();
+
     private final Supplier<HttpObjectAggregator> aggregatorSupplier;
     private final Supplier<HttpServerCodec> serverCodecSupplier;
+    protected final Logger logger;
 
-    protected AbstractHttpServer(B builder) throws IllegalArgumentException, InterruptedException {
+    protected AbstractHttpServer(B builder) {
         super(builder);
+        logger = LogManager.getLogger(Helpers.getFirstInitClass());
         aggregatorSupplier = Optional.ofNullable(builder.aggregatorSupplier).orElse(() -> new HttpObjectAggregator(builder.maxContentLength));
         serverCodecSupplier = Optional.ofNullable(builder.serverCodecSupplier).orElse(HttpServerCodec::new);
     }
@@ -71,22 +72,25 @@ public abstract class AbstractHttpServer<S extends AbstractHttpServer<S, B>,
         p.addLast("HttpContentCompressor", new HttpContentCompressor());
         p.addLast("ChunkedWriteHandler", new ChunkedWriteHandler());
         p.addLast("HttpObjectAggregator", aggregatorSupplier.get());
+        if (authHandler != null) {
+            p.addLast("Authentication", new AccessControl(authHandler));
+            logger.debug("Added authentication");
+        }
         try {
             addModelHandlers(p);
         } catch (ChannelPipelineException e) {
             logger.error("Invalid pipeline configuration: {}", e.getMessage());
             logger.catching(Level.DEBUG, e);
-            p.addAfter("HttpObjectAggregator", "BrokenConfigHandler", getFatalErrorHandler());
+            p.addAfter("HttpObjectAggregator", "BrokenConfigHandler", FATAL_ERROR);
         }
-        p.addLast("NotFound404", NOTFOUND);
-        super.addHandlers(p);
+        p.addLast("NotFound404", NOT_FOUND);
     }
 
     @Override
     public void exception(ChannelHandlerContext ctx, Throwable cause) {
         logger.error("Unable to process query: {}", Helpers.resolveThrowableException(cause));
         logger.catching(Level.DEBUG, cause);
-        ctx.pipeline().addAfter("HttpObjectAggregator", "FatalErrorHandler", getFatalErrorHandler());
+        ctx.pipeline().addAfter("HttpObjectAggregator", "FatalErrorHandler", FATAL_ERROR);
     }
 
     @Override
@@ -94,29 +98,6 @@ public abstract class AbstractHttpServer<S extends AbstractHttpServer<S, B>,
         logger.fatal("Caught fatal exception", ex);
     }
 
-    private HttpRequestProcessing getFatalErrorHandler() {
-        return new HttpRequestProcessing() {
-            @Override
-            public boolean acceptRequest(HttpRequest request) {
-                return true;
-            }
-            @Override
-            protected void processRequest(FullHttpRequest request, ChannelHandlerContext ctx) throws HttpRequestFailure {
-                throw new HttpRequestFailure(HttpResponseStatus.SERVICE_UNAVAILABLE, "Unable to process request because of invalid configuration");
-            }
-            @Override
-            protected String getContentType(HttpRequest request, HttpResponse response) {
-                return null;
-            }
-        };
-    }
-
     public abstract void addModelHandlers(ChannelPipeline p);
-
-    @Override
-    public void addOptions(ServerBootstrap bootstrap) {
-        bootstrap.option(ChannelOption.TCP_NODELAY, true);
-        bootstrap.childOption(ChannelOption.SO_KEEPALIVE, true);
-    }
 
 }

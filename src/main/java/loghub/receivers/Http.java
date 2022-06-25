@@ -41,6 +41,8 @@ import loghub.netty.servers.AbstractNettyServer;
 import lombok.Getter;
 import lombok.Setter;
 
+import static loghub.netty.transport.NettyTransport.PRINCIPALATTRIBUTE;
+
 @Blocking(true)
 @SelfDecoder
 @BuilderClass(Http.Builder.class)
@@ -74,7 +76,7 @@ public class Http extends AbstractHttpReceiver {
                 } else {
                     message = null;
                 }
-                ConnectionContext<InetSocketAddress> cctx = Http.this.getConnectionContext(ctx);
+                ConnectionContext<InetSocketAddress> cctx = (ConnectionContext<InetSocketAddress>) Http.this.getConnectionContext(ctx);
                 Stream<Map<String, Object>> mapsStream;
                 if (message != null && decoder == null) {
                     mapsStream = Stream.of(resolveCgi(message));
@@ -85,7 +87,7 @@ public class Http extends AbstractHttpReceiver {
                 } else {
                     throw new RuntimeDecodeException(new DecodeException("Unhandled content type " + mimeType));
                 }
-                Principal p = ctx.channel().attr(AbstractNettyServer.PRINCIPALATTRIBUTE).get();
+                Principal p = ctx.channel().attr(PRINCIPALATTRIBUTE).get();
                 if (p != null) {
                     cctx.setPrincipal(p);
                 }
@@ -147,9 +149,9 @@ public class Http extends AbstractHttpReceiver {
     }
 
     @Override
-    public boolean configure(Properties properties, HttpReceiverServer.Builder builder) {
+    public boolean configure(Properties properties) {
         decoders.values().forEach(d -> d.configure(properties, this));
-        return super.configure(properties, builder);
+        return super.configure(properties);
     }
 
     protected void settings(HttpReceiverServer.Builder builder) {

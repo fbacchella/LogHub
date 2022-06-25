@@ -18,23 +18,15 @@ import loghub.configuration.Properties;
 import loghub.netty.BaseChannelConsumer;
 import loghub.netty.ConsumerProvider;
 import loghub.netty.NettyIpReceiver;
-import loghub.netty.UdpHandler;
+import loghub.netty.NettyReceiver;
 import loghub.netty.servers.UdpServer;
 import lombok.Getter;
 import lombok.Setter;
 
 @BuilderClass(Udp.Builder.class)
-public class Udp extends NettyIpReceiver<Udp,
-                                         UdpServer,
-                                         UdpServer.Builder, UdpHandler,
-                                         Bootstrap,
-                                         Channel,
-                                         DatagramChannel,
-                                         Channel,
-                                         DatagramPacket
-                                         > implements ConsumerProvider<Udp, Bootstrap, Channel> {
+public class Udp extends NettyReceiver<DatagramPacket> implements ConsumerProvider<Udp, Bootstrap, Channel> {
 
-    public static class Builder extends NettyIpReceiver.Builder<Udp> {
+    public static class Builder extends NettyReceiver.Builder<Udp> {
         @Setter
         private int bufferSize = -1;
         @Override
@@ -82,14 +74,7 @@ public class Udp extends NettyIpReceiver<Udp,
     }
 
     @Override
-    public ConnectionContext<InetSocketAddress> getNewConnectionContext(ChannelHandlerContext ctx, DatagramPacket message) {
-        InetSocketAddress remoteaddr = message.sender();
-        InetSocketAddress localaddr = message.recipient();
-        return new IpConnectionContext(localaddr, remoteaddr, null);
-    }
-
-    @Override
-    public BaseChannelConsumer<Udp, Bootstrap, Channel, DatagramPacket> getConsumer() {
+    public BaseChannelConsumer<Udp, DatagramPacket> getConsumer() {
         return new BaseChannelConsumer<>(this);
     }
 

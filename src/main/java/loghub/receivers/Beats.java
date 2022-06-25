@@ -50,9 +50,9 @@ import lombok.Setter;
 @SelfDecoder
 @CloseOnError
 @BuilderClass(Beats.Builder.class)
-public class Beats extends AbstractTcpReceiver<Beats, TcpServer, TcpServer.Builder, ByteBuf> implements ConsumerProvider<Beats, ServerBootstrap, ServerChannel> {
+public class Beats extends NettyReceiver<ByteBuf> implements ConsumerProvider {
 
-    public static class Builder extends AbstractTcpReceiver.Builder<Beats> {
+    public static class Builder extends NettyReceiver.Builder<Beats> {
         @Setter
         private int clientInactivityTimeoutSeconds;
         @Setter
@@ -166,18 +166,13 @@ public class Beats extends AbstractTcpReceiver<Beats, TcpServer, TcpServer.Build
     }
 
     @Override
-    protected TcpServer.Builder getServerBuilder() {
-        return new TcpServer.Builder();
-    }
-
-    @Override
     public boolean configure(Properties properties, TcpServer.Builder builder) {
         builder.setThreadPrefix("BeatsReceiver");
         return super.configure(properties, builder);
     }
 
     @Override
-    public ChannelConsumer<ServerBootstrap, ServerChannel> getConsumer() {
+    public ChannelConsumer getConsumer() {
         StatsHandler statsHandler = new StatsHandler();
         BeatsErrorHandler errorHandler = new BeatsErrorHandler();
 
