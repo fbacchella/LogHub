@@ -34,7 +34,8 @@ import org.apache.logging.log4j.Logger;
 
 import loghub.Helpers;
 import loghub.configuration.ConfigException;
-import loghub.netty.servers.AbstractNettyServer;
+
+import static loghub.netty.transport.NettyTransport.DEFINEDSSLALIAS;
 
 public class ContextLoader {
 
@@ -153,14 +154,14 @@ public class ContextLoader {
                     public String chooseEngineServerAlias(String keyType, Principal[] issuers, SSLEngine engine) {
                         logger.trace("{} {} {}", keyType.toString(), Arrays.toString(issuers), engine.toString());
                         // The engine was build with a alias as the hint, return it
-                        if (engine.getPeerPort() == AbstractNettyServer.DEFINEDSSLALIAS && getPrivateKey(engine.getPeerHost()) != null) {
+                        if (engine.getPeerPort() == DEFINEDSSLALIAS && getPrivateKey(engine.getPeerHost()) != null) {
                             String alias = engine.getPeerHost();
                             if (keyType.equals(getPrivateKey(alias).getAlgorithm())) {
                                 return engine.getPeerHost();
                             } else {
                                 return origkm.chooseEngineServerAlias(keyType, issuers, engine);
                             }
-                        } else if (engine.getPeerPort() == AbstractNettyServer.DEFINEDSSLALIAS) {
+                        } else if (engine.getPeerPort() == DEFINEDSSLALIAS) {
                             return null;
                         } else {
                             return origkm.chooseEngineServerAlias(keyType, issuers, engine);

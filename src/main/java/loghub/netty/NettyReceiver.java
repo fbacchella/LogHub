@@ -3,7 +3,6 @@ package loghub.netty;
 import java.net.SocketAddress;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.ExecutionException;
 import java.util.stream.Stream;
 
 import org.apache.logging.log4j.Level;
@@ -17,7 +16,6 @@ import loghub.Helpers;
 import loghub.configuration.Properties;
 import loghub.decoders.DecodeException;
 import loghub.metrics.Stats;
-import loghub.netty.servers.NettyServer;
 import loghub.netty.transport.NettyTransport;
 import loghub.netty.transport.POLLER;
 import loghub.netty.transport.TRANSPORT;
@@ -27,7 +25,7 @@ import loghub.security.ssl.ClientAuthentication;
 import lombok.Getter;
 import lombok.Setter;
 
-public abstract class NettyReceiver<SM> extends Receiver implements ChannelConsumer {
+public abstract class NettyReceiver<SM> extends Receiver {
 
     protected static final AttributeKey<ConnectionContext<?  extends SocketAddress>> CONNECTIONCONTEXTATTRIBUTE = AttributeKey.newInstance(ConnectionContext.class.getName());
 
@@ -57,14 +55,18 @@ public abstract class NettyReceiver<SM> extends Receiver implements ChannelConsu
         private String sslKeyAlias = null;
     }
 
-    TransportConfig config;
-    private final boolean withSSL;
+    protected TransportConfig config;
     private final NettyTransport<?> transport;
+    @Getter
+    private final String listen;
+    @Getter
+    private final int port;
     protected NettyReceiver(Builder<? extends NettyReceiver> builder) {
         super(builder);
         this.transport = builder.transport.getInstance(builder.poller);
+        this.listen = builder.host;
+        this.port = builder.port;
         config = new TransportConfig();
-        this.withSSL = builder.withSSL;
         config.setWorkerThreads(builder.workerThreads)
               .setPort(builder.port)
               .setEndpoint(builder.host)
@@ -79,10 +81,6 @@ public abstract class NettyReceiver<SM> extends Receiver implements ChannelConsu
 
     @Override
     public boolean configure(Properties properties) {
-        TransportConfig config = new TransportConfig();
-        if (withSSL) {
-            config.setSslctx(properties.ssl);
-        }
         try {
             config.setAuthHandler(getAuthHandler(properties));
         } catch (IllegalArgumentException ex) {
@@ -90,13 +88,13 @@ public abstract class NettyReceiver<SM> extends Receiver implements ChannelConsu
             logger.catching(Level.DEBUG, ex);
             return false;
         }
-        config.setConsumer(this);
+        config.setConsumer(NettyTransport.resolveConsumer(this));
         try {
             transport.bind(config);
             // config is not needed any more
             config = null;
             return super.configure(properties);
-        } catch (IllegalStateException | ExecutionException ex) {
+        } catch (IllegalStateException ex) {
             logger.error("Can't start receiver: {}", Helpers.resolveThrowableException(ex));
             logger.catching(Level.DEBUG, ex);
             return false;
@@ -133,16 +131,16 @@ public abstract class NettyReceiver<SM> extends Receiver implements ChannelConsu
         return send(e);
     }
 
-    public ConnectionContext<? extends SocketAddress> makeConnectionContext(ChannelHandlerContext ctx, SM message) {
-        ConnectionContext<? extends SocketAddress> cctx = transport.getNewConnectionContext(ctx);
+    public <A extends SocketAddress> ConnectionContext<A> makeConnectionContext(ChannelHandlerContext ctx) {
+        ConnectionContext<A> cctx = (ConnectionContext<A>) transport.getNewConnectionContext(ctx);
         ctx.channel().attr(CONNECTIONCONTEXTATTRIBUTE).set(cctx);
         Optional.ofNullable(ctx.channel().attr(NettyTransport.PRINCIPALATTRIBUTE).get()).ifPresent(cctx::setPrincipal);
         return cctx;
     }
 
     @SuppressWarnings("unchecked")
-    public ConnectionContext<? extends SocketAddress> getConnectionContext(ChannelHandlerContext ctx) {
-        return transport.getNewConnectionContext(ctx);
+    public<A extends SocketAddress> ConnectionContext<A> getConnectionContext(ChannelHandlerContext ctx) {
+        return (ConnectionContext<A>) transport.getNewConnectionContext(ctx);
     }
 
 
@@ -157,7 +155,7 @@ public abstract class NettyReceiver<SM> extends Receiver implements ChannelConsu
     protected final Stream<Event> decodeStream(ConnectionContext<?> ctx, ByteBuf bbuf) {
         try {
             Stats.newReceivedMessage(this, bbuf.readableBytes());
-            return decoder.decode(ctx, bbuf).map((m) -> mapToEvent(ctx, m)).filter(Objects::nonNull);
+            return decoder.decode(ctx, bbuf).map(m -> mapToEvent(ctx, m)).filter(Objects::nonNull);
         } catch (DecodeException ex) {
             manageDecodeException(ex);
             return Stream.empty();

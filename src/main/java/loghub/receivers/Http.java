@@ -28,16 +28,16 @@ import loghub.Helpers;
 import loghub.configuration.Properties;
 import loghub.decoders.DecodeException;
 import loghub.decoders.DecodeException.RuntimeDecodeException;
-import loghub.metrics.Stats;
 import loghub.decoders.Decoder;
 import loghub.decoders.TextDecoder;
+import loghub.metrics.Stats;
 import loghub.netty.AbstractHttpReceiver;
+import loghub.netty.ChannelConsumer;
 import loghub.netty.http.ContentType;
 import loghub.netty.http.HttpRequestFailure;
 import loghub.netty.http.HttpRequestProcessing;
 import loghub.netty.http.NoCache;
 import loghub.netty.http.RequestAccept;
-import loghub.netty.servers.AbstractNettyServer;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -76,7 +76,7 @@ public class Http extends AbstractHttpReceiver {
                 } else {
                     message = null;
                 }
-                ConnectionContext<InetSocketAddress> cctx = (ConnectionContext<InetSocketAddress>) Http.this.getConnectionContext(ctx);
+                ConnectionContext<InetSocketAddress> cctx = Http.this.getConnectionContext(ctx);
                 Stream<Map<String, Object>> mapsStream;
                 if (message != null && decoder == null) {
                     mapsStream = Stream.of(resolveCgi(message));
@@ -109,18 +109,18 @@ public class Http extends AbstractHttpReceiver {
             writeResponse(ctx, request, content, content.readableBytes());
         }
 
-    }
+        private Map<String, Object> resolveCgi(String message) {
+            QueryStringDecoder qsd = new QueryStringDecoder(message);
+            return qsd.parameters().entrySet().stream()
+                           .collect(Collectors.toMap(Map.Entry::getKey, j -> {
+                               if (j.getValue().size() == 1) {
+                                   return (Object) j.getValue().get(0);
+                               } else {
+                                   return (Object) j.getValue();
+                               }
+                           }));
 
-    private Map<String, Object> resolveCgi(String message) {
-        QueryStringDecoder qsd = new QueryStringDecoder(message);
-        return qsd.parameters().entrySet().stream()
-                        .collect(Collectors.toMap(Map.Entry::getKey, j -> {
-                            if (j.getValue().size() == 1) {
-                                return (Object) j.getValue().get(0);
-                            } else {
-                                return (Object) j.getValue();
-                            }
-                        }));
+        }
 
     }
 
@@ -154,14 +154,17 @@ public class Http extends AbstractHttpReceiver {
         return super.configure(properties);
     }
 
-    protected void settings(HttpReceiverServer.Builder builder) {
-        super.settings(builder);
-        builder.setReceiveHandler(new PostHandler()).setThreadPrefix("HTTP");
-    }
-
     @Override
     public String getReceiverName() {
         return "HTTP/0.0.0.0/" + getPort();
+    }
+
+    @Override
+    public ChannelConsumer getConsumer() {
+        HttpReceiverChannelConsumer.Builder builder = HttpReceiverChannelConsumer.getBuilder();
+        builder.setRequestProcessor(new PostHandler());
+        builder.setReceiver(this);
+        return builder.build();
     }
 
 }

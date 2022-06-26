@@ -8,10 +8,8 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import io.netty.bootstrap.AbstractBootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufHolder;
-import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler.Sharable;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
@@ -102,18 +100,14 @@ public class BaseChannelConsumer<R extends NettyReceiver<SM>, SM> implements Cha
     public void addHandlers(ChannelPipeline p) {
         p.addFirst(ContextExtractor.NAME, extractor);
         p.addLast("ContentExtractor", new ContentExtractor());
-        filter.ifPresent(i -> {
-            p.addLast("Filter", i);
-        });
-        nettydecoder.ifPresent(i -> {
-            p.addLast("MessageDecoder", i);
-        });
+        filter.ifPresent(i -> p.addLast("Filter", i));
+        nettydecoder.ifPresent(i -> p.addLast("MessageDecoder", i));
         p.addLast("Sender", sender);
     }
 
     @Override
-    public void exception(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-        logger.error("Pipeline processing failed: {}", Helpers.resolveThrowableException(cause));
+    public void exception(ChannelHandlerContext ctx, Throwable cause) {
+        logger.error("Pipeline processing failed: {}", () -> Helpers.resolveThrowableException(cause));
         logger.catching(Level.DEBUG, cause);
     }
 

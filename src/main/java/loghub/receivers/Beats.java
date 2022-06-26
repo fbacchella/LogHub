@@ -21,7 +21,6 @@ import io.netty.channel.ChannelHandler.Sharable;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
-import io.netty.channel.ServerChannel;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.DecoderException;
 import io.netty.handler.codec.MessageToMessageDecoder;
@@ -33,17 +32,14 @@ import loghub.ConnectionContext;
 import loghub.Event;
 import loghub.Helpers;
 import loghub.ThreadBuilder;
-import loghub.configuration.Properties;
 import loghub.decoders.DecodeException;
 import loghub.jackson.JacksonBuilder;
 import loghub.metrics.Stats;
-import loghub.netty.AbstractTcpReceiver;
 import loghub.netty.BaseChannelConsumer;
 import loghub.netty.ChannelConsumer;
 import loghub.netty.CloseOnError;
 import loghub.netty.ConsumerProvider;
 import loghub.netty.NettyReceiver;
-import loghub.netty.servers.TcpServer;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -116,6 +112,7 @@ public class Beats extends NettyReceiver<ByteBuf> implements ConsumerProvider {
 
     public Beats(Builder builder) {
         super(builder);
+        config.setThreadPrefix("BeatsReceiver");
         this.clientInactivityTimeoutSeconds = builder.clientInactivityTimeoutSeconds;
         this.maxPayloadSize = builder.maxPayloadSize;
         this.idleExecutorGroup = new DefaultEventExecutorGroup(builder.workers, ThreadBuilder.get().setDaemon(true).getFactory(getReceiverName() + "/idle"));
@@ -129,7 +126,7 @@ public class Beats extends NettyReceiver<ByteBuf> implements ConsumerProvider {
 
             @Override
             public void onChannelInitializeException(ChannelHandlerContext arg0, Throwable error) {
-                logger.fatal("Beats initialization exception: {}", Helpers.resolveThrowableException(error));
+                logger.fatal("Beats initialization exception: {}", () -> Helpers.resolveThrowableException(error));
                 logger.catching(Level.DEBUG, error);
             }
 
@@ -154,7 +151,7 @@ public class Beats extends NettyReceiver<ByteBuf> implements ConsumerProvider {
                 ConnectionContext<?> cctx = ctx.channel().attr(NettyReceiver.CONNECTIONCONTEXTATTRIBUTE).get();
                 Event newEvent = Event.emptyEvent(cctx);
                 beatsMessage.getData().forEach((i,j) -> {
-                    String key = i.toString();
+                    String key = i;
                     if (key.startsWith("@")) {
                         key = "_" + key.substring(1);
                     }
@@ -166,17 +163,11 @@ public class Beats extends NettyReceiver<ByteBuf> implements ConsumerProvider {
     }
 
     @Override
-    public boolean configure(Properties properties, TcpServer.Builder builder) {
-        builder.setThreadPrefix("BeatsReceiver");
-        return super.configure(properties, builder);
-    }
-
-    @Override
     public ChannelConsumer getConsumer() {
         StatsHandler statsHandler = new StatsHandler();
         BeatsErrorHandler errorHandler = new BeatsErrorHandler();
 
-        return new BaseChannelConsumer<Beats, ServerBootstrap, ServerChannel, ByteBuf>(this) {
+        return new BaseChannelConsumer<>(this) {
             @Override
             public void addHandlers(ChannelPipeline pipe) {
                 super.addHandlers(pipe);
@@ -204,7 +195,7 @@ public class Beats extends NettyReceiver<ByteBuf> implements ConsumerProvider {
 
     @Override
     public String getReceiverName() {
-        return "BeatsReceiver/" + Helpers.ListenString(getHost()) + "/" + getPort();
+        return "BeatsReceiver/" + Helpers.ListenString(getListen()) + "/" + getPort();
     }
 
     @Override

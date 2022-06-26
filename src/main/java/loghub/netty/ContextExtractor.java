@@ -12,22 +12,20 @@ public class ContextExtractor<SM> extends MessageToMessageDecoder<SM> {
 
     public static final String NAME = "SourceResolver";
 
-    private final NettyReceiver<?, ?, ?, ?, ?, ?, ?, ?, ?, SM> r;
+    private final NettyReceiver<SM> r;
 
-    public ContextExtractor(Class<SM> messageClass, NettyReceiver<?, ?, ?, ?, ?, ?, ?, ?, ?, SM> r) {
+    public ContextExtractor(Class<SM> messageClass, NettyReceiver<SM> r) {
         super(messageClass);
-        assert r != null;
         this.r = r;
     }
 
-    public ContextExtractor(NettyReceiver<?, ?, ?, ?, ?, ?, ?, ?, ?, SM> r) {
-        assert r != null;
+    public ContextExtractor(NettyReceiver<SM> r) {
         this.r = r;
     }
 
     @Override
     protected void decode(ChannelHandlerContext ctx, SM msg, List<Object> out) {
-        r.makeConnectionContext(ctx, msg);
+        r.makeConnectionContext(ctx);
         //The message is not transformed in this step, so don't decrease reference count
         if (msg instanceof ReferenceCounted) {
             ((ReferenceCounted) msg).retain();

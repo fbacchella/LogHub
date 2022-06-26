@@ -13,12 +13,14 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ExecutionException;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -36,7 +38,7 @@ import org.apache.logging.log4j.core.LoggerContext;
 
 import groovy.lang.GroovyClassLoader;
 import io.netty.util.concurrent.Future;
-import loghub.DashboardHttpServer;
+import loghub.Dashboard;
 import loghub.Event;
 import loghub.EventsProcessor;
 import loghub.EventsRepository;
@@ -45,6 +47,7 @@ import loghub.Helpers;
 import loghub.Pipeline;
 import loghub.PriorityBlockingQueue;
 import loghub.Processor;
+import loghub.security.ssl.ClientAuthentication;
 import loghub.sources.Source;
 import loghub.ThreadBuilder;
 import loghub.VarFormatter;
@@ -110,7 +113,7 @@ public class Properties extends HashMap<String, Object> {
     public final SSLContext ssl;
     public final javax.security.auth.login.Configuration jaasConfig;
     public final JWTHandler jwtHandler;
-    public final DashboardHttpServer.Builder dashboardBuilder;
+    public final Dashboard dashboard;
     public final CacheManager cacheManager;
     public final ZMQSocketFactory zSocketFactory;
     public final Set<EventsProcessor> eventsprocessors;
@@ -220,8 +223,8 @@ public class Properties extends HashMap<String, Object> {
         }
 
         try {
-            dashboardBuilder = DashboardHttpServer.buildDashboad(filterPrefix(properties, "http"), this);
-        } catch (IllegalArgumentException e) {
+            dashboard = buildDashboad(filterPrefix(properties, "http"), this);
+        } catch (IllegalArgumentException | ExecutionException | InterruptedException e) {
             throw new ConfigException("Failed to build dashboard", e);
         }
 
@@ -347,6 +350,40 @@ public class Properties extends HashMap<String, Object> {
         } catch (KeyStoreException | NoSuchProviderException | NoSuchAlgorithmException | CertificateException | IOException ex) {
             throw new ConfigException("Secret store can’t be used:" + Helpers.resolveThrowableException(ex), ex);
         }
+    }
+
+    private Dashboard buildDashboad(Map<String, Object> collect, Properties props)
+            throws ExecutionException, InterruptedException {
+        Dashboard.Builder builder = Dashboard.getBuilder();
+        int port = (Integer) collect.compute("port", (i,j) -> {
+            if (j != null && ! (j instanceof Integer)) {
+                throw new IllegalArgumentException("http dasbhoard port is not an integer");
+            }
+            return j != null ? j : -1;
+        });
+        if (port < 0) {
+            return null;
+        }
+        builder.setPort(port);
+        if (Boolean.TRUE.equals(collect.get("withSSL"))) {
+            builder.setWithSSL(true);
+            String clientAuthentication = collect.compute("SSLClientAuthentication", (i, j) -> j != null ? j : ClientAuthentication.NOTNEEDED).toString();
+            String sslKeyAlias = (String) collect.get("SSLKeyAlias");
+            builder.setSslKeyAlias(sslKeyAlias).setSslClientAuthentication(ClientAuthentication.valueOf(clientAuthentication.toUpperCase(
+                    Locale.ENGLISH)));
+        } else {
+            builder.setWithSSL(false);
+        }
+        if ((Boolean)collect.compute("jwt", (i,j) -> Boolean.TRUE.equals(j))) {
+            builder.setWithJwt(true).setJwtHandler(props.jwtHandler);
+        } else {
+            builder.setWithJwt(false);
+        }
+        String jaasName = collect.compute("jaasName", (i,j) -> j != null ? j : "").toString();
+        if (jaasName != null && ! jaasName.isBlank()) {
+            builder.setJaasName(jaasName).setJaasConfig(props.jaasConfig);
+        }
+        return builder.build();
     }
 
 }

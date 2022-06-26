@@ -3,36 +3,32 @@ package loghub.netty;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.http.HttpMessage;
-import loghub.configuration.Properties;
-import loghub.netty.http.AbstractHttpServer;
-import loghub.netty.http.AccessControl;
 import loghub.netty.http.HttpRequestProcessing;
 import loghub.receivers.Blocking;
+import lombok.Setter;
 
 @Blocking(true)
-public abstract class AbstractHttpReceiver extends NettyReceiver<HttpMessage> {
+public abstract class AbstractHttpReceiver extends NettyReceiver<HttpMessage> implements ConsumerProvider {
 
-    protected static class HttpReceiverServer extends AbstractHttpServer<HttpReceiverServer, HttpReceiverServer.Builder> {
+    protected static class HttpReceiverChannelConsumer extends HttpChannelConsumer {
 
-        public static class Builder extends AbstractHttpServer.Builder<HttpReceiverServer, Builder> {
+        public static class Builder extends HttpChannelConsumer.Builder<HttpReceiverChannelConsumer> {
+            @Setter
             HttpRequestProcessing requestProcessor;
+            @Setter
             AbstractHttpReceiver receiver;
-            public Builder setReceiveHandler(HttpRequestProcessing requestProcessor) {
-                this.requestProcessor = requestProcessor;
-                return this;
+            public HttpReceiverChannelConsumer build() {
+                return new HttpReceiverChannelConsumer(this);
             }
-            public Builder setReceiver(AbstractHttpReceiver receiver) {
-                this.receiver = receiver;
-                return this;
-            }
-            public HttpReceiverServer build() throws IllegalArgumentException, InterruptedException {
-                return new HttpReceiverServer(this);
-            }
+        }
+        public static HttpReceiverChannelConsumer.Builder getBuilder() {
+            return new HttpReceiverChannelConsumer.Builder();
         }
 
         protected final HttpRequestProcessing requestProcessor;
         protected final ContextExtractor<HttpMessage> resolver;
-        protected HttpReceiverServer(Builder builder) throws IllegalArgumentException, InterruptedException {
+
+        protected HttpReceiverChannelConsumer(Builder builder) {
             super(builder);
             this.requestProcessor = builder.requestProcessor;
             this.resolver = new ContextExtractor<>(HttpMessage.class, builder.receiver);
@@ -51,10 +47,6 @@ public abstract class AbstractHttpReceiver extends NettyReceiver<HttpMessage> {
 
     protected AbstractHttpReceiver(Builder<? extends AbstractHttpReceiver>  builder) {
         super(builder);
-    }
-
-    protected void settings(loghub.netty.AbstractHttpReceiver.HttpReceiverServer.Builder builder) {
-        // Empty
     }
 
     @Override

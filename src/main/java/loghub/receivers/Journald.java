@@ -32,6 +32,7 @@ import loghub.decoders.DecodeException;
 import loghub.decoders.JournaldExport;
 import loghub.metrics.Stats;
 import loghub.netty.AbstractHttpReceiver;
+import loghub.netty.ChannelConsumer;
 import loghub.netty.http.ContentType;
 import loghub.netty.http.HttpRequestFailure;
 import loghub.netty.http.HttpRequestProcessing;
@@ -116,7 +117,6 @@ public class Journald extends AbstractHttpReceiver {
             Journald.this.logger.debug("New journald chunk of events, length {}", () -> chunk.content().readableBytes());
             ByteBuf chunkContent = chunk.content();
             if (chunkContent.readableBytes() != 0) {
-                //System.out.format("r=%d w=%d c=%d %s%n", chunkContent.readerIndex(), chunkContent.writerIndex(), chunkContent.capacity(), isLastContentMessage(chunk));
                 Stats.newReceivedMessage(Journald.this, chunkContent.readableBytes());
                 chunksBuffer.addComponent(true, chunkContent);
                 chunkContent.retain();
@@ -167,6 +167,7 @@ public class Journald extends AbstractHttpReceiver {
 
     protected Journald(Builder builder) {
         super(builder);
+        config.setThreadPrefix("Journald").setWorkerThreads(8);
     }
 
     @ContentType("text/plain; charset=utf-8")
@@ -188,25 +189,20 @@ public class Journald extends AbstractHttpReceiver {
     }
 
     @Override
-    protected void settings(HttpReceiverServer.Builder builder) {
-        super.settings(builder);
-        builder.setAggregatorSupplier(JournaldAgregator::new)
-               .setReceiveHandler(new JournaldUploadHandler())
-               .setWorkerThreads(8)
-               // journald-upload uses 16kiB chunk buffers, the default HttpServerCodec uses 8kiB bytebuf
-               .setServerCodecSupplier(() -> new HttpServerCodec(512, 1024, 32768, true, 32768, false, false))
-               .setThreadPrefix("Journald");
+    public ChannelConsumer getConsumer() {
+        HttpReceiverChannelConsumer.Builder builder = HttpReceiverChannelConsumer.getBuilder();
+        builder.setAggregatorSupplier(JournaldAgregator::new);
+        // journald-upload uses 16kiB chunk buffers, the default HttpServerCodec uses 8kiB bytebuf
+        builder.setServerCodecSupplier(() -> new HttpServerCodec(512, 1024, 32768, true, 32768, false, false));
+        builder.setRequestProcessor(new JournaldUploadHandler());
+        return builder.build();
     }
 
     @Override
     public String getReceiverName() {
-        return "Journald/0.0.0.0/" + getPort();
+        return "Journald/" + getListen() + "/" + getPort();
     }
 
-    public JournaldAgregator getAggregator() {
-        return new JournaldAgregator();
-    }
-    
     private static ByteBuf wrapResponse(String message) {
         return Unpooled.copiedBuffer(message, StandardCharsets.UTF_8);
     }

@@ -9,14 +9,16 @@ import org.apache.logging.log4j.Logger;
 import org.junit.rules.ExternalResource;
 
 import io.netty.channel.ChannelPipeline;
-import loghub.netty.http.AbstractHttpServer;
 import loghub.netty.http.HttpHandler;
+import loghub.netty.servers.HttpServer;
+import lombok.Setter;
+import lombok.SneakyThrows;
 
 public class HttpTestServer extends ExternalResource {
 
     private static Logger logger = LogManager.getLogger();
 
-    private AbstractHttpServer server;
+    private HttpServer server;
     private final HttpHandler[] handlers;
     private SSLContext ssl;
     private int port;
@@ -29,17 +31,22 @@ public class HttpTestServer extends ExternalResource {
         this.port = port;
     }
 
-    private static class CustomServer extends AbstractHttpServer {
-        private static class Builder extends AbstractHttpServer.Builder<CustomServer, CustomServer.Builder> {
+    public static class CustomServer extends HttpServer {
+        public static class Builder extends HttpServer.Builder<CustomServer> {
+            @Setter
             HttpHandler[] handlers = null;
+            @Setter
+            String threadPrefix = "JunitTests";
             @Override
-            public CustomServer build() throws IllegalArgumentException, InterruptedException {
+            public CustomServer build()  {
                 return new CustomServer(this);
             }
         }
+        @Setter
         private final HttpHandler[] handlers;
-        protected CustomServer(CustomServer.Builder builder) throws IllegalArgumentException, InterruptedException {
+        protected CustomServer(CustomServer.Builder builder) {
             super(builder);
+            config.setThreadPrefix("TestServer");
             this.handlers = builder.handlers;
         }
         @Override
@@ -52,13 +59,13 @@ public class HttpTestServer extends ExternalResource {
     protected void before() throws Throwable {
         CustomServer.Builder builder = new CustomServer.Builder();
         builder.handlers = handlers;
-        builder.setThreadPrefix("TestServer");
-        server = builder.setPort(port).setSSLContext(ssl).withSSL(ssl != null).build();
+        server = builder.setPort(port).setSslContext(ssl).setWithSSL(ssl != null).build();
     }
 
+    @SneakyThrows
     @Override
     protected void after() {
-        server.close();
+        server.stop();
     }
 
 }

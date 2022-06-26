@@ -1,32 +1,26 @@
 package loghub.receivers;
 
-import java.net.InetSocketAddress;
 import java.util.stream.Stream;
 
-import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
-import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.socket.DatagramChannel;
 import io.netty.channel.socket.DatagramPacket;
 import loghub.BuilderClass;
-import loghub.ConnectionContext;
 import loghub.Event;
 import loghub.Helpers;
-import loghub.IpConnectionContext;
-import loghub.configuration.Properties;
 import loghub.netty.BaseChannelConsumer;
 import loghub.netty.ConsumerProvider;
-import loghub.netty.NettyIpReceiver;
 import loghub.netty.NettyReceiver;
-import loghub.netty.servers.UdpServer;
-import lombok.Getter;
+import loghub.netty.transport.TRANSPORT;
 import lombok.Setter;
 
 @BuilderClass(Udp.Builder.class)
-public class Udp extends NettyReceiver<DatagramPacket> implements ConsumerProvider<Udp, Bootstrap, Channel> {
+public class Udp extends NettyReceiver<DatagramPacket> implements ConsumerProvider {
 
     public static class Builder extends NettyReceiver.Builder<Udp> {
+        Builder() {
+            setTransport(TRANSPORT.UDP);
+        }
         @Setter
         private int bufferSize = -1;
         @Override
@@ -38,28 +32,15 @@ public class Udp extends NettyReceiver<DatagramPacket> implements ConsumerProvid
         return new Builder();
     }
 
-    @Getter
-    private final  int bufferSize;
-
     protected Udp(Builder builder) {
         super(builder);
-        this.bufferSize = builder.bufferSize;
-    }
-
-    @Override
-    protected UdpServer.Builder getServerBuilder() {
-        return UdpServer.getBuilder();
-    }
-
-    @Override
-    public final boolean configure(Properties properties, UdpServer.Builder builder) {
-        builder.setBufferSize(bufferSize).setThreadPrefix("UdpNettyReceiver");
-        return super.configure(properties, builder);
+        config.setBufferSize(builder.bufferSize);
+        config.setThreadPrefix("UdpNettyReceiver");
     }
 
     @Override
     public String getReceiverName() {
-        return "UdpReceiver/" + Helpers.ListenString(getHost()) + "/" + getPort();
+        return "UdpReceiver/" + Helpers.ListenString(getListen() + "/" + getPort());
     }
 
     @Override

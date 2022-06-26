@@ -13,33 +13,31 @@ import io.netty.channel.epoll.EpollDomainSocketChannel;
 import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.epoll.EpollServerDomainSocketChannel;
 import io.netty.channel.epoll.EpollServerSocketChannel;
-import io.netty.channel.epoll.EpollSocketChannel;
 import io.netty.channel.kqueue.KQueue;
 import io.netty.channel.kqueue.KQueueDatagramChannel;
 import io.netty.channel.kqueue.KQueueDomainSocketChannel;
 import io.netty.channel.kqueue.KQueueEventLoopGroup;
 import io.netty.channel.kqueue.KQueueServerDomainSocketChannel;
 import io.netty.channel.kqueue.KQueueServerSocketChannel;
-import io.netty.channel.kqueue.KQueueSocketChannel;
+import io.netty.channel.local.LocalChannel;
+import io.netty.channel.local.LocalServerChannel;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.sctp.nio.NioSctpChannel;
 import io.netty.channel.sctp.nio.NioSctpServerChannel;
-import io.netty.channel.sctp.oio.OioSctpChannel;
-import io.netty.channel.socket.DatagramChannel;
 import io.netty.channel.socket.nio.NioDatagramChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
-import io.netty.channel.socket.oio.OioServerSocketChannel;
 
 public enum POLLER {
     NIO {
         @Override
-        boolean isAvailable() {
+        public boolean isAvailable() {
             return true;
         }
         @Override
-        ServerChannel serverChannelProvider(TRANSPORT transport) {
+        public ServerChannel serverChannelProvider(TRANSPORT transport) {
             switch (transport) {
+            case LOCAL: return new LocalServerChannel();
             case TCP: return new NioServerSocketChannel();
             case SCTP: return new NioSctpServerChannel();
             case UDP: throw new UnsupportedOperationException();
@@ -50,8 +48,9 @@ public enum POLLER {
 
         }
         @Override
-        Channel clientChannelProvider(TRANSPORT transport) {
+        public Channel clientChannelProvider(TRANSPORT transport) {
             switch (transport) {
+            case LOCAL: return new LocalChannel();
             case TCP: return new NioSocketChannel();
             case UDP: return new NioDatagramChannel();
             case SCTP: return new NioSctpChannel();
@@ -61,18 +60,19 @@ public enum POLLER {
             }
         }
         @Override
-        EventLoopGroup getEventLoopGroup(int threads, ThreadFactory threadFactory) {
+        public EventLoopGroup getEventLoopGroup(int threads, ThreadFactory threadFactory) {
             return new NioEventLoopGroup(threads, threadFactory);
         }
     },
     EPOLL {
         @Override
-        boolean isAvailable() {
+        public boolean isAvailable() {
             return Epoll.isAvailable();
         }
         @Override
-        ServerChannel serverChannelProvider(TRANSPORT transport) {
+        public ServerChannel serverChannelProvider(TRANSPORT transport) {
             switch (transport) {
+            case LOCAL: return new LocalServerChannel();
             case TCP: return new EpollServerSocketChannel();
             case UDP:  throw new UnsupportedOperationException();
             case SCTP: throw new UnsupportedOperationException();
@@ -82,8 +82,9 @@ public enum POLLER {
             }
         }
         @Override
-        Channel clientChannelProvider(TRANSPORT transport) {
+        public Channel clientChannelProvider(TRANSPORT transport) {
             switch (transport) {
+            case LOCAL: return new LocalChannel();
             case TCP: return new EpollServerSocketChannel();
             case UDP: return new EpollDatagramChannel();
             case SCTP: throw new UnsupportedOperationException();
@@ -93,33 +94,34 @@ public enum POLLER {
             }
         }
         @Override
-        EventLoopGroup getEventLoopGroup(int threads, ThreadFactory threadFactory) {
+        public EventLoopGroup getEventLoopGroup(int threads, ThreadFactory threadFactory) {
             return new EpollEventLoopGroup(threads, threadFactory);
         }
     },
     OIO {
-        boolean isAvailable() {
+        public boolean isAvailable() {
             return false;
         }
-        ServerChannel serverChannelProvider(TRANSPORT transport) {
+        public ServerChannel serverChannelProvider(TRANSPORT transport) {
             throw new UnsupportedOperationException("Deprecated OIO");
         }
-        Channel clientChannelProvider(TRANSPORT transport) {
+        public Channel clientChannelProvider(TRANSPORT transport) {
             throw new UnsupportedOperationException("Deprecated OIO");
         }
 
-        EventLoopGroup getEventLoopGroup(int threads, ThreadFactory threadFactory) {
+        public EventLoopGroup getEventLoopGroup(int threads, ThreadFactory threadFactory) {
             throw new UnsupportedOperationException("Deprecated OIO");
         }
     },
     KQUEUE {
         @Override
-        boolean isAvailable() {
+        public boolean isAvailable() {
             return KQueue.isAvailable();
         }
         @Override
-        ServerChannel serverChannelProvider(TRANSPORT transport) {
+        public ServerChannel serverChannelProvider(TRANSPORT transport) {
             switch (transport) {
+            case LOCAL: return new LocalServerChannel();
             case TCP: return new KQueueServerDomainSocketChannel();
             case UDP: throw new UnsupportedOperationException();
             case SCTP: throw new UnsupportedOperationException();
@@ -129,8 +131,9 @@ public enum POLLER {
             }
         }
         @Override
-        Channel clientChannelProvider(TRANSPORT transport) {
+        public Channel clientChannelProvider(TRANSPORT transport) {
             switch (transport) {
+            case LOCAL: return new LocalChannel();
             case TCP: return new KQueueServerSocketChannel();
             case UDP: return new KQueueDatagramChannel();
             case SCTP: throw new UnsupportedOperationException();
@@ -140,15 +143,15 @@ public enum POLLER {
             }
         }
          @Override
-        EventLoopGroup getEventLoopGroup(int threads, ThreadFactory threadFactory) {
+         public EventLoopGroup getEventLoopGroup(int threads, ThreadFactory threadFactory) {
             return new KQueueEventLoopGroup(threads, threadFactory);
         }
     },
     ;
-    abstract boolean isAvailable();
-    abstract ServerChannel serverChannelProvider(TRANSPORT transport);
-    abstract Channel clientChannelProvider(TRANSPORT transport);
-    abstract EventLoopGroup getEventLoopGroup(int threads, ThreadFactory threadFactory);
+    public abstract boolean isAvailable();
+    public abstract ServerChannel serverChannelProvider(TRANSPORT transport);
+    public abstract Channel clientChannelProvider(TRANSPORT transport);
+    public abstract EventLoopGroup getEventLoopGroup(int threads, ThreadFactory threadFactory);
     public static final POLLER DEFAULTPOLLER;
     static {
         if (EPOLL.isAvailable()) {

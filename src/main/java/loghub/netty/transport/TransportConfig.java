@@ -35,4 +35,6 @@ public class TransportConfig {
     String sslKeyAlias = null;
     @Getter @Setter
     ClientAuthentication sslClientAuthentication = null;
+    @Getter @Setter
+    String threadPrefix;
 }

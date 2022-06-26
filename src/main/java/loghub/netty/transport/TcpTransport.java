@@ -2,19 +2,16 @@ package loghub.netty.transport;
 
 import java.net.InetSocketAddress;
 
-import org.apache.logging.log4j.Logger;
-
 import io.netty.bootstrap.Bootstrap;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.epoll.EpollChannelOption;
 import loghub.ConnectionContext;
-import loghub.netty.ChannelConsumer;
 
 public class TcpTransport
         extends NettyTransport<InetSocketAddress>
-        implements ResolveIpAddress {
+        implements IpServices {
 
     TcpTransport(POLLER poller) {
         super(poller, TRANSPORT.TCP);
@@ -23,7 +20,7 @@ public class TcpTransport
     @Override
     public void configureServerBootStrap(ServerBootstrap bootstrap, TransportConfig config) {
         super.configureServerBootStrap(bootstrap, config);
-        ResolveIpAddress.super.configureAbstractBootStrap(bootstrap, config);
+        IpServices.super.configureAbstractBootStrap(bootstrap, config);
         if (config.getBacklog() >= 0) {
             bootstrap.option(ChannelOption.SO_BACKLOG, config.getBacklog());
         }
@@ -38,7 +35,7 @@ public class TcpTransport
 
     @Override
     protected void configureBootStrap(Bootstrap bootstrap, TransportConfig config) {
-        ResolveIpAddress.super.configureAbstractBootStrap(bootstrap, config);
+        IpServices.super.configureAbstractBootStrap(bootstrap, config);
         super.configureBootStrap(bootstrap, config);
         bootstrap.option(ChannelOption.TCP_NODELAY, true);
         bootstrap.option(ChannelOption.SO_KEEPALIVE, true);
@@ -51,12 +48,12 @@ public class TcpTransport
 
     @Override
     public InetSocketAddress resolveAddress(TransportConfig config) {
-        return ResolveIpAddress.super.resolveAddress(config);
+        return IpServices.super.resolveAddress(config);
     }
 
     @Override
     public ConnectionContext<InetSocketAddress> getNewConnectionContext(ChannelHandlerContext ctx) {
-        return ResolveIpAddress.super.getNewConnectionContext(ctx);
+        return IpServices.super.getNewConnectionContext(ctx);
     }
 
 }

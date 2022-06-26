@@ -11,6 +11,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ExecutionException;
 
 import javax.management.InstanceNotFoundException;
 import javax.management.IntrospectionException;
@@ -36,6 +37,8 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 
 import loghub.configuration.Properties;
 import loghub.metrics.JmxService;
+import loghub.netty.servers.HttpServer;
+import loghub.netty.transport.NettyTransport;
 
 public class TestDashboard {
 
@@ -44,7 +47,7 @@ public class TestDashboard {
 
     private static Logger logger;
     private final static Properties props = new Properties(Collections.emptyMap());
-    private DashboardHttpServer dashboard = null;
+    private Dashboard dashboard = null;
     private final int port = Tools.tryGetPort();
 
     @BeforeClass
@@ -62,12 +65,12 @@ public class TestDashboard {
 
     @Before
     public void startDashBoard() throws IllegalArgumentException, InterruptedException {
-        dashboard = DashboardHttpServer.getBuilder().setPort(port).setHost("localhost").setThreadPrefix("TestDashboard").build();
+        dashboard = Dashboard.getBuilder().setPort(port).setListen("localhost").build();
     }
 
     @After
     public void stopDashBoard() {
-        Optional.ofNullable(dashboard).ifPresent(DashboardHttpServer::close);
+        Optional.ofNullable(dashboard).ifPresent(HttpServer::stop);
     }
 
     @Test

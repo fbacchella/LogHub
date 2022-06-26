@@ -34,7 +34,7 @@ import loghub.security.ssl.ClientAuthentication;
 import static loghub.netty.transport.NettyTransport.DEFINEDSSLALIAS;
 import static loghub.netty.transport.NettyTransport.PRINCIPALATTRIBUTE;
 
-interface ResolveIpAddress {
+public interface IpServices {
 
     public static final AttributeKey<SSLSession> SSLSESSIONATTRIBUTE = AttributeKey.newInstance(SSLSession.class.getName());
     public static final AttributeKey<SSLEngine> SSLSENGINATTRIBUTE = AttributeKey.newInstance(SSLEngine.class.getName());
@@ -45,7 +45,6 @@ interface ResolveIpAddress {
         } catch (UnknownHostException e) {
             throw new IllegalArgumentException("Unknow host to bind: " + config.endpoint + ":" + config.port);
         }
-
     }
 
     default ConnectionContext<InetSocketAddress> getNewConnectionContext(ChannelHandlerContext ctx) {

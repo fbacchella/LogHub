@@ -13,6 +13,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Scanner;
+import java.util.concurrent.ExecutionException;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 import javax.net.ssl.HttpsURLConnection;
@@ -30,9 +32,9 @@ import org.junit.Test;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.util.CharsetUtil;
+import loghub.HttpTestServer;
 import loghub.LogUtils;
 import loghub.Tools;
 import loghub.security.ssl.ClientAuthentication;
@@ -82,49 +84,31 @@ public class TestHttpSsl {
         }
     }
 
-    private static class CustomServer extends AbstractHttpServer {
-        private static class Builder extends AbstractHttpServer.Builder<CustomServer, Builder> {
-            @Override
-            public CustomServer build() throws IllegalArgumentException, InterruptedException {
-                return new CustomServer(this);
-            }
-        }
+    private HttpTestServer.CustomServer server;
+    private void makeServer(Map<String, Object> sslprops, Consumer<HttpTestServer.CustomServer.Builder> c) throws IllegalArgumentException, InterruptedException {
+        HttpTestServer.CustomServer.Builder builder = new HttpTestServer.CustomServer.Builder();
+        builder.setThreadPrefix("TestHttpSSL");
+                        //builder.setConsumer(server)
+        builder.setPort(serverPort);
+        builder.setSslClientAuthentication(ClientAuthentication.REQUIRED);
+        builder.setSslContext(getContext.apply(sslprops));
+        builder.setWithSSL(true);
 
-        protected CustomServer(Builder builder) throws IllegalArgumentException, InterruptedException {
-            super(builder);
-        }
-
-        @Override
-        public void addModelHandlers(ChannelPipeline p) {
-            p.addLast(new SimpleHandler());
-        }
-
-    }
-
-    private CustomServer server;
-    private void makeServer(Map<String, Object> sslprops, Function<CustomServer.Builder, CustomServer.Builder> c) throws IllegalArgumentException, InterruptedException {
-        CustomServer.Builder builder = new CustomServer.Builder()
-                        .setThreadPrefix("TestHttpSSL")
-                        .setConsumer(server)
-                        .setPort(serverPort)
-                        .setSSLClientAuthentication(ClientAuthentication.REQUIRED)
-                        .setSSLContext(getContext.apply(sslprops))
-                        .withSSL(true);
-
-        server = c.apply(builder).build();
+        c.accept(builder);
+        server = builder.build();
     }
 
     @After
-    public void stopServer() {
+    public void stopServer() throws ExecutionException, InterruptedException {
         if (server != null) {
-            server.close();
+            server.stop();
         }
         server = null;
     }
 
     @Test
     public void TestSimple() throws NoSuchAlgorithmException, KeyStoreException, CertificateException, IOException, KeyManagementException, IllegalArgumentException, InterruptedException {
-        makeServer(Collections.emptyMap(), i -> i);
+        makeServer(Collections.emptyMap(), i -> {});
         HttpsURLConnection cnx = (HttpsURLConnection) theurl.openConnection();
         cnx.setSSLSocketFactory(getContext.apply(Collections.emptyMap()).getSocketFactory());
         cnx.connect();
@@ -150,7 +134,7 @@ public class TestHttpSsl {
 
     @Test
     public void TestClientAuthentication() throws NoSuchAlgorithmException, KeyStoreException, CertificateException, IOException, KeyManagementException, IllegalArgumentException, InterruptedException {
-        makeServer(Collections.emptyMap(), i -> i.setSSLClientAuthentication(ClientAuthentication.REQUIRED));
+        makeServer(Collections.emptyMap(), i -> i.setSslClientAuthentication(ClientAuthentication.REQUIRED));
         HttpsURLConnection cnx = (HttpsURLConnection) theurl.openConnection();
         cnx.setSSLSocketFactory(getContext.apply(Collections.emptyMap()).getSocketFactory());
         cnx.connect();
@@ -163,7 +147,7 @@ public class TestHttpSsl {
 
     @Test(expected=IOException.class)
     public void TestClientAuthenticationFailed() throws NoSuchAlgorithmException, KeyStoreException, CertificateException, IOException, KeyManagementException, IllegalArgumentException, InterruptedException {
-        makeServer(Collections.emptyMap(), i -> i.setSSLClientAuthentication(ClientAuthentication.REQUIRED));
+        makeServer(Collections.emptyMap(), i -> i.setSslClientAuthentication(ClientAuthentication.REQUIRED));
         HttpsURLConnection cnx = (HttpsURLConnection) theurl.openConnection();
         cnx.setSSLSocketFactory(getContext.apply(Collections.singletonMap("issuers", new String[] {"cn=notlocalhost"})).getSocketFactory());
         cnx.connect();
@@ -172,7 +156,7 @@ public class TestHttpSsl {
 
     @Test(expected=javax.net.ssl.SSLHandshakeException.class)
     public void TestChangedAlias() throws NoSuchAlgorithmException, KeyStoreException, CertificateException, IOException, KeyManagementException, IllegalArgumentException, InterruptedException {
-        makeServer(Collections.emptyMap(), i -> i.setSSLKeyAlias("invalidalias"));
+        makeServer(Collections.emptyMap(), i -> i.setSslKeyAlias("invalidalias"));
         HttpsURLConnection cnx = (HttpsURLConnection) theurl.openConnection();
         cnx.setSSLSocketFactory(getContext.apply(Collections.emptyMap()).getSocketFactory());
         cnx.connect();
@@ -185,7 +169,7 @@ public class TestHttpSsl {
 
     @Test(expected=SocketException.class)
     public void TestNoSsl() throws NoSuchAlgorithmException, KeyStoreException, CertificateException, IOException, KeyManagementException, IllegalArgumentException, InterruptedException {
-        makeServer(Collections.emptyMap(), i -> i.setSSLKeyAlias("invalidalias"));
+        makeServer(Collections.emptyMap(), i -> i.setSslKeyAlias("invalidalias"));
         URL nohttpsurl = new URL("http", theurl.getHost(), theurl.getPort(), theurl.getFile());
         HttpURLConnection cnx = (HttpURLConnection) nohttpsurl.openConnection();
         // This generate two log lines, HttpURLConnection retry the connection

@@ -1,20 +1,15 @@
 package loghub.receivers;
 
-import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelPipeline;
-import io.netty.channel.ServerChannel;
 import io.netty.handler.codec.LineBasedFrameDecoder;
 import loghub.BuilderClass;
 import loghub.Helpers;
-import loghub.configuration.Properties;
 import loghub.decoders.StringCodec;
-import loghub.netty.AbstractTcpReceiver;
 import loghub.netty.BaseChannelConsumer;
 import loghub.netty.ChannelConsumer;
 import loghub.netty.ConsumerProvider;
 import loghub.netty.NettyReceiver;
-import loghub.netty.servers.TcpServer;
 import loghub.netty.transport.TRANSPORT;
 import lombok.Getter;
 import lombok.Setter;
@@ -25,10 +20,10 @@ public class TcpLinesStream extends NettyReceiver<ByteBuf> implements ConsumerPr
     public static class Builder extends NettyReceiver.Builder<TcpLinesStream> {
         public Builder() {
             super();
-            this.setTransport(TRANSPORT.TCP);
+            setTransport(TRANSPORT.TCP);
             // A ready to use TcpLinesStream: single line text message.
             StringCodec.Builder sbuilder = new StringCodec.Builder();
-            this.setDecoder(sbuilder.build());
+            setDecoder(sbuilder.build());
         }
         @Setter
         private int maxLength = 256;
@@ -47,6 +42,7 @@ public class TcpLinesStream extends NettyReceiver<ByteBuf> implements ConsumerPr
     private TcpLinesStream(Builder builder) {
         super(builder);
         this.maxLength = builder.maxLength;
+        config.setThreadPrefix("LineReceiver");
     }
 
     @Override
@@ -61,14 +57,8 @@ public class TcpLinesStream extends NettyReceiver<ByteBuf> implements ConsumerPr
     }
 
     @Override
-    public boolean configure(Properties properties) {
-        builder.setThreadPrefix("LineReceiver");
-        return super.configure(properties);
-    }
-
-    @Override
     public String getReceiverName() {
-        return "LineReceiver/" + Helpers.ListenString(getHost()) + "/" + getPort();
+        return "LineReceiver/" + Helpers.ListenString(getListen()) + "/" + getPort();
     }
 
     @Override

@@ -18,6 +18,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Timer;
+import java.util.concurrent.ExecutionException;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -446,10 +447,10 @@ public class Start {
             throw new IllegalStateException("JMX start failed: " + Helpers.resolveThrowableException(e));
         }
 
-        if (props.dashboardBuilder != null) {
+        if (props.dashboard != null) {
             try {
-                props.dashboardBuilder.build();
-            } catch (IllegalArgumentException e) {
+                props.dashboard.start();
+            } catch (IllegalArgumentException | ExecutionException e) {
                 logger.error("Unable to start HTTP dashboard: {}", Helpers.resolveThrowableException(e));
                 logger.catching(Level.DEBUG, e);
                 throw new IllegalStateException("Unable to start HTTP dashboard: " + Helpers.resolveThrowableException(e));

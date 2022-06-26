@@ -7,7 +7,7 @@ import io.netty.channel.unix.DomainSocketAddress;
 import loghub.ConnectionContext;
 import loghub.DomainConnectionContext;
 
-public interface ResolveUnixAddress {
+public interface UnixDomainServices {
 
 
     default DomainSocketAddress resolveAddress(TransportConfig config) {

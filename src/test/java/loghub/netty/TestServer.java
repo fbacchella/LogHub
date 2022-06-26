@@ -2,7 +2,6 @@ package loghub.netty;
 
 import java.io.IOException;
 import java.util.Collections;
-import java.util.concurrent.ThreadFactory;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -11,26 +10,19 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import io.netty.bootstrap.AbstractBootstrap;
 import io.netty.bootstrap.Bootstrap;
-import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelFactory;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.DefaultEventLoopGroup;
 import io.netty.channel.EventLoopGroup;
-import io.netty.channel.ServerChannel;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.channel.local.LocalAddress;
 import io.netty.channel.local.LocalChannel;
-import io.netty.channel.local.LocalServerChannel;
 import io.netty.handler.codec.LineBasedFrameDecoder;
 import io.netty.util.CharsetUtil;
-import loghub.ConnectionContext;
 import loghub.Event;
 import loghub.LogUtils;
 import loghub.Pipeline;
@@ -38,86 +30,12 @@ import loghub.PriorityBlockingQueue;
 import loghub.Tools;
 import loghub.configuration.Properties;
 import loghub.decoders.StringCodec;
-import loghub.netty.servers.AbstractNettyServer;
 
 public class TestServer {
 
-    private static class LocalChannelConnectionContext extends ConnectionContext<LocalAddress> {
-        private final LocalAddress local;
-        private final LocalAddress remote;
-        private LocalChannelConnectionContext(LocalChannel channel) {
-            this.local = channel.localAddress();
-            this.remote = channel.remoteAddress();
-        }
-        @Override
-        public LocalAddress getLocalAddress() {
-            return local;
-        }
-        @Override
-        public LocalAddress getRemoteAddress() {
-            return remote;
-        }
-    };
-
-    private static class TesterHandler extends ServerHandler<LocalChannel, LocalAddress> {
-        public TesterHandler() {
-            super(POLLER.DEFAULTPOLLER);
-        }
-
-        @Override
-        public EventLoopGroup getEventLoopGroup(int threads, ThreadFactory threadFactory) {
-            return new DefaultEventLoopGroup(threads, threadFactory);
-        }
-
-        @Override
-        public ChannelFactory<ServerChannel> getInstance() {
-            return LocalServerChannel::new;
-        }
-    };
-
-    private static class TesterServer extends AbstractNettyServer<TesterHandler, ServerBootstrap, ServerChannel, LocalServerChannel, LocalAddress, TesterServer, TesterServer.Builder> {
-
-        public static class Builder extends  AbstractNettyServer.Builder<TesterServer, TesterServer.Builder, ServerBootstrap, ServerChannel> {
-            public TesterServer build() throws IllegalStateException, InterruptedException {
-                return new TesterServer(this);
-            }
-        }
-
-        Channel cf;
-
-        public TesterServer(Builder builder) throws IllegalStateException, InterruptedException {
-            super(builder);
-        }
-
-        @Override
-        protected TesterHandler getNewFactory() {
-            return new TesterHandler();
-        }
-
-        @Override
-        protected void makeChannel(AbstractBootstrap<ServerBootstrap, ServerChannel> bootstrap, LocalAddress address, Builder builder) {
-            // Bind and start to accept incoming connections.
-            try {
-                cf = bootstrap.bind(address).await().channel();
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-        }
-
-        @Override
-        public void waitClose() throws InterruptedException {
-            cf.closeFuture().sync();
-        }
-
-        @Override
-        protected LocalAddress resolveAddress(Builder builder) {
-            return new LocalAddress(TestServer.class.getCanonicalName());
-        }
-    }
-
     @CloseOnError
-    private static class TesterReceiver extends NettyReceiver<TesterReceiver, TesterServer, TesterServer.Builder, TesterHandler, ServerBootstrap, ServerChannel, LocalServerChannel, LocalChannel, LocalAddress, Object>
-                                        implements ConsumerProvider<TesterReceiver, ServerBootstrap, ServerChannel>{
+    private static class TesterReceiver extends NettyReceiver<Object>
+                                        implements ConsumerProvider {
 
         public static class Builder extends NettyReceiver.Builder<TesterReceiver> {
             @Override
@@ -132,27 +50,13 @@ public class TestServer {
 
         protected TesterReceiver(Builder builder) {
             super(builder);
-        }
+            config.setThreadPrefix("ReceiverTest");
 
-        @Override
-        public boolean configure(Properties properties, TesterServer.Builder builder) {
-            builder.setThreadPrefix("ReceiverTest");
-            return super.configure(properties, builder);
         }
 
         @Override
         public String getReceiverName() {
             return "ReceiverTest";
-        }
-
-        @Override
-        public ConnectionContext<LocalAddress> getNewConnectionContext(ChannelHandlerContext ctx, Object message) {
-            return new LocalChannelConnectionContext((LocalChannel) ctx.channel());
-        }
-
-        @Override
-        protected TesterServer.Builder getServerBuilder() {
-            return new TesterServer.Builder();
         }
 
         @Override
@@ -162,8 +66,8 @@ public class TestServer {
         }
 
         @Override
-        public ChannelConsumer<ServerBootstrap, ServerChannel> getConsumer() {
-            return new BaseChannelConsumer<TesterReceiver, ServerBootstrap, ServerChannel, Object>(this) {
+        public ChannelConsumer getConsumer() {
+            return new BaseChannelConsumer<>(this) {
                 @Override
                 public void addHandlers(ChannelPipeline pipe) {
                     super.addHandlers(pipe);

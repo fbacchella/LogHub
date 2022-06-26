@@ -3,6 +3,12 @@ package loghub.netty.transport;
 import java.net.SocketAddress;
 
 public enum TRANSPORT {
+    LOCAL(true) {
+        @Override
+        public <T extends NettyTransport<S>, S extends SocketAddress> T getInstance(POLLER poller) {
+            return (T) new LocalTransport(poller);
+        }
+    },
     UDP(false) {
         @Override
         public <T extends NettyTransport<S>, S extends SocketAddress> T getInstance(POLLER poller) {

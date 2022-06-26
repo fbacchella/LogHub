@@ -68,18 +68,18 @@ public abstract class NettyTransport<SA extends SocketAddress> {
         @Override
         public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
             if (cause.getCause() instanceof NotSslRecordException) {
-                logger.warn("Not a SSL connexion from {} on SSL listen", ctx.channel().remoteAddress());
+                logger.warn("Not a SSL connexion from {} on SSL listen", () -> ctx.channel().remoteAddress());
             } else if (cause.getCause() instanceof SSLHandshakeException) {
-                logger.warn("Failed SSL handshake from {}: {}", ctx.channel().remoteAddress(), Helpers.resolveThrowableException(cause));
+                logger.warn("Failed SSL handshake from {}: {}", () -> ctx.channel().remoteAddress(), () -> Helpers.resolveThrowableException(cause));
                 logger.catching(Level.DEBUG, cause);
             } else if (cause instanceof IOException) {
-                logger.warn("IO exception from {}: {}", ctx.channel().remoteAddress(), Helpers.resolveThrowableException(cause));
+                logger.warn("IO exception from {}: {}", () -> ctx.channel().remoteAddress(), () -> Helpers.resolveThrowableException(cause));
                 logger.catching(Level.DEBUG, cause);
             } else if (cause instanceof CodecException) {
-                logger.warn("Codec exception from {}: {}", ctx.channel().remoteAddress(), Helpers.resolveThrowableException(cause));
+                logger.warn("Codec exception from {}: {}", () -> ctx.channel().remoteAddress(), () -> Helpers.resolveThrowableException(cause));
                 logger.catching(Level.DEBUG, cause);
             } else {
-                logger.warn("Not handled exception {} from {}", Helpers.resolveThrowableException(cause), ctx.channel().remoteAddress());
+                logger.warn("Not handled exception {} from {}", () -> Helpers.resolveThrowableException(cause), () -> ctx.channel().remoteAddress());
                 logger.throwing(Level.WARN, cause);
             }
             if (! (ctx.channel() instanceof DatagramChannel)) {
@@ -104,8 +104,7 @@ public abstract class NettyTransport<SA extends SocketAddress> {
         logger = LogManager.getLogger(Helpers.getFirstInitClass());
     }
 
-    public void connect(TransportConfig config)
-            throws ExecutionException, InterruptedException {
+    public void connect(TransportConfig config) throws InterruptedException {
         SocketAddress address = resolveAddress(config);
         if (address == null) {
             throw new IllegalArgumentException("Can't get listening address: " + "connect");
@@ -114,10 +113,9 @@ public abstract class NettyTransport<SA extends SocketAddress> {
         bootstrap.channelFactory(() -> poller.clientChannelProvider(transport));
         ThreadFactory threadFactory = ThreadBuilder.get()
                                               .setDaemon(true)
-                                              .getFactory(transport + "/" + address);
+                                              .getFactory(getStringPrefix(config) + "/" + address);
         EventLoopGroup workerGroup = poller.getEventLoopGroup(1, threadFactory);
-        finisher = () -> workerGroup.shutdownGracefully();
-        addHandlers(bootstrap, config);
+        finisher = workerGroup::shutdownGracefully;
         config.consumer.addOptions(bootstrap);
         configureBootStrap(bootstrap, config);
         ChannelFuture cf = bootstrap.connect(address);
@@ -126,8 +124,7 @@ public abstract class NettyTransport<SA extends SocketAddress> {
         logger.debug("Connected to {}", address);
     }
 
-    public void bind(TransportConfig config)
-            throws ExecutionException, InterruptedException {
+    public void bind(TransportConfig config) throws InterruptedException {
         SocketAddress address = resolveAddress(config);
         if (address == null) {
             throw new IllegalArgumentException("Can't get listening address: " + "listen");
@@ -170,10 +167,9 @@ public abstract class NettyTransport<SA extends SocketAddress> {
         }
         ThreadFactory threadFactory = ThreadBuilder.get()
                                                    .setDaemon(true)
-                                                   .getFactory(transport + "/" + address.toString());
+                                                   .getFactory(getStringPrefix(config) + "/" + address.toString());
         EventLoopGroup workerGroup = poller.getEventLoopGroup(config.workerThreads, threadFactory);
         finisher = workerGroup::shutdownGracefully;
-        addHandlers(bootstrap, config);
         config.consumer.addOptions(bootstrap);
         configureBootStrap(bootstrap, config);
         listeningChannels = new HashSet<>(config.workerThreads);
@@ -188,23 +184,26 @@ public abstract class NettyTransport<SA extends SocketAddress> {
         bootstrap.channelFactory(() -> poller.serverChannelProvider(transport));
         ThreadFactory threadFactoryBosses = ThreadBuilder.get()
                                                          .setDaemon(true)
-                                                         .getFactory(transport + "/" + address + "/bosses");
+                                                         .getFactory(getStringPrefix(config) + "/" + address + "/bosses");
         EventLoopGroup bossGroup = poller.getEventLoopGroup(config.getWorkerThreads(), threadFactoryBosses);
         ThreadFactory workerFactoryWorkers = ThreadBuilder.get()
                                                           .setDaemon(true)
-                                                          .getFactory(transport + "/" + address + "/workers");
+                                                          .getFactory(getStringPrefix(config) + "/" + address + "/workers");
         EventLoopGroup workerGroup = poller.getEventLoopGroup(config.getWorkerThreads(), workerFactoryWorkers);
         bootstrap.group(bossGroup, workerGroup);
         finisher = () -> {
             workerGroup.shutdownGracefully();
             bossGroup.shutdownGracefully();
         };
-        addChildhandlers(config.consumer, config);
         addHandlers(bootstrap, config);
         config.consumer.addOptions(bootstrap);
         configureServerBootStrap(bootstrap, config);
         ChannelFuture cf = bootstrap.bind(address);
         listeningChannels = Collections.singleton(cf);
+    }
+
+    private String getStringPrefix(TransportConfig config) {
+        return config.threadPrefix != null ? config.threadPrefix : transport.toString();
     }
 
     protected void configureServerBootStrap(ServerBootstrap bootstrap, TransportConfig config) {
@@ -215,12 +214,6 @@ public abstract class NettyTransport<SA extends SocketAddress> {
 
     protected abstract SA resolveAddress(TransportConfig config);
     public abstract ConnectionContext<SA> getNewConnectionContext(ChannelHandlerContext ctx);
-
-    protected void addChildhandlers(ChannelConsumer source, TransportConfig config) {
-    }
-
-    protected void addHandlers(Bootstrap bootstrap, TransportConfig config) {
-    }
 
     protected void addHandlers(ServerBootstrap bootstrap, TransportConfig config) {
         ChannelConsumer consumer = config.consumer;
@@ -246,8 +239,8 @@ public abstract class NettyTransport<SA extends SocketAddress> {
 
             @Override
             protected void initChannel(Channel ch)  {
-                if (NettyTransport.this instanceof ResolveIpAddress && config.sslctx != null) {
-                    ((ResolveIpAddress)NettyTransport.this).addSslHandler(config, ch.pipeline(), logger);
+                if (NettyTransport.this instanceof IpServices && config.sslctx != null) {
+                    ((IpServices)NettyTransport.this).addSslHandler(config, ch.pipeline(), logger);
                 }
 
             }
@@ -269,20 +262,18 @@ public abstract class NettyTransport<SA extends SocketAddress> {
             try {
                 cf.channel().closeFuture().await();
             } catch (InterruptedException e) {
-                if (e instanceof InterruptedException) {
-                    Thread.currentThread().interrupt();
-                }
+                Thread.currentThread().interrupt();
             }
         }
         listeningChannels.clear();
     }
 
     @SuppressWarnings("unchecked")
-    public static <BS extends AbstractBootstrap<BS, BSC>, BSC extends Channel> ChannelConsumer resolveConsumer(Object o) {
+    public static <B extends AbstractBootstrap<B, C>, C extends Channel> ChannelConsumer resolveConsumer(Object o) {
         if (o instanceof ChannelConsumer) {
             return (ChannelConsumer) o;
         } else if (o instanceof ConsumerProvider) {
-            ConsumerProvider<?, BS, BSC> cp = (ConsumerProvider<?, BS, BSC>) o;
+            ConsumerProvider cp = (ConsumerProvider ) o;
             return cp.getConsumer();
         } else {
             return null;

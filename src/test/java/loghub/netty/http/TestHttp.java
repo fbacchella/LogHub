@@ -8,41 +8,29 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.function.Function;
 
-import org.junit.After;
 import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExternalResource;
 
-import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpRequest;
+import loghub.HttpTestServer;
+import loghub.HttpTestServer.CustomServer.Builder;
 import loghub.Tools;
 
 public class TestHttp {
 
-    private static class CustomServer extends AbstractHttpServer {
-        private static class Builder extends AbstractHttpServer.Builder<CustomServer, Builder> {
-            ChannelHandler customHandler;
-            @Override
-            public CustomServer build() throws IllegalArgumentException, InterruptedException {
-                return new CustomServer(this);
-            }
-        }
-        private final ChannelHandler customHandler;
-        protected CustomServer(Builder builder) throws IllegalArgumentException, InterruptedException {
-            super(builder);
-            this.customHandler = builder.customHandler;
-        }
+    @Rule
+    public ExternalResource resource = getHttpServer();
 
-        @Override
-        public void addModelHandlers(ChannelPipeline p) {
-            p.addLast(customHandler);
-        }
-
+    private ExternalResource getHttpServer() {
+        serverPort = Tools.tryGetPort();
+        return new HttpTestServer(null, serverPort);
     }
 
-    private final int serverPort = Tools.tryGetPort();
+    private int serverPort = Tools.tryGetPort();
     private final URL theurl;
     {
         try {
@@ -51,22 +39,13 @@ public class TestHttp {
             throw new RuntimeException(e);
         }
     }
-    private CustomServer server;
-    private void makeServer(Map<String, Object> sslprops, Function<CustomServer.Builder, CustomServer.Builder> c) throws IllegalArgumentException, InterruptedException {
-        CustomServer.Builder builder = new CustomServer.Builder()
-                        .setThreadPrefix("TestHttp")
-                        .setConsumer(server)
-                        .setPort(serverPort)
-                        .withSSL(false);
-
+    private HttpTestServer.CustomServer server;
+    private void makeServer(Map<String, Object> sslprops, Function<Builder, Builder> c) {
+        Builder builder = new Builder();
+        builder.setThreadPrefix("TestHttp");
+        builder.setPort(serverPort);
+        builder.setWithSSL(false);
         server = c.apply(builder).build();
-    }
-
-    @After
-    public void close() {
-        if (server != null) {
-            server.close();
-        }
     }
 
     @Test
@@ -80,7 +59,7 @@ public class TestHttp {
     @Test
     public void Test503() throws IOException, IllegalArgumentException, InterruptedException {
         makeServer(Collections.emptyMap(), i -> {
-            i.customHandler = new HttpRequestProcessing() {
+            HttpRequestProcessing processing = new HttpRequestProcessing() {
                 @Override
                 public boolean acceptRequest(HttpRequest request) {
                     return true;
@@ -93,6 +72,7 @@ public class TestHttp {
                     throw new RuntimeException();
                 }
             };
+            i.setHandlers(new HttpHandler[]{processing});
             return i;
         });
         HttpURLConnection cnx = (HttpURLConnection) theurl.openConnection();
@@ -103,7 +83,8 @@ public class TestHttp {
     @Test
     public void TestRootRedirect() throws IOException, IllegalArgumentException, InterruptedException {
         makeServer(Collections.emptyMap(), i -> {
-            i.customHandler = new RootRedirect();
+            HttpRequestProcessing processing = new RootRedirect();
+            i.setHandlers(new HttpHandler[]{processing});
             return i;
         });
         HttpURLConnection cnx = (HttpURLConnection) theurl.openConnection();

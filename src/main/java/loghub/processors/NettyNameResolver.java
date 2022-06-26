@@ -17,7 +17,10 @@ import javax.cache.Cache;
 import javax.cache.processor.MutableEntry;
 
 import io.netty.channel.AddressedEnvelope;
+import io.netty.channel.ChannelFactory;
 import io.netty.channel.EventLoopGroup;
+import io.netty.channel.socket.DatagramChannel;
+import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.dns.DefaultDnsQuestion;
 import io.netty.handler.codec.dns.DnsPtrRecord;
 import io.netty.handler.codec.dns.DnsQuestion;
@@ -43,6 +46,7 @@ import loghub.VarFormatter;
 import loghub.VariablePath;
 import loghub.configuration.Properties;
 import loghub.netty.transport.POLLER;
+import loghub.netty.transport.TRANSPORT;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
@@ -126,8 +130,10 @@ public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<Dn
     public boolean configure(Properties properties) {
         DnsNameResolverBuilder builder = new DnsNameResolverBuilder(EVENTLOOPGROUP.next())
                         .queryTimeoutMillis(getTimeout() * 1000L)
-                        .channelFactory(POLLER.DEFAULTPOLLER::datagramChannelProvider)
-                        .socketChannelFactory(POLLER.DEFAULTPOLLER::clientChannelProvider)
+                        .channelFactory(
+                                (ChannelFactory<? extends DatagramChannel>) POLLER.DEFAULTPOLLER.clientChannelProvider(TRANSPORT.UDP))
+                        .socketChannelFactory(
+                                (ChannelFactory<? extends SocketChannel>) POLLER.DEFAULTPOLLER.clientChannelProvider(TRANSPORT.TCP))
                         ;
         InetSocketAddress resolverAddr = null;
         Object parent = null;

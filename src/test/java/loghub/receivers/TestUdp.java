@@ -32,6 +32,7 @@ import loghub.PriorityBlockingQueue;
 import loghub.Tools;
 import loghub.configuration.Properties;
 import loghub.decoders.StringCodec;
+import loghub.netty.transport.POLLER;
 
 public class TestUdp {
 
@@ -89,7 +90,7 @@ public class TestUdp {
                 originalMessageSize = buffer.length();
                 DatagramPacket packet = new DatagramPacket(buf, buf.length, destaddr);
                 try {
-                    logger.debug("Listening on {}", r.getListenAddress());
+                    logger.debug("Listening on {}", r.getListen());
                     send.send(packet);
                     logger.debug("One message sent to {}", packet.getAddress());
                 } catch (IOException e1) {
@@ -147,7 +148,7 @@ public class TestUdp {
             try(DatagramSocket send = new DatagramSocket()) {
                 DatagramPacket packet = new DatagramPacket(sentBuffer, sentBuffer.length, destaddr);
                 try {
-                    logger.debug("Listening on {}", r.getListenAddress());
+                    logger.debug("Listening on {}", r.getListen());
                     send.send(packet);
                     logger.debug("One message sent to {}", packet.getAddress());
                 } catch (IOException e1) {
@@ -190,7 +191,7 @@ public class TestUdp {
             b.setHost(InetAddress.getLoopbackAddress().getHostAddress());
             b.setPort(port);
             b.setWorkerThreads(4);
-            b.setPoller("DEFAULT");
+            b.setPoller(POLLER.DEFAULTPOLLER);
             b.setDecoder(StringCodec.getBuilder().build());
         })) {
             Assert.assertTrue(r.configure(new Properties(Collections.emptyMap())));
