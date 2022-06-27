@@ -38,6 +38,7 @@ import loghub.netty.http.HttpRequestFailure;
 import loghub.netty.http.HttpRequestProcessing;
 import loghub.netty.http.NoCache;
 import loghub.netty.http.RequestAccept;
+import loghub.netty.transport.TRANSPORT;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -125,6 +126,9 @@ public class Http extends AbstractHttpReceiver {
     }
 
     public static class Builder extends AbstractHttpReceiver.Builder<Http> {
+        public Builder() {
+            setTransport(TRANSPORT.TCP);
+        }
         @Setter
         private Map<String, Decoder> decoders = Collections.emptyMap();
 
@@ -160,11 +164,8 @@ public class Http extends AbstractHttpReceiver {
     }
 
     @Override
-    public ChannelConsumer getConsumer() {
-        HttpReceiverChannelConsumer.Builder builder = HttpReceiverChannelConsumer.getBuilder();
+    public void configureConsumer(HttpReceiverChannelConsumer.Builder builder) {
         builder.setRequestProcessor(new PostHandler());
-        builder.setReceiver(this);
-        return builder.build();
     }
 
 }

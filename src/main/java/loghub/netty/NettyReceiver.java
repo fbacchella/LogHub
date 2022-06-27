@@ -9,6 +9,7 @@ import org.apache.logging.log4j.Level;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.util.Attribute;
 import io.netty.util.AttributeKey;
 import loghub.ConnectionContext;
 import loghub.Event;
@@ -25,7 +26,7 @@ import loghub.security.ssl.ClientAuthentication;
 import lombok.Getter;
 import lombok.Setter;
 
-public abstract class NettyReceiver<SM> extends Receiver {
+public abstract class NettyReceiver<M> extends Receiver {
 
     protected static final AttributeKey<ConnectionContext<?  extends SocketAddress>> CONNECTIONCONTEXTATTRIBUTE = AttributeKey.newInstance(ConnectionContext.class.getName());
 
@@ -47,16 +48,10 @@ public abstract class NettyReceiver<SM> extends Receiver {
         int sndBuf = -1;
         @Setter
         private int backlog = -1;
-        @Setter
-        boolean withSSL = false;
-        @Setter
-        ClientAuthentication sslClientAuthentication = ClientAuthentication.NONE;
-        @Setter
-        private String sslKeyAlias = null;
     }
 
     protected TransportConfig config;
-    private final NettyTransport<?> transport;
+    private final NettyTransport<?, M> transport;
     @Getter
     private final String listen;
     @Getter
@@ -73,14 +68,19 @@ public abstract class NettyReceiver<SM> extends Receiver {
               .setRcvBuf(builder.rcvBuf)
               .setSndBuf(builder.sndBuf)
               .setBacklog(builder.backlog);
-        if (builder.withSSL) {
-            config.setSslClientAuthentication(builder.sslClientAuthentication)
-                  .setSslKeyAlias(builder.sslKeyAlias);
+        if (isWithSSL()) {
+            config.setWithSsl(true);
+            config.setSslClientAuthentication(getSSLClientAuthentication())
+                  .setSslKeyAlias(getSSLKeyAlias())
+                  .setWithSsl(true);
         }
     }
 
     @Override
     public boolean configure(Properties properties) {
+        if (config.isWithSsl()) {
+            config.setSslContext(properties.ssl);
+        }
         try {
             config.setAuthHandler(getAuthHandler(properties));
         } catch (IllegalArgumentException ex) {
@@ -120,7 +120,7 @@ public abstract class NettyReceiver<SM> extends Receiver {
         super.stopReceiving();
     }
 
-    public abstract ByteBuf getContent(SM message);
+    public abstract ByteBuf getContent(M message);
 
     public Stream<Event> nettyMessageDecode(ChannelHandlerContext ctx, ByteBuf message) {
         ConnectionContext<?> cctx = ctx.channel().attr(NettyReceiver.CONNECTIONCONTEXTATTRIBUTE).get();
@@ -131,16 +131,16 @@ public abstract class NettyReceiver<SM> extends Receiver {
         return send(e);
     }
 
-    public <A extends SocketAddress> ConnectionContext<A> makeConnectionContext(ChannelHandlerContext ctx) {
-        ConnectionContext<A> cctx = (ConnectionContext<A>) transport.getNewConnectionContext(ctx);
+    public <A extends SocketAddress> ConnectionContext<A> makeConnectionContext(ChannelHandlerContext ctx, M message) {
+        ConnectionContext<A> cctx = (ConnectionContext<A>) transport.getNewConnectionContext(ctx, message);
         ctx.channel().attr(CONNECTIONCONTEXTATTRIBUTE).set(cctx);
-        Optional.ofNullable(ctx.channel().attr(NettyTransport.PRINCIPALATTRIBUTE).get()).ifPresent(cctx::setPrincipal);
+        Optional.ofNullable(ctx.channel().attr(NettyTransport.PRINCIPALATTRIBUTE)).map(Attribute::get).ifPresent(cctx::setPrincipal);
         return cctx;
     }
 
     @SuppressWarnings("unchecked")
     public<A extends SocketAddress> ConnectionContext<A> getConnectionContext(ChannelHandlerContext ctx) {
-        return (ConnectionContext<A>) transport.getNewConnectionContext(ctx);
+        return (ConnectionContext<A>) Optional.ofNullable(ctx.channel().attr(CONNECTIONCONTEXTATTRIBUTE)).map(Attribute::get).orElse(null);
     }
 
 

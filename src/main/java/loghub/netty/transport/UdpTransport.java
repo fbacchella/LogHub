@@ -8,10 +8,12 @@ import io.netty.bootstrap.AbstractBootstrap;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
+import io.netty.channel.socket.DatagramPacket;
 import loghub.ConnectionContext;
+import loghub.IpConnectionContext;
 
 public class UdpTransport
-        extends NettyTransport<InetSocketAddress>
+        extends NettyTransport<InetSocketAddress, DatagramPacket>
         implements IpServices {
 
     UdpTransport(POLLER poller) {
@@ -24,8 +26,10 @@ public class UdpTransport
     }
 
     @Override
-    public ConnectionContext<InetSocketAddress> getNewConnectionContext(ChannelHandlerContext ctx) {
-        return null;
+    public ConnectionContext<InetSocketAddress> getNewConnectionContext(ChannelHandlerContext ctx, DatagramPacket message) {
+        InetSocketAddress remoteaddr = message.sender();
+        InetSocketAddress localaddr = message.recipient();
+        return new IpConnectionContext(localaddr, remoteaddr, null);
     }
 
     @Override

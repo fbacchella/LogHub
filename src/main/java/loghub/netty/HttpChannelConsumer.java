@@ -40,7 +40,7 @@ public abstract class HttpChannelConsumer<S extends HttpChannelConsumer> impleme
         @Setter
         private AuthenticationHandler authHandler;
         @Setter
-        private int maxContentLength;
+        private int maxContentLength = 1048576;
         @Setter
         private Logger logger;
         protected Builder() {
@@ -80,7 +80,6 @@ public abstract class HttpChannelConsumer<S extends HttpChannelConsumer> impleme
             p.addAfter("HttpObjectAggregator", "BrokenConfigHandler", FATAL_ERROR);
         }
         p.addLast("NotFound404", NOT_FOUND);
-
     }
 
     @Override

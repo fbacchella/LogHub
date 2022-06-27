@@ -11,6 +11,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ProtocolException;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
@@ -20,10 +21,8 @@ import java.util.function.Consumer;
 import java.util.regex.Pattern;
 
 import javax.management.remote.JMXPrincipal;
-import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLSession;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -47,6 +46,7 @@ import loghub.configuration.Properties;
 import loghub.decoders.Decoder;
 import loghub.decoders.Json;
 import loghub.security.JWTHandler;
+import loghub.security.ssl.ClientAuthentication;
 import loghub.security.ssl.ContextLoader;
 
 public class TestHttp {
@@ -57,7 +57,7 @@ public class TestHttp {
     static public void configure() throws IOException {
         Tools.configure();
         logger = LogManager.getLogger();
-        LogUtils.setLevel(logger, Level.FATAL, "loghub.receivers.Http", "loghub.netty", "loghub.EventsProcessor", "loghub.security", "loghub.netty.http", "loghub.configuration");
+        LogUtils.setLevel(logger, Level.TRACE, "loghub.receivers.Http", "loghub.netty", "loghub.EventsProcessor", "loghub.security");
     }
 
     private Http receiver = null;
@@ -66,7 +66,7 @@ public class TestHttp {
     private int port;
 
     public Http makeReceiver(Consumer<Http.Builder> prepare, Map<String, Object> propsMap) throws IOException {
-        // Generate a locally binded random socket
+        // Generate a locally bound random socket
         port = Tools.tryGetPort();
         hostname = InetAddress.getLoopbackAddress().getCanonicalHostName();
 
@@ -100,15 +100,13 @@ public class TestHttp {
         }
     }
 
-    private final String[] doRequest(URL destination, byte[] postDataBytes, Consumer<HttpURLConnection> prepare, int expected) throws IOException {
+    private String[] doRequest(URL destination, byte[] postDataBytes, Consumer<HttpURLConnection> prepare, int expected) throws IOException {
         HttpURLConnection conn = (HttpURLConnection) destination.openConnection();
         if (conn instanceof HttpsURLConnection) {
             HttpsURLConnection cnx = (HttpsURLConnection) conn;
-            cnx.setHostnameVerifier(new HostnameVerifier() {
-                public boolean verify(String hostname, SSLSession session) {
-                    logger.trace("Verifying {} with sessions {}", hostname, session);
-                    return true;
-                }
+            cnx.setHostnameVerifier((hostname, session) -> {
+                logger.trace("Verifying {} with sessions {}", hostname, session);
+                return true;
             });
             Map<String, Object> properties = new HashMap<>();
             properties.put("trusts", Tools.getDefaultKeyStore());
@@ -122,7 +120,7 @@ public class TestHttp {
             conn.setDoOutput(true);
             conn.getOutputStream().write(postDataBytes);
         }
-        String[] result = new BufferedReader(new InputStreamReader(conn.getInputStream(), "UTF-8")).lines().toArray(String[]::new);
+        String[] result = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8)).lines().toArray(String[]::new);
         Assert.assertEquals(expected, conn.getResponseCode());
         conn.disconnect();
         return result;
@@ -132,7 +130,7 @@ public class TestHttp {
     public void testHttpPostJson() throws IOException {
         try (Http receiver = makeReceiver( i -> {}, Collections.emptyMap())) {
             doRequest(new URL("http", hostname, port, "/"),
-                      "{\"a\": 1}".getBytes("UTF-8"),
+                      "{\"a\": 1}".getBytes(StandardCharsets.UTF_8),
                       i -> {
                           try {
                               i.setRequestMethod("PUT");
@@ -171,7 +169,7 @@ public class TestHttp {
     public void testHttpsGet() throws IOException {
         makeReceiver(i -> { 
             i.setWithSSL(true);
-            i.setSSLClientAuthentication("WANTED");
+            i.setSSLClientAuthentication(ClientAuthentication.WANTED);
         },
                      new HashMap<>(Collections.singletonMap("ssl.trusts", getClass().getResource("/loghub.p12").getFile()))
                      );
@@ -353,7 +351,7 @@ public class TestHttp {
                               , BeanInfo.build("password", String.class)
                               , BeanInfo.build("jaasName", String.class)
                               , BeanInfo.build("withSSL", Boolean.TYPE)
-                              , BeanInfo.build("SSLClientAuthentication", String.class)
+                              , BeanInfo.build("SSLClientAuthentication", ClientAuthentication.class)
                               , BeanInfo.build("SSLKeyAlias", String.class)
                               , BeanInfo.build("backlog", Integer.TYPE)
                               , BeanInfo.build("sndBuf", Integer.TYPE)

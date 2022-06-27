@@ -37,6 +37,7 @@ import loghub.netty.http.ContentType;
 import loghub.netty.http.HttpRequestFailure;
 import loghub.netty.http.HttpRequestProcessing;
 import loghub.netty.http.RequestAccept;
+import loghub.netty.transport.TRANSPORT;
 
 @Blocking
 @SelfDecoder
@@ -155,7 +156,28 @@ public class Journald extends AbstractHttpReceiver {
 
     }
 
+    @ContentType("text/plain; charset=utf-8")
+    @RequestAccept(methods = {"GET", "PUT", "POST"})
+    private class JournaldUploadHandler extends HttpRequestProcessing {
+
+        @Override
+        protected void processRequest(FullHttpRequest request,
+                ChannelHandlerContext ctx)
+                throws HttpRequestFailure {
+            if (Boolean.TRUE.equals(ctx.channel().attr(VALIDJOURNALD).get())) {
+                ctx.channel().attr(EVENTS).get().forEach(Journald.this::send);
+                writeResponse(ctx, request, HttpResponseStatus.ACCEPTED, wrapResponse("OK.\n"), 4);
+            } else {
+                throw new HttpRequestFailure(HttpResponseStatus.BAD_REQUEST, "Not a valid journald request");
+            }
+        }
+
+    }
+
     public static class Builder extends AbstractHttpReceiver.Builder<Journald> {
+        public Builder() {
+            setTransport(TRANSPORT.TCP);
+        }
         @Override
         public Journald build() {
             return new Journald(this);
@@ -170,32 +192,12 @@ public class Journald extends AbstractHttpReceiver {
         config.setThreadPrefix("Journald").setWorkerThreads(8);
     }
 
-    @ContentType("text/plain; charset=utf-8")
-    @RequestAccept(methods = {"GET", "PUT", "POST"})
-    private class JournaldUploadHandler extends HttpRequestProcessing {
-
-        @Override
-        protected void processRequest(FullHttpRequest request,
-                                      ChannelHandlerContext ctx)
-                                                      throws HttpRequestFailure {
-            if (Boolean.TRUE.equals(ctx.channel().attr(VALIDJOURNALD).get())) {
-                ctx.channel().attr(EVENTS).get().forEach(Journald.this::send);
-                writeResponse(ctx, request, HttpResponseStatus.ACCEPTED, wrapResponse("OK.\n"), 4);
-            } else {
-                throw new HttpRequestFailure(HttpResponseStatus.BAD_REQUEST, "Not a valid journald request");
-            }
-        }
-
-    }
-
     @Override
-    public ChannelConsumer getConsumer() {
-        HttpReceiverChannelConsumer.Builder builder = HttpReceiverChannelConsumer.getBuilder();
+    public void configureConsumer(HttpReceiverChannelConsumer.Builder builder) {
         builder.setAggregatorSupplier(JournaldAgregator::new);
         // journald-upload uses 16kiB chunk buffers, the default HttpServerCodec uses 8kiB bytebuf
         builder.setServerCodecSupplier(() -> new HttpServerCodec(512, 1024, 32768, true, 32768, false, false));
         builder.setRequestProcessor(new JournaldUploadHandler());
-        return builder.build();
     }
 
     @Override

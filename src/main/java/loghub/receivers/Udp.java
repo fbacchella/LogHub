@@ -18,7 +18,7 @@ import lombok.Setter;
 public class Udp extends NettyReceiver<DatagramPacket> implements ConsumerProvider {
 
     public static class Builder extends NettyReceiver.Builder<Udp> {
-        Builder() {
+        public Builder() {
             setTransport(TRANSPORT.UDP);
         }
         @Setter

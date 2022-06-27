@@ -54,7 +54,7 @@ public class TestDashboard {
     static public void configure() throws IOException {
         Tools.configure();
         logger = LogManager.getLogger();
-        LogUtils.setLevel(logger, Level.TRACE, "loghub.DashboardHttpServer", "loghub.netty.http");
+        LogUtils.setLevel(logger, Level.TRACE, "loghub.Dashboard", "loghub.netty");
         JmxService.start(props.jmxServiceConfiguration);
     }
 
@@ -64,8 +64,9 @@ public class TestDashboard {
     }
 
     @Before
-    public void startDashBoard() throws IllegalArgumentException, InterruptedException {
+    public void startDashBoard() throws IllegalArgumentException, InterruptedException, ExecutionException {
         dashboard = Dashboard.getBuilder().setPort(port).setListen("localhost").build();
+        dashboard.start();
     }
 
     @After

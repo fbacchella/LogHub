@@ -40,6 +40,7 @@ import loghub.netty.ChannelConsumer;
 import loghub.netty.CloseOnError;
 import loghub.netty.ConsumerProvider;
 import loghub.netty.NettyReceiver;
+import loghub.netty.transport.TRANSPORT;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -49,6 +50,9 @@ import lombok.Setter;
 public class Beats extends NettyReceiver<ByteBuf> implements ConsumerProvider {
 
     public static class Builder extends NettyReceiver.Builder<Beats> {
+        public Builder() {
+            setTransport(TRANSPORT.TCP);
+        }
         @Setter
         private int clientInactivityTimeoutSeconds;
         @Setter

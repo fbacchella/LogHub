@@ -2,6 +2,7 @@ package loghub.netty;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.concurrent.CountDownLatch;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -30,20 +31,25 @@ import loghub.PriorityBlockingQueue;
 import loghub.Tools;
 import loghub.configuration.Properties;
 import loghub.decoders.StringCodec;
+import loghub.netty.transport.TRANSPORT;
 
-public class TestServer {
+public class TestLocalServer {
 
     @CloseOnError
     private static class TesterReceiver extends NettyReceiver<Object>
                                         implements ConsumerProvider {
 
         public static class Builder extends NettyReceiver.Builder<TesterReceiver> {
+            public Builder() {
+                setDecoder(StringCodec.getBuilder().build());
+                setTransport(TRANSPORT.LOCAL);
+                setHost(TestLocalServer.class.getCanonicalName());
+            }
             @Override
             public TesterReceiver build() {
-                this.setDecoder(StringCodec.getBuilder().build());
                 return new TesterReceiver(this);
             }
-        };
+        }
         public static Builder getBuilder() {
             return new Builder();
         }
@@ -78,12 +84,10 @@ public class TestServer {
 
     }
 
-    private static Logger logger;
-
     @BeforeClass
     static public void configure() throws IOException {
         Tools.configure();
-        logger = LogManager.getLogger();
+        Logger logger = LogManager.getLogger();
         LogUtils.setLevel(logger, Level.TRACE, "loghub.netty", "io.netty");
     }
 
@@ -93,13 +97,13 @@ public class TestServer {
         PriorityBlockingQueue receiver = new PriorityBlockingQueue();
         TesterReceiver.Builder builder = TesterReceiver.getBuilder();
         
-        try(TesterReceiver r = builder.build()) {
+        try (TesterReceiver r = builder.build()) {
             r.setPipeline(new Pipeline(Collections.emptyList(), "testone", null));
             r.setOutQueue(receiver);
             r.configure(empty);
 
             ChannelFuture[] sent = new ChannelFuture[1];
-
+            CountDownLatch latch = new CountDownLatch(1);
             EventLoopGroup workerGroup = new DefaultEventLoopGroup();
             Bootstrap b = new Bootstrap();
             b.group(workerGroup);
@@ -108,23 +112,25 @@ public class TestServer {
                 @Override
                 public void channelActive(ChannelHandlerContext ctx) {
                     sent[0] = ctx.writeAndFlush(Unpooled.copiedBuffer("Message\r\n", CharsetUtil.UTF_8));
+                    latch.countDown();
                 }
                 @Override
-                protected void channelRead0(ChannelHandlerContext ctx, ByteBuf msg) throws Exception {
+                protected void channelRead0(ChannelHandlerContext ctx, ByteBuf msg) {
                 }
 
             });
 
             // Start the client.
-            ChannelFuture f = b.connect(new LocalAddress(TestServer.class.getCanonicalName())).sync();
-            Thread.sleep(100);
+            ChannelFuture f = b.connect(new LocalAddress(TestLocalServer.class.getCanonicalName())).sync();
+            latch.await();
             sent[0].sync();
             f.channel().close();
             // Wait until the connection is closed.
             f.channel().closeFuture().sync();
 
-            Event e = receiver.poll();
+            Event e = receiver.take();
             Assert.assertEquals("Message", e.get("message"));
         }
     }
+
 }

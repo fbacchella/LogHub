@@ -5,10 +5,12 @@ import javax.net.ssl.SSLContext;
 import loghub.netty.ChannelConsumer;
 import loghub.security.AuthenticationHandler;
 import loghub.security.ssl.ClientAuthentication;
+import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.Accessors;
 
+@Data
 @Accessors(chain = true)
 public class TransportConfig {
     @Getter @Setter
@@ -30,7 +32,9 @@ public class TransportConfig {
     @Getter @Setter
     AuthenticationHandler authHandler;
     @Getter @Setter
-    SSLContext sslctx = null;
+    boolean withSsl = false;
+    @Getter @Setter
+    SSLContext sslContext = null;
     @Getter @Setter
     String sslKeyAlias = null;
     @Getter @Setter

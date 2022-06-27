@@ -18,11 +18,11 @@ public abstract class HttpRequestProcessing extends HttpHandler {
         super(true);
     }
 
-    public HttpRequestProcessing(Predicate<String> urlFilter) {
+    protected HttpRequestProcessing(Predicate<String> urlFilter) {
         super(true, urlFilter);
     }
 
-    public HttpRequestProcessing(Predicate<String> urlFilter, String... method) {
+    protected HttpRequestProcessing(Predicate<String> urlFilter, String... method) {
         super(true, urlFilter, method);
     }
 

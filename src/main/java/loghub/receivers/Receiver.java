@@ -46,7 +46,7 @@ public abstract class Receiver extends Thread implements Closeable {
         @Setter
         private boolean withSSL = false;
         @Setter
-        private String SSLClientAuthentication = ClientAuthentication.NONE.name();
+        private ClientAuthentication SSLClientAuthentication = ClientAuthentication.NONE;
         @Setter
         private String SSLKeyAlias;
         @Setter
@@ -95,10 +95,10 @@ public abstract class Receiver extends Thread implements Closeable {
     protected Receiver(Builder<? extends Receiver> builder){
         setDaemon(true);
         logger = LogManager.getLogger(Helpers.getFirstInitClass());
-        blocking = isBlocking() && builder.blocking;
+        this.blocking = isBlocking() && builder.blocking;
         this.decoder = builder.decoder;
         this.withSSL = builder.withSSL;
-        this.SSLClientAuthentication = ClientAuthentication.valueOf(builder.SSLClientAuthentication.toUpperCase(Locale.ENGLISH));
+        this.SSLClientAuthentication = builder.SSLClientAuthentication;
         this.SSLKeyAlias = builder.SSLKeyAlias;
         this.jaasName = builder.jaasName;
         this.user = builder.user;

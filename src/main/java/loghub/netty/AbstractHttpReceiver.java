@@ -3,14 +3,16 @@ package loghub.netty;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.http.HttpMessage;
+import io.netty.handler.codec.http.HttpServerCodec;
 import loghub.netty.http.HttpRequestProcessing;
 import loghub.receivers.Blocking;
+import loghub.receivers.Journald;
 import lombok.Setter;
 
 @Blocking(true)
 public abstract class AbstractHttpReceiver extends NettyReceiver<HttpMessage> implements ConsumerProvider {
 
-    protected static class HttpReceiverChannelConsumer extends HttpChannelConsumer {
+    protected static class HttpReceiverChannelConsumer extends HttpChannelConsumer<HttpReceiverChannelConsumer> {
 
         public static class Builder extends HttpChannelConsumer.Builder<HttpReceiverChannelConsumer> {
             @Setter
@@ -48,6 +50,18 @@ public abstract class AbstractHttpReceiver extends NettyReceiver<HttpMessage> im
     protected AbstractHttpReceiver(Builder<? extends AbstractHttpReceiver>  builder) {
         super(builder);
     }
+
+    @Override
+    public ChannelConsumer getConsumer() {
+        HttpReceiverChannelConsumer.Builder builder = HttpReceiverChannelConsumer.getBuilder();
+        builder.setLogger(logger);
+        builder.setAuthHandler(config.getAuthHandler());
+        configureConsumer(builder);
+        builder.setReceiver(this);
+        return builder.build();
+    }
+
+    protected abstract void configureConsumer(HttpReceiverChannelConsumer.Builder builder);
 
     @Override
     public ByteBuf getContent(HttpMessage message) {

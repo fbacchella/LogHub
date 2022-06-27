@@ -25,7 +25,8 @@ public class ContextExtractor<SM> extends MessageToMessageDecoder<SM> {
 
     @Override
     protected void decode(ChannelHandlerContext ctx, SM msg, List<Object> out) {
-        r.makeConnectionContext(ctx);
+        // In datagram-oriented flow, the remote adress is in the packet, not the channel
+        r.makeConnectionContext(ctx, msg);
         //The message is not transformed in this step, so don't decrease reference count
         if (msg instanceof ReferenceCounted) {
             ((ReferenceCounted) msg).retain();

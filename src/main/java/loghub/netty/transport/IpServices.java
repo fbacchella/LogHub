@@ -36,8 +36,8 @@ import static loghub.netty.transport.NettyTransport.PRINCIPALATTRIBUTE;
 
 public interface IpServices {
 
-    public static final AttributeKey<SSLSession> SSLSESSIONATTRIBUTE = AttributeKey.newInstance(SSLSession.class.getName());
-    public static final AttributeKey<SSLEngine> SSLSENGINATTRIBUTE = AttributeKey.newInstance(SSLEngine.class.getName());
+    AttributeKey<SSLSession> SSLSESSIONATTRIBUTE = AttributeKey.newInstance(SSLSession.class.getName());
+    AttributeKey<SSLEngine> SSLSENGINATTRIBUTE = AttributeKey.newInstance(SSLEngine.class.getName());
 
     default InetSocketAddress resolveAddress(TransportConfig config) {
         try {
@@ -83,7 +83,7 @@ public interface IpServices {
             SSLSession sess = sslHandler.engine().getSession();
             logger.trace("SSL started with {}", () -> sess);
             Principal principal = checkSslClient(config.sslClientAuthentication, sess, logger);
-            logger.debug("Got SSL client identity {}", () -> (principal != null ? principal.getName() : ""));
+            logger.debug("Got SSL client identity '{}'", () -> (principal != null ? principal.getName() : ""));
             if (principal != null) {
                 f.get().attr(PRINCIPALATTRIBUTE).set(principal);
             }
@@ -95,9 +95,9 @@ public interface IpServices {
     private static SSLEngine getEngine(TransportConfig config) {
         SSLEngine engine;
         if (config.sslKeyAlias != null && ! config.sslKeyAlias.isEmpty()) {
-            engine = config.sslctx.createSSLEngine(config.sslKeyAlias, DEFINEDSSLALIAS);
+            engine = config.sslContext.createSSLEngine(config.sslKeyAlias, DEFINEDSSLALIAS);
         } else {
-            engine = config.sslctx.createSSLEngine();
+            engine = config.sslContext.createSSLEngine();
         }
 
         SSLParameters params = engine.getSSLParameters();
@@ -115,7 +115,7 @@ public interface IpServices {
     }
 
     private static Principal checkSslClient(ClientAuthentication sslClientAuthentication, SSLSession sess, Logger logger) throws GeneralSecurityException {
-        logger.debug("testing ssl client authentication");
+        logger.debug("Testing ssl client authentication");
         if (sslClientAuthentication != ClientAuthentication.NOTNEEDED) {
             try {
                 if (sslClientAuthentication == ClientAuthentication.WANTED || sslClientAuthentication == ClientAuthentication.REQUIRED) {

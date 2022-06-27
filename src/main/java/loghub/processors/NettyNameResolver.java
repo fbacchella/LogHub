@@ -130,10 +130,8 @@ public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<Dn
     public boolean configure(Properties properties) {
         DnsNameResolverBuilder builder = new DnsNameResolverBuilder(EVENTLOOPGROUP.next())
                         .queryTimeoutMillis(getTimeout() * 1000L)
-                        .channelFactory(
-                                (ChannelFactory<? extends DatagramChannel>) POLLER.DEFAULTPOLLER.clientChannelProvider(TRANSPORT.UDP))
-                        .socketChannelFactory(
-                                (ChannelFactory<? extends SocketChannel>) POLLER.DEFAULTPOLLER.clientChannelProvider(TRANSPORT.TCP))
+                        .channelFactory(() -> (DatagramChannel) POLLER.DEFAULTPOLLER.clientChannelProvider(TRANSPORT.UDP))
+                        .socketChannelFactory(() -> (SocketChannel) POLLER.DEFAULTPOLLER.clientChannelProvider(TRANSPORT.TCP))
                         ;
         InetSocketAddress resolverAddr = null;
         Object parent = null;

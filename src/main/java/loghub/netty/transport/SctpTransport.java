@@ -5,10 +5,11 @@ import java.net.InetSocketAddress;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.sctp.SctpMessage;
 import loghub.ConnectionContext;
 
 public class SctpTransport
-        extends NettyTransport<InetSocketAddress>
+        extends NettyTransport<InetSocketAddress, SctpMessage>
         implements IpServices {
 
     SctpTransport(POLLER poller) {
@@ -21,7 +22,7 @@ public class SctpTransport
     }
 
     @Override
-    public ConnectionContext<InetSocketAddress> getNewConnectionContext(ChannelHandlerContext ctx) {
+    public ConnectionContext<InetSocketAddress> getNewConnectionContext(ChannelHandlerContext ctx, SctpMessage message) {
         return IpServices.super.getNewConnectionContext(ctx);
     }
 

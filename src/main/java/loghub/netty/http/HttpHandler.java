@@ -64,7 +64,7 @@ public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRe
         return dateFormatter;
     });
 
-    public HttpHandler(boolean release) {
+    protected HttpHandler(boolean release) {
         super(release);
         logger = LogManager.getLogger(Helpers.getFirstInitClass());
         RequestAccept mask = getClass().getAnnotation(RequestAccept.class);
@@ -85,14 +85,14 @@ public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRe
         }
     }
 
-    public HttpHandler(boolean release, Predicate<String> urlFilter, String... methods) {
+    protected HttpHandler(boolean release, Predicate<String> urlFilter, String... methods) {
         super(FullHttpRequest.class, release);
         logger = LogManager.getLogger(Helpers.getFirstInitClass());
         this.urlFilter = urlFilter;
         this.methods = Arrays.stream(methods).map( i -> HttpMethod.valueOf(i.toUpperCase())).collect(Collectors.toSet());
     }
 
-    public HttpHandler(boolean release, Predicate<String> urlFilter) {
+    protected HttpHandler(boolean release, Predicate<String> urlFilter) {
         this(release, urlFilter, "GET");
     }
 

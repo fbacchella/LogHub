@@ -15,7 +15,6 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import io.netty.bootstrap.AbstractBootstrap;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
@@ -43,7 +42,7 @@ import loghub.netty.ChannelConsumer;
 import loghub.netty.ConsumerProvider;
 import lombok.Getter;
 
-public abstract class NettyTransport<SA extends SocketAddress> {
+public abstract class NettyTransport<SA extends SocketAddress, M> {
 
     static {
         InternalLoggerFactory.setDefaultFactory(Log4J2LoggerFactory.INSTANCE);
@@ -120,7 +119,7 @@ public abstract class NettyTransport<SA extends SocketAddress> {
         configureBootStrap(bootstrap, config);
         ChannelFuture cf = bootstrap.connect(address);
         cf.await();
-        listeningChannels = Collections.singleton(cf);
+        listeningChannels = new HashSet<>(Collections.singleton(cf));
         logger.debug("Connected to {}", address);
     }
 
@@ -170,6 +169,8 @@ public abstract class NettyTransport<SA extends SocketAddress> {
                                                    .getFactory(getStringPrefix(config) + "/" + address.toString());
         EventLoopGroup workerGroup = poller.getEventLoopGroup(config.workerThreads, threadFactory);
         finisher = workerGroup::shutdownGracefully;
+        bootstrap.group(workerGroup);
+        addHandlers(bootstrap, config);
         config.consumer.addOptions(bootstrap);
         configureBootStrap(bootstrap, config);
         listeningChannels = new HashSet<>(config.workerThreads);
@@ -199,7 +200,7 @@ public abstract class NettyTransport<SA extends SocketAddress> {
         config.consumer.addOptions(bootstrap);
         configureServerBootStrap(bootstrap, config);
         ChannelFuture cf = bootstrap.bind(address);
-        listeningChannels = Collections.singleton(cf);
+        listeningChannels = new HashSet<>(Collections.singleton(cf));
     }
 
     private String getStringPrefix(TransportConfig config) {
@@ -213,9 +214,9 @@ public abstract class NettyTransport<SA extends SocketAddress> {
     }
 
     protected abstract SA resolveAddress(TransportConfig config);
-    public abstract ConnectionContext<SA> getNewConnectionContext(ChannelHandlerContext ctx);
+    public abstract ConnectionContext<SA> getNewConnectionContext(ChannelHandlerContext ctx, M message);
 
-    protected void addHandlers(ServerBootstrap bootstrap, TransportConfig config) {
+    private void addHandlers(Bootstrap bootstrap, TransportConfig config) {
         ChannelConsumer consumer = config.consumer;
         ChannelHandler handler = new ChannelInitializer<>() {
             @Override
@@ -223,7 +224,6 @@ public abstract class NettyTransport<SA extends SocketAddress> {
                 consumer.addHandlers(ch.pipeline());
                 NettyTransport.this.addErrorHandler(ch.pipeline());
             }
-
             @Override
             public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
                 if (Helpers.isFatal(cause)) {
@@ -234,18 +234,32 @@ public abstract class NettyTransport<SA extends SocketAddress> {
                 }
             }
         };
-        bootstrap.childHandler(handler);
-        ChannelInitializer<Channel> ch = new ChannelInitializer<>() {
+        bootstrap.handler(handler);
+    }
 
+    protected void addHandlers(ServerBootstrap bootstrap, TransportConfig config) {
+        ChannelConsumer consumer = config.consumer;
+        ChannelHandler handler = new ChannelInitializer<>() {
             @Override
-            protected void initChannel(Channel ch)  {
-                if (NettyTransport.this instanceof IpServices && config.sslctx != null) {
+            public void initChannel(Channel ch) {
+                consumer.addHandlers(ch.pipeline());
+                if (NettyTransport.this instanceof IpServices && config.withSsl) {
                     ((IpServices)NettyTransport.this).addSslHandler(config, ch.pipeline(), logger);
                 }
+                NettyTransport.this.addErrorHandler(ch.pipeline());
+            }
 
+            @Override
+            public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+                if (Helpers.isFatal(cause)) {
+                    consumer.logFatalException(cause);
+                    Start.fatalException(cause);
+                } else {
+                    consumer.exception(ctx, cause);
+                }
             }
         };
-        bootstrap.handler(ch);
+        bootstrap.childHandler(handler);
     }
 
     protected void addErrorHandler(ChannelPipeline p) {
@@ -254,7 +268,9 @@ public abstract class NettyTransport<SA extends SocketAddress> {
 
     public void close() {
         finisher.run();
-        listeningChannels.stream().map(ChannelFuture::channel).forEach(Channel::close);
+        synchronized (listeningChannels) {
+            listeningChannels.stream().map(ChannelFuture::channel).forEach(Channel::close);
+        }
     }
 
     public void waitClose()  {
@@ -265,11 +281,13 @@ public abstract class NettyTransport<SA extends SocketAddress> {
                 Thread.currentThread().interrupt();
             }
         }
-        listeningChannels.clear();
+        synchronized (listeningChannels) {
+            listeningChannels.clear();
+        }
     }
 
     @SuppressWarnings("unchecked")
-    public static <B extends AbstractBootstrap<B, C>, C extends Channel> ChannelConsumer resolveConsumer(Object o) {
+    public static ChannelConsumer resolveConsumer(Object o) {
         if (o instanceof ChannelConsumer) {
             return (ChannelConsumer) o;
         } else if (o instanceof ConsumerProvider) {

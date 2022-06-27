@@ -41,6 +41,7 @@ import loghub.Tools;
 import loghub.configuration.Properties;
 import loghub.decoders.StringCodec;
 import loghub.jackson.JacksonBuilder;
+import loghub.netty.transport.POLLER;
 import loghub.security.ssl.ClientAuthentication;
 import loghub.security.ssl.ContextLoader;
 
@@ -137,7 +138,7 @@ public class TestBeats {
             makeReceiver( i -> {
                 i.setWithSSL(true);
                 // It should be required for a better test, needs to understand how to make client side TLS works
-                i.setSSLClientAuthentication(ClientAuthentication.WANTED.name());
+                i.setSSLClientAuthentication(ClientAuthentication.WANTED);
             },
                     new HashMap<>(Collections.singletonMap("ssl.trusts", getClass().getResource("/loghub.p12").getFile()))
                     );
@@ -231,7 +232,7 @@ public class TestBeats {
         BeanChecks.beansCheck(logger, "loghub.receivers.Beats"
                               , BeanInfo.build("timeStampField", String.class)
                               , BeanInfo.build("filter", Filter.class)
-                              , BeanInfo.build("poller", String.class)
+                              , BeanInfo.build("poller", POLLER.class)
                               , BeanInfo.build("workerThreads", Integer.TYPE)
                               , BeanInfo.build("port", Integer.TYPE)
                               , BeanInfo.build("host", String.class)

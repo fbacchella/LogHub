@@ -1,11 +1,12 @@
 package loghub.netty.transport;
 
+import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.local.LocalAddress;
 import io.netty.channel.local.LocalChannel;
 import loghub.ConnectionContext;
 
-public class LocalTransport extends NettyTransport<LocalAddress>{
+public class LocalTransport extends NettyTransport<LocalAddress, ByteBuf>{
 
     private static class LocalChannelConnectionContext extends ConnectionContext<LocalAddress> {
         private final LocalAddress local;
@@ -33,7 +34,7 @@ public class LocalTransport extends NettyTransport<LocalAddress>{
     }
 
     @Override
-    public ConnectionContext<LocalAddress> getNewConnectionContext(ChannelHandlerContext ctx) {
+    public ConnectionContext<LocalAddress> getNewConnectionContext(ChannelHandlerContext ctx, ByteBuf m) {
         return new LocalChannelConnectionContext((LocalChannel) ctx.channel());
     }
 

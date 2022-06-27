@@ -18,6 +18,7 @@ import javax.net.ssl.SSLContext;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -34,6 +35,7 @@ import loghub.configuration.Properties;
 import loghub.decoders.Decoder;
 import loghub.decoders.Json;
 import loghub.decoders.StringCodec;
+import loghub.netty.transport.POLLER;
 import loghub.security.ssl.ClientAuthentication;
 import loghub.security.ssl.ContextLoader;
 
@@ -48,15 +50,18 @@ public class TestTcpLinesStream {
         LogUtils.setLevel(logger, Level.TRACE, "loghub.receivers.TcpLinesStream", "loghub.netty", "loghub.EventsProcessor", "loghub.security");
     }
 
-    private TcpLinesStream receiver;
     private int port;
     private PriorityBlockingQueue queue;
 
+    @After
+    public void stopReceiver() {
+
+    }
+
     @Test(timeout=5000)
     public void testSimple() throws IOException, InterruptedException {
-        try {
-            makeReceiver( i -> {}, Collections.emptyMap());
-            try(Socket socket = new Socket(InetAddress.getLoopbackAddress(), port);) {
+        try (TcpLinesStream ignored = makeReceiver(i -> {}, Collections.emptyMap())){
+            try (Socket socket = new Socket(InetAddress.getLoopbackAddress(), port)) {
                 OutputStream os = socket.getOutputStream();
                 os.write("LogHub\n".getBytes(StandardCharsets.UTF_8));
                 os.flush();
@@ -66,19 +71,13 @@ public class TestTcpLinesStream {
             String message = (String) e.get("message");
             Assert.assertEquals("LogHub", message);
             Assert.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
-        } catch (IOException | InterruptedException | RuntimeException e) {
-            if (receiver != null) {
-                receiver.stopReceiving();
-            }
-            throw e;
         }
     }
 
     @Test(timeout=5000)
     public void testJson() throws IOException, InterruptedException {
-        try {
-            makeReceiver( i -> {}, Collections.emptyMap(), () -> Json.getBuilder().build());
-            try(Socket socket = new Socket(InetAddress.getLoopbackAddress(), port);) {
+        try (TcpLinesStream ignored = makeReceiver(i -> {}, Collections.emptyMap(), () -> Json.getBuilder().build())){
+            try(Socket socket = new Socket(InetAddress.getLoopbackAddress(), port)) {
                 OutputStream os = socket.getOutputStream();
                 os.write("{\"program\": \"LogHub\"}\n".getBytes(StandardCharsets.UTF_8));
                 os.flush();
@@ -88,61 +87,52 @@ public class TestTcpLinesStream {
             String message = (String) e.get("program");
             Assert.assertEquals("LogHub", message);
             Assert.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
-        } catch (IOException | InterruptedException | RuntimeException e) {
-            if (receiver != null) {
-                receiver.stopReceiving();
-            }
-            throw e;
         }
     }
 
     @Test(timeout=5000)
     public void testSSL() throws IOException, InterruptedException {
-        try {
-            makeReceiver( i -> {
-                i.setWithSSL(true);
-                // It should be required for a better test, needs to understand how to make client side TLS works
-                i.setSSLClientAuthentication(ClientAuthentication.WANTED.name());
-            },
+        Map<String, Object> properties = new HashMap<>();
+        properties.put("trusts", Tools.getDefaultKeyStore());
+        SSLContext cssctx = ContextLoader.build(null, properties);
+        try (TcpLinesStream ignored = makeReceiver(i -> {
+                    i.setWithSSL(true);
+                    i.setSSLKeyAlias("localhost (loghub ca)");
+                    i.setSSLClientAuthentication(ClientAuthentication.WANTED);
+                },
                 new HashMap<>(Collections.singletonMap("ssl.trusts", new String[] {getClass().getResource("/loghub.p12").getFile()}))
-            );
-            Map<String, Object> properties = new HashMap<>();
-            properties.put("trusts", Tools.getDefaultKeyStore());
-            SSLContext cssctx = ContextLoader.build(null, properties);
-            try(Socket socket = cssctx.getSocketFactory().createSocket(InetAddress.getLoopbackAddress(), port)) {
+        )){
+            try (Socket socket = cssctx.getSocketFactory().createSocket(InetAddress.getLoopbackAddress(), port)) {
                 OutputStream os = socket.getOutputStream();
                 os.write("LogHub\n".getBytes(StandardCharsets.UTF_8));
                 os.flush();
             }
             Event e = queue.poll(6, TimeUnit.SECONDS);
+            Assert.assertEquals("CN=localhost", e.getConnectionContext().getPrincipal().getName());
             String message = (String) e.get("message");
             Assert.assertEquals("LogHub", message);
             Assert.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
-        } catch (IOException | InterruptedException | RuntimeException e) {
-            if (receiver != null) {
-                receiver.stopReceiving();
-            }
-            throw e;
         }
     }
 
-    private void makeReceiver(Consumer<TcpLinesStream.Builder> prepare, Map<String, Object> propsMap) {
-        makeReceiver(prepare, propsMap, () -> StringCodec.getBuilder().build());
+    private TcpLinesStream makeReceiver(Consumer<TcpLinesStream.Builder> prepare, Map<String, Object> propsMap) {
+        return makeReceiver(prepare, propsMap, () -> StringCodec.getBuilder().build());
     }
 
-    private void makeReceiver(Consumer<TcpLinesStream.Builder> prepare, Map<String, Object> propsMap, java.util.function.Supplier<Decoder> decodsup) {
+    private TcpLinesStream makeReceiver(Consumer<TcpLinesStream.Builder> prepare, Map<String, Object> propsMap, java.util.function.Supplier<Decoder> decodsup) {
         port = Tools.tryGetPort();
         queue = new PriorityBlockingQueue();
         TcpLinesStream.Builder builder = TcpLinesStream.getBuilder();
         builder.setPort(port);
         builder.setDecoder(decodsup.get());
         prepare.accept(builder);
-        
-        receiver = builder.build();
+
+        TcpLinesStream receiver = builder.build();
         receiver.setOutQueue(queue);
         receiver.setPipeline(new Pipeline(Collections.emptyList(), "testtcplinesstream", null));
         Assert.assertTrue(receiver.configure(new Properties(propsMap)));
         receiver.start();
+        return receiver;
     }
 
     @Test
@@ -164,12 +154,12 @@ public class TestTcpLinesStream {
     }
 
     @Test
-    public void test_loghub_receivers_Beats() throws IntrospectionException, ReflectiveOperationException {
+    public void test_loghub_receivers_TcpLinesStream() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.receivers.TcpLinesStream"
                               , BeanInfo.build("maxLength", Integer.TYPE)
                               , BeanInfo.build("timeStampField", String.class)
                               , BeanInfo.build("filter", Filter.class)
-                              , BeanInfo.build("poller", String.class)
+                              , BeanInfo.build("poller", POLLER.class)
                               , BeanInfo.build("workerThreads", Integer.TYPE)
                               , BeanInfo.build("port", Integer.TYPE)
                               , BeanInfo.build("host", String.class)
@@ -177,7 +167,7 @@ public class TestTcpLinesStream {
                               , BeanInfo.build("sndBuf", Integer.TYPE)
                               , BeanInfo.build("backlog", Integer.TYPE)
                               , BeanInfo.build("withSSL", Boolean.TYPE)
-                              , BeanInfo.build("SSLClientAuthentication", String.class)
+                              , BeanInfo.build("SSLClientAuthentication", ClientAuthentication.class)
                               , BeanInfo.build("SSLKeyAlias", String.class)
                               , BeanInfo.build("blocking", Boolean.TYPE)
                         );

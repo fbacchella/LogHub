@@ -1,11 +1,16 @@
 package loghub.netty.transport;
 
+import java.net.InetSocketAddress;
+
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.unix.DomainDatagramPacket;
 import io.netty.channel.unix.DomainSocketAddress;
 import loghub.ConnectionContext;
+import loghub.DomainConnectionContext;
+import loghub.IpConnectionContext;
 
 public class UnixDgramTransport
-        extends NettyTransport<DomainSocketAddress>
+        extends NettyTransport<DomainSocketAddress, DomainDatagramPacket>
         implements UnixDomainServices {
 
     protected UnixDgramTransport(POLLER poller) {
@@ -18,8 +23,10 @@ public class UnixDgramTransport
     }
 
     @Override
-    public ConnectionContext<DomainSocketAddress> getNewConnectionContext(ChannelHandlerContext ctx) {
-        return UnixDomainServices.super.getNewConnectionContext(ctx);
+    public ConnectionContext<DomainSocketAddress> getNewConnectionContext(ChannelHandlerContext ctx, DomainDatagramPacket message) {
+        DomainSocketAddress remoteaddr = message.sender();
+        DomainSocketAddress localaddr = message.recipient();
+        return new DomainConnectionContext(localaddr, remoteaddr);
     }
 
 }

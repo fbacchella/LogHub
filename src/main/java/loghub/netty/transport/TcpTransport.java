@@ -4,13 +4,14 @@ import java.net.InetSocketAddress;
 
 import io.netty.bootstrap.Bootstrap;
 import io.netty.bootstrap.ServerBootstrap;
+import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.epoll.EpollChannelOption;
 import loghub.ConnectionContext;
 
 public class TcpTransport
-        extends NettyTransport<InetSocketAddress>
+        extends NettyTransport<InetSocketAddress, Object>
         implements IpServices {
 
     TcpTransport(POLLER poller) {
@@ -52,7 +53,7 @@ public class TcpTransport
     }
 
     @Override
-    public ConnectionContext<InetSocketAddress> getNewConnectionContext(ChannelHandlerContext ctx) {
+    public ConnectionContext<InetSocketAddress> getNewConnectionContext(ChannelHandlerContext ctx, Object message) {
         return IpServices.super.getNewConnectionContext(ctx);
     }
 
