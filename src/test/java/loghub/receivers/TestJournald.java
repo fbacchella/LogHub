@@ -28,6 +28,7 @@ import loghub.Pipeline;
 import loghub.PriorityBlockingQueue;
 import loghub.Tools;
 import loghub.configuration.Properties;
+import loghub.security.ssl.ClientAuthentication;
 
 public class TestJournald {
 
@@ -113,7 +114,7 @@ public class TestJournald {
                               , BeanInfo.build("password", String.class)
                               , BeanInfo.build("jaasName", String.class)
                               , BeanInfo.build("withSSL", Boolean.TYPE)
-                              , BeanInfo.build("SSLClientAuthentication", String.class)
+                              , BeanInfo.build("SSLClientAuthentication", ClientAuthentication.class)
                               , BeanInfo.build("SSLKeyAlias", String.class)
                               , BeanInfo.build("blocking", Boolean.TYPE)
                         );

@@ -243,7 +243,7 @@ public class TestBeats {
                               , BeanInfo.build("password", String.class)
                               , BeanInfo.build("jaasName", String.class)
                               , BeanInfo.build("withSSL", Boolean.TYPE)
-                              , BeanInfo.build("SSLClientAuthentication", String.class)
+                              , BeanInfo.build("SSLClientAuthentication", ClientAuthentication.class)
                               , BeanInfo.build("SSLKeyAlias", String.class)
                               , BeanInfo.build("clientInactivityTimeoutSeconds", Integer.TYPE)
                               , BeanInfo.build("maxPayloadSize", Integer.TYPE)

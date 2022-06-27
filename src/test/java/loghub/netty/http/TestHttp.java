@@ -4,71 +4,85 @@ import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.Collections;
-import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
 
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.junit.After;
 import org.junit.Assert;
-import org.junit.Rule;
+import org.junit.BeforeClass;
 import org.junit.Test;
-import org.junit.rules.ExternalResource;
 
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpRequest;
 import loghub.HttpTestServer;
 import loghub.HttpTestServer.CustomServer.Builder;
+import loghub.LogUtils;
 import loghub.Tools;
 
 public class TestHttp {
 
-    @Rule
-    public ExternalResource resource = getHttpServer();
-
-    private ExternalResource getHttpServer() {
-        serverPort = Tools.tryGetPort();
-        return new HttpTestServer(null, serverPort);
+    @BeforeClass
+    static public void configure() throws IOException {
+        Tools.configure();
+        Logger logger = LogManager.getLogger();
+        LogUtils.setLevel(logger, Level.TRACE, "loghub.netty");
     }
 
-    private int serverPort = Tools.tryGetPort();
+    private final int serverPort = Tools.tryGetPort();
     private final URL theurl;
     {
         try {
             theurl = new URL(String.format("http://localhost:%d/", serverPort));
+            System.err.println(theurl);
         } catch (MalformedURLException e) {
             throw new RuntimeException(e);
         }
     }
     private HttpTestServer.CustomServer server;
-    private void makeServer(Map<String, Object> sslprops, Function<Builder, Builder> c) {
+    private void makeServer(Function<Builder, Builder> c)
+            throws ExecutionException, InterruptedException {
         Builder builder = new Builder();
         builder.setThreadPrefix("TestHttp");
         builder.setPort(serverPort);
         builder.setWithSSL(false);
         server = c.apply(builder).build();
+        server.start();
     }
 
-    @Test
-    public void Test404() throws IOException, IllegalArgumentException, InterruptedException {
-        makeServer(Collections.emptyMap(), i -> i);
+    @After
+    public void stopServer() throws ExecutionException, InterruptedException {
+        if (server != null) {
+            server.stop();
+        }
+        server = null;
+    }
+
+    @Test(timeout = 1000)
+    public void Test404() throws IOException, IllegalArgumentException, InterruptedException, ExecutionException {
+        makeServer(i -> i);
         HttpURLConnection cnx = (HttpURLConnection) theurl.openConnection();
         Assert.assertEquals(404, cnx.getResponseCode());
         cnx.disconnect();
     }
 
-    @Test
-    public void Test503() throws IOException, IllegalArgumentException, InterruptedException {
-        makeServer(Collections.emptyMap(), i -> {
+    @Test(timeout = 1000)
+    public void Test503() throws IOException, IllegalArgumentException, InterruptedException, ExecutionException {
+        makeServer(i -> {
             HttpRequestProcessing processing = new HttpRequestProcessing() {
                 @Override
                 public boolean acceptRequest(HttpRequest request) {
-                    return true;
+                    Thread.dumpStack();return true;
                 }
 
                 @Override
                 protected void processRequest(FullHttpRequest request,
-                                                 ChannelHandlerContext ctx)
-                                                                 throws HttpRequestFailure {
+                                                 ChannelHandlerContext ctx) {
+                    Thread.dumpStack();
                     throw new RuntimeException();
                 }
             };
@@ -80,9 +94,10 @@ public class TestHttp {
         cnx.disconnect();
     }
 
-    @Test
-    public void TestRootRedirect() throws IOException, IllegalArgumentException, InterruptedException {
-        makeServer(Collections.emptyMap(), i -> {
+    @Test(timeout = 1000)
+    public void TestRootRedirect()
+            throws IOException, IllegalArgumentException, InterruptedException, ExecutionException {
+        makeServer(i -> {
             HttpRequestProcessing processing = new RootRedirect();
             i.setHandlers(new HttpHandler[]{processing});
             return i;

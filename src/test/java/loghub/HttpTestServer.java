@@ -34,7 +34,7 @@ public class HttpTestServer extends ExternalResource {
     public static class CustomServer extends HttpServer {
         public static class Builder extends HttpServer.Builder<CustomServer> {
             @Setter
-            HttpHandler[] handlers = null;
+            HttpHandler[] handlers = new HttpHandler[]{};
             @Setter
             String threadPrefix = "JunitTests";
             @Override
@@ -51,7 +51,7 @@ public class HttpTestServer extends ExternalResource {
         }
         @Override
         public void addModelHandlers(ChannelPipeline p) {
-            Arrays.stream(handlers).forEach( i-> p.addLast(i));
+            Arrays.stream(handlers).forEach(p::addLast);
         }
     }
 
@@ -60,6 +60,7 @@ public class HttpTestServer extends ExternalResource {
         CustomServer.Builder builder = new CustomServer.Builder();
         builder.handlers = handlers;
         server = builder.setPort(port).setSslContext(ssl).setWithSSL(ssl != null).build();
+        server.start();
     }
 
     @SneakyThrows

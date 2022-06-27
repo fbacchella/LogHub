@@ -95,7 +95,7 @@ public abstract class HttpServer<S extends HttpServer> {
         config.setEndpoint(builder.listen);
         config.setPort(builder.port);
         if (builder.withSSL) {
-            config.setSslContext(builder.sslContext).setSslKeyAlias(builder.sslKeyAlias).setSslClientAuthentication(builder.sslClientAuthentication);
+            config.setWithSsl(true).setSslContext(builder.sslContext).setSslKeyAlias(builder.sslKeyAlias).setSslClientAuthentication(builder.sslClientAuthentication);
         }
     }
 
