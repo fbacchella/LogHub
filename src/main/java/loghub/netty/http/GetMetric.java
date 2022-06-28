@@ -64,10 +64,10 @@ public class GetMetric extends HttpRequestProcessing implements ChannelInboundHa
                     metrics = getReceiverMetrics(m.group("name"));
                     break;
                 case "pipeline":
-                    metrics = getSenderMetrics(m.group("name"));
+                    metrics = getPipelineMetrics(m.group("name"));
                     break;
                 case "sender":
-                    metrics = getPipelineMetrics(m.group("name"));
+                    metrics = getSenderMetrics(m.group("name"));
                     break;
                 default:
                     throw new HttpRequestFailure(HttpResponseStatus.BAD_REQUEST, String.format("Unsupported metric name: %s", m.group("metricname")));
@@ -86,7 +86,9 @@ public class GetMetric extends HttpRequestProcessing implements ChannelInboundHa
             logger.error("Unable to handle json response", e);
             throw new HttpRequestFailure(HttpResponseStatus.INTERNAL_SERVER_ERROR, String.format("Unable to handle json response: %s", Helpers.resolveThrowableException(e)));
         } finally {
-            content.release();
+            if (content.refCnt() > 0) {
+                content.release(content.refCnt());
+            }
         }
     }
 
