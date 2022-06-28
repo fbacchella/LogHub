@@ -223,7 +223,7 @@ public class Properties extends HashMap<String, Object> {
         }
 
         try {
-            dashboard = buildDashboad(filterPrefix(properties, "http"), this);
+            dashboard = buildDashboad(filterPrefix(properties, "http"));
         } catch (IllegalArgumentException | ExecutionException | InterruptedException e) {
             throw new ConfigException("Failed to build dashboard", e);
         }
@@ -352,7 +352,7 @@ public class Properties extends HashMap<String, Object> {
         }
     }
 
-    private Dashboard buildDashboad(Map<String, Object> collect, Properties props)
+    private Dashboard buildDashboad(Map<String, Object> collect)
             throws ExecutionException, InterruptedException {
         Dashboard.Builder builder = Dashboard.getBuilder();
         int port = (Integer) collect.compute("port", (i,j) -> {
@@ -367,21 +367,22 @@ public class Properties extends HashMap<String, Object> {
         builder.setPort(port);
         if (Boolean.TRUE.equals(collect.get("withSSL"))) {
             builder.setWithSSL(true);
+            builder.setSslContext(this.ssl);
             String clientAuthentication = collect.compute("SSLClientAuthentication", (i, j) -> j != null ? j : ClientAuthentication.NOTNEEDED).toString();
             String sslKeyAlias = (String) collect.get("SSLKeyAlias");
-            builder.setSslKeyAlias(sslKeyAlias).setSslClientAuthentication(ClientAuthentication.valueOf(clientAuthentication.toUpperCase(
-                    Locale.ENGLISH)));
+            builder.setSslKeyAlias(sslKeyAlias)
+                   .setSslClientAuthentication(ClientAuthentication.valueOf(clientAuthentication.toUpperCase(Locale.ENGLISH)));
         } else {
             builder.setWithSSL(false);
         }
         if ((Boolean)collect.compute("jwt", (i,j) -> Boolean.TRUE.equals(j))) {
-            builder.setWithJwt(true).setJwtHandler(props.jwtHandler);
+            builder.setWithJwt(true).setJwtHandler(jwtHandler);
         } else {
             builder.setWithJwt(false);
         }
         String jaasName = collect.compute("jaasName", (i,j) -> j != null ? j : "").toString();
         if (jaasName != null && ! jaasName.isBlank()) {
-            builder.setJaasName(jaasName).setJaasConfig(props.jaasConfig);
+            builder.setJaasName(jaasName).setJaasConfig(jaasConfig);
         }
         return builder.build();
     }
