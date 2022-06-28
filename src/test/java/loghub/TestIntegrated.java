@@ -28,9 +28,7 @@ import org.zeromq.SocketType;
 import org.zeromq.ZMQ.Socket;
 import org.zeromq.ZMQException;
 
-import com.codahale.metrics.jmx.JmxReporter.JmxCounterMBean;
 import com.codahale.metrics.jmx.JmxReporter.JmxMeterMBean;
-import com.codahale.metrics.jmx.JmxReporter.JmxTimerMBean;
 
 import loghub.configuration.ConfigException;
 import loghub.configuration.Configuration;

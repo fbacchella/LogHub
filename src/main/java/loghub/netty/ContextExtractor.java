@@ -8,18 +8,18 @@ import io.netty.handler.codec.MessageToMessageDecoder;
 import io.netty.util.ReferenceCounted;
 
 @Sharable
-public class ContextExtractor<SM> extends MessageToMessageDecoder<SM> {
+public class ContextExtractor<R extends NettyReceiver<R, SM>, SM> extends MessageToMessageDecoder<SM> {
 
     public static final String NAME = "SourceResolver";
 
-    private final NettyReceiver<SM> r;
+    private final NettyReceiver<R, SM> r;
 
-    public ContextExtractor(Class<SM> messageClass, NettyReceiver<SM> r) {
+    public ContextExtractor(Class<SM> messageClass, NettyReceiver<R, SM> r) {
         super(messageClass);
         this.r = r;
     }
 
-    public ContextExtractor(NettyReceiver<SM> r) {
+    public ContextExtractor(NettyReceiver<R, SM> r) {
         this.r = r;
     }
 

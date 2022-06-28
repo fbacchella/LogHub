@@ -15,7 +15,7 @@ public abstract class Etl extends Processor {
 
     protected VariablePath lvalue;
 
-    public static class Rename extends Etl{
+    public static class Rename extends Etl {
         private VariablePath sourcePath;
         @Override
         public boolean process(Event event) throws ProcessorException {
@@ -56,7 +56,6 @@ public abstract class Etl extends Processor {
         @Override
         public boolean process(Event event) throws ProcessorException {
             Object o = expression.eval(event);
-            System.err.println("process " + o);
             Boolean status = (Boolean) event.applyAtPath(Action.APPEND, lvalue, o, false);
             if (status == null) {
                 throw IgnoredEventException.INSTANCE;

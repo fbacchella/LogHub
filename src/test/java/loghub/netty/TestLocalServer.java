@@ -36,10 +36,10 @@ import loghub.netty.transport.TRANSPORT;
 public class TestLocalServer {
 
     @CloseOnError
-    private static class TesterReceiver extends NettyReceiver<Object>
+    private static class TesterReceiver extends NettyReceiver<TesterReceiver, Object>
                                         implements ConsumerProvider {
 
-        public static class Builder extends NettyReceiver.Builder<TesterReceiver> {
+        public static class Builder extends NettyReceiver.Builder<TesterReceiver,Object> {
             public Builder() {
                 setDecoder(StringCodec.getBuilder().build());
                 setTransport(TRANSPORT.LOCAL);

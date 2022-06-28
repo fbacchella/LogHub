@@ -396,7 +396,7 @@ public final class Helpers {
     }
 
     public static InetAddress parseIpAddres(String ipstring) throws UnknownHostException{
-        byte[] parts = null;
+        byte[] parts;
         if(NetUtil.isValidIpV4Address(ipstring) || NetUtil.isValidIpV6Address(ipstring)) {
             parts = NetUtil.createByteArrayFromIpAddressString(ipstring);
             return InetAddress.getByAddress(parts);

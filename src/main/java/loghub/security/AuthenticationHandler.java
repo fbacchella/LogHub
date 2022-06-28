@@ -1,6 +1,5 @@
 package loghub.security;
 
-import java.io.IOException;
 import java.security.Principal;
 import java.util.Arrays;
 
@@ -90,7 +89,6 @@ public class AuthenticationHandler {
     private final JWTHandler jwtHandler;
 
     private AuthenticationHandler(Builder builder) {
-
         this.login = builder.login;
         this.password = builder.password;
 
@@ -128,19 +126,16 @@ public class AuthenticationHandler {
 
     private Principal checkJaas(String tryLogin, char[] tryPassword) {
         logger.debug("testing login {} with JAAS {}", tryLogin, jaasName);
-        CallbackHandler cbHandler = new CallbackHandler() {
-            @Override
-            public void handle(Callback[] callbacks) throws IOException, UnsupportedCallbackException {
-                for (Callback cb: callbacks) {
-                    if (cb instanceof NameCallback) {
-                        NameCallback nc = (NameCallback)cb;
-                        nc.setName(tryLogin);
-                    } else if (cb instanceof PasswordCallback) {
-                        PasswordCallback pc = (PasswordCallback)cb;
-                        pc.setPassword(tryPassword);
-                    } else {
-                        throw new UnsupportedCallbackException(cb, "Unrecognized Callback");
-                    }
+        CallbackHandler cbHandler = callbacks -> {
+            for (Callback cb: callbacks) {
+                if (cb instanceof NameCallback) {
+                    NameCallback nc = (NameCallback)cb;
+                    nc.setName(tryLogin);
+                } else if (cb instanceof PasswordCallback) {
+                    PasswordCallback pc = (PasswordCallback)cb;
+                    pc.setPassword(tryPassword);
+                } else {
+                    throw new UnsupportedCallbackException(cb, "Unrecognized Callback");
                 }
             }
         };

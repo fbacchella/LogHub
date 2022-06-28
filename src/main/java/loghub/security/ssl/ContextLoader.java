@@ -75,7 +75,7 @@ public class ContextLoader {
         } else {
             System.setProperty("jdk.tls.rejectClientInitiatedRenegotiation", "true");
         }
-        SSLContext newCtxt = null;
+        SSLContext newCtxt;
         try {
             String sslContextName = properties.getOrDefault("context", "TLSv1.2").toString();
             String sslProviderName =  properties.getOrDefault("providername", "").toString();
@@ -94,7 +94,7 @@ public class ContextLoader {
             } else {
                 newCtxt = doprovide(sslContextName, secureProvider, SSLContext::getInstance, SSLContext::getInstance);
             }
-            KeyManager[] km = null;
+            KeyManager[] km;
             TrustManager[] tm = null;
             SecureRandom sr = SecureRandom.getInstance(secureRandom);
             Object trusts = properties.get("trusts");
@@ -152,7 +152,7 @@ public class ContextLoader {
 
                     @Override
                     public String chooseEngineServerAlias(String keyType, Principal[] issuers, SSLEngine engine) {
-                        logger.trace("{} {} {}", keyType.toString(), Arrays.toString(issuers), engine.toString());
+                        logger.trace("{} {} {}", () -> keyType, () -> Arrays.toString(issuers), () -> engine);
                         // The engine was build with a alias as the hint, return it
                         if (engine.getPeerPort() == DEFINEDSSLALIAS && getPrivateKey(engine.getPeerHost()) != null) {
                             String alias = engine.getPeerHost();

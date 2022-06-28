@@ -132,7 +132,7 @@ public abstract class Sender extends Thread implements Closeable {
     private final long flushInterval;
     private volatile boolean closed = false;
 
-    public Sender(Builder<?  extends  Sender> builder) {
+    protected Sender(Builder<? extends Sender> builder) {
         filter = builder.filter;
         setDaemon(true);
         setName("sender-" + getSenderName());
@@ -229,7 +229,7 @@ public abstract class Sender extends Thread implements Closeable {
                     batches.add(batch.getAndSet(new Batch(this)));
                 }
             } catch (IllegalStateException e) {
-                logger.warn("Failed to launch a scheduled batch: " + Helpers.resolveThrowableException(e));
+                logger.warn("Failed to launch a scheduled batch: {}", Helpers.resolveThrowableException(e));
                 logger.catching(Level.DEBUG, e);
             }
         };
@@ -393,7 +393,6 @@ public abstract class Sender extends Thread implements Closeable {
             handleException(e.getCause(), result.event);
         }
     }
-
 
     protected void handleException(Throwable t, Event event) {
         try {

@@ -34,7 +34,6 @@ import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.SerializationFeature;
 
 import io.netty.util.CharsetUtil;
-import loghub.AbstractBuilder;
 import loghub.BuilderClass;
 import loghub.CanBatch;
 import loghub.Event;
@@ -82,7 +81,7 @@ public class ElasticSearch extends AbstractHttpSender {
             this.setBatchSize(20);
         }
         public void setWithTemplate(boolean withTemplate) {
-            if (withTemplate == false) {
+            if (!withTemplate) {
                 templatePath = null;
                 templateName = null;
             }
@@ -113,7 +112,7 @@ public class ElasticSearch extends AbstractHttpSender {
     private final boolean ilm;
 
     private final ThreadLocal<DateFormat> esIndexFormat;
-    private final ThreadLocal<URL[]> UrlArrayCopy;
+    private final ThreadLocal<URL[]> urlArrayCopy;
 
     public ElasticSearch(Builder builder) {
         super(builder);
@@ -287,7 +286,6 @@ public class ElasticSearch extends AbstractHttpSender {
             } catch (JsonProcessingException | ProcessorException ex) {
                 ef.completeExceptionally(ex);
                 logger.debug("Failed to serialized {}: {}", ef.getEvent(),Helpers.resolveThrowableException(ex));
-                continue;
             }
         }
         os.flush();
@@ -389,9 +387,7 @@ public class ElasticSearch extends AbstractHttpSender {
             return;
         }
         StringBuilder filePart = new StringBuilder();
-        Function<JsonNode, Boolean> transform = node -> {
-            return true;
-        };
+        Function<JsonNode, Boolean> transform = node -> true;
 
         // Creating the missing indices
         for (String i: missing) {
@@ -546,7 +542,7 @@ public class ElasticSearch extends AbstractHttpSender {
         if (request == null) {
             request = new HttpRequest();
         }
-        URL[] localendPoints = UrlArrayCopy.get();
+        URL[] localendPoints = urlArrayCopy.get();
         Helpers.shuffleArray(localendPoints);
         for (URL endPoint: localendPoints) {
             URL newEndPoint;
@@ -570,7 +566,6 @@ public class ElasticSearch extends AbstractHttpSender {
                     // This node return 200 but not a application/json, or a 500
                     // Looks like this node is broken try another one
                     logger.warn("Broken node: {}, returned '{} {}' {}", newEndPoint, status, response.getStatusMessage(), response.getMimeType());
-                    continue;
                 } else if (failureHandlers.containsKey(status) && "application/json".equals(responseMimeType)){
                     JsonNode node = jsonreader.readTree(response.getContentReader());
                     // Only ES failures can be handled

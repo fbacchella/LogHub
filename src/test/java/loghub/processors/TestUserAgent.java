@@ -11,11 +11,11 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import loghub.Event;
+import loghub.Event.Action;
 import loghub.LogUtils;
 import loghub.ProcessorException;
 import loghub.Tools;
 import loghub.VariablePath;
-import loghub.Event.Action;
 import loghub.configuration.Properties;
 
 public class TestUserAgent {

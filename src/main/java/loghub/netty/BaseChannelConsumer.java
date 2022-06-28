@@ -21,14 +21,14 @@ import loghub.Helpers;
 import loghub.decoders.DecodeException;
 import loghub.receivers.SelfDecoder;
 
-public class BaseChannelConsumer<R extends NettyReceiver<SM>, SM> implements ChannelConsumer {
+public class BaseChannelConsumer<R extends NettyReceiver<R, SM>, SM> implements ChannelConsumer {
 
     private static final Logger logger = LogManager.getLogger();
 
     @Sharable
     private class EventSender extends SimpleChannelInboundHandler<Event> {
         @Override
-        protected void channelRead0(ChannelHandlerContext ctx, Event ev) throws Exception {
+        protected void channelRead0(ChannelHandlerContext ctx, Event ev) {
             r.nettySend(ev);
         }
     }
@@ -74,13 +74,13 @@ public class BaseChannelConsumer<R extends NettyReceiver<SM>, SM> implements Cha
         }
     }
 
-    private class LocalContextExtractor extends ContextExtractor<SM> {
-        public LocalContextExtractor(NettyReceiver<SM> r) {
+    private class LocalContextExtractor extends ContextExtractor<R, SM> {
+        public LocalContextExtractor(NettyReceiver<R, SM> r) {
             super(r);
         }
     }
 
-    private final ContextExtractor<SM> extractor;
+    private final ContextExtractor<R, SM> extractor;
     private final Optional<MessageToMessageDecoder<ByteBuf>> filter;
     private final Optional<MessageToMessageDecoder<ByteBuf>> nettydecoder;
     private final EventSender sender = new EventSender();

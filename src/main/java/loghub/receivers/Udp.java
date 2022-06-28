@@ -15,9 +15,9 @@ import loghub.netty.transport.TRANSPORT;
 import lombok.Setter;
 
 @BuilderClass(Udp.Builder.class)
-public class Udp extends NettyReceiver<DatagramPacket> implements ConsumerProvider {
+public class Udp extends NettyReceiver<Udp, DatagramPacket> implements ConsumerProvider {
 
-    public static class Builder extends NettyReceiver.Builder<Udp> {
+    public static class Builder extends NettyReceiver.Builder<Udp, DatagramPacket> {
         public Builder() {
             setTransport(TRANSPORT.UDP);
         }

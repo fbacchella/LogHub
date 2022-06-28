@@ -144,9 +144,7 @@ public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRe
         // Build the response object.
         HttpResponse response = new DefaultFullHttpResponse(HTTP_1_1, status, content);
 
-        internalWriteResponse(ctx, request, response, length, () -> {
-            return ctx.writeAndFlush(response);
-        });
+        internalWriteResponse(ctx, request, response, length, () -> ctx.writeAndFlush(response));
     }
 
     private void internalWriteResponse(ChannelHandlerContext ctx, FullHttpRequest request, HttpResponse response, int length, Supplier<ChannelFuture> sender) {

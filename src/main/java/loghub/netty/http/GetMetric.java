@@ -2,6 +2,7 @@ package loghub.netty.http;
 
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -73,8 +74,8 @@ public class GetMetric extends HttpRequestProcessing implements ChannelInboundHa
                 }
                 String serialized = writer.writeValueAsString(metrics);
                 content.ensureWritable(serialized.length() + 2);
-                content.writeCharSequence(serialized, CharsetUtil.UTF_8);
-                content.writeCharSequence("\r\n", CharsetUtil.UTF_8);
+                content.writeCharSequence(serialized, StandardCharsets.UTF_8);
+                content.writeCharSequence("\r\n", StandardCharsets.UTF_8);
                 writeResponse(ctx, request, content, content.readableBytes());
             } else {
                 throw new HttpRequestFailure(HttpResponseStatus.BAD_REQUEST, String.format("Unsupported metric name: %s", request.uri().replace("/metric/", "")));

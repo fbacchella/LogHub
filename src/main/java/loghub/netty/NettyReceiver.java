@@ -22,16 +22,14 @@ import loghub.netty.transport.POLLER;
 import loghub.netty.transport.TRANSPORT;
 import loghub.netty.transport.TransportConfig;
 import loghub.receivers.Receiver;
-import loghub.security.ssl.ClientAuthentication;
 import lombok.Getter;
 import lombok.Setter;
 
-public abstract class NettyReceiver<M> extends Receiver {
+public abstract class NettyReceiver<R extends NettyReceiver<R, M>, M> extends Receiver {
 
     protected static final AttributeKey<ConnectionContext<?  extends SocketAddress>> CONNECTIONCONTEXTATTRIBUTE = AttributeKey.newInstance(ConnectionContext.class.getName());
 
-    public abstract static class Builder<S extends NettyReceiver
-                                        > extends Receiver.Builder<S> {
+    public abstract static class Builder<R extends NettyReceiver<R, M>, M> extends Receiver.Builder<R> {
         @Setter
         POLLER poller = POLLER.DEFAULTPOLLER;
         @Setter
@@ -56,7 +54,7 @@ public abstract class NettyReceiver<M> extends Receiver {
     private final String listen;
     @Getter
     private final int port;
-    protected NettyReceiver(Builder<? extends NettyReceiver> builder) {
+    protected NettyReceiver(Builder<R, M> builder) {
         super(builder);
         this.transport = builder.transport.getInstance(builder.poller);
         this.listen = builder.host;
@@ -132,6 +130,7 @@ public abstract class NettyReceiver<M> extends Receiver {
     }
 
     public <A extends SocketAddress> ConnectionContext<A> makeConnectionContext(ChannelHandlerContext ctx, M message) {
+        @SuppressWarnings("unchecked")
         ConnectionContext<A> cctx = (ConnectionContext<A>) transport.getNewConnectionContext(ctx, message);
         ctx.channel().attr(CONNECTIONCONTEXTATTRIBUTE).set(cctx);
         Optional.ofNullable(ctx.channel().attr(NettyTransport.PRINCIPALATTRIBUTE)).map(Attribute::get).ifPresent(cctx::setPrincipal);

@@ -1,7 +1,6 @@
 package loghub.netty.servers;
 
 import java.net.InetSocketAddress;
-import java.util.concurrent.ExecutionException;
 
 import javax.net.ssl.SSLContext;
 import javax.security.auth.login.Configuration;
@@ -23,9 +22,9 @@ import loghub.security.ssl.ClientAuthentication;
 import lombok.Setter;
 import lombok.experimental.Accessors;
 
-public abstract class HttpServer<S extends HttpServer> {
+public abstract class HttpServer<S extends HttpServer<S>> {
 
-    private class ConsumerBuilder extends HttpChannelConsumer.Builder<HttpChannelConsumer> {
+    private class ConsumerBuilder extends HttpChannelConsumer.Builder {
         @Override
         protected HttpChannelConsumer build() {
             return new HttpServerConsumer(this);
@@ -33,6 +32,7 @@ public abstract class HttpServer<S extends HttpServer> {
     }
 
     private class HttpServerConsumer extends HttpChannelConsumer<HttpServerConsumer> {
+        @SuppressWarnings("unchecked")
         public HttpServerConsumer(Builder builder) {
             super(builder);
         }
@@ -78,7 +78,7 @@ public abstract class HttpServer<S extends HttpServer> {
         logger = LogManager.getLogger(Helpers.getFirstInitClass());
         AuthenticationHandler.Builder authHandlerBuilder = AuthenticationHandler.getBuilder();
         if (builder.withJwt) {
-            authHandlerBuilder.useJwt(builder.withJwt).setJwtHandler(builder.jwtHandler);
+            authHandlerBuilder.useJwt(true).setJwtHandler(builder.jwtHandler);
         } else {
             authHandlerBuilder.useJwt(false);
         }
@@ -102,7 +102,7 @@ public abstract class HttpServer<S extends HttpServer> {
 
     protected abstract void addModelHandlers(ChannelPipeline p);
 
-    public void start() throws ExecutionException, InterruptedException {
+    public void start() throws InterruptedException {
         logger.debug("Starting an HTTP server with configuration {}", config);
         transport.bind(config);
     }

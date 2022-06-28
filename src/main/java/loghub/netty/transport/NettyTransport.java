@@ -225,7 +225,7 @@ public abstract class NettyTransport<SA extends SocketAddress, M> {
                 NettyTransport.this.addErrorHandler(ch.pipeline());
             }
             @Override
-            public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+            public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
                 if (Helpers.isFatal(cause)) {
                     consumer.logFatalException(cause);
                     Start.fatalException(cause);
@@ -286,7 +286,6 @@ public abstract class NettyTransport<SA extends SocketAddress, M> {
         }
     }
 
-    @SuppressWarnings("unchecked")
     public static ChannelConsumer resolveConsumer(Object o) {
         if (o instanceof ChannelConsumer) {
             return (ChannelConsumer) o;

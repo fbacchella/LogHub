@@ -15,9 +15,9 @@ import lombok.Getter;
 import lombok.Setter;
 
 @BuilderClass(TcpLinesStream.Builder.class)
-public class TcpLinesStream extends NettyReceiver<ByteBuf> implements ConsumerProvider {
+public class TcpLinesStream extends NettyReceiver<TcpLinesStream, ByteBuf> implements ConsumerProvider {
 
-    public static class Builder extends NettyReceiver.Builder<TcpLinesStream> {
+    public static class Builder extends NettyReceiver.Builder<TcpLinesStream, ByteBuf> {
         public Builder() {
             super();
             setTransport(TRANSPORT.TCP);

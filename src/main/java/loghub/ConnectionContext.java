@@ -33,6 +33,7 @@ public abstract class ConnectionContext<A> implements Serializable {
 
         @Override
         public void setPrincipal(Principal peerPrincipal) {
+            // No principal stored
         }
 
     };

@@ -46,7 +46,6 @@ public class AccessControl extends HttpFilter {
             //not null, someone (probably TLS) already done the job, nice !
             return;
         }
-        //String authorization = ;
         Matcher matcher = Optional.ofNullable(request.headers().get(HttpHeaderNames.AUTHORIZATION)).map(AUTHDETAILS::matcher).filter(Matcher::matches).orElse(null);
         if (matcher!= null) {
             switch(matcher.group("scheme").toLowerCase(Locale.US)) {

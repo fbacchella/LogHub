@@ -1,13 +1,10 @@
 package loghub.netty.transport;
 
-import java.net.InetSocketAddress;
-
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.unix.DomainDatagramPacket;
 import io.netty.channel.unix.DomainSocketAddress;
 import loghub.ConnectionContext;
 import loghub.DomainConnectionContext;
-import loghub.IpConnectionContext;
 
 public class UnixDgramTransport
         extends NettyTransport<DomainSocketAddress, DomainDatagramPacket>

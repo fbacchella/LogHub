@@ -147,8 +147,7 @@ public class Tools {
     }
 
     public static int tryGetPort() {
-        
-        try (ServerSocket ss = new ServerSocket(0)){
+        try (ServerSocket ss = new ServerSocket(0)) {
             ss.setReuseAddress(true);
             return ss.getLocalPort();
         } catch (IOException e) {

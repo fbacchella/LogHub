@@ -47,9 +47,9 @@ import lombok.Setter;
 @SelfDecoder
 @CloseOnError
 @BuilderClass(Beats.Builder.class)
-public class Beats extends NettyReceiver<ByteBuf> implements ConsumerProvider {
+public class Beats extends NettyReceiver<Beats, ByteBuf> implements ConsumerProvider {
 
-    public static class Builder extends NettyReceiver.Builder<Beats> {
+    public static class Builder extends NettyReceiver.Builder<Beats, ByteBuf> {
         public Builder() {
             setTransport(TRANSPORT.TCP);
         }
@@ -85,14 +85,12 @@ public class Beats extends NettyReceiver<ByteBuf> implements ConsumerProvider {
 
         @Override
         protected void channelRead0(ChannelHandlerContext ctx,
-                                    Object msg)
-                                                    throws Exception {
+                                    Object msg) {
             logger.warn("Not processed message {}", msg);
         }
 
         @Override
-        public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause)
-                        throws Exception {
+        public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
             // Forward non HTTP error
             if (cause instanceof DecoderException) {
                 Beats.this.manageDecodeException(new DecodeException("Invalid beats message", cause.getCause() != null ? cause.getCause() : cause));

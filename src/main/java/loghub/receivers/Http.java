@@ -32,7 +32,6 @@ import loghub.decoders.Decoder;
 import loghub.decoders.TextDecoder;
 import loghub.metrics.Stats;
 import loghub.netty.AbstractHttpReceiver;
-import loghub.netty.ChannelConsumer;
 import loghub.netty.http.ContentType;
 import loghub.netty.http.HttpRequestFailure;
 import loghub.netty.http.HttpRequestProcessing;
@@ -44,10 +43,10 @@ import lombok.Setter;
 
 import static loghub.netty.transport.NettyTransport.PRINCIPALATTRIBUTE;
 
-@Blocking(true)
+@Blocking
 @SelfDecoder
 @BuilderClass(Http.Builder.class)
-public class Http extends AbstractHttpReceiver {
+public class Http extends AbstractHttpReceiver<Http> {
 
     @NoCache
     @RequestAccept(methods= {"GET", "PUT", "POST"})
@@ -62,7 +61,7 @@ public class Http extends AbstractHttpReceiver {
                     mimeType = "application/query-string";
                 }
                 CharSequence encoding = Optional.ofNullable(HttpUtil.getCharsetAsSequence(request)).orElse("UTF-8");
-                Decoder decoder = Optional.ofNullable(mimeType).map(decoders::get).orElse(null);
+                Decoder decoder = Optional.of(mimeType).map(decoders::get).orElse(null);
                 String message;
                 if ("application/x-www-form-urlencoded".equals(mimeType)) {
                     Charset cs = Charset.forName(encoding.toString());
@@ -115,9 +114,9 @@ public class Http extends AbstractHttpReceiver {
             return qsd.parameters().entrySet().stream()
                            .collect(Collectors.toMap(Map.Entry::getKey, j -> {
                                if (j.getValue().size() == 1) {
-                                   return (Object) j.getValue().get(0);
+                                   return j.getValue().get(0);
                                } else {
-                                   return (Object) j.getValue();
+                                   return j.getValue();
                                }
                            }));
 
@@ -146,7 +145,7 @@ public class Http extends AbstractHttpReceiver {
 
     protected Http(Builder builder) {
         super(builder);
-        this.decoders = Collections.unmodifiableMap(new HashMap<String, Decoder>(builder.decoders));
+        this.decoders = Map.copyOf(new HashMap<>(builder.decoders));
         if (this.decoder != null) {
             throw new IllegalArgumentException("No default decoder can be defined");
         }
@@ -164,7 +163,7 @@ public class Http extends AbstractHttpReceiver {
     }
 
     @Override
-    public void configureConsumer(HttpReceiverChannelConsumer.Builder builder) {
+    public void configureConsumer(HttpReceiverChannelConsumer.Builder<Http> builder) {
         builder.setRequestProcessor(new PostHandler());
     }
 

@@ -3,34 +3,33 @@ package loghub.netty;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.http.HttpMessage;
-import io.netty.handler.codec.http.HttpServerCodec;
 import loghub.netty.http.HttpRequestProcessing;
 import loghub.receivers.Blocking;
-import loghub.receivers.Journald;
 import lombok.Setter;
 
-@Blocking(true)
-public abstract class AbstractHttpReceiver extends NettyReceiver<HttpMessage> implements ConsumerProvider {
+@Blocking
+public abstract class AbstractHttpReceiver<R extends AbstractHttpReceiver<R>> extends NettyReceiver<R, HttpMessage> implements ConsumerProvider {
 
-    protected static class HttpReceiverChannelConsumer extends HttpChannelConsumer<HttpReceiverChannelConsumer> {
+    protected static class HttpReceiverChannelConsumer<R extends AbstractHttpReceiver<R>> extends HttpChannelConsumer<HttpReceiverChannelConsumer<R>> {
 
-        public static class Builder extends HttpChannelConsumer.Builder<HttpReceiverChannelConsumer> {
+        public static class Builder<R extends AbstractHttpReceiver<R>> extends HttpChannelConsumer.Builder<HttpReceiverChannelConsumer<R>> {
             @Setter
             HttpRequestProcessing requestProcessor;
             @Setter
-            AbstractHttpReceiver receiver;
-            public HttpReceiverChannelConsumer build() {
-                return new HttpReceiverChannelConsumer(this);
+            AbstractHttpReceiver<R> receiver;
+            public HttpReceiverChannelConsumer<R> build() {
+                return new HttpReceiverChannelConsumer<>(this);
             }
         }
-        public static HttpReceiverChannelConsumer.Builder getBuilder() {
-            return new HttpReceiverChannelConsumer.Builder();
+        public static <R extends AbstractHttpReceiver<R>> HttpReceiverChannelConsumer.Builder<R> getBuilder() {
+            return new HttpReceiverChannelConsumer.Builder<>();
         }
 
         protected final HttpRequestProcessing requestProcessor;
-        protected final ContextExtractor<HttpMessage> resolver;
+        protected final ContextExtractor<R, HttpMessage> resolver;
 
-        protected HttpReceiverChannelConsumer(Builder builder) {
+        @SuppressWarnings("unchecked")
+        protected HttpReceiverChannelConsumer(Builder<R> builder) {
             super(builder);
             this.requestProcessor = builder.requestProcessor;
             this.resolver = new ContextExtractor<>(HttpMessage.class, builder.receiver);
@@ -44,16 +43,16 @@ public abstract class AbstractHttpReceiver extends NettyReceiver<HttpMessage> im
 
     }
 
-    public abstract static class Builder<B extends AbstractHttpReceiver> extends NettyReceiver.Builder<B> {
+    public abstract static class Builder<R extends AbstractHttpReceiver<R>> extends NettyReceiver.Builder<R, HttpMessage> {
     }
 
-    protected AbstractHttpReceiver(Builder<? extends AbstractHttpReceiver>  builder) {
+    protected AbstractHttpReceiver(Builder<R>  builder) {
         super(builder);
     }
 
     @Override
     public ChannelConsumer getConsumer() {
-        HttpReceiverChannelConsumer.Builder builder = HttpReceiverChannelConsumer.getBuilder();
+        HttpReceiverChannelConsumer.Builder<R> builder = HttpReceiverChannelConsumer.getBuilder();
         builder.setLogger(logger);
         builder.setAuthHandler(config.getAuthHandler());
         configureConsumer(builder);
@@ -61,7 +60,7 @@ public abstract class AbstractHttpReceiver extends NettyReceiver<HttpMessage> im
         return builder.build();
     }
 
-    protected abstract void configureConsumer(HttpReceiverChannelConsumer.Builder builder);
+    protected abstract void configureConsumer(HttpReceiverChannelConsumer.Builder<R> builder);
 
     @Override
     public ByteBuf getContent(HttpMessage message) {

@@ -6,9 +6,9 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
 
 public interface ChannelConsumer {
-    public void addHandlers(ChannelPipeline pipe);
-    public default void addOptions(ServerBootstrap bootstrap) { }
-    public default void addOptions(Bootstrap bootstrap) { }
-    public void exception(ChannelHandlerContext ctx, Throwable cause);
-    public void logFatalException(Throwable ex);
+    void addHandlers(ChannelPipeline pipe);
+    default void addOptions(ServerBootstrap bootstrap) { }
+    default void addOptions(Bootstrap bootstrap) { }
+    void exception(ChannelHandlerContext ctx, Throwable cause);
+    void logFatalException(Throwable ex);
 }

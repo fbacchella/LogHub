@@ -3,7 +3,6 @@ package loghub.receivers;
 import java.io.Closeable;
 import java.time.Instant;
 import java.util.Date;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -34,11 +33,6 @@ import lombok.Setter;
 
 @Blocking(false)
 public abstract class Receiver extends Thread implements Closeable {
-
-    @FunctionalInterface
-    public static interface DecodeSupplier {
-        Map<String, Object> get() throws DecodeException;
-    }
 
     public abstract static class Builder<B extends Receiver> extends AbstractBuilder<B> {
         @Setter
@@ -239,7 +233,7 @@ public abstract class Receiver extends Thread implements Closeable {
                             .filter(i -> i instanceof Date || i instanceof Instant || i instanceof Number)
                             .filter(newEvent::setTimestamp)
                             .ifPresent(ts -> content.remove(timeStampField));
-                    content.entrySet().stream().forEach(i -> newEvent.put(i.getKey(), i.getValue()));
+                    content.entrySet().forEach(i -> newEvent.put(i.getKey(), i.getValue()));
                 }
                 if (newEvent.getConnectionContext() == null) {
                     Stats.newReceivedError(this, "Received an event without context");

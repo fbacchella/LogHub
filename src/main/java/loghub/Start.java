@@ -344,7 +344,6 @@ public class Start {
                 System.exit(ExitCode.OPERATIONFAILED);
             } catch (IllegalStateException ex) {
                 System.err.println("JWT state broken: " + Helpers.resolveThrowableException(ex));
-                ex.printStackTrace();
                 System.exit(ExitCode.OPERATIONFAILED);
             }
         } else if (main.timepattern != null) {
@@ -450,7 +449,7 @@ public class Start {
         if (props.dashboard != null) {
             try {
                 props.dashboard.start();
-            } catch (IllegalArgumentException | ExecutionException e) {
+            } catch (IllegalArgumentException e) {
                 logger.error("Unable to start HTTP dashboard: {}", Helpers.resolveThrowableException(e));
                 logger.catching(Level.DEBUG, e);
                 throw new IllegalStateException("Unable to start HTTP dashboard: " + Helpers.resolveThrowableException(e));

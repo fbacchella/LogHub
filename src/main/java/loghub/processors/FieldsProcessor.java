@@ -1,8 +1,5 @@
 package loghub.processors;
 
-import static java.lang.annotation.ElementType.TYPE;
-import static java.lang.annotation.RetentionPolicy.RUNTIME;
-
 import java.lang.annotation.Documented;
 import java.lang.annotation.Inherited;
 import java.lang.annotation.Retention;
@@ -27,6 +24,9 @@ import loghub.VariablePath;
 import loghub.configuration.Properties;
 import lombok.Getter;
 import lombok.Setter;
+
+import static java.lang.annotation.ElementType.TYPE;
+import static java.lang.annotation.RetentionPolicy.RUNTIME;
 
 public abstract class FieldsProcessor extends Processor {
 
@@ -157,7 +157,7 @@ public abstract class FieldsProcessor extends Processor {
             }
 
             // Add a sub processor that will loop on itself until fields are exhausted
-            if (nextfields.size() > 0) {
+            if (!nextfields.isEmpty()) {
                 delegate(nextfields, event);
             }
             throw IgnoredEventException.INSTANCE;

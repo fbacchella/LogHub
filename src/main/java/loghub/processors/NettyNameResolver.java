@@ -133,8 +133,8 @@ public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<Dn
                         .channelFactory(() -> (DatagramChannel) POLLER.DEFAULTPOLLER.clientChannelProvider(TRANSPORT.UDP))
                         .socketChannelFactory(() -> (SocketChannel) POLLER.DEFAULTPOLLER.clientChannelProvider(TRANSPORT.TCP))
                         ;
-        InetSocketAddress resolverAddr = null;
-        Object parent = null;
+        InetSocketAddress resolverAddr;
+        Object parent;
         if (etcResolvConf != null && etcResolverDir == null) {
             try {
                 builder = builder.nameServerProvider(new UnixResolverDnsServerAddressStreamProvider(Paths.get(etcResolvConf).toFile()));

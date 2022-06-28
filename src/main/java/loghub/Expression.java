@@ -298,7 +298,7 @@ public class Expression {
                 throw IgnoredEventException.INSTANCE;
             }
         } else if (iterable instanceof List) {
-            List l = (List) iterable;
+            List<?> l = (List<?>) iterable;
             if (l.size() > index) {
                 return l.get(index);
             } else {

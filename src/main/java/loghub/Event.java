@@ -168,7 +168,7 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
             }
         }
         Map<String, Object> current = this;
-        String key = null;
+        String key;
         if (path.isMeta()) {
             return f.action.apply(getMetas(), path.get(0), value);
         } else if (path.isTimestamp()) {
@@ -212,7 +212,6 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
                 String currentkey = path.get(i);
                 if (".".equals(currentkey)) {
                     current = getRealEvent();
-                    key = path.get(i + 1);
                 } else {
                     Optional<Object> peekNext = Optional.of(current).filter(c -> c.containsKey(currentkey)).map(c -> c.get(currentkey));
                     Map<String, Object> next;

@@ -44,7 +44,7 @@ public class Csv extends AbstractStringJackson<Csv.Builder> {
     @Override
     protected JacksonBuilder<?> getReaderBuilder(Builder builder) {
         CsvSchema.Builder sbuilder = CsvSchema.builder();
-        Arrays.stream(builder.columns).forEach(i -> sbuilder.addColumn(i.toString()));
+        Arrays.stream(builder.columns).forEach(sbuilder::addColumn);
         sbuilder.setColumnSeparator(builder.separator);
         sbuilder.setNullValue(builder.nullValue);
         sbuilder.setUseHeader(builder.header);

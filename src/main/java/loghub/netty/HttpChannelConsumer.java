@@ -25,12 +25,12 @@ import loghub.netty.http.NotFound;
 import loghub.security.AuthenticationHandler;
 import lombok.Setter;
 
-public abstract class HttpChannelConsumer<S extends HttpChannelConsumer> implements ChannelConsumer {
+public abstract class HttpChannelConsumer<C extends HttpChannelConsumer<C>> implements ChannelConsumer {
 
     private static final SimpleChannelInboundHandler<FullHttpRequest> NOT_FOUND = new NotFound();
     private static final SimpleChannelInboundHandler<FullHttpRequest> FATAL_ERROR = new FatalErrorHandler();
 
-    public abstract static class Builder<S extends HttpChannelConsumer> {
+    public abstract static class Builder<S extends HttpChannelConsumer<S>> {
         // Both aggregatorSupplier and serverCodecSupplier needs a supplier because
         // they are usually not sharable, so each pipeline needs its own instance.
         @Setter
@@ -54,7 +54,7 @@ public abstract class HttpChannelConsumer<S extends HttpChannelConsumer> impleme
     private final AuthenticationHandler authHandler;
     private final Logger logger;
 
-    protected HttpChannelConsumer(Builder<S> builder) {
+    protected HttpChannelConsumer(Builder<C> builder) {
         this.aggregatorSupplier = Optional.ofNullable(builder.aggregatorSupplier).orElse(() -> new HttpObjectAggregator(builder.maxContentLength));
         this.serverCodecSupplier = Optional.ofNullable(builder.serverCodecSupplier).orElse(HttpServerCodec::new);
         this.authHandler = builder.authHandler;

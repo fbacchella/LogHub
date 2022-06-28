@@ -32,7 +32,6 @@ import loghub.decoders.DecodeException;
 import loghub.decoders.JournaldExport;
 import loghub.metrics.Stats;
 import loghub.netty.AbstractHttpReceiver;
-import loghub.netty.ChannelConsumer;
 import loghub.netty.http.ContentType;
 import loghub.netty.http.HttpRequestFailure;
 import loghub.netty.http.HttpRequestProcessing;
@@ -42,7 +41,7 @@ import loghub.netty.transport.TRANSPORT;
 @Blocking
 @SelfDecoder
 @BuilderClass(Journald.Builder.class)
-public class Journald extends AbstractHttpReceiver {
+public class Journald extends AbstractHttpReceiver<Journald> {
 
     private static final AttributeKey<Boolean> VALIDJOURNALD = AttributeKey.newInstance(Journald.class.getCanonicalName() + ".VALIDJOURNALD");
     private static final AttributeKey<List<Event>> EVENTS = AttributeKey.newInstance(Journald.class.getCanonicalName() + ".EVENTS");
@@ -193,7 +192,7 @@ public class Journald extends AbstractHttpReceiver {
     }
 
     @Override
-    public void configureConsumer(HttpReceiverChannelConsumer.Builder builder) {
+    public void configureConsumer(HttpReceiverChannelConsumer.Builder<Journald> builder) {
         builder.setAggregatorSupplier(JournaldAgregator::new);
         // journald-upload uses 16kiB chunk buffers, the default HttpServerCodec uses 8kiB bytebuf
         builder.setServerCodecSupplier(() -> new HttpServerCodec(512, 1024, 32768, true, 32768, false, false));
