@@ -367,7 +367,7 @@ public class Properties extends HashMap<String, Object> {
         builder.setPort(port);
         if (Boolean.TRUE.equals(collect.get("withSSL"))) {
             builder.setWithSSL(true);
-            builder.setSslContext(this.ssl);
+            builder.setSslContext(ssl);
             String clientAuthentication = collect.compute("SSLClientAuthentication", (i, j) -> j != null ? j : ClientAuthentication.NOTNEEDED).toString();
             String sslKeyAlias = (String) collect.get("SSLKeyAlias");
             builder.setSslKeyAlias(sslKeyAlias)
@@ -376,13 +376,13 @@ public class Properties extends HashMap<String, Object> {
             builder.setWithSSL(false);
         }
         if ((Boolean)collect.compute("jwt", (i,j) -> Boolean.TRUE.equals(j))) {
-            builder.setWithJwt(true).setJwtHandler(jwtHandler);
+            builder.setWithJwtUrl(true).setJwtHandlerUrl(jwtHandler);
         } else {
-            builder.setWithJwt(false);
+            builder.setWithJwtUrl(false);
         }
-        String jaasName = collect.compute("jaasName", (i,j) -> j != null ? j : "").toString();
+        String jaasName = collect.compute("jaasName", (i,j) -> (j != null) ? j : "").toString();
         if (jaasName != null && ! jaasName.isBlank()) {
-            builder.setJaasName(jaasName).setJaasConfig(jaasConfig);
+            builder.setJaasNameJwt(jaasName).setJaasConfigJwt(jaasConfig);
         }
         return builder.build();
     }

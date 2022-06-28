@@ -24,14 +24,14 @@ import lombok.experimental.Accessors;
 
 public abstract class HttpServer<S extends HttpServer<S>> {
 
-    private class ConsumerBuilder extends HttpChannelConsumer.Builder {
+    public class ConsumerBuilder extends HttpChannelConsumer.Builder {
         @Override
-        protected HttpChannelConsumer build() {
+        public HttpChannelConsumer build() {
             return new HttpServerConsumer(this);
         }
     }
 
-    private class HttpServerConsumer extends HttpChannelConsumer<HttpServerConsumer> {
+    protected class HttpServerConsumer extends HttpChannelConsumer<HttpServerConsumer> {
         @SuppressWarnings("unchecked")
         public HttpServerConsumer(Builder builder) {
             super(builder);
@@ -76,16 +76,8 @@ public abstract class HttpServer<S extends HttpServer<S>> {
 
     protected HttpServer(Builder<S> builder) {
         logger = LogManager.getLogger(Helpers.getFirstInitClass());
-        AuthenticationHandler.Builder authHandlerBuilder = AuthenticationHandler.getBuilder();
-        if (builder.withJwt) {
-            authHandlerBuilder.useJwt(true).setJwtHandler(builder.jwtHandler);
-        } else {
-            authHandlerBuilder.useJwt(false);
-        }
-        if (builder.jaasName != null && ! builder.jaasName.isBlank()) {
-            authHandlerBuilder.setJaasName(builder.jaasName).setJaasConfig(builder.jaasConfig);
-        }
-        AuthenticationHandler authHandler = authHandlerBuilder.build();
+        AuthenticationHandler authHandler = getAuthenticationHandler(builder.withJwt, builder.jwtHandler,
+                                                                     builder.jaasName, builder.jaasConfig);
         ConsumerBuilder consumerbuilder = new ConsumerBuilder();
         consumerbuilder.setAuthHandler(authHandler);
         consumerbuilder.setLogger(logger);
@@ -95,9 +87,24 @@ public abstract class HttpServer<S extends HttpServer<S>> {
         config.setThreadPrefix("HttpServer");
         config.setEndpoint(builder.listen);
         config.setPort(builder.port);
+        config.setAuthHandler(authHandler);
         if (builder.withSSL) {
             config.setWithSsl(true).setSslContext(builder.sslContext).setSslKeyAlias(builder.sslKeyAlias).setSslClientAuthentication(builder.sslClientAuthentication);
         }
+    }
+
+    protected AuthenticationHandler getAuthenticationHandler(boolean withJwt, JWTHandler jwtHandler,
+                                                             String jaasName, Configuration jaasConfig) {
+        AuthenticationHandler.Builder authHandlerBuilder = AuthenticationHandler.getBuilder();
+        if (withJwt) {
+            authHandlerBuilder.useJwt(true).setJwtHandler(jwtHandler);
+        } else {
+            authHandlerBuilder.useJwt(false);
+        }
+        if (jaasName != null && ! jaasName.isBlank()) {
+            authHandlerBuilder.setJaasName(jaasName).setJaasConfig(jaasConfig);
+        }
+        return authHandlerBuilder.build();
     }
 
     protected abstract void addModelHandlers(ChannelPipeline p);
