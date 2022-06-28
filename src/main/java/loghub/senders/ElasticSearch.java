@@ -58,9 +58,9 @@ public class ElasticSearch extends AbstractHttpSender {
         DEPRECATED,
     }
 
-    public static class Builder extends AbstractHttpSender.Builder<ElasticSearch> implements AbstractBuilder.WithCompiler {
+    public static class Builder extends AbstractHttpSender.Builder<ElasticSearch> {
         @Setter
-        private Expression type = null;
+        private Expression type = new Expression("_doc");
         @Setter
         private String dateformat = null;
         @Setter
@@ -73,8 +73,6 @@ public class ElasticSearch extends AbstractHttpSender {
         private TYPEHANDLING typeHandling = TYPEHANDLING.USING;
         @Setter
         private boolean ilm = false;
-        @Setter
-        Function<String, Expression> compiler;
 
         public Builder() {
             this.setPort(9200);
@@ -143,12 +141,11 @@ public class ElasticSearch extends AbstractHttpSender {
         } else {
             esIndexFormat = null;
         }
-        type = Optional.ofNullable(builder.type).orElseGet(() -> builder.compiler.apply("\"_doc\""));
-        // If no index expression was given, it will be handler by builder.dateformat pattern, so return an empty string
-        index = Optional.ofNullable(builder.index).orElseGet(() -> builder.compiler.apply("\"\""));
+        type = builder.type;
+        index = builder.index;
         typeHandling = builder.typeHandling;
         ilm = builder.ilm;
-        UrlArrayCopy = ThreadLocal.withInitial(() -> Arrays.copyOf(endPoints, endPoints.length));
+        urlArrayCopy = ThreadLocal.withInitial(() -> Arrays.copyOf(endPoints, endPoints.length));
     }
 
     @Override
@@ -206,7 +203,7 @@ public class ElasticSearch extends AbstractHttpSender {
         // We can go on with the documents creations
         request.setTypeAndContent(ContentType.APPLICATION_JSON, os -> putContent(documents, tosend, os));
         request.setVerb("POST");
-        Function<JsonNode, Map<String, ? extends Object>> reader;
+        Function<JsonNode, Map<String, ?>> reader;
         reader = node -> {
             try {
                 return jsonreader.readValue(node);
@@ -214,19 +211,19 @@ public class ElasticSearch extends AbstractHttpSender {
                 throw new UncheckedIOException(e);
             }
         };
-        Map<String, ? extends Object> response = doquery(request, "/_bulk", reader, Collections.emptyMap(), null);
+        Map<String, ?> response = doquery(request, "/_bulk", reader, Collections.emptyMap(), null);
         if (response != null && Boolean.TRUE.equals(response.get("errors"))) {
             @SuppressWarnings("unchecked")
             List<Map<String, ?>> items = (List<Map<String, ?>>) response.get("items");
             int eventIndex = 0;
             for (Map<String, ?> i: items) {
                 @SuppressWarnings("unchecked")
-                Map<String, Map<String, ? extends Object>> errorindex = (Map<String, Map<String, ? extends Object>>) i.get("index");
+                Map<String, Map<String, ?>> errorindex = (Map<String, Map<String, ?>>) i.get("index");
                 EventFuture f = tosend.get(eventIndex++);
                 if (! errorindex.containsKey("error")) {
                     f.complete(true);
                 } else {
-                    Map<String, ? extends Object> error =  Optional.ofNullable((Map<String, ? extends Object>) errorindex.get("error")).orElse(Collections.emptyMap());
+                    Map<String, ?> error =  Optional.ofNullable((Map<String, ?>) errorindex.get("error")).orElse(Collections.emptyMap());
                     String type = (String) error.get("type");
                     String errorReason = (String) error.get("reason");
                     Optional<Map<?, ?>> errorCause = Optional.ofNullable((Map<?, ?>) error.get("caused_by"));
@@ -237,9 +234,9 @@ public class ElasticSearch extends AbstractHttpSender {
                 }
             }
         } else if (response != null && Boolean.FALSE.equals(response.get("errors"))) {
-            documents.stream().forEach(i -> i.complete(true));
+            documents.forEach(i -> i.complete(true));
         } else {
-            documents.stream().forEach(i -> i.complete(false));
+            documents.forEach(i -> i.complete(false));
         }
     }
 
@@ -377,7 +374,6 @@ public class ElasticSearch extends AbstractHttpSender {
      * If ILM is activated, missing indices will be created. <p>
      * Always append -000001 at creation, no other values make sense
      * @param indices The indices to create
-     * @throws SendException
      */
     private synchronized void createIndicesWithIML(Set<String> indices) {
         Set<String> missing = new HashSet<>();
@@ -494,7 +490,7 @@ public class ElasticSearch extends AbstractHttpSender {
                                     throw new UncheckedIOException(e);
                                 }
                             })
-                            .findFirst().orElseGet(() -> null);
+                            .findFirst().orElse(null);
         } catch (UncheckedIOException e) {
             logger.error("Can't load template definition: {}", e.getMessage());
             logger.catching(Level.DEBUG, e);
@@ -510,7 +506,7 @@ public class ElasticSearch extends AbstractHttpSender {
                 Map<?, ?> foundTemplate = jsonreader.treeToValue(node, Map.class);
                 Map<?, ?> templateMap = (Map<?, ?>) foundTemplate.get(templateName);
                 Optional<Integer> opt = Optional.ofNullable((Integer)templateMap.get("version"));
-                return opt.map(i-> i != wantedVersion).orElseGet(() -> true);
+                return opt.map(i-> i != wantedVersion).orElse(true);
             } catch (JsonProcessingException e) {
                 throw new UncheckedIOException(e);
             }

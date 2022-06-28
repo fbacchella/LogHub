@@ -2,15 +2,15 @@ package loghub.senders;
 
 import java.beans.IntrospectionException;
 import java.io.IOException;
-import java.lang.reflect.UndeclaredThrowableException;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.time.Instant;
 import java.util.Collections;
 import java.util.Date;
 import java.util.TimeZone;
+import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
-import java.util.function.Function;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -23,7 +23,6 @@ import org.junit.Test;
 
 import com.codahale.metrics.Meter;
 
-import groovy.lang.GroovyClassLoader;
 import loghub.BeanChecks;
 import loghub.BeanChecks.BeanInfo;
 import loghub.Event;
@@ -40,15 +39,6 @@ public class TestElasticSearch {
 
     private static Logger logger;
 
-    private static final GroovyClassLoader clloader = new GroovyClassLoader(TestElasticSearch.class.getClassLoader());
-    private static final Function<String, Expression> compiler = s -> {
-        try {
-            return new Expression(s, clloader, Collections.emptyMap());
-        } catch (Expression.ExpressionException e) {
-            throw new UndeclaredThrowableException(e);
-        }
-    };
-
     @BeforeClass
     static public void configure() throws IOException {
         Tools.configure();
@@ -64,11 +54,11 @@ public class TestElasticSearch {
         Stats.reset();
         int count = 20;
         ElasticSearch.Builder esbuilder = new ElasticSearch.Builder();
-        esbuilder.setCompiler(compiler);
         esbuilder.setDestinations(new String[]{"http://localhost:9200", });
         esbuilder.setTimeout(1);
         esbuilder.setBatchSize(10);
-        esbuilder.setType(compiler.apply("\"type\""));
+        esbuilder.setType(new Expression("type"));
+        esbuilder.setTypeHandling(TYPEHANDLING.MIGRATING);
         try (ElasticSearch es = esbuilder.build()) {
             es.setInQueue(new ArrayBlockingQueue<>(count));
             Assert.assertTrue("Elastic configuration failed", es.configure(new Properties(Collections.emptyMap())));
@@ -152,7 +142,9 @@ public class TestElasticSearch {
         esbuilder.setDestinations(new String[]{"http://localhost:9200"});
         esbuilder.setTimeout(5);
         esbuilder.setBatchSize(10);
-        esbuilder.setCompiler(compiler);
+        esbuilder.setIlm(true);
+        esbuilder.setWithTemplate(false);
+        esbuilder.setIndex(new Expression(UUID.randomUUID().toString()));
         try (ElasticSearch es = esbuilder.build()) {
             es.setInQueue(queue);
             Assert.assertTrue("Elastic configuration failed", es.configure(new Properties(Collections.emptyMap())));
@@ -205,7 +197,6 @@ public class TestElasticSearch {
         esbuilder.setTimeout(1);
         esbuilder.setBatchSize(count * 2);
         esbuilder.setDateformat("'testsomefailed-'yyyy.MM.dd");
-        esbuilder.setCompiler(compiler);
         try (ElasticSearch es = esbuilder.build()) {
             es.setInQueue(new ArrayBlockingQueue<>(count));
             Assert.assertTrue("Elastic configuration failed", es.configure(new Properties(Collections.emptyMap())));
