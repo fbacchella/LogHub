@@ -54,7 +54,7 @@ public abstract class HttpServer<S extends HttpServer<S>> {
         @Setter
         SSLContext sslContext = null;
         @Setter
-        ClientAuthentication sslClientAuthentication = null;
+        ClientAuthentication sslClientAuthentication = ClientAuthentication.NONE;
         @Setter
         String sslKeyAlias = null;
         @Setter
