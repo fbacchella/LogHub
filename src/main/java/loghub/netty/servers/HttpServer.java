@@ -88,6 +88,7 @@ public abstract class HttpServer<S extends HttpServer> {
         AuthenticationHandler authHandler = authHandlerBuilder.build();
         ConsumerBuilder consumerbuilder = new ConsumerBuilder();
         consumerbuilder.setAuthHandler(authHandler);
+        consumerbuilder.setLogger(logger);
         transport = TRANSPORT.TCP.getInstance(builder.poller);
         config = new TransportConfig();
         config.setConsumer(consumerbuilder.build());
