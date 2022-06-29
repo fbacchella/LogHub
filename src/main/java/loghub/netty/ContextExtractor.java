@@ -26,6 +26,7 @@ public class ContextExtractor<R extends NettyReceiver<R, SM>, SM> extends Messag
     @Override
     protected void decode(ChannelHandlerContext ctx, SM msg, List<Object> out) {
         // In datagram-oriented flow, the remote adress is in the packet, not the channel
+        // So forward the message too for check.
         r.makeConnectionContext(ctx, msg);
         //The message is not transformed in this step, so don't decrease reference count
         if (msg instanceof ReferenceCounted) {

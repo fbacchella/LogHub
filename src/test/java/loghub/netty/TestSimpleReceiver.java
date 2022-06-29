@@ -15,7 +15,8 @@ import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
-import io.netty.channel.local.LocalAddress;
+import io.netty.channel.socket.DatagramPacket;
+import io.netty.channel.unix.DomainDatagramPacket;
 import io.netty.handler.codec.LineBasedFrameDecoder;
 import io.netty.util.CharsetUtil;
 import loghub.Event;
@@ -30,28 +31,26 @@ import loghub.netty.transport.POLLER;
 import loghub.netty.transport.TRANSPORT;
 import loghub.netty.transport.TransportConfig;
 
-public class TestLocalServer {
+public class TestSimpleReceiver {
 
     @CloseOnError
-    private static class TesterReceiver extends NettyReceiver<TesterReceiver, Object>
-                                        implements ConsumerProvider {
+    private static class TesterReceiver extends NettyReceiver<TestSimpleReceiver.TesterReceiver, Object>
+            implements ConsumerProvider {
 
-        public static class Builder extends NettyReceiver.Builder<TesterReceiver,Object> {
+        public static class Builder extends NettyReceiver.Builder<TestSimpleReceiver.TesterReceiver,Object> {
             public Builder() {
                 setDecoder(StringCodec.getBuilder().build());
-                setTransport(TRANSPORT.LOCAL);
-                setHost(TestLocalServer.class.getCanonicalName());
             }
             @Override
-            public TesterReceiver build() {
-                return new TesterReceiver(this);
+            public TestSimpleReceiver.TesterReceiver build() {
+                return new TestSimpleReceiver.TesterReceiver(this);
             }
         }
-        public static Builder getBuilder() {
-            return new Builder();
+        public static TestSimpleReceiver.TesterReceiver.Builder getBuilder() {
+            return new TestSimpleReceiver.TesterReceiver.Builder();
         }
 
-        protected TesterReceiver(Builder builder) {
+        protected TesterReceiver(TestSimpleReceiver.TesterReceiver.Builder builder) {
             super(builder);
             config.setThreadPrefix("ReceiverTest");
         }
@@ -63,7 +62,14 @@ public class TestLocalServer {
 
         @Override
         public ByteBuf getContent(Object message) {
-            return (ByteBuf) message;
+            if (message instanceof ByteBuf) {
+                return (ByteBuf) message;
+            } else if (message instanceof DatagramPacket) {
+                return ((DatagramPacket)message).content();
+            } else if (message instanceof DomainDatagramPacket) {
+                return ((DomainDatagramPacket)message).content();
+            }
+            throw new IllegalArgumentException(message.getClass().getCanonicalName());
         }
 
         @Override
@@ -86,20 +92,25 @@ public class TestLocalServer {
         LogUtils.setLevel(logger, Level.TRACE, "loghub.netty");
     }
 
-    @Test(timeout=2000)
-    public void testSimple() throws InterruptedException {
+    private void runTest(TRANSPORT transport, POLLER poller, String host, int port)
+            throws InterruptedException {
         Properties empty = new Properties(Collections.emptyMap());
         PriorityBlockingQueue receiver = new PriorityBlockingQueue();
-        TesterReceiver.Builder builder = TesterReceiver.getBuilder();
-        
-        try (TesterReceiver r = builder.build()) {
+        TestSimpleReceiver.TesterReceiver.Builder builder = TestSimpleReceiver.TesterReceiver.getBuilder();
+        builder.setTransport(transport);
+        builder.setPoller(poller);
+        builder.setHost(host);
+        builder.setPort(port);
+
+        try (TestSimpleReceiver.TesterReceiver r = builder.build()) {
             r.setPipeline(new Pipeline(Collections.emptyList(), "testone", null));
             r.setOutQueue(receiver);
             r.configure(empty);
 
-            NettyTransport<LocalAddress, ByteBuf> client = TRANSPORT.LOCAL.getInstance(POLLER.DEFAULTPOLLER);
+            NettyTransport<?, ?> client = transport.getInstance(poller);
             TransportConfig config = new TransportConfig();
-            config.setEndpoint(TestLocalServer.class.getCanonicalName());
+            config.setEndpoint(host);
+            config.setPort(port);
             config.setConsumer(new ChannelConsumer() {
                 @Override
                 public void addHandlers(ChannelPipeline pipe) {
@@ -124,6 +135,41 @@ public class TestLocalServer {
             Event e = receiver.take();
             Assert.assertEquals("Message", e.get("message"));
         }
+    }
+
+    @Test(timeout = 5000)
+    public void testLocal() throws InterruptedException {
+        runTest(TRANSPORT.LOCAL, POLLER.DEFAULTPOLLER, TestSimpleReceiver.class.getCanonicalName(), -1);
+    }
+
+    @Test(timeout = 5000)
+    public void testTcpNio() throws InterruptedException {
+        runTest(TRANSPORT.TCP, POLLER.NIO, "localhost", Tools.tryGetPort());
+    }
+
+    @Test(timeout = 5000)
+    public void testTcpDefault() throws InterruptedException {
+        runTest(TRANSPORT.TCP, POLLER.DEFAULTPOLLER, "localhost", Tools.tryGetPort());
+    }
+
+    @Test(timeout = 5000)
+    public void testUdpNio() throws InterruptedException {
+        runTest(TRANSPORT.UDP, POLLER.NIO, "localhost", Tools.tryGetPort());
+    }
+
+    @Test(timeout = 5000)
+    public void testUdpDefault() throws InterruptedException {
+        runTest(TRANSPORT.UDP, POLLER.DEFAULTPOLLER, "localhost", Tools.tryGetPort());
+    }
+
+    @Test(timeout = 5000)
+    public void testUnixStream() throws InterruptedException {
+        runTest(TRANSPORT.UNIX_STREAM, POLLER.DEFAULTPOLLER, "socketstream", Tools.tryGetPort());
+    }
+
+    @Test(timeout = 5000)
+    public void testUnixDgram() throws InterruptedException {
+        runTest(TRANSPORT.UNIX_DGRAM, POLLER.DEFAULTPOLLER, "socketdgram", Tools.tryGetPort());
     }
 
 }

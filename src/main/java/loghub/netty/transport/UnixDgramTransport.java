@@ -11,7 +11,7 @@ public class UnixDgramTransport
         implements UnixDomainServices {
 
     protected UnixDgramTransport(POLLER poller) {
-        super(poller, TRANSPORT.UNIX_STREAM);
+        super(poller, TRANSPORT.UNIX_DGRAM);
     }
 
     @Override

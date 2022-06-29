@@ -13,12 +13,15 @@ import io.netty.channel.epoll.EpollDomainSocketChannel;
 import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.epoll.EpollServerDomainSocketChannel;
 import io.netty.channel.epoll.EpollServerSocketChannel;
+import io.netty.channel.epoll.EpollSocketChannel;
 import io.netty.channel.kqueue.KQueue;
 import io.netty.channel.kqueue.KQueueDatagramChannel;
+import io.netty.channel.kqueue.KQueueDomainDatagramChannel;
 import io.netty.channel.kqueue.KQueueDomainSocketChannel;
 import io.netty.channel.kqueue.KQueueEventLoopGroup;
 import io.netty.channel.kqueue.KQueueServerDomainSocketChannel;
 import io.netty.channel.kqueue.KQueueServerSocketChannel;
+import io.netty.channel.kqueue.KQueueSocketChannel;
 import io.netty.channel.local.LocalChannel;
 import io.netty.channel.local.LocalServerChannel;
 import io.netty.channel.nio.NioEventLoopGroup;
@@ -85,7 +88,7 @@ public enum POLLER {
         public Channel clientChannelProvider(TRANSPORT transport) {
             switch (transport) {
             case LOCAL: return new LocalChannel();
-            case TCP: return new EpollServerSocketChannel();
+            case TCP: return new EpollSocketChannel();
             case UDP: return new EpollDatagramChannel();
             case SCTP: throw new UnsupportedOperationException();
             case UNIX_STREAM:return new EpollDomainSocketChannel();
@@ -122,7 +125,7 @@ public enum POLLER {
         public ServerChannel serverChannelProvider(TRANSPORT transport) {
             switch (transport) {
             case LOCAL: return new LocalServerChannel();
-            case TCP: return new KQueueServerDomainSocketChannel();
+            case TCP: return new KQueueServerSocketChannel();
             case UDP: throw new UnsupportedOperationException();
             case SCTP: throw new UnsupportedOperationException();
             case UNIX_STREAM: return new KQueueServerDomainSocketChannel();
@@ -134,11 +137,11 @@ public enum POLLER {
         public Channel clientChannelProvider(TRANSPORT transport) {
             switch (transport) {
             case LOCAL: return new LocalChannel();
-            case TCP: return new KQueueServerSocketChannel();
+            case TCP: return new KQueueSocketChannel();
             case UDP: return new KQueueDatagramChannel();
             case SCTP: throw new UnsupportedOperationException();
             case UNIX_STREAM: return new KQueueDomainSocketChannel();
-            case UNIX_DGRAM: return new KQueueDomainSocketChannel();
+            case UNIX_DGRAM: return new KQueueDomainDatagramChannel();
             default: throw new IllegalStateException();
             }
         }
