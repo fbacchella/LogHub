@@ -103,7 +103,7 @@ public abstract class NettyTransport<SA extends SocketAddress, M> {
         logger = LogManager.getLogger(Helpers.getFirstInitClass());
     }
 
-    public void connect(TransportConfig config) throws InterruptedException {
+    public ChannelFuture connect(TransportConfig config) throws InterruptedException {
         SocketAddress address = resolveAddress(config);
         if (address == null) {
             throw new IllegalArgumentException("Can't get listening address: " + "connect");
@@ -114,6 +114,8 @@ public abstract class NettyTransport<SA extends SocketAddress, M> {
                                               .setDaemon(true)
                                               .getFactory(getStringPrefix(config) + "/" + address);
         EventLoopGroup workerGroup = poller.getEventLoopGroup(1, threadFactory);
+        bootstrap.group(workerGroup);
+        addHandlers(bootstrap, config);
         finisher = workerGroup::shutdownGracefully;
         config.consumer.addOptions(bootstrap);
         configureBootStrap(bootstrap, config);
@@ -121,6 +123,7 @@ public abstract class NettyTransport<SA extends SocketAddress, M> {
         cf.await();
         listeningChannels = new HashSet<>(Collections.singleton(cf));
         logger.debug("Connected to {}", address);
+        return cf;
     }
 
     public void bind(TransportConfig config) throws InterruptedException {
@@ -224,6 +227,7 @@ public abstract class NettyTransport<SA extends SocketAddress, M> {
                 consumer.addHandlers(ch.pipeline());
                 NettyTransport.this.addErrorHandler(ch.pipeline());
             }
+
             @Override
             public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
                 if (Helpers.isFatal(cause)) {

@@ -2,7 +2,6 @@ package loghub.netty;
 
 import java.io.IOException;
 import java.util.Collections;
-import java.util.concurrent.CountDownLatch;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -11,17 +10,12 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
-import io.netty.channel.DefaultEventLoopGroup;
-import io.netty.channel.EventLoopGroup;
-import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.channel.local.LocalAddress;
-import io.netty.channel.local.LocalChannel;
 import io.netty.handler.codec.LineBasedFrameDecoder;
 import io.netty.util.CharsetUtil;
 import loghub.Event;
@@ -31,7 +25,10 @@ import loghub.PriorityBlockingQueue;
 import loghub.Tools;
 import loghub.configuration.Properties;
 import loghub.decoders.StringCodec;
+import loghub.netty.transport.NettyTransport;
+import loghub.netty.transport.POLLER;
 import loghub.netty.transport.TRANSPORT;
+import loghub.netty.transport.TransportConfig;
 
 public class TestLocalServer {
 
@@ -57,7 +54,6 @@ public class TestLocalServer {
         protected TesterReceiver(Builder builder) {
             super(builder);
             config.setThreadPrefix("ReceiverTest");
-
         }
 
         @Override
@@ -67,7 +63,6 @@ public class TestLocalServer {
 
         @Override
         public ByteBuf getContent(Object message) {
-            logger.debug(message);
             return (ByteBuf) message;
         }
 
@@ -88,7 +83,7 @@ public class TestLocalServer {
     static public void configure() throws IOException {
         Tools.configure();
         Logger logger = LogManager.getLogger();
-        LogUtils.setLevel(logger, Level.TRACE, "loghub.netty", "io.netty");
+        LogUtils.setLevel(logger, Level.TRACE, "loghub.netty");
     }
 
     @Test(timeout=2000)
@@ -102,31 +97,29 @@ public class TestLocalServer {
             r.setOutQueue(receiver);
             r.configure(empty);
 
-            ChannelFuture[] sent = new ChannelFuture[1];
-            CountDownLatch latch = new CountDownLatch(1);
-            EventLoopGroup workerGroup = new DefaultEventLoopGroup();
-            Bootstrap b = new Bootstrap();
-            b.group(workerGroup);
-            b.channel(LocalChannel.class);
-            b.handler(new SimpleChannelInboundHandler<ByteBuf>() {
+            NettyTransport<LocalAddress, ByteBuf> client = TRANSPORT.LOCAL.getInstance(POLLER.DEFAULTPOLLER);
+            TransportConfig config = new TransportConfig();
+            config.setEndpoint(TestLocalServer.class.getCanonicalName());
+            config.setConsumer(new ChannelConsumer() {
                 @Override
-                public void channelActive(ChannelHandlerContext ctx) {
-                    sent[0] = ctx.writeAndFlush(Unpooled.copiedBuffer("Message\r\n", CharsetUtil.UTF_8));
-                    latch.countDown();
-                }
-                @Override
-                protected void channelRead0(ChannelHandlerContext ctx, ByteBuf msg) {
+                public void addHandlers(ChannelPipeline pipe) {
+                    pipe.channel().write(Unpooled.copiedBuffer("Message\r\n", CharsetUtil.UTF_8));
                 }
 
+                @Override
+                public void exception(ChannelHandlerContext ctx, Throwable cause) {
+                    cause.printStackTrace();
+                }
+
+                @Override
+                public void logFatalException(Throwable ex) {
+                    ex.printStackTrace();
+                }
             });
-
-            // Start the client.
-            ChannelFuture f = b.connect(new LocalAddress(TestLocalServer.class.getCanonicalName())).sync();
-            latch.await();
-            sent[0].sync();
-            f.channel().close();
+            ChannelFuture cf = client.connect(config);
+            cf.addListener(gfl -> cf.channel().flush()).addListener(gfl -> cf.channel().close());
             // Wait until the connection is closed.
-            f.channel().closeFuture().sync();
+            cf.channel().closeFuture().sync();
 
             Event e = receiver.take();
             Assert.assertEquals("Message", e.get("message"));

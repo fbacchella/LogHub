@@ -65,10 +65,10 @@ public interface IpServices {
 
     default void configureAbstractBootStrap(AbstractBootstrap<?, ?> bootstrap, TransportConfig config) {
         bootstrap.option(ChannelOption.TCP_NODELAY, true);
-        if (config.rcvBuf >= 0) {
+        if (config.rcvBuf > 0) {
             bootstrap.option(ChannelOption.SO_RCVBUF, config.rcvBuf);
         }
-        if (config.sndBuf >= 0) {
+        if (config.sndBuf > 0) {
             bootstrap.option(ChannelOption.SO_SNDBUF, config.sndBuf);
         }
     }
