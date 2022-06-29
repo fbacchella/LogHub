@@ -2,7 +2,7 @@ package loghub.encoders;
 
 import java.beans.IntrospectionException;
 import java.io.IOException;
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -17,12 +17,11 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-
 import loghub.BeanChecks;
 import loghub.Event;
 import loghub.Expression;
 import loghub.LogUtils;
+import loghub.RouteParser;
 import loghub.Tools;
 import loghub.configuration.ConfigurationTools;
 import loghub.configuration.Properties;
@@ -40,7 +39,7 @@ public class TestCsv {
     }
 
     private Expression parseExpression(String exp) {
-        return ConfigurationTools.unWrap(exp, i -> i.expression(), Collections.emptyMap());
+        return ConfigurationTools.unWrap(exp, RouteParser::expression, Collections.emptyMap());
     }
 
     private void check(Csv.Builder builder, String expectedFormat) throws EncodeException {
@@ -58,12 +57,12 @@ public class TestCsv {
 
         byte[] result = encoder.encode(e);
 
-        String formatted = new String(result, Charset.forName("UTF-8"));
+        String formatted = new String(result, StandardCharsets.UTF_8);
         Assert.assertEquals(expectedFormat, formatted);
     }
 
     @Test
-    public void testDefault() throws JsonProcessingException, EncodeException {
+    public void testDefault() throws EncodeException {
         Csv.Builder builder = Csv.getBuilder();
         builder.setZoneId("UTC");
         check(builder, "\"V1\",2,true,\"1970-01-01T00:00:00.000Z\",\"1970-01-01T00:00:00.000Z\",\"1970-01-01T00:00:00.000Z\"\n");
@@ -85,8 +84,21 @@ public class TestCsv {
         e2.put("b", 4);
         byte[] result = encoder.encode(Stream.of(e1, e2));
 
-        String formatted = new String(result, Charset.forName("UTF-8"));
+        String formatted = new String(result, StandardCharsets.UTF_8);
         Assert.assertEquals("1,2\n3,4\n", formatted);
+    }
+
+    @Test
+    public void testParse() throws EncodeException {
+        String confFragment = "loghub.encoders.Csv {values: [0; true; [a]; [b]], separator: '|', features: []}";
+        Csv encoder = ConfigurationTools.unWrap(confFragment, RouteParser::object);
+        Assert.assertTrue(encoder.configure(new Properties(Collections.emptyMap()), InMemorySender.getBuilder().build()));
+        Event e1 = Tools.getEvent();
+        e1.put("a", 1);
+        e1.put("b", "2");
+        byte[] result = encoder.encode(e1);
+        String formatted = new String(result, StandardCharsets.UTF_8);
+        Assert.assertEquals("0|true|1|\"2\"\n", formatted);
     }
 
     @Test
@@ -103,12 +115,12 @@ public class TestCsv {
         e2.put("b", 0);
         byte[] result = encoder.encode(Stream.of(e1, e2));
 
-        String formatted = new String(result, Charset.forName("UTF-8"));
+        String formatted = new String(result, StandardCharsets.UTF_8);
         Assert.assertEquals("\"Missing value\",\"Missing value\"\n\"Missing value\",\"Division by zero\"\n", formatted);
     }
 
     @Test
-    public void testSemicolon() throws JsonProcessingException, EncodeException {
+    public void testSemicolon() throws EncodeException {
         Csv.Builder builder = Csv.getBuilder();
         builder.setZoneId("UTC");
         builder.setSeparator(';');
@@ -116,7 +128,7 @@ public class TestCsv {
     }
 
     @Test
-    public void testWindows() throws JsonProcessingException, EncodeException {
+    public void testWindows() throws EncodeException {
         Csv.Builder builder = Csv.getBuilder();
         builder.setZoneId("Europe/Paris");
         builder.setSeparator(';');
@@ -127,8 +139,8 @@ public class TestCsv {
     @Test
     public void test_loghub_encoders_Csv() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.encoders.Csv"
-                , BeanChecks.BeanInfo.build("values", Expression[].class)
-                , BeanChecks.BeanInfo.build("features", BeanChecks.LSTRING)
+                , BeanChecks.BeanInfo.build("values", Object[].class)
+                , BeanChecks.BeanInfo.build("features", Object[].class)
                 , BeanChecks.BeanInfo.build("separator", Character.TYPE)
                 , BeanChecks.BeanInfo.build("lineSeparator", String.class)
                 , BeanChecks.BeanInfo.build("nullValue", String.class)

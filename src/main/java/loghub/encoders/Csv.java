@@ -33,9 +33,9 @@ public class Csv extends AbstractJacksonEncoder<Csv.Builder> {
 
     public static class Builder extends AbstractJacksonEncoder.Builder<Csv> {
         @Setter
-        private Expression[] values = new Expression[0];
+        private Object[] values = new Object[0];
         @Setter
-        private String[] features = new String[]{"ALWAYS_QUOTE_STRINGS"};
+        private Object[] features = new String[]{"ALWAYS_QUOTE_STRINGS"};
         @Setter
         private char separator= ',';
         @Setter
@@ -62,19 +62,20 @@ public class Csv extends AbstractJacksonEncoder<Csv.Builder> {
 
     private final Expression[] values;
     private final DatetimeProcessor dateFormat;
-    private final Locale locale;
     private final ZoneId zoneId;
     private final Charset charset;
 
     private Csv(Csv.Builder builder) {
         super(builder);
-        this.values = Arrays.copyOf(builder.values, builder.values.length);
+        values = Arrays.stream(builder.values)
+                       .map(i -> (Expression)(i instanceof Expression ? i : new Expression(i)))
+                       .toArray(Expression[]::new);
         this.zoneId = ZoneId.of(builder.zoneId);
         this.charset = Charset.forName(builder.charset);
-        this.locale = Locale.forLanguageTag(builder.locale);
+        Locale locale = Locale.forLanguageTag(builder.locale);
         this.dateFormat = PatternResolver.createNewFormatter(builder.dateFormat)
-                                    .withDefaultZone(zoneId)
-                                    .withLocale(locale);
+                                         .withDefaultZone(zoneId)
+                                         .withLocale(locale);
     }
 
     @Override
@@ -84,16 +85,16 @@ public class Csv extends AbstractJacksonEncoder<Csv.Builder> {
         sbuilder.setNullValue(builder.nullValue);
         sbuilder.setUseHeader(false);
         sbuilder.setLineSeparator(builder.lineSeparator);
-
+        String[] features = Arrays.stream(builder.features).map(Object::toString).toArray(String[]::new);
         return JacksonBuilder.get(CsvMapper.class)
                              .setSchema(sbuilder.build())
-                             .setConfigurator(m -> Helpers.csvGeneratorFeatures(m, builder.features));
+                             .setConfigurator(m -> Helpers.csvGeneratorFeatures(m, features));
     }
 
     @Override
     public byte[] encode(Event event) throws EncodeException {
         try {
-            return writer.writeValueAsString(flatenEvent(event)).getBytes(charset);
+            return writer.writeValueAsString(flattenEvent(event)).getBytes(charset);
         } catch (JsonProcessingException e) {
             throw new EncodeException("Failed to encode: " + loghub.Helpers.resolveThrowableException(e), e);
         }
@@ -102,13 +103,13 @@ public class Csv extends AbstractJacksonEncoder<Csv.Builder> {
     @Override
     public byte[] encode(Stream<Event> events) throws EncodeException {
         try {
-            return writer.writeValueAsString(events.map(this::flatenEvent).collect(Collectors.toList())).getBytes(charset);
+            return writer.writeValueAsString(events.map(this::flattenEvent).collect(Collectors.toList())).getBytes(charset);
         } catch (JsonProcessingException e) {
             throw new EncodeException("Failed to encode: " + loghub.Helpers.resolveThrowableException(e), e);
         }
     }
 
-    private Object[] flatenEvent(Event event) {
+    private Object[] flattenEvent(Event event) {
         Object[] flattened = new Object[values.length];
         for (int i = 0; i < values.length; i++) {
             try {
