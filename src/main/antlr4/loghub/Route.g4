@@ -187,12 +187,12 @@ matchOperator
     ;
 
 array
-    : '[' (beanValue (';' beanValue)*)? ';'? ']'
+    : '[' (beanValue (',' beanValue)*)? ','? ']'
     | source
     ;
 
 map
-    : '{' (literal ':' beanValue ( ';' ? literal ':' beanValue)*)? ';'? '}'
+    : '{' (literal ':' beanValue ( ',' ? literal ':' beanValue)*)? ','? '}'
     | source
     ;
 
