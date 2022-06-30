@@ -325,7 +325,7 @@ public class SnmpTrap extends Receiver implements CommandResponder {
             case BER.GAUGE32:
                 return var.toLong();
             case BER.TIMETICKS:
-                return new Double(1.0 * ((TimeTicks)var).toMilliseconds() / 1000.0);
+                return 1.0 * ((TimeTicks)var).toMilliseconds() / 1000.0;
             case BER.OPAQUE:
                 return resolvOpaque((Opaque) var);
             case BER.COUNTER64:
@@ -350,9 +350,9 @@ public class SnmpTrap extends Receiver implements CommandResponder {
             int l = BER.decodeLength(beris);
             if(t1 == TAG1) {
                 if(t2 == TAG_FLOAT && l == 4)
-                    value = new Float(bais.getFloat());
+                    value = bais.getFloat();
                 else if(t2 == TAG_DOUBLE && l == 8)
-                    value = new Double(bais.getDouble());
+                    value = bais.getDouble();
             }
         } catch (IOException e) {
             logger.error(var.toString());
