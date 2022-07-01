@@ -58,6 +58,7 @@ bean
     | {inSection(SECTION.PIPELINE)}? (bn='if' ':' expression)
     | {inSection(SECTION.PIPELINE)}? (bn=('success' | 'failure' | 'exception') ':' pipenode)
     | {inSection(SECTION.PIPELINE)}? (bn='field' ':' (fsv=stringLiteral | fev=eventVariable))
+    | {inSection(SECTION.PIPELINE)}? (bn='fields' ':' array)
     | {inSection(SECTION.PIPELINE)}? (bn='destination' ':' (fsv=stringLiteral | fev=eventVariable))
     | {inSection(SECTION.PIPELINE)}? (bn='destinationTemplate' ':' stringLiteral)
     | {inSection(SECTION.OUTPUT)}?   (bn='encoder' ':' object)
@@ -124,6 +125,11 @@ property:
     | (pn='plugins' ':' beanValueOptionnalArray)
     | (pn='ssl.trusts' ':' beanValueOptionnalArray)
     | (pn='ssl.issuers' ':' beanValueOptionnalArray)
+    | (pn='secrets.source' ':' stringLiteral)
+    | (pn='timezone' ':' stringLiteral)
+    | (pn='locale' ':' stringLiteral)
+    | (pn='log4j.configFile' ':' stringLiteral)
+    | (pn='log4j.configURL' ':' stringLiteral)
     | (pn=QualifiedIdentifier ':' beanValue)
     | (identifier ':' beanValue)
     ;
@@ -242,6 +248,7 @@ identifier
     | 'sources' | 'true' | 'false' | 'null' | 'drop'
     | 'trim' | 'capitalize' | 'uncapitalize' | 'isBlank' | 'normalize'
     | 'text' | 'blob'
+    | 'includes' | 'plugins' | 'timezone' | 'locale'
     | Identifier
     ;
 
@@ -535,7 +542,7 @@ PatternCharacter
     ;
 
 StringLiteral
-    :   '"' StringCharacter* '"' {setText( loghub.configuration.CharSupport.getStringFromGrammarStringLiteral(getText()));}
+    :   '"' StringCharacter* '"' {setText(loghub.configuration.CharSupport.getStringFromGrammarStringLiteral(getText()));}
     ;
 
 fragment

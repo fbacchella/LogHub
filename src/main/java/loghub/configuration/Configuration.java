@@ -1,13 +1,11 @@
 package loghub.configuration;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
 import java.io.UncheckedIOException;
 import java.net.MalformedURLException;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Files;
@@ -27,12 +25,13 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TimeZone;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Function;
+import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -56,16 +55,14 @@ import loghub.PriorityBlockingQueue;
 import loghub.RouteLexer;
 import loghub.RouteParser;
 import loghub.RouteParser.ArrayContext;
-import loghub.RouteParser.BeanValueContext;
-import loghub.RouteParser.LiteralContext;
 import loghub.RouteParser.PropertyContext;
 import loghub.RouteParser.SourcedefContext;
 import loghub.RouteParser.SourcesContext;
-import loghub.sources.Source;
 import loghub.configuration.ConfigListener.Input;
 import loghub.configuration.ConfigListener.Output;
 import loghub.receivers.Receiver;
 import loghub.senders.Sender;
+import loghub.sources.Source;
 
 public class Configuration {
 
@@ -74,15 +71,12 @@ public class Configuration {
     private static final int DEFAULTQUEUEDEPTH = 100;
     private static final int DEFAULTQUEUEWEIGHT = 4;
 
-    private List<Receiver> receivers;
     private Set<String> inputpipelines = new HashSet<>();
     private Set<String> outputpipelines = new HashSet<>();
-    private Map<String, Source> sources = new HashMap<>();
-    private List<Sender> senders;
     private ClassLoader classLoader = Configuration.class.getClassLoader();
     private GroovyClassLoader groovyClassLoader = new GroovyClassLoader(classLoader);
     private SecretsHandler secrets = null;
-    private Map<String, Object> lockedProperties = new HashMap<>();
+    private final Map<String, Object> lockedProperties = new HashMap<>();
     private final Set<Path> loadedConfigurationFiles = new HashSet<>();
     private final ConfigErrorListener errListener = new ConfigErrorListener();
 
@@ -165,8 +159,7 @@ public class Configuration {
         if ( ! Files.exists(sourcePath)) {
             // It might be a glob pattern
             Path progress = sourcePath.isAbsolute() ? sourcePath.getRoot() : Paths.get(".").normalize();
-            Iterable<Path> iter = sourcePath::iterator;
-            for (Path p: iter) {
+            for (Path p: sourcePath) {
                 Path trypath = progress.resolve(p);
                 if (! Files.exists(trypath)) {
                     break;
@@ -217,42 +210,44 @@ public class Configuration {
         Optional.ofNullable(properties.get("plugins")).ifPresent(pc -> processPlugingsProperty(pc, tree));
         Optional.ofNullable(properties.get("locale")).ifPresent(this::processLocaleProperty);
         Optional.ofNullable(properties.get("timezone")).ifPresent(this::processTimezoneProperty);
-        Optional.ofNullable(properties.get("log4j.configURL")).ifPresent(pc -> processLog4jUrlProperty(pc, tree));
-        Optional.ofNullable(properties.get("log4j.configFile")).ifPresent(pc -> processLog4jFileProperty(pc, tree));
+        Optional.ofNullable(properties.get("log4j.configURL")).ifPresent(pc -> processLog4jUriProperty(pc, tree));
+        Optional.ofNullable(properties.get("log4j.configFile")).ifPresent(pc -> processLog4jUriProperty(pc, tree));
         Optional.ofNullable(properties.get("secrets.source")).ifPresent(pc -> processSecretSource(pc, tree));
     }
 
     private void processSecretSource(PropertyContext pc, Tree tree) {
         try {
-            String secretsSource = getStringLitteral(pc.beanValue());
+            String secretsSource = pc.stringLiteral().getText();
             secrets = SecretsHandler.load(secretsSource);
-            logger.debug("Loaded secrets source " + secretsSource);
+            logger.debug("Loaded secrets source {}", secretsSource);
             lockedProperties.put("secrets.source", secretsSource);
         } catch (IOException ex) {
             throw new ConfigException("can't load secret store: " + ex.getMessage(), tree.stream.getSourceName(), pc.start, ex);
         }
     }
 
-    private void processLog4jFileProperty(PropertyContext pc, Tree tree) {
-        URI log4JUri = getLiteral(pc.beanValue(), i -> i.stringLiteral().getText(), j -> Paths.get(j).toUri());
+    private void processLog4jUriProperty(PropertyContext pc, Tree tree) {
+        URI log4JUri =  Helpers.FileUri(pc.stringLiteral().getText());
         resolverLogger(log4JUri, pc, tree);
         logger.debug("Configured log4j URL to {}", log4JUri);
         lockedProperties.put("log4j.configFile", log4JUri.toString());
     }
 
-    private void processLog4jUrlProperty(PropertyContext pc, Tree tree) {
-        try {
-            URI log4JUri = getLiteral(pc.beanValue(), i -> i.stringLiteral().getText(), j -> URI.create(j));
-            resolverLogger(log4JUri, pc, tree);
-            logger.debug("Configured log4j URL to {}", log4JUri);
-            lockedProperties.put("log4j.configURL", log4JUri.toString());
-        } catch (RuntimeException e) {
-            logger.error("Invalid log4j URL");
+    private void resolverLogger(URI log4JUri, PropertyContext pc, Tree tree) {
+        // Try to read the log4j configuration, because log4j2 intercept possible exceptions and don't forward them
+        try (InputStream ignored = log4JUri.toURL().openStream()) {
+            log4JUri.toURL().getContent();
+        } catch (IOException e) {
+            throw new ConfigException(e.getMessage(), tree.stream.getSourceName(), pc.start, e);
         }
+        LoggerContext ctx = (LoggerContext) LogManager.getContext(classLoader, true);
+        // Possible exception are already catched (I hope)
+        ctx.setConfigLocation(log4JUri);
+        logger.debug("log4j reconfigured");
     }
 
     private void processTimezoneProperty(PropertyContext pc) {
-        String tz = getStringLitteral(pc.beanValue());
+        String tz = pc.stringLiteral().getText();
         if (tz != null) {
             try {
                 logger.debug("setting time zone to {}", tz);
@@ -266,7 +261,7 @@ public class Configuration {
     }
 
     private void processLocaleProperty(PropertyContext pc) {
-        String localString = getStringLitteral(pc.beanValue());
+        String localString = pc.stringLiteral().getText();
         if (localString != null) {
             logger.debug("setting locale to {}", localString);
             Locale l = Locale.forLanguageTag(localString);
@@ -283,23 +278,10 @@ public class Configuration {
                 classLoader = doClassLoader(path);
                 groovyClassLoader = new GroovyClassLoader(classLoader);
                 lockedProperties.put("plugins", Arrays.toString(path));
-            } catch (IOException ex) {
+            } catch (IOException | UncheckedIOException ex) {
                 throw new ConfigException("can't load plugins: " + ex.getMessage(), tree.stream.getSourceName(), pc.start, ex);
             }
         }
-    }
-
-    private void resolverLogger(URI log4JUri, PropertyContext pc, Tree tree) {
-        // Try to read the log4j configuration, because log4j2 intercept possible exceptions and don't forward them
-        try (InputStream is = log4JUri.toURL().openStream()) {
-            log4JUri.toURL().getContent();
-        } catch (IOException e) {
-            throw new ConfigException(e.getMessage(), tree.stream.getSourceName(), pc.start, e);
-        }
-        LoggerContext ctx = (LoggerContext) LogManager.getContext(classLoader, true);
-        // Possible exception are already catched (I hope)
-        ctx.setConfigLocation(log4JUri);
-        logger.debug("log4j reconfigured");
     }
 
     private Properties runparsing(CharStream cs) throws ConfigException {
@@ -347,47 +329,25 @@ public class Configuration {
         }
     }
 
-    private String getStringLitteral(BeanValueContext beanValue) {
-        return getLitteral(beanValue, i -> beanValue.literal().getText(), j -> j);
-    }
-
-    private String[] getStringOrArrayLitteral(BeanValueContext beanValue) {
+    private String[] getStringOrArrayLitteral(RouteParser.BeanValueOptionnalArrayContext beanValue) {
         ArrayContext ac = beanValue.array();
-
         String contentString;
         if (ac != null) {
-            return ac.beanValue().stream().map(RuleContext::getText).toArray(String[]::new);
-        } else if ((contentString = getStringLitteral(beanValue)) != null) {
+            return ac.arrayContent().beanValue().stream().map(RuleContext::getText).toArray(String[]::new);
+        } else if ((contentString = beanValue.stringLiteral().StringLiteral().getText()) != null) {
             return new String[] {contentString};
         } else {
             return new String[] {};
         }
-
-    }
-
-    private <T> T getLitteral(BeanValueContext beanValue, Function<LiteralContext, String> read, Function<String, T> convert) {
-        if (beanValue != null) {
-            LiteralContext lc = beanValue.literal();
-            if (lc != null) {
-                String content = read.apply(lc);
-                if (content != null) {
-                    return convert.apply(content);
-                }
-            }
-        }
-        return null;
     }
 
     private Properties analyze(ConfigListener conf) throws ConfigException {
-
         Map<String, Object> newProperties = new HashMap<>(conf.properties.size() + Properties.PROPSNAMES.values().length + System.getProperties().size());
 
         // Resolvers properties found and and it to new properties
         @SuppressWarnings("unchecked")
-        Function<Object, Object> resolve = i -> {
-            return ((i instanceof ConfigListener.ObjectWrapped) ? ((ConfigListener.ObjectWrapped<Object>) i).wrapped : i);
-        };
-        conf.properties.entrySet().stream().forEach(i -> newProperties.put(i.getKey(), resolve.apply(i.getValue())));
+        UnaryOperator<Object> resolve = i -> ((i instanceof ConfigListener.ObjectWrapped) ? ((ConfigListener.ObjectWrapped<Object>) i).wrapped : i);
+        conf.properties.forEach((key, value) -> newProperties.put(key, resolve.apply(value)));
 
         Map<String, Pipeline> namedPipeLine = new HashMap<>(conf.pipelines.size());
 
@@ -422,12 +382,12 @@ public class Configuration {
         newProperties.put(Properties.PROPSNAMES.OUTPUTQUEUE.toString(), outputQueues);
 
         // Fill the receivers list
-        receivers = new ArrayList<>();
-        for(Input i: conf.inputs) {
-            if(i.piperef == null || ! namedPipeLine.containsKey(i.piperef)) {
+        List<Receiver> receivers = new ArrayList<>();
+        for (Input i: conf.inputs) {
+            if (i.piperef == null || ! namedPipeLine.containsKey(i.piperef)) {
                 throw new ConfigException("Invalid input, no destination pipeline: " + i);
             }
-            for(ConfigListener.ObjectWrapped<Receiver> desc: i.receiver) {
+            for (ConfigListener.ObjectWrapped<Receiver> desc: i.receiver) {
                 Pipeline p = namedPipeLine.get(i.piperef);
                 Receiver r = desc.wrapped;
                 r.setOutQueue(mainQueue);
@@ -441,7 +401,7 @@ public class Configuration {
         newProperties.put(Properties.PROPSNAMES.RECEIVERS.toString(), receivers);
 
         // Fill the senders list
-        senders = new ArrayList<>();
+        List<Sender> senders = new ArrayList<>();
         for (Output o: conf.outputs) {
             if (o.piperef == null || ! namedPipeLine.containsKey(o.piperef)) {
                 throw new IllegalArgumentException("Invalid output, no source pipeline: " + o);
@@ -450,7 +410,6 @@ public class Configuration {
                 BlockingQueue<Event> out = outputQueues.get(o.piperef);
                 Sender s = desc.wrapped;
                 s.setInQueue(out);
-                //logger.debug("sender {} source point will be {}", () -> s, () -> namedPipeLine.get(o.piperef).outQueue);
                 senders.add(s);
             }
             outputpipelines.add(o.piperef);
@@ -459,10 +418,10 @@ public class Configuration {
         senders = Collections.unmodifiableList(senders);
         newProperties.put(Properties.PROPSNAMES.SENDERS.toString(), senders);
 
-        sources = conf.sources.entrySet().stream()
-                        .map(e -> new AbstractMap.SimpleEntry<>(e.getKey(), e.getValue().get()))
-                        .collect(Collectors.toMap(AbstractMap.SimpleEntry::getKey, AbstractMap.SimpleEntry::getValue))
-                        ;
+        Map<String, Source> sources = conf.sources.entrySet().stream()
+                                              .map(e -> new AbstractMap.SimpleEntry<>(e.getKey(), e.getValue().get()))
+                                              .collect(Collectors.toMap(AbstractMap.SimpleEntry::getKey,
+                                                      AbstractMap.SimpleEntry::getValue));
         newProperties.put(Properties.PROPSNAMES.SOURCES.toString(), Collections.unmodifiableMap(sources));
 
         // Allows the system properties to override any properties given in the configuration file
@@ -475,7 +434,7 @@ public class Configuration {
 
     private static final class LogHubClassloader extends URLClassLoader {
         public LogHubClassloader(URL[] urls) {
-            super(urls);
+            super(urls, LogHubClassloader.class.getClassLoader());
         }
         @Override
         public String toString() {
@@ -484,7 +443,6 @@ public class Configuration {
     }
 
     ClassLoader doClassLoader(Object[] pathElements) throws IOException {
-
         final Collection<URL> urls = new ArrayList<>();
 
         // Needed for all the lambda that throws exception
@@ -497,13 +455,12 @@ public class Configuration {
         .filter(i -> (Files.isRegularFile(i) && i.toString().endsWith(".jar")) || Files.isDirectory(i))
         .forEach( i-> {
             toUrl.accept(i);
-            if(Files.isDirectory(i)) {
-                try {
-                    Files.list(i)
-                    .filter(p -> Files.isRegularFile(p) && p.toString().endsWith(".jar"))
-                    .forEach(toUrl);
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
+            if (Files.isDirectory(i)) {
+                try (Stream<Path> files = Files.list(i)){
+                    files.filter(p -> Files.isRegularFile(p) && p.toString().endsWith(".jar"))
+                         .forEach(toUrl);
+                } catch (IOException e) {
+                    throw new UncheckedIOException(e);
                 }
             }
         });
@@ -521,8 +478,9 @@ public class Configuration {
     private Path locateResourcefile(String ressource) {
         try {
             URL url = getClass().getClassLoader().getResource(ressource);
+            @SuppressWarnings("ConstantConditions")
             String protocol = url.getProtocol();
-            String file = null;
+            String file;
             switch(protocol) {
             case "file":
                 file = url.getFile();

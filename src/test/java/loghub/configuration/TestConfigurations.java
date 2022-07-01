@@ -124,11 +124,11 @@ public class TestConfigurations {
     @Test
     public void testComplexConf() throws ConfigException, IOException {
         Properties conf = Tools.loadConf("test.conf", false);
-        for(String plName: new String[]{"main", "oneref", "groovy"}) {
+        for (String plName: new String[]{"main", "oneref", "groovy"}) {
             Assert.assertTrue("pipeline '" + plName +"'not found", conf.namedPipeLine.containsKey(plName));
         }
         Assert.assertEquals("input not found", 1, conf.receivers.size());
-        Assert.assertEquals("ouput not found", 2, conf.senders.size());
+        Assert.assertEquals("ouput not found", 3, conf.senders.size());
         Assert.assertEquals(5, conf.mainQueue.remainingCapacity());
         Assert.assertEquals(5, conf.mainQueue.remainingBlockingCapacity());
         Assert.assertEquals(10, conf.mainQueue.getWeight());
