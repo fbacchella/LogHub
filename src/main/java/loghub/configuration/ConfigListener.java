@@ -73,7 +73,6 @@ import loghub.RouteParser.StringLiteralContext;
 import loghub.RouteParser.TestContext;
 import loghub.RouteParser.TestExpressionContext;
 import loghub.RouteParser.VarPathContext;
-import loghub.sources.Source;
 import loghub.VarFormatter;
 import loghub.VariablePath;
 import loghub.processors.AnonymousSubPipeline;
@@ -91,23 +90,25 @@ import loghub.processors.UnwrapEvent;
 import loghub.processors.WrapEvent;
 import loghub.receivers.Receiver;
 import loghub.senders.Sender;
+import loghub.sources.Source;
 import lombok.Builder;
+import lombok.Data;
 
 class ConfigListener extends RouteBaseListener {
 
     private static final Logger logger = LogManager.getLogger();
 
-    private static enum StackMarker {
-        Path,
-        Test,
-        ObjectList,
-        PipeNodeList,
-        Array,
-        Expression,
-        ExpressionList,
-        Fire,
-        Etl,
-        Map;
+    private enum StackMarker {
+        PATH,
+        TEST,
+        OBJECT_LIST,
+        PIPE_NODE_LIST,
+        ARRAY,
+        EXPRESSION,
+        EXPRESSION_LIST,
+        FIRE,
+        ETL,
+        MAP
     }
 
     static final class Input {
@@ -136,17 +137,19 @@ class ConfigListener extends RouteBaseListener {
         }
     }
 
-    static interface Pipenode {}
+    interface Pipenode {}
 
     static final class PipenodesList implements Pipenode {
         final List<ProcessorInstance> processors = new ArrayList<>();
         String nextPipelineName;
     }
 
+    @Data
     static final class PipeRef implements Pipenode {
         String pipename;
     }
 
+    @Data
     static final class PipeRefName implements Pipenode {
         final String piperef;
         private PipeRefName(String piperef) {
@@ -235,11 +238,9 @@ class ConfigListener extends RouteBaseListener {
         stack.push(new PipeRefName(ctx.getText()));
     }
 
-    private void pushLiteral(ParserRuleContext ctx, Object content) {
+    private void pushLiteral(Object content) {
         // Don't keep literal in a expression, they will be managed in groovy
-        if(expressionDepth > 0) {
-            return;
-        } else {
+        if (expressionDepth == 0) {
             stack.push(new ObjectWrapped<>(content));
         }
     }
@@ -247,36 +248,36 @@ class ConfigListener extends RouteBaseListener {
     @Override
     public void enterFloatingPointLiteral(FloatingPointLiteralContext ctx) {
         String content = ctx.FloatingPointLiteral().getText();
-        pushLiteral(ctx, Double.valueOf(content));
+        pushLiteral(Double.valueOf(content));
     }
 
     @Override
     public void enterCharacterLiteral(CharacterLiteralContext ctx) {
         String content = ctx.CharacterLiteral().getText();
-        pushLiteral(ctx, content.charAt(0));
+        pushLiteral(content.charAt(0));
     }
 
     @Override
     public void enterStringLiteral(StringLiteralContext ctx) {
         String content = ctx.StringLiteral().getText();
-        pushLiteral(ctx, content);
+        pushLiteral(content);
     }
 
     @Override
     public void enterIntegerLiteral(IntegerLiteralContext ctx) {
         String content = ctx.IntegerLiteral().getText();
-        pushLiteral(ctx, Integer.valueOf(content));
+        pushLiteral(Integer.valueOf(content));
     }
 
     @Override
     public void enterBooleanLiteral(BooleanLiteralContext ctx) {
         String content = ctx.getText();
-        pushLiteral(ctx, Boolean.valueOf(content));
+        pushLiteral(Boolean.valueOf(content));
     }
 
     @Override
     public void enterNullLiteral(NullLiteralContext ctx) {
-        pushLiteral(ctx, null);
+        pushLiteral(null);
     }
 
     
@@ -289,9 +290,9 @@ class ConfigListener extends RouteBaseListener {
             if (secret == null) {
                 throw new RecognitionException("Unknown secret: " + ctx.id.getText(), parser, stream, ctx);
             } else if (ctx.SecretAttribute() == null || ! "blob".equals(ctx.SecretAttribute().getText())) {
-                pushLiteral(ctx, new String(secret, StandardCharsets.UTF_8));
+                pushLiteral(new String(secret, StandardCharsets.UTF_8));
             } else {
-                pushLiteral(ctx, secret);
+                pushLiteral(secret);
             }
         }
     }
@@ -299,17 +300,17 @@ class ConfigListener extends RouteBaseListener {
     @SuppressWarnings({ "unchecked", "rawtypes" })
     @Override
     public void exitBean(BeanContext ctx) {
-        String beanName = null;
+        String beanName;
         ObjectWrapped<Object> beanValue = stack.popTyped();
         if (ctx.fev != null) {
             stack.push(beanValue);
             beanName = ctx.bn.getText();
             VariablePath ev = convertEventVariable(ctx.fev);
-            beanValue = (ObjectWrapped<Object>) new ObjectWrapped(ev);
+            beanValue = new ObjectWrapped(ev);
         } else if (ctx.fsv != null) {
             beanName = ctx.bn.getText();
             Object value = VariablePath.of(ctx.fsv.getText());
-            beanValue = (ObjectWrapped<Object>) new ObjectWrapped(value);
+            beanValue = new ObjectWrapped(value);
         } else if (ctx.bn != null) {
             beanName = ctx.bn.getText();
         } else {
@@ -325,7 +326,7 @@ class ConfigListener extends RouteBaseListener {
         doBean(beanName, beanValue, ctx);
     }
 
-    private void doBean(String beanName, ObjectWrapped<? extends Object> beanValue, ParserRuleContext ctx) {
+    private void doBean(String beanName, ObjectWrapped<?> beanValue, ParserRuleContext ctx) {
         ObjectWrapped<Object> beanObject = stack.peekTyped();
         assert (beanName != null);
         assert (beanValue != null);
@@ -338,7 +339,7 @@ class ConfigListener extends RouteBaseListener {
 
     @Override
     public void enterMerge(MergeContext ctx) {
-        stack.push(new ObjectWrapped<Merge>(new Merge()));
+        stack.push(new ObjectWrapped<>(new Merge()));
     }
 
     ObjectWrapped<Object> getObject(String qualifiedName, ParserRuleContext ctx) {
@@ -380,7 +381,7 @@ class ConfigListener extends RouteBaseListener {
             AbstractBuilder<?> builder = (AbstractBuilder<?>) wobject.wrapped;
             try {
                 Object created = builder.build();
-                stack.push(new ObjectWrapped<Object>(created));
+                stack.push(new ObjectWrapped<>(created));
             } catch (Exception e) {
                 throw new RecognitionException(Helpers.resolveThrowableException(e), parser, stream, ctx);
             }
@@ -445,18 +446,18 @@ class ConfigListener extends RouteBaseListener {
             ConfigListener.ProcessorInstance pi = (ConfigListener.ProcessorInstance) i;
             t = pi.wrapped;
         } else {
-            throw new RuntimeException("Unreachable code for " + i);
+            throw new IllegalStateException("Unreachable code for " + i);
         }
         return t;
     }
 
     Pipeline parsePipeline(PipenodesList desc, String currentPipeLineName) throws ConfigException {
-        List<Processor> allSteps = new ArrayList<Processor>() {
+        List<Processor> allSteps = new ArrayList<>() {
             @Override
             public String toString() {
                 StringBuilder buffer = new StringBuilder();
                 buffer.append("PipeList(");
-                for(Processor i: this) {
+                for (Processor i : this) {
                     buffer.append(i);
                     buffer.append(", ");
                 }
@@ -466,11 +467,8 @@ class ConfigListener extends RouteBaseListener {
             }
         };
 
-        desc.processors.stream().map(i -> {
-            return getProcessor(i, currentPipeLineName);
-        }).forEach(allSteps::add);
-        Pipeline pipe = new Pipeline(allSteps, depth == 0 ? currentPipeLineName : null, desc.nextPipelineName);
-        return pipe;
+        desc.processors.stream().map(i -> getProcessor(i, currentPipeLineName)).forEach(allSteps::add);
+        return new Pipeline(allSteps, depth == 0 ? currentPipeLineName : null, desc.nextPipelineName);
     }
 
     int depth = 0;
@@ -505,7 +503,7 @@ class ConfigListener extends RouteBaseListener {
 
     @Override
     public void enterPipenodeList(PipenodeListContext ctx) {
-        stack.push(StackMarker.PipeNodeList );
+        stack.push(StackMarker.PIPE_NODE_LIST);
     }
 
     @Override
@@ -517,14 +515,14 @@ class ConfigListener extends RouteBaseListener {
             if (o instanceof ProcessorInstance) {
                 pipe.processors.add(0, (ProcessorInstance)o);
             }
-            assert StackMarker.PipeNodeList.equals(o) || (o instanceof ProcessorInstance) : o.getClass();
-        } while(! StackMarker.PipeNodeList.equals(o));
+            assert StackMarker.PIPE_NODE_LIST == o || (o instanceof ProcessorInstance) : o.getClass();
+        } while(StackMarker.PIPE_NODE_LIST != o);
         stack.push(pipe);
     }
 
     @Override
     public void enterPath(PathContext ctx) {
-        stack.push(StackMarker.Path);
+        stack.push(StackMarker.PATH);
         WrapEvent we = new WrapEvent();
         we.setPathArray(convertEventVariable(ctx.eventVariable()));
         ProcessorInstance pi = new ProcessorInstance(we);
@@ -543,8 +541,8 @@ class ConfigListener extends RouteBaseListener {
             if (o instanceof ProcessorInstance) {
                 pipe.processors.add(0, (ProcessorInstance)o);
             }
-            assert StackMarker.Path.equals(o) || (o instanceof ProcessorInstance) : o.getClass();
-        } while(! StackMarker.Path.equals(o));
+            assert StackMarker.PATH == o || (o instanceof ProcessorInstance) : o.getClass();
+        } while(StackMarker.PATH != o);
         stack.push(pipe);
     }
 
@@ -561,7 +559,7 @@ class ConfigListener extends RouteBaseListener {
 
     @Override
     public void enterTestExpression(TestExpressionContext ctx) {
-        stack.push(StackMarker.Test);
+        stack.push(StackMarker.TEST);
     }
 
     @SuppressWarnings("unchecked")
@@ -578,7 +576,7 @@ class ConfigListener extends RouteBaseListener {
             } else if (o instanceof ObjectWrapped) {
                 test.setTest(((ObjectWrapped<Expression>)o).wrapped);
             }
-        } while (! StackMarker.Test.equals(o));
+        } while (StackMarker.TEST != o);
         assert clauses.size() == 1 || clauses.size() == 2;
         Processor thenProcessor = getProcessor(clauses.get(0), currentPipeLineName);
         test.setThen(thenProcessor);
@@ -591,13 +589,13 @@ class ConfigListener extends RouteBaseListener {
 
     @Override
     public void enterInputObjectlist(InputObjectlistContext ctx) {
-        stack.push(StackMarker.ObjectList);
+        stack.push(StackMarker.OBJECT_LIST);
     }
 
     @Override
     public void exitInputObjectlist(InputObjectlistContext ctx) {
         List<ObjectWrapped<?>> l = new ArrayList<>();
-        while(! StackMarker.ObjectList.equals(stack.peek())) {
+        while(StackMarker.OBJECT_LIST != stack.peek()) {
             l.add((ObjectWrapped<?>) stack.pop());
         }
         stack.pop();
@@ -606,13 +604,13 @@ class ConfigListener extends RouteBaseListener {
 
     @Override
     public void enterOutputObjectlist(OutputObjectlistContext ctx) {
-        stack.push(StackMarker.ObjectList);
+        stack.push(StackMarker.OBJECT_LIST);
     }
 
     @Override
     public void exitOutputObjectlist(OutputObjectlistContext ctx) {
         List<ObjectWrapped<?>> l = new ArrayList<>();
-        while(! StackMarker.ObjectList.equals(stack.peek())) {
+        while(StackMarker.OBJECT_LIST != stack.peek()) {
             l.add((ObjectWrapped<?>) stack.pop());
         }
         stack.pop();
@@ -624,7 +622,7 @@ class ConfigListener extends RouteBaseListener {
         PipeRefName piperef;
         @SuppressWarnings("unchecked")
         List<ObjectWrapped<Sender>> senders = (List<ObjectWrapped<Sender>>) stack.pop();
-        if(stack.peek() != null && stack.peek() instanceof PipeRefName) {
+        if (stack.peek() instanceof PipeRefName) {
             piperef = (PipeRefName) stack.pop();
         } else {
             // if no pipe name given, take events from the main pipe
@@ -658,7 +656,7 @@ class ConfigListener extends RouteBaseListener {
     @Override
     public void exitProperty(PropertyContext ctx) {
         assert stack.peek() instanceof ObjectWrapped;
-        Object value = ((ObjectWrapped) stack.pop()).wrapped;
+        Object value = ((ObjectWrapped<?>) stack.pop()).wrapped;
         String key;
         if (ctx.pn != null) {
             key = ctx.pn.getText();
@@ -677,29 +675,30 @@ class ConfigListener extends RouteBaseListener {
 
     @Override
     public void exitSourcedef(SourcedefContext ctx) {
+        @SuppressWarnings("unchecked")
         ObjectWrapped<Source> source = (ObjectWrapped<Source>) stack.pop();
         sources.get(ctx.identifier().getText()).set(source.wrapped);
     }
 
     @Override
     public void enterArray(ArrayContext ctx) {
-        stack.push(StackMarker.Array);
+        stack.push(StackMarker.ARRAY);
     }
 
     @SuppressWarnings("unchecked")
     @Override
     public void exitArray(ArrayContext ctx) {
         List<Object> array = new ArrayList<>();
-        while(! StackMarker.Array.equals(stack.peek()) ) {
+        while (StackMarker.ARRAY != stack.peek()) {
             Object o = stack.pop();
-            if(o instanceof ObjectWrapped) {
+            if (o instanceof ObjectWrapped) {
                 o = ((ObjectWrapped<Object>) o).wrapped;
             }
             array.add(o);
         }
         Collections.reverse(array);
         stack.pop();
-        stack.push(new ObjectWrapped<Object[]>(array.toArray()));
+        stack.push(new ObjectWrapped<>(array.toArray()));
     }
 
     @Override
@@ -710,7 +709,7 @@ class ConfigListener extends RouteBaseListener {
 
     @Override
     public void enterFire(FireContext ctx) {
-        stack.push(StackMarker.Fire);
+        stack.push(StackMarker.FIRE);
     }
 
     @SuppressWarnings("unchecked")
@@ -719,21 +718,21 @@ class ConfigListener extends RouteBaseListener {
         FireEvent fire = new FireEvent();
         Map<VariablePath, Expression> fields = new HashMap<>();
         int count = ctx.eventVariable().size() - 1;
-        while(! StackMarker.Fire.equals(stack.peek()) ) {
+        while (StackMarker.FIRE != stack.peek()) {
             Object o = stack.pop();
-            if(o instanceof ObjectWrapped) {
+            if (o instanceof ObjectWrapped) {
                 VariablePath lvalue = convertEventVariable(ctx.eventVariable().get(count--));
                 fields.put(lvalue, ((ObjectWrapped<Expression>) o).wrapped);
             } else if (o instanceof PipeRefName){
                 PipeRefName name = (PipeRefName) o;
                 fire.setDestination(name.piperef);
             } else {
-                throw new RecognitionException("invalid fire argument: " + o.toString(), parser, stream, ctx);
+                throw new RecognitionException("invalid fire argument: " + o, parser, stream, ctx);
             }
         }
         fire.setFields(fields);
         stack.pop();
-        stack.push(new ObjectWrapped<FireEvent>(fire));
+        stack.push(new ObjectWrapped<>(fire));
     }
 
     @Override
@@ -743,12 +742,12 @@ class ConfigListener extends RouteBaseListener {
         log.setLevel(ctx.level().getText());
         log.setPipeName(currentPipeLineName);
         log.setMessage(expression.wrapped);
-        stack.push(new ObjectWrapped<Log>(log));
+        stack.push(new ObjectWrapped<>(log));
     }
 
     @Override
     public void enterEtl(EtlContext ctx) {
-        stack.push(StackMarker.Etl);
+        stack.push(StackMarker.ETL);
     }
 
     private VariablePath convertEventVariable(EventVariableContext ev) {
@@ -835,14 +834,14 @@ class ConfigListener extends RouteBaseListener {
         }
         // Remove Etl marker
         Object o = stack.pop();
-        assert StackMarker.Etl.equals(o);
+        assert StackMarker.ETL == o;
         etl.setLvalue(convertEventVariable(ctx.eventVariable().get(0)));
         stack.push(new ProcessorInstance(etl));
     }
 
     @Override
     public void enterMap(MapContext ctx) {
-        stack.push(StackMarker.Map);
+        stack.push(StackMarker.MAP);
     }
 
     @SuppressWarnings("unchecked")
@@ -851,7 +850,7 @@ class ConfigListener extends RouteBaseListener {
         if (ctx.source() == null) {
             Map<Object, Object> map = new HashMap<>();
             Object o;
-            while((o = stack.pop()) != StackMarker.Map) {
+            while((o = stack.pop()) != StackMarker.MAP) {
                 Object value;
                 if (o instanceof ObjectWrapped) {
                     value = ((ObjectWrapped<Object>) o).wrapped;
@@ -864,27 +863,27 @@ class ConfigListener extends RouteBaseListener {
             stack.push(new ObjectWrapped<Map<?, ?>>(map));
         } else {
             Object o = stack.pop();
-            assert o == ConfigListener.StackMarker.Map;
+            assert o == ConfigListener.StackMarker.MAP;
             // Don't forget to remove the initial %
             String sourceName = ctx.source().getText().substring(1);
             if (! sources.containsKey(sourceName)) {
                 throw new RecognitionException("Undefined source " + sourceName, parser, stream, ctx);
             }
             Source s = sources.get(sourceName).get();
-            stack.push(new ObjectWrapped<Source>(s));
+            stack.push(new ObjectWrapped<>(s));
         }
     }
 
     @Override
     public void enterExpressionsList(ExpressionsListContext ctx) {
-        stack.push(StackMarker.ExpressionList);
+        stack.push(StackMarker.EXPRESSION_LIST);
     }
 
     @Override
     public void exitExpressionsList(ExpressionsListContext ctx) {
         List<String> expressionsList = new ArrayList<>();
         Object se;
-        while ((se = stack.pop()) != StackMarker.ExpressionList) {
+        while ((se = stack.pop()) != StackMarker.EXPRESSION_LIST) {
             expressionsList.add((String)se);
         }
         Collections.reverse(expressionsList);
@@ -898,7 +897,7 @@ class ConfigListener extends RouteBaseListener {
 
     @Override
     public void exitExpression(ExpressionContext ctx) {
-        String expression = null;
+        String expression;
         if (ctx.sl != null) {
             String format = ctx.sl.getText();
             VarFormatter vf = new VarFormatter(format);
@@ -960,7 +959,7 @@ class ConfigListener extends RouteBaseListener {
             String op = ctx.op2.getText();
             Object post = stack.pop();
             Object pre = stack.pop();
-            expression = String.format(Locale.ENGLISH, "ex.nullfilter(%s) %s ex.protect(\"%s\", %s)", pre, op, op, post);
+            expression = binaryInfixOperator(pre, op, post);
         } else if (ctx.op3 != null) {
             // '+'|'-'
             String op3 = ctx.op3.getText();
@@ -970,19 +969,19 @@ class ConfigListener extends RouteBaseListener {
             String op = ctx.op4.getText();
             Object post = stack.pop();
             Object pre = stack.pop();
-            expression = String.format(Locale.ENGLISH, "ex.nullfilter(%s) %s ex.protect(\"%s\", %s)", pre, op, op, post);
+            expression = binaryInfixOperator(pre, op, post);
         } else if (ctx.op5 != null) {
             // '+'|'-'
             String op = ctx.op5.getText();
             Object post = stack.pop();
             Object pre = stack.pop();
-            expression = String.format(Locale.ENGLISH, "ex.nullfilter(%s) %s ex.protect(\"%s\", %s)", pre, op, op, post);
+            expression = binaryInfixOperator(pre, op, post);
         } else if (ctx.op6 != null) {
             // '<<'|'>>'|'>>>'
             String op = ctx.op6.getText();
             Object post = stack.pop();
             Object pre = stack.pop();
-            expression = String.format(Locale.ENGLISH, "ex.nullfilter(%s) %s ex.protect(\"%s\", %s)", pre, op, op, post);
+            expression = binaryInfixOperator(pre, op, post);
         } else if (ctx.op7 != null) {
             // '<'|'<='|'>'|'>='
             String op = ctx.op7.getText();
@@ -1006,37 +1005,37 @@ class ConfigListener extends RouteBaseListener {
             String op = ctx.op8bis.getText();
             Object post = stack.pop();
             Object pre = stack.pop();
-            expression = String.format(Locale.ENGLISH, "ex.nullfilter(%s) %s ex.protect(\"%s\", %s)", pre, op, op, post);
+            expression = binaryInfixOperator(pre, op, post);
         } else if (ctx.op9 != null) {
             // '.&'
             String op = ctx.op9.getText().substring(1);
             Object post = stack.pop();
             Object pre = stack.pop();
-            expression = String.format(Locale.ENGLISH, "ex.nullfilter(%s) %s ex.protect(\"%s\", %s)", pre, op, op, post);
+            expression = binaryInfixOperator(pre, op, post);
         } else if (ctx.op10 != null) {
             // '.^'
             String op = ctx.op10.getText().substring(1);
             Object post = stack.pop();
             Object pre = stack.pop();
-            expression = String.format(Locale.ENGLISH, "ex.nullfilter(%s) %s ex.protect(\"%s\", %s)", pre, op, op, post);
+            expression = binaryInfixOperator(pre, op, post);
         } else if (ctx.op11 != null) {
             // '.|'
             String op = ctx.op11.getText().substring(1);
             Object post = stack.pop();
             Object pre = stack.pop();
-            expression = String.format(Locale.ENGLISH, "ex.nullfilter(%s) %s ex.protect(\"%s\", %s)", pre, op, op, post);
+            expression = binaryInfixOperator(pre, op, post);
         } else if (ctx.op12 != null) {
             // '&&'
             String op = ctx.op12.getText();
             Object post = stack.pop();
             Object pre = stack.pop();
-            expression = String.format(Locale.ENGLISH, "ex.nullfilter(%s) %s ex.protect(\"%s\", %s)", pre, op, op, post);
+            expression = binaryInfixOperator(pre, op, post);
         } else if (ctx.op13 != null) {
             // '||'
             String op = ctx.op13.getText();
             Object post = stack.pop();
             Object pre = stack.pop();
-            expression = String.format(Locale.ENGLISH, "ex.nullfilter(%s) %s ex.protect(\"%s\", %s)", pre, op, op, post);
+            expression = binaryInfixOperator(pre, op, post);
         } else if (ctx.e3 != null) {
             Object subexpression = stack.pop();
             expression = "(" + subexpression + ")";
@@ -1054,9 +1053,11 @@ class ConfigListener extends RouteBaseListener {
         } else if (ctx.isEmpty != null) {
             Object subexpression = stack.pop();
             expression = String.format("ex.isEmpty(%s)", subexpression);
+        } else {
+            throw new IllegalStateException("Unreachable code");
         }
         expressionDepth--;
-        if(expressionDepth == 0) {
+        if (expressionDepth == 0) {
             try {
                 stack.push(new ObjectWrapped<>(new Expression(expression, groovyClassLoader, formatters)));
             } catch (Expression.ExpressionException e) {
@@ -1065,6 +1066,10 @@ class ConfigListener extends RouteBaseListener {
         } else {
             stack.push(expression);
         }
+    }
+
+    private String binaryInfixOperator(Object pre, String op, Object post) {
+        return String.format(Locale.ENGLISH, "ex.nullfilter(%s) %s ex.protect(\"%s\", %s)", pre, op, op, post);
     }
 
 }
