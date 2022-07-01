@@ -6,6 +6,7 @@ import java.lang.reflect.UndeclaredThrowableException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -207,7 +208,7 @@ class ConfigListener extends RouteBaseListener {
 
     private final ClassLoader classLoader;
     private final SecretsHandler secrets;
-    private final Map<String, String> lockedProperties;
+    private final Map<String, Object> lockedProperties;
     private final GroovyClassLoader groovyClassLoader;
     private final BeansManager beansManager;
 
@@ -215,7 +216,7 @@ class ConfigListener extends RouteBaseListener {
     private IntStream stream;
 
     @Builder
-    private ConfigListener(ClassLoader classLoader, SecretsHandler secrets, Map<String, String> lockedProperties, GroovyClassLoader groovyClassLoader) {
+    private ConfigListener(ClassLoader classLoader, SecretsHandler secrets, Map<String, Object> lockedProperties, GroovyClassLoader groovyClassLoader) {
         this.classLoader = classLoader != null ? classLoader : ConfigListener.class.getClassLoader();
         this.secrets = secrets != null ? secrets : SecretsHandler.empty();
         this.lockedProperties = lockedProperties != null ? lockedProperties : new HashMap<>();
@@ -239,7 +240,7 @@ class ConfigListener extends RouteBaseListener {
         if(expressionDepth > 0) {
             return;
         } else {
-            stack.push(new ObjectWrapped<Object>(content));
+            stack.push(new ObjectWrapped<>(content));
         }
     }
 
@@ -656,10 +657,18 @@ class ConfigListener extends RouteBaseListener {
 
     @Override
     public void exitProperty(PropertyContext ctx) {
-        Object value = stack.pop();
-        String key = ctx.propertyName().getText();
+        assert stack.peek() instanceof ObjectWrapped;
+        Object value = ((ObjectWrapped) stack.pop()).wrapped;
+        String key;
+        if (ctx.pn != null) {
+            key = ctx.pn.getText();
+        } else {
+            key = ctx.identifier().getText();
+        }
         // Avoid reprocess already processed properties
-        if (!lockedProperties.containsKey(key) || lockedProperties.get(key).equals(ctx.beanValue().getText())) {
+        String lockedValue = (String) lockedProperties.computeIfPresent(key, (k, v) -> v.getClass().isArray() ? Arrays.toString((Object[]) v) : v.toString());
+        String valueString = value.getClass().isArray() ? Arrays.toString((Object[]) value) : value.toString();
+        if (lockedValue == null || lockedValue.equals(valueString)) {
             properties.put(key, value);
         } else {
             throw new RecognitionException("redefined property " + key, parser, stream, ctx);

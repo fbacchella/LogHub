@@ -68,7 +68,7 @@ beanName
     : identifier
     ;
 
-beanValue: object | array | map | literal | secret | expression;
+beanValue: object | literal | secret | expression | array | map ;
 
 finalpiperef: piperef;
 
@@ -116,7 +116,21 @@ level
     | 'TRACE'
     ;
 
-property: propertyName ':' beanValue;
+// The standard properties type can be enforced at parse time
+// The main purpose is to avoid the ambiguity of parsing ["a"], what can be
+// both an array or a variable path
+property:
+    (pn='includes' ':' beanValueOptionnalArray)
+    | (pn='plugins' ':' beanValueOptionnalArray)
+    | (pn='ssl.trusts' ':' beanValueOptionnalArray)
+    | (pn='ssl.issuers' ':' beanValueOptionnalArray)
+    | (pn=QualifiedIdentifier ':' beanValue)
+    | (identifier ':' beanValue)
+    ;
+
+beanValueOptionnalArray:
+    (stringLiteral | array)
+    ;
 
 etl
     : eventVariable op='<' s=eventVariable
@@ -187,8 +201,13 @@ matchOperator
     ;
 
 array
-    : '[' (beanValue (',' beanValue)*)? ','? ']'
+    : '[' arrayContent ']'
     | source
+    ;
+
+arrayContent:
+    ','
+    | ((beanValue ( ',' beanValue)*)? ','?)
     ;
 
 map
@@ -206,10 +225,6 @@ varPath: (pathElement pathElement*) | QualifiedIdentifier;
 
 pathElement: identifier | StringLiteral ;
 
-propertyName
-    :   identifier | QualifiedIdentifier
-    ;
-    
 sources
     : 'sources' ':'  sourcedef+
     ;

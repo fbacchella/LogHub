@@ -82,7 +82,7 @@ public class Configuration {
     private ClassLoader classLoader = Configuration.class.getClassLoader();
     private GroovyClassLoader groovyClassLoader = new GroovyClassLoader(classLoader);
     private SecretsHandler secrets = null;
-    private Map<String, String> lockedProperties = new HashMap<>();
+    private Map<String, Object> lockedProperties = new HashMap<>();
     private final Set<Path> loadedConfigurationFiles = new HashSet<>();
     private final ConfigErrorListener errListener = new ConfigErrorListener();
 
@@ -127,13 +127,11 @@ public class Configuration {
         scanProperty(tree);
         trees.add(tree);
         return tree.config.property().stream()
-          .filter(p -> "includes".equals(p.propertyName().getText()))
-          .map(pc -> {
-              return Arrays.stream(getStringOrArrayLitteral(pc.beanValue()))
-                    .map(Paths::get)
-                    .map(p -> consumeIncludes(p, trees))
-                    .reduce(Boolean.FALSE, (a, b) -> a || b);
-          })
+          .filter(p -> p.pn != null && "includes".equals(p.pn.getText()))
+          .map(pc -> Arrays.stream(getStringOrArrayLitteral(pc.beanValueOptionnalArray()))
+                           .map(Paths::get)
+                           .map(p -> consumeIncludes(p, trees))
+                           .reduce(Boolean.FALSE, (a, b) -> a || b))
          .reduce((a, b) -> a || b).orElse(true);
     }
 
@@ -203,100 +201,94 @@ public class Configuration {
     }
 
     private void scanProperty(Tree tree) {
+        Map<String, PropertyContext> properties = new HashMap<>();
         for (PropertyContext pc: tree.config.property()) {
-            String propertyName = pc.propertyName().getText();
-            // Don’t change order, it's meaningfull
-            // locale and timezone first, to check for output format
-            // classloader might be used by log4j2
-            // everything else must be set latter
-            switch(propertyName) {
-            case "locale":
-            {
-                String localString = getStringLitteral(pc.beanValue());
-                if (localString != null) {
-                    logger.debug("setting locale to {}", localString);
-                    Locale l = Locale.forLanguageTag(localString);
-                    Locale.setDefault(l);
-                }
-                lockedProperties.put(propertyName, pc.beanValue().getText());
-                break;
+            if (pc.pn != null) {
+                properties.put(pc.pn.getText(), pc);
+            } else {
+                String propertyName = pc.identifier().getText();
+                properties.put(propertyName, pc);
             }
-            case "timezone":
-            {
-                String tz = getStringLitteral(pc.beanValue());
-                if (tz != null) {
-                    try {
-                        logger.debug("setting time zone to {}", tz);
-                        ZoneId id = ZoneId.of(tz);
-                        TimeZone.setDefault(TimeZone.getTimeZone(id));
-                    } catch (DateTimeException e) {
-                        logger.error("Invalid timezone {}: {}", tz, e.getMessage());
-                    }
-                }
-                lockedProperties.put(propertyName, pc.beanValue().getText());
-                break;
+        }
+        // Don’t change order, it's meaningfully
+        // classloader might be used by log4j2
+        // locale and timezone first, to check for output format
+        // everything else must be set latter
+        Optional.ofNullable(properties.get("plugins")).ifPresent(pc -> processPlugingsProperty(pc, tree));
+        Optional.ofNullable(properties.get("locale")).ifPresent(this::processLocaleProperty);
+        Optional.ofNullable(properties.get("timezone")).ifPresent(this::processTimezoneProperty);
+        Optional.ofNullable(properties.get("log4j.configURL")).ifPresent(pc -> processLog4jUrlProperty(pc, tree));
+        Optional.ofNullable(properties.get("log4j.configFile")).ifPresent(pc -> processLog4jFileProperty(pc, tree));
+        Optional.ofNullable(properties.get("secrets.source")).ifPresent(pc -> processSecretSource(pc, tree));
+    }
+
+    private void processSecretSource(PropertyContext pc, Tree tree) {
+        try {
+            String secretsSource = getStringLitteral(pc.beanValue());
+            secrets = SecretsHandler.load(secretsSource);
+            logger.debug("Loaded secrets source " + secretsSource);
+            lockedProperties.put("secrets.source", secretsSource);
+        } catch (IOException ex) {
+            throw new ConfigException("can't load secret store: " + ex.getMessage(), tree.stream.getSourceName(), pc.start, ex);
+        }
+    }
+
+    private void processLog4jFileProperty(PropertyContext pc, Tree tree) {
+        URI log4JUri = getLiteral(pc.beanValue(), i -> i.stringLiteral().getText(), j -> Paths.get(j).toUri());
+        resolverLogger(log4JUri, pc, tree);
+        logger.debug("Configured log4j URL to {}", log4JUri);
+        lockedProperties.put("log4j.configFile", log4JUri.toString());
+    }
+
+    private void processLog4jUrlProperty(PropertyContext pc, Tree tree) {
+        try {
+            URI log4JUri = getLiteral(pc.beanValue(), i -> i.stringLiteral().getText(), j -> URI.create(j));
+            resolverLogger(log4JUri, pc, tree);
+            logger.debug("Configured log4j URL to {}", log4JUri);
+            lockedProperties.put("log4j.configURL", log4JUri.toString());
+        } catch (RuntimeException e) {
+            logger.error("Invalid log4j URL");
+        }
+    }
+
+    private void processTimezoneProperty(PropertyContext pc) {
+        String tz = getStringLitteral(pc.beanValue());
+        if (tz != null) {
+            try {
+                logger.debug("setting time zone to {}", tz);
+                ZoneId id = ZoneId.of(tz);
+                TimeZone.setDefault(TimeZone.getTimeZone(id));
+            } catch (DateTimeException e) {
+                logger.error("Invalid timezone {}: {}", tz, e.getMessage());
             }
-            case "plugins":
-            {
-                String[] path = getStringOrArrayLitteral(pc.beanValue());
-                if(path.length > 0) {
-                    try {
-                        logger.debug("Looking for plugins in {}", (Object[])path);
-                        classLoader = doClassLoader(path);
-                        groovyClassLoader = new GroovyClassLoader(classLoader);
-                    } catch (IOException ex) {
-                        throw new ConfigException("can't load plugins: " + ex.getMessage(), tree.stream.getSourceName(), pc.start, ex);
-                    } 
-                }
-                lockedProperties.put(propertyName, pc.beanValue().getText());
-                break;
-            }
-            case "log4j.configURL": {
-                try {
-                    URI log4JUri = getLitteral(pc.beanValue(), i -> i.stringLiteral().getText(), j -> {
-                        try {
-                            return new URL(j).toURI();
-                        } catch (MalformedURLException | URISyntaxException e) {
-                            throw new RuntimeException(e);
-                        }
-                    });
-                    resolverLogger(log4JUri, pc, tree);
-                    logger.debug("Configured log4j URL to {}", log4JUri);
-                } catch (RuntimeException e) {
-                    logger.error("Invalid log4j URL");
-                }
-                lockedProperties.put(propertyName, pc.beanValue().getText());
-                break;
-            }
-            case "log4j.configFile":
-            {
-                URI log4JUri = getLitteral(pc.beanValue(), i -> i.stringLiteral().getText(), j -> {
-                    return new File(j).toURI();
-                });
-                resolverLogger(log4JUri, pc, tree);
-                logger.debug("Configured log4j URL to {}", log4JUri);
-                lockedProperties.put(propertyName, pc.beanValue().getText());
-                break;
-            }
-            case "secrets.source":
-            {
-                try {
-                    String secretsSource = getStringLitteral(pc.beanValue());
-                    secrets = SecretsHandler.load(secretsSource);
-                    logger.debug("Loaded secrets source " + secretsSource);
-                } catch (IOException ex) {
-                    throw new ConfigException("can't load secret store: " + ex.getMessage(), tree.stream.getSourceName(), pc.start, ex);
-                }
-                lockedProperties.put(propertyName, pc.beanValue().getText());
-                break;
-            }
-            default: {
-                // Nothing to do if not reconized
-            }
+        }
+        lockedProperties.put("timezone", tz);
+    }
+
+    private void processLocaleProperty(PropertyContext pc) {
+        String localString = getStringLitteral(pc.beanValue());
+        if (localString != null) {
+            logger.debug("setting locale to {}", localString);
+            Locale l = Locale.forLanguageTag(localString);
+            Locale.setDefault(l);
+        }
+        lockedProperties.put("locale", localString);
+    }
+
+    private void processPlugingsProperty(PropertyContext pc, Tree tree) {
+        String[] path = getStringOrArrayLitteral(pc.beanValueOptionnalArray());
+        if(path.length > 0) {
+            try {
+                logger.debug("Looking for plugins in {}", (Object[])path);
+                classLoader = doClassLoader(path);
+                groovyClassLoader = new GroovyClassLoader(classLoader);
+                lockedProperties.put("plugins", Arrays.toString(path));
+            } catch (IOException ex) {
+                throw new ConfigException("can't load plugins: " + ex.getMessage(), tree.stream.getSourceName(), pc.start, ex);
             }
         }
     }
-    
+
     private void resolverLogger(URI log4JUri, PropertyContext pc, Tree tree) {
         // Try to read the log4j configuration, because log4j2 intercept possible exceptions and don't forward them
         try (InputStream is = log4JUri.toURL().openStream()) {
