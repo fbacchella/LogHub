@@ -47,6 +47,8 @@ import lombok.Getter;
  */
 public class Expression {
 
+    private static final String FORMATTER = "__FORMATTER__";
+
     static {
         MetaClassRegistry registry = GroovySystem.getMetaClassRegistry();
 
@@ -146,7 +148,7 @@ public class Expression {
      */
     public Expression(Object literal) {
         if (literal instanceof String) {
-            this.formatters = Collections.singletonMap("__FORMATTER_", new VarFormatter((String) literal));
+            this.formatters = Collections.singletonMap(FORMATTER, new VarFormatter((String) literal));
             this.literal = null;
         } else {
             this.formatters = null;
@@ -160,9 +162,9 @@ public class Expression {
         if (literal != null) {
             // It's a constant expression, no need to evaluate it
             return literal;
-        } else if (expression == null) {
+        } else if (formatters.containsKey(FORMATTER)) {
             // A string expression was given, it might have been a format string to apply to the event
-            return this.formatters.get("__FORMATTER_").format(event);
+            return this.formatters.get(FORMATTER).format(event);
         } else {
             logger.trace("Evaluating script {} with formatters {}", expression, formatters);
             BindingMap bmap = bindings.get();
@@ -222,7 +224,7 @@ public class Expression {
         case "|":
             if (arg == NullOrMissingValue.MISSING) {
                 throw IgnoredEventException.INSTANCE;
-            } else if (arg == null){
+            } else if (arg == null) {
                 return NullOrMissingValue.NULL;
             } else {
                 return arg;
@@ -254,7 +256,7 @@ public class Expression {
             case "uncapitalize":
                 return nullarg ? NullOrMissingValue.NULL : StringGroovyMethods.uncapitalize(arg.toString());
             case "isBlank":
-                return nullarg ? true : StringGroovyMethods.isAllWhitespace(arg.toString());
+                return nullarg || StringGroovyMethods.isAllWhitespace(arg.toString());
             case "normalize":
                 return nullarg ? NullOrMissingValue.NULL : StringGroovyMethods.normalize(arg.toString());
             default:
@@ -271,9 +273,9 @@ public class Expression {
         } else if (arg instanceof String) {
             return ((String) arg).isEmpty();
         } else if (arg instanceof Collection) {
-            return ((Collection) arg).isEmpty();
+            return ((Collection<?>) arg).isEmpty();
         } else if (arg instanceof Map) {
-            return ((Map) arg).isEmpty();
+            return ((Map<?, ?>) arg).isEmpty();
         } else if (arg.getClass().isArray()) {
             return Array.getLength(arg) == 0;
         } else {
@@ -281,7 +283,7 @@ public class Expression {
         }
     }
 
-    public Object nullfilter(Object arg, String op) {
+    public Object nullfilter(Object arg) {
         if (arg == null) {
             return NullOrMissingValue.NULL;
         } else {
@@ -304,7 +306,7 @@ public class Expression {
             } else {
                 throw IgnoredEventException.INSTANCE;
             }
-        } else if (iterable == null || iterable == NullOrMissingValue.NULL) {
+        } else if (iterable == NullOrMissingValue.NULL) {
             return NullOrMissingValue.NULL;
         } else if (iterable == NullOrMissingValue.MISSING) {
             throw IgnoredEventException.INSTANCE;
@@ -341,9 +343,9 @@ public class Expression {
             return arg1.equals(arg2);
         } else if ("!=".equals(operator) && arg1 != null) {
             return ! arg1.equals(arg2);
-        } else if ("!=".equals(operator) && arg1 == null && (arg2 == null || arg2 instanceof NullOrMissingValue)) {
+        } else if ("!=".equals(operator) && (arg2 == null || arg2 instanceof NullOrMissingValue)) {
             return false;
-        } else if ("==".equals(operator) && arg1 == null && (arg2 == null || arg2 instanceof NullOrMissingValue)) {
+        } else if ("==".equals(operator) && (arg2 == null || arg2 instanceof NullOrMissingValue)) {
             return true;
         } else {
             throw IgnoredEventException.INSTANCE;
@@ -404,9 +406,9 @@ public class Expression {
     public static void logError(ExpressionException e, String source, Logger logger) {
         Throwable cause = e.getCause();
         if (cause instanceof CompilationFailedException) {
-            logger.error("Groovy compilation failed for expression {}: {}", source, e.getMessage());
+            logger.error("Groovy compilation failed for expression {}: {}", () -> source, e::getMessage);
         } else {
-            logger.error("Critical groovy error for expression {}: {}", source, Helpers.resolveThrowableException(cause));
+            logger.error("Critical groovy error for expression {}: {}", () -> source, () -> Helpers.resolveThrowableException(cause));
             logger.throwing(Level.DEBUG, e.getCause());
         }
     }

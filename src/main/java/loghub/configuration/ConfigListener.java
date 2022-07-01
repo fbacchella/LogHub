@@ -948,10 +948,10 @@ class ConfigListener extends RouteBaseListener {
             expression = op1 + " " + stack.pop();
         } else if (ctx.op2 != null) {
             // '**'
-            String op2 = ctx.op2.getText();
+            String op = ctx.op2.getText();
             Object post = stack.pop();
             Object pre = stack.pop();
-            expression = String.format(Locale.ENGLISH, "ex.nullfilter(%s, \"%s\") %s ex.protect(\"%s\", %s)", pre, op2, op2, op2, post);
+            expression = String.format(Locale.ENGLISH, "ex.nullfilter(%s) %s ex.protect(\"%s\", %s)", pre, op, op, post);
         } else if (ctx.op3 != null) {
             // '+'|'-'
             String op3 = ctx.op3.getText();
@@ -961,19 +961,19 @@ class ConfigListener extends RouteBaseListener {
             String op = ctx.op4.getText();
             Object post = stack.pop();
             Object pre = stack.pop();
-            expression = String.format(Locale.ENGLISH, "ex.nullfilter(%s, \"%s\") %s ex.protect(\"%s\", %s)", pre, op, op, op, post);
+            expression = String.format(Locale.ENGLISH, "ex.nullfilter(%s) %s ex.protect(\"%s\", %s)", pre, op, op, post);
         } else if (ctx.op5 != null) {
             // '+'|'-'
             String op = ctx.op5.getText();
             Object post = stack.pop();
             Object pre = stack.pop();
-            expression = String.format(Locale.ENGLISH, "ex.nullfilter(%s, \"%s\") %s ex.protect(\"%s\", %s)", pre, op, op, op, post);
+            expression = String.format(Locale.ENGLISH, "ex.nullfilter(%s) %s ex.protect(\"%s\", %s)", pre, op, op, post);
         } else if (ctx.op6 != null) {
             // '<<'|'>>'|'>>>'
             String op = ctx.op6.getText();
             Object post = stack.pop();
             Object pre = stack.pop();
-            expression = String.format(Locale.ENGLISH, "ex.nullfilter(%s, \"%s\") %s ex.protect(\"%s\", %s)", pre, op, op, op, post);
+            expression = String.format(Locale.ENGLISH, "ex.nullfilter(%s) %s ex.protect(\"%s\", %s)", pre, op, op, post);
         } else if (ctx.op7 != null) {
             // '<'|'<='|'>'|'>='
             String op = ctx.op7.getText();
@@ -997,37 +997,37 @@ class ConfigListener extends RouteBaseListener {
             String op = ctx.op8bis.getText();
             Object post = stack.pop();
             Object pre = stack.pop();
-            expression = String.format(Locale.ENGLISH, "ex.nullfilter(%s, \"%s\") %s ex.protect(\"%s\", %s)", pre, op, op, op, post);
+            expression = String.format(Locale.ENGLISH, "ex.nullfilter(%s) %s ex.protect(\"%s\", %s)", pre, op, op, post);
         } else if (ctx.op9 != null) {
             // '.&'
             String op = ctx.op9.getText().substring(1);
             Object post = stack.pop();
             Object pre = stack.pop();
-            expression = String.format(Locale.ENGLISH, "ex.nullfilter(%s, \"%s\") %s ex.protect(\"%s\", %s)", pre, op, op, op, post);
+            expression = String.format(Locale.ENGLISH, "ex.nullfilter(%s) %s ex.protect(\"%s\", %s)", pre, op, op, post);
         } else if (ctx.op10 != null) {
             // '.^'
             String op = ctx.op10.getText().substring(1);
             Object post = stack.pop();
             Object pre = stack.pop();
-            expression = String.format(Locale.ENGLISH, "ex.nullfilter(%s, \"%s\") %s ex.protect(\"%s\", %s)", pre, op, op, op, post);
+            expression = String.format(Locale.ENGLISH, "ex.nullfilter(%s) %s ex.protect(\"%s\", %s)", pre, op, op, post);
         } else if (ctx.op11 != null) {
             // '.|'
             String op = ctx.op11.getText().substring(1);
             Object post = stack.pop();
             Object pre = stack.pop();
-            expression = String.format(Locale.ENGLISH, "ex.nullfilter(%s, \"%s\") %s ex.protect(\"%s\", %s)", pre, op, op, op, post);
+            expression = String.format(Locale.ENGLISH, "ex.nullfilter(%s) %s ex.protect(\"%s\", %s)", pre, op, op, post);
         } else if (ctx.op12 != null) {
             // '&&'
             String op = ctx.op12.getText();
             Object post = stack.pop();
             Object pre = stack.pop();
-            expression = String.format(Locale.ENGLISH, "ex.nullfilter(%s, \"%s\") %s ex.protect(\"%s\", %s)", pre, op, op, op, post);
+            expression = String.format(Locale.ENGLISH, "ex.nullfilter(%s) %s ex.protect(\"%s\", %s)", pre, op, op, post);
         } else if (ctx.op13 != null) {
             // '||'
             String op = ctx.op13.getText();
             Object post = stack.pop();
             Object pre = stack.pop();
-            expression = String.format(Locale.ENGLISH, "ex.nullfilter(%s, \"%s\") %s ex.protect(\"%s\", %s)", pre, op, op, op, post);
+            expression = String.format(Locale.ENGLISH, "ex.nullfilter(%s) %s ex.protect(\"%s\", %s)", pre, op, op, post);
         } else if (ctx.e3 != null) {
             Object subexpression = stack.pop();
             expression = "(" + subexpression + ")";

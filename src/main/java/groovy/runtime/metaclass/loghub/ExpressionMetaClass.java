@@ -21,7 +21,7 @@ public class ExpressionMetaClass extends DelegatingMetaClass {
         switch (methodName) {
         case "protect": return ex.protect(arguments[0].toString(), arguments[1]);
         case "stringMethod": return ex.stringMethod(arguments[0].toString(), arguments[1]);
-        case "nullfilter": return ex.nullfilter(arguments[0], arguments[1].toString());
+        case "nullfilter": return ex.nullfilter(arguments[0]);
         case "compare": return ex.compare(arguments[0].toString(), arguments[1], arguments[2]);
         case "getIterableIndex": return ex.getIterableIndex(arguments[0], (Integer)arguments[1]);
         case "isEmpty": return ex.isEmpty(arguments[0]);
