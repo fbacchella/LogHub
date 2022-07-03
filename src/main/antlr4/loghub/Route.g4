@@ -4,19 +4,22 @@
 
 grammar Route;
 
+@parser::header {
+import loghub.configuration.GrammarParserFiltering;
+import loghub.configuration.GrammarParserFiltering.BEANTYPE;
+import loghub.configuration.GrammarParserFiltering.SECTION;
+}
 @parser::members {
-    enum SECTION {
-        INPUT,
-        PIPELINE,
-        OUTPUT,
-    }
+
     SECTION currentSection;
     boolean inSection(SECTION s) {
         return s==currentSection;
     }
+    public GrammarParserFiltering filter = new GrammarParserFiltering();
 }
 
 configuration: (pipeline|input|output|sources|property)+ EOF;
+
 pipeline
     : {currentSection=SECTION.PIPELINE;} 'pipeline' '[' identifier ']' '{' pipenodeList? '}' ( '|' '$' finalpiperef) ? {currentSection=null;}
     ;
@@ -24,16 +27,22 @@ pipeline
 input
     : {currentSection=SECTION.INPUT;}'input' '{' inputObjectlist '}' ('|' '$' piperef)? {currentSection=null;}
     ;
+
 output
     : {currentSection=SECTION.OUTPUT;} 'output' ('$' piperef '|' )? '{' outputObjectlist '}' {currentSection=null;}
     ;
+
 inputObjectlist: (object (',' object)*)? ','?;
+
 outputObjectlist: (object (',' object)*)? ','?;
 pipenodeList: ( (pipenode | '+' forkpiperef ) (('+' forkpiperef)|('|' pipenode))*) ('>' forwardpiperef)?
               |  ('>' forwardpiperef)
     ;
+
 forkpiperef: '$' identifier;
+
 forwardpiperef: '$' identifier;
+
 pipenode
     : test
     | merge
@@ -49,8 +58,9 @@ pipenode
     | path
     ;
 
-object: QualifiedIdentifier beansDescription ; 
-beansDescription: ('{' (bean (',' bean)*)? ','? '}')? ;
+object: QualifiedIdentifier   {filter.enterObject($QualifiedIdentifier.text);} beansDescription {filter.exitObject();};
+
+beansDescription: ('{' (bean (',' bean)*)? ','? '}') ?;
 
 // All defined bean names must be replicated as identifier
 bean
@@ -62,14 +72,27 @@ bean
     | {inSection(SECTION.PIPELINE)}? (bn='destination' ':' (fsv=stringLiteral | fev=eventVariable))
     | {inSection(SECTION.PIPELINE)}? (bn='destinationTemplate' ':' stringLiteral)
     | {inSection(SECTION.OUTPUT)}?   (bn='encoder' ':' object)
-    | (beanName ':' beanValue)
+    | (beanName ':' beanValue {filter.cleanBeanType();})
     ;
 
 beanName
-    : identifier
+    : identifier {filter.resolveBeanType($identifier.text);}
     ;
 
-beanValue: object | literal | secret | expression | array | map ;
+beanValue
+    : ({filter.allowedBeanType(BEANTYPE.OBJECT)}? object
+    | {filter.allowedBeanType(BEANTYPE.ARRAY)}? array
+    | {filter.allowedBeanType(BEANTYPE.INTEGER)}? integerLiteral
+    | {filter.allowedBeanType(BEANTYPE.FLOAT)}? floatingPointLiteral
+    | {filter.allowedBeanType(BEANTYPE.CHARACTER)}? characterLiteral
+    | {filter.allowedBeanType(BEANTYPE.STRING)}? stringLiteral
+    | {filter.allowedBeanType(BEANTYPE.BOOLEAN)}? booleanLiteral
+    | nullLiteral
+    | {filter.allowedBeanType(BEANTYPE.SECRET)}? secret
+    | {filter.allowedBeanType(BEANTYPE.EXPRESSION)}? expression
+    | {filter.allowedBeanType(BEANTYPE.OPTIONAL_ARRAY)}? (stringLiteral | array)
+    | {filter.allowedBeanType(BEANTYPE.MAP)}? map)
+    ;
 
 finalpiperef: piperef;
 
@@ -117,25 +140,13 @@ level
     | 'TRACE'
     ;
 
-// The standard properties type can be enforced at parse time
-// The main purpose is to avoid the ambiguity of parsing ["a"], what can be
-// both an array or a variable path
-property:
-    (pn='includes' ':' beanValueOptionnalArray)
-    | (pn='plugins' ':' beanValueOptionnalArray)
-    | (pn='ssl.trusts' ':' beanValueOptionnalArray)
-    | (pn='ssl.issuers' ':' beanValueOptionnalArray)
-    | (pn='secrets.source' ':' stringLiteral)
-    | (pn='timezone' ':' stringLiteral)
-    | (pn='locale' ':' stringLiteral)
-    | (pn='log4j.configFile' ':' stringLiteral)
-    | (pn='log4j.configURL' ':' stringLiteral)
-    | (pn=QualifiedIdentifier ':' beanValue)
-    | (identifier ':' beanValue)
+property
+    : (propertyName ':' {filter.checkProperty($propertyName.text);} beanValue {filter.cleanBeanType();})
     ;
 
-beanValueOptionnalArray:
-    (stringLiteral | array)
+propertyName
+    : qualifiedIdentifier
+    | identifier
     ;
 
 etl
@@ -207,7 +218,7 @@ matchOperator
     ;
 
 array
-    : '[' arrayContent ']'
+    : {filter.cleanBeanType();}  '[' arrayContent ']'
     | source
     ;
 
@@ -217,7 +228,7 @@ arrayContent:
     ;
 
 map
-    : '{' (literal ':' beanValue ( ',' ? literal ':' beanValue)*)? ','? '}'
+    : {filter.cleanBeanType();} '{' (literal ':' beanValue ( ',' ? literal ':' beanValue)*)? ','? '}'
     | source
     ;
 
@@ -248,7 +259,6 @@ identifier
     | 'sources' | 'true' | 'false' | 'null' | 'drop'
     | 'trim' | 'capitalize' | 'uncapitalize' | 'isBlank' | 'normalize'
     | 'text' | 'blob'
-    | 'includes' | 'plugins' | 'timezone' | 'locale'
     | Identifier
     ;
 

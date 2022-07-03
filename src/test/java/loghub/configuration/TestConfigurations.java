@@ -5,6 +5,7 @@ import java.io.StringReader;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.logging.log4j.Level;
@@ -301,6 +302,7 @@ public class TestConfigurations {
         Path relativePath = Paths.get(".").toAbsolutePath().normalize().relativize(confincludes.normalize().toAbsolutePath());
         for (String confile: new String[] {
                 String.format("includes: \"%s/?.conf\"", relativePath),
+                String.format("includes: [\"%s/?.conf\"]", relativePath),
                 String.format("includes: \"%s/?.conf\"", confincludes),
                 String.format("includes: \"%s/recurse.conf\"", confincludes),
                 String.format("includes: \"%s\"", confincludes),
@@ -315,6 +317,19 @@ public class TestConfigurations {
         
         ConfigException failed = Assert.assertThrows(ConfigException.class, () -> Configuration.parse(new StringReader(String.format("includes: \"%s/none.conf\"", relativePath))));
         Assert.assertEquals("No Configuration files found", failed.getMessage());
+    }
+
+    @Test
+    public void testBadProperty() throws IOException {
+        for (String confile: List.of(
+                "queueDepth: 'a'",
+                "http.jwt: \"true\"",
+                "timezone: 1",
+                "locale: true")) {
+            Assert.assertThrows(ConfigException.class, () -> {
+                Configuration.parse(new StringReader(confile));
+            });
+        }
     }
 
 }

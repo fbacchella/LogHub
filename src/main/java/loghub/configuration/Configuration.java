@@ -117,16 +117,40 @@ public class Configuration {
         RouteParser parser = new RouteParser(tokens);
         parser.removeErrorListeners();
         parser.addErrorListener(errListener);
+        // First pass, to identify the class loader to use
+        // The class loader must be defined in the first configuration file, not included one
+        resolveClassPath(cs, parser);
+        tokens.seek(0);
+        parser.filter.setClassLoader(classLoader);
         Tree tree = Tree.of(cs, parser.configuration(), parser);
         scanProperty(tree);
         trees.add(tree);
         return tree.config.property().stream()
-          .filter(p -> p.pn != null && "includes".equals(p.pn.getText()))
-          .map(pc -> Arrays.stream(getStringOrArrayLitteral(pc.beanValueOptionnalArray()))
+          .filter(p -> "includes".equals(p.propertyName.getText()))
+          .map(pc -> Arrays.stream(getStringOrArrayLiteral(pc.beanValue()))
                            .map(Paths::get)
                            .map(p -> consumeIncludes(p, trees))
                            .reduce(Boolean.FALSE, (a, b) -> a || b))
          .reduce((a, b) -> a || b).orElse(true);
+    }
+
+    private void resolveClassPath(CharStream cs, RouteParser parser) {
+        for (PropertyContext pc: parser.configuration().property()) {
+            if ("plugins".equals(pc.propertyName.getText())) {
+                String[] path = getStringOrArrayLiteral(pc.beanValue());
+                if (path.length > 0) {
+                    try {
+                        logger.debug("Looking for plugins in {}", (Object[])path);
+                        classLoader = doClassLoader(path);
+                        groovyClassLoader = new GroovyClassLoader(classLoader);
+                        lockedProperties.put("plugins", Arrays.toString(path));
+                    } catch (IOException | UncheckedIOException ex) {
+                        throw new ConfigException("can't load plugins: " + ex.getMessage(), cs.getSourceName(), pc.start, ex);
+                    }
+                }
+                break;
+            }
+        }
     }
 
     private CharStream pathToCharStream(Path sourcePath) {
@@ -196,18 +220,11 @@ public class Configuration {
     private void scanProperty(Tree tree) {
         Map<String, PropertyContext> properties = new HashMap<>();
         for (PropertyContext pc: tree.config.property()) {
-            if (pc.pn != null) {
-                properties.put(pc.pn.getText(), pc);
-            } else {
-                String propertyName = pc.identifier().getText();
-                properties.put(propertyName, pc);
-            }
+            properties.put(pc.propertyName.getText(), pc);
         }
         // Don’t change order, it's meaningfully
-        // classloader might be used by log4j2
         // locale and timezone first, to check for output format
         // everything else must be set latter
-        Optional.ofNullable(properties.get("plugins")).ifPresent(pc -> processPlugingsProperty(pc, tree));
         Optional.ofNullable(properties.get("locale")).ifPresent(this::processLocaleProperty);
         Optional.ofNullable(properties.get("timezone")).ifPresent(this::processTimezoneProperty);
         Optional.ofNullable(properties.get("log4j.configURL")).ifPresent(pc -> processLog4jUriProperty(pc, tree));
@@ -217,7 +234,7 @@ public class Configuration {
 
     private void processSecretSource(PropertyContext pc, Tree tree) {
         try {
-            String secretsSource = pc.stringLiteral().getText();
+            String secretsSource = pc.beanValue().getText();
             secrets = SecretsHandler.load(secretsSource);
             logger.debug("Loaded secrets source {}", secretsSource);
             lockedProperties.put("secrets.source", secretsSource);
@@ -227,7 +244,7 @@ public class Configuration {
     }
 
     private void processLog4jUriProperty(PropertyContext pc, Tree tree) {
-        URI log4JUri =  Helpers.FileUri(pc.stringLiteral().getText());
+        URI log4JUri =  Helpers.FileUri(pc.beanValue().getText());
         resolverLogger(log4JUri, pc, tree);
         logger.debug("Configured log4j URL to {}", log4JUri);
         lockedProperties.put("log4j.configFile", log4JUri.toString());
@@ -247,7 +264,7 @@ public class Configuration {
     }
 
     private void processTimezoneProperty(PropertyContext pc) {
-        String tz = pc.stringLiteral().getText();
+        String tz = pc.beanValue().getText();
         if (tz != null) {
             try {
                 logger.debug("setting time zone to {}", tz);
@@ -261,27 +278,13 @@ public class Configuration {
     }
 
     private void processLocaleProperty(PropertyContext pc) {
-        String localString = pc.stringLiteral().getText();
+        String localString = pc.beanValue().getText();
         if (localString != null) {
             logger.debug("setting locale to {}", localString);
             Locale l = Locale.forLanguageTag(localString);
             Locale.setDefault(l);
         }
         lockedProperties.put("locale", localString);
-    }
-
-    private void processPlugingsProperty(PropertyContext pc, Tree tree) {
-        String[] path = getStringOrArrayLitteral(pc.beanValueOptionnalArray());
-        if(path.length > 0) {
-            try {
-                logger.debug("Looking for plugins in {}", (Object[])path);
-                classLoader = doClassLoader(path);
-                groovyClassLoader = new GroovyClassLoader(classLoader);
-                lockedProperties.put("plugins", Arrays.toString(path));
-            } catch (IOException | UncheckedIOException ex) {
-                throw new ConfigException("can't load plugins: " + ex.getMessage(), tree.stream.getSourceName(), pc.start, ex);
-            }
-        }
     }
 
     private Properties runparsing(CharStream cs) throws ConfigException {
@@ -329,12 +332,12 @@ public class Configuration {
         }
     }
 
-    private String[] getStringOrArrayLitteral(RouteParser.BeanValueOptionnalArrayContext beanValue) {
+    private String[] getStringOrArrayLiteral(RouteParser.BeanValueContext beanValue) {
         ArrayContext ac = beanValue.array();
         String contentString;
         if (ac != null) {
             return ac.arrayContent().beanValue().stream().map(RuleContext::getText).toArray(String[]::new);
-        } else if ((contentString = beanValue.stringLiteral().StringLiteral().getText()) != null) {
+        } else if ((contentString = beanValue.stringLiteral().getText()) != null) {
             return new String[] {contentString};
         } else {
             return new String[] {};

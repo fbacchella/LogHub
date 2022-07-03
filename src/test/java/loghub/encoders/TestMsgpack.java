@@ -23,6 +23,7 @@ import loghub.ConnectionContext;
 import loghub.Event;
 import loghub.LogUtils;
 import loghub.Tools;
+import loghub.configuration.ConfigException;
 import loghub.configuration.ConfigurationTools;
 import loghub.configuration.Properties;
 import loghub.jackson.JacksonBuilder;
@@ -55,10 +56,10 @@ public class TestMsgpack {
 
     @Test
     public void testParsingFailedbadType() {
-        RecognitionException ex = Assert.assertThrows(RecognitionException.class, () -> {
+        ConfigException ex = Assert.assertThrows(ConfigException.class, () -> {
             ConfigurationTools.parseFragment("output { loghub.senders.Stdout { encoder: loghub.encoders.Msgpack { forwardEvent: 1}}}", i -> i.output());
         });
-        Assert.assertEquals("Invalid bean 'forwardEvent' for loghub.encoders.Msgpack: argument type mismatch", ex.getMessage());
+        Assert.assertEquals("no viable alternative at input '1'", ex.getMessage());
     }
 
     @Test

@@ -657,12 +657,7 @@ class ConfigListener extends RouteBaseListener {
     public void exitProperty(PropertyContext ctx) {
         assert stack.peek() instanceof ObjectWrapped;
         Object value = ((ObjectWrapped<?>) stack.pop()).wrapped;
-        String key;
-        if (ctx.pn != null) {
-            key = ctx.pn.getText();
-        } else {
-            key = ctx.identifier().getText();
-        }
+        String key = ctx.propertyName.getText();
         // Avoid reprocess already processed properties
         String lockedValue = (String) lockedProperties.computeIfPresent(key, (k, v) -> v.getClass().isArray() ? Arrays.toString((Object[]) v) : v.toString());
         String valueString = value.getClass().isArray() ? Arrays.toString((Object[]) value) : value.toString();
