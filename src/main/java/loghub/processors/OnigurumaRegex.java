@@ -70,7 +70,7 @@ public class OnigurumaRegex extends FieldsProcessor {
                 return super.configure(properties);
             }
         } catch (SyntaxException e) {
-            logger.error("Error parsing regex:" + Helpers.resolveThrowableException(e));
+            logger.error("Error parsing regex: {}", () -> Helpers.resolveThrowableException(e));
             logger.catching(Level.DEBUG, e);
             return false;
         }

@@ -147,7 +147,7 @@ public class TestEventProcessing {
         } catch (IOException e) {
             e.printStackTrace();
         } catch (ConfigException e) {
-            System.out.format("Error in %s: %s\n", e.getLocation(), e.getMessage());
+            System.out.format("Error in %s: %s%n", e.getLocation(), e.getMessage());
             System.exit(1);
         } catch (InterruptedException e) {
             e.printStackTrace();

@@ -270,7 +270,7 @@ public class EventsProcessor extends Thread {
                 // A do nothing process
                 status = ProcessingStatus.CONTINUE;
             } catch (ProcessorException | UncheckedProcessorException ex) {
-                logger.debug("got a processing exception: {}", ex);
+                logger.debug("got a processing exception: {}", () -> ex.getMessage());
                 logger.catching(Level.DEBUG, ex);
                 Processor exceptionProcessor = p.getException();
                 if (exceptionProcessor != null) {

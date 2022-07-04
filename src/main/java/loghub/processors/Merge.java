@@ -401,7 +401,7 @@ public class Merge extends Processor {
                 return true;
             }
         } else {
-            logger.trace("pausing {} in {}", event);
+            logger.trace("pausing {} in {}", event, current.event);
             throw new AsyncProcessor.PausedEventException();
         }
     }

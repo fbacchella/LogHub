@@ -62,6 +62,7 @@ import org.apache.hc.core5.pool.PoolReusePolicy;
 import org.apache.hc.core5.util.TimeValue;
 import org.apache.hc.core5.util.VersionInfo;
 import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.message.StringFormattedMessage;
 
 import loghub.Helpers;
 import loghub.configuration.Properties;
@@ -396,12 +397,11 @@ public abstract class AbstractHttpSender extends Sender {
             MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
             mbs.unregisterMBean(getObjectName());
         } catch (InstanceNotFoundException e) {
-            logger.debug("Failed to unregister mbeam: "
-                         + Helpers.resolveThrowableException(e), e);
+            logger.debug(() -> new StringFormattedMessage("Failed to unregister mbeam: {}"
+                         + Helpers.resolveThrowableException(e)), e);
         } catch (MalformedObjectNameException
                         | MBeanRegistrationException e) {
-            logger.error("Failed to unregister mbeam: "
-                         + Helpers.resolveThrowableException(e), e);
+            logger.error("Failed to unregister mbeam: {}", () -> Helpers.resolveThrowableException(e));
             logger.catching(Level.DEBUG, e);
         }
     }

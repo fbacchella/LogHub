@@ -99,7 +99,7 @@ public class AuthenticationHandler {
                 throw new IllegalArgumentException(String.format("JAAS name '%s' not found", jaasName));
             }
         } else if (builder.jaasConfig == null && (builder.jaasName != null && ! builder.jaasName.isEmpty())) {
-            throw new IllegalArgumentException(String.format("Missing JAAS configuration"));
+            throw new IllegalArgumentException("Missing JAAS configuration");
         } else {
             this.jaasName = null;
             this.jaasConfig = null;

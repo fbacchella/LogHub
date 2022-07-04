@@ -399,7 +399,7 @@ public class Start {
             System.err.format("Failed to start loghub: %s%n", Helpers.resolveThrowableException(e));
             exitcode = ExitCode.FAILEDSTART;
         } catch (Throwable e) {
-            System.err.format("Failed to start loghub for an unhandled cause: %s\n", Helpers.resolveThrowableException(e));
+            System.err.format("Failed to start loghub for an unhandled cause: %s%n", Helpers.resolveThrowableException(e));
             e.printStackTrace();
             exitcode = ExitCode.FAILEDSTARTCRITICAL;
         }
@@ -426,7 +426,7 @@ public class Start {
                     try {
                         ev.put("message", i);
                         fp.fieldFunction(ev, i);
-                        System.out.format("%s -> %s\n", i, ev);
+                        System.out.format("%s -> %s%n", i, ev);
                     } catch (ProcessorException e) {
                         System.err.println("Processing failed:" + e.getMessage());
                     }
