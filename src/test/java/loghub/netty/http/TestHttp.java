@@ -38,7 +38,6 @@ public class TestHttp {
     {
         try {
             theurl = new URL(String.format("http://localhost:%d/", serverPort));
-            System.err.println(theurl);
         } catch (MalformedURLException e) {
             throw new RuntimeException(e);
         }
@@ -76,7 +75,7 @@ public class TestHttp {
             HttpRequestProcessing processing = new HttpRequestProcessing() {
                 @Override
                 public boolean acceptRequest(HttpRequest request) {
-                    Thread.dumpStack();return true;
+                    return true;
                 }
 
                 @Override
