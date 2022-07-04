@@ -29,7 +29,6 @@ import java.util.Comparator;
 import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -37,7 +36,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
-import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -67,11 +65,6 @@ public final class Helpers {
     }
 
     @FunctionalInterface
-    public interface TriConsumer<S, T, U> {
-        void accept(S s, T t, U u);
-    }
-
-    @FunctionalInterface
     public interface Actor {
         void act();
     }
@@ -83,8 +76,8 @@ public final class Helpers {
         default boolean test(final T elem) {
             try {
                 return testThrows(elem);
-            } catch (final Exception e) {
-                throw new RuntimeException(e);
+            } catch (Exception e) {
+                throw new IllegalStateException(e);
             }
         }
 
@@ -99,8 +92,8 @@ public final class Helpers {
         default void accept(final T elem) {
             try {
                 acceptThrows(elem);
-            } catch (final Exception e) {
-                throw new RuntimeException(e);
+            } catch (Exception e) {
+                throw new IllegalStateException(e);
             }
         }
 
@@ -115,28 +108,13 @@ public final class Helpers {
         default R apply(final T elem) {
             try {
                 return applyThrows(elem);
-            } catch (final Exception e) {
-                throw new RuntimeException(e);
+            } catch (Exception e) {
+                throw new IllegalStateException(e);
             }
         }
 
         R applyThrows(T elem) throws Exception;
 
-    }
-
-    @FunctionalInterface
-    public interface ThrowingBiFunction<T, U, R> extends BiFunction<T, U, R> {
-
-        @Override
-        default R apply(final T elem1, final U elem2) {
-            try {
-                return applyThrows(elem1, elem2);
-            } catch (final Exception e) {
-                throw new RuntimeException(e);
-            }
-        }
-
-        R applyThrows(final T elem1, final U elem2) throws Exception;
     }
 
     private static final Collator defaultCollator = Collator.getInstance();
@@ -236,9 +214,9 @@ public final class Helpers {
                 return sort;
             }
         }
-        if (i1.hasNext() && ! i2.hasNext()) {
+        if (i1.hasNext()) {
             return 1;
-        } else if (i2.hasNext() && ! i1.hasNext()) {
+        } else if (i2.hasNext()) {
             return -1;
         } else {
             return 0;
@@ -246,12 +224,19 @@ public final class Helpers {
     };
 
     public static <E> Iterable<E> enumIterable(Enumeration<E> e){
-        return () -> new Iterator<E>() {
-            @Override public boolean hasNext() {
+        return () -> new Iterator<>() {
+            @Override
+            public boolean hasNext() {
                 return e.hasMoreElements();
             }
-            @Override public E next() {
-                return e.nextElement();
+
+            @Override
+            public E next() throws NoSuchElementException {
+                if (! e.hasMoreElements()) {
+                    throw new  NoSuchElementException();
+                } else {
+                    return e.nextElement();
+                }
             }
         };
     }
@@ -288,25 +273,25 @@ public final class Helpers {
                     }
                 }
             } else {
-                throw new RuntimeException("cant load ressource at " + url);
+                throw new IllegalArgumentException("cant load ressource at " + url);
             }
         }
     }
 
     /**
-     * Taken from http://stackoverflow.com/questions/1247772/is-there-an-equivalent-of-java-util-regex-for-glob-type-patterns
-     * 
+     * Taken from <a href="http://stackoverflow.com/questions/1247772/is-there-an-equivalent-of-java-util-regex-for-glob-type-patterns">glob to java regex</a>
+     *
      * Converts a standard POSIX Shell globbing pattern into a regular expression
      * pattern. The result can be used with the standard {@link java.util.regex} API to
      * recognize strings which match the glob pattern.
      * <p>
-     * See also, the POSIX Shell language:
-     * http://pubs.opengroup.org/onlinepubs/009695399/utilities/xcu_chap02.html#tag_02_13_01
-     * 
+     * See also, the
+     * <a href="http://pubs.opengroup.org/onlinepubs/009695399/utilities/xcu_chap02.html#tag_02_13_01">POSIX Shell language</a>
+     *
      * @param pattern A glob pattern.
      * @return A regex pattern to recognize the given glob pattern.
      */
-    public static final Pattern convertGlobToRegex(String pattern) {
+    public static Pattern convertGlobToRegex(String pattern) {
         StringBuilder sb = new StringBuilder(pattern.length());
         int inGroup = 0;
         int inClass = 0;
@@ -406,10 +391,10 @@ public final class Helpers {
     }
 
     /**
-     * Check if an Throwable is fatal hence should never be catched.
+     * Check if a Throwable is fatal hence should never be caught.
      * Thanks to superbaloo for the tips
-     * @param err
-     * @return true if the exception is fatal to the JVM and should not be catched in a plugin
+     * @param err the exception to check.
+     * @return true if the exception is fatal to the JVM and should not be caught in a plugin
      */
     public static boolean isFatal(Throwable err) {
         return (
@@ -418,14 +403,6 @@ public final class Helpers {
                         // VirtualMachineError includes OutOfMemoryError and other fatal errors
                         (err instanceof VirtualMachineError || err instanceof InterruptedException || err instanceof ThreadDeath) ) 
                         ;
-    }
-
-    public static Object putNotEmpty(Map<String, Object>i, String j, Object k){
-        if (k != null) {
-            return i.put(j, k);
-        } else {
-            return null;
-        }
     }
 
     public static String getFirstInitClass() {
@@ -447,8 +424,8 @@ public final class Helpers {
 
     /**
      * It tries to extract a meaningful message for any exception
-     * @param t
-     * @return
+     * @param t The exception to test
+     * @return The extracted message
      */
     public static String resolveThrowableException(Throwable t) {
         StringBuilder builder = new StringBuilder();
@@ -501,11 +478,10 @@ public final class Helpers {
             }
             try {
                 URL newEndPoint = new URL(temp);
-                int localport = port;
                 endPoints[i] = new URL(
                                        (newEndPoint.getProtocol() != null ? newEndPoint.getProtocol() : protocol),
                                        (newEndPoint.getHost() != null ? newEndPoint.getHost() : "localhost"),
-                                       (newEndPoint.getPort() > 0 ? newEndPoint.getPort() : localport),
+                                       (newEndPoint.getPort() > 0 ? newEndPoint.getPort() : port),
                                        (newEndPoint.getPath() != null ? newEndPoint.getPath() : "")
                                 );
             } catch (MalformedURLException e) {
@@ -515,26 +491,8 @@ public final class Helpers {
         return endPoints;
     }
 
-    @SuppressWarnings("rawtypes")
-    private static final Iterator EMTPYITERATOR = new Iterator() {
-        @Override
-        public boolean hasNext() {
-            return false;
-        }
-
-        @Override
-        public Event next() {
-            throw new NoSuchElementException();
-        }
-    };
-
-    @SuppressWarnings("unchecked")
-    public static <T> Iterator<T> getEmptyIterator() {
-        return EMTPYITERATOR;
-    }
-
     // Implementing Durstenfeld shuffle (see https://en.wikipedia.org/wiki/Fisher–Yates_shuffle#The_modern_algorithm)
-    public static <T extends Object> void shuffleArray(T[] ar) {
+    public static <T> void shuffleArray(T[] ar) {
         ThreadLocalRandom rnd = ThreadLocalRandom.current();
         for (int i = ar.length - 1; i > 0; i--) {
             int index = rnd.nextInt(i + 1);
@@ -563,9 +521,7 @@ public final class Helpers {
     }
 
     public static String ListenString(String listen) {
-        if (listen == null) {
-            return "0.0.0.0";
-        } else if ("*".equals(listen)) {
+        if (listen == null || "*".equals(listen)) {
             return "0.0.0.0";
         } else {
             return listen;
@@ -573,9 +529,9 @@ public final class Helpers {
     }
 
     /**
-     * Start processors with twice the number of processors. If one fails or interrupted, it will throws a {@link IllegalStateException}.
+     * Start processors with twice the number of processors. If one fails or interrupted, it will throw a {@link IllegalStateException}.
      *
-     * @param props
+     * @param props The loghub configuration to start
      */
     public static void parallelStartProcessor(Properties props) {
         // Running processor init in parallel, as Groovy expression parsing is slow
@@ -584,6 +540,7 @@ public final class Helpers {
         props.pipelines.forEach(p -> p.configure(props, executor, results));
         executor.shutdown();
         try {
+            //noinspection ResultOfMethodCallIgnored
             executor.awaitTermination(Long.MAX_VALUE, TimeUnit.DAYS);
             results.forEach(f -> {
                 try {
@@ -594,26 +551,28 @@ public final class Helpers {
                 } catch (ExecutionException ex) {
                     throw new IllegalStateException("Failed to start a processor: " + Helpers.resolveThrowableException(ex), ex.getCause());
                 } catch (InterruptedException ex) {
+                    Thread.currentThread().interrupt();
                     throw new IllegalStateException("Interrupted while starting a processor");
                 }
             });
         } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
             throw new IllegalStateException("Interrupted while starting a processor");
         }
     }
 
     /**
-     * Parse a source and return an URI, but with specialisation to file.<br>
+     * Parse a source and return a URI, but with specialisation to file.<br>
      * If no scheme is defined, it defaults to a file scheme, where standard URI default to no scheme<br>
      * If a relative path is given, with or without a file scheme, it's resolved to the absolute path, instead of a
      * scheme specific part in the standard URI.<br>
-     * If the scheme is an explicite <code>file</code>, the query (<code>?...</code>) and the fragment (<code>#...</code>)
-     * are preserved, so they can be used as optional parameter to load content. If no scheme is define, the path is
+     * If the scheme is an explicit <code>file</code>, the query (<code>?...</code>) and the fragment (<code>#...</code>)
+     * are preserved, so they can be used as optional parameter to load content. If no scheme is defined, the path is
      * used as is. So <code>file:/example?q</code> will resolve to the file <code>/example</code> with query
      * <code>q</code>, and <code>/example?q</code> will resolve to the file <code>/example?q</code><br>
      * Of course, any other URI is kept unchanged
      * The URI should not be used directly with {@link Paths#get(URI)} as it preserves any eventual query
-     * or fragment and Paths will fails. Instead, one should use <code>Paths.get(Helpers.GeneralizedURI(...).getPath())</code>.<br>
+     * or fragment and Paths will fail. Instead, one should use <code>Paths.get(Helpers.GeneralizedURI(...).getPath())</code>.<br>
      * This method aims to be used as <code>Helpers.GeneralizedURI(...).toURL().openStream()</code>.
      * @param source The path or URI to parse.
      * @return {@link IllegalArgumentException} if the URI can’t be resolved.
