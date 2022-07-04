@@ -664,7 +664,7 @@ class ConfigListener extends RouteBaseListener {
         if (lockedValue == null || lockedValue.equals(valueString)) {
             properties.put(key, value);
         } else {
-            throw new RecognitionException("redefined property " + key, parser, stream, ctx);
+            throw new RecognitionException("Redefined property " + key, parser, stream, ctx);
         }
     }
 

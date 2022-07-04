@@ -227,8 +227,8 @@ public class Configuration {
         // everything else must be set latter
         Optional.ofNullable(properties.get("locale")).ifPresent(this::processLocaleProperty);
         Optional.ofNullable(properties.get("timezone")).ifPresent(this::processTimezoneProperty);
-        Optional.ofNullable(properties.get("log4j.configURL")).ifPresent(pc -> processLog4jUriProperty(pc, tree));
-        Optional.ofNullable(properties.get("log4j.configFile")).ifPresent(pc -> processLog4jUriProperty(pc, tree));
+        Optional.ofNullable(properties.get("log4j.configURL")).ifPresent(pc -> processLog4jUriProperty("log4j.configURL", pc, tree));
+        Optional.ofNullable(properties.get("log4j.configFile")).ifPresent(pc -> processLog4jUriProperty("log4j.configFile", pc, tree));
         Optional.ofNullable(properties.get("secrets.source")).ifPresent(pc -> processSecretSource(pc, tree));
     }
 
@@ -243,11 +243,11 @@ public class Configuration {
         }
     }
 
-    private void processLog4jUriProperty(PropertyContext pc, Tree tree) {
+    private void processLog4jUriProperty(String propertyName, PropertyContext pc, Tree tree) {
         URI log4JUri =  Helpers.FileUri(pc.beanValue().getText());
         resolverLogger(log4JUri, pc, tree);
         logger.debug("Configured log4j URL to {}", log4JUri);
-        lockedProperties.put("log4j.configFile", log4JUri.toString());
+        lockedProperties.put(propertyName, pc.beanValue().getText());
     }
 
     private void resolverLogger(URI log4JUri, PropertyContext pc, Tree tree) {
