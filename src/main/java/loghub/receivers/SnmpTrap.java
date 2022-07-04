@@ -6,13 +6,12 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.Principal;
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
 import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.Logger;
 import org.snmp4j.CommandResponder;
 import org.snmp4j.CommandResponderEvent;
 import org.snmp4j.MessageDispatcherImpl;
@@ -20,6 +19,7 @@ import org.snmp4j.PDU;
 import org.snmp4j.PDUv1;
 import org.snmp4j.Snmp;
 import org.snmp4j.TransportMapping;
+import org.snmp4j.TransportStateReference;
 import org.snmp4j.asn1.BER;
 import org.snmp4j.asn1.BERInputStream;
 import org.snmp4j.log.LogFactory;
@@ -34,12 +34,14 @@ import org.snmp4j.smi.IpAddress;
 import org.snmp4j.smi.OID;
 import org.snmp4j.smi.OctetString;
 import org.snmp4j.smi.Opaque;
+import org.snmp4j.smi.TcpAddress;
 import org.snmp4j.smi.TimeTicks;
 import org.snmp4j.smi.TransportIpAddress;
 import org.snmp4j.smi.UdpAddress;
 import org.snmp4j.smi.UnsignedInteger32;
 import org.snmp4j.smi.Variable;
 import org.snmp4j.smi.VariableBinding;
+import org.snmp4j.transport.DefaultTcpTransportMapping;
 import org.snmp4j.transport.DefaultUdpTransportMapping;
 import org.snmp4j.util.MultiThreadedMessageDispatcher;
 import org.snmp4j.util.ThreadPool;
@@ -63,7 +65,7 @@ public class SnmpTrap extends Receiver implements CommandResponder {
         LogFactory.setLogFactory(new Log4j2LogFactory());
     }
 
-    private static enum GENERICTRAP {
+    private enum GENERICTRAP {
         coldStart,
         warmStart,
         linkDown,
@@ -73,13 +75,18 @@ public class SnmpTrap extends Receiver implements CommandResponder {
         enterpriseSpecific
     }
 
+    enum PROTOCOL {
+        udp,
+        tcp,
+    }
+
     private static final byte TAG1 = (byte) 0x9f;
     private static final byte TAG_FLOAT = (byte) 0x78;
     private static final byte TAG_DOUBLE = (byte) 0x79;
 
     public static class Builder extends Receiver.Builder<SnmpTrap> {
         @Setter
-        private String protocol = "udp";
+        private PROTOCOL protocol = PROTOCOL.udp;
         @Setter
         private int port = 162;
         @Setter
@@ -95,16 +102,15 @@ public class SnmpTrap extends Receiver implements CommandResponder {
         return new Builder();
     }
 
-    private static boolean reconfigured = false;
+    private static OIDFormatter formatter = null;
 
     @Getter
-    private final String protocol;
+    private final PROTOCOL protocol;
     @Getter
     private final int port;
     @Getter
     private final String listen;
 
-    private OIDFormatter formatter = null;
     private Snmp snmp;
     private final ThreadPool threadPool;
 
@@ -116,24 +122,27 @@ public class SnmpTrap extends Receiver implements CommandResponder {
         this.threadPool = ThreadPool.create("Trap", builder.worker);
     }
 
-    @Override
-    public boolean configure(Properties properties) {
-        if(! reconfigured && properties.containsKey("mibdirs")) {
-            reconfigured = true;
-            String[] mibdirs = null;
+    private static synchronized void reconfigure(Logger logger, Properties properties) {
+        if (formatter == null && properties.containsKey("mibdirs")) {
             try {
-                mibdirs = Arrays.stream((Object[]) properties.get("mibdirs"))
-                                .map(Object::toString)
-                                .toArray(String[]::new);
+                String[] mibdirs = Arrays.stream((Object[]) properties.get("mibdirs")).map(Object::toString).toArray(String[]::new);
                 formatter = OIDFormatter.register(mibdirs);
             } catch (ClassCastException e) {
-                logger.error("mibdirs property is not a string array");
+                logger.error("mibdirs property is not an array");
                 logger.catching(Level.DEBUG, e.getCause());
-                return false;
             }
-        } else {
+        } else if (formatter == null) {
             formatter = OIDFormatter.register();
         }
+    }
+
+    public static synchronized void resetMibDirs() {
+        formatter = null;
+    }
+
+    @Override
+    public boolean configure(Properties properties) {
+        reconfigure(logger, properties);
         MultiThreadedMessageDispatcher dispatcher = new MultiThreadedMessageDispatcher(threadPool,
                                                                                        new MessageDispatcherImpl());
         dispatcher.addCommandResponder(this);
@@ -142,12 +151,22 @@ public class SnmpTrap extends Receiver implements CommandResponder {
         Address listenAddress = GenericAddress.parse(protocol + ":" + listen + "/" + port);
         TransportMapping<?> transport;
         try {
-            transport = new DefaultUdpTransportMapping((UdpAddress) listenAddress);
+            switch (protocol) {
+                case udp:
+                    transport = new DefaultUdpTransportMapping((UdpAddress) listenAddress);
+                    break;
+                case tcp:
+                    transport = new DefaultTcpTransportMapping((TcpAddress) listenAddress);
+                    break;
+                default:
+                    // unreachable code
+                    return false;
+            }
         } catch (IOException e) {
             logger.error("can't bind to {}: {}", listenAddress, e.getMessage());
             return false;
         }
-        transport.addTransportListener((a,b,c,d) -> Stats.newReceivedMessage(this, c.remaining()));
+        transport.addTransportListener(this::doStats);
         snmp = new Snmp(dispatcher, transport);
         try {
             snmp.listen();
@@ -156,6 +175,11 @@ public class SnmpTrap extends Receiver implements CommandResponder {
             return false;
         }
         return super.configure(properties);
+    }
+
+    private <A extends Address> void doStats(TransportMapping<? super A> transportMapping, A a,
+            ByteBuffer byteBuffer, TransportStateReference transportStateReference) {
+        Stats.newReceivedMessage(SnmpTrap.this, byteBuffer.remaining());
     }
 
     @Override
@@ -211,9 +235,7 @@ public class SnmpTrap extends Receiver implements CommandResponder {
                 }
                 eventMap.put("time_stamp", 1.0 * pduv1.getTimestamp() / 100.0);
             }
-            @SuppressWarnings("unchecked")
-            Enumeration<VariableBinding> vbenum = (Enumeration<VariableBinding>) pdu.getVariableBindings().elements();
-            for(VariableBinding i: Collections.list(vbenum)) {
+            for (VariableBinding i: pdu.getVariableBindings()) {
                 OID vbOID = i.getOid();
                 Object value = convertVar(i.getVariable());
                 smartPut(eventMap, vbOID, value);
@@ -223,28 +245,15 @@ public class SnmpTrap extends Receiver implements CommandResponder {
                 Optional.ofNullable(trap.getSecurityName())
                 .filter( i -> i.length > 0)
                 .map(i -> new String(i, StandardCharsets.UTF_8))
-                .map(SnmpTrap::getPrincipal)
+                .map(n -> (Principal) () -> n)
                 .ifPresent(ctx::setPrincipal);
             }
             send(mapToEvent(ctx, eventMap));
-        } catch (Exception ex) {
+        } catch (RuntimeException ex) {
             Stats.newUnhandledException(this, ex);
         } finally {
             trap.setProcessed(true);
         }
-    }
-
-    /**
-     * Generate a anonymous inner class but static, with no references to SnmpTrap
-     * @param name the principal name
-     */
-    private static Principal getPrincipal(String name) {
-        return new Principal() {
-            @Override
-            public String getName() {
-                return name;
-            }
-        };
     }
 
     private void smartPut(Map<String, Object> e, OID oid, Object value) {
@@ -254,7 +263,7 @@ public class SnmpTrap extends Receiver implements CommandResponder {
         } else if (oidindex.size() == 1) {
             Object indexvalue = oidindex.values().stream().findFirst().orElse(null);
             // it's an array, so it's a unresolved index
-            if ( indexvalue != null && indexvalue.getClass().isArray()) {
+            if (indexvalue != null && indexvalue.getClass().isArray()) {
                 Map<String, Object> valueMap = new HashMap<>(2);
                 valueMap.put("index", indexvalue);
                 valueMap.put("value", value);
@@ -262,100 +271,92 @@ public class SnmpTrap extends Receiver implements CommandResponder {
             } else {
                 e.put(oid.format(), value);
             }
-        } else if (oidindex.size() > 1) {
+        } else {
             String tableName = oidindex.keySet().stream().findFirst().orElse(null);
-            if (tableName != null) {
-                Object rowName = oidindex.remove(tableName);
-                Map<String, Object> valueMap = new HashMap<>(2);
-                valueMap.put("index", oidindex);
-                valueMap.put("value", value);
-                e.put(rowName.toString(), valueMap);
-            }
+            Object rowName = oidindex.remove(tableName);
+            Map<String, Object> valueMap = new HashMap<>(2);
+            valueMap.put("index", oidindex);
+            valueMap.put("value", value);
+            e.put(rowName.toString(), valueMap);
         }
     }
 
-    private Object convertVar(Variable var) {
-        if(var == null) {
+    private Object convertVar(Variable variable) {
+        if (variable == null) {
             return null;
-        }
-        if(var instanceof UnsignedInteger32) {
-            return var.toLong();
-        }
-        else if(var instanceof Integer32) {
-            return var.toInt();
-        }
-        else if(var instanceof Counter64) {
-            return var.toLong();
-        }
-        else {
-            switch(var.getSyntax()) {
+        } else {
+            switch (variable.getSyntax()) {
             case BER.ASN_BOOLEAN:
-                return var.toInt();
+                return variable.toInt();
             case BER.INTEGER:
-                return var.toInt();
+                return variable.toInt();
             case BER.OCTETSTRING:
-                //It might be a C string, try to remove the last 0;
+                Variable stringVar = variable;
+                //It might be a C string, try to remove the last 0
                 //But only if the new string is printable
-                OctetString octetVar = (OctetString)var;
+                OctetString octetVar = (OctetString) variable;
                 int length = octetVar.length();
-                if(length > 1 && octetVar.get(length - 1) == 0) {
+                if (length > 1 && octetVar.get(length - 1) == 0) {
                     OctetString newVar = octetVar.substring(0, length - 1);
-                    if(newVar.isPrintable()) {
-                        var = newVar;
-                        logger.debug("Convertion an octet stream from {} to {}", octetVar, var);
+                    if (newVar.isPrintable()) {
+                        stringVar = newVar;
+                        logger.debug("Convertion an octet stream from {} to {}", octetVar, stringVar);
                     }
                 }
-                return var.toString();
+                return stringVar.toString();
             case BER.NULL:
                 return null;
             case BER.OID: {
-                OID oid = (OID) var;
+                OID oid = (OID) variable;
                 Map<String, Object> parsed = formatter.store.parseIndexOID(oid.getValue());
                 // If an empty map was return or a single entry map, it's not an table entry, just format the OID
-                if (parsed.size() <= 1) {
-                    return oid.format();
-                } else {
-                    return parsed;
-                }
-
+                return parsed.size() <= 1 ? oid.format() : parsed;
             }
             case BER.IPADDRESS:
-                return ((IpAddress)var).getInetAddress();
+                return ((IpAddress)variable).getInetAddress();
             case BER.COUNTER32:
             case BER.GAUGE32:
-                return var.toLong();
+                return variable.toLong();
             case BER.TIMETICKS:
-                return 1.0 * ((TimeTicks)var).toMilliseconds() / 1000.0;
+                return 1.0 * ((TimeTicks)variable).toMilliseconds() / 1000.0;
             case BER.OPAQUE:
-                return resolvOpaque((Opaque) var);
+                return resolvOpaque((Opaque) variable);
             case BER.COUNTER64:
-                return var.toLong();
+                return variable.toLong();
             default:
-                logger.warn("Unknown syntax: " + var.getSyntaxString());
-                return null;
+                if (variable instanceof UnsignedInteger32) {
+                    return variable.toLong();
+                } else if (variable instanceof Integer32) {
+                    return variable.toInt();
+                } else if (variable instanceof Counter64) {
+                    return variable.toLong();
+                } else {
+                    logger.warn("Unknown syntax: {}", variable::getSyntaxString);
+                    return null;
+                }
             }
         }
     }
 
-    private Object resolvOpaque(Opaque var) {
+    private Object resolvOpaque(Opaque variable) {
         //If not resolved, we will return the data as an array of bytes
-        Object value = var.getValue();
-
+        Object value = variable.getValue();
         try {
-            byte[] bytesArray = var.getValue();
+            byte[] bytesArray = variable.getValue();
             ByteBuffer bais = ByteBuffer.wrap(bytesArray);
             BERInputStream beris = new BERInputStream(bais);
             byte t1 = bais.get();
             byte t2 = bais.get();
             int l = BER.decodeLength(beris);
-            if(t1 == TAG1) {
-                if(t2 == TAG_FLOAT && l == 4)
+            if (t1 == TAG1) {
+                if (t2 == TAG_FLOAT && l == 4) {
                     value = bais.getFloat();
-                else if(t2 == TAG_DOUBLE && l == 8)
+                } else if (t2 == TAG_DOUBLE && l == 8){
                     value = bais.getDouble();
+                }
             }
         } catch (IOException e) {
-            logger.error(var.toString());
+            logger.error(variable.toString());
         }
         return value;
     }

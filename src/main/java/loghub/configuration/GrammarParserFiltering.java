@@ -67,7 +67,8 @@ public class GrammarParserFiltering {
             Map.entry("numWorkers", BEANTYPE.INTEGER),
             Map.entry("maxSteps", BEANTYPE.INTEGER),
             Map.entry("jmx.port", BEANTYPE.INTEGER),
-            Map.entry("jmx.protocol", BEANTYPE.STRING)
+            Map.entry("jmx.protocol", BEANTYPE.STRING),
+            Map.entry("mibdirs", BEANTYPE.ARRAY)
     );
 
     private final ArrayDeque<Class<?>> objectStack = new ArrayDeque<>();
