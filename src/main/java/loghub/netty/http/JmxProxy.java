@@ -108,9 +108,7 @@ public class JmxProxy extends HttpRequestProcessing {
         if (o instanceof CompositeData) {
             CompositeData co = (CompositeData) o;
             Map<String, Object> content = new HashMap<>();
-            co.getCompositeType().keySet().forEach( i-> {
-                content.put(i, resolveAttribute(co.get(i)));
-            });
+            co.getCompositeType().keySet().forEach(i-> content.put(i, resolveAttribute(co.get(i))));
             return content;
         } else if (o instanceof ObjectName) {
             return null;

@@ -132,21 +132,15 @@ public abstract class SimpleBerCodec {
     }
 
     protected void writeBitString(ByteBuffer topbuffer, byte[] data) {
-        writeType(BITSTRING, topbuffer, i -> {
-            i.put(data);
-        });
+        writeType(BITSTRING, topbuffer, i -> i.put(data));
     }
 
     protected void writeOctetString(ByteBuffer topbuffer, byte[] data) {
-        writeType(OCTETSTRING, topbuffer, i -> {
-            i.put(data);
-        });
+        writeType(OCTETSTRING, topbuffer, i -> i.put(data));
     }
 
     protected void writeInteger(ByteBuffer topbuffer, long value) {
-        writeType(INTEGER, topbuffer, i -> {
-            i.put((byte) value);
-        });
+        writeType(INTEGER, topbuffer, i -> i.put((byte) value));
     }
 
     private void writeType(byte type, ByteBuffer topbuffer, Consumer<ByteBuffer> fill) {

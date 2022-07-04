@@ -451,12 +451,11 @@ public class ElasticSearch extends AbstractHttpSender {
         for (Map.Entry<String, String> e: aliases.entrySet()) {
             Optional<Boolean> status = Optional.ofNullable(node.get(e.getValue()))
                     .map(n -> n.get("settings"))
-                    .map(n -> {
-                        return Optional.ofNullable(n.get("index.blocks.read_only_allow_delete"))
-                                .map(JsonNode::asBoolean)
-                                .orElse(false);
-                    });
             if (! status.isPresent()) {
+                    .map(n -> Optional.ofNullable(n.get("index.blocks.read_only_allow_delete"))
+                                      .map(JsonNode::asBoolean)
+                                      .orElse(false)
+                    );
                 missing.add(e.getKey());
             } else if (Boolean.TRUE.equals(status.get())) {
                 readonly.add(e.getKey());

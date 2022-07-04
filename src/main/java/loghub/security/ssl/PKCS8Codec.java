@@ -26,9 +26,7 @@ public class PKCS8Codec extends SimpleBerCodec {
     public void write() {
         writeSequence(buffer, i -> {
             writeInteger(i, 0);
-            writeSequence(i, j -> {
-                writeOid(j, oid);
-            });
+            writeSequence(i, j -> writeOid(j, oid));
             writeOctetString(i, key);
         });
     }
@@ -39,9 +37,7 @@ public class PKCS8Codec extends SimpleBerCodec {
             if (version != 0) {
                 throw new IllegalStateException("Only PKCS#8 version 0 supported");
             }
-            readSequence(i, j-> {
-                oid = readOid(j);
-            });
+            readSequence(i, j-> oid = readOid(j));
             key = readOctetString(i);
         });
     }

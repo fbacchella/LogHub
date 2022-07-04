@@ -94,9 +94,7 @@ public class ScanBinary extends FieldsProcessor {
     public Object[] getFieldsLength() {
         if(fieldsLength != null) {
             Object[] returned = new Object[fieldsLength.length];
-            IntStream.range(0, fieldsLength.length).forEach(i -> {
-                returned[i] = fieldsLength[i];
-            });
+            IntStream.range(0, fieldsLength.length).forEach(i -> returned[i] = fieldsLength[i]);
             return returned;
         } else {
             return null;

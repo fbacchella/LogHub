@@ -38,9 +38,7 @@ public class Grok extends FieldsProcessor {
         Helpers.ThrowingConsumer<InputStream> grokloader = is -> grokCompiler.register(new InputStreamReader(new BufferedInputStream(is)));
         try {
             Helpers.readRessources(properties.classloader, PATTERNSFOLDER, grokloader);
-            customPatterns.forEach((k,v) -> {
-                grokCompiler.register(k.toString(), v.toString());
-            });
+            customPatterns.forEach((k,v) -> grokCompiler.register(k.toString(), v.toString()));
             grok = grokCompiler.compile(pattern, true);
             // Switch to true when  https://github.com/thekrakken/java-grok/issues/61 is fixed
         } catch (IOException | URISyntaxException | IllegalArgumentException e) {

@@ -50,10 +50,8 @@ public class TestEventProcessing {
     public static final Level LOGLEVEL = Level.INFO;
 
     private static final ObjectMapper jsonmapper = JacksonBuilder.get(JsonMapper.class)
-                                            .setConfigurator(m -> {
-                                                m.configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false)
-                                                 .configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true);
-                                            })
+                                            .setConfigurator(m -> m.configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false)
+                                                                   .configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true))
                                             .feature(JsonWriteFeature.ESCAPE_NON_ASCII)
                                             .getMapper();
 

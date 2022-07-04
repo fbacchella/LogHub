@@ -65,9 +65,7 @@ public class Nsca extends Sender {
     private final String name;
     public Nsca(Builder builder) {
         super(builder);
-        builder.mapping.forEach((k, v) -> {
-            mapping.put(MAPFIELD.valueOf(k.toUpperCase()), v);
-        });
+        builder.mapping.forEach((k, v) -> mapping.put(MAPFIELD.valueOf(k.toUpperCase()), v));
         NagiosSettings settings = new NagiosSettings();
         if (builder.port > 0) {
             settings.setPort(builder.port);

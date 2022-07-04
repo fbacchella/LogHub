@@ -338,11 +338,9 @@ public abstract class AbstractHttpSender extends Sender {
     protected HttpResponse doRequest(HttpRequest therequest) {
         HttpClientContext context = HttpClientContext.create();
 
-        HttpHost host = hosts.computeIfAbsent(therequest.url, u -> {
-           return new HttpHost(u.getProtocol(),
-                               u.getHost(),
-                               u.getPort());
-        });
+        HttpHost host = hosts.computeIfAbsent(therequest.url,
+                u -> new HttpHost(u.getProtocol(), u.getHost(), u.getPort())
+        );
 
         Method method = Method.valueOf(therequest.verb.toUpperCase(Locale.ENGLISH));
         ClassicHttpRequest request = new BasicClassicHttpRequest(method, host, therequest.url.getFile());

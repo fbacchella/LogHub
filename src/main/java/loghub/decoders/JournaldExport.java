@@ -76,9 +76,7 @@ public class JournaldExport extends Decoder {
 
     private static final Pattern ANSIPATTERN = Pattern.compile("\u001B\\[[;\\d]*[ -/]*[@-~]");
 
-    private static final ThreadLocal<CharsetDecoder> utf8decoder = ThreadLocal.withInitial( () -> {
-        return StandardCharsets.UTF_8.newDecoder().onUnmappableCharacter(CodingErrorAction.REPORT).onMalformedInput(CodingErrorAction.REPORT);
-    });
+    private static final ThreadLocal<CharsetDecoder> utf8decoder = ThreadLocal.withInitial(() -> StandardCharsets.UTF_8.newDecoder().onUnmappableCharacter(CodingErrorAction.REPORT).onMalformedInput(CodingErrorAction.REPORT));
 
     /**
      * When using as a decoder within a non Netty receiver, threads handle a single flow of events.
