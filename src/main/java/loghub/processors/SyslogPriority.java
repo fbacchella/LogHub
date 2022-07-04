@@ -76,7 +76,7 @@ public class SyslogPriority extends FieldsProcessor {
         }
         int facility = (priority >> 3);
         int severity = priority & 7;
-        Optional<String> facilityName = null;
+        Optional<String> facilityName = Optional.empty();
         String severityName = null;
         if (resolve || ecs) {
             facilityName = Optional.of(priorityObject)
