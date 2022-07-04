@@ -4,28 +4,27 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import org.apache.log4j.spi.LoggingEvent;
 
 import loghub.Event;
-import loghub.Helpers;
 
-public class Log4Extract extends ObjectExtractor<LoggingEvent> {
+public class Log4JExtract extends ObjectExtractor<LoggingEvent> {
 
     @Override
     public void extract(Event event, LoggingEvent o) {
-        Helpers.putNotEmpty(event, "path", o.getLoggerName());
-        Helpers.putNotEmpty(event, "priority", o.getLevel().toString());
-        Helpers.putNotEmpty(event, "logger_name", o.getLoggerName());
-        Helpers.putNotEmpty(event, "thread", o.getThreadName());
+        Optional.ofNullable(o.getLoggerName()).ifPresent(v -> event.put("path", v));
+        Optional.ofNullable(o.getLevel().toString()).ifPresent(v -> event.put("priority", v));
+        Optional.ofNullable(o.getLoggerName()).ifPresent(v -> event.put("logger_name", v));
         o.getLocationInformation();
-        if(o.getLocationInformation().fullInfo != null) {
-            Helpers.putNotEmpty(event, "class", o.getLocationInformation().getClassName());
-            Helpers.putNotEmpty(event, "file", o.getLocationInformation().getFileName());
-            Helpers.putNotEmpty(event, "method", o.getLocationInformation().getMethodName());
-            Helpers.putNotEmpty(event, "line", o.getLocationInformation().getLineNumber());
+        if (o.getLocationInformation().fullInfo != null) {
+            Optional.ofNullable(o.getLocationInformation().getClassName()).ifPresent(v -> event.put("class", v));
+            Optional.ofNullable(o.getLocationInformation().getFileName()).ifPresent(v -> event.put("file", v));
+            Optional.ofNullable(o.getLocationInformation().getMethodName()).ifPresent(v -> event.put("method", v));
+            Optional.ofNullable(o.getLocationInformation().getLineNumber()).ifPresent(v -> event.put("line", v));
         }
-        Helpers.putNotEmpty(event, "NDC", o.getNDC());
+        Optional.ofNullable(o.getNDC()).ifPresent(v -> event.put("NDC", v));
         if(o.getThrowableStrRep() != null) {
             List<String> stack = new ArrayList<>();
             for(String l: o.getThrowableStrRep()) {
