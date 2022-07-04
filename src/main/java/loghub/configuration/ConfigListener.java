@@ -211,7 +211,7 @@ class ConfigListener extends RouteBaseListener {
 
     private final ClassLoader classLoader;
     private final SecretsHandler secrets;
-    private final Map<String, Object> lockedProperties;
+    private final Map<String, String> lockedProperties;
     private final GroovyClassLoader groovyClassLoader;
     private final BeansManager beansManager;
 
@@ -219,7 +219,7 @@ class ConfigListener extends RouteBaseListener {
     private IntStream stream;
 
     @Builder
-    private ConfigListener(ClassLoader classLoader, SecretsHandler secrets, Map<String, Object> lockedProperties, GroovyClassLoader groovyClassLoader) {
+    private ConfigListener(ClassLoader classLoader, SecretsHandler secrets, Map<String, String> lockedProperties, GroovyClassLoader groovyClassLoader) {
         this.classLoader = classLoader != null ? classLoader : ConfigListener.class.getClassLoader();
         this.secrets = secrets != null ? secrets : SecretsHandler.empty();
         this.lockedProperties = lockedProperties != null ? lockedProperties : new HashMap<>();
@@ -659,8 +659,8 @@ class ConfigListener extends RouteBaseListener {
         Object value = ((ObjectWrapped<?>) stack.pop()).wrapped;
         String key = ctx.propertyName.getText();
         // Avoid reprocess already processed properties
-        String lockedValue = (String) lockedProperties.computeIfPresent(key, (k, v) -> v.getClass().isArray() ? Arrays.toString((Object[]) v) : v.toString());
-        String valueString = value.getClass().isArray() ? Arrays.toString((Object[]) value) : value.toString();
+        String lockedValue = lockedProperties.get(key);
+        String valueString = ctx.beanValue().getText();
         if (lockedValue == null || lockedValue.equals(valueString)) {
             properties.put(key, value);
         } else {

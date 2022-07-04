@@ -76,7 +76,7 @@ public class Configuration {
     private ClassLoader classLoader = Configuration.class.getClassLoader();
     private GroovyClassLoader groovyClassLoader = new GroovyClassLoader(classLoader);
     private SecretsHandler secrets = null;
-    private final Map<String, Object> lockedProperties = new HashMap<>();
+    private final Map<String, String> lockedProperties = new HashMap<>();
     private final Set<Path> loadedConfigurationFiles = new HashSet<>();
     private final ConfigErrorListener errListener = new ConfigErrorListener();
 
@@ -143,7 +143,7 @@ public class Configuration {
                         logger.debug("Looking for plugins in {}", (Object[])path);
                         classLoader = doClassLoader(path);
                         groovyClassLoader = new GroovyClassLoader(classLoader);
-                        lockedProperties.put("plugins", Arrays.toString(path));
+                        lockedProperties.put("plugins", pc.beanValue().getText());
                     } catch (IOException | UncheckedIOException ex) {
                         throw new ConfigException("can't load plugins: " + ex.getMessage(), cs.getSourceName(), pc.start, ex);
                     }
