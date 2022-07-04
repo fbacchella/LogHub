@@ -117,12 +117,12 @@ public class ZMQ extends Sender {
         if (isWithBatch()) {
             try {
                 publisher.start();
-                // If start withoud handlers threads started, it will fails
-                // This latch prevent that
+                // If start without handlers threads started, it will fail
+                // This latch prevents that
                 latch.await();
                 super.run();
             } catch (InterruptedException e) {
-                // Nothing
+                Thread.currentThread().interrupt();
             }
         } else {
             try {

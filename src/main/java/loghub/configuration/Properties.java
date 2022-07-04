@@ -224,7 +224,10 @@ public class Properties extends HashMap<String, Object> {
 
         try {
             dashboard = buildDashboad(filterPrefix(properties, "http"));
-        } catch (IllegalArgumentException | ExecutionException | InterruptedException e) {
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new ConfigException("Failed to build dashboard", e);
+        } catch (IllegalArgumentException | ExecutionException e) {
             throw new ConfigException("Failed to build dashboard", e);
         }
 
