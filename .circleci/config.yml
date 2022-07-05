@@ -10,7 +10,13 @@ jobs:
             - run: mkdir -p /home/circleci/.sonar/cache /home/circleci/.m2/repository
             - run:
                 # A bug in dependency:go-offline, see https://issues.apache.org/jira/browse/MDEP-688
-                command: "mvn -B dependency:resolve dependency:resolve-plugins sonar:help jacoco:help -Psonar,versions -s .circleci/settings.xml"
+                command: |
+                    sudo apt-get update
+                    sudo apt install libsnmp-base snmp-mibs-downloader
+                    sudo sudo mv /usr/share/snmp/mibs/ietf/* /usr/share/snmp/mibs/
+                    sudo sudo mv /usr/share/snmp/mibs/iana/* /usr/share/snmp/mibs/
+                    sudo rm /usr/share/snmp/mibs/HPR-MIB
+                    mvn -B dependency:resolve dependency:resolve-plugins sonar:help jacoco:help -Psonar,versions -s .circleci/settings.xml
                 environment:
                     MAVEN_OPTS: "-Xmx1024m"
             - persist_to_workspace:
@@ -19,6 +25,7 @@ jobs:
                     - home/circleci/.m2/repository
                     - home/circleci/.sonar/cache
                     - home/circleci/project
+                    - usr/share/snmp/mibs/
     build:
         docker:
             - image: cimg/openjdk:17.0
@@ -50,6 +57,8 @@ jobs:
                     mv -n /tmp/ws/home/circleci/.m2 /home/circleci/
                     mv -n /tmp/ws/home/circleci/project/* /home/circleci/project/
                     mv -n /tmp/ws/home/circleci/project/.??* /home/circleci/project/
+                    sudo mkdir -p /usr/share/snmp/mibs/
+                    sudo mv -n /tmp/ws/usr/share/snmp/mibs/* /usr/share/snmp/mibs/
             - run:
                 command: |
                     # If no symbolic name, it's a PR, will run sonar
@@ -82,6 +91,8 @@ jobs:
                     mv -n /tmp/ws/home/circleci/.sonar /home/circleci/
                     mv -n /tmp/ws/home/circleci/project/* /home/circleci/project/
                     mv -n /tmp/ws/home/circleci/project/.??* /home/circleci/project/
+                    sudo mkdir -p /usr/share/snmp/mibs/
+                    sudo mv -n /tmp/ws/usr/share/snmp/mibs/* /usr/share/snmp/mibs/
             - run:
                 command: |
                     mkdir -p /tmp/$CIRCLE_JOB
