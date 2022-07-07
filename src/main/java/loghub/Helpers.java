@@ -578,15 +578,21 @@ public final class Helpers {
      * @return {@link IllegalArgumentException} if the URI can’t be resolved.
      */
     public static URI FileUri(String source) {
+        URI sourceURI;
         try {
-            URI sourceURI = URI.create(source).normalize();
+            sourceURI = URI.create(source).normalize();
+        } catch (IllegalArgumentException ex) {
+            // Invalid URI, will be tried as a Path
+            sourceURI = null;
+        }
+        try {
             URI newURI;
-            if (sourceURI.getScheme() == null) {
+            if (sourceURI == null || sourceURI.getScheme() == null) {
                 newURI = Paths.get(source).toUri();
             } else if ("file".equals(sourceURI.getScheme()) && sourceURI.getSchemeSpecificPart() != null && sourceURI.getPath() == null){
                 // If file is a relative URI, it's not resolved, and it's stored in the SSP
                 String uriBuffer = "file://" + Paths.get(".").toAbsolutePath() + File.separator + sourceURI.getSchemeSpecificPart();
-                 // intermediate URI becase URI.normalize() is not smart enough
+                 // intermediate URI because URI.normalize() is not smart enough
                 URI tempUri = URI.create(uriBuffer);
                 newURI = new URI("file", tempUri.getAuthority(), "//" + Paths.get(tempUri.getPath()).normalize(), tempUri.getQuery(), sourceURI.getFragment());
             } else if ("file".equals(sourceURI.getScheme())) {
