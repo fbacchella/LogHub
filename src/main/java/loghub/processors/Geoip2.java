@@ -91,7 +91,7 @@ public class Geoip2 extends FieldsProcessor {
     @Getter
     private final AtomicReference<Reader> reader;
     @Getter
-    private Duration delay;
+    private final Duration delay;
 
     public Geoip2(Builder builder) {
         super(builder);
@@ -321,14 +321,14 @@ public class Geoip2 extends FieldsProcessor {
             try {
                 lreader = new Reader(new File(geoipdb.getPath()), nc);
             } catch (IOException e) {
-                logger.error("can't read geoip database {}", geoipdb);
+                logger.error("can't read geoip database {}: {}", () -> geoipdb, () -> Helpers.resolveThrowableException(e));
                 logger.throwing(Level.DEBUG, e);
             }
         } else if (geoipdb != null) {
             try (InputStream is = geoipdb.toURL().openStream()){
                 lreader = new Reader(is, nc);
             } catch (IOException e) {
-                logger.error("can't read geoip database {}", geoipdb);
+                logger.error("can't read geoip database {}: {}", () -> geoipdb, () -> Helpers.resolveThrowableException(e));
                 logger.throwing(Level.DEBUG, e);
             }
         } else {
