@@ -39,6 +39,15 @@ import static loghub.netty.transport.NettyTransport.DEFINEDSSLALIAS;
 
 public class ContextLoader {
 
+    private static final String DEFAULT_SECURERANDOM;
+    static {
+        String operatingSystem = System.getProperty("os.name", "");
+        if (operatingSystem.startsWith("Windows")){
+            DEFAULT_SECURERANDOM = "Windows-PRNG";
+        } else {
+            DEFAULT_SECURERANDOM = "NativePRNGNonBlocking";
+        }
+    }
     private static final Logger logger = LogManager.getLogger();
 
     private ContextLoader() {
@@ -82,7 +91,7 @@ public class ContextLoader {
             String sslProviderClass =  properties.getOrDefault("providerclass", "").toString();
             String keyManagerAlgorithm = properties.getOrDefault("keymanageralgorithm", KeyManagerFactory.getDefaultAlgorithm()).toString();
             String trustManagerAlgorithm = properties.getOrDefault("trustmanageralgorithm", KeyManagerFactory.getDefaultAlgorithm()).toString();
-            String secureRandom = properties.getOrDefault("securerandom", "NativePRNGNonBlocking").toString();
+            String secureRandom = properties.getOrDefault("securerandom", DEFAULT_SECURERANDOM).toString();
 
             Provider secureProvider = null;
             if (! sslProviderClass.isEmpty()) {
