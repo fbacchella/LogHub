@@ -49,7 +49,7 @@ public class UserAgent extends FieldsProcessor {
         super(builder);
         agentsUrl = Optional.ofNullable(builder.agentsFile)
                             .or(() -> Optional.ofNullable(builder.agentsUrl))
-                            .map(Helpers::FileUri)
+                            .map(Helpers::fileUri)
                             .orElse(null);
         cacheSize = builder.cacheSize;
     }

@@ -104,7 +104,7 @@ public class Geoip2 extends FieldsProcessor {
                                .toArray(LocationType[]::new);
         }
         this.geoipdb = Optional.ofNullable(builder.geoipdb)
-                               .map(Helpers::FileUri)
+                               .map(Helpers::fileUri)
                                .orElse(null);
         this.locale = Locale.forLanguageTag(builder.locale).getLanguage();
         this.cacheSize = builder.cacheSize;
@@ -303,7 +303,7 @@ public class Geoip2 extends FieldsProcessor {
         if (geoipdb == null) {
             geoipdb = Optional.ofNullable(properties.get("geoip2data"))
                               .map(Object::toString)
-                              .map(Helpers::FileUri)
+                              .map(Helpers::fileUri)
                               .orElse(null);
         }
         refresh(cacheBuilder);

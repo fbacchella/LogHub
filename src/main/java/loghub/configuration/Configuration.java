@@ -244,7 +244,7 @@ public class Configuration {
     }
 
     private void processLog4jUriProperty(String propertyName, PropertyContext pc, Tree tree) {
-        URI log4JUri =  Helpers.FileUri(pc.beanValue().getText());
+        URI log4JUri =  Helpers.fileUri(pc.beanValue().getText());
         resolverLogger(log4JUri, pc, tree);
         logger.debug("Configured log4j URL to {}", log4JUri);
         lockedProperties.put(propertyName, pc.beanValue().getText());

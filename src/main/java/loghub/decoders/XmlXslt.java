@@ -116,7 +116,7 @@ public class XmlXslt extends Decoder implements ErrorListener, ErrorHandler {
 
     private InputStream getXsltStream(String xslt) throws IOException {
         if (xslt != null) {
-            return Helpers.FileUri(xslt).toURL().openStream();
+            return Helpers.fileUri(xslt).toURL().openStream();
         } else {
             // using a default transformer found at https://www.bjelic.net/2012/08/01/coding/convert-xml-to-json-using-xslt/
             return XmlXslt.class.getResourceAsStream("/xml2json.xsl");

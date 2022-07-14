@@ -577,7 +577,28 @@ public final class Helpers {
      * @param source The path or URI to parse.
      * @return {@link IllegalArgumentException} if the URI can’t be resolved.
      */
-    public static URI FileUri(String source) {
+    public static URI fileUri(String source) {
+        return fileUri(source, Paths.get(""));
+    }
+
+    /**
+     * Parse a source and return a URI, but with specialisation to file.<br>
+     * If no scheme is defined, it defaults to a file scheme, where standard URI default to no scheme<br>
+     * If a relative path is given, with or without a file scheme, it's resolved to the absolute path, instead of a
+     * scheme specific part in the standard URI.<br>
+     * If the scheme is an explicit <code>file</code>, the query (<code>?...</code>) and the fragment (<code>#...</code>)
+     * are preserved, so they can be used as optional parameter to load content. If no scheme is defined, the path is
+     * used as is. So <code>file:/example?q</code> will resolve to the file <code>/example</code> with query
+     * <code>q</code>, and <code>/example?q</code> will resolve to the file <code>/example?q</code><br>
+     * Of course, any other URI is kept unchanged
+     * The URI should not be used directly with {@link Paths#get(URI)} as it preserves any eventual query
+     * or fragment and Paths will fail. Instead, one should use <code>Paths.get(Helpers.GeneralizedURI(...).getPath())</code>.<br>
+     * This method aims to be used as <code>Helpers.GeneralizedURI(...).toURL().openStream()</code>.
+     * @param source The path or URI to parse.
+     * @param root the root to resolve relatives path
+     * @return {@link IllegalArgumentException} if the URI can’t be resolved.
+     */
+    public static URI fileUri(String source, Path root) {
         URI sourceURI;
         try {
             sourceURI = URI.create(source).normalize();
@@ -588,21 +609,26 @@ public final class Helpers {
         try {
             URI newURI;
             if (sourceURI == null || sourceURI.getScheme() == null) {
-                newURI = Paths.get(source).toUri();
+                newURI = root.resolve(source).toUri();
+            } else if ("file".equals(sourceURI.getScheme()) && sourceURI.getHost() != null) {
+                // Written as file://relativepath, mistake the first part as a host
+                String newPath = sourceURI.getHost() + ((sourceURI.getPath() == null || sourceURI.getPath().isEmpty()) ? "" : "/" + sourceURI.getPath());
+                newURI = new URI("file", null, "//" + root.resolve(newPath).toAbsolutePath().toString(),
+                        sourceURI.getQuery(), sourceURI.getFragment());
             } else if ("file".equals(sourceURI.getScheme()) && sourceURI.getSchemeSpecificPart() != null && sourceURI.getPath() == null){
                 // If file is a relative URI, it's not resolved, and it's stored in the SSP
-                String uriBuffer = "file://" + Paths.get(".").toAbsolutePath() + File.separator + sourceURI.getSchemeSpecificPart();
+                String uriBuffer = "file://" + root.toAbsolutePath() + File.separator + sourceURI.getSchemeSpecificPart();
                  // intermediate URI because URI.normalize() is not smart enough
                 URI tempUri = URI.create(uriBuffer);
-                newURI = new URI("file", tempUri.getAuthority(), "//" + Paths.get(tempUri.getPath()).normalize(), tempUri.getQuery(), sourceURI.getFragment());
+                newURI = new URI("file", tempUri.getAuthority(), "//" + root.resolve(tempUri.getPath()).normalize(), tempUri.getQuery(), sourceURI.getFragment());
             } else if ("file".equals(sourceURI.getScheme())) {
-                newURI = new URI("file", sourceURI.getAuthority(), "//" + Paths.get(sourceURI.getPath()), sourceURI.getQuery(), sourceURI.getFragment());
+                newURI = new URI("file", sourceURI.getAuthority(), "//" + root.resolve(sourceURI.getPath()), sourceURI.getQuery(), sourceURI.getFragment());
             } else {
                 newURI = sourceURI;
             }
             return newURI.normalize();
         } catch (URISyntaxException | FileSystemNotFoundException ex) {
-            throw new IllegalArgumentException("Invalid generalized source path: " + Helpers.resolveThrowableException(ex));
+            throw new IllegalArgumentException("Invalid generalized source path: " + Helpers.resolveThrowableException(ex), ex);
         }
     }
 

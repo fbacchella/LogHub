@@ -403,7 +403,7 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
                 }
             }
         } else {
-            URI pathURI = Helpers.FileUri(path);
+            URI pathURI = Helpers.fileUri(path);
             QueryStringDecoder qsd = new QueryStringDecoder(pathURI);
             // Stream to only keep the last value of any parameter
             Map<String, Object> fileParams = qsd.parameters().entrySet().stream()

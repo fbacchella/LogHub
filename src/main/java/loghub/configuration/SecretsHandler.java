@@ -51,11 +51,11 @@ public class SecretsHandler implements Closeable {
     private boolean modified = false;
 
     public static SecretsHandler load(@NonNull String storePath) throws IOException {
-        return new SecretsHandler(Helpers.FileUri(storePath), ACTION.LOAD);
+        return new SecretsHandler(Helpers.fileUri(storePath), ACTION.LOAD);
     }
 
     public static SecretsHandler create(@NonNull String storePath) throws IOException {
-        return new SecretsHandler(Helpers.FileUri(storePath), ACTION.CREATE);
+        return new SecretsHandler(Helpers.fileUri(storePath), ACTION.CREATE);
     }
 
     public static SecretsHandler empty() {

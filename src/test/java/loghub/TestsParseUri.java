@@ -17,6 +17,7 @@ public class TestsParseUri {
         docheck("file:test",  Paths.get(root, "test"), null, null);
         docheck("file:dir/test", Paths.get(root, "dir", "test"), null, null);
         docheck("file:/dir/test", Paths.get("/dir", "test"), null, null);
+        docheck("file:/dir/test%3Fq", Paths.get("/dir", "test?q"), null, null);
         docheck("file:test?q", Paths.get(root, "test"), "q", null);
         docheck("file:test#f", Paths.get(root, "test"), null, "f");
         docheck("file:/test?q", Paths.get("/test"), "q", null);
@@ -28,11 +29,21 @@ public class TestsParseUri {
         docheck("test?q", Paths.get(root,"test?q").normalize(), null, null);
         docheck("test#f", Paths.get(root,"test#f").normalize(), null, null);
         docheck("/test", Paths.get("/test").normalize(), null, null);
+        docheck("/space file", Paths.get("/space file").normalize(), null, null);
+        docheck("file://target/classes/log4j2.xml", Paths.get(root, "target", "classes", "log4j2.xml").normalize(), null, null);
+        docheck("file:///tmp/", Paths.get("/", "tmp").normalize(), null, null);
+    }
+
+    @Test
+    public void testRelative() {
+        Assert.assertEquals(Path.of("/", "tmp").toUri(), Helpers.fileUri("tmp", Paths.get("/")));
+        Assert.assertEquals(Path.of("/", "tmp", "log4j2.xml").toUri(), Helpers.fileUri("file:tmp/log4j2.xml", Paths.get("/")));
+        Assert.assertEquals(Path.of("/", "tmp", "log4j2.xml").toUri(), Helpers.fileUri("file://log4j2.xml", Paths.get("/tmp")));
     }
 
     private void docheck(String uri, Path realfile, String query, String fragment) {
-        URI fileURI = Helpers.FileUri(uri);
-        Assert.assertTrue(fileURI.toString().startsWith("file:///"));
+        URI fileURI = Helpers.fileUri(uri);
+        Assert.assertTrue(fileURI.toString(), fileURI.toString().startsWith("file:///"));
         Assert.assertEquals(realfile, Paths.get(fileURI.getPath()));
         Assert.assertEquals(query, fileURI.getQuery());
         Assert.assertEquals(fragment, fileURI.getFragment());
