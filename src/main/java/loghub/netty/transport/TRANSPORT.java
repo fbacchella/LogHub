@@ -49,7 +49,7 @@ public enum TRANSPORT {
     TRANSPORT(boolean connectedServer) {
         this.connectedServer = connectedServer;
     }
-    boolean isConnectedServer() {
+    public boolean isConnectedServer() {
         return connectedServer;
     }
     public abstract <T extends NettyTransport<S, M>, S extends SocketAddress, M> T getInstance(POLLER poller);

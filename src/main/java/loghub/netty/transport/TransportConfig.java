@@ -41,4 +41,6 @@ public class TransportConfig {
     ClientAuthentication sslClientAuthentication = null;
     @Getter @Setter
     String threadPrefix;
+    @Getter @Setter
+    private int timeout = -1;
 }

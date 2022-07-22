@@ -90,8 +90,11 @@ public abstract class NettyTransport<SA extends SocketAddress, M> {
 
     }
 
+    @Getter
     protected final POLLER poller;
+    @Getter
     protected final TRANSPORT transport;
+    @Getter
     protected final Logger logger;
     @Getter
     protected Runnable finisher;
@@ -224,6 +227,9 @@ public abstract class NettyTransport<SA extends SocketAddress, M> {
         ChannelHandler handler = new ChannelInitializer<>() {
             @Override
             public void initChannel(Channel ch) {
+                if (NettyTransport.this instanceof IpServices && config.withSsl) {
+                    ((IpServices)NettyTransport.this).addSslClientHandler(config, ch.pipeline(), logger);
+                }
                 consumer.addHandlers(ch.pipeline());
                 NettyTransport.this.addErrorHandler(ch.pipeline());
             }

@@ -48,7 +48,6 @@ public enum POLLER {
             case UNIX_DGRAM: throw new UnsupportedOperationException();
             default: throw new IllegalStateException();
             }
-
         }
         @Override
         public Channel clientChannelProvider(TRANSPORT transport) {
@@ -65,6 +64,10 @@ public enum POLLER {
         @Override
         public EventLoopGroup getEventLoopGroup(int threads, ThreadFactory threadFactory) {
             return new NioEventLoopGroup(threads, threadFactory);
+        }
+        @Override
+        public EventLoopGroup getEventLoopGroup() {
+            return new NioEventLoopGroup();
         }
     },
     EPOLL {
@@ -100,6 +103,10 @@ public enum POLLER {
         public EventLoopGroup getEventLoopGroup(int threads, ThreadFactory threadFactory) {
             return new EpollEventLoopGroup(threads, threadFactory);
         }
+        @Override
+        public EventLoopGroup getEventLoopGroup() {
+            return new EpollEventLoopGroup();
+        }
     },
     OIO {
         public boolean isAvailable() {
@@ -111,8 +118,10 @@ public enum POLLER {
         public Channel clientChannelProvider(TRANSPORT transport) {
             throw new UnsupportedOperationException("Deprecated OIO");
         }
-
         public EventLoopGroup getEventLoopGroup(int threads, ThreadFactory threadFactory) {
+            throw new UnsupportedOperationException("Deprecated OIO");
+        }
+        public EventLoopGroup getEventLoopGroup() {
             throw new UnsupportedOperationException("Deprecated OIO");
         }
     },
@@ -149,12 +158,17 @@ public enum POLLER {
          public EventLoopGroup getEventLoopGroup(int threads, ThreadFactory threadFactory) {
             return new KQueueEventLoopGroup(threads, threadFactory);
         }
+        @Override
+        public EventLoopGroup getEventLoopGroup() {
+            return new KQueueEventLoopGroup();
+        }
     },
     ;
     public abstract boolean isAvailable();
     public abstract ServerChannel serverChannelProvider(TRANSPORT transport);
     public abstract Channel clientChannelProvider(TRANSPORT transport);
     public abstract EventLoopGroup getEventLoopGroup(int threads, ThreadFactory threadFactory);
+    public abstract EventLoopGroup getEventLoopGroup();
     public static final POLLER DEFAULTPOLLER;
     static {
         if (EPOLL.isAvailable()) {

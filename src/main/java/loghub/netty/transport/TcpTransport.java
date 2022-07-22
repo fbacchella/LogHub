@@ -44,6 +44,9 @@ public class TcpTransport
             bootstrap.option(EpollChannelOption.TCP_KEEPIDLE , 60);
             bootstrap.option(EpollChannelOption.TCP_KEEPINTVL , 10);
         }
+        if (config.getTimeout() >= 0) {
+            bootstrap.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, config.getTimeout());
+        }
     }
 
     @Override

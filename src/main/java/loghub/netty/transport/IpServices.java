@@ -5,9 +5,12 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.net.UnknownHostException;
 import java.security.GeneralSecurityException;
+import java.security.NoSuchAlgorithmException;
 import java.security.Principal;
-import java.util.Arrays;
+import java.util.Collections;
 
+import javax.net.ssl.SNIHostName;
+import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLPeerUnverifiedException;
@@ -36,8 +39,14 @@ import static loghub.netty.transport.NettyTransport.PRINCIPALATTRIBUTE;
 
 public interface IpServices {
 
+    // A class is need to protected SUPPORTED_APN
+    class ConstantHolder {
+        private ConstantHolder() { }
+        private static final String[] SUPPORTED_APN = new String[]{ApplicationProtocolNames.HTTP_1_1};
+    }
     AttributeKey<SSLSession> SSLSESSIONATTRIBUTE = AttributeKey.newInstance(SSLSession.class.getName());
     AttributeKey<SSLEngine> SSLSENGINATTRIBUTE = AttributeKey.newInstance(SSLEngine.class.getName());
+
 
     default InetSocketAddress resolveAddress(TransportConfig config) {
         try {
@@ -76,6 +85,7 @@ public interface IpServices {
     default void addSslHandler(TransportConfig config, ChannelPipeline pipeline, Logger logger) {
         logger.debug("adding an SSL handler on {}", pipeline::channel);
         SSLEngine engine = getEngine(config);
+        engine.setUseClientMode(false);
         SslHandler sslHandler = new SslHandler(engine);
         pipeline.addFirst("ssl", sslHandler);
         Future<Channel> future = sslHandler.handshakeFuture();
@@ -92,25 +102,41 @@ public interface IpServices {
         });
     }
 
+    default void addSslClientHandler(TransportConfig config, ChannelPipeline pipeline, Logger logger) {
+        logger.debug("adding an SSL client handler on {}", pipeline::channel);
+        SSLEngine engine = getEngine(config);
+        SSLParameters params = engine.getSSLParameters();
+        params.setServerNames(Collections.singletonList(new SNIHostName(config.endpoint)));
+        params.setApplicationProtocols(ConstantHolder.SUPPORTED_APN);
+        engine.setSSLParameters(params);
+        engine.setUseClientMode(true);
+        pipeline.addLast("ssl", new SslHandler(engine));
+    }
+
     private static SSLEngine getEngine(TransportConfig config) {
         SSLEngine engine;
-        if (config.sslKeyAlias != null && ! config.sslKeyAlias.isEmpty()) {
-            engine = config.sslContext.createSSLEngine(config.sslKeyAlias, DEFINEDSSLALIAS);
+        if (config.sslContext != null) {
+            if (config.sslKeyAlias != null && ! config.sslKeyAlias.isEmpty()) {
+                engine = config.sslContext.createSSLEngine(config.sslKeyAlias, DEFINEDSSLALIAS);
+            } else {
+                engine = config.sslContext.createSSLEngine();
+            }
         } else {
-            engine = config.sslContext.createSSLEngine();
+            try {
+                engine = SSLContext.getDefault().createSSLEngine();
+            } catch (NoSuchAlgorithmException ex) {
+                throw new IllegalStateException("SSL context invalid", ex);
+            }
         }
 
         SSLParameters params = engine.getSSLParameters();
-        String[] protocols = Arrays.stream(params.getProtocols()).filter(s -> ! s.startsWith("SSL")).filter(s -> ! "TLSv1".equals(s)).filter(s -> ! "TLSv1.1".equals(s)).toArray(String[]::new);
-        params.setProtocols(protocols);
-        String[] cipherSuites = Arrays.stream(params.getCipherSuites()).filter(s -> ! s.contains("CBC")).toArray(String[]::new);
-        params.setCipherSuites(cipherSuites);
         params.setUseCipherSuitesOrder(true);
         params.setApplicationProtocols(new String[]{ApplicationProtocolNames.HTTP_1_1});
         engine.setSSLParameters(params);
 
-        engine.setUseClientMode(false);
-        config.sslClientAuthentication.configureEngine(engine);
+        if (config.sslClientAuthentication != null) {
+            config.sslClientAuthentication.configureEngine(engine);
+        }
         return engine;
     }
 
