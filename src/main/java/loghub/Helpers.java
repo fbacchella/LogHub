@@ -29,6 +29,7 @@ import java.util.Comparator;
 import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -42,6 +43,7 @@ import java.util.function.Predicate;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -630,6 +632,21 @@ public final class Helpers {
         } catch (URISyntaxException | FileSystemNotFoundException ex) {
             throw new IllegalArgumentException("Invalid generalized source path: " + Helpers.resolveThrowableException(ex), ex);
         }
+    }
+
+    /**
+     * Filter a a set of properties, keeping only those starting with the given prefix and removing it.
+     * @param input
+     * @param prefix
+     * @return
+     */
+    public static Map<String, Object> filterPrefix(Map<String, Object> input, String prefix) {
+        int prefixLength = prefix.length() + 1;
+        String prefixKey = prefix + ".";
+        return input.entrySet()
+                    .stream()
+                    .filter(i -> i.getKey().startsWith(prefixKey))
+                    .collect(Collectors.toMap(i -> i.getKey().substring(prefixLength), Map.Entry::getValue));
     }
 
 }

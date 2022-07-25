@@ -14,6 +14,7 @@ import java.nio.file.Path;
 import java.nio.file.PathMatcher;
 import java.nio.file.Paths;
 import java.security.NoSuchAlgorithmException;
+import java.security.URIParameter;
 import java.time.DateTimeException;
 import java.time.ZoneId;
 import java.util.AbstractMap;
@@ -34,6 +35,7 @@ import java.util.TimeZone;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
 import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -66,6 +68,7 @@ import loghub.RouteParser.SourcesContext;
 import loghub.configuration.ConfigListener.Input;
 import loghub.configuration.ConfigListener.Output;
 import loghub.receivers.Receiver;
+import loghub.security.JWTHandler;
 import loghub.security.ssl.ContextLoader;
 import loghub.senders.Sender;
 import loghub.sources.Source;
@@ -353,6 +356,8 @@ public class Configuration {
                                                         .secrets(secrets)
                                                         .lockedProperties(lockedProperties)
                                                         .sslContext(resolveSslContext())
+                                                        .jaasConfig(resolveJaasConfig())
+                                                        .jwtHandler(resolveJwtHander())
                                                         .build();
 
             trees.forEach(t -> {
@@ -384,6 +389,15 @@ public class Configuration {
         return new AbstractMap.SimpleEntry<>(e.getKey(), value);
     }
 
+    private JWTHandler resolveJwtHander() {
+        Map<String, Object> properties = Helpers.filterPrefix(configurationProperties, "jwt");
+        configurationProperties.entrySet().removeIf(i -> i.getKey().startsWith("jwt."));
+        return JWTHandler.getBuilder()
+                         .secret(Optional.ofNullable(properties.get("secret")).map(Object::toString).orElse(null))
+                         .setAlg(Optional.ofNullable(properties.get("alg")).map(Object::toString).orElse(null))
+                         .build();
+    }
+
     private void resolveSources(Tree tree, ConfigListener conflistener) throws ConfigException {
         for (SourcesContext sc: tree.config.sources()) {
             for (SourcedefContext sdc: sc.sourcedef()) {
@@ -399,7 +413,7 @@ public class Configuration {
 
     private SSLContext resolveSslContext() {
         SSLContext ssl;
-        Map<String, Object> sslprops = configurationProperties.entrySet().stream().filter(i -> i.getKey().startsWith("ssl.")).collect(Collectors.toMap( i -> i.getKey().substring(4), Entry::getValue));
+        Map<String, Object> sslprops = Helpers.filterPrefix(configurationProperties, "ssl");
         configurationProperties.entrySet().removeIf(i -> i.getKey().startsWith("ssl."));
         if (! sslprops.isEmpty()) {
             ssl = ContextLoader.build(classLoader, sslprops);
@@ -414,6 +428,20 @@ public class Configuration {
             throw new ConfigException("SSLContext failed to configure");
         } else {
             return ssl;
+        }
+    }
+
+    private javax.security.auth.login.Configuration resolveJaasConfig() {
+        if (configurationProperties.containsKey("jaasConfig")) {
+            String jaasConfigFilePath = (String) configurationProperties.remove("jaasConfig");
+            URIParameter cp = new URIParameter(Helpers.fileUri(jaasConfigFilePath));
+            try {
+                return javax.security.auth.login.Configuration.getInstance("JavaLoginConfig", cp);
+            } catch (NoSuchAlgorithmException e) {
+                throw new ConfigException("JavaLoginConfig unavailable", e);
+            }
+        } else {
+            return null;
         }
     }
 
@@ -441,6 +469,7 @@ public class Configuration {
 
         newProperties.put(Properties.PROPSNAMES.CLASSLOADERNAME.toString(), classLoader);
         newProperties.put(Properties.PROPSNAMES.SSLCONTEXT.toString(), conf.sslContext);
+        newProperties.put(Properties.PROPSNAMES.JAASCONFIG.toString(), conf.jaasConfig);
 
         Set<Pipeline> pipelines = new HashSet<>();
         // Generate all the named pipeline

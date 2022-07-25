@@ -10,6 +10,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Stream;
 
 import javax.net.ssl.SSLContext;
+import javax.security.auth.login.Configuration;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -29,6 +30,7 @@ import loghub.decoders.DecodeException.RuntimeDecodeException;
 import loghub.decoders.Decoder;
 import loghub.metrics.Stats;
 import loghub.security.AuthenticationHandler;
+import loghub.security.JWTHandler;
 import loghub.security.ssl.ClientAuthentication;
 import lombok.Getter;
 import lombok.Setter;
@@ -56,6 +58,10 @@ public abstract class Receiver extends Thread implements Closeable {
         @Setter
         private boolean useJwt = false;
         @Setter
+        private JWTHandler jwtHandler;
+        @Setter
+        private Configuration jaasConfig;
+        @Setter
         private String timeStampField = Event.TIMESTAMPKEY;
         @Setter
         private Filter filter;
@@ -65,25 +71,16 @@ public abstract class Receiver extends Thread implements Closeable {
 
     protected final Logger logger;
 
-    private AuthenticationHandler authHandler = null;
     @Getter
     private final boolean withSSL;
     @Getter
     private final SSLContext sslContext;
     @Getter
+    private final String SSLKeyAlias;
+    @Getter
     private final ClientAuthentication SSLClientAuthentication;
     @Getter
-    private final String jaasName;
-    @Getter
-    private final String user;
-    @Getter
-    private final String password;
-    @Getter
-    private final boolean useJwt;
-    @Getter
     private final String timeStampField;
-    @Getter
-    private final String SSLKeyAlias;
     @Getter
     private final Filter filter;
 
@@ -101,10 +98,6 @@ public abstract class Receiver extends Thread implements Closeable {
         this.sslContext = builder.sslContext;
         this.SSLClientAuthentication = builder.SSLClientAuthentication;
         this.SSLKeyAlias = builder.SSLKeyAlias;
-        this.jaasName = builder.jaasName;
-        this.user = builder.user;
-        this.password = builder.password;
-        this.useJwt = builder.useJwt;
         this.timeStampField = builder.timeStampField;
         this.filter = builder.filter;
     }
@@ -132,16 +125,19 @@ public abstract class Receiver extends Thread implements Closeable {
         }
     }
 
-    protected AuthenticationHandler getAuthHandler(Properties properties) {
-        if (authHandler == null) {
-            authHandler = AuthenticationHandler.getBuilder()
-                            .setLogin(user).setPassword(password != null ? password.toCharArray() : null)
-                            .setJaasName(jaasName).setJaasConfig(properties.jaasConfig)
-                            .setJwtHandler(useJwt ? properties.jwtHandler : null).useJwt(useJwt)
-                            .build();
+    protected AuthenticationHandler getAuthHandler(Builder<? extends Receiver> builder) {
+        if ((builder.user != null && builder.password != null) || (builder.jaasName != null && builder.jaasConfig != null) || builder.useJwt) {
+            return AuthenticationHandler
+                           .getBuilder()
+                           .setLogin(builder.user).setPassword(builder.password != null ? builder.password.toCharArray() : null)
+                           .setJaasName(builder.jaasName).setJaasConfig(builder.jaasConfig)
+                           .setJwtHandler(builder.useJwt ? builder.jwtHandler : null).useJwt(builder.useJwt)
+                           .build();
+
+        } else {
+            return null;
         }
-        return authHandler;
-    }
+     }
 
     @Override
     public void run() {
@@ -321,10 +317,6 @@ public abstract class Receiver extends Thread implements Closeable {
     }
 
     public abstract String getReceiverName();
-
-    protected boolean withJaas() {
-        return jaasName != null;
-    }
 
     public void setOutQueue(PriorityBlockingQueue outQueue) {
         this.outQueue = outQueue;

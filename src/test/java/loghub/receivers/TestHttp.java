@@ -267,7 +267,7 @@ public class TestHttp {
         props.put("jwt.secret", secret);
         JWTHandler handler = JWTHandler.getBuilder().secret(secret).setAlg("HMAC256").build();
         String jwtToken = handler.getToken(new JMXPrincipal("user"));
-        makeReceiver( i -> { i.setUseJwt(true); }, props);
+        makeReceiver(i -> { i.setUseJwt(true); i.setJwtHandler(handler);}, props);
         URL dest = new URL("http", hostname, port, "/?a=1");
         doRequest(dest,
                   new byte[]{},
@@ -288,7 +288,7 @@ public class TestHttp {
         props.put("jwt.secret", secret);
         JWTHandler handler = JWTHandler.getBuilder().secret(secret).setAlg("HMAC256").build();
         String jwtToken = handler.getToken(new JMXPrincipal("user"));
-        makeReceiver( i -> { i.setUseJwt(true); }, props);
+        makeReceiver(i -> { i.setUseJwt(true); i.setJwtHandler(handler);}, props);
         URL dest = new URL("http", hostname, port, "/?a=1");
         doRequest(dest,
                   new byte[]{},

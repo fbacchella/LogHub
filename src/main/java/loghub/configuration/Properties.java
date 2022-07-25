@@ -1,8 +1,5 @@
 package loghub.configuration;
 
-import java.nio.file.Paths;
-import java.security.NoSuchAlgorithmException;
-import java.security.URIParameter;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -16,8 +13,6 @@ import java.util.TimerTask;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.function.BiFunction;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 import javax.management.InstanceAlreadyExistsException;
 import javax.management.MBeanRegistrationException;
@@ -57,6 +52,8 @@ import lombok.AllArgsConstructor;
 public class Properties extends HashMap<String, Object> {
 
     enum PROPSNAMES {
+        JWTHANDLER,
+        JAASCONFIG,
         SSLCONTEXT,
         CLASSLOADERNAME,
         GROOVYCLASSLOADERNAME,
@@ -166,27 +163,16 @@ public class Properties extends HashMap<String, Object> {
         } else {
             maxSteps = 128;
         }
+
         ssl = (SSLContext) properties.get(PROPSNAMES.SSLCONTEXT.toString());
+        jaasConfig = (javax.security.auth.login.Configuration) properties.get(PROPSNAMES.JAASCONFIG.toString());
+        jwtHandler = (JWTHandler) properties.get(PROPSNAMES.JWTHANDLER.toString());
 
-        jwtHandler = buildJwtAlgorithm(filterPrefix(properties, "jwt"));
-
-        zSocketFactory = ZMQSocketFactory.getFactory(filterPrefix(properties, "zmq"));
-
-        javax.security.auth.login.Configuration jc = null;
-        if (properties.containsKey("jaasConfig")) {
-            String jaasConfigFilePath = (String) properties.remove("jaasConfig");
-            URIParameter cp = new URIParameter(Paths.get(jaasConfigFilePath).toUri());
-            try {
-                jc = javax.security.auth.login.Configuration.getInstance("JavaLoginConfig", cp);
-            } catch (NoSuchAlgorithmException e) {
-                throw new ConfigException("JavaLoginConfig unavailable", e);
-            }
-        }
-        jaasConfig = jc;
+        zSocketFactory = ZMQSocketFactory.getFactory(Helpers.filterPrefix(properties, "zmq"));
 
         try {
             jmxServiceConfiguration = JmxService.configuration()
-                            .setProperties(filterPrefix(properties, "jmx"))
+                            .setProperties(Helpers.filterPrefix(properties, "jmx"))
                             .setSslContext(ssl)
                             .register(StatsMBean.Implementation.NAME, new StatsMBean.Implementation())
                             .register(ExceptionsMBean.Implementation.NAME, new ExceptionsMBean.Implementation())
@@ -201,7 +187,7 @@ public class Properties extends HashMap<String, Object> {
         }
 
         try {
-            dashboard = buildDashboad(filterPrefix(properties, "http"));
+            dashboard = buildDashboad(Helpers.filterPrefix(properties, "http"));
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new ConfigException("Failed to build dashboard", e);
@@ -229,27 +215,6 @@ public class Properties extends HashMap<String, Object> {
         eventsprocessors = Collections.unmodifiableSet(allep);
 
         super.putAll(properties);
-    }
-
-    private JWTHandler buildJwtAlgorithm(Map<String, Object> properties) {
-        Function<Object, String> stringOrNull = k -> (properties.get(k) != null ) ? properties.get(k) .toString() : null;
-        return JWTHandler.getBuilder()
-                        .secret(stringOrNull.apply("secret")).setAlg(stringOrNull.apply("alg")).build();
-    }
-
-    /**
-     * Filter a a set of properties, keeping only those starting with the given prefix and removing it.
-     * @param input
-     * @param prefix
-     * @return
-     */
-    private Map<String, Object> filterPrefix(Map<String, Object> input, String prefix) {
-        int prefixLenght = prefix.length() + 1;
-        String prefixKey = prefix + ".";
-        return input
-                        .entrySet()
-                        .stream()
-                        .filter(i -> i.getKey().startsWith(prefixKey)).collect(Collectors.toMap(i -> i.getKey().substring(prefixLenght), Entry::getValue));
     }
 
     /**

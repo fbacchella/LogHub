@@ -73,17 +73,11 @@ public abstract class NettyReceiver<R extends NettyReceiver<R, M>, M> extends Re
                   .setSslKeyAlias(getSSLKeyAlias())
                   .setWithSsl(true);
         }
+        config.setAuthHandler(getAuthHandler(builder));
     }
 
     @Override
     public boolean configure(Properties properties) {
-        try {
-            config.setAuthHandler(getAuthHandler(properties));
-        } catch (IllegalArgumentException ex) {
-            logger.error("Can't start receiver authentication handler: {}", Helpers.resolveThrowableException(ex));
-            logger.catching(Level.DEBUG, ex);
-            return false;
-        }
         config.setConsumer(NettyTransport.resolveConsumer(this));
         try {
             transport.bind(config);

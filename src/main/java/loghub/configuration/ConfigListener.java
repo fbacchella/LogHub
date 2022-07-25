@@ -18,6 +18,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import javax.net.ssl.SSLContext;
+import javax.security.auth.login.Configuration;
 
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.IntStream;
@@ -91,6 +92,7 @@ import loghub.processors.Test;
 import loghub.processors.UnwrapEvent;
 import loghub.processors.WrapEvent;
 import loghub.receivers.Receiver;
+import loghub.security.JWTHandler;
 import loghub.senders.Sender;
 import loghub.sources.Source;
 import lombok.Builder;
@@ -99,6 +101,12 @@ import lombok.Data;
 class ConfigListener extends RouteBaseListener {
 
     private static final Logger logger = LogManager.getLogger();
+
+    private static final Class[] INJECTED_BEANS_CLASSES = new Class[]{
+            SSLContext.class,
+            javax.security.auth.login.Configuration.class,
+            JWTHandler.class
+    };
 
     private enum StackMarker {
         PATH,
@@ -207,6 +215,8 @@ class ConfigListener extends RouteBaseListener {
     final Map<String, AtomicReference<Source>> sources = new HashMap<>();
     final Set<String> outputPipelines = new HashSet<>();
     final SSLContext sslContext;
+    final Configuration jaasConfig;
+    final JWTHandler jwtHandler;
 
     private String currentPipeLineName = null;
     private int expressionDepth = 0;
@@ -222,13 +232,16 @@ class ConfigListener extends RouteBaseListener {
     private IntStream stream;
 
     @Builder
-    private ConfigListener(ClassLoader classLoader, SecretsHandler secrets, Map<String, String> lockedProperties, GroovyClassLoader groovyClassLoader, SSLContext sslContext) {
+    private ConfigListener(ClassLoader classLoader, SecretsHandler secrets, Map<String, String> lockedProperties, GroovyClassLoader groovyClassLoader,
+            SSLContext sslContext, javax.security.auth.login.Configuration jaasConfig, JWTHandler jwtHandler) {
         this.classLoader = classLoader != null ? classLoader : ConfigListener.class.getClassLoader();
         this.secrets = secrets != null ? secrets : SecretsHandler.empty();
         this.lockedProperties = lockedProperties != null ? lockedProperties : new HashMap<>();
         this.groovyClassLoader = classLoader != null ? groovyClassLoader : new GroovyClassLoader(this.classLoader);
         this.beansManager = new BeansManager();
         this.sslContext = sslContext;
+        this.jaasConfig = jaasConfig;
+        this.jwtHandler = jwtHandler;
     }
 
     public void startWalk(ParserRuleContext config, CharStream stream, RouteParser parser) {
@@ -383,14 +396,26 @@ class ConfigListener extends RouteBaseListener {
         ObjectWrapped<Object> wobject = stack.popTyped();
         if (wobject.wrapped instanceof AbstractBuilder) {
             AbstractBuilder<?> builder = (AbstractBuilder<?>) wobject.wrapped;
-            // Check for SSlContext
-            this.beansManager.getBeanByType(builder, SSLContext.class).ifPresent(m -> {
-                try {
-                    m.invoke(builder, this.sslContext);
-                } catch (IllegalAccessException | InvocationTargetException ex) {
-                    throw new RecognitionException(Helpers.resolveThrowableException(ex), parser, stream, ctx);
-                }
-            });
+            // Check for some beans to inject
+            for (Class<?> c: INJECTED_BEANS_CLASSES) {
+                beansManager.getBeanByType(builder, c).ifPresent(m -> {
+                    try {
+                        Object value;
+                        if (c == SSLContext.class) {
+                            value = this.sslContext;
+                        } else if (c == Configuration.class) {
+                            value = this.jaasConfig;
+                        } else if (c == JWTHandler.class) {
+                            value = this.jwtHandler;
+                        } else {
+                            throw new IllegalStateException("Unhandled bean injection value");
+                        }
+                        m.invoke(builder, value);
+                    } catch (IllegalAccessException | InvocationTargetException ex) {
+                        throw new RecognitionException(Helpers.resolveThrowableException(ex), parser, stream, ctx);
+                    }
+                });
+            }
             try {
                 Object created = builder.build();
                 stack.push(new ObjectWrapped<>(created));
