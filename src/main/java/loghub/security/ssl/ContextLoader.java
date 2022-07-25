@@ -1,5 +1,6 @@
 package loghub.security.ssl;
 
+import java.io.IOException;
 import java.net.Socket;
 import java.security.KeyManagementException;
 import java.security.KeyStore;
@@ -11,6 +12,7 @@ import java.security.PrivateKey;
 import java.security.Provider;
 import java.security.SecureRandom;
 import java.security.UnrecoverableKeyException;
+import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.Arrays;
 import java.util.Map;
@@ -109,12 +111,7 @@ public class ContextLoader {
             Object trusts = properties.get("trusts");
             X509KeyManager kmtranslator = null;
             if (trusts != null) {
-                KeyStore ks;
-                if (trusts instanceof KeyStore) {
-                    ks = (KeyStore)trusts;
-                } else {
-                    throw new IllegalArgumentException("Trusts is not an instance of KeyStore");
-                }
+                KeyStore ks = getKeyStore(trusts);
                 TrustManagerFactory tmf = doprovide(trustManagerAlgorithm, secureProvider, TrustManagerFactory::getInstance, TrustManagerFactory::getInstance);
                 tmf.init(ks);
                 tm = tmf.getTrustManagers();
@@ -216,11 +213,30 @@ public class ContextLoader {
                 };
             }
             newCtxt.init(new KeyManager[] {kmtranslator}, tm, sr);
-        } catch (NoSuchProviderException | NoSuchAlgorithmException | KeyManagementException | KeyStoreException | UnrecoverableKeyException | ConfigException e) {
+        } catch (NoSuchProviderException | NoSuchAlgorithmException | KeyManagementException | KeyStoreException |
+                 UnrecoverableKeyException | ConfigException | CertificateException | IOException e) {
             newCtxt = null;
             logger.error(() -> "Failed to configure SSL context", e);
         }
         return newCtxt;
+    }
+
+    public static KeyStore getKeyStore(Object trusts)
+            throws KeyStoreException, NoSuchProviderException, CertificateException, IOException,
+                           NoSuchAlgorithmException {
+        if (trusts instanceof KeyStore) {
+            return (KeyStore) trusts;
+        } else {
+            MultiKeyStoreProvider.SubKeyStore param = new MultiKeyStoreProvider.SubKeyStore();
+            if (trusts instanceof Object[]) {
+                Arrays.stream((Object[]) trusts).forEach(i -> param.addSubStore(i.toString()));
+            } else {
+                param.addSubStore(trusts.toString());
+            }
+            KeyStore ks = KeyStore.getInstance(MultiKeyStoreProvider.NAME, MultiKeyStoreProvider.PROVIDERNAME);
+            ks.load(param);
+            return ks;
+        }
     }
 
     private static Provider loadByName(ClassLoader cl, String providerClassName) throws NoSuchProviderException {

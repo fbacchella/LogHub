@@ -96,6 +96,7 @@ public class TestTcpLinesStream {
         properties.put("trusts", Tools.getDefaultKeyStore());
         SSLContext cssctx = ContextLoader.build(null, properties);
         try (TcpLinesStream ignored = makeReceiver(i -> {
+                    i.setSslContext(cssctx);
                     i.setWithSSL(true);
                     i.setSSLKeyAlias("localhost (loghub ca)");
                     i.setSSLClientAuthentication(ClientAuthentication.WANTED);

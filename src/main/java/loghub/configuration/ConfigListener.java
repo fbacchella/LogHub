@@ -17,6 +17,8 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
+import javax.net.ssl.SSLContext;
+
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.IntStream;
 import org.antlr.v4.runtime.Parser;
@@ -204,6 +206,7 @@ class ConfigListener extends RouteBaseListener {
     final Map<String, VarFormatter> formatters = new HashMap<>();
     final Map<String, AtomicReference<Source>> sources = new HashMap<>();
     final Set<String> outputPipelines = new HashSet<>();
+    final SSLContext sslContext;
 
     private String currentPipeLineName = null;
     private int expressionDepth = 0;
@@ -219,12 +222,13 @@ class ConfigListener extends RouteBaseListener {
     private IntStream stream;
 
     @Builder
-    private ConfigListener(ClassLoader classLoader, SecretsHandler secrets, Map<String, String> lockedProperties, GroovyClassLoader groovyClassLoader) {
+    private ConfigListener(ClassLoader classLoader, SecretsHandler secrets, Map<String, String> lockedProperties, GroovyClassLoader groovyClassLoader, SSLContext sslContext) {
         this.classLoader = classLoader != null ? classLoader : ConfigListener.class.getClassLoader();
         this.secrets = secrets != null ? secrets : SecretsHandler.empty();
         this.lockedProperties = lockedProperties != null ? lockedProperties : new HashMap<>();
         this.groovyClassLoader = classLoader != null ? groovyClassLoader : new GroovyClassLoader(this.classLoader);
         this.beansManager = new BeansManager();
+        this.sslContext = sslContext;
     }
 
     public void startWalk(ParserRuleContext config, CharStream stream, RouteParser parser) {
@@ -379,6 +383,14 @@ class ConfigListener extends RouteBaseListener {
         ObjectWrapped<Object> wobject = stack.popTyped();
         if (wobject.wrapped instanceof AbstractBuilder) {
             AbstractBuilder<?> builder = (AbstractBuilder<?>) wobject.wrapped;
+            // Check for SSlContext
+            this.beansManager.getBeanByType(builder, SSLContext.class).ifPresent(m -> {
+                try {
+                    m.invoke(builder, this.sslContext);
+                } catch (IllegalAccessException | InvocationTargetException ex) {
+                    throw new RecognitionException(Helpers.resolveThrowableException(ex), parser, stream, ctx);
+                }
+            });
             try {
                 Object created = builder.build();
                 stack.push(new ObjectWrapped<>(created));

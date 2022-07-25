@@ -9,6 +9,8 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Stream;
 
+import javax.net.ssl.SSLContext;
+
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -44,6 +46,8 @@ public abstract class Receiver extends Thread implements Closeable {
         @Setter
         private String SSLKeyAlias;
         @Setter
+        private SSLContext sslContext;
+        @Setter
         private String jaasName = null;
         @Setter
         private String user = null;
@@ -64,6 +68,8 @@ public abstract class Receiver extends Thread implements Closeable {
     private AuthenticationHandler authHandler = null;
     @Getter
     private final boolean withSSL;
+    @Getter
+    private final SSLContext sslContext;
     @Getter
     private final ClientAuthentication SSLClientAuthentication;
     @Getter
@@ -92,6 +98,7 @@ public abstract class Receiver extends Thread implements Closeable {
         this.blocking = isBlocking() && builder.blocking;
         this.decoder = builder.decoder;
         this.withSSL = builder.withSSL;
+        this.sslContext = builder.sslContext;
         this.SSLClientAuthentication = builder.SSLClientAuthentication;
         this.SSLKeyAlias = builder.SSLKeyAlias;
         this.jaasName = builder.jaasName;

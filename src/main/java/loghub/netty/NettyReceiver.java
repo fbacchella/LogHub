@@ -68,7 +68,8 @@ public abstract class NettyReceiver<R extends NettyReceiver<R, M>, M> extends Re
               .setBacklog(builder.backlog);
         if (isWithSSL()) {
             config.setWithSsl(true);
-            config.setSslClientAuthentication(getSSLClientAuthentication())
+            config.setSslContext(getSslContext())
+                  .setSslClientAuthentication(getSSLClientAuthentication())
                   .setSslKeyAlias(getSSLKeyAlias())
                   .setWithSsl(true);
         }
@@ -76,9 +77,6 @@ public abstract class NettyReceiver<R extends NettyReceiver<R, M>, M> extends Re
 
     @Override
     public boolean configure(Properties properties) {
-        if (config.isWithSsl()) {
-            config.setSslContext(properties.ssl);
-        }
         try {
             config.setAuthHandler(getAuthHandler(properties));
         } catch (IllegalArgumentException ex) {

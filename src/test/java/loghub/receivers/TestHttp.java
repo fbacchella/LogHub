@@ -167,12 +167,12 @@ public class TestHttp {
 
     @Test(timeout = 5000)
     public void testHttpsGet() throws IOException {
-        makeReceiver(i -> { 
+        SSLContext sslctx = ContextLoader.build(getClass().getClassLoader(), new HashMap<>(Collections.singletonMap("trusts", getClass().getResource("/loghub.p12").getFile())));
+        makeReceiver(i -> {
+            i.setSslContext(sslctx);
             i.setWithSSL(true);
             i.setSSLClientAuthentication(ClientAuthentication.WANTED);
-        },
-                     new HashMap<>(Collections.singletonMap("ssl.trusts", getClass().getResource("/loghub.p12").getFile()))
-                     );
+        }, Collections.emptyMap());
         doRequest(new URL("https", hostname, port, "/?a=1"),
                   new byte[]{},
                   i -> {}, 200);

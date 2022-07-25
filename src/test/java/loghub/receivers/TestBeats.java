@@ -134,19 +134,16 @@ public class TestBeats {
 
     @Test(timeout=5000)
     public void testSSL() throws IOException, InterruptedException {
+        SSLContext sslctx = ContextLoader.build(getClass().getClassLoader(), new HashMap<>(Collections.singletonMap("trusts", getClass().getResource("/loghub.p12").getFile())));
         try {
             makeReceiver( i -> {
+                i.setSslContext(sslctx);
                 i.setWithSSL(true);
                 // It should be required for a better test, needs to understand how to make client side TLS works
                 i.setSSLClientAuthentication(ClientAuthentication.WANTED);
-            },
-                    new HashMap<>(Collections.singletonMap("ssl.trusts", getClass().getResource("/loghub.p12").getFile()))
-                    );
-            Map<String, Object> properties = new HashMap<>();
-            properties.put("trusts", Tools.getDefaultKeyStore());
-            SSLContext cssctx = ContextLoader.build(null, properties);
+            }, Collections.emptyMap());
             List<Map<?, ?>> batch = Collections.singletonList(Collections.singletonMap("message", "LogHub"));
-            Socket s = cssctx.getSocketFactory().createSocket();
+            Socket s = sslctx.getSocketFactory().createSocket();
             sendFrame(encode(batch), s);
             Event e = queue.poll(6, TimeUnit.SECONDS);
             String message = (String) e.get("message");

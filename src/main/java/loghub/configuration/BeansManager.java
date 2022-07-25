@@ -11,6 +11,7 @@ import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -19,6 +20,18 @@ import loghub.Expression;
 public class BeansManager {
 
     private final Map<Class<?>, Map<String, Method>> beans = new HashMap<>();
+
+    public Optional<Method> getBeanByType(Object beanObject, Class<?> beanType) {
+        return beans.computeIfAbsent(beanObject.getClass(), c -> {
+            try {
+                return Stream.of(Introspector.getBeanInfo(c, Object.class).getPropertyDescriptors())
+                               .filter(pd -> pd.getWriteMethod() != null)
+                               .collect(Collectors.toMap(FeatureDescriptor::getName, PropertyDescriptor::getWriteMethod));
+            } catch (IntrospectionException e) {
+                return Collections.emptyMap();
+            }
+        }).values().stream().filter(m -> m.getParameterTypes()[0].isAssignableFrom(beanType)).findFirst();
+    }
 
     private Method beanResolver(Object beanObject, String beanName) {
         return beans.computeIfAbsent(beanObject.getClass(), c -> {

@@ -8,10 +8,12 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.PathMatcher;
 import java.nio.file.Paths;
+import java.security.NoSuchAlgorithmException;
 import java.time.DateTimeException;
 import java.time.ZoneId;
 import java.util.AbstractMap;
@@ -21,6 +23,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -34,6 +37,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import javax.net.ssl.SSLContext;
 
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
@@ -61,6 +66,7 @@ import loghub.RouteParser.SourcesContext;
 import loghub.configuration.ConfigListener.Input;
 import loghub.configuration.ConfigListener.Output;
 import loghub.receivers.Receiver;
+import loghub.security.ssl.ContextLoader;
 import loghub.senders.Sender;
 import loghub.sources.Source;
 
@@ -77,6 +83,7 @@ public class Configuration {
     private GroovyClassLoader groovyClassLoader = new GroovyClassLoader(classLoader);
     private SecretsHandler secrets = null;
     private final Map<String, String> lockedProperties = new HashMap<>();
+    private final Map<String, Object> configurationProperties = new HashMap<>();
     private final Set<Path> loadedConfigurationFiles = new HashSet<>();
     private final ConfigErrorListener errListener = new ConfigErrorListener();
 
@@ -218,18 +225,54 @@ public class Configuration {
     }
 
     private void scanProperty(Tree tree) {
-        Map<String, PropertyContext> properties = new HashMap<>();
+        Map<String, PropertyContext> currentProperties = new HashMap<>();
         for (PropertyContext pc: tree.config.property()) {
-            properties.put(pc.propertyName.getText(), pc);
+            currentProperties.put(pc.propertyName.getText(), pc);
         }
         // Don’t change order, it's meaningfully
         // locale and timezone first, to check for output format
         // everything else must be set latter
-        Optional.ofNullable(properties.get("locale")).ifPresent(this::processLocaleProperty);
-        Optional.ofNullable(properties.get("timezone")).ifPresent(this::processTimezoneProperty);
-        Optional.ofNullable(properties.get("log4j.configURL")).ifPresent(pc -> processLog4jUriProperty("log4j.configURL", pc, tree));
-        Optional.ofNullable(properties.get("log4j.configFile")).ifPresent(pc -> processLog4jUriProperty("log4j.configFile", pc, tree));
-        Optional.ofNullable(properties.get("secrets.source")).ifPresent(pc -> processSecretSource(pc, tree));
+        Optional.ofNullable(currentProperties.remove("locale")).ifPresent(this::processLocaleProperty);
+        Optional.ofNullable(currentProperties.remove("timezone")).ifPresent(this::processTimezoneProperty);
+        Optional.ofNullable(currentProperties.remove("log4j.configURL")).ifPresent(pc -> processLog4jUriProperty("log4j.configURL", pc, tree));
+        Optional.ofNullable(currentProperties.remove("log4j.configFile")).ifPresent(pc -> processLog4jUriProperty("log4j.configFile", pc, tree));
+        Optional.ofNullable(currentProperties.remove("secrets.source")).ifPresent(pc -> processSecretSource(pc, tree));
+
+        // Iterator needed to remove entries while iterating
+        for (Iterator<Entry<String, PropertyContext>> it = currentProperties.entrySet().iterator(); it.hasNext(); ) {
+            Map.Entry<String, PropertyContext> e = it.next();
+            if ("includes".equals(e.getKey())) {
+                it.remove();
+                continue;
+            }
+            try {
+                configurationProperties.put(e.getKey(), resolveBean(e.getValue().beanValue()));
+                it.remove();
+            } catch (IllegalArgumentException ex) {
+                assert false : String.format("%s: %s", e.getKey(), ex.getMessage());
+            }
+        }
+        assert currentProperties.size() == 0;
+    }
+
+    private Object resolveBean(RouteParser.BeanValueContext bvc) {
+        if (bvc.stringLiteral() != null) {
+            return bvc.getText();
+        } else if (bvc.booleanLiteral() != null) {
+            return Boolean.valueOf(bvc.getText());
+        } else if (bvc.characterLiteral() != null) {
+            return bvc.getText().charAt(0);
+        } else if (bvc.integerLiteral() != null) {
+            return Integer.valueOf(bvc.getText());
+        } else if (bvc.nullLiteral() != null) {
+            return null;
+        } else if (bvc.array() != null) {
+            return bvc.array().arrayContent().beanValue().stream().map(this::resolveBean).toArray(Object[]::new);
+        } else if (bvc.secret() != null) {
+            return bvc.secret();
+        } else {
+            throw new IllegalArgumentException("bean value unidentified " + bvc.getText());
+        }
     }
 
     private void processSecretSource(PropertyContext pc, Tree tree) {
@@ -296,12 +339,20 @@ public class Configuration {
             if (! found) {
                 throw new ConfigException("No Configuration files found");
             }
+            Map<String, Object> resolvedSecrets = configurationProperties.entrySet().stream()
+                                              .filter(e -> e.getValue() instanceof RouteParser.SecretContext)
+                                              .map(this::resoveSecret)
+                                              .collect(Collectors.toMap(Entry::getKey, Entry::getValue))
+                                              ;
 
+            configurationProperties.putAll(resolvedSecrets);
+            configurationProperties.entrySet().removeIf(e -> e.getValue() == null);
             ConfigListener conflistener = ConfigListener.builder()
                                                         .classLoader(classLoader)
                                                         .groovyClassLoader(groovyClassLoader)
                                                         .secrets(secrets)
                                                         .lockedProperties(lockedProperties)
+                                                        .sslContext(resolveSslContext())
                                                         .build();
 
             trees.forEach(t -> {
@@ -319,6 +370,20 @@ public class Configuration {
         }
     }
 
+    private Map.Entry<String, Object> resoveSecret(Map.Entry<String, Object> e) {
+        RouteParser.SecretContext ctx = (RouteParser.SecretContext) e.getValue();
+        byte[] secret = secrets.get(ctx.id.getText());
+        Object value;
+        if (secret == null) {
+            value = null;
+        } else if (ctx.SecretAttribute() == null || ! "blob".equals(ctx.SecretAttribute().getText())) {
+            value = new String(secret, StandardCharsets.UTF_8);
+        } else {
+            value = secret;
+        }
+        return new AbstractMap.SimpleEntry<>(e.getKey(), value);
+    }
+
     private void resolveSources(Tree tree, ConfigListener conflistener) throws ConfigException {
         for (SourcesContext sc: tree.config.sources()) {
             for (SourcedefContext sdc: sc.sourcedef()) {
@@ -329,6 +394,26 @@ public class Configuration {
                     throw new RecognitionException("Source redefined", tree.parser, tree.stream, sdc);
                 }
             }
+        }
+    }
+
+    private SSLContext resolveSslContext() {
+        SSLContext ssl;
+        Map<String, Object> sslprops = configurationProperties.entrySet().stream().filter(i -> i.getKey().startsWith("ssl.")).collect(Collectors.toMap( i -> i.getKey().substring(4), Entry::getValue));
+        configurationProperties.entrySet().removeIf(i -> i.getKey().startsWith("ssl."));
+        if (! sslprops.isEmpty()) {
+            ssl = ContextLoader.build(classLoader, sslprops);
+        } else {
+            try {
+                ssl = SSLContext.getDefault();
+            } catch (NoSuchAlgorithmException ex) {
+                throw new ConfigException("SSLContext failed to configure: " + ex);
+            }
+        }
+        if (ssl == null) {
+            throw new ConfigException("SSLContext failed to configure");
+        } else {
+            return ssl;
         }
     }
 
@@ -355,6 +440,7 @@ public class Configuration {
         Map<String, Pipeline> namedPipeLine = new HashMap<>(conf.pipelines.size());
 
         newProperties.put(Properties.PROPSNAMES.CLASSLOADERNAME.toString(), classLoader);
+        newProperties.put(Properties.PROPSNAMES.SSLCONTEXT.toString(), conf.sslContext);
 
         Set<Pipeline> pipelines = new HashSet<>();
         // Generate all the named pipeline
