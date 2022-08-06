@@ -36,7 +36,6 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 
 import loghub.configuration.Properties;
 import loghub.metrics.JmxService;
-import loghub.netty.servers.HttpServer;
 
 public class TestDashboard {
 
@@ -68,7 +67,7 @@ public class TestDashboard {
 
     @After
     public void stopDashBoard() {
-        Optional.ofNullable(dashboard).ifPresent(HttpServer::stop);
+        Optional.ofNullable(dashboard).ifPresent(Dashboard::stop);
     }
 
     @Test
@@ -138,7 +137,7 @@ public class TestDashboard {
         }
     }
 
-    private List<Map<String, String>> checkMetric(String path) throws IOException, IntrospectionException, InstanceNotFoundException, MalformedObjectNameException, ReflectionException {
+    private void checkMetric(String path) throws IOException, IntrospectionException, InstanceNotFoundException, MalformedObjectNameException, ReflectionException {
         MBeanServer server = ManagementFactory.getPlatformMBeanServer();
 
         URL theurl = new URL(String.format("http://localhost:%d/graph/" + path, port));
@@ -154,6 +153,5 @@ public class TestDashboard {
             String on = m.get("url").replace("/jmx/", "");
             Assert.assertNotNull(server.getMBeanInfo(new ObjectName(on)));
         }
-        return data;
     }
 }

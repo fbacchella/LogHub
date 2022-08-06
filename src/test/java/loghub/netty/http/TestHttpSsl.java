@@ -2,7 +2,6 @@ package loghub.netty.http;
 
 import java.io.IOException;
 import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
 import java.net.SocketException;
 import java.net.URL;
 import java.util.Collections;
@@ -20,9 +19,9 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.config.Configurator;
-import org.junit.After;
 import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
 
 import io.netty.buffer.ByteBuf;
@@ -33,6 +32,7 @@ import io.netty.util.CharsetUtil;
 import loghub.HttpTestServer;
 import loghub.LogUtils;
 import loghub.Tools;
+import loghub.netty.transport.TransportConfig;
 import loghub.security.ssl.ClientAuthentication;
 import loghub.security.ssl.ContextLoader;
 
@@ -70,52 +70,30 @@ public class TestHttpSsl {
         return newCtxt;
     };
 
-    private final int serverPort = Tools.tryGetPort();
-    private final URL theurl;
-    {
-        try {
-            theurl = new URL(String.format("https://localhost:%d/", serverPort));
-        } catch (MalformedURLException e) {
-            throw new RuntimeException(e);
-        }
-    }
+    @Rule
+    public final HttpTestServer resource = new HttpTestServer();
 
-    private HttpTestServer.CustomServer server;
-    private void makeServer(Map<String, Object> sslprops, Consumer<HttpTestServer.CustomServer.Builder> c)
-            throws IllegalArgumentException, InterruptedException, ExecutionException {
-        HttpTestServer.CustomServer.Builder builder = new HttpTestServer.CustomServer.Builder();
-        builder.setThreadPrefix("TestHttpSSL");
-                        //builder.setConsumer(server)
-        builder.setPort(serverPort);
-        builder.setSslClientAuthentication(ClientAuthentication.REQUIRED);
-        builder.setSslContext(getContext.apply(sslprops));
-        builder.setSslKeyAlias("localhost (loghub ca)");
-        builder.setWithSSL(true);
-
-        c.accept(builder);
-        server = builder.build();
-        server.start();
-    }
-
-    @After
-    public void stopServer() {
-        if (server != null) {
-            server.stop();
-        }
-        server = null;
+    private URL startHttpServer(Map<String, Object> sslprops, Consumer<TransportConfig> postconfig) {
+        TransportConfig config = new TransportConfig();
+        config.setEndpoint("localhost");
+        config.setWithSsl(true);
+        config.setSslContext(getContext.apply(sslprops));
+        config.setSslKeyAlias("localhost (loghub ca)");
+        config.setSslClientAuthentication(ClientAuthentication.REQUIRED);
+        config.setThreadPrefix("TestHttpSSL");
+        postconfig.accept(config);
+        return resource.startServer(config);
     }
 
     @Test
-    public void TestSimple() throws ExecutionException, InterruptedException, IOException {
-        makeServer(Collections.emptyMap(), i -> {
-            i.setHandlers(new HttpHandler[]{new SimpleHandler()});
-
-        });
-        HttpsURLConnection cnx = (HttpsURLConnection) theurl.openConnection();
+    public void TestSimple() throws IOException {
+        URL theURL = startHttpServer(Collections.emptyMap(), i -> {});
+        resource.setModelHandlers(new SimpleHandler());
+        HttpsURLConnection cnx = (HttpsURLConnection) theURL.openConnection();
         cnx.setSSLSocketFactory(getContext.apply(Collections.emptyMap()).getSocketFactory());
         cnx.connect();
         Assert.assertEquals("CN=localhost", cnx.getPeerPrincipal().getName());
-        try(Scanner s = new Scanner(cnx.getInputStream())) {
+        try (Scanner s = new Scanner(cnx.getInputStream())) {
             s.skip(".*");
         }
         cnx.disconnect();
@@ -128,7 +106,7 @@ public class TestHttpSsl {
         cnx.setSSLSocketFactory(getContext.apply(Collections.emptyMap()).getSocketFactory());
         cnx.connect();
         Assert.assertEquals("CN=localhost", cnx.getPeerPrincipal().getName());
-        try(Scanner s = new Scanner(cnx.getInputStream())) {
+        try (Scanner s = new Scanner(cnx.getInputStream())) {
             s.skip(".*");
         }
         cnx.disconnect();
@@ -137,11 +115,11 @@ public class TestHttpSsl {
     @Test
     public void TestClientAuthentication()
             throws IOException, IllegalArgumentException, InterruptedException, ExecutionException {
-        makeServer(Collections.emptyMap(), i -> {
-            i.setHandlers(new HttpHandler[]{new SimpleHandler()});
+        URL theURL = startHttpServer(Collections.emptyMap(), i -> {
             i.setSslClientAuthentication(ClientAuthentication.REQUIRED);
         });
-        HttpsURLConnection cnx = (HttpsURLConnection) theurl.openConnection();
+        resource.setModelHandlers(new SimpleHandler());
+        HttpsURLConnection cnx = (HttpsURLConnection) theURL.openConnection();
         cnx.setSSLSocketFactory(getContext.apply(Collections.emptyMap()).getSocketFactory());
         cnx.connect();
         Assert.assertEquals("CN=localhost", cnx.getPeerPrincipal().getName());
@@ -153,9 +131,9 @@ public class TestHttpSsl {
 
     @Test(expected=IOException.class)
     public void TestClientAuthenticationFailed()
-            throws IOException, IllegalArgumentException, InterruptedException, ExecutionException {
-        makeServer(Collections.emptyMap(), i -> i.setSslClientAuthentication(ClientAuthentication.REQUIRED));
-        HttpsURLConnection cnx = (HttpsURLConnection) theurl.openConnection();
+            throws IOException, IllegalArgumentException {
+        URL theURL = startHttpServer(Collections.emptyMap(), i -> i.setSslClientAuthentication(ClientAuthentication.REQUIRED));
+        HttpsURLConnection cnx = (HttpsURLConnection) theURL.openConnection();
         cnx.setSSLSocketFactory(getContext.apply(Collections.singletonMap("issuers", new String[] {"cn=notlocalhost"})).getSocketFactory());
         cnx.connect();
         cnx.disconnect();
@@ -164,8 +142,8 @@ public class TestHttpSsl {
     @Test(expected=javax.net.ssl.SSLHandshakeException.class)
     public void TestChangedAlias()
             throws IOException, IllegalArgumentException, InterruptedException, ExecutionException {
-        makeServer(Collections.emptyMap(), i -> i.setSslKeyAlias("invalidalias"));
-        HttpsURLConnection cnx = (HttpsURLConnection) theurl.openConnection();
+        URL theURL = startHttpServer(Collections.emptyMap(), i -> i.setSslKeyAlias("invalidalias"));
+        HttpsURLConnection cnx = (HttpsURLConnection) theURL.openConnection();
         cnx.setSSLSocketFactory(getContext.apply(Collections.emptyMap()).getSocketFactory());
         cnx.connect();
         Assert.assertEquals("CN=localhost", cnx.getPeerPrincipal().getName());
@@ -178,8 +156,8 @@ public class TestHttpSsl {
     @Test(expected=SocketException.class)
     public void TestNoSsl() throws IOException, IllegalArgumentException, InterruptedException,
                                            ExecutionException {
-        makeServer(Collections.emptyMap(), i -> i.setSslKeyAlias("invalidalias"));
-        URL nohttpsurl = new URL("http", theurl.getHost(), theurl.getPort(), theurl.getFile());
+        URL theURL = startHttpServer(Collections.emptyMap(), i -> i.setSslKeyAlias("invalidalias"));
+        URL nohttpsurl = new URL("http", theURL.getHost(), theURL.getPort(), theURL.getFile());
         HttpURLConnection cnx = (HttpURLConnection) nohttpsurl.openConnection();
         // This generate two log lines, HttpURLConnection retry the connection
         cnx.connect();

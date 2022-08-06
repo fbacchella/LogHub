@@ -7,7 +7,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.charset.UnsupportedCharsetException;
 import java.security.Principal;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -17,6 +16,7 @@ import java.util.stream.Stream;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpResponseStatus;
@@ -37,7 +37,6 @@ import loghub.netty.http.HttpRequestFailure;
 import loghub.netty.http.HttpRequestProcessing;
 import loghub.netty.http.NoCache;
 import loghub.netty.http.RequestAccept;
-import loghub.netty.transport.TRANSPORT;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -125,12 +124,8 @@ public class Http extends AbstractHttpReceiver<Http> {
     }
 
     public static class Builder extends AbstractHttpReceiver.Builder<Http> {
-        public Builder() {
-            setTransport(TRANSPORT.TCP);
-        }
         @Setter
         private Map<String, Decoder> decoders = Collections.emptyMap();
-
         @Override
         public Http build() {
             return new Http(this);
@@ -145,9 +140,10 @@ public class Http extends AbstractHttpReceiver<Http> {
 
     protected Http(Builder builder) {
         super(builder);
-        this.decoders = Map.copyOf(new HashMap<>(builder.decoders));
         if (this.decoder != null) {
             throw new IllegalArgumentException("No default decoder can be defined");
+        } else {
+            this.decoders = Map.copyOf(builder.decoders);
         }
     }
 
@@ -163,8 +159,8 @@ public class Http extends AbstractHttpReceiver<Http> {
     }
 
     @Override
-    public void configureConsumer(HttpReceiverChannelConsumer.Builder<Http> builder) {
-        builder.setRequestProcessor(new PostHandler());
+    protected void modelSetup(ChannelPipeline pipeline) {
+        pipeline.addLast(new PostHandler());
     }
 
 }

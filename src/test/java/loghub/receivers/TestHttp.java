@@ -147,14 +147,13 @@ public class TestHttp {
     }
 
     @Test(timeout = 5000)
-    public void testHttpGet() throws IOException {
+    public void testHttpGet() throws IOException, InterruptedException {
         makeReceiver(i -> {}, Collections.emptyMap());
         doRequest(new URL("http", hostname, port, "/?a=1"),
                   new byte[]{},
                   i -> {}, 200);
 
-        Event e = queue.poll();
-        logger.debug(e.getClass());
+        Event e = queue.take();
         String a = (String) e.get("a");
         Assert.assertEquals("1", a);
         Assert.assertTrue(Tools.isRecent.apply(e.getTimestamp()));

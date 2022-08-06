@@ -17,13 +17,13 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExternalResource;
 
 import loghub.HttpTestServer;
 import loghub.LogUtils;
 import loghub.Tools;
 import loghub.netty.http.JwtToken;
 import loghub.netty.http.TokenFilter;
+import loghub.netty.transport.TransportConfig;
 
 public class TestHttpJwt {
 
@@ -33,41 +33,41 @@ public class TestHttpJwt {
     static public void configure() throws IOException {
         Tools.configure();
         logger = LogManager.getLogger();
-        LogUtils.setLevel(logger, Level.TRACE, "loghub.ssl", "loghub.HttpTestServer", "loghub.netty.http.TokenFilter");
+        LogUtils.setLevel(logger, Level.TRACE, "loghub.security.ssl", "loghub.HttpTestServer", "loghub.netty");
         Configurator.setLevel("org", Level.WARN);
     }
 
-    private int serverPort;
-
     @Rule
-    public ExternalResource resource = getHttpServer();
+    public final HttpTestServer resource = new HttpTestServer();
+    public final URL resourceUrl = getHttpServer(resource);
 
-    private ExternalResource getHttpServer() {
+    private URL getHttpServer(HttpTestServer server) {
         String secret = UUID.randomUUID().toString();
         JWTHandler jwtHandler = JWTHandler.getBuilder().setAlg("HMAC256").secret(secret).build();
         AuthenticationHandler auhtHandler = AuthenticationHandler.getBuilder()
                 .setJwtHandler(jwtHandler).useJwt(true)
                 .setLogin("user").setPassword("password".toCharArray())
                 .build();
-        serverPort = Tools.tryGetPort();
-        return new HttpTestServer(null, serverPort, new TokenFilter(auhtHandler), new JwtToken(jwtHandler));
+        server.setModelHandlers(new TokenFilter(auhtHandler), new JwtToken(jwtHandler));
+        TransportConfig config = new TransportConfig();
+        config.setThreadPrefix("TestHttpJwt");
+        return server.startServer(config);
     }
 
     @Test
     public void TestSimple401() throws IOException {
-        URL theurl = new URL(String.format("http://localhost:%d/", serverPort));
-        HttpURLConnection cnx = (HttpURLConnection) theurl.openConnection();
+        HttpURLConnection cnx = (HttpURLConnection) resourceUrl.openConnection();
         cnx.connect();
         Assert.assertEquals(401, cnx.getResponseCode());
     }
 
     @Test
-    public void TestTokenGeneration() throws IOException {
-        URL theurl = new URL(String.format("http://localhost:%d/token", serverPort));
+    public void testTokenGeneration() throws IOException {
+        URL tokenUrl = new URL(resourceUrl.toString() + "token");
         HttpURLConnection cnx = null;
-        String token = null;
+        String token;
         try {
-            cnx = (HttpURLConnection) theurl.openConnection();
+            cnx = (HttpURLConnection) tokenUrl.openConnection();
             String userpass = "user:password";
             String basicAuth = "Basic " + new String(Base64.getEncoder().encode(userpass.getBytes()));
             cnx.setRequestProperty ("Authorization", basicAuth);
@@ -79,11 +79,11 @@ public class TestHttpJwt {
         }
         Assert.assertNotNull(token);
         try {
-            cnx = (HttpURLConnection) theurl.openConnection();
+            cnx = (HttpURLConnection) resourceUrl.openConnection();
             // Extra space to ensure that parsing is resilient
             cnx.setRequestProperty ("Authorization", "Bearer  " + token);
             cnx.connect();
-            Assert.assertEquals(200, cnx.getResponseCode());
+            Assert.assertEquals(404, cnx.getResponseCode());
         } finally {
             Optional.ofNullable(cnx).ifPresent(HttpURLConnection::disconnect);
         }

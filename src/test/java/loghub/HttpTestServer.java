@@ -1,72 +1,65 @@
 package loghub;
 
+import java.net.InetSocketAddress;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.Arrays;
-
-import javax.net.ssl.SSLContext;
+import java.util.Optional;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.rules.ExternalResource;
 
+import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelPipeline;
+import loghub.netty.HttpChannelConsumer;
 import loghub.netty.http.HttpHandler;
-import loghub.netty.servers.HttpServer;
-import lombok.Setter;
-import lombok.SneakyThrows;
+import loghub.netty.transport.NettyTransport;
+import loghub.netty.transport.POLLER;
+import loghub.netty.transport.TRANSPORT;
+import loghub.netty.transport.TransportConfig;
 
 public class HttpTestServer extends ExternalResource {
 
-    private static Logger logger = LogManager.getLogger();
+    private static final Logger logger = LogManager.getLogger();
 
-    private HttpServer server;
-    private final HttpHandler[] handlers;
-    private SSLContext ssl;
-    private int port;
+    private Optional<NettyTransport<InetSocketAddress, ByteBuf>> transport = Optional.empty();
+    private HttpHandler[] modelHandlers = new HttpHandler[] {};
 
-    @SafeVarargs
-    public HttpTestServer(SSLContext ssl, int port, HttpHandler... handlers) {
-        logger.debug("Starting a test HTTP servers on port {}, protocol {}", () -> port, () -> ssl != null ? "https" : "http");
-        this.handlers = Arrays.copyOf(handlers, handlers.length);
-        this.ssl = ssl;
-        this.port = port;
+    public final void setModelHandlers(HttpHandler... handlers) {
+        this.modelHandlers = Arrays.copyOf(handlers, handlers.length);
     }
 
-    public static class CustomServer extends HttpServer {
-        public static class Builder extends HttpServer.Builder<CustomServer> {
-            @Setter
-            HttpHandler[] handlers = new HttpHandler[]{};
-            @Setter
-            String threadPrefix = "JunitTests";
-            @Override
-            public CustomServer build()  {
-                return new CustomServer(this);
-            }
-        }
-        @Setter
-        private final HttpHandler[] handlers;
-        protected CustomServer(CustomServer.Builder builder) {
-            super(builder);
-            config.setThreadPrefix("TestServer");
-            this.handlers = builder.handlers;
-        }
-        @Override
-        public void addModelHandlers(ChannelPipeline p) {
-            Arrays.stream(handlers).forEach(p::addLast);
+    public URL startServer(TransportConfig config) {
+        transport = Optional.of(
+                TRANSPORT.TCP.<NettyTransport<InetSocketAddress, ByteBuf>, InetSocketAddress, ByteBuf>getInstance(POLLER.DEFAULTPOLLER));
+        HttpChannelConsumer consumer = HttpChannelConsumer.getBuilder()
+                                               .setModelSetup(this::addModelHandlers)
+                                               .setLogger(logger)
+                                               .build();
+        config.setConsumer(consumer);
+        config.setEndpoint("localhost");
+        config.setPort(Tools.tryGetPort());
+        try {
+            transport.get().bind(config);
+            String listen = config.getEndpoint();
+            boolean ssl = config.isWithSsl();
+            return new URL(String.format("%s://%s:%d/", ssl ? "https" : "http", listen, config.getPort()));
+        } catch (MalformedURLException ex) {
+            throw new IllegalStateException(ex);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return null;
         }
     }
 
-    @Override
-    protected void before() throws Throwable {
-        CustomServer.Builder builder = new CustomServer.Builder();
-        builder.handlers = handlers;
-        server = builder.setPort(port).setSslContext(ssl).setWithSSL(ssl != null).build();
-        server.start();
+    private void addModelHandlers(ChannelPipeline p) {
+        Arrays.stream(modelHandlers).forEach(p::addLast);
     }
 
-    @SneakyThrows
     @Override
     protected void after() {
-        server.stop();
+        transport.ifPresent(NettyTransport::close);
     }
 
 }
