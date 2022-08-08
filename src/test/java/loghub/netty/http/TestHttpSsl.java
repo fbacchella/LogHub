@@ -8,7 +8,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Scanner;
-import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -32,7 +31,7 @@ import io.netty.util.CharsetUtil;
 import loghub.HttpTestServer;
 import loghub.LogUtils;
 import loghub.Tools;
-import loghub.netty.transport.TransportConfig;
+import loghub.netty.transport.TcpTransport;
 import loghub.security.ssl.ClientAuthentication;
 import loghub.security.ssl.ContextLoader;
 
@@ -50,12 +49,10 @@ public class TestHttpSsl {
 
     }
 
-    private static Logger logger;
-
     @BeforeClass
     static public void configure() throws IOException {
         Tools.configure();
-        logger = LogManager.getLogger();
+        Logger logger = LogManager.getLogger();
         LogUtils.setLevel(logger, Level.TRACE, "loghub.security", "loghub.HttpTestServer", "loghub.netty");
         Configurator.setLevel("org", Level.WARN);
     }
@@ -73,8 +70,8 @@ public class TestHttpSsl {
     @Rule
     public final HttpTestServer resource = new HttpTestServer();
 
-    private URL startHttpServer(Map<String, Object> sslprops, Consumer<TransportConfig> postconfig) {
-        TransportConfig config = new TransportConfig();
+    private URL startHttpServer(Map<String, Object> sslprops, Consumer<TcpTransport.Builder> postconfig) {
+        TcpTransport.Builder config = TcpTransport.getBuilder();
         config.setEndpoint("localhost");
         config.setWithSsl(true);
         config.setSslContext(getContext.apply(sslprops));
@@ -114,7 +111,7 @@ public class TestHttpSsl {
 
     @Test
     public void TestClientAuthentication()
-            throws IOException, IllegalArgumentException, InterruptedException, ExecutionException {
+            throws IOException, IllegalArgumentException {
         URL theURL = startHttpServer(Collections.emptyMap(), i -> {
             i.setSslClientAuthentication(ClientAuthentication.REQUIRED);
         });
@@ -141,21 +138,20 @@ public class TestHttpSsl {
 
     @Test(expected=javax.net.ssl.SSLHandshakeException.class)
     public void TestChangedAlias()
-            throws IOException, IllegalArgumentException, InterruptedException, ExecutionException {
+            throws IOException, IllegalArgumentException {
         URL theURL = startHttpServer(Collections.emptyMap(), i -> i.setSslKeyAlias("invalidalias"));
         HttpsURLConnection cnx = (HttpsURLConnection) theURL.openConnection();
         cnx.setSSLSocketFactory(getContext.apply(Collections.emptyMap()).getSocketFactory());
         cnx.connect();
         Assert.assertEquals("CN=localhost", cnx.getPeerPrincipal().getName());
-        try(Scanner s = new Scanner(cnx.getInputStream())) {
+        try (Scanner s = new Scanner(cnx.getInputStream())) {
             s.skip(".*");
         }
         cnx.disconnect();
     }
 
     @Test(expected=SocketException.class)
-    public void TestNoSsl() throws IOException, IllegalArgumentException, InterruptedException,
-                                           ExecutionException {
+    public void TestNoSsl() throws IOException, IllegalArgumentException {
         URL theURL = startHttpServer(Collections.emptyMap(), i -> i.setSslKeyAlias("invalidalias"));
         URL nohttpsurl = new URL("http", theURL.getHost(), theURL.getPort(), theURL.getFile());
         HttpURLConnection cnx = (HttpURLConnection) nohttpsurl.openConnection();

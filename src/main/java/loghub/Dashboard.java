@@ -1,14 +1,11 @@
 package loghub;
 
-import java.net.InetSocketAddress;
-
 import javax.net.ssl.SSLContext;
 import javax.security.auth.login.Configuration;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.FullHttpRequest;
@@ -20,10 +17,9 @@ import loghub.netty.http.JwtToken;
 import loghub.netty.http.ResourceFiles;
 import loghub.netty.http.RootRedirect;
 import loghub.netty.http.TokenFilter;
-import loghub.netty.transport.NettyTransport;
 import loghub.netty.transport.POLLER;
 import loghub.netty.transport.TRANSPORT;
-import loghub.netty.transport.TransportConfig;
+import loghub.netty.transport.TcpTransport;
 import loghub.security.AuthenticationHandler;
 import loghub.security.JWTHandler;
 import loghub.security.ssl.ClientAuthentication;
@@ -73,8 +69,7 @@ public class Dashboard {
     private final SimpleChannelInboundHandler<FullHttpRequest> GRAPHMETRIC = new GraphMetric();
     private final SimpleChannelInboundHandler<FullHttpRequest> tokenGenerator;
     private final SimpleChannelInboundHandler<FullHttpRequest> tokenFilter;
-    private final TransportConfig config;
-    private final NettyTransport<InetSocketAddress, ByteBuf> transport;
+    private final TcpTransport transport;
 
     private Dashboard(Builder builder) {
         AuthenticationHandler authHandler = getAuthenticationHandler(builder.withJwtUrl, builder.jwtHandlerUrl,
@@ -83,15 +78,21 @@ public class Dashboard {
                                       .setAuthHandler(authHandler)
                                       .setModelSetup(this::setupModel)
                                       .build();
-        transport = TRANSPORT.TCP.getInstance(builder.poller);
-        config = new TransportConfig();
-        config.setConsumer(consumer);
-        config.setThreadPrefix("Dashboard");
-        config.setEndpoint(builder.listen);
-        config.setPort(builder.port);
+
+        TcpTransport.Builder transportBuilder = TRANSPORT.TCP.getBuilder();
+        transportBuilder.setThreadPrefix("Dashboard");
+        transportBuilder.setPoller(builder.poller);
+        transportBuilder.setConsumer(consumer);
+        transportBuilder.setEndpoint(builder.listen);
+        transportBuilder.setPort(builder.port);
+
         if (builder.withSSL) {
-            config.setWithSsl(true).setSslContext(builder.sslContext).setSslKeyAlias(builder.sslKeyAlias).setSslClientAuthentication(builder.sslClientAuthentication);
+            transportBuilder.setWithSsl(true);
+            transportBuilder.setSslContext(builder.sslContext);
+            transportBuilder.setSslKeyAlias(builder.sslKeyAlias);
+            transportBuilder.setSslClientAuthentication(builder.sslClientAuthentication);
         }
+        transport = transportBuilder.build();
         if (authHandler != null && authHandler.getJwtHandler() != null) {
             tokenGenerator = new JwtToken(authHandler.getJwtHandler());
             tokenFilter = new TokenFilter(authHandler);
@@ -128,8 +129,8 @@ public class Dashboard {
     }
 
     public void start() throws InterruptedException {
-        logger.debug("Starting an HTTP server with configuration {}", config);
-        transport.bind(config);
+        logger.debug("Starting the dashboard");
+        transport.bind();
     }
 
     public void stop() {

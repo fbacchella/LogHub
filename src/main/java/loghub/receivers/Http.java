@@ -37,6 +37,7 @@ import loghub.netty.http.HttpRequestFailure;
 import loghub.netty.http.HttpRequestProcessing;
 import loghub.netty.http.NoCache;
 import loghub.netty.http.RequestAccept;
+import loghub.netty.transport.TRANSPORT;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -45,7 +46,7 @@ import static loghub.netty.transport.NettyTransport.PRINCIPALATTRIBUTE;
 @Blocking
 @SelfDecoder
 @BuilderClass(Http.Builder.class)
-public class Http extends AbstractHttpReceiver<Http> {
+public class Http extends AbstractHttpReceiver<Http, Http.Builder> {
 
     @NoCache
     @RequestAccept(methods= {"GET", "PUT", "POST"})
@@ -123,7 +124,10 @@ public class Http extends AbstractHttpReceiver<Http> {
 
     }
 
-    public static class Builder extends AbstractHttpReceiver.Builder<Http> {
+    public static class Builder extends AbstractHttpReceiver.Builder<Http, Http.Builder> {
+        public Builder() {
+            setTransport(TRANSPORT.TCP);
+        }
         @Setter
         private Map<String, Decoder> decoders = Collections.emptyMap();
         @Override
@@ -145,6 +149,11 @@ public class Http extends AbstractHttpReceiver<Http> {
         } else {
             this.decoders = Map.copyOf(builder.decoders);
         }
+    }
+
+    @Override
+    protected String getThreadPrefix(Builder builder) {
+        return "NettyHTTPReceiver";
     }
 
     @Override

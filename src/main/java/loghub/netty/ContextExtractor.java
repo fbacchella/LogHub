@@ -6,20 +6,21 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelHandler.Sharable;
 import io.netty.handler.codec.MessageToMessageDecoder;
 import io.netty.util.ReferenceCounted;
+import loghub.receivers.Receiver;
 
 @Sharable
-public class ContextExtractor<R extends NettyReceiver<R, SM>, SM> extends MessageToMessageDecoder<SM> {
+public class ContextExtractor<R extends NettyReceiver<R, SM, B>, SM, B extends NettyReceiver.Builder<R, SM, B>> extends MessageToMessageDecoder<SM> {
 
     public static final String NAME = "SourceResolver";
 
-    private final NettyReceiver<R, SM> r;
+    private final NettyReceiver<R, SM, B> r;
 
-    public ContextExtractor(Class<SM> messageClass, NettyReceiver<R, SM> r) {
+    public ContextExtractor(Class<SM> messageClass, NettyReceiver<R, SM, B> r) {
         super(messageClass);
         this.r = r;
     }
 
-    public ContextExtractor(NettyReceiver<R, SM> r) {
+    public ContextExtractor(NettyReceiver<R, SM, B> r) {
         this.r = r;
     }
 

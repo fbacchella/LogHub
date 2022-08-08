@@ -20,9 +20,9 @@ import lombok.Setter;
 
 @Blocking
 @BuilderClass(ZMQ.Builder.class)
-public class ZMQ extends Receiver {
+public class ZMQ extends Receiver<ZMQ, ZMQ.Builder> {
 
-    public static class Builder extends Receiver.Builder<ZMQ> {
+    public static class Builder extends Receiver.Builder<ZMQ, ZMQ.Builder> {
         @Setter
         String method = ZMQHelper.Method.BIND.name();
         @Setter

@@ -59,7 +59,7 @@ import lombok.Setter;
 
 @SelfDecoder
 @BuilderClass(SnmpTrap.Builder.class)
-public class SnmpTrap extends Receiver implements CommandResponder {
+public class SnmpTrap extends Receiver<SnmpTrap, SnmpTrap.Builder> implements CommandResponder {
 
     static {
         LogFactory.setLogFactory(new Log4j2LogFactory());
@@ -84,7 +84,7 @@ public class SnmpTrap extends Receiver implements CommandResponder {
     private static final byte TAG_FLOAT = (byte) 0x78;
     private static final byte TAG_DOUBLE = (byte) 0x79;
 
-    public static class Builder extends Receiver.Builder<SnmpTrap> {
+    public static class Builder extends Receiver.Builder<SnmpTrap, SnmpTrap.Builder> {
         @Setter
         private PROTOCOL protocol = PROTOCOL.udp;
         @Setter

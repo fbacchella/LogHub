@@ -6,17 +6,22 @@ import io.netty.channel.unix.DomainSocketAddress;
 import loghub.ConnectionContext;
 import loghub.DomainConnectionContext;
 
-public class UnixDgramTransport
-        extends NettyTransport<DomainSocketAddress, DomainDatagramPacket>
-        implements UnixDomainServices {
+@TransportEnum(TRANSPORT.UNIX_DGRAM)
+public class UnixDgramTransport extends
+        AbstractUnixDomainTransport<DomainDatagramPacket, UnixDgramTransport, UnixDgramTransport.Builder> {
 
-    protected UnixDgramTransport(POLLER poller) {
-        super(poller, TRANSPORT.UNIX_DGRAM);
+    public static class Builder extends AbstractUnixDomainTransport.Builder<DomainDatagramPacket, UnixDgramTransport, UnixDgramTransport.Builder> {
+        @Override
+        public UnixDgramTransport build() {
+            return new UnixDgramTransport(this);
+        }
+    }
+    public static UnixDgramTransport.Builder getBuilder() {
+        return new UnixDgramTransport.Builder();
     }
 
-    @Override
-    public DomainSocketAddress resolveAddress(TransportConfig config) {
-        return UnixDomainServices.super.resolveAddress(config);
+    private UnixDgramTransport(UnixDgramTransport.Builder builder) {
+        super(builder);
     }
 
     @Override

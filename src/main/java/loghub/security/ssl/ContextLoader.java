@@ -37,7 +37,7 @@ import org.apache.logging.log4j.Logger;
 import loghub.Helpers;
 import loghub.configuration.ConfigException;
 
-import static loghub.netty.transport.NettyTransport.DEFINEDSSLALIAS;
+import static loghub.netty.transport.AbstractIpTransport.DEFINEDSSLALIAS;
 
 public class ContextLoader {
 

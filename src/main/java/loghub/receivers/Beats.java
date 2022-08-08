@@ -47,9 +47,9 @@ import lombok.Setter;
 @SelfDecoder
 @CloseOnError
 @BuilderClass(Beats.Builder.class)
-public class Beats extends NettyReceiver<Beats, ByteBuf> implements ConsumerProvider {
+public class Beats extends NettyReceiver<Beats, ByteBuf, Beats.Builder> implements ConsumerProvider {
 
-    public static class Builder extends NettyReceiver.Builder<Beats, ByteBuf> {
+    public static class Builder extends NettyReceiver.Builder<Beats, ByteBuf, Beats.Builder> {
         public Builder() {
             setTransport(TRANSPORT.TCP);
         }
@@ -114,7 +114,6 @@ public class Beats extends NettyReceiver<Beats, ByteBuf> implements ConsumerProv
 
     public Beats(Builder builder) {
         super(builder);
-        config.setThreadPrefix("BeatsReceiver");
         this.clientInactivityTimeoutSeconds = builder.clientInactivityTimeoutSeconds;
         this.maxPayloadSize = builder.maxPayloadSize;
         this.idleExecutorGroup = new DefaultEventExecutorGroup(builder.workers, ThreadBuilder.get().setDaemon(true).getFactory(getReceiverName() + "/idle"));
@@ -162,6 +161,11 @@ public class Beats extends NettyReceiver<Beats, ByteBuf> implements ConsumerProv
                 ctx.fireChannelRead(newEvent);
             }
         };
+    }
+
+    @Override
+    protected String getThreadPrefix(Beats.Builder builder) {
+        return "BeatsReceiver";
     }
 
     @Override

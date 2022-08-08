@@ -26,18 +26,18 @@ import loghub.PriorityBlockingQueue;
 import loghub.Tools;
 import loghub.configuration.Properties;
 import loghub.decoders.StringCodec;
+import loghub.netty.transport.AbstractIpTransport;
 import loghub.netty.transport.NettyTransport;
 import loghub.netty.transport.POLLER;
 import loghub.netty.transport.TRANSPORT;
-import loghub.netty.transport.TransportConfig;
 
 public class TestSimpleReceiver {
 
     @CloseOnError
-    private static class TesterReceiver extends NettyReceiver<TestSimpleReceiver.TesterReceiver, Object>
+    private static class TesterReceiver extends NettyReceiver<TestSimpleReceiver.TesterReceiver, Object, TestSimpleReceiver.TesterReceiver.Builder>
             implements ConsumerProvider {
 
-        public static class Builder extends NettyReceiver.Builder<TestSimpleReceiver.TesterReceiver,Object> {
+        public static class Builder extends NettyReceiver.Builder<TestSimpleReceiver.TesterReceiver, Object, TestSimpleReceiver.TesterReceiver.Builder> {
             public Builder() {
                 setDecoder(StringCodec.getBuilder().build());
             }
@@ -52,7 +52,12 @@ public class TestSimpleReceiver {
 
         protected TesterReceiver(TestSimpleReceiver.TesterReceiver.Builder builder) {
             super(builder);
-            config.setThreadPrefix("ReceiverTest");
+            //builder.setThreadPrefix("ReceiverTest");
+        }
+
+        @Override
+        protected String getThreadPrefix(Builder builder) {
+            return "ReceiverTest";
         }
 
         @Override
@@ -107,10 +112,12 @@ public class TestSimpleReceiver {
             r.setOutQueue(receiver);
             r.configure(empty);
 
-            NettyTransport<?, ?> client = transport.getInstance(poller);
-            TransportConfig config = new TransportConfig();
+            NettyTransport.Builder<?, ?, ?, ?> config = transport.getBuilder();
             config.setEndpoint(host);
-            config.setPort(port);
+            if (config instanceof AbstractIpTransport.Builder) {
+                AbstractIpTransport.Builder<?, ?, ?> ipbuilder = (AbstractIpTransport.Builder<?, ?, ?>) config;
+                ipbuilder.setPort(port);
+            }
             config.setConsumer(new ChannelConsumer() {
                 @Override
                 public void addHandlers(ChannelPipeline pipe) {
@@ -127,7 +134,8 @@ public class TestSimpleReceiver {
                     ex.printStackTrace();
                 }
             });
-            ChannelFuture cf = client.connect(config);
+            NettyTransport<?, ?, ?, ?> client = config.build();
+            ChannelFuture cf = client.connect();
             cf.addListener(gfl -> cf.channel().flush()).addListener(gfl -> cf.channel().close());
             // Wait until the connection is closed.
             cf.channel().closeFuture().sync();

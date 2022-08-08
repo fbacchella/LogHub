@@ -36,37 +36,37 @@ import lombok.Getter;
 import lombok.Setter;
 
 @Blocking(false)
-public abstract class Receiver extends Thread implements Closeable {
+public abstract class Receiver<R extends Receiver<R, B>, B extends Receiver.Builder<R, B>> extends Thread implements Closeable {
 
-    public abstract static class Builder<B extends Receiver> extends AbstractBuilder<B> {
+    public abstract static class Builder<R extends Receiver<R, B>, B extends Builder<R, B>> extends AbstractBuilder<R> {
         @Setter
-        private Decoder decoder;
+        protected Decoder decoder;
         @Setter
-        private boolean withSSL = false;
+        protected boolean withSSL = false;
         @Setter
-        private ClientAuthentication SSLClientAuthentication = ClientAuthentication.NONE;
+        protected ClientAuthentication SSLClientAuthentication = ClientAuthentication.NONE;
         @Setter
-        private String SSLKeyAlias;
+        protected String SSLKeyAlias;
         @Setter
-        private SSLContext sslContext;
+        protected SSLContext sslContext;
         @Setter
-        private String jaasName = null;
+        protected String jaasName = null;
         @Setter
-        private String user = null;
+        protected String user = null;
         @Setter
-        private String password = null;
+        protected String password = null;
         @Setter
-        private boolean useJwt = false;
+        protected boolean useJwt = false;
         @Setter
-        private JWTHandler jwtHandler;
+        protected JWTHandler jwtHandler;
         @Setter
-        private Configuration jaasConfig;
+        protected Configuration jaasConfig;
         @Setter
-        private String timeStampField = Event.TIMESTAMPKEY;
+        protected String timeStampField = Event.TIMESTAMPKEY;
         @Setter
-        private Filter filter;
+        protected Filter filter;
         @Setter
-        private boolean blocking = true;
+        protected boolean blocking = true;
     }
 
     protected final Logger logger;
@@ -83,13 +83,15 @@ public abstract class Receiver extends Thread implements Closeable {
     private final String timeStampField;
     @Getter
     private final Filter filter;
+    @Getter
+    private final AuthenticationHandler authenticationHandler;
 
     private PriorityBlockingQueue outQueue;
     private Pipeline pipeline;
     private final boolean blocking;
     protected final Decoder decoder;
 
-    protected Receiver(Builder<? extends Receiver> builder){
+    protected Receiver(B builder){
         setDaemon(true);
         logger = LogManager.getLogger(Helpers.getFirstInitClass());
         this.blocking = isBlocking() && builder.blocking;
@@ -100,6 +102,7 @@ public abstract class Receiver extends Thread implements Closeable {
         this.SSLKeyAlias = builder.SSLKeyAlias;
         this.timeStampField = builder.timeStampField;
         this.filter = builder.filter;
+        this.authenticationHandler = buildAuthenticationHandler(builder);
     }
 
     /**
@@ -107,7 +110,7 @@ public abstract class Receiver extends Thread implements Closeable {
      * Default is fault.</p>
      * 
      * <p>The base method check the value of the {@link Blocking annotation}
-     * @return
+     * @return true if the receiver block.
      */
     protected boolean isBlocking() {
         return getClass().getAnnotation(Blocking.class).value();
@@ -125,7 +128,7 @@ public abstract class Receiver extends Thread implements Closeable {
         }
     }
 
-    protected AuthenticationHandler getAuthHandler(Builder<? extends Receiver> builder) {
+    protected AuthenticationHandler buildAuthenticationHandler(B builder) {
         if ((builder.user != null && builder.password != null) || (builder.jaasName != null && builder.jaasConfig != null) || builder.useJwt) {
             return AuthenticationHandler
                            .getBuilder()

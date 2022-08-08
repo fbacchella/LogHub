@@ -134,9 +134,9 @@ public class TestMsgpack {
         Assert.assertEquals(698799000, time.getNano());
     }
 
-    private static class TestReceiver extends Receiver {
+    private static class TestReceiver extends Receiver<TestReceiver, TestReceiver.Builder> {
 
-        public static class Builder extends Receiver.Builder<TestReceiver> {
+        public static class Builder extends Receiver.Builder<TestReceiver, TestReceiver.Builder> {
 
             public TestReceiver build(byte[] bs) {
                 return new TestReceiver(this, bs);

@@ -17,72 +17,80 @@ import loghub.Helpers;
 import loghub.configuration.Properties;
 import loghub.decoders.DecodeException;
 import loghub.metrics.Stats;
+import loghub.netty.transport.AbstractIpTransport;
 import loghub.netty.transport.NettyTransport;
 import loghub.netty.transport.POLLER;
 import loghub.netty.transport.TRANSPORT;
-import loghub.netty.transport.TransportConfig;
 import loghub.receivers.Receiver;
 import lombok.Getter;
 import lombok.Setter;
 
-public abstract class NettyReceiver<R extends NettyReceiver<R, M>, M> extends Receiver {
+public abstract class NettyReceiver<R extends NettyReceiver<R, M, B>, M, B extends NettyReceiver.Builder<R, M, B>> extends Receiver<R, B> {
 
-    protected static final AttributeKey<ConnectionContext<?  extends SocketAddress>> CONNECTIONCONTEXTATTRIBUTE = AttributeKey.newInstance(ConnectionContext.class.getName());
+    protected static final AttributeKey<ConnectionContext<? extends SocketAddress>> CONNECTIONCONTEXTATTRIBUTE = AttributeKey.newInstance(ConnectionContext.class.getName());
 
-    public abstract static class Builder<R extends NettyReceiver<R, M>, M> extends Receiver.Builder<R> {
+    public abstract static class Builder<R extends NettyReceiver<R, M, B>, M, B extends NettyReceiver.Builder<R, M, B>> extends Receiver.Builder<R, B> {
         @Setter
-        POLLER poller = POLLER.DEFAULTPOLLER;
+        protected POLLER poller = POLLER.DEFAULTPOLLER;
         @Setter
-        int workerThreads = 1;
+        protected int workerThreads = 1;
         @Setter
-        TRANSPORT transport;
+        protected TRANSPORT transport;
         @Setter
-        private int port;
+        protected int port;
         @Setter
-        private String host = null;
+        protected String host = null;
         @Setter
-        int rcvBuf = -1;
+        protected int rcvBuf = -1;
         @Setter
-        int sndBuf = -1;
+        protected int sndBuf = -1;
         @Setter
-        private int backlog = -1;
+        protected int backlog = -1;
     }
 
-    protected TransportConfig config;
-    private final NettyTransport<?, M> transport;
+    protected final NettyTransport<?, M, ?, ?> transport;
     @Getter
     private final String listen;
     @Getter
     private final int port;
-    protected NettyReceiver(Builder<R, M> builder) {
+    protected NettyReceiver(B builder) {
         super(builder);
-        this.transport = builder.transport.getInstance(builder.poller);
+        NettyTransport.Builder<?, M, ?, ?> nettyBuilder = builder.transport.getBuilder();
+        nettyBuilder.setWorkerThreads(builder.workerThreads);
+        nettyBuilder.setThreadPrefix(getThreadPrefix(builder));
+        nettyBuilder.setEndpoint(builder.host);
+        nettyBuilder.setBacklog(builder.backlog);
+        nettyBuilder.setConsumer(NettyTransport.resolveConsumer(this));
+        if (nettyBuilder instanceof AbstractIpTransport.Builder) {
+            @SuppressWarnings({"unchecked"})
+            AbstractIpTransport.Builder<M, ?, ?> nettyIpBuilder = (AbstractIpTransport.Builder<M, ?, ?>) nettyBuilder;
+            nettyIpBuilder.setPort(builder.port);
+            nettyIpBuilder.setRcvBuf(builder.rcvBuf);
+            nettyIpBuilder.setSndBuf(builder.sndBuf);
+            if (isWithSSL()) {
+                nettyIpBuilder.setWithSsl(true);
+                nettyIpBuilder.setSslContext(getSslContext());
+                nettyIpBuilder.setSslClientAuthentication(getSSLClientAuthentication());
+                nettyIpBuilder.setSslKeyAlias(getSSLKeyAlias());
+                nettyIpBuilder.setWithSsl(true);
+            }
+        }
+        tweakNettyBuilder(builder, nettyBuilder);
+        this.transport = nettyBuilder.build();
         this.listen = builder.host;
         this.port = builder.port;
-        config = new TransportConfig();
-        config.setWorkerThreads(builder.workerThreads)
-              .setPort(builder.port)
-              .setEndpoint(builder.host)
-              .setRcvBuf(builder.rcvBuf)
-              .setSndBuf(builder.sndBuf)
-              .setBacklog(builder.backlog);
-        if (isWithSSL()) {
-            config.setWithSsl(true);
-            config.setSslContext(getSslContext())
-                  .setSslClientAuthentication(getSSLClientAuthentication())
-                  .setSslKeyAlias(getSSLKeyAlias())
-                  .setWithSsl(true);
-        }
-        config.setAuthHandler(getAuthHandler(builder));
+    }
+
+    protected abstract String getThreadPrefix(B builder);
+
+    protected void tweakNettyBuilder(B builder, NettyTransport.Builder<?, M, ?, ?> nettyTransportBuilder) {
+
     }
 
     @Override
     public boolean configure(Properties properties) {
-        config.setConsumer(NettyTransport.resolveConsumer(this));
         try {
-            transport.bind(config);
-            // config is not needed any more
-            config = null;
+            transport.bind();
             return super.configure(properties);
         } catch (IllegalStateException ex) {
             logger.error("Can't start receiver: {}", Helpers.resolveThrowableException(ex));
@@ -110,7 +118,13 @@ public abstract class NettyReceiver<R extends NettyReceiver<R, M>, M> extends Re
         super.stopReceiving();
     }
 
-    public abstract ByteBuf getContent(M message);
+    public ByteBuf getContent(M message) {
+        throw new UnsupportedOperationException();
+    }
+
+    public ByteBuf getContent(ChannelHandlerContext ctx, M msg) {
+        return getContent(msg);
+    }
 
     public Stream<Event> nettyMessageDecode(ChannelHandlerContext ctx, ByteBuf message) {
         ConnectionContext<?> cctx = ctx.channel().attr(NettyReceiver.CONNECTIONCONTEXTATTRIBUTE).get();
@@ -133,7 +147,6 @@ public abstract class NettyReceiver<R extends NettyReceiver<R, M>, M> extends Re
     public<A extends SocketAddress> ConnectionContext<A> getConnectionContext(ChannelHandlerContext ctx) {
         return (ConnectionContext<A>) Optional.ofNullable(ctx.channel().attr(CONNECTIONCONTEXTATTRIBUTE)).map(Attribute::get).orElse(null);
     }
-
 
     @Override
     public void close() {

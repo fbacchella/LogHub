@@ -3,10 +3,13 @@ package loghub.netty.transport;
 import java.io.IOException;
 import java.net.SocketAddress;
 import java.security.Principal;
-import java.util.Collections;
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import java.util.concurrent.FutureTask;
 import java.util.concurrent.ThreadFactory;
 
 import javax.net.ssl.SSLHandshakeException;
@@ -14,6 +17,7 @@ import javax.net.ssl.SSLHandshakeException;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.message.FormattedMessage;
 
 import io.netty.bootstrap.Bootstrap;
 import io.netty.bootstrap.ServerBootstrap;
@@ -23,7 +27,6 @@ import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
-import io.netty.channel.ChannelPipeline;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.FixedRecvByteBufAllocator;
 import io.netty.channel.SimpleChannelInboundHandler;
@@ -41,16 +44,39 @@ import loghub.ThreadBuilder;
 import loghub.netty.ChannelConsumer;
 import loghub.netty.ConsumerProvider;
 import lombok.Getter;
+import lombok.Setter;
 
-public abstract class NettyTransport<SA extends SocketAddress, M> {
+public abstract class NettyTransport<SA extends SocketAddress, M, T extends NettyTransport<SA, M, T, B>, B extends NettyTransport.Builder<SA, M, T, B>> {
 
     static {
         InternalLoggerFactory.setDefaultFactory(Log4J2LoggerFactory.INSTANCE);
     }
 
     public static final AttributeKey<Principal> PRINCIPALATTRIBUTE = AttributeKey.newInstance(Principal.class.getName());
+    public static final String ERROR_HANDLER_NAME = "errorhandler";
 
-    public static final int DEFINEDSSLALIAS=-2;
+    public abstract static class Builder<SA extends SocketAddress, M, T extends NettyTransport<SA, M, T, B>, B extends NettyTransport.Builder<SA, M, T, B>> {
+        @Setter
+        protected int backlog;
+        @Setter
+        protected int bufferSize = -1;
+        @Setter
+        protected int workerThreads;
+        @Setter
+        protected ChannelConsumer consumer;
+        @Setter
+        protected String threadPrefix;
+        @Setter
+        protected String endpoint;
+        @Setter
+        protected int timeout = 1;
+        @Setter
+        protected POLLER poller = POLLER.DEFAULTPOLLER;
+        protected Builder() {
+            // Not public constructor
+        }
+        public abstract T build();
+    }
 
     @ChannelHandler.Sharable
     private static class ErrorHandler extends SimpleChannelInboundHandler<Object> {
@@ -91,23 +117,44 @@ public abstract class NettyTransport<SA extends SocketAddress, M> {
     }
 
     @Getter
-    protected final POLLER poller;
+    protected final String endpoint;
+    @Getter
+    protected final int backlog;
+    @Getter
+    protected final int bufferSize;
+    @Getter
+    protected final int workerThreads;
+    @Getter
+    protected final ChannelConsumer consumer;
+    @Getter
+    protected final String threadPrefix;
+    @Getter
+    protected final int timeout;
     @Getter
     protected final TRANSPORT transport;
     @Getter
-    protected final Logger logger;
-    @Getter
-    protected Runnable finisher;
-    protected Set<ChannelFuture> listeningChannels;
+    protected final POLLER poller;
 
-    NettyTransport(POLLER poller, TRANSPORT transport) {
-        this.poller = poller;
-        this.transport = transport;
-        logger = LogManager.getLogger(Helpers.getFirstInitClass());
+    protected final Logger logger = LogManager.getLogger(Helpers.getFirstInitClass());
+
+    private Optional<Runnable> finisher = Optional.empty();
+    private Future<Boolean> finished = CompletableFuture.completedFuture(true);
+    private final Set<ChannelFuture> listeningChannels = new HashSet<>(1);
+
+    protected NettyTransport(B b) {
+        this.transport = getClass().getAnnotation(TransportEnum.class).value();
+        this.poller = b.poller;
+        this.endpoint = b.endpoint;
+        this.backlog = b.backlog;
+        this.bufferSize = b.bufferSize;
+        this.workerThreads = b.workerThreads;
+        this.consumer = b.consumer;
+        this.threadPrefix = b.threadPrefix;
+        this.timeout = b.timeout;
     }
 
-    public ChannelFuture connect(TransportConfig config) throws InterruptedException {
-        SocketAddress address = resolveAddress(config);
+    public ChannelFuture connect() throws InterruptedException {
+        SocketAddress address = resolveAddress();
         if (address == null) {
             throw new IllegalArgumentException("Can't get listening address: " + "connect");
         }
@@ -115,29 +162,30 @@ public abstract class NettyTransport<SA extends SocketAddress, M> {
         bootstrap.channelFactory(() -> poller.clientChannelProvider(transport));
         ThreadFactory threadFactory = ThreadBuilder.get()
                                               .setDaemon(true)
-                                              .getFactory(getStringPrefix(config) + "/" + address);
+                                              .getFactory(getStringPrefix() + "/" + address);
         EventLoopGroup workerGroup = poller.getEventLoopGroup(1, threadFactory);
         bootstrap.group(workerGroup);
-        addHandlers(bootstrap, config);
-        finisher = workerGroup::shutdownGracefully;
-        config.consumer.addOptions(bootstrap);
-        configureBootStrap(bootstrap, config);
+        addHandlers(bootstrap);
+        finisher = Optional.of(workerGroup::shutdownGracefully);
+        finisher.ifPresent(r -> finished = new FutureTask<>(r, true));
+        consumer.addOptions(bootstrap);
+        configureBootStrap(bootstrap);
         ChannelFuture cf = bootstrap.connect(address);
         cf.await();
-        listeningChannels = new HashSet<>(Collections.singleton(cf));
+        listeningChannels.add(cf);
         logger.debug("Connected to {}", address);
         return cf;
     }
 
-    public void bind(TransportConfig config) throws InterruptedException {
-        SocketAddress address = resolveAddress(config);
+    public void bind() throws InterruptedException {
+        SocketAddress address = resolveAddress();
         if (address == null) {
             throw new IllegalArgumentException("Can't get listening address: " + "listen");
         }
         if (transport.isConnectedServer()) {
-            bindConnected(address, config);
+            bindConnected(address);
         } else {
-            bindConnectionless(address, config);
+            bindConnectionless(address);
         }
         for (ChannelFuture cf: listeningChannels) {
             try {
@@ -154,84 +202,80 @@ public abstract class NettyTransport<SA extends SocketAddress, M> {
                 }
             }
         }
+        finisher.ifPresent(r -> finished = new FutureTask<>(r, true));
         logger.debug("Bond to {}", address);
     }
 
-    private void bindConnectionless(SocketAddress address, TransportConfig config) {
+    private void bindConnectionless(SocketAddress address) {
         Bootstrap bootstrap = new Bootstrap();
+        int localWorkersThread = this.workerThreads;
         bootstrap.channelFactory(() -> poller.clientChannelProvider(transport));
-        if (config.bufferSize > 0) {
-            bootstrap.option(ChannelOption.RCVBUF_ALLOCATOR, new FixedRecvByteBufAllocator(config.bufferSize));
+        if (bufferSize > 0) {
+            bootstrap.option(ChannelOption.RCVBUF_ALLOCATOR, new FixedRecvByteBufAllocator(bufferSize));
         }
         // Needed because Netty's UDP is not multi-thread, see http://marrachem.blogspot.fr/2014/09/multi-threaded-udp-server-with-netty-on.html
-        if ((poller == POLLER.EPOLL || poller == POLLER.KQUEUE) && config.workerThreads > 1) {
+        if (poller.isUnixSocket() && workerThreads > 1) {
             bootstrap.option(UnixChannelOption.SO_REUSEPORT, true);
-        } else if (poller != POLLER.EPOLL && poller != POLLER.KQUEUE && config.workerThreads > 1){
+        } else if (!poller.isUnixSocket() && workerThreads > 1){
             logger.warn("Multiple worker, but not using native poller, it's useless");
-            config.workerThreads = 1;
+            localWorkersThread = 1;
         }
         ThreadFactory threadFactory = ThreadBuilder.get()
                                                    .setDaemon(true)
-                                                   .getFactory(getStringPrefix(config) + "/" + address.toString());
-        EventLoopGroup workerGroup = poller.getEventLoopGroup(config.workerThreads, threadFactory);
-        finisher = workerGroup::shutdownGracefully;
+                                                   .getFactory(getStringPrefix() + "/" + address.toString());
+        EventLoopGroup workerGroup = poller.getEventLoopGroup(localWorkersThread, threadFactory);
+        finisher = Optional.of(workerGroup::shutdownGracefully);
         bootstrap.group(workerGroup);
-        addHandlers(bootstrap, config);
-        config.consumer.addOptions(bootstrap);
-        configureBootStrap(bootstrap, config);
-        listeningChannels = new HashSet<>(config.workerThreads);
-        for (int i = 0 ; i < config.workerThreads ; i++) {
+        addHandlers(bootstrap);
+        consumer.addOptions(bootstrap);
+        configureBootStrap(bootstrap);
+        for (int i = 0 ; i < workerThreads ; i++) {
             ChannelFuture future = bootstrap.bind(address);
             listeningChannels.add(future);
         }
     }
 
-    private void bindConnected(SocketAddress address, TransportConfig config) {
+    private void bindConnected(SocketAddress address) {
         ServerBootstrap bootstrap = new ServerBootstrap();
         bootstrap.channelFactory(() -> poller.serverChannelProvider(transport));
         ThreadFactory threadFactoryBosses = ThreadBuilder.get()
                                                          .setDaemon(true)
-                                                         .getFactory(getStringPrefix(config) + "/" + address + "/bosses");
-        EventLoopGroup bossGroup = poller.getEventLoopGroup(config.getWorkerThreads(), threadFactoryBosses);
+                                                         .getFactory(getStringPrefix() + "/" + address + "/bosses");
+        EventLoopGroup bossGroup = poller.getEventLoopGroup(getWorkerThreads(), threadFactoryBosses);
         ThreadFactory workerFactoryWorkers = ThreadBuilder.get()
                                                           .setDaemon(true)
-                                                          .getFactory(getStringPrefix(config) + "/" + address + "/workers");
-        EventLoopGroup workerGroup = poller.getEventLoopGroup(config.getWorkerThreads(), workerFactoryWorkers);
+                                                          .getFactory(getStringPrefix() + "/" + address + "/workers");
+        EventLoopGroup workerGroup = poller.getEventLoopGroup(getWorkerThreads(), workerFactoryWorkers);
         bootstrap.group(bossGroup, workerGroup);
-        finisher = () -> {
+        finisher = Optional.of(() -> {
             workerGroup.shutdownGracefully();
             bossGroup.shutdownGracefully();
-        };
-        addHandlers(bootstrap, config);
-        config.consumer.addOptions(bootstrap);
-        configureServerBootStrap(bootstrap, config);
+        });
+        addHandlers(bootstrap);
+        consumer.addOptions(bootstrap);
+        configureServerBootStrap(bootstrap);
         ChannelFuture cf = bootstrap.bind(address);
-        listeningChannels = new HashSet<>(Collections.singleton(cf));
+        listeningChannels.add(cf);
     }
 
-    private String getStringPrefix(TransportConfig config) {
-        return config.threadPrefix != null ? config.threadPrefix : transport.toString();
+    private String getStringPrefix() {
+        return threadPrefix != null ? threadPrefix : transport.toString();
     }
 
-    protected void configureServerBootStrap(ServerBootstrap bootstrap, TransportConfig config) {
+    protected void configureServerBootStrap(ServerBootstrap bootstrap) {
     }
 
-    protected void configureBootStrap(Bootstrap bootstrap, TransportConfig config) {
+    protected void configureBootStrap(Bootstrap bootstrap) {
     }
 
-    protected abstract SA resolveAddress(TransportConfig config);
+    protected abstract SA resolveAddress();
     public abstract ConnectionContext<SA> getNewConnectionContext(ChannelHandlerContext ctx, M message);
 
-    private void addHandlers(Bootstrap bootstrap, TransportConfig config) {
-        ChannelConsumer consumer = config.consumer;
-        ChannelHandler handler = new ChannelInitializer<>() {
+    private <C extends Channel> ChannelInitializer<C> getChannelInitializer(boolean client) {
+        return new ChannelInitializer<>() {
             @Override
             public void initChannel(Channel ch) {
-                if (NettyTransport.this instanceof IpServices && config.withSsl) {
-                    ((IpServices)NettyTransport.this).addSslClientHandler(config, ch.pipeline(), logger);
-                }
-                consumer.addHandlers(ch.pipeline());
-                NettyTransport.this.addErrorHandler(ch.pipeline());
+                NettyTransport.this.initChannel(ch, client);
             }
 
             @Override
@@ -244,55 +288,36 @@ public abstract class NettyTransport<SA extends SocketAddress, M> {
                 }
             }
         };
-        bootstrap.handler(handler);
     }
 
-    protected void addHandlers(ServerBootstrap bootstrap, TransportConfig config) {
-        ChannelConsumer consumer = config.consumer;
-        ChannelHandler handler = new ChannelInitializer<>() {
-            @Override
-            public void initChannel(Channel ch) {
-                consumer.addHandlers(ch.pipeline());
-                if (NettyTransport.this instanceof IpServices && config.withSsl) {
-                    ((IpServices)NettyTransport.this).addSslHandler(config, ch.pipeline(), logger);
-                }
-                NettyTransport.this.addErrorHandler(ch.pipeline());
-            }
-
-            @Override
-            public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-                if (Helpers.isFatal(cause)) {
-                    consumer.logFatalException(cause);
-                    Start.fatalException(cause);
-                } else {
-                    consumer.exception(ctx, cause);
-                }
-            }
-        };
-        bootstrap.childHandler(handler);
-    }
-
-    protected void addErrorHandler(ChannelPipeline p) {
-        p.addLast("errorhandler", new ErrorHandler(logger));
-    }
-
-    public void close() {
-        finisher.run();
-        synchronized (listeningChannels) {
-            listeningChannels.stream().map(ChannelFuture::channel).forEach(Channel::close);
+    protected void initChannel(Channel ch, boolean client) {
+        consumer.addHandlers(ch.pipeline());
+        if (ch.pipeline().get(ERROR_HANDLER_NAME) == null) {
+            ch.pipeline().addLast(ERROR_HANDLER_NAME, new ErrorHandler(logger));
         }
+    }
+
+    private void addHandlers(Bootstrap bootstrap) {
+        bootstrap.handler(getChannelInitializer(true));
+    }
+
+    protected void addHandlers(ServerBootstrap bootstrap) {
+        bootstrap.childHandler(getChannelInitializer(false));
+    }
+
+    public synchronized void close() {
+        listeningChannels.stream().map(ChannelFuture::channel).forEach(Channel::close);
+        listeningChannels.clear();
+        finisher.ifPresent(Runnable::run);
     }
 
     public void waitClose()  {
-        for (ChannelFuture cf: listeningChannels) {
-            try {
-                cf.channel().closeFuture().await();
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-        }
-        synchronized (listeningChannels) {
-            listeningChannels.clear();
+        try {
+            finished.get();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } catch (ExecutionException e) {
+            logger.error(() -> new FormattedMessage("Failed to stop transport: {}", Helpers.resolveThrowableException(e.getCause())), e.getCause());
         }
     }
 

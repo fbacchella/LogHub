@@ -6,43 +6,43 @@ public enum TRANSPORT {
     LOCAL(true) {
         @SuppressWarnings("unchecked")
         @Override
-        public <T extends NettyTransport<S, M>, S extends SocketAddress, M> T getInstance(POLLER poller) {
-            return (T) new LocalTransport(poller);
+        public LocalTransport.Builder getBuilder() {
+            return LocalTransport.getBuilder();
         }
     },
     UDP(false) {
-        @Override
         @SuppressWarnings("unchecked")
-        public <T extends NettyTransport<S, M>, S extends SocketAddress, M> T getInstance(POLLER poller) {
-            return (T) new UdpTransport(poller);
+        @Override
+        public UdpTransport.Builder getBuilder() {
+            return UdpTransport.getBuilder();
         }
     },
     TCP(true){
         @SuppressWarnings("unchecked")
         @Override
-        public <T extends NettyTransport<S, M>, S extends SocketAddress, M> T getInstance(POLLER poller) {
-            return (T) new TcpTransport(poller);
+        public TcpTransport.Builder getBuilder() {
+            return TcpTransport.getBuilder();
         }
     },
     UNIX_STREAM(true){
         @SuppressWarnings("unchecked")
         @Override
-        public <T extends NettyTransport<S, M>, S extends SocketAddress, M> T getInstance(POLLER poller) {
-            return (T) new UnixStreamTransport(poller);
+        public UnixStreamTransport.Builder getBuilder() {
+            return UnixStreamTransport.getBuilder();
         }
     },
     UNIX_DGRAM(false){
         @SuppressWarnings("unchecked")
         @Override
-        public <T extends NettyTransport<S, M>, S extends SocketAddress, M> T getInstance(POLLER poller) {
-            return (T) new UnixDgramTransport(poller);
+        public UnixDgramTransport.Builder getBuilder() {
+            return UnixDgramTransport.getBuilder();
         }
     },
     SCTP(true){
         @SuppressWarnings("unchecked")
         @Override
-        public <T extends NettyTransport<S, M>, S extends SocketAddress, M> T getInstance(POLLER poller) {
-            return (T) new SctpTransport(poller);
+        public SctpTransport.Builder getBuilder() {
+            return SctpTransport.getBuilder();
         }
     };
     private final boolean connectedServer;
@@ -52,5 +52,5 @@ public enum TRANSPORT {
     public boolean isConnectedServer() {
         return connectedServer;
     }
-    public abstract <T extends NettyTransport<S, M>, S extends SocketAddress, M> T getInstance(POLLER poller);
+    public abstract <B extends NettyTransport.Builder<S, M, ?, ?>, S extends SocketAddress, M> B getBuilder();
 }

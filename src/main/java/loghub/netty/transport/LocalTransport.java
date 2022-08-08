@@ -6,7 +6,18 @@ import io.netty.channel.local.LocalAddress;
 import io.netty.channel.local.LocalChannel;
 import loghub.ConnectionContext;
 
-public class LocalTransport extends NettyTransport<LocalAddress, ByteBuf>{
+@TransportEnum(TRANSPORT.LOCAL)
+public class LocalTransport extends NettyTransport<LocalAddress, ByteBuf, LocalTransport, LocalTransport.Builder>{
+
+    public static class Builder extends NettyTransport.Builder<LocalAddress, ByteBuf, LocalTransport, LocalTransport.Builder> {
+        @Override
+        public LocalTransport build() {
+            return new LocalTransport(this);
+        }
+    }
+    public static Builder getBuilder() {
+        return new Builder();
+    }
 
     private static class LocalChannelConnectionContext extends ConnectionContext<LocalAddress> {
         private final LocalAddress local;
@@ -25,12 +36,13 @@ public class LocalTransport extends NettyTransport<LocalAddress, ByteBuf>{
         }
     }
 
-    LocalTransport(POLLER poller) {
-        super(poller, TRANSPORT.LOCAL);
+    protected LocalTransport(Builder builder) {
+        super(builder);
     }
+
     @Override
-    protected LocalAddress resolveAddress(TransportConfig config) {
-        return new LocalAddress(config.endpoint);
+    protected LocalAddress resolveAddress() {
+        return new LocalAddress(endpoint);
     }
 
     @Override

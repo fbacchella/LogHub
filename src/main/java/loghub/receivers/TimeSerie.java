@@ -13,11 +13,11 @@ import lombok.Setter;
 
 @SelfDecoder
 @BuilderClass(TimeSerie.Builder.class)
-public class TimeSerie extends Receiver {
+public class TimeSerie extends Receiver<TimeSerie, TimeSerie.Builder> {
 
     private static final AtomicLong r = new AtomicLong(0);
 
-    public static class Builder extends Receiver.Builder<TimeSerie> {
+    public static class Builder extends Receiver.Builder<TimeSerie, TimeSerie.Builder> {
         @Setter
         private double frequency = 1000.0f;
         @Override

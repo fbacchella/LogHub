@@ -21,7 +21,7 @@ import loghub.Helpers;
 import loghub.decoders.DecodeException;
 import loghub.receivers.SelfDecoder;
 
-public class BaseChannelConsumer<R extends NettyReceiver<R, SM>, SM> implements ChannelConsumer {
+public class BaseChannelConsumer<R extends NettyReceiver<R, SM, B>, SM, B extends NettyReceiver.Builder<R, SM, B>> implements ChannelConsumer {
 
     private static final Logger logger = LogManager.getLogger();
 
@@ -62,7 +62,7 @@ public class BaseChannelConsumer<R extends NettyReceiver<R, SM>, SM> implements 
     private class ContentExtractor extends MessageToMessageDecoder<SM> {
         @Override
         protected void decode(ChannelHandlerContext ctx, SM msg, List<Object> out) {
-            ByteBuf content = r.getContent(msg);
+            ByteBuf content = r.getContent(ctx, msg);
             // Often the content and the message are linked.
             // To avoid a useless copy, keep the message.
             if (content.equals(msg)) {
@@ -74,13 +74,13 @@ public class BaseChannelConsumer<R extends NettyReceiver<R, SM>, SM> implements 
         }
     }
 
-    private class LocalContextExtractor extends ContextExtractor<R, SM> {
-        public LocalContextExtractor(NettyReceiver<R, SM> r) {
+    private class LocalContextExtractor extends ContextExtractor<R, SM, B> {
+        public LocalContextExtractor(NettyReceiver<R, SM, B> r) {
             super(r);
         }
     }
 
-    private final ContextExtractor<R, SM> extractor;
+    private final ContextExtractor<R, SM, B> extractor;
     private final Optional<MessageToMessageDecoder<ByteBuf>> filter;
     private final Optional<MessageToMessageDecoder<ByteBuf>> nettydecoder;
     private final EventSender sender = new EventSender();

@@ -18,7 +18,7 @@ import io.netty.handler.codec.http.HttpRequest;
 import loghub.HttpTestServer;
 import loghub.LogUtils;
 import loghub.Tools;
-import loghub.netty.transport.TransportConfig;
+import loghub.netty.transport.TcpTransport;
 
 public class TestHttp {
 
@@ -31,7 +31,7 @@ public class TestHttp {
 
     @Rule
     public final HttpTestServer resource = new HttpTestServer();
-    public final URL resourceUrl = resource.startServer(new TransportConfig());
+    public final URL resourceUrl = resource.startServer(TcpTransport.getBuilder());
 
     @Test(timeout = 1000)
     public void Test404() throws IOException, IllegalArgumentException {

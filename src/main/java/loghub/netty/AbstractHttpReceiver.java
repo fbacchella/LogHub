@@ -5,19 +5,20 @@ import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.http.HttpMessage;
 import loghub.netty.transport.TRANSPORT;
 import loghub.receivers.Blocking;
+import loghub.security.AuthenticationHandler;
 
 @Blocking
-public abstract class AbstractHttpReceiver<R extends AbstractHttpReceiver<R>> extends NettyReceiver<R, HttpMessage> implements ConsumerProvider {
+public abstract class AbstractHttpReceiver<R extends AbstractHttpReceiver<R, B>, B extends AbstractHttpReceiver.Builder<R, B>> extends NettyReceiver<R, HttpMessage, B> implements ConsumerProvider {
 
-    public abstract static class Builder<R extends AbstractHttpReceiver<R>> extends NettyReceiver.Builder<R, HttpMessage> {
+    public abstract static class Builder<R extends AbstractHttpReceiver<R, B>, B extends AbstractHttpReceiver.Builder<R, B>> extends NettyReceiver.Builder<R, HttpMessage, B> {
         protected Builder() {
             setTransport(TRANSPORT.TCP);
         }
     }
 
-    protected final ContextExtractor<R, HttpMessage> resolver;
+    protected final ContextExtractor<R, HttpMessage, B> resolver;
 
-    protected AbstractHttpReceiver(Builder<R> builder) {
+    protected AbstractHttpReceiver(B builder) {
         super(builder);
         this.resolver = new ContextExtractor<>(HttpMessage.class, this);
     }
@@ -26,7 +27,7 @@ public abstract class AbstractHttpReceiver<R extends AbstractHttpReceiver<R>> ex
     public ChannelConsumer getConsumer() {
         HttpChannelConsumer.Builder builder = HttpChannelConsumer.getBuilder();
         builder.setLogger(logger)
-               .setAuthHandler(config.getAuthHandler())
+               .setAuthHandler(getAuthenticationHandler())
                .setModelSetup(this::configureModel);
         configureConsumer(builder);
         return builder.build();

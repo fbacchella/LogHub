@@ -29,7 +29,7 @@ import lombok.Setter;
 
 @Blocking
 @BuilderClass(Kafka.Builder.class)
-public class Kafka extends Receiver {
+public class Kafka extends Receiver<Kafka, Kafka.Builder> {
 
     public static class KafkaContext extends ConnectionContext<Object> {
         public final String topic;
@@ -46,7 +46,7 @@ public class Kafka extends Receiver {
         }
     }
 
-    public static class Builder extends Receiver.Builder<Kafka> {
+    public static class Builder extends Receiver.Builder<Kafka, Kafka.Builder> {
         @Setter
         private String[] brokers = new String[] { "localhost"};
         @Setter

@@ -109,7 +109,7 @@ public class TestHttp {
                 return true;
             });
             Map<String, Object> properties = new HashMap<>();
-            properties.put("trusts", Tools.getDefaultKeyStore());
+            properties.put("trusts", getClass().getResource("/loghub.p12").getFile());
             properties.put("issuers", new String[] {"CN=loghub CA"});
             SSLContext cssctx = ContextLoader.build(null, properties);
             cnx.setSSLSocketFactory(cssctx.getSocketFactory());
@@ -339,6 +339,27 @@ public class TestHttp {
             Assert.assertEquals("No default decoder can be defined", ex.getMessage());
             Assert.assertEquals("file <unknown>, line 1:11", ex.getLocation());
         }
+    }
+
+    @Test(timeout = 5000)
+    public void testFailedEncoder() throws IOException {
+        makeReceiver(i -> {
+            i.setDecoders(Collections.singletonMap("application/json", ReceiverTools.getFailingDecoder()));
+        }, Collections.emptyMap());
+        doRequest(new URL("http", hostname, port, "/?a=1"),
+                new byte[]{},
+                i -> {}, 200);
+
+        Event e = queue.poll();
+        logger.debug(e.getClass());
+        String a = (String) e.get("a");
+        Assert.assertEquals("1", a);
+        Assert.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
+        ConnectionContext<InetSocketAddress> ectxt = e.getConnectionContext();
+        Assert.assertNotNull(ectxt);
+        Assert.assertTrue(ectxt.getLocalAddress() instanceof InetSocketAddress);
+        Assert.assertTrue(ectxt.getRemoteAddress() instanceof InetSocketAddress);
+        Assert.assertNull(((IpConnectionContext)ectxt).getSslParameters());
     }
 
     @Test

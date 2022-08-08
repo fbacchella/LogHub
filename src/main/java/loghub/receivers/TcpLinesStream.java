@@ -15,9 +15,9 @@ import lombok.Getter;
 import lombok.Setter;
 
 @BuilderClass(TcpLinesStream.Builder.class)
-public class TcpLinesStream extends NettyReceiver<TcpLinesStream, ByteBuf> implements ConsumerProvider {
+public class TcpLinesStream extends NettyReceiver<TcpLinesStream, ByteBuf, TcpLinesStream.Builder> implements ConsumerProvider {
 
-    public static class Builder extends NettyReceiver.Builder<TcpLinesStream, ByteBuf> {
+    public static class Builder extends NettyReceiver.Builder<TcpLinesStream, ByteBuf, TcpLinesStream.Builder> {
         public Builder() {
             super();
             setTransport(TRANSPORT.TCP);
@@ -42,7 +42,11 @@ public class TcpLinesStream extends NettyReceiver<TcpLinesStream, ByteBuf> imple
     private TcpLinesStream(Builder builder) {
         super(builder);
         this.maxLength = builder.maxLength;
-        config.setThreadPrefix("LineReceiver");
+    }
+
+    @Override
+    protected String getThreadPrefix(Builder builder) {
+        return "LineReceiver";
     }
 
     @Override

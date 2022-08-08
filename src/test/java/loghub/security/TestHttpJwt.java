@@ -23,7 +23,7 @@ import loghub.LogUtils;
 import loghub.Tools;
 import loghub.netty.http.JwtToken;
 import loghub.netty.http.TokenFilter;
-import loghub.netty.transport.TransportConfig;
+import loghub.netty.transport.TcpTransport;
 
 public class TestHttpJwt {
 
@@ -49,7 +49,7 @@ public class TestHttpJwt {
                 .setLogin("user").setPassword("password".toCharArray())
                 .build();
         server.setModelHandlers(new TokenFilter(auhtHandler), new JwtToken(jwtHandler));
-        TransportConfig config = new TransportConfig();
+        TcpTransport.Builder config = TcpTransport.getBuilder();
         config.setThreadPrefix("TestHttpJwt");
         return server.startServer(config);
     }

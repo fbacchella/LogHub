@@ -69,6 +69,10 @@ public enum POLLER {
         public EventLoopGroup getEventLoopGroup() {
             return new NioEventLoopGroup();
         }
+        @Override
+        public boolean isUnixSocket() {
+            return false;
+        }
     },
     EPOLL {
         @Override
@@ -107,6 +111,10 @@ public enum POLLER {
         public EventLoopGroup getEventLoopGroup() {
             return new EpollEventLoopGroup();
         }
+        @Override
+        public boolean isUnixSocket() {
+            return true;
+        }
     },
     OIO {
         public boolean isAvailable() {
@@ -123,6 +131,10 @@ public enum POLLER {
         }
         public EventLoopGroup getEventLoopGroup() {
             throw new UnsupportedOperationException("Deprecated OIO");
+        }
+        @Override
+        public boolean isUnixSocket() {
+            return false;
         }
     },
     KQUEUE {
@@ -162,9 +174,14 @@ public enum POLLER {
         public EventLoopGroup getEventLoopGroup() {
             return new KQueueEventLoopGroup();
         }
+        @Override
+        public boolean isUnixSocket() {
+            return true;
+        }
     },
     ;
     public abstract boolean isAvailable();
+    public abstract boolean isUnixSocket();
     public abstract ServerChannel serverChannelProvider(TRANSPORT transport);
     public abstract Channel clientChannelProvider(TRANSPORT transport);
     public abstract EventLoopGroup getEventLoopGroup(int threads, ThreadFactory threadFactory);

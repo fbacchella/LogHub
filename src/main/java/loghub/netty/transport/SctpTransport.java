@@ -8,34 +8,40 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.sctp.SctpMessage;
 import loghub.ConnectionContext;
 
+@TransportEnum(TRANSPORT.SCTP)
 public class SctpTransport
-        extends NettyTransport<InetSocketAddress, SctpMessage>
-        implements IpServices {
+        extends AbstractIpTransport<SctpMessage, SctpTransport, SctpTransport.Builder> {
 
-    SctpTransport(POLLER poller) {
-        super(poller, TRANSPORT.SCTP);
+    public static class Builder extends AbstractIpTransport.Builder<SctpMessage, SctpTransport, SctpTransport.Builder> {
+        @Override
+        public SctpTransport build() {
+            return new SctpTransport(this);
+        }
+    }
+    public static SctpTransport.Builder getBuilder() {
+        return new SctpTransport.Builder();
+    }
+
+    protected SctpTransport(Builder builder) {
+        super(builder);
     }
 
     @Override
-    public InetSocketAddress resolveAddress(TransportConfig config) {
-        return IpServices.super.resolveAddress(config);
+    protected void configureServerBootStrap(ServerBootstrap bootstrap) {
+        super.configureAbstractBootStrap(bootstrap);
+        super.configureServerBootStrap(bootstrap);
     }
 
     @Override
-    public ConnectionContext<InetSocketAddress> getNewConnectionContext(ChannelHandlerContext ctx, SctpMessage message) {
-        return IpServices.super.getNewConnectionContext(ctx);
+    protected void configureBootStrap(Bootstrap bootstrap) {
+        super.configureAbstractBootStrap(bootstrap);
+        super.configureBootStrap(bootstrap);
     }
 
     @Override
-    protected void configureServerBootStrap(ServerBootstrap bootstrap, TransportConfig config) {
-        IpServices.super.configureAbstractBootStrap(bootstrap, config);
-        super.configureServerBootStrap(bootstrap, config);
-    }
-
-    @Override
-    protected void configureBootStrap(Bootstrap bootstrap, TransportConfig config) {
-        IpServices.super.configureAbstractBootStrap(bootstrap, config);
-        super.configureBootStrap(bootstrap, config);
+    public ConnectionContext<InetSocketAddress> getNewConnectionContext(ChannelHandlerContext ctx,
+            SctpMessage message) {
+        return null;
     }
 
 }

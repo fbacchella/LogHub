@@ -37,11 +37,12 @@ import loghub.netty.http.ContentType;
 import loghub.netty.http.HttpRequestFailure;
 import loghub.netty.http.HttpRequestProcessing;
 import loghub.netty.http.RequestAccept;
+import loghub.netty.transport.TRANSPORT;
 
 @Blocking
 @SelfDecoder
 @BuilderClass(Journald.Builder.class)
-public class Journald extends AbstractHttpReceiver<Journald> {
+public class Journald extends AbstractHttpReceiver<Journald, Journald.Builder> {
 
     private static final AttributeKey<Boolean> VALIDJOURNALD = AttributeKey.newInstance(Journald.class.getCanonicalName() + ".VALIDJOURNALD");
     private static final AttributeKey<List<Event>> EVENTS = AttributeKey.newInstance(Journald.class.getCanonicalName() + ".EVENTS");
@@ -173,7 +174,10 @@ public class Journald extends AbstractHttpReceiver<Journald> {
 
     }
 
-    public static class Builder extends AbstractHttpReceiver.Builder<Journald> {
+    public static class Builder extends AbstractHttpReceiver.Builder<Journald, Journald.Builder> {
+        public Builder() {
+            setTransport(TRANSPORT.TCP);
+        }
         @Override
         public Journald build() {
             return new Journald(this);
@@ -185,11 +189,15 @@ public class Journald extends AbstractHttpReceiver<Journald> {
 
     protected Journald(Builder builder) {
         super(builder);
-        config.setThreadPrefix("Journald").setWorkerThreads(8);
     }
 
     @Override
-    public void configureConsumer(HttpChannelConsumer.Builder builder) {
+    protected String getThreadPrefix(Builder builder) {
+        return "JournaldReceiver";
+    }
+
+    @Override
+    protected void configureConsumer(HttpChannelConsumer.Builder builder) {
         builder.setAggregatorSupplier(JournaldAgregator::new);
         // journald-upload uses 16kiB chunk buffers, the default HttpServerCodec uses 8kiB bytebuf
         builder.setServerCodecSupplier(() -> new HttpServerCodec(512, 1024, 32768, true, 32768, false, false));
