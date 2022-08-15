@@ -6,7 +6,9 @@ import java.net.UnknownHostException;
 import java.security.GeneralSecurityException;
 import java.security.NoSuchAlgorithmException;
 import java.security.Principal;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 
 import javax.net.ssl.SNIHostName;
 import javax.net.ssl.SSLContext;
@@ -33,8 +35,6 @@ import lombok.Setter;
 
 public abstract class AbstractIpTransport<M, T extends AbstractIpTransport<M, T, B>, B extends AbstractIpTransport.Builder<M, T, B>> extends  NettyTransport <InetSocketAddress, M, T, B> {
 
-    private static final String[] SUPPORTED_APN = new String[]{ApplicationProtocolNames.HTTP_1_1};
-
     public static final AttributeKey<SSLSession> SSLSESSIONATTRIBUTE = AttributeKey.newInstance(SSLSession.class.getName());
     public static final AttributeKey<SSLEngine> SSLSENGINATTRIBUTE = AttributeKey.newInstance(SSLEngine.class.getName());
     public static final int DEFINEDSSLALIAS=-2;
@@ -54,6 +54,10 @@ public abstract class AbstractIpTransport<M, T extends AbstractIpTransport<M, T,
         protected String sslKeyAlias;
         @Setter
         protected ClientAuthentication sslClientAuthentication;
+        protected List<String> applicationProtocols = new ArrayList<>(0);
+        public void addApplicationProtocol(String protocol) {
+            applicationProtocols.add(protocol);
+        }
     }
 
     @Getter
@@ -70,6 +74,8 @@ public abstract class AbstractIpTransport<M, T extends AbstractIpTransport<M, T,
     protected final String sslKeyAlias;
     @Getter
     protected final ClientAuthentication sslClientAuthentication;
+    @Getter
+    protected final List<String> applicationProtocols;
 
     protected AbstractIpTransport(B builder) {
         super(builder);
@@ -80,6 +86,7 @@ public abstract class AbstractIpTransport<M, T extends AbstractIpTransport<M, T,
         this.sslContext = builder.sslContext;
         this.sslKeyAlias = builder.sslKeyAlias;
         this.sslClientAuthentication = builder.sslClientAuthentication;
+        this.applicationProtocols = Collections.unmodifiableList(builder.applicationProtocols);
     }
 
     public InetSocketAddress resolveAddress() {
@@ -135,7 +142,7 @@ public abstract class AbstractIpTransport<M, T extends AbstractIpTransport<M, T,
         SSLEngine engine = getEngine();
         SSLParameters params = engine.getSSLParameters();
         params.setServerNames(Collections.singletonList(new SNIHostName(endpoint)));
-        params.setApplicationProtocols(SUPPORTED_APN);
+        params.setApplicationProtocols(applicationProtocols.stream().toArray(String[]::new));
         engine.setSSLParameters(params);
         engine.setUseClientMode(true);
         pipeline.addLast("ssl", new SslHandler(engine));

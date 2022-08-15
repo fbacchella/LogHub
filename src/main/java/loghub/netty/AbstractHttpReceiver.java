@@ -3,6 +3,9 @@ package loghub.netty;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.http.HttpMessage;
+import io.netty.handler.ssl.ApplicationProtocolNames;
+import loghub.netty.transport.AbstractIpTransport;
+import loghub.netty.transport.NettyTransport;
 import loghub.netty.transport.TRANSPORT;
 import loghub.receivers.Blocking;
 import loghub.security.AuthenticationHandler;
@@ -21,6 +24,14 @@ public abstract class AbstractHttpReceiver<R extends AbstractHttpReceiver<R, B>,
     protected AbstractHttpReceiver(B builder) {
         super(builder);
         this.resolver = new ContextExtractor<>(HttpMessage.class, this);
+    }
+
+    @Override
+    protected void tweakNettyBuilder(B builder, NettyTransport.Builder<?, HttpMessage, ?, ?> nettyTransportBuilder) {
+        super.tweakNettyBuilder(builder, nettyTransportBuilder);
+        if (nettyTransportBuilder instanceof AbstractIpTransport.Builder) {
+            ((AbstractIpTransport.Builder)nettyTransportBuilder).addApplicationProtocol(ApplicationProtocolNames.HTTP_1_1);
+        }
     }
 
     @Override
