@@ -89,7 +89,8 @@ public class EventsProcessor extends Thread {
             Context tctxt = Stats.startProcessingEvent();
             Processor processor = event.next();
             while (processor != null) {
-                logger.trace("processing with {}", processor);
+                Logger currentLogger = namedPipelines.get(event.getCurrentPipeline()).getLogger();
+                currentLogger.trace("processing with {}", processor);
                 if (processor instanceof WrapEvent) {
                     event = new EventWrapper(event, processor.getPathArray());
                 } else if (processor instanceof UnwrapEvent) {
@@ -102,13 +103,13 @@ public class EventsProcessor extends Thread {
                         switch (processingstatus) {
                         case DROPED: {
                             //It was a drop action
-                            logger.debug("Dropped event {}", event);
+                            currentLogger.debug("Dropped event {}", event);
                             event.drop();
                             break;
                         }
                         case FAILED: {
                             //Processing failed critically (with an exception) and no recovery was attempted
-                            logger.debug("Failed event {}", event);
+                            currentLogger.info("Failed event {}", event);
                             event.end();
                             break;
                         }
@@ -123,11 +124,11 @@ public class EventsProcessor extends Thread {
                 processor = event.next();
                 // If next processor is null, refill the event
                 while (processor == null && event.getNextPipeline() != null) {
-                    logger.trace("next processor is {}", processor);
+                    currentLogger.trace("next processor is {}", processor);
                     // Send to another pipeline, loop in the main processing queue
                     Pipeline next = namedPipelines.get(event.getNextPipeline());
                     if (next == null) {
-                        logger.error("Failed to forward to pipeline {} from {}, not found", event.getNextPipeline(), event.getCurrentPipeline());
+                        currentLogger.error("Failed to forward to pipeline {}, not found", event.getNextPipeline());
                         event.drop();
                         break;
                     } else {

@@ -6,12 +6,17 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import loghub.configuration.Properties;
+import lombok.Getter;
 
 public class Pipeline {
 
     private final String name;
-
+    @Getter
+    private final Logger logger;
     public final List<Processor> processors;
     public final String nextPipeline;
 
@@ -19,6 +24,7 @@ public class Pipeline {
         processors = Collections.unmodifiableList(new ArrayList<>(steps));
         this.name = name;
         this.nextPipeline = nextPipeline;
+        this.logger = LogManager.getLogger(Pipeline.class.getName() + "." + name);
     }
 
     public void configure(Properties properties, ExecutorService executor, List<Future<Boolean>> results) {
