@@ -13,7 +13,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import loghub.BeanChecks;
-import loghub.Event;
+import loghub.events.Event;
 import loghub.Expression;
 import loghub.LogUtils;
 import loghub.Processor;
@@ -22,12 +22,14 @@ import loghub.Tools;
 import loghub.VarFormatter;
 import loghub.VariablePath;
 import loghub.configuration.Properties;
+import loghub.events.EventsFactory;
 
 import static org.junit.Assert.assertEquals;
 
 public class TestGeoip2 {
 
     private static Logger logger;
+    private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
     static public void configure() throws IOException {
@@ -87,7 +89,7 @@ public class TestGeoip2 {
     }
 
     private Map<Object, Object> run(Geoip2 geoip) throws ProcessorException {
-        Event e = Tools.getEvent();
+        Event e = factory.newEvent();
         e.put("ip", "8.8.8.8");
 
         geoip.process(e);
@@ -132,8 +134,8 @@ public class TestGeoip2 {
         Geoip2 geoip = builder.build();
         geoip.configure(props);
 
-        Event e = Tools.getEvent();
-        e.put("ip", "8.8.8.8");
+        Event e = factory.newEvent();
+        e.put("ip", "192.168.205.12");
 
         System.out.println(geoip.process(e));
         @SuppressWarnings("unchecked")
@@ -159,7 +161,7 @@ public class TestGeoip2 {
         Geoip2 geoip = builder.build();
         geoip.configure(props);
 
-        Event e = Tools.getEvent();
+        Event e = factory.newEvent();
         e.put("ip", "51.159.88.83");
 
         geoip.process(e);

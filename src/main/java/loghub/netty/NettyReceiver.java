@@ -12,7 +12,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.util.Attribute;
 import io.netty.util.AttributeKey;
 import loghub.ConnectionContext;
-import loghub.Event;
+import loghub.events.Event;
 import loghub.Helpers;
 import loghub.configuration.Properties;
 import loghub.decoders.DecodeException;

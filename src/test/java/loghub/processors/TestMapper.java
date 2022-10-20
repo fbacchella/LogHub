@@ -5,20 +5,23 @@ import java.io.IOException;
 import org.junit.Assert;
 import org.junit.Test;
 
-import loghub.Event;
+import loghub.events.Event;
 import loghub.Helpers;
 import loghub.ProcessorException;
 import loghub.Tools;
 import loghub.configuration.ConfigException;
 import loghub.configuration.Properties;
+import loghub.events.EventsFactory;
 
 public class TestMapper {
+
+    private final EventsFactory factory = new EventsFactory();
 
     @Test
     public void test1() throws ProcessorException, InterruptedException, ConfigException, IOException {
         Properties conf = Tools.loadConf("map.conf");
         Helpers.parallelStartProcessor(conf);
-        Event sent = Tools.getEvent();
+        Event sent = factory.newEvent();
         sent.put("a", 1);
 
         Tools.runProcessing(sent, conf.namedPipeLine.get("mapper1"), conf);
@@ -29,7 +32,7 @@ public class TestMapper {
     public void test2() throws ProcessorException, InterruptedException, ConfigException, IOException {
         Properties conf = Tools.loadConf("map.conf");
         Helpers.parallelStartProcessor(conf);
-        Event sent = Tools.getEvent();
+        Event sent = factory.newEvent();
         sent.put("a", 1);
 
         Tools.runProcessing(sent, conf.namedPipeLine.get("mapper2"), conf);
@@ -40,7 +43,7 @@ public class TestMapper {
     public void testNotMapped() throws ProcessorException, InterruptedException, ConfigException, IOException {
         Properties conf = Tools.loadConf("map.conf");
         Helpers.parallelStartProcessor(conf);
-        Event sent = Tools.getEvent();
+        Event sent = factory.newEvent();
         sent.put("a", 3);
 
         Tools.runProcessing(sent, conf.namedPipeLine.get("mapper2"), conf);
@@ -51,7 +54,7 @@ public class TestMapper {
     public void test4() throws ProcessorException, InterruptedException, ConfigException, IOException {
         Properties conf = Tools.loadConf("map.conf");
         Helpers.parallelStartProcessor(conf);
-        Event sent = Tools.getEvent();
+        Event sent = factory.newEvent();
         sent.put("a", 2L);
 
         Tools.runProcessing(sent, conf.namedPipeLine.get("mapper2"), conf);
@@ -62,7 +65,7 @@ public class TestMapper {
     public void testExpression() throws ProcessorException, InterruptedException, ConfigException, IOException {
         Properties conf = Tools.loadConf("map.conf");
         Helpers.parallelStartProcessor(conf);
-        Event sent = Tools.getEvent();
+        Event sent = factory.newEvent();
         sent.put("a", 2);
 
         Tools.runProcessing(sent, conf.namedPipeLine.get("mapper3"), conf);

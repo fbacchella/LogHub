@@ -4,7 +4,7 @@ import java.io.IOException;
 import java.io.PrintStream;
 
 import loghub.BuilderClass;
-import loghub.Event;
+import loghub.events.Event;
 import loghub.encoders.EncodeException;
 import lombok.Setter;
 

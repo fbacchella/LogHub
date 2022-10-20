@@ -12,7 +12,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import loghub.BeanChecks;
-import loghub.Event;
+import loghub.events.Event;
 import loghub.Expression;
 import loghub.LogUtils;
 import loghub.Processor;
@@ -21,10 +21,12 @@ import loghub.Tools;
 import loghub.VarFormatter;
 import loghub.VariablePath;
 import loghub.configuration.Properties;
+import loghub.events.EventsFactory;
 
 public class TestCrlf {
 
     private static Logger logger;
+    private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
     static public void configure() throws IOException {
@@ -51,7 +53,7 @@ public class TestCrlf {
         Crlf parse = new Crlf(builder);
         parse.setField(VariablePath.of("field"));
         Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
-        Event event = Tools.getEvent();
+        Event event = factory.newEvent();
         event.put("field", input);
         parse.process(event);
         Assert.assertEquals(output, event.get("field"));

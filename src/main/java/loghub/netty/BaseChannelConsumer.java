@@ -15,7 +15,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.MessageToMessageDecoder;
-import loghub.Event;
+import loghub.events.Event;
 import loghub.FilterException;
 import loghub.Helpers;
 import loghub.decoders.DecodeException;

@@ -8,6 +8,7 @@ import java.beans.IntrospectionException;
 import java.io.IOException;
 import java.io.StringReader;
 import java.net.InetSocketAddress;
+import java.util.Collections;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -18,16 +19,19 @@ import org.junit.Test;
 
 import loghub.BeanChecks;
 import loghub.ConnectionContext;
-import loghub.Event;
+import loghub.Pipeline;
+import loghub.events.Event;
 import loghub.IpConnectionContext;
 import loghub.LogUtils;
 import loghub.Tools;
 import loghub.configuration.ConfigException;
 import loghub.configuration.Properties;
+import loghub.events.EventsFactory;
 
 public class TestFork {
 
     private static Logger logger;
+    private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
     static public void configure() throws IOException {
@@ -45,11 +49,15 @@ public class TestFork {
         forker.setDestination("newpipe");
         Assert.assertTrue(forker.configure(conf));
         ConnectionContext<?> ipctx = new IpConnectionContext(new InetSocketAddress("localhost", 0), new InetSocketAddress("localhost", 0), null);
-        Event event = Tools.getEvent(ipctx);
+        Event event = factory.newTestEvent(ipctx);
+        Pipeline ppl = new Pipeline(Collections.emptyList(), "main", null);
+        event.inject(ppl, conf.mainQueue, true);
         event.put("message", "tofork");
         event.putMeta("meta", 1);
         forker.fork(event);
 
+        // Removing the original event
+        conf.mainQueue.remove();
         Event forked = conf.mainQueue.remove();
         assertEquals("tofork", forked.get("message"));
         assertEquals(1, forked.getMeta("meta"));

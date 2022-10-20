@@ -1,4 +1,4 @@
-package loghub;
+package loghub.events;
 
 import java.io.Serializable;
 import java.time.Instant;
@@ -19,6 +19,16 @@ import java.util.stream.Stream;
 import com.fasterxml.jackson.annotation.JsonIdentityInfo;
 import com.fasterxml.jackson.annotation.ObjectIdGenerators;
 
+import loghub.ConnectionContext;
+import loghub.Helpers;
+import loghub.IgnoredEventException;
+import loghub.NullOrMissingValue;
+import loghub.Pipeline;
+import loghub.PriorityBlockingQueue;
+import loghub.Processor;
+import loghub.ProcessorException;
+import loghub.UncheckedProcessorException;
+import loghub.VariablePath;
 import loghub.metrics.Stats.PipelineStat;
 
 @JsonIdentityInfo(generator = ObjectIdGenerators.IntSequenceGenerator.class)
@@ -122,16 +132,16 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
         }
     }
 
-    public static Event emptyEvent(ConnectionContext<?> ctx) {
-        return new EventInstance(ctx);
-    }
-
-    public static Event emptyTestEvent(ConnectionContext<?> ctx) {
-        return new EventInstance(ctx, true);
-    }
-
     public Object applyAtPath(Action f, VariablePath path, Object value) {
         return applyAtPath(f, path, value, false);
+    }
+
+    public Event wrap(VariablePath vp) {
+        return new EventWrapper(this, vp);
+    }
+
+    public Event wrap() {
+        return new EventWrapper(this);
     }
 
     @SuppressWarnings("unchecked")
@@ -264,7 +274,7 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
         getMetas().clear();
     }
 
-    abstract Map<String, Object> getMetas();
+    public abstract Map<String, Object> getMetas();
 
     public abstract Object getMeta(String key);
 

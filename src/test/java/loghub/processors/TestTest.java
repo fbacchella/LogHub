@@ -9,7 +9,7 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import loghub.Event;
+import loghub.events.Event;
 import loghub.EventsProcessor;
 import loghub.Helpers;
 import loghub.LogUtils;
@@ -17,10 +17,12 @@ import loghub.ProcessorException;
 import loghub.Tools;
 import loghub.configuration.ConfigException;
 import loghub.configuration.Properties;
+import loghub.events.EventsFactory;
 
 public class TestTest {
 
     private static Logger logger;
+    private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
     static public void configure() throws IOException {
@@ -33,7 +35,7 @@ public class TestTest {
     public void testOK() throws InterruptedException, ProcessorException, ConfigException, IOException {
         Properties conf = Tools.loadConf("testclause.conf");
         Helpers.parallelStartProcessor(conf);
-        Event sent = Tools.getEvent();
+        Event sent = factory.newEvent();
         sent.put("a",1);
         Tools.runProcessing(sent, conf.namedPipeLine.get("main"), conf);
         Assert.assertEquals("conversion not expected", 1, sent.get("b"));
@@ -44,7 +46,7 @@ public class TestTest {
         Properties conf = Tools.loadConf("testclause.conf");
         Helpers.parallelStartProcessor(conf);
 
-        Event sent = Tools.getEvent();
+        Event sent = factory.newEvent();
         sent.put("a",2);
 
         Tools.runProcessing(sent, conf.namedPipeLine.get("main"), conf);
@@ -56,7 +58,7 @@ public class TestTest {
         Properties conf = Tools.loadConf("testclause.conf");
         Helpers.parallelStartProcessor(conf);
 
-        Event sent = Tools.getEvent();
+        Event sent = factory.newEvent();
 
         Tools.runProcessing(sent, conf.namedPipeLine.get("missingpath"), conf);
         Assert.assertEquals(2, sent.get("c"));
@@ -67,7 +69,7 @@ public class TestTest {
         Properties conf = Tools.loadConf("testclause.conf");
         Helpers.parallelStartProcessor(conf);
 
-        Event sent = Tools.getEvent();
+        Event sent = factory.newEvent();
         sent.put("a",2);
 
         conf.mainQueue.add(sent);

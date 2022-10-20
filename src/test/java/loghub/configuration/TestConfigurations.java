@@ -16,12 +16,15 @@ import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 
-import loghub.Event;
+import loghub.events.Event;
+import loghub.events.Event.Action;
 import loghub.EventsProcessor;
 import loghub.LogUtils;
 import loghub.ProcessorException;
 import loghub.Tools;
+import loghub.VariablePath;
 import loghub.ZMQFactory;
+import loghub.events.EventsFactory;
 import loghub.processors.DecodeUrl;
 import loghub.processors.Identity;
 import loghub.processors.SyslogPriority;
@@ -29,6 +32,7 @@ import loghub.processors.SyslogPriority;
 public class TestConfigurations {
 
     private static Logger logger;
+    private final EventsFactory factory = new EventsFactory();
 
     @Rule
     public ZMQFactory tctxt = new ZMQFactory();
@@ -43,7 +47,7 @@ public class TestConfigurations {
     @Test
     public void testBuildPipeline() throws IOException, InterruptedException, ConfigException {
         Properties conf = Tools.loadConf("simple.conf");
-        Event sent = Tools.getEvent();
+        Event sent = factory.newEvent();
         logger.debug("pipelines: " + conf.pipelines);
         logger.debug("namedPipeLine: " + conf.namedPipeLine);
         conf.mainQueue.add(sent);
@@ -54,7 +58,7 @@ public class TestConfigurations {
     @Test
     public void testBuildSubPipeline() throws IOException, InterruptedException, ConfigException {
         Properties conf = Tools.loadConf("simple.conf");
-        Event sent = Tools.getEvent();
+        Event sent = factory.newEvent();
 
         logger.debug("pipelines: " + conf.pipelines);
         logger.debug("namedPipeLine: " + conf.namedPipeLine);
@@ -69,7 +73,7 @@ public class TestConfigurations {
         Thread t = new EventsProcessor(conf.mainQueue, conf.outputQueues, conf.namedPipeLine, conf.maxSteps, conf.repository);
         t.start();
 
-        Event sent = Tools.getEvent();
+        Event sent = factory.newEvent();
         sent.put("message", "1");
         sent.inject(conf.namedPipeLine.get("pipeone"), conf.mainQueue, true);
 
@@ -89,7 +93,7 @@ public class TestConfigurations {
         ep.start();
 
         try {
-            Event sent = Tools.getEvent();
+            Event sent = factory.newEvent();
             sent.inject(conf.namedPipeLine.get("mainfork"), conf.mainQueue, true);
             Event forked = conf.outputQueues.get("forked").poll(1, TimeUnit.SECONDS);
             Event initial = conf.outputQueues.get("mainfork").poll(1, TimeUnit.SECONDS);
@@ -109,7 +113,7 @@ public class TestConfigurations {
         ep.start();
 
         try {
-            Event sent = Tools.getEvent();
+            Event sent = factory.newEvent();
             sent.inject(conf.namedPipeLine.get("mainforward"), conf.mainQueue, true);
             Event forwarded = conf.outputQueues.get("forked").poll(1, TimeUnit.SECONDS);
             Event initial = conf.outputQueues.get("mainforward").poll(1, TimeUnit.SECONDS);
@@ -148,7 +152,7 @@ public class TestConfigurations {
     public void testLog() throws ConfigException, IOException, ProcessorException {
         String confile = "pipeline[main] {log([info], INFO)}";
         Properties conf = Configuration.parse(new StringReader(confile));
-        Event sent = Tools.getEvent();
+        Event sent = factory.newEvent();
         sent.put("a", "1");
         Tools.runProcessing(sent, conf.namedPipeLine.get("main"), conf);
         Event received = conf.mainQueue.remove();
@@ -158,7 +162,7 @@ public class TestConfigurations {
     @Test
     public void testSubPipeline() throws ProcessorException, InterruptedException, ConfigException, IOException {
         Properties conf = Tools.loadConf("subpipeline.conf");
-        Event sent = Tools.getEvent();
+        Event sent = factory.newEvent();
         sent.put("a", "1");
         sent.put("b", "2");
 
@@ -246,7 +250,7 @@ public class TestConfigurations {
         EventsProcessor ep = new EventsProcessor(conf.mainQueue, conf.outputQueues, conf.namedPipeLine, conf.maxSteps, conf.repository);
         ep.start();
 
-        Event sent = Tools.getEvent();
+        Event sent = factory.newEvent();
         sent.put("b", "a\nb1");
         sent.inject(conf.namedPipeLine.get("pattern"), conf.mainQueue, true);
         try {

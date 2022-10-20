@@ -4,6 +4,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 
+import loghub.events.Event;
 import loghub.processors.Identity;
 
 public class PausedEvent<KEY> {

@@ -3,7 +3,7 @@ package loghub.processors;
 import groovy.lang.Binding;
 import groovy.lang.GroovyShell;
 import groovy.lang.Script;
-import loghub.Event;
+import loghub.events.Event;
 import loghub.Processor;
 import loghub.ProcessorException;
 

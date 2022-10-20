@@ -19,7 +19,7 @@ import org.zeromq.SocketType;
 import org.zeromq.ZMQ.Socket;
 
 import loghub.ZMQFactory;
-import loghub.Event;
+import loghub.events.Event;
 import loghub.LogUtils;
 import loghub.Tools;
 import loghub.ZMQFlow;

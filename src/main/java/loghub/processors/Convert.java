@@ -8,7 +8,7 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 
-import loghub.Event;
+import loghub.events.Event;
 import loghub.ProcessorException;
 import loghub.configuration.BeansManager;
 import loghub.configuration.Properties;

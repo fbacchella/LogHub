@@ -15,7 +15,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import loghub.BeanChecks;
-import loghub.Event;
+import loghub.events.Event;
 import loghub.Expression;
 import loghub.LogUtils;
 import loghub.Processor;
@@ -25,10 +25,12 @@ import loghub.VariablePath;
 import loghub.configuration.Configuration;
 import loghub.configuration.Properties;
 import loghub.encoders.Syslog;
+import loghub.events.EventsFactory;
 
 public class TestEncoder {
 
     private static Logger logger;
+    private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
     static public void configure() throws IOException {
@@ -55,7 +57,7 @@ public class TestEncoder {
         Encoder encoder = new Encoder();
         encoder.setEncoder(syslogBuilder.build());
         Assert.assertTrue(encoder.configure(new Properties(Collections.emptyMap())));
-        Event event = Tools.getEvent();
+        Event event = factory.newEvent();
         event.setTimestamp(new Date(0));
         encoder.process(event);
         byte[] content = (byte[]) event.get("message");

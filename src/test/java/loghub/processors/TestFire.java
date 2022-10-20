@@ -9,17 +9,19 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import loghub.Event;
+import loghub.events.Event;
 import loghub.Helpers;
 import loghub.LogUtils;
 import loghub.ProcessorException;
 import loghub.Tools;
 import loghub.configuration.ConfigException;
 import loghub.configuration.Properties;
+import loghub.events.EventsFactory;
 
 public class TestFire {
 
     private static Logger logger;
+    private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
     static public void configure() throws IOException {
@@ -32,7 +34,7 @@ public class TestFire {
     public void test() throws ProcessorException, InterruptedException, ConfigException, IOException {
         Properties conf = Tools.loadConf("fire.conf");
         Helpers.parallelStartProcessor(conf);
-        Event sent = Tools.getEvent();
+        Event sent = factory.newEvent();
         sent.put("count", 2);
 
         Tools.runProcessing(sent, conf.namedPipeLine.get("main"), conf);

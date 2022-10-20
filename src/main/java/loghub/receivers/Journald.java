@@ -27,7 +27,7 @@ import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.util.AttributeKey;
 import loghub.BuilderClass;
-import loghub.Event;
+import loghub.events.Event;
 import loghub.decoders.DecodeException;
 import loghub.decoders.JournaldExport;
 import loghub.metrics.Stats;
@@ -64,11 +64,14 @@ public class Journald extends AbstractHttpReceiver<Journald, Journald.Builder> {
         // Once broken don't try to recover
         private boolean valid = false;
         private CompositeByteBuf chunksBuffer;
-        // A local decoder as this aggregator is statefull, it should not be shared, event within a thread
-        private final JournaldExport decoder = JournaldExport.getBuilder().build();
+        // A local decoder as this aggregator is stateful, it should not be shared, event within a thread
+        private final JournaldExport decoder;
 
         public JournaldAgregator() {
             super(32768);
+            JournaldExport.Builder builder = JournaldExport.getBuilder();
+            builder.setFactory(Journald.this.getEventsFactory());
+            decoder = builder.build();
         }
 
         @Override

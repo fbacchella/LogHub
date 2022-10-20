@@ -5,8 +5,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
-import loghub.Event;
-import loghub.Event.Action;
+import loghub.events.Event;
+import loghub.events.Event.Action;
 import loghub.ProcessorException;
 import loghub.VariablePath;
 import lombok.Getter;

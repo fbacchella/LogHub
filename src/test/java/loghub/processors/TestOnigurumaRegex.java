@@ -5,13 +5,16 @@ import java.util.Collections;
 import org.junit.Assert;
 import org.junit.Test;
 
-import loghub.Event;
+import loghub.events.Event;
 import loghub.ProcessorException;
 import loghub.Tools;
 import loghub.VariablePath;
 import loghub.configuration.Properties;
+import loghub.events.EventsFactory;
 
 public class TestOnigurumaRegex {
+
+    private final EventsFactory factory = new EventsFactory();
 
     @Test
     public void testLoadPatterns1() throws ProcessorException {
@@ -23,7 +26,7 @@ public class TestOnigurumaRegex {
 
         Assert.assertTrue("Failed to configure grok", grok.configure(props));
 
-        Event e = Tools.getEvent();
+        Event e = factory.newEvent();
         e.put("message", "<15>a text");
         Assert.assertTrue(e.process(grok));
 
@@ -53,7 +56,7 @@ public class TestOnigurumaRegex {
 
         Assert.assertTrue("Failed to configure grok", grok.configure(props));
 
-        Event e = Tools.getEvent();
+        Event e = factory.newEvent();
         e.put("message", "a text");
         Assert.assertTrue(e.process(grok));
 
@@ -71,7 +74,7 @@ public class TestOnigurumaRegex {
 
         Assert.assertTrue("Failed to configure grok", grok.configure(props));
 
-        Event e = Tools.getEvent();
+        Event e = factory.newEvent();
         e.put("message", "<15>a textà");
         Assert.assertTrue(e.process(grok));
 
@@ -89,7 +92,7 @@ public class TestOnigurumaRegex {
 
         Assert.assertTrue("Failed to configure grok", grok.configure(props));
 
-        Event e = Tools.getEvent();
+        Event e = factory.newEvent();
         e.put("message", "<15>éa text");
         Assert.assertTrue(e.process(grok));
 
@@ -107,7 +110,7 @@ public class TestOnigurumaRegex {
 
         Assert.assertTrue("Failed to configure grok", grok.configure(props));
 
-        Event e = Tools.getEvent();
+        Event e = factory.newEvent();
         e.put("message", "<15>a text");
         Assert.assertTrue(e.process(grok));
     }

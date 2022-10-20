@@ -16,7 +16,7 @@ import org.junit.Test;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import loghub.Event;
+import loghub.events.Event;
 import loghub.IpConnectionContext;
 import loghub.LogUtils;
 import loghub.ProcessorException;
@@ -24,10 +24,12 @@ import loghub.Tools;
 import loghub.Tools.ProcessingStatus;
 import loghub.decoders.DecodeException;
 import loghub.decoders.Decoder;
+import loghub.events.EventsFactory;
 
 public class ProcessorTest {
 
     private static Logger logger;
+    private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
     static public void configure() throws IOException {
@@ -52,7 +54,7 @@ public class ProcessorTest {
         Decoder nfd = NetflowDecoder.getBuilder().build();
         IpConnectionContext dummyctx = new IpConnectionContext(new InetSocketAddress(0), new InetSocketAddress(0), null);
         nfd.decode(dummyctx, bbuffer).forEach(content -> {
-            Event e = Tools.getEvent();
+            Event e = factory.newEvent();
             e.setTimestamp((Date) content.remove(Event.TIMESTAMPKEY));
             e.putAll(content);
             ProcessingStatus ps;

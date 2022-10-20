@@ -23,16 +23,18 @@ import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 
-import loghub.Event;
+import loghub.events.Event;
 import loghub.LogUtils;
 import loghub.Tools;
 import loghub.configuration.Properties;
+import loghub.events.EventsFactory;
 import loghub.jackson.JacksonBuilder;
 import loghub.senders.InMemorySender;
 
 public class TestXml {
 
     private static Logger logger;
+    private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
     static public void configure() throws IOException {
@@ -47,7 +49,7 @@ public class TestXml {
         builder.setDateAsText(textdate);
         Xml encoder = builder.build();
         Assert.assertTrue(encoder.configure(new Properties(Collections.emptyMap()), InMemorySender.getBuilder().build()));
-        Event e = Tools.getEvent();
+        Event e = factory.newEvent();
         e.put("K1", "V1");
         e.put("K2", 2);
         e.put("K3", true);

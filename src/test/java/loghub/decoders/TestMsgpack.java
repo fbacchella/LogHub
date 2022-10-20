@@ -6,6 +6,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.time.Instant;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -31,17 +32,20 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import loghub.AbstractBuilder;
 import loghub.ConnectionContext;
-import loghub.Event;
+import loghub.configuration.Properties;
+import loghub.events.Event;
 import loghub.LogUtils;
 import loghub.ThreadBuilder;
 import loghub.Tools;
 import loghub.encoders.EncodeException;
+import loghub.events.EventsFactory;
 import loghub.jackson.JacksonBuilder;
 import loghub.receivers.Receiver;
 
 public class TestMsgpack {
 
     private static Logger logger;
+    private final EventsFactory factory = new EventsFactory();
 
     private final static ObjectMapper objectMapper = JacksonBuilder.get()
                                                                    .setFactory(new MessagePackFactory())
@@ -183,6 +187,7 @@ public class TestMsgpack {
         builder.setDecoder(d);
 
         try (TestReceiver r = builder.build(bs)) {
+            r.configure(new Properties(Collections.emptyMap()));
             Event e = r.getStream().findAny().get();
             testContent(e);
         }
@@ -193,7 +198,7 @@ public class TestMsgpack {
         loghub.encoders.Msgpack.Builder builder = loghub.encoders.Msgpack.getBuilder();
         builder.setForwardEvent(false);
         loghub.encoders.Msgpack enc = builder.build();
-        Event ev = Event.emptyEvent(ConnectionContext.EMPTY);
+        Event ev = factory.newEvent();
         ev.putAll(obj);
         ev.setTimestamp(new Date(0));
         Decoder dec = new Msgpack.Builder().build();
@@ -212,7 +217,7 @@ public class TestMsgpack {
         loghub.encoders.Msgpack.Builder builder = loghub.encoders.Msgpack.getBuilder();
         builder.setForwardEvent(true);
         loghub.encoders.Msgpack enc = builder.build();
-        Event ev = Event.emptyEvent(ConnectionContext.EMPTY);
+        Event ev = factory.newTestEvent();
         ev.putAll(obj);
         ev.putMeta("h", 7);
         ev.setTimestamp(new Date(0));
@@ -228,7 +233,7 @@ public class TestMsgpack {
         loghub.encoders.Msgpack.Builder builder = loghub.encoders.Msgpack.getBuilder();
         builder.setForwardEvent(true);
         loghub.encoders.Msgpack enc = builder.build();
-        Event ev = Event.emptyEvent(ConnectionContext.EMPTY);
+        Event ev = factory.newTestEvent();
         ev.putAll(obj);
         ev.putMeta("h", 7);
         ev.setTimestamp(new Date(0));
@@ -244,9 +249,9 @@ public class TestMsgpack {
 
     @SuppressWarnings("unchecked")
     private void testCompletEvent(Map<String, Object> o) {
-        Map<String, Object> e = (Map<String, Object>) ((Map<String, Object>) o.get("loghub.Event")).get("@fields");
-        Map<String, Object> m = (Map<String, Object>) ((Map<String, Object>) o.get("loghub.Event")).get("@METAS");
-        Instant ts = (Instant) ((Map<String, Object>) o.get("loghub.Event")).get(Event.TIMESTAMPKEY);
+        Map<String, Object> e = (Map<String, Object>) ((Map<String, Object>) o.get("loghub.events.Event")).get("@fields");
+        Map<String, Object> m = (Map<String, Object>) ((Map<String, Object>) o.get("loghub.events.Event")).get("@METAS");
+        Instant ts = (Instant) ((Map<String, Object>) o.get("loghub.events.Event")).get(Event.TIMESTAMPKEY);
         Assert.assertEquals(0, ts.getEpochSecond());
         testContent(e);
         Assert.assertFalse(e instanceof Event);

@@ -9,16 +9,18 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import loghub.Event;
+import loghub.events.Event;
 import loghub.LogUtils;
 import loghub.ProcessorException;
 import loghub.Tools;
 import loghub.configuration.ConfigException;
 import loghub.configuration.Properties;
+import loghub.events.EventsFactory;
 
 public class TestConditions {
 
     private static Logger logger;
+    private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
     static public void configure() throws IOException {
@@ -30,7 +32,7 @@ public class TestConditions {
     @Test
     public void testif() throws ProcessorException, ConfigException, IOException {
         Properties conf = Tools.loadConf("conditions.conf");
-        Event sent = Tools.getEvent();
+        Event sent = factory.newEvent();
         sent.put("a", "1");
 
         Tools.runProcessing(sent, conf.namedPipeLine.get("ifpipe"), conf);
@@ -42,7 +44,7 @@ public class TestConditions {
     public void testsuccess() throws ProcessorException, ConfigException, IOException {
         Properties conf = Tools.loadConf("conditions.conf");
 
-        Event sent = Tools.getEvent();
+        Event sent = factory.newEvent();
         sent.put("a", "1");
 
         Tools.runProcessing(sent, conf.namedPipeLine.get("successpipe"), conf);
@@ -54,7 +56,7 @@ public class TestConditions {
     public void testfailure() throws InterruptedException, ProcessorException, ConfigException, IOException {
         Properties conf = Tools.loadConf("conditions.conf");
 
-        Event sent = Tools.getEvent();
+        Event sent = factory.newEvent();
         sent.put("a", "a");
 
         Tools.runProcessing(sent, conf.namedPipeLine.get("failurepipe"), conf);
@@ -67,7 +69,7 @@ public class TestConditions {
     public void testsubpipe() throws InterruptedException, ProcessorException, ConfigException, IOException {
         Properties conf = Tools.loadConf("conditions.conf");
 
-        Event sent = Tools.getEvent();
+        Event sent = factory.newEvent();
         sent.put("a", "1");
 
         Tools.runProcessing(sent, conf.namedPipeLine.get("subpipe"), conf);
@@ -79,7 +81,7 @@ public class TestConditions {
     public void testignored() throws InterruptedException, ProcessorException, ConfigException, IOException {
         Properties conf = Tools.loadConf("conditions.conf");
 
-        Event sent = Tools.getEvent();
+        Event sent = factory.newEvent();
         sent.put("z", "1");
 
         Tools.runProcessing(sent, conf.namedPipeLine.get("ignore"), conf);

@@ -15,7 +15,7 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 
 import loghub.AsyncProcessor;
-import loghub.Event;
+import loghub.events.Event;
 import loghub.EventsRepository;
 import loghub.Expression;
 import loghub.NullOrMissingValue;

@@ -15,18 +15,20 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import loghub.BeanChecks;
-import loghub.Event;
+import loghub.events.Event;
 import loghub.Expression;
 import loghub.LogUtils;
 import loghub.RouteParser;
 import loghub.Tools;
 import loghub.configuration.ConfigurationTools;
 import loghub.configuration.Properties;
+import loghub.events.EventsFactory;
 import loghub.senders.InMemorySender;
 
 public class TestSyslog {
 
     private static Logger logger;
+    private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
     static public void configure() throws IOException {
@@ -65,7 +67,7 @@ public class TestSyslog {
         builder.setFormat(Syslog.Format.RFC3164);
         Syslog encoder = builder.build();
         Assert.assertTrue(encoder.configure(new Properties(Collections.emptyMap()), InMemorySender.getBuilder().build()));
-        Event e = Tools.getEvent();
+        Event e = factory.newEvent();
         e.setTimestamp(new Date(0));
         e.put("message", "unit test");
 
@@ -78,7 +80,7 @@ public class TestSyslog {
     public void testfull() throws EncodeException {
         Syslog encoder = getSampleBuilder().build();
         Assert.assertTrue(encoder.configure(new Properties(Collections.emptyMap()), InMemorySender.getBuilder().build()));
-        Event e = Tools.getEvent();
+        Event e = factory.newEvent();
         e.setTimestamp(new Date(0));
         e.put("message", "unit test");
 
@@ -93,7 +95,7 @@ public class TestSyslog {
         builder.setWithbom(true);
         Syslog encoder = builder.build();
         Assert.assertTrue(encoder.configure(new Properties(Collections.emptyMap()), InMemorySender.getBuilder().build()));
-        Event e = Tools.getEvent();
+        Event e = factory.newEvent();
         e.setTimestamp(new Date(0));
         e.put("message", "éèœ");
 
@@ -112,7 +114,7 @@ public class TestSyslog {
         builder.setSeverity(new Expression(8));
         Syslog encoder = builder.build();
         Assert.assertTrue(encoder.configure(new Properties(Collections.emptyMap()), InMemorySender.getBuilder().build()));
-        Event e = Tools.getEvent();
+        Event e = factory.newEvent();
         EncodeException ex = Assert.assertThrows(EncodeException.class, () -> encoder.encode(e));
         Assert.assertEquals("Invalid severity: 8", ex.getMessage());
     }
@@ -123,7 +125,7 @@ public class TestSyslog {
         builder.setFacility(new Expression(24));
         Syslog encoder = builder.build();
         Assert.assertTrue(encoder.configure(new Properties(Collections.emptyMap()), InMemorySender.getBuilder().build()));
-        Event e = Tools.getEvent();
+        Event e = factory.newEvent();
         EncodeException ex = Assert.assertThrows(EncodeException.class, () -> encoder.encode(e));
         Assert.assertEquals("Invalid facility: 24", ex.getMessage());
     }

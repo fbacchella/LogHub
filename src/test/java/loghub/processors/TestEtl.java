@@ -24,8 +24,8 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import loghub.ConnectionContext;
-import loghub.Event;
-import loghub.Event.Action;
+import loghub.events.Event;
+import loghub.events.Event.Action;
 import loghub.EventsProcessor;
 import loghub.Expression;
 import loghub.Helpers;
@@ -39,10 +39,12 @@ import loghub.VariablePath;
 import loghub.configuration.ConfigException;
 import loghub.configuration.ConfigurationTools;
 import loghub.configuration.Properties;
+import loghub.events.EventsFactory;
 
 public class TestEtl {
 
     private static Logger logger;
+    private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
     static public void configure() throws IOException {
@@ -65,7 +67,7 @@ public class TestEtl {
         Map<String, Object> settings = new HashMap<>(1);
         settings.put("__FORMATTERS", formatters);
         e.configure(new Properties(settings));
-        Event ev = Event.emptyEvent(ConnectionContext.EMPTY);
+        Event ev = factory.newEvent();
         if (holder != null) {
             holder.complete(ev);
         }
@@ -88,7 +90,7 @@ public class TestEtl {
         etl.setExpression(new Expression("event.c + 1", props.groovyClassLoader, props.formatters));
         boolean done = etl.configure(props);
         Assert.assertTrue("configuration failed", done);
-        Event event = Tools.getEvent();
+        Event event = factory.newEvent();
         event.put("c", 0);
         event.process(etl);
         Assert.assertEquals("evaluation failed", 1, event.applyAtPath(Action.GET, VariablePath.of(new String[] {"a", "b"}), null, false));
@@ -100,7 +102,7 @@ public class TestEtl {
         etl.setLvalue(VariablePath.of(new String[]{"a"}));
         boolean done = etl.configure(new Properties(Collections.emptyMap()));
         Assert.assertTrue("configuration failed", done);
-        Event event = Tools.getEvent();
+        Event event = factory.newEvent();
         event.put("a", 0);
         etl.process(event);
         Assert.assertEquals("evaluation failed", NullOrMissingValue.MISSING, event.applyAtPath(Action.GET, VariablePath.of(new String[] {"a"}), null, false));
@@ -113,7 +115,7 @@ public class TestEtl {
         etl.setSource(VariablePath.of(new String[]{"a"}));
         boolean done = etl.configure(new Properties(Collections.emptyMap()));
         Assert.assertTrue("configuration failed", done);
-        Event event = Tools.getEvent();
+        Event event = factory.newEvent();
         event.put("a", 0);
         etl.process(event);
         Assert.assertEquals("evaluation failed", 0, event.applyAtPath(Action.GET, VariablePath.of(new String[] {"b"}), null, false));
@@ -130,7 +132,7 @@ public class TestEtl {
         etl.setExpression(new Expression("formatters.a.format(event.getTimestamp())", props.groovyClassLoader, props.formatters));
         boolean done = etl.configure(props);
         Assert.assertTrue("configuration failed", done);
-        Event event = Tools.getEvent();
+        Event event = factory.newEvent();
         event.setTimestamp(new Date(3600 * 1000));
         event.process(etl);
         Assert.assertEquals("evaluation failed", "01", event.get("a"));
@@ -140,7 +142,7 @@ public class TestEtl {
     public void test5() throws ProcessorException, InterruptedException, ConfigException, IOException {
         Properties conf = Tools.loadConf("etl.conf");
         Helpers.parallelStartProcessor(conf);
-        Event sent = Tools.getEvent();
+        Event sent = factory.newEvent();
         sent.put("a", "a");
 
         Tools.runProcessing(sent, conf.namedPipeLine.get("main"), conf);
@@ -152,7 +154,7 @@ public class TestEtl {
     public void test7() throws ProcessorException, InterruptedException, ConfigException, IOException {
         Properties conf = Tools.loadConf("etl.conf");
         Helpers.parallelStartProcessor(conf);
-        Event sent = Tools.getEvent();
+        Event sent = factory.newEvent();
         Map<String, Object> b = new HashMap<>(1);
         b.put("c", 1);
         sent.put("b", b);
@@ -165,7 +167,7 @@ public class TestEtl {
     public void test8() throws ProcessorException, InterruptedException, ConfigException, IOException {
         Properties conf = Tools.loadConf("etl.conf");
         Helpers.parallelStartProcessor(conf);
-        Event sent = Tools.getEvent();
+        Event sent = factory.newEvent();
         sent.setTimestamp(new Date(1));
         Tools.runProcessing(sent, conf.namedPipeLine.get("timestamp"), conf);
         Assert.assertEquals(new Date(0), sent.getTimestamp());
@@ -175,7 +177,7 @@ public class TestEtl {
     @Test
     public void testAssign() throws ProcessorException {
         Etl e = parseEtl("[a] = 1");
-        Event ev = Tools.getEvent();
+        Event ev = factory.newEvent();
         Assert.assertTrue(e.process(ev));
         Assert.assertEquals(1, ev.remove("a"));
         Assert.assertTrue(ev.isEmpty());
@@ -208,7 +210,7 @@ public class TestEtl {
     @Test
     public void testAssignIndirect() throws ProcessorException {
         Etl e = parseEtl("[<- a] = 1");
-        Event ev = Event.emptyEvent(ConnectionContext.EMPTY);
+        Event ev = factory.newEvent();
         ev.put("a", "b");
         Assert.assertTrue(e.process(ev));
         Assert.assertEquals(1, ev.remove("b"));
@@ -219,7 +221,7 @@ public class TestEtl {
     @Test
     public void testAssignIndirectValue() throws ProcessorException {
         Etl e = parseEtl("[a] = [<- b]");
-        Event ev = Event.emptyEvent(ConnectionContext.EMPTY);
+        Event ev = factory.newEvent();
         ev.put("b", "c");
         ev.put("c", 1);
         Assert.assertTrue(e.process(ev));
@@ -232,7 +234,7 @@ public class TestEtl {
     @Test
     public void testRenameIndirectValue() throws ProcessorException {
         Etl e = parseEtl("[a] < [<- b]");
-        Event ev = Event.emptyEvent(ConnectionContext.EMPTY);
+        Event ev = factory.newEvent();
         ev.put("b", "c");
         ev.put("c", 1);
         Assert.assertTrue(e.process(ev));
@@ -244,7 +246,7 @@ public class TestEtl {
     @Test
     public void testAssignIndirectMissing() throws ProcessorException {
         Etl e = parseEtl("[<- a] = 1");
-        Event ev = Event.emptyEvent(ConnectionContext.EMPTY);
+        Event ev = factory.newEvent();
         Assert.assertTrue(e.process(ev));
         Assert.assertTrue(ev.isEmpty());
     }

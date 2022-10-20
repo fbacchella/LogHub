@@ -6,6 +6,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import loghub.configuration.Properties;
+import loghub.events.Event;
 import lombok.Setter;
 
 public abstract class Processor {

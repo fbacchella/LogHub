@@ -13,16 +13,18 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import loghub.BeanChecks;
-import loghub.Event;
+import loghub.events.Event;
 import loghub.Expression;
 import loghub.LogUtils;
 import loghub.Tools;
 import loghub.configuration.Properties;
+import loghub.events.EventsFactory;
 import loghub.senders.InMemorySender;
 
 public class TestEvalExpression {
 
     private static Logger logger;
+    private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
     static public void configure() throws IOException {
@@ -38,7 +40,7 @@ public class TestEvalExpression {
         builder.setFormat(new loghub.Expression("${K1}: ${K2%02d}"));
         EvalExpression encoder = builder.build();
         Assert.assertTrue(encoder.configure(new Properties(Collections.emptyMap()), InMemorySender.getBuilder().build()));
-        Event e = Tools.getEvent();
+        Event e = factory.newEvent();
         e.put("K1", "V1");
         e.put("K2", 2);
 

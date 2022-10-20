@@ -53,7 +53,7 @@ import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.LoggerContext;
 
 import groovy.lang.GroovyClassLoader;
-import loghub.Event;
+import loghub.events.Event;
 import loghub.Helpers;
 import loghub.Helpers.ThrowingConsumer;
 import loghub.Helpers.ThrowingPredicate;

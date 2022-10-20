@@ -16,6 +16,8 @@ import com.codahale.metrics.Timer.Context;
 
 import io.netty.util.concurrent.Future;
 import loghub.configuration.TestEventProcessing;
+import loghub.events.Event;
+import loghub.events.EventsFactory;
 import loghub.metrics.Stats;
 import loghub.metrics.Stats.PipelineStat;
 import loghub.processors.Drop;
@@ -92,7 +94,7 @@ public class EventsProcessor extends Thread {
                 Logger currentLogger = namedPipelines.get(event.getCurrentPipeline()).getLogger();
                 currentLogger.trace("processing with {}", processor);
                 if (processor instanceof WrapEvent) {
-                    event = new EventWrapper(event, processor.getPathArray());
+                    event = event.wrap(processor.getPathArray());
                 } else if (processor instanceof UnwrapEvent) {
                     event = event.unwrap();
                 } else {

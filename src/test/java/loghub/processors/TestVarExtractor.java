@@ -10,15 +10,17 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import loghub.Event;
+import loghub.events.Event;
 import loghub.LogUtils;
 import loghub.ProcessorException;
 import loghub.Tools;
 import loghub.VariablePath;
+import loghub.events.EventsFactory;
 
 public class TestVarExtractor {
 
     private static Logger logger;
+    private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
     static public void configure() throws IOException {
@@ -33,7 +35,7 @@ public class TestVarExtractor {
         t.setPath("sub");
         t.setField(VariablePath.of(".message"));
         t.setParser("(?<name>[a-z]+)[=:](?<value>[^;]+);?");
-        Event e = Tools.getEvent();
+        Event e = factory.newEvent();
         e.put("message", "a=1;b:2;c");
         Assert.assertTrue(e.process(t));
         @SuppressWarnings("unchecked")
@@ -48,7 +50,7 @@ public class TestVarExtractor {
         VarExtractor t = new VarExtractor();
         t.setField(VariablePath.of(".message"));
         t.setParser("(?<name>[a-z]+)[=:](?<value>[^;]+);?");
-        Event e = Tools.getEvent();
+        Event e = factory.newEvent();
         e.put("message", "a=1;b:2");
         e.process(t);
         Assert.assertEquals("key a not found", "1", e.get("a"));
@@ -60,7 +62,7 @@ public class TestVarExtractor {
     public void test3() throws ProcessorException {
         VarExtractor t = new VarExtractor();
         t.setField(VariablePath.of(".message"));
-        Event e = Tools.getEvent();
+        Event e = factory.newEvent();
         e.put("message", "a=1;b:2;c");
         e.process(t);
         Assert.assertEquals("key a not found", "1", e.get("a"));
@@ -73,7 +75,7 @@ public class TestVarExtractor {
         VarExtractor t = new VarExtractor();
         t.setField(VariablePath.of(".message"));
         t.setParser("(?<name>[a-z]+)=(?<value>[^;]+);?");
-        Event e = Tools.getEvent();
+        Event e = factory.newEvent();
         e.put("message", "noise a=1;b=2;error;c=3");
         e.process(t);
         Assert.assertEquals("key a not found", "1", e.get("a"));

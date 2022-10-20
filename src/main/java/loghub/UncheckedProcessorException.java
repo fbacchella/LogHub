@@ -1,5 +1,7 @@
 package loghub;
 
+import loghub.events.Event;
+
 public class UncheckedProcessorException extends RuntimeException implements ProcessingException {
 
     public UncheckedProcessorException(ProcessorException root) {

@@ -5,6 +5,7 @@ import java.util.concurrent.Semaphore;
 import java.util.function.BiConsumer;
 
 import io.netty.util.concurrent.Future;
+import loghub.events.Event;
 import lombok.Getter;
 
 public interface AsyncProcessor<FI, F extends Future<FI>> {

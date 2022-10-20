@@ -8,6 +8,8 @@ import java.util.StringJoiner;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
+import loghub.events.Event;
+
 public abstract class VariablePath {
     
     private static final Map<String, VariablePath> pathCache = new ConcurrentHashMap<>();

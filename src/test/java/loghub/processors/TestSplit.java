@@ -13,7 +13,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import loghub.BeanChecks;
-import loghub.Event;
+import loghub.events.Event;
 import loghub.Expression;
 import loghub.LogUtils;
 import loghub.Processor;
@@ -21,10 +21,12 @@ import loghub.ProcessorException;
 import loghub.Tools;
 import loghub.VariablePath;
 import loghub.configuration.Properties;
+import loghub.events.EventsFactory;
 
 public class TestSplit {
 
     private static Logger logger;
+    private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
     static public void configure() throws IOException {
@@ -52,7 +54,7 @@ public class TestSplit {
         parse.setKeepempty(keepempty);
         parse.setField(VariablePath.of("field"));
         Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
-        Event event = Tools.getEvent();
+        Event event = factory.newEvent();
         event.put("field", message);
         parse.process(event);
         return (List<String>) event.get("field");

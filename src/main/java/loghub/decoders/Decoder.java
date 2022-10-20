@@ -17,8 +17,9 @@ import org.apache.logging.log4j.util.StackLocator;
 import io.netty.buffer.ByteBuf;
 import loghub.AbstractBuilder;
 import loghub.ConnectionContext;
-import loghub.Event;
+import loghub.events.Event;
 import loghub.configuration.Properties;
+import loghub.events.EventsFactory;
 import loghub.receivers.Receiver;
 import lombok.Getter;
 import lombok.Setter;
@@ -55,7 +56,7 @@ public abstract class Decoder {
 
     protected void manageDecodeException(ConnectionContext<?> connectionContext, DecodeException ex) {
         receiver.manageDecodeException(ex);
-        Event.emptyEvent(connectionContext).end();
+        EventsFactory.deadEvent(connectionContext);
     }
 
     protected Object decodeObject(ConnectionContext<?> connectionContext, byte[] msg, int offset, int length) throws DecodeException {

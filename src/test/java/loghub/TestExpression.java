@@ -20,10 +20,13 @@ import org.junit.Test;
 
 import loghub.Expression.ExpressionException;
 import loghub.configuration.Properties;
+import loghub.events.Event;
+import loghub.events.EventsFactory;
 
 public class TestExpression {
 
     private static Logger logger ;
+    private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
     static public void configure() throws IOException {
@@ -39,7 +42,7 @@ public class TestExpression {
         Map<String, VarFormatter> formatters = Collections.singletonMap("faaf", format);
         String expressionScript = "event.getGroovyPath(\"value\") == formatters.faaf.format(event)";
         Expression expression = new Expression(expressionScript, new Properties(Collections.emptyMap()).groovyClassLoader, formatters);
-        Event ev = Tools.getEvent();
+        Event ev = factory.newEvent();
         ev.put("value", "a");
         Object o = expression.eval(ev);
         Assert.assertEquals("failed to parse expression", true, (Boolean)o);
@@ -51,7 +54,7 @@ public class TestExpression {
         Map<String, VarFormatter> formatters = Collections.singletonMap("faaf", format);
         String expressionScript = "event.getGroovyPath(\"a\", \"b\") + formatters.faaf.format(event.a)";
         Expression expression = new Expression(expressionScript, new Properties(Collections.emptyMap()).groovyClassLoader, formatters);
-        Event ev = Tools.getEvent();
+        Event ev = factory.newEvent();
         ev.put("a", Collections.singletonMap("b", 1));
         Object o = expression.eval(ev);
         Assert.assertEquals("failed to parse expression", "11", (String)o);
@@ -61,7 +64,7 @@ public class TestExpression {
     public void test3() throws ExpressionException, ProcessorException {
         String expressionScript = "\"a\"";
         Expression expression = new Expression(expressionScript, new Properties(Collections.emptyMap()).groovyClassLoader, Collections.emptyMap());
-        Event ev = Tools.getEvent();
+        Event ev = factory.newEvent();
         Object o = expression.eval(ev);
         Assert.assertEquals("failed to parse expression", "a", (String)o);
     }
@@ -70,7 +73,7 @@ public class TestExpression {
     public void testStringFormat() throws ExpressionException, ProcessorException {
         String format = "${a%s} ${b%02d}";
         Expression expression = new Expression(format);
-        Event ev = Tools.getEvent();
+        Event ev = factory.newEvent();
         ev.put("a", "1");
         ev.put("b", 2);
         Object o = expression.eval(ev);
@@ -89,7 +92,7 @@ public class TestExpression {
     @Test
     public void testDateDiff() throws ExpressionException, ProcessorException {
         Instant now = Instant.now();
-        Event ev = Tools.getEvent();
+        Event ev = factory.newEvent();
         ev.put("a", now.minusMillis(1100));
         ev.put("b", now);
         ev.put("c", Date.from(now.minusMillis(1100)));
@@ -119,7 +122,7 @@ public class TestExpression {
     @Test
     public void dateCompare() {
         Instant now = Instant.now();
-        Event ev = Tools.getEvent();
+        Event ev = factory.newEvent();
         ev.put("a", now);
         ev.put("b", Date.from(now));
         ev.put("c", ZonedDateTime.ofInstant(now, ZoneId.systemDefault()));

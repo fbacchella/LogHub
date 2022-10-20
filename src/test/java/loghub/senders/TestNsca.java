@@ -7,13 +7,16 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import loghub.ConnectionContext;
-import loghub.Event;
+import loghub.events.Event;
 import loghub.configuration.ConfigException;
 import loghub.configuration.Configuration;
 import loghub.configuration.Properties;
 import loghub.encoders.EncodeException;
+import loghub.events.EventsFactory;
 
 public class TestNsca {
+
+    private final EventsFactory factory = new EventsFactory();
 
     @Test
     public void test() throws ConfigException, IOException, SendException, EncodeException {
@@ -24,7 +27,7 @@ public class TestNsca {
 
         Nsca sender = (Nsca) p.senders.stream().findAny().get();
         Assert.assertTrue(sender.configure(p));
-        Event ev = Event.emptyEvent(ConnectionContext.EMPTY);
+        Event ev = factory.newEvent();
         ev.put("level", "CRITICAL");
         ev.put("service", "aservice");
         ev.put("message", "message");

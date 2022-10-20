@@ -36,7 +36,7 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import io.netty.util.CharsetUtil;
 import loghub.BuilderClass;
 import loghub.CanBatch;
-import loghub.Event;
+import loghub.events.Event;
 import loghub.Expression;
 import loghub.Helpers;
 import loghub.ProcessorException;

@@ -14,12 +14,13 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import loghub.Event;
+import loghub.events.Event;
 import loghub.LogUtils;
 import loghub.ProcessorException;
 import loghub.Tools;
 import loghub.UncheckedProcessorException;
 import loghub.VarFormatter;
+import loghub.events.EventsFactory;
 import loghub.metrics.Stats;
 
 /**
@@ -29,6 +30,7 @@ import loghub.metrics.Stats;
 public class TestFieldsProcessor {
 
     private static Logger logger;
+    private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
     static public void configure() throws IOException {
@@ -55,7 +57,7 @@ public class TestFieldsProcessor {
 
         p.setDestinationTemplate(new VarFormatter("${field}_done"));
         p.setFields(new String[] {"a", "b"});
-        Event e = Tools.getEvent();
+        Event e = factory.newEvent();
         e.put("a", 1);
         e.put("b", 2);
         Tools.runProcessing(e, "main", Collections.singletonList(p));
@@ -82,7 +84,7 @@ public class TestFieldsProcessor {
 
         p.setDestinationTemplate(new VarFormatter("${field}_done"));
         p.setFields(new String[] {"a", "b"});
-        Event e = Tools.getEvent();
+        Event e = factory.newEvent();
         e.put("a", 1);
         e.put("b", 2);
         Tools.runProcessing(e, "main", Collections.singletonList(p));
@@ -113,7 +115,7 @@ public class TestFieldsProcessor {
 
         p.setDestinationTemplate(new VarFormatter("${field}_done"));
         p.setFields(new String[] {"a", "b"});
-        Event e = Tools.getEvent();
+        Event e = factory.newEvent();
         e.put("a", 1);
         e.put("b", 2);
         Tools.runProcessing(e, "main", Collections.singletonList(p));

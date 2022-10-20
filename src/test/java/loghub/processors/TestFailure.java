@@ -2,12 +2,15 @@ package loghub.processors;
 
 import org.junit.Test;
 
-import loghub.Event;
+import loghub.events.Event;
 import loghub.Processor;
 import loghub.ProcessorException;
 import loghub.Tools;
+import loghub.events.EventsFactory;
 
 public class TestFailure {
+
+    private final EventsFactory factory = new EventsFactory();
 
     @Test(expected=ProcessorException.class)
     public void test() throws ProcessorException {
@@ -25,7 +28,7 @@ public class TestFailure {
 
         };
 
-        Event event = Tools.getEvent();
+        Event event = factory.newEvent();
 
         event.process(p);
 

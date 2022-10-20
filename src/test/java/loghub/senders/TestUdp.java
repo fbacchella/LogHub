@@ -22,15 +22,17 @@ import org.junit.Test;
 
 import loghub.BeanChecks;
 import loghub.ConnectionContext;
-import loghub.Event;
+import loghub.events.Event;
 import loghub.LogUtils;
 import loghub.Tools;
 import loghub.configuration.Properties;
 import loghub.encoders.ToJson;
+import loghub.events.EventsFactory;
 
 public class TestUdp {
 
     private static Logger logger;
+    private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
     static public void configure() throws IOException {
@@ -77,10 +79,10 @@ public class TestUdp {
         Assert.assertTrue(sender.configure(new Properties(Collections.emptyMap())));
         sender.start();
 
-        Event ev = Event.emptyEvent(ConnectionContext.EMPTY);
+        Event ev = factory.newEvent();
         ev.put("message", 1);
         queue.add(ev);
-        ev = Event.emptyEvent(ConnectionContext.EMPTY);
+        ev = factory.newEvent();
         ev.put("message", 2);
         queue.add(ev);
 

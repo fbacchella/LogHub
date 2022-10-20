@@ -25,7 +25,7 @@ import com.codahale.metrics.Timer;
 
 import loghub.AbstractBuilder;
 import loghub.CanBatch;
-import loghub.Event;
+import loghub.events.Event;
 import loghub.Filter;
 import loghub.FilterException;
 import loghub.Helpers;

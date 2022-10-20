@@ -11,7 +11,7 @@ import org.zeromq.ZPoller;
 
 import loghub.BuilderClass;
 import loghub.CanBatch;
-import loghub.Event;
+import loghub.events.Event;
 import loghub.Helpers;
 import loghub.ThreadBuilder;
 import loghub.configuration.Properties;

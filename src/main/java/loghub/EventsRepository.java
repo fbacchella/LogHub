@@ -12,6 +12,7 @@ import org.apache.logging.log4j.Logger;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timeout;
 import loghub.configuration.Properties;
+import loghub.events.Event;
 import loghub.metrics.Stats;
 import loghub.metrics.Stats.PipelineStat;
 

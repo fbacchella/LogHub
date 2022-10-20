@@ -8,7 +8,7 @@ import org.apache.logging.log4j.util.StackLocator;
 
 import loghub.AbstractBuilder;
 import loghub.CanBatch;
-import loghub.Event;
+import loghub.events.Event;
 import loghub.configuration.Properties;
 import loghub.senders.Sender;
 import lombok.Setter;

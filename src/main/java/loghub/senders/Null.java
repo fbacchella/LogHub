@@ -2,7 +2,7 @@ package loghub.senders;
 
 import loghub.BuilderClass;
 import loghub.CanBatch;
-import loghub.Event;
+import loghub.events.Event;
 import loghub.encoders.EncodeException;
 import lombok.Setter;
 

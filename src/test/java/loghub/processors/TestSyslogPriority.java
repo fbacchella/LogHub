@@ -14,18 +14,20 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import loghub.BeanChecks;
-import loghub.Event;
-import loghub.Event.Action;
+import loghub.events.Event;
+import loghub.events.Event.Action;
 import loghub.LogUtils;
 import loghub.NullOrMissingValue;
 import loghub.ProcessorException;
 import loghub.Tools;
 import loghub.VariablePath;
 import loghub.configuration.Properties;
+import loghub.events.EventsFactory;
 
 public class TestSyslogPriority {
 
     private static Logger logger;
+    private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
     static public void configure() throws IOException {
@@ -44,7 +46,7 @@ public class TestSyslogPriority {
 
         Assert.assertTrue(sp.configure(props));
 
-        Event e = Tools.getEvent();
+        Event e = factory.newEvent();
         e.put("message", "38");
         Assert.assertTrue(e.process(sp));
         String severity = (String)((Map<String, Object>)e.get("message")).get("severity");
@@ -63,7 +65,7 @@ public class TestSyslogPriority {
 
         Assert.assertTrue(sp.configure(props));
 
-        Event e = Tools.getEvent();
+        Event e = factory.newEvent();
         e.put("message", "38");
         Assert.assertTrue(e.process(sp));
         Assert.assertEquals("informational", e.applyAtPath(Action.GET, VariablePath.of(new String[] {"log", "syslog", "severity", "name"}), null));
@@ -83,7 +85,7 @@ public class TestSyslogPriority {
 
         Assert.assertTrue(sp.configure(props));
 
-        Event e = Tools.getEvent();
+        Event e = factory.newEvent();
         e.put("message", 255);
         Assert.assertTrue(e.process(sp));
         Assert.assertEquals("debug", e.applyAtPath(Action.GET, VariablePath.of(new String[] {"log", "syslog", "severity", "name"}), null));
@@ -104,7 +106,7 @@ public class TestSyslogPriority {
 
         Assert.assertTrue(sp.configure(props));
 
-        Event e = Tools.getEvent();
+        Event e = factory.newEvent();
         e.put("message", "38");
         e.process(sp);
         Number severity = (Number)((Map<String, Object>)e.get("message")).get("severity");
@@ -123,7 +125,7 @@ public class TestSyslogPriority {
 
         Assert.assertTrue(sp.configure(props));
 
-        Event e = Tools.getEvent();
+        Event e = factory.newEvent();
         e.put("message", 38);
         e.process(sp);
         String severity = (String)((Map<String, Object>)e.get("message")).get("severity");
@@ -142,7 +144,7 @@ public class TestSyslogPriority {
 
         Assert.assertTrue(sp.configure(props));
 
-        Event e = Tools.getEvent();
+        Event e = factory.newEvent();
         e.put("message", 255);
         Assert.assertTrue(e.process(sp));
         Assert.assertEquals("debug", e.applyAtPath(Action.GET, VariablePath.of(new String[] {"message", "severity"}), null));
@@ -160,7 +162,7 @@ public class TestSyslogPriority {
 
         Assert.assertTrue(sp.configure(props));
 
-        Event e = Tools.getEvent();
+        Event e = factory.newEvent();
         e.put("message", 38);
         e.process(sp);
         Number severity = (Number)((Map<String, Object>)e.get("message")).get("severity");
@@ -178,7 +180,7 @@ public class TestSyslogPriority {
 
         Assert.assertTrue(sp.configure(props));
 
-        Event e = Tools.getEvent();
+        Event e = factory.newEvent();
         e.put("message", Instant.now());
         e.process(sp);
     }

@@ -21,7 +21,7 @@ import io.netty.channel.DefaultEventLoop;
 import io.netty.util.concurrent.DefaultPromise;
 import io.netty.util.concurrent.Promise;
 import loghub.AsyncProcessor;
-import loghub.Event;
+import loghub.events.Event;
 import loghub.LogUtils;
 import loghub.Processor;
 import loghub.ProcessorException;
@@ -29,10 +29,12 @@ import loghub.ThreadBuilder;
 import loghub.Tools;
 import loghub.VarFormatter;
 import loghub.VariablePath;
+import loghub.events.EventsFactory;
 
 public class TestFieldsAsynchronous {
 
     private static Logger logger;
+    private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
     static public void configure() throws IOException {
@@ -112,7 +114,7 @@ public class TestFieldsAsynchronous {
             }
         };
         transform = (e, v) -> v.getClass().getCanonicalName();
-        Event e = Tools.getEvent();
+        Event e = factory.newEvent();
         e.put("a", 1);
         e.put("b", 2);
         SleepingProcessor sp = new SleepingProcessor();
@@ -135,7 +137,7 @@ public class TestFieldsAsynchronous {
             }
         };
         transform = (e, v) -> v.getClass().getCanonicalName();
-        Event e = Tools.getEvent();
+        Event e = factory.newEvent();
         e.put("a", 1);
         e.put("b", 2);
         SleepingProcessor sp = new SleepingProcessor();
@@ -153,7 +155,7 @@ public class TestFieldsAsynchronous {
     public void failed() throws ProcessorException, InterruptedException {
         todo = (v) -> v.setSuccess(this);
         transform = (e, v) -> FieldsProcessor.RUNSTATUS.FAILED;
-        Event e = Tools.getEvent();
+        Event e = factory.newEvent();
         e.put("a", 1);
         SleepingProcessor sp = new SleepingProcessor();
         sp.setField(VariablePath.of(new String[] {"a"}));
@@ -176,7 +178,7 @@ public class TestFieldsAsynchronous {
             }
         };
         transform = (e, v) -> v.getClass().getCanonicalName();
-        Event e = Tools.getEvent();
+        Event e = factory.newEvent();
         e.put("a", 1);
         SleepingProcessor sp = new SleepingProcessor();
         sp.setField(VariablePath.of(new String[] {"a"}));
@@ -204,7 +206,7 @@ public class TestFieldsAsynchronous {
         todo = (v) -> v.setFailure(new RuntimeException());
         onexception = (e, x) -> Boolean.FALSE;
         transform = (e, v) -> v.getClass().getCanonicalName();
-        Event e = Tools.getEvent();
+        Event e = factory.newEvent();
         e.put("a", 1);
         SleepingProcessor sp = new SleepingProcessor();
         sp.setField(VariablePath.of(new String[] {"a"}));
@@ -227,7 +229,7 @@ public class TestFieldsAsynchronous {
                 throw new RuntimeException(ex);
             }
         };
-        Event e = Tools.getEvent();
+        Event e = factory.newEvent();
         e.put("a", 1);
         SleepingProcessor sp = new SleepingProcessor();
         sp.setField(VariablePath.of(new String[] {"a"}));

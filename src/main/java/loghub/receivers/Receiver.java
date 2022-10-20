@@ -18,7 +18,6 @@ import org.apache.logging.log4j.Logger;
 
 import loghub.AbstractBuilder;
 import loghub.ConnectionContext;
-import loghub.Event;
 import loghub.Filter;
 import loghub.FilterException;
 import loghub.Helpers;
@@ -28,6 +27,8 @@ import loghub.configuration.Properties;
 import loghub.decoders.DecodeException;
 import loghub.decoders.DecodeException.RuntimeDecodeException;
 import loghub.decoders.Decoder;
+import loghub.events.Event;
+import loghub.events.EventsFactory;
 import loghub.metrics.Stats;
 import loghub.security.AuthenticationHandler;
 import loghub.security.JWTHandler;
@@ -90,6 +91,8 @@ public abstract class Receiver<R extends Receiver<R, B>, B extends Receiver.Buil
     private Pipeline pipeline;
     private final boolean blocking;
     protected final Decoder decoder;
+    @Getter
+    private EventsFactory eventsFactory;
 
     protected Receiver(B builder){
         setDaemon(true);
@@ -117,6 +120,7 @@ public abstract class Receiver<R extends Receiver<R, B>, B extends Receiver.Buil
     }
 
     public boolean configure(Properties properties) {
+        eventsFactory = properties.eventsFactory;
         setName("receiver." + getReceiverName());
         if (decoder != null) {
             return decoder.configure(properties, this);
@@ -212,7 +216,7 @@ public abstract class Receiver<R extends Receiver<R, B>, B extends Receiver.Buil
     protected final Event mapToEvent(ConnectionContext<?> ctx, Map<String, Object> content) {
         if (content == null || content.isEmpty()) {
             manageDecodeException(new DecodeException("Received null or empty event"));
-            Event.emptyEvent(ctx).end();
+            EventsFactory.deadEvent(ctx);
             return null;
         } else {
             try {
@@ -227,14 +231,14 @@ public abstract class Receiver<R extends Receiver<R, B>, B extends Receiver.Buil
                     Map<String, Object> fields = (Map<String, Object>) eventContent.remove("@fields");
                     @SuppressWarnings("unchecked")
                     Map<String, Object> metas = (Map<String, Object>) eventContent.remove("@METAS");
-                    newEvent = Event.emptyEvent(ctx);
+                    newEvent = eventsFactory.newEvent(ctx);
                     newEvent.putAll(fields);
                     Optional.ofNullable(eventContent.get(Event.TIMESTAMPKEY))
                             .filter(newEvent::setTimestamp)
                             .ifPresent(ts -> eventContent.remove(Event.TIMESTAMPKEY));
                     metas.forEach(newEvent::putMeta);
                 } else {
-                    newEvent = Event.emptyEvent(ctx);
+                    newEvent = eventsFactory.newEvent(ctx);
                     Optional.ofNullable(content.get(timeStampField))
                             .filter(i -> i instanceof Date || i instanceof Instant || i instanceof Number)
                             .filter(newEvent::setTimestamp)
@@ -249,7 +253,7 @@ public abstract class Receiver<R extends Receiver<R, B>, B extends Receiver.Buil
                     return newEvent;
                 }
             } catch (RuntimeDecodeException ex) {
-                Event.emptyEvent(ctx).end();
+                EventsFactory.deadEvent(ctx);
                 manageDecodeException(ex.getDecodeException());
                 return null;
             }
@@ -299,7 +303,7 @@ public abstract class Receiver<R extends Receiver<R, B>, B extends Receiver.Buil
     protected final boolean send(Event event) {
         if (event == null) {
             manageDecodeException(new DecodeException("Received null event"));
-            Event.emptyEvent(ConnectionContext.EMPTY).end();
+            EventsFactory.deadEvent(ConnectionContext.EMPTY);
             return false;
         } else if (event.getConnectionContext() == null) {
             Stats.newReceivedError(this, "Received an event without context");

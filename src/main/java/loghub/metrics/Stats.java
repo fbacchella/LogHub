@@ -19,7 +19,7 @@ import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
 import com.codahale.metrics.Timer.Context;
 
-import loghub.Event;
+import loghub.events.Event;
 import loghub.Helpers;
 import loghub.ProcessingException;
 import loghub.receivers.Receiver;

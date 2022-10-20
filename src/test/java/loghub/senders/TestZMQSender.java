@@ -31,7 +31,7 @@ import org.zeromq.ZMQ.Socket;
 import loghub.BeanChecks;
 import loghub.BeanChecks.BeanInfo;
 import loghub.ConnectionContext;
-import loghub.Event;
+import loghub.events.Event;
 import loghub.LogUtils;
 import loghub.ThreadBuilder;
 import loghub.Tools;
@@ -40,6 +40,7 @@ import loghub.ZMQSink;
 import loghub.configuration.Properties;
 import loghub.encoders.EncodeException;
 import loghub.encoders.ToJson;
+import loghub.events.EventsFactory;
 import loghub.zmq.ZMQCheckedException;
 import loghub.zmq.ZMQHelper.Method;
 import loghub.zmq.ZMQSocketFactory;
@@ -48,6 +49,7 @@ import zmq.socket.Sockets;
 public class TestZMQSender {
 
     private static Logger logger;
+    private final EventsFactory factory = new EventsFactory();
 
     @Rule(order=1)
     public TemporaryFolder testFolder = new TemporaryFolder();
@@ -95,7 +97,7 @@ public class TestZMQSender {
         Thread injector = ThreadBuilder.get().setTask(() -> {
             try {
                 while (true) {
-                    Event ev = Event.emptyEvent(ConnectionContext.EMPTY);
+                    Event ev = factory.newEvent();
                     ev.put("message", count.incrementAndGet());
                     queue.offer(ev);
                     Thread.sleep(50);

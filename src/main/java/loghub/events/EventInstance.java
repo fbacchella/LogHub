@@ -1,13 +1,16 @@
-package loghub;
+package loghub.events;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.Externalizable;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.NotSerializableException;
+import java.io.ObjectInput;
 import java.io.ObjectInputStream;
+import java.io.ObjectOutput;
 import java.io.ObjectOutputStream;
-import java.time.Duration;
-import java.time.temporal.ChronoUnit;
+import java.io.UncheckedIOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -17,11 +20,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Queue;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
 import java.util.stream.Stream;
 
@@ -31,178 +31,146 @@ import org.apache.logging.log4j.Logger;
 
 import com.codahale.metrics.Timer.Context;
 
-import loghub.configuration.Properties;
+import loghub.ConnectionContext;
+import loghub.Helpers;
+import loghub.Pipeline;
+import loghub.PriorityBlockingQueue;
+import loghub.Processor;
+import loghub.ProcessorException;
+import loghub.SubPipeline;
 import loghub.metrics.Stats;
 import loghub.metrics.Stats.PipelineStat;
 
 class EventInstance extends Event {
 
-    /**
-     * The execution stack contains informations about named pipeline being executed.
-     * It's reset when changing top level pipeline
-     * @author fa4
-     *
-     */
-    private static final class ExecutionStackElement {
-        private static final Logger logger = LogManager.getLogger();
-        private final String name;
+    private static class EventObjectInputStream extends ObjectInputStream {
+        private final EventsFactory factory;
 
-        private long duration = 0;
-        private long startTime = Long.MAX_VALUE;
-        private boolean running;
+        public EventObjectInputStream(InputStream in, EventsFactory factory) throws IOException {
+            super(in);
+            this.factory = factory;
+        }
+    }
 
-        private ExecutionStackElement(String name) {
-            this.name = name;
-            restart();
+    private static class EventSerializer implements Externalizable {
+
+        private EventInstance event;
+
+        private EventSerializer(EventInstance event) {
+            this.event = event;
         }
 
-        private void close() {
-            if (running) {
-                long elapsed = System.nanoTime() - startTime;
-                duration += elapsed;
-                Stats.pipelineHanding(name, PipelineStat.INFLIGHTDOWN);
+        public EventSerializer() {
+            // Empty, needed by readExternal
+        }
+
+        public void readExternal(ObjectInput input) throws ClassNotFoundException, IOException {
+            if (! (input instanceof EventObjectInputStream)) {
+                throw new IllegalStateException();
             }
-            Stats.timerUpdate(name, duration, TimeUnit.NANOSECONDS);
-            duration = 0;
-            running = false;
-            startTime = Long.MAX_VALUE;
+            EventObjectInputStream eois = (EventObjectInputStream) input;
+            ConnectionContext ctx;
+            int contextIndicator = eois.readInt();
+            switch (contextIndicator) {
+            case 0:
+                ctx = ConnectionContext.EMPTY;
+                break;
+            default:
+                ctx = (ConnectionContext) eois.readObject();
+                break;
+            }
+            event = (EventInstance) eois.factory.newEvent(ctx);
+            event.timestamp = new Date(eois.readLong());
+            event.currentPipeline = eois.readUTF();
+            boolean nextPipeline = eois.readBoolean();
+            if(nextPipeline) {
+                event.nextPipeline = eois.readUTF();
+            }
+            event.stepsCount = eois.readInt();
+            event.test = eois.readBoolean();
+            readMap(event.getMetas(), eois);
+            readMap(event, eois);
         }
 
-        private void pause() {
-            running = false;
-            Stats.pipelineHanding(name, PipelineStat.INFLIGHTDOWN);
-            long elapsed = System.nanoTime() - startTime;
-            duration += elapsed;
+        public void writeExternal(ObjectOutput output) throws IOException {
+            ConnectionContext<?> ctx = event.getConnectionContext();
+            if (ctx == ConnectionContext.EMPTY) {
+                output.writeInt(0);
+            } else {
+                output.writeInt(1);
+                output.writeObject(ctx);
+            }
+            output.writeLong(event.timestamp.getTime());
+            output.writeUTF(event.currentPipeline);
+            boolean nextPipeline = event.nextPipeline != null;
+            output.writeBoolean(nextPipeline);
+            if (nextPipeline) {
+                output.writeUTF(event.nextPipeline);
+            }
+            output.writeInt(event.stepsCount);
+            output.writeBoolean(event.test);
+            writeMap(event.metas, output);
+            writeMap(event, output);
         }
 
-        private void restart() {
-            startTime = System.nanoTime();
-            running = true;
-            Stats.pipelineHanding(name, PipelineStat.INFLIGHTUP);
-        }
-
-        @Override
-        public String toString() {
-            return name + "(" + Duration.of(duration, ChronoUnit.NANOS) + ")";
-        }
-    }
-
-    private static final class PreSubpipline extends Processor {
-
-        private final String pipename;
-
-        PreSubpipline(String pipename) {
-            this.pipename = pipename;
-        }
-
-        @Override
-        public boolean configure(Properties properties) {
-            return true;
-        }
-
-        @Override
-        public boolean process(Event event) throws ProcessorException {
-            Optional.ofNullable(event.getRealEvent().executionStack.peek()).ifPresent(ExecutionStackElement::pause);
-            ExecutionStackElement ctxt = new ExecutionStackElement(pipename);
-            event.getRealEvent().executionStack.add(ctxt);
-            ExecutionStackElement.logger.trace("--> {}({})", () -> event.getRealEvent().executionStack, () -> event);
-            return true;
-        }
-
-        @Override
-        public String getName() {
-            return "preSubpipline(" + pipename + ")";
-        }
-
-        @Override
-        public String toString() {
-            return "preSubpipline(" + pipename + ")";
-        }
-    }
-
-    private static final class PostSubpipline extends Processor {
-
-        @Override
-        public boolean configure(Properties properties) {
-            return true;
-        }
-
-        @Override
-        public boolean process(Event event) throws ProcessorException {
-            ExecutionStackElement.logger.trace("<-- {}({})", () -> event.getRealEvent().executionStack, () -> event);
+        private void writeMap(Map<String, Object> map, ObjectOutput output) throws IOException {
+            output.writeInt(map.size());
             try {
-                event.getRealEvent().executionStack.remove().close();
-            } catch (NoSuchElementException ex) {
-                throw new ProcessorException(event.getRealEvent(), "Empty timer stack, bad state");
+                map.entrySet().forEach(e -> {
+                    try {
+                        output.writeUTF(e.getKey());
+                        output.writeObject(e.getValue());
+                    } catch (IOException ex) {
+                        throw new UncheckedIOException(ex);
+                    }
+                });
+            } catch (UncheckedIOException e) {
+                throw e.getCause();
             }
-            Optional.ofNullable(event.getRealEvent().executionStack.peek()).ifPresent(ExecutionStackElement::restart);
-            return true;
         }
 
-        @Override
-        public String getName() {
-            return "postSubpipline";
+        private void readMap(Map<String, Object> map, ObjectInputStream aInputStream)
+                throws IOException, ClassNotFoundException {
+            int size = aInputStream.readInt();
+            for (int i = 0; i < size ; i++) {
+                String key = aInputStream.readUTF();
+                Object value = aInputStream.readObject();
+                map.put(key, value);
+            }
         }
-
-        @Override
-        public String toString() {
-            return "postSubpipline";
-        }
-    }
-
-    private static final Map<String, PreSubpipline> preSubpiplines = new ConcurrentHashMap<>();
-    private static final PostSubpipline postSubpipline = new PostSubpipline();
-
-    private static PreSubpipline getPre(String name) {
-        return preSubpiplines.computeIfAbsent(name, PreSubpipline::new);
-    }
-
-    private static PostSubpipline getPost(String name) {
-        return postSubpipline;
     }
 
     private static final Logger logger = LogManager.getLogger();
 
-    private transient EventWrapper wevent;
-    private transient LinkedList<Processor> processors;
+    private EventWrapper wevent;
+    private LinkedList<Processor> processors;
 
     private String currentPipeline;
     private String nextPipeline;
     private Date timestamp = new Date();
-    private final Map<String, Object> metas = new HashMap<>();
+    private Map<String, Object> metas = new HashMap<>();
     private int stepsCount = 0;
     private boolean test;
     private final ConnectionContext<?> ctx;
+    private final EventsFactory factory;
 
-    private transient Context timer;
+    private Context timer;
 
     // The context for exact pipeline timing
-    private transient Queue<ExecutionStackElement> executionStack;
+    Queue<ExecutionStackElement> executionStack;
 
-    EventInstance(ConnectionContext<?> ctx) {
-        this(ctx, false);
+    EventInstance(ConnectionContext<?> ctx, EventsFactory factory) {
+        this(ctx, false, factory);
     }
 
-    EventInstance(ConnectionContext<?> ctx, boolean test) {
+    EventInstance(ConnectionContext<?> ctx, boolean test, EventsFactory factory) {
         this.test = test;
         this.ctx = ctx;
-        // Initialize the transient objects
-        readResolve();
-    }
-
-    /**
-     * Finish the cloning of the copy
-     * Ensure than transient fields store the good values
-     * @return
-     */
-    private void readResolve() {
+        this.factory = factory;
         if (!test) {
             timer = Stats.eventTimer();
-        } else {
-            timer = null;
         }
         processors = new LinkedList<>();
-        wevent = null;
         executionStack = Collections.asLifoQueue(new ArrayDeque<>());
     }
 
@@ -240,14 +208,12 @@ class EventInstance extends Event {
      */
     public Event duplicate() {
         try (ByteArrayOutputStream bos = new ByteArrayOutputStream(); ObjectOutputStream oos = new ObjectOutputStream(bos);) {
-            oos.writeObject(this);
+            oos.writeObject(new EventSerializer(this));
             oos.flush();
             bos.flush();
             byte[] byteData = bos.toByteArray();
-            try (ByteArrayInputStream bais = new ByteArrayInputStream(byteData)) {
-                EventInstance forked = (EventInstance) new ObjectInputStream(bais).readObject();
-                forked.readResolve();
-                return forked;
+            try (ByteArrayInputStream bais = new ByteArrayInputStream(byteData) ; ObjectInputStream ois = new EventObjectInputStream(bais, factory)) {
+                return ((EventSerializer) ois.readObject()).event;
             }
         } catch (NotSerializableException ex) {
             logger.info("Event copy failed: {}", Helpers.resolveThrowableException(ex));
@@ -304,9 +270,9 @@ class EventInstance extends Event {
             SubPipeline sp = (SubPipeline) p;
             List<Processor> newProcessors = new ArrayList<>(sp.getPipeline().processors.size() + 2);
             Optional<String> pipeName = Optional.ofNullable(sp.getPipeline().getName());
-            pipeName.map(EventInstance::getPre).ifPresent(newProcessors::add);
+            pipeName.map(factory::getPre).ifPresent(newProcessors::add);
             newProcessors.addAll(sp.getPipeline().processors);
-            pipeName.map(EventInstance::getPost).ifPresent(newProcessors::add);
+            pipeName.map(s -> PostSubpipline.INSTANCE).ifPresent(this::appendProcessor);
             addProcessors(newProcessors, append);
         } else {
             if (append) {
@@ -319,12 +285,13 @@ class EventInstance extends Event {
 
     @Override
     public void refill(Pipeline pipeline) {
-        Optional<String> pipeName = Optional.ofNullable(pipeline.getName());
-        pipeName.map(EventInstance::getPre).ifPresent(this::appendProcessor);
-        pipeName.ifPresent(s -> currentPipeline = s);
         nextPipeline = pipeline.nextPipeline;
+        Optional<String> pipeName = Optional.ofNullable(pipeline.getName());
+        pipeName.map(factory::getPre).ifPresent(this::appendProcessor);
+        pipeName.ifPresent(s -> currentPipeline = s);
         appendProcessors(pipeline.processors);
-        pipeName.map(EventInstance::getPost).ifPresent(this::appendProcessor);
+        pipeName.map(s -> PostSubpipline.INSTANCE).ifPresent(this::appendProcessor);
+
     }
 
     /* (non-Javadoc)
@@ -333,20 +300,20 @@ class EventInstance extends Event {
     public boolean inject(Pipeline pipeline, PriorityBlockingQueue mainqueue, boolean blocking) {
         nextPipeline = pipeline.nextPipeline;
         Optional<String>pipeName = Optional.ofNullable(pipeline.getName());
-        pipeName.map(EventInstance::getPre).ifPresent(this::appendProcessor);
+        pipeName.map(factory::getPre).ifPresent(this::appendProcessor);
         pipeName.ifPresent(s -> currentPipeline = s);
         appendProcessors(pipeline.processors);
-        pipeName.map(EventInstance::getPost).ifPresent(this::appendProcessor);
+        pipeName.map(s -> PostSubpipline.INSTANCE).ifPresent(this::appendProcessor);
         return mainqueue.inject(this, blocking);
     }
 
     public void reinject(Pipeline pipeline, PriorityBlockingQueue mainqueue) {
         nextPipeline = pipeline.nextPipeline;
         Optional<String>pipeName = Optional.ofNullable(pipeline.getName());
-        pipeName.map(EventInstance::getPre).ifPresent(this::appendProcessor);
+        pipeName.map(factory::getPre).ifPresent(this::appendProcessor);
         pipeName.ifPresent(s -> currentPipeline = s);
         appendProcessors(pipeline.processors);
-        pipeName.map(EventInstance::getPost).ifPresent(this::appendProcessor);
+        pipeName.map(s -> PostSubpipline.INSTANCE).ifPresent(this::appendProcessor);
         mainqueue.asyncInject(this);
     }
 
@@ -445,7 +412,7 @@ class EventInstance extends Event {
     }
 
     @Override
-    Map<String, Object> getMetas() {
+    public Map<String, Object> getMetas() {
         return metas;
     }
 

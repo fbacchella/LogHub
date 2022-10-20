@@ -6,7 +6,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.socket.DatagramPacket;
 import loghub.BuilderClass;
-import loghub.Event;
+import loghub.events.Event;
 import loghub.Helpers;
 import loghub.netty.BaseChannelConsumer;
 import loghub.netty.ConsumerProvider;

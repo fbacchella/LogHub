@@ -7,7 +7,7 @@ import org.apache.logging.log4j.Logger;
 
 import io.netty.util.concurrent.Future;
 import loghub.AsyncProcessor;
-import loghub.Event;
+import loghub.events.Event;
 import loghub.Helpers;
 import loghub.PausedEvent;
 import loghub.Processor;

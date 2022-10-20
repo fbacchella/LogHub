@@ -12,8 +12,8 @@ import java.util.Set;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
-import loghub.Event;
-import loghub.Event.Action;
+import loghub.events.Event;
+import loghub.events.Event.Action;
 import loghub.Helpers;
 import loghub.IgnoredEventException;
 import loghub.Processor;

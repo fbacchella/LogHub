@@ -21,7 +21,7 @@ import org.junit.rules.TemporaryFolder;
 
 import loghub.BeanChecks;
 import loghub.ConnectionContext;
-import loghub.Event;
+import loghub.events.Event;
 import loghub.Expression;
 import loghub.LogUtils;
 import loghub.ProcessorException;
@@ -29,11 +29,13 @@ import loghub.Tools;
 import loghub.configuration.Properties;
 import loghub.encoders.EncodeException;
 import loghub.encoders.EvalExpression;
+import loghub.events.EventsFactory;
 import loghub.metrics.Stats;
 
 public class TestFile {
 
     private static Logger logger;
+    private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
     static public void configure() throws IOException {
@@ -69,7 +71,7 @@ public class TestFile {
         Assert.assertTrue(fsend.configure(new Properties(Collections.emptyMap())));
         fsend.start();
 
-        Event ev = Event.emptyEvent(new BlockingConnectionContext());
+        Event ev = factory.newEvent(new BlockingConnectionContext());
         ev.put("message", 1);
         queue.add(ev);
         ConnectionContext<Semaphore> ctxt = ev.getConnectionContext();
@@ -117,7 +119,7 @@ public class TestFile {
         @SuppressWarnings("resource")
         File fsend = send(i -> {}, -1, false);
         Files.setPosixFilePermissions(Paths.get(fsend.getFileName().eval(null).toString()), Collections.emptySet());
-        Event ev = Tools.getEvent();
+        Event ev = factory.newEvent();
         ev.put("message", 2);
         // This one should pass, as cache is reused
         fsend.send(ev);

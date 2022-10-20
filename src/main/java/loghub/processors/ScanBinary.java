@@ -10,7 +10,7 @@ import java.util.concurrent.atomic.DoubleAccumulator;
 import java.util.concurrent.atomic.DoubleAdder;
 import java.util.stream.IntStream;
 
-import loghub.Event;
+import loghub.events.Event;
 import loghub.ProcessorException;
 import loghub.configuration.Properties;
 

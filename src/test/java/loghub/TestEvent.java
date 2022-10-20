@@ -13,9 +13,12 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import loghub.Event.Action;
 import loghub.EventsProcessor.ProcessingStatus;
+import loghub.configuration.ConfigException;
 import loghub.configuration.Properties;
+import loghub.events.Event;
+import loghub.events.Event.Action;
+import loghub.events.EventsFactory;
 import loghub.processors.Identity;
 
 public class TestEvent {
@@ -37,6 +40,8 @@ public class TestEvent {
 
     }
 
+    private final EventsFactory factory = new EventsFactory();
+
     @BeforeClass
     static public void configure() throws IOException {
         Tools.configure();
@@ -46,7 +51,7 @@ public class TestEvent {
 
     @Test
     public void TestPath() throws ProcessorException {
-        Event e = Tools.getEvent();
+        Event e = factory.newEvent();
         e.setTimestamp(new Date(0));
         e.applyAtPath(Action.PUT, VariablePath.of(new String[]{"a", "b", "c"}), 1, true);
         e.put("d", 2);
@@ -63,7 +68,9 @@ public class TestEvent {
 
     @Test
     public void TestForkable() {
-        Event e = Tools.getEvent();
+        Event e = factory.newTestEvent();
+        Pipeline ppl = new Pipeline(Collections.emptyList(), "main", "next");
+        e.refill(ppl);
         e.put("key", "value");
         Event e2 = e.duplicate();
         Assert.assertNotNull(e2);
@@ -79,7 +86,7 @@ public class TestEvent {
         Map<String, Object> conf = new HashMap<>();
         conf.put("maxSteps", 5);
         Properties props = new Properties(conf);
-        Event e = Event.emptyTestEvent(ConnectionContext.EMPTY);
+        Event e = factory.newTestEvent();
         e.appendProcessor(new Looper());
         EventsProcessor ep = new EventsProcessor(props.mainQueue, props.outputQueues, props.namedPipeLine, props.maxSteps, props.repository);
         Processor processor;
@@ -102,8 +109,8 @@ public class TestEvent {
 
     @Test
     public void testWrapper() {
-        Event event = Tools.getEvent();
-        Event wrapped = new EventWrapper(event);
+        Event event = factory.newEvent();
+        Event wrapped = event.wrap();
         wrapped.putMeta("a", 1);
         Assert.assertEquals(1, wrapped.getMeta("a"));
         Assert.assertEquals(1, event.getMeta("a"));

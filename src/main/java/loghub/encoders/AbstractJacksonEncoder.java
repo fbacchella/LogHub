@@ -6,7 +6,7 @@ import java.util.stream.Stream;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectWriter;
 
-import loghub.Event;
+import loghub.events.Event;
 import loghub.Helpers;
 import loghub.jackson.JacksonBuilder;
 

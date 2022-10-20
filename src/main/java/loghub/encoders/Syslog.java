@@ -17,7 +17,7 @@ import com.axibase.date.PatternResolver;
 
 import loghub.BuilderClass;
 import loghub.CanBatch;
-import loghub.Event;
+import loghub.events.Event;
 import loghub.Expression;
 import loghub.Helpers;
 import loghub.ProcessorException;

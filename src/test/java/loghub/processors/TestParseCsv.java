@@ -12,16 +12,18 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import loghub.BeanChecks;
-import loghub.Event;
+import loghub.events.Event;
 import loghub.LogUtils;
 import loghub.ProcessorException;
 import loghub.Tools;
 import loghub.VariablePath;
 import loghub.configuration.Properties;
+import loghub.events.EventsFactory;
 
 public class TestParseCsv {
 
     private static Logger logger;
+    private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
     static public void configure() throws IOException {
@@ -38,7 +40,7 @@ public class TestParseCsv {
         parse.setColumnSeparator(';');
         parse.setFeatures(new String[]{"TRIM_SPACES"});
         Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
-        Event event = Tools.getEvent();
+        Event event = factory.newEvent();
         event.put("message", "1; \"2\";\\\";");
         parse.process(event);
         Assert.assertEquals("1", event.get("a"));

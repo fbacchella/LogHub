@@ -3,7 +3,7 @@ package loghub.encoders;
 import java.nio.charset.Charset;
 
 import loghub.BuilderClass;
-import loghub.Event;
+import loghub.events.Event;
 import loghub.Expression;
 import loghub.ProcessorException;
 import loghub.configuration.Properties;

@@ -24,7 +24,7 @@ import org.zeromq.SocketType;
 
 import loghub.BeanChecks;
 import loghub.BeanChecks.BeanInfo;
-import loghub.Event;
+import loghub.events.Event;
 import loghub.LogUtils;
 import loghub.Pipeline;
 import loghub.PriorityBlockingQueue;

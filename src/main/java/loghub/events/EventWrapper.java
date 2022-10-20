@@ -1,4 +1,4 @@
-package loghub;
+package loghub.events;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -9,10 +9,20 @@ import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.stream.Stream;
 
+import loghub.ConnectionContext;
+import loghub.Pipeline;
+import loghub.PriorityBlockingQueue;
+import loghub.Processor;
+import loghub.ProcessorException;
+import loghub.VariablePath;
 import loghub.metrics.Stats.PipelineStat;
+import lombok.AccessLevel;
+import lombok.Getter;
 
 class EventWrapper extends Event {
     private final Event event;
+
+    @Getter(AccessLevel.PACKAGE)
     private VariablePath path;
 
     EventWrapper(Event event) {

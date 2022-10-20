@@ -15,8 +15,8 @@ import org.apache.logging.log4j.Level;
 
 import io.krakens.grok.api.GrokCompiler;
 import io.krakens.grok.api.Match;
-import loghub.Event;
-import loghub.Event.Action;
+import loghub.events.Event;
+import loghub.events.Event.Action;
 import loghub.Helpers;
 import loghub.ProcessorException;
 import loghub.VariablePath;

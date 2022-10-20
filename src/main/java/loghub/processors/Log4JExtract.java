@@ -8,7 +8,7 @@ import java.util.Optional;
 
 import org.apache.log4j.spi.LoggingEvent;
 
-import loghub.Event;
+import loghub.events.Event;
 
 public class Log4JExtract extends ObjectExtractor<LoggingEvent> {
 

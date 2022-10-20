@@ -24,6 +24,7 @@ import io.netty.util.concurrent.Future;
 import loghub.configuration.ConfigException;
 import loghub.configuration.Configuration;
 import loghub.configuration.Properties;
+import loghub.events.Event;
 import loghub.security.ssl.MultiKeyStoreProvider;
 
 public class Tools {
@@ -72,14 +73,6 @@ public class Tools {
 
     public static Properties loadConf(String configname) throws ConfigException, IOException {
         return loadConf(configname, true);
-    }
-
-    public static Event getEvent() {
-        return new EventInstance(ConnectionContext.EMPTY);
-    }
-
-    public static Event getEvent(ConnectionContext<?> ctx) {
-        return new EventInstance(ctx);
     }
 
     public static void runProcessing(Event sent, Pipeline pipe, Properties props) throws ProcessorException {

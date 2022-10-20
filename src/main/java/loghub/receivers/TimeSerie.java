@@ -7,7 +7,9 @@ import java.util.stream.Stream;
 
 import loghub.BuilderClass;
 import loghub.ConnectionContext;
-import loghub.Event;
+import loghub.configuration.Properties;
+import loghub.events.Event;
+import loghub.events.EventsFactory;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -32,9 +34,17 @@ public class TimeSerie extends Receiver<TimeSerie, TimeSerie.Builder> {
     @Getter
     private final double frequency;
 
+    private EventsFactory factory;
+
     protected TimeSerie(Builder builder) {
         super(builder);
         this.frequency = builder.frequency;
+    }
+
+    @Override
+    public boolean configure(Properties properties) {
+        factory = properties.eventsFactory;
+        return super.configure(properties);
     }
 
     @Override
@@ -42,7 +52,7 @@ public class TimeSerie extends Receiver<TimeSerie, TimeSerie.Builder> {
         return Stream.iterate(null,
                 this::sleep,
                 e -> {
-                    Event event = Event.emptyEvent(ConnectionContext.EMPTY);
+                    Event event = factory.newEvent();
                     event.put("message", Long.toString(r.getAndIncrement()));
                     return event;
                 });

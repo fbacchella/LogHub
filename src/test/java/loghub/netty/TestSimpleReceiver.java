@@ -19,7 +19,7 @@ import io.netty.channel.socket.DatagramPacket;
 import io.netty.channel.unix.DomainDatagramPacket;
 import io.netty.handler.codec.LineBasedFrameDecoder;
 import io.netty.util.CharsetUtil;
-import loghub.Event;
+import loghub.events.Event;
 import loghub.LogUtils;
 import loghub.Pipeline;
 import loghub.PriorityBlockingQueue;

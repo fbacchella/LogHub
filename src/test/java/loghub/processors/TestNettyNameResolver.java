@@ -25,7 +25,7 @@ import io.netty.handler.codec.dns.DnsResponse;
 import loghub.AsyncProcessor;
 import loghub.BeanChecks;
 import loghub.BeanChecks.BeanInfo;
-import loghub.Event;
+import loghub.events.Event;
 import loghub.Expression;
 import loghub.LogUtils;
 import loghub.Processor;
@@ -35,10 +35,12 @@ import loghub.VarFormatter;
 import loghub.VariablePath;
 import loghub.configuration.ConfigException;
 import loghub.configuration.Properties;
+import loghub.events.EventsFactory;
 
 public class TestNettyNameResolver {
 
     private static Logger logger;
+    private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
     static public void configure() throws IOException {
@@ -69,7 +71,7 @@ public class TestNettyNameResolver {
 
     @Test(timeout=4000)
     public void badresolvertimeout() throws Throwable {
-        Event e = Tools.getEvent();
+        Event e = factory.newEvent();
         e.put("host", InetAddress.getByName("10.0.0.1"));
 
         Tools.ProcessingStatus status = dorequest(i -> {
@@ -90,7 +92,7 @@ public class TestNettyNameResolver {
 
     @Test(timeout=6000)
     public void badresolvernxdomain() throws Throwable {
-        Event e = Tools.getEvent();
+        Event e = factory.newEvent();
         /// resolve a no existing name
         e.put("host", InetAddress.getByName("169.254.1.1"));
 
@@ -108,7 +110,7 @@ public class TestNettyNameResolver {
 
     @Test(timeout=6000)
     public void arootasipv4addr() throws Throwable {
-        Event e = Tools.getEvent();
+        Event e = factory.newEvent();
         /// resolving a.root-servers.net. in IPv4
         e.put("host", InetAddress.getByName("198.41.0.4"));
 
@@ -125,7 +127,7 @@ public class TestNettyNameResolver {
 
     @Test(timeout=6000)
     public void arootasipv4string() throws ProcessorException, InterruptedException, ConfigException, IOException {
-        Event e = Tools.getEvent();
+        Event e = factory.newEvent();
         /// resolving a.root-servers.net. in IPv4 as String
         e.put("host", "198.41.0.4");
 
@@ -142,7 +144,7 @@ public class TestNettyNameResolver {
 
     @Test(timeout=6000)
     public void arootasipv6addr() throws Throwable {
-        Event e = Tools.getEvent();
+        Event e = factory.newEvent();
         /// resolving a.root-servers.net. in IPv6
         e.put("host", InetAddress.getByName("2001:503:ba3e::2:30"));
 
@@ -159,7 +161,7 @@ public class TestNettyNameResolver {
 
     @Test(timeout=6000)
     public void arootasipv6string() throws ProcessorException, InterruptedException, ConfigException, IOException {
-        Event e = Tools.getEvent();
+        Event e = factory.newEvent();
         // resolving a.root-servers.net. in IPv6 as a String
         e.put("host", "2001:503:ba3e::2:30");
 
@@ -176,7 +178,7 @@ public class TestNettyNameResolver {
 
     @Test(timeout=6000)
     public void resolvemany() throws ProcessorException, InterruptedException, ConfigException, IOException {
-        Event e = Tools.getEvent();
+        Event e = factory.newEvent();
         e.put("hostipv6str", "2001:503:ba3e::2:30");
         e.put("hostipv6inet",  InetAddress.getByName("2001:503:ba3e::2:30"));
         e.put("hostipv4str", "198.41.0.4");
@@ -208,7 +210,7 @@ public class TestNettyNameResolver {
         proc.setResolver("8.8.8.8");
         Assert.assertTrue(proc.configure(getProperties()));
 
-        Event e = Tools.getEvent();
+        Event e = factory.newEvent();
         /// resolving a.root-servers.net. in IPv4
         e.put("host", InetAddress.getByName("198.41.0.4"));
         try {
@@ -229,7 +231,7 @@ public class TestNettyNameResolver {
         proc.setEtcResolvConf(etcResolvConfURL.getFile());
         Assert.assertTrue(proc.configure(getProperties()));
 
-        Event e = Tools.getEvent();
+        Event e = factory.newEvent();
         /// resolving a.root-servers.net. in IPv4
         e.put("host", InetAddress.getByName("198.41.0.4"));
         try {
@@ -248,7 +250,7 @@ public class TestNettyNameResolver {
         NettyNameResolver proc = new NettyNameResolver();
         Assert.assertTrue(proc.configure(getProperties()));
 
-        Event e = Tools.getEvent();
+        Event e = factory.newEvent();
         /// resolving a.root-servers.net. in IPv4
         e.put("host", InetAddress.getByName("198.41.0.4"));
         try {

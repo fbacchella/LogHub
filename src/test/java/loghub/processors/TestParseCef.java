@@ -13,16 +13,18 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import loghub.BeanChecks;
-import loghub.Event;
+import loghub.events.Event;
 import loghub.LogUtils;
 import loghub.ProcessorException;
 import loghub.Tools;
 import loghub.VariablePath;
 import loghub.configuration.Properties;
+import loghub.events.EventsFactory;
 
 public class TestParseCef {
 
     private static Logger logger;
+    private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
     static public void configure() throws IOException {
@@ -36,7 +38,7 @@ public class TestParseCef {
         ParseCef parse = new ParseCef();
         parse.setField(VariablePath.of(new String[]{"content"}));
         Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
-        Event event = Tools.getEvent();
+        Event event = factory.newEvent();
         event.put("content", "CEF:0|security|threatmanager|1.0|100|detected a \\| in packet|10|src=10.0.0.1 act=blocked a \\\\ dst=1.1.1.1 comment=with | in it comment2=with \\= in it comment3=with \\r in it  app=3");
         Assert.assertTrue(parse.process(event));
         @SuppressWarnings("unchecked")

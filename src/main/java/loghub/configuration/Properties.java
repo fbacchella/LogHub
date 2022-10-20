@@ -27,7 +27,7 @@ import org.apache.logging.log4j.core.LoggerContext;
 import groovy.lang.GroovyClassLoader;
 import io.netty.util.concurrent.Future;
 import loghub.Dashboard;
-import loghub.Event;
+import loghub.events.Event;
 import loghub.EventsProcessor;
 import loghub.EventsRepository;
 import loghub.Expression;
@@ -37,6 +37,7 @@ import loghub.PriorityBlockingQueue;
 import loghub.Processor;
 import loghub.ThreadBuilder;
 import loghub.VarFormatter;
+import loghub.events.EventsFactory;
 import loghub.metrics.ExceptionsMBean;
 import loghub.metrics.JmxService;
 import loghub.metrics.Stats;
@@ -105,6 +106,7 @@ public class Properties extends HashMap<String, Object> {
     public final CacheManager cacheManager;
     public final ZMQSocketFactory zSocketFactory;
     public final Set<EventsProcessor> eventsprocessors;
+    public final EventsFactory eventsFactory = new EventsFactory();
 
     public final Timer timer = new Timer("loghubtimer", true);
 

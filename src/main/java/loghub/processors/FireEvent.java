@@ -3,8 +3,8 @@ package loghub.processors;
 import java.util.Map;
 
 import loghub.ConnectionContext;
-import loghub.Event;
-import loghub.Event.Action;
+import loghub.events.Event;
+import loghub.events.Event.Action;
 import loghub.Expression;
 import loghub.Pipeline;
 import loghub.PriorityBlockingQueue;
@@ -12,6 +12,7 @@ import loghub.Processor;
 import loghub.ProcessorException;
 import loghub.VariablePath;
 import loghub.configuration.Properties;
+import loghub.events.EventsFactory;
 
 public class FireEvent extends Processor {
 
@@ -19,6 +20,7 @@ public class FireEvent extends Processor {
     private String destination;
     private Pipeline pipeDestination;
     private PriorityBlockingQueue mainQueue;
+    private EventsFactory factory;
 
     @Override
     public boolean configure(Properties properties) {
@@ -28,12 +30,13 @@ public class FireEvent extends Processor {
         }
         pipeDestination = properties.namedPipeLine.get(destination);
         mainQueue = properties.mainQueue;
+        factory = properties.eventsFactory;
         return super.configure(properties);
     }
 
     @Override
     public boolean process(Event event) throws ProcessorException {
-        Event newEvent = Event.emptyEvent(ConnectionContext.EMPTY);
+        Event newEvent = factory.newEvent();
         for (Map.Entry<VariablePath, Expression> e: expressions.entrySet()) {
             Object value = e.getValue().eval(event);
             newEvent.applyAtPath(Action.PUT, e.getKey(), value);

@@ -9,7 +9,7 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.SerializerProvider;
 
-import loghub.Event;
+import loghub.events.Event;
 
 public class EventSerializer extends JsonSerializer<Event> {
     @Override

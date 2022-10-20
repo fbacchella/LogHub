@@ -4,7 +4,7 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import loghub.Event;
+import loghub.events.Event;
 import loghub.Expression;
 import loghub.Processor;
 import loghub.ProcessorException;

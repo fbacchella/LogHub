@@ -18,16 +18,18 @@ import org.junit.Test;
 import loghub.BeanChecks;
 import loghub.BeanChecks.BeanInfo;
 import loghub.ConnectionContext;
-import loghub.Event;
+import loghub.events.Event;
 import loghub.LogUtils;
 import loghub.Tools;
 import loghub.configuration.Properties;
 import loghub.encoders.Encoder;
 import loghub.encoders.EvalExpression;
+import loghub.events.EventsFactory;
 
 public class TestNull {
 
     private static Logger logger;
+    private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
     static public void configure() throws IOException {
@@ -48,7 +50,7 @@ public class TestNull {
         Assert.assertTrue(nullsender.configure(new Properties(Collections.emptyMap())));
         nullsender.start();
 
-        Event ev = Event.emptyEvent(new BlockingConnectionContext());
+        Event ev = factory.newEvent(new BlockingConnectionContext());
         ev.put("message", 1);
         queue.add(ev);
         ConnectionContext<Semaphore> ctxt = ev.getConnectionContext();

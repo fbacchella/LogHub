@@ -10,10 +10,11 @@ import org.junit.Assert;
 import com.codahale.metrics.Meter;
 
 import loghub.ConnectionContext;
-import loghub.Event;
+import loghub.events.Event;
 import loghub.configuration.Properties;
 import loghub.encoders.EncodeException;
 import loghub.encoders.Encoder;
+import loghub.events.EventsFactory;
 import loghub.metrics.Stats;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -22,6 +23,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 public class SenderTools {
+
+    private static final EventsFactory factory = new EventsFactory();
 
     private SenderTools() {
 
@@ -40,7 +43,7 @@ public class SenderTools {
         sender.setInQueue(queue);
         Assert.assertTrue(sender.configure(new Properties(Collections.emptyMap())));
         sender.start();
-        Event ev = Event.emptyEvent(new BlockingConnectionContext());
+        Event ev = factory.newEvent(new BlockingConnectionContext());
         queue.add(ev);
         ConnectionContext<Semaphore> ctxt = ev.getConnectionContext();
         ctxt.getLocalAddress().acquire();

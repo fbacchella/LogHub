@@ -15,7 +15,7 @@ import java.util.zip.GZIPOutputStream;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 
 import loghub.BuilderClass;
-import loghub.Event;
+import loghub.events.Event;
 import loghub.jackson.JacksonBuilder;
 import lombok.Setter;
 

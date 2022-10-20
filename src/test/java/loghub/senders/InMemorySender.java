@@ -5,7 +5,7 @@ import java.util.Collections;
 import java.util.List;
 
 import loghub.BuilderClass;
-import loghub.Event;
+import loghub.events.Event;
 
 @BuilderClass(InMemorySender.Builder.class)
 public class InMemorySender extends Sender {

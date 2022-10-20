@@ -1,5 +1,6 @@
 package loghub;
 
+import loghub.events.Event;
 import lombok.Getter;
 
 public class ProcessorException extends Exception implements ProcessingException {
@@ -13,12 +14,12 @@ public class ProcessorException extends Exception implements ProcessingException
     @Getter
     private final Event event;
 
-    ProcessorException(Event event, String message, Exception root) {
+    public ProcessorException(Event event, String message, Exception root) {
         super(message, root);
         this.event = event;
     }
 
-    ProcessorException(Event event, String message) {
+    public ProcessorException(Event event, String message) {
         super(message);
         this.event = event;
     }

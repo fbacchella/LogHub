@@ -8,7 +8,7 @@ import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.dataformat.csv.CsvMapper;
 import com.fasterxml.jackson.dataformat.csv.CsvSchema;
 
-import loghub.Event;
+import loghub.events.Event;
 import loghub.ProcessorException;
 import loghub.configuration.Properties;
 import loghub.jackson.Helpers;

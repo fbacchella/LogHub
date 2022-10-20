@@ -18,7 +18,7 @@ import com.axibase.date.DatetimeProcessor;
 import com.axibase.date.OnMissingDateComponentAction;
 import com.axibase.date.PatternResolver;
 
-import loghub.Event;
+import loghub.events.Event;
 import loghub.Helpers;
 import loghub.ProcessorException;
 import loghub.configuration.Properties;
@@ -123,7 +123,7 @@ public class DateParser extends FieldsProcessor {
      * 
      * If the pattern is incomplete (is missing some field like year or day), it will extract from
      * current time
-     * @see loghub.processors.FieldsProcessor#fieldFunction(loghub.Event, java.lang.Object)
+     * @see loghub.processors.FieldsProcessor#fieldFunction(Event, java.lang.Object)
      */
     @Override
     public Object fieldFunction(Event event, Object value) throws ProcessorException {

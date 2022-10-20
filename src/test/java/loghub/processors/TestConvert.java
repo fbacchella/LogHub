@@ -16,16 +16,18 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import loghub.Event;
+import loghub.events.Event;
 import loghub.LogUtils;
 import loghub.ProcessorException;
 import loghub.Tools;
 import loghub.VariablePath;
 import loghub.configuration.Properties;
+import loghub.events.EventsFactory;
 
 public class TestConvert {
 
     private static Logger logger;
+    private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
     static public void configure() throws IOException {
@@ -43,7 +45,7 @@ public class TestConvert {
 
         Assert.assertTrue(cv.configure(props));
 
-        Event e = Tools.getEvent();
+        Event e = factory.newEvent();
         e.put("message",invalue);
         e.process(cv);
         Assert.assertTrue(reference.isAssignableFrom(e.get("message").getClass()));

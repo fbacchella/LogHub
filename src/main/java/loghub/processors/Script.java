@@ -19,7 +19,7 @@ import javax.script.ScriptException;
 
 import org.apache.logging.log4j.Level;
 
-import loghub.Event;
+import loghub.events.Event;
 import loghub.Helpers;
 import loghub.Processor;
 import loghub.ProcessorException;

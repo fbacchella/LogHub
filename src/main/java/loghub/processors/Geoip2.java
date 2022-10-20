@@ -39,7 +39,7 @@ import com.maxmind.geoip2.record.Postal;
 import com.maxmind.geoip2.record.Subdivision;
 
 import loghub.BuilderClass;
-import loghub.Event;
+import loghub.events.Event;
 import loghub.Helpers;
 import loghub.ProcessorException;
 import loghub.configuration.CacheManager;

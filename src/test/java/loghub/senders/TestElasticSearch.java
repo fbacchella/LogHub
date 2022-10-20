@@ -25,19 +25,21 @@ import com.codahale.metrics.Meter;
 
 import loghub.BeanChecks;
 import loghub.BeanChecks.BeanInfo;
-import loghub.Event;
+import loghub.events.Event;
 import loghub.Expression;
 import loghub.LogUtils;
 import loghub.RouteParser;
 import loghub.Tools;
 import loghub.configuration.ConfigurationTools;
 import loghub.configuration.Properties;
+import loghub.events.EventsFactory;
 import loghub.metrics.Stats;
 import loghub.senders.ElasticSearch.TYPEHANDLING;
 
 public class TestElasticSearch {
 
     private static Logger logger;
+    private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
     static public void configure() throws IOException {
@@ -64,7 +66,7 @@ public class TestElasticSearch {
             Assert.assertTrue("Elastic configuration failed", es.configure(new Properties(Collections.emptyMap())));
             es.start();
             for (int i = 0 ; i < count ; i++) {
-                Event ev = Tools.getEvent();
+                Event ev = factory.newEvent();
                 ev.put("type", "junit");
                 ev.put("value", "atest" + i);
                 ev.setTimestamp(new Date(0));
@@ -92,7 +94,7 @@ public class TestElasticSearch {
             Assert.assertTrue("Elastic configuration failed", es.configure(new Properties(Collections.emptyMap())));
             es.start();
             for (int i = 0 ; i < count ; i++) {
-                Event ev = Tools.getEvent();
+                Event ev = factory.newEvent();
                 ev.putMeta("type", "junit");
                 ev.putMeta("index", "testwithexpression-1970.01.01");
                 ev.put("value", "atest" + i);
@@ -122,7 +124,7 @@ public class TestElasticSearch {
             Assert.assertTrue("Elastic configuration failed", es.configure(new Properties(Collections.emptyMap())));
             es.start();
             for (int i = 0 ; i < count ; i++) {
-                Event ev = Tools.getEvent();
+                Event ev = factory.newEvent();
                 ev.put("value", "atest" + i);
                 ev.setTimestamp(new Date(0));
                 Assert.assertTrue(es.queue(ev));
@@ -150,7 +152,7 @@ public class TestElasticSearch {
             Assert.assertTrue("Elastic configuration failed", es.configure(new Properties(Collections.emptyMap())));
             es.start();
             for (int i = 0 ; i < count ; i++) {
-                Event ev = Tools.getEvent();
+                Event ev = factory.newEvent();
                 ev.put("type", "junit");
                 ev.put("value", "atest" + i);
                 ev.setTimestamp(new Date(0));
@@ -202,7 +204,7 @@ public class TestElasticSearch {
             Assert.assertTrue("Elastic configuration failed", es.configure(new Properties(Collections.emptyMap())));
             es.start();
             for (int i = 0 ; i < count ; i++) {
-                Event ev = Tools.getEvent();
+                Event ev = factory.newEvent();
                 ev.put("type", "junit");
                 ev.put("value", new Date(0));
                 ev.setTimestamp(new Date(0));
@@ -210,7 +212,7 @@ public class TestElasticSearch {
                 Thread.sleep(1);
             }
             for (int i = 0 ; i < count ; i++) {
-                Event ev = Tools.getEvent();
+                Event ev = factory.newEvent();
                 ev.put("type", "junit");
                 ev.put("value", "atest" + i);
                 ev.setTimestamp(new Date(0));

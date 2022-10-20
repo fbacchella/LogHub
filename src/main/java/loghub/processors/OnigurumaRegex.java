@@ -12,7 +12,7 @@ import org.joni.Regex;
 import org.joni.Region;
 import org.joni.exception.SyntaxException;
 
-import loghub.Event;
+import loghub.events.Event;
 import loghub.Helpers;
 import loghub.ProcessorException;
 import loghub.configuration.Properties;

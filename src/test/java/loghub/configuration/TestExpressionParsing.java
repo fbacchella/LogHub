@@ -27,7 +27,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import loghub.ConnectionContext;
-import loghub.Event;
+import loghub.events.Event;
 import loghub.Expression;
 import loghub.Expression.ExpressionException;
 import loghub.IgnoredEventException;
@@ -36,10 +36,12 @@ import loghub.LogUtils;
 import loghub.ProcessorException;
 import loghub.Tools;
 import loghub.VarFormatter;
+import loghub.events.EventsFactory;
 
 public class TestExpressionParsing {
 
     private static Logger logger ;
+    private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
     static public void configure() throws IOException {
@@ -61,7 +63,7 @@ public class TestExpressionParsing {
     }
 
     private Object evalExpression(String exp) throws ExpressionException, ProcessorException {
-        return evalExpression(exp, Tools.getEvent());
+        return evalExpression(exp, factory.newEvent());
     }
 
     @Test
@@ -95,7 +97,7 @@ public class TestExpressionParsing {
     @Test
     public void testFormatterSimple() throws ExpressionException, ProcessorException {
         String format = "${#1%02d}";
-        Event ev =  Tools.getEvent();
+        Event ev =  factory.newEvent();
         ev.put("a", 1);
         Assert.assertEquals("01", evalExpression("\"" + format + "\"([a])", ev));
     }
@@ -103,7 +105,7 @@ public class TestExpressionParsing {
     @Test(expected=ProcessorException.class)
     public void testFormatterFailed() throws ExpressionException, ProcessorException {
         String format = "${#2%02d}";
-        Event ev =  Tools.getEvent();
+        Event ev =  factory.newEvent();
         ev.put("a", 1);
         try {
             evalExpression("\"" + format + "\"([a])", ev);
@@ -116,7 +118,7 @@ public class TestExpressionParsing {
     @Test
     public void testFormatterTimestamp() throws ExpressionException, ProcessorException {
         String format = "${#1%t<Europe/Paris>H}";
-        Event ev =  Tools.getEvent();
+        Event ev =  factory.newEvent();
         ev.setTimestamp(new Date(0));
         Assert.assertEquals("01", evalExpression("\"" + format + "\"([@timestamp])", ev));
     }
@@ -124,7 +126,7 @@ public class TestExpressionParsing {
     @Test
     public void testFormatterContextPrincipal() throws ExpressionException, ProcessorException {
         String format = "${#1%s}-${#2%tY}.${#2%tm}.${#2%td}";
-        Event ev =  Event.emptyEvent(new ConnectionContext<Object>() {
+        Event ev =  factory.newEvent(new ConnectionContext<Object>() {
             @Override
             public Object getLocalAddress() {
                 return null;
@@ -148,35 +150,35 @@ public class TestExpressionParsing {
     @Test
     public void testFormatterEvent() throws ExpressionException, ProcessorException {
         String format = "${a}";
-        Event ev =  Tools.getEvent();
+        Event ev =  factory.newEvent();
         ev.put("a", 1);
         Assert.assertEquals("1", evalExpression("\"" + format + "\"", ev));
     }
 
     @Test
     public void testEventPath() throws ExpressionException, ProcessorException {
-        Event ev =  Tools.getEvent();
+        Event ev =  factory.newEvent();
         ev.put("a", Collections.singletonMap("b", "c"));
         Assert.assertEquals("c", evalExpression("[a b]", ev));
     }
 
     @Test
     public void testEventPathQuoted() throws ExpressionException, ProcessorException {
-        Event ev =  Tools.getEvent();
+        Event ev =  factory.newEvent();
         ev.put("a", Collections.singletonMap("b", "c"));
         Assert.assertEquals("c", evalExpression("[\"a\" \"b\"]", ev));
     }
 
     @Test
     public void testEventPathDotted() throws ExpressionException, ProcessorException {
-        Event ev =  Tools.getEvent();
+        Event ev =  factory.newEvent();
         ev.put("a", Collections.singletonMap("b", "c"));
         Assert.assertEquals("c", evalExpression("[a.b]", ev));
     }
 
     @Test
     public void testContextPattern() throws ExpressionException, ProcessorException {
-        Event ev =  Tools.getEvent();
+        Event ev =  factory.newEvent();
         String result = (String) evalExpression("\"${#1%s} ${#2%s}\"([@context], [@context principal]) ", ev);
         Assert.assertTrue(Pattern.matches("loghub.ConnectionContext\\$1@[a-f0-9]+ loghub.ConnectionContext\\$EmptyPrincipal@[a-f0-9]+", result));
     }
@@ -206,7 +208,7 @@ public class TestExpressionParsing {
 
     @Test
     public void testOperators() throws ExpressionException, ProcessorException {
-        Event ev =  Tools.getEvent();
+        Event ev = factory.newEvent();
         Object[] tryExpression = new Object[] {
                 "1 instanceof java.lang.Integer", true,
                 "2 ** 3", 8,
@@ -246,7 +248,7 @@ public class TestExpressionParsing {
 
     @Test
     public void testValueMissing() throws ExpressionException, ProcessorException {
-        Event ev =  Tools.getEvent();
+        Event ev = factory.newEvent();
         Object[] tryExpression = new Object[] {
                 "null == [a b]", true,
                 "[a b] == null", true,
@@ -287,7 +289,7 @@ public class TestExpressionParsing {
 
     @Test
     public void testNullValue() throws ExpressionException, ProcessorException {
-        Event ev =  Tools.getEvent();
+        Event ev = factory.newEvent();
         ev.put("a", null);
         Object[] tryExpression = new Object[] {
                 "null == [a]", true,
@@ -330,7 +332,7 @@ public class TestExpressionParsing {
 
     @Test
     public void testComparaison() throws ExpressionException, ProcessorException {
-        Event ev =  Tools.getEvent();
+        Event ev = factory.newEvent();
         Object[] tryExpression = new Object[] {
                 "2 <=> 3", Integer.compare(2, 3),
                 "3 <=> 2", Integer.compare(3, 2),
@@ -347,7 +349,7 @@ public class TestExpressionParsing {
 
     @Test
     public void testTimestamp() throws ExpressionException, ProcessorException {
-        Event ev =  Tools.getEvent();
+        Event ev = factory.newEvent();
         ev.setTimestamp(new Date(0));
         Date ts = (Date) evalExpression("[ @timestamp ]", ev);
         Assert.assertEquals(0L, ts.getTime());
@@ -355,7 +357,7 @@ public class TestExpressionParsing {
 
     @Test
     public void testNotTimestamp() throws ExpressionException, ProcessorException {
-        Event ev =  Tools.getEvent();
+        Event ev = factory.newEvent();
         ev.setTimestamp(new Date(0));
         ev.put(Event.TIMESTAMPKEY, 1);
 
@@ -365,7 +367,7 @@ public class TestExpressionParsing {
 
     @Test
     public void testMeta() throws ExpressionException, ProcessorException {
-        Event ev =  Tools.getEvent();
+        Event ev = factory.newEvent();
         ev.putMeta("a", 1);
         Number i = (Number) evalExpression("[ #a ]", ev);
         Assert.assertEquals(1, i.intValue());
@@ -373,7 +375,7 @@ public class TestExpressionParsing {
 
     @Test
     public void testArrayJoin() throws ExpressionException, ProcessorException {
-        Event ev =  Tools.getEvent();
+        Event ev = factory.newEvent();
         ev.put("a", new Integer[] { 1, 2, 3});
         ev.put("b", new Integer[] { 4, 5, 6});
         Object[] i = (Object[]) evalExpression("[a] + [b]", ev);
@@ -382,7 +384,7 @@ public class TestExpressionParsing {
 
     @Test
     public void testArrayMixed() throws ExpressionException, ProcessorException {
-        Event ev =  Tools.getEvent();
+        Event ev = factory.newEvent();
         ev.put("a", new Integer[] { 1, 2, 3});
         ev.put("b", Stream.of(4, 5, 6).collect(Collectors.toList()));
         ev.put("c", Stream.of(7, 8, 9).collect(Collectors.toSet()));
@@ -392,7 +394,7 @@ public class TestExpressionParsing {
 
     @Test
     public void testArray() throws ExpressionException, ProcessorException {
-        Event ev =  Tools.getEvent();
+        Event ev = factory.newEvent();
         ev.put("a", new Integer[] { 1, 2, 3});
         Number i = (Number) evalExpression("[a][2]", ev);
         Assert.assertEquals(3, i.intValue());
@@ -400,14 +402,14 @@ public class TestExpressionParsing {
 
     @Test(expected=IgnoredEventException.class)
     public void testArrayOutOfBound() throws ExpressionException, ProcessorException {
-        Event ev =  Tools.getEvent();
+        Event ev = factory.newEvent();
         ev.put("a", new Integer[] { 1, 2, 3});
         evalExpression("[a][3]", ev);
     }
 
     @Test
     public void testList() throws ExpressionException, ProcessorException {
-        Event ev =  Tools.getEvent();
+        Event ev = factory.newEvent();
         ev.put("a", Stream.of(1, 2, 3).collect(Collectors.toList()));
         Number i = (Number) evalExpression("[a][2]", ev);
         Assert.assertEquals(3, i.intValue());
@@ -415,28 +417,28 @@ public class TestExpressionParsing {
 
     @Test(expected=IgnoredEventException.class)
     public void testListOutOfBound() throws ExpressionException, ProcessorException {
-        Event ev =  Tools.getEvent();
+        Event ev = factory.newEvent();
         ev.put("a", Stream.of(1, 2, 3).collect(Collectors.toList()));
         evalExpression("[a][3]", ev);
     }
 
     @Test(expected=IgnoredEventException.class)
     public void testMissingArray() throws ExpressionException, ProcessorException {
-        Event ev =  Tools.getEvent();
+        Event ev = factory.newEvent();
         ev.put("a", new Integer[] { 1, 2, 3});
         evalExpression("[b][3]", ev);
     }
 
     @Test(expected=ProcessorException.class)
     public void testNotArray() throws ExpressionException, ProcessorException {
-        Event ev =  Tools.getEvent();
+        Event ev = factory.newEvent();
         ev.put("a", 1);
         evalExpression("[a][0]", ev);
     }
 
     @Test
     public void testPatternBoolean() throws ExpressionException, ProcessorException {
-        Event ev =  Tools.getEvent();
+        Event ev = factory.newEvent();
         ev.put("a", "abc");
         Boolean i = (Boolean) evalExpression("[a] ==~ /(a.)(.)/",ev);
         Assert.assertEquals(true, i.booleanValue());
@@ -444,7 +446,7 @@ public class TestExpressionParsing {
 
     @Test
     public void testPatternBooleanEscaped() throws ExpressionException, ProcessorException {
-        Event ev =  Tools.getEvent();
+        Event ev = factory.newEvent();
         ev.put("a", "a.c\n");
         Boolean i = (Boolean) evalExpression("[a] ==~ /a\\.c\\n/",ev);
         Assert.assertEquals(true, i.booleanValue());
@@ -452,7 +454,7 @@ public class TestExpressionParsing {
 
     @Test
     public void testPatternArray() throws ExpressionException, ProcessorException {
-        Event ev =  Tools.getEvent();
+        Event ev = factory.newEvent();
         ev.put("a", "abc");
         String i = (String) evalExpression("([a] =~ /(a.)(.)/)[2]",ev);
         Assert.assertEquals("c", i);
@@ -460,7 +462,7 @@ public class TestExpressionParsing {
 
     @Test(expected = IgnoredEventException.class)
     public void testFailedPatternArray() throws ExpressionException, ProcessorException {
-        Event ev =  Tools.getEvent();
+        Event ev = factory.newEvent();
         ev.put("a", "abc");
         evalExpression("([a] =~ /d.*/)[2]",ev);
     }
@@ -468,7 +470,7 @@ public class TestExpressionParsing {
     @Test
     public void testStringLitteral() throws ExpressionException, ProcessorException {
         String format = "b";
-        Event ev =  Tools.getEvent();
+        Event ev = factory.newEvent();
         ev.put("a", 1);
         Assert.assertEquals("b", evalExpression("\"" + format + "\"", ev));
     }
@@ -478,7 +480,7 @@ public class TestExpressionParsing {
         String format = "user";
         String formatHash = Integer.toHexString(format.hashCode());
 
-        Event ev =  Event.emptyEvent(new IpConnectionContext(new InetSocketAddress("127.0.0.1", 35710), new InetSocketAddress("localhost", 80), null));
+        Event ev = factory.newEvent(new IpConnectionContext(new InetSocketAddress("127.0.0.1", 35710), new InetSocketAddress("localhost", 80), null));
         Principal p = new Principal() {
             @Override
             public String getName() {
@@ -497,7 +499,7 @@ public class TestExpressionParsing {
         String format = "user";
         String formatHash = Integer.toHexString(format.hashCode());
 
-        Event ev =  Event.emptyEvent(new IpConnectionContext(new InetSocketAddress("127.0.0.1", 35710), new InetSocketAddress("localhost", 80), null));
+        Event ev = factory.newEvent(new IpConnectionContext(new InetSocketAddress("127.0.0.1", 35710), new InetSocketAddress("localhost", 80), null));
         Principal p = new Principal() {
             @Override
             public String getName() {
@@ -512,7 +514,7 @@ public class TestExpressionParsing {
     }
 
     private Object resolve(String function, String value) throws ExpressionException, ProcessorException {
-        Event ev =  Tools.getEvent();
+        Event ev = factory.newEvent();
         ev.put("a", value);
         return evalExpression(String.format("%s([a])", function),ev);
     }
@@ -531,7 +533,7 @@ public class TestExpressionParsing {
 
     @Test
     public void testComplexString() throws ExpressionException, ProcessorException {
-        Event ev =  Tools.getEvent();
+        Event ev = factory.newEvent();
         String toEval = "a\"\\\t\n\r" + String.valueOf(Character.toChars(0x10000));
         StringBuffer buffer = new StringBuffer();
         toEval.chars().mapToObj(i -> {
@@ -583,11 +585,11 @@ public class TestExpressionParsing {
                 new Integer[]{},
                 new Object[]{}
         }) {
-            Event ev =  Tools.getEvent();
+            Event ev = factory.newEvent();
             ev.put("a", o);
             Assert.assertTrue((boolean) evalExpression("isEmpty([a])", ev));
         }
-        Event ev =  Tools.getEvent();
+        Event ev = factory.newEvent();
         System.err.println(evalExpression("isEmpty([a])", ev));
         Assert.assertTrue((boolean) evalExpression("isEmpty([a])", ev));
     }
@@ -603,7 +605,7 @@ public class TestExpressionParsing {
                 new Integer[]{1},
                 new Object[]{""}
         }) {
-            Event ev =  Tools.getEvent();
+            Event ev = factory.newEvent();
             ev.put("a", o);
             Assert.assertFalse((boolean) evalExpression("isEmpty([a])", ev));
         }

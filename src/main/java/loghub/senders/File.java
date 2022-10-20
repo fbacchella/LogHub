@@ -32,7 +32,7 @@ import org.apache.logging.log4j.Level;
 
 import loghub.BuilderClass;
 import loghub.CanBatch;
-import loghub.Event;
+import loghub.events.Event;
 import loghub.Expression;
 import loghub.Helpers;
 import loghub.ProcessorException;

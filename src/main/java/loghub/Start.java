@@ -41,6 +41,7 @@ import loghub.configuration.Configuration;
 import loghub.configuration.Properties;
 import loghub.configuration.SecretsHandler;
 import loghub.configuration.TestEventProcessing;
+import loghub.events.Event;
 import loghub.metrics.JmxService;
 import loghub.metrics.Stats;
 import loghub.processors.FieldsProcessor;
@@ -420,7 +421,7 @@ public class Start {
         } else {
             p.configure(props);
             FieldsProcessor fp = (FieldsProcessor) p;
-            Event ev = Event.emptyTestEvent(ConnectionContext.EMPTY);
+            Event ev = props.eventsFactory.newEvent();
             try {
                 new BufferedReader(new InputStreamReader(System.in, "UTF-8")).lines().forEach( i -> {
                     try {

@@ -22,13 +22,20 @@ import io.netty.util.ByteProcessor;
 import io.netty.util.ByteProcessor.IndexOfProcessor;
 import loghub.BuilderClass;
 import loghub.ConnectionContext;
-import loghub.Event;
+import loghub.configuration.Properties;
+import loghub.events.Event;
+import loghub.events.EventsFactory;
+import loghub.receivers.Receiver;
 import lombok.Data;
+import lombok.Setter;
 
 @BuilderClass(JournaldExport.Builder.class)
 public class JournaldExport extends Decoder {
 
     public static class Builder extends Decoder.Builder<JournaldExport> {
+        // Used in journald receiver
+        @Setter
+        private EventsFactory factory = null;
         @Override
         public JournaldExport build() {
             return new JournaldExport(this);
@@ -85,9 +92,18 @@ public class JournaldExport extends Decoder {
      */
     private final ThreadLocal<EventVars> threadEventVars = ThreadLocal.withInitial(EventVars::new);
 
+    private EventsFactory factory;
+
     protected JournaldExport(Builder builder) {
         super(builder);
+        this.factory = builder.factory;
         logger.debug("New journald export decoder");
+    }
+
+    @Override
+    public boolean configure(Properties properties, Receiver receiver) {
+        factory = properties.eventsFactory;
+        return super.configure(properties, receiver);
     }
 
     @Override
@@ -211,7 +227,7 @@ public class JournaldExport extends Decoder {
 
     private Event newEvent(ConnectionContext<?> ctx, EventVars eventVars) {
         if (! eventVars.isEmpty()) {
-            Event e = Event.emptyEvent(ctx);
+            Event e = factory.newEvent(ctx);
             String timestampString = (String) Optional.ofNullable(eventVars.trustedFields.remove(TIMESTAMP_SR))
                                                       .orElse(eventVars.trustedFields.remove(TIMESTAMP_R));
             // Ensure that __REALTIME_TIMESTAMP is always removed

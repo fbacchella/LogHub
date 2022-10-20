@@ -12,8 +12,8 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import loghub.BeanChecks;
-import loghub.Event;
-import loghub.Event.Action;
+import loghub.events.Event;
+import loghub.events.Event.Action;
 import loghub.Expression;
 import loghub.LogUtils;
 import loghub.Processor;
@@ -22,10 +22,12 @@ import loghub.Tools;
 import loghub.VarFormatter;
 import loghub.VariablePath;
 import loghub.configuration.Properties;
+import loghub.events.EventsFactory;
 
 public class TestUserAgent {
 
     private static Logger logger;
+    private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
     static public void configure() throws IOException {
@@ -46,7 +48,7 @@ public class TestUserAgent {
 
         String uaString = "Mozilla/5.0 (iPhone; CPU iPhone OS 5_1_1 like Mac OS X) AppleWebKit/534.46 (KHTML, like Gecko) Version/5.1 Mobile/9B206 Safari/7534.48.3";
 
-        Event event = Tools.getEvent();
+        Event event = factory.newEvent();
         event.put("User-Agent", uaString);
         Assert.assertTrue(ua.process(event));
         System.out.println(event);

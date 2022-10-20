@@ -25,7 +25,7 @@ import org.junit.Test;
 
 import loghub.BeanChecks;
 import loghub.BeanChecks.BeanInfo;
-import loghub.Event;
+import loghub.events.Event;
 import loghub.Filter;
 import loghub.LogUtils;
 import loghub.Pipeline;

@@ -2,8 +2,8 @@ package loghub.processors;
 
 import java.util.Map;
 
-import loghub.Event;
-import loghub.Event.Action;
+import loghub.events.Event;
+import loghub.events.Event.Action;
 import loghub.Expression;
 import loghub.IgnoredEventException;
 import loghub.NullOrMissingValue;

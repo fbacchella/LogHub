@@ -3,7 +3,7 @@ package loghub.processors;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 
-import loghub.Event;
+import loghub.events.Event;
 import loghub.ProcessorException;
 
 public class DecodeUrl extends FieldsProcessor {

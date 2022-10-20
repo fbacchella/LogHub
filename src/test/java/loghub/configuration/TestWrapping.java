@@ -12,15 +12,17 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import loghub.Event;
+import loghub.events.Event;
 import loghub.EventsProcessor;
 import loghub.LogUtils;
 import loghub.ProcessorException;
 import loghub.Tools;
+import loghub.events.EventsFactory;
 
 public class TestWrapping {
 
     private static Logger logger;
+    private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
     static public void configure() throws IOException {
@@ -31,14 +33,14 @@ public class TestWrapping {
 
     @Test
     public void testSourceLoadingContains() throws ConfigException, IOException, ProcessorException, InterruptedException {
-        Event ev = Event.emptyEvent(null);
+        Event ev = factory.newEvent();
         ev.put("a", new HashMap<String, Object>());
         checkEvent(ev);
     }
 
     @Test
     public void testSourceLoadingNotContains() throws ConfigException, IOException, ProcessorException, InterruptedException {
-        Event ev = Event.emptyEvent(null);
+        Event ev = factory.newEvent();
         checkEvent(ev);
     }
     

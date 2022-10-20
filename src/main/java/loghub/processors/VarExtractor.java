@@ -3,7 +3,7 @@ package loghub.processors;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import loghub.Event;
+import loghub.events.Event;
 
 /**
  * This transformer parse a field using a regex that extract name and value.

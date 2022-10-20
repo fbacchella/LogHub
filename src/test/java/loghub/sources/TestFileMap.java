@@ -11,7 +11,7 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import loghub.Event;
+import loghub.events.Event;
 import loghub.LogUtils;
 import loghub.ProcessorException;
 import loghub.Tools;
@@ -20,11 +20,13 @@ import loghub.Tools.ProcessingStatus;
 import loghub.configuration.ConfigException;
 import loghub.configuration.ConfigurationTools;
 import loghub.configuration.Properties;
+import loghub.events.EventsFactory;
 import loghub.processors.Mapper;
 
 public class TestFileMap {
 
     private static Logger logger;
+    private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
     static public void configure() throws IOException {
@@ -59,7 +61,7 @@ public class TestFileMap {
         p.setLvalue(VariablePath.of(new String[] {"type"}));
         p.setMap(s);
 
-        Event e = Tools.getEvent();
+        Event e = factory.newEvent();
         e.put("type", "1");
 
         ProcessingStatus ps = Tools.runProcessing(e, "main", Collections.singletonList(p));
@@ -80,7 +82,7 @@ public class TestFileMap {
         p.setLvalue(VariablePath.of(new String[] {"type"}));
         p.setMap(s);
 
-        Event e = Tools.getEvent();
+        Event e = factory.newEvent();
         e.put("type", "a");
 
         ProcessingStatus ps = Tools.runProcessing(e, "main", Collections.singletonList(p));

@@ -17,17 +17,19 @@ import org.junit.Test;
 
 import loghub.AsyncProcessor;
 import loghub.ConnectionContext;
-import loghub.Event;
+import loghub.events.Event;
 import loghub.Helpers;
 import loghub.LogUtils;
 import loghub.ProcessorException;
 import loghub.Tools;
 import loghub.configuration.Configuration;
 import loghub.configuration.Properties;
+import loghub.events.EventsFactory;
 
 public class TestMerge {
 
     private static Logger logger;
+    private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
     static public void configure() throws IOException {
@@ -46,9 +48,9 @@ public class TestMerge {
         Merge m = (Merge) p.namedPipeLine.get("main").processors.stream().findFirst().get();
 
         List<Event> events = new ArrayList<>();
-        Assert.assertFalse(m.process(Event.emptyEvent(ConnectionContext.EMPTY)));
+        Assert.assertFalse(m.process(factory.newEvent()));
 
-        Event e1 = Event.emptyEvent(ConnectionContext.EMPTY);
+        Event e1 = factory.newEvent();
         e1.setTimestamp(new Date(0));
         e1.put("a", 1);
         e1.put("b", 2);
@@ -60,7 +62,7 @@ public class TestMerge {
         e1.put("f", f1);
         e1.putMeta("g", 7);
 
-        Event e2 = Event.emptyEvent(ConnectionContext.EMPTY);
+        Event e2 = factory.newEvent();
         e2.putAll(e1);
         e2.setTimestamp(new Date(1));
         Map<String, Object> f2 = new HashMap<>(1);
@@ -95,7 +97,7 @@ public class TestMerge {
         Properties p = Configuration.parse(new StringReader(conf));
         Helpers.parallelStartProcessor(p);
         Merge m = (Merge) p.namedPipeLine.get("main").processors.get(0);
-        Event e = Event.emptyEvent(ConnectionContext.EMPTY);
+        Event e = factory.newEvent();
         e.setTimestamp(new Date(0));
         e.put("a", 1);
         e.put("b", 2);
@@ -116,7 +118,7 @@ public class TestMerge {
         Properties p = Configuration.parse(new StringReader(conf));
         Helpers.parallelStartProcessor(p);
         Merge m = (Merge) p.namedPipeLine.get("main").processors.stream().findFirst().get();
-        Event e = Event.emptyEvent(ConnectionContext.EMPTY);
+        Event e = factory.newEvent();
         e.setTimestamp(new Date(0));
         e.put("a", 1);
         e.put("b", 2);
@@ -125,7 +127,7 @@ public class TestMerge {
         e.put("e", "5");
         AsyncProcessor.PausedEventException ex = Assert.assertThrows(AsyncProcessor.PausedEventException.class, () -> m.process(e));
         Assert.assertNull(ex.getFuture());
-        Event e2 = Event.emptyEvent(ConnectionContext.EMPTY);
+        Event e2 = factory.newEvent();
         e2.put("g", 1);
         e2.put("e", "5");
         e2.setTimestamp(new Date(3));

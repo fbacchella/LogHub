@@ -20,12 +20,13 @@ import org.msgpack.jackson.dataformat.MessagePackFactory;
 import com.fasterxml.jackson.databind.ObjectReader;
 
 import loghub.ConnectionContext;
-import loghub.Event;
+import loghub.events.Event;
 import loghub.LogUtils;
 import loghub.Tools;
 import loghub.configuration.ConfigException;
 import loghub.configuration.ConfigurationTools;
 import loghub.configuration.Properties;
+import loghub.events.EventsFactory;
 import loghub.jackson.JacksonBuilder;
 import loghub.jackson.MsgpackTimeDeserializer;
 import loghub.senders.InMemorySender;
@@ -33,6 +34,7 @@ import loghub.senders.InMemorySender;
 public class TestMsgpack {
 
     private static Logger logger;
+    private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
     static public void configure() throws IOException {
@@ -69,7 +71,7 @@ public class TestMsgpack {
         Msgpack encoder = builder.build();
         InMemorySender.Builder sender = InMemorySender.getBuilder();
         Assert.assertTrue(encoder.configure(new Properties(Collections.emptyMap()), sender.build()));
-        byte[] data = encoder.encode(Stream.of(Event.emptyEvent(ConnectionContext.EMPTY), Event.emptyEvent(ConnectionContext.EMPTY)));
+        byte[] data = encoder.encode(Stream.of(factory.newEvent(), factory.newEvent()));
 
         ExtensionTypeCustomDeserializers extTypeCustomDesers = new ExtensionTypeCustomDeserializers();
         extTypeCustomDesers.addCustomDeser((byte) -1, new MsgpackTimeDeserializer());

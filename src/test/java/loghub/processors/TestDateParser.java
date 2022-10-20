@@ -19,16 +19,18 @@ import org.junit.Test;
 
 import com.axibase.date.PatternResolver;
 
-import loghub.Event;
+import loghub.events.Event;
 import loghub.LogUtils;
 import loghub.ProcessorException;
 import loghub.Tools;
 import loghub.VariablePath;
 import loghub.configuration.Properties;
+import loghub.events.EventsFactory;
 
 public class TestDateParser {
 
     private static Logger logger;
+    private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
     static public void configure() throws IOException {
@@ -43,7 +45,7 @@ public class TestDateParser {
         parse.setPattern("ISO_DATE_TIME");
         parse.setField(VariablePath.of("field"));
         Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
-        Event event = Tools.getEvent();
+        Event event = factory.newEvent();
         ZonedDateTime now = ZonedDateTime.now();
         event.put("field", PatternResolver.createNewFormatter("iso_nanos").print(now));
         parse.process(event);
@@ -58,7 +60,7 @@ public class TestDateParser {
         parse.setPattern("yyyy-MM-ddTHH:mm:ss.SSSZ");
         parse.setField(VariablePath.of("field"));
         Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
-        Event event = Tools.getEvent();
+        Event event = factory.newEvent();
         ZonedDateTime now = ZonedDateTime.now();
         event.put("field", PatternResolver.createNewFormatter("iso_nanos").print(now));
         parse.process(event);
@@ -72,7 +74,7 @@ public class TestDateParser {
         parse.setPattern("yyyy-MM-dd'T'HH:m:ss.SSSSSSXXX");
         parse.setField(VariablePath.of("field"));
         Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
-        Event event = Tools.getEvent();
+        Event event = factory.newEvent();
         event.put("field", "1971-01-01T00:00:00.001001+01:00");
         parse.process(event);
         Instant date = (Instant) event.get("field");
@@ -86,7 +88,7 @@ public class TestDateParser {
         parse.setTimezone("Z");
         parse.setField(VariablePath.of("field"));
         Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
-        Event event = Tools.getEvent();
+        Event event = factory.newEvent();
         event.put("field", "1971-01-01T00:00:00");
         parse.process(event);
         Instant date = (Instant) event.get("field");
@@ -98,7 +100,7 @@ public class TestDateParser {
         DateParser parse = new DateParser();
         parse.setField(VariablePath.of("field"));
         Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
-        Event event = Tools.getEvent();
+        Event event = factory.newEvent();
         event.put("field", "Tue, 3 Jun 2008 11:05:30 +0110");
         parse.process(event);
         Instant date = (Instant) event.get("field");
@@ -112,7 +114,7 @@ public class TestDateParser {
         parse.setTimezone("Z");
         parse.setField(VariablePath.of("field"));
         Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
-        Event event = Tools.getEvent();
+        Event event = factory.newEvent();
         event.put("field", "Jul 26 16:40:22");
         parse.process(event);
         Instant date = (Instant) event.get("field");
@@ -128,7 +130,7 @@ public class TestDateParser {
         parse.setTimezone("CET");
         parse.setField(VariablePath.of("field"));
         Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
-        Event event = Tools.getEvent();
+        Event event = factory.newEvent();
         event.put("field", "2016-08-04T18:57:37.238+0000");
         parse.process(event);
         Instant date = (Instant) event.get("field");
@@ -144,7 +146,7 @@ public class TestDateParser {
         parse.setTimezone("CET");
         parse.setField(VariablePath.of("field"));
         Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
-        Event event = Tools.getEvent();
+        Event event = factory.newEvent();
         event.put("field", fieldValue);
         parse.process(event);
         Assert.assertEquals(fieldValue, event.get("field"));
@@ -158,7 +160,7 @@ public class TestDateParser {
         parse.setTimezone("CET");
         parse.setField(VariablePath.of("field"));
         Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
-        Event event = Tools.getEvent();
+        Event event = factory.newEvent();
         event.put("field", fieldValue);
         parse.process(event);
         Assert.assertEquals(fieldValue, event.get("field"));
@@ -171,7 +173,7 @@ public class TestDateParser {
         parse.setTimezone("CET");
         parse.setField(VariablePath.of("field"));
         Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
-        Event event = Tools.getEvent();
+        Event event = factory.newEvent();
         event.put("field", "Jul 26 16:40:22.238");
         parse.process(event);
         Instant date = (Instant) event.get("field");
@@ -223,7 +225,7 @@ public class TestDateParser {
 
     private void resolve(DateParser processor, Instant instant,
                          Function<Instant, Number> tonumber) throws ProcessorException {
-        Event event = Tools.getEvent();
+        Event event = factory.newEvent();
         event.put("field", tonumber.apply(instant));
         processor.process(event);
         Instant o = (Instant) event.get("field");
@@ -245,7 +247,7 @@ public class TestDateParser {
         parse.setTimezone("America/Los_Angeles");
         parse.setField(VariablePath.of("field"));
         Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
-        Event event = Tools.getEvent();
+        Event event = factory.newEvent();
         event.put("field", parsedDate);
         Assert.assertTrue("failed to parse " + parsedDate + " with " + parseformat, parse.process(event));
         Instant date = (Instant) event.get("field");

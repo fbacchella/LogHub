@@ -21,6 +21,8 @@ import org.junit.Test;
 
 import loghub.configuration.ConfigException;
 import loghub.configuration.Properties;
+import loghub.events.Event;
+import loghub.events.Mocker;
 import loghub.metrics.JmxService;
 import loghub.metrics.Stats;
 import loghub.metrics.Stats.PipelineStat;
@@ -50,7 +52,7 @@ public class TestCriticalFailure {
         Start runner = new Start();
         runner.setCanexit(false);
         runner.launch(props);
-        Event ev = mock(EventInstance.class);
+        Event ev = Mocker.getMock();
         doThrow(new OutOfMemoryError()).when(ev).next();
         when(ev.getCurrentPipeline()).thenReturn("newpipe");
         props.mainQueue.add(ev);
@@ -72,7 +74,7 @@ public class TestCriticalFailure {
         Start runner = new Start();
         runner.setCanexit(false);
         runner.launch(props);
-        Event ev = mock(EventInstance.class);
+        Event ev = Mocker.getMock();
         doThrow(new StackOverflowError()).when(ev).process(any());
         when(ev.getCurrentPipeline()).thenReturn("newpipe");
         when(ev.next()).thenReturn(new Identity());

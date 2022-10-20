@@ -4,6 +4,7 @@ import java.beans.IntrospectionException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -21,7 +22,8 @@ import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.CompositeByteBuf;
 import loghub.BeanChecks;
 import loghub.ConnectionContext;
-import loghub.Event;
+import loghub.configuration.Properties;
+import loghub.events.Event;
 import loghub.LogUtils;
 import loghub.Tools;
 
@@ -47,6 +49,7 @@ public class TestJournaldDecoder {
             } while (read > 0);
         }
         JournaldExport decoder = JournaldExport.getBuilder().build();
+        decoder.configure(new Properties(Collections.emptyMap()), null);
         List<Map<String, Object>> events = decoder.decode(ConnectionContext.EMPTY, readBuffer).collect(Collectors.toList());
         check(events);
     }
@@ -55,6 +58,7 @@ public class TestJournaldDecoder {
     public void testReadSplitted() throws DecodeException, IOException {
         CompositeByteBuf chunksBuffer = ByteBufAllocator.DEFAULT.compositeBuffer();
         JournaldExport decoder = JournaldExport.getBuilder().build();
+        decoder.configure(new Properties(Collections.emptyMap()), null);
         List<Map<String, Object>> events = new ArrayList<>();
         try (InputStream is = getClass().getClassLoader().getResourceAsStream("binaryjournald")) {
             int read = 0;

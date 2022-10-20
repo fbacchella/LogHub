@@ -38,7 +38,7 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 
 import loghub.ConnectionContext;
-import loghub.Event;
+import loghub.events.Event;
 import loghub.EventsProcessor;
 import loghub.Helpers;
 import loghub.jackson.JacksonBuilder;
@@ -135,7 +135,7 @@ public class TestEventProcessing {
                     }
                     eventDate = Date.from(now.toInstant());
                 }
-                Event ev = Event.emptyTestEvent(ConnectionContext.EMPTY);
+                Event ev = props.eventsFactory.newEvent();
                 ev.putAll(eventMap);
                 if (eventDate != null) {
                     ev.setTimestamp(eventDate);

@@ -23,7 +23,7 @@ import loghub.BeanChecks;
 import loghub.BeanChecks.BeanInfo;
 import loghub.Compressor;
 import loghub.Decompressor;
-import loghub.Event;
+import loghub.events.Event;
 import loghub.Filter;
 import loghub.FilterException;
 import loghub.LogUtils;

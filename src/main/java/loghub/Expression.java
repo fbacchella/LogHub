@@ -36,7 +36,11 @@ import groovy.runtime.metaclass.java.lang.NumberMetaClass;
 import groovy.runtime.metaclass.loghub.EventMetaClass;
 import groovy.runtime.metaclass.loghub.NullOrNoneValueMetaClass;
 import groovy.runtime.metaclass.loghub.TimeDiff;
+import loghub.events.Event;
+import loghub.events.EventsFactory;
 import lombok.Getter;
+
+import loghub.events.EventsFactory;
 
 /**
  * Evaluate groovy expressions.
@@ -64,7 +68,7 @@ public class Expression {
             registry.setMetaClass(c, new TimeDiff(c));
         }
 
-        for (Class<?> c: new Class[] {EventWrapper.class, EventInstance.class, Event.class}) {
+        for (Class<?> c: EventsFactory.getEventClasses()) {
             registry.setMetaClass(c, new EventMetaClass(c));
         }
     }

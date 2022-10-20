@@ -9,7 +9,7 @@ import java.util.function.Supplier;
 
 import io.netty.util.concurrent.Future;
 import loghub.AsyncProcessor;
-import loghub.Event;
+import loghub.events.Event;
 import loghub.Processor;
 import loghub.ProcessorException;
 import loghub.VariablePath;

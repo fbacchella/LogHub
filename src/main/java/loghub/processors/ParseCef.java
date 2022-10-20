@@ -5,11 +5,11 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import loghub.Event;
+import loghub.events.Event;
 import loghub.Processor;
 import loghub.ProcessorException;
 import loghub.VariablePath;
-import loghub.Event.Action;
+import loghub.events.Event.Action;
 import lombok.Getter;
 import lombok.Setter;
 

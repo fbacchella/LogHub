@@ -19,18 +19,20 @@ import org.junit.Ignore;
 import org.junit.Test;
 
 import loghub.BeanChecks;
-import loghub.Event;
+import loghub.events.Event;
 import loghub.Expression;
 import loghub.LogUtils;
 import loghub.RouteParser;
 import loghub.Tools;
 import loghub.configuration.ConfigurationTools;
 import loghub.configuration.Properties;
+import loghub.events.EventsFactory;
 import loghub.senders.InMemorySender;
 
 public class TestCsv {
 
     private static Logger logger;
+    private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
     static public void configure() throws IOException {
@@ -48,7 +50,7 @@ public class TestCsv {
         builder.setValues(columns);
         Csv encoder = builder.build();
         Assert.assertTrue(encoder.configure(new Properties(Collections.emptyMap()), InMemorySender.getBuilder().build()));
-        Event e = Tools.getEvent();
+        Event e = factory.newEvent();
         e.put("K1", "V1");
         e.put("K2", 2);
         e.put("K3", true);
@@ -77,10 +79,10 @@ public class TestCsv {
         builder.setValues(columns);
         Csv encoder = builder.build();
         Assert.assertTrue(encoder.configure(new Properties(Collections.emptyMap()), InMemorySender.getBuilder().build()));
-        Event e1 = Tools.getEvent();
+        Event e1 = factory.newEvent();
         e1.put("a", 1);
         e1.put("b", 2);
-        Event e2 = Tools.getEvent();
+        Event e2 = factory.newEvent();
         e2.put("a", 3);
         e2.put("b", 4);
         byte[] result = encoder.encode(Stream.of(e1, e2));
@@ -95,7 +97,7 @@ public class TestCsv {
         String confFragment = "loghub.encoders.Csv {values: [0; true; [a]; [b]], separator: '|', features: []}";
         Csv encoder = ConfigurationTools.unWrap(confFragment, RouteParser::object);
         Assert.assertTrue(encoder.configure(new Properties(Collections.emptyMap()), InMemorySender.getBuilder().build()));
-        Event e1 = Tools.getEvent();
+        Event e1 = factory.newEvent();
         e1.put("a", 1);
         e1.put("b", "2");
         byte[] result = encoder.encode(e1);
@@ -111,9 +113,9 @@ public class TestCsv {
         builder.setValues(columns);
         Csv encoder = builder.build();
         Assert.assertTrue(encoder.configure(new Properties(Collections.emptyMap()), InMemorySender.getBuilder().build()));
-        Event e1 = Tools.getEvent();
+        Event e1 = factory.newEvent();
         e1.put("c", 1);
-        Event e2 = Tools.getEvent();
+        Event e2 = factory.newEvent();
         e2.put("b", 0);
         byte[] result = encoder.encode(Stream.of(e1, e2));
 

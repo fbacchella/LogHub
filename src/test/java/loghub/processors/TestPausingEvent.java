@@ -18,18 +18,20 @@ import io.netty.channel.DefaultEventLoop;
 import io.netty.util.concurrent.DefaultPromise;
 import io.netty.util.concurrent.Promise;
 import loghub.AsyncProcessor;
-import loghub.Event;
+import loghub.events.Event;
 import loghub.LogUtils;
 import loghub.Processor;
 import loghub.ProcessorException;
 import loghub.ThreadBuilder;
 import loghub.Tools;
+import loghub.events.EventsFactory;
 import loghub.metrics.Stats;
 
 public class TestPausingEvent {
 
 
     private static Logger logger;
+    private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
     static public void configure() throws IOException {
@@ -100,7 +102,7 @@ public class TestPausingEvent {
         logger.debug("starting");
         todo = () -> future.setSuccess(this);
         onsucces = (e, v) -> {e.put("message", v); return true;};
-        Event e = Tools.getEvent();
+        Event e = factory.newEvent();
         SleepingProcessor sp = new SleepingProcessor();
         Tools.ProcessingStatus status = Tools.runProcessing(e, "main", Collections.singletonList(sp), (i,j) -> { /* empty */ });
         e = status.mainQueue.take();
@@ -114,7 +116,7 @@ public class TestPausingEvent {
         Stats.reset();
         todo = () -> future.setSuccess(Boolean.TRUE);
         onsucces = (e, v) -> {return false;};
-        Event e = Tools.getEvent();
+        Event e = factory.newEvent();
         SleepingProcessor sp = new SleepingProcessor();
         Groovy gp = new Groovy();
         gp.setScript("event.a = 1");
@@ -130,7 +132,7 @@ public class TestPausingEvent {
         Stats.reset();
         todo = () -> future.setFailure(new RuntimeException());
         onexception = (e, x) -> Boolean.FALSE;
-        Event e = Tools.getEvent();
+        Event e = factory.newEvent();
         SleepingProcessor sp = new SleepingProcessor();
         Groovy gp = new Groovy();
         gp.setScript("event.a = 1");
@@ -149,7 +151,7 @@ public class TestPausingEvent {
         } catch (ProcessorException ex) {
             throw new RuntimeException(ex);
         }};
-        Event e = Tools.getEvent();
+        Event e = factory.newEvent();
         SleepingProcessor sp = new SleepingProcessor();
         Groovy gp = new Groovy();
         gp.setScript("event.a = 1");

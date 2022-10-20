@@ -6,13 +6,18 @@ import java.util.stream.Collectors;
 import org.junit.Assert;
 import org.junit.Test;
 
+import loghub.events.Event;
+import loghub.events.EventsFactory;
+
 public class TestPriorityBlockingQueue {
+
+    private final EventsFactory factory = new EventsFactory();
 
     @Test(timeout=2000)
     public void test1() throws InterruptedException {
         PriorityBlockingQueue queue = new PriorityBlockingQueue(10, 2);
         CountDownLatch latch = new CountDownLatch(1);
-        Event ev = Tools.getEvent();
+        Event ev = factory.newEvent();
         ev.put("#sync", true);
         ThreadBuilder.get().setTask(() -> {
             try {
@@ -23,7 +28,7 @@ public class TestPriorityBlockingQueue {
             }
         }).build(true);
         for (int i = 0; i < 10; i++) {
-            queue.put(Tools.getEvent());
+            queue.put(factory.newEvent());
             Thread.sleep(50);
             if (i == 5) {
                 latch.countDown();
@@ -44,7 +49,7 @@ public class TestPriorityBlockingQueue {
     public void test2() throws InterruptedException {
         PriorityBlockingQueue queue = new PriorityBlockingQueue(11, 0);
         CountDownLatch latch = new CountDownLatch(1);
-        Event ev = Tools.getEvent();
+        Event ev = factory.newEvent();
         ev.put("#sync", true);
         ThreadBuilder.get().setTask(() -> {
             try {
@@ -55,7 +60,7 @@ public class TestPriorityBlockingQueue {
             }
         }).build(true);
         for (int i = 0; i < 10; i++) {
-            queue.put(Tools.getEvent());
+            queue.put(factory.newEvent());
             Thread.sleep(50);
             if (i == 5) {
                 latch.countDown();

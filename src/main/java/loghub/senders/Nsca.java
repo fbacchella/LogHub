@@ -14,7 +14,7 @@ import com.googlecode.jsendnsca.NagiosSettings;
 import com.googlecode.jsendnsca.encryption.Encryption;
 
 import loghub.BuilderClass;
-import loghub.Event;
+import loghub.events.Event;
 import loghub.configuration.Properties;
 import loghub.encoders.EncodeException;
 import lombok.Setter;

@@ -6,9 +6,13 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import loghub.configuration.Properties;
+import loghub.events.Event;
+import loghub.events.EventsFactory;
 import loghub.processors.Identity;
 
 public class TestProcessor {
+
+    private final EventsFactory factory = new EventsFactory();
 
     private Expression getExpression(String expressionScript) throws Expression.ExpressionException {
         return new Expression(expressionScript, new Properties(Collections.emptyMap()).groovyClassLoader, Collections.emptyMap());
@@ -38,7 +42,7 @@ public class TestProcessor {
 
     @Test
     public void testIf() throws ProcessorException, Expression.ExpressionException {
-        Event e = new EventInstance(ConnectionContext.EMPTY);
+        Event e = factory.newEvent();
 
         Processor p = new Identity();
 

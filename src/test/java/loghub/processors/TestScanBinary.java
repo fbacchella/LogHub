@@ -8,15 +8,18 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import loghub.ConnectionContext;
-import loghub.Event;
+import loghub.events.Event;
 import loghub.Helpers;
 import loghub.ProcessorException;
 import loghub.Tools;
 import loghub.VariablePath;
 import loghub.configuration.ConfigException;
 import loghub.configuration.Properties;
+import loghub.events.EventsFactory;
 
 public class TestScanBinary {
+
+    private final EventsFactory factory = new EventsFactory();
 
     @Test
     public void simpleTestWithNames() throws ProcessorException {
@@ -25,7 +28,7 @@ public class TestScanBinary {
         fs.configure(new Properties(Collections.emptyMap()));
         fs.setField(VariablePath.of(new String[] {"binary"}));
 
-        Event e = Event.emptyEvent(ConnectionContext.EMPTY);
+        Event e = factory.newEvent();
         e.put("binary", "13");
         Assert.assertTrue(fs.process(e));
         String[] processed = (String[]) e.get("binary");
@@ -40,7 +43,7 @@ public class TestScanBinary {
         fs.configure(new Properties(Collections.emptyMap()));
         fs.setField(VariablePath.of(new String[] {"binary"}));
 
-        Event e = Event.emptyEvent(ConnectionContext.EMPTY);
+        Event e = factory.newEvent();
         e.put("binary", 0b101);
         Assert.assertTrue(fs.process(e));
         @SuppressWarnings("unchecked")
@@ -59,7 +62,7 @@ public class TestScanBinary {
         fs.setField(VariablePath.of(new String[] {"binary"}));
         fs.setDestination(VariablePath.of("value"));
 
-        Event e = Event.emptyEvent(ConnectionContext.EMPTY);
+        Event e = factory.newEvent();
         e.put("binary", 0b110101);
         Assert.assertTrue(fs.process(e));
         @SuppressWarnings("unchecked")
@@ -79,7 +82,7 @@ public class TestScanBinary {
     public void testConfigFile() throws ProcessorException, InterruptedException, ConfigException, IOException {
         Properties conf = Tools.loadConf("scanbinary.conf");
         Helpers.parallelStartProcessor(conf);
-        Event sent = Tools.getEvent();
+        Event sent = factory.newEvent();
         sent.put("binary", 0b110101);
 
         Tools.runProcessing(sent, conf.namedPipeLine.get("main"), conf);

@@ -10,14 +10,16 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import loghub.Event;
+import loghub.events.Event;
 import loghub.LogUtils;
 import loghub.ProcessorException;
 import loghub.Tools;
+import loghub.events.EventsFactory;
 
 public class TestUrlDecoders {
 
     private static Logger logger;
+    private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
     static public void configure() throws IOException {
@@ -30,7 +32,7 @@ public class TestUrlDecoders {
     public void testUrlDecoder() throws ProcessorException {
         DecodeUrl t = new DecodeUrl();
         t.setFields(new String[]{"*"});
-        Event e = Tools.getEvent();
+        Event e = factory.newEvent();
         e.put("q", "%22Paints%22+Oudalan");
         e.put("userAgent", "%2520");
         Tools.runProcessing(e, "main", Collections.singletonList(t));
@@ -43,7 +45,7 @@ public class TestUrlDecoders {
         DecodeUrl t = new DecodeUrl();
         t.setFields(new String[]{"userAgent"});
         t.setLoop(true);
-        Event e = Tools.getEvent();
+        Event e = factory.newEvent();
         e.put("q", "%22Paints%22+Oudalan");
         e.put("userAgent", "%2520");
         Tools.runProcessing(e, "main", Collections.singletonList(t));

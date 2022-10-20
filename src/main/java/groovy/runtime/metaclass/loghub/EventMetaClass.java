@@ -2,7 +2,7 @@ package groovy.runtime.metaclass.loghub;
 
 import groovy.lang.DelegatingMetaClass;
 import groovy.lang.MetaClass;
-import loghub.Event;
+import loghub.events.Event;
 
 public class EventMetaClass extends DelegatingMetaClass {
 

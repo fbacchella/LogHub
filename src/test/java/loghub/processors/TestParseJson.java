@@ -14,16 +14,18 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import loghub.BeanChecks;
-import loghub.Event;
+import loghub.events.Event;
 import loghub.LogUtils;
 import loghub.ProcessorException;
 import loghub.Tools;
 import loghub.VariablePath;
 import loghub.configuration.Properties;
+import loghub.events.EventsFactory;
 
 public class TestParseJson {
 
     private static Logger logger;
+    private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
     static public void configure() throws IOException {
@@ -38,7 +40,7 @@ public class TestParseJson {
         parse.setField(VariablePath.of(new String[] {"message"}));
         parse.setAtPrefix("|");
         Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
-        Event event = Tools.getEvent();
+        Event event = factory.newEvent();
         event.put("message", "{\"@a\": 1, \"b\": \"value\", \"c\": true, \"d\": [], \"e\": {}}");
         parse.process(event);
         Assert.assertEquals(1, event.get("|a"));
@@ -53,7 +55,7 @@ public class TestParseJson {
         ParseJson parse = new ParseJson();
         parse.setField(VariablePath.of(new String[] {"message"}));
         Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
-        Event event = Tools.getEvent();
+        Event event = factory.newEvent();
         event.put("message", "{");
         parse.process(event);
     }

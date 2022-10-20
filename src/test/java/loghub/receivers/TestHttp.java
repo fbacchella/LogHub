@@ -35,7 +35,7 @@ import org.junit.Test;
 import loghub.BeanChecks;
 import loghub.BeanChecks.BeanInfo;
 import loghub.ConnectionContext;
-import loghub.Event;
+import loghub.events.Event;
 import loghub.IpConnectionContext;
 import loghub.LogUtils;
 import loghub.Pipeline;
