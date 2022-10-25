@@ -78,6 +78,7 @@ public class TestCriticalFailure {
         doThrow(new StackOverflowError()).when(ev).process(any());
         when(ev.getCurrentPipeline()).thenReturn("newpipe");
         when(ev.next()).thenReturn(new Identity());
+        when(ev.getPipelineLogger()).thenReturn(LogManager.getLogger("loghub.Pipeline.newpipe"));
         CountDownLatch latch = new CountDownLatch(2);
         doAnswer(i -> {
             latch.countDown();

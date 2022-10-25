@@ -29,6 +29,7 @@ public class PostSubpipline extends Processor {
         }
         Optional.ofNullable(event.getRealEvent().executionStack.peek()).ifPresent(
                 ExecutionStackElement::restart);
+        event.getRealEvent().refreshLogger();
         return true;
     }
 

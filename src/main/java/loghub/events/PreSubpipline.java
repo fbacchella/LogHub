@@ -2,16 +2,16 @@ package loghub.events;
 
 import java.util.Optional;
 
+import loghub.Pipeline;
 import loghub.Processor;
-import loghub.ProcessorException;
 import loghub.configuration.Properties;
 
 public class PreSubpipline extends Processor {
 
-    private final String pipename;
+    private final Pipeline pipe;
 
-    PreSubpipline(String pipename) {
-        this.pipename = pipename;
+    PreSubpipline(Pipeline pipe) {
+        this.pipe = pipe;
     }
 
     @Override
@@ -20,9 +20,9 @@ public class PreSubpipline extends Processor {
     }
 
     @Override
-    public boolean process(Event event) throws ProcessorException {
+    public boolean process(Event event) {
         Optional.ofNullable(event.getRealEvent().executionStack.peek()).ifPresent(ExecutionStackElement::pause);
-        ExecutionStackElement ctxt = new ExecutionStackElement(pipename);
+        ExecutionStackElement ctxt = new ExecutionStackElement(pipe);
         event.getRealEvent().executionStack.add(ctxt);
         ExecutionStackElement.logger.trace("--> {}({})", () -> event.getRealEvent().executionStack, () -> event);
         return true;
@@ -30,11 +30,12 @@ public class PreSubpipline extends Processor {
 
     @Override
     public String getName() {
-        return "preSubpipline(" + pipename + ")";
+        return "preSubpipline(" + pipe.getName() + ")";
     }
 
     @Override
     public String toString() {
-        return "preSubpipline(" + pipename + ")";
+        return "preSubpipline(" + pipe.getName() + ")";
     }
+
 }

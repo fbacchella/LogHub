@@ -91,7 +91,7 @@ public class EventsProcessor extends Thread {
             Context tctxt = Stats.startProcessingEvent();
             Processor processor = event.next();
             while (processor != null) {
-                Logger currentLogger = namedPipelines.get(event.getCurrentPipeline()).getLogger();
+                Logger currentLogger = event.getPipelineLogger();
                 currentLogger.trace("processing with {}", processor);
                 if (processor instanceof WrapEvent) {
                     event = event.wrap(processor.getPathArray());

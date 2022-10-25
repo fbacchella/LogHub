@@ -9,6 +9,8 @@ import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.stream.Stream;
 
+import org.apache.logging.log4j.Logger;
+
 import loghub.ConnectionContext;
 import loghub.Pipeline;
 import loghub.PriorityBlockingQueue;
@@ -283,6 +285,10 @@ class EventWrapper extends Event {
     @Override
     public Stream<Entry<String, Object>> getMetaAsStream() {
         return event.getMetaAsStream();
+    }
+
+    public Logger getPipelineLogger() {
+        return event.getPipelineLogger();
     }
 
 }

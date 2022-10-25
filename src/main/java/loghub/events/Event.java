@@ -16,6 +16,8 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
+import org.apache.logging.log4j.Logger;
+
 import com.fasterxml.jackson.annotation.JsonIdentityInfo;
 import com.fasterxml.jackson.annotation.ObjectIdGenerators;
 
@@ -419,6 +421,8 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
     protected abstract EventInstance getRealEvent();
 
     public abstract Event unwrap();
+
+    public abstract Logger getPipelineLogger();
 
     /**
      * An event is only equals to itself.

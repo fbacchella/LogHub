@@ -7,6 +7,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import loghub.Pipeline;
 import loghub.metrics.Stats;
 
 /**
@@ -18,14 +19,14 @@ import loghub.metrics.Stats;
 
 class ExecutionStackElement {
     static final Logger logger = LogManager.getLogger();
-    final String name;
 
+    final Pipeline pipe;
     private long duration = 0;
     private long startTime = Long.MAX_VALUE;
     private boolean running;
 
-    ExecutionStackElement(String name) {
-        this.name = name;
+    ExecutionStackElement(Pipeline pipe) {
+        this.pipe = pipe;
         restart();
     }
 
@@ -33,9 +34,9 @@ class ExecutionStackElement {
         if (running) {
             long elapsed = System.nanoTime() - startTime;
             duration += elapsed;
-            Stats.pipelineHanding(name, Stats.PipelineStat.INFLIGHTDOWN);
+            Stats.pipelineHanding(pipe.getName(), Stats.PipelineStat.INFLIGHTDOWN);
         }
-        Stats.timerUpdate(name, duration, TimeUnit.NANOSECONDS);
+        Stats.timerUpdate(pipe.getName(), duration, TimeUnit.NANOSECONDS);
         duration = 0;
         running = false;
         startTime = Long.MAX_VALUE;
@@ -43,7 +44,7 @@ class ExecutionStackElement {
 
     void pause() {
         running = false;
-        Stats.pipelineHanding(name, Stats.PipelineStat.INFLIGHTDOWN);
+        Stats.pipelineHanding(pipe.getName(), Stats.PipelineStat.INFLIGHTDOWN);
         long elapsed = System.nanoTime() - startTime;
         duration += elapsed;
     }
@@ -51,11 +52,15 @@ class ExecutionStackElement {
     void restart() {
         startTime = System.nanoTime();
         running = true;
-        Stats.pipelineHanding(name, Stats.PipelineStat.INFLIGHTUP);
+        Stats.pipelineHanding(pipe.getName(), Stats.PipelineStat.INFLIGHTUP);
+    }
+
+    Logger getLogger() {
+        return pipe.getLogger();
     }
 
     @Override
     public String toString() {
-        return name + "(" + Duration.of(duration, ChronoUnit.NANOS) + ")";
+        return pipe.getName() + "(" + Duration.of(duration, ChronoUnit.NANOS) + ")";
     }
 }

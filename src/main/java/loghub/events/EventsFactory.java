@@ -6,6 +6,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
 import loghub.ConnectionContext;
+import loghub.Pipeline;
 
 public class EventsFactory {
 
@@ -14,10 +15,10 @@ public class EventsFactory {
         return () -> Arrays.stream(EVENT_CLASSES).iterator();
     }
 
-    private final Map<String, PreSubpipline> preSubpiplines = new ConcurrentHashMap<>();
+    private final Map<Pipeline, PreSubpipline> preSubpiplines = new ConcurrentHashMap<>();
 
-    PreSubpipline getPre(String name) {
-        return preSubpiplines.computeIfAbsent(name, PreSubpipline::new);
+    PreSubpipline getPre(Pipeline pipe) {
+        return preSubpiplines.computeIfAbsent(pipe, PreSubpipline::new);
     }
 
     public Event newTestEvent() {

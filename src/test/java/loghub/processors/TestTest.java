@@ -18,6 +18,7 @@ import loghub.Tools;
 import loghub.configuration.ConfigException;
 import loghub.configuration.Properties;
 import loghub.events.EventsFactory;
+import loghub.metrics.Stats;
 
 public class TestTest {
 
@@ -32,17 +33,18 @@ public class TestTest {
     }
 
     @Test
-    public void testOK() throws InterruptedException, ProcessorException, ConfigException, IOException {
+    public void testOK() throws ProcessorException, ConfigException, IOException {
         Properties conf = Tools.loadConf("testclause.conf");
         Helpers.parallelStartProcessor(conf);
         Event sent = factory.newEvent();
         sent.put("a",1);
         Tools.runProcessing(sent, conf.namedPipeLine.get("main"), conf);
-        Assert.assertEquals("conversion not expected", 1, sent.get("b"));
+        Assert.assertEquals(1, sent.get("b"));
+        Assert.assertEquals(1, sent.size());
     }
 
     @Test
-    public void testKO() throws ProcessorException, InterruptedException, ConfigException, IOException {
+    public void testKO() throws ProcessorException, ConfigException, IOException {
         Properties conf = Tools.loadConf("testclause.conf");
         Helpers.parallelStartProcessor(conf);
 
@@ -50,11 +52,12 @@ public class TestTest {
         sent.put("a",2);
 
         Tools.runProcessing(sent, conf.namedPipeLine.get("main"), conf);
-        Assert.assertEquals("conversion not expected", 2, sent.get("c"));
+        Assert.assertEquals(2, sent.get("c"));
+        Assert.assertEquals(1, sent.size());
     }
 
     @Test
-    public void testMissingPath() throws ProcessorException, InterruptedException, ConfigException, IOException {
+    public void testMissingPath() throws ProcessorException, ConfigException, IOException {
         Properties conf = Tools.loadConf("testclause.conf");
         Helpers.parallelStartProcessor(conf);
 
@@ -62,25 +65,23 @@ public class TestTest {
 
         Tools.runProcessing(sent, conf.namedPipeLine.get("missingpath"), conf);
         Assert.assertEquals(2, sent.get("c"));
+        Assert.assertEquals(1, sent.size());
     }
 
-    @Test(timeout=2000)
-    public void testSub() throws InterruptedException, ProcessorException, ConfigException, IOException {
+    @Test
+    public void testSub() throws ProcessorException, ConfigException, IOException {
+        Stats.reset();
         Properties conf = Tools.loadConf("testclause.conf");
         Helpers.parallelStartProcessor(conf);
 
         Event sent = factory.newEvent();
-        sent.put("a",2);
+        sent.put("a", 2);
 
-        conf.mainQueue.add(sent);
-
-        EventsProcessor ep = new EventsProcessor(conf.mainQueue, conf.outputQueues, conf.namedPipeLine, conf.maxSteps, conf.repository);
-        sent.inject(conf.namedPipeLine.get("subpipe"), conf.mainQueue, true);
-        ep.start();
-
-        Event received = conf.outputQueues.get("subpipe").take();
-        Assert.assertEquals("conversion not expected", 2, received.get("d"));
-        ep.interrupt();
+        Tools.runProcessing(sent, conf.namedPipeLine.get("subpipe"), conf);
+        System.out.println(sent);
+        Assert.assertEquals(2, sent.get("c"));
+        Assert.assertEquals(2, sent.get("d"));
+        Assert.assertEquals(2, sent.size());
     }
 
 }

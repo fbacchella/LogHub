@@ -20,6 +20,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.function.BiFunction;
@@ -153,8 +154,8 @@ class EventInstance extends Event {
     private boolean test;
     private final ConnectionContext<?> ctx;
     private final EventsFactory factory;
-
     private Context timer;
+    private Logger pipeLineLogger;
 
     // The context for exact pipeline timing
     Queue<ExecutionStackElement> executionStack;
@@ -264,13 +265,20 @@ class EventInstance extends Event {
         }
     }
 
+    private PreSubpipline inNamedPipeline(Pipeline pipe) {
+        pipeLineLogger = pipe.getLogger();
+        currentPipeline = pipe.getName();
+        return factory.getPre(pipe);
+    }
+
     private void addProcessor(Processor p, boolean append) {
         logger.trace("inject processor {} at {}", () -> p, () -> append ? "end" : "start" );
         if (p instanceof SubPipeline) {
             SubPipeline sp = (SubPipeline) p;
+            Pipeline pipe = sp.getPipeline();
             List<Processor> newProcessors = new ArrayList<>(sp.getPipeline().processors.size() + 2);
-            Optional<String> pipeName = Optional.ofNullable(sp.getPipeline().getName());
-            pipeName.map(factory::getPre).ifPresent(newProcessors::add);
+            Optional<Pipeline> pipeName = Optional.ofNullable(pipe).filter(ppl -> ppl.getName() != null);
+            pipeName.map(this::inNamedPipeline).ifPresent(newProcessors::add);
             newProcessors.addAll(sp.getPipeline().processors);
             pipeName.map(s -> PostSubpipline.INSTANCE).ifPresent(this::appendProcessor);
             addProcessors(newProcessors, append);
@@ -286,9 +294,8 @@ class EventInstance extends Event {
     @Override
     public void refill(Pipeline pipeline) {
         nextPipeline = pipeline.nextPipeline;
-        Optional<String> pipeName = Optional.ofNullable(pipeline.getName());
-        pipeName.map(factory::getPre).ifPresent(this::appendProcessor);
-        pipeName.ifPresent(s -> currentPipeline = s);
+        Optional<Pipeline> pipeName = Optional.ofNullable(pipeline).filter(ppl -> ppl.getName() != null);
+        pipeName.map(this::inNamedPipeline).ifPresent(this::appendProcessor);
         appendProcessors(pipeline.processors);
         pipeName.map(s -> PostSubpipline.INSTANCE).ifPresent(this::appendProcessor);
 
@@ -299,9 +306,8 @@ class EventInstance extends Event {
      */
     public boolean inject(Pipeline pipeline, PriorityBlockingQueue mainqueue, boolean blocking) {
         nextPipeline = pipeline.nextPipeline;
-        Optional<String>pipeName = Optional.ofNullable(pipeline.getName());
-        pipeName.map(factory::getPre).ifPresent(this::appendProcessor);
-        pipeName.ifPresent(s -> currentPipeline = s);
+        Optional<Pipeline> pipeName = Optional.ofNullable(pipeline).filter(ppl -> ppl.getName() != null);
+        pipeName.map(this::inNamedPipeline).ifPresent(this::appendProcessor);
         appendProcessors(pipeline.processors);
         pipeName.map(s -> PostSubpipline.INSTANCE).ifPresent(this::appendProcessor);
         return mainqueue.inject(this, blocking);
@@ -309,9 +315,8 @@ class EventInstance extends Event {
 
     public void reinject(Pipeline pipeline, PriorityBlockingQueue mainqueue) {
         nextPipeline = pipeline.nextPipeline;
-        Optional<String>pipeName = Optional.ofNullable(pipeline.getName());
-        pipeName.map(factory::getPre).ifPresent(this::appendProcessor);
-        pipeName.ifPresent(s -> currentPipeline = s);
+        Optional<Pipeline> pipeName = Optional.ofNullable(pipeline).filter(ppl -> ppl.getName() != null);
+        pipeName.map(this::inNamedPipeline).ifPresent(this::appendProcessor);
         appendProcessors(pipeline.processors);
         pipeName.map(s -> PostSubpipline.INSTANCE).ifPresent(this::appendProcessor);
         mainqueue.asyncInject(this);
@@ -390,7 +395,7 @@ class EventInstance extends Event {
     @Override
     public void doMetric(PipelineStat status, Throwable ex) {
         if (! test) {
-            String name = Optional.ofNullable(executionStack.peek()).map(c -> c.name).orElse(currentPipeline);
+            String name = Optional.ofNullable(executionStack.peek()).map(c -> c.pipe.getName()).orElse(currentPipeline);
             Stats.pipelineHanding(name, status, ex);
         }
     }
@@ -440,6 +445,18 @@ class EventInstance extends Event {
     @Override
     public Stream<Entry<String, Object>> getMetaAsStream() {
         return metas.entrySet().stream();
+    }
+
+    void refreshLogger() {
+        executionStack.stream()
+                      .map(ExecutionStackElement::getLogger)
+                      .filter(Objects::nonNull)
+                      .findFirst()
+                      .ifPresent(ppl -> pipeLineLogger = ppl);
+    }
+
+    public Logger getPipelineLogger() {
+        return pipeLineLogger;
     }
 
 }
