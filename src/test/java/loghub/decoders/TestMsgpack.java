@@ -249,9 +249,9 @@ public class TestMsgpack {
 
     @SuppressWarnings("unchecked")
     private void testCompletEvent(Map<String, Object> o) {
-        Map<String, Object> e = (Map<String, Object>) ((Map<String, Object>) o.get("loghub.events.Event")).get("@fields");
-        Map<String, Object> m = (Map<String, Object>) ((Map<String, Object>) o.get("loghub.events.Event")).get("@METAS");
-        Instant ts = (Instant) ((Map<String, Object>) o.get("loghub.events.Event")).get(Event.TIMESTAMPKEY);
+        Map<String, Object> e = (Map<String, Object>) ((Map<String, Object>) o.get(Event.EVENT_ENTRY)).get("@fields");
+        Map<String, Object> m = (Map<String, Object>) ((Map<String, Object>) o.get(Event.EVENT_ENTRY)).get("@METAS");
+        Instant ts = (Instant) ((Map<String, Object>) o.get(Event.EVENT_ENTRY)).get(Event.TIMESTAMPKEY);
         Assert.assertEquals(0, ts.getEpochSecond());
         testContent(e);
         Assert.assertFalse(e instanceof Event);

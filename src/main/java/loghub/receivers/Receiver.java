@@ -223,10 +223,10 @@ public abstract class Receiver<R extends Receiver<R, B>, B extends Receiver.Buil
                 Event newEvent;
                 if (content instanceof Event) {
                     newEvent = (Event) content;
-                } else if (content.size() == 1 && content.containsKey(Event.class.getCanonicalName())) {
+                } else if (content.size() == 1 && content.containsKey(Event.EVENT_ENTRY)) {
                     // Special case, the message contain a loghub event, sent from another loghub
                     @SuppressWarnings("unchecked")
-                    Map<String, Object> eventContent = (Map<String, Object>) content.remove(Event.class.getCanonicalName());
+                    Map<String, Object> eventContent = (Map<String, Object>) content.remove(Event.EVENT_ENTRY);
                     @SuppressWarnings("unchecked")
                     Map<String, Object> fields = (Map<String, Object>) eventContent.remove("@fields");
                     @SuppressWarnings("unchecked")

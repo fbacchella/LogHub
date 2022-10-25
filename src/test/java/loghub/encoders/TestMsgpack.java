@@ -82,7 +82,7 @@ public class TestMsgpack {
         Assert.assertEquals(2 , read.size());
         read.forEach( i-> {
             @SuppressWarnings("unchecked")
-            Map<String, Object> event = (Map<String, Object>) i.get(Event.class.getCanonicalName());
+            Map<String, Object> event = (Map<String, Object>) i.get(Event.EVENT_ENTRY);
             Instant timestamp = (Instant) event.get(Event.TIMESTAMPKEY);
             Assert.assertNotNull(timestamp);
         });

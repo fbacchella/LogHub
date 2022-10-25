@@ -24,7 +24,7 @@ public class EventSerializer extends JsonSerializer<Event> {
         eventContent.put("@fields", eventFields);
         eventContent.put(Event.TIMESTAMPKEY, value.getTimestamp());
         eventContent.put("@METAS", eventMetas);
-        Map<String, Object> eventMap = Collections.singletonMap(Event.class.getCanonicalName(), eventContent);
+        Map<String, Object> eventMap = Collections.singletonMap(Event.EVENT_ENTRY, eventContent);
         gen.writeObject(eventMap);
     }
     @Override

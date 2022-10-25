@@ -39,6 +39,7 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
     public static final String TIMESTAMPKEY = "@timestamp";
     public static final String CONTEXTKEY = "@context";
     public static final String INDIRECTMARK = "<-";
+    public static final String EVENT_ENTRY = "loghub.Event";
 
     public enum Action {
         APPEND(true, Action::Append),
