@@ -128,7 +128,7 @@ public class BeansManager {
             } else if (clazz == Short.TYPE || Short.class.equals(clazz)) {
                 return (T) Short.valueOf(value);
             } else if (clazz == Boolean.TYPE || Boolean.class.equals(clazz)) {
-                c = (Constructor<T>)Boolean.class.getConstructor(String.class);
+                return (T) Boolean.valueOf(value);
             } else if (clazz == Character.TYPE || Character.class.equals(clazz) && value.length() == 1) {
                 return (T) Character.valueOf(value.charAt(0));
             } else if (Enum.class.isAssignableFrom(clazz)) {
