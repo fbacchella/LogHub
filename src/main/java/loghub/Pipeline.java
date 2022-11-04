@@ -24,7 +24,12 @@ public class Pipeline {
         processors = Collections.unmodifiableList(new ArrayList<>(steps));
         this.name = name;
         this.nextPipeline = nextPipeline;
-        this.logger = LogManager.getLogger(Pipeline.class.getName() + "." + name);
+        // Pipelines can be anonymous
+        if (name != null) {
+            this.logger = LogManager.getLogger("loghub.pipeline." + name);
+        } else {
+            this.logger = null;
+        }
     }
 
     public void configure(Properties properties, ExecutorService executor, List<Future<Boolean>> results) {

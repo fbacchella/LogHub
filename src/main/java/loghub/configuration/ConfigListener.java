@@ -770,10 +770,10 @@ class ConfigListener extends RouteBaseListener {
     @Override
     public void exitLog(LogContext ctx) {
         ObjectWrapped<Expression> expression = stack.popTyped();
-        Log log = new Log();
-        log.setLevel(ctx.level().getText());
-        log.setPipeName(currentPipeLineName);
-        log.setMessage(expression.wrapped);
+        Log.Builder builder = Log.getBuilder();
+        builder.setMessage(expression.wrapped);
+        builder.setLevel(ctx.level().getText());
+        Log log = builder.build();
         stack.push(new ObjectWrapped<>(log));
     }
 
