@@ -1,14 +1,15 @@
 package loghub.processors;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertTrue;
-
 import java.beans.IntrospectionException;
 import java.io.IOException;
 import java.io.StringReader;
-import java.net.InetSocketAddress;
+import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -19,13 +20,12 @@ import org.junit.Test;
 
 import loghub.BeanChecks;
 import loghub.ConnectionContext;
-import loghub.Pipeline;
-import loghub.events.Event;
-import loghub.IpConnectionContext;
 import loghub.LogUtils;
+import loghub.Pipeline;
 import loghub.Tools;
 import loghub.configuration.ConfigException;
 import loghub.configuration.Properties;
+import loghub.events.Event;
 import loghub.events.EventsFactory;
 
 public class TestFork {
@@ -48,21 +48,33 @@ public class TestFork {
         Forker forker = new Forker();
         forker.setDestination("newpipe");
         Assert.assertTrue(forker.configure(conf));
-        ConnectionContext<?> ipctx = new IpConnectionContext(new InetSocketAddress("localhost", 0), new InetSocketAddress("localhost", 0), null);
-        Event event = factory.newTestEvent(ipctx);
+        Event event = factory.newTestEvent();
         Pipeline ppl = new Pipeline(Collections.emptyList(), "main", null);
         event.inject(ppl, conf.mainQueue, true);
-        event.put("message", "tofork");
+        Map<?, ?> boolMap = new HashMap<>(Map.of("a", true, "b", false));
+        Map<?, ?> intMap = new HashMap<>(Map.of("a", (byte)1, "b", 2, "c", 3L));
+        Map<?, ?> floatMap = new HashMap<>(Map.of("a", 1.0f, "b", 2.0));
+        Map<?, ?> textMap = new HashMap<>(Map.of("a", 'a', "b", "b"));
+        Map<?, ?> timeMap = new HashMap<>(Map.of("a", new Date(1), "b", Instant.ofEpochSecond(2, 3)));
+        List<Object> list = new ArrayList<>(List.of(ConnectionContext.EMPTY));
+        list.add(null);
+
+        event.put("message", new HashMap<>(Map.of("boolMap", boolMap, "intMap", intMap, "floatMap", floatMap, "textMap", textMap, "timeMap", timeMap, "list", list)));
         event.putMeta("meta", 1);
         forker.fork(event);
 
         // Removing the original event
         conf.mainQueue.remove();
         Event forked = conf.mainQueue.remove();
-        assertEquals("tofork", forked.get("message"));
-        assertEquals(1, forked.getMeta("meta"));
-        assertNotEquals(ipctx, forked.getConnectionContext());
-        assertTrue(IpConnectionContext.class.equals(forked.getConnectionContext().getClass()));
+        Map<?, ?> message = (Map<?, ?>) forked.get("message");
+        Assert.assertEquals(boolMap, message.get("boolMap"));
+        Assert.assertEquals(intMap, message.get("intMap"));
+        Assert.assertEquals(floatMap, message.get("floatMap"));
+        Assert.assertEquals(textMap, message.get("textMap"));
+        Assert.assertEquals(timeMap, message.get("timeMap"));
+        Assert.assertEquals(list, message.get("list"));
+        Assert.assertEquals(1, forked.getMeta("meta"));
+        Assert.assertEquals(ConnectionContext.EMPTY, forked.getConnectionContext());
     }
 
     @Test

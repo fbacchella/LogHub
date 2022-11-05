@@ -1,16 +1,10 @@
 package loghub.events;
 
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.Externalizable;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.NotSerializableException;
 import java.io.ObjectInput;
-import java.io.ObjectInputStream;
 import java.io.ObjectOutput;
-import java.io.ObjectOutputStream;
-import java.io.UncheckedIOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -33,6 +27,9 @@ import org.apache.logging.log4j.Logger;
 import com.codahale.metrics.Timer.Context;
 
 import loghub.ConnectionContext;
+import loghub.FastExternalizeObject;
+import loghub.FastExternalizeObject.FastObjectInputStream;
+import loghub.FastExternalizeObject.FastObjectOutputStream;
 import loghub.Helpers;
 import loghub.Pipeline;
 import loghub.PriorityBlockingQueue;
@@ -44,21 +41,10 @@ import loghub.metrics.Stats.PipelineStat;
 
 class EventInstance extends Event {
 
-    private static class EventObjectInputStream extends ObjectInputStream {
-        private final EventsFactory factory;
-
-        public EventObjectInputStream(InputStream in, EventsFactory factory) throws IOException {
-            super(in);
-            this.factory = factory;
-        }
-    }
-
-    private static class EventSerializer implements Externalizable {
-
-        private EventInstance event;
+    private static class EventSerializer extends FastExternalizeObject.ObjectFaster<EventInstance> {
 
         private EventSerializer(EventInstance event) {
-            this.event = event;
+            super(event);
         }
 
         public EventSerializer() {
@@ -66,79 +52,49 @@ class EventInstance extends Event {
         }
 
         public void readExternal(ObjectInput input) throws ClassNotFoundException, IOException {
-            if (! (input instanceof EventObjectInputStream)) {
+            if (! (input instanceof FastObjectInputStream)) {
                 throw new IllegalStateException();
+            } else {
+                FastObjectInputStream fois = (FastObjectInputStream) input;
+                ConnectionContext ctx = (ConnectionContext) fois.readObjectFast();
+                value = (EventInstance) fois.getFactory().newEvent(ctx);
+                value.timestamp = new Date(fois.readLong());
+                value.currentPipeline = fois.readUTF();
+                boolean nextPipeline = fois.readBoolean();
+                if (nextPipeline) {
+                    value.nextPipeline = fois.readUTF();
+                }
+                value.stepsCount = fois.readInt();
+                value.test = fois.readBoolean();
+                fois.readMap(value.metas);
+                fois.readMap(value);
             }
-            EventObjectInputStream eois = (EventObjectInputStream) input;
-            ConnectionContext ctx;
-            int contextIndicator = eois.readInt();
-            switch (contextIndicator) {
-            case 0:
-                ctx = ConnectionContext.EMPTY;
-                break;
-            default:
-                ctx = (ConnectionContext) eois.readObject();
-                break;
-            }
-            event = (EventInstance) eois.factory.newEvent(ctx);
-            event.timestamp = new Date(eois.readLong());
-            event.currentPipeline = eois.readUTF();
-            boolean nextPipeline = eois.readBoolean();
-            if(nextPipeline) {
-                event.nextPipeline = eois.readUTF();
-            }
-            event.stepsCount = eois.readInt();
-            event.test = eois.readBoolean();
-            readMap(event.getMetas(), eois);
-            readMap(event, eois);
         }
 
         public void writeExternal(ObjectOutput output) throws IOException {
-            ConnectionContext<?> ctx = event.getConnectionContext();
-            if (ctx == ConnectionContext.EMPTY) {
-                output.writeInt(0);
+            if (! (output instanceof FastObjectOutputStream)) {
+                throw new IllegalStateException();
             } else {
-                output.writeInt(1);
-                output.writeObject(ctx);
-            }
-            output.writeLong(event.timestamp.getTime());
-            output.writeUTF(event.currentPipeline);
-            boolean nextPipeline = event.nextPipeline != null;
-            output.writeBoolean(nextPipeline);
-            if (nextPipeline) {
-                output.writeUTF(event.nextPipeline);
-            }
-            output.writeInt(event.stepsCount);
-            output.writeBoolean(event.test);
-            writeMap(event.metas, output);
-            writeMap(event, output);
-        }
-
-        private void writeMap(Map<String, Object> map, ObjectOutput output) throws IOException {
-            output.writeInt(map.size());
-            try {
-                map.entrySet().forEach(e -> {
-                    try {
-                        output.writeUTF(e.getKey());
-                        output.writeObject(e.getValue());
-                    } catch (IOException ex) {
-                        throw new UncheckedIOException(ex);
-                    }
-                });
-            } catch (UncheckedIOException e) {
-                throw e.getCause();
+                FastObjectOutputStream foos = (FastObjectOutputStream) output;
+                foos.writeObjectFast(value.getConnectionContext());
+                foos.writeLong(value.timestamp.getTime());
+                foos.writeUTF(value.currentPipeline);
+                boolean nextPipeline = value.nextPipeline != null;
+                foos.writeBoolean(nextPipeline);
+                if (nextPipeline) {
+                    foos.writeUTF(value.nextPipeline);
+                }
+                foos.writeInt(value.stepsCount);
+                foos.writeBoolean(value.test);
+                foos.writeMap(value.metas);
+                foos.writeMap(value);
             }
         }
 
-        private void readMap(Map<String, Object> map, ObjectInputStream aInputStream)
-                throws IOException, ClassNotFoundException {
-            int size = aInputStream.readInt();
-            for (int i = 0; i < size ; i++) {
-                String key = aInputStream.readUTF();
-                Object value = aInputStream.readObject();
-                map.put(key, value);
-            }
-        }
+    }
+
+    static {
+        FastExternalizeObject.register(EventInstance.class, EventSerializer.class);
     }
 
     private static final Logger logger = LogManager.getLogger();
@@ -208,13 +164,13 @@ class EventInstance extends Event {
      * @return a copy of this event, with a different key
      */
     public Event duplicate() {
-        try (ByteArrayOutputStream bos = new ByteArrayOutputStream(); ObjectOutputStream oos = new ObjectOutputStream(bos);) {
+        // FastObjectInputStream
+        try (ByteArrayOutputStream bos = new ByteArrayOutputStream(); FastObjectOutputStream oos = new FastObjectOutputStream(bos)) {
             oos.writeObject(new EventSerializer(this));
             oos.flush();
             bos.flush();
-            byte[] byteData = bos.toByteArray();
-            try (ByteArrayInputStream bais = new ByteArrayInputStream(byteData) ; ObjectInputStream ois = new EventObjectInputStream(bais, factory)) {
-                return ((EventSerializer) ois.readObject()).event;
+            try (FastObjectInputStream ois = new FastObjectInputStream(bos.toByteArray(), factory)) {
+                return ((EventSerializer) ois.readObject()).get();
             }
         } catch (NotSerializableException ex) {
             logger.info("Event copy failed: {}", Helpers.resolveThrowableException(ex));
