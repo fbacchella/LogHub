@@ -9,6 +9,7 @@ import java.util.function.Supplier;
 
 import io.netty.util.concurrent.Future;
 import loghub.AsyncProcessor;
+import loghub.UncheckedProcessorException;
 import loghub.events.Event;
 import loghub.Processor;
 import loghub.ProcessorException;
@@ -31,10 +32,14 @@ public abstract class AsyncFieldsProcessor<FI, F extends Future<FI>> extends Fie
                 try {
                     return AsyncFieldsProcessor.this.asyncProcess(event, content);
                 } catch (ProcessorException ex) {
-                    throw new RuntimeException(ex);
+                    throw new UncheckedProcessorException(ex);
                 }
             };
-            return processField(event, toprocess, resolver);
+            try {
+                return processField(event, toprocess, resolver);
+            } catch (UncheckedProcessorException ex) {
+                throw ex.getProcessoException();
+            }
         }
 
         @Override
