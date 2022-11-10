@@ -202,11 +202,11 @@ public abstract class FieldsProcessor extends Processor {
             return processed != RUNSTATUS.FAILED;
         } catch (UncheckedProcessorException ex) {
             try {
-                throw ex.getProcessoException();
+                throw ex.getProcessorException();
             } catch (ProcessorException.DroppedEventException e) {
                 throw e;
             } catch (UncheckedProcessorException e) {
-                ProcessorException newpe = event.buildException("Field with path \"" + currentField.toString() + "\" invalid: " + e.getMessage(), (Exception) e.getProcessoException().getCause());
+                ProcessorException newpe = event.buildException("Field with path \"" + currentField.toString() + "\" invalid: " + e.getMessage(), (Exception) e.getProcessorException().getCause());
                 newpe.setStackTrace(e.getStackTrace());
                 throw newpe;
             } catch (ProcessorException e) {

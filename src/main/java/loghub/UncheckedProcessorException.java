@@ -12,10 +12,10 @@ public class UncheckedProcessorException extends RuntimeException implements Pro
      * @return the event
      */
     public Event getEvent() {
-        return getProcessoException().getEvent();
+        return getProcessorException().getEvent();
     }
 
-    public ProcessorException getProcessoException() {
+    public ProcessorException getProcessorException() {
         return (ProcessorException) getCause();
     }
 
