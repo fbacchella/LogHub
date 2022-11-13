@@ -20,7 +20,6 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import io.netty.channel.AddressedEnvelope;
-import io.netty.handler.codec.dns.DnsRecordType;
 import io.netty.handler.codec.dns.DnsResponse;
 import loghub.AsyncProcessor;
 import loghub.BeanChecks;
@@ -49,15 +48,16 @@ public class TestNettyNameResolver {
         LogUtils.setLevel(logger, Level.TRACE, "loghub.processors.NettyNameResolver", "io.netty.resolver.dns");
     }
 
-    private Tools.ProcessingStatus dorequest(Consumer<NettyNameResolver> setupProc, Event e, String... warmup) throws ProcessorException, ConfigException, IOException {
-        NettyNameResolver proc = new NettyNameResolver();
-        setupProc.accept(proc);
+    private Tools.ProcessingStatus dorequest(Consumer<NettyNameResolver.Builder> setupProc, Event e, String... warmup) throws ProcessorException, ConfigException, IOException {
+        NettyNameResolver.Builder builder = NettyNameResolver.getBuilder();
+        setupProc.accept(builder);
+        NettyNameResolver proc = builder.build();
 
         BiConsumer<Properties, List<Processor>> prepare = (i, j) -> {
             try {
                 for (String name: warmup) {
                     if (name != null && ! name.isEmpty()) {
-                        proc.warmUp(name, DnsRecordType.PTR);
+                        proc.warmUp(name);
                     }
                 }
             } catch (Throwable e1) {
@@ -65,8 +65,7 @@ public class TestNettyNameResolver {
             }
         };
 
-        Tools.ProcessingStatus status = Tools.runProcessing(e, "main", Collections.singletonList(proc), prepare, getProperties());
-        return status;
+        return Tools.runProcessing(e, "main", Collections.singletonList(proc), prepare, getProperties());
     }
 
     @Test(timeout=4000)
@@ -83,7 +82,7 @@ public class TestNettyNameResolver {
         }, e);
 
         e = status.mainQueue.take();
-        Assert.assertEquals("resolution not failed", null, e.get("fqdn"));
+        Assert.assertNull("resolution not failed", e.get("fqdn"));
         // Check that the second processor executed was indeed paused
         Assert.assertEquals("resolution not paused", "PAUSED", status.status.get(2));
         Assert.assertEquals("Queue not empty: " + status.mainQueue, 0, status.mainQueue.size());
@@ -103,7 +102,7 @@ public class TestNettyNameResolver {
         } , e, "1.1.254.169.in-addr.arpa");
 
         e = status.mainQueue.take();
-        Assert.assertEquals("resolution not failed", null, e.get("fqdn"));
+        Assert.assertNull("resolution not failed", e.get("fqdn"));
         Assert.assertEquals("Queue not empty: " + status.mainQueue, 0, status.mainQueue.size());
         Assert.assertEquals("Still waiting events: " + status.repository, 0, status.repository.waiting());
     }
@@ -206,8 +205,9 @@ public class TestNettyNameResolver {
 
     @Test(timeout=2000)
     public void testCaching() throws ProcessorException, InterruptedException, ExecutionException, ConfigException, IOException {
-        NettyNameResolver proc = new NettyNameResolver();
-        proc.setResolver("8.8.8.8");
+        NettyNameResolver.Builder builder = NettyNameResolver.getBuilder();
+        builder.setResolver("8.8.8.8");
+        NettyNameResolver proc = builder.build();
         Assert.assertTrue(proc.configure(getProperties()));
 
         Event e = factory.newEvent();
@@ -226,9 +226,10 @@ public class TestNettyNameResolver {
 
     @Test(timeout=2000)
     public void testResolvConf() throws ProcessorException, InterruptedException, ExecutionException, ConfigException, IOException {
-        NettyNameResolver proc = new NettyNameResolver();
+        NettyNameResolver.Builder builder = NettyNameResolver.getBuilder();
         URL etcResolvConfURL = this.getClass().getClassLoader().getResource("resolv.conf");
-        proc.setEtcResolvConf(etcResolvConfURL.getFile());
+        builder.setEtcResolvConf(etcResolvConfURL.getFile());
+        NettyNameResolver proc = builder.build();
         Assert.assertTrue(proc.configure(getProperties()));
 
         Event e = factory.newEvent();
@@ -247,7 +248,7 @@ public class TestNettyNameResolver {
 
     @Test(timeout=2000)
     public void testDefault() throws ProcessorException, InterruptedException, ExecutionException, ConfigException, IOException {
-        NettyNameResolver proc = new NettyNameResolver();
+        NettyNameResolver proc = NettyNameResolver.getBuilder().build();
         Assert.assertTrue(proc.configure(getProperties()));
 
         Event e = factory.newEvent();
@@ -278,11 +279,10 @@ public class TestNettyNameResolver {
                               , BeanInfo.build("defaultResolver", Boolean.TYPE)
                               , BeanInfo.build("cacheSize", Integer.TYPE)
                               , BeanInfo.build("timeout", Integer.TYPE)
-                              , BeanInfo.build("poller", String.class)
                               , BeanInfo.build("destination", VariablePath.class)
                               , BeanInfo.build("field", VariablePath.class)
-                              , BeanInfo.build("fields", new Object[] {}.getClass())
-                              , BeanInfo.build("path", String.class)
+                              , BeanInfo.build("fields", Object[].class)
+                              , BeanInfo.build("path", VariablePath.class)
                               , BeanInfo.build("if", Expression.class)
                               , BeanInfo.build("success", Processor.class)
                               , BeanInfo.build("failure", Processor.class)

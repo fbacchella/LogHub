@@ -21,7 +21,6 @@ import io.netty.channel.DefaultEventLoop;
 import io.netty.util.concurrent.DefaultPromise;
 import io.netty.util.concurrent.Promise;
 import loghub.AsyncProcessor;
-import loghub.events.Event;
 import loghub.LogUtils;
 import loghub.Processor;
 import loghub.ProcessorException;
@@ -29,6 +28,7 @@ import loghub.ThreadBuilder;
 import loghub.Tools;
 import loghub.VarFormatter;
 import loghub.VariablePath;
+import loghub.events.Event;
 import loghub.events.EventsFactory;
 
 public class TestFieldsAsynchronous {
@@ -54,16 +54,21 @@ public class TestFieldsAsynchronous {
     BiFunction<Event, Exception, Boolean> onexception;
     BiFunction<Event, TestFieldsAsynchronous, Object> transform;
 
-    private class SleepingProcessor extends AsyncFieldsProcessor<TestFieldsAsynchronous, Promise<TestFieldsAsynchronous>> {
-
-        
-        public SleepingProcessor() {
+    public class Builder extends AsyncFieldsProcessor.Builder<SleepingProcessor, TestFieldsAsynchronous, Promise<TestFieldsAsynchronous>> {
+        @Override
+        public SleepingProcessor build() {
             this.setQueueDepth(10);
+            return new SleepingProcessor(this);
+        }
+    }
+
+    private class SleepingProcessor extends AsyncFieldsProcessor<TestFieldsAsynchronous, Promise<TestFieldsAsynchronous>> {
+        public SleepingProcessor(Builder<SleepingProcessor,TestFieldsAsynchronous, Promise<TestFieldsAsynchronous>> builder) {
+            super(builder);
         }
 
         @Override
-        public Object asyncProcess(Event event, TestFieldsAsynchronous content)
-                        throws ProcessorException {
+        public Object asyncProcess(Event event, TestFieldsAsynchronous content) {
             return transform.apply(event, content);
         }
 
@@ -74,17 +79,12 @@ public class TestFieldsAsynchronous {
             try {
                 return onexception.apply(event, e);
             } catch (Exception ex) {
-                if (ex instanceof ProcessorException) {
-                    throw (ProcessorException) ex;
-                } else {
-                    throw event.buildException("", ex);
-                }
+                throw event.buildException("", ex);
             }
         }
 
         @Override
-        public Object fieldFunction(Event event, Object value)
-                        throws ProcessorException {
+        public Object fieldFunction(Event event, Object value) {
             PausingPromise f = new PausingPromise();
             ThreadBuilder.get().setTask(() -> {
                 try {
@@ -117,8 +117,9 @@ public class TestFieldsAsynchronous {
         Event e = factory.newEvent();
         e.put("a", 1);
         e.put("b", 2);
-        SleepingProcessor sp = new SleepingProcessor();
-        sp.setFields(new String[] {"a", "b"});
+        Builder builder = new Builder();
+        builder.setFields(new String[] {"a", "b"});
+        SleepingProcessor sp = builder.build();
         Tools.ProcessingStatus status = Tools.runProcessing(e, "main", Collections.singletonList(sp), (i,j) -> { /* empty */ });
         e = status.mainQueue.take();
         long end = Instant.now().toEpochMilli();
@@ -140,9 +141,10 @@ public class TestFieldsAsynchronous {
         Event e = factory.newEvent();
         e.put("a", 1);
         e.put("b", 2);
-        SleepingProcessor sp = new SleepingProcessor();
-        sp.setFields(new String[] {"a", "b"});
-        sp.setDestinationTemplate(new VarFormatter("${field}_done"));
+        Builder builder = new Builder();
+        builder.setFields(new String[] {"a", "b"});
+        builder.setDestinationTemplate(new VarFormatter("${field}_done"));
+        SleepingProcessor sp = builder.build();
         Tools.ProcessingStatus status = Tools.runProcessing(e, "main", Collections.singletonList(sp), (i,j) -> { /* empty */ });
         e = status.mainQueue.take();
         long end = Instant.now().toEpochMilli();
@@ -157,8 +159,9 @@ public class TestFieldsAsynchronous {
         transform = (e, v) -> FieldsProcessor.RUNSTATUS.FAILED;
         Event e = factory.newEvent();
         e.put("a", 1);
-        SleepingProcessor sp = new SleepingProcessor();
-        sp.setField(VariablePath.of(new String[] {"a"}));
+        Builder builder = new Builder();
+        builder.setField(VariablePath.of(new String[] {"a"}));
+        SleepingProcessor sp = builder.build();
         Groovy gp = new Groovy();
         gp.setScript("event.a = 2");
         sp.setFailure(gp);
@@ -180,9 +183,10 @@ public class TestFieldsAsynchronous {
         transform = (e, v) -> v.getClass().getCanonicalName();
         Event e = factory.newEvent();
         e.put("a", 1);
-        SleepingProcessor sp = new SleepingProcessor();
-        sp.setField(VariablePath.of(new String[] {"a"}));
-        sp.setTimeout(1);
+        Builder builder = new Builder();
+        builder.setTimeout(1);
+        builder.setField(VariablePath.of(new String[] {"a"}));
+        SleepingProcessor sp = builder.build();
         Groovy gp = new Groovy();
         gp.setScript("event.failure = true");
         sp.setFailure(gp);
@@ -208,8 +212,9 @@ public class TestFieldsAsynchronous {
         transform = (e, v) -> v.getClass().getCanonicalName();
         Event e = factory.newEvent();
         e.put("a", 1);
-        SleepingProcessor sp = new SleepingProcessor();
-        sp.setField(VariablePath.of(new String[] {"a"}));
+        Builder builder = new Builder();
+        builder.setField(VariablePath.of(new String[] {"a"}));
+        SleepingProcessor sp = builder.build();
         Groovy gp = new Groovy();
         gp.setScript("event.a = 2");
         sp.setFailure(gp);
@@ -231,8 +236,9 @@ public class TestFieldsAsynchronous {
         };
         Event e = factory.newEvent();
         e.put("a", 1);
-        SleepingProcessor sp = new SleepingProcessor();
-        sp.setField(VariablePath.of(new String[] {"a"}));
+        Builder builder = new Builder();
+        builder.setField(VariablePath.of(new String[] {"a"}));
+        SleepingProcessor sp = builder.build();
         Groovy gp = new Groovy();
         gp.setScript("event.a = 2");
         sp.setException(gp);

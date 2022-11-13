@@ -84,25 +84,38 @@ public abstract class AsyncFieldsProcessor<FI, F extends Future<FI>> extends Fie
 
     }
 
-    private int timeout = 10;
+    public abstract static class Builder<AFP extends AsyncFieldsProcessor<FI, F>, FI, F extends Future<FI>> extends FieldsProcessor.Builder<AFP> {
+        @Setter
+        private int queueDepth = -1;
+        @Setter
+        private int timeout = 10;
+    }
 
-    @Getter @Setter
-    private int queueDepth = -1;
 
     public abstract Object asyncProcess(Event event, FI content) throws ProcessorException;
     public abstract boolean manageException(Event event, Exception e, VariablePath variablePath) throws ProcessorException;
     public abstract BiConsumer<Event, F> getTimeoutHandler();
 
     private Optional<Semaphore> queryCount;
+    @Getter
+    private final int timeout;
+
+    protected AsyncFieldsProcessor(Builder<? extends FieldsProcessor, FI, F> builder) {
+            super(builder);
+        if (builder.queueDepth == 0 ) {
+            queryCount = Optional.empty();
+        } else if (builder.queueDepth < 0) {
+            queryCount = null;
+        } else {
+            queryCount = Optional.of(new Semaphore(Math.min(builder.queueDepth, 32768)));
+        }
+        this.timeout = builder.timeout;
+    }
 
     @Override
     public boolean configure(Properties properties) {
-        if (queueDepth == 0 ) {
-            queryCount = Optional.empty();
-        } else if (queueDepth < 0) {
+        if (queryCount == null) {
             queryCount = Optional.of(new Semaphore(Math.min(properties.queuesDepth, 32768)));
-        } else {
-            queryCount = Optional.of(new Semaphore(Math.min(queueDepth, 32768)));
         }
         return super.configure(properties);
     }
@@ -112,18 +125,11 @@ public abstract class AsyncFieldsProcessor<FI, F extends Future<FI>> extends Fie
         return new AsyncFieldSubProcessor(processing);
     }
 
-    boolean doExecution(Event event, VariablePath field) throws ProcessorException {
+    @Override
+    boolean doExecution(Event event, VariablePath field) {
         delegate(Collections.singleton(field), event);
         // never reached code
         return false;
-    }
-
-    public int getTimeout() {
-        return timeout;
-    }
-
-    public void setTimeout(int timeout) {
-        this.timeout = timeout;
     }
 
 }
