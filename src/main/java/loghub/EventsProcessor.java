@@ -33,7 +33,7 @@ public class EventsProcessor extends Thread {
         CONTINUE,
         PAUSED,
         DROPED,
-        FAILED
+        ERROR,
     }
 
     private static final Logger logger = LogManager.getLogger();
@@ -109,9 +109,8 @@ public class EventsProcessor extends Thread {
                             event.drop();
                             break;
                         }
-                        case FAILED: {
-                            //Processing failed critically (with an exception) and no recovery was attempted
-                            currentLogger.info("Failed event {}", event);
+                        case ERROR: {
+                            // Processing failed critically (with an exception) and no recovery was attempted
                             event.end();
                             break;
                         }
@@ -126,7 +125,7 @@ public class EventsProcessor extends Thread {
                 processor = event.next();
                 // If next processor is null, refill the event
                 while (processor == null && event.getNextPipeline() != null) {
-                    currentLogger.trace("next processor is {}", processor);
+                    currentLogger.trace("next pipeline is {}", event.getNextPipeline());
                     // Send to another pipeline, loop in the main processing queue
                     Pipeline next = namedPipelines.get(event.getNextPipeline());
                     if (next == null) {
@@ -172,12 +171,12 @@ public class EventsProcessor extends Thread {
     }
 
     ProcessingStatus process(Event e, Processor p) {
-        ProcessingStatus status = null;
+        ProcessingStatus status;
         if (p instanceof Forker) {
             if (((Forker) p).fork(e)) {
                 status = ProcessingStatus.CONTINUE;
             } else {
-                status = ProcessingStatus.FAILED;
+                status = ProcessingStatus.ERROR;
             }
         } else if (p instanceof Forwarder) {
             ((Forwarder) p).forward(e);
@@ -186,23 +185,19 @@ public class EventsProcessor extends Thread {
             status = ProcessingStatus.DROPED;
             e.doMetric(Stats.PipelineStat.DROP);
         } else if (e.processingDone() > maxSteps) {
-            logger.error("Too much steps for an event in pipeline. Done {} steps, still {} left, throwing away", e::processingDone, e::processingLeft);
-            logger.debug("Thrown event: {}", e);
+            e.getPipelineLogger().error("Too much steps for an event in pipeline. Done {} steps, still {} left, throwing away", e::processingDone, e::processingLeft);
+            e.getPipelineLogger().debug("Thrown event: {}", e);
             e.doMetric(Stats.PipelineStat.LOOPOVERFLOW);
-            status = ProcessingStatus.FAILED;
+            status = ProcessingStatus.ERROR;
         } else {
             try {
-                boolean success = false;
                 if (p.isprocessNeeded(e)) {
-                    success = e.process(p);
-                }
-                // After processing, check the failures and success processors
-                Processor failureProcessor = p.getFailure();
-                Processor successProcessor = p.getSuccess();
-                if (success && successProcessor != null) {
-                    e.insertProcessor(successProcessor);
-                } else if (! success && failureProcessor != null) {
-                    e.insertProcessor(failureProcessor);
+                    boolean success = e.process(p);
+                    // After processing, check the failures and success processors
+                    Processor nextProcessor = success ? p.getSuccess() : p.getFailure();
+                    if (nextProcessor != null) {
+                        e.insertProcessor(nextProcessor);
+                    }
                 }
                 status = ProcessingStatus.CONTINUE;
             } catch (AsyncProcessor.PausedEventException ex) {
@@ -226,10 +221,10 @@ public class EventsProcessor extends Thread {
                         Thread.currentThread().interrupt();
                         InterruptedException iex = (InterruptedException) uex.getCause();
                         e.doMetric(Stats.PipelineStat.FAILURE, iex);
-                        logger.error("Interrupted");
-                        logger.catching(Level.DEBUG, iex);
+                        e.getPipelineLogger().error("Interrupted");
+                        e.getPipelineLogger().catching(Level.DEBUG, iex);
                         future.cancel(true);
-                        status = ProcessingStatus.FAILED;
+                        return ProcessingStatus.ERROR;
                     }
                     // Compilation fails if builder is used directly
                     PausedEvent.Builder<Future<?>> builder = PausedEvent.builder(e, future);
@@ -262,9 +257,9 @@ public class EventsProcessor extends Thread {
                     status = ProcessingStatus.PAUSED;
                 } else {
                     e.doMetric(Stats.PipelineStat.EXCEPTION, ex);
-                    logger.error("Paused event from a non async processor {}, can't handle", p.getName());
-                    logger.catching(Level.DEBUG, ex);
-                    status = ProcessingStatus.FAILED;
+                    e.getPipelineLogger().error("Paused event from a non async processor {}, can't handle", p.getName());
+                    e.getPipelineLogger().catching(Level.DEBUG, ex);
+                    status = ProcessingStatus.ERROR;
                 }
             } catch (ProcessorException.DroppedEventException ex) {
                 status = ProcessingStatus.DROPED;
@@ -273,15 +268,15 @@ public class EventsProcessor extends Thread {
                 // A do nothing process
                 status = ProcessingStatus.CONTINUE;
             } catch (ProcessorException | UncheckedProcessorException ex) {
-                logger.debug("got a processing exception: {}", () -> ex.getMessage());
-                logger.catching(Level.DEBUG, ex);
+                e.getPipelineLogger().debug("got a processing exception: {}", () -> ex.getMessage());
+                e.getPipelineLogger().catching(Level.DEBUG, ex);
                 Processor exceptionProcessor = p.getException();
                 if (exceptionProcessor != null) {
                     e.insertProcessor(exceptionProcessor);
                     status = ProcessingStatus.CONTINUE;
                 } else {
                     e.doMetric(Stats.PipelineStat.FAILURE, ex);
-                    status = ProcessingStatus.FAILED;
+                    status = ProcessingStatus.ERROR;
                 }
             } catch (Throwable ex) {
                 // We received a fatal exception
@@ -291,10 +286,10 @@ public class EventsProcessor extends Thread {
                     Start.fatalException(ex);
                 } else {
                     e.doMetric(Stats.PipelineStat.EXCEPTION, ex);
-                    logger.error("failed to transform event {} with unmanaged error {}", e, Helpers.resolveThrowableException(ex));
-                    logger.catching(Level.DEBUG, ex);
+                    e.getPipelineLogger().error("failed to transform event {} with unmanaged error {}", e, Helpers.resolveThrowableException(ex));
+                    e.getPipelineLogger().catching(Level.DEBUG, ex);
                 }
-                status = ProcessingStatus.FAILED;
+                status = ProcessingStatus.ERROR;
             }
         }
         return status;

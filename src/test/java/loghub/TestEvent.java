@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.logging.log4j.Level;
@@ -83,11 +84,12 @@ public class TestEvent {
 
     @Test
     public void TestLoop() {
+        Pipeline ppl = new Pipeline(List.of(new Looper(), new Looper(), new Looper(), new Looper(), new Looper(), new Looper()), "main", null);
         Map<String, Object> conf = new HashMap<>();
         conf.put("maxSteps", 5);
         Properties props = new Properties(conf);
         Event e = factory.newTestEvent();
-        e.appendProcessor(new Looper());
+        e.refill(ppl);
         EventsProcessor ep = new EventsProcessor(props.mainQueue, props.outputQueues, props.namedPipeLine, props.maxSteps, props.repository);
         Processor processor;
         int numsteps = 0;
