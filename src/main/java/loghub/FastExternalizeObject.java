@@ -8,6 +8,8 @@ import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.io.UncheckedIOException;
 import java.lang.reflect.InvocationTargetException;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Date;
@@ -15,6 +17,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 
 import loghub.events.EventsFactory;
 import lombok.Getter;
@@ -37,6 +40,8 @@ public class FastExternalizeObject {
         MAP,
         LIST,
         EMPTY_CONTEXT,
+        INETSOCKETADDRESS,
+        INEDADDRESS,
         FASTER,
         OTHER,
     }
@@ -45,10 +50,12 @@ public class FastExternalizeObject {
 
         @Getter
         private final EventsFactory factory;
+        private final FastObjectOutputStream out;
 
-        public FastObjectInputStream(byte[] buffer, EventsFactory factory) throws IOException {
+        public FastObjectInputStream(byte[] buffer, EventsFactory factory, FastObjectOutputStream out) throws IOException {
             super(new ByteArrayInputStream(buffer));
             this.factory = factory;
+            this.out = out;
         }
 
         private Map readMap() throws IOException, ClassNotFoundException {
@@ -97,11 +104,12 @@ public class FastExternalizeObject {
             case CHAR:
                 return readChar();
             case STRING:
-                return readUTF();
+            case INEDADDRESS:
+            case INETSOCKETADDRESS:
+            case INSTANT:
+                return readReference();
             case DATE:
                 return new Date(readLong());
-            case INSTANT:
-                return Instant.ofEpochSecond(readLong(), readLong());
             case MAP:
                 return readMap();
             case LIST:
@@ -116,9 +124,18 @@ public class FastExternalizeObject {
             }
         }
 
+        private Object readReference() throws IOException {
+            long ref = readLong();
+            return out.immutableObjectsCache.remove(ref);
+        }
+
     }
 
     public static class FastObjectOutputStream extends ObjectOutputStream {
+
+        // Immutable objects can be reused, just forward a reference
+        private final Map<Long, Object> immutableObjectsCache = new HashMap<>();
+        private final AtomicLong ref = new AtomicLong(0);
 
         public FastObjectOutputStream(OutputStream out) throws IOException {
             super(out);
@@ -181,16 +198,16 @@ public class FastExternalizeObject {
                 write(TYPE.CHAR.ordinal());
                 writeChar((Character) o);
             } else if (o instanceof String) {
-                write(TYPE.STRING.ordinal());
-                writeUTF((String)o);
+                writeReference(TYPE.STRING, o);
+            } else if (o instanceof InetSocketAddress) {
+                writeReference(TYPE.INETSOCKETADDRESS, o);
+            } else if (o instanceof InetAddress) {
+                writeReference(TYPE.INEDADDRESS, o);
             } else if (o instanceof Date) {
                 write(TYPE.DATE.ordinal());
                 writeLong(((Date)o).getTime());
             } else if (o instanceof Instant) {
-                write(TYPE.INSTANT.ordinal());
-                Instant i = (Instant) o;
-                writeLong(i.getEpochSecond());
-                writeLong(i.getNano());
+                writeReference(TYPE.INSTANT, o);
             } else if (o instanceof HashMap) {
                 write(TYPE.MAP.ordinal());
                 writeMap((Map<Object, Object>) o);
@@ -214,6 +231,21 @@ public class FastExternalizeObject {
                 writeObject(o);
             }
         }
+
+        private void writeReference(TYPE type, Object o) throws IOException {
+            write(type.ordinal());
+            long currentRef = ref.getAndIncrement();
+            writeLong(currentRef);
+            immutableObjectsCache.put(currentRef, o);
+        }
+
+        @Override
+        public void close() throws IOException {
+            super.close();
+            ref.set(0);
+            immutableObjectsCache.clear();
+        }
+
     }
 
     public abstract static class ObjectFaster<T> implements Externalizable {

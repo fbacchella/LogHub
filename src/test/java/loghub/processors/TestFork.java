@@ -3,6 +3,8 @@ package loghub.processors;
 import java.beans.IntrospectionException;
 import java.io.IOException;
 import java.io.StringReader;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -10,6 +12,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -59,7 +62,19 @@ public class TestFork {
         List<Object> list = new ArrayList<>(List.of(ConnectionContext.EMPTY));
         list.add(null);
 
-        event.put("message", new HashMap<>(Map.of("boolMap", boolMap, "intMap", intMap, "floatMap", floatMap, "textMap", textMap, "timeMap", timeMap, "list", list)));
+        Map<String, Object> m =  new HashMap<>();
+        m.put("boolMap", boolMap);
+        m.put("intMap", intMap);
+        m.put("floatMap", floatMap);
+        m.put("textMap", textMap);
+        m.put("timeMap", timeMap);
+        m.put("list", list);
+        InetAddress inetAddress = InetAddress.getByName("8.8.8.8");
+        m.put("inetAddress", inetAddress);
+        InetSocketAddress inetSocketAddress = new InetSocketAddress("8.8.8.8", 53);
+        m.put("inetSocketAddress", inetSocketAddress);
+        event.put("message", m);
+
         event.putMeta("meta", 1);
         forker.fork(event);
 
@@ -75,6 +90,8 @@ public class TestFork {
         Assert.assertEquals(list, message.get("list"));
         Assert.assertEquals(1, forked.getMeta("meta"));
         Assert.assertEquals(ConnectionContext.EMPTY, forked.getConnectionContext());
+        Assert.assertEquals(System.identityHashCode(inetAddress), System.identityHashCode(message.get("inetAddress")));
+        Assert.assertEquals(System.identityHashCode(inetSocketAddress), System.identityHashCode(message.get("inetSocketAddress")));
     }
 
     @Test

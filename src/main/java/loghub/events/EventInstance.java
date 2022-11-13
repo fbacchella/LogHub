@@ -169,7 +169,7 @@ class EventInstance extends Event {
             oos.writeObject(new EventSerializer(this));
             oos.flush();
             bos.flush();
-            try (FastObjectInputStream ois = new FastObjectInputStream(bos.toByteArray(), factory)) {
+            try (FastObjectInputStream ois = new FastObjectInputStream(bos.toByteArray(), factory, oos)) {
                 return ((EventSerializer) ois.readObject()).get();
             }
         } catch (NotSerializableException ex) {
