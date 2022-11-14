@@ -13,6 +13,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -42,6 +44,7 @@ public abstract class Sender extends Thread implements Closeable {
 
     protected static class Batch extends ArrayList<EventFuture> {
         private final Sender sender;
+        private final Lock lock = new ReentrantLock();
         Batch() {
             // Used for null batch, an always empty batch
             super(0);
@@ -187,24 +190,29 @@ public abstract class Sender extends Thread implements Closeable {
             try {
                 while (true) {
                     Batch flushedBatch = batches.take();
-                    if (flushedBatch == NULLBATCH) {
-                        break;
-                    }
-                    Stats.flushingBatch(this, flushedBatch.size());
-                    if (flushedBatch.isEmpty()) {
-                        flushedBatch.finished();
-                        continue;
-                    } else {
-                        lastFlush = System.currentTimeMillis();
-                    }
-                    try (Timer.Context tctx = Stats.batchFlushTimer(this)) {
-                        flush(flushedBatch);
-                        flushedBatch.forEach(fe -> fe.complete(true));
-                    } catch (Throwable ex) {
-                        Sender.this.handleException(ex);
-                        flushedBatch.forEach(fe -> fe.complete(false));
+                    flushedBatch.lock.lockInterruptibly();
+                    try {
+                        if (flushedBatch == NULLBATCH) {
+                            break;
+                        }
+                        Stats.flushingBatch(this, flushedBatch.size());
+                        if (flushedBatch.isEmpty()) {
+                            flushedBatch.finished();
+                            continue;
+                        } else {
+                            lastFlush = System.currentTimeMillis();
+                        }
+                        try (Timer.Context tctx = Stats.batchFlushTimer(this)) {
+                            flush(flushedBatch);
+                            flushedBatch.forEach(fe -> fe.complete(true));
+                        } catch (Throwable ex) {
+                            Sender.this.handleException(ex);
+                            flushedBatch.forEach(fe -> fe.complete(false));
+                        } finally {
+                            flushedBatch.finished();
+                        }
                     } finally {
-                        flushedBatch.finished();
+                        flushedBatch.lock.unlock();
                     }
                 }
             } catch (InterruptedException e) {
@@ -282,17 +290,30 @@ public abstract class Sender extends Thread implements Closeable {
         if (closed) {
             return false;
         }
-        batch.get().add(event);
-        if (batch.get().size() >= batchSize) {
-            logger.debug("batch full, flush");
-            try {
-                batches.put(batch.getAndSet(new Batch(this)));
-            } catch (InterruptedException e) {
-                interrupt();
+        Batch currentbatch;
+        boolean locked;
+        do {
+            currentbatch = batch.get();
+            locked = currentbatch.lock.tryLock();
+            if (!locked) {
+                Thread.yield();
             }
-            if (batches.size() > threads.length) {
-                logger.warn("{} waiting flush batches, add workers", () -> batches.size() - threads.length);
+        } while (!locked);
+        try {
+            currentbatch.add(event);
+            if (currentbatch.size() >= batchSize) {
+                logger.trace("Batch full, flush");
+                try {
+                    batches.put(batch.getAndSet(new Batch(this)));
+                } catch (InterruptedException e) {
+                    interrupt();
+                }
+                if (batches.size() > threads.length) {
+                    logger.warn("{} waiting flush batches, add workers", () -> batches.size() - threads.length);
+                }
             }
+        } finally {
+            currentbatch.lock.unlock();
         }
         return true;
     }
