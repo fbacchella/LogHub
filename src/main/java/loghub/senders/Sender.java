@@ -13,10 +13,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
-import java.util.function.Consumer;
-import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import org.apache.logging.log4j.Level;
@@ -27,7 +23,6 @@ import com.codahale.metrics.Timer;
 
 import loghub.AbstractBuilder;
 import loghub.CanBatch;
-import loghub.events.Event;
 import loghub.Filter;
 import loghub.FilterException;
 import loghub.Helpers;
@@ -36,6 +31,7 @@ import loghub.ThreadBuilder;
 import loghub.configuration.Properties;
 import loghub.encoders.EncodeException;
 import loghub.encoders.Encoder;
+import loghub.events.Event;
 import loghub.metrics.Stats;
 import lombok.Getter;
 import lombok.Setter;
@@ -44,7 +40,6 @@ public abstract class Sender extends Thread implements Closeable {
 
     protected static class Batch extends ArrayList<EventFuture> {
         private final Sender sender;
-        private final Lock lock = new ReentrantLock();
         Batch() {
             // Used for null batch, an always empty batch
             super(0);
@@ -56,26 +51,28 @@ public abstract class Sender extends Thread implements Closeable {
             Stats.newBatch(sender);
         }
         void finished() {
-            super.stream().forEach(sender::processStatus);
-            Optional.ofNullable(sender).ifPresent(Stats::doneBatch);
+            if (sender != null) {
+                forEach(sender::processStatus);
+                Stats.doneBatch(sender);
+            }
         }
         public EventFuture add(Event e) {
-            EventFuture fe = new EventFuture(e);
-            add(fe);
-            return fe;
+            if (sender != null) {
+                EventFuture fe = new EventFuture(e);
+                add(fe);
+                return fe;
+            } else {
+                throw new IllegalStateException("Can't add event to the null batch");
+            }
         }
         @Override
         public Stream<EventFuture> stream() {
             return super.stream().filter(EventFuture::isNotDone);
         }
-        @Override
-        public void forEach(Consumer<? super EventFuture> action) {
-            stream().forEach(action);
-        }
     }
 
     // A marker to end processing
-    private static final Batch NULLBATCH = new Batch();
+    private static final Batch NULL_BATCH = new Batch();
 
     public static class EventFuture extends CompletableFuture<Boolean> {
         @Getter
@@ -131,7 +128,7 @@ public abstract class Sender extends Thread implements Closeable {
     private final Thread[] threads;
     private final BlockingQueue<Batch> batches;
     private final Runnable publisher;
-    private final AtomicReference<Batch> batch = new AtomicReference<>();
+    private final AtomicReference<Batch> batch;
     private final long flushInterval;
     private volatile boolean closed = false;
 
@@ -153,19 +150,20 @@ public abstract class Sender extends Thread implements Closeable {
             threads = new Thread[builder.workers];
             batches = new LinkedBlockingQueue<>(threads.length * 8);
             publisher = getPublisher();
-            batch.set(new Batch(this));
+            batch = new AtomicReference<>(new Batch(this));
         } else {
             flushInterval = 0;
             isAsync = getClass().getAnnotation(AsyncSender.class) != null;
             threads = null;
             batchSize = -1;
             batches = null;
+            batch = null;
             publisher = null;
         }
     }
 
     public boolean configure(Properties properties) {
-        // Stats is reset before configure
+        // Stats are reset before configure
         Stats.sendInQueueSize(this, inQueue::size);
         if (threads != null) {
             buildSyncer(properties);
@@ -183,89 +181,91 @@ public abstract class Sender extends Thread implements Closeable {
     /**
      * A runnable that will be affected to publishing threads. It consumes event and send them as bulk
      * 
-     * @return
+     * @return a batch publisher runnable
      */
     protected Runnable getPublisher() {
-        return () -> {
-            try {
-                while (true) {
-                    Batch flushedBatch = batches.take();
-                    flushedBatch.lock.lockInterruptibly();
-                    try {
-                        if (flushedBatch == NULLBATCH) {
-                            break;
-                        }
-                        Stats.flushingBatch(this, flushedBatch.size());
-                        if (flushedBatch.isEmpty()) {
-                            flushedBatch.finished();
-                            continue;
-                        } else {
-                            lastFlush = System.currentTimeMillis();
-                        }
-                        try (Timer.Context tctx = Stats.batchFlushTimer(this)) {
-                            flush(flushedBatch);
-                            flushedBatch.forEach(fe -> fe.complete(true));
-                        } catch (Throwable ex) {
-                            Sender.this.handleException(ex);
-                            flushedBatch.forEach(fe -> fe.complete(false));
-                        } finally {
-                            flushedBatch.finished();
-                        }
-                    } finally {
-                        flushedBatch.lock.unlock();
-                    }
+        return this::publisher;
+    }
+
+    private void publisher() {
+        try {
+            while (! Thread.currentThread().isInterrupted()) {
+                Batch flushedBatch = batches.take();
+                if (flushedBatch == NULL_BATCH) {
+                    break;
                 }
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
+                Stats.flushingBatch(this, flushedBatch.size());
+                if (flushedBatch.isEmpty()) {
+                    flushedBatch.finished();
+                    continue;
+                } else {
+                    lastFlush = System.currentTimeMillis();
+                }
+                try (Timer.Context tctx = Stats.batchFlushTimer(this)) {
+                    flush(flushedBatch);
+                    flushedBatch.forEach(fe -> fe.complete(true));
+                } catch (Throwable ex) {
+                    handleException(ex);
+                    flushedBatch.forEach(fe -> fe.complete(false));
+                } finally {
+                    flushedBatch.finished();
+                }
             }
-        };
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     protected void buildSyncer(Properties properties) {
-        IntStream.rangeClosed(1, threads.length)
-                 .mapToObj(i ->getName() + "Publisher" + i)
-                 .map(i -> ThreadBuilder.get().setName(i))
-                 .map(i -> i.setTask(publisher))
-                 .map(i -> i.setDaemon(false))
-                 .map(i -> i.build(true))
-                 .toArray(i -> threads);
+        for (int i = 0; i < threads.length ; i++) {
+            threads[i] = ThreadBuilder.get().setName(getName() + "Publisher" + i)
+                                            .setTask(publisher)
+                                            .setDaemon(false)
+                                            .build(true);
+        }
         //Schedule a task to flush every 5 seconds
-        Runnable flush = () -> {
-            try {
+        properties.registerScheduledTask(getName() + "Flusher" , this::syncFlush, flushInterval);
+        Helpers.waitAllThreads(Arrays.stream(threads));
+    }
+
+    private void syncFlush() {
+        try {
+            Batch currentBatch = batch.getAndSet(null);
+            if (currentBatch != null) {
+                // If null, someone is working on it, nothing to do
                 long now =  System.currentTimeMillis();
                 if ((now - lastFlush) > flushInterval) {
-                    batches.add(batch.getAndSet(new Batch(this)));
+                    batch.set(new Batch(this));
+                    batches.add(currentBatch);
+                    lastFlush = now;
                 }
-            } catch (IllegalStateException e) {
-                logger.warn("Failed to launch a scheduled batch: {}", Helpers.resolveThrowableException(e));
-                logger.catching(Level.DEBUG, e);
             }
-        };
-        properties.registerScheduledTask(getName() + "Flusher" , flush, flushInterval);
-        Helpers.waitAllThreads(Arrays.stream(threads));
+        } catch (IllegalStateException e) {
+            logger.warn("Failed to launch a scheduled batch: {}", Helpers.resolveThrowableException(e));
+            logger.catching(Level.DEBUG, e);
+        }
     }
 
     public final synchronized void stopSending() {
         try {
             closed = true;
-            interrupt();
             customStopSending();
             if (isWithBatch()) {
+                // Mark all waiting events as missed
+                Optional.ofNullable(batch.getAndSet(NULL_BATCH)).orElse(NULL_BATCH).forEach(ef -> ef.complete(false));
                 List<Batch> missedBatches = new ArrayList<>();
                 // Empty the waiting batches list and put the end-of-processing mark instead
                 batches.drainTo(missedBatches);
                 // Add a mark for each worker
-                for (int i = 0; i < this.threads.length; i++) {
-                    batches.add(NULLBATCH);
+                for (int i = 0; i < threads.length; i++) {
+                    batches.add(NULL_BATCH);
                 }
-                // Mark all waiting events as missed
-                batch.get().forEach(ef -> ef.complete(false));
                 missedBatches.forEach(b -> b.forEach(ef -> ef.complete(false)));
                 // Wait for all publisher threads to be finished
                 Arrays.stream(threads).forEach(t -> {
                     try {
-                        t.join(1000);
                         t.interrupt();
+                        t.join(1000);
                     } catch (InterruptedException e) {
                         interrupt();
                     }
@@ -273,9 +273,10 @@ public abstract class Sender extends Thread implements Closeable {
             }
         } finally {
             try {
+                interrupt();
                 join();
             } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
+                interrupt();
             }
         }
     }
@@ -287,24 +288,30 @@ public abstract class Sender extends Thread implements Closeable {
     protected abstract boolean send(Event e) throws SendException, EncodeException;
 
     protected boolean queue(Event event) {
-        if (closed) {
-            return false;
-        }
-        Batch currentbatch;
-        boolean locked;
-        do {
-            currentbatch = batch.get();
-            locked = currentbatch.lock.tryLock();
-            if (!locked) {
+        Batch workingBatch;
+        while (true) {
+            workingBatch = batch.getAndSet(null);
+            if (workingBatch == null) {
+                // If got a null batch, someone is already using it, run a busy loop
                 Thread.yield();
+            } else if (closed || workingBatch == NULL_BATCH) {
+                // got the empty batch or closed, will not be processing, the sender is stopping
+                batch.set(NULL_BATCH);
+                return false;
+            } else {
+                // got the batch, now process it
+                break;
             }
-        } while (!locked);
+        }
         try {
-            currentbatch.add(event);
-            if (currentbatch.size() >= batchSize) {
+            workingBatch.add(event);
+            if (workingBatch.size() >= batchSize) {
+                // If batch is full, don't put it back, but queue it for flush
                 logger.trace("Batch full, flush");
                 try {
-                    batches.put(batch.getAndSet(new Batch(this)));
+                    batches.put(workingBatch);
+                    // A new batch will be returned to the holder
+                    workingBatch = new Batch(this);
                 } catch (InterruptedException e) {
                     interrupt();
                 }
@@ -313,7 +320,8 @@ public abstract class Sender extends Thread implements Closeable {
                 }
             }
         } finally {
-            currentbatch.lock.unlock();
+            // return the batch
+            batch.set(workingBatch);
         }
         return true;
     }
@@ -352,9 +360,10 @@ public abstract class Sender extends Thread implements Closeable {
         return encoded;
     }
 
+    @Override
     public void run() {
         while (isRunning()) {
-            Event event = null;
+            Event event;
             try {
                 event = inQueue.take();
             } catch (InterruptedException e) {
@@ -363,14 +372,11 @@ public abstract class Sender extends Thread implements Closeable {
             }
             try {
                 logger.trace("New event to send: {}", event);
+                // queue return false if this event was not batched
                 boolean status = isWithBatch() ? queue(event): send(event);
-                if (! isAsync) {
-                    processStatus(event, status);
-                } else if (isWithBatch() && ! status) {
-                    // queue return false if this event was not batched
+                if (! isAsync || (isWithBatch() && ! status)) {
                     processStatus(event, status);
                 }
-                event = null;
             } catch (Throwable t) {
                 handleException(t, event);
             }
@@ -466,7 +472,7 @@ public abstract class Sender extends Thread implements Closeable {
         stopSending();
     }
 
-    public int getThreads() {
+    public final int getWorkersCount() {
         return threads != null ? threads.length : 0;
     }
 

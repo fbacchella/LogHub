@@ -287,8 +287,8 @@ public abstract class AbstractHttpSender extends Sender {
 
             // Build HTTP the connection manager
             PoolingHttpClientConnectionManagerBuilder cmBuilder = PoolingHttpClientConnectionManagerBuilder.create()
-                    .setMaxConnTotal(getThreads())
-                    .setMaxConnPerRoute(getThreads())
+                    .setMaxConnTotal(getWorkersCount())
+                    .setMaxConnPerRoute(getWorkersCount())
                     .setDefaultSocketConfig(SocketConfig.custom()
                                                         .setTcpNoDelay(true)
                                                         .setSoKeepAlive(true)
