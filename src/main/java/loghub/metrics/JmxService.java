@@ -49,7 +49,7 @@ import lombok.experimental.Accessors;
 public class JmxService {
 
     public static final PROTOCOL DEFAULTPROTOCOL = PROTOCOL.rmi;
-    public static enum PROTOCOL {
+    public enum PROTOCOL {
         rmi,
         jmxmp,
     }
@@ -201,7 +201,7 @@ public class JmxService {
     }
 
     private static ObjectName createMetricName(String type, String domain, String name, ObjectNameFactory donf, Pattern pipepattern ) {
-        ObjectName metricName = null;
+        ObjectName metricName;
         Matcher m = pipepattern.matcher(name);
         if (m.matches()) {
             Hashtable<String, String> table = new Hashtable<>(4);

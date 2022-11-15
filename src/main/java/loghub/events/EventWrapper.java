@@ -70,7 +70,7 @@ class EventWrapper extends Event {
 
     @Override
     public void putAll(Map<? extends String, ? extends Object> m) {
-        m.entrySet().stream().forEach(i->  put(i.getKey(), i.getValue()));
+        m.entrySet().forEach(i->  put(i.getKey(), i.getValue()));
     }
 
     @Override

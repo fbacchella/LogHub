@@ -13,14 +13,14 @@ import loghub.receivers.Receiver;
 
 public interface ReceiverMBean {
 
-    public long getCount();
-    public long getBytes();
-    public long getFailedDecode();
-    public long getFailed();
-    public long getBlocked();
-    public long getExceptions();
+    long getCount();
+    long getBytes();
+    long getFailedDecode();
+    long getFailed();
+    long getBlocked();
+    long getExceptions();
 
-    public class Implementation extends StandardMBean implements ReceiverMBean {
+    class Implementation extends StandardMBean implements ReceiverMBean {
 
         private final Meter count;
         private final Meter bytes;

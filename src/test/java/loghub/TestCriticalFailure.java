@@ -1,11 +1,5 @@
 package loghub;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-
 import java.io.IOException;
 import java.io.StringReader;
 import java.util.concurrent.CountDownLatch;
@@ -28,14 +22,17 @@ import loghub.metrics.Stats;
 import loghub.metrics.Stats.PipelineStat;
 import loghub.processors.Identity;
 
-public class TestCriticalFailure {
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.when;
 
-    private static Logger logger ;
+public class TestCriticalFailure {
 
     @BeforeClass
     static public void configure() throws IOException {
         Tools.configure();
-        logger = LogManager.getLogger();
+        Logger logger = LogManager.getLogger();
         LogUtils.setLevel(logger, Level.TRACE, "loghub");
     }
 
@@ -57,7 +54,7 @@ public class TestCriticalFailure {
         when(ev.getCurrentPipeline()).thenReturn("newpipe");
         props.mainQueue.add(ev);
 
-        props.eventsprocessors.stream().forEach(t -> {
+        props.eventsprocessors.forEach(t -> {
             try {
                 t.join();
             } catch (InterruptedException e) {
@@ -95,7 +92,7 @@ public class TestCriticalFailure {
         }).when(ev).doMetric(any(), any());
         props.mainQueue.add(ev);
         latch.await();
-        props.eventsprocessors.stream().forEach(EventsProcessor::stopProcessing);
+        props.eventsprocessors.forEach(EventsProcessor::stopProcessing);
         Assert.assertTrue(art.get() instanceof StackOverflowError);
         Assert.assertEquals(Stats.PipelineStat.EXCEPTION, arps.get());
     }

@@ -233,11 +233,7 @@ public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRe
         FullHttpResponse response = new DefaultFullHttpResponse(
                                                                 HTTP_1_1, status, 
                                                                 Unpooled.copiedBuffer(message + "\r\n", StandardCharsets.UTF_8));
-        if (status.code() >= 500) {
-            HttpUtil.setKeepAlive(response, false);
-        } else {
-            HttpUtil.setKeepAlive(response, true);
-        }
+        HttpUtil.setKeepAlive(response, status.code() < 500);
         response.headers().set(HttpHeaderNames.CONTENT_TYPE, "text/plain; charset=UTF-8");
         additionHeaders.entrySet().forEach( i-> response.headers().add(i.getKey(), i.getValue()));
         ctx.writeAndFlush(response);
@@ -254,17 +250,13 @@ public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRe
             FullHttpResponse response = new DefaultFullHttpResponse(
                                                                     HTTP_1_1, failure.status, 
                                                                     Unpooled.copiedBuffer(failure.message + "\r\n", StandardCharsets.UTF_8));
-            if (failure.status.code() >= 500) {
-                HttpUtil.setKeepAlive(response, false);
-            } else {
-                HttpUtil.setKeepAlive(response, true);
-            }
+            HttpUtil.setKeepAlive(response, failure.status.code() < 500);
             response.headers().set(HttpHeaderNames.CONTENT_TYPE, "text/plain; charset=UTF-8");
             failure.additionHeaders.entrySet().forEach( i-> response.headers().add(i.getKey(), i.getValue()));
             ctx.writeAndFlush(response);
             Stats.getMetric(Meter.class, "WebServer.status." + failure.status.code()).mark();
         } else {
-            logger.error("Internal server errorr: {}", Helpers.resolveThrowableException(cause));
+            logger.error("Internal server error: {}", () -> Helpers.resolveThrowableException(cause));
             logger.catching(Level.ERROR, cause);
             FullHttpResponse response = new DefaultFullHttpResponse(
                                                                     HTTP_1_1, SERVICE_UNAVAILABLE, Unpooled.copiedBuffer("Critical internal server error\r\n", StandardCharsets.UTF_8));

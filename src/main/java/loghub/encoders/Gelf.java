@@ -20,7 +20,7 @@ import loghub.jackson.JacksonBuilder;
 import lombok.Setter;
 
 @BuilderClass(Gelf.Builder.class)
-public class Gelf extends AbstractJacksonEncoder<Gelf.Builder> {
+public class Gelf extends AbstractJacksonEncoder<Gelf.Builder, JsonMapper> {
 
     public static class Builder extends AbstractJacksonEncoder.Builder<Gelf> {
         private boolean compressed = false;
@@ -93,9 +93,9 @@ public class Gelf extends AbstractJacksonEncoder<Gelf.Builder> {
             byte[] buffer2;
             if (compressed) {
                 try (ByteArrayOutputStream bos = new ByteArrayOutputStream();
-                     GZIPOutputStream stream = new GZIPOutputStream(bos)) {
-                    stream.write(buffer1);
-                    stream.finish();
+                     GZIPOutputStream gzStream = new GZIPOutputStream(bos)) {
+                    gzStream.write(buffer1);
+                    gzStream.finish();
                     buffer2 = bos.toByteArray();
                 }
             } else if (stream) {
@@ -110,7 +110,7 @@ public class Gelf extends AbstractJacksonEncoder<Gelf.Builder> {
     }
 
     @Override
-    protected JacksonBuilder<?> getWriterBuilder(Builder builder) {
+    protected JacksonBuilder<JsonMapper> getWriterBuilder(Builder builder) {
         return JacksonBuilder.get(JsonMapper.class);
     }
 

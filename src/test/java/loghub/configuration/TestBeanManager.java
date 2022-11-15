@@ -62,7 +62,7 @@ public class TestBeanManager {
         beansManager.beanSetter(c, "doublefloat", Double.valueOf(Math.PI));
         Assert.assertEquals(Math.PI, c.getDoublefloat(), 0);
         beansManager.beanSetter(c, "doublefloat", "1.3333");
-        Assert.assertEquals((float)1.3333, c.getDoublefloat(), 1e-4);
+        Assert.assertEquals((float)1.3333, 1e-4, c.getDoublefloat());
     }
 
     @Test
@@ -73,7 +73,7 @@ public class TestBeanManager {
         beansManager.beanSetter(c, "simplefloat", Float.valueOf((float)Math.PI) );
         Assert.assertEquals((float)Math.PI, c.getSimplefloat(), 0);
         beansManager.beanSetter(c, "simplefloat", "1.3333");
-        Assert.assertEquals((float)1.3333, c.getSimplefloat(), 1e-4);
+        Assert.assertEquals((float)1.3333, 1e-4, c.getSimplefloat());
     }
 
     @Test

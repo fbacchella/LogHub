@@ -19,13 +19,12 @@ import org.msgpack.jackson.dataformat.MessagePackFactory;
 
 import com.fasterxml.jackson.databind.ObjectReader;
 
-import loghub.ConnectionContext;
-import loghub.events.Event;
 import loghub.LogUtils;
 import loghub.Tools;
 import loghub.configuration.ConfigException;
 import loghub.configuration.ConfigurationTools;
 import loghub.configuration.Properties;
+import loghub.events.Event;
 import loghub.events.EventsFactory;
 import loghub.jackson.JacksonBuilder;
 import loghub.jackson.MsgpackTimeDeserializer;

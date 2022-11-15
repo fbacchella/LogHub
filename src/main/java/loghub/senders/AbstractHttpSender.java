@@ -249,7 +249,7 @@ public abstract class AbstractHttpSender extends Sender {
     protected final URL[] endPoints;
     private final Map<URL, HttpHost> hosts;
 
-    public AbstractHttpSender(Builder<? extends AbstractHttpSender> builder) {
+    protected AbstractHttpSender(Builder<? extends AbstractHttpSender> builder) {
         super(builder);
         timeout = builder.timeout;
         endPoints = Helpers.stringsToUrl(builder.destinations, builder.port, builder.protocol, logger);
@@ -310,7 +310,7 @@ public abstract class AbstractHttpSender extends Sender {
                 mbs.registerMBean(new Implementation(cm), getObjectName());
             } catch (NotCompliantMBeanException | MalformedObjectNameException
                             | InstanceAlreadyExistsException | MBeanRegistrationException e) {
-                logger.error("jmx configuration failed: " + Helpers.resolveThrowableException(e), e);
+                logger.error("jmx configuration failed: {}", Helpers.resolveThrowableException(e), e);
                 return false;
             }
 

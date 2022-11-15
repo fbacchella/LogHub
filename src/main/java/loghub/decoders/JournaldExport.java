@@ -49,7 +49,7 @@ public class JournaldExport extends Decoder {
     private static final String TRUSTEDFIELDS = "fields_trusted";
     private static final String USERDFIELDS = "fields_user";
 
-    // Four fields stores a time stamp in journald, only REALTIME one one are usefull
+    // Four fields stores a time stamp in journald, only REALTIME one are usefull
     // trusted journal fields
     private static final String TIMESTAMP_SM = "SOURCE_MONOTONIC_TIMESTAMP".toLowerCase(Locale.ENGLISH);
     private static final String TIMESTAMP_SR = "SOURCE_REALTIME_TIMESTAMP".toLowerCase(Locale.ENGLISH);
@@ -58,12 +58,7 @@ public class JournaldExport extends Decoder {
     private static final String TIMESTAMP_R = "REALTIME_TIMESTAMP".toLowerCase(Locale.ENGLISH);
 
     private static final ByteProcessor FIND_EQUAL = new IndexOfProcessor((byte)'=');
-    private static final ByteProcessor NON_UNDERSCORE = new ByteProcessor() {
-        @Override
-        public boolean process(byte value) throws Exception {
-            return value == (byte) '_';
-        }
-    };
+    private static final ByteProcessor NON_UNDERSCORE = value -> value == (byte) '_';
 
     @Data
     private static class EventVars {
@@ -86,8 +81,8 @@ public class JournaldExport extends Decoder {
     private static final ThreadLocal<CharsetDecoder> utf8decoder = ThreadLocal.withInitial(() -> StandardCharsets.UTF_8.newDecoder().onUnmappableCharacter(CodingErrorAction.REPORT).onMalformedInput(CodingErrorAction.REPORT));
 
     /**
-     * When using as a decoder within a non Netty receiver, threads handle a single flow of events.
-     * When used within a HTTP Journald receiver, a single thread might process multiple HTTP connection. But the decoder is
+     * When using as a decoder within a non-Netty receiver, threads handle a single flow of events.
+     * When used within an HTTP Journald receiver, a single thread might process multiple HTTP connection. But the decoder is
      * local, so it’s not shared either.
      */
     private final ThreadLocal<EventVars> threadEventVars = ThreadLocal.withInitial(EventVars::new);
@@ -147,13 +142,13 @@ public class JournaldExport extends Decoder {
                     // '=' found, simple key value case
 
                     if ((startKey == 2 && ! TIMESTAMP_R.equals(key)) || TIMESTAMP_SM.equals(key)) {
-                        // fields starting with __ are address fields, skip them
+                        // fields starting with __ are address fields, skip them,
                         // but we keep __REALTIME_TIMESTAMP, as _SOURCE_REALTIME_TIMESTAMP is
                         // not always present
                         // _SOURCE_MONOTONIC_TIMESTAMP is useless too
                         continue;
                     }
-                    // A equal was found, a simple textual field
+                    // An equal was found, a simple textual field
                     lineBuffer.readerIndex(equalPos + 1); // Skip the '='
                     String value = lineBuffer.toString(StandardCharsets.UTF_8);
                     eventVars.get(userField).put(key, value);
@@ -174,7 +169,6 @@ public class JournaldExport extends Decoder {
                             // Read the EOL
                             chunksBuffer.readByte();
                             // fields starting with __ are privates, skip them, but after reading the binary part
-                            continue;
                         } else {
                             // size includes the final LF
                             Object value = readBinary(size, chunksBuffer);
@@ -236,8 +230,8 @@ public class JournaldExport extends Decoder {
                 long timestamp = Long.parseLong(timestampString);
                 e.setTimestamp(Instant.ofEpochSecond(0, timestamp * 1000));
             }
-            e.put(USERDFIELDS, new HashMap<String, Object>(eventVars.userFields));
-            e.put(TRUSTEDFIELDS, new HashMap<String, Object>(eventVars.trustedFields));
+            e.put(USERDFIELDS, new HashMap<>(eventVars.userFields));
+            e.put(TRUSTEDFIELDS, new HashMap<>(eventVars.trustedFields));
             logger.trace("New event parsed: {}", e);
             eventVars.clear();
             return e;

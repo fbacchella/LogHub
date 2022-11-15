@@ -3,6 +3,7 @@ package loghub.decoders;
 import java.io.IOException;
 import java.io.InputStream;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectReader;
 
 import io.netty.buffer.ByteBuf;
@@ -11,13 +12,13 @@ import loghub.ConnectionContext;
 import loghub.Helpers;
 import loghub.jackson.JacksonBuilder;
 
-public abstract class AbstractJacksonDecoder<JB extends AbstractJacksonDecoder.Builder<? extends AbstractJacksonDecoder<JB>>> extends Decoder {
+public abstract class AbstractJacksonDecoder<JB extends AbstractJacksonDecoder.Builder<? extends AbstractJacksonDecoder<JB, OM>>, OM extends ObjectMapper> extends Decoder {
 
-    public abstract static class Builder<B extends AbstractJacksonDecoder<?>> extends Decoder.Builder<B> {
+    public abstract static class Builder<B extends AbstractJacksonDecoder<?, ?>> extends Decoder.Builder<B> {
     }
 
     @FunctionalInterface
-    public static interface ObjectResolver {
+    public interface ObjectResolver {
         Object deserialize(ObjectReader reader) throws DecodeException, IOException;
     }
 
@@ -28,7 +29,7 @@ public abstract class AbstractJacksonDecoder<JB extends AbstractJacksonDecoder.B
         this.reader = getReaderBuilder(builder).getReader();
     }
 
-    protected abstract JacksonBuilder<?> getReaderBuilder(JB builder);
+    protected abstract JacksonBuilder<OM> getReaderBuilder(JB builder);
 
    @Override
     public Object decodeObject(ConnectionContext<?> ctx, byte[] msg, int offset, int length) throws DecodeException {

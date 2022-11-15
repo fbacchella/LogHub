@@ -105,7 +105,7 @@ class EventInstance extends Event {
     private String currentPipeline;
     private String nextPipeline;
     private Date timestamp = new Date();
-    private Map<String, Object> metas = new HashMap<>();
+    private final Map<String, Object> metas = new HashMap<>();
     private int stepsCount = 0;
     private boolean test;
     private final ConnectionContext<?> ctx;
@@ -156,8 +156,8 @@ class EventInstance extends Event {
     /**
      * Return a deep copy of the event.
      * <p>
-     * It work by doing serialize/deserialize of the event. So a event must
-     * only contains serializable object to make it works.
+     * It works by doing serialize/deserialize of the event. So an event must
+     * only contain serializable object to make it works.
      * <p>
      * It will not duplicate a test event
      * <p>
@@ -184,7 +184,7 @@ class EventInstance extends Event {
 
     @Override
     public String toString() {
-        return "[" + timestamp + "]" + super.toString() + "#" + metas.toString();
+        return "[" + timestamp + "]" + super.toString() + "#" + metas;
     }
 
     public Processor next() {
@@ -215,7 +215,7 @@ class EventInstance extends Event {
 
     private void addProcessors(List<Processor> newProcessors, boolean append) {
         ListIterator<Processor> i = newProcessors.listIterator(append ? 0 : newProcessors.size());
-        while(append ? i.hasNext() : i.hasPrevious()) {
+        while (append ? i.hasNext() : i.hasPrevious()) {
             Processor p = append ? i.next() : i.previous();
             addProcessor(p, append);
         }
@@ -380,7 +380,7 @@ class EventInstance extends Event {
     @Override
     public void mergeMeta(Event event,
                           BiFunction<Object, Object, Object> cumulator) {
-        event.getMetas().entrySet().forEach( i-> {
+        event.getMetas().entrySet().forEach(i-> {
             String key = i.getKey();
             Object newValue = i.getValue();
             Object oldValue = metas.get(key);

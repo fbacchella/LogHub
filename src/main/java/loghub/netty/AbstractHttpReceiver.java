@@ -8,7 +8,6 @@ import loghub.netty.transport.AbstractIpTransport;
 import loghub.netty.transport.NettyTransport;
 import loghub.netty.transport.TRANSPORT;
 import loghub.receivers.Blocking;
-import loghub.security.AuthenticationHandler;
 
 @Blocking
 public abstract class AbstractHttpReceiver<R extends AbstractHttpReceiver<R, B>, B extends AbstractHttpReceiver.Builder<R, B>> extends NettyReceiver<R, HttpMessage, B> implements ConsumerProvider {

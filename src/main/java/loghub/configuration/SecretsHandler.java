@@ -214,7 +214,7 @@ public class SecretsHandler implements Closeable {
                 }
             })
             .filter(Objects::nonNull)
-            .map(e -> (Map.Entry<String, KeyStore.SecretKeyEntry>)e)
+            .map(e -> e) // Identify but compilation fails without it
             ;
         } catch (KeyStoreException ex) {
             throw new IllegalStateException("Keystore environment unusable", ex);

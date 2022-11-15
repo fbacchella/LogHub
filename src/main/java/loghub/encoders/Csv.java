@@ -29,7 +29,7 @@ import lombok.Setter;
 
 @BuilderClass(Csv.Builder.class)
 @CanBatch
-public class Csv extends AbstractJacksonEncoder<Csv.Builder> {
+public class Csv extends AbstractJacksonEncoder<Csv.Builder, CsvMapper> {
 
     public static class Builder extends AbstractJacksonEncoder.Builder<Csv> {
         @Setter
@@ -37,9 +37,9 @@ public class Csv extends AbstractJacksonEncoder<Csv.Builder> {
         @Setter
         private Object[] features = new String[]{"ALWAYS_QUOTE_STRINGS"};
         @Setter
-        private char separator= ',';
+        private char separator = ',';
         @Setter
-        private String lineSeparator= "\n";
+        private String lineSeparator = "\n";
         @Setter
         private String nullValue = "";
         @Setter
@@ -79,7 +79,7 @@ public class Csv extends AbstractJacksonEncoder<Csv.Builder> {
     }
 
     @Override
-    protected JacksonBuilder<?> getWriterBuilder(Builder builder) {
+    protected JacksonBuilder<CsvMapper> getWriterBuilder(Builder builder) {
         CsvSchema.Builder sbuilder = CsvSchema.builder();
         sbuilder.setColumnSeparator(builder.separator);
         sbuilder.setNullValue(builder.nullValue);

@@ -4,15 +4,16 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 
 import loghub.events.Event;
 import loghub.Helpers;
 import loghub.jackson.JacksonBuilder;
 
-public abstract class AbstractJacksonEncoder<JB extends AbstractJacksonEncoder.Builder<? extends AbstractJacksonEncoder<JB>>> extends Encoder {
+public abstract class AbstractJacksonEncoder<JB extends AbstractJacksonEncoder.Builder<? extends AbstractJacksonEncoder<JB, OM>>, OM extends ObjectMapper> extends Encoder {
 
-    public abstract static class Builder<E extends AbstractJacksonEncoder<?>> extends Encoder.Builder<E> {
+    public abstract static class Builder<E extends AbstractJacksonEncoder<?, ?>> extends Encoder.Builder<E> {
     }
 
     protected final ObjectWriter writer;
@@ -22,7 +23,7 @@ public abstract class AbstractJacksonEncoder<JB extends AbstractJacksonEncoder.B
         this.writer = getWriterBuilder(builder).getWriter();
     }
 
-    protected abstract JacksonBuilder<?> getWriterBuilder(JB builder);
+    protected abstract JacksonBuilder<OM> getWriterBuilder(JB builder);
 
     @Override
     public byte[] encode(Event event) throws EncodeException {

@@ -42,8 +42,8 @@ public class ProcessorTest {
     public void test() throws IOException, DecodeException, ProcessorException, InterruptedException {
         Processor p = new Processor();
 
-        ByteBuf bbuffer = null;
-        try (InputStream is = getClass().getResourceAsStream("/netflow/packets/ipfix.dat") ;
+        ByteBuf bbuffer;
+        try (InputStream is = getClass().getResourceAsStream("/netflow/packets/ipfix.dat");
              ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             byte[] buffer = new byte[8*1024];
             for (int length; (length = is.read(buffer)) != -1; ){

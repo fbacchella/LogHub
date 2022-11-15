@@ -1,5 +1,6 @@
 package loghub.metrics;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Queue;
@@ -7,7 +8,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.function.IntSupplier;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import com.codahale.metrics.Counter;
@@ -19,9 +19,9 @@ import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
 import com.codahale.metrics.Timer.Context;
 
-import loghub.events.Event;
 import loghub.Helpers;
 import loghub.ProcessingException;
+import loghub.events.Event;
 import loghub.receivers.Receiver;
 import loghub.senders.Sender;
 
@@ -242,7 +242,7 @@ public final class Stats {
     public static void pipelineHanding(String name, PipelineStat status, Throwable ex) {
         switch (status) {
         case FAILURE:
-            if (ex != null && ex instanceof ProcessingException) {
+            if (ex instanceof ProcessingException) {
                 ProcessingException pe = (ProcessingException) ex;
                 storeException(processorExceptions, pe);
             }
@@ -369,31 +369,31 @@ public final class Stats {
 
     public static Collection<ProcessingException> getErrors() {
         synchronized (processorExceptions) {
-            return processorExceptions.stream().collect(Collectors.toList());
+            return new ArrayList<>(processorExceptions);
         }
     }
 
     public static Collection<String> getDecodeErrors() {
         synchronized (decodeMessage) {
-            return decodeMessage.stream().collect(Collectors.toList());
+            return new ArrayList<>(decodeMessage);
         }
     }
 
     public static Collection<Throwable> getExceptions() {
         synchronized (exceptions) {
-            return exceptions.stream().collect(Collectors.toList());
+            return new ArrayList<>(exceptions);
         }
     }
 
     public static Collection<String> getSenderError() {
         synchronized (senderMessages) {
-            return senderMessages.stream().collect(Collectors.toList());
+            return new ArrayList<>(senderMessages);
         }
     }
 
     public static Collection<String> getReceiverError() {
         synchronized (receiverMessages) {
-            return receiverMessages.stream().collect(Collectors.toList());
+            return new ArrayList<>(receiverMessages);
         }
     }
 

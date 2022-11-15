@@ -40,7 +40,7 @@ public class OnigurumaRegex extends FieldsProcessor {
             buffer = holder_ascii.get();
             searched.getChars(0, length, buffer, 0);
         }
-        byte b[] = new byte[length];
+        byte[] b = new byte[length];
         for (int j = 0; j < length; j++) {
             if (buffer[j] > 127) {
                 return null;

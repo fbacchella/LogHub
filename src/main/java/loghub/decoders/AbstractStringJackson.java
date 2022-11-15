@@ -5,13 +5,15 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Stream;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import io.netty.buffer.ByteBuf;
 import loghub.ConnectionContext;
 import lombok.Setter;
 
-public abstract class AbstractStringJackson<JB extends AbstractStringJackson.Builder<? extends AbstractStringJackson<JB>>> extends AbstractJacksonDecoder<JB> implements TextDecoder {
+public abstract class AbstractStringJackson<JB extends AbstractStringJackson.Builder<? extends AbstractStringJackson<JB, OM>>, OM extends ObjectMapper> extends AbstractJacksonDecoder<JB, OM> implements TextDecoder {
 
-    public abstract static class Builder<B extends AbstractStringJackson<?>> extends AbstractJacksonDecoder.Builder<B> {
+    public abstract static class Builder<B extends AbstractStringJackson<?, ?>> extends AbstractJacksonDecoder.Builder<B> {
         @Setter
         protected String charset = Charset.defaultCharset().name();
     }

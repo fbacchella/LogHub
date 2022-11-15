@@ -13,16 +13,16 @@ import com.codahale.metrics.Timer;
 
 public interface PipelineMBean {
 
-    public long getLoopOverflow();
-    public long getExceptions();
-    public long getDropped();
-    public long getFailed();
-    public long getInflight();
-    public long getCount();
-    public double getMedian();
-    public double get95per();
+    long getLoopOverflow();
+    long getExceptions();
+    long getDropped();
+    long getFailed();
+    long getInflight();
+    long getCount();
+    double getMedian();
+    double get95per();
 
-    public class Implementation extends StandardMBean implements PipelineMBean {
+    class Implementation extends StandardMBean implements PipelineMBean {
 
         private final String name;
         private final Meter loopOverflow;

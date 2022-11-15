@@ -50,7 +50,7 @@ public abstract class MsgpackTimeSerializer<K> extends JsonSerializer<K> {
         ByteBuffer longBuffer = ByteBuffer.wrap(new byte[12]);
         longBuffer.order(ByteOrder.BIG_ENDIAN);
         long result = ((long)nanoseconds << 34) | seconds;
-        int size = 0;
+        int size;
         if ((result >> 34) == 0) {
             if ((result & 0xffffffff00000000L) == 0 ) {
                 longBuffer.putInt((int) result);

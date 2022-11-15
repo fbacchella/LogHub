@@ -1,6 +1,7 @@
 package loghub.security.ssl;
 
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.net.Socket;
 import java.security.KeyManagementException;
 import java.security.KeyStore;
@@ -133,7 +134,7 @@ public class ContextLoader {
                     })
                                     .filter(Objects::nonNull)
                                     .collect(Collectors.toSet());
-                    logger.debug("Will filter valid ssl client issuers as {}", validIssuers);
+                    logger.debug("Will filter valid SSL client issuers as {}", validIssuers);
                 } else {
                     validIssuers = null;
                 }
@@ -244,8 +245,9 @@ public class ContextLoader {
             cl = Optional.ofNullable(cl).orElse(ContextLoader.class.getClassLoader());
             @SuppressWarnings("unchecked")
             Class<Provider> clazz = (Class<Provider>)cl.loadClass(providerClassName);
-            return clazz.newInstance();
-        } catch (ClassNotFoundException | InstantiationException | IllegalAccessException e) {
+            return clazz.getConstructor().newInstance();
+        } catch (ClassNotFoundException | InstantiationException | IllegalAccessException | NoSuchMethodException |
+                 InvocationTargetException e) {
             NoSuchProviderException nspe = new NoSuchProviderException("Can't load custom security provider: " + Helpers.resolveThrowableException(e));
             nspe.addSuppressed(e);
             throw nspe;

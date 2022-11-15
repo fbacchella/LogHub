@@ -11,6 +11,7 @@ import org.zeromq.ZPoller;
 import loghub.BuilderClass;
 import loghub.ConnectionContext;
 import loghub.Helpers;
+import loghub.Start;
 import loghub.configuration.Properties;
 import loghub.zmq.ZMQCheckedException;
 import loghub.zmq.ZMQHandler;
@@ -92,15 +93,17 @@ public class ZMQ extends Receiver<ZMQ, ZMQ.Builder> {
                     decodeStream(ConnectionContext.EMPTY, message).forEach(this::send);
                 }
             }
-        } catch (IllegalArgumentException ex) {
-            logger.error("Failed ZMQ processing : {}", Helpers.resolveThrowableException(ex));
-            logger.catching(Level.DEBUG, ex);
-        } catch (ZMQCheckedException ex) {
-            logger.error("Failed ZMQ processing : {}", Helpers.resolveThrowableException(ex));
+        } catch (ZMQCheckedException | IllegalArgumentException ex) {
+            logger.error("Failed ZMQ processing : {}", () -> Helpers.resolveThrowableException(ex));
             logger.catching(Level.DEBUG, ex);
         } catch (Throwable ex) {
-            logger.error("Failed ZMQ processing : {}", Helpers.resolveThrowableException(ex));
-            logger.catching(Level.DEBUG, ex);
+            logger.error("Failed ZMQ processing : {}", () -> Helpers.resolveThrowableException(ex));
+            if (Helpers.isFatal(ex)) {
+                Start.fatalException(ex);
+                logger.catching(Level.FATAL, ex);
+            } else {
+                logger.catching(Level.ERROR, ex);
+            }
         } finally {
             handler.close();
         }

@@ -31,7 +31,6 @@ public class TestJournaldDecoder {
 
     private static Logger logger;
 
-
     @BeforeClass
     static public void configure() throws IOException {
         Tools.configure();

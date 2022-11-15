@@ -2,6 +2,7 @@ package loghub.configuration;
 
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.time.OffsetDateTime;
@@ -17,7 +18,6 @@ import java.util.Map;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.core.Appender;
-import org.apache.logging.log4j.core.Filter;
 import org.apache.logging.log4j.core.Layout;
 import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.core.appender.ConsoleAppender;
@@ -37,10 +37,9 @@ import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 
-import loghub.ConnectionContext;
-import loghub.events.Event;
 import loghub.EventsProcessor;
 import loghub.Helpers;
+import loghub.events.Event;
 import loghub.jackson.JacksonBuilder;
 
 public class TestEventProcessing {
@@ -100,6 +99,10 @@ public class TestEventProcessing {
 
     }
 
+    private TestEventProcessing() {
+        // Not instantiable class
+    }
+
     public static void check(String pipeLineTest, String configFile) {
 
         try {
@@ -114,7 +117,8 @@ public class TestEventProcessing {
 
             ObjectReader reader = JacksonBuilder.get(JsonMapper.class).setTypeReference(new TypeReference<Map<?, ?>>() {}).getReader();
 
-            MappingIterator<Map<String, Object>> i = reader.readValues(new InputStreamReader(System.in, "UTF-8"));
+            MappingIterator<Map<String, Object>> i = reader.readValues(new InputStreamReader(System.in,
+                    StandardCharsets.UTF_8));
 
             while(i.hasNext()) {
                 Map<String, Object> eventMap = i.next();
@@ -177,7 +181,8 @@ public class TestEventProcessing {
         jsonappender.start();
         config.addAppender(jsonappender);
         AppenderRef ref = AppenderRef.createAppenderRef(APPENDERNAME, null, null);
-        LoggerConfig loggerConfig = LoggerConfig.createLogger(false, LOGLEVEL, LOGGERNAME, "false", new AppenderRef[] {ref}, new Property[]{}, config, (Filter) null);
+        LoggerConfig loggerConfig = LoggerConfig.createLogger(false, LOGLEVEL, LOGGERNAME, "false", new AppenderRef[] {ref}, new Property[]{}, config,
+                null);
         loggerConfig.addAppender(jsonappender, null, null);
         config.removeLogger(LOGGERNAME);
         config.addLogger(LOGGERNAME, loggerConfig);

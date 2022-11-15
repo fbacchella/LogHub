@@ -81,10 +81,7 @@ public abstract class SimpleBerCodec {
     }
 
     protected Integer readInteger(ByteBuffer topbuffer) {
-        Function<ByteBuffer, Integer> scan = i -> {
-            Integer subval = (int) i.get();
-            return subval;
-        };
+        Function<ByteBuffer, Integer> scan = i -> Integer.valueOf(i.get());
         return readType(INTEGER, topbuffer, scan);
     }
 
@@ -119,7 +116,7 @@ public abstract class SimpleBerCodec {
     }
 
     protected void writeOid(ByteBuffer topbuffer, int[] oid) {
-        topbuffer.put((byte) OBJECTIDENTIFIER);
+        topbuffer.put(OBJECTIDENTIFIER);
         topbuffer.put((byte) (oid.length - 1));
         topbuffer.put((byte) (oid[0] * 40 + oid[1]));
         for (int i= 2 ; i < oid.length; i++) {

@@ -41,8 +41,7 @@ public class AccessControl extends HttpFilter {
     protected void filter(FullHttpRequest request, ChannelHandlerContext ctx) throws HttpRequestFailure {
         Principal peerPrincipal = ctx.channel().attr(PRINCIPALATTRIBUTE).get();
         if (peerPrincipal != null) {
-            Principal pp = peerPrincipal;
-            logger.debug("Already extracted principal: \"{}\"", pp::getName);
+            logger.debug("Already extracted principal: \"{}\"", peerPrincipal::getName);
             //not null, someone (probably TLS) already done the job, nice !
             return;
         }

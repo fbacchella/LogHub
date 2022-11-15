@@ -11,7 +11,7 @@ import lombok.Setter;
 
 @BuilderClass(Xml.Builder.class)
 @CanBatch
-public class Xml extends AbstractJacksonEncoder<Xml.Builder> {
+public class Xml extends AbstractJacksonEncoder<Xml.Builder, XmlMapper> {
 
     public static class Builder extends AbstractJacksonEncoder.Builder<Xml> {
         @Setter
@@ -34,7 +34,7 @@ public class Xml extends AbstractJacksonEncoder<Xml.Builder> {
     }
 
     @Override
-    protected JacksonBuilder<?> getWriterBuilder(Builder builder) {
+    protected JacksonBuilder<XmlMapper> getWriterBuilder(Builder builder) {
         JacksonBuilder<XmlMapper> jbuilder = JacksonBuilder.get(XmlMapper.class)
                 .setConfigurator(om -> {
                     om.configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, ! (builder.pretty || builder.dateAsText));

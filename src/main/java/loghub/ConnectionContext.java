@@ -14,7 +14,7 @@ public abstract class ConnectionContext<A> implements Serializable {
 
     private static final Principal EMPTYPRINCIPAL = new EmptyPrincipal();
 
-    public static final ConnectionContext<Object> EMPTY = new ConnectionContext<Object>() {
+    public static final ConnectionContext<Object> EMPTY = new ConnectionContext<>() {
 
         @Override
         public Object getLocalAddress() {

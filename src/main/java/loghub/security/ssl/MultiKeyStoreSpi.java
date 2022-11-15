@@ -199,7 +199,7 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
         KeyStore totry = null;
         // The aliases enumerator is not usable (empty or null), find the next one
         // Find the next non empty KeyStore
-        int kssize = 0;
+        int kssize;
         while (iter.hasNext()) {
             totry = iter.next();
             try {
@@ -414,7 +414,7 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
             if (pathURI.getPath().toLowerCase().endsWith(".policy")) {
                 loadDomain(pathURI, fileParams);
             } else if (Paths.get(pathURI.getPath()).endsWith("cacerts")) {
-                fileParams.computeIfAbsent("password", (k) -> "changeit");
+                fileParams.computeIfAbsent("password", k -> "changeit");
                 loadKeystore("JKS", pathURI, fileParams);
             } else {
                 String mimetype = resolveMimeType(pathURI, fileParams);
@@ -583,7 +583,7 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
     }
 
     private void addEntry(List<Certificate> certs, PrivateKey key, Map<String, Object> params) throws KeyStoreException {
-        if (certs.size() == 0) {
+        if (certs.isEmpty()) {
             throw new IllegalArgumentException("No certificates to store");
         }
         String alias = (String) params.get("alias");

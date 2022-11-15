@@ -1,6 +1,5 @@
 package loghub.netty.http;
 
-import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.regex.Matcher;
@@ -17,7 +16,6 @@ import io.netty.channel.ChannelInboundHandler;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import io.netty.util.CharsetUtil;
 import loghub.Helpers;
 import loghub.jackson.JacksonBuilder;
 import lombok.Data;
@@ -53,9 +51,9 @@ public class GetMetric extends HttpRequestProcessing implements ChannelInboundHa
                                                   throws HttpRequestFailure {
         ByteBuf content = ctx.alloc().buffer();
         try {
-            Matcher m = partsExtractor.matcher(URLDecoder.decode(request.uri(), "UTF-8"));
+            Matcher m = partsExtractor.matcher(URLDecoder.decode(request.uri(), StandardCharsets.UTF_8));
             if (m.matches()) {
-                MetricEntry[] metrics = null;
+                MetricEntry[] metrics;
                 switch (m.group("type")) {
                 case "global":
                     metrics = getGlobalMetrics();
@@ -80,8 +78,6 @@ public class GetMetric extends HttpRequestProcessing implements ChannelInboundHa
             } else {
                 throw new HttpRequestFailure(HttpResponseStatus.BAD_REQUEST, String.format("Unsupported metric name: %s", request.uri().replace("/metric/", "")));
             }
-        } catch (UnsupportedEncodingException ex) {
-            throw new HttpRequestFailure(HttpResponseStatus.BAD_REQUEST, String.format("malformed metric class %s: %s", request.uri(), ex.getMessage()));
         } catch (JsonProcessingException e) {
             logger.error("Unable to handle json response", e);
             throw new HttpRequestFailure(HttpResponseStatus.INTERNAL_SERVER_ERROR, String.format("Unable to handle json response: %s", Helpers.resolveThrowableException(e)));

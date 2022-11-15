@@ -8,7 +8,7 @@ import loghub.BuilderClass;
 import loghub.jackson.JacksonBuilder;
 
 @BuilderClass(Json.Builder.class)
-public class Json extends AbstractStringJackson<Json.Builder> {
+public class Json extends AbstractStringJackson<Json.Builder, JsonMapper> {
 
     public static class Builder extends AbstractStringJackson.Builder<Json> {
         @Override
@@ -26,7 +26,7 @@ public class Json extends AbstractStringJackson<Json.Builder> {
     }
 
     @Override
-    protected JacksonBuilder<?> getReaderBuilder(Builder builder) {
+    protected JacksonBuilder<JsonMapper> getReaderBuilder(Builder builder) {
         return JacksonBuilder.get(JsonMapper.class);
     }
 

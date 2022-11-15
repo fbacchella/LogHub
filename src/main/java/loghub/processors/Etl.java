@@ -27,10 +27,6 @@ public abstract class Etl extends Processor {
                 return false;
             }
         }
-        @Override
-        public boolean configure(Properties properties) {
-            return super.configure(properties);
-        }
         public VariablePath getSource() {
             return sourcePath;
         }

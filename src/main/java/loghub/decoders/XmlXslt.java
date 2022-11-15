@@ -158,7 +158,7 @@ public class XmlXslt extends Decoder implements ErrorListener, ErrorHandler {
     private Object parse(GetInputStream getis) throws DecodeException {
         try (InputStream is = getis.get();
              ByteArrayOutputStream baos = new ByteArrayOutputStream()
-            ){
+        ){
             Document d = localDocumentBuilder.get().parse(is);
             DOMSource source = new DOMSource(d);
             localTransformer.get().transform(source, new StreamResult(baos));

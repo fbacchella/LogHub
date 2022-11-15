@@ -33,11 +33,7 @@ public abstract class NullOrMissingValue {
     }
 
     public boolean compareTo(Object obj) {
-        if (obj == null || obj instanceof NullOrMissingValue) {
-            return true;
-        } else {
-            return false;
-        }
+        return obj == null || obj instanceof NullOrMissingValue;
     }
 
 }

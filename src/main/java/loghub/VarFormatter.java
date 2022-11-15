@@ -645,7 +645,7 @@ public class VarFormatter {
                     String key = path[0];
                     for (int i = 0; i < path.length - 1; i++) {
                         Map<String, Object> next = (Map<String, Object>) current.get(key);
-                        if (next == null || ! (next instanceof Map) ) {
+                        if (!(next instanceof Map)) {
                             throw new IllegalArgumentException("invalid values for format key " + mapping.getKey());
                         }
                         current = next;

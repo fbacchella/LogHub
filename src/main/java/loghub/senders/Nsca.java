@@ -2,7 +2,7 @@ package loghub.senders;
 
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.HashMap;
+import java.util.EnumMap;
 import java.util.Map;
 import java.util.stream.Stream;
 
@@ -14,9 +14,9 @@ import com.googlecode.jsendnsca.NagiosSettings;
 import com.googlecode.jsendnsca.encryption.Encryption;
 
 import loghub.BuilderClass;
-import loghub.events.Event;
 import loghub.configuration.Properties;
 import loghub.encoders.EncodeException;
+import loghub.events.Event;
 import lombok.Setter;
 
 @SelfEncoder
@@ -61,7 +61,7 @@ public class Nsca extends Sender {
     }
 
     private final NagiosPassiveCheckSender sender;
-    private final Map<MAPFIELD, String> mapping = new HashMap<>(MAPFIELD.values().length);
+    private final EnumMap mapping = new EnumMap<>(MAPFIELD.class);
     private final String name;
     public Nsca(Builder builder) {
         super(builder);

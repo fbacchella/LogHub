@@ -31,7 +31,8 @@ import lombok.experimental.Accessors;
 @Accessors(chain = true)
 public class JacksonBuilder<T extends ObjectMapper> {
 
-    public static final TypeReference<Object> OBJECTREF = new TypeReference<Object>() { /* empty */ };
+    public static final TypeReference<Object> OBJECTREF = new TypeReference<>() { /* empty */
+    };
 
     @Setter
     JsonFactory factory = null;
@@ -110,7 +111,7 @@ public class JacksonBuilder<T extends ObjectMapper> {
         mapper.registerModule(new JavaTimeModule());
         mapper.registerModule(new Jdk8Module());
         mapper.registerModule(new AfterburnerModule());
-        if (serialiazers.size() > 0) {
+        if (!serialiazers.isEmpty()) {
             SimpleModule wrapperModule = new SimpleModule("LogHub", new Version(1, 0, 0, null, "loghub", "WrapperModule"));
             serialiazers.forEach(wrapperModule::addSerializer);
             mapper.registerModule(wrapperModule);
@@ -136,7 +137,7 @@ public class JacksonBuilder<T extends ObjectMapper> {
             Method m = mapper.getClass().getMethod("enable", eclass);
             m.invoke(mapper, f);
         } catch (NoSuchMethodException | SecurityException | IllegalAccessException | IllegalArgumentException | InvocationTargetException ex) {
-            throw new IllegalStateException("Unsuable feature " + f.name() + ": " + Helpers.resolveThrowableException(ex), ex);
+            throw new IllegalStateException("Unusable feature " + f.name() + ": " + Helpers.resolveThrowableException(ex), ex);
         }
     }
 

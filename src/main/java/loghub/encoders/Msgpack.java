@@ -1,6 +1,7 @@
 package loghub.encoders;
 
 import org.msgpack.jackson.dataformat.MessagePackFactory;
+import org.msgpack.jackson.dataformat.MessagePackMapper;
 
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.Version;
@@ -16,7 +17,7 @@ import lombok.Setter;
 
 @BuilderClass(Msgpack.Builder.class)
 @CanBatch
-public class Msgpack extends AbstractJacksonEncoder<Msgpack.Builder> {
+public class Msgpack extends AbstractJacksonEncoder<Msgpack.Builder, MessagePackMapper> {
 
     public static class Builder extends AbstractJacksonEncoder.Builder<Msgpack> {
         @Setter
@@ -34,7 +35,7 @@ public class Msgpack extends AbstractJacksonEncoder<Msgpack.Builder> {
     private static final SimpleModule dateModuleEvent;
     private static final SimpleModule dateModuleMap;
     static {
-        // The are shared by ObjectMapper, don't create useless instances.
+        // They are shared by ObjectMapper, don't create useless instances.
         DateSerializer ds = new DateSerializer();
         InstantSerializer is = new InstantSerializer();
         EventSerializer es = new EventSerializer();
@@ -52,8 +53,8 @@ public class Msgpack extends AbstractJacksonEncoder<Msgpack.Builder> {
     }
 
     @Override
-    protected JacksonBuilder<?> getWriterBuilder(Builder builder) {
-        return JacksonBuilder.get()
+    protected JacksonBuilder<MessagePackMapper> getWriterBuilder(Builder builder) {
+        return JacksonBuilder.get(MessagePackMapper.class)
                 .setFactory(factory)
                 .module(builder.forwardEvent ? dateModuleEvent : dateModuleMap)
                 ;

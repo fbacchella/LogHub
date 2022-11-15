@@ -11,7 +11,6 @@ import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ExecutionException;
 import java.util.function.BiFunction;
 
 import javax.management.InstanceAlreadyExistsException;
@@ -27,7 +26,6 @@ import org.apache.logging.log4j.core.LoggerContext;
 import groovy.lang.GroovyClassLoader;
 import io.netty.util.concurrent.Future;
 import loghub.Dashboard;
-import loghub.events.Event;
 import loghub.EventsProcessor;
 import loghub.EventsRepository;
 import loghub.Expression;
@@ -37,6 +35,7 @@ import loghub.PriorityBlockingQueue;
 import loghub.Processor;
 import loghub.ThreadBuilder;
 import loghub.VarFormatter;
+import loghub.events.Event;
 import loghub.events.EventsFactory;
 import loghub.metrics.ExceptionsMBean;
 import loghub.metrics.JmxService;
@@ -185,17 +184,10 @@ public class Properties extends HashMap<String, Object> {
         } catch (NotCompliantMBeanException | MalformedObjectNameException
                         | InstanceAlreadyExistsException
                         | MBeanRegistrationException ex) {
-            throw new ConfigException("Unusuable JMX setup: " + Helpers.resolveThrowableException(ex), ex);
+            throw new ConfigException("Unusable JMX setup: " + Helpers.resolveThrowableException(ex), ex);
         }
 
-        try {
-            dashboard = buildDashboad(Helpers.filterPrefix(properties, "http"));
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new ConfigException("Failed to build dashboard", e);
-        } catch (IllegalArgumentException | ExecutionException e) {
-            throw new ConfigException("Failed to build dashboard", e);
-        }
+        dashboard = buildDashboad(Helpers.filterPrefix(properties, "http"));
 
         sources = (Map<String, Source>) properties.remove(PROPSNAMES.SOURCES.toString());
 
@@ -284,8 +276,7 @@ public class Properties extends HashMap<String, Object> {
         throw new UnsupportedOperationException("read only");
     }
 
-    private Dashboard buildDashboad(Map<String, Object> collect)
-            throws ExecutionException, InterruptedException {
+    private Dashboard buildDashboad(Map<String, Object> collect) {
         Dashboard.Builder builder = Dashboard.getBuilder();
         int port = (Integer) collect.compute("port", (i,j) -> {
             if (j != null && ! (j instanceof Integer)) {
@@ -307,7 +298,7 @@ public class Properties extends HashMap<String, Object> {
         } else {
             builder.setWithSSL(false);
         }
-        if ((Boolean)collect.compute("jwt", (i,j) -> Boolean.TRUE.equals(j))) {
+        if (Boolean.TRUE.equals(collect.compute("jwt", (i,j) -> Boolean.TRUE.equals(j)))) {
             builder.setWithJwtUrl(true).setJwtHandlerUrl(jwtHandler);
         } else {
             builder.setWithJwtUrl(false);

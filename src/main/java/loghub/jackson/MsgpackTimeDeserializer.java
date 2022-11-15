@@ -12,8 +12,8 @@ public class MsgpackTimeDeserializer implements ExtensionTypeCustomDeserializers
     @Override
     public Object deserialize(byte[] data) throws IOException {
         ByteBuffer content = ByteBuffer.wrap(data);
-        long seconds = 0;
-        int nanoseconds = 0;
+        long seconds;
+        int nanoseconds;
         switch (data.length) {
         case 4:
             seconds = content.getInt();

@@ -87,17 +87,15 @@ class IpfixInformationElements {
             if(getClass() != obj.getClass())
                 return false;
             MacAddress other = (MacAddress) obj;
-            if(!Arrays.equals(address, other.address))
-                return false;
-            return true;
+            return Arrays.equals(address, other.address);
         }
 
         @Override
         public String toString() {
             StringJoiner j = new StringJoiner(":");
             // No Arrays.toStream for bytes array
-            for(int i= 0 ; i < address.length ; i++) {
-                j.add(String.format("%02x", address[i]));
+            for (byte b : address) {
+                j.add(String.format("%02x", b));
             }
             return j.toString();
         }

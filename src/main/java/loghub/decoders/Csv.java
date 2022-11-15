@@ -11,7 +11,7 @@ import loghub.jackson.JacksonBuilder;
 import lombok.Setter;
 
 @BuilderClass(Csv.Builder.class)
-public class Csv extends AbstractStringJackson<Csv.Builder> {
+public class Csv extends AbstractStringJackson<Csv.Builder, CsvMapper> {
 
     public static class Builder extends AbstractStringJackson.Builder<Csv> {
         @Setter
@@ -42,7 +42,7 @@ public class Csv extends AbstractStringJackson<Csv.Builder> {
     }
 
     @Override
-    protected JacksonBuilder<?> getReaderBuilder(Builder builder) {
+    protected JacksonBuilder<CsvMapper> getReaderBuilder(Builder builder) {
         CsvSchema.Builder sbuilder = CsvSchema.builder();
         Arrays.stream(builder.columns).forEach(sbuilder::addColumn);
         sbuilder.setColumnSeparator(builder.separator);

@@ -32,7 +32,7 @@ public abstract class Decoder {
     }
 
     @FunctionalInterface
-    public static interface ObjectDecoder {
+    public interface ObjectDecoder {
         Object get()  throws DecodeException;
     }
 
@@ -114,7 +114,7 @@ public abstract class Decoder {
             @SuppressWarnings("unchecked")
             Map<Object, Object> map = (Map<Object, Object>) o;
             Map<String, Object> newMap = new HashMap<>(map.size());
-            map.entrySet().stream().forEach(i -> newMap.put(i.getKey().toString(), i.getValue()));
+            map.forEach((key, value) -> newMap.put(key.toString(), value));
             return newMap;
         } else {
             if (field != null) {

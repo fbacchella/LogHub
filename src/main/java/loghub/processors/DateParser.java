@@ -156,7 +156,7 @@ public class DateParser extends FieldsProcessor {
     private Object resolveFromNumber(Event event, DatetimeProcessor formatter, Number value) throws ProcessorException {
         boolean isInstant = formatter == NAMEDPATTERNS.get("seconds");
         boolean isDate = formatter == NAMEDPATTERNS.get("milliseconds");
-        Number n = (Number) value;
+        Number n = value;
         if (n instanceof Float || n instanceof Double){
             double d = n.doubleValue();
             // The cast round toward 0

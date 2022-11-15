@@ -7,7 +7,7 @@ import io.netty.buffer.ByteBuf;
 
 public class IpfixPacket extends TemplateBasePacket implements NetflowPacket {
 
-    private static final Function<ByteBuf, HeaderInfo> headerreder = (i) -> {
+    private static final Function<ByteBuf, HeaderInfo> headerreder = i -> {
         TemplateBasePacket.HeaderInfo hi = new TemplateBasePacket.HeaderInfo();
         hi.length =  Short.toUnsignedInt(i.readShort());
         return hi;

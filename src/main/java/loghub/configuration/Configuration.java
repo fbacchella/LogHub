@@ -35,7 +35,6 @@ import java.util.TimeZone;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Function;
 import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -489,7 +488,8 @@ public class Configuration {
         newProperties.put(Properties.PROPSNAMES.QUEUESDEPTH.toString(), queuesDepth);
         
         // Find the queue weight
-        int queueWeight = newProperties.containsKey("queueWeigth") ? (Integer) newProperties.remove("queueWeigth") : DEFAULTQUEUEWEIGHT;
+        int queueWeight = newProperties.containsKey("queueWeight") ? (Integer) newProperties.remove("queueWeight") :
+                                  (newProperties.containsKey("queueWeigth") ? (Integer) newProperties.remove("queueWeigth") : DEFAULTQUEUEWEIGHT);
 
         PriorityBlockingQueue mainQueue = new PriorityBlockingQueue(queuesDepth, queueWeight);
         Map<String, BlockingQueue<Event>> outputQueues = new HashMap<>(namedPipeLine.size());

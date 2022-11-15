@@ -11,7 +11,7 @@ public abstract class ObjectExtractor<T> extends Processor {
     private String source;
     private final Class<T> clazz;
 
-    public ObjectExtractor() {
+    protected ObjectExtractor() {
         super();
         this.clazz = getClassType();
     }

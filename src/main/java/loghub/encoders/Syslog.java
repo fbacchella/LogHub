@@ -51,7 +51,7 @@ public class Syslog extends Encoder {
         @Setter
         private Expression msgid = new Expression("-");
         /**
-         * Default to the event timestamp, if it return a number, it's millisecond since Unix epoch
+         * Default to the event timestamp, if it returns a number, it's millisecond since Unix epoch
          * @param the expression for the timestamp value
          */
         @Setter

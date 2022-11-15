@@ -189,7 +189,7 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
             case GET: return getTimestamp();
             case PUT: {
                 if (!setTimestamp(value)) {
-                    throw new IllegalArgumentException(String.valueOf(value) + " is not usable as a timestamp from path " + path);
+                    throw new IllegalArgumentException(value + " is not usable as a timestamp from path " + path);
                 }
                 return null;
             }
@@ -228,7 +228,7 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
                 } else {
                     Optional<Object> peekNext = Optional.of(current).filter(c -> c.containsKey(currentkey)).map(c -> c.get(currentkey));
                     Map<String, Object> next;
-                    if (! peekNext.isPresent()) {
+                    if (peekNext.isEmpty()) {
                         if (create) {
                             next = new HashMap<>();
                             current.put(path.get(i), next);

@@ -69,7 +69,7 @@ public class TestExpression {
         Assert.assertEquals("failed to parse expression", "a", (String)o);
     }
 
-    @Test
+  @Test
     public void testStringFormat() throws ExpressionException, ProcessorException {
         String format = "${a%s} ${b%02d}";
         Expression expression = new Expression(format);

@@ -39,7 +39,7 @@ public class TestVarFormatter {
         Configurator.setLevel("loghub.VarFormatter", Level.DEBUG);
     }
 
-    private void checkFormat(Object value, String format, boolean fail) {
+    private void checkFormat(Object value, String format) {
         boolean isJava8 = "1.8".equals(System.getProperty("java.vm.specification.version"));
         boolean isWithShortMonth = "%tB".equalsIgnoreCase(format)
                 || "%th".equalsIgnoreCase(format)
@@ -53,7 +53,7 @@ public class TestVarFormatter {
             isIslamicChronology = false;
         }
         if (isIslamicChronology && isWithShortMonth) {
-            // this chronology is not well supported in String.format, for all versions up to 15
+            // this chronology is not well-supported in String.format, for all versions up to 15
             return;
         }
         for(Locale l: Locale.getAvailableLocales()) {
@@ -84,10 +84,6 @@ public class TestVarFormatter {
                 Assert.fail("mismatch for " + format + " at locale " + l.toLanguageTag() + " with " + value.getClass().getSimpleName() +": " + Helpers.resolveThrowableException(e));
             }
         }
-    }
-
-    private void checkFormat(Object value, String format) {
-        checkFormat(value, format, true);
     }
 
     @Test
@@ -288,7 +284,7 @@ public class TestVarFormatter {
         Object value = Math.PI * 1e6;
         Map<String, Object> values = Collections.singletonMap("var", value);
 
-        Date start = new Date();
+        Date start;
 
         start = new Date();
         for(int i = 0 ; i < 1000000 ; i++) {
@@ -304,7 +300,9 @@ public class TestVarFormatter {
             String a = vf0.format(values);
         }
         long varformatter = new Date().getTime() - start.getTime();
-        Assert.assertTrue(varformatter < printf);
+        String result = String.format(Locale.US, "varFormatter: %dms, printf: %dms", varformatter, printf);
+        logger.debug("{}, is faster: {}", result, varformatter < printf);
+        Assert.assertTrue(result,varformatter < printf);
     }
 
     @Test
@@ -321,7 +319,7 @@ public class TestVarFormatter {
 
     @Test
     public void testMany() {
-        Map<String, Object> values = new HashMap<String, Object>(){{
+        Map<String, Object> values = new HashMap<>() {{
             put("a", 2);
             put("b", 1);
         }};
@@ -353,7 +351,7 @@ public class TestVarFormatter {
     @Test
     public void formatArray() {
         VarFormatter vf = new VarFormatter("${#1%s} ${#1%s} ${#3%s}", Locale.ENGLISH);
-        List<String> obj = Arrays.asList(new String[] {"1", "2", "3"});
+        List<String> obj = Arrays.asList("1", "2", "3");
         String formatted = vf.format(obj);
         Assert.assertEquals("1 1 3", formatted);
     }
@@ -361,7 +359,7 @@ public class TestVarFormatter {
     @Test
     public void formatListString() {
         VarFormatter vf = new VarFormatter("${%s}", Locale.ENGLISH);
-        List<String> obj = Arrays.asList(new String[] {"1", "2", "3"});
+        List<String> obj = Arrays.asList("1", "2", "3");
         String formatted = vf.format(obj);
         Assert.assertEquals("[1, 2, 3]", formatted);
     }
@@ -409,7 +407,7 @@ public class TestVarFormatter {
     @Test
     public void formatNewLine() {
         VarFormatter vf = new VarFormatter("${#1%s}\n${#1%s}\n${#3%s}", Locale.ENGLISH);
-        List<String> obj = Arrays.asList(new String[] {"1", "2", "3"});
+        List<String> obj = Arrays.asList("1", "2", "3");
         String formatted = vf.format(obj);
         Assert.assertEquals("1\n1\n3", formatted);
     }
@@ -425,7 +423,7 @@ public class TestVarFormatter {
     @Test
     public void formatAllExplicit() {
         VarFormatter vf = new VarFormatter("${.%s}", Locale.ENGLISH);
-        List<String> obj = Arrays.asList(new String[] {"1", "2", "3"});
+        List<String> obj = Arrays.asList("1", "2", "3");
         String formatted = vf.format(obj);
         Assert.assertEquals("[1, 2, 3]", formatted);
     }

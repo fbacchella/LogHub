@@ -13,20 +13,18 @@ import loghub.Helpers;
 @MXBean
 public interface ExceptionsMBean {
 
-    public default String[] getProcessorsFailures() {
+    default String[] getProcessorsFailures() {
         return loghub.metrics.Stats.getErrors().stream()
                         .map(i -> Helpers.resolveThrowableException((Throwable)i))
                         .toArray(String[]::new)
                         ;
     }
 
-    public default String[] getDecodersFailures() {
-        return loghub.metrics.Stats.getDecodeErrors().stream()
-                        .toArray(String[]::new)
-                        ;
+    default String[] getDecodersFailures() {
+        return Stats.getDecodeErrors().toArray(String[]::new);
     }
 
-    public default String[] getUnhandledExceptions() {
+    default String[] getUnhandledExceptions() {
         return loghub.metrics.Stats.getExceptions().stream()
                         .map( i -> {
                             StringBuilder exceptionDetails = new StringBuilder();
@@ -42,20 +40,16 @@ public interface ExceptionsMBean {
                         ;
     }
 
-    public default String[] getSendersFailures() {
-        return Stats.getSenderError().stream()
-                        .toArray(String[]::new)
-                        ;
+    default String[] getSendersFailures() {
+        return Stats.getSenderError().toArray(String[]::new);
     }
 
-    public default String[] getReceiversFailures() {
-        return Stats.getReceiverError().stream()
-                        .toArray(String[]::new)
-                        ;
+    default String[] getReceiversFailures() {
+        return Stats.getReceiverError().toArray(String[]::new);
     }
 
 
-    public class Implementation extends StandardMBean implements ExceptionsMBean {
+    class Implementation extends StandardMBean implements ExceptionsMBean {
 
         public static final ObjectName NAME;
         static {

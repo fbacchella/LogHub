@@ -90,7 +90,7 @@ public class BeansManager {
             } else if (beanValue instanceof Number || beanValue instanceof Character) {
                 setMethod.invoke(object, beanValue);
             } else if (beanValue instanceof Boolean) {
-                setMethod.invoke(object, (Boolean)beanValue.equals(Boolean.TRUE));
+                setMethod.invoke(object, beanValue.equals(Boolean.TRUE));
             } else {
                 String message = String.format("can't assign bean %s.%s with argument type %s", objectClassName, beanName, beanValue.getClass().getName());
                 throw new InvocationTargetException(new ClassCastException(message), String.format("Invalid bean %s", beanName));
@@ -103,7 +103,6 @@ public class BeansManager {
     /**
      * Create an object providing the class and a String argument. So the class must have
      * a constructor taking only a string as an argument.
-     * 
      * It can manage native type and return an boxed object
      * @param <T> The value type
      * @param clazz the class of the new object
@@ -140,8 +139,6 @@ public class BeansManager {
         } catch (SecurityException | NoSuchMethodException | IllegalArgumentException |
                  InstantiationException | IllegalAccessException ex) {
             throw new InvocationTargetException(ex, clazz.getName());
-        } catch (InvocationTargetException ex) {
-            throw ex;
         }
     }
 

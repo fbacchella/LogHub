@@ -8,17 +8,20 @@ import com.fasterxml.jackson.dataformat.csv.CsvMapper;
 import com.fasterxml.jackson.dataformat.csv.CsvParser;
 
 public class Helpers {
-    
+
+    private Helpers() {
+        // Only static usage
+    }
     public static void csvFeatures(CsvMapper mapper, String[] features) {
         Arrays.stream(features).forEach(i -> {
-            CsvParser.Feature feature = CsvParser.Feature.valueOf(i.toString().toUpperCase(Locale.ENGLISH));
+            CsvParser.Feature feature = CsvParser.Feature.valueOf(i.toUpperCase(Locale.ENGLISH));
             mapper.enable(feature);
         });
     }
 
     public static void csvGeneratorFeatures(CsvMapper mapper, String[] features) {
         Arrays.stream(features).forEach(i -> {
-            CsvGenerator.Feature feature = CsvGenerator.Feature.valueOf(i.toString().toUpperCase(Locale.ENGLISH));
+            CsvGenerator.Feature feature = CsvGenerator.Feature.valueOf(i.toUpperCase(Locale.ENGLISH));
             mapper.enable(feature);
         });
     }

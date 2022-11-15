@@ -44,11 +44,9 @@ public abstract class TemplateBasePacket implements NetflowPacket {
             if(id != other.id)
                 return false;
             if(remoteAddr == null) {
-                if(other.remoteAddr != null)
-                    return false;
-            } else if(!remoteAddr.equals(other.remoteAddr))
-                return false;
-            return true;
+                return other.remoteAddr == null;
+            } else
+                return remoteAddr.equals(other.remoteAddr);
         }
     }
 
@@ -143,7 +141,7 @@ public abstract class TemplateBasePacket implements NetflowPacket {
         if (count > 0 && recordseen > count) {
             logger.debug("too much records seen: {}/{}", recordseen, count);
         } else if (recordseen < count) {
-            logger.debug("not enough records: %d/%d", recordseen, count);
+            logger.debug("not enough records: {}/{}", recordseen, count);
         }
     }
 
@@ -179,7 +177,7 @@ public abstract class TemplateBasePacket implements NetflowPacket {
         int length = Short.toUnsignedInt(bbuf.readShort());
         if ((type.intValue() & 0x8000) != 0 && canEntrepriseNumber) {
             int entrepriseNumber = bbuf.readInt();
-            type = ((type.longValue() & ~0x8000) | (entrepriseNumber << 16));
+            type = ((type.longValue() & ~0x8000) | ((long) entrepriseNumber << 16));
         }
         template.addField(type, length, isScope);
     }
@@ -260,7 +258,7 @@ public abstract class TemplateBasePacket implements NetflowPacket {
             Map<String, Object> record = new HashMap<>(tpl.getSizes());
             logger.trace("  data");
             for (int i = 0 ; i < tpl.getSizes() ; i++) {
-                Number type = null;
+                Number type;
                 int fieldSize = 0;
                 try {
                     type = tpl.types.get(i);
@@ -277,7 +275,7 @@ public abstract class TemplateBasePacket implements NetflowPacket {
                     record.put(types.getName(type.intValue()), value);
                     record.put(PacketFactory.TYPEKEY, tpl.type);
                 } catch (IndexOutOfBoundsException e) {
-                    throw new RuntimeException(String.format("reading outsing range: %d out of %d\n", fieldSize, bbuf.readableBytes()));
+                    throw new IllegalStateException(String.format("Reading outside range: %d out of %d", fieldSize, bbuf.readableBytes()));
                 }
             }
             records.add(record);

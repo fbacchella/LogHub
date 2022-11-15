@@ -128,7 +128,7 @@ public class SnmpTrap extends Receiver<SnmpTrap, SnmpTrap.Builder> implements Co
                 String[] mibdirs = Arrays.stream((Object[]) properties.get("mibdirs")).map(Object::toString).toArray(String[]::new);
                 formatter = OIDFormatter.register(mibdirs);
             } catch (ClassCastException e) {
-                logger.error("mibdirs property is not an array");
+                logger.error("mibdirs property is not an array {}", e.getMessage());
                 logger.catching(Level.DEBUG, e.getCause());
             }
         } else if (formatter == null) {

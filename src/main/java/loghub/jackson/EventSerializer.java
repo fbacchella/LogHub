@@ -17,9 +17,8 @@ public class EventSerializer extends JsonSerializer<Event> {
                           SerializerProvider serializers)
                                           throws IOException {
         Map<String, Object> eventContent = new HashMap<>();
-        Map<String, Object> eventFields = new HashMap<>();
         Map<String, Object> eventMetas = new HashMap<>();
-        eventFields.putAll(value);
+        Map<String, Object> eventFields = new HashMap<>(value);
         value.getMetaAsStream().forEach( i-> eventMetas.put(i.getKey(), i.getValue()));
         eventContent.put("@fields", eventFields);
         eventContent.put(Event.TIMESTAMPKEY, value.getTimestamp());

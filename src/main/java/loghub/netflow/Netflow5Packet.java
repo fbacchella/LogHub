@@ -1,7 +1,6 @@
 package loghub.netflow;
 
 import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -83,12 +82,10 @@ public class Netflow5Packet implements NetflowPacket {
                 record.put("dst_mask", Byte.toUnsignedInt(bbuf.readByte()));
                 bbuf.readShort();  // some padding;
                 records.add(record);
-            } catch (UnknownHostException e) {
-                continue;
             } catch (IndexOutOfBoundsException e) {
                 break;
             } catch (Exception e) {
-                continue;
+
             }
         }
 

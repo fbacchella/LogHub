@@ -25,7 +25,7 @@ public class Forker extends Processor {
 
     public boolean fork(Event event) {
         Event newEvent = event.duplicate();
-        if(newEvent == null) {
+        if (newEvent == null) {
             return false;
         }
 

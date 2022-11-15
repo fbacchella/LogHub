@@ -17,7 +17,6 @@ import com.codahale.metrics.Timer.Context;
 import io.netty.util.concurrent.Future;
 import loghub.configuration.TestEventProcessing;
 import loghub.events.Event;
-import loghub.events.EventsFactory;
 import loghub.metrics.Stats;
 import loghub.metrics.Stats.PipelineStat;
 import loghub.processors.Drop;
@@ -100,11 +99,11 @@ public class EventsProcessor extends Thread {
                 } else {
                     ProcessingStatus processingstatus = process(event, processor);
                     if (processingstatus != ProcessingStatus.CONTINUE) {
-                        // Processing status was non null, so the event will not be processed any more
+                        // Processing status was not null, so the event will not be processed any more
                         // But it's needed to check why.
                         switch (processingstatus) {
                         case DROPED: {
-                            //It was a drop action
+                            // It was a drop action
                             currentLogger.debug("Dropped event {}", event);
                             event.drop();
                             break;
@@ -140,10 +139,10 @@ public class EventsProcessor extends Thread {
             }
             if (event != null) {
                 logger.trace("event is now {}", event);
-                // Processing of the event is finished without being abandonned, what to do next with it ?
-                // Detect if will send to another pipeline, or just wait for a sender to take it
+                // Processing of the event is finished without being abandoned, what to do next with it ?
+                // Detect if it will send to another pipeline, or just wait for a sender to take it
                 if (event.isTest()) {
-                    // A test event, it will not be send an output queue
+                    // A test event, it will not be sent an output queue
                     // Checked after pipeline forwarding, but before output sending
                     TestEventProcessing.log(event);
                     event.end();
@@ -157,7 +156,7 @@ public class EventsProcessor extends Thread {
                         Thread.currentThread().interrupt();
                     }
                 } else if (event.getCurrentPipeline() != null && ! outQueues.containsKey(event.getCurrentPipeline())){
-                    event.doMetric(PipelineStat.EXCEPTION, new IllegalArgumentException("No sender consumming pipeline " + event.getCurrentPipeline()));
+                    event.doMetric(PipelineStat.EXCEPTION, new IllegalArgumentException("No sender consuming pipeline " + event.getCurrentPipeline()));
                     logger.debug("No sender using pipeline {} for event {}", event.getCurrentPipeline(), event);
                     event.end();
                 } else {
@@ -206,7 +205,7 @@ public class EventsProcessor extends Thread {
                     @SuppressWarnings("unchecked")
                     AsyncProcessor<?, Future<?>> ap = (AsyncProcessor<?, Future<?>>) p;
                     // The event to pause might be a transformation of the original event.
-                    // A paused event was catch, create a custom FuturProcess for it that will be awaken when event come back
+                    // A paused event was catch, create a custom FuturProcess for it that will be awakened when event come back
                     Future<?> future = ex.getFuture();
                     // Wait if too much asynchronous event are waiting
                     try {
@@ -240,12 +239,12 @@ public class EventsProcessor extends Thread {
                     @SuppressWarnings({ "rawtypes", "unchecked"})
                     FutureProcessor<?, ? extends Future<?>> pauser = new FutureProcessor(future, paused, ap);
                     e.insertProcessor(pauser);
-                    //Store the callback informations
+                    // Store the callback information
                     future.addListener(i -> {
                         ap.getLimiter().ifPresent(Semaphore::release);
                         evrepo.cancel(future);
                         // the listener must not call blocking call.
-                        // So if the bounded queue block, use a non blocking queue dedicated
+                        // So if the bounded queue block, use a non-blocking queue dedicated
                         // to postpone processing of the offer.
                         if (! inQueue.offer(e)) {
                             blockedAsync.put(e);
@@ -265,7 +264,7 @@ public class EventsProcessor extends Thread {
                 status = ProcessingStatus.DROPED;
                 e.doMetric(Stats.PipelineStat.DROP);
             } catch (IgnoredEventException ex) {
-                // A do nothing process
+                // A "do nothing" process
                 status = ProcessingStatus.CONTINUE;
             } catch (ProcessorException | UncheckedProcessorException ex) {
                 e.getPipelineLogger().debug("got a processing exception: {}", () -> ex.getMessage());
@@ -280,7 +279,7 @@ public class EventsProcessor extends Thread {
                 }
             } catch (Throwable ex) {
                 // We received a fatal exception
-                // Can't do nothing but die
+                // Can't do anything but die
                 if (Helpers.isFatal(ex)) {
                     logger.fatal("Caught a critical exception", ex);
                     Start.fatalException(ex);

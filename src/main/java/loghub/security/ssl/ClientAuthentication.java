@@ -25,6 +25,7 @@ public enum ClientAuthentication {
     NONE {
         @Override
         public void configureEngine(SSLEngine engine) {
+            // No TLS configured
         }
     };
     public abstract void configureEngine(SSLEngine engine);

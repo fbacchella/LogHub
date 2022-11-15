@@ -10,15 +10,15 @@ import io.netty.handler.codec.http.HttpResponse;
 
 public abstract class HttpFilter extends HttpHandler {
 
-    public HttpFilter() {
+    protected HttpFilter() {
         super(false);
     }
 
-    public HttpFilter(Predicate<String> urlFilter) {
+    protected HttpFilter(Predicate<String> urlFilter) {
         super(false, urlFilter);
     }
 
-    public HttpFilter(Predicate<String> urlFilter, String... method) {
+    protected HttpFilter(Predicate<String> urlFilter, String... method) {
         super(false, urlFilter, method);
     }
 

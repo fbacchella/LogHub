@@ -40,8 +40,6 @@ import loghub.events.Event;
 import loghub.events.EventsFactory;
 import lombok.Getter;
 
-import loghub.events.EventsFactory;
-
 /**
  * Evaluate groovy expressions.
  * <p>

@@ -64,10 +64,7 @@ public abstract class Processor {
         if( failure != null && ! failure.configure(properties)) {
             return false;
         }
-        if (exception != null && ! exception.configure(properties)) {
-            return false;
-        }
-        return true;
+        return exception == null || exception.configure(properties);
     }
 
     public abstract boolean process(Event event) throws ProcessorException;
@@ -107,11 +104,11 @@ public abstract class Processor {
     }
 
     public boolean isprocessNeeded(Event event) throws ProcessorException {
-        if(ifexpression == null) {
+        if (ifexpression == null) {
             return true;
         } else {
             Object status = ifexpression.eval(event);
-            if(status == null) {
+            if (status == null) {
                 return false;
             } else if (status instanceof Boolean) {
                 return ((Boolean) status);

@@ -2,11 +2,10 @@ package loghub.netty;
 
 import java.util.List;
 
-import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelHandler.Sharable;
+import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.MessageToMessageDecoder;
 import io.netty.util.ReferenceCounted;
-import loghub.receivers.Receiver;
 
 @Sharable
 public class ContextExtractor<R extends NettyReceiver<R, SM, B>, SM, B extends NettyReceiver.Builder<R, SM, B>> extends MessageToMessageDecoder<SM> {

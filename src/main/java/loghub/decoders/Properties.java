@@ -8,7 +8,7 @@ import loghub.jackson.JacksonBuilder;
 import lombok.Setter;
 
 @BuilderClass(Properties.Builder.class)
-public class Properties extends AbstractStringJackson<Properties.Builder> {
+public class Properties extends AbstractStringJackson<Properties.Builder, JavaPropsMapper> {
 
     public static class Builder extends AbstractStringJackson.Builder<Properties> {
        @Setter
@@ -35,7 +35,7 @@ public class Properties extends AbstractStringJackson<Properties.Builder> {
     }
 
     @Override
-    protected JacksonBuilder<?> getReaderBuilder(Builder builder) {
+    protected JacksonBuilder<JavaPropsMapper> getReaderBuilder(Builder builder) {
         JavaPropsSchema schema = JavaPropsSchema.emptySchema();
         schema = schema.withPathSeparator(builder.pathSeparator);
         schema = schema.withKeyValueSeparator(builder.keyValueSeparator);

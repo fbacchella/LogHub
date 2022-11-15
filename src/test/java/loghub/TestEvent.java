@@ -51,7 +51,7 @@ public class TestEvent {
     }
 
     @Test
-    public void TestPath() throws ProcessorException {
+    public void TestPath() {
         Event e = factory.newEvent();
         e.setTimestamp(new Date(0));
         e.applyAtPath(Action.PUT, VariablePath.of(new String[]{"a", "b", "c"}), 1, true);
@@ -99,7 +99,7 @@ public class TestEvent {
             loop++;
             if (ep.process(e, processor) != ProcessingStatus.CONTINUE) {
                 break;
-            };
+            }
             Assert.assertTrue("Not counting processing", e.processingDone() > numsteps);
             Assert.assertTrue("Not stopping processing", e.processingDone() <= props.maxSteps);
             Assert.assertTrue("Not stopping processing", e.processingDone() <= loop);

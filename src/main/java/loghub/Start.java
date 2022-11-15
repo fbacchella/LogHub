@@ -18,7 +18,6 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Timer;
-import java.util.concurrent.ExecutionException;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -555,7 +554,7 @@ public class Start {
             JmxService.stop();
             if (dumpstats) {
                 long endtime = System.nanoTime();
-                double runtime = ((double)(endtime - starttime)) / 1.0e9;
+                double runtime = ((endtime - starttime)) / 1.0e9;
                 System.out.format("Received: %.2f/s%n", Stats.getReceived() / runtime);
                 System.out.format("Dropped: %.2f/s%n", Stats.getDropped() / runtime);
                 System.out.format("Sent: %.2f/s%n", Stats.getSent() / runtime);

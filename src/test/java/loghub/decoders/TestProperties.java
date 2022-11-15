@@ -26,7 +26,6 @@ public class TestProperties {
 
     private static Logger logger;
 
-
     @BeforeClass
     static public void configure() throws IOException {
         Tools.configure();

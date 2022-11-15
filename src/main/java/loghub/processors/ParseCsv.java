@@ -29,7 +29,7 @@ public class ParseCsv extends FieldsProcessor {
     @Override
     public boolean configure(Properties properties) {
         CsvSchema.Builder sbuilder = CsvSchema.builder();
-        Arrays.stream(columns).forEach(i -> sbuilder.addColumn(i.toString()));
+        Arrays.stream(columns).forEach(i -> sbuilder.addColumn(i));
         sbuilder.setColumnSeparator(separator);
         sbuilder.setNullValue(nullValue);
 
@@ -51,7 +51,7 @@ public class ParseCsv extends FieldsProcessor {
                     throws ProcessorException {
         try {
             Map<?, ?> map = reader.readValue(value.toString());
-            map.entrySet().stream().forEach( (i) -> event.put(i.getKey().toString(), i.getValue()));
+            map.entrySet().stream().forEach(i -> event.put(i.getKey().toString(), i.getValue()));
             return FieldsProcessor.RUNSTATUS.NOSTORE;
         } catch (IOException e) {
             throw event.buildException("failed to parse csv " + value, e);

@@ -18,19 +18,19 @@ import loghub.senders.Sender;
 
 public interface SenderMBean {
     
-    public long getCount();
-    public long getBytes();
-    public long getFailed();
-    public long getExceptions();
-    public long getErrors();
-    public long getWaitingBatches();
-    public long getActiveBatches();
-    public long getDoneBatches();
-    public double getFlushDurationMedian();
-    public double getFlushDuration95();
-    public int getQueueSize();
+    long getCount();
+    long getBytes();
+    long getFailed();
+    long getExceptions();
+    long getErrors();
+    long getWaitingBatches();
+    long getActiveBatches();
+    long getDoneBatches();
+    double getFlushDurationMedian();
+    double getFlushDuration95();
+    int getQueueSize();
 
-    public class Implementation extends StandardMBean implements SenderMBean {
+    class Implementation extends StandardMBean implements SenderMBean {
 
         private final Sender s;
         private final Meter sent;
