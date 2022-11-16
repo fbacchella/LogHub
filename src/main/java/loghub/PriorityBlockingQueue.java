@@ -71,7 +71,7 @@ public class PriorityBlockingQueue extends AbstractQueue<Event>
     private final Lock backpressureReadLock = backpressureLock.readLock();
     private final Lock backpressureWriteLock = backpressureLock.readLock();
     // The injection thread that will process asynchronously injected events.
-    private final ExecutorService asyncInjectors = Executors.newSingleThreadExecutor(r -> ThreadBuilder.get().setName("AsyncInternalInjector").setDaemon(false).build());
+    private final ExecutorService asyncInjectors = Executors.newSingleThreadExecutor(this::getExecutorThread);
 
     @Getter
     private final int weight;
@@ -589,4 +589,11 @@ public class PriorityBlockingQueue extends AbstractQueue<Event>
         QueueElement apply(BlockingQueue<QueueElement> queue) throws InterruptedException ;
     }
 
+    private Thread getExecutorThread(Runnable r) {
+        return ThreadBuilder.get()
+                            .setName("AsyncInternalInjector")
+                            .setDaemon(false)
+                            .setTask(r)
+                            .build();
+    }
 }
