@@ -116,7 +116,7 @@ public class BeansManager {
             Constructor<T> c;
             if (clazz == Integer.TYPE || Integer.class.equals(clazz)) {
                 return (T) Integer.valueOf(value);
-            } else if (clazz == Double.TYPE || Integer.class.equals(clazz)) {
+            } else if (clazz == Double.TYPE || Double.class.equals(clazz)) {
                 return (T) Double.valueOf(value);
             } else if (clazz == Float.TYPE || Float.class.equals(clazz)) {
                 return (T) Float.valueOf(value);
