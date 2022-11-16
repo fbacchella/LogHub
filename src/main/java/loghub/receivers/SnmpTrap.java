@@ -51,6 +51,7 @@ import loghub.BuilderClass;
 import loghub.ConnectionContext;
 import loghub.Helpers;
 import loghub.IpConnectionContext;
+import loghub.Start;
 import loghub.configuration.Properties;
 import loghub.metrics.Stats;
 import loghub.snmp.Log4j2LogFactory;
@@ -104,31 +105,46 @@ public class SnmpTrap extends Receiver<SnmpTrap, SnmpTrap.Builder> implements Co
 
     private static OIDFormatter formatter = null;
 
+    private final Snmp snmp;
     @Getter
-    private final PROTOCOL protocol;
-    @Getter
-    private final int port;
-    @Getter
-    private final String listen;
-
-    private Snmp snmp;
-    private final ThreadPool threadPool;
+    private final String receiverName;
 
     protected SnmpTrap(Builder builder) {
         super(builder);
-        this.protocol = builder.protocol;
-        this.port = builder.port;
-        this.listen = builder.listen;
-        this.threadPool = ThreadPool.create("Trap", builder.worker);
+        ThreadPool threadPool = ThreadPool.create("Trap", builder.worker);
+        MultiThreadedMessageDispatcher dispatcher = new MultiThreadedMessageDispatcher(threadPool, new MessageDispatcherImpl());
+        dispatcher.addCommandResponder(this);
+        dispatcher.addMessageProcessingModel(new MPv1());
+        dispatcher.addMessageProcessingModel(new MPv2c());
+        Address listenAddress = GenericAddress.parse(builder.protocol + ":" + builder.listen + "/" + builder.port);
+        TransportMapping<?> transport;
+        try {
+            switch (builder.protocol) {
+            case udp:
+                transport = new DefaultUdpTransportMapping((UdpAddress) listenAddress);
+                break;
+            case tcp:
+                transport = new DefaultTcpTransportMapping((TcpAddress) listenAddress);
+                break;
+            default:
+                throw new IllegalArgumentException("Unhandled protocol: " + builder.protocol);
+            }
+            transport.addTransportListener(this::doStats);
+            snmp = new Snmp(dispatcher, transport);
+        } catch (IOException ex) {
+            throw new IllegalArgumentException("can't bind to " + listenAddress + ": " + Helpers.resolveThrowableException(ex), ex);
+        }
+        receiverName = "SnmpTrap/" + builder.protocol + "/" + Helpers.ListenString(builder.listen) + "/" + builder.port;
     }
 
     private static synchronized void reconfigure(Logger logger, Properties properties) {
         if (formatter == null && properties.containsKey("mibdirs")) {
+            Object mibdirsProperty = properties.get("mibdirs");
             try {
-                String[] mibdirs = Arrays.stream((Object[]) properties.get("mibdirs")).map(Object::toString).toArray(String[]::new);
+                String[] mibdirs = Arrays.stream((Object[]) mibdirsProperty).map(Object::toString).toArray(String[]::new);
                 formatter = OIDFormatter.register(mibdirs);
             } catch (ClassCastException e) {
-                logger.error("mibdirs property is not an array {}", e.getMessage());
+                logger.error("mibdirs property is not an array, but {}", mibdirsProperty.getClass());
                 logger.catching(Level.DEBUG, e.getCause());
             }
         } else if (formatter == null) {
@@ -143,31 +159,6 @@ public class SnmpTrap extends Receiver<SnmpTrap, SnmpTrap.Builder> implements Co
     @Override
     public boolean configure(Properties properties) {
         reconfigure(logger, properties);
-        MultiThreadedMessageDispatcher dispatcher = new MultiThreadedMessageDispatcher(threadPool,
-                                                                                       new MessageDispatcherImpl());
-        dispatcher.addCommandResponder(this);
-        dispatcher.addMessageProcessingModel(new MPv1());
-        dispatcher.addMessageProcessingModel(new MPv2c());
-        Address listenAddress = GenericAddress.parse(protocol + ":" + listen + "/" + port);
-        TransportMapping<?> transport;
-        try {
-            switch (protocol) {
-                case udp:
-                    transport = new DefaultUdpTransportMapping((UdpAddress) listenAddress);
-                    break;
-                case tcp:
-                    transport = new DefaultTcpTransportMapping((TcpAddress) listenAddress);
-                    break;
-                default:
-                    // unreachable code
-                    return false;
-            }
-        } catch (IOException e) {
-            logger.error("can't bind to {}: {}", listenAddress, e.getMessage());
-            return false;
-        }
-        transport.addTransportListener(this::doStats);
-        snmp = new Snmp(dispatcher, transport);
         try {
             snmp.listen();
         } catch (IOException e) {
@@ -183,24 +174,18 @@ public class SnmpTrap extends Receiver<SnmpTrap, SnmpTrap.Builder> implements Co
     }
 
     @Override
-    public void run() {
-        try {
-            synchronized(snmp) {
-                snmp.wait();
-            }
-        } catch (InterruptedException e) {
-            close();
-            Thread.currentThread().interrupt();
-        }
+    public void stopReceiving() {
+        close();
+        super.stopReceiving();
     }
 
     @Override
     public void close() {
         try {
             snmp.close();
-        } catch (IOException e1) {
-            logger.error("Failure on snmp close: {}", () -> e1);
-            logger.catching(e1);
+        } catch (IOException ex) {
+            logger.error("Failure on snmp close: {}", () -> Helpers.resolveThrowableException(ex));
+            logger.catching(Level.DEBUG, ex);
         }
         super.close();
     }
@@ -243,14 +228,19 @@ public class SnmpTrap extends Receiver<SnmpTrap, SnmpTrap.Builder> implements Co
             // If SNMPv2c, try to save the community as a principal
             if (trap.getMessageProcessingModel() == MessageProcessingModel.MPv2c) {
                 Optional.ofNullable(trap.getSecurityName())
-                .filter( i -> i.length > 0)
-                .map(i -> new String(i, StandardCharsets.UTF_8))
-                .map(n -> (Principal) () -> n)
-                .ifPresent(ctx::setPrincipal);
+                        .filter( i -> i.length > 0)
+                        .map(i -> new String(i, StandardCharsets.UTF_8))
+                        .map(n -> (Principal) () -> n)
+                        .ifPresent(ctx::setPrincipal);
             }
             send(mapToEvent(ctx, eventMap));
         } catch (RuntimeException ex) {
             Stats.newUnhandledException(this, ex);
+        } catch (Error ex) {
+            logger.error("Got a critical error: " + Helpers.resolveThrowableException(ex), ex);
+            if (Helpers.isFatal(ex)) {
+                Start.fatalException(ex);
+            }
         } finally {
             trap.setProcessed(true);
         }
@@ -262,7 +252,7 @@ public class SnmpTrap extends Receiver<SnmpTrap, SnmpTrap.Builder> implements Co
             e.put(oid.format(), value);
         } else if (oidindex.size() == 1) {
             Object indexvalue = oidindex.values().stream().findFirst().orElse(null);
-            // it's an array, so it's a unresolved index
+            // it's an array, so it's an unresolved index
             if (indexvalue != null && indexvalue.getClass().isArray()) {
                 Map<String, Object> valueMap = new HashMap<>(2);
                 valueMap.put("index", indexvalue);
@@ -314,6 +304,7 @@ public class SnmpTrap extends Receiver<SnmpTrap, SnmpTrap.Builder> implements Co
             }
             case BER.IPADDRESS:
                 return ((IpAddress)variable).getInetAddress();
+            case BER.COUNTER64:
             case BER.COUNTER32:
             case BER.GAUGE32:
                 return variable.toLong();
@@ -321,8 +312,6 @@ public class SnmpTrap extends Receiver<SnmpTrap, SnmpTrap.Builder> implements Co
                 return 1.0 * ((TimeTicks)variable).toMilliseconds() / 1000.0;
             case BER.OPAQUE:
                 return resolvOpaque((Opaque) variable);
-            case BER.COUNTER64:
-                return variable.toLong();
             default:
                 if (variable instanceof UnsignedInteger32) {
                     return variable.toLong();
@@ -356,14 +345,9 @@ public class SnmpTrap extends Receiver<SnmpTrap, SnmpTrap.Builder> implements Co
                 }
             }
         } catch (IOException e) {
-            logger.error(variable.toString());
+            logger.error("Unable to parse opaque SNMP variable {}", variable::toString);
         }
         return value;
-    }
-
-    @Override
-    public String getReceiverName() {
-        return "SnmpTrap/" + Helpers.ListenString(listen) + "/" + getPort();
     }
 
 }
