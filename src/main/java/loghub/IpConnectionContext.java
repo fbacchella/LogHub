@@ -6,6 +6,10 @@ import javax.net.ssl.SSLSession;
 
 public class IpConnectionContext extends ConnectionContext<InetSocketAddress> {
 
+    static {
+        FastExternalizeObject.registerImmutable(IpConnectionContext.class);
+    }
+
     private final InetSocketAddress remoteaddr;
     private final InetSocketAddress localaddr;
     private final SSLSession session;

@@ -14,9 +14,12 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 
 import loghub.events.EventsFactory;
@@ -37,11 +40,13 @@ public class FastExternalizeObject {
         STRING,
         DATE,
         INSTANT,
-        MAP,
+        LINKEDMAP,
+        HASHMAP,
         LIST,
         EMPTY_CONTEXT,
         INETSOCKETADDRESS,
         INEDADDRESS,
+        IMMUTABLE,
         FASTER,
         OTHER,
     }
@@ -60,6 +65,11 @@ public class FastExternalizeObject {
 
         private Map readMap() throws IOException, ClassNotFoundException {
             Map<Object, Object> map = new HashMap<>();
+            return readMap(map);
+        }
+
+        private Map readLinkedMap() throws IOException, ClassNotFoundException {
+            Map<Object, Object> map = new LinkedHashMap<>();
             return readMap(map);
         }
 
@@ -107,10 +117,13 @@ public class FastExternalizeObject {
             case INEDADDRESS:
             case INETSOCKETADDRESS:
             case INSTANT:
+            case IMMUTABLE:
                 return readReference();
             case DATE:
                 return new Date(readLong());
-            case MAP:
+            case LINKEDMAP:
+                return readLinkedMap();
+            case HASHMAP:
                 return readMap();
             case LIST:
                 return readList();
@@ -124,9 +137,22 @@ public class FastExternalizeObject {
             }
         }
 
-        private Object readReference() throws IOException {
+        private <T> T readReference() throws IOException {
             long ref = readLong();
-            return out.immutableObjectsCache.remove(ref);
+            return (T) out.immutableObjectsCache.remove(ref);
+        }
+
+        @Override
+        public String readUTF() throws IOException {
+            return readReference();
+        }
+
+        @Override
+        public void close() throws IOException {
+            if (! out.immutableObjectsCache.isEmpty()) {
+                throw new IllegalStateException("Lost immutable objects: " + out.immutableObjectsCache);
+            }
+            super.close();
         }
 
     }
@@ -198,24 +224,34 @@ public class FastExternalizeObject {
                 write(TYPE.CHAR.ordinal());
                 writeChar((Character) o);
             } else if (o instanceof String) {
-                writeReference(TYPE.STRING, o);
+                write(TYPE.STRING.ordinal());
+                writeReference(o);
             } else if (o instanceof InetSocketAddress) {
-                writeReference(TYPE.INETSOCKETADDRESS, o);
+                write(TYPE.INETSOCKETADDRESS.ordinal());
+                writeReference(o);
             } else if (o instanceof InetAddress) {
-                writeReference(TYPE.INEDADDRESS, o);
+                write(TYPE.INEDADDRESS.ordinal());
+                writeReference(o);
             } else if (o instanceof Date) {
                 write(TYPE.DATE.ordinal());
                 writeLong(((Date)o).getTime());
             } else if (o instanceof Instant) {
-                writeReference(TYPE.INSTANT, o);
+                write(TYPE.INSTANT.ordinal());
+                writeReference(o);
+            } else if (o instanceof LinkedHashMap) {
+                write(TYPE.LINKEDMAP.ordinal());
+                writeMap((Map<Object, Object>) o);
             } else if (o instanceof HashMap) {
-                write(TYPE.MAP.ordinal());
+                write(TYPE.HASHMAP.ordinal());
                 writeMap((Map<Object, Object>) o);
             } else if (o instanceof ArrayList || o instanceof LinkedList) {
                 write(TYPE.LIST.ordinal());
                 writeList((List<Object>) o);
             } else if (ConnectionContext.EMPTY.equals(o)) {
                 write(TYPE.EMPTY_CONTEXT.ordinal());
+            } else if (immutable.contains(o.getClass())) {
+                write(TYPE.IMMUTABLE.ordinal());
+                writeReference(o);
             } else if (faster.containsKey(o.getClass())) {
                 write(TYPE.FASTER.ordinal());
                 Class<? extends ObjectFaster<?>> clazz = faster.get(o.getClass());
@@ -232,8 +268,12 @@ public class FastExternalizeObject {
             }
         }
 
-        private void writeReference(TYPE type, Object o) throws IOException {
-            write(type.ordinal());
+        @Override
+        public void writeUTF(String str) throws IOException {
+            writeReference(str);
+        }
+
+        private void writeReference(Object o) throws IOException {
             long currentRef = ref.getAndIncrement();
             writeLong(currentRef);
             immutableObjectsCache.put(currentRef, o);
@@ -262,9 +302,13 @@ public class FastExternalizeObject {
     }
 
     private static final Map<Class<?>, Class<? extends ObjectFaster<?>>> faster = new HashMap<>();
+    private static final Set<Class<?>> immutable = new HashSet<>();
 
     public static <T> void register(Class<T> clazz, Class<? extends ObjectFaster<T>> of) {
         faster.put(clazz, of);
+    }
+    public static void registerImmutable(Class<?> clazz) {
+        immutable.add(clazz);
     }
     private FastExternalizeObject() {
         // Not instantiable class
