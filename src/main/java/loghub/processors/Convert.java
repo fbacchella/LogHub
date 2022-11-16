@@ -94,6 +94,9 @@ public class Convert extends FieldsProcessor {
                 case "java.lang.Double":
                     o = Double.valueOf(valueStr);
                     break;
+                case "java.lang.Boolean":
+                    o = Boolean.valueOf(valueStr);
+                    break;
                 default:
                     o = BeansManager.constructFromString(clazz, valueStr);
                     break;
