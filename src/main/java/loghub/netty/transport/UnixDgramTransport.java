@@ -4,7 +4,6 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.unix.DomainDatagramPacket;
 import io.netty.channel.unix.DomainSocketAddress;
 import loghub.ConnectionContext;
-import loghub.DomainConnectionContext;
 
 @TransportEnum(TRANSPORT.UNIX_DGRAM)
 public class UnixDgramTransport extends
