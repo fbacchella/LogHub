@@ -233,11 +233,14 @@ public abstract class Sender extends Thread implements Closeable {
             Batch currentBatch = batch.getAndSet(null);
             if (currentBatch != null) {
                 // If null, someone is working on it, nothing to do
-                long now =  System.currentTimeMillis();
+                long now = System.currentTimeMillis();
                 if ((now - lastFlush) > flushInterval) {
                     batch.set(new Batch(this));
                     batches.add(currentBatch);
                     lastFlush = now;
+                } else {
+                    // Not flushing, put it back
+                    batch.set(currentBatch);
                 }
             }
         } catch (IllegalStateException e) {
