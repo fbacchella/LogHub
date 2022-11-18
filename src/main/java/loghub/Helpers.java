@@ -382,10 +382,10 @@ public final class Helpers {
         return Pattern.compile(sb.toString());
     }
 
-    public static InetAddress parseIpAddres(String ipstring) throws UnknownHostException{
+    public static InetAddress parseIpAddress(String ip) throws UnknownHostException{
         byte[] parts;
-        if(NetUtil.isValidIpV4Address(ipstring) || NetUtil.isValidIpV6Address(ipstring)) {
-            parts = NetUtil.createByteArrayFromIpAddressString(ipstring);
+        if (NetUtil.isValidIpV4Address(ip) || NetUtil.isValidIpV6Address(ip)) {
+            parts = NetUtil.createByteArrayFromIpAddressString(ip);
             return InetAddress.getByAddress(parts);
         } else {
             return null;

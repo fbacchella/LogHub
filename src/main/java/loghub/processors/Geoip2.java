@@ -136,7 +136,7 @@ public class Geoip2 extends FieldsProcessor {
             ipInfo = (InetAddress) addr;
         } else if (addr instanceof String) {
             try {
-                ipInfo = Helpers.parseIpAddres((String) addr);
+                ipInfo = Helpers.parseIpAddress((String) addr);
                 if (ipInfo == null) {
                     throw event.buildException("can't read IP address " + addr);
                 }

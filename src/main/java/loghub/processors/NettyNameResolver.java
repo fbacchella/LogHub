@@ -220,7 +220,7 @@ public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<Dn
         // If a string was given, convert it to an Inet?Address
         if (addr instanceof String) {
             try {
-                ipaddr = Helpers.parseIpAddres((String) addr);
+                ipaddr = Helpers.parseIpAddress((String) addr);
             } catch (UnknownHostException e) {
                 throw event.buildException("invalid IP address '" + addr + "': " + e.getMessage(), e);
             }
