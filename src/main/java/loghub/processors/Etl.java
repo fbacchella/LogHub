@@ -76,8 +76,9 @@ public abstract class Etl extends Processor {
         }
         @Override
         public boolean configure(Properties properties) {
-            convert = new loghub.processors.Convert();
-            convert.setClassName(className);
+            loghub.processors.Convert.Builder builder = loghub.processors.Convert.getBuilder();
+            builder.setClassName(className);
+            convert = builder.build();
             return convert.configure(properties) && super.configure(properties);
         }
         public String getClassName() {

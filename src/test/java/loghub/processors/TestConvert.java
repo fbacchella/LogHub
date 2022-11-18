@@ -7,6 +7,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
+import java.util.UUID;
 import java.util.function.Function;
 
 import org.apache.logging.log4j.Level;
@@ -16,30 +17,30 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import loghub.events.Event;
 import loghub.LogUtils;
 import loghub.ProcessorException;
 import loghub.Tools;
 import loghub.VariablePath;
 import loghub.configuration.Properties;
+import loghub.events.Event;
 import loghub.events.EventsFactory;
 
 public class TestConvert {
 
-    private static Logger logger;
     private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
     static public void configure() throws IOException {
         Tools.configure();
-        logger = LogManager.getLogger();
+        Logger logger = LogManager.getLogger();
         LogUtils.setLevel(logger, Level.TRACE, "loghub.processors.SyslogPriority");
     }
     
     private void check(String className, Class<?> reference, Object invalue, Object outvalue) throws ProcessorException {
-        Convert cv = new Convert();
-        cv.setField(VariablePath.of("message"));
-        cv.setClassName(className);
+        Convert.Builder builder = Convert.getBuilder();
+        builder.setField(VariablePath.of("message"));
+        builder.setClassName(className);
+        Convert cv = builder.build();
 
         Properties props = new Properties(Collections.emptyMap());
 
@@ -48,6 +49,7 @@ public class TestConvert {
         Event e = factory.newEvent();
         e.put("message",invalue);
         e.process(cv);
+        System.out.println(e);
         Assert.assertTrue(reference.isAssignableFrom(e.get("message").getClass()));
         Assert.assertTrue(e.get("message").getClass().isAssignableFrom(reference));
         Assert.assertEquals(outvalue, e.get("message"));
@@ -72,6 +74,8 @@ public class TestConvert {
         check("java.lang.Long", Long.class, "38", (long) 38);
         check("java.lang.Double", Double.class, "38", (double) 38);
         check("java.lang.Float", Float.class, "38", (float) 38);
+        check("java.net.InetAddress", java.net.Inet4Address.class, "127.0.0.1", InetAddress.getByName("127.0.0.1"));
+        check("java.net.InetAddress", java.net.Inet6Address.class, "::1", InetAddress.getByName("::1"));
     }
 
     @Test
@@ -83,20 +87,22 @@ public class TestConvert {
         check("java.lang.Double", Double.class, generate(b -> b.putDouble(38)), (double) 38);
         check("java.lang.Float", Float.class, generate(b -> b.putFloat((float)38)), (float) 38);
         check("java.lang.String", String.class, "message with éèœ".getBytes(StandardCharsets.UTF_8), "message with éèœ");
+        check("java.net.InetAddress", java.net.Inet4Address.class, InetAddress.getByName("127.0.0.1").getAddress(), InetAddress.getByName("127.0.0.1"));
+        check("java.net.InetAddress", java.net.Inet6Address.class, InetAddress.getByName("::1").getAddress(), InetAddress.getByName("::1"));
     }
 
     @Test(expected=loghub.ProcessorException.class)
     public void TestInvalid() throws ProcessorException, UnknownHostException {
-        check("java.net.InetAddress", java.net.InetAddress.class, "127.0.0.1", InetAddress.getByName("127.0.0.1"));
+        check("java.util.UUID", UUID.class, "127.0.0.1", InetAddress.getByName("127.0.0.1"));
     }
 
     @Test(expected=loghub.ProcessorException.class)
-    public void TestInvalidNumber() throws ProcessorException, UnknownHostException {
+    public void TestInvalidNumber() throws ProcessorException {
         check("java.lang.Integer", java.lang.Integer.class, "a", "");
     }
 
     @Test(expected=loghub.ProcessorException.class)
-    public void TestBufferTooSmall() throws ProcessorException, UnknownHostException {
+    public void TestBufferTooSmall() throws ProcessorException {
         check("java.lang.Double", Double.class, generate(4, b -> b.putFloat((float)38)), (double) 38);
     }
 

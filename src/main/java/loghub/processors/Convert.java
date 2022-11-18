@@ -1,57 +1,101 @@
 package loghub.processors;
 
 import java.lang.reflect.InvocationTargetException;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import java.util.Locale;
+import java.util.Optional;
 
-import loghub.events.Event;
+import loghub.BuilderClass;
+import loghub.Helpers;
 import loghub.ProcessorException;
 import loghub.configuration.BeansManager;
 import loghub.configuration.Properties;
+import loghub.events.Event;
+import lombok.Setter;
 
 /**
  * A processor that take a String field and transform it to any object that can
  * take a String as a constructor.
- * 
  * It uses the custom class loader.
  * 
  * @author Fabrice Bacchella
  *
  */
 @FieldsProcessor.ProcessNullField
+@BuilderClass(Convert.Builder.class)
 public class Convert extends FieldsProcessor {
 
-    private String className = "java.lang.String";
-    private String charset = null;
-    private Charset effectiveCharset = StandardCharsets.UTF_8;
+    public static class Builder extends FieldsProcessor.Builder<Convert> {
+        @Setter
+        private String className = "java.lang.String";
+        @Setter
+        private String charset = null;
+        @Setter
+        private String byteOrder = "NATIVE";
+        public Convert build() {
+            return new Convert(this);
+        }
+    }
+    public static Convert.Builder getBuilder() {
+        return new Convert.Builder();
+    }
+
+    private final String className;
+    private final Charset charset;
     private Class<?> clazz;
-    private String byteOrder = null;
-    private ByteOrder effectiveByteOrder = ByteOrder.nativeOrder();
+    private final ByteOrder byteOrder;
+
+    private Convert(Builder builder) {
+        super(builder);
+        charset = Optional.ofNullable(builder.charset).map(Charset::forName).orElse(StandardCharsets.UTF_8);
+        switch (builder.byteOrder) {
+        case "BIG_ENDIAN":
+            byteOrder = ByteOrder.BIG_ENDIAN;
+            break;
+        case "LITTLE_ENDIAN":
+            byteOrder = ByteOrder.LITTLE_ENDIAN;
+            break;
+        default:
+            byteOrder = ByteOrder.nativeOrder();
+        }
+        className = builder.className;
+    }
 
     @Override
     public Object fieldFunction(Event event, Object value) throws ProcessorException {
         if (value == null) {
             return null;
         } else if (value instanceof byte[] && "java.lang.String".equals(className)) {
-            return new String((byte[]) value, effectiveCharset);
+            return new String((byte[]) value, charset);
+        } else if (value instanceof byte[] && "java.net.InetAddress".equals(className)) {
+            try {
+                return InetAddress.getByAddress((byte[]) value);
+            } catch (UnknownHostException ex) {
+                logger.debug("Failed to parse IP address {}", () -> Helpers.resolveThrowableException(ex));
+                throw event.buildException("Failed to parse IP address", ex);
+            }
         } else if (value instanceof byte[]) {
             try {
                 ByteBuffer buffer = ByteBuffer.wrap((byte[]) value);
-                buffer.order(effectiveByteOrder);
+                buffer.order(byteOrder);
                 Object o;
                 switch(className) {
-                case "java.lang.Integer":
-                    o = buffer.getInt();
+                case "java.lang.Character":
+                    o = buffer.getChar();
                     break;
                 case "java.lang.Byte" :
                     o = buffer.get();
                     break;
                 case "java.lang.Short":
                     o = buffer.getShort();
+                    break;
+                case "java.lang.Integer":
+                    o = buffer.getInt();
                     break;
                 case "java.lang.Long":
                     o = buffer.getLong();
@@ -75,7 +119,7 @@ public class Convert extends FieldsProcessor {
             String valueStr = value.toString();
             try {
                 Object o;
-                switch(className) {
+                switch (className) {
                 case "java.lang.Integer":
                     o = Integer.valueOf(valueStr);
                     break;
@@ -97,17 +141,18 @@ public class Convert extends FieldsProcessor {
                 case "java.lang.Boolean":
                     o = Boolean.valueOf(valueStr);
                     break;
+                case "java.net.InetAddress":
+                    o = InetAddress.getByName(valueStr);
+                    break;
                 default:
                     o = BeansManager.constructFromString(clazz, valueStr);
                     break;
                 }
                 return o;
-            } catch (NumberFormatException e) {
-                logger.debug(() -> "Failed to parsed event " + event, e);
-                throw event.buildException("Unable to parse \""+ valueStr +"\" as a " + className);
-            } catch (InvocationTargetException e) {
-                logger.debug(() -> "Failed to parsed event " + event, e);
-                throw event.buildException("Unable to parse \""+ valueStr +"\" as a " + className, (Exception)e.getCause());
+            } catch (NumberFormatException | InvocationTargetException | UnknownHostException ex) {
+                ex.printStackTrace();
+                logger.debug(() -> "Failed to parsed event " + event, ex);
+                throw event.buildException("Unable to parse \""+ valueStr +"\" as a " + className + ": " + Helpers.resolveThrowableException(ex));
             }
         }
     }
@@ -120,31 +165,7 @@ public class Convert extends FieldsProcessor {
             logger.error("class not found: {}", className);
             return false;
         }
-        if (charset != null) {
-            effectiveCharset = Charset.forName(charset);
-        }
-        if (byteOrder != null) {
-            switch (byteOrder.toUpperCase(Locale.ENGLISH)) {
-                case "BIG_ENDIAN":
-                    effectiveByteOrder = ByteOrder.BIG_ENDIAN;
-                    break;
-                case "LITTLE_ENDIAN":
-                    effectiveByteOrder = ByteOrder.LITTLE_ENDIAN;
-                    break;
-            }
-        }
         return super.configure(properties);
-    }
-
-    /**
-     * @return the field
-     */
-    public String getClassName() {
-        return className;
-    }
-
-    public void setClassName(String className) {
-        this.className = className;
     }
 
 }
