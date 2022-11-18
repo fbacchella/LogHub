@@ -7,11 +7,16 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.io.UncheckedIOException;
+import java.lang.reflect.Array;
 import java.lang.reflect.InvocationTargetException;
+import java.net.Inet4Address;
+import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -31,20 +36,21 @@ public class FastExternalizeObject {
         NULL,
         TRUE,
         FALSE,
+        BOOLEAN,
         BYTE,
+        SHORT,
         INT,
         LONG,
         FLOAT,
         DOUBLE,
         CHAR,
-        STRING,
         DATE,
-        INSTANT,
+        ARRAY,
         LINKEDMAP,
         HASHMAP,
         LIST,
         EMPTY_CONTEXT,
-        INETSOCKETADDRESS,
+        SOCKETADDRESS,
         INEDADDRESS,
         IMMUTABLE,
         FASTER,
@@ -113,14 +119,14 @@ public class FastExternalizeObject {
                 return readDouble();
             case CHAR:
                 return readChar();
-            case STRING:
-            case INEDADDRESS:
-            case INETSOCKETADDRESS:
-            case INSTANT:
-            case IMMUTABLE:
-                return readReference();
             case DATE:
                 return new Date(readLong());
+            case INEDADDRESS:
+            case SOCKETADDRESS:
+            case IMMUTABLE:
+                return readReference();
+            case ARRAY:
+                return readArray();
             case LINKEDMAP:
                 return readLinkedMap();
             case HASHMAP:
@@ -145,6 +151,15 @@ public class FastExternalizeObject {
         @Override
         public String readUTF() throws IOException {
             return readReference();
+        }
+
+        public Object readArray() throws IOException, ClassNotFoundException {
+            int length = readInt();
+            Object array = readReference();
+            for (int i = 0; i < length; i++) {
+                Array.set(array, i, readObjectFast());
+            }
+            return array;
         }
 
         @Override
@@ -208,6 +223,9 @@ public class FastExternalizeObject {
             } else if (o instanceof Byte) {
                 write(TYPE.BYTE.ordinal());
                 writeByte((Byte) o);
+            } else if (o instanceof Short) {
+                write(TYPE.SHORT.ordinal());
+                writeShort((Short) o);
             } else if (o instanceof Integer) {
                 write(TYPE.INT.ordinal());
                 writeInt((Integer) o);
@@ -223,11 +241,8 @@ public class FastExternalizeObject {
             } else if (o instanceof Character) {
                 write(TYPE.CHAR.ordinal());
                 writeChar((Character) o);
-            } else if (o instanceof String) {
-                write(TYPE.STRING.ordinal());
-                writeReference(o);
-            } else if (o instanceof InetSocketAddress) {
-                write(TYPE.INETSOCKETADDRESS.ordinal());
+            } else if (o instanceof SocketAddress) {
+                write(TYPE.SOCKETADDRESS.ordinal());
                 writeReference(o);
             } else if (o instanceof InetAddress) {
                 write(TYPE.INEDADDRESS.ordinal());
@@ -235,21 +250,10 @@ public class FastExternalizeObject {
             } else if (o instanceof Date) {
                 write(TYPE.DATE.ordinal());
                 writeLong(((Date)o).getTime());
-            } else if (o instanceof Instant) {
-                write(TYPE.INSTANT.ordinal());
+            } else if (o.getClass().getClass().isEnum()) {
+                write(TYPE.IMMUTABLE.ordinal());
                 writeReference(o);
-            } else if (o instanceof LinkedHashMap) {
-                write(TYPE.LINKEDMAP.ordinal());
-                writeMap((Map<Object, Object>) o);
-            } else if (o instanceof HashMap) {
-                write(TYPE.HASHMAP.ordinal());
-                writeMap((Map<Object, Object>) o);
-            } else if (o instanceof ArrayList || o instanceof LinkedList) {
-                write(TYPE.LIST.ordinal());
-                writeList((List<Object>) o);
-            } else if (ConnectionContext.EMPTY.equals(o)) {
-                write(TYPE.EMPTY_CONTEXT.ordinal());
-            } else if (immutable.contains(o.getClass())) {
+            } else if (immutables.contains(o.getClass())) {
                 write(TYPE.IMMUTABLE.ordinal());
                 writeReference(o);
             } else if (faster.containsKey(o.getClass())) {
@@ -262,9 +266,62 @@ public class FastExternalizeObject {
                          InvocationTargetException e) {
                     throw new IllegalStateException(e);
                 }
+            } else if (o instanceof LinkedHashMap) {
+                write(TYPE.LINKEDMAP.ordinal());
+                writeMap((Map<Object, Object>) o);
+            } else if (o instanceof HashMap) {
+                write(TYPE.HASHMAP.ordinal());
+                writeMap((Map<Object, Object>) o);
+            } else if (o instanceof ArrayList || o instanceof LinkedList) {
+                write(TYPE.LIST.ordinal());
+                writeList((List<Object>) o);
+            } else if (ConnectionContext.EMPTY.equals(o)) {
+                write(TYPE.EMPTY_CONTEXT.ordinal());
+            } else if (o.getClass().isArray()) {
+                writeArray(o);
             } else {
                 write(TYPE.OTHER.ordinal());
                 writeObject(o);
+            }
+        }
+
+        private void writeArray(Object o) throws IOException {
+            Class component = o.getClass().getComponentType();
+            int length = Array.getLength(o);
+            if (component.isPrimitive()) {
+                write(TYPE.IMMUTABLE.ordinal());
+                if (component == Boolean.TYPE) {
+                    writeReference(Arrays.copyOf((boolean[]) o, length));
+                } else if (component == Byte.TYPE) {
+                    writeReference(Arrays.copyOf((byte[])  o, length));
+                } else if (component == Short.TYPE) {
+                    writeReference(Arrays.copyOf((short[])  o, length));
+                } else if (component == Integer.TYPE) {
+                    writeReference(Arrays.copyOf((int[])  o, length));
+                } else if (component == Long.TYPE) {
+                    writeReference(Arrays.copyOf((long[])  o, length));
+                } else if (component == Float.TYPE) {
+                    writeReference(Arrays.copyOf((float[])  o, length));
+                } else if (component == Double.TYPE) {
+                    writeReference(Arrays.copyOf((double[])  o, length));
+                } else if (component == Character.TYPE) {
+                    writeReference(Arrays.copyOf((char[])  o, length));
+                }
+            } else if (SocketAddress.class.isAssignableFrom(component)
+                       || component.isEnum()
+                       || immutables.contains(component)){
+                // Explicit handling because DomainSocketAddress is not yet know to Java 11
+                // So it can not be explicitly added to the immutables Set
+                write(TYPE.IMMUTABLE.ordinal());
+                writeReference(Arrays.copyOf((Object[]) o, length));
+             } else {
+                write(TYPE.ARRAY.ordinal());
+                // A generic array, not trying to be smart, as there is no easy way to insert a null
+                writeInt(length);
+                writeReference(Array.newInstance(component, length));
+                for (int i = 0; i < length ; i++) {
+                    writeObjectFast(Array.get(o, i));
+                }
             }
         }
 
@@ -302,13 +359,30 @@ public class FastExternalizeObject {
     }
 
     private static final Map<Class<?>, Class<? extends ObjectFaster<?>>> faster = new HashMap<>();
-    private static final Set<Class<?>> immutable = new HashSet<>();
+    private static final Set<Class<?>> immutables = new HashSet<>();
+    static {
+        immutables.add(Instant.class);
+        immutables.add(Character.class);
+        immutables.add(String.class);
+        immutables.add(Boolean.class);
+        immutables.add(Byte.class);
+        immutables.add(Short.class);
+        immutables.add(Integer.class);
+        immutables.add(Long.class);
+        immutables.add(Float.class);
+        immutables.add(Double.class);
+        immutables.add(SocketAddress.class);
+        immutables.add(InetSocketAddress.class);
+        immutables.add(InetAddress.class);
+        immutables.add(Inet4Address.class);
+        immutables.add(Inet6Address.class);
+    }
 
     public static <T> void register(Class<T> clazz, Class<? extends ObjectFaster<T>> of) {
         faster.put(clazz, of);
     }
     public static void registerImmutable(Class<?> clazz) {
-        immutable.add(clazz);
+        immutables.add(clazz);
     }
     private FastExternalizeObject() {
         // Not instantiable class

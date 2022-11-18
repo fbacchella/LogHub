@@ -71,9 +71,15 @@ public class TestFork {
         m.put("list", list);
         InetAddress inetAddress = InetAddress.getByName("8.8.8.8");
         m.put("inetAddress", inetAddress);
+        InetAddress inet6Address = InetAddress.getByName("2001:4860:4860::8888");
+        m.put("inet6Address", inet6Address);
         InetSocketAddress inetSocketAddress = new InetSocketAddress("8.8.8.8", 53);
         m.put("inetSocketAddress", inetSocketAddress);
         event.put("message", m);
+        event.put("arrayBool", new Boolean[]{true, false});
+        event.put("arrayInt", new Integer[]{1, 2});
+        event.put("arrayInstant", new Instant[]{Instant.ofEpochSecond(0)});
+        event.put("uuid", new Instant[]{Instant.ofEpochSecond(0)});
 
         event.putMeta("meta", 1);
         forker.fork(event);
@@ -92,6 +98,10 @@ public class TestFork {
         Assert.assertEquals(ConnectionContext.EMPTY, forked.getConnectionContext());
         Assert.assertEquals(System.identityHashCode(inetAddress), System.identityHashCode(message.get("inetAddress")));
         Assert.assertEquals(System.identityHashCode(inetSocketAddress), System.identityHashCode(message.get("inetSocketAddress")));
+        Assert.assertEquals(System.identityHashCode(inet6Address), System.identityHashCode(message.get("inet6Address")));
+        Assert.assertArrayEquals(new Boolean[]{true, false}, (Boolean[])event.get("arrayBool"));
+        Assert.assertArrayEquals(new Integer[]{1, 2}, (Integer[])event.get("arrayInt"));
+        Assert.assertArrayEquals(new Instant[]{Instant.ofEpochSecond(0)}, (Instant[])event.get("arrayInstant"));
     }
 
     @Test

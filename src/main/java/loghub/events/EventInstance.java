@@ -41,9 +41,9 @@ import loghub.metrics.Stats.PipelineStat;
 
 class EventInstance extends Event {
 
-    private static class EventSerializer extends FastExternalizeObject.ObjectFaster<EventInstance> {
+    public static class EventSerializer extends FastExternalizeObject.ObjectFaster<EventInstance> {
 
-        private EventSerializer(EventInstance event) {
+        public EventSerializer(EventInstance event) {
             super(event);
         }
 
@@ -166,11 +166,11 @@ class EventInstance extends Event {
     public Event duplicate() {
         // FastObjectInputStream
         try (ByteArrayOutputStream bos = new ByteArrayOutputStream(); FastObjectOutputStream oos = new FastObjectOutputStream(bos)) {
-            oos.writeObject(new EventSerializer(this));
+            oos.writeObjectFast(this);
             oos.flush();
             bos.flush();
             try (FastObjectInputStream ois = new FastObjectInputStream(bos.toByteArray(), factory, oos)) {
-                return ((EventSerializer) ois.readObject()).get();
+                return ((EventInstance) ois.readObjectFast());
             }
         } catch (NotSerializableException ex) {
             logger.info("Event copy failed: {}", Helpers.resolveThrowableException(ex));
