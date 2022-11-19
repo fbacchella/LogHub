@@ -7,6 +7,7 @@ import org.codehaus.groovy.runtime.typehandling.NumberMath;
 
 import groovy.lang.DelegatingMetaClass;
 import groovy.lang.MetaClass;
+import groovy.runtime.metaclass.GroovyOperators;
 import loghub.IgnoredEventException;
 import loghub.NullOrMissingValue;
 
@@ -23,7 +24,7 @@ public class NumberMetaClass extends DelegatingMetaClass {
     @Override
     public Object invokeMethod(Object object, String methodName, Object[] arguments) {
         if (arguments.length == 1 && arguments[0] instanceof NullOrMissingValue) {
-            if ("compareTo".equals(methodName)) {
+            if (GroovyOperators.COMPARE_TO.equals(methodName)) {
                 return false;
             } else {
                 throw IgnoredEventException.INSTANCE;
@@ -33,40 +34,40 @@ public class NumberMetaClass extends DelegatingMetaClass {
             Number arg2 = (Number)arguments[0];
             Number value = null;
             switch (methodName) {
-            case "div":
+            case GroovyOperators.DIV:
                 value = NumberMath.divide(arg1, arg2);
                 break;
-            case "multiply":
+            case GroovyOperators.MULTIPLY:
                 value = NumberMath.multiply(arg1, arg2);
                 break;
-            case "xor":
+            case GroovyOperators.XOR:
                 value = NumberMath.xor(arg1, arg2);
                 break;
-            case "leftShift":
+            case GroovyOperators.LEFT_SHIFT:
                 value = NumberMath.leftShift(arg1, arg2);
                 break;
-            case "rightShift":
+            case GroovyOperators.RIGHT_SHIFT:
                 value = NumberMath.rightShift(arg1, arg2);
                 break;
-            case "rightShiftUnsigned":
+            case GroovyOperators.RIGHT_SHIFT_UNSIGNED:
                 value = NumberMath.rightShiftUnsigned(arg1, arg2);
                 break;
-            case "plus":
+            case GroovyOperators.PLUS:
                 value = NumberMath.add(arg1, arg2);
                 break;
-            case "minus":
+            case GroovyOperators.MINUS:
                 value = NumberMath.subtract(arg1, arg2);
                 break;
-            case "and":
+            case GroovyOperators.AND:
                 value = NumberMath.and(arg1, arg2);
                 break;
-            case "or":
+            case GroovyOperators.OR:
                 value = NumberMath.or(arg1, arg2);
                 break;
-            case "mod":
+            case GroovyOperators.MOD:
                 value = NumberMath.mod(arg1, arg2);
                 break;
-            case "power":
+            case GroovyOperators.POWER:
                 value = Double.NaN;
                 BigInteger power = NumberMath.toBigInteger(arg2);
                 if (power.bitLength() < 32) {

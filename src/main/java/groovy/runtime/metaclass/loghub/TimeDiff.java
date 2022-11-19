@@ -7,6 +7,7 @@ import java.util.Date;
 
 import groovy.lang.DelegatingMetaClass;
 import groovy.lang.MetaClass;
+import groovy.runtime.metaclass.GroovyOperators;
 import loghub.IgnoredEventException;
 
 public class TimeDiff extends DelegatingMetaClass {
@@ -23,21 +24,21 @@ public class TimeDiff extends DelegatingMetaClass {
     public Object invokeMethod(Object object, String methodName, Object[] arguments) {
         Temporal arg1 = resolveTime(object);
         Temporal arg2 = arguments.length == 1 ? resolveTime(arguments[0]) : null ;
-        if (("minus".equals(methodName) || "compareTo".equals(methodName)) && arg1 != null && arg2 != null) {
+        if ((GroovyOperators.MINUS.equals(methodName) || GroovyOperators.COMPARE_TO.equals(methodName)) && arg1 != null && arg2 != null) {
             Duration d;
             try {
                 d = Duration.between(arg2, arg1);
             } catch (DateTimeException e) {
                 throw IgnoredEventException.INSTANCE;
             }
-            if ("minus".equals(methodName)) {
+            if (GroovyOperators.MINUS.equals(methodName)) {
                 return d.getSeconds() + d.getNano()*1e-9;
             } else {
                 return d.isNegative() ? -1 : (d.isZero() ? 0 : 1);
             }
-        } else if ("minus".equals(methodName)) {
+        } else if (GroovyOperators.MINUS.equals(methodName)) {
             throw IgnoredEventException.INSTANCE;
-        } else if ("compareTo".equals(methodName)){
+        } else if (GroovyOperators.COMPARE_TO.equals(methodName)){
             return false;
         } else {
             return super.invokeMethod(object, methodName, arguments);
