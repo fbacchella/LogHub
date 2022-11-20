@@ -150,7 +150,6 @@ public class Convert extends FieldsProcessor {
                 }
                 return o;
             } catch (NumberFormatException | InvocationTargetException | UnknownHostException ex) {
-                ex.printStackTrace();
                 logger.debug(() -> "Failed to parsed event " + event, ex);
                 throw event.buildException("Unable to parse \""+ valueStr +"\" as a " + className + ": " + Helpers.resolveThrowableException(ex));
             }
