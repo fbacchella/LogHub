@@ -70,6 +70,9 @@ public class Convert extends FieldsProcessor {
     public Object fieldFunction(Event event, Object value) throws ProcessorException {
         if (value == null) {
             return null;
+        } else if (clazz.isAssignableFrom(value.getClass())) {
+            // Nothing to do, just return the value
+            return value;
         } else if (value instanceof byte[] && "java.lang.String".equals(className)) {
             return new String((byte[]) value, charset);
         } else if (value instanceof byte[] && "java.net.InetAddress".equals(className)) {

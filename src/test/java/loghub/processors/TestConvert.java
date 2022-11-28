@@ -91,6 +91,12 @@ public class TestConvert {
         check("java.net.InetAddress", java.net.Inet6Address.class, InetAddress.getByName("::1").getAddress(), InetAddress.getByName("::1"));
     }
 
+    @Test
+    public void TestNope() throws ProcessorException, UnknownHostException {
+        check("java.lang.Number", Integer.class, Integer.valueOf(38), 38);
+        check("java.net.InetAddress", java.net.Inet4Address.class, InetAddress.getByName("127.0.0.1"), InetAddress.getByName("127.0.0.1"));
+    }
+
     @Test(expected=loghub.ProcessorException.class)
     public void TestInvalid() throws ProcessorException, UnknownHostException {
         check("java.util.UUID", UUID.class, "127.0.0.1", InetAddress.getByName("127.0.0.1"));
