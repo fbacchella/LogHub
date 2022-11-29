@@ -14,10 +14,10 @@ public class EventsFactory {
         return () -> Arrays.stream(EVENT_CLASSES).iterator();
     }
 
-    private final Map<Pipeline, PreSubpipline> preSubpiplines = new ConcurrentHashMap<>();
+    private final Map<Pipeline, PreSubPipline> preSubpiplines = new ConcurrentHashMap<>();
 
-    PreSubpipline getPre(Pipeline pipe) {
-        return preSubpiplines.computeIfAbsent(pipe, PreSubpipline::new);
+    PreSubPipline getPreSubPipeline(Pipeline pipe) {
+        return preSubpiplines.computeIfAbsent(pipe, PreSubPipline::new);
     }
 
     public Event newTestEvent() {

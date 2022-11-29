@@ -7,10 +7,10 @@ import loghub.Processor;
 import loghub.ProcessorException;
 import loghub.configuration.Properties;
 
-public class PostSubpipline extends Processor {
+public class PostSubPipline extends Processor {
 
-    public static final PostSubpipline INSTANCE = new PostSubpipline();
-    private PostSubpipline() {
+    public static final PostSubPipline INSTANCE = new PostSubPipline();
+    private PostSubPipline() {
         // Empty
     }
 
@@ -27,8 +27,8 @@ public class PostSubpipline extends Processor {
         } catch (NoSuchElementException ex) {
             throw new ProcessorException(event.getRealEvent(), "Empty timer stack, bad state");
         }
-        Optional.ofNullable(event.getRealEvent().executionStack.peek()).ifPresent(
-                ExecutionStackElement::restart);
+        Optional.ofNullable(event.getRealEvent().executionStack.peek())
+                .ifPresent(ExecutionStackElement::restart);
         event.getRealEvent().refreshLogger();
         return true;
     }

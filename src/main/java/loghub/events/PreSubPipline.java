@@ -5,12 +5,14 @@ import java.util.Optional;
 import loghub.Pipeline;
 import loghub.Processor;
 import loghub.configuration.Properties;
+import lombok.Getter;
 
-public class PreSubpipline extends Processor {
+public class PreSubPipline extends Processor {
 
+    @Getter
     private final Pipeline pipe;
 
-    PreSubpipline(Pipeline pipe) {
+    PreSubPipline(Pipeline pipe) {
         this.pipe = pipe;
     }
 
@@ -25,6 +27,7 @@ public class PreSubpipline extends Processor {
         ExecutionStackElement ctxt = new ExecutionStackElement(pipe);
         event.getRealEvent().executionStack.add(ctxt);
         ExecutionStackElement.logger.trace("--> {}({})", () -> event.getRealEvent().executionStack, () -> event);
+        event.getRealEvent().refreshLogger();
         return true;
     }
 

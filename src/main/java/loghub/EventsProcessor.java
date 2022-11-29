@@ -90,8 +90,7 @@ public class EventsProcessor extends Thread {
             Context tctxt = Stats.startProcessingEvent();
             Processor processor = event.next();
             while (processor != null) {
-                Logger currentLogger = event.getPipelineLogger();
-                currentLogger.trace("processing with {}", processor);
+                event.getPipelineLogger().trace("processing with {}", processor);
                 if (processor instanceof WrapEvent) {
                     event = event.wrap(processor.getPathArray());
                 } else if (processor instanceof UnwrapEvent) {
@@ -104,7 +103,7 @@ public class EventsProcessor extends Thread {
                         switch (processingstatus) {
                         case DROPED: {
                             // It was a drop action
-                            currentLogger.debug("Dropped event {}", event);
+                            event.getPipelineLogger().debug("Dropped event {}", event);
                             event.drop();
                             break;
                         }
@@ -124,14 +123,15 @@ public class EventsProcessor extends Thread {
                 processor = event.next();
                 // If next processor is null, refill the event
                 while (processor == null && event.getNextPipeline() != null) {
-                    currentLogger.trace("next pipeline is {}", event.getNextPipeline());
+                    event.getPipelineLogger().trace("next pipeline is {}", event.getNextPipeline());
                     // Send to another pipeline, loop in the main processing queue
                     Pipeline next = namedPipelines.get(event.getNextPipeline());
                     if (next == null) {
-                        currentLogger.error("Failed to forward to pipeline {}, not found", event.getNextPipeline());
+                        event.getPipelineLogger().error("Failed to forward to pipeline {}, not found", event.getNextPipeline());
                         event.drop();
                         break;
                     } else {
+                        event.finishPipeline();
                         event.refill(next);
                         processor = event.next();
                     }
@@ -155,7 +155,7 @@ public class EventsProcessor extends Thread {
                         event.end();
                         Thread.currentThread().interrupt();
                     }
-                } else if (event.getCurrentPipeline() != null && ! outQueues.containsKey(event.getCurrentPipeline())){
+                } else if (event.getCurrentPipeline() != null && ! outQueues.containsKey(event.getCurrentPipeline())) {
                     event.doMetric(PipelineStat.EXCEPTION, new IllegalArgumentException("No sender consuming pipeline " + event.getCurrentPipeline()));
                     logger.debug("No sender using pipeline {} for event {}", event.getCurrentPipeline(), event);
                     event.end();
@@ -185,7 +185,7 @@ public class EventsProcessor extends Thread {
             e.doMetric(Stats.PipelineStat.DROP);
         } else if (e.processingDone() > maxSteps) {
             e.getPipelineLogger().error("Too much steps for an event in pipeline. Done {} steps, still {} left, throwing away", e::processingDone, e::processingLeft);
-            e.getPipelineLogger().debug("Thrown event: {}", e);
+            e.getPipelineLogger().debug("Looping event: {}", e);
             e.doMetric(Stats.PipelineStat.LOOPOVERFLOW);
             status = ProcessingStatus.ERROR;
         } else {
