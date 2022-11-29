@@ -96,11 +96,18 @@ public class TestTrap {
         }, te -> {
 
         }, e -> {
-            Assert.assertEquals(6, e.size());
+            Assert.assertEquals(3, e.size());
             @SuppressWarnings("unchecked")
-            Map<String,?> details = (Map<String, ?>) e.get("iso.0.8802.1.1.2.1.4.1.1.9.207185300.2.15079");
-            Assert.assertEquals(2, ((Object[])details.get("index")).length);
-            Assert.assertEquals("localhost", details.get("value"));
+            Map<String,?> iso = (Map<String, ?>) e.get("iso");
+            Assert.assertEquals("vnet7", iso.get("0.8802.1.1.2.1.4.1.1.8.207185300.2.15079"));
+            Assert.assertEquals("localhost", iso.get("0.8802.1.1.2.1.4.1.1.9.207185300.2.15079"));
+            Assert.assertEquals("eth0", iso.get("0.8802.1.1.2.1.3.7.1.4.2"));
+
+            Map<String,?> enterprises = (Map<String, ?>) e.get("enterprises");
+            Assert.assertEquals(1, enterprises.get("9586.100.5.2.3.1.4"));
+            Assert.assertEquals("LOGHUB", enterprises.get("9586.100.5.1.2.0"));
+
+            Assert.assertEquals("lldpRemTablesChange", e.get("snmpTrapOID"));
         });
     }
 
@@ -110,6 +117,9 @@ public class TestTrap {
             PDU pdu = new PDU();
             pdu.setType(PDU.TRAP);
             pdu.add(new VariableBinding(new OID("1.3.6.1.6.3.1.1.4.1"), new OctetString("lldpRemTablesChange")));
+            // Some undecoded values
+            pdu.add(new VariableBinding(new OID("1.3.6.2.1.4.20.1.1.0"), new OctetString("1")));
+            pdu.add(new VariableBinding(new OID("1.3.6.2.1.4.20.1.2.0"), new OctetString("2")));
             return pdu;
         }, te -> {
             te.setMessageProcessingModel(MessageProcessingModel.MPv2c);
@@ -118,6 +128,9 @@ public class TestTrap {
             Assert.assertNull(e.get("specific_trap"));
             Assert.assertEquals("loghub", e.getConnectionContext().getPrincipal().getName());
             Assert.assertEquals("lldpRemTablesChange", e.get("snmpTrapOID"));
+            Map<String, String> dodValues = (Map<String, String>) e.get("dod");
+            Assert.assertEquals("1", dodValues.get("2.1.4.20.1.1.0"));
+            Assert.assertEquals("2", dodValues.get("2.1.4.20.1.2.0"));
         });
     }
 

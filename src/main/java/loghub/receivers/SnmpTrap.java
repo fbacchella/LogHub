@@ -1,6 +1,7 @@
 package loghub.receivers;
 
 import java.io.IOException;
+import java.lang.reflect.Array;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -9,6 +10,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.Logger;
@@ -252,12 +254,13 @@ public class SnmpTrap extends Receiver<SnmpTrap, SnmpTrap.Builder> implements Co
             e.put(oid.format(), value);
         } else if (oidindex.size() == 1) {
             Object indexvalue = oidindex.values().stream().findFirst().orElse(null);
-            // it's an array, so it's an unresolved index
-            if (indexvalue != null && indexvalue.getClass().isArray()) {
-                Map<String, Object> valueMap = new HashMap<>(2);
-                valueMap.put("index", indexvalue);
-                valueMap.put("value", value);
-                e.put(oid.format(), valueMap);
+            // It's an array, so it's an unresolved index
+            // It's splited as a string prefix and dotted notation
+            if (indexvalue != null && indexvalue.getClass().isArray() && Array.getLength(indexvalue) == 2) {
+                String prefix = (String) Array.get(indexvalue, 0);
+                int[] suffix = (int[]) Array.get(indexvalue, 1);
+                ((Map<String, Object>) e.computeIfAbsent(prefix, k -> new HashMap<>()))
+                                        .put(Arrays.stream(suffix).mapToObj(Integer::toString).collect(Collectors.joining(".")), value);
             } else {
                 e.put(oid.format(), value);
             }
