@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.StringJoiner;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
@@ -36,9 +37,9 @@ public abstract class VariablePath {
     }
 
     /**
-     * Return an new {@link VariablePath} with a path element added
-     * @param element
-     * @return
+     * Return a new {@link VariablePath} with a path element added
+     * @param element the element to add
+     * @return a new VariablePath with the element added
      */
     public abstract VariablePath append(String element);
 
@@ -46,9 +47,9 @@ public abstract class VariablePath {
 
     public abstract String toString();
 
-    public abstract String rubyExpression();
+    public abstract String groovyExpression();
 
-    private abstract static class FixedLenght extends VariablePath {
+    private abstract static class FixedLength extends VariablePath {
         @Override
         public int length() {
             return 1;
@@ -58,6 +59,7 @@ public abstract class VariablePath {
             return this;
         }
     }
+
     private abstract static class VariableLength extends VariablePath {
         final String[] path;
         VariableLength(String[] path) {
@@ -101,7 +103,7 @@ public abstract class VariablePath {
         abstract VariablePath newInstance(String[] newPath);
     }
 
-    private static class TimeStamp extends FixedLenght {
+    private static class TimeStamp extends FixedLength {
         @Override
         public String toString() {
             return "[" + Event.TIMESTAMPKEY + "]";
@@ -120,11 +122,27 @@ public abstract class VariablePath {
         }
 
         @Override
-        public String rubyExpression() {
+        public String groovyExpression() {
             return "event.getTimestamp()";
         }
+
+        @Override
+        public int hashCode() {
+            return TIMESTAMP.hashCode();
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            return obj instanceof TimeStamp;
+        }
+
+        @Override
+        protected Object clone() {
+            return TIMESTAMP;
+        }
     }
-    private static class Meta extends FixedLenght {
+
+    private static class Meta extends FixedLength {
         private final String key;
         private Meta(String key) {
             this.key = key;
@@ -145,10 +163,30 @@ public abstract class VariablePath {
             }
         }
         @Override
-        public String rubyExpression() {
+        public String groovyExpression() {
             return "event.getMeta(\"" + key + "\")";
         }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(Meta.class, key);
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (! (obj instanceof Meta)) {
+                return false;
+            } else {
+                return key.equals(((Meta)obj).key);
+            }
+        }
+
+        @Override
+        protected Object clone() {
+            return this;
+        }
     }
+
     private static class Context extends VariableLength {
         private Context(String[] path) {
             super(path);
@@ -170,10 +208,11 @@ public abstract class VariablePath {
             return new Context(newPath);
         }
         @Override
-        public String rubyExpression() {
+        public String groovyExpression() {
             return "event.getConnectionContext()" + pathSuffix();
         }
     }
+
     private static class Indirect extends VariableLength {
         private Indirect(String[] path) {
             super(path);
@@ -191,7 +230,7 @@ public abstract class VariablePath {
             return new Indirect(newPath);
         }
         @Override
-        public String rubyExpression() {
+        public String groovyExpression() {
             StringBuilder buffer = new StringBuilder("event");
             buffer.append(".getGroovyIndirectPath(");
             getArguments(buffer);
@@ -199,6 +238,7 @@ public abstract class VariablePath {
             return buffer.toString();
         }
     }
+
     private static class Plain extends VariableLength {
         private Plain(String[] path) {
             super(path);
@@ -212,14 +252,34 @@ public abstract class VariablePath {
             return new Plain(newPath);
         }
         @Override
-        public String rubyExpression() {
+        public String groovyExpression() {
             StringBuilder buffer = new StringBuilder("event");
             buffer.append(".getGroovyPath(");
             getArguments(buffer);
             buffer.append(")");
             return buffer.toString();
         }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(Plain.class, Arrays.hashCode(path));
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (! (obj instanceof Plain)) {
+                return false;
+            } else {
+                return Arrays.equals(path, ((Plain)obj).path);
+            }
+        }
+
+        @Override
+        protected Object clone() {
+            return this;
+        }
     }
+
     private static class Empty extends VariablePath {
         @Override
         public int length() {
@@ -235,11 +295,23 @@ public abstract class VariablePath {
         }
         @Override
         public String toString() {
-            return "";
+            return "[]";
         }
         @Override
-        public String rubyExpression() {
-            return "";
+        public String groovyExpression() {
+            return "event";
+        }
+        @Override
+        public int hashCode() {
+            return EMPTY.hashCode();
+        }
+        @Override
+        public boolean equals(Object obj) {
+            return obj instanceof Empty;
+        }
+        @Override
+        protected Object clone() {
+            return EMPTY;
         }
     }
 
@@ -252,7 +324,7 @@ public abstract class VariablePath {
     }
 
     public static VariablePath ofContext(List<String> path) {
-        return new Context(path.stream().toArray(String[]::new));
+        return new Context(path.toArray(String[]::new));
     }
 
     public static VariablePath ofMeta(String meta) {
@@ -264,24 +336,41 @@ public abstract class VariablePath {
     }
 
     public static VariablePath ofIndirect(List<String> path) {
-        return new Indirect(path.stream().toArray(String[]::new));
+        return new Indirect(path.toArray(String[]::new));
     }
 
+    /**
+     * Parsed a path as a dotted notation (e.g. a.b.c)
+     * @param path as a dotted notation
+     * @return thew new VariablePath
+     */
     public static VariablePath of(String path) {
-        return pathCache.computeIfAbsent(path, s -> new Plain(pathElements(s).stream().toArray(String[]::new)));
+        if (path.isBlank()) {
+            return EMPTY;
+        } else {
+            return pathCache.computeIfAbsent(path, s -> new Plain(pathElements(s).toArray(String[]::new)));
+        }
     }
 
     public static VariablePath of(String[] path) {
-        return new Plain(Arrays.copyOf(path, path.length));
+        if (path.length == 0) {
+            return EMPTY;
+        } else {
+            return new Plain(Arrays.copyOf(path, path.length));
+        }
     }
 
     public static VariablePath of(List<String> path) {
-        return new Plain(path.stream().toArray(String[]::new));
+        if (path.isEmpty()) {
+            return EMPTY;
+        } else {
+            return new Plain(path.toArray(String[]::new));
+        }
     }
 
     public static VariablePath of(VariablePath vp) {
         if (vp instanceof Indirect) {
-            return new Plain(((Indirect) vp).path);
+            return VariablePath.of(((Indirect) vp).path);
         } else {
             return vp;
         }
@@ -289,7 +378,7 @@ public abstract class VariablePath {
 
     public static List<String> pathElements(String path) {
         int curs = 0;
-        int next = 0;
+        int next;
         List<String> elements = new ArrayList<>();
         while ((next = path.indexOf('.', curs)) >= 0) {
             if (curs == 0 && next == 0) {
@@ -303,7 +392,7 @@ public abstract class VariablePath {
             }
         }
         if (curs != path.length()) {
-            elements.add(path.substring(curs, path.length()));
+            elements.add(path.substring(curs));
         }
         return elements;
     }

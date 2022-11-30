@@ -971,7 +971,7 @@ class ConfigListener extends RouteBaseListener {
             expression = ctx.l.getText();
         } else if (ctx.ev != null) {
             VariablePath path = convertEventVariable(ctx.ev);
-            expression = path.rubyExpression();
+            expression = path.groovyExpression();
         } else if (ctx.qi != null) {
             expression = ctx.qi.getText();
         } else if (ctx.opm != null) {
