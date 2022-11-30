@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Array;
 import java.net.InetAddress;
 import java.net.JarURLConnection;
 import java.net.MalformedURLException;
@@ -24,6 +25,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.Collator;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Enumeration;
@@ -647,6 +649,22 @@ public final class Helpers {
                     .stream()
                     .filter(i -> i.getKey().startsWith(prefixKey))
                     .collect(Collectors.toMap(i -> i.getKey().substring(prefixLength), Map.Entry::getValue));
+    }
+
+    public static Object isEmpty(Object arg) {
+        if (arg == null || arg == NullOrMissingValue.MISSING || arg == NullOrMissingValue.NULL) {
+            return true;
+        } else if (arg instanceof String) {
+            return ((String) arg).isEmpty();
+        } else if (arg instanceof Collection) {
+            return ((Collection<?>) arg).isEmpty();
+        } else if (arg instanceof Map) {
+            return ((Map<?, ?>) arg).isEmpty();
+        } else if (arg.getClass().isArray()) {
+            return Array.getLength(arg) == 0;
+        } else {
+            return false;
+        }
     }
 
 }

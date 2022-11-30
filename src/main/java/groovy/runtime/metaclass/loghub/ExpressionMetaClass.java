@@ -3,6 +3,7 @@ package groovy.runtime.metaclass.loghub;
 import groovy.lang.DelegatingMetaClass;
 import groovy.lang.MetaClass;
 import loghub.Expression;
+import loghub.Helpers;
 
 public class ExpressionMetaClass extends DelegatingMetaClass {
 
@@ -24,7 +25,7 @@ public class ExpressionMetaClass extends DelegatingMetaClass {
         case "nullfilter": return ex.nullfilter(arguments[0]);
         case "compare": return ex.compare(arguments[0].toString(), arguments[1], arguments[2]);
         case "getIterableIndex": return ex.getIterableIndex(arguments[0], (Integer)arguments[1]);
-        case "isEmpty": return ex.isEmpty(arguments[0]);
+        case "isEmpty": return Helpers.isEmpty(arguments[0]);
         default:
             assert false;
             return super.invokeMethod(object, methodName, arguments);
