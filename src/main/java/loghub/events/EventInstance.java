@@ -193,11 +193,10 @@ class EventInstance extends Event {
         Processor next = processors.poll();
         if (next == null) {
             wevent = null;
-        }
-        // Check if it's starting processing, so current pipeline information not initialized
-        if (currentPipeline == null
+        } else if (currentPipeline == null
               || pipeLineLogger == null
               && next instanceof PreSubPipline) {
+            // It's starting processing, so current pipeline information not yet initialized
             Pipeline ppl = ((PreSubPipline)next).getPipe();
             if (ppl.getName() != null) {
                 pipeLineLogger = ppl.getLogger();
