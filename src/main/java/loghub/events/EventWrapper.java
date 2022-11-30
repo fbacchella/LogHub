@@ -25,23 +25,18 @@ class EventWrapper extends Event {
     private final Event event;
 
     @Getter(AccessLevel.PACKAGE)
-    private VariablePath path;
+    private final VariablePath path;
 
     EventWrapper(Event event) {
         this.event = event;
-        this.setTimestamp(event.getTimestamp());
         this.path = VariablePath.EMPTY;
     }
 
     EventWrapper(Event event, VariablePath path) {
+        // Ensure the path exists as a map
+        event.applyAtPath(Action.SIZE, path, null, true);
         this.event = event;
-        this.setTimestamp(event.getTimestamp());
         this.path = path;
-        event.applyAtPath(Action.ISEMPTY, path, null, true);
-    }
-
-    public void setProcessor(Processor processor) {
-        path = processor.getPathArray();
     }
 
     @Override
@@ -69,8 +64,8 @@ class EventWrapper extends Event {
     }
 
     @Override
-    public void putAll(Map<? extends String, ? extends Object> m) {
-        m.entrySet().forEach(i->  put(i.getKey(), i.getValue()));
+    public void putAll(Map<? extends String, ?> m) {
+        m.forEach(this::put);
     }
 
     @Override
@@ -102,7 +97,7 @@ class EventWrapper extends Event {
 
     @Override
     public boolean isEmpty() {
-        return (Boolean) action(Action.ISEMPTY, null, null);
+        return event.isEmpty();
     }
 
     @Override

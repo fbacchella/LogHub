@@ -36,6 +36,7 @@ import loghub.PriorityBlockingQueue;
 import loghub.Processor;
 import loghub.ProcessorException;
 import loghub.SubPipeline;
+import loghub.VariablePath;
 import loghub.metrics.Stats;
 import loghub.metrics.Stats.PipelineStat;
 
@@ -99,7 +100,6 @@ class EventInstance extends Event {
 
     private static final Logger logger = LogManager.getLogger();
 
-    private EventWrapper wevent;
     private final LinkedList<Processor> processors;
 
     private String currentPipeline;
@@ -191,9 +191,7 @@ class EventInstance extends Event {
         stepsCount++;
         logger.debug("waiting processors {}", processors);
         Processor next = processors.poll();
-        if (next == null) {
-            wevent = null;
-        } else if (currentPipeline == null
+        if (currentPipeline == null
               || pipeLineLogger == null
               && next instanceof PreSubPipline) {
             // It's starting processing, so current pipeline information not yet initialized
@@ -310,11 +308,12 @@ class EventInstance extends Event {
 
     @Override
     public boolean process(Processor p) throws ProcessorException {
-        if (wevent == null) {
-            wevent = new EventWrapper(this);
+        if (p.getPathArray() == VariablePath.EMPTY) {
+            return p.process(this);
+        } else {
+            EventWrapper wevent = new EventWrapper(this, p.getPathArray());
+            return p.process(wevent);
         }
-        wevent.setProcessor(p);
-        return p.process(wevent);
     }
 
     /**
