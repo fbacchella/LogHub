@@ -412,36 +412,25 @@ public class TestEtl {
 
     @Test
     public void testAppend() throws ProcessorException {
+        // Comprehensive type testing is done in loghub.TestEvent#testAppend()
         Event ev1 =  RunEtl("[a] =+ 1", i -> i.put("a", new int[]{0}));
         int[] v1 = (int[]) ev1.get("a");
-        Assert.assertEquals(0, v1[0]);
-        Assert.assertEquals(1, v1[1]);
+        Assert.assertArrayEquals(new int[]{0, 1}, v1);
 
-        Event ev1b =  RunEtl("[a] =+ 1", i -> i.put("a", new long[]{0L}));
-        long[] v1b= (long[]) ev1b.get("a");
-        Assert.assertEquals(0L, v1b[0]);
-        Assert.assertEquals(1L, v1b[1]);
-
-        Event ev2 =  RunEtl("[a] =+ 1", i -> i.put("a", new Integer[]{0}));
-        Integer[] v2 = (Integer[]) ev2.get("a");
-        Assert.assertEquals(Integer.valueOf(0), v2[0]);
-        Assert.assertEquals(Integer.valueOf(1), v2[1]);
-
-        Event ev2b =  RunEtl("[a] =+ 1", i -> i.put("a", new Number[]{0L}));
-        Number[] v2b = (Number[]) ev2b.get("a");
-        Assert.assertEquals(Long.valueOf(0), v2b[0]);
-        Assert.assertEquals(Integer.valueOf(1), v2b[1]);
+        Event ev2 =  RunEtl("[a] =+ 1", i -> i.put("a", new Number[]{0L}));
+        Number[] v2 = (Number[]) ev2.get("a");
+        Assert.assertArrayEquals(new Number[]{0l, 1}, v2);
 
         Event ev3 =  RunEtl("[a] =+ 1", i -> i.put("a", new ArrayList<>(List.of("0"))));
         List<Object> v3 = (List<Object>) ev3.get("a");
-        Assert.assertEquals("0", v3.get(0));
-        Assert.assertEquals(Integer.valueOf(1), v3.get(1));
+        Assert.assertEquals(List.of("0", 1), v3);
 
-        Event ev4 =  RunEtl("[a] =+ 1", i -> i.put("a", "0"));
-        String v4 = (String) ev4.get("a");
-        Assert.assertEquals("01", v4);
+        Event ev4 =  RunEtl("[a] =+ 1", i -> {});
+        List<Object> v4 = (List<Object>) ev4.get("a");
+        Assert.assertEquals(List.of(1), v4);
 
-        Assert.assertThrows(IgnoredEventException.class, () -> RunEtl("[a] =+ 1", i -> {}, false));
+        Assert.assertThrows(IgnoredEventException.class,
+                            () -> RunEtl("[a] =+ [b]", i -> i.put("a", new ArrayList<>(List.of("0")))));
     }
 
 }

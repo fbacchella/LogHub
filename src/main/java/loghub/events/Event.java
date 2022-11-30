@@ -64,18 +64,28 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
                 return Collections.emptyMap();
             }
         }
-        private static boolean Append(Map<String, Object>c , String k, Object v) {
+        private static boolean Append(Map<String, Object>c, String k, Object v) {
             if (k == null) {
                 return false;
             } else if (c.containsKey(k)){
                 Object oldVal = c.get(k);
-                if (oldVal == null || oldVal == NullOrMissingValue.MISSING || oldVal == NullOrMissingValue.NULL) {
-                    return true;
-                } else if (oldVal instanceof String) {
-                    c.put(k, oldVal + v.toString());
+                if (oldVal == null || oldVal instanceof NullOrMissingValue) {
+                    c.put(k, new ArrayList<>(List.of(v)));
                     return true;
                 } else if (oldVal instanceof Collection) {
                     ((Collection<Object>) oldVal).add(v);
+                    return true;
+                } else if (oldVal instanceof char[] && v instanceof Character) {
+                    char[] oldValArray = (char[]) oldVal;
+                    char[] newVal = Arrays.copyOf(oldValArray, oldValArray.length + 1);
+                    newVal[oldValArray.length] = ((Character) v);
+                    c.put(k, newVal);
+                    return true;
+                } else if (oldVal instanceof boolean[] && v instanceof Boolean) {
+                    boolean[] oldValArray = (boolean[]) oldVal;
+                    boolean[] newVal = Arrays.copyOf(oldValArray, oldValArray.length + 1);
+                    newVal[oldValArray.length] = ((Boolean) v);
+                    c.put(k, newVal);
                     return true;
                 } else if (oldVal instanceof byte[] && v instanceof Number) {
                     byte[] oldValArray = (byte[]) oldVal;
@@ -113,15 +123,21 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
                     newVal[oldValArray.length] = ((Number) v).doubleValue();
                     c.put(k, newVal);
                     return true;
-                } else if (oldVal.getClass().isArray() && oldVal.getClass().getComponentType().isAssignableFrom(v.getClass())) {
+                } else if (oldVal.getClass().isArray()
+                        && (v == null
+                            || v == NullOrMissingValue.NULL
+                            || oldVal.getClass().getComponentType().isAssignableFrom(v.getClass()))) {
                     Object[] oldValArray = (Object[]) oldVal;
                     Object[] newVal = Arrays.copyOf(oldValArray, oldValArray.length + 1);
-                    newVal[oldValArray.length] = v;
+                    newVal[oldValArray.length] = (v == NullOrMissingValue.NULL) ? null : v;
                     c.put(k, newVal);
                     return true;
                 } else {
                     return false;
                 }
+            } else if (v == null) {
+                c.put(k, new ArrayList<>(List.of(NullOrMissingValue.NULL)));
+                return true;
             } else {
                 c.put(k, new ArrayList<>(List.of(v)));
                 return true;
@@ -157,6 +173,8 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
             case CONTAINS:
             case CONTAINSVALUE:
                 return false;
+            case APPEND:
+                throw IgnoredEventException.INSTANCE;
             default:
                 // skip
             }
@@ -246,7 +264,7 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
             }
             if (create && f.mapAction && ! current.containsKey(key)) {
                 current.put(key, new HashMap<>());
-            } else if (! current.containsKey(key) && f != Action.PUT) {
+            } else if (! current.containsKey(key) && f != Action.PUT && f != Action.APPEND) {
                 return keyMissing(f);
             }
             return f.action.apply(current, key, value == NullOrMissingValue.NULL ? null : value);
