@@ -2,12 +2,11 @@ package loghub.processors;
 
 import java.util.Map;
 
-import loghub.events.Event;
-import loghub.events.Event.Action;
 import loghub.Expression;
 import loghub.IgnoredEventException;
 import loghub.NullOrMissingValue;
 import loghub.ProcessorException;
+import loghub.events.Event;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -36,7 +35,7 @@ public class Mapper extends Etl {
             return false;
         }
         Object value =  map.get(key);
-        event.applyAtPath(Action.PUT, lvalue, value, true);
+        event.putAtPath(lvalue, value);
         return true;
     }
 

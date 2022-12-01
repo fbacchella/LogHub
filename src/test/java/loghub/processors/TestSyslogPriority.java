@@ -14,14 +14,13 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import loghub.BeanChecks;
-import loghub.events.Event;
-import loghub.events.Event.Action;
 import loghub.LogUtils;
 import loghub.NullOrMissingValue;
 import loghub.ProcessorException;
 import loghub.Tools;
 import loghub.VariablePath;
 import loghub.configuration.Properties;
+import loghub.events.Event;
 import loghub.events.EventsFactory;
 
 public class TestSyslogPriority {
@@ -68,11 +67,11 @@ public class TestSyslogPriority {
         Event e = factory.newEvent();
         e.put("message", "38");
         Assert.assertTrue(e.process(sp));
-        Assert.assertEquals("informational", e.applyAtPath(Action.GET, VariablePath.of(new String[] {"log", "syslog", "severity", "name"}), null));
-        Assert.assertEquals(6, e.applyAtPath(Action.GET, VariablePath.of(new String[] {"log", "syslog", "severity", "code"}), null));
-        Assert.assertEquals("security/authorization", e.applyAtPath(Action.GET, VariablePath.of(new String[] {"log", "syslog", "facility", "name"}), null));
-        Assert.assertEquals(4, e.applyAtPath(Action.GET, VariablePath.of(new String[] {"log", "syslog", "facility", "code"}), null));
-        Assert.assertEquals(38, e.applyAtPath(Action.GET, VariablePath.of(new String[] {"log", "syslog", "priority"}), null));
+        Assert.assertEquals("informational", e.getAtPath(VariablePath.of(new String[] {"log", "syslog", "severity", "name"})));
+        Assert.assertEquals(6, e.getAtPath(VariablePath.of(new String[] {"log", "syslog", "severity", "code"})));
+        Assert.assertEquals("security/authorization", e.getAtPath(VariablePath.of(new String[] {"log", "syslog", "facility", "name"})));
+        Assert.assertEquals(4, e.getAtPath(VariablePath.of(new String[] {"log", "syslog", "facility", "code"})));
+        Assert.assertEquals(38, e.getAtPath(VariablePath.of(new String[] {"log", "syslog", "priority"})));
     }
 
     @Test
@@ -88,11 +87,11 @@ public class TestSyslogPriority {
         Event e = factory.newEvent();
         e.put("message", 255);
         Assert.assertTrue(e.process(sp));
-        Assert.assertEquals("debug", e.applyAtPath(Action.GET, VariablePath.of(new String[] {"log", "syslog", "severity", "name"}), null));
-        Assert.assertEquals(7, e.applyAtPath(Action.GET, VariablePath.of(new String[] {"log", "syslog", "severity", "code"}), null));
+        Assert.assertEquals("debug", e.getAtPath(VariablePath.of(new String[] {"log", "syslog", "severity", "name"})));
+        Assert.assertEquals(7, e.getAtPath(VariablePath.of(new String[] {"log", "syslog", "severity", "code"})));
 
-        Assert.assertEquals(NullOrMissingValue.MISSING, e.applyAtPath(Action.GET, VariablePath.of(new String[] {"log", "syslog", "facility", "name"}), null));
-        Assert.assertEquals(31, e.applyAtPath(Action.GET, VariablePath.of(new String[] {"log", "syslog", "facility", "code"}), null));
+        Assert.assertEquals(NullOrMissingValue.MISSING, e.getAtPath(VariablePath.of(new String[] {"log", "syslog", "facility", "name"})));
+        Assert.assertEquals(31, e.getAtPath(VariablePath.of(new String[] {"log", "syslog", "facility", "code"})));
     }
 
     @SuppressWarnings("unchecked")
@@ -147,8 +146,8 @@ public class TestSyslogPriority {
         Event e = factory.newEvent();
         e.put("message", 255);
         Assert.assertTrue(e.process(sp));
-        Assert.assertEquals("debug", e.applyAtPath(Action.GET, VariablePath.of(new String[] {"message", "severity"}), null));
-        Assert.assertEquals("31", e.applyAtPath(Action.GET, VariablePath.of(new String[] {"message", "facility"}), null));
+        Assert.assertEquals("debug", e.getAtPath(VariablePath.of(new String[] {"message", "severity"})));
+        Assert.assertEquals("31", e.getAtPath(VariablePath.of(new String[] {"message", "facility"})));
     }
 
     @SuppressWarnings("unchecked")

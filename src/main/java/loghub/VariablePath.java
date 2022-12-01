@@ -135,11 +135,6 @@ public abstract class VariablePath {
         public boolean equals(Object obj) {
             return obj instanceof TimeStamp;
         }
-
-        @Override
-        protected Object clone() {
-            return TIMESTAMP;
-        }
     }
 
     private static class Meta extends FixedLength {
@@ -179,11 +174,6 @@ public abstract class VariablePath {
             } else {
                 return key.equals(((Meta)obj).key);
             }
-        }
-
-        @Override
-        protected Object clone() {
-            return this;
         }
     }
 
@@ -273,11 +263,6 @@ public abstract class VariablePath {
                 return Arrays.equals(path, ((Plain)obj).path);
             }
         }
-
-        @Override
-        protected Object clone() {
-            return this;
-        }
     }
 
     private static class Empty extends VariablePath {
@@ -309,15 +294,48 @@ public abstract class VariablePath {
         public boolean equals(Object obj) {
             return obj instanceof Empty;
         }
+    }
+
+    private static class AllMeta extends VariablePath {
         @Override
-        protected Object clone() {
-            return EMPTY;
+        public boolean isMeta() {
+            return true;
+        }
+        @Override
+        public int length() {
+            return 0;
+        }
+        @Override
+        public VariablePath append(String element) {
+            return new Meta(element);
+        }
+        @Override
+        public String get(int index) {
+            throw new ArrayIndexOutOfBoundsException("Empty path");
+        }
+        @Override
+        public String toString() {
+            return "[#]";
+        }
+        @Override
+        public String groovyExpression() {
+            return "event.getMetas()";
+        }
+        @Override
+        public int hashCode() {
+            return ALLMETAS.hashCode();
+        }
+        @Override
+        public boolean equals(Object obj) {
+            return obj instanceof AllMeta;
         }
     }
 
     public static final VariablePath TIMESTAMP = new TimeStamp();
 
     public static final VariablePath EMPTY = new Empty();
+
+    public static final VariablePath ALLMETAS = new AllMeta();
 
     public static VariablePath ofContext(String[] path) {
         return new Context(Arrays.copyOf(path, path.length));

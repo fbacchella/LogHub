@@ -1,7 +1,6 @@
 package loghub.events;
 
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -44,8 +43,8 @@ class EventWrapper extends Event {
         return event.entrySet();
     }
 
-    private Object action(Action f, String key, Object value) {
-        return action(f, key, value, false);
+    private Object action(Action f, String key) {
+        return action(f, key, null, false);
     }
 
     private Object action(Action f, String key, Object value, boolean create) {
@@ -70,17 +69,17 @@ class EventWrapper extends Event {
 
     @Override
     public Object get(Object key) {
-        return action(Action.GET, key.toString(), null);
+        return action(Action.GET, key.toString());
     }
 
     @Override
     public Object remove(Object key) {
-        return action(Action.REMOVE, key.toString(), null);
+        return action(Action.REMOVE, key.toString());
     }
 
     @Override
     public boolean containsKey(Object key) {
-        return Boolean.TRUE.equals(action(Action.CONTAINS, key.toString(), null));
+        return Boolean.TRUE.equals(action(Action.CONTAINS, key.toString()));
     }
 
     @Override
@@ -90,41 +89,34 @@ class EventWrapper extends Event {
 
     @Override
     public int size() {
-        Integer size;
-        size = (Integer) action(Action.SIZE, null, null);
-        return size != null ? size : 0;
+        return (Integer) action(Action.SIZE, null);
     }
 
     @Override
     public boolean isEmpty() {
-        return event.isEmpty();
+        return (Boolean) action(Action.ISEMPTY, null);
     }
 
     @Override
     public void clear() {
-        action(Action.CLEAR, null, null);
+        action(Action.CLEAR, null);
     }
 
     @Override
     public boolean containsValue(Object value) {
-        return Boolean.TRUE.equals(action(Action.CONTAINSVALUE, null, null));
+        return Boolean.TRUE.equals(action(Action.CONTAINSVALUE, null));
     }
 
     @SuppressWarnings("unchecked")
     @Override
     public Set<String> keySet() {
-        Object found = action(Action.KEYSET, null, null);
-        if(found != null) {
-            return (Set<String>) found;
-        } else {
-            return Collections.emptySet();
-        }
+        return (Set<String>) action(Action.KEYSET, null);
     }
 
     @SuppressWarnings("unchecked")
     @Override
     public Collection<Object> values() {
-        return (Collection<Object>) action( Action.VALUES, null, null);
+        return (Collection<Object>) action( Action.VALUES, null);
     }
 
     @Override

@@ -5,11 +5,10 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import loghub.events.Event;
 import loghub.Processor;
 import loghub.ProcessorException;
 import loghub.VariablePath;
-import loghub.events.Event.Action;
+import loghub.events.Event;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -34,7 +33,7 @@ public class ParseCef extends Processor {
 
     @Override
     public boolean process(Event event) throws ProcessorException {
-        String message = event.applyAtPath(Action.GET, field, null).toString();
+        String message = event.getAtPath(field).toString();
         if (! message.startsWith("CEF:")) {
             throw event.buildException("not a CEF message: \"" + message + "\"");
         }

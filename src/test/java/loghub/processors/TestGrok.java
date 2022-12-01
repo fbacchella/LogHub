@@ -10,13 +10,12 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import loghub.events.Event;
 import loghub.LogUtils;
 import loghub.ProcessorException;
 import loghub.Tools;
 import loghub.VariablePath;
-import loghub.events.Event.Action;
 import loghub.configuration.Properties;
+import loghub.events.Event;
 import loghub.events.EventsFactory;
 
 public class TestGrok {
@@ -135,7 +134,7 @@ public class TestGrok {
         Event e = factory.newEvent();
         e.put("remotehost", "www.google.com");
         Tools.runProcessing(e, "main", Collections.singletonList(grok));
-        Assert.assertEquals("invalid FQDN matching", "www", e.applyAtPath(Action.GET, VariablePath.of(new String[] {"google", "com"}) , null));
+        Assert.assertEquals("invalid FQDN matching", "www", e.getAtPath(VariablePath.of(new String[] {"google", "com"})));
     }
 
     @Test

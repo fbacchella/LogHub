@@ -12,8 +12,6 @@ import java.util.Set;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
-import loghub.events.Event;
-import loghub.events.Event.Action;
 import loghub.Helpers;
 import loghub.IgnoredEventException;
 import loghub.Processor;
@@ -22,6 +20,7 @@ import loghub.UncheckedProcessorException;
 import loghub.VarFormatter;
 import loghub.VariablePath;
 import loghub.configuration.Properties;
+import loghub.events.Event;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -82,7 +81,7 @@ public abstract class FieldsProcessor extends Processor {
                 // Still variables to process, so reinsert this process
                 event.insertProcessor(this);
             }
-            boolean containsKey =  Boolean.TRUE.equals(event.applyAtPath(Action.CONTAINS, toprocess, null));
+            boolean containsKey = event.containsAtPath(toprocess);
             if (containsKey) {
                 return FieldsProcessor.this.filterField(event, toprocess);
             } else {
@@ -163,7 +162,7 @@ public abstract class FieldsProcessor extends Processor {
             throw IgnoredEventException.INSTANCE;
         } else {
             // A single variable to process
-            if (Boolean.TRUE.equals(event.applyAtPath(Action.CONTAINS, field, null))) {
+            if (event.containsAtPath(field)) {
                 return doExecution(event, field);
             } else {
                 throw IgnoredEventException.INSTANCE;
@@ -177,7 +176,7 @@ public abstract class FieldsProcessor extends Processor {
 
     private boolean filterField(Event event, VariablePath currentField) throws ProcessorException {
         logger.trace("transforming field {} on {}", currentField, event);
-        Object value = event.applyAtPath(Action.GET, currentField, null);
+        Object value = event.getAtPath(currentField);
         if (getClass().getAnnotation(ProcessNullField.class) == null && value == null) {
             return false;
         }
@@ -195,9 +194,9 @@ public abstract class FieldsProcessor extends Processor {
         try {
             Object processed = resolver.get();
             if ( ! (processed instanceof RUNSTATUS)) {
-                event.applyAtPath(Action.PUT, resolveDestination(currentField), processed);
+                event.putAtPath(resolveDestination(currentField), processed);
             } else if (processed == RUNSTATUS.REMOVE) {
-                event.applyAtPath(Action.REMOVE, currentField, null);
+                event.removeAtPath(currentField);
             }
             return processed != RUNSTATUS.FAILED;
         } catch (UncheckedProcessorException ex) {

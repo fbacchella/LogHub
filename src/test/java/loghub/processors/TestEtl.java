@@ -23,9 +23,6 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import loghub.ConnectionContext;
-import loghub.events.Event;
-import loghub.events.Event.Action;
 import loghub.EventsProcessor;
 import loghub.Expression;
 import loghub.Helpers;
@@ -39,17 +36,17 @@ import loghub.VariablePath;
 import loghub.configuration.ConfigException;
 import loghub.configuration.ConfigurationTools;
 import loghub.configuration.Properties;
+import loghub.events.Event;
 import loghub.events.EventsFactory;
 
 public class TestEtl {
 
-    private static Logger logger;
     private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
     static public void configure() throws IOException {
         Tools.configure();
-        logger = LogManager.getLogger();
+        Logger logger = LogManager.getLogger();
         LogUtils.setLevel(logger, Level.TRACE, "loghub.processors.Etl", "loghub.EventsProcessor", "loghub.Expression");
     }
 
@@ -93,7 +90,7 @@ public class TestEtl {
         Event event = factory.newEvent();
         event.put("c", 0);
         event.process(etl);
-        Assert.assertEquals("evaluation failed", 1, event.applyAtPath(Action.GET, VariablePath.of(new String[] {"a", "b"}), null, false));
+        Assert.assertEquals("evaluation failed", 1, event.getAtPath(VariablePath.of(new String[] {"a", "b"})));
     }
 
     @Test
@@ -105,7 +102,7 @@ public class TestEtl {
         Event event = factory.newEvent();
         event.put("a", 0);
         etl.process(event);
-        Assert.assertEquals("evaluation failed", NullOrMissingValue.MISSING, event.applyAtPath(Action.GET, VariablePath.of(new String[] {"a"}), null, false));
+        Assert.assertEquals("evaluation failed", NullOrMissingValue.MISSING, event.getAtPath(VariablePath.of(new String[] {"a"})));
     }
 
     @Test
@@ -118,7 +115,7 @@ public class TestEtl {
         Event event = factory.newEvent();
         event.put("a", 0);
         etl.process(event);
-        Assert.assertEquals("evaluation failed", 0, event.applyAtPath(Action.GET, VariablePath.of(new String[] {"b"}), null, false));
+        Assert.assertEquals("evaluation failed", 0, event.getAtPath(VariablePath.of(new String[] {"b"})));
     }
 
     @Test

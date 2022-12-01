@@ -5,10 +5,9 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
-import loghub.events.Event;
-import loghub.events.Event.Action;
 import loghub.ProcessorException;
 import loghub.VariablePath;
+import loghub.events.Event;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -92,9 +91,9 @@ public class SyslogPriority extends FieldsProcessor {
             Map<String, Object> priorityEntry = new HashMap<>(2);
             priorityEntry.put("code", severity);
             priorityEntry.put("name", severityName);
-            event.applyAtPath(Action.PUT, ECSPATHPRIORITY, priority, true);
-            event.applyAtPath(Action.PUT, ECSPATHFACILITY, facilityEntry, true);
-            event.applyAtPath(Action.PUT, ECSPATHSEVERITY, priorityEntry, true);
+            event.putAtPath(ECSPATHPRIORITY, priority);
+            event.putAtPath(ECSPATHFACILITY, facilityEntry);
+            event.putAtPath(ECSPATHSEVERITY, priorityEntry);
             return RUNSTATUS.NOSTORE;
         } else if (resolve) {
             infos.put("facility", facilityName.orElse(Integer.toString(facility)));

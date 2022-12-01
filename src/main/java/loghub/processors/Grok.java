@@ -15,12 +15,11 @@ import org.apache.logging.log4j.Level;
 
 import io.krakens.grok.api.GrokCompiler;
 import io.krakens.grok.api.Match;
-import loghub.events.Event;
-import loghub.events.Event.Action;
 import loghub.Helpers;
 import loghub.ProcessorException;
 import loghub.VariablePath;
 import loghub.configuration.Properties;
+import loghub.events.Event;
 
 public class Grok extends FieldsProcessor {
 
@@ -85,7 +84,7 @@ public class Grok extends FieldsProcessor {
             }
             // . is a special field name, it mean a value to put back in the original field
             if (! ".".equals(destinationField) ) {
-                event.applyAtPath(Action.PUT, VariablePath.of(destinationField), stored, true);
+                event.putAtPath(VariablePath.of(destinationField), stored);
             } else {
                 returned = stored;
             }

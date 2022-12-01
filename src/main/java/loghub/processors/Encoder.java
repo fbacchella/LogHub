@@ -25,7 +25,7 @@ public class Encoder extends Processor {
     public boolean process(Event event) throws ProcessorException {
         try {
             byte[] encoded = encoder.encode(event);
-            event.applyAtPath(Event.Action.PUT, field, encoded);
+            event.putAtPath(field, encoded);
             return true;
         } catch (EncodeException ex) {
             throw event.buildException("Can't encode event", ex);

@@ -13,7 +13,6 @@ import org.junit.Test;
 
 import loghub.BeanChecks;
 import loghub.events.Event;
-import loghub.events.Event.Action;
 import loghub.Expression;
 import loghub.LogUtils;
 import loghub.Processor;
@@ -52,9 +51,9 @@ public class TestUserAgent {
         event.put("User-Agent", uaString);
         Assert.assertTrue(ua.process(event));
         System.out.println(event);
-        Object family = event.applyAtPath(Action.GET, VariablePath.of(new String[] {"agent", "userAgent", "family"}), null, false);
+        Object family = event.getAtPath(VariablePath.of(new String[] {"agent", "userAgent", "family"}));
         Assert.assertEquals("can't find user agent parsing", "Mobile Safari", family);
-        Object osfamilly = event.applyAtPath(Action.GET, VariablePath.of(new String[] {"agent", "os", "family"}), null, false);
+        Object osfamilly = event.getAtPath(VariablePath.of(new String[] {"agent", "os", "family"}));
         Assert.assertEquals("can't find user agent parsing", "iOS", osfamilly);
     }
 

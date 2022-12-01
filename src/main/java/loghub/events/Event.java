@@ -41,18 +41,18 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
     public static final String INDIRECTMARK = "<-";
     public static final String EVENT_ENTRY = "loghub.Event";
 
-    public enum Action {
-        APPEND(true, Action::Append),
-        GET(false, (i,j,k) -> i.get(j)),
-        PUT(false, (i, j, k) -> i.put(j, k)),
-        REMOVE(false, (i, j, k) -> i.remove(j)),
-        CONTAINS(false, (i, j, k) -> i.containsKey(j)),
-        CONTAINSVALUE(true, (c, k, v) -> Action.asMap(c, k).containsValue(v)),
-        SIZE(true, (c, k, v) -> Action.asMap(c, k).size()),
-        ISEMPTY(true, (c, k, v) -> Action.asMap(c, k).isEmpty()),
-        CLEAR(true, (c, k, v) -> {asMap(c, k).clear(); return null;}),
-        KEYSET(true, (c, k, v) -> Action.asMap(c, k).keySet()),
-        VALUES(true, (c, k, v) -> Action.asMap(c, k).values()),
+    enum Action {
+        APPEND(false, Action::Append),          // Exported through appendAtPath
+        GET(false, (i,j,k) -> i.get(j)),       // Exported through getAtPath
+        PUT(false, (i, j, k) -> i.put(j, k)),  // Exported through putAtPath
+        REMOVE(false, (i, j, k) -> i.remove(j)), // Exported through removeAtPath
+        CONTAINS(true, (c, k, v) -> c.containsKey(k)), // Exported through containsAtPath
+        CONTAINSVALUE(true, (c, k, v) -> Action.asMap(c, k).containsValue(v)), // Used in EventWrapper
+        ISEMPTY(true, (c, k, v) -> Action.asMap(c, k).isEmpty()), // Used in EventWrapper
+        SIZE(true, (c, k, v) ->  Action.size(c, k)), // Used in EventWrapper
+        CLEAR(true, (c, k, v) -> {asMap(c, k).clear(); return null;}), // Used in EventWrapper
+        KEYSET(true, (c, k, v) -> Action.asMap(c, k).keySet()), // Used in EventWrapper
+        VALUES(true, (c, k, v) -> Action.asMap(c, k).values()), // Used in EventWrapper
         ;
         @SuppressWarnings("unchecked")
         private static Map<String, Object> asMap(Map<String, Object>c , String k) {
@@ -62,6 +62,15 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
                 return (Map<String, Object>)c.get(k);
             } else {
                 return Collections.emptyMap();
+            }
+        }
+        private static int size(Map<String, Object>c , String k) {
+            if (k == null) {
+                return c.size();
+            } else if (c.containsKey(k) && c.get(k) instanceof Map){
+                return ((Map<?, ?>) c.get(k)).size();
+            } else {
+                throw IgnoredEventException.INSTANCE;
             }
         }
         private static boolean Append(Map<String, Object>c, String k, Object v) {
@@ -145,7 +154,7 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
         }
         public final Helpers.TriFunction<Map<String, Object>, String, Object, Object> action;
         public final boolean mapAction;
-        Action (boolean mapAction, Helpers.TriFunction<Map<String, Object>, String, Object, Object> action){
+        Action(boolean mapAction, Helpers.TriFunction<Map<String, Object>, String, Object, Object> action){
             this.mapAction = mapAction;
             this.action = action;
         }
@@ -156,23 +165,28 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
     }
 
     public Event wrap(VariablePath vp) {
-        return new EventWrapper(this, vp);
-    }
-
-    public Event wrap() {
-        return new EventWrapper(this);
+        if (vp.isMeta() || vp.isTimestamp()) {
+            throw new IllegalArgumentException("Wrap only on attributes path");
+        }
+        if (vp.isIndirect()) {
+            vp = VariablePath.of(vp);
+        }
+        if (vp != VariablePath.EMPTY) {
+            return new EventWrapper(this, vp);
+        } else {
+            return this;
+        }
     }
 
     @SuppressWarnings("unchecked")
     public Object applyAtPath(Action f, VariablePath path, Object value, boolean create) {
         if (value == NullOrMissingValue.MISSING) {
             switch (f) {
-            case PUT:
-            case REMOVE:
-                return NullOrMissingValue.MISSING;
             case CONTAINS:
             case CONTAINSVALUE:
                 return false;
+            case PUT:
+            case REMOVE:
             case APPEND:
                 throw IgnoredEventException.INSTANCE;
             default:
@@ -193,49 +207,40 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
                     .map(convert)
                     .filter(Objects::nonNull)
                     .map(VariablePath::of)
-                    .orElse(VariablePath.EMPTY);
-            if (path == VariablePath.EMPTY) {
+                    .orElse(null);
+            if (path == null) {
                 return NullOrMissingValue.MISSING;
             }
         }
         Map<String, Object> current = this;
         String key;
         if (path.isMeta()) {
-            return f.action.apply(getMetas(), path.get(0), value);
+            if (path.length() != 0) {
+                return f.action.apply(getMetas(), path.get(0), value);
+            } else if (f.mapAction) {
+                return f.action.apply(getMetas(), null, value);
+            } else {
+                throw new IllegalArgumentException("No variable specified for " + f);
+            }
         } else if (path.isTimestamp()) {
             switch(f) {
-            case GET: return getTimestamp();
+            case GET:
+                return getTimestamp();
             case PUT: {
+                Date oldTimestamp = getTimestamp();
                 if (!setTimestamp(value)) {
                     throw new IllegalArgumentException(value + " is not usable as a timestamp from path " + path);
                 }
-                return null;
+                return oldTimestamp;
             }
-            case REMOVE: return getTimestamp();
-            case CONTAINS: return true;
-            case SIZE: return 1;
-            case ISEMPTY: return false;
-            case CLEAR: return null;
-            case CONTAINSVALUE: return getTimestamp().equals(value);
-            case KEYSET: return Collections.singleton(TIMESTAMPKEY);
-            case VALUES: return Collections.singleton(getTimestamp());
-            default: return null;
+            default:
+                throw new IllegalArgumentException("Invalid action on a timestamp");
             }
         } else if (path == VariablePath.EMPTY) {
-            switch(f) {
-            case GET:
-            case PUT:
-            case REMOVE:
-            case CONTAINS:
-                throw new IllegalArgumentException("No variable specifed for " + f);
-            case SIZE:
-            case ISEMPTY:
-            case CLEAR:
-            case CONTAINSVALUE:
-            case KEYSET:
-            case VALUES:
-                return f.action.apply(this, null, null);
-            default: return null;
+            if (f.mapAction) {
+                return f.action.apply(this, null, value);
+            } else {
+                throw new IllegalArgumentException("No variable specified for " + f);
             }
         } else {
             key = path.get(0);
@@ -254,7 +259,7 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
                             return keyMissing(f);
                         }
                     } else if (! (peekNext.get() instanceof Map)) {
-                        throw new IllegalArgumentException("Can descend into " + key + " from " + path + " , it's not an object");
+                        return keyMissing(f);
                     } else {
                         next = (Map<String, Object>) peekNext.get();
                     }
@@ -262,7 +267,7 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
                 }
                 key = path.get(i + 1);
             }
-            if (create && f.mapAction && ! current.containsKey(key)) {
+            if (create && ! current.containsKey(key)) {
                 current.put(key, new HashMap<>());
             } else if (! current.containsKey(key) && f != Action.PUT && f != Action.APPEND) {
                 return keyMissing(f);
@@ -275,19 +280,14 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
         switch(f) {
         case GET:
             return NullOrMissingValue.MISSING;
-        case SIZE:
-            throw IgnoredEventException.INSTANCE;
         case CONTAINSVALUE:
         case CONTAINS:
             return false;
-        case ISEMPTY:
-            return true;
         case KEYSET:
-            return Collections.emptySet();
         case VALUES:
             return Collections.emptySet();
         default:
-            return null;
+            throw IgnoredEventException.INSTANCE;
         }
     }
 
@@ -407,10 +407,10 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
         if (value instanceof Date) {
             setTimestamp((Date) value);
             return true;
-        } else if (value instanceof Instant){
+        } else if (value instanceof Instant) {
             setTimestamp(Date.from((Instant)value));
             return true;
-        } else if (value instanceof Number){
+        } else if (value instanceof Number) {
             Date newDate = new Date(((Number)value).longValue());
             setTimestamp(newDate);
             return true;
@@ -418,6 +418,32 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
             return false;
         }
     }
+
+    public boolean appendAtPath(VariablePath path, Object o) {
+        Boolean status = (Boolean) applyAtPath(Action.APPEND, path, o, false);
+        if (status == null) {
+            throw IgnoredEventException.INSTANCE;
+        } else {
+            return status;
+        }
+    }
+
+    public Object putAtPath(VariablePath path, Object o) {
+        return applyAtPath(Action.PUT, path, o, true);
+    }
+
+    public Object getAtPath(VariablePath path) {
+        return applyAtPath(Action.GET, path, null,false);
+    }
+
+    public boolean containsAtPath(VariablePath path) {
+        return Boolean.TRUE.equals(applyAtPath(Action.CONTAINS, path, null, false));
+    }
+
+    public Object removeAtPath(VariablePath path) {
+        return applyAtPath(Action.REMOVE, path, null, false);
+    }
+
 
     public abstract void end();
 

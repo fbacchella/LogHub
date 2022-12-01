@@ -16,14 +16,13 @@ import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 
-import loghub.events.Event;
-import loghub.events.Event.Action;
 import loghub.EventsProcessor;
 import loghub.LogUtils;
 import loghub.ProcessorException;
 import loghub.Tools;
 import loghub.VariablePath;
 import loghub.ZMQFactory;
+import loghub.events.Event;
 import loghub.events.EventsFactory;
 import loghub.processors.DecodeUrl;
 import loghub.processors.Identity;

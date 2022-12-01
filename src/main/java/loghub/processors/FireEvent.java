@@ -2,9 +2,6 @@ package loghub.processors;
 
 import java.util.Map;
 
-import loghub.ConnectionContext;
-import loghub.events.Event;
-import loghub.events.Event.Action;
 import loghub.Expression;
 import loghub.Pipeline;
 import loghub.PriorityBlockingQueue;
@@ -12,6 +9,7 @@ import loghub.Processor;
 import loghub.ProcessorException;
 import loghub.VariablePath;
 import loghub.configuration.Properties;
+import loghub.events.Event;
 import loghub.events.EventsFactory;
 
 public class FireEvent extends Processor {
@@ -39,7 +37,7 @@ public class FireEvent extends Processor {
         Event newEvent = factory.newEvent();
         for (Map.Entry<VariablePath, Expression> e: expressions.entrySet()) {
             Object value = e.getValue().eval(event);
-            newEvent.applyAtPath(Action.PUT, e.getKey(), value);
+            newEvent.putAtPath(e.getKey(), value);
         }
         newEvent.reinject(pipeDestination, mainQueue);
         return true;
