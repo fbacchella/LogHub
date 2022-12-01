@@ -184,8 +184,7 @@ public class EventsProcessor extends Thread {
             status = ProcessingStatus.DROPED;
             e.doMetric(Stats.PipelineStat.DROP);
         } else if (e.processingDone() > maxSteps) {
-            e.getPipelineLogger().error("Too much steps for an event in pipeline. Done {} steps, still {} left, throwing away", e::processingDone, e::processingLeft);
-            e.getPipelineLogger().debug("Looping event: {}", e);
+            e.getPipelineLogger().warn("Too much steps for an event in pipeline. Done {} steps, still {} left, looping event: {}", e::processingDone, e::processingLeft, () -> e);
             e.doMetric(Stats.PipelineStat.LOOPOVERFLOW);
             status = ProcessingStatus.ERROR;
         } else {
@@ -267,7 +266,7 @@ public class EventsProcessor extends Thread {
                 // A "do nothing" process
                 status = ProcessingStatus.CONTINUE;
             } catch (ProcessorException | UncheckedProcessorException ex) {
-                e.getPipelineLogger().atDebug()
+                e.getPipelineLogger().atWarn()
                                      .withThrowable(ex)
                                      .log("Got the processing exception {} for event {}", () -> ex.getMessage(), () -> e);
                 Processor exceptionProcessor = p.getException();
@@ -286,7 +285,7 @@ public class EventsProcessor extends Thread {
                     Start.fatalException(ex);
                 } else {
                     e.doMetric(Stats.PipelineStat.EXCEPTION, ex);
-                    e.getPipelineLogger().error("failed to transform event {} with unmanaged error {}", e, Helpers.resolveThrowableException(ex));
+                    e.getPipelineLogger().error("Failed to transform event {} with unmanaged error {}", e, Helpers.resolveThrowableException(ex));
                     e.getPipelineLogger().catching(Level.DEBUG, ex);
                 }
                 status = ProcessingStatus.ERROR;
