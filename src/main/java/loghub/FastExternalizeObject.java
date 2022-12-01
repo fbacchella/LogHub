@@ -69,31 +69,36 @@ public class FastExternalizeObject {
             this.out = out;
         }
 
-        private Map readMap() throws IOException, ClassNotFoundException {
-            Map<Object, Object> map = new HashMap<>();
+        private <K, V> Map<K, V> readMap() throws IOException, ClassNotFoundException {
+            Map<K, V> map = new HashMap<>();
             return readMap(map);
         }
 
-        private Map readLinkedMap() throws IOException, ClassNotFoundException {
+        @SuppressWarnings("unchecked")
+        private <K, V> Map<K, V> readLinkedMap() throws IOException, ClassNotFoundException {
             Map<Object, Object> map = new LinkedHashMap<>();
-            return readMap(map);
+            return (Map<K, V>) readMap(map);
         }
 
-        public Map readMap(Map map) throws IOException, ClassNotFoundException {
+        public <K, V> Map<K, V> readMap(Map<K, V> map) throws IOException, ClassNotFoundException {
             int size = readInt();
             for (int i = 0; i < size; i++) {
-                Object key = readObjectFast();
-                Object value = readObjectFast();
+                @SuppressWarnings("unchecked")
+                K key = (K) readObjectFast();
+                @SuppressWarnings("unchecked")
+                V value = (V) readObjectFast();
                 map.put(key, value);
             }
             return map;
         }
 
-        public List readList() throws IOException, ClassNotFoundException {
+        public <E> List<E> readList() throws IOException, ClassNotFoundException {
             int size = readInt();
-            List list = new ArrayList(size);
+            List<E> list = new ArrayList<>(size);
             for (int i = 0; i < size; i++) {
-                list.add(readObjectFast());
+                @SuppressWarnings("unchecked")
+                E e = (E) readObjectFast();
+                list.add(e);
             }
             return list;
         }
@@ -143,6 +148,7 @@ public class FastExternalizeObject {
             }
         }
 
+        @SuppressWarnings("unchecked")
         private <T> T readReference() throws IOException {
             long ref = readLong();
             return (T) out.immutableObjectsCache.remove(ref);
@@ -250,7 +256,7 @@ public class FastExternalizeObject {
             } else if (o instanceof Date) {
                 write(TYPE.DATE.ordinal());
                 writeLong(((Date)o).getTime());
-            } else if (o.getClass().getClass().isEnum()) {
+            } else if (o.getClass().isEnum()) {
                 write(TYPE.IMMUTABLE.ordinal());
                 writeReference(o);
             } else if (immutables.contains(o.getClass())) {
@@ -260,7 +266,7 @@ public class FastExternalizeObject {
                 write(TYPE.FASTER.ordinal());
                 Class<? extends ObjectFaster<?>> clazz = faster.get(o.getClass());
                 try {
-                    ObjectFaster of = clazz.getConstructor(o.getClass()).newInstance(o);
+                    ObjectFaster<?> of = clazz.getConstructor(o.getClass()).newInstance(o);
                     writeObject(of);
                 } catch (InstantiationException | NoSuchMethodException | IllegalAccessException |
                          InvocationTargetException e) {
@@ -268,13 +274,13 @@ public class FastExternalizeObject {
                 }
             } else if (o instanceof LinkedHashMap) {
                 write(TYPE.LINKEDMAP.ordinal());
-                writeMap((Map<Object, Object>) o);
+                writeMap((Map<?, ?>) o);
             } else if (o instanceof HashMap) {
                 write(TYPE.HASHMAP.ordinal());
-                writeMap((Map<Object, Object>) o);
+                writeMap((Map<?, ?>) o);
             } else if (o instanceof ArrayList || o instanceof LinkedList) {
                 write(TYPE.LIST.ordinal());
-                writeList((List<Object>) o);
+                writeList((List<?>) o);
             } else if (ConnectionContext.EMPTY.equals(o)) {
                 write(TYPE.EMPTY_CONTEXT.ordinal());
             } else if (o.getClass().isArray()) {
@@ -286,7 +292,7 @@ public class FastExternalizeObject {
         }
 
         private void writeArray(Object o) throws IOException {
-            Class component = o.getClass().getComponentType();
+            Class<?> component = o.getClass().getComponentType();
             int length = Array.getLength(o);
             if (component.isPrimitive()) {
                 write(TYPE.IMMUTABLE.ordinal());
