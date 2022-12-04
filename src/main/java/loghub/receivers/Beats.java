@@ -49,6 +49,7 @@ import lombok.Setter;
 @SelfDecoder
 @CloseOnError
 @BuilderClass(Beats.Builder.class)
+@Blocking
 public class Beats extends NettyReceiver<Beats, ByteBuf, Beats.Builder> implements ConsumerProvider {
 
     public static class Builder extends NettyReceiver.Builder<Beats, ByteBuf, Beats.Builder> {
