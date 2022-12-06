@@ -114,6 +114,8 @@ public class FastExternalizeObject {
                 return false;
             case BYTE:
                 return readByte();
+            case SHORT:
+                return readShort();
             case INT:
                 return readInt();
             case LONG:

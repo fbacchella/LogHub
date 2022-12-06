@@ -55,7 +55,7 @@ public class TestFork {
         Pipeline ppl = new Pipeline(Collections.emptyList(), "main", null);
         event.inject(ppl, conf.mainQueue, true);
         Map<?, ?> boolMap = new HashMap<>(Map.of("a", true, "b", false));
-        Map<?, ?> intMap = new HashMap<>(Map.of("a", (byte)1, "b", 2, "c", 3L));
+        Map<?, ?> intMap = new HashMap<>(Map.of("a", (byte)1, "b", (short)2, "c", 3, "d", 4L));
         Map<?, ?> floatMap = new HashMap<>(Map.of("a", 1.0f, "b", 2.0));
         Map<?, ?> textMap = new HashMap<>(Map.of("a", 'a', "b", "b"));
         Map<?, ?> timeMap = new HashMap<>(Map.of("a", new Date(1), "b", Instant.ofEpochSecond(2, 3)));
