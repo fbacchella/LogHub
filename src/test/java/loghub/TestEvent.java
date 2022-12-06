@@ -1,6 +1,7 @@
 package loghub;
 
 import java.io.IOException;
+import java.io.StringReader;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -19,6 +20,7 @@ import loghub.configuration.Properties;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
 import loghub.processors.Identity;
+import loghub.senders.BlockingConnectionContext;
 
 public class TestEvent {
 
@@ -103,6 +105,41 @@ public class TestEvent {
 
         Assert.assertEquals(2, wrapped.getMetas().size());
         Assert.assertEquals(2, event.getMetas().size());
+
+        event.put("a", 1);
+        wrapped.put("b", 2);
+
+        Assert.assertEquals(2, event.size());
+        Assert.assertEquals(1, wrapped.size());
+
+        Assert.assertEquals(1, event.get("a"));
+        @SuppressWarnings("unchecked")
+        Map<String, Object> values = (Map<String, Object>) event.get("wrapped");
+        Assert.assertEquals(2, values.get("b"));
+    }
+
+    @Test(timeout = 1000)
+    public void testWrapperFailed() throws IOException, InterruptedException {
+        BlockingConnectionContext waitingContext = new BlockingConnectionContext();
+        Event event = factory.newEvent(waitingContext);
+        Map<String, Object> wrapped = new HashMap<>((Map.of("b", NullOrMissingValue.NULL, "c", NullOrMissingValue.MISSING)));
+        // Map.of doesn't allow null value;
+        wrapped.put("a", null);
+        event.put("top", wrapped);
+        for (String key: List.of("a", "b", "c")) {
+            Assert.assertThrows(IgnoredEventException.class, () -> event.wrap(VariablePath.of(List.of("top", key))));
+        }
+        // Should not neither descend nor create [d e]
+        String confile = "pipeline[main] {path[top a](path[d]([e]=false)) | [f]=true} ";
+        Properties props = Tools.loadConf(new StringReader(confile));
+        EventsProcessor ep = new EventsProcessor(props.mainQueue, props.outputQueues, props.namedPipeLine, 100, props.repository);
+        event.inject(props.namedPipeLine.get("main"), props.mainQueue, false);
+        props.mainQueue.put(event);
+        ep.start();
+        waitingContext.getLocalAddress().acquire();
+        ep.stopProcessing();
+        Assert.assertFalse(event.containsAtPath(VariablePath.of(List.of("d"))));
+        Assert.assertTrue((Boolean) event.getAtPath(VariablePath.of(List.of("f"))));
     }
 
 }

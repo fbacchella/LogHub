@@ -92,7 +92,22 @@ public class EventsProcessor extends Thread {
             while (processor != null) {
                 event.getPipelineLogger().trace("processing with {}", processor);
                 if (processor instanceof WrapEvent) {
-                    event = event.wrap(processor.getPathArray());
+                    try {
+                        event = event.wrap(processor.getPathArray());
+                    } catch (IgnoredEventException e) {
+                        // Wrapped failed, trying to descent in a non path
+                        event.getPipelineLogger().debug("Not usable path while wrapping, ignored event {}", event);
+                        int depth = 1;
+                        // Remove all processing until the matching unwrap is done
+                        while (depth > 0) {
+                            processor = event.next();
+                            if (processor instanceof WrapEvent) {
+                                depth++;
+                            } else if (processor instanceof UnwrapEvent) {
+                                depth--;
+                            }
+                        }
+                    }
                 } else if (processor instanceof UnwrapEvent) {
                     event = event.unwrap();
                 } else {
