@@ -8,6 +8,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
@@ -37,6 +38,14 @@ public abstract class FieldsProcessor extends Processor {
 
     }
 
+    @Documented
+    @Retention(RUNTIME)
+    @Target(TYPE)
+    @Inherited
+    public @interface InPlace {
+
+    }
+
     protected enum RUNSTATUS {
         FAILED,
         NOSTORE,
@@ -44,23 +53,39 @@ public abstract class FieldsProcessor extends Processor {
     }
 
     public abstract static class Builder<FP extends FieldsProcessor> extends Processor.Builder<FP> {
-        @Setter
         private VariablePath destination;
-        @Setter
         private VarFormatter destinationTemplate;
         @Setter
         private VariablePath field;
         @Setter
         private Object[] fields;
+        @Setter
+        private boolean inPlace = false;
+        public void setDestination(VariablePath destination) {
+            this.destination = destination;
+            if (destination != null) {
+                this.destinationTemplate = null;
+                this.inPlace = false;
+            }
+        }
+        public void setDestinationTemplate(VarFormatter destinationTemplate) {
+            this.destinationTemplate = destinationTemplate;
+            if (destinationTemplate != null) {
+                this.destination = null;
+                this.inPlace = false;
+            }
+        }
     }
 
     private VariablePath field = VariablePath.of(new String[]{"message"});
     private Pattern[] patterns = new Pattern[]{};
     private String[] globs = new String[] {};
-    @Getter @Setter
+    @Getter
     private VariablePath destination = null;
-    @Getter @Setter
+    @Getter
     private VarFormatter destinationTemplate = null;
+    @Getter
+    private boolean inPlace = false;
 
     protected class FieldSubProcessor extends Processor {
 
@@ -103,15 +128,13 @@ public abstract class FieldsProcessor extends Processor {
 
     protected FieldsProcessor(Builder<? extends FieldsProcessor> builder) {
         super(builder);
-        if (builder.destinationTemplate != null) {
-            this.destination = null;
-            this.destinationTemplate = builder.destinationTemplate;
-        } else if (builder.destination != null) {
-            this.destination = builder.destination;
+        this.inPlace = builder.inPlace && getClass().getAnnotation(InPlace.class) != null;
+        if (inPlace) {
             this.destinationTemplate = null;
+            this.destination = null;
         } else {
-            this.destination = null;
-            this.destinationTemplate = null;
+            this.destinationTemplate = builder.destinationTemplate;
+            this.destination = builder.destination;
         }
         this.field = builder.field;
         if (builder.fields != null) {
@@ -193,7 +216,9 @@ public abstract class FieldsProcessor extends Processor {
     protected boolean processField(Event event, VariablePath currentField, Supplier<Object> resolver) throws ProcessorException {
         try {
             Object processed = resolver.get();
-            if ( ! (processed instanceof RUNSTATUS)) {
+            if (processed instanceof Map && inPlace) {
+                event.putAll((Map) processed);
+            } else if (! (processed instanceof RUNSTATUS)) {
                 event.putAtPath(resolveDestination(currentField), processed);
             } else if (processed == RUNSTATUS.REMOVE) {
                 event.removeAtPath(currentField);
@@ -261,6 +286,28 @@ public abstract class FieldsProcessor extends Processor {
 
     public void setField(VariablePath field) {
         this.field = field;
+    }
+
+    public void setInPlace(boolean inPlace) {
+        this.inPlace = inPlace;
+        if (inPlace) {
+            destination = null;
+            destinationTemplate = null;
+        }
+    }
+    public void setDestination(VariablePath destination) {
+        this.destination = destination;
+        if (destination != null) {
+            this.destinationTemplate = null;
+            this.inPlace = false;
+        }
+    }
+    public void setDestinationTemplate(VarFormatter destinationTemplate) {
+        this.destinationTemplate = destinationTemplate;
+        if (destinationTemplate != null) {
+            this.destination = null;
+            this.inPlace = false;
+        }
     }
 
 }

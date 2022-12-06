@@ -83,6 +83,7 @@ public class TestUserAgent {
                 , BeanChecks.BeanInfo.build("success", Processor.class)
                 , BeanChecks.BeanInfo.build("failure", Processor.class)
                 , BeanChecks.BeanInfo.build("exception", Processor.class)
+                , BeanChecks.BeanInfo.build("inPlace", Boolean.TYPE)
         );
     }
 

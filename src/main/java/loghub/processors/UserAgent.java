@@ -21,6 +21,7 @@ import lombok.Setter;
 import ua_parser.Client;
 import ua_parser.Parser;
 
+@FieldsProcessor.InPlace
 @BuilderClass(UserAgent.Builder.class)
 public class UserAgent extends FieldsProcessor {
 

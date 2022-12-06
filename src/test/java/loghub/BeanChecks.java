@@ -14,6 +14,8 @@ import org.apache.logging.log4j.Logger;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 
+import loghub.processors.FieldsProcessor;
+
 public class BeanChecks {
 
     private static Logger logger;
@@ -44,13 +46,15 @@ public class BeanChecks {
     }
 
     public static void beansCheck(Logger callerLogger, String className, BeanInfo... beans) throws ReflectiveOperationException, IntrospectionException {
-        Class<? extends Object> testedClass = BeanChecks.class.getClassLoader().loadClass(className);
+        Class<?> componentClass = BeanChecks.class.getClassLoader().loadClass(className);
         // Tests that the abstract builder can resolver the Builder class if provided
-        AbstractBuilder.resolve(testedClass);
-        BuilderClass bca = testedClass.getAnnotation(BuilderClass.class);
+        AbstractBuilder.resolve(componentClass);
+        BuilderClass bca = componentClass.getAnnotation(BuilderClass.class);
+        Class<?> testedClass;
         if (bca != null) {
             testedClass = bca.value();
         } else {
+            testedClass = componentClass;
             Constructor<?> init = testedClass.getConstructor();
             int mod = init.getModifiers();
             Assert.assertTrue(Modifier.isPublic(mod));
@@ -59,8 +63,11 @@ public class BeanChecks {
             PropertyDescriptor bean;
             bean = bi.getPropertyDescriptor(testedClass);
             callerLogger.debug("Bean '{}' for {} is {}", bi.beanName, className, bean);
-            Assert.assertEquals(bi.beanType, bean.getPropertyType());
+            Assert.assertEquals(bi.beanName, bi.beanType, bean.getPropertyType());
             Assert.assertNotNull(bean.getWriteMethod());
+            if ("inPlace".equals(bi.beanName) && componentClass.getAnnotation(FieldsProcessor.InPlace.class) == null) {
+                Assert.fail("inPlace argument requires InPlace annotation");
+            }
         }
     }
 

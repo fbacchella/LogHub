@@ -4,6 +4,7 @@ import java.beans.IntrospectionException;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.logging.log4j.Level;
@@ -52,6 +53,29 @@ public class TestSyslogPriority {
         String facility = (String)((Map<String, Object>)e.get("message")).get("facility");
         Assert.assertEquals("informational", severity);
         Assert.assertEquals("security/authorization", facility);
+    }
+
+    @Test
+    public void TestResolvedStringInPlaceEcs() throws ProcessorException {
+        SyslogPriority sp = new SyslogPriority();
+        sp.setInPlace(true);
+        sp.setEcs(true);
+        sp.setField(VariablePath.of(new String[] {"priority"}));
+
+        Properties props = new Properties(Collections.emptyMap());
+
+        Assert.assertTrue(sp.configure(props));
+
+        Event e = factory.newEvent();
+        VariablePath syslogPath = VariablePath.of(List.of("log", "syslog"));
+        e.putAtPath(syslogPath.append("priority"), 38);
+        e = e.wrap(syslogPath);
+        Assert.assertTrue(e.process(sp));
+        e = e.unwrap();
+        Map<String, Object> severity = (Map<String, Object>) e.getAtPath(syslogPath.append("severity"));
+        Map<String, Object> facility = (Map<String, Object>) e.getAtPath(syslogPath.append("facility"));
+        Assert.assertEquals(Map.of("name", "informational", "code", 6), severity);
+        Assert.assertEquals(Map.of("name", "security/authorization", "code", 4), facility);
     }
 
     @Test
@@ -191,6 +215,7 @@ public class TestSyslogPriority {
                               , BeanChecks.BeanInfo.build("Severities", BeanChecks.LSTRING)
                               , BeanChecks.BeanInfo.build("ecs", Boolean.TYPE)
                               , BeanChecks.BeanInfo.build("resolve", Boolean.TYPE)
+                              , BeanChecks.BeanInfo.build("inPlace", Boolean.TYPE)
                         );
     }
 

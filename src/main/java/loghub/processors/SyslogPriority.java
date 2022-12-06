@@ -11,6 +11,7 @@ import loghub.events.Event;
 import lombok.Getter;
 import lombok.Setter;
 
+@FieldsProcessor.InPlace
 public class SyslogPriority extends FieldsProcessor {
     
     private static final VariablePath ECSPATHFACILITY = VariablePath.of(new String[] {".", "log", "syslog", "facility"}) ;
@@ -84,17 +85,28 @@ public class SyslogPriority extends FieldsProcessor {
             severityName = severitiesNames[severity];
         }
         Map<String, Object> infos = new HashMap<>(2);
-        if (ecs) {
+        if (ecs && ! isInPlace()) {
             Map<String, Object> facilityEntry = new HashMap<>(2);
             facilityEntry.put("code", facility);
             facilityName.ifPresent(s -> facilityEntry.put("name", s));
-            Map<String, Object> priorityEntry = new HashMap<>(2);
-            priorityEntry.put("code", severity);
-            priorityEntry.put("name", severityName);
+            Map<String, Object> severityEntry = new HashMap<>(2);
+            severityEntry.put("code", severity);
+            severityEntry.put("name", severityName);
             event.putAtPath(ECSPATHPRIORITY, priority);
             event.putAtPath(ECSPATHFACILITY, facilityEntry);
-            event.putAtPath(ECSPATHSEVERITY, priorityEntry);
+            event.putAtPath(ECSPATHSEVERITY, severityEntry);
             return RUNSTATUS.NOSTORE;
+        } else if (ecs) {
+            Map<String, Object> facilityEntry = new HashMap<>(2);
+            facilityEntry.put("code", facility);
+            facilityName.ifPresent(s -> facilityEntry.put("name", s));
+            Map<String, Object> severityEntry = new HashMap<>(2);
+            severityEntry.put("code", severity);
+            severityEntry.put("name", severityName);
+            Map<String, Map<String, Object>> logEntry = new HashMap<>(2);
+            logEntry.put("severity", severityEntry);
+            logEntry.put("facility", facilityEntry);
+            return logEntry;
         } else if (resolve) {
             infos.put("facility", facilityName.orElse(Integer.toString(facility)));
             infos.put("severity", severityName);
