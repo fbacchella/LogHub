@@ -52,7 +52,7 @@ public class ZMQHandler<M> implements AutoCloseable {
         @Setter
         int mask;
         @Setter
-        String security = Mechanisms.NULL.toString();
+        Mechanisms security = Mechanisms.NULL;
         @Setter
         Certificate serverPublicKey;
         @Setter
@@ -127,10 +127,7 @@ public class ZMQHandler<M> implements AutoCloseable {
             } else {
                 sbuilder.setLoggerMonitor(builder.name, builder.logger);
             }
-            Mechanisms security = Optional.ofNullable(builder.security)
-                                          .map(s -> s.toUpperCase(Locale.ENGLISH))
-                                          .map(Mechanisms::valueOf)
-                                          .orElse(Mechanisms.NULL);
+            Mechanisms security = builder.security;
             switch (security) {
             case CURVE: 
                 logger.debug("Activating Curve security on socket {}", socketUrl);

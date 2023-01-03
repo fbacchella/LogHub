@@ -44,6 +44,7 @@ import loghub.events.EventsFactory;
 import loghub.zmq.ZMQCheckedException;
 import loghub.zmq.ZMQHelper.Method;
 import loghub.zmq.ZMQSocketFactory;
+import zmq.io.mechanism.Mechanisms;
 import zmq.socket.Sockets;
 
 public class TestZMQSender {
@@ -174,10 +175,10 @@ public class TestZMQSender {
     public void curveClient() throws IOException, InterruptedException, ZMQCheckedException {
         dotest(s -> {
             s.setMethod(Method.BIND.name());
-            s.setSecurity("Curve");
+            s.setSecurity(Mechanisms.CURVE);
             s.setServerKey(getRemoteIdentity("secure"));
         },
-               s -> s.setMethod(Method.CONNECT).setKeyEntry(tctxt.getFactory().getKeyEntry()).setSecurity("Curve"),
+               s -> s.setMethod(Method.CONNECT).setKeyEntry(tctxt.getFactory().getKeyEntry()).setSecurity(Mechanisms.CURVE),
                         "(\\{\"message\":\\d+\\})+");
     }
 
@@ -185,9 +186,9 @@ public class TestZMQSender {
     public void curveServer() throws IOException, InterruptedException, ZMQCheckedException {
         dotest(s -> {
             s.setMethod(Method.BIND.name());
-            s.setSecurity("Curve");
+            s.setSecurity(Mechanisms.CURVE);
         },
-               s -> s.setMethod(Method.CONNECT).setKeyEntry(tctxt.getFactory().getKeyEntry()).setServerKey(getRemoteIdentity("server")).setSecurity("Curve"),
+               s -> s.setMethod(Method.CONNECT).setKeyEntry(tctxt.getFactory().getKeyEntry()).setServerKey(getRemoteIdentity("server")).setSecurity(Mechanisms.CURVE),
                         "(\\{\"message\":\\d+\\})+");
     }
 

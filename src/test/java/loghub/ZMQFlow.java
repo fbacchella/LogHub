@@ -18,6 +18,7 @@ import loghub.zmq.ZMQHelper.Method;
 import loghub.zmq.ZMQSocketFactory;
 import lombok.Setter;
 import lombok.experimental.Accessors;
+import zmq.io.mechanism.Mechanisms;
 
 @Accessors(chain=true)
 public class ZMQFlow extends Thread implements AutoCloseable {
@@ -38,7 +39,7 @@ public class ZMQFlow extends Thread implements AutoCloseable {
         @Setter
         PrivateKeyEntry keyEntry = null;
         @Setter
-        private String security = null;
+        private Mechanisms security = null;
         @Setter 
         private Supplier<byte[]> source;
         @Setter

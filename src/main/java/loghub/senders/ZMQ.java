@@ -22,6 +22,7 @@ import loghub.zmq.ZMQHelper;
 import loghub.zmq.ZMQHelper.Method;
 import lombok.Getter;
 import lombok.Setter;
+import zmq.io.mechanism.Mechanisms;
 import zmq.socket.Sockets;
 
 @BuilderClass(ZMQ.Builder.class)
@@ -40,7 +41,7 @@ public class ZMQ extends Sender {
         @Setter  @Getter
         private String serverKey = null;
         @Setter  @Getter
-        private String security = null;
+        private Mechanisms security = null;
 
         public ZMQ build() {
             return new ZMQ(this);

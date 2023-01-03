@@ -36,6 +36,7 @@ import loghub.decoders.StringCodec;
 import loghub.zmq.ZMQCheckedException;
 import loghub.zmq.ZMQHelper.Method;
 import loghub.zmq.ZMQSocketFactory;
+import zmq.io.mechanism.Mechanisms;
 import zmq.socket.Sockets;
 
 public class TestZMQReceiver {
@@ -127,10 +128,10 @@ public class TestZMQReceiver {
         dotest(r -> {
             r.setMethod("BIND");
             r.setType("PULL");
-            r.setSecurity("Curve");
+            r.setSecurity(Mechanisms.CURVE);
             r.setServerKey(keyPub);
         },
-               s -> s.setMethod(Method.CONNECT).setType(SocketType.PUSH).setMsPause(1000).setSecurity("Curve").setKeyEntry(tctxt.getFactory().getKeyEntry()));
+               s -> s.setMethod(Method.CONNECT).setType(SocketType.PUSH).setMsPause(1000).setSecurity(Mechanisms.CURVE).setKeyEntry(tctxt.getFactory().getKeyEntry()));
     }
 
     @Test(timeout=5000)
@@ -145,10 +146,10 @@ public class TestZMQReceiver {
         dotest(r -> {
             r.setMethod("BIND");
             r.setType("PULL");
-            r.setSecurity("Curve");
+            r.setSecurity(Mechanisms.CURVE);
             r.setServerKey(keyPub);
         },
-               s -> s.setMethod(Method.CONNECT).setType(SocketType.PUSH).setMsPause(1000).setSecurity("Curve"));
+               s -> s.setMethod(Method.CONNECT).setType(SocketType.PUSH).setMsPause(1000).setSecurity(Mechanisms.CURVE));
 
     }
 

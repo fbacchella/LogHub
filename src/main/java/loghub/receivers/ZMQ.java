@@ -5,11 +5,9 @@ import java.util.Locale;
 
 import org.apache.logging.log4j.Level;
 import org.zeromq.SocketType;
-import org.zeromq.ZMQ.Socket;
 import org.zeromq.ZPoller;
 
 import loghub.BuilderClass;
-import loghub.ConnectionContext;
 import loghub.Helpers;
 import loghub.Start;
 import loghub.configuration.Properties;
@@ -17,7 +15,10 @@ import loghub.zmq.ZMQCheckedException;
 import loghub.zmq.ZMQHandler;
 import loghub.zmq.ZMQHelper;
 import loghub.zmq.ZMQHelper.Method;
+import loghub.zmq.ZmqConnectionContext;
 import lombok.Setter;
+import zmq.Msg;
+import zmq.io.mechanism.Mechanisms;
 
 @Blocking
 @BuilderClass(ZMQ.Builder.class)
@@ -35,7 +36,7 @@ public class ZMQ extends Receiver<ZMQ, ZMQ.Builder> {
         @Setter
         String serverKey = null;
         @Setter
-        String security = null;
+        Mechanisms security = null;
         @Setter
         String topic = "";
         @Override
@@ -47,24 +48,26 @@ public class ZMQ extends Receiver<ZMQ, ZMQ.Builder> {
         return new Builder();
     }
 
-    private ZMQHandler.Builder<byte[]> hbuilder;
-    private ZMQHandler<byte[]> handler;
+    private ZMQHandler.Builder<Msg> hbuilder;
+    private ZMQHandler<Msg> handler;
     private final String listen;
+    private final Mechanisms security;
 
     protected ZMQ(Builder builder) {
         super(builder);
         this.listen = builder.listen;
+        this.security = builder.security;
         hbuilder = new ZMQHandler.Builder<>();
         hbuilder.setHwm(builder.hwm)
                 .setSocketUrl(builder.listen)
                 .setMethod(Method.valueOf(builder.method.toUpperCase(Locale.ENGLISH)))
                 .setType(SocketType.valueOf(builder.type.toUpperCase(Locale.ENGLISH)))
                 .setTopic(builder.topic.getBytes(StandardCharsets.UTF_8))
-                .setSecurity(builder.security)
+                .setSecurity(security)
                 .setServerPublicKeyToken(builder.serverKey)
                 .setLogger(logger)
                 .setName("zmqhandler/" + listen.replaceFirst("://", "/").replace(':', '/').replaceFirst("\\*", "0.0.0.0"))
-                .setReceive(Socket::recv)
+                .setReceive(s -> s.base().recv(0))
                 .setMask(ZPoller.IN)
                 ;
     }
@@ -87,9 +90,13 @@ public class ZMQ extends Receiver<ZMQ, ZMQ.Builder> {
         try {
             handler.start();
             while (handler.isRunning()) {
-                byte[] message = handler.dispatch(null);
+                Msg msg = handler.dispatch(null);
+                if (msg == null) {
+                    continue;
+                }
+                byte[] message = msg.data();
                 if (message != null) {
-                    decodeStream(ConnectionContext.EMPTY, message).forEach(this::send);
+                    decodeStream(new ZmqConnectionContext(msg, security), message).forEach(this::send);
                 }
             }
         } catch (ZMQCheckedException | IllegalArgumentException ex) {

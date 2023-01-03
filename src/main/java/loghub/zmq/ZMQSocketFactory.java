@@ -413,6 +413,7 @@ public class ZMQSocketFactory implements AutoCloseable {
                 socket.setTCPKeepAliveCount(3);
                 socket.setTCPKeepAliveIdle(60);
                 socket.setTCPKeepAliveInterval(10);
+                socket.setSelfAddressPropertyName("X-Self-Address");
                 switch (security) {
                 case CURVE:
                     if (pke != null) {
