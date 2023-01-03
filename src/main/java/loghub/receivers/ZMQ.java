@@ -63,7 +63,6 @@ public class ZMQ extends Receiver<ZMQ, ZMQ.Builder> {
                 .setSecurity(builder.security)
                 .setServerPublicKeyToken(builder.serverKey)
                 .setLogger(logger)
-                .setSelfLogEvents(true)
                 .setName("zmqhandler/" + listen.replaceFirst("://", "/").replace(':', '/').replaceFirst("\\*", "0.0.0.0"))
                 .setReceive(Socket::recv)
                 .setMask(ZPoller.IN)

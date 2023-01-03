@@ -4,6 +4,9 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.channels.SelectableChannel;
+import java.nio.channels.ServerSocketChannel;
+import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -22,6 +25,8 @@ import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.security.spec.InvalidKeySpecException;
 import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -43,7 +48,10 @@ import loghub.zmq.ZMQHelper.Method;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.Accessors;
+import zmq.ZError;
 import zmq.io.mechanism.Mechanisms;
+
+import static org.zeromq.ZMQ.DONTWAIT;
 
 public class ZMQSocketFactory implements AutoCloseable {
 
@@ -60,6 +68,9 @@ public class ZMQSocketFactory implements AutoCloseable {
     @Getter
     private final PrivateKeyEntry keyEntry;
     private final Thread terminator;
+    @Getter
+    private final ZPoller monitorPoller;
+    private final Thread monitorThread;
 
     public static ZMQSocketFactory getFactory(Map<String, Object> properties) {
         int numSocket;
@@ -81,6 +92,96 @@ public class ZMQSocketFactory implements AutoCloseable {
             linger = DEFAULTLINGER;
         }
         return new ZMQSocketFactory(numSocket, zmqKeyStore, linger);
+    }
+
+    private class EventLogger implements ZPoller.EventsHandler {
+
+        private final Logger eventLogger;
+        private final String socketUrl;
+
+        private EventLogger(String socketUrl, Logger eventLogger) {
+            this.eventLogger = eventLogger;
+            this.socketUrl = socketUrl;
+        }
+
+        @Override
+        public boolean events(Socket socket, int events) {
+            while (true) {
+                ZMQ.Event e = ZMQ.Event.recv(socket, DONTWAIT);
+                if (e == null) {
+                    break;
+                }
+                ZMonitor.Event evType = ZMonitor.Event.findByCode(e.getEvent());
+                if (e.isError() && evType == ZMonitor.Event.HANDSHAKE_FAILED_PROTOCOL) {
+                    eventLogger.error("Socket {} {}", () -> socketUrl, () -> resolvedEvent(evType, e));
+                } else if (evType == ZMonitor.Event.MONITOR_STOPPED) {
+                    eventLogger.trace("Socket {} {}", () -> socketUrl, () -> resolvedEvent(evType, e));
+                } else if (e.isError()) {
+                    eventLogger.warn("Socket {} {}", () -> socketUrl, () -> resolvedEvent(evType, e));
+                } else if (e.isWarn()) {
+                    eventLogger.warn("Socket {} {}", () -> socketUrl, () -> resolvedEvent(evType, e));
+                } else {
+                    eventLogger.debug("Socket {} {}", () -> socketUrl, () -> resolvedEvent(evType, e));
+                }
+                if (evType == ZMonitor.Event.MONITOR_STOPPED) {
+                    ZMQSocketFactory.this.monitorPoller.unregister(socket);
+                    socket.close();
+                    break;
+                }
+            }
+            return true;
+        }
+
+        private String resolvedEvent(ZMonitor.Event evType, ZMQ.Event ev) {
+            switch (evType) {
+            case HANDSHAKE_PROTOCOL: {
+                Integer version = ev.resolveValue();
+                return String.format("Handshake protocol, version %s", version);
+            }
+            case MONITOR_STOPPED:
+                return "Monitor stopped";
+            case CONNECT_DELAYED:
+                return "Connect delayed";
+            case LISTENING: {
+                ServerSocketChannel ch = ev.resolveValue();
+                try {
+                    return String.format("Listening on %s", ch.getLocalAddress());
+                } catch (IOException e) {
+                    return String.format("Listening on %s", ch);
+                }
+            }
+            case CONNECTED: {
+                SocketChannel ch = ev.resolveValue();
+                try {
+                    return String.format("Connect from %s to %s", ch.getLocalAddress(), ch.getRemoteAddress());
+                } catch (IOException e) {
+                    return String.format("Connected channel %s", ch);
+                }
+            }
+            case DISCONNECTED:
+                return "Disconnected";
+            case CLOSED:
+                return "Closed";
+            case ACCEPTED: {
+                SocketChannel ch = ev.resolveValue();
+                try {
+                    return String.format("Accepted on %s from %s", ch.getLocalAddress(), ch.getRemoteAddress());
+                } catch (IOException e) {
+                    return String.format("Accepted channel %s", ch);
+                }
+            }
+            default:
+                // Nothing special to do
+            }
+            Object value = ev.resolveValue();
+            return String.format("%s%s%s", evType, value != null ? ": " : "", value != null ? value : "");
+        }
+
+        @Override
+        public boolean events(SelectableChannel channel, int events) {
+            // Should never be reached
+            throw new IllegalStateException("A channel was not expected: " + channel);
+        }
     }
 
     public ZMQSocketFactory() {
@@ -130,6 +231,27 @@ public class ZMQSocketFactory implements AutoCloseable {
             }
         } else {
             keyEntry = null;
+        }
+        monitorPoller = getZPoller();
+        monitorThread = ThreadBuilder.get()
+                                     .setName("zmqmonitor")
+                                     .setTask(this::monitorLoop)
+                                     .build(true);
+
+    }
+
+    private void monitorLoop() {
+        int count = 0;
+        while (! context.isClosed() && count >= 0) {
+            try {
+                if (monitorPoller.registered() == 0) {
+                    Thread.sleep(Long.MAX_VALUE);
+                }
+                count = monitorPoller.poll(-1L);
+            } catch (InterruptedException e) {
+                // If real interruption, context will be closed
+                // If not, it's used to refresh what to poll
+            }
         }
     }
 
@@ -194,16 +316,17 @@ public class ZMQSocketFactory implements AutoCloseable {
         try {
             if (! context.isClosed()) {
                 Runtime.getRuntime().removeShutdownHook(terminator);
+                try {
+                    monitorPoller.close();
+                } catch (IOException e) {
+                    throw new ZMQCheckedException(new ZError.IOException(e));
+                }
                 context.close();
                 logger.debug("Global ZMQ context {} terminated", context);
             }
         } catch (UncheckedZMQException e) {
             throw new ZMQCheckedException(e);
         }
-    }
-
-    public ZMonitor getZMonitor(Socket s) {
-        return new ZMonitor(context, s);
     }
 
     public ZPoller getZPoller() {
@@ -235,6 +358,9 @@ public class ZMQSocketFactory implements AutoCloseable {
         private Mechanisms security = Mechanisms.NULL;
         @Setter
         private String monitor = null;
+
+        private Logger socketLogger = null;
+
         private SocketBuilder(Method method, SocketType type, String endpoint) {
             this.method = method;
             this.type = type;
@@ -250,6 +376,11 @@ public class ZMQSocketFactory implements AutoCloseable {
         }
         public SocketBuilder setCurveServer() {
             this.serverPublicKey = null;
+            return this;
+        }
+        public SocketBuilder setLoggerMonitor(String name, Logger socketLogger) {
+            this.monitor = String.format("inproc://monitor/%s/%s", name, UUID.randomUUID());
+            this.socketLogger = socketLogger;
             return this;
         }
         public Socket build() throws ZMQCheckedException {
@@ -269,8 +400,14 @@ public class ZMQSocketFactory implements AutoCloseable {
                 if (linger != -2) {
                     socket.setLinger(linger);
                 }
-                if (monitor != null) {
+                if (monitor != null ) {
                     socket.monitor(monitor, ZMQ.EVENT_ALL);
+                    if (socketLogger != null) {
+                        Socket socketMonitor = ZMQSocketFactory.this.getBuilder(Method.CONNECT, SocketType.PAIR, monitor).build();
+                        monitorPoller.register(socketMonitor, new EventLogger(url, logger), ZPoller.IN | ZPoller.ERR);
+                        // Will exit from poll, and refresh the monitored sockets
+                        monitorThread.interrupt();
+                    }
                 }
                 socket.setTCPKeepAlive(1);
                 socket.setTCPKeepAliveCount(3);

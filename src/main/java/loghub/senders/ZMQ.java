@@ -79,7 +79,6 @@ public class ZMQ extends Sender {
                                 .setSecurity(builder.security)
                                 .setServerPublicKeyToken(builder.serverKey)
                                 .setLogger(logger)
-                                .setSelfLogEvents(true)
                                 .setName(getName())
                                 .setSend(Socket::send)
                                 .setMask(ZPoller.OUT)
