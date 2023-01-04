@@ -138,6 +138,13 @@ public class TestBeanManager {
         Assert.assertEquals(TimeUnit.DAYS, c.getEnumeration());
         beansManager.beanSetter(c, "enumeration", TimeUnit.HOURS.name());
         Assert.assertEquals(TimeUnit.HOURS, c.getEnumeration());
+        beansManager.beanSetter(c, "enumeration", TimeUnit.HOURS.name().toLowerCase());
+        Assert.assertEquals(TimeUnit.HOURS, c.getEnumeration());
+        InvocationTargetException ex = Assert.assertThrows(InvocationTargetException.class, () -> {
+            beansManager.beanSetter(c, "enumeration", "badenum");
+        });
+        Assert.assertEquals(IllegalArgumentException.class, ex.getCause().getClass());
+        Assert.assertEquals("Not matching value badenum", ex.getCause().getMessage());
     }
 
     @Test

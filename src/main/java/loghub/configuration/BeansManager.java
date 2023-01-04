@@ -8,6 +8,7 @@ import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -131,7 +132,16 @@ public class BeansManager {
             } else if (clazz == Character.TYPE || Character.class.equals(clazz) && value.length() == 1) {
                 return (T) Character.valueOf(value.charAt(0));
             } else if (Enum.class.isAssignableFrom(clazz)) {
-                return (T) Enum.valueOf((Class)clazz, value);
+                try {
+                    return (T) Enum.valueOf((Class)clazz, value);
+                } catch (IllegalArgumentException e) {
+                    return (T) Arrays.stream(clazz.getEnumConstants())
+                                     .map(Object::toString)
+                                     .filter(s -> s.equalsIgnoreCase(value))
+                                     .findAny()
+                                     .map(s -> Enum.valueOf((Class)clazz, s))
+                                     .orElseThrow(() -> new IllegalArgumentException("Not matching value " + value));
+                }
             } else {
                 c = clazz.getConstructor(String.class);
             }
