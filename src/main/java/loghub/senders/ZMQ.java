@@ -33,15 +33,15 @@ public class ZMQ extends Sender {
         @Setter @Getter
         private String destination = "tcp://localhost:2120";
         @Setter @Getter
-        private String type = Sockets.PUB.name();
+        private SocketType type = SocketType.PUB;
         @Setter @Getter
         private int hwm = 1000;
         @Setter @Getter
-        private String method = ZMQHelper.Method.BIND.name();
+        private ZMQHelper.Method method = ZMQHelper.Method.BIND;
         @Setter  @Getter
         private String serverKey = null;
         @Setter  @Getter
-        private Mechanisms security = null;
+        private Mechanisms security = Mechanisms.NULL;
 
         public ZMQ build() {
             return new ZMQ(this);
@@ -71,12 +71,12 @@ public class ZMQ extends Sender {
                     .setName(getName() + "Sender")
                     .build();
         }
-        Method m = Method.valueOf(builder.getMethod().toUpperCase(Locale.ENGLISH));
+        Method m = builder.getMethod();
         handler = new ZMQHandler.Builder<byte[]>()
                                 .setHwm(builder.hwm)
                                 .setSocketUrl(builder.destination)
                                 .setMethod(m)
-                                .setType(SocketType.valueOf(builder.type.toUpperCase(Locale.ENGLISH)))
+                                .setType(builder.type)
                                 .setSecurity(builder.security)
                                 .setServerPublicKeyToken(builder.serverKey)
                                 .setLogger(logger)

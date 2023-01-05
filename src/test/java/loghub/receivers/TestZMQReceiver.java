@@ -72,7 +72,7 @@ public class TestZMQReceiver {
         flowbuilder.setSource(() -> String.format("message %s", count.incrementAndGet()).getBytes(StandardCharsets.UTF_8)); 
         PriorityBlockingQueue receiveQueue = new PriorityBlockingQueue();
         ZMQ.Builder builder = ZMQ.getBuilder();
-        builder.setType(Sockets.PULL.name());
+        builder.setType(SocketType.PULL);
         builder.setDecoder(StringCodec.getBuilder().build());
         builder.setListen(rendezvous);
         configure.accept(builder);
@@ -95,24 +95,24 @@ public class TestZMQReceiver {
     @Test(timeout=5000)
     public void testConnect() throws InterruptedException, IOException, ZMQCheckedException {
         dotest(r -> {
-            r.setMethod("CONNECT");
-            r.setType(Sockets.PULL.name());
+            r.setMethod(Method.CONNECT);
+            r.setType(SocketType.PULL);
         }, s -> s.setMethod(Method.BIND).setType(SocketType.PUSH).setMsPause(250));
     }
 
     @Test(timeout=5000)
     public void testBind() throws InterruptedException, IOException, ZMQCheckedException {
         dotest(r -> {
-            r.setMethod("BIND");
-            r.setType(Sockets.PULL.name());
+            r.setMethod(Method.BIND);
+            r.setType(SocketType.PULL);
         }, s -> s.setMethod(Method.CONNECT).setType(SocketType.PUSH).setMsPause(250));
     }
 
     @Test(timeout=5000)
     public void testSub() throws InterruptedException, IOException, ZMQCheckedException {
         dotest(r -> {
-            r.setMethod("BIND");
-            r.setType("SUB");
+            r.setMethod(Method.BIND);
+            r.setType(SocketType.SUB);
             r.setTopic("");
         }, s -> s.setMethod(Method.CONNECT).setType(SocketType.PUB).setMsPause(250));
     }
@@ -126,8 +126,8 @@ public class TestZMQReceiver {
             keyPub = new String(pubkeyBuffer.toByteArray(), StandardCharsets.UTF_8);
         }
         dotest(r -> {
-            r.setMethod("BIND");
-            r.setType("PULL");
+            r.setMethod(Method.BIND);
+            r.setType(SocketType.PULL);
             r.setSecurity(Mechanisms.CURVE);
             r.setServerKey(keyPub);
         },
@@ -144,8 +144,8 @@ public class TestZMQReceiver {
         }
 
         dotest(r -> {
-            r.setMethod("BIND");
-            r.setType("PULL");
+            r.setMethod(Method.BIND);
+            r.setType(SocketType.PULL);
             r.setSecurity(Mechanisms.CURVE);
             r.setServerKey(keyPub);
         },
@@ -156,12 +156,12 @@ public class TestZMQReceiver {
     @Test
     public void testBeans() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.receivers.ZMQ"
-                              , BeanInfo.build("method", String.class)
+                              , BeanInfo.build("method", Method.class)
                               , BeanInfo.build("listen", String.class)
-                              , BeanInfo.build("type", String.class)
+                              , BeanInfo.build("type", SocketType.class)
                               , BeanInfo.build("hwm", Integer.TYPE)
                               , BeanInfo.build("serverKey", String.class)
-                              , BeanInfo.build("security", String.class)
+                              , BeanInfo.build("security", Mechanisms.class)
                               , BeanInfo.build("blocking", Boolean.TYPE)
                         );
     }

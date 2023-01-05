@@ -26,17 +26,17 @@ public class ZMQ extends Receiver<ZMQ, ZMQ.Builder> {
 
     public static class Builder extends Receiver.Builder<ZMQ, ZMQ.Builder> {
         @Setter
-        String method = ZMQHelper.Method.BIND.name();
+        ZMQHelper.Method method = ZMQHelper.Method.BIND;
         @Setter
         String listen = "tcp://localhost:2120";
         @Setter
         int hwm= 1000;
         @Setter
-        String type = SocketType.SUB.name();
+        SocketType type = SocketType.PUB;
         @Setter
         String serverKey = null;
         @Setter
-        Mechanisms security = null;
+        Mechanisms security = Mechanisms.NULL;
         @Setter
         String topic = "";
         @Override
@@ -60,8 +60,8 @@ public class ZMQ extends Receiver<ZMQ, ZMQ.Builder> {
         hbuilder = new ZMQHandler.Builder<>();
         hbuilder.setHwm(builder.hwm)
                 .setSocketUrl(builder.listen)
-                .setMethod(Method.valueOf(builder.method.toUpperCase(Locale.ENGLISH)))
-                .setType(SocketType.valueOf(builder.type.toUpperCase(Locale.ENGLISH)))
+                .setMethod(builder.method)
+                .setType(builder.type)
                 .setTopic(builder.topic.getBytes(StandardCharsets.UTF_8))
                 .setSecurity(security)
                 .setServerPublicKeyToken(builder.serverKey)

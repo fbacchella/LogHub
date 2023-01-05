@@ -110,7 +110,7 @@ public class TestZMQSender {
 
         ZMQ.Builder builder = ZMQ.getBuilder();
         builder.setEncoder(ToJson.getBuilder().build());
-        builder.setType(Sockets.PUSH.name());
+        builder.setType(SocketType.PUSH.PUSH);
         builder.setDestination(rendezvous);
         configure.accept(builder);
 
@@ -131,14 +131,14 @@ public class TestZMQSender {
 
     @Test(timeout=5000)
     public void bind() throws IOException, InterruptedException, ZMQCheckedException {
-         dotest(s ->  s.setMethod(Method.CONNECT.name()),
+         dotest(s ->  s.setMethod(Method.CONNECT),
                 s -> s.setMethod(Method.BIND),
                 "(\\{\"message\":\\d+\\})+");
     }
 
     @Test(timeout=5000)
     public void connect() throws IOException, InterruptedException, ZMQCheckedException {
-        dotest(s ->  s.setMethod(Method.BIND.name()),
+        dotest(s ->  s.setMethod(Method.BIND),
                s -> s.setMethod(Method.CONNECT),
                "(\\{\"message\":\\d+\\})+");
     }
@@ -146,7 +146,7 @@ public class TestZMQSender {
     @Test(timeout=5000)
     public void batchConnect() throws IOException, InterruptedException, ZMQCheckedException {
         dotest((s) -> {
-            s.setMethod(Method.CONNECT.name());
+            s.setMethod(Method.CONNECT);
             s.setBatchSize(2);
         }, s -> s.setMethod(Method.BIND), "(\\[\\{\"message\":\\d+\\},\\{\"message\":\\d+\\}\\])+");
     }
@@ -154,7 +154,7 @@ public class TestZMQSender {
     @Test(timeout=5000)
     public void batchBind() throws IOException, InterruptedException, ZMQCheckedException {
         dotest((s) -> {
-            s.setMethod(Method.BIND.name());
+            s.setMethod(Method.BIND);
             s.setBatchSize(2);
         }, s -> s.setMethod(Method.CONNECT), "(\\[\\{\"message\":\\d+\\},\\{\"message\":\\d+\\}\\])+");
     }
@@ -174,7 +174,7 @@ public class TestZMQSender {
     @Test(timeout=5000)
     public void curveClient() throws IOException, InterruptedException, ZMQCheckedException {
         dotest(s -> {
-            s.setMethod(Method.BIND.name());
+            s.setMethod(Method.BIND);
             s.setSecurity(Mechanisms.CURVE);
             s.setServerKey(getRemoteIdentity("secure"));
         },
@@ -185,7 +185,7 @@ public class TestZMQSender {
     @Test(timeout=5000)
     public void curveServer() throws IOException, InterruptedException, ZMQCheckedException {
         dotest(s -> {
-            s.setMethod(Method.BIND.name());
+            s.setMethod(Method.BIND);
             s.setSecurity(Mechanisms.CURVE);
         },
                s -> s.setMethod(Method.CONNECT).setKeyEntry(tctxt.getFactory().getKeyEntry()).setServerKey(getRemoteIdentity("server")).setSecurity(Mechanisms.CURVE),
@@ -196,7 +196,7 @@ public class TestZMQSender {
     public void testEncodeError() throws IOException, InterruptedException, EncodeException {
         ZMQ.Builder builder = ZMQ.getBuilder();
         builder.setEncoder(ToJson.getBuilder().build());
-        builder.setType(Sockets.PUSH.name());
+        builder.setType(SocketType.PUSH);
         builder.setDestination("tcp://localhost:" + Tools.tryGetPort());
         SenderTools.send(builder);
     }
@@ -204,12 +204,12 @@ public class TestZMQSender {
     @Test
     public void testBeans() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.senders.ZMQ"
-                              , BeanInfo.build("method", String.class)
+                              , BeanInfo.build("method", Method.class)
                               , BeanInfo.build("destination", String.class)
-                              , BeanInfo.build("type", String.class)
+                              , BeanInfo.build("type", SocketType.class)
                               , BeanInfo.build("hwm", Integer.TYPE)
                               , BeanInfo.build("serverKey", String.class)
-                              , BeanInfo.build("security", String.class)
+                              , BeanInfo.build("security", Mechanisms.class)
                         );
     }
 

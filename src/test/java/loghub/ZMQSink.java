@@ -39,7 +39,7 @@ public class ZMQSink<M> extends Thread implements AutoCloseable {
         @Setter
         PrivateKeyEntry keyEntry = null;
         @Setter
-        private Mechanisms security = null;
+        private Mechanisms security = Mechanisms.NULL;
         @Setter
         private ZMQSocketFactory zmqFactory = null;
         @Setter

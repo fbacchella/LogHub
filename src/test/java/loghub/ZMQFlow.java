@@ -39,7 +39,7 @@ public class ZMQFlow extends Thread implements AutoCloseable {
         @Setter
         PrivateKeyEntry keyEntry = null;
         @Setter
-        private Mechanisms security = null;
+        private Mechanisms security = Mechanisms.NULL;
         @Setter 
         private Supplier<byte[]> source;
         @Setter
