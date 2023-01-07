@@ -2,7 +2,6 @@ package loghub;
 
 import java.io.IOException;
 import java.security.KeyStore.PrivateKeyEntry;
-import java.util.function.BiFunction;
 import java.util.function.Supplier;
 
 import org.apache.logging.log4j.LogManager;
@@ -13,9 +12,9 @@ import org.zeromq.ZPoller;
 
 import loghub.zmq.ZMQCheckedException;
 import loghub.zmq.ZMQHandler;
-import loghub.zmq.ZMQHelper;
 import loghub.zmq.ZMQHelper.Method;
 import loghub.zmq.ZMQSocketFactory;
+import loghub.zmq.ZapDomainHandler.ZapDomainHandlerProvider;
 import lombok.Setter;
 import lombok.experimental.Accessors;
 import zmq.io.mechanism.Mechanisms;
@@ -40,12 +39,12 @@ public class ZMQFlow extends Thread implements AutoCloseable {
         PrivateKeyEntry keyEntry = null;
         @Setter
         private Mechanisms security = Mechanisms.NULL;
-        @Setter 
+        @Setter
+        private ZapDomainHandlerProvider zapHandler = ZapDomainHandlerProvider.ALLOW;
+        @Setter
         private Supplier<byte[]> source;
         @Setter
         private int msPause;
-        @Setter
-        private BiFunction<Socket, Integer, Boolean> localhandler = null;
         @Setter
         private ZMQSocketFactory zmqFactory = null;
 
@@ -66,14 +65,14 @@ public class ZMQFlow extends Thread implements AutoCloseable {
                         .setMethod(builder.method)
                         .setType(builder.type)
                         .setLogger(logger)
-                        .setName("ZMQSink")
+                        .setName("ZMQFlow")
                         .setSend(Socket::send)
-                        .setMask(ZPoller.OUT)
+                        .setMask(ZPoller.OUT | ZPoller.ERR)
                         .setSecurity(builder.security)
+                        .setZapHandler(builder.zapHandler)
                         .setKeyEntry(builder.keyEntry)
                         .setServerPublicKeyToken(builder.serverKey)
                         .setZfactory(builder.zmqFactory)
-                        .setEventCallback(ZMQHelper.getEventLogger(logger))
                         .build();
 
         this.source = builder.source;

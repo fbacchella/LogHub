@@ -2,7 +2,6 @@ package loghub.zmq;
 
 import java.security.KeyStore.PrivateKeyEntry;
 import java.security.cert.Certificate;
-import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
@@ -24,6 +23,7 @@ import loghub.AbstractBuilder;
 import loghub.Helpers;
 import loghub.zmq.ZMQHelper.Method;
 import loghub.zmq.ZMQSocketFactory.SocketBuilder;
+import loghub.zmq.ZapDomainHandler.ZapDomainHandlerProvider;
 import lombok.Setter;
 import lombok.experimental.Accessors;
 import zmq.io.mechanism.Mechanisms;
@@ -72,7 +72,8 @@ public class ZMQHandler<M> implements AutoCloseable {
         @Setter
         BiFunction<Socket, M, Boolean> send = null;
         @Setter
-        BiConsumer<Socket, Event> eventCallback = null;
+        ZapDomainHandlerProvider zapHandler = ZapDomainHandlerProvider.ALLOW;
+
         public Builder<M> setServerPublicKeyToken(String serverKeyToken) {
             this.serverPublicKey = serverKeyToken != null ? ZMQHelper.parseServerIdentity(serverKeyToken) : null;
             return this;
@@ -101,10 +102,9 @@ public class ZMQHandler<M> implements AutoCloseable {
     private ZPoller pooler;
     // Settings of the factory can be delayed
     @Setter
-    private ZMQSocketFactory zfactory = null;
-    //Interrupt is only allowed outside of ZMQ poll or socket options, this flag protect that
+    private ZMQSocketFactory zfactory;
+    //Interrupt is only allowed outside ZMQ poll or socket options, this flag protect that
     private volatile boolean canInterrupt = true;
-    private final BiConsumer<Socket, Event> eventCallback;
 
     private ZMQHandler(Builder<M> builder) {
         this.logger = builder.logger;
@@ -115,25 +115,26 @@ public class ZMQHandler<M> implements AutoCloseable {
         this.zfactory = builder.zfactory;
         this.send = builder.send;
         this.receive = builder.receive;
-        this.eventCallback = builder.eventCallback;
         // Socket creation is delayed
         // So the socket is created in the using thread
         makeThreadLocal = () -> {
             makeThreadLocal = null;
             runningThread = Thread.currentThread();
             SocketBuilder sbuilder = zfactory.getBuilder(builder.method, builder.type, socketUrl).setTopic(builder.topic).setImmediate(false);
-            if (eventCallback != null) {
-
-            } else {
-                sbuilder.setLoggerMonitor(builder.name, builder.logger);
-            }
+            sbuilder.setLoggerMonitor(builder.name, builder.logger);
             Mechanisms security = builder.security;
+            sbuilder.setSecurity(security);
             switch (security) {
             case CURVE: 
                 logger.debug("Activating Curve security on socket {}", socketUrl);
+                if (zfactory.getZapService() != null) {
+                    sbuilder.setZapDomain(builder.name);
+                    zfactory.getZapService().addFilter(builder.name, builder.zapHandler.get(zfactory, security));
+                }
                 sbuilder.setCurveKeys(Optional.ofNullable(builder.keyEntry).orElse(zfactory.getKeyEntry()));
-                sbuilder.setCurveClient(builder.serverPublicKey);
-                sbuilder.setSecurity(security);
+                if (builder.serverPublicKey != null) {
+                    sbuilder.setServerPublicKey(builder.serverPublicKey);
+                }
                 break;
             case NULL:
                 logger.debug("Activating Null security on socket {}", socketUrl);
@@ -156,11 +157,13 @@ public class ZMQHandler<M> implements AutoCloseable {
 
     public void start() throws ZMQCheckedException {
         makeThreadLocal.run();
+        makeThreadLocal = null;
     }
 
     public M dispatch(M message) throws ZMQCheckedException {
         assert Thread.currentThread() == runningThread;
         logger.trace("One dispatch loop");
+        M received = null;
         // Loop until an event is received in the main socket.
         while (isRunning()) {
             try {
@@ -184,29 +187,26 @@ public class ZMQHandler<M> implements AutoCloseable {
                     } else if ((pEvents & ZPoller.ERR) != 0) {
                         logEvent("Error on socket", socketEndPair, pEvents);
                         throw new ZMQCheckedException(socketEndPair.errno());
-                    }
-                    // A end signal event
-                    if ((pEvents & ZPoller.IN) != 0) {
+                    } else if ((pEvents & ZPoller.IN) != 0) {
+                        // An end signal event
                         logEvent("Stop signal", socketEndPair, pEvents);
                         running = false;
                         socketEndPair.recv();
                         break;
-                    }
-                    // An event on the main socket, end the loop
-                    if (message != null && (sEvents & ZPoller.OUT) != 0) {
-                        logEvent("Message signal", socket, sEvents);
+                    } else if (message != null && (sEvents & ZPoller.OUT) != 0) {
+                        // An event on the main socket, end the loop
+                        logEvent("Message signal with out", socket, sEvents);
                         if (Boolean.FALSE.equals(send.apply(socket, message))) {
                             throw new ZMQCheckedException(socket.errno());
                         }
-                        return null;
-                    }
-                    if (message == null && (sEvents & ZPoller.IN) != 0) {
-                        logEvent("Message signal", socket, sEvents);
-                        M received = receive.apply(socket);
+                        break;
+                    } else if (message == null && (sEvents & ZPoller.IN) != 0) {
+                        logEvent("Message signal with in", socket, sEvents);
+                        received = receive.apply(socket);
                         if (received == null) {
                             throw new ZMQCheckedException(socket.errno());
                         } else {
-                            return received;
+                            break;
                         }
                     }
                }
@@ -215,8 +215,8 @@ public class ZMQHandler<M> implements AutoCloseable {
             } finally {
                 canInterrupt = true;
             }
-        } 
-        return null;
+        }
+        return received;
     }
 
     public void logEvent(String prefix, Socket socket, int event) {
@@ -286,11 +286,10 @@ public class ZMQHandler<M> implements AutoCloseable {
     }
 
     /**
-     * Can only be called from the the same thread that consume the socket
-     * @return
-     * @throws ZMQCheckedException if socket creation failed
+     * Can only be called from the same thread that consume the socket
+     * @return the socket
      */
-    public Socket getSocket() throws ZMQCheckedException {
+    public Socket getSocket() {
         return socket;
     }
 

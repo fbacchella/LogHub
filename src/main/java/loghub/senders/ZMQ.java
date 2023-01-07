@@ -1,6 +1,5 @@
 package loghub.senders;
 
-import java.util.Locale;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.SynchronousQueue;
 
@@ -11,19 +10,19 @@ import org.zeromq.ZPoller;
 
 import loghub.BuilderClass;
 import loghub.CanBatch;
-import loghub.events.Event;
 import loghub.Helpers;
 import loghub.ThreadBuilder;
 import loghub.configuration.Properties;
 import loghub.encoders.EncodeException;
+import loghub.events.Event;
 import loghub.zmq.ZMQCheckedException;
 import loghub.zmq.ZMQHandler;
 import loghub.zmq.ZMQHelper;
 import loghub.zmq.ZMQHelper.Method;
+import loghub.zmq.ZapDomainHandler.ZapDomainHandlerProvider;
 import lombok.Getter;
 import lombok.Setter;
 import zmq.io.mechanism.Mechanisms;
-import zmq.socket.Sockets;
 
 @BuilderClass(ZMQ.Builder.class)
 @CanBatch
@@ -42,6 +41,8 @@ public class ZMQ extends Sender {
         private String serverKey = null;
         @Setter  @Getter
         private Mechanisms security = Mechanisms.NULL;
+        @Setter
+        ZapDomainHandlerProvider zapHandler = ZapDomainHandlerProvider.ALLOW;
 
         public ZMQ build() {
             return new ZMQ(this);
@@ -78,6 +79,7 @@ public class ZMQ extends Sender {
                                 .setMethod(m)
                                 .setType(builder.type)
                                 .setSecurity(builder.security)
+                                .setZapHandler(builder.zapHandler)
                                 .setServerPublicKeyToken(builder.serverKey)
                                 .setLogger(logger)
                                 .setName(getName())

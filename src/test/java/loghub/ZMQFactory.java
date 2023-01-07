@@ -35,7 +35,11 @@ public class ZMQFactory extends ExternalResource {
     protected void before() throws Throwable {
         if (testFolder != null) {
             testFolder.newFolder(subFolder);
-            factory = new ZMQSocketFactory(Paths.get(testFolder.getRoot().getAbsolutePath(), subFolder, "zmqtest.jks").toAbsolutePath());
+            factory = ZMQSocketFactory
+                              .builder()
+                              .zmqKeyStore(Paths.get(testFolder.getRoot().getAbsolutePath(), subFolder, "zmqtest.jks"))
+                              .withZap(true)
+                              .build();
         } else {
             factory = new ZMQSocketFactory();
         }

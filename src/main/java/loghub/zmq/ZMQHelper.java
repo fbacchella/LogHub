@@ -1,5 +1,6 @@
 package loghub.zmq;
 
+import java.lang.reflect.InvocationTargetException;
 import java.security.InvalidKeyException;
 import java.security.KeyFactory;
 import java.security.NoSuchAlgorithmException;
@@ -28,9 +29,10 @@ public class ZMQHelper {
     public static final KeyFactory NACLKEYFACTORY;
     static {
         try {
-            Security.insertProviderAt((Provider) Class.forName("fr.loghub.naclprovider.NaclProvider").newInstance(), Security.getProviders().length + 1);
+            Security.insertProviderAt((Provider) Class.forName("fr.loghub.naclprovider.NaclProvider").getConstructor().newInstance(), Security.getProviders().length + 1);
             NACLKEYFACTORY = KeyFactory.getInstance(NaclProvider.NAME);
-        } catch (NoSuchAlgorithmException | InstantiationException | IllegalAccessException | ClassNotFoundException e) {
+        } catch (NoSuchAlgorithmException | InstantiationException | IllegalAccessException | ClassNotFoundException |
+                 NoSuchMethodException | InvocationTargetException e) {
             throw new ProviderException("NaclProvider unavailable", e);
         }
     }
@@ -89,6 +91,15 @@ public class ZMQHelper {
         }
     }
 
+    public static byte[] getPublicKey(Certificate certificate) {
+        try {
+            NaclPublicKeySpec specs = NACLKEYFACTORY.getKeySpec(certificate.getPublicKey(), NaclPublicKeySpec.class);
+            return specs.getBytes();
+        } catch (InvalidKeySpecException e) {
+            throw new IllegalArgumentException("Not a valid public key");
+        }
+    }
+
     public static String makeServerIdentity(Certificate cert) throws InvalidKeySpecException {
         StringBuilder builder = new StringBuilder();
         NaclPublicKeySpec pubkey = NACLKEYFACTORY.getKeySpec(cert.getPublicKey(), NaclPublicKeySpec.class);
@@ -96,6 +107,11 @@ public class ZMQHelper {
         builder.append(CURVEPREFIX + " ");
         builder.append(Base64.getEncoder().encodeToString(pubkey.getBytes()));
         return builder.toString();
+    }
+
+    public static String makeServerIdentityZ85(Certificate cert) throws InvalidKeySpecException {
+        NaclPublicKeySpec pubkey = NACLKEYFACTORY.getKeySpec(cert.getPublicKey(), NaclPublicKeySpec.class);
+        return ZMQ.Curve.z85Encode(pubkey.getBytes());
     }
 
     public static BiConsumer<Socket, Event> getEventLogger(Logger logger) {

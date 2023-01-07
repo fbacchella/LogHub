@@ -4,9 +4,7 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.nio.channels.SelectableChannel;
-import java.nio.channels.ServerSocketChannel;
-import java.nio.channels.SocketChannel;
+import java.nio.channels.ClosedSelectorException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -24,19 +22,25 @@ import java.security.UnrecoverableEntryException;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.security.spec.InvalidKeySpecException;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Stream;
+import java.lang.Thread.UncaughtExceptionHandler;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.zeromq.SocketType;
 import org.zeromq.UncheckedZMQException;
+import org.zeromq.ZConfig;
 import org.zeromq.ZContext;
 import org.zeromq.ZMQ;
 import org.zeromq.ZMQ.Socket;
-import org.zeromq.ZMonitor;
 import org.zeromq.ZPoller;
 
 import fr.loghub.naclprovider.NaclCertificate;
@@ -45,16 +49,16 @@ import fr.loghub.naclprovider.NaclPublicKeySpec;
 import loghub.Helpers;
 import loghub.ThreadBuilder;
 import loghub.zmq.ZMQHelper.Method;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.Accessors;
-import zmq.ZError;
+import zmq.io.Metadata;
 import zmq.io.mechanism.Mechanisms;
-
-import static org.zeromq.ZMQ.DONTWAIT;
 
 public class ZMQSocketFactory implements AutoCloseable {
 
+    private static final AtomicInteger MONITOR_COUNT = new AtomicInteger();
     // Needed to ensure the NaCl Provided is loaded
     private static final KeyFactory NACLKEYFACTORY = ZMQHelper.NACLKEYFACTORY;
 
@@ -69,142 +73,59 @@ public class ZMQSocketFactory implements AutoCloseable {
     private final PrivateKeyEntry keyEntry;
     private final Thread terminator;
     @Getter
+    private final ZapService zapService;
+    @Getter
     private final ZPoller monitorPoller;
     private final Thread monitorThread;
 
-    public static ZMQSocketFactory getFactory(Map<String, Object> properties) {
-        int numSocket;
-        Path zmqKeyStore;
-        int linger;
-        if (properties.containsKey("keystore")) {
-            zmqKeyStore = Paths.get((String)properties.remove("keystore"));
-        } else {
-            zmqKeyStore = null;
-        }
-        if (properties.containsKey("numSocket")) {
-            numSocket = (Integer) properties.remove("numSocket");
-        } else {
-            numSocket = 1;
-        }
-        if (properties.containsKey("linger")) {
-            linger = (Integer) properties.remove("linger");
-        } else {
-            linger = DEFAULTLINGER;
-        }
-        return new ZMQSocketFactory(numSocket, zmqKeyStore, linger);
+    private final Map<String, ZConfig> publicKeys;
+    private UncaughtExceptionHandler delegatedExceptionHandler = this::defaultUncaughtExceptionHandler;
+
+    public static ZMQSocketFactoryBuilder builder() {
+        return new ZMQSocketFactoryBuilder()
+                       .numSocket(1)
+                       .linger(DEFAULTLINGER)
+                       .withZap(true);
     }
 
-    private class EventLogger implements ZPoller.EventsHandler {
-
-        private final Logger eventLogger;
-        private final String socketUrl;
-
-        private EventLogger(String socketUrl, Logger eventLogger) {
-            this.eventLogger = eventLogger;
-            this.socketUrl = socketUrl;
+    public static ZMQSocketFactory getFactory(Map<String, Object> properties) {
+        ZMQSocketFactoryBuilder builder = ZMQSocketFactory.builder();
+        if (properties.containsKey("keystore")) {
+            builder.zmqKeyStore = Paths.get((String)properties.remove("keystore"));
         }
-
-        @Override
-        public boolean events(Socket socket, int events) {
-            while (true) {
-                ZMQ.Event e = ZMQ.Event.recv(socket, DONTWAIT);
-                if (e == null) {
-                    break;
-                }
-                ZMonitor.Event evType = ZMonitor.Event.findByCode(e.getEvent());
-                if (e.isError() && evType == ZMonitor.Event.HANDSHAKE_FAILED_PROTOCOL) {
-                    eventLogger.error("Socket {} {}", () -> socketUrl, () -> resolvedEvent(evType, e));
-                } else if (evType == ZMonitor.Event.MONITOR_STOPPED) {
-                    eventLogger.trace("Socket {} {}", () -> socketUrl, () -> resolvedEvent(evType, e));
-                } else if (e.isError()) {
-                    eventLogger.warn("Socket {} {}", () -> socketUrl, () -> resolvedEvent(evType, e));
-                } else if (e.isWarn()) {
-                    eventLogger.warn("Socket {} {}", () -> socketUrl, () -> resolvedEvent(evType, e));
-                } else {
-                    eventLogger.debug("Socket {} {}", () -> socketUrl, () -> resolvedEvent(evType, e));
-                }
-                if (evType == ZMonitor.Event.MONITOR_STOPPED) {
-                    ZMQSocketFactory.this.monitorPoller.unregister(socket);
-                    socket.close();
-                    break;
-                }
-            }
-            return true;
+        if (properties.containsKey("certsDirectory")) {
+            builder.zmqCertsDir = Paths.get((String)properties.remove("certsDirectory"));
         }
-
-        private String resolvedEvent(ZMonitor.Event evType, ZMQ.Event ev) {
-            switch (evType) {
-            case HANDSHAKE_PROTOCOL: {
-                Integer version = ev.resolveValue();
-                return String.format("Handshake protocol, version %s", version);
-            }
-            case MONITOR_STOPPED:
-                return "Monitor stopped";
-            case CONNECT_DELAYED:
-                return "Connect delayed";
-            case LISTENING: {
-                ServerSocketChannel ch = ev.resolveValue();
-                try {
-                    return String.format("Listening on %s", ch.getLocalAddress());
-                } catch (IOException e) {
-                    return String.format("Listening on %s", ch);
-                }
-            }
-            case CONNECTED: {
-                SocketChannel ch = ev.resolveValue();
-                try {
-                    return String.format("Connect from %s to %s", ch.getLocalAddress(), ch.getRemoteAddress());
-                } catch (IOException e) {
-                    return String.format("Connected channel %s", ch);
-                }
-            }
-            case DISCONNECTED:
-                return "Disconnected";
-            case CLOSED:
-                return "Closed";
-            case ACCEPTED: {
-                SocketChannel ch = ev.resolveValue();
-                try {
-                    return String.format("Accepted on %s from %s", ch.getLocalAddress(), ch.getRemoteAddress());
-                } catch (IOException e) {
-                    return String.format("Accepted channel %s", ch);
-                }
-            }
-            default:
-                // Nothing special to do
-            }
-            Object value = ev.resolveValue();
-            return String.format("%s%s%s", evType, value != null ? ": " : "", value != null ? value : "");
+        if (properties.containsKey("withZap")) {
+            builder.withZap = (Boolean) properties.remove("withZap");
         }
-
-        @Override
-        public boolean events(SelectableChannel channel, int events) {
-            // Should never be reached
-            throw new IllegalStateException("A channel was not expected: " + channel);
+        if (properties.containsKey("numSocket")) {
+            builder.numSocket = (Integer) properties.remove("numSocket");
         }
+        if (properties.containsKey("linger")) {
+            builder.linger = (Integer) properties.remove("linger");
+        }
+        return builder.build();
     }
 
     public ZMQSocketFactory() {
-        this(1, null, DEFAULTLINGER);
-    }
-    
-    public ZMQSocketFactory(int numSocket) {
-        this(numSocket, null, DEFAULTLINGER);
-    }
-    
-    public ZMQSocketFactory(int numSocket, Path zmqKeyStore) {
-        this(numSocket, zmqKeyStore, DEFAULTLINGER);
+        this(builder());
     }
 
-    public ZMQSocketFactory(int numSocket, int linger) {
-        this(numSocket, null, linger);
+    public ZMQSocketFactory(int numSocket, Path zmqKeyStore) {
+        this(builder().numSocket(numSocket).zmqKeyStore(zmqKeyStore));
     }
 
     public ZMQSocketFactory(Path zmqKeyStore) {
-        this(1, zmqKeyStore, DEFAULTLINGER);
+        this(builder().zmqKeyStore(zmqKeyStore));
     }
 
-    public ZMQSocketFactory(int numSocket, Path zmqKeyStore, int linger) {
+    public ZMQSocketFactory(ZMQSocketFactoryBuilder builder) {
+        this(builder.numSocket, builder.zmqKeyStore, builder.withZap, builder.zmqCertsDir, builder.linger);
+    }
+
+    @Builder
+    public ZMQSocketFactory(int numSocket, Path zmqKeyStore, boolean withZap, Path zmqCertsDir, int linger) {
         logger.debug("New ZMQ socket factory instance");
         context = new ZContext(numSocket);
         context.setLinger(linger);
@@ -212,6 +133,7 @@ public class ZMQSocketFactory implements AutoCloseable {
             logger.warn("Handler exception in poller: {}", () -> Helpers.resolveThrowableException(e));
             logger.catching(Level.DEBUG, e);
         });
+        context.setUncaughtExceptionHandler(this::delegateExceptionHandler);
 
         terminator = ThreadBuilder.get()
                                   .setDaemon(true)
@@ -219,7 +141,8 @@ public class ZMQSocketFactory implements AutoCloseable {
                                   .setTask(() -> {
                                       logger.debug("starting shutdown hook for ZMQ");
                                       context.close();
-                                  }).setShutdownHook(false).build();
+                                  }).setShutdownHook(true).build();
+
         if (zmqKeyStore != null) {
             try {
                 keyEntry = checkKeyStore(zmqKeyStore);
@@ -233,24 +156,57 @@ public class ZMQSocketFactory implements AutoCloseable {
             keyEntry = null;
         }
         monitorPoller = getZPoller();
+        CountDownLatch monitorLatch = new CountDownLatch(1);
         monitorThread = ThreadBuilder.get()
-                                     .setName("zmqmonitor")
-                                     .setTask(this::monitorLoop)
+                                     .setName("zmqmonitor" + MONITOR_COUNT.incrementAndGet())
+                                     .setTask(() -> monitorLoop(monitorLatch))
                                      .build(true);
-
+        try {
+            monitorLatch.await();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        if (zmqCertsDir != null) {
+            Map<String, ZConfig> buildingPublicKeys = new HashMap<>();
+            try (Stream<Path> certs = Files.find(zmqCertsDir, 10, (p, a)-> Files.isRegularFile(p) && p.endsWith(".zpl"))) {
+                for (Path tryCert: (Iterable<Path>) certs::iterator) {
+                    ZConfig zconf = ZConfig.load(tryCert.toString());
+                    String publicKey = zconf.getValue("curve/public-key");
+                    if (publicKey.length() == 32) { // we want to store the public-key as Z85-String
+                        publicKey = ZMQ.Curve.z85Encode(publicKey.getBytes(ZMQ.CHARSET));
+                        buildingPublicKeys.put(publicKey, zconf);
+                    }
+                }
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+            publicKeys = Collections.unmodifiableMap(buildingPublicKeys);
+        } else {
+            publicKeys = Collections.emptyMap();
+        }
+        if (withZap) {
+            zapService = new ZapService(this);
+        } else {
+            zapService = null;
+        }
     }
 
-    private void monitorLoop() {
-        int count = 0;
-        while (! context.isClosed() && count >= 0) {
+    private void monitorLoop(CountDownLatch monitorLatch) {
+        monitorLatch.countDown();
+        monitorLatch = null;
+        while (! context.isClosed()) {
             try {
                 if (monitorPoller.registered() == 0) {
                     Thread.sleep(Long.MAX_VALUE);
+                } else {
+                    monitorPoller.poll(-1);
                 }
-                count = monitorPoller.poll(-1L);
+            } catch (ClosedSelectorException e) {
+                // The selector was closed so running is finished
+                break;
             } catch (InterruptedException e) {
                 // If real interruption, context will be closed
-                // If not, it's used to refresh what to poll
+                // If not, it was a poll refresh
             }
         }
     }
@@ -278,10 +234,9 @@ public class ZMQSocketFactory implements AutoCloseable {
 
         if (! Files.exists(zmqKeyStore)) {
             logger.debug("Creating a new keystore at {}", zmqKeyStore);
-            KeyFactory kf = NACLKEYFACTORY;
             ks.load(null);
 
-            KeyPairGenerator kpg = KeyPairGenerator.getInstance(kf.getAlgorithm());
+            KeyPairGenerator kpg = KeyPairGenerator.getInstance(NACLKEYFACTORY.getAlgorithm());
             kpg.initialize(256);
             KeyPair kp = kpg.generateKeyPair();
             NaclCertificate certificate = new NaclCertificate(kp.getPublic());
@@ -291,8 +246,15 @@ public class ZMQSocketFactory implements AutoCloseable {
             }
 
             Path publicKeyPath = Paths.get(zmqKeyStore.toString().replaceAll("\\.[a-z]+$", ".pub"));
-            try (PrintWriter writer = new PrintWriter(publicKeyPath.toFile(), "UTF-8")) {
+            try (PrintWriter writer = new PrintWriter(publicKeyPath.toFile(), StandardCharsets.UTF_8)) {
                 writer.print(ZMQHelper.makeServerIdentity(certificate));
+            }
+            Path publicKeyZplPath = Paths.get(zmqKeyStore.toString().replaceAll("\\.[a-z]+$", ".zpl"));
+            try (PrintWriter writer = new PrintWriter(publicKeyZplPath.toFile(), StandardCharsets.UTF_8)) {
+                writer.println("curve");
+                writer.print("    public-key = \"");
+                writer.print(ZMQHelper.makeServerIdentityZ85(certificate));
+                writer.println("\"");
             }
             PrivateKey prk = kp.getPrivate();
             return new PrivateKeyEntry(prk, new NaclCertificate[] {certificate} );
@@ -312,6 +274,20 @@ public class ZMQSocketFactory implements AutoCloseable {
         }
     }
 
+    public ZapDomainHandler getCertDirectoryFilter() {
+        return r -> {
+            String publicKey = ZMQ.Curve.z85Encode(r.getClientKey());
+            if (publicKeys.containsKey(publicKey)) {
+                Map<String, String> metadata = publicKeys.get(publicKey).getValues();
+                String userId = metadata.remove(Metadata.USER_ID);
+                r.setIdentity(userId != null ? userId : publicKey, metadata);
+                return true;
+            } else {
+                return false;
+            }
+        };
+    }
+
     public synchronized void close() throws ZMQCheckedException {
         try {
             if (! context.isClosed()) {
@@ -319,8 +295,10 @@ public class ZMQSocketFactory implements AutoCloseable {
                 try {
                     monitorPoller.close();
                 } catch (IOException e) {
-                    throw new ZMQCheckedException(new ZError.IOException(e));
+                    logger.warn("Unable to close monitor poller: {}", Helpers.resolveThrowableException(e));
+                    logger.debug(e);
                 }
+                Optional.ofNullable(zapService).ifPresent(ZapService::close);
                 context.close();
                 logger.debug("Global ZMQ context {} terminated", context);
             }
@@ -332,9 +310,21 @@ public class ZMQSocketFactory implements AutoCloseable {
     public ZPoller getZPoller() {
         return new ZPoller(context);
     }
-    
-    public void setExceptionHandler(Thread.UncaughtExceptionHandler handler) {
-        context.setUncaughtExceptionHandler(handler);
+
+
+    // Delegate the exception handling, as it must be set when the context is started,
+    // but we will modify it.
+    private void delegateExceptionHandler(Thread thread, Throwable throwable) {
+        delegatedExceptionHandler.uncaughtException(thread, throwable);
+    }
+
+    // The default exception handler will just log exceptions
+    private void defaultUncaughtExceptionHandler(Thread thread, Throwable throwable) {
+        logger.error("Unhandled exception", throwable);
+    }
+
+    public void setExceptionHandler(UncaughtExceptionHandler handler) {
+        delegatedExceptionHandler = handler;
     }
 
     @Accessors(chain=true)
@@ -342,8 +332,12 @@ public class ZMQSocketFactory implements AutoCloseable {
         private final Method method;
         private final SocketType type;
         private final String endpoint;
-        private PrivateKeyEntry pke = ZMQSocketFactory.this.keyEntry;
+        @Setter
+        private PrivateKeyEntry curveKeys = ZMQSocketFactory.this.keyEntry;
+        @Setter
         private Certificate serverPublicKey = null;
+        @Setter
+        private String zapDomain = null;
         @Setter
         private byte[] topic = null;
         @Setter
@@ -358,6 +352,11 @@ public class ZMQSocketFactory implements AutoCloseable {
         private Mechanisms security = Mechanisms.NULL;
         @Setter
         private String monitor = null;
+        @Setter
+        private boolean keepAlive = true;
+        private int tcpKeepAliveCnt = -1;
+        private int tcpKeepAliveIdle = -1;
+        private int tcpKeepAliveIntvl = -1;
 
         private Logger socketLogger = null;
 
@@ -366,16 +365,14 @@ public class ZMQSocketFactory implements AutoCloseable {
             this.type = type;
             this.endpoint = endpoint;
         }
-        public SocketBuilder setCurveKeys(PrivateKeyEntry pke) {
-            this.pke = pke;
+        public SocketBuilder setCurveServer() {
+            this.security = Mechanisms.CURVE;
+            this.serverPublicKey = null;
             return this;
         }
         public SocketBuilder setCurveClient(Certificate serverPublicKey) {
+            this.security = Mechanisms.CURVE;
             this.serverPublicKey = serverPublicKey;
-            return this;
-        }
-        public SocketBuilder setCurveServer() {
-            this.serverPublicKey = null;
             return this;
         }
         public SocketBuilder setLoggerMonitor(String name, Logger socketLogger) {
@@ -383,6 +380,15 @@ public class ZMQSocketFactory implements AutoCloseable {
             this.socketLogger = socketLogger;
             return this;
         }
+
+        public SocketBuilder setKeepAliveSettings(int tcpKeepAliveCnt, int tcpKeepAliveIdle, int tcpKeepAliveIntvl) {
+            this.keepAlive = true;
+            this.tcpKeepAliveCnt = tcpKeepAliveCnt;
+            this.tcpKeepAliveIdle = tcpKeepAliveIdle;
+            this.tcpKeepAliveIntvl = tcpKeepAliveIntvl;
+            return this;
+        }
+
         public Socket build() throws ZMQCheckedException {
             Socket socket = null;
             try {
@@ -400,64 +406,71 @@ public class ZMQSocketFactory implements AutoCloseable {
                 if (linger != -2) {
                     socket.setLinger(linger);
                 }
-                if (monitor != null ) {
+                if (monitor != null) {
                     socket.monitor(monitor, ZMQ.EVENT_ALL);
                     if (socketLogger != null) {
                         Socket socketMonitor = ZMQSocketFactory.this.getBuilder(Method.CONNECT, SocketType.PAIR, monitor).build();
-                        monitorPoller.register(socketMonitor, new EventLogger(url, logger), ZPoller.IN | ZPoller.ERR);
+                        monitorPoller.register(socketMonitor, new EventLogger(monitorPoller, url, logger), ZPoller.IN | ZPoller.ERR);
                         // Will exit from poll, and refresh the monitored sockets
                         monitorThread.interrupt();
                     }
                 }
-                socket.setTCPKeepAlive(1);
-                socket.setTCPKeepAliveCount(3);
-                socket.setTCPKeepAliveIdle(60);
-                socket.setTCPKeepAliveInterval(10);
+                if (zapDomain != null) {
+                    socket.setZAPDomain(zapDomain);
+                }
+                socket.setTCPKeepAlive(this.keepAlive ? 1: 0);
+                if (keepAlive) {
+                    socket.setTCPKeepAliveCount(tcpKeepAliveCnt);
+                    socket.setTCPKeepAliveIdle(tcpKeepAliveIdle);
+                    socket.setTCPKeepAliveInterval(tcpKeepAliveIntvl);
+                }
                 socket.setSelfAddressPropertyName("X-Self-Address");
                 switch (security) {
                 case CURVE:
-                    if (pke != null) {
-                        try {
-                            NaclPublicKeySpec pubkey = NACLKEYFACTORY.getKeySpec(pke.getCertificate().getPublicKey(), NaclPublicKeySpec.class);
-                            ZMQCheckedException.checkOption(socket.setCurvePublicKey(pubkey.getBytes()), socket);
-                            NaclPrivateKeySpec privateKey = NACLKEYFACTORY.getKeySpec(pke.getPrivateKey(), NaclPrivateKeySpec.class);
-                            ZMQCheckedException.checkOption(socket.setCurveSecretKey(privateKey.getBytes()), socket);
-                        } catch (InvalidKeySpecException e) {
-                            throw new IllegalArgumentException("Invalide curve keys pair");
-                        }
- 
-                        ZMQCheckedException.checkOption(socket.setCurveServer(serverPublicKey == null), socket);
-                        if (serverPublicKey != null) {
-                            try {
-                                NaclPublicKeySpec pubkey = NACLKEYFACTORY.getKeySpec(serverPublicKey.getPublicKey(), NaclPublicKeySpec.class);
-                                ZMQCheckedException.checkOption(socket.setCurveServerKey(pubkey.getBytes()), socket);
-                            } catch (InvalidKeySpecException e) {
-                                throw new IllegalArgumentException("Invalide remote public curve key");
-                            }
-                        }
-                    } else {
-                        throw new IllegalArgumentException("Curve security requested, but no keys given");
-                    }
+                    setCurveSecuritySettings(socket);
                     break;
                 case NULL:
                     break;
                 default:
-                    throw new IllegalArgumentException("Security "+ security + "not managed");
+                    throw new IllegalArgumentException("Security "+ security + " not managed");
                 }
                 if (type == SocketType.SUB && topic != null) {
                     socket.subscribe(topic);
                 }
                 socket.setImmediate(immediate);
-                if ( ! method.act(socket, endpoint)) {
+                if (! method.act(socket, endpoint)) {
                     throw new IllegalStateException("Failed to act on " + url);
                 }
-                logger.trace("new socket: {}={} in {}", url, socket, context);
+                logger.trace("New socket: {}={} in {}", url, socket, context);
                 return socket;
             } catch (UncheckedZMQException e) {
                 if (socket != null) {
                     socket.close();
                 }
                 throw new ZMQCheckedException(e);
+            }
+        }
+        private void setCurveSecuritySettings(Socket socket) throws ZMQCheckedException {
+            ZMQCheckedException.checkOption(socket.setCurveServer(serverPublicKey == null), socket);
+            if (curveKeys != null) {
+                try {
+                    NaclPublicKeySpec pubkey = NACLKEYFACTORY.getKeySpec(curveKeys.getCertificate().getPublicKey(), NaclPublicKeySpec.class);
+                    ZMQCheckedException.checkOption(socket.setCurvePublicKey(pubkey.getBytes()), socket);
+                    NaclPrivateKeySpec privateKey = NACLKEYFACTORY.getKeySpec(curveKeys.getPrivateKey(), NaclPrivateKeySpec.class);
+                    ZMQCheckedException.checkOption(socket.setCurveSecretKey(privateKey.getBytes()), socket);
+                } catch (InvalidKeySpecException e) {
+                    throw new IllegalArgumentException("Invalid curve keys pair");
+                }
+                if (serverPublicKey != null) {
+                    try {
+                        NaclPublicKeySpec pubkey = NACLKEYFACTORY.getKeySpec(serverPublicKey.getPublicKey(), NaclPublicKeySpec.class);
+                        ZMQCheckedException.checkOption(socket.setCurveServerKey(pubkey.getBytes()), socket);
+                    } catch (InvalidKeySpecException e) {
+                        throw new IllegalArgumentException("Invalid remote public curve key");
+                    }
+                }
+            } else {
+                throw new IllegalArgumentException("Curve security requested, but no keys given");
             }
         }
     }

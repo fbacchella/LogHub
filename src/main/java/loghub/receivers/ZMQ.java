@@ -1,10 +1,10 @@
 package loghub.receivers;
 
 import java.nio.charset.StandardCharsets;
-import java.util.Locale;
 
 import org.apache.logging.log4j.Level;
 import org.zeromq.SocketType;
+import org.zeromq.ZMQ.Socket;
 import org.zeromq.ZPoller;
 
 import loghub.BuilderClass;
@@ -14,7 +14,7 @@ import loghub.configuration.Properties;
 import loghub.zmq.ZMQCheckedException;
 import loghub.zmq.ZMQHandler;
 import loghub.zmq.ZMQHelper;
-import loghub.zmq.ZMQHelper.Method;
+import loghub.zmq.ZapDomainHandler.ZapDomainHandlerProvider;
 import loghub.zmq.ZmqConnectionContext;
 import lombok.Setter;
 import zmq.Msg;
@@ -32,13 +32,15 @@ public class ZMQ extends Receiver<ZMQ, ZMQ.Builder> {
         @Setter
         int hwm= 1000;
         @Setter
-        SocketType type = SocketType.PUB;
+        SocketType type = SocketType.SUB;
         @Setter
         String serverKey = null;
         @Setter
         Mechanisms security = Mechanisms.NULL;
         @Setter
         String topic = "";
+        @Setter
+        ZapDomainHandlerProvider zapHandler = ZapDomainHandlerProvider.ALLOW;
         @Override
         public ZMQ build() {
             return new ZMQ(this);
@@ -64,10 +66,11 @@ public class ZMQ extends Receiver<ZMQ, ZMQ.Builder> {
                 .setType(builder.type)
                 .setTopic(builder.topic.getBytes(StandardCharsets.UTF_8))
                 .setSecurity(security)
+                .setZapHandler(builder.zapHandler)
                 .setServerPublicKeyToken(builder.serverKey)
                 .setLogger(logger)
                 .setName("zmqhandler/" + listen.replaceFirst("://", "/").replace(':', '/').replaceFirst("\\*", "0.0.0.0"))
-                .setReceive(s -> s.base().recv(0))
+                .setReceive(Socket::recvMsg)
                 .setMask(ZPoller.IN)
                 ;
     }

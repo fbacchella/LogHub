@@ -11,6 +11,7 @@ import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
+import java.util.regex.Pattern;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -24,7 +25,7 @@ import org.zeromq.SocketType;
 
 import loghub.BeanChecks;
 import loghub.BeanChecks.BeanInfo;
-import loghub.events.Event;
+import loghub.ConnectionContext;
 import loghub.LogUtils;
 import loghub.Pipeline;
 import loghub.PriorityBlockingQueue;
@@ -33,11 +34,12 @@ import loghub.ZMQFactory;
 import loghub.ZMQFlow;
 import loghub.configuration.Properties;
 import loghub.decoders.StringCodec;
+import loghub.events.Event;
 import loghub.zmq.ZMQCheckedException;
 import loghub.zmq.ZMQHelper.Method;
 import loghub.zmq.ZMQSocketFactory;
+import loghub.zmq.ZapDomainHandler.ZapDomainHandlerProvider;
 import zmq.io.mechanism.Mechanisms;
-import zmq.socket.Sockets;
 
 public class TestZMQReceiver {
 
@@ -50,6 +52,7 @@ public class TestZMQReceiver {
         LogUtils.setLevel(logger, Level.TRACE, "loghub.zmq", "loghub.receivers.ZMQ", "loghub.ContextRule", "loghub.ZMQFlow");
     }
 
+    private static final Pattern ZMQ_SOCKETADDRESS_PATTERN = Pattern.compile("\\d+.\\d+.\\d+.\\d+:\\d+");
     @Rule(order=1)
     public TemporaryFolder testFolder = new TemporaryFolder();
 
@@ -85,6 +88,9 @@ public class TestZMQReceiver {
             receiver.start();
             Event e = receiveQueue.poll(2000, TimeUnit.MILLISECONDS);
             Assert.assertNotNull("No event received", e);
+            ConnectionContext<String> connectionContext = e.getConnectionContext();
+            Assert.assertTrue(ZMQ_SOCKETADDRESS_PATTERN.matcher(connectionContext.getLocalAddress()).matches());
+            Assert.assertTrue(ZMQ_SOCKETADDRESS_PATTERN.matcher(connectionContext.getRemoteAddress()).matches());
             Assert.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
             Assert.assertTrue(e.get("message").toString().startsWith("message "));
         } finally {
@@ -162,6 +168,7 @@ public class TestZMQReceiver {
                               , BeanInfo.build("hwm", Integer.TYPE)
                               , BeanInfo.build("serverKey", String.class)
                               , BeanInfo.build("security", Mechanisms.class)
+                              , BeanInfo.build("zapHandler", ZapDomainHandlerProvider.class)
                               , BeanInfo.build("blocking", Boolean.TYPE)
                         );
     }

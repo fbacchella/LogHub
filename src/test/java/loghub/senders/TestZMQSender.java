@@ -30,8 +30,6 @@ import org.zeromq.ZMQ.Socket;
 
 import loghub.BeanChecks;
 import loghub.BeanChecks.BeanInfo;
-import loghub.ConnectionContext;
-import loghub.events.Event;
 import loghub.LogUtils;
 import loghub.ThreadBuilder;
 import loghub.Tools;
@@ -40,12 +38,13 @@ import loghub.ZMQSink;
 import loghub.configuration.Properties;
 import loghub.encoders.EncodeException;
 import loghub.encoders.ToJson;
+import loghub.events.Event;
 import loghub.events.EventsFactory;
 import loghub.zmq.ZMQCheckedException;
 import loghub.zmq.ZMQHelper.Method;
 import loghub.zmq.ZMQSocketFactory;
+import loghub.zmq.ZapDomainHandler.ZapDomainHandlerProvider;
 import zmq.io.mechanism.Mechanisms;
-import zmq.socket.Sockets;
 
 public class TestZMQSender {
 
@@ -210,6 +209,7 @@ public class TestZMQSender {
                               , BeanInfo.build("hwm", Integer.TYPE)
                               , BeanInfo.build("serverKey", String.class)
                               , BeanInfo.build("security", Mechanisms.class)
+                              , BeanInfo.build("zapHandler", ZapDomainHandlerProvider.class)
                         );
     }
 

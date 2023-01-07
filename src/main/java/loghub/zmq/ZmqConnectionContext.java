@@ -1,7 +1,5 @@
 package loghub.zmq;
 
-import org.zeromq.ZMQ;
-
 import loghub.ConnectionContext;
 import zmq.Msg;
 import zmq.io.Metadata;
@@ -16,10 +14,7 @@ public class ZmqConnectionContext extends ConnectionContext<String> {
         Metadata md = msg.getMetadata();
         peerAddress = md.get(Metadata.PEER_ADDRESS);
         selfAddress = md.get("X-Self-Address");
-        if (security == Mechanisms.PLAIN) {
-            String userId = md.get(Metadata.USER_ID);
-            setPrincipal(() -> userId);
-        } else if (security == Mechanisms.CURVE) {
+        if (security == Mechanisms.PLAIN || security == Mechanisms.CURVE) {
             String userId = md.get(Metadata.USER_ID);
             setPrincipal(() -> userId);
         }

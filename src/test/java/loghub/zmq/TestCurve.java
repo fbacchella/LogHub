@@ -70,6 +70,8 @@ public class TestCurve {
 
     @Test(timeout=5000)
     public void testSecureConnectOneWay() throws ZMQCheckedException {
+        tctxt.getFactory().getZapService().addFilter("ZAPDOMAIN", ZapDomainHandler.ALLOW);
+
         String rendezvous = "tcp://localhost:" + Tools.tryGetPort();
         SocketBuilder serverBuilder = tctxt.getFactory().getBuilder(Method.BIND, SocketType.PULL, rendezvous)
                 .setHwm(100)
@@ -77,6 +79,7 @@ public class TestCurve {
                 .setSecurity(Mechanisms.CURVE)
                 .setCurveKeys(tctxt.getFactory().getKeyEntry())
                 .setCurveServer()
+                .setZapDomain("ZAPDOMAIN")
                 ;
         SocketBuilder clientBuilder = tctxt.getFactory().getBuilder(Method.CONNECT, SocketType.PUSH, rendezvous)
                 .setHwm(100)
@@ -101,12 +104,15 @@ public class TestCurve {
         Curve curve = new Curve();
         byte[][] serverKeys = curve.keypair();
 
+        tctxt.getFactory().getZapService().addFilter("ZAPDOMAIN", ZapDomainHandler.ALLOW);
+
         String rendezvous = "tcp://localhost:" + Tools.tryGetPort();
         SocketBuilder serverBuilder = tctxt.getFactory().getBuilder(Method.CONNECT, SocketType.PULL, rendezvous)
                 .setHwm(100)
                 .setTimeout(1000)
                 .setSecurity(Mechanisms.CURVE)
                 .setCurveKeys(getCertificate(serverKeys[0], serverKeys[1]))
+                .setZapDomain("ZAPDOMAIN")
                 .setCurveServer();
 
         SocketBuilder clientBuilder = tctxt.getFactory().getBuilder(Method.BIND, SocketType.PUSH, rendezvous)

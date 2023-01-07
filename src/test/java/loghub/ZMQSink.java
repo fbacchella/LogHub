@@ -2,7 +2,6 @@ package loghub;
 
 import java.io.IOException;
 import java.security.KeyStore.PrivateKeyEntry;
-import java.security.cert.Certificate;
 import java.util.function.Function;
 
 import org.apache.logging.log4j.LogManager;
@@ -13,9 +12,9 @@ import org.zeromq.ZPoller;
 
 import loghub.zmq.ZMQCheckedException;
 import loghub.zmq.ZMQHandler;
-import loghub.zmq.ZMQHelper;
 import loghub.zmq.ZMQHelper.Method;
 import loghub.zmq.ZMQSocketFactory;
+import loghub.zmq.ZapDomainHandler.ZapDomainHandlerProvider;
 import lombok.Setter;
 import lombok.experimental.Accessors;
 import zmq.io.mechanism.Mechanisms;
@@ -41,6 +40,8 @@ public class ZMQSink<M> extends Thread implements AutoCloseable {
         @Setter
         private Mechanisms security = Mechanisms.NULL;
         @Setter
+        private ZapDomainHandlerProvider zapHandler = ZapDomainHandlerProvider.ALLOW;
+        @Setter
         private ZMQSocketFactory zmqFactory = null;
         @Setter
         Function<Socket, M> receive = null;
@@ -57,7 +58,6 @@ public class ZMQSink<M> extends Thread implements AutoCloseable {
         return new Builder<M>();
     }
 
-    public volatile boolean running = false;
     private final ZMQHandler<M> handler;
 
     private ZMQSink(Builder<M> builder) {
@@ -72,18 +72,14 @@ public class ZMQSink<M> extends Thread implements AutoCloseable {
                         .setReceive(builder.receive)
                         .setMask(ZPoller.IN)
                         .setSecurity(builder.security)
+                        .setZapHandler(builder.zapHandler)
                         .setKeyEntry(builder.keyEntry)
                         .setServerPublicKeyToken(builder.serverKey)
                         .setZfactory(builder.zmqFactory)
-                        .setEventCallback(ZMQHelper.getEventLogger(logger))
                         .build();
         setDaemon(true);
         setName("Sink");
         start();
-    }
-
-    public Certificate getPublicKey() {
-        return handler.getCertificate();
     }
 
     public void run() {
