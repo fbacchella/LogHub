@@ -4,11 +4,13 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.lang.Thread.UncaughtExceptionHandler;
 import java.nio.channels.ClosedSelectorException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.security.InvalidKeyException;
 import java.security.KeyFactory;
 import java.security.KeyPair;
@@ -29,8 +31,8 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiPredicate;
 import java.util.stream.Stream;
-import java.lang.Thread.UncaughtExceptionHandler;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -53,6 +55,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.Accessors;
+import zmq.Options;
 import zmq.io.Metadata;
 import zmq.io.mechanism.Mechanisms;
 
@@ -77,8 +80,7 @@ public class ZMQSocketFactory implements AutoCloseable {
     @Getter
     private final ZPoller monitorPoller;
     private final Thread monitorThread;
-
-    private final Map<String, ZConfig> publicKeys;
+    private Map<String, ZConfig> publicKeys;
     private UncaughtExceptionHandler delegatedExceptionHandler = this::defaultUncaughtExceptionHandler;
 
     public static ZMQSocketFactoryBuilder builder() {
@@ -167,20 +169,7 @@ public class ZMQSocketFactory implements AutoCloseable {
             Thread.currentThread().interrupt();
         }
         if (zmqCertsDir != null) {
-            Map<String, ZConfig> buildingPublicKeys = new HashMap<>();
-            try (Stream<Path> certs = Files.find(zmqCertsDir, 10, (p, a)-> Files.isRegularFile(p) && p.endsWith(".zpl"))) {
-                for (Path tryCert: (Iterable<Path>) certs::iterator) {
-                    ZConfig zconf = ZConfig.load(tryCert.toString());
-                    String publicKey = zconf.getValue("curve/public-key");
-                    if (publicKey.length() == 32) { // we want to store the public-key as Z85-String
-                        publicKey = ZMQ.Curve.z85Encode(publicKey.getBytes(ZMQ.CHARSET));
-                        buildingPublicKeys.put(publicKey, zconf);
-                    }
-                }
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-            publicKeys = Collections.unmodifiableMap(buildingPublicKeys);
+            reloadCerts(zmqCertsDir);
         } else {
             publicKeys = Collections.emptyMap();
         }
@@ -189,6 +178,31 @@ public class ZMQSocketFactory implements AutoCloseable {
         } else {
             zapService = null;
         }
+    }
+
+    public void reloadCerts(Path zmqCertsDir) {
+        BiPredicate<Path, BasicFileAttributes> isZpl = (p, a)-> Files.isRegularFile(p) && p.getFileName().toString().endsWith(".zpl");
+        logger.debug("Searching for zcertificates in {}", zmqCertsDir);
+        Map<String, ZConfig> buildingPublicKeys = new HashMap<>();
+        try (Stream<Path> certs = Files.find(zmqCertsDir, 10, isZpl)) {
+            for (Path tryCert: (Iterable<Path>) certs::iterator) {
+                try {
+                    ZConfig zconf = ZConfig.load(tryCert.toString());
+                    String publicKey = zconf.getValue("curve/public-key");
+                    if (publicKey.length() == Options.CURVE_KEYSIZE_Z85) { // we want to store the public-key as Z85-String
+                        buildingPublicKeys.put(publicKey, zconf);
+                        logger.debug("Adding certificates {} as with public key {}", tryCert, publicKey);
+                    }
+                } catch (IOException ex) {
+                    logger.error("Unusable zpl file '{}': {}", () -> tryCert, () -> Helpers.resolveThrowableException(ex));
+                    logger.catching(Level.DEBUG, ex);
+                }
+            }
+        } catch (IOException ex) {
+            logger.error("Can't scan zpl directory '{}': {}", () -> zmqCertsDir, () -> Helpers.resolveThrowableException(ex));
+            logger.catching(Level.DEBUG, ex);
+        }
+        publicKeys = Collections.unmodifiableMap(buildingPublicKeys);
     }
 
     private void monitorLoop(CountDownLatch monitorLatch) {

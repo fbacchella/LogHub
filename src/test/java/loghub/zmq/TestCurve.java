@@ -25,6 +25,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.zeromq.SocketType;
+import org.zeromq.ZConfig;
 import org.zeromq.ZMQ;
 import org.zeromq.ZMQ.Socket;
 
@@ -37,6 +38,8 @@ import loghub.Tools;
 import loghub.ZMQFactory;
 import loghub.zmq.ZMQHelper.Method;
 import loghub.zmq.ZMQSocketFactory.SocketBuilder;
+import zmq.Msg;
+import zmq.io.Metadata;
 import zmq.io.mechanism.Mechanisms;
 import zmq.io.mechanism.curve.Curve;
 
@@ -48,10 +51,11 @@ public class TestCurve {
     @Rule(order=2)
     public ZMQFactory tctxt = new ZMQFactory(testFolder, "secure");
 
+    private static final Logger logger = LogManager.getLogger();
+
     @BeforeClass
     static public void configure() throws IOException {
         Tools.configure();
-        Logger logger = LogManager.getLogger();
         LogUtils.setLevel(logger, Level.TRACE, "loghub.zmq");
     }
 
@@ -69,8 +73,16 @@ public class TestCurve {
     }
 
     @Test(timeout=5000)
-    public void testSecureConnectOneWay() throws ZMQCheckedException {
-        tctxt.getFactory().getZapService().addFilter("ZAPDOMAIN", ZapDomainHandler.ALLOW);
+    public void testSecureConnectOneWay() throws ZMQCheckedException, IOException {
+        Path securePath = Paths.get(testFolder.getRoot().getAbsolutePath(), "secure");
+
+        Path zplPath = securePath.resolve("zmqtest.zpl");
+        ZConfig zplConfig = ZConfig.load(zplPath.toString());
+        zplConfig.putValue("User-Id", "loghub");
+        zplConfig.save(zplPath.toString());
+        tctxt.getFactory().reloadCerts(securePath);
+
+        tctxt.getFactory().getZapService().addFilter("ZAPDOMAIN", ZapDomainHandler.ZapDomainHandlerProvider.METADATA.get(tctxt.getFactory(), Mechanisms.CURVE));
 
         String rendezvous = "tcp://localhost:" + Tools.tryGetPort();
         SocketBuilder serverBuilder = tctxt.getFactory().getBuilder(Method.BIND, SocketType.PULL, rendezvous)
@@ -80,6 +92,7 @@ public class TestCurve {
                 .setCurveKeys(tctxt.getFactory().getKeyEntry())
                 .setCurveServer()
                 .setZapDomain("ZAPDOMAIN")
+                .setLoggerMonitor("server", logger)
                 ;
         SocketBuilder clientBuilder = tctxt.getFactory().getBuilder(Method.CONNECT, SocketType.PUSH, rendezvous)
                 .setHwm(100)
@@ -87,6 +100,7 @@ public class TestCurve {
                 .setSecurity(Mechanisms.CURVE)
                 .setCurveKeys(tctxt.getFactory().getKeyEntry())
                 .setCurveClient(tctxt.getFactory().getKeyEntry().getCertificate())
+                .setLoggerMonitor("client", logger)
                 ;
         try (Socket server = serverBuilder.build();
              Socket client = clientBuilder.build()) {
@@ -95,7 +109,11 @@ public class TestCurve {
             Assert.assertEquals(ZMQ.Socket.Mechanism.CURVE,
                     client.getMechanism());
             client.send("Hello, World!");
-            Assert.assertEquals("Hello, World!", server.recvStr());
+            Msg msg = server.base().recv(0);
+            Assert.assertEquals("loghub", msg.getMetadata().get(Metadata.USER_ID));
+            Assert.assertEquals("Hello, World!", new String(msg.data()));
+        } finally {
+            tctxt.getFactory().getZapService().close();
         }
     }
 
@@ -154,7 +172,6 @@ public class TestCurve {
 
         try (Socket server = serverBuilder.build();
              Socket client = clientBuilder.build()) {
-
             Assert.assertEquals(ZMQ.Socket.Mechanism.CURVE, server.getMechanism());
             Assert.assertEquals(ZMQ.Socket.Mechanism.CURVE, client.getMechanism());
             client.send("Hello, World!");

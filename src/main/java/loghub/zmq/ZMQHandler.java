@@ -6,7 +6,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
-import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -15,7 +14,6 @@ import java.util.stream.Stream;
 import org.apache.logging.log4j.Logger;
 import org.zeromq.SocketType;
 import org.zeromq.UncheckedZMQException;
-import org.zeromq.ZMQ.Event;
 import org.zeromq.ZMQ.Socket;
 import org.zeromq.ZPoller;
 
