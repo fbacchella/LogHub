@@ -397,7 +397,11 @@ public class ElasticSearch extends AbstractHttpSender {
                 Map<String, Object> body = Collections.singletonMap("aliases", index);
                 os.write(json.writeValueAsBytes(body));
             });
-            doquery(request, filePart.toString(), transform, Collections.emptyMap(), null);
+            Map<Integer, Function<JsonNode, Boolean>> onfailures = Map.of(400, j -> {
+                logger.error("Failed creation of index '{}': {}", i, j.get("error"));
+                return false;
+            });
+            doquery(request, filePart.toString(), transform, onfailures, null);
         }
     }
 
