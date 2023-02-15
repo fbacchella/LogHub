@@ -83,6 +83,7 @@ public class Configuration {
     private Set<String> outputpipelines = new HashSet<>();
     private ClassLoader classLoader = Configuration.class.getClassLoader();
     private GroovyClassLoader groovyClassLoader = new GroovyClassLoader(classLoader);
+    private CacheManager cacheManager = new CacheManager(classLoader);
     private SecretsHandler secrets = null;
     private final Map<String, String> lockedProperties = new HashMap<>();
     private final Map<String, Object> configurationProperties = new HashMap<>();
@@ -152,6 +153,7 @@ public class Configuration {
                         logger.debug("Looking for plugins in {}", (Object[])path);
                         classLoader = doClassLoader(path);
                         groovyClassLoader = new GroovyClassLoader(classLoader);
+                        cacheManager = new CacheManager(classLoader);
                         lockedProperties.put("plugins", pc.beanValue().getText());
                     } catch (IOException | UncheckedIOException ex) {
                         throw new ConfigException("can't load plugins: " + ex.getMessage(), cs.getSourceName(), pc.start, ex);
@@ -357,6 +359,7 @@ public class Configuration {
                                                         .sslContext(resolveSslContext())
                                                         .jaasConfig(resolveJaasConfig())
                                                         .jwtHandler(resolveJwtHander())
+                                                        .cacheManager(cacheManager)
                                                         .build();
 
             trees.forEach(t -> {
@@ -467,6 +470,7 @@ public class Configuration {
         Map<String, Pipeline> namedPipeLine = new HashMap<>(conf.pipelines.size());
 
         newProperties.put(Properties.PROPSNAMES.CLASSLOADERNAME.toString(), classLoader);
+        newProperties.put(Properties.PROPSNAMES.CACHEMANGER.toString(), cacheManager);
         newProperties.put(Properties.PROPSNAMES.SSLCONTEXT.toString(), conf.sslContext);
         newProperties.put(Properties.PROPSNAMES.JAASCONFIG.toString(), conf.jaasConfig);
 

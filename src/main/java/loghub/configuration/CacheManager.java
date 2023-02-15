@@ -145,9 +145,9 @@ public class CacheManager {
 
     private final javax.cache.CacheManager cacheManager;
 
-    public CacheManager(Properties props) {
+    public CacheManager(ClassLoader loader) {
         synchronized (CacheManager.class) {
-            CachingProvider provider = Caching.getCachingProvider(props.classloader);
+            CachingProvider provider = Caching.getCachingProvider(loader);
             cacheManager = provider.getCacheManager();
             //Needed for junit tests that reuse context
             cacheManager.getCacheNames().forEach(cacheManager::destroyCache);

@@ -105,7 +105,8 @@ class ConfigListener extends RouteBaseListener {
             SSLContext.class,
             javax.security.auth.login.Configuration.class,
             JWTHandler.class,
-            ClassLoader.class
+            ClassLoader.class,
+            CacheManager.class
     };
 
     private enum StackMarker {
@@ -226,6 +227,7 @@ class ConfigListener extends RouteBaseListener {
     private final SecretsHandler secrets;
     private final Map<String, String> lockedProperties;
     private final GroovyClassLoader groovyClassLoader;
+    private final CacheManager cacheManager;
     private final BeansManager beansManager;
 
     private Parser parser;
@@ -233,7 +235,7 @@ class ConfigListener extends RouteBaseListener {
 
     @Builder
     private ConfigListener(ClassLoader classLoader, SecretsHandler secrets, Map<String, String> lockedProperties, GroovyClassLoader groovyClassLoader,
-            SSLContext sslContext, javax.security.auth.login.Configuration jaasConfig, JWTHandler jwtHandler) {
+            SSLContext sslContext, javax.security.auth.login.Configuration jaasConfig, JWTHandler jwtHandler, CacheManager cacheManager) {
         this.classLoader = classLoader != null ? classLoader : ConfigListener.class.getClassLoader();
         this.secrets = secrets != null ? secrets : SecretsHandler.empty();
         this.lockedProperties = lockedProperties != null ? lockedProperties : new HashMap<>();
@@ -242,6 +244,7 @@ class ConfigListener extends RouteBaseListener {
         this.sslContext = sslContext;
         this.jaasConfig = jaasConfig;
         this.jwtHandler = jwtHandler;
+        this.cacheManager = cacheManager;
     }
 
     public void startWalk(ParserRuleContext config, CharStream stream, RouteParser parser) {
@@ -409,6 +412,8 @@ class ConfigListener extends RouteBaseListener {
                             value = this.jwtHandler;
                         } else if (c == ClassLoader.class) {
                             value = this.classLoader;
+                        } else if (c == CacheManager.class) {
+                            value = this.cacheManager;
                         } else {
                             throw new IllegalStateException("Unhandled bean injection value");
                         }

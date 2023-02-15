@@ -65,7 +65,8 @@ public class Properties extends HashMap<String, Object> {
         PIPELINES,
         RECEIVERS,
         SENDERS,
-        SOURCES;
+        SOURCES,
+        CACHEMANGER;
 
         @Override
         public String toString() {
@@ -117,7 +118,10 @@ public class Properties extends HashMap<String, Object> {
         classloader = Optional.ofNullable((ClassLoader) properties.remove(PROPSNAMES.CLASSLOADERNAME.toString()))
                               .orElseGet(Properties.class::getClassLoader);
         groovyClassLoader = Optional.ofNullable((GroovyClassLoader) properties.remove(PROPSNAMES.GROOVYCLASSLOADERNAME.toString()))
-                                    .orElseGet(() ->new GroovyClassLoader(classloader));
+                                    .orElseGet(() -> new GroovyClassLoader(classloader));
+        cacheManager = Optional.ofNullable((CacheManager) properties.remove(PROPSNAMES.CACHEMANGER.toString()))
+                                    .orElseGet(() -> new CacheManager(classloader));
+
 
         if (properties.containsKey("log4j.defaultlevel")) {
             String levelname = (String) properties.remove("log4j.defaultlevel");
@@ -150,8 +154,6 @@ public class Properties extends HashMap<String, Object> {
         } else {
             formatters = Collections.emptyMap();
         }
-
-        cacheManager = new CacheManager(this);
 
         if (properties.containsKey("numWorkers")) {
             numWorkers = (Integer) properties.remove("numWorkers");
