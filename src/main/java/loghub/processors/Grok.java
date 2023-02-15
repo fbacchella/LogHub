@@ -11,41 +11,49 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-import org.apache.logging.log4j.Level;
-
 import io.krakens.grok.api.GrokCompiler;
 import io.krakens.grok.api.Match;
+import loghub.BuilderClass;
 import loghub.Helpers;
 import loghub.ProcessorException;
 import loghub.VariablePath;
-import loghub.configuration.Properties;
 import loghub.events.Event;
+import lombok.Setter;
 
+@BuilderClass(Grok.Builder.class)
 public class Grok extends FieldsProcessor {
-
 
     public static final String PATTERNSFOLDER = "patterns";
 
-    private io.krakens.grok.api.Grok grok;
-    private String pattern;
-    private Map<Object, Object> customPatterns = Collections.emptyMap();
+    public static class Builder extends FieldsProcessor.Builder<Grok> {
+        @Setter
+        private String pattern;
+        @Setter
+        private Map<Object, Object> customPatterns = Collections.emptyMap();
+        @Setter
+        private ClassLoader classLoader = Grok.class.getClassLoader();
+        public Grok build() {
+            return new Grok(this);
+        }
+    }
+    public static Builder getBuilder() {
+        return new Builder();
+    }
 
-    @Override
-    public boolean configure(Properties properties) {
+    private final io.krakens.grok.api.Grok grok;
+
+    public Grok(Builder builder) {
+        super(builder);
         GrokCompiler grokCompiler = GrokCompiler.newInstance();
 
         Helpers.ThrowingConsumer<InputStream> grokloader = is -> grokCompiler.register(new InputStreamReader(new BufferedInputStream(is)));
         try {
-            Helpers.readRessources(properties.classloader, PATTERNSFOLDER, grokloader);
-            customPatterns.forEach((k,v) -> grokCompiler.register(k.toString(), v.toString()));
-            grok = grokCompiler.compile(pattern, true);
-            // Switch to true when  https://github.com/thekrakken/java-grok/issues/61 is fixed
+            Helpers.readRessources(builder.classLoader, PATTERNSFOLDER, grokloader);
+            builder.customPatterns.forEach((k,v) -> grokCompiler.register(k.toString(), v.toString()));
+            grok = grokCompiler.compile(builder.pattern, true);
         } catch (IOException | URISyntaxException | IllegalArgumentException e) {
-            logger.error("unable to load patterns: {}", e.getMessage());
-            logger.catching(Level.DEBUG, e);
-            return false;
+            throw new IllegalArgumentException("Unable to load patterns: " + Helpers.resolveThrowableException(e), e);
         }
-        return super.configure(properties);
     }
 
     @Override
@@ -82,7 +90,7 @@ public class Grok extends FieldsProcessor {
             } else {
                 stored = e.getValue();
             }
-            // . is a special field name, it mean a value to put back in the original field
+            // . is a special field name, it means a value to put back in the original field
             if (! ".".equals(destinationField) ) {
                 event.putAtPath(VariablePath.of(destinationField), stored);
             } else {
@@ -92,31 +100,9 @@ public class Grok extends FieldsProcessor {
         return returned;
     }
 
-    public void setPattern(String pattern) {
-        this.pattern = pattern;
-    }
-
-    public String getPattern() {
-        return pattern;
-    }
-
     @Override
     public String getName() {
         return "grok";
-    }
-
-    /**
-     * @return the customPatterns
-     */
-    public Map<Object, Object> getCustomPatterns() {
-        return customPatterns;
-    }
-
-    /**
-     * @param customPatterns the customPatterns to set
-     */
-    public void setCustomPatterns(Map<Object, Object> customPatterns) {
-        this.customPatterns = customPatterns;
     }
 
 }

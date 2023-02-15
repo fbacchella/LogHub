@@ -1,7 +1,9 @@
 package loghub.processors;
 
+import java.beans.IntrospectionException;
 import java.io.IOException;
 import java.util.Collections;
+import java.util.Map;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -10,9 +12,13 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import loghub.BeanChecks;
+import loghub.Expression;
 import loghub.LogUtils;
+import loghub.Processor;
 import loghub.ProcessorException;
 import loghub.Tools;
+import loghub.VarFormatter;
 import loghub.VariablePath;
 import loghub.configuration.Properties;
 import loghub.events.Event;
@@ -32,9 +38,10 @@ public class TestGrok {
 
     @Test
     public void TestLoadPatterns1() throws ProcessorException {
-        Grok grok = new Grok();
-        grok.setField(VariablePath.of(new String[] {"message"}));
-        grok.setPattern("%{COMBINEDAPACHELOG}");
+        Grok.Builder builder = Grok.getBuilder();
+        builder.setField(VariablePath.of(new String[] {"message"}));
+        builder.setPattern("%{COMBINEDAPACHELOG}");
+        Grok grok = builder.build();
 
         Properties props = new Properties(Collections.emptyMap());
 
@@ -49,9 +56,10 @@ public class TestGrok {
 
     @Test
     public void TestLoadPatterns2() throws ProcessorException {
-        Grok grok = new Grok();
-        grok.setField(VariablePath.of(new String[] {"message"}));
-        grok.setPattern("(?:%{SYSLOG_LINE})");
+        Grok.Builder builder = Grok.getBuilder();
+        builder.setField(VariablePath.of(new String[] {"message"}));
+        builder.setPattern("(?:%{SYSLOG_LINE})");
+        Grok grok = builder.build();
 
         Properties props = new Properties(Collections.emptyMap());
 
@@ -66,10 +74,11 @@ public class TestGrok {
 
     @Test
     public void TestLoadPatterns3() throws ProcessorException {
-        Grok grok = new Grok();
-        grok.setField(VariablePath.of(new String[] {"message"}));
-        grok.setCustomPatterns(Collections.singletonMap("FETCHING", "fetching user_deny.db entry"));
-        grok.setPattern("%{FETCHING:message} for '%{USERNAME:imap_user}'");
+        Grok.Builder builder = Grok.getBuilder();
+        builder.setCustomPatterns(Collections.singletonMap("FETCHING", "fetching user_deny.db entry"));
+        builder.setPattern("%{FETCHING:message} for '%{USERNAME:imap_user}'");
+        builder.setField(VariablePath.of(new String[] {"message"}));
+        Grok grok = builder.build();
 
         Properties props = new Properties(Collections.emptyMap());
 
@@ -84,9 +93,9 @@ public class TestGrok {
 
     @Test
     public void TestLoadPatterns5() throws ProcessorException {
-        Grok grok = new Grok();
-        grok.setFields(new String[]{"localhost"});
-        grok.setPattern("%{HOSTNAME:.}\\.google\\.com");
+        Grok.Builder builder = Grok.getBuilder();
+        builder.setPattern("%{HOSTNAME:.}\\.google\\.com");
+        Grok grok = builder.build();
 
         Properties props = new Properties(Collections.emptyMap());
 
@@ -104,9 +113,10 @@ public class TestGrok {
 
     @Test
     public void TestLoadPatterns6() throws ProcessorException {
-        Grok grok = new Grok();
-        grok.setFields(new String[]{"remotehost"});
-        grok.setPattern("%{HOSTNAME:.}\\.google\\.com");
+        Grok.Builder builder = Grok.getBuilder();
+        builder.setFields(new String[]{"remotehost"});
+        builder.setPattern("%{HOSTNAME:.}\\.google\\.com");
+        Grok grok = builder.build();
 
         Properties props = new Properties(Collections.emptyMap());
 
@@ -123,9 +133,10 @@ public class TestGrok {
 
     @Test
     public void TestWithPath() throws ProcessorException {
-        Grok grok = new Grok();
-        grok.setFields(new String[]{"remotehost"});
-        grok.setPattern("%{HOSTNAME:google.com}\\.google\\.com");
+        Grok.Builder builder = Grok.getBuilder();
+        builder.setFields(new String[]{"remotehost"});
+        builder.setPattern("%{HOSTNAME:google.com}\\.google\\.com");
+        Grok grok = builder.build();
 
         Properties props = new Properties(Collections.emptyMap());
 
@@ -139,9 +150,10 @@ public class TestGrok {
 
     @Test
     public void TestTyped() throws ProcessorException {
-        Grok grok = new Grok();
-        grok.setField(VariablePath.of(new String[] {"message"}));
-        grok.setPattern("%{INT:value:long}");
+        Grok.Builder builder = Grok.getBuilder();
+        builder.setField(VariablePath.of(new String[] {"message"}));
+        builder.setPattern("%{INT:value:long}");
+        Grok grok = builder.build();
 
         Properties props = new Properties(Collections.emptyMap());
 
@@ -155,9 +167,10 @@ public class TestGrok {
 
     @Test
     public void TestNoMatch() throws ProcessorException {
-        Grok grok = new Grok();
-        grok.setFields(new String[]{"host"});
-        grok.setPattern("%{HOSTNAME:.}\\.google\\.com");
+        Grok.Builder builder = Grok.getBuilder();
+        builder.setFields(new String[]{"host"});
+        builder.setPattern("%{HOSTNAME:.}\\.google\\.com");
+        Grok grok = builder.build();
 
         Properties props = new Properties(Collections.emptyMap());
 
@@ -169,13 +182,28 @@ public class TestGrok {
     }
 
     @Test
-    public void TestBadPattern() throws ProcessorException {
-        Grok grok = new Grok();
-        grok.setPattern("*");
-
-        Properties props = new Properties(Collections.emptyMap());
-
-        Assert.assertFalse("Failed to handle bad pattern", grok.configure(props));
+    public void TestBadPattern() {
+        Grok.Builder builder = Grok.getBuilder();
+        builder.setPattern("*");
+        IllegalArgumentException ex = Assert.assertThrows(IllegalArgumentException.class, builder::build);
+        Assert.assertTrue(ex.getMessage().startsWith("Unable to load patterns: Dangling meta character '*' near index 0"));
     }
 
+    @Test
+    public void test_loghub_processors_Grok() throws IntrospectionException, ReflectiveOperationException {
+        BeanChecks.beansCheck(logger, "loghub.processors.Grok"
+                , BeanChecks.BeanInfo.build("pattern", String.class)
+                , BeanChecks.BeanInfo.build("customPatterns", Map.class)
+                , BeanChecks.BeanInfo.build("classLoader", ClassLoader.class)
+                , BeanChecks.BeanInfo.build("destination", VariablePath.class)
+                , BeanChecks.BeanInfo.build("destinationTemplate", VarFormatter.class)
+                , BeanChecks.BeanInfo.build("field", VariablePath.class)
+                , BeanChecks.BeanInfo.build("fields", Object[].class)
+                , BeanChecks.BeanInfo.build("path", VariablePath.class)
+                , BeanChecks.BeanInfo.build("if", Expression.class)
+                , BeanChecks.BeanInfo.build("success", Processor.class)
+                , BeanChecks.BeanInfo.build("failure", Processor.class)
+                , BeanChecks.BeanInfo.build("exception", Processor.class)
+        );
+    }
 }
