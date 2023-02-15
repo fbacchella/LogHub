@@ -12,7 +12,6 @@ import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.concurrent.ExecutionException;
 import java.util.function.BiConsumer;
-import java.util.function.Function;
 
 import javax.cache.Cache;
 import javax.cache.processor.MutableEntry;
@@ -45,7 +44,6 @@ import loghub.ThreadBuilder;
 import loghub.VarFormatter;
 import loghub.VariablePath;
 import loghub.configuration.CacheManager;
-import loghub.configuration.Properties;
 import loghub.events.Event;
 import loghub.netty.transport.POLLER;
 import loghub.netty.transport.TRANSPORT;
@@ -119,6 +117,8 @@ public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<Dn
         private String resolver = null;
         @Setter
         private int cacheSize = 10000;
+        @Setter
+        private CacheManager cacheManager;
 
         @Override
         public NettyNameResolver build() {
@@ -158,8 +158,7 @@ public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<Dn
     }
 
     private final DnsNameResolver dnsResolver;
-    private Cache<DnsCacheKey, DnsCacheEntry> hostCache;
-    private Function<CacheManager, Cache<DnsCacheKey, DnsCacheEntry>> cacheFunction;
+    private final Cache<DnsCacheKey, DnsCacheEntry> hostCache;
 
     public NettyNameResolver(Builder builder) {
         super(builder);
@@ -199,17 +198,10 @@ public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<Dn
             throw new IllegalArgumentException("No resolver enabled");
         }
         dnsResolver = resolverBuilder.build();
-        cacheFunction = cm -> cm.getBuilder(DnsCacheKey.class, DnsCacheEntry.class)
-                                .setName("NameResolver", parent)
-                                .setCacheSize(builder.cacheSize)
-                                .build();
-    }
-
-    @Override
-    public boolean configure(Properties properties) {
-        hostCache = cacheFunction.apply(properties.cacheManager);
-        cacheFunction = null;
-        return super.configure(properties);
+        hostCache = builder.cacheManager.getBuilder(DnsCacheKey.class, DnsCacheEntry.class)
+                           .setName("NameResolver", parent)
+                           .setCacheSize(builder.cacheSize)
+                           .build();
     }
 
     @Override
