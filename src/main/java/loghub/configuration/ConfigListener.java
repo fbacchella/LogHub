@@ -104,7 +104,8 @@ class ConfigListener extends RouteBaseListener {
     private static final Class[] INJECTED_BEANS_CLASSES = new Class[]{
             SSLContext.class,
             javax.security.auth.login.Configuration.class,
-            JWTHandler.class
+            JWTHandler.class,
+            ClassLoader.class
     };
 
     private enum StackMarker {
@@ -406,6 +407,8 @@ class ConfigListener extends RouteBaseListener {
                             value = this.jaasConfig;
                         } else if (c == JWTHandler.class) {
                             value = this.jwtHandler;
+                        } else if (c == ClassLoader.class) {
+                            value = this.classLoader;
                         } else {
                             throw new IllegalStateException("Unhandled bean injection value");
                         }
