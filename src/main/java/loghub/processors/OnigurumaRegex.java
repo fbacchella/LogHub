@@ -2,8 +2,8 @@ package loghub.processors;
 
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.util.Optional;
 
-import org.apache.logging.log4j.Level;
 import org.jcodings.specific.USASCIIEncoding;
 import org.jcodings.specific.UTF8Encoding;
 import org.joni.Matcher;
@@ -12,10 +12,11 @@ import org.joni.Regex;
 import org.joni.Region;
 import org.joni.exception.SyntaxException;
 
-import loghub.events.Event;
+import loghub.BuilderClass;
 import loghub.Helpers;
 import loghub.ProcessorException;
-import loghub.configuration.Properties;
+import loghub.events.Event;
+import lombok.Setter;
 
 /**
  * A fast regex, using <a href="https://github.com/jruby/joni">joni library</a>, a java implementation of the Oniguruma regexp library.
@@ -23,11 +24,22 @@ import loghub.configuration.Properties;
  * @author Fabrice Bacchella
  *
  */
+@BuilderClass(OnigurumaRegex.Builder.class)
 public class OnigurumaRegex extends FieldsProcessor {
 
-    private String patternSrc;
-    private Regex patternAscii;
-    private Regex patternUtf8;
+    public static class Builder extends FieldsProcessor.Builder<OnigurumaRegex> {
+        @Setter
+        private String pattern;
+        public OnigurumaRegex build() {
+            return new OnigurumaRegex(this);
+        }
+    }
+    public static OnigurumaRegex.Builder getBuilder() {
+        return new OnigurumaRegex.Builder();
+    }
+
+    private final Regex patternAscii;
+    private final Regex patternUtf8;
 
     private static final int BUFFERSIZE = 4096;
     private static final ThreadLocal<char[]> holder_ascii = ThreadLocal.withInitial(() -> new char[BUFFERSIZE]);
@@ -50,29 +62,21 @@ public class OnigurumaRegex extends FieldsProcessor {
         return b;
     }
 
-    @Override
-    public boolean configure(Properties properties) {
+    public OnigurumaRegex(Builder builder) {
+        super(builder);
         try {
             // Generate pattern using both ASCII and UTF-8
-            byte[] patternSrcBytesAscii = getBytesAscii(patternSrc);
-            // the ascii pattern is generated only if the source pattern is pure ASCII
-            if (patternSrcBytesAscii != null) {
-                patternAscii = new Regex(patternSrcBytesAscii, 0, patternSrcBytesAscii.length, Option.NONE, USASCIIEncoding.INSTANCE);
-            } else {
-                patternAscii = null;
-            }
-            byte[] patternSrcBytesUtf8 = patternSrc.getBytes(StandardCharsets.UTF_8);
-            patternUtf8 = new Regex(patternSrcBytesUtf8, 0, patternSrcBytesUtf8.length, Option.NONE, UTF8Encoding.INSTANCE);
-            if (patternUtf8.numberOfCaptures() != patternUtf8.numberOfNames()) {
-                logger.error("Can't have two captures with same name");
-                return false;
-            } else {
-                return super.configure(properties);
-            }
+            patternAscii = Optional.of(builder.pattern)
+                                   .map(OnigurumaRegex::getBytesAscii)
+                                   .map(b -> new Regex(b, 0, b.length, Option.NONE, USASCIIEncoding.INSTANCE))
+                                   .orElse(null);
+            patternUtf8 = Optional.of(builder.pattern)
+                                  .map(p -> p.getBytes(StandardCharsets.UTF_8))
+                                  .map(b -> new Regex(b, 0, b.length, Option.NONE, UTF8Encoding.INSTANCE))
+                                  .filter(p -> p.numberOfCaptures() == p.numberOfNames())
+                                  .orElseThrow(() -> new IllegalArgumentException("Can't have two captures with same name"));
         } catch (SyntaxException e) {
-            logger.error("Error parsing regex: {}", () -> Helpers.resolveThrowableException(e));
-            logger.catching(Level.DEBUG, e);
-            return false;
+            throw new IllegalArgumentException("Error parsing regex '" + builder.pattern + "': " + Helpers.resolveThrowableException(e));
         }
     }
 
@@ -128,20 +132,6 @@ public class OnigurumaRegex extends FieldsProcessor {
         } else {
             return FieldsProcessor.RUNSTATUS.FAILED;
         }
-    }
-
-    /**
-     * @return the pattern
-     */
-    public String getPattern() {
-        return patternSrc;
-    }
-
-    /**
-     * @param pattern the pattern to set
-     */
-    public void setPattern(String pattern) {
-        this.patternSrc = pattern;
     }
 
 }

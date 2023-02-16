@@ -5,11 +5,10 @@ import java.util.Collections;
 import org.junit.Assert;
 import org.junit.Test;
 
-import loghub.events.Event;
 import loghub.ProcessorException;
-import loghub.Tools;
 import loghub.VariablePath;
 import loghub.configuration.Properties;
+import loghub.events.Event;
 import loghub.events.EventsFactory;
 
 public class TestOnigurumaRegex {
@@ -18,9 +17,10 @@ public class TestOnigurumaRegex {
 
     @Test
     public void testLoadPatterns1() throws ProcessorException {
-        OnigurumaRegex grok = new OnigurumaRegex();
-        grok.setField(VariablePath.of(new String[] {"message"}));
-        grok.setPattern("<(?<syslog_pri>\\d+)>(?<message>.*)");
+        OnigurumaRegex.Builder builder = OnigurumaRegex.getBuilder();
+        builder.setField(VariablePath.of(new String[] {"message"}));
+        builder.setPattern("<(?<syslog_pri>\\d+)>(?<message>.*)");
+        OnigurumaRegex grok = builder.build();
 
         Properties props = new Properties(Collections.emptyMap());
 
@@ -35,22 +35,21 @@ public class TestOnigurumaRegex {
     }
 
     @Test
-    public void testLoadPatterns2() throws ProcessorException {
-        OnigurumaRegex grok = new OnigurumaRegex();
-        grok.setField(VariablePath.of(new String[] {"message"}));
-        grok.setPattern("<(?<syslog_pri>\\d+)>(?<char>.)(?<char>.)(?<message>.*)");
-
-        Properties props = new Properties(Collections.emptyMap());
-
-        Assert.assertFalse("Failed to configure grok", grok.configure(props));
+    public void testLoadPatterns2() {
+        OnigurumaRegex.Builder builder = OnigurumaRegex.getBuilder();
+        builder.setField(VariablePath.of(new String[] {"message"}));
+        builder.setPattern("<(?<syslog_pri>\\d+)>(?<char>.)(?<char>.)(?<message>.*)");
+        IllegalArgumentException ex = Assert.assertThrows(IllegalArgumentException.class, builder::build);
+        Assert.assertEquals("Can't have two captures with same name", ex.getMessage());
     }
 
     // Test missing optionnal pattern
     @Test
     public void testLoadPatterns3() throws ProcessorException {
-        OnigurumaRegex grok = new OnigurumaRegex();
-        grok.setField(VariablePath.of(new String[] {"message"}));
-        grok.setPattern("^(?<prefix>\\*|\\.)?(?<message>.*)");
+        OnigurumaRegex.Builder builder = OnigurumaRegex.getBuilder();
+        builder.setField(VariablePath.of(new String[] {"message"}));
+        builder.setPattern("^(?<prefix>\\*|\\.)?(?<message>.*)");
+        OnigurumaRegex grok = builder.build();
 
         Properties props = new Properties(Collections.emptyMap());
 
@@ -61,14 +60,15 @@ public class TestOnigurumaRegex {
         Assert.assertTrue(e.process(grok));
 
         Assert.assertEquals("Didn't find the good message", "a text", e.get("message"));
-        Assert.assertEquals("Should not have found the prefix", null, e.get("prefix"));
+        Assert.assertNull("Should not have found the prefix", e.get("prefix"));
     }
 
     @Test
     public void testUtf1() throws ProcessorException {
-        OnigurumaRegex grok = new OnigurumaRegex();
-        grok.setField(VariablePath.of(new String[] {"message"}));
-        grok.setPattern("<(?<syslog_pri>\\d+)>(?<message>.*)");
+        OnigurumaRegex.Builder builder = OnigurumaRegex.getBuilder();
+        builder.setField(VariablePath.of(new String[] {"message"}));
+        builder.setPattern("<(?<syslog_pri>\\d+)>(?<message>.*)");
+        OnigurumaRegex grok = builder.build();
 
         Properties props = new Properties(Collections.emptyMap());
 
@@ -84,9 +84,10 @@ public class TestOnigurumaRegex {
 
     @Test
     public void testUtf2() throws ProcessorException {
-        OnigurumaRegex grok = new OnigurumaRegex();
-        grok.setField(VariablePath.of(new String[] {"message"}));
-        grok.setPattern("<(?<syslog_pri>\\d+)>(?<message>é.*)");
+        OnigurumaRegex.Builder builder = OnigurumaRegex.getBuilder();
+        builder.setField(VariablePath.of(new String[] {"message"}));
+        builder.setPattern("<(?<syslog_pri>\\d+)>(?<message>é.*)");
+        OnigurumaRegex grok = builder.build();
 
         Properties props = new Properties(Collections.emptyMap());
 
@@ -102,9 +103,10 @@ public class TestOnigurumaRegex {
 
     @Test
     public void testNoNamedPattern() throws ProcessorException {
-        OnigurumaRegex grok = new OnigurumaRegex();
-        grok.setField(VariablePath.of(new String[] {"message"}));
-        grok.setPattern(".*");
+        OnigurumaRegex.Builder builder = OnigurumaRegex.getBuilder();
+        builder.setField(VariablePath.of(new String[] {"message"}));
+        builder.setPattern(".*");
+        OnigurumaRegex grok = builder.build();
 
         Properties props = new Properties(Collections.emptyMap());
 
@@ -116,14 +118,12 @@ public class TestOnigurumaRegex {
     }
 
     @Test
-    public void testBadPattern() throws ProcessorException {
-        OnigurumaRegex grok = new OnigurumaRegex();
-        grok.setField(VariablePath.of(new String[] {"message"}));
-        grok.setPattern("*");
-
-        Properties props = new Properties(Collections.emptyMap());
-
-        Assert.assertFalse("Failed to handle bad pattern", grok.configure(props));
+    public void testBadPattern() {
+        OnigurumaRegex.Builder builder = OnigurumaRegex.getBuilder();
+        builder.setField(VariablePath.of(new String[] {"message"}));
+        builder.setPattern("*");
+        IllegalArgumentException ex = Assert.assertThrows(IllegalArgumentException.class, builder::build);
+        Assert.assertEquals("Error parsing regex '*': target of repeat operator is not specified", ex.getMessage());
     }
 
 }
