@@ -13,7 +13,7 @@ public abstract class Processor {
 
     public abstract static class Builder<B extends Processor> extends AbstractBuilder<B> {
         @Setter
-        private VariablePath path = null;
+        private VariablePath path = VariablePath.EMPTY;
         private Expression ifexpression = null;
         @Setter
         private Processor success = null;

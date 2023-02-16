@@ -9,6 +9,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
@@ -56,7 +57,7 @@ public abstract class FieldsProcessor extends Processor {
         private VariablePath destination;
         private VarFormatter destinationTemplate;
         @Setter
-        private VariablePath field;
+        private VariablePath field = VariablePath.EMPTY;
         @Setter
         private Object[] fields;
         @Setter
@@ -136,7 +137,8 @@ public abstract class FieldsProcessor extends Processor {
             this.destinationTemplate = builder.destinationTemplate;
             this.destination = builder.destination;
         }
-        this.field = builder.field;
+        this.field = Optional.ofNullable(builder.field)
+                             .orElse(VariablePath.EMPTY);
         if (builder.fields != null) {
             this.globs = new String[builder.fields.length];
             this.patterns = new Pattern[builder.fields.length];
