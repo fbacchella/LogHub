@@ -148,14 +148,16 @@ public class CacheManager {
     public CacheManager(ClassLoader loader) {
         synchronized (CacheManager.class) {
             CachingProvider provider = Caching.getCachingProvider(loader);
-            cacheManager = provider.getCacheManager();
-            //Needed for junit tests that reuse context
-            cacheManager.getCacheNames().forEach(cacheManager::destroyCache);
+            cacheManager = provider.getCacheManager(null, loader);
         }
     }
 
     public <K, V> Builder<K, V> getBuilder(Class<K> keyType, Class<V> valueType) {
         return new Builder<>(keyType, valueType);
+    }
+
+    public void close() {
+        cacheManager.getCachingProvider().close(cacheManager.getClassLoader());
     }
 
 }

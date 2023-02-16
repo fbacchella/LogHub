@@ -118,7 +118,7 @@ public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<Dn
         @Setter
         private int cacheSize = 10000;
         @Setter
-        private CacheManager cacheManager;
+        private CacheManager cacheManager = new CacheManager(getClass().getClassLoader());
 
         @Override
         public NettyNameResolver build() {

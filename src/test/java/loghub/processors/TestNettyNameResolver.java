@@ -15,6 +15,7 @@ import java.util.function.Consumer;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -24,6 +25,7 @@ import io.netty.handler.codec.dns.DnsResponse;
 import loghub.AsyncProcessor;
 import loghub.BeanChecks;
 import loghub.BeanChecks.BeanInfo;
+import loghub.configuration.CacheManager;
 import loghub.events.Event;
 import loghub.Expression;
 import loghub.LogUtils;
@@ -40,16 +42,23 @@ public class TestNettyNameResolver {
 
     private static Logger logger;
     private final EventsFactory factory = new EventsFactory();
+    private final CacheManager cacheManager = new CacheManager(getClass().getClassLoader());
 
     @BeforeClass
     static public void configure() throws IOException {
         Tools.configure();
         logger = LogManager.getLogger();
-        LogUtils.setLevel(logger, Level.TRACE, "loghub.processors.NettyNameResolver", "io.netty.resolver.dns");
+        LogUtils.setLevel(logger, Level.TRACE, "loghub.processors.NettyNameResolver", "io.netty.resolver.dns", "loghub.configuration.CacheManager");
+    }
+
+    @After
+    public void cleanCache() {
+        cacheManager.close();
     }
 
     private Tools.ProcessingStatus dorequest(Consumer<NettyNameResolver.Builder> setupProc, Event e, String... warmup) throws ProcessorException, ConfigException, IOException {
         NettyNameResolver.Builder builder = NettyNameResolver.getBuilder();
+        builder.setCacheManager(cacheManager);
         setupProc.accept(builder);
         NettyNameResolver proc = builder.build();
 
