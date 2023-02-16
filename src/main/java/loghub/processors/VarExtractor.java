@@ -3,7 +3,9 @@ package loghub.processors;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import loghub.BuilderClass;
 import loghub.events.Event;
+import lombok.Setter;
 
 /**
  * This transformer parse a field using a regex that extract name and value.
@@ -14,10 +16,27 @@ import loghub.events.Event;
  * @author Fabrice Bacchella
  *
  */
+@BuilderClass(VarExtractor.Builder.class)
 public class VarExtractor extends FieldsProcessor {
 
-    private Pattern parser = Pattern.compile("(?<name>\\p{Alnum}+)\\p{Space}?[=:]\\p{Space}?(?<value>[^;,:]+)[;,:]?");
-    ThreadLocal<Matcher> matchersGenerator = ThreadLocal.withInitial( () -> parser.matcher(""));
+    public static class Builder extends FieldsProcessor.Builder<VarExtractor> {
+        @Setter
+        private String parser = "(?<name>\\p{Alnum}+)\\s?[=:]\\s?(?<value>[^;,:]+)[;,:]?";
+        public VarExtractor build() {
+            return new VarExtractor(this);
+        }
+    }
+    public static VarExtractor.Builder getBuilder() {
+        return new VarExtractor.Builder();
+    }
+
+    private final ThreadLocal<Matcher> matchersGenerator ;
+
+    public VarExtractor(Builder builder) {
+        super(builder);
+        Pattern parser = Pattern.compile(builder.parser);
+        matchersGenerator = ThreadLocal.withInitial(() -> parser.matcher(""));
+    }
 
     @Override
     public Object fieldFunction(Event event, Object fieldValue) {
@@ -27,14 +46,12 @@ public class VarExtractor extends FieldsProcessor {
         Matcher m = matchersGenerator.get().reset(message);
         StringBuilder skipped = new StringBuilder(message.length());
         while(m.find()) {
-            skipped.append(message.substring(m.regionStart(), m.start()));
+            skipped.append(message, m.regionStart(), m.start());
             String key = m.group("name");
             String value = m.group("value");
-            if (key != null && ! key.isEmpty()) {
-                if (value != null) {
-                    parsed = true;
-                    event.put(key, value);
-                }
+            if (key != null && ! key.isEmpty() && value != null) {
+                parsed = true;
+                event.put(key, value);
             }
             after = message.substring(m.end());
             m.region(m.end(), m.regionEnd());
@@ -52,20 +69,6 @@ public class VarExtractor extends FieldsProcessor {
     @Override
     public String getName() {
         return "VarExtractor";
-    }
-
-    /**
-     * @return the parser
-     */
-    public String getParser() {
-        return parser.pattern();
-    }
-
-    /**
-     * @param parser the parser to set
-     */
-    public void setParser(String parser) {
-        this.parser = Pattern.compile(parser);
     }
 
 }

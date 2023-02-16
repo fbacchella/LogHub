@@ -1,5 +1,6 @@
 package loghub.processors;
 
+import java.beans.IntrospectionException;
 import java.io.IOException;
 import java.util.Map;
 
@@ -10,6 +11,10 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import loghub.BeanChecks;
+import loghub.Expression;
+import loghub.Processor;
+import loghub.VarFormatter;
 import loghub.events.Event;
 import loghub.LogUtils;
 import loghub.ProcessorException;
@@ -31,10 +36,12 @@ public class TestVarExtractor {
 
     @Test
     public void test1() throws ProcessorException {
-        VarExtractor t = new VarExtractor();
-        t.setPath("sub");
-        t.setField(VariablePath.of(".message"));
-        t.setParser("(?<name>[a-z]+)[=:](?<value>[^;]+);?");
+        VarExtractor.Builder builder = VarExtractor.getBuilder();
+        builder.setPath(VariablePath.of("sub"));
+        builder.setField(VariablePath.of(".message"));
+        builder.setParser("(?<name>[a-z]+)[=:](?<value>[^;]+);?");
+        VarExtractor t = builder.build();
+
         Event e = factory.newEvent();
         e.put("message", "a=1;b:2;c");
         Assert.assertTrue(e.process(t));
@@ -47,9 +54,11 @@ public class TestVarExtractor {
 
     @Test
     public void test2() throws ProcessorException {
-        VarExtractor t = new VarExtractor();
-        t.setField(VariablePath.of(".message"));
-        t.setParser("(?<name>[a-z]+)[=:](?<value>[^;]+);?");
+        VarExtractor.Builder builder = VarExtractor.getBuilder();
+        builder.setField(VariablePath.of(".message"));
+        builder.setParser("(?<name>[a-z]+)[=:](?<value>[^;]+);?");
+        VarExtractor t = builder.build();
+
         Event e = factory.newEvent();
         e.put("message", "a=1;b:2");
         e.process(t);
@@ -60,8 +69,10 @@ public class TestVarExtractor {
 
     @Test
     public void test3() throws ProcessorException {
-        VarExtractor t = new VarExtractor();
-        t.setField(VariablePath.of(".message"));
+        VarExtractor.Builder builder = VarExtractor.getBuilder();
+        builder.setField(VariablePath.of(".message"));
+        VarExtractor t = builder.build();
+
         Event e = factory.newEvent();
         e.put("message", "a=1;b:2;c");
         e.process(t);
@@ -72,9 +83,11 @@ public class TestVarExtractor {
 
     @Test
     public void testMixed() throws ProcessorException {
-        VarExtractor t = new VarExtractor();
-        t.setField(VariablePath.of(".message"));
-        t.setParser("(?<name>[a-z]+)=(?<value>[^;]+);?");
+        VarExtractor.Builder builder = VarExtractor.getBuilder();
+        builder.setField(VariablePath.of(".message"));
+        builder.setParser("(?<name>[a-z]+)=(?<value>[^;]+);?");
+        VarExtractor t = builder.build();
+
         Event e = factory.newEvent();
         e.put("message", "noise a=1;b=2;error;c=3");
         e.process(t);
@@ -82,6 +95,22 @@ public class TestVarExtractor {
         Assert.assertEquals("key b not found", "2", e.get("b"));
         Assert.assertEquals("key c not found", "3", e.get("c"));
         Assert.assertEquals("key message not found", "noise error;", e.get("message"));
+    }
+
+    @Test
+    public void test_loghub_processors_VarExtractor() throws IntrospectionException, ReflectiveOperationException {
+        BeanChecks.beansCheck(logger, "loghub.processors.VarExtractor"
+                , BeanChecks.BeanInfo.build("parser", String.class)
+                , BeanChecks.BeanInfo.build("destination", VariablePath.class)
+                , BeanChecks.BeanInfo.build("destinationTemplate", VarFormatter.class)
+                , BeanChecks.BeanInfo.build("field", VariablePath.class)
+                , BeanChecks.BeanInfo.build("fields", Object[].class)
+                , BeanChecks.BeanInfo.build("path", VariablePath.class)
+                , BeanChecks.BeanInfo.build("if", Expression.class)
+                , BeanChecks.BeanInfo.build("success", Processor.class)
+                , BeanChecks.BeanInfo.build("failure", Processor.class)
+                , BeanChecks.BeanInfo.build("exception", Processor.class)
+        );
     }
 
 }
