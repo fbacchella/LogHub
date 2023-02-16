@@ -1,56 +1,69 @@
 package loghub.processors;
 
-import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
+import java.nio.charset.Charset;
 
-import loghub.events.Event;
+import loghub.BuilderClass;
+import loghub.Helpers;
 import loghub.ProcessorException;
+import loghub.events.Event;
+import lombok.Getter;
+import lombok.Setter;
 
+@BuilderClass(DecodeUrl.Builder.class)
 public class DecodeUrl extends FieldsProcessor {
 
-    private String encoding = "UTF-8";
-    private boolean loop = false;
+    public static class Builder extends FieldsProcessor.Builder<DecodeUrl> {
+        @Setter
+        private String encoding = "UTF-8";
+        @Setter
+        private boolean loop = false;
+        @Setter
+        private boolean strict = false;
+        @Setter
+        private int depth = 5;
+        public DecodeUrl build() {
+            return new DecodeUrl(this);
+        }
+    }
+    public static DecodeUrl.Builder getBuilder() {
+        return new DecodeUrl.Builder();
+    }
+
+    @Getter
+    private final Charset encoding;
+    private final boolean strict;
+    private final int depth;
+
+    public DecodeUrl(Builder builder) {
+        super(builder);
+        this.encoding = Charset.forName(builder.encoding);
+        this.strict = builder.strict;
+        this.depth = builder.loop ? builder.depth : 0;
+    }
 
     @Override
     public Object fieldFunction(Event event, Object value) throws ProcessorException {
-        String oldMessage = value.toString();
-        try {
-            String message = null;
-            boolean again = loop;
-            int count = 0;
-            do {
-                message = URLDecoder.decode(oldMessage, encoding);
-                again &= ! oldMessage.equals(message);
-                oldMessage = message;
-                count ++;
-            } while(again && count < 5);
-            return message;
-        } catch (UnsupportedEncodingException | IllegalArgumentException e) {
-            throw event.buildException("unable to decode " + oldMessage, e);
-        }
-
-    }
-
-    /**
-     * @return the encoding
-     */
-    public String getEncoding() {
-        return encoding;
-    }
-
-    /**
-     * @param encoding the encoding to set
-     */
-    public void setEncoding(String encoding) {
-        this.encoding = encoding;
-    }
-
-    public boolean isLoop() {
-        return loop;
-    }
-
-    public void setLoop(boolean loop) {
-        this.loop = loop;
+        String previousMessage = value.toString();
+        String message = previousMessage;
+        int count = 0;
+        do {
+            try {
+                message = URLDecoder.decode(previousMessage, encoding);
+            } catch (IllegalArgumentException e) {
+                if (strict) {
+                    throw event.buildException("Unable to decode " + previousMessage + ": " + Helpers.resolveThrowableException(e), e);
+                } else {
+                    break;
+                }
+            }
+            if (previousMessage.equals(message)) {
+                break;
+            } else {
+                previousMessage = message;
+            }
+        } while (count++ < depth);
+        return message;
     }
 
 }
