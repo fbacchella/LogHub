@@ -264,24 +264,27 @@ public class TestConfigurations {
     @Test
     public void testPathString() throws ConfigException, IOException {
         String confile = "pipeline[field] {\n" + 
-                        "   loghub.processors.DecodeUrl {field: \"a\"}\n" + 
+                        "   loghub.processors.DecodeUrl {field: \"a\", path: \"b\"}\n" +
                         "}\n" + 
                         "";
         Properties  p = Configuration.parse(new StringReader(confile));
         DecodeUrl pr = (DecodeUrl) p.namedPipeLine.get("field").processors.get(0);
         Assert.assertEquals("a", pr.getField().get(0));
+        Assert.assertEquals("b", pr.getPath().get(0));
     }
 
     @Test
     public void testPathEventVariable() throws ConfigException, IOException {
         String confile = "pipeline[fields] {\n" + 
-                        "   loghub.processors.DecodeUrl {field: [a b]}\n" + 
+                        "   loghub.processors.DecodeUrl {field: [a b], path: [c d]}\n" +
                         "}\n" + 
                         "";
         Properties  p =  Configuration.parse(new StringReader(confile));
         DecodeUrl pr = (DecodeUrl) p.namedPipeLine.get("fields").processors.get(0);
         Assert.assertEquals("a", pr.getField().get(0));
         Assert.assertEquals("b", pr.getField().get(1));
+        Assert.assertEquals("c", pr.getPath().get(0));
+        Assert.assertEquals("d", pr.getPath().get(1));
     }
 
     @Test
