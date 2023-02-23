@@ -24,9 +24,9 @@ import loghub.VariablePath;
 import loghub.ZMQFactory;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
-import loghub.processors.DecodeUrl;
 import loghub.processors.Identity;
 import loghub.processors.SyslogPriority;
+import loghub.processors.UrlParser;
 
 public class TestConfigurations {
 
@@ -262,29 +262,44 @@ public class TestConfigurations {
     }
 
     @Test
-    public void testPathString() throws ConfigException, IOException {
-        String confile = "pipeline[field] {\n" + 
-                        "   loghub.processors.DecodeUrl {field: \"a\", path: \"b\"}\n" +
+    public void testPathString() throws ConfigException, IOException, ProcessorException {
+        String confile = "pipeline[withpath] {\n" +
+                        "   loghub.processors.UrlParser {field: \"a\", path: \"b\"}\n" +
                         "}\n" + 
                         "";
         Properties  p = Configuration.parse(new StringReader(confile));
-        DecodeUrl pr = (DecodeUrl) p.namedPipeLine.get("field").processors.get(0);
+        UrlParser pr = (UrlParser) p.namedPipeLine.get("withpath").processors.get(0);
         Assert.assertEquals("a", pr.getField().get(0));
-        Assert.assertEquals("b", pr.getPath().get(0));
+        Assert.assertEquals("b", pr.getPathArray().get(0));
+        Event ev = factory.newEvent();
+        ev.putAtPath(VariablePath.of("b.a"), "http://loghub.fr/?test=true");
+        Tools.runProcessing(ev, p.namedPipeLine.get("withpath"), p);
+        Assert.assertEquals("/", ev.getAtPath(VariablePath.of("b.a.path")));
+        Assert.assertEquals("http", ev.getAtPath(VariablePath.of("b.a.scheme")));
+        Assert.assertEquals("loghub.fr", ev.getAtPath(VariablePath.of("b.a.domain")));
+        Assert.assertEquals("test=true", ev.getAtPath(VariablePath.of("b.a.query")));
     }
 
     @Test
-    public void testPathEventVariable() throws ConfigException, IOException {
-        String confile = "pipeline[fields] {\n" + 
-                        "   loghub.processors.DecodeUrl {field: [a b], path: [c d]}\n" +
+    public void testPathEventVariable() throws ConfigException, IOException, ProcessorException {
+        String confile = "pipeline[withpath] {\n" +
+                        "   loghub.processors.UrlParser {field: [a b], path: [c d]}\n" +
                         "}\n" + 
                         "";
         Properties  p =  Configuration.parse(new StringReader(confile));
-        DecodeUrl pr = (DecodeUrl) p.namedPipeLine.get("fields").processors.get(0);
+        UrlParser pr = (UrlParser) p.namedPipeLine.get("withpath").processors.get(0);
         Assert.assertEquals("a", pr.getField().get(0));
         Assert.assertEquals("b", pr.getField().get(1));
-        Assert.assertEquals("c", pr.getPath().get(0));
-        Assert.assertEquals("d", pr.getPath().get(1));
+        Assert.assertEquals("c", pr.getPathArray().get(0));
+        Assert.assertEquals("d", pr.getPathArray().get(1));
+        Event ev = factory.newEvent();
+        ev.putAtPath(VariablePath.of("c.d.a.b"), "http://loghub.fr/?test=true");
+        Tools.runProcessing(ev, p.namedPipeLine.get("withpath"), p);
+        System.err.println(ev);
+        Assert.assertEquals("/", ev.getAtPath(VariablePath.of("c.d.a.b.path")));
+        Assert.assertEquals("http", ev.getAtPath(VariablePath.of("c.d.a.b.scheme")));
+        Assert.assertEquals("loghub.fr", ev.getAtPath(VariablePath.of("c.d.a.b.domain")));
+        Assert.assertEquals("test=true", ev.getAtPath(VariablePath.of("c.d.a.b.query")));
     }
 
     @Test

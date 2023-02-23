@@ -84,8 +84,8 @@ public abstract class Processor {
     /**
      * @return the fieldprefix
      */
-    public VariablePath getPath() {
-        return path;
+    public String getPath() {
+        return path == null ? "" : path.toString();
     }
 
     /**

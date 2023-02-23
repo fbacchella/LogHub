@@ -33,11 +33,11 @@ public class TestProcessor {
             }
         };
         p.setPath("a.b.c");
-        Assert.assertEquals("Prefix don't match ", VariablePath.of(new String[]{"a", "b", "c"}), p.getPath());
+        Assert.assertEquals("Prefix don't match ", VariablePath.of(new String[]{"a", "b", "c"}), p.getPathArray());
         p.setPath("");
-        Assert.assertEquals("Prefix don't match ", VariablePath.EMPTY, p.getPath());
+        Assert.assertEquals("Prefix don't match ", VariablePath.EMPTY, p.getPathArray());
         p.setPath(".a");
-        Assert.assertEquals("Prefix don't match ", VariablePath.of(".a"), p.getPath());
+        Assert.assertEquals("Prefix don't match ", VariablePath.of(".a"), p.getPathArray());
     }
 
     @Test
