@@ -14,7 +14,6 @@ import loghub.BuilderClass;
 import loghub.Helpers;
 import loghub.ProcessorException;
 import loghub.configuration.BeansManager;
-import loghub.configuration.Properties;
 import loghub.events.Event;
 import lombok.Setter;
 
@@ -37,6 +36,8 @@ public class Convert extends FieldsProcessor {
         private String charset = null;
         @Setter
         private String byteOrder = "NATIVE";
+        @Setter
+        private ClassLoader classLoader = Grok.class.getClassLoader();
         public Convert build() {
             return new Convert(this);
         }
@@ -45,9 +46,9 @@ public class Convert extends FieldsProcessor {
         return new Convert.Builder();
     }
 
-    private final String className;
     private final Charset charset;
-    private Class<?> clazz;
+    private final String className;
+    private final Class<?> clazz;
     private final ByteOrder byteOrder;
 
     private Convert(Builder builder) {
@@ -64,6 +65,11 @@ public class Convert extends FieldsProcessor {
             byteOrder = ByteOrder.nativeOrder();
         }
         className = builder.className;
+        try {
+            clazz = builder.classLoader.loadClass(className);
+        } catch (ClassNotFoundException e) {
+            throw new IllegalArgumentException(e.getMessage(), e);
+        }
     }
 
     @Override
@@ -73,9 +79,9 @@ public class Convert extends FieldsProcessor {
         } else if (clazz.isAssignableFrom(value.getClass())) {
             // Nothing to do, just return the value
             return value;
-        } else if (value instanceof byte[] && "java.lang.String".equals(className)) {
+        } else if (value instanceof byte[] && clazz == String.class) {
             return new String((byte[]) value, charset);
-        } else if (value instanceof byte[] && "java.net.InetAddress".equals(className)) {
+        } else if (value instanceof byte[] && InetAddress.class == clazz) {
             try {
                 return InetAddress.getByAddress((byte[]) value);
             } catch (UnknownHostException ex) {
@@ -87,7 +93,7 @@ public class Convert extends FieldsProcessor {
                 ByteBuffer buffer = ByteBuffer.wrap((byte[]) value);
                 buffer.order(byteOrder);
                 Object o;
-                switch(className) {
+                switch (className) {
                 case "java.lang.Character":
                     o = buffer.getChar();
                     break;
@@ -157,17 +163,6 @@ public class Convert extends FieldsProcessor {
                 throw event.buildException("Unable to parse \""+ valueStr +"\" as a " + className + ": " + Helpers.resolveThrowableException(ex));
             }
         }
-    }
-
-    @Override
-    public boolean configure(Properties properties) {
-        try {
-            clazz = properties.classloader.loadClass(className);
-        } catch (ClassNotFoundException e) {
-            logger.error("class not found: {}", className);
-            return false;
-        }
-        return super.configure(properties);
     }
 
 }

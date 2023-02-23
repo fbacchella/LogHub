@@ -49,7 +49,6 @@ public class TestConvert {
         Event e = factory.newEvent();
         e.put("message",invalue);
         e.process(cv);
-        System.out.println(e);
         Assert.assertTrue(reference.isAssignableFrom(e.get("message").getClass()));
         Assert.assertTrue(e.get("message").getClass().isAssignableFrom(reference));
         Assert.assertEquals(outvalue, e.get("message"));
