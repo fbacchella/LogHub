@@ -4,6 +4,8 @@
 package loghub.processors;
 
 import java.io.IOException;
+import java.io.StringReader;
+import java.net.InetAddress;
 import java.util.Collections;
 import java.util.regex.Pattern;
 
@@ -14,12 +16,15 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import loghub.events.Event;
 import loghub.LogUtils;
 import loghub.ProcessorException;
 import loghub.Tools;
 import loghub.UncheckedProcessorException;
 import loghub.VarFormatter;
+import loghub.VariablePath;
+import loghub.configuration.Configuration;
+import loghub.configuration.Properties;
+import loghub.events.Event;
 import loghub.events.EventsFactory;
 import loghub.metrics.Stats;
 
@@ -125,6 +130,20 @@ public class TestFieldsProcessor {
                                       .filter( i -> Pattern.matches("Field with path \"\\[.\\]\" invalid: Expected unchecked error", i))
                                        .count();
         Assert.assertEquals(1, found);
+    }
+
+    @Test
+    public void testDefaultMessage() throws ProcessorException, IOException {
+        String confile = "pipeline[defaultmessage] {\n" +
+                                 "   loghub.processors.Convert {className: \"java.net.InetAddress\"}\n" +
+                                 "}\n" +
+                                 "";
+        Properties p =  Configuration.parse(new StringReader(confile));
+        Event ev = factory.newEvent();
+        ev.putAtPath(VariablePath.of("message"), "1.1.1.1");
+        Tools.runProcessing(ev, p.namedPipeLine.get("defaultmessage"), p);
+        InetAddress inet = (InetAddress) ev.get("message");
+        Assert.assertArrayEquals(new byte[]{1,1,1,1}, inet.getAddress());
     }
 
 }

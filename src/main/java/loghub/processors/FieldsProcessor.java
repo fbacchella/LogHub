@@ -53,11 +53,13 @@ public abstract class FieldsProcessor extends Processor {
         REMOVE
     }
 
+    private static final VariablePath DEFAULT_FIELD = VariablePath.of(new String[]{"message"});
+
     public abstract static class Builder<FP extends FieldsProcessor> extends Processor.Builder<FP> {
         private VariablePath destination;
         private VarFormatter destinationTemplate;
         @Setter
-        private VariablePath field = VariablePath.EMPTY;
+        private VariablePath field = DEFAULT_FIELD;
         @Setter
         private Object[] fields;
         @Setter
@@ -78,7 +80,7 @@ public abstract class FieldsProcessor extends Processor {
         }
     }
 
-    private VariablePath field = VariablePath.of(new String[]{"message"});
+    private VariablePath field = DEFAULT_FIELD;
     private Pattern[] patterns = new Pattern[]{};
     private String[] globs = new String[] {};
     @Getter
