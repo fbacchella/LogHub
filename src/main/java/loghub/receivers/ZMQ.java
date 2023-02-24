@@ -79,7 +79,7 @@ public class ZMQ extends Receiver<ZMQ, ZMQ.Builder> {
     public boolean configure(Properties properties) {
         if (super.configure(properties)) {
             this.handler = hbuilder
-                            .setZfactory(properties.zSocketFactory)
+                            .setZfactory(properties.getZMQSocketFactory())
                             .build();
             this.hbuilder = null;
             return true;

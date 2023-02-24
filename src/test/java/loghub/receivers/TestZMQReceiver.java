@@ -94,7 +94,7 @@ public class TestZMQReceiver {
             Assert.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
             Assert.assertTrue(e.get("message").toString().startsWith("message "));
         } finally {
-            p.zSocketFactory.close();
+            p.getZMQSocketFactory().close();
         }
     }
 

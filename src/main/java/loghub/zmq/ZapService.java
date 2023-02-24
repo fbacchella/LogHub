@@ -4,6 +4,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -24,6 +25,7 @@ public class ZapService extends Thread implements AutoCloseable {
 
     private final Map<String, List<ZapDomainHandler>> filters = new ConcurrentHashMap<>();
     private final ZMQHandler<ZMsg> handler;
+    private CountDownLatch startLock = new CountDownLatch(1);
 
     public ZapService(ZMQSocketFactory zfactory) {
         handler = new ZMQHandler.Builder<ZMsg>().setSocketUrl("inproc://zeromq.zap.01")
@@ -39,12 +41,20 @@ public class ZapService extends Thread implements AutoCloseable {
         setName("zapservice");
         setDaemon(false);
         start();
+        try {
+            startLock.await();
+            startLock = null;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Zap service start was interrupted");
+        }
     }
 
     @Override
     public void run() {
         try {
             handler.start();
+            startLock.countDown();
             while (handler.isRunning()) {
                 ZMsg msg = handler.dispatch(null);
                 if (msg == null) {

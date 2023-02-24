@@ -437,7 +437,6 @@ public class Start {
     }
 
     public void launch(Properties props) throws ConfigException, IOException {
-        props.zSocketFactory.setExceptionHandler(ThreadBuilder.DEFAULTUNCAUGHTEXCEPTIONHANDLER);
         try {
             JmxService.start(props.jmxServiceConfiguration);
         } catch (IOException e) {
@@ -551,6 +550,7 @@ public class Start {
                 s.stopSending();
                 senders[i] = null;
             }
+            props.terminate();
             JmxService.stop();
             if (dumpstats) {
                 long endtime = System.nanoTime();

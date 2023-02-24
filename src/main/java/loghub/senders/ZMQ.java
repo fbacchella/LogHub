@@ -110,7 +110,7 @@ public class ZMQ extends Sender {
 
     @Override
     public boolean configure(Properties properties) {
-        handler.setZfactory(properties.zSocketFactory);
+        handler.setZfactory(properties.getZMQSocketFactory());
         return super.configure(properties);
     }
 

@@ -74,7 +74,6 @@ public class ZMQSocketFactory implements AutoCloseable {
 
     @Getter
     private final PrivateKeyEntry keyEntry;
-    private final Thread terminator;
     @Getter
     private final ZapService zapService;
     @Getter
@@ -82,32 +81,17 @@ public class ZMQSocketFactory implements AutoCloseable {
     private final Thread monitorThread;
     private Map<String, ZConfig> publicKeys;
     private UncaughtExceptionHandler delegatedExceptionHandler = this::defaultUncaughtExceptionHandler;
+    // Those two sockets are used within a shutdown thread.
+    // So they are initialized at start up, to avoid creating them during shutdown.
+    private final Socket monitorSend;
+    private final Socket monitorReceive;
+    private boolean monitorRunning = false;
 
     public static ZMQSocketFactoryBuilder builder() {
         return new ZMQSocketFactoryBuilder()
                        .numSocket(1)
                        .linger(DEFAULTLINGER)
                        .withZap(true);
-    }
-
-    public static ZMQSocketFactory getFactory(Map<String, Object> properties) {
-        ZMQSocketFactoryBuilder builder = ZMQSocketFactory.builder();
-        if (properties.containsKey("keystore")) {
-            builder.zmqKeyStore = Paths.get((String)properties.remove("keystore"));
-        }
-        if (properties.containsKey("certsDirectory")) {
-            builder.zmqCertsDir = Paths.get((String)properties.remove("certsDirectory"));
-        }
-        if (properties.containsKey("withZap")) {
-            builder.withZap = (Boolean) properties.remove("withZap");
-        }
-        if (properties.containsKey("numSocket")) {
-            builder.numSocket = (Integer) properties.remove("numSocket");
-        }
-        if (properties.containsKey("linger")) {
-            builder.linger = (Integer) properties.remove("linger");
-        }
-        return builder.build();
     }
 
     public ZMQSocketFactory() {
@@ -137,14 +121,6 @@ public class ZMQSocketFactory implements AutoCloseable {
         });
         context.setUncaughtExceptionHandler(this::delegateExceptionHandler);
 
-        terminator = ThreadBuilder.get()
-                                  .setDaemon(true)
-                                  .setName("ZMQTerminator")
-                                  .setTask(() -> {
-                                      logger.debug("starting shutdown hook for ZMQ");
-                                      context.close();
-                                  }).setShutdownHook(true).build();
-
         if (zmqKeyStore != null) {
             try {
                 keyEntry = checkKeyStore(zmqKeyStore);
@@ -168,16 +144,19 @@ public class ZMQSocketFactory implements AutoCloseable {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
+        try {
+            monitorSend = getBuilder(Method.CONNECT, SocketType.PAIR, "inproc://stop/monitor/" + UUID.randomUUID()).build();
+            monitorReceive = getBuilder(Method.BIND, SocketType.PAIR, monitorSend.getLastEndpoint()).build();
+            monitorPoller.register(monitorReceive, this::stopMonitor, ZPoller.IN | ZPoller.ERR);
+        } catch (ZMQCheckedException | RuntimeException ex) {
+            throw new IllegalStateException("Unable to start ZMQSocketFactory " + Helpers.resolveThrowableException(ex), ex);
+        }
         if (zmqCertsDir != null) {
             reloadCerts(zmqCertsDir);
         } else {
             publicKeys = Collections.emptyMap();
         }
-        if (withZap) {
-            zapService = new ZapService(this);
-        } else {
-            zapService = null;
-        }
+        zapService = withZap ? new ZapService(this) : null;
     }
 
     public void reloadCerts(Path zmqCertsDir) {
@@ -208,12 +187,13 @@ public class ZMQSocketFactory implements AutoCloseable {
     private void monitorLoop(CountDownLatch monitorLatch) {
         monitorLatch.countDown();
         monitorLatch = null;
-        while (! context.isClosed()) {
+        monitorRunning = true;
+        while (! context.isClosed() && monitorRunning) {
             try {
                 if (monitorPoller.registered() == 0) {
                     Thread.sleep(Long.MAX_VALUE);
                 } else {
-                    monitorPoller.poll(-1);
+                    int count = monitorPoller.poll(-1);
                 }
             } catch (ClosedSelectorException e) {
                 // The selector was closed so running is finished
@@ -223,6 +203,11 @@ public class ZMQSocketFactory implements AutoCloseable {
                 // If not, it was a poll refresh
             }
         }
+    }
+
+    private Boolean stopMonitor(Socket s, Integer i) {
+        monitorRunning = false;
+        return true;
     }
 
     private PrivateKeyEntry checkKeyStore(Path zmqKeyStore) throws KeyStoreException, NoSuchAlgorithmException, CertificateException, IOException, InvalidKeySpecException, UnrecoverableEntryException, InvalidKeyException {
@@ -302,29 +287,42 @@ public class ZMQSocketFactory implements AutoCloseable {
         };
     }
 
-    public synchronized void close() throws ZMQCheckedException {
+    public synchronized void close() {
         try {
             if (! context.isClosed()) {
-                Runtime.getRuntime().removeShutdownHook(terminator);
+                Optional.ofNullable(zapService).ifPresent(this::stopZap);
+                monitorSend.send(new byte[]{});
                 try {
+                    monitorThread.join();
+                    monitorSend.close();
+                    monitorReceive.close();
                     monitorPoller.close();
                 } catch (IOException e) {
                     logger.warn("Unable to close monitor poller: {}", Helpers.resolveThrowableException(e));
                     logger.debug(e);
+                } catch (InterruptedException e) {
+                    // Keep going
                 }
-                Optional.ofNullable(zapService).ifPresent(ZapService::close);
                 context.close();
                 logger.debug("Global ZMQ context {} terminated", context);
             }
-        } catch (UncheckedZMQException e) {
-            throw new ZMQCheckedException(e);
+        } catch (UncheckedZMQException ex) {
+            logger.atError().withThrowable(ex).log("Failed to terminate ZMQ context: {}",  Helpers.resolveThrowableException(ex));
+        }
+    }
+
+    private void stopZap(ZapService z) {
+        try {
+            z.close();
+            z.join();
+        } catch (InterruptedException e) {
+            // Ignore, just keep going
         }
     }
 
     public ZPoller getZPoller() {
         return new ZPoller(context);
     }
-
 
     // Delegate the exception handling, as it must be set when the context is started,
     // but we will modify it.

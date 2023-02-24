@@ -13,8 +13,6 @@ import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.cert.Certificate;
 import java.security.spec.InvalidKeySpecException;
-import java.util.HashMap;
-import java.util.Map;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -196,28 +194,21 @@ public class TestCurve {
     public void testSocketFactory() throws ZMQCheckedException, InvalidKeySpecException {
         for (String kstype: new String[] {"jceks"/*, "jks"*/}) {
             Path kspath = Paths.get(testFolder.getRoot().getAbsolutePath(), "zmqsocketfactory." + kstype).toAbsolutePath();
-            //Path kspath = Paths.get("/tmp", "zmqsocketfactory." + kstype).toAbsolutePath();
             PrivateKeyEntry pke1;
-            Map<String, Object> props = new HashMap<>();
-            props.put("keystore", kspath.toString());
-            props.put("numSocket", 4);
-            props.put("linger", 4);
-            try (ZMQSocketFactory factory1 = ZMQSocketFactory.getFactory(props)) {
+            ZMQSocketFactory.ZMQSocketFactoryBuilder builder = new ZMQSocketFactory.ZMQSocketFactoryBuilder();
+            builder.zmqKeyStore(kspath);
+            builder.numSocket(4);
+            builder.linger(4);
+            try (ZMQSocketFactory factory1 = builder.build()) {
                 pke1 = factory1.getKeyEntry();
             }
             NaclPublicKeySpec pubkey1 = ZMQHelper.NACLKEYFACTORY.getKeySpec(pke1.getCertificate().getPublicKey(), NaclPublicKeySpec.class);
             NaclPrivateKeySpec privateKey1 = ZMQHelper.NACLKEYFACTORY.getKeySpec(pke1.getPrivateKey(), NaclPrivateKeySpec.class);
 
-            Assert.assertEquals(0, props.size());
-            // Needed because properties are removed
-            props.put("keystore", kspath.toString());
-            props.put("numSocket", 4);
-            props.put("linger", 4);
             PrivateKeyEntry pke2;
-            try (ZMQSocketFactory factory2 = ZMQSocketFactory.getFactory(props)) {
+            try (ZMQSocketFactory factory2 = builder.build()) {
                 pke2 = factory2.getKeyEntry();
             }
-            Assert.assertEquals(0, props.size());
             Assert.assertEquals(pke1.getCertificate(), pke2.getCertificate());
 
             NaclPublicKeySpec pubkey2 = ZMQHelper.NACLKEYFACTORY.getKeySpec(pke2.getCertificate().getPublicKey(), NaclPublicKeySpec.class);

@@ -48,11 +48,7 @@ public class ZMQFactory extends ExternalResource {
     @Override
     protected void after() {
         logger.debug("Terminating ZMQ manager");
-        try {
-            factory.close();
-        } catch (ZMQCheckedException e) {
-            logger.error(Helpers.resolveThrowableException(e), e);
-        }
+        factory.close();
         logger.debug("Test finished");
     }
 

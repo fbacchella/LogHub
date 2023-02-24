@@ -1,5 +1,6 @@
 package loghub.configuration;
 
+import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -11,6 +12,7 @@ import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
 
 import javax.management.InstanceAlreadyExistsException;
@@ -83,6 +85,11 @@ public class Properties extends HashMap<String, Object> {
         }
     }
 
+    private class ZMQFactoryReference {
+        private ZMQSocketFactory.ZMQSocketFactoryBuilder builder = null;
+        private ZMQSocketFactory factory = null;
+    }
+
     public final ClassLoader classloader;
     public final Map<String, Pipeline> namedPipeLine;
     public final Collection<Pipeline> pipelines;
@@ -104,11 +111,13 @@ public class Properties extends HashMap<String, Object> {
     public final JWTHandler jwtHandler;
     public final Dashboard dashboard;
     public final CacheManager cacheManager;
-    public final ZMQSocketFactory zSocketFactory;
     public final Set<EventsProcessor> eventsprocessors;
     public final EventsFactory eventsFactory = new EventsFactory();
 
     public final Timer timer = new Timer("loghubtimer", true);
+
+    private final Set<Runnable> shutdownTasks = new HashSet<>();
+    private final AtomicReference<ZMQFactoryReference> zmqFactoryReference = new AtomicReference<>(new ZMQFactoryReference());
 
     @SuppressWarnings("unchecked")
     public Properties(Map<String, Object> properties) {
@@ -171,7 +180,7 @@ public class Properties extends HashMap<String, Object> {
         jaasConfig = (javax.security.auth.login.Configuration) properties.get(PROPSNAMES.JAASCONFIG.toString());
         jwtHandler = (JWTHandler) properties.get(PROPSNAMES.JWTHANDLER.toString());
 
-        zSocketFactory = ZMQSocketFactory.getFactory(Helpers.filterPrefix(properties, "zmq"));
+        zmqFactoryReference.get().builder = getFactory(Helpers.filterPrefix(properties, "zmq"));
 
         try {
             jmxServiceConfiguration = JmxService.configuration()
@@ -278,6 +287,10 @@ public class Properties extends HashMap<String, Object> {
         throw new UnsupportedOperationException("read only");
     }
 
+    public void terminate() {
+        shutdownTasks.forEach(Runnable::run);
+    }
+
     private Dashboard buildDashboad(Map<String, Object> collect) {
         Dashboard.Builder builder = Dashboard.getBuilder();
         int port = (Integer) collect.compute("port", (i,j) -> {
@@ -310,6 +323,28 @@ public class Properties extends HashMap<String, Object> {
             builder.setJaasNameJwt(jaasName).setJaasConfigJwt(jaasConfig);
         }
         return builder.build();
+    }
+
+    private ZMQSocketFactory.ZMQSocketFactoryBuilder getFactory(Map<String, Object> properties) {
+        ZMQSocketFactory.ZMQSocketFactoryBuilder builder = ZMQSocketFactory.builder();
+        Optional.ofNullable(properties.remove("keystore")).map(String.class::cast).map(Paths::get).ifPresent(builder::zmqKeyStore);
+        Optional.ofNullable(properties.remove("certsDirectory")).map(String.class::cast).map(Paths::get).ifPresent(builder::zmqCertsDir);
+        Optional.ofNullable(properties.remove("withZap")).map(Boolean.class::cast).ifPresent(builder::withZap);
+        Optional.ofNullable(properties.remove("numSocket")).map(Integer.class::cast).ifPresent(builder::numSocket);
+        Optional.ofNullable(properties.remove("linger")).map(Integer.class::cast).ifPresent(builder::linger);
+        return builder;
+    }
+
+    public ZMQSocketFactory getZMQSocketFactory() {
+        return zmqFactoryReference.updateAndGet(f -> {
+            if (f.factory == null) {
+                f.factory = f.builder.build();
+                f.builder = null;
+                shutdownTasks.add(f.factory::close);
+                f.factory.setExceptionHandler(ThreadBuilder.DEFAULTUNCAUGHTEXCEPTIONHANDLER);
+            }
+            return f;
+        }).factory;
     }
 
 }

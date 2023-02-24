@@ -123,7 +123,7 @@ public class TestZMQSender {
         } finally {
             injector.interrupt();
         }
-        p.zSocketFactory.close();
+        p.getZMQSocketFactory().close();
         String buf = received.toString();
         Assert.assertTrue(buf, Pattern.matches(pattern, buf));
    }
