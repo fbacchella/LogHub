@@ -7,7 +7,6 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
@@ -81,7 +80,7 @@ public class TestZMQSender {
         received.setLength(0);
         ZMQSocketFactory ctx = tctxt.getFactory();
 
-        Properties p = new Properties(Collections.singletonMap("zmq.keystore", Paths.get(testFolder.newFolder("server").getAbsolutePath(), "zmqtest.jks").toString()));
+        Properties p = new Properties(Collections.singletonMap("zmq.keystore", tctxt.getCertDir().resolve("zmqtest.jks").toString()));
 
         String rendezvous = "tcp://localhost:" + Tools.tryGetPort();
 
@@ -160,7 +159,7 @@ public class TestZMQSender {
 
     private String getRemoteIdentity(String dir) {
         try {
-            Path keyPubpath = Paths.get(testFolder.getRoot().getPath(), dir, "zmqtest.pub");
+            Path keyPubpath = tctxt.getCertDir().resolve("zmqtest.pub");
             try (ByteArrayOutputStream pubkeyBuffer = new ByteArrayOutputStream()) {
                 Files.copy(keyPubpath, pubkeyBuffer);
                 return new String(pubkeyBuffer.toByteArray(), StandardCharsets.UTF_8);
