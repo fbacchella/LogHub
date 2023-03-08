@@ -1,15 +1,17 @@
 package loghub.zmq;
 
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.channels.Pipe;
+import java.nio.channels.SelectableChannel;
+import java.nio.channels.WritableByteChannel;
 import java.security.KeyStore.PrivateKeyEntry;
 import java.security.cert.Certificate;
-import java.util.Objects;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import java.util.stream.Stream;
 
 import org.apache.logging.log4j.Logger;
 import org.zeromq.SocketType;
@@ -88,14 +90,13 @@ public class ZMQHandler<M> implements AutoCloseable {
     private final int mask;
     private final Function<Socket, M> receive;
     private final BiFunction<Socket, M, Boolean> send;
-    private final String pairId;
     // The stopFunction can be used to do a little cleaning and verifications before the join
     private final Runnable stopFunction;
+    private final Pipe notificationPipe;
 
     private volatile boolean running = false;
     private PrepareFactory makeThreadLocal;
     private Socket socket;
-    private Socket socketEndPair;
     private Thread runningThread = null;
     private ZPoller pooler;
     // Settings of the factory can be delayed
@@ -108,11 +109,17 @@ public class ZMQHandler<M> implements AutoCloseable {
         this.logger = builder.logger;
         this.socketUrl = builder.socketUrl;
         this.mask = builder.mask;
-        this.pairId = builder.name + "/" + UUID.randomUUID();
         this.stopFunction = builder.stopFunction;
         this.zfactory = builder.zfactory;
         this.send = builder.send;
         this.receive = builder.receive;
+        try {
+            this.notificationPipe = Pipe.open();
+            this.notificationPipe.sink().configureBlocking(false);
+            this.notificationPipe.source().configureBlocking(false);
+        } catch (IOException ex) {
+            throw new IllegalStateException("Internal signaling pipe can't be created: " + Helpers.resolveThrowableException(ex), ex);
+        }
         // Socket creation is delayed
         // So the socket is created in the using thread
         makeThreadLocal = () -> {
@@ -142,10 +149,8 @@ public class ZMQHandler<M> implements AutoCloseable {
             }
             socket = sbuilder.build();
             pooler = zfactory.getZPoller();
-            socketEndPair = zfactory.getBuilder(Method.BIND, SocketType.PAIR, "inproc://stop/" + pairId).build();
-            logger.trace("Socket end pair will be {}", socketEndPair);
             pooler.register(socket, mask | ZPoller.ERR);
-            pooler.register(socketEndPair, ZPoller.IN | ZPoller.ERR);
+            pooler.register(notificationPipe.source(), ZPoller.IN | ZPoller.ERR);
             running = true;
             if (builder.latch != null) {
                 builder.latch.countDown();
@@ -160,6 +165,9 @@ public class ZMQHandler<M> implements AutoCloseable {
 
     public M dispatch(M message) throws ZMQCheckedException {
         assert Thread.currentThread() == runningThread;
+        if (! isRunning()) {
+            throw new IllegalStateException("ZMQ handler already stopped");
+        }
         logger.trace("One dispatch loop");
         M received = null;
         // Loop until an event is received in the main socket.
@@ -176,30 +184,27 @@ public class ZMQHandler<M> implements AutoCloseable {
                 if (count > 0) {
                     int sEvents = ZMQCheckedException.checkCommand(socket.getEvents(),
                                                                    socket);
-                    int pEvents = ZMQCheckedException.checkCommand(socketEndPair.getEvents(),
-                                                                   socketEndPair);
                     // Received an error, end processing
                     if ((sEvents & ZPoller.ERR) != 0) {
                         logEvent("Error on socket", socket, sEvents);
                         throw new ZMQCheckedException(socket.errno());
-                    } else if ((pEvents & ZPoller.ERR) != 0) {
-                        logEvent("Error on socket", socketEndPair, pEvents);
-                        throw new ZMQCheckedException(socketEndPair.errno());
-                    } else if ((pEvents & ZPoller.IN) != 0) {
-                        // An end signal event
-                        logEvent("Stop signal", socketEndPair, pEvents);
+                    } else if (pooler.isError(notificationPipe.source())) {
                         running = false;
-                        socketEndPair.recv();
+                        logEvent("Error on notification pipe", notificationPipe.source());
+                    } else if (pooler.isReadable(notificationPipe.source())) {
+                        running = false;
+                        // An end signal event
+                        logEvent("Stop signal", notificationPipe.source());
+                        readNotification();
                         break;
                     } else if (message != null && (sEvents & ZPoller.OUT) != 0) {
-                        // An event on the main socket, end the loop
-                        logEvent("Message signal with out", socket, sEvents);
+                        logEvent("Message sent", socket, sEvents);
                         if (Boolean.FALSE.equals(send.apply(socket, message))) {
                             throw new ZMQCheckedException(socket.errno());
                         }
                         break;
                     } else if (message == null && (sEvents & ZPoller.IN) != 0) {
-                        logEvent("Message signal with in", socket, sEvents);
+                        logEvent("Message received", socket, sEvents);
                         received = receive.apply(socket);
                         if (received == null) {
                             throw new ZMQCheckedException(socket.errno());
@@ -217,6 +222,24 @@ public class ZMQHandler<M> implements AutoCloseable {
         return received;
     }
 
+    private void readNotification() {
+        try {
+            ByteBuffer inBuffer = ByteBuffer.allocate(1);
+            notificationPipe.source().read(inBuffer);
+        } catch (IOException ex) {
+            throw new IllegalStateException("Failed notification: " + Helpers.resolveThrowableException(ex), ex);
+        }
+    }
+
+    private void writeNotification() {
+        try {
+            ByteBuffer inBuffer = ByteBuffer.allocate(1);
+            notificationPipe.sink().write(inBuffer);
+        } catch (IOException ex) {
+            throw new IllegalStateException("Failed notification: " + Helpers.resolveThrowableException(ex), ex);
+        }
+    }
+
     public void logEvent(String prefix, Socket socket, int event) {
         logger.trace("{}: receiving {}{}{} on {}",
                      () -> prefix,
@@ -226,6 +249,15 @@ public class ZMQHandler<M> implements AutoCloseable {
                      () -> socket);
     }
 
+    public void logEvent(String prefix, SelectableChannel channel) {
+        logger.trace("{}: receiving {}{}{} on {}",
+                () -> prefix,
+                () -> pooler.isError(channel) ? "E" : ".",
+                () -> pooler.isWritable(channel) ? "O" : ".",
+                () -> pooler.isReadable(channel)  ? "I" : ".",
+                () -> channel instanceof WritableByteChannel ? "SinkChannel" : "SourceChannel");
+    }
+
     public boolean isRunning() {
         return running && ! runningThread.isInterrupted();
     }
@@ -233,20 +265,16 @@ public class ZMQHandler<M> implements AutoCloseable {
     @Override
     public void close() {
         assert Thread.currentThread() == runningThread;
-        Stream.of(socket, socketEndPair)
-              .filter(Objects::nonNull)
-              .forEach(this::close);
+        running = false;
    }
 
     public void close(Socket s) {
-        boolean interrupted = false;
+        boolean interrupted;
         try {
             canInterrupt = false;
             // Keep Thread.interrupted(), jeromq break with thread interruption
             interrupted = Thread.interrupted();
             s.close();
-       } catch (UncheckedZMQException e) {
-            e.printStackTrace();
         } finally {
             canInterrupt = false;
         }
@@ -255,29 +283,24 @@ public class ZMQHandler<M> implements AutoCloseable {
         }
     }
 
-    public void stopRunning() throws ZMQCheckedException {
+    public void stopRunning() {
         if (isRunning()) {
             logger.trace("Stop handling messages");
             running = false;
-            try (Socket stopStartPair = zfactory.getBuilder(Method.CONNECT, SocketType.PAIR, "inproc://stop/" + pairId).build()) {
-                stopStartPair.send(new byte[] {});
-                logger.debug("Listening stopped");
-            } catch (UncheckedZMQException ex) {
-                throw new ZMQCheckedException(ex);
-            }
+            writeNotification();
             stopFunction.run();
         }
         logger.trace("Done stop handling messages");
     }
 
     public void interrupt(Thread holder, Runnable realInterrupt) {
-        logger.trace("trying to interrupt");
+        logger.trace("trying to interrupt {}", holder);
         if (canInterrupt) {
             realInterrupt.run();
         } else {
             try {
                 stopRunning();
-            } catch (ZMQCheckedException ex) {
+            } catch (RuntimeException ex) {
                 logger.error("Failed to handle interrupt: {}", Helpers.resolveThrowableException(ex), ex);
             }
         }

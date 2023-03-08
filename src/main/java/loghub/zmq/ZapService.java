@@ -111,7 +111,7 @@ public class ZapService extends Thread implements AutoCloseable {
     public void close() {
         try {
             handler.stopRunning();
-        } catch (ZMQCheckedException ex) {
+        } catch (RuntimeException ex) {
             logger.error("Failed ZMQ socket close : {}", Helpers.resolveThrowableException(ex));
             logger.catching(Level.DEBUG, ex);
         }

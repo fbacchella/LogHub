@@ -144,7 +144,7 @@ public class ZMQ extends Sender {
         try {
             logger.trace("Stopping handler {}", handler);
             handler.stopRunning();
-        } catch (ZMQCheckedException ex) {
+        } catch (RuntimeException ex) {
             logger.error("Failed to stop ZMQ handler: {}", Helpers.resolveThrowableException(ex));
             logger.catching(Level.DEBUG, ex);
         }
@@ -185,7 +185,7 @@ public class ZMQ extends Sender {
         } else {
             try {
                 handler.stopRunning();
-            } catch (ZMQCheckedException ex) {
+            } catch (RuntimeException ex) {
                 logger.error("Failed to interrupt ZMQ handler: {}", Helpers.resolveThrowableException(ex));
                 logger.catching(Level.DEBUG, ex);
             }

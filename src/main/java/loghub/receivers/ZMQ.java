@@ -122,7 +122,7 @@ public class ZMQ extends Receiver<ZMQ, ZMQ.Builder> {
     public void close() {
         try {
             handler.stopRunning();
-        } catch (ZMQCheckedException ex) {
+        } catch (RuntimeException ex) {
             logger.error("Failed ZMQ socket close : {}", Helpers.resolveThrowableException(ex));
             logger.catching(Level.DEBUG, ex);
         }
@@ -132,7 +132,7 @@ public class ZMQ extends Receiver<ZMQ, ZMQ.Builder> {
     public void stopReceiving() {
         try {
             handler.stopRunning();
-        } catch (ZMQCheckedException ex) {
+        } catch (RuntimeException ex) {
             logger.error("Failed receiver ZMQ stop : {}", Helpers.resolveThrowableException(ex));
             logger.catching(Level.DEBUG, ex);
         }
