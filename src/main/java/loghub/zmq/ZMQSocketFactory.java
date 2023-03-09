@@ -5,7 +5,10 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.lang.Thread.UncaughtExceptionHandler;
+import java.nio.ByteBuffer;
 import java.nio.channels.ClosedSelectorException;
+import java.nio.channels.Pipe;
+import java.nio.channels.SelectableChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -30,7 +33,10 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.BiPredicate;
 import java.util.stream.Stream;
 
@@ -61,7 +67,7 @@ import zmq.io.mechanism.Mechanisms;
 
 public class ZMQSocketFactory implements AutoCloseable {
 
-    private static final AtomicInteger MONITOR_COUNT = new AtomicInteger();
+    private static final AtomicInteger FACTORY_COUNT = new AtomicInteger();
     // Needed to ensure the NaCl Provided is loaded
     private static final KeyFactory NACLKEYFACTORY = ZMQHelper.NACLKEYFACTORY;
 
@@ -83,9 +89,14 @@ public class ZMQSocketFactory implements AutoCloseable {
     private UncaughtExceptionHandler delegatedExceptionHandler = this::defaultUncaughtExceptionHandler;
     // Those two sockets are used within a shutdown thread.
     // So they are initialized at start up, to avoid creating them during shutdown.
-    private final Socket monitorSend;
-    private final Socket monitorReceive;
+    private final Pipe monitorPipe;
     private boolean monitorRunning = false;
+    // lock to prevent concurent creation of sockets and factory stopping
+    private final ReadWriteLock factoryLock = new ReentrantReadWriteLock();
+    // Once the factory stopped, it can't be reused, even in case of stop failure
+    private final AtomicBoolean active = new AtomicBoolean(true);
+    // The id for this factory and associated monitor and zap threads
+    private final int factoryId = FACTORY_COUNT.incrementAndGet();
 
     public static ZMQSocketFactoryBuilder builder() {
         return new ZMQSocketFactoryBuilder()
@@ -134,21 +145,23 @@ public class ZMQSocketFactory implements AutoCloseable {
             keyEntry = null;
         }
         monitorPoller = getZPoller();
+        try {
+            monitorPipe = Pipe.open();
+            monitorPipe.source().configureBlocking(false);
+            monitorPipe.sink().configureBlocking(false);
+            monitorPoller.register(monitorPipe.source(), this::stopMonitor, ZPoller.IN | ZPoller.ERR);
+        } catch (IOException ex) {
+            throw new IllegalStateException("Unable to start ZMQSocketFactory " + Helpers.resolveThrowableException(ex), ex);
+        }
         CountDownLatch monitorLatch = new CountDownLatch(1);
         monitorThread = ThreadBuilder.get()
-                                     .setName("zmqmonitor" + MONITOR_COUNT.incrementAndGet())
+                                     .setName("zmqmonitor" + factoryId)
                                      .setTask(() -> monitorLoop(monitorLatch))
                                      .build(true);
         try {
             monitorLatch.await();
-        } catch (InterruptedException e) {
+        } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
-        }
-        try {
-            monitorSend = getBuilder(Method.CONNECT, SocketType.PAIR, "inproc://stop/monitor/" + UUID.randomUUID()).build();
-            monitorReceive = getBuilder(Method.BIND, SocketType.PAIR, monitorSend.getLastEndpoint()).build();
-            monitorPoller.register(monitorReceive, this::stopMonitor, ZPoller.IN | ZPoller.ERR);
-        } catch (ZMQCheckedException | RuntimeException ex) {
             throw new IllegalStateException("Unable to start ZMQSocketFactory " + Helpers.resolveThrowableException(ex), ex);
         }
         if (zmqCertsDir != null) {
@@ -156,7 +169,7 @@ public class ZMQSocketFactory implements AutoCloseable {
         } else {
             publicKeys = Collections.emptyMap();
         }
-        zapService = withZap ? new ZapService(this) : null;
+        zapService = withZap ? new ZapService(this, factoryId) : null;
     }
 
     public void reloadCerts(Path zmqCertsDir) {
@@ -164,19 +177,7 @@ public class ZMQSocketFactory implements AutoCloseable {
         logger.debug("Searching for zcertificates in {}", zmqCertsDir);
         Map<String, ZConfig> buildingPublicKeys = new HashMap<>();
         try (Stream<Path> certs = Files.find(zmqCertsDir, 10, isZpl)) {
-            for (Path tryCert: (Iterable<Path>) certs::iterator) {
-                try {
-                    ZConfig zconf = ZConfig.load(tryCert.toString());
-                    String publicKey = zconf.getValue("curve/public-key");
-                    if (publicKey.length() == Options.CURVE_KEYSIZE_Z85) { // we want to store the public-key as Z85-String
-                        buildingPublicKeys.put(publicKey, zconf);
-                        logger.debug("Adding certificates {} as with public key {}", tryCert, publicKey);
-                    }
-                } catch (IOException ex) {
-                    logger.error("Unusable zpl file '{}': {}", () -> tryCert, () -> Helpers.resolveThrowableException(ex));
-                    logger.catching(Level.DEBUG, ex);
-                }
-            }
+            certs.forEach(c -> loadZCert(c, buildingPublicKeys));
         } catch (IOException ex) {
             logger.error("Can't scan zpl directory '{}': {}", () -> zmqCertsDir, () -> Helpers.resolveThrowableException(ex));
             logger.catching(Level.DEBUG, ex);
@@ -184,28 +185,36 @@ public class ZMQSocketFactory implements AutoCloseable {
         publicKeys = Collections.unmodifiableMap(buildingPublicKeys);
     }
 
+    private void loadZCert(Path tryCert, Map<String, ZConfig> buildingPublicKeys) {
+        try {
+            ZConfig zconf = ZConfig.load(tryCert.toString());
+            String publicKey = zconf.getValue("curve/public-key");
+            if (publicKey.length() == Options.CURVE_KEYSIZE_Z85) { // we want to store the public-key as Z85-String
+                buildingPublicKeys.put(publicKey, zconf);
+                logger.debug("Adding certificates {} as with public key {}", tryCert, publicKey);
+            }
+        } catch (IOException ex) {
+            logger.error("Unusable zpl file '{}': {}", () -> tryCert, () -> Helpers.resolveThrowableException(ex));
+            logger.catching(Level.DEBUG, ex);
+        }
+    }
+
     private void monitorLoop(CountDownLatch monitorLatch) {
+        assert monitorPoller.registered() != 0;
         monitorLatch.countDown();
         monitorLatch = null;
         monitorRunning = true;
         while (! context.isClosed() && monitorRunning) {
             try {
-                if (monitorPoller.registered() == 0) {
-                    Thread.sleep(Long.MAX_VALUE);
-                } else {
-                    int count = monitorPoller.poll(-1);
-                }
+                monitorPoller.poll(-1);
             } catch (ClosedSelectorException e) {
                 // The selector was closed so running is finished
                 break;
-            } catch (InterruptedException e) {
-                // If real interruption, context will be closed
-                // If not, it was a poll refresh
             }
         }
     }
 
-    private Boolean stopMonitor(Socket s, Integer i) {
+    private Boolean stopMonitor(SelectableChannel s, int i) {
         monitorRunning = false;
         return true;
     }
@@ -287,27 +296,36 @@ public class ZMQSocketFactory implements AutoCloseable {
         };
     }
 
-    public synchronized void close() {
+    public void close() {
         try {
-            if (! context.isClosed()) {
+            factoryLock.writeLock().lockInterruptibly();
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Factory stop interrupted", ex);
+        }
+        try {
+            if (active.get() && ! context.isClosed()) {
+                active.set(false);
                 Optional.ofNullable(zapService).ifPresent(this::stopZap);
-                monitorSend.send(new byte[]{});
+                monitorPipe.sink().write(ByteBuffer.allocate(1));
                 try {
                     monitorThread.join();
-                    monitorSend.close();
-                    monitorReceive.close();
+                    monitorPipe.sink().close();
+                    monitorPipe.source().close();
                     monitorPoller.close();
                 } catch (IOException e) {
                     logger.warn("Unable to close monitor poller: {}", Helpers.resolveThrowableException(e));
                     logger.debug(e);
                 } catch (InterruptedException e) {
-                    // Keep going
+                    Thread.currentThread().interrupt();
                 }
-                context.close();
-                logger.debug("Global ZMQ context {} terminated", context);
             }
-        } catch (UncheckedZMQException ex) {
+            context.close();
+            logger.debug("Global ZMQ context {} terminated", context);
+        } catch (UncheckedZMQException | IOException ex) {
             logger.atError().withThrowable(ex).log("Failed to terminate ZMQ context: {}",  Helpers.resolveThrowableException(ex));
+        } finally {
+            factoryLock.writeLock().unlock();
         }
     }
 
@@ -316,7 +334,7 @@ public class ZMQSocketFactory implements AutoCloseable {
             z.close();
             z.join();
         } catch (InterruptedException e) {
-            // Ignore, just keep going
+            Thread.currentThread().interrupt();
         }
     }
 
@@ -402,6 +420,15 @@ public class ZMQSocketFactory implements AutoCloseable {
         }
 
         public Socket build() throws ZMQCheckedException {
+            try {
+                factoryLock.readLock().lockInterruptibly();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IllegalStateException("Socket build interrupted");
+            }
+            if (! active.get() || context.isClosed()) {
+                throw new IllegalStateException("Factory closed");
+            }
             Socket socket = null;
             try {
                 socket = context.createSocket(type);
@@ -430,7 +457,7 @@ public class ZMQSocketFactory implements AutoCloseable {
                 if (zapDomain != null) {
                     socket.setZAPDomain(zapDomain);
                 }
-                socket.setTCPKeepAlive(this.keepAlive ? 1: 0);
+                socket.setTCPKeepAlive(keepAlive ? 1: 0);
                 if (keepAlive) {
                     socket.setTCPKeepAliveCount(tcpKeepAliveCnt);
                     socket.setTCPKeepAliveIdle(tcpKeepAliveIdle);
@@ -460,6 +487,8 @@ public class ZMQSocketFactory implements AutoCloseable {
                     socket.close();
                 }
                 throw new ZMQCheckedException(e);
+            } finally {
+                factoryLock.readLock().unlock();
             }
         }
         private void setCurveSecuritySettings(Socket socket) throws ZMQCheckedException {
@@ -490,6 +519,34 @@ public class ZMQSocketFactory implements AutoCloseable {
     public SocketBuilder getBuilder(Method method, SocketType pub,
                                     String endpoint) {
         return new SocketBuilder(method, pub, endpoint);
+    }
+
+    /**
+     * Returns a string representation of the object.
+     *
+     * @return a string representation of the object.
+     * @apiNote In general, the
+     * {@code toString} method returns a string that
+     * "textually represents" this object. The result should
+     * be a concise but informative representation that is easy for a
+     * person to read.
+     * It is recommended that all subclasses override this method.
+     * The string output is not necessarily stable over time or across
+     * JVM invocations.
+     * @implSpec The {@code toString} method for class {@code Object}
+     * returns a string consisting of the name of the class of which the
+     * object is an instance, the at-sign character `{@code @}', and
+     * the unsigned hexadecimal representation of the hash code of the
+     * object. In other words, this method returns a string equal to the
+     * value of:
+     * <blockquote>
+     * <pre>
+     * getClass().getName() + '@' + Integer.toHexString(hashCode())
+     * </pre></blockquote>
+     */
+    @Override
+    public String toString() {
+        return "ZMQSocketFactory" + factoryId;
     }
 
 }

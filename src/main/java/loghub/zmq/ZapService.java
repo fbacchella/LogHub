@@ -27,18 +27,19 @@ public class ZapService extends Thread implements AutoCloseable {
     private final ZMQHandler<ZMsg> handler;
     private CountDownLatch startLock = new CountDownLatch(1);
 
-    public ZapService(ZMQSocketFactory zfactory) {
+    public ZapService(ZMQSocketFactory zfactory, int id) {
+        String name = "zapservice" + id;
         handler = new ZMQHandler.Builder<ZMsg>().setSocketUrl("inproc://zeromq.zap.01")
                                 .setMethod(ZMQHelper.Method.BIND)
                                 .setType(SocketType.REP)
                                 .setLogger(logger)
-                                .setName("zapservice")
+                                .setName(name)
                                 .setReceive(this::zapDialog)
                                 .setSend(this::zapSend)
                                 .setMask(ZPoller.IN | ZPoller.OUT | ZPoller.ERR)
                                 .setZfactory(zfactory)
                                 .build();
-        setName("zapservice");
+        setName(name);
         setDaemon(false);
         start();
         try {
