@@ -10,12 +10,8 @@ import java.security.Security;
 import java.security.cert.Certificate;
 import java.security.spec.InvalidKeySpecException;
 import java.util.Base64;
-import java.util.function.BiConsumer;
 
-import org.apache.logging.log4j.Logger;
 import org.zeromq.ZMQ;
-import org.zeromq.ZMQ.Event;
-import org.zeromq.ZMQ.Socket;
 
 import fr.loghub.naclprovider.NaclCertificate;
 import fr.loghub.naclprovider.NaclProvider;
@@ -112,16 +108,6 @@ public class ZMQHelper {
     public static String makeServerIdentityZ85(Certificate cert) throws InvalidKeySpecException {
         NaclPublicKeySpec pubkey = NACLKEYFACTORY.getKeySpec(cert.getPublicKey(), NaclPublicKeySpec.class);
         return ZMQ.Curve.z85Encode(pubkey.getBytes());
-    }
-
-    public static BiConsumer<Socket, Event> getEventLogger(Logger logger) {
-        BiConsumer<Socket, Event> cb = (s, e) -> {
-            /*ZMonitor.Event zev = ZMonitor.Event.find(e.getEvent());
-            Object value = e.getValue();
-            Supplier<String> l = () -> String.format("%s/%s %s%s%s", e.getAddress(), s, zev, value == null ? "": " ", value == null ? "": value );
-            logger.debug("{}", l);*/
-        };
-        return cb;
     }
 
 }

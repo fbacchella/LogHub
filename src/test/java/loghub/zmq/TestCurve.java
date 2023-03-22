@@ -90,7 +90,7 @@ public class TestCurve {
                 .setCurveKeys(tctxt.getFactory().getKeyEntry())
                 .setCurveServer()
                 .setZapDomain("ZAPDOMAIN")
-                .setLoggerMonitor("server", logger)
+                .setSocketLogger(logger)
                 ;
         SocketBuilder clientBuilder = tctxt.getFactory().getBuilder(Method.CONNECT, SocketType.PUSH, rendezvous)
                 .setHwm(100)
@@ -98,7 +98,7 @@ public class TestCurve {
                 .setSecurity(Mechanisms.CURVE)
                 .setCurveKeys(tctxt.getFactory().getKeyEntry())
                 .setCurveClient(tctxt.getFactory().getKeyEntry().getCertificate())
-                .setLoggerMonitor("client", logger)
+                .setSocketLogger(logger)
                 ;
         try (Socket server = serverBuilder.build();
              Socket client = clientBuilder.build()) {
@@ -129,12 +129,14 @@ public class TestCurve {
                 .setSecurity(Mechanisms.CURVE)
                 .setCurveKeys(getCertificate(serverKeys[0], serverKeys[1]))
                 .setZapDomain("ZAPDOMAIN")
+                .setSocketLogger(logger)
                 .setCurveServer();
 
         SocketBuilder clientBuilder = tctxt.getFactory().getBuilder(Method.BIND, SocketType.PUSH, rendezvous)
                 .setHwm(100)
                 .setTimeout(1000)
                 .setSecurity(Mechanisms.CURVE)
+                .setSocketLogger(logger)
                 .setCurveClient(getCertificate(serverKeys[0]));
 
         try (Socket server = serverBuilder.build();
@@ -160,12 +162,14 @@ public class TestCurve {
                 .setTimeout(1000)
                 .setSecurity(Mechanisms.CURVE)
                 .setCurveKeys(getCertificate(serverKeys[0], serverKeys[1]))
+                .setSocketLogger(logger)
                 .setCurveServer();
 
         SocketBuilder clientBuilder = tctxt.getFactory().getBuilder(Method.BIND, SocketType.PUSH, rendezvous)
                 .setHwm(100)
                 .setTimeout(1000)
                 .setSecurity(Mechanisms.CURVE)
+                .setSocketLogger(logger)
                 .setCurveClient(getCertificate(serverKeys[1]));
 
         try (Socket server = serverBuilder.build();
