@@ -2,6 +2,7 @@ package loghub;
 
 import java.io.IOException;
 import java.io.StringReader;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -116,6 +117,62 @@ public class TestEvent {
         @SuppressWarnings("unchecked")
         Map<String, Object> values = (Map<String, Object>) event.get("wrapped");
         Assert.assertEquals(2, values.get("b"));
+    }
+
+    @Test
+    public void testWrapEmptyPath() throws IOException, ProcessorException {
+        String confile = "pipeline[main] {path[a]([.b]=1)}";
+        Properties conf = Tools.loadConf(new StringReader(confile));
+        Event sent = factory.newEvent();
+        Tools.runProcessing(sent, conf.namedPipeLine.get("main"), conf);
+        Event received = conf.mainQueue.remove();
+        Assert.assertFalse(received.containsKey("a"));
+        Assert.assertTrue(received.containsKey("b"));
+    }
+
+    @Test
+    public void testWrapEmptyProcessor() throws IOException, ProcessorException {
+        String confile = "pipeline[main] {loghub.processors.Grok{pattern: \"a%{GREEDYDATA:a}\", field: [.message], path: [a]}}";
+        Properties conf = Tools.loadConf(new StringReader(confile));
+        Event sent = factory.newEvent();
+        sent.put("message", "bc");
+        Tools.runProcessing(sent, conf.namedPipeLine.get("main"), conf);
+        Event received = conf.mainQueue.remove();
+        Assert.assertFalse(received.containsKey("a"));
+        Assert.assertTrue(received.containsKey("message"));
+    }
+
+    @Test
+    public void testWrapDepthSuccess() {
+        Event event = factory.newEvent();
+        List<String> path = new ArrayList<>();
+        for (String key: List.of("a", "b", "c", "d")) {
+            path.add(key);
+            VariablePath vp = VariablePath.of(path);
+            Event wrap1 = event.wrap(VariablePath.of(vp));
+            // Not created until first assignation
+            Assert.assertNull(event.get("a"));
+            Assert.assertEquals(NullOrMissingValue.MISSING, event.getAtPath(vp));
+            wrap1.put("value", true);
+            Assert.assertEquals(true, wrap1.get("value"));
+            Assert.assertEquals(true, ((Map<String, Object>)event.getAtPath(vp)).get("value"));
+             event.clear();
+        }
+    }
+
+    @Test
+    public void testWrapDepthFails() {
+        Event event = factory.newEvent();
+        List<String> path = new ArrayList<>();
+        List<String> fullPath = List.of("a", "b", "c", "d");
+        VariablePath fullVariablePath = VariablePath.of(fullPath);
+        for (String key: fullPath) {
+            path.add(key);
+            VariablePath vp = VariablePath.of(path);
+            event.putAtPath(vp, new Object());
+            Assert.assertThrows(IgnoredEventException.class, () -> event.wrap(fullVariablePath));
+            event.clear();
+        }
     }
 
     @Test(timeout = 1000)

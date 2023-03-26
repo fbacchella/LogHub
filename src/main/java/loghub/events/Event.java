@@ -44,7 +44,7 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
     enum Action {
         APPEND(false, Action::Append),          // Exported through appendAtPath
         GET(false, (i,j,k) -> i.get(j)),       // Exported through getAtPath
-        PUT(false, (i, j, k) -> i.put(j, k)),  // Exported through putAtPath
+        PUT(false, Map::put),  // Exported through putAtPath
         REMOVE(false, (i, j, k) -> i.remove(j)), // Exported through removeAtPath
         CONTAINS(true, (c, k, v) -> c.containsKey(k)), // Exported through containsAtPath
         CONTAINSVALUE(true, (c, k, v) -> Action.asMap(c, k).containsValue(v)), // Used in EventWrapper
@@ -53,6 +53,7 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
         CLEAR(true, (c, k, v) -> {asMap(c, k).clear(); return null;}), // Used in EventWrapper
         KEYSET(true, (c, k, v) -> Action.asMap(c, k).keySet()), // Used in EventWrapper
         VALUES(true, (c, k, v) -> Action.asMap(c, k).values()), // Used in EventWrapper
+        CHECK_WRAP(true, Action::checkPath)
         ;
         @SuppressWarnings("unchecked")
         private static Map<String, Object> asMap(Map<String, Object>c , String k) {
@@ -71,6 +72,13 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
                 return ((Map<?, ?>) c.get(k)).size();
             } else {
                 throw IgnoredEventException.INSTANCE;
+            }
+        }
+        private static Object checkPath(Map<String, Object>c, String k, Object v) {
+            if (! (c.get(k) instanceof Map)) {
+                throw IgnoredEventException.INSTANCE;
+            } else {
+                return v;
             }
         }
         private static boolean Append(Map<String, Object>c, String k, Object v) {
@@ -178,6 +186,8 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
         }
     }
 
+    public abstract Event unwrap();
+
     @SuppressWarnings("unchecked")
     public Object applyAtPath(Action f, VariablePath path, Object value, boolean create) {
         if (value == NullOrMissingValue.MISSING) {
@@ -258,6 +268,8 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
                         } else {
                             return keyMissing(f);
                         }
+                    } else if (! (peekNext.get() instanceof Map) && f == Action.CHECK_WRAP) {
+                        throw IgnoredEventException.INSTANCE;
                     } else if (! (peekNext.get() instanceof Map)) {
                         return keyMissing(f);
                     } else {
@@ -279,6 +291,7 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
     private Object keyMissing(Action f) {
         switch(f) {
         case GET:
+        case CHECK_WRAP:
             return NullOrMissingValue.MISSING;
         case CONTAINSVALUE:
         case CONTAINS:
@@ -465,7 +478,6 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
 
     protected abstract EventInstance getRealEvent();
 
-    public abstract Event unwrap();
 
     public abstract Logger getPipelineLogger();
 

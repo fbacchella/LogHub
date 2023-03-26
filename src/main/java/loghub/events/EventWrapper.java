@@ -33,7 +33,7 @@ class EventWrapper extends Event {
 
     EventWrapper(Event event, VariablePath path) {
         // Ensure the path exists as a map
-        event.applyAtPath(Action.SIZE, path, null, true);
+        event.applyAtPath(Action.CHECK_WRAP, path, null, false);
         this.event = event;
         this.path = path;
     }
