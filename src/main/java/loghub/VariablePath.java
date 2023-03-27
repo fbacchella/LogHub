@@ -3,17 +3,16 @@ package loghub;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.StringJoiner;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 import loghub.events.Event;
 
 public abstract class VariablePath {
     
-    private static final Map<String, VariablePath> pathCache = new ConcurrentHashMap<>();
+    private static final PathTree<Object, VariablePath> PATH_CACHE = new PathTree<>(VariablePath.of(""));
+    private static final PathTree<Object, VariablePath> PATH_CACHE_INDIRECT = new PathTree<>(VariablePath.of(""));
 
     private VariablePath() {
     }
@@ -71,9 +70,11 @@ public abstract class VariablePath {
         }
         @Override
         public VariablePath append(String element) {
-            String[] newPath = Arrays.copyOf(path, path.length + 1);
-            newPath[newPath.length - 1] = element;
-            return newInstance(newPath);
+            return PATH_CACHE.computeChildIfAbsent(path, element, () -> {
+                String[] newPath = Arrays.copyOf(path, path.length + 1);
+                newPath[newPath.length - 1] = element;
+                return newInstance(newPath);
+            });
         }
         @Override
         public String get(int index) {
@@ -272,7 +273,7 @@ public abstract class VariablePath {
         }
         @Override
         public VariablePath append(String element) {
-            return new Plain(new String[] {element});
+            return PATH_CACHE.computeChildIfAbsent(new String[]{}, element, () -> new Plain(new String[] {element}));
         }
         @Override
         public String get(int index) {
@@ -349,8 +350,12 @@ public abstract class VariablePath {
         return new Meta(meta);
     }
 
+    public static VariablePath ofIndirect(Object[] path) {
+        return PATH_CACHE_INDIRECT.computeIfAbsent(path, () -> new Indirect(Arrays.stream(path).map(Object::toString).toArray(String[]::new)));
+    }
+
     public static VariablePath ofIndirect(String[] path) {
-        return new Indirect(Arrays.copyOf(path, path.length));
+        return PATH_CACHE_INDIRECT.computeIfAbsent(path, () -> new Indirect(Arrays.copyOf(path, path.length)));
     }
 
     public static VariablePath ofIndirect(List<String> path) {
@@ -366,7 +371,16 @@ public abstract class VariablePath {
         if (path.isBlank()) {
             return EMPTY;
         } else {
-            return pathCache.computeIfAbsent(path, s -> new Plain(pathElements(s).toArray(String[]::new)));
+            String[] pathParsed = pathElements(path).toArray(String[]::new);
+            return PATH_CACHE.computeIfAbsent(pathParsed, () -> new Plain(pathParsed));
+        }
+    }
+
+    public static VariablePath of(Object[] path) {
+        if (path.length == 0) {
+            return EMPTY;
+        } else {
+            return PATH_CACHE.computeIfAbsent(path, () -> new Plain(Arrays.stream(path).map(Object::toString).toArray(String[]::new)));
         }
     }
 
@@ -374,7 +388,7 @@ public abstract class VariablePath {
         if (path.length == 0) {
             return EMPTY;
         } else {
-            return new Plain(Arrays.copyOf(path, path.length));
+            return PATH_CACHE.computeIfAbsent(path, () -> new Plain(Arrays.copyOf(path, path.length)));
         }
     }
 

@@ -340,7 +340,7 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
      * @param path
      * @return
      */
-    public Object getGroovyPath(String... path) {
+    public Object getGroovyPath(Object... path) {
         return Optional.ofNullable(applyAtPath(Action.GET, VariablePath.of(path), null, false)).orElse(NullOrMissingValue.NULL);
     }
 
@@ -349,7 +349,7 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
      * @param path
      * @return
      */
-    public Object getGroovyIndirectPath(String... path) {
+    public Object getGroovyIndirectPath(Object... path) {
         return Optional.ofNullable(applyAtPath(Action.GET, VariablePath.ofIndirect(path), null, false)).orElse(NullOrMissingValue.NULL);
     }
 

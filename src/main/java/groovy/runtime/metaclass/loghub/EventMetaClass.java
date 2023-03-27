@@ -21,20 +21,8 @@ public class EventMetaClass extends DelegatingMetaClass {
         case "getTimestamp": return ev.getTimestamp();
         case "getConnectionContext": return ev.getConnectionContext();
         case "getMeta": return ev.getMeta(arguments[0].toString());
-        case "getGroovyPath": {
-            String[] path = new String[arguments.length];
-            for (int i= 0 ; i < arguments.length ; i++) {
-                path[i] = arguments[i].toString();
-            }
-            return ev.getGroovyPath(path);
-        }
-        case "getGroovyIndirectPath": {
-            String[] path = new String[arguments.length];
-            for (int i= 0 ; i < arguments.length ; i++) {
-                path[i] = arguments[i].toString();
-            }
-            return ev.getGroovyIndirectPath(path);
-        }
+        case "getGroovyPath": return ev.getGroovyPath(arguments);
+        case "getGroovyIndirectPath": return ev.getGroovyIndirectPath(arguments);
         default: {
             assert false;
             return super.invokeMethod(object, methodName, arguments);
