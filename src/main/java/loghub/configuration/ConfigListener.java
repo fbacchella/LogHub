@@ -975,6 +975,8 @@ class ConfigListener extends RouteBaseListener {
             }
         } else if (ctx.nl != null) {
             expression = "loghub.NullOrMissingValue.NULL";
+        } else if (ctx.c != null) {
+            expression = String.format("('%s' as char)", ctx.c.getText());
         } else if (ctx.l != null) {
             expression = ctx.l.getText();
         } else if (ctx.ev != null) {

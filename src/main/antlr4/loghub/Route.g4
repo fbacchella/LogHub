@@ -176,6 +176,7 @@ SecretAttribute: 'text' | 'blob';
 expression
     :   sl = stringLiteral ( expressionsList )?
     |   nl = nullLiteral
+    |   c = characterLiteral
     |   l = nonStringliteral
     |   ev = eventVariable
     |   qi = QualifiedIdentifier
@@ -313,7 +314,6 @@ literal
 nonStringliteral
     :   integerLiteral
     |   floatingPointLiteral
-    |   characterLiteral
     |   booleanLiteral
     |   nullLiteral
     ;

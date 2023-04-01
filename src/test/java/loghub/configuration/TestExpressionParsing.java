@@ -476,6 +476,11 @@ public class TestExpressionParsing {
     }
 
     @Test
+    public void testCharacterLitteral() throws ExpressionException, ProcessorException {
+        Assert.assertEquals('a', evalExpression("'a'"));
+    }
+
+    @Test
     public void testContext() throws ExpressionException, ProcessorException {
         String format = "user";
         String formatHash = Integer.toHexString(format.hashCode());
