@@ -202,6 +202,7 @@ expression
     |   stringFunction = (Trim | Capitalize | IsBlank | Normalize | Uncapitalize) '(' expression ')'
     |   now = 'now'
     |   isEmpty = 'isEmpty' '(' expression ')'
+    |   collection=('set' | 'list') expressionsList
     ;
 
 Trim: 'trim';
@@ -261,6 +262,7 @@ identifier
     | 'sources' | 'true' | 'false' | 'null' | 'drop'
     | 'trim' | 'capitalize' | 'uncapitalize' | 'isBlank' | 'normalize'
     | 'text' | 'blob'
+    | 'set' | 'list'
     | Identifier
     ;
 

@@ -12,8 +12,10 @@ import java.time.Instant;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -478,6 +480,20 @@ public class TestExpressionParsing {
     @Test
     public void testCharacterLitteral() throws ExpressionException, ProcessorException {
         Assert.assertEquals('a', evalExpression("'a'"));
+    }
+
+    @Test
+    public void testCollectionList() throws ExpressionException, ProcessorException {
+        Event ev = factory.newEvent();
+        ev.put("a", 1);
+        Assert.assertEquals(List.of('a', "a", 1), evalExpression("list('a', \"a\", [a])", ev));
+    }
+
+    @Test
+    public void testCollectionSet() throws ExpressionException, ProcessorException {
+        Event ev = factory.newEvent();
+        ev.put("a", 1);
+        Assert.assertEquals(Set.of('a', "a", 1), evalExpression("set('a', 'a', \"a\", \"a\", [a])", ev));
     }
 
     @Test
