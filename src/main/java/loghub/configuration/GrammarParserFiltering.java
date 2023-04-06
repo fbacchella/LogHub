@@ -162,6 +162,8 @@ public class GrammarParserFiltering {
         case STRING:
             // String is also valid for an Enum type
             return currentBeanType == null || currentBeanType == alternative || currentBeanType == BEANTYPE.ENUM;
+        case SECRET:
+            return currentBeanType == null || currentBeanType == alternative || currentBeanType == BEANTYPE.STRING;
         default:
             return currentBeanType == null || currentBeanType == alternative;
         }
