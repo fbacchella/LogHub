@@ -2,10 +2,12 @@ package loghub.processors;
 
 import java.beans.IntrospectionException;
 import java.io.IOException;
+import java.io.StringReader;
 import java.util.Collections;
 import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.regex.Pattern;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -15,10 +17,12 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import loghub.BeanChecks;
+import loghub.Helpers;
 import loghub.LogUtils;
 import loghub.ProcessorException;
 import loghub.Tools;
 import loghub.VariablePath;
+import loghub.configuration.Configuration;
 import loghub.configuration.Properties;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
@@ -49,6 +53,18 @@ public class TestHierarchical {
         e = fillEvent.apply(e);
         e.process(hierarchical);
         return e;
+    }
+
+    @Test
+    public void testConfigurationParsing() throws IOException {
+        String confile = "pipeline[hierarchy] {loghub.processors.Hierarchical {destination:[tmp], fields: [\"a.*\", \"b\"] }}";
+        Properties props = Configuration.parse(new StringReader(confile));
+        Hierarchical hierarchy = (Hierarchical) props.namedPipeLine.get("hierarchy").processors.get(0);
+        Assert.assertEquals(VariablePath.of("tmp"), hierarchy.getDestination());
+        Pattern[] patterns = hierarchy.getPatterns();
+        Assert.assertEquals(2, patterns.length);
+        Assert.assertEquals(Helpers.convertGlobToRegex("a.*").pattern(), patterns[0].pattern());
+        Assert.assertEquals(Helpers.convertGlobToRegex("b").pattern(), patterns[1].pattern());
     }
 
     @Test
@@ -100,7 +116,7 @@ public class TestHierarchical {
                 });
         Assert.assertEquals(1, ev.getAtPath(VariablePath.of("a.b")));
         Assert.assertEquals(2, ev.getAtPath(VariablePath.of("c.d")));
-        Assert.assertEquals(3, ev.get("e."));
+        Assert.assertEquals(3, ev.get("e"));
         Assert.assertEquals(4, ev.getAtPath(VariablePath.of("f")));
         Assert.assertEquals(5, ev.get(""));
     }

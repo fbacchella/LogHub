@@ -1,7 +1,9 @@
 package loghub.processors;
 
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.regex.Pattern;
 
 import loghub.BuilderClass;
@@ -18,7 +20,7 @@ public class Hierarchical extends Processor {
 
     public static class Builder extends Processor.Builder<Hierarchical> {
         @Setter
-        private VariablePath destination = null;
+        private VariablePath destination = VariablePath.EMPTY;
         @Setter
         private String[] fields = new String[] {"*"};
         public Hierarchical build() {
@@ -30,14 +32,13 @@ public class Hierarchical extends Processor {
     }
 
     @Getter
-    private final VariablePath destinationParent;
-    @Getter
+    private final VariablePath destination;
     private final Pattern[] patterns;
     private final ThreadLocal<Etl.Rename> renamer = ThreadLocal.withInitial(Etl.Rename::new);
 
     public Hierarchical(Builder builder) {
         super(builder);
-        destinationParent = builder.destination;
+        destination = Optional.ofNullable(builder.destination).orElse(VariablePath.EMPTY);
         patterns = new Pattern[builder.fields.length];
         for (int i = 0; i < builder.fields.length; i++) {
             patterns[i] = Helpers.convertGlobToRegex(builder.fields[i]);
@@ -51,25 +52,23 @@ public class Hierarchical extends Processor {
             for (Pattern p: patterns) {
                 if (p.matcher(eventField).matches()) {
                     localRenamer.setSource(VariablePath.of(new String[] {eventField}));
-                    VariablePath destination;
                     List<String> path = VariablePath.pathElements(eventField);
-                    if (path.isEmpty() || (path.size() == 1 && destinationParent == null)) {
-                        break;
-                    } else if (destinationParent != null) {
-                        destination = destinationParent;
-                        for(String e: path) {
-                            destination = destination.append(e);
+                    if (!path.isEmpty()) {
+                        VariablePath d = destination;
+                        for (String e: path) {
+                            d = d.append(e);
                         }
-                    } else {
-                        destination = VariablePath.of(eventField);
+                        localRenamer.setLvalue(d);
+                        localRenamer.process(event);
                     }
-                    localRenamer.setLvalue(destination);
-                    localRenamer.process(event);
-                    break;
                 }
             }
         }
         return true;
+    }
+
+    public Pattern[] getPatterns() {
+        return Arrays.copyOf(patterns, patterns.length);
     }
 
 }
