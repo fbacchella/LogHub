@@ -13,6 +13,7 @@ import org.logstash.beats.Message;
 
 import com.codahale.metrics.Histogram;
 import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.StreamReadFeature;
 import com.fasterxml.jackson.databind.ObjectReader;
 
 import io.netty.bootstrap.ServerBootstrap;
@@ -126,6 +127,7 @@ public class Beats extends NettyReceiver<Beats, ByteBuf, Beats.Builder> implemen
         this.workers = builder.workers;
         this.reader = JacksonBuilder.get()
                                     .setFactory(new JsonFactory())
+                                    .feature(StreamReadFeature.USE_FAST_DOUBLE_PARSER)
                                     .getReader();
 
         this.messageListener = new IMessageListener() {

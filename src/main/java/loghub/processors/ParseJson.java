@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.Map;
 
 import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.StreamReadFeature;
 import com.fasterxml.jackson.databind.ObjectReader;
 
 import loghub.events.Event;
@@ -22,6 +23,7 @@ public class ParseJson extends FieldsProcessor {
     public ParseJson() {
         reader = JacksonBuilder.get()
                 .setFactory(new JsonFactory())
+                .feature(StreamReadFeature.USE_FAST_DOUBLE_PARSER)
                 .getReader();
     }
 

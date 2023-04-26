@@ -2,6 +2,7 @@ package loghub.decoders;
 
 import java.nio.charset.StandardCharsets;
 
+import com.fasterxml.jackson.core.StreamReadFeature;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 
 import loghub.BuilderClass;
@@ -27,7 +28,7 @@ public class Json extends AbstractStringJackson<Json.Builder, JsonMapper> {
 
     @Override
     protected JacksonBuilder<JsonMapper> getReaderBuilder(Builder builder) {
-        return JacksonBuilder.get(JsonMapper.class);
+        return JacksonBuilder.get(JsonMapper.class).feature(StreamReadFeature.USE_FAST_DOUBLE_PARSER);
     }
 
 }
