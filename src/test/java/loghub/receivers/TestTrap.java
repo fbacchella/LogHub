@@ -23,10 +23,14 @@ import org.snmp4j.PDU;
 import org.snmp4j.PDUv1;
 import org.snmp4j.TransportMapping;
 import org.snmp4j.mp.MessageProcessingModel;
+import org.snmp4j.smi.Counter64;
 import org.snmp4j.smi.Integer32;
 import org.snmp4j.smi.IpAddress;
+import org.snmp4j.smi.Null;
 import org.snmp4j.smi.OID;
 import org.snmp4j.smi.OctetString;
+import org.snmp4j.smi.Opaque;
+import org.snmp4j.smi.TimeTicks;
 import org.snmp4j.smi.UdpAddress;
 import org.snmp4j.smi.VariableBinding;
 import org.snmp4j.transport.DefaultUdpTransportMapping;
@@ -113,6 +117,7 @@ public class TestTrap {
 
     @Test
     public void testTrapv2() throws IOException {
+        InetAddress localhost = InetAddress.getByName("127.0.0.1");
         doTest(() -> {
             PDU pdu = new PDU();
             pdu.setType(PDU.TRAP);
@@ -120,6 +125,14 @@ public class TestTrap {
             // Some undecoded values
             pdu.add(new VariableBinding(new OID("1.3.6.2.1.4.20.1.1.0"), new OctetString("1")));
             pdu.add(new VariableBinding(new OID("1.3.6.2.1.4.20.1.2.0"), new OctetString("2")));
+            pdu.add(new VariableBinding(new OID("1.3.6.2.1.4.20.1.3.0"), new OctetString("3\0")));
+            pdu.add(new VariableBinding(new OID("1.3.6.2.1.4.20.1.4.0"), Null.instance));
+            pdu.add(new VariableBinding(new OID("1.3.6.2.1.4.20.1.5.0"), new OID("enterprises")));
+            pdu.add(new VariableBinding(new OID("1.3.6.2.1.4.20.1.6.0"), new IpAddress("127.0.0.1")));
+            pdu.add(new VariableBinding(new OID("1.3.6.2.1.4.20.1.7.0"), new TimeTicks(111)));
+            pdu.add(new VariableBinding(new OID("1.3.6.2.1.4.20.1.8.0"), new Opaque(new byte[]{(byte)0x9f, (byte)0x78, (byte)0x04, (byte)0x42, (byte)0xf6, (byte)0x00, (byte)0x00})));
+            pdu.add(new VariableBinding(new OID("1.3.6.2.1.4.20.1.9.0"), new Integer32(4)));
+            pdu.add(new VariableBinding(new OID("1.3.6.2.1.4.20.1.10.0"), new Counter64(5)));
             return pdu;
         }, te -> {
             te.setMessageProcessingModel(MessageProcessingModel.MPv2c);
@@ -128,9 +141,17 @@ public class TestTrap {
             Assert.assertNull(e.get("specific_trap"));
             Assert.assertEquals("loghub", e.getConnectionContext().getPrincipal().getName());
             Assert.assertEquals("lldpRemTablesChange", e.get("snmpTrapOID"));
-            Map<String, String> dodValues = (Map<String, String>) e.get("dod");
+            Map<String, Object> dodValues = (Map<String, Object>) e.get("dod");
             Assert.assertEquals("1", dodValues.get("2.1.4.20.1.1.0"));
             Assert.assertEquals("2", dodValues.get("2.1.4.20.1.2.0"));
+            Assert.assertEquals("3", dodValues.get("2.1.4.20.1.3.0"));
+            Assert.assertNull(dodValues.get("2.1.4.20.1.4.0"));
+            Assert.assertEquals("enterprises", dodValues.get("2.1.4.20.1.5.0"));
+            Assert.assertEquals(localhost, dodValues.get("2.1.4.20.1.6.0"));
+            Assert.assertEquals(1.11, dodValues.get("2.1.4.20.1.7.0"));
+            Assert.assertEquals(123.0f, dodValues.get("2.1.4.20.1.8.0"));
+            Assert.assertEquals(4, dodValues.get("2.1.4.20.1.9.0"));
+            Assert.assertEquals(5L, dodValues.get("2.1.4.20.1.10.0"));
         });
     }
 
