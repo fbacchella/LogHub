@@ -16,6 +16,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.msgpack.jackson.dataformat.ExtensionTypeCustomDeserializers;
 import org.msgpack.jackson.dataformat.MessagePackFactory;
+import org.msgpack.jackson.dataformat.MessagePackMapper;
 
 import com.fasterxml.jackson.databind.ObjectReader;
 
@@ -74,8 +75,7 @@ public class TestMsgpack {
 
         ExtensionTypeCustomDeserializers extTypeCustomDesers = new ExtensionTypeCustomDeserializers();
         extTypeCustomDesers.addCustomDeser((byte) -1, new MsgpackTimeDeserializer());
-        ObjectReader reader = JacksonBuilder.get()
-                                            .setFactory(new MessagePackFactory().setExtTypeCustomDesers(extTypeCustomDesers))
+        ObjectReader reader = JacksonBuilder.get(MessagePackMapper.class, new MessagePackFactory().setExtTypeCustomDesers(extTypeCustomDesers))
                                             .getReader();
         List<Map<String, Object>> read = reader.readValue(data, 0, data.length);
         Assert.assertEquals(2 , read.size());

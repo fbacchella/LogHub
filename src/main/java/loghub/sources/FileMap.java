@@ -10,7 +10,6 @@ import java.util.Map;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVRecord;
 
-import com.fasterxml.jackson.core.StreamReadFeature;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 
@@ -76,7 +75,7 @@ public class FileMap extends HashMap<Object, Object> implements Source {
 
     private void mapFromJson(Builder builder) {
         try (Reader in = new FileReader(builder.mappingFile)) {
-            ObjectReader reader = JacksonBuilder.get(JsonMapper.class).feature(StreamReadFeature.USE_FAST_DOUBLE_PARSER).getReader();
+            ObjectReader reader = JacksonBuilder.get(JsonMapper.class).getReader();
             putAll(reader.readValue(in, Map.class));
         } catch (IOException e) {
             throw new IllegalArgumentException("Can't read mapping file " + builder.mappingFile);

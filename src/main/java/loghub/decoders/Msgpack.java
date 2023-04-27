@@ -46,8 +46,7 @@ public class Msgpack extends AbstractJacksonDecoder<Msgpack.Builder, MessagePack
 
     @Override
     protected JacksonBuilder<MessagePackMapper> getReaderBuilder(Builder builder) {
-        return JacksonBuilder.get(MessagePackMapper.class)
-                             .setFactory(factory);
+        return JacksonBuilder.get(MessagePackMapper.class, factory);
     }
 
     @Override

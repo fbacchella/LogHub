@@ -2,7 +2,6 @@ package loghub.decoders;
 
 import java.util.Arrays;
 
-import com.fasterxml.jackson.core.StreamReadFeature;
 import com.fasterxml.jackson.dataformat.csv.CsvMapper;
 import com.fasterxml.jackson.dataformat.csv.CsvSchema;
 
@@ -53,7 +52,6 @@ public class Csv extends AbstractStringJackson<Csv.Builder, CsvMapper> {
 
         return JacksonBuilder.get(CsvMapper.class)
                              .setSchema(sbuilder.build())
-                             .feature(StreamReadFeature.USE_FAST_DOUBLE_PARSER)
                              .setConfigurator(m -> Helpers.csvFeatures(m, builder.features));
     }
 

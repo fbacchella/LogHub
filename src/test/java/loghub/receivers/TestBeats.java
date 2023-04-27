@@ -29,6 +29,7 @@ import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 
 import loghub.BeanChecks;
 import loghub.BeanChecks.BeanInfo;
@@ -63,8 +64,7 @@ public class TestBeats {
     private PriorityBlockingQueue queue;
 
     public TestBeats() {
-        ObjectMapper mapper = JacksonBuilder.get().setFactory(new JsonFactory()).getMapper();
-        writer = mapper.writer();
+        writer = JacksonBuilder.get(JsonMapper.class).getMapper().writer();
     }
 
     @Test(timeout=5000)

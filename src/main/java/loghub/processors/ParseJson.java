@@ -3,9 +3,8 @@ package loghub.processors;
 import java.io.IOException;
 import java.util.Map;
 
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.StreamReadFeature;
 import com.fasterxml.jackson.databind.ObjectReader;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 
 import loghub.events.Event;
 import loghub.ProcessorException;
@@ -21,10 +20,8 @@ public class ParseJson extends FieldsProcessor {
     private final ObjectReader reader;
 
     public ParseJson() {
-        reader = JacksonBuilder.get()
-                .setFactory(new JsonFactory())
-                .feature(StreamReadFeature.USE_FAST_DOUBLE_PARSER)
-                .getReader();
+        reader = JacksonBuilder.get(JsonMapper.class)
+                               .getReader();
     }
 
     @Override

@@ -32,6 +32,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 
 import io.netty.util.CharsetUtil;
 import loghub.BuilderClass;
@@ -93,8 +94,7 @@ public class ElasticSearch extends AbstractHttpSender {
         return new Builder();
     }
 
-    private static final ObjectMapper json = JacksonBuilder.get()
-            .setMapperSupplier(ObjectMapper::new)
+    private static final JsonMapper json = JacksonBuilder.get(JsonMapper.class)
             .setConfigurator(m -> m.configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false).configure(JsonWriteFeature.ESCAPE_NON_ASCII.mappedFeature(), true))
             .getMapper();
     private static final ObjectReader jsonreader = json.readerFor(Map.class);

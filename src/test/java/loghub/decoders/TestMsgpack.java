@@ -24,6 +24,7 @@ import org.junit.Test;
 import org.msgpack.core.MessagePack;
 import org.msgpack.core.MessagePacker;
 import org.msgpack.jackson.dataformat.MessagePackFactory;
+import org.msgpack.jackson.dataformat.MessagePackMapper;
 import org.msgpack.value.Value;
 import org.msgpack.value.ValueFactory;
 
@@ -47,9 +48,8 @@ public class TestMsgpack {
     private static Logger logger;
     private final EventsFactory factory = new EventsFactory();
 
-    private final static ObjectMapper objectMapper = JacksonBuilder.get()
-                                                                   .setFactory(new MessagePackFactory())
-                                                                   .getMapper();
+    private final static MessagePackMapper objectMapper = JacksonBuilder.get(MessagePackMapper.class)
+                                                                        .getMapper();
     private final static Map<String, Object> obj = new HashMap<String, Object>();
 
     static {

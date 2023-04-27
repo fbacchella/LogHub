@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Map;
 
-import com.fasterxml.jackson.core.StreamReadFeature;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.dataformat.csv.CsvMapper;
 import com.fasterxml.jackson.dataformat.csv.CsvSchema;
@@ -39,11 +38,9 @@ public class ParseCsv extends FieldsProcessor {
         }
 
         reader =  JacksonBuilder.get(CsvMapper.class)
-                .setMapperSupplier(CsvMapper::new)
-                .setSchema(sbuilder.build())
-                .setConfigurator(m -> Helpers.csvFeatures(m, features))
-                .feature(StreamReadFeature.USE_FAST_DOUBLE_PARSER)
-                .getReader();
+                                .setSchema(sbuilder.build())
+                                .setConfigurator(m -> Helpers.csvFeatures(m, features))
+                                .getReader();
 
         return super.configure(properties);
     }

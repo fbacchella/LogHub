@@ -31,7 +31,6 @@ public class Msgpack extends AbstractJacksonEncoder<Msgpack.Builder, MessagePack
         return new Builder();
     }
 
-    private static final JsonFactory factory = new MessagePackFactory();
     private static final SimpleModule dateModuleEvent;
     private static final SimpleModule dateModuleMap;
     static {
@@ -55,9 +54,7 @@ public class Msgpack extends AbstractJacksonEncoder<Msgpack.Builder, MessagePack
     @Override
     protected JacksonBuilder<MessagePackMapper> getWriterBuilder(Builder builder) {
         return JacksonBuilder.get(MessagePackMapper.class)
-                .setFactory(factory)
-                .module(builder.forwardEvent ? dateModuleEvent : dateModuleMap)
-                ;
+                             .module(builder.forwardEvent ? dateModuleEvent : dateModuleMap);
     }
 
 }

@@ -1,15 +1,15 @@
 package loghub.jackson;
 
-import java.lang.reflect.Constructor;
+import java.lang.reflect.Array;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.function.Consumer;
-import java.util.function.Supplier;
 
 import com.fasterxml.jackson.core.FormatSchema;
 import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.StreamReadFeature;
 import com.fasterxml.jackson.core.Version;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonSerializer;
@@ -17,6 +17,7 @@ import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.ObjectWriter;
+import com.fasterxml.jackson.databind.cfg.MapperBuilder;
 import com.fasterxml.jackson.databind.jsontype.impl.StdTypeResolverBuilder;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
@@ -31,53 +32,63 @@ import lombok.experimental.Accessors;
 @Accessors(chain = true)
 public class JacksonBuilder<T extends ObjectMapper> {
 
-    public static final TypeReference<Object> OBJECTREF = new TypeReference<>() { /* empty */
+    public static <T extends ObjectMapper> JacksonBuilder<T> get(Class<T> clazz) {
+        try {
+            Method builderMethod = clazz.getMethod("builder");
+            @SuppressWarnings("unchecked")
+            MapperBuilder<T,?> builder = (MapperBuilder<T, ?>) builderMethod.invoke(null);
+            defautConfiguration(builder);
+            return new JacksonBuilder<>(builder);
+        } catch (NoSuchMethodException | SecurityException | IllegalAccessException | InvocationTargetException ex) {
+            throw new IllegalStateException("Unusable Jackson mapper " + clazz.getName() + ": " + Helpers.resolveThrowableException(ex), ex);
+        }
+    }
+
+    public static <T extends ObjectMapper> JacksonBuilder<T> get(Class<T> clazz, JsonFactory factory) {
+        try {
+            Method builderMethod = clazz.getMethod("builder", factory.getClass());
+            @SuppressWarnings("unchecked")
+            MapperBuilder<T,?> builder = (MapperBuilder<T, ?>) builderMethod.invoke(null, factory);
+            defautConfiguration(builder);
+            return new JacksonBuilder<>(builder);
+        } catch (NoSuchMethodException | SecurityException | IllegalAccessException | InvocationTargetException ex) {
+            throw new IllegalStateException("Unusable Jackson mapper " + clazz.getName() + ": " + Helpers.resolveThrowableException(ex), ex);
+        }
+    }
+
+    public static  void defautConfiguration(MapperBuilder<?, ?> builder) {
+        builder.setDefaultTyping(StdTypeResolverBuilder.noTypeInfoBuilder());
+        builder.addModule(new JavaTimeModule());
+        builder.addModule(new Jdk8Module());
+        builder.addModule(new AfterburnerModule());
+        builder.enable(StreamReadFeature.USE_FAST_DOUBLE_PARSER);
+    }
+
+    public static <T extends ObjectMapper,B extends MapperBuilder<T,B>> JacksonBuilder<T> get(B builder) {
+        return new JacksonBuilder<>(builder);
+    }
+
+    public static final TypeReference<Object> OBJECTREF = new TypeReference<>() {
+        /* empty */
     };
 
-    @Setter
-    JsonFactory factory = null;
+    private final MapperBuilder<T,?> builder;
+
     @Setter
     private FormatSchema schema = null;
-
-    Set<Module> modules = new HashSet<>();
-
-    Set<Enum<?>> features = new HashSet<>();
     @Setter @Singular
-    Set<JsonSerializer<?>> serialiazers  = new HashSet<>();
-    @Setter
-    Supplier<T> mapperSupplier;
+    Set<JsonSerializer<?>> serializers = new HashSet<>();
     @Setter
     TypeReference<?> typeReference = null;
     @Setter
     Consumer<T> configurator = null;
 
-    public static <T extends ObjectMapper> JacksonBuilder<T> get(Class<T> clazz) {
-        JacksonBuilder<T> jb = new JacksonBuilder<>();
-        try {
-            Constructor<T> cons = clazz.getConstructor();
-            jb.mapperSupplier = () -> {
-                try {
-                    return cons.newInstance();
-                } catch (InstantiationException | IllegalAccessException | IllegalArgumentException
-                        | InvocationTargetException ex) {
-                    throw new IllegalStateException("Unusable Jackson mapper " + clazz.getName() + ": " + Helpers.resolveThrowableException(ex), ex);
-                }
-            };
-        } catch (NoSuchMethodException | SecurityException ex) {
-            throw new IllegalStateException("Unusable Jackson mapper " + clazz.getName() + ": " + Helpers.resolveThrowableException(ex), ex);
-        }
-        return jb;
-    }
-
-    public static JacksonBuilder<ObjectMapper> get() {
-        return new JacksonBuilder<>();
-    }
-
-    private JacksonBuilder() {
+    private JacksonBuilder(MapperBuilder<T, ?> builder) {
+        this.builder = builder;
     }
 
     public ObjectReader getReader() {
-        ObjectReader reader = getMapper().readerFor(typeReference != null ? typeReference: OBJECTREF);
+        ObjectReader reader = getMapper().readerFor(typeReference != null ? typeReference : OBJECTREF);
         if (schema != null) {
             reader = reader.with(schema);
         }
@@ -92,53 +103,35 @@ public class JacksonBuilder<T extends ObjectMapper> {
         return writer;
     }
 
-    @SuppressWarnings("unchecked")
     public T getMapper() {
         T mapper;
-
-        if (factory != null) {
-            mapper = (T) new ObjectMapper(factory);
-        } else if (mapperSupplier != null) {
-            mapper = mapperSupplier.get();
-        } else {
-            throw new IllegalStateException("No mapper source defined");
-        }
+        mapper = builder.build();
         if (configurator != null) {
             configurator.accept(mapper);
         }
-        features.forEach(f -> enable(mapper, f));
-        mapper.setDefaultTyping(StdTypeResolverBuilder.noTypeInfoBuilder());
-        mapper.registerModule(new JavaTimeModule());
-        mapper.registerModule(new Jdk8Module());
-        mapper.registerModule(new AfterburnerModule());
-        if (!serialiazers.isEmpty()) {
+        if (!serializers.isEmpty()) {
             SimpleModule wrapperModule = new SimpleModule("LogHub", new Version(1, 0, 0, null, "loghub", "WrapperModule"));
-            serialiazers.forEach(wrapperModule::addSerializer);
+            serializers.forEach(wrapperModule::addSerializer);
             mapper.registerModule(wrapperModule);
         }
-        modules.forEach(mapper::registerModule);
         return mapper;
     }
     
     public JacksonBuilder<T> feature(Enum<?> e) {
-        features.add(e);
+        try {
+            Object o = Array.newInstance(e.getClass(), 1);
+            Array.set(o, 0, e);
+            Method m = builder.getClass().getMethod("enable", o.getClass());
+            m.invoke(builder, o);
+        } catch (NoSuchMethodException | SecurityException | IllegalAccessException | IllegalArgumentException | InvocationTargetException ex) {
+            throw new IllegalStateException("Unusable feature " + e.name() + ": " + Helpers.resolveThrowableException(ex), ex);
+        }
         return this;
     }
 
     public JacksonBuilder<T> module(Module m) {
-        modules.add(m);
+        builder.addModule(m);
         return this;
-    }
-
-    private void enable(T mapper, Enum<?> f) {
-        try {
-            @SuppressWarnings("unchecked")
-            Class<? extends Enum<?>> eclass = (Class<? extends Enum<?>>) f.getClass();
-            Method m = mapper.getClass().getMethod("enable", eclass);
-            m.invoke(mapper, f);
-        } catch (NoSuchMethodException | SecurityException | IllegalAccessException | IllegalArgumentException | InvocationTargetException ex) {
-            throw new IllegalStateException("Unusable feature " + f.name() + ": " + Helpers.resolveThrowableException(ex), ex);
-        }
     }
 
 }

@@ -12,9 +12,8 @@ import org.logstash.beats.IMessageListener;
 import org.logstash.beats.Message;
 
 import com.codahale.metrics.Histogram;
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.StreamReadFeature;
 import com.fasterxml.jackson.databind.ObjectReader;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.ByteBuf;
@@ -125,9 +124,7 @@ public class Beats extends NettyReceiver<Beats, ByteBuf, Beats.Builder> implemen
         this.idleExecutorGroup = new DefaultEventExecutorGroup(builder.workers, ThreadBuilder.get().setDaemon(true).getFactory(getReceiverName() + "/idle"));
         this.beatsHandlerExecutorGroup = new DefaultEventExecutorGroup(builder.workers, ThreadBuilder.get().setDaemon(true).getFactory(getReceiverName() + "/beatsHandler"));
         this.workers = builder.workers;
-        this.reader = JacksonBuilder.get()
-                                    .setFactory(new JsonFactory())
-                                    .feature(StreamReadFeature.USE_FAST_DOUBLE_PARSER)
+        this.reader = JacksonBuilder.get(JsonMapper.class)
                                     .getReader();
 
         this.messageListener = new IMessageListener() {
