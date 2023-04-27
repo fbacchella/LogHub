@@ -13,9 +13,9 @@ import org.apache.logging.log4j.Level;
 
 import loghub.BuilderClass;
 import loghub.CachingParser;
-import loghub.events.Event;
 import loghub.Helpers;
 import loghub.configuration.Properties;
+import loghub.events.Event;
 import lombok.Getter;
 import lombok.Setter;
 import ua_parser.Client;

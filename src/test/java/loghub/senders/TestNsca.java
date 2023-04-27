@@ -6,12 +6,11 @@ import java.io.StringReader;
 import org.junit.Assert;
 import org.junit.Test;
 
-import loghub.ConnectionContext;
-import loghub.events.Event;
 import loghub.configuration.ConfigException;
 import loghub.configuration.Configuration;
 import loghub.configuration.Properties;
 import loghub.encoders.EncodeException;
+import loghub.events.Event;
 import loghub.events.EventsFactory;
 
 public class TestNsca {

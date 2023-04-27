@@ -1,13 +1,13 @@
 package loghub.metrics;
 
-import static org.junit.Assert.assertEquals;
-
 import javax.management.InstanceAlreadyExistsException;
 import javax.management.MBeanRegistrationException;
 import javax.management.MalformedObjectNameException;
 import javax.management.NotCompliantMBeanException;
 
 import org.junit.Test;
+
+import static org.junit.Assert.assertEquals;
 
 public class TestStats {
 

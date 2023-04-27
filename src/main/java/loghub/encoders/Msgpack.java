@@ -1,9 +1,7 @@
 package loghub.encoders;
 
-import org.msgpack.jackson.dataformat.MessagePackFactory;
 import org.msgpack.jackson.dataformat.MessagePackMapper;
 
-import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.Version;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 

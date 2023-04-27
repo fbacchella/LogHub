@@ -19,10 +19,10 @@ import com.fasterxml.jackson.dataformat.csv.CsvSchema;
 
 import loghub.BuilderClass;
 import loghub.CanBatch;
-import loghub.events.Event;
 import loghub.Expression;
 import loghub.IgnoredEventException;
 import loghub.ProcessorException;
+import loghub.events.Event;
 import loghub.jackson.Helpers;
 import loghub.jackson.JacksonBuilder;
 import lombok.Setter;

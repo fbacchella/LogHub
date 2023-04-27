@@ -22,10 +22,10 @@ import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.CompositeByteBuf;
 import loghub.BeanChecks;
 import loghub.ConnectionContext;
-import loghub.configuration.Properties;
-import loghub.events.Event;
 import loghub.LogUtils;
 import loghub.Tools;
+import loghub.configuration.Properties;
+import loghub.events.Event;
 
 public class TestJournaldDecoder {
 

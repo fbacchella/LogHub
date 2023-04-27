@@ -19,11 +19,11 @@ import javax.script.ScriptException;
 
 import org.apache.logging.log4j.Level;
 
-import loghub.events.Event;
 import loghub.Helpers;
 import loghub.Processor;
 import loghub.ProcessorException;
 import loghub.configuration.Properties;
+import loghub.events.Event;
 
 public class Script extends Processor {
 

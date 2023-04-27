@@ -9,12 +9,12 @@ import java.util.function.Supplier;
 
 import io.netty.util.concurrent.Future;
 import loghub.AsyncProcessor;
-import loghub.UncheckedProcessorException;
-import loghub.events.Event;
 import loghub.Processor;
 import loghub.ProcessorException;
+import loghub.UncheckedProcessorException;
 import loghub.VariablePath;
 import loghub.configuration.Properties;
+import loghub.events.Event;
 import lombok.Getter;
 import lombok.Setter;
 

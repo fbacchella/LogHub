@@ -12,15 +12,14 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import loghub.BeanChecks;
-import loghub.EventsProcessor;
 import loghub.Expression;
+import loghub.LogUtils;
 import loghub.Processor;
+import loghub.ProcessorException;
+import loghub.Tools;
 import loghub.VarFormatter;
 import loghub.VariablePath;
 import loghub.events.Event;
-import loghub.LogUtils;
-import loghub.ProcessorException;
-import loghub.Tools;
 import loghub.events.EventsFactory;
 
 public class TestUrlDecoders {

@@ -18,12 +18,12 @@ import org.junit.Test;
 import org.zeromq.SocketType;
 import org.zeromq.ZMQ.Socket;
 
-import loghub.ZMQFactory;
-import loghub.events.Event;
 import loghub.LogUtils;
 import loghub.Tools;
+import loghub.ZMQFactory;
 import loghub.ZMQFlow;
 import loghub.ZMQSink;
+import loghub.events.Event;
 import loghub.receivers.Receiver;
 import loghub.senders.Sender;
 import loghub.zmq.ZMQCheckedException;

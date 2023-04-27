@@ -39,12 +39,12 @@ import com.maxmind.geoip2.record.Postal;
 import com.maxmind.geoip2.record.Subdivision;
 
 import loghub.BuilderClass;
-import loghub.events.Event;
 import loghub.Helpers;
 import loghub.ProcessorException;
 import loghub.configuration.CacheManager;
 import loghub.configuration.CacheManager.Policy;
 import loghub.configuration.Properties;
+import loghub.events.Event;
 import lombok.Getter;
 import lombok.Setter;
 

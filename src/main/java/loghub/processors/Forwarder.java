@@ -1,9 +1,9 @@
 package loghub.processors;
 
-import loghub.events.Event;
 import loghub.Pipeline;
 import loghub.Processor;
 import loghub.configuration.Properties;
+import loghub.events.Event;
 
 /**
  * An empty processor, it's just a place holder. It should never be used directly

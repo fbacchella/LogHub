@@ -8,10 +8,10 @@ import java.util.Map;
 import io.netty.buffer.ByteBuf;
 import loghub.BuilderClass;
 import loghub.ConnectionContext;
-import loghub.events.Event;
 import loghub.IpConnectionContext;
 import loghub.decoders.DecodeException;
 import loghub.decoders.Decoder;
+import loghub.events.Event;
 
 @BuilderClass(NetflowDecoder.Builder.class)
 public class NetflowDecoder extends Decoder {

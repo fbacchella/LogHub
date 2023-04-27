@@ -11,15 +11,15 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import loghub.events.Event;
 import loghub.LogUtils;
 import loghub.ProcessorException;
 import loghub.Tools;
-import loghub.VariablePath;
 import loghub.Tools.ProcessingStatus;
+import loghub.VariablePath;
 import loghub.configuration.ConfigException;
 import loghub.configuration.ConfigurationTools;
 import loghub.configuration.Properties;
+import loghub.events.Event;
 import loghub.events.EventsFactory;
 import loghub.processors.Mapper;
 

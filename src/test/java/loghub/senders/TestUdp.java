@@ -21,12 +21,11 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import loghub.BeanChecks;
-import loghub.ConnectionContext;
-import loghub.events.Event;
 import loghub.LogUtils;
 import loghub.Tools;
 import loghub.configuration.Properties;
 import loghub.encoders.ToJson;
+import loghub.events.Event;
 import loghub.events.EventsFactory;
 
 public class TestUdp {

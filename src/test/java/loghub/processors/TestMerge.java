@@ -16,14 +16,13 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import loghub.AsyncProcessor;
-import loghub.ConnectionContext;
-import loghub.events.Event;
 import loghub.Helpers;
 import loghub.LogUtils;
 import loghub.ProcessorException;
 import loghub.Tools;
 import loghub.configuration.Configuration;
 import loghub.configuration.Properties;
+import loghub.events.Event;
 import loghub.events.EventsFactory;
 
 public class TestMerge {

@@ -6,11 +6,11 @@
 
 package loghub.configuration;
 
+import java.util.Iterator;
+
 import org.antlr.v4.runtime.Lexer;
 import org.antlr.v4.runtime.misc.Interval;
 import org.antlr.v4.runtime.misc.IntervalSet;
-
-import java.util.Iterator;
 
 /** */
 public class CharSupport {

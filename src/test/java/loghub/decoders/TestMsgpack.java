@@ -23,22 +23,20 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.msgpack.core.MessagePack;
 import org.msgpack.core.MessagePacker;
-import org.msgpack.jackson.dataformat.MessagePackFactory;
 import org.msgpack.jackson.dataformat.MessagePackMapper;
 import org.msgpack.value.Value;
 import org.msgpack.value.ValueFactory;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 import loghub.AbstractBuilder;
 import loghub.ConnectionContext;
-import loghub.configuration.Properties;
-import loghub.events.Event;
 import loghub.LogUtils;
 import loghub.ThreadBuilder;
 import loghub.Tools;
+import loghub.configuration.Properties;
 import loghub.encoders.EncodeException;
+import loghub.events.Event;
 import loghub.events.EventsFactory;
 import loghub.jackson.JacksonBuilder;
 import loghub.receivers.Receiver;

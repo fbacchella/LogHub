@@ -8,9 +8,9 @@ import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.dataformat.csv.CsvMapper;
 import com.fasterxml.jackson.dataformat.csv.CsvSchema;
 
-import loghub.events.Event;
 import loghub.ProcessorException;
 import loghub.configuration.Properties;
+import loghub.events.Event;
 import loghub.jackson.Helpers;
 import loghub.jackson.JacksonBuilder;
 import lombok.Getter;

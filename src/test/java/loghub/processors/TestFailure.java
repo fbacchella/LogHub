@@ -2,10 +2,9 @@ package loghub.processors;
 
 import org.junit.Test;
 
-import loghub.events.Event;
 import loghub.Processor;
 import loghub.ProcessorException;
-import loghub.Tools;
+import loghub.events.Event;
 import loghub.events.EventsFactory;
 
 public class TestFailure {

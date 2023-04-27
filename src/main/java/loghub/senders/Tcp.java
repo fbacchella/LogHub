@@ -15,9 +15,9 @@ import com.codahale.metrics.Meter;
 import jdk.net.ExtendedSocketOptions;
 import loghub.BuilderClass;
 import loghub.CanBatch;
-import loghub.events.Event;
 import loghub.configuration.Properties;
 import loghub.encoders.EncodeException;
+import loghub.events.Event;
 import loghub.metrics.Stats;
 import lombok.Setter;
 

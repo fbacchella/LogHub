@@ -6,8 +6,8 @@ import java.util.Map;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 
-import loghub.events.Event;
 import loghub.ProcessorException;
+import loghub.events.Event;
 import loghub.jackson.JacksonBuilder;
 import lombok.Getter;
 import lombok.Setter;

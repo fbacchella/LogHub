@@ -21,10 +21,10 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 
-import loghub.events.Event;
 import loghub.LogUtils;
 import loghub.Tools;
 import loghub.configuration.Properties;
+import loghub.events.Event;
 import loghub.events.EventsFactory;
 import loghub.jackson.JacksonBuilder;
 import loghub.senders.InMemorySender;

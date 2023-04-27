@@ -10,9 +10,9 @@ import java.util.concurrent.atomic.DoubleAccumulator;
 import java.util.concurrent.atomic.DoubleAdder;
 import java.util.stream.IntStream;
 
-import loghub.events.Event;
 import loghub.ProcessorException;
 import loghub.configuration.Properties;
+import loghub.events.Event;
 
 public class ScanBinary extends FieldsProcessor {
 

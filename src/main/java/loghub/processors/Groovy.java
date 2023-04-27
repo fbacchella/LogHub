@@ -3,9 +3,9 @@ package loghub.processors;
 import groovy.lang.Binding;
 import groovy.lang.GroovyShell;
 import groovy.lang.Script;
-import loghub.events.Event;
 import loghub.Processor;
 import loghub.ProcessorException;
+import loghub.events.Event;
 
 public class Groovy extends Processor  {
 

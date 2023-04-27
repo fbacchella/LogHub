@@ -7,8 +7,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 
-import loghub.events.Event;
 import loghub.Helpers;
+import loghub.events.Event;
 import loghub.jackson.JacksonBuilder;
 
 public abstract class AbstractJacksonEncoder<JB extends AbstractJacksonEncoder.Builder<? extends AbstractJacksonEncoder<JB, OM>>, OM extends ObjectMapper> extends Encoder {

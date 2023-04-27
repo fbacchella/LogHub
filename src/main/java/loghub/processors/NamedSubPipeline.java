@@ -1,10 +1,10 @@
 package loghub.processors;
 
-import loghub.events.Event;
 import loghub.Pipeline;
 import loghub.Processor;
 import loghub.SubPipeline;
 import loghub.configuration.Properties;
+import loghub.events.Event;
 
 public class NamedSubPipeline extends Processor implements SubPipeline {
 

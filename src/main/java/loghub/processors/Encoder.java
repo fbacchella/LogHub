@@ -1,11 +1,11 @@
 package loghub.processors;
 
-import loghub.events.Event;
 import loghub.Processor;
 import loghub.ProcessorException;
 import loghub.VariablePath;
 import loghub.configuration.Properties;
 import loghub.encoders.EncodeException;
+import loghub.events.Event;
 import lombok.Getter;
 import lombok.Setter;
 

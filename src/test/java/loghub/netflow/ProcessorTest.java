@@ -16,7 +16,6 @@ import org.junit.Test;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import loghub.events.Event;
 import loghub.IpConnectionContext;
 import loghub.LogUtils;
 import loghub.ProcessorException;
@@ -24,6 +23,7 @@ import loghub.Tools;
 import loghub.Tools.ProcessingStatus;
 import loghub.decoders.DecodeException;
 import loghub.decoders.Decoder;
+import loghub.events.Event;
 import loghub.events.EventsFactory;
 
 public class ProcessorTest {

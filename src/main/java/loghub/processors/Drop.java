@@ -1,7 +1,7 @@
 package loghub.processors;
 
-import loghub.events.Event;
 import loghub.Processor;
+import loghub.events.Event;
 
 public class Drop extends Processor {
 

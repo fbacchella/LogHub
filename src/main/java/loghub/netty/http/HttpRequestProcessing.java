@@ -1,7 +1,5 @@
 package loghub.netty.http;
 
-import static io.netty.handler.codec.http.HttpResponseStatus.OK;
-
 import java.util.function.Predicate;
 
 import com.codahale.metrics.Meter;
@@ -10,6 +8,8 @@ import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.FullHttpRequest;
 import loghub.metrics.Stats;
+
+import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 
 
 public abstract class HttpRequestProcessing extends HttpHandler {

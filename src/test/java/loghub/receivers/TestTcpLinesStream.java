@@ -25,7 +25,6 @@ import org.junit.Test;
 
 import loghub.BeanChecks;
 import loghub.BeanChecks.BeanInfo;
-import loghub.events.Event;
 import loghub.Filter;
 import loghub.LogUtils;
 import loghub.Pipeline;
@@ -35,6 +34,7 @@ import loghub.configuration.Properties;
 import loghub.decoders.Decoder;
 import loghub.decoders.Json;
 import loghub.decoders.StringCodec;
+import loghub.events.Event;
 import loghub.netty.transport.POLLER;
 import loghub.security.ssl.ClientAuthentication;
 import loghub.security.ssl.ContextLoader;

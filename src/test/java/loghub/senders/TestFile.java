@@ -21,7 +21,6 @@ import org.junit.rules.TemporaryFolder;
 
 import loghub.BeanChecks;
 import loghub.ConnectionContext;
-import loghub.events.Event;
 import loghub.Expression;
 import loghub.LogUtils;
 import loghub.ProcessorException;
@@ -29,6 +28,7 @@ import loghub.Tools;
 import loghub.configuration.Properties;
 import loghub.encoders.EncodeException;
 import loghub.encoders.EvalExpression;
+import loghub.events.Event;
 import loghub.events.EventsFactory;
 import loghub.metrics.Stats;
 

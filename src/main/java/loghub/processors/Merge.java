@@ -15,7 +15,6 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 
 import loghub.AsyncProcessor;
-import loghub.events.Event;
 import loghub.EventsRepository;
 import loghub.Expression;
 import loghub.NullOrMissingValue;
@@ -23,6 +22,7 @@ import loghub.PausedEvent;
 import loghub.Processor;
 import loghub.ProcessorException;
 import loghub.configuration.Properties;
+import loghub.events.Event;
 import lombok.Getter;
 import lombok.Setter;
 

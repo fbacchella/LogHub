@@ -10,10 +10,10 @@ import org.junit.Assert;
 import com.codahale.metrics.Meter;
 
 import loghub.ConnectionContext;
-import loghub.events.Event;
 import loghub.configuration.Properties;
 import loghub.encoders.EncodeException;
 import loghub.encoders.Encoder;
+import loghub.events.Event;
 import loghub.events.EventsFactory;
 import loghub.metrics.Stats;
 

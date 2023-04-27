@@ -1,7 +1,5 @@
 package loghub;
 
-import static java.util.Locale.ENGLISH;
-
 import java.beans.IntrospectionException;
 import java.beans.PropertyDescriptor;
 import java.io.IOException;
@@ -15,6 +13,8 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 
 import loghub.processors.FieldsProcessor;
+
+import static java.util.Locale.ENGLISH;
 
 public class BeanChecks {
 

@@ -25,13 +25,13 @@ import com.codahale.metrics.Meter;
 
 import loghub.BeanChecks;
 import loghub.BeanChecks.BeanInfo;
-import loghub.events.Event;
 import loghub.Expression;
 import loghub.LogUtils;
 import loghub.RouteParser;
 import loghub.Tools;
 import loghub.configuration.ConfigurationTools;
 import loghub.configuration.Properties;
+import loghub.events.Event;
 import loghub.events.EventsFactory;
 import loghub.metrics.Stats;
 import loghub.senders.ElasticSearch.TYPEHANDLING;

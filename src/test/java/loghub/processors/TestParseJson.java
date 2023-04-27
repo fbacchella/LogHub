@@ -14,12 +14,12 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import loghub.BeanChecks;
-import loghub.events.Event;
 import loghub.LogUtils;
 import loghub.ProcessorException;
 import loghub.Tools;
 import loghub.VariablePath;
 import loghub.configuration.Properties;
+import loghub.events.Event;
 import loghub.events.EventsFactory;
 
 public class TestParseJson {

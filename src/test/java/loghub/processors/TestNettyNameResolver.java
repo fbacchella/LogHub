@@ -25,8 +25,6 @@ import io.netty.handler.codec.dns.DnsResponse;
 import loghub.AsyncProcessor;
 import loghub.BeanChecks;
 import loghub.BeanChecks.BeanInfo;
-import loghub.configuration.CacheManager;
-import loghub.events.Event;
 import loghub.Expression;
 import loghub.LogUtils;
 import loghub.Processor;
@@ -34,8 +32,10 @@ import loghub.ProcessorException;
 import loghub.Tools;
 import loghub.VarFormatter;
 import loghub.VariablePath;
+import loghub.configuration.CacheManager;
 import loghub.configuration.ConfigException;
 import loghub.configuration.Properties;
+import loghub.events.Event;
 import loghub.events.EventsFactory;
 
 public class TestNettyNameResolver {

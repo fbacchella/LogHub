@@ -52,7 +52,6 @@ import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.LoggerContext;
 
 import groovy.lang.GroovyClassLoader;
-import loghub.events.Event;
 import loghub.Helpers;
 import loghub.Helpers.ThrowingConsumer;
 import loghub.Helpers.ThrowingPredicate;
@@ -66,6 +65,7 @@ import loghub.RouteParser.SourcedefContext;
 import loghub.RouteParser.SourcesContext;
 import loghub.configuration.ConfigListener.Input;
 import loghub.configuration.ConfigListener.Output;
+import loghub.events.Event;
 import loghub.receivers.Receiver;
 import loghub.security.JWTHandler;
 import loghub.security.ssl.ContextLoader;

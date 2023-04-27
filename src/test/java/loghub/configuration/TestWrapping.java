@@ -12,11 +12,11 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import loghub.events.Event;
 import loghub.EventsProcessor;
 import loghub.LogUtils;
 import loghub.ProcessorException;
 import loghub.Tools;
+import loghub.events.Event;
 import loghub.events.EventsFactory;
 
 public class TestWrapping {

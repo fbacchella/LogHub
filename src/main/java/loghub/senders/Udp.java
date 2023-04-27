@@ -8,9 +8,9 @@ import java.net.SocketException;
 import java.net.UnknownHostException;
 
 import loghub.BuilderClass;
-import loghub.events.Event;
 import loghub.configuration.Properties;
 import loghub.encoders.EncodeException;
+import loghub.events.Event;
 import lombok.Setter;
 
 @BuilderClass(Udp.Builder.class)

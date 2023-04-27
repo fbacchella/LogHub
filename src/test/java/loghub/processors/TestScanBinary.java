@@ -7,14 +7,13 @@ import java.util.Map;
 import org.junit.Assert;
 import org.junit.Test;
 
-import loghub.ConnectionContext;
-import loghub.events.Event;
 import loghub.Helpers;
 import loghub.ProcessorException;
 import loghub.Tools;
 import loghub.VariablePath;
 import loghub.configuration.ConfigException;
 import loghub.configuration.Properties;
+import loghub.events.Event;
 import loghub.events.EventsFactory;
 
 public class TestScanBinary {

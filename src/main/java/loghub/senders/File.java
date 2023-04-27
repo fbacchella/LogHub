@@ -32,13 +32,13 @@ import org.apache.logging.log4j.Level;
 
 import loghub.BuilderClass;
 import loghub.CanBatch;
-import loghub.events.Event;
 import loghub.Expression;
 import loghub.Helpers;
 import loghub.ProcessorException;
 import loghub.ThreadBuilder;
 import loghub.configuration.Properties;
 import loghub.encoders.EncodeException;
+import loghub.events.Event;
 import loghub.metrics.Stats;
 import lombok.Getter;
 import lombok.Setter;

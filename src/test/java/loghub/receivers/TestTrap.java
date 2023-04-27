@@ -32,12 +32,12 @@ import org.snmp4j.smi.VariableBinding;
 import org.snmp4j.transport.DefaultUdpTransportMapping;
 
 import loghub.BeanChecks;
-import loghub.events.Event;
 import loghub.LogUtils;
 import loghub.Pipeline;
 import loghub.PriorityBlockingQueue;
 import loghub.Tools;
 import loghub.configuration.Properties;
+import loghub.events.Event;
 import loghub.security.ssl.ClientAuthentication;
 
 public class TestTrap {

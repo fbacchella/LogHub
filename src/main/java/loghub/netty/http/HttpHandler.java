@@ -1,10 +1,5 @@
 package loghub.netty.http;
 
-import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
-import static io.netty.handler.codec.http.HttpResponseStatus.OK;
-import static io.netty.handler.codec.http.HttpResponseStatus.SERVICE_UNAVAILABLE;
-import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
-
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
@@ -50,6 +45,11 @@ import io.netty.handler.stream.ChunkedInput;
 import io.netty.util.AsciiString;
 import loghub.Helpers;
 import loghub.metrics.Stats;
+
+import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
+import static io.netty.handler.codec.http.HttpResponseStatus.OK;
+import static io.netty.handler.codec.http.HttpResponseStatus.SERVICE_UNAVAILABLE;
+import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 
 @Sharable
 public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRequest> {

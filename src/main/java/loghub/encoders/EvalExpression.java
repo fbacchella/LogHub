@@ -3,10 +3,10 @@ package loghub.encoders;
 import java.nio.charset.Charset;
 
 import loghub.BuilderClass;
-import loghub.events.Event;
 import loghub.Expression;
 import loghub.ProcessorException;
 import loghub.configuration.Properties;
+import loghub.events.Event;
 import loghub.senders.Sender;
 import lombok.Setter;
 

@@ -19,13 +19,13 @@ import org.junit.Ignore;
 import org.junit.Test;
 
 import loghub.BeanChecks;
-import loghub.events.Event;
 import loghub.Expression;
 import loghub.LogUtils;
 import loghub.RouteParser;
 import loghub.Tools;
 import loghub.configuration.ConfigurationTools;
 import loghub.configuration.Properties;
+import loghub.events.Event;
 import loghub.events.EventsFactory;
 import loghub.senders.InMemorySender;
 

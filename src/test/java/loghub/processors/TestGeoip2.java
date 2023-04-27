@@ -13,7 +13,6 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import loghub.BeanChecks;
-import loghub.events.Event;
 import loghub.Expression;
 import loghub.LogUtils;
 import loghub.Processor;
@@ -22,6 +21,7 @@ import loghub.Tools;
 import loghub.VarFormatter;
 import loghub.VariablePath;
 import loghub.configuration.Properties;
+import loghub.events.Event;
 import loghub.events.EventsFactory;
 
 import static org.junit.Assert.assertEquals;

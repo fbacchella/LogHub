@@ -18,10 +18,10 @@ import com.axibase.date.DatetimeProcessor;
 import com.axibase.date.OnMissingDateComponentAction;
 import com.axibase.date.PatternResolver;
 
-import loghub.events.Event;
 import loghub.Helpers;
 import loghub.ProcessorException;
 import loghub.configuration.Properties;
+import loghub.events.Event;
 
 public class DateParser extends FieldsProcessor {
 

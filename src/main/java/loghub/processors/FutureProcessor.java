@@ -7,12 +7,12 @@ import org.apache.logging.log4j.Logger;
 
 import io.netty.util.concurrent.Future;
 import loghub.AsyncProcessor;
-import loghub.events.Event;
 import loghub.Helpers;
 import loghub.PausedEvent;
 import loghub.Processor;
 import loghub.ProcessorException;
 import loghub.Start;
+import loghub.events.Event;
 
 public class FutureProcessor<FI, F extends Future<FI>> extends Processor {
 

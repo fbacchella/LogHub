@@ -15,7 +15,6 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import loghub.BeanChecks;
-import loghub.events.Event;
 import loghub.Expression;
 import loghub.LogUtils;
 import loghub.Processor;
@@ -25,6 +24,7 @@ import loghub.VariablePath;
 import loghub.configuration.Configuration;
 import loghub.configuration.Properties;
 import loghub.encoders.Syslog;
+import loghub.events.Event;
 import loghub.events.EventsFactory;
 
 public class TestEncoder {

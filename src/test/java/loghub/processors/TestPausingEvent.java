@@ -18,12 +18,12 @@ import io.netty.channel.DefaultEventLoop;
 import io.netty.util.concurrent.DefaultPromise;
 import io.netty.util.concurrent.Promise;
 import loghub.AsyncProcessor;
-import loghub.events.Event;
 import loghub.LogUtils;
 import loghub.Processor;
 import loghub.ProcessorException;
 import loghub.ThreadBuilder;
 import loghub.Tools;
+import loghub.events.Event;
 import loghub.events.EventsFactory;
 import loghub.metrics.Stats;
 

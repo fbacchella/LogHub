@@ -29,7 +29,6 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import loghub.ConnectionContext;
-import loghub.events.Event;
 import loghub.Expression;
 import loghub.Expression.ExpressionException;
 import loghub.IgnoredEventException;
@@ -38,6 +37,7 @@ import loghub.LogUtils;
 import loghub.ProcessorException;
 import loghub.Tools;
 import loghub.VarFormatter;
+import loghub.events.Event;
 import loghub.events.EventsFactory;
 
 public class TestExpressionParsing {

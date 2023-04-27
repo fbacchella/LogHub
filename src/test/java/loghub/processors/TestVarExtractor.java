@@ -13,13 +13,13 @@ import org.junit.Test;
 
 import loghub.BeanChecks;
 import loghub.Expression;
-import loghub.Processor;
-import loghub.VarFormatter;
-import loghub.events.Event;
 import loghub.LogUtils;
+import loghub.Processor;
 import loghub.ProcessorException;
 import loghub.Tools;
+import loghub.VarFormatter;
 import loghub.VariablePath;
+import loghub.events.Event;
 import loghub.events.EventsFactory;
 
 public class TestVarExtractor {

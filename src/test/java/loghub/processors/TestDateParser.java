@@ -19,12 +19,12 @@ import org.junit.Test;
 
 import com.axibase.date.PatternResolver;
 
-import loghub.events.Event;
 import loghub.LogUtils;
 import loghub.ProcessorException;
 import loghub.Tools;
 import loghub.VariablePath;
 import loghub.configuration.Properties;
+import loghub.events.Event;
 import loghub.events.EventsFactory;
 
 public class TestDateParser {

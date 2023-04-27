@@ -25,15 +25,12 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.logstash.beats.Protocol;
 
-import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 
 import loghub.BeanChecks;
 import loghub.BeanChecks.BeanInfo;
-import loghub.events.Event;
 import loghub.Filter;
 import loghub.LogUtils;
 import loghub.Pipeline;
@@ -41,6 +38,7 @@ import loghub.PriorityBlockingQueue;
 import loghub.Tools;
 import loghub.configuration.Properties;
 import loghub.decoders.StringCodec;
+import loghub.events.Event;
 import loghub.jackson.JacksonBuilder;
 import loghub.netty.transport.POLLER;
 import loghub.security.ssl.ClientAuthentication;
