@@ -3,6 +3,7 @@ package loghub.receivers;
 import java.io.IOException;
 import java.lang.reflect.Array;
 import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.Principal;
@@ -24,6 +25,7 @@ import org.snmp4j.TransportMapping;
 import org.snmp4j.TransportStateReference;
 import org.snmp4j.asn1.BER;
 import org.snmp4j.asn1.BERInputStream;
+import org.snmp4j.log.Log4jLogFactory;
 import org.snmp4j.log.LogFactory;
 import org.snmp4j.mp.MPv1;
 import org.snmp4j.mp.MPv2c;
@@ -56,7 +58,6 @@ import loghub.IpConnectionContext;
 import loghub.Start;
 import loghub.configuration.Properties;
 import loghub.metrics.Stats;
-import loghub.snmp.Log4j2LogFactory;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -65,7 +66,7 @@ import lombok.Setter;
 public class SnmpTrap extends Receiver<SnmpTrap, SnmpTrap.Builder> implements CommandResponder {
 
     static {
-        LogFactory.setLogFactory(new Log4j2LogFactory());
+        LogFactory.setLogFactory(new Log4jLogFactory());
     }
 
     private enum GENERICTRAP {
@@ -110,6 +111,8 @@ public class SnmpTrap extends Receiver<SnmpTrap, SnmpTrap.Builder> implements Co
     private final Snmp snmp;
     @Getter
     private final String receiverName;
+    @Getter
+    private final SocketAddress address;
 
     protected SnmpTrap(Builder builder) {
         super(builder);
@@ -137,6 +140,9 @@ public class SnmpTrap extends Receiver<SnmpTrap, SnmpTrap.Builder> implements Co
             throw new IllegalArgumentException("can't bind to " + listenAddress + ": " + Helpers.resolveThrowableException(ex), ex);
         }
         receiverName = "SnmpTrap/" + builder.protocol + "/" + Helpers.ListenString(builder.listen) + "/" + builder.port;
+        TransportIpAddress tia = (TransportIpAddress)transport.getListenAddress();
+        // Needed because transport.getSocketAddress() always return 0 for the port
+        address = new InetSocketAddress(tia.getInetAddress(), tia.getPort());
     }
 
     private static synchronized void reconfigure(Logger logger, Properties properties) {
@@ -172,7 +178,8 @@ public class SnmpTrap extends Receiver<SnmpTrap, SnmpTrap.Builder> implements Co
 
     private <A extends Address> void doStats(TransportMapping<? super A> transportMapping, A a,
             ByteBuffer byteBuffer, TransportStateReference transportStateReference) {
-        Stats.newReceivedMessage(SnmpTrap.this, byteBuffer.remaining());
+        logger.trace("Bytes received {}", byteBuffer::remaining);
+        Stats.newReceivedMessage(this, byteBuffer.remaining());
     }
 
     @Override
@@ -239,7 +246,7 @@ public class SnmpTrap extends Receiver<SnmpTrap, SnmpTrap.Builder> implements Co
         } catch (RuntimeException ex) {
             Stats.newUnhandledException(this, ex);
         } catch (Error ex) {
-            logger.error("Got a critical error: " + Helpers.resolveThrowableException(ex), ex);
+            logger.atError().withThrowable(ex).log("Got a critical error: {}", Helpers.resolveThrowableException(ex));
             if (Helpers.isFatal(ex)) {
                 Start.fatalException(ex);
             }
@@ -248,6 +255,7 @@ public class SnmpTrap extends Receiver<SnmpTrap, SnmpTrap.Builder> implements Co
         }
     }
 
+    @SuppressWarnings("unchecked")
     private void smartPut(Map<String, Object> e, OID oid, Object value) {
         Map<String, Object> oidindex = formatter.store.parseIndexOID(oid.getValue());
         if (oidindex.size() == 0) {
@@ -256,7 +264,7 @@ public class SnmpTrap extends Receiver<SnmpTrap, SnmpTrap.Builder> implements Co
             Object indexvalue = oidindex.values().stream().findFirst().orElse(null);
             // It's an array, so it's an unresolved index
             // It's splited as a string prefix and dotted notation
-            if (indexvalue != null && indexvalue.getClass().isArray() && Array.getLength(indexvalue) == 2) {
+            if (indexvalue.getClass().isArray() && Array.getLength(indexvalue) == 2) {
                 String prefix = (String) Array.get(indexvalue, 0);
                 int[] suffix = (int[]) Array.get(indexvalue, 1);
                 ((Map<String, Object>) e.computeIfAbsent(prefix, k -> new HashMap<>()))
@@ -280,7 +288,7 @@ public class SnmpTrap extends Receiver<SnmpTrap, SnmpTrap.Builder> implements Co
         } else {
             switch (variable.getSyntax()) {
             case BER.ASN_BOOLEAN:
-                return variable.toInt();
+                return variable.toInt() != 0;
             case BER.INTEGER:
                 return variable.toInt();
             case BER.OCTETSTRING:
@@ -302,7 +310,7 @@ public class SnmpTrap extends Receiver<SnmpTrap, SnmpTrap.Builder> implements Co
             case BER.OID: {
                 OID oid = (OID) variable;
                 Map<String, Object> parsed = formatter.store.parseIndexOID(oid.getValue());
-                // If an empty map was return or a single entry map, it's not an table entry, just format the OID
+                // If an empty map was return or a single entry map, it's not a table entry, just format the OID
                 return parsed.size() <= 1 ? oid.format() : parsed;
             }
             case BER.IPADDRESS:
