@@ -239,7 +239,7 @@ source
     : '%' identifier
     ;
 
-eventVariable: '[' (ts='@timestamp' | (ctx='@context' '.'? (vp1=varPath)?) | (indirect='<-'? (MetaName | (root='.'? vp2=varPath)))) ']' ;
+eventVariable: '[' (ts='@timestamp' | (ctx='@context' '.'? (vp1=varPath)?) | (indirect='<-'? (MetaName | (root='.'? vp2=varPath))) | vproot='.' ) ']' ;
 
 varPath: (pathElement pathElement*) | QualifiedIdentifier;
 

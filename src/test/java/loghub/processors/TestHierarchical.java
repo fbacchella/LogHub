@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.io.StringReader;
 import java.util.Collections;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.regex.Pattern;
@@ -65,6 +66,22 @@ public class TestHierarchical {
         Assert.assertEquals(2, patterns.length);
         Assert.assertEquals(Helpers.convertGlobToRegex("a.*").pattern(), patterns[0].pattern());
         Assert.assertEquals(Helpers.convertGlobToRegex("b").pattern(), patterns[1].pattern());
+    }
+
+    @Test
+    public void testConfigurationParsingPath() throws IOException, InterruptedException, ProcessorException {
+        String confile = "pipeline[hierarchy] {path[sub](loghub.processors.Hierarchical {destination: [.], fields: [\"a.*\", \"b\"] })}";
+        Properties conf = Configuration.parse(new StringReader(confile));
+        Event ev = factory.newEvent();
+        Event sub = ev.wrap(VariablePath.of("sub"));
+        sub.put("a.b", 1);
+        sub.put("b", 2);
+        sub.put("c", 3);
+        Tools.runProcessing(ev, conf.namedPipeLine.get("hierarchy"), conf);
+        conf.mainQueue.poll(1, TimeUnit.SECONDS);
+        Assert.assertEquals(1, ev.getAtPath(VariablePath.of("a.b")));
+        Assert.assertEquals(2, ev.getAtPath(VariablePath.of("b")));
+        Assert.assertEquals(3, ev.getAtPath(VariablePath.of("sub.c")));
     }
 
     @Test

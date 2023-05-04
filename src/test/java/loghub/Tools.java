@@ -25,7 +25,12 @@ import loghub.configuration.ConfigException;
 import loghub.configuration.Configuration;
 import loghub.configuration.Properties;
 import loghub.events.Event;
+import loghub.processors.UnwrapEvent;
+import loghub.processors.WrapEvent;
 import loghub.security.ssl.MultiKeyStoreProvider;
+
+import static loghub.EventsProcessor.ProcessingStatus.DROPED;
+import static loghub.EventsProcessor.ProcessingStatus.ERROR;
 
 public class Tools {
 
@@ -80,7 +85,20 @@ public class Tools {
         sent.inject(pipe, props.mainQueue, false);
         Processor processor;
         while ((processor = sent.next()) != null) {
-            ep.process(sent, processor);
+            if (processor instanceof WrapEvent) {
+                sent = sent.wrap(processor.getPathArray());
+            } else if (processor instanceof UnwrapEvent) {
+                sent = sent.unwrap();
+            } else {
+                EventsProcessor.ProcessingStatus status = ep.process(sent, processor);
+                if (status == DROPED) {
+                    sent.drop();
+                    break;
+                } else if (status == ERROR) {
+                    sent.end();
+                    break;
+                }
+            }
         }
     }
 

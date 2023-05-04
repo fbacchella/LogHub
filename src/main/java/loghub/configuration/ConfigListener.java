@@ -798,7 +798,7 @@ class ConfigListener extends RouteBaseListener {
             return VariablePath.ofContext(convertEventVariable(ev.vp1));
         } else if (ev.MetaName() != null) {
             return VariablePath.ofMeta(ev.MetaName().getText().substring(1));
-        } else {
+        } else if (ev.vp2 != null) {
             List<String> path = convertEventVariable(ev.vp2);
             if (ev.root != null) {
                 path.add(0, ".");
@@ -808,6 +808,8 @@ class ConfigListener extends RouteBaseListener {
             } else {
                 return VariablePath.of(path);
             }
+        } else {
+            return VariablePath.of(".");
         }
     }
     private List<String> convertEventVariable(VarPathContext vp) {
