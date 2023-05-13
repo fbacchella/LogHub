@@ -3,8 +3,10 @@ package loghub;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.StringJoiner;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 import loghub.events.Event;
@@ -13,6 +15,7 @@ public abstract class VariablePath {
     
     private static final PathTree<Object, VariablePath> PATH_CACHE = new PathTree<>(VariablePath.of(""));
     private static final PathTree<Object, VariablePath> PATH_CACHE_INDIRECT = new PathTree<>(VariablePath.of(""));
+    private static final Map<String, VariablePath>      PATH_CACHE_STRING = new ConcurrentHashMap<>();
 
     private VariablePath() {
     }
@@ -60,9 +63,11 @@ public abstract class VariablePath {
     }
 
     private abstract static class VariableLength extends VariablePath {
+        private final int hash;
         final String[] path;
-        VariableLength(String[] path) {
+        private VariableLength(String[] path) {
             this.path = path;
+            this.hash = Objects.hash(getClass(), Arrays.hashCode(path));
         }
         @Override
         public int length() {
@@ -101,6 +106,21 @@ public abstract class VariablePath {
                     .collect(Collectors.joining(","))
                     );
         }
+        @Override
+        public int hashCode() {
+            return hash;
+        }
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            } else if (o == null || getClass() != o.getClass()) {
+                return false;
+            } else {
+                return Arrays.equals(path, ((VariableLength)o).path);
+            }
+        }
+
         abstract VariablePath newInstance(String[] newPath);
     }
 
@@ -121,17 +141,14 @@ public abstract class VariablePath {
                 throw new ArrayIndexOutOfBoundsException();
             }
         }
-
         @Override
         public String groovyExpression() {
             return "event.getTimestamp()";
         }
-
         @Override
         public int hashCode() {
-            return TIMESTAMP.hashCode();
+            return TimeStamp.class.hashCode();
         }
-
         @Override
         public boolean equals(Object obj) {
             return obj instanceof TimeStamp;
@@ -140,8 +157,10 @@ public abstract class VariablePath {
 
     private static class Meta extends FixedLength {
         private final String key;
+        private final int hash;
         private Meta(String key) {
             this.key = key;
+            this.hash = Objects.hash(Meta.class, key);
         }
         @Override
         public String toString() {
@@ -165,15 +184,17 @@ public abstract class VariablePath {
 
         @Override
         public int hashCode() {
-            return Objects.hash(Meta.class, key);
+            return hash;
         }
 
         @Override
-        public boolean equals(Object obj) {
-            if (! (obj instanceof Meta)) {
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            } else if (o == null || getClass() != o.getClass()) {
                 return false;
             } else {
-                return key.equals(((Meta)obj).key);
+                return key.equals(((Meta)o).key);
             }
         }
     }
@@ -250,20 +271,6 @@ public abstract class VariablePath {
             buffer.append(")");
             return buffer.toString();
         }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(Plain.class, Arrays.hashCode(path));
-        }
-
-        @Override
-        public boolean equals(Object obj) {
-            if (! (obj instanceof Plain)) {
-                return false;
-            } else {
-                return Arrays.equals(path, ((Plain)obj).path);
-            }
-        }
     }
 
     private static class Empty extends VariablePath {
@@ -289,7 +296,7 @@ public abstract class VariablePath {
         }
         @Override
         public int hashCode() {
-            return EMPTY.hashCode();
+            return Empty.class.hashCode();
         }
         @Override
         public boolean equals(Object obj) {
@@ -324,7 +331,7 @@ public abstract class VariablePath {
         }
         @Override
         public int hashCode() {
-            return ALLMETAS.hashCode();
+            return AllMeta.class.hashCode();
         }
         @Override
         public boolean equals(Object obj) {
@@ -371,8 +378,10 @@ public abstract class VariablePath {
         if (path.isBlank()) {
             return EMPTY;
         } else {
-            String[] pathParsed = pathElements(path).toArray(String[]::new);
-            return PATH_CACHE.computeIfAbsent(pathParsed, () -> new Plain(pathParsed));
+            return PATH_CACHE_STRING.computeIfAbsent(path, s -> {
+                String[] pathParsed = pathElements(path).toArray(String[]::new);
+                return PATH_CACHE.computeIfAbsent(pathParsed, () -> new Plain(pathParsed));
+            });
         }
     }
 

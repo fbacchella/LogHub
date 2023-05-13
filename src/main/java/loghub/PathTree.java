@@ -2,7 +2,6 @@ package loghub;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 
 import lombok.Getter;
@@ -43,8 +42,8 @@ public class PathTree<T, V> {
 
     public void add(T[] path, V v) {
         Node<T, V> current = root;
-        for (AtomicInteger i = new AtomicInteger(0); i.get() < path.length - 1; i.incrementAndGet()) {
-            current = current.children.computeIfAbsent(path[i.get()], k -> new Node<>(null));
+        for (int i = 0; i < path.length - 1; i++) {
+            current = current.children.computeIfAbsent(path[i], k -> new Node<>(null));
         }
         Node<T, V> newNode = new Node<>(v);
         current.children.put(path[path.length -1], newNode);
@@ -52,16 +51,16 @@ public class PathTree<T, V> {
 
     public V computeIfAbsent(T[] path, Supplier<V> supplier) {
         Node<T, V> current = root;
-        for (AtomicInteger i = new AtomicInteger(0); i.get() < path.length - 1; i.incrementAndGet()) {
-            current = current.children.computeIfAbsent(path[i.get()], k -> new Node<>(null));
+        for (int i = 0; i < path.length - 1; i++) {
+            current = current.children.computeIfAbsent(path[i], k -> new Node<>(null));
         }
         return current.children.compute(path[path.length - 1], (k, v) -> resolveNodeWithValue(v, supplier)).value;
     }
 
     public V computeChildIfAbsent(T[] path, T child, Supplier<V> supplier) {
         Node<T, V> current = root;
-        for (AtomicInteger i = new AtomicInteger(0); i.get() < path.length; i.incrementAndGet()) {
-            current = current.children.computeIfAbsent(path[i.get()], k -> new Node<>(null));
+        for (T t : path) {
+            current = current.children.computeIfAbsent(t, k -> new Node<>(null));
         }
         return current.children.compute(child, (k, v) -> resolveNodeWithValue(v, supplier)).value;
     }
@@ -81,4 +80,5 @@ public class PathTree<T, V> {
     public String toString() {
         return String.format("Tree(%s)", root);
     }
+
 }
