@@ -17,6 +17,7 @@ public final class GroovyOperators {
     public static final String POWER = "power";
     public static final String AS_BOOLEAN = "asBoolean";
     public static final String EQUALS = "equals";
+    public static final String AS_TYPE = "asType";
 
     private GroovyOperators() {
         // No instantiation class

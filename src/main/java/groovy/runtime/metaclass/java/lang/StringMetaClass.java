@@ -37,6 +37,8 @@ public class StringMetaClass extends DelegatingMetaClass {
             return StringGroovyMethods.asBoolean(object.toString());
         } else if (GroovyOperators.PLUS.equals(methodName)){
             return object.toString() + arguments[0].toString();
+        } else if (GroovyOperators.AS_TYPE.equals(methodName) && arguments[0] == Character.TYPE){
+            return object.toString().charAt(0);
         } else {
             return super.invokeMethod(object, methodName, arguments);
         }
