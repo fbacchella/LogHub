@@ -3,10 +3,13 @@ package loghub;
 import java.lang.reflect.InvocationTargetException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
 import java.time.DateTimeException;
 import java.time.Instant;
 import java.time.temporal.TemporalAccessor;
 import java.util.AbstractMap;
+import java.util.Base64;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
@@ -15,6 +18,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -117,6 +123,7 @@ public class Expression {
         return m;
     });
     private static final ThreadLocal<BindingMap> bindings = ThreadLocal.withInitial(BindingMap::new);
+    private static final Map<String, ThreadLocal<Matcher>> PATTERN_CACHE = new ConcurrentHashMap<>();
 
     @Getter
     private final String expression;
@@ -320,18 +327,23 @@ public class Expression {
             case "<=>":
                 return compare;
             default:
-                assert false;
+                assert false : String.format("%s %s %s", arg1, operator, arg2);
                 throw IgnoredEventException.INSTANCE;
             }
         } else if ("==".equals(operator) && arg1 != null) {
             return arg1.equals(arg2);
+        } else if ("==".equals(operator) && (arg1 == null || arg1 == NullOrMissingValue.NULL)) {
+            return (arg2 == null || arg2 == NullOrMissingValue.NULL);
         } else if ("!=".equals(operator) && arg1 != null) {
             return ! arg1.equals(arg2);
-        } else if ("!=".equals(operator) && (arg2 == null || arg2 instanceof NullOrMissingValue)) {
-            return false;
+        } else if ("!=".equals(operator) && (arg1 == null || arg1 == NullOrMissingValue.NULL)) {
+            return (arg2 != null && arg2 != NullOrMissingValue.NULL);
+        } else if (arg1 == NullOrMissingValue.MISSING || arg2 == NullOrMissingValue.MISSING) {
+            throw IgnoredEventException.INSTANCE;
         } else if ("==".equals(operator) && (arg2 == null || arg2 instanceof NullOrMissingValue)) {
             return true;
         } else {
+            assert false : String.format("%s %s %s", arg1, operator, arg2);
             throw IgnoredEventException.INSTANCE;
         }
     }
@@ -387,6 +399,32 @@ public class Expression {
         }
     }
 
+    public Object regex(Object arg, String op, String encodedPattern) {
+        if (arg == NullOrMissingValue.NULL || arg == null || arg instanceof Collection || arg instanceof Map || arg.getClass().isArray()) {
+            return false;
+        } else if (arg == NullOrMissingValue.MISSING) {
+            return arg;
+        } else {
+            Matcher m = PATTERN_CACHE.computeIfAbsent(encodedPattern, k -> {
+                byte[] patternBytes = Base64.getDecoder().decode(k);
+                String pattern = new String(patternBytes, StandardCharsets.UTF_8);
+                return ThreadLocal.withInitial(() -> Pattern.compile(pattern).matcher(""));
+            }).get();
+            m.reset(arg.toString());
+            if ("==~".equals(op)) {
+                return m.find();
+            } else if ("=~".equals(op) && m.find()) {
+                String[] groups = new String[m.groupCount() + 1];
+                for (int i = 0; i < groups.length ; i++) {
+                    groups[i] = m.group(i);
+                }
+                return groups;
+            } else {
+                throw IgnoredEventException.INSTANCE;
+            }
+        }
+    }
+
     public static void logError(ExpressionException e, String source, Logger logger) {
         Throwable cause = e.getCause();
         if (cause instanceof CompilationFailedException) {
@@ -404,6 +442,7 @@ public class Expression {
         synchronized(scriptsMaps) {
             scriptsMaps.forEach(Map::clear);
         }
+        PATTERN_CACHE.clear();
     }
 
 }

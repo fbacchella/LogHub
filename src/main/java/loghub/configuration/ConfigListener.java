@@ -6,6 +6,8 @@ import java.lang.reflect.UndeclaredThrowableException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -14,6 +16,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 import java.util.stream.Collectors;
 
 import javax.net.ssl.SSLContext;
@@ -988,10 +992,19 @@ class ConfigListener extends RouteBaseListener {
             expression = ctx.qi.getText();
         } else if (ctx.opm != null) {
             Object pre = stack.pop();
-            expression = pre + " " + ctx.opm.getText() + " " + ctx.patternLiteral().getText();
-            if ("=~".equals(ctx.opm.getText())) {
-                expression = String.format("(((%s)?:[])[0]?:[])", expression);
+            String pattern = ctx.patternLiteral().PatternLiteral().getText();
+            // Check that the pattern compiles
+            try {
+                Pattern.compile(pattern.substring(1, pattern.length() -1));
+            } catch (PatternSyntaxException e) {
+                throw new RecognitionException(Helpers.resolveThrowableException(e), parser, stream, ctx);
             }
+            byte[] patternBytes = pattern.getBytes(StandardCharsets.UTF_8);
+            // Remove the wrapping / .. /
+            patternBytes = Arrays.copyOfRange(patternBytes, 1, patternBytes.length -1);
+            // Needs to encode the pattern, as Groovy does not handle escaping in the same way in patterns and in strings
+            String encoded = Base64.getEncoder().encodeToString(patternBytes);
+            expression = String.format("ex.regex((%s), \"%s\", \"%s\")", pre, ctx.opm.getText(), encoded);
         } else if (ctx.op1 != null) {
             // '.~'|'!'
             String op1 = ctx.op1.getText();

@@ -21,6 +21,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.antlr.v4.runtime.RecognitionException;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -34,6 +35,7 @@ import loghub.Expression.ExpressionException;
 import loghub.IgnoredEventException;
 import loghub.IpConnectionContext;
 import loghub.LogUtils;
+import loghub.NullOrMissingValue;
 import loghub.ProcessorException;
 import loghub.Tools;
 import loghub.VarFormatter;
@@ -443,7 +445,31 @@ public class TestExpressionParsing {
         Event ev = factory.newEvent();
         ev.put("a", "abc");
         Boolean i = (Boolean) evalExpression("[a] ==~ /(a.)(.)/",ev);
-        Assert.assertEquals(true, i.booleanValue());
+        Assert.assertEquals(true, i);
+    }
+
+    @Test
+    public void testPatternEmpty() throws ExpressionException, ProcessorException {
+        Set<Object> toTest = Set.of(NullOrMissingValue.NULL,
+                Collections.emptySet(), Collections.emptyMap(), Collections.emptyList(),
+                new Object[]{});
+        Event ev = factory.newEvent();
+        for(Object o: toTest) {
+            ev.put("a", o);
+            Boolean i = (Boolean) evalExpression("[a] ==~ /.*/",ev);
+            Assert.assertEquals(false, i);
+        }
+        ev.put("a", null);
+        Boolean i = (Boolean) evalExpression("[a] ==~ /.*/",ev);
+        Assert.assertEquals(false, i);
+    }
+
+    @Test(expected = IgnoredEventException.class)
+    public void
+    testPatternMissing() throws ExpressionException, ProcessorException {
+        Event ev = factory.newEvent();
+        ev.put("a", NullOrMissingValue.MISSING);
+        evalExpression("[a] ==~ /.*/",ev);
     }
 
     @Test
@@ -451,7 +477,7 @@ public class TestExpressionParsing {
         Event ev = factory.newEvent();
         ev.put("a", "a.c\n");
         Boolean i = (Boolean) evalExpression("[a] ==~ /a\\.c\\n/",ev);
-        Assert.assertEquals(true, i.booleanValue());
+        Assert.assertEquals(true, i);
     }
 
     @Test
@@ -467,6 +493,12 @@ public class TestExpressionParsing {
         Event ev = factory.newEvent();
         ev.put("a", "abc");
         evalExpression("([a] =~ /d.*/)[2]",ev);
+    }
+
+    @Test(expected = RecognitionException.class)
+    public void testBadPattern() throws ExpressionException, ProcessorException {
+        Event ev = factory.newEvent();
+        evalExpression("[a] ==~ /*/",ev);
     }
 
     @Test
