@@ -1099,8 +1099,10 @@ class ConfigListener extends RouteBaseListener {
             Object subexpression = stack.pop();
             expression = String.format("new %s(%s)", ctx.newclass.getText(), subexpression);
         } else if (ctx.arrayIndex != null) {
+            String arrayIndex = ctx.arrayIndex.getText();
+            String arrayIndexSign = ctx.arrayIndexSign != null ? ctx.arrayIndexSign.getText() : "";
             Object subexpression = stack.pop();
-            expression = String.format("ex.getIterableIndex(%s, %s)", subexpression, ctx.arrayIndex.getText());
+            expression = String.format("ex.getIterableIndex(%s, %s%s)", subexpression, arrayIndexSign, arrayIndex);
         } else if (ctx.stringFunction != null) {
             Object subexpression = stack.pop();
             expression =  String.format("ex.stringMethod(\"%s\", %s)", ctx.stringFunction.getText(), subexpression);

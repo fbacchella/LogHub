@@ -198,7 +198,7 @@ expression
     |   e1 = expression op12='&&' e2=expression
     |   e1 = expression op13='||' e2=expression
     |   '(' e3 = expression ')'
-    |   expression '[' arrayIndex=IntegerLiteral ']'
+    |   expression '[' arrayIndexSign='-'? arrayIndex=IntegerLiteral ']'
     |   stringFunction = (Trim | Capitalize | IsBlank | Normalize | Uncapitalize) '(' expression ')'
     |   now = 'now'
     |   isEmpty = 'isEmpty' '(' expression ')'

@@ -285,14 +285,16 @@ public class Expression {
     public Object getIterableIndex(Object iterable, int index) {
         if (Object[].class.isAssignableFrom(iterable.getClass())) {
             Object[] a = (Object[]) iterable;
-            if (a.length > index) {
-                return a[index];
+            int pos = index >= 0 ? index : (a.length + index);
+            if (a.length > pos || pos < 0) {
+                return a[pos];
             } else {
                 throw IgnoredEventException.INSTANCE;
             }
         } else if (iterable instanceof List) {
             List<?> l = (List<?>) iterable;
-            if (l.size() > index) {
+            int pos = index >= 0 ? index : l.size() - index;
+            if (l.size() > pos || pos < 0) {
                 return l.get(index);
             } else {
                 throw IgnoredEventException.INSTANCE;
