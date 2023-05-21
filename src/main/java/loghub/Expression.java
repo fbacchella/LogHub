@@ -414,7 +414,7 @@ public class Expression {
             }).get();
             m.reset(arg.toString());
             if ("==~".equals(op)) {
-                return m.find();
+                return m.matches();
             } else if ("=~".equals(op) && m.find()) {
                 String[] groups = new String[m.groupCount() + 1];
                 for (int i = 0; i < groups.length ; i++) {
