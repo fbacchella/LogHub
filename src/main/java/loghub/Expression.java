@@ -180,8 +180,7 @@ public class Expression {
             Optional<Script> optls = Optional.empty();
             try {
                 // Lazy compilation, will only compile if expression is needed
-                optls = Optional.of(compilationCache.get().computeIfAbsent(expression, this::compile));
-                Script localscript = optls.get();
+                Script localscript = compilationCache.get().computeIfAbsent(expression, this::compile);
                 localscript.setBinding(bmap.binding);
                 return Optional.ofNullable(localscript.run())
                         .map(o -> { if (o == NullOrMissingValue.MISSING) throw IgnoredEventException.INSTANCE; else return o;})
