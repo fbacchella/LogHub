@@ -56,6 +56,7 @@ public class FastExternalizeObject {
         FASTER,
         OTHER,
     }
+    private static final TYPE[] TYPES = TYPE.values();
 
     public static class FastObjectInputStream extends ObjectInputStream {
 
@@ -104,7 +105,7 @@ public class FastExternalizeObject {
         }
 
         public Object readObjectFast() throws IOException, ClassNotFoundException {
-            TYPE type = TYPE.values()[read()];
+            TYPE type = TYPES[read()];
             switch (type) {
             case NULL:
                 return null;
