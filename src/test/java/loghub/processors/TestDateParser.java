@@ -148,7 +148,20 @@ public class TestDateParser {
         Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
         Event event = factory.newEvent();
         event.put("field", fieldValue);
-        parse.process(event);
+        Assert.assertFalse(parse.process(event));
+        Assert.assertEquals(fieldValue, event.get("field"));
+    }
+
+    @Test
+    public void testFailedIso2() throws ProcessorException {
+        String fieldValue = "2023-06-08";
+        DateParser parse = new DateParser();
+        parse.setPattern("ISO_INSTANT");
+        parse.setField(VariablePath.of("field"));
+        Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
+        Event event = factory.newEvent();
+        event.put("field", fieldValue);
+        Assert.assertFalse(parse.process(event));
         Assert.assertEquals(fieldValue, event.get("field"));
     }
 

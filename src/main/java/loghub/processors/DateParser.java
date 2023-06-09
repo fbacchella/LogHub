@@ -143,7 +143,7 @@ public class DateParser extends FieldsProcessor {
                     ZonedDateTime dateParsed = formatter.parse(dateString);
                     logger.trace("parsed {} as {}", dateString, dateParsed);
                     return dateParsed.toInstant();
-                } catch (IllegalArgumentException | DateTimeParseException e) {
+                } catch (IllegalArgumentException | DateTimeParseException | StringIndexOutOfBoundsException e) {
                     //no problem, just wrong parser, keep trying
                     logger.debug("failed to parse date with pattern {}: {}", () -> format, () -> Helpers.resolveThrowableException(e));
                     logger.catching(Level.TRACE, e);
