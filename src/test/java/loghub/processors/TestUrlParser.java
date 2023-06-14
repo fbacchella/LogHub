@@ -90,14 +90,14 @@ public class TestUrlParser {
     }
 
     @Test
-    public void testParsingFailed() {
+    public void testParsingFailed() throws ProcessorException {
         UrlParser.Builder builder = UrlParser.getBuilder();
         builder.setField(VariablePath.of(List.of("message")));
         UrlParser parser = builder.build();
         Assert.assertTrue(parser.configure(new Properties(Collections.emptyMap())));
         Event event = factory.newEvent();
         event.put("message", "_http://loghub.fr:80/index.html");
-        Assert.assertThrows(ProcessorException.class, () -> parser.process(event));
+        Assert.assertEquals(false, parser.process(event));
     }
 
     private void testContent(Map<String, Object> uriParts) {

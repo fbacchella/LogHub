@@ -47,7 +47,8 @@ public class UrlParser extends FieldsProcessor {
                 valueUri = new URI(value.toString());
             }
         } catch (URISyntaxException ex) {
-            throw new ProcessorException(event, String.format("Not a valid URL: %s", Helpers.resolveThrowableException(ex)), ex);
+            logger.atDebug().withThrowable(ex).log("Not a valid URL \"{}\"", value);
+            return FieldsProcessor.RUNSTATUS.FAILED;
         }
         Map<String, Object> urlInformations = new HashMap<>(9);
         URI uri = refUrl.map(u -> u.resolve(valueUri)).orElse(valueUri);
