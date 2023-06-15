@@ -162,9 +162,13 @@ public class ZMQSocketFactory implements AutoCloseable {
         try {
             ZConfig zconf = ZConfig.load(tryCert.toString());
             String publicKey = zconf.getValue("curve/public-key");
-            if (publicKey.length() == Options.CURVE_KEYSIZE_Z85) { // we want to store the public-key as Z85-String
+            if (publicKey != null && publicKey.length() == Options.CURVE_KEYSIZE_Z85) { // we want to store the public-key as Z85-String
                 buildingPublicKeys.put(publicKey, zconf);
-                logger.debug("Adding certificates {} as with public key {}", tryCert, publicKey);
+                logger.debug("Adding certificate {} with public key \"{}\"", tryCert, publicKey);
+            } else if (publicKey != null) {
+                logger.warn("Invalid public key in certificate {}: \"{}\"", tryCert, publicKey);
+            } else {
+                logger.warn("Not a certificate {}", tryCert);
             }
         } catch (IOException ex) {
             logger.error("Unusable zpl file '{}': {}", () -> tryCert, () -> Helpers.resolveThrowableException(ex));
