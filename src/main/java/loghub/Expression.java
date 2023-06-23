@@ -265,6 +265,10 @@ public class Expression {
                 return nullarg || StringGroovyMethods.isAllWhitespace(arg.toString());
             case "normalize":
                 return nullarg ? NullOrMissingValue.NULL : StringGroovyMethods.normalize(arg.toString());
+            case "lowercase":
+                return nullarg ? NullOrMissingValue.NULL : arg.toString().toLowerCase();
+            case "uppercase":
+                return nullarg ? NullOrMissingValue.NULL : arg.toString().toUpperCase();
             default:
                 assert false: method;
                 // Can’t be reached

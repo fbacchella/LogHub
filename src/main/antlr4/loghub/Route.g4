@@ -199,7 +199,7 @@ expression
     |   e1 = expression op13='||' e2=expression
     |   '(' e3 = expression ')'
     |   expression '[' arrayIndexSign='-'? arrayIndex=IntegerLiteral ']'
-    |   stringFunction = (Trim | Capitalize | IsBlank | Normalize | Uncapitalize) '(' expression ')'
+    |   stringFunction = (Trim | Capitalize | IsBlank | Normalize | Uncapitalize | Lowercase | Uppercase) '(' expression ')'
     |   now = 'now'
     |   isEmpty = 'isEmpty' '(' expression ')'
     |   collection=('set' | 'list') expressionsList
@@ -210,6 +210,8 @@ Capitalize: 'capitalize';
 Uncapitalize: 'uncapitalize';
 IsBlank: 'isBlank';
 Normalize: 'normalize';
+Lowercase: 'lowercase';
+Uppercase: 'uppercase';
 
 expressionsList
     : '(' expression ( ','  expression )* ','? ')'
@@ -260,7 +262,7 @@ identifier
     | 'FATAL' | 'ERROR' | 'WARN' | 'INFO' | 'DEBUG' | 'TRACE'
     | 'new' | 'instanceof' | 'now' | 'isEmpty'
     | 'sources' | 'true' | 'false' | 'null' | 'drop'
-    | 'trim' | 'capitalize' | 'uncapitalize' | 'isBlank' | 'normalize'
+    | 'trim' | 'capitalize' | 'uncapitalize' | 'isBlank' | 'normalize' | 'lowercase' | 'uppercase'
     | 'text' | 'blob'
     | 'set' | 'list'
     | Identifier

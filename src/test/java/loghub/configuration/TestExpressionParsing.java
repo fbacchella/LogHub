@@ -564,6 +564,10 @@ public class TestExpressionParsing {
         Assert.assertNull(resolve("capitalize", null));
         Assert.assertEquals("abc", resolve("uncapitalize", "Abc"));
         Assert.assertNull(resolve("uncapitalize", null));
+        Assert.assertEquals("abc", resolve("lowercase", "AbC"));
+        Assert.assertNull(resolve("lowercase", null));
+        Assert.assertEquals("ABC", resolve("uppercase", "abC"));
+        Assert.assertNull(resolve("uppercase", null));
         Assert.assertEquals(false, resolve("isBlank", "abc"));
         Assert.assertEquals(true, resolve("isBlank", ""));
         Assert.assertEquals(true, resolve("isBlank", " "));
