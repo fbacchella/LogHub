@@ -302,9 +302,9 @@ public class Expression {
             }
         } else if (iterable instanceof List) {
             List<?> l = (List<?>) iterable;
-            int pos = index >= 0 ? index : l.size() - index;
+            int pos = index >= 0 ? index : (l.size() + index);
             if (l.size() > pos || pos < 0) {
-                return l.get(index);
+                return l.get(pos);
             } else {
                 throw IgnoredEventException.INSTANCE;
             }

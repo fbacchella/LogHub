@@ -405,6 +405,17 @@ public class TestExpressionParsing {
         Assert.assertEquals(3, i.intValue());
     }
 
+    @Test
+    public void testArrayNegative() throws ExpressionException, ProcessorException {
+        Event ev = factory.newEvent();
+        ev.put("a", new Integer[] {1, 2, 3});
+        ev.put("b", List.of(4, 5, 6));
+        Number i1 = (Number) evalExpression("[a][-1]", ev);
+        Assert.assertEquals(3, i1.intValue());
+        Number i2 = (Number) evalExpression("[b][-1]", ev);
+        Assert.assertEquals(6, i2.intValue());
+    }
+
     @Test(expected=IgnoredEventException.class)
     public void testArrayOutOfBound() throws ExpressionException, ProcessorException {
         Event ev = factory.newEvent();
