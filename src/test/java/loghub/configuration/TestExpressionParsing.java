@@ -381,6 +381,13 @@ public class TestExpressionParsing {
     }
 
     @Test
+    public void testNeedUnwrap() throws ProcessorException, ExpressionException {
+        // This expression fails if unwrap of PojoWrapper is not done in Expression.nullfilter
+        Set i = (Set) evalExpression("set(1, 2, 3) + 4", factory.newEvent());
+        Assert.assertEquals(Set.of(1, 2, 3, 4), i);
+    }
+
+    @Test
     public void testArrayMixed() throws ExpressionException, ProcessorException {
         Event ev = factory.newEvent();
         ev.put("a", new Integer[] { 1, 2, 3});
