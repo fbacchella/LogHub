@@ -3,6 +3,7 @@ package loghub.processors;
 import java.beans.IntrospectionException;
 import java.io.IOException;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.logging.log4j.Level;
@@ -179,6 +180,24 @@ public class TestGrok {
         Event e = factory.newEvent();
         e.put("host", "www.yahoo.com");
         Assert.assertEquals("FAILED", grok.fieldFunction(e, "www.yahoo.com").toString());
+    }
+
+    @Test
+    public void TestMultiPattern() throws ProcessorException {
+        Grok.Builder builder = Grok.getBuilder();
+        builder.setFields(new String[]{"host"});
+        builder.setPatterns(List.of("%{HOSTNAME:google}\\.google\\.com", "%{HOSTNAME:yahoo}\\.yahoo\\.com").toArray(String[]::new));
+        Grok grok = builder.build();
+
+        Properties props = new Properties(Collections.emptyMap());
+
+        Assert.assertTrue("Failed to configure grok", grok.configure(props));
+
+        Event e = factory.newEvent();
+        e.put("host", "www.yahoo.com");
+        Object status = grok.fieldFunction(e, "www.yahoo.com");
+        Assert.assertEquals("NOSTORE", status.toString());
+        Assert.assertEquals("www", e.get("yahoo"));
     }
 
     @Test

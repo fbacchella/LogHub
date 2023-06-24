@@ -5,11 +5,12 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URISyntaxException;
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 import io.krakens.grok.api.GrokCompiler;
 import io.krakens.grok.api.Match;
@@ -27,11 +28,14 @@ public class Grok extends FieldsProcessor {
 
     public static class Builder extends FieldsProcessor.Builder<Grok> {
         @Setter
-        private String pattern;
+        private String[] patterns;
         @Setter
         private Map<Object, Object> customPatterns = Collections.emptyMap();
         @Setter
         private ClassLoader classLoader = Grok.class.getClassLoader();
+        public void setPattern(String pattern) {
+            patterns = new String[]{pattern};
+        }
         public Grok build() {
             return new Grok(this);
         }
@@ -40,7 +44,7 @@ public class Grok extends FieldsProcessor {
         return new Builder();
     }
 
-    private final io.krakens.grok.api.Grok grok;
+    private final io.krakens.grok.api.Grok[] groks;
 
     public Grok(Builder builder) {
         super(builder);
@@ -50,7 +54,7 @@ public class Grok extends FieldsProcessor {
         try {
             Helpers.readRessources(builder.classLoader, PATTERNSFOLDER, grokloader);
             builder.customPatterns.forEach((k,v) -> grokCompiler.register(k.toString(), v.toString()));
-            grok = grokCompiler.compile(builder.pattern, true);
+            groks = Arrays.stream(builder.patterns).map(p -> grokCompiler.compile(p, true)).toArray(io.krakens.grok.api.Grok[]::new);
         } catch (IOException | URISyntaxException | IllegalArgumentException e) {
             throw new IllegalArgumentException("Unable to load patterns: " + Helpers.resolveThrowableException(e), e);
         }
@@ -58,43 +62,41 @@ public class Grok extends FieldsProcessor {
 
     @Override
     public Object fieldFunction(Event event, Object value) throws ProcessorException {
-        Match gm = grok.match(value.toString());
-        //Results from grok needs to be cleaned
-        Map<String, Object> captures = gm.capture();
-        if (captures.size() == 0) {
-            return FieldsProcessor.RUNSTATUS.FAILED;
-        }
-        Object returned = FieldsProcessor.RUNSTATUS.NOSTORE;
-        for (Map.Entry<String, Object> e: captures.entrySet()) {
-            String destinationField = e.getKey();
-            Object stored;
-            // Dirty hack to filter non named regex
-            // Needed until https://github.com/thekrakken/java-grok/issues/61 is fixed
-            if (destinationField.equals(destinationField.toUpperCase()) && ! ".".equals(destinationField)) {
-                continue;
-            }
-            if (e.getValue() == null) {
-                continue;
-            }
-            if (e.getValue() instanceof List) {
-                List<?> listvalue = (List<?>) e.getValue();
-                List<String> newvalues = new ArrayList<>();
-                listvalue.stream().filter(Objects::nonNull).map(Object::toString).forEach(newvalues::add);
-                if (newvalues.isEmpty()) {
-                    continue;
-                } else if (newvalues.size() == 1) {
-                    stored = newvalues.get(0);
-                } else {
-                    stored = newvalues;
+        Object returned = FieldsProcessor.RUNSTATUS.FAILED;
+        for (io.krakens.grok.api.Grok grok : groks) {
+            Match gm = grok.match(value.toString());
+            //Results from grok needs to be cleaned
+            Map<String, Object> captures = gm.capture();
+            if (captures.size() > 0) {
+                returned = RUNSTATUS.NOSTORE;
+                for (Map.Entry<String, Object> e : captures.entrySet()) {
+                    String destinationField = e.getKey();
+                    Object stored;
+                    if (e.getValue() == null) {
+                        continue;
+                    }
+                    if (e.getValue() instanceof List) {
+                        List<?> values = ((List<?>) e.getValue()).stream()
+                                                                 .filter(Objects::nonNull)
+                                                                 .collect(Collectors.toList());
+                        if (values.isEmpty()) {
+                            continue;
+                        } else if (values.size() == 1) {
+                            stored = values.get(0);
+                        } else {
+                            stored = values;
+                        }
+                    } else {
+                        stored = e.getValue();
+                    }
+                    // . is a special field name, it means a value to put back in the original field
+                    if (!".".equals(destinationField)) {
+                        event.putAtPath(VariablePath.of(destinationField), stored);
+                    } else {
+                        returned = stored;
+                    }
                 }
-            } else {
-                stored = e.getValue();
-            }
-            // . is a special field name, it means a value to put back in the original field
-            if (! ".".equals(destinationField) ) {
-                event.putAtPath(VariablePath.of(destinationField), stored);
-            } else {
-                returned = stored;
+                break;
             }
         }
         return returned;
