@@ -1,5 +1,6 @@
 package loghub;
 
+import java.lang.reflect.Array;
 import java.text.DateFormatSymbols;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
@@ -40,6 +41,7 @@ import java.util.Optional;
 import java.util.TimeZone;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
+import java.util.function.UnaryOperator;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -80,32 +82,32 @@ public class VarFormatter {
         public final boolean parenthesis;
 
         private Flags(String flags) {
-            boolean leftjustified = false;
-            boolean alternateform = false;
-            boolean withsign = false;
-            boolean leadingspace = false;
-            boolean zeropadded = false;
-            boolean grouping = false;
-            boolean parenthesis = false;
+            boolean lLeftJustified = false;
+            boolean lAlternateForm = false;
+            boolean lWithSign = false;
+            boolean lLeadingSpace = false;
+            boolean lZeroPadded = false;
+            boolean lGrouping = false;
+            boolean lParenthesis = false;
             for(char c: flags.toCharArray()) {
                 switch(c) {
-                case '-': leftjustified = true; break;
-                case '#': alternateform = true; break;
-                case '+': withsign = true; break;
-                case ' ': leadingspace = true; break;
-                case '0': zeropadded = true; break;
-                case ',': grouping = true; break;
-                case '(': parenthesis = true; break;
+                case '-': lLeftJustified = true; break;
+                case '#': lAlternateForm = true; break;
+                case '+': lWithSign = true; break;
+                case ' ': lLeadingSpace = true; break;
+                case '0': lZeroPadded = true; break;
+                case ',': lGrouping = true; break;
+                case '(': lParenthesis = true; break;
                 default: throw new IllegalStateException("Unhandled flag format, should not be reached");
                 }
             }
-            this.leftjustified = leftjustified;
-            this.alternateform = alternateform;
-            this.withsign = withsign;
-            this.leadingspace = leadingspace;
-            this.zeropadded = zeropadded;
-            this.grouping = grouping;
-            this.parenthesis = parenthesis;
+            this.leftjustified = lLeftJustified;
+            this.alternateform = lAlternateForm;
+            this.withsign = lWithSign;
+            this.leadingspace = lLeadingSpace;
+            this.zeropadded = lZeroPadded;
+            this.grouping = lGrouping;
+            this.parenthesis = lParenthesis;
         }
     }
 
@@ -122,7 +124,7 @@ public class VarFormatter {
         }
 
         @Override
-        public final StringBuffer format(Object obj, StringBuffer toAppendTo,
+        public StringBuffer format(Object obj, StringBuffer toAppendTo,
                                          FieldPosition pos) {
             String formatted = f.apply(obj);
             if (toUpper) {
@@ -136,48 +138,52 @@ public class VarFormatter {
         }
     }
 
-    private static final class RightJustifyFormat extends Format {
-        private final Format f;
-        private final int size;
-        private RightJustifyFormat(Format f, int size) {
+    private abstract static class JustifyFormat extends Format {
+        protected final DecimalFormat f;
+        protected final int size;
+        protected final String padding;
+        private JustifyFormat(DecimalFormat f, int size) {
             this.f = f;
             this.size = size;
-        }
-        public final StringBuffer format(Object obj, StringBuffer toAppendTo, FieldPosition pos) {
-            String formatted = f.format(obj, new StringBuffer(), pos).toString();
-            if(formatted.length() < size) {
-                char[] prefix = new char[size - formatted.length()];
-                Arrays.fill(prefix, ' ');
-                toAppendTo.append(prefix);
+            if (size > 0) {
+                char[] paddingContent = new char[size];
+                Arrays.fill(paddingContent, ' ');
+                padding = new String(paddingContent);
+            } else {
+                padding = null;
             }
-            return toAppendTo.append(formatted);
         }
         @Override
         public Object parseObject(String source, ParsePosition pos) {
             throw new UnsupportedOperationException("Can't parse an object");
+        }
+        protected void pad(StringBuffer toAppendTo, CharSequence formatted) {
+            if (formatted.length() < size) {
+                toAppendTo.append(padding, 0, size - formatted.length());
+            }
         }
     }
 
-    private static final class LeftJustifyFormat extends Format {
-        private final Format f;
-        private final int size;
-        private LeftJustifyFormat(Format f, int size) {
-            this.f = f;
-            this.size = size;
+    private static class RightJustifyFormat extends JustifyFormat {
+        RightJustifyFormat(DecimalFormat f, int size) {
+            super(f, size);
         }
-        public final StringBuffer format(Object obj, StringBuffer toAppendTo, FieldPosition pos) {
-            String formatted = f.format(obj, new StringBuffer(), pos).toString();
+        public StringBuffer format(Object obj, StringBuffer toAppendTo, FieldPosition pos) {
+            CharSequence formatted = f.format(obj, new StringBuffer(), pos);
+            pad(toAppendTo, formatted);
+            return toAppendTo.append(formatted);
+        }
+    }
+
+    private static class LeftJustifyFormat extends JustifyFormat {
+        LeftJustifyFormat(DecimalFormat f, int size) {
+            super(f, size);
+        }
+        public StringBuffer format(Object obj, StringBuffer toAppendTo, FieldPosition pos) {
+            CharSequence formatted = f.format(obj, new StringBuffer(), pos);
             toAppendTo.append(formatted);
-            if (formatted.length() < size) {
-                char[] prefix = new char[size - formatted.length()];
-                Arrays.fill(prefix, ' ');
-                toAppendTo.append(prefix);
-            }
+            pad(toAppendTo, formatted);
             return toAppendTo;
-        }
-        @Override
-        public Object parseObject(String source, ParsePosition pos) {
-            throw new UnsupportedOperationException("Can't parse an object");
         }
     }
 
@@ -194,12 +200,25 @@ public class VarFormatter {
             this.flags = flags;
             this.size = size;
         }
-        public final StringBuffer format(Object obj, StringBuffer toAppendTo, FieldPosition pos) {
+        public StringBuffer format(Object obj, StringBuffer toAppendTo, FieldPosition pos) {
             Number n = (Number) obj;
             String formatted;
             String prefix;
+            long longValue;
+            if (n instanceof Byte && base != 10) {
+                byte b = (byte) n;
+                longValue = Byte.toUnsignedLong(b);
+            } else if (n instanceof Short && base != 10) {
+                short s = (short) n;
+                longValue = Short.toUnsignedLong(s);
+            } else if (n instanceof Integer && base != 10) {
+                int i = (int) n;
+                longValue = Integer.toUnsignedLong(i);
+            } else {
+                longValue = n.longValue();
+            }
             if (base == 16) {
-                formatted = Long.toHexString(n.longValue());
+                formatted = Long.toHexString(longValue);
                 prefix = "0x";
             } else if (base == 8) {
                 formatted = Long.toOctalString(n.longValue());
@@ -540,17 +559,15 @@ public class VarFormatter {
         }
     }
 
-    private static final Pattern varregexp = Pattern.compile("^(?<before>.*?(?=(?:\\$\\{)|\\{|'))(?:\\$\\{(?<varname>#?[\\w\\.-]+)?(?<format>%[^}]+)?\\}|(?:(?<curlybraces>\\{.*\\})|(?<quote>')))(?<after>.*)$", Pattern.DOTALL);
-    private static final Pattern formatSpecifier = Pattern.compile("^(?<flag>[-#+ 0,(]*)?(?<length>\\d+)?(?:\\.(?<precision>\\d+))?(?:(?<istime>[tT])(?:\\<(?<tz>.*)\\>)?)?(?<conversion>[a-zA-Z%])(?::(?<locale>.+))?$", Pattern.DOTALL);
+    private static final Pattern varregexp = Pattern.compile("^(?<before>.*?(?=\\$\\{|\\{|'))(?:\\$\\{(?<varname>#?[\\w.-]+)?(?<format>%[^}]+)?}|(?:(?<curlybraces>\\{.*})|(?<quote>')))(?<after>.*)$", Pattern.DOTALL);
+    private static final Pattern formatSpecifier = Pattern.compile("^(?<flag>[-#+ 0,(]*)?(?<length>\\d+)?(?:\\.(?<precision>\\d+))?(?:(?<istime>[tT])(?:<(?<tz>.*)>)?)?(?<conversion>[a-zA-Z%])(?::(?<locale>.+))?$", Pattern.DOTALL);
     private static final Pattern arrayIndex = Pattern.compile("#(?<index>\\d+)");
-    private static final String lineseparator = System.lineSeparator();
 
     private static final Logger logger = LogManager.getLogger();
 
     private final Map<Object, Integer> mapper = new LinkedHashMap<>();
     private final MessageFormat mf;
 
-    private ZoneId tz = ZoneId.systemDefault();
     private Locale locale;
     private final String format;
     @Getter
@@ -561,9 +578,9 @@ public class VarFormatter {
     }
 
     /**
-     * @param format
-     * @param l
-     * @throws IllegalArgumentException
+     * @param format a format string to be compiled
+     * @param l the {@link Locale} to use for formatting
+     * @throws IllegalArgumentException if the format string can't be compiled
      */
     public VarFormatter(String format, Locale l) {
         logger.trace("new format: {}", format);
@@ -602,7 +619,7 @@ public class VarFormatter {
     public String format(Object arg) throws IllegalArgumentException {
         Map<String, Object> variables;
         Object mapperType = mapper.keySet().stream().findAny().orElse("");
-        if (( mapperType instanceof Number) && ! ( arg instanceof List || arg instanceof Object[])) {
+        if ((mapperType instanceof Number) && ! (arg instanceof List || arg.getClass().isArray())) {
             throw new IllegalArgumentException("Given a non-list to a format expecting only a list or an array");
         } else if (arg instanceof Map) {
             variables = (Map<String, Object>) arg;
@@ -615,7 +632,7 @@ public class VarFormatter {
                 resolved[mapping.getValue()] = checkArgType(arg);
                 continue;
             }
-            if (mapperType instanceof Number && ! arg.getClass().isArray()) {
+            if (mapperType instanceof Number && arg instanceof List) {
                 int i = ((Number) mapping.getKey()).intValue();
                 int j = ((Number) mapping.getValue()).intValue();
                 List<Object> l = (List<Object>) arg;
@@ -623,14 +640,13 @@ public class VarFormatter {
                     throw new IllegalArgumentException("index out of range");
                 }
                 resolved[i] = checkArgType(l.get(j - 1));
-            } else if (mapperType instanceof Number && arg instanceof Object[]) {
+            } else if (mapperType instanceof Number && arg.getClass().isArray()) {
                 int i = ((Number) mapping.getKey()).intValue();
                 int j = ((Number) mapping.getValue()).intValue();
-                Object[] a = (Object[]) arg;
-                if (j > a.length) {
+                if (j >  Array.getLength(arg)) {
                     throw new IllegalArgumentException("index out of range");
                 }
-                resolved[i] = checkArgType(a[j - 1]);
+                resolved[i] = Array.get(arg, j - 1);
             } else {
                 String[] path = mapping.getKey().toString().split("\\.");
                 if (path.length == 1) {
@@ -645,15 +661,13 @@ public class VarFormatter {
                     String key = path[0];
                     for (int i = 0; i < path.length - 1; i++) {
                         Map<String, Object> next = (Map<String, Object>) current.get(key);
-                        if (!(next instanceof Map)) {
+                        if (next == null) {
                             throw new IllegalArgumentException("invalid values for format key " + mapping.getKey());
                         }
                         current = next;
                         key = path[i + 1];
                     }
-                    if (current != null) {
-                        resolved[mapping.getValue()] = checkArgType(current.get(key));
-                    }
+                    resolved[mapping.getValue()] = checkArgType(current.get(key));
                 }
             }
         }
@@ -719,7 +733,7 @@ public class VarFormatter {
             buffer.append(before);
             if (curlybraces != null) {
                 // Escape a {} pair
-                buffer.append("'" + curlybraces + "'");
+                buffer.append("'").append(curlybraces).append("'");
             } else if (quote != null) {
                 // Escape a lone '
                 buffer.append("''");
@@ -747,7 +761,7 @@ public class VarFormatter {
                 } else {
                     index = mapper.get(varname);
                 }
-                buffer.append("{" + index + "}");
+                buffer.append("{").append(index).append("}");
             }
             findVariables(buffer, after, last, formats);
         } else {
@@ -777,43 +791,38 @@ public class VarFormatter {
 
             String conversionStr = m.group("conversion");
 
-            final Character timeFormat;
-            final ZoneId tz;
+            char timeFormat = '\0';
+            ZoneId ctz = null;
             if (isTime != null && ! isTime.isEmpty()) {
                 timeFormat = conversionStr.charAt(0);
                 conversionStr = isTime;
                 String tzStr = m.group("tz");
                 if (tzStr != null && ! tzStr.isEmpty()) {
-                    tz = ZoneId.of(tzStr);
-                } else if (tzStr != null && tzStr.isEmpty()) {
-                    tz = this.tz;
-                } else {
-                    tz = null;
+                    ctz = ZoneId.of(tzStr);
+                } else if (tzStr != null) {
+                    ctz = ZoneId.systemDefault();
                 }
-            } else {
-                timeFormat = null;
-                tz = null;
             }
 
             boolean isUpper = conversionStr.toUpperCase(locale).equals(conversionStr);
             char conversion = conversionStr.toLowerCase(locale).charAt(0);
 
-            final Function<String, String> cut = i -> precision < 0 ? i : i.substring(0, precision);
+            final UnaryOperator<String> cut = i -> precision < 0 ? i : i.substring(0, precision);
             switch(conversion) {
             case 'b': return new NonParsingFormat(Locale.getDefault(), isUpper, i -> cut.apply(i == null ? "false" : (i instanceof Boolean) ? i.toString() : "true"));
             case 's': return new NonParsingFormat(Locale.getDefault(), isUpper, i -> cut.apply(i.toString()) );
             case 'h': return new NonParsingFormat(Locale.getDefault(), isUpper, i -> cut.apply(i == null ? "null" : Integer.toHexString(i.hashCode())));
             case 'c': return new NonParsingFormat(Locale.getDefault(), isUpper, i -> (i instanceof Character) ? i.toString() : "null");
             case 'd': {Format f = numberFormat(locale, conversion, flags, true, length, precision, isUpper); return new NonParsingFormat(locale, false, f::format);}
-            case 'o': return new NonDecimalFormat(locale, 8, isUpper, flags, precision);
-            case 'x': return new NonDecimalFormat(locale, 16, isUpper, flags, precision);
+            case 'o': return new NonDecimalFormat(locale, 8, isUpper, flags, length);
+            case 'x': return new NonDecimalFormat(locale, 16, isUpper, flags, length);
             case 'e': {Format f = numberFormat(locale, conversion, flags, false, length, precision, isUpper); return new NonParsingFormat(locale, false, f::format);}
             case 'f': {Format f = numberFormat(locale, conversion, flags, false, length, precision, isUpper); return new NonParsingFormat(locale, false, f::format);}
             case 'g': {Format f = numberFormat(locale, conversion, flags, false, length, precision, isUpper); return new NonParsingFormat(locale, false, f::format);}
             case 'a': {Format f = numberFormat(locale, conversion, flags, false, length, precision, isUpper); return new NonParsingFormat(locale, false, f::format);}
-            case 't': return new ExtendedDateFormat(locale, timeFormat, tz, isUpper);
+            case 't': return new ExtendedDateFormat(locale, timeFormat, ctz, isUpper);
             case '%': return new NonParsingFormat(Locale.getDefault(), false, i -> "%");
-            case 'n': return new NonParsingFormat(Locale.getDefault(), false, i -> lineseparator);
+            case 'n': return new NonParsingFormat(Locale.getDefault(), false, i -> System.lineSeparator());
             default: throw new IllegalArgumentException("Invalid format specifier: " + format);
             }
         } else {
@@ -822,11 +831,12 @@ public class VarFormatter {
     }
 
     private Format numberFormat(Locale l, char conversion, Flags flags, boolean integer, int length, int precision, boolean isUpper) {
+        // Default precision for %f is exactly 6 digits
         precision = (precision == -1 ? 6 : precision);
         DecimalFormatSymbols symbols = DecimalFormatSymbols.getInstance(l);
         symbols.setExponentSeparator( isUpper ? "E" : "e");
         symbols.setDigit(flags.zeropadded ? '0' : '#');
-        int fixed = (integer ? length : length - precision);
+        int fixed = (integer ? length : length - precision - 1);
         DecimalFormat df = new DecimalFormat("#" + (conversion == 'e' ? "E00" : ""), symbols);
         if (flags.grouping) {
             df.setGroupingUsed(true);
@@ -839,8 +849,9 @@ public class VarFormatter {
         if (flags.withsign) {
             df.setPositivePrefix("+");
         }
-        if (! integer) {
+        if (! integer && precision >= 0) {
             df.setMinimumFractionDigits(precision);
+            df.setMaximumFractionDigits(precision);
         }
         if (symbols.getDigit() == '0') {
             df.setMinimumIntegerDigits(fixed);
@@ -850,7 +861,6 @@ public class VarFormatter {
         } else {
             return new RightJustifyFormat(df, length);
         }
-
     }
 
     @Override
@@ -859,20 +869,12 @@ public class VarFormatter {
     }
 
     static ChronoZonedDateTime<? extends ChronoLocalDate> resolveWithEra(Locale locale, ZonedDateTime timePoint) {
-        switch (locale.getLanguage()) {
-        case "th":
-            if ("TH".equals(locale.getCountry())) {
-                return ThaiBuddhistDate.from(timePoint).atTime(timePoint.toLocalTime()).atZone(timePoint.getZone());
-            } else {
-                return timePoint;
-            }
-        case "ja":
-            if ("japanese".equals(locale.getUnicodeLocaleType("ca"))) {
-                return JapaneseDate.from(timePoint).atTime(timePoint.toLocalTime()).atZone(timePoint.getZone());
-            } else {
-                return timePoint;
-            }
-        default:
+        String language = locale.getLanguage();
+        if ("th".equals(language) && "TH".equals(locale.getCountry())) {
+            return ThaiBuddhistDate.from(timePoint).atTime(timePoint.toLocalTime()).atZone(timePoint.getZone());
+        } else if ("ja".equals(language) && "japanese".equals(locale.getUnicodeLocaleType("ca"))) {
+            return JapaneseDate.from(timePoint).atTime(timePoint.toLocalTime()).atZone(timePoint.getZone());
+        } else {
             return timePoint;
         }
     }

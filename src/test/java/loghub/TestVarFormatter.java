@@ -40,11 +40,9 @@ public class TestVarFormatter {
     }
 
     private void checkFormat(Object value, String format) {
-        boolean isJava8 = "1.8".equals(System.getProperty("java.vm.specification.version"));
         boolean isWithShortMonth = "%tB".equalsIgnoreCase(format)
                 || "%th".equalsIgnoreCase(format)
                 || "%tc".equals(format);
-        boolean isUpperCaseWeekFullName = "%TA".equals(format);
         boolean isIslamicChronology;
         if (value instanceof ChronoZonedDateTime) {
             ChronoZonedDateTime<?> czdt = (ChronoZonedDateTime<?>) value;
@@ -56,33 +54,26 @@ public class TestVarFormatter {
             // this chronology is not well-supported in String.format, for all versions up to 15
             return;
         }
-        for(Locale l: Locale.getAvailableLocales()) {
-            boolean isBrokenLangage = "mr".equals(l.getLanguage()) || "pa".equals(l.getLanguage()) || "te".equals(l.getLanguage());
-            boolean isWithDotlessI = "tr".equals(l.getLanguage()) ||"az".equals(l.getLanguage());
-            if (isWithDotlessI && isUpperCaseWeekFullName && isJava8) {
-                // Broken until Java 9
-                continue;
-            }
-            if (isBrokenLangage && isWithShortMonth && isJava8) {
-                // Broken until Java 9
-                continue;
-            }
-            VarFormatter vf = new VarFormatter("${" + format + "}", l);
-            String printf;
-            if (value instanceof Instant) {
-                Instant i = (Instant) value;
-                TemporalAccessor ta = VarFormatter.resolveWithEra(l, ZonedDateTime.ofInstant(i, ZoneId.systemDefault()));
-                printf = String.format(l, format, ta);
-            } else {
-                printf = String.format(l, format, value);
-            }
-            try {
-                String formatter = vf.format(value);
-                Assert.assertEquals("mismatch for " + format + " at locale " + l.toLanguageTag() + " with " + value.getClass().getSimpleName(), printf, formatter );
-            } catch (IllegalArgumentException e) {
-                e.printStackTrace();
-                Assert.fail("mismatch for " + format + " at locale " + l.toLanguageTag() + " with " + value.getClass().getSimpleName() +": " + Helpers.resolveThrowableException(e));
-            }
+        for (Locale l: Locale.getAvailableLocales()) {
+            testWithLocale(l, value, format);
+        }
+    }
+
+    private void testWithLocale(Locale l, Object value, String format) {
+        VarFormatter vf = new VarFormatter("${" + format + "}", l);
+        String printf;
+        if (value instanceof Instant) {
+            Instant i = (Instant) value;
+            TemporalAccessor ta = VarFormatter.resolveWithEra(l, ZonedDateTime.ofInstant(i, ZoneId.systemDefault()));
+            printf = String.format(l, format, ta);
+        } else {
+            printf = String.format(l, format, value);
+        }
+        try {
+            String formatter = vf.format(value);
+            Assert.assertEquals("mismatch for " + format + " at locale " + l.toLanguageTag() + " with " + value.getClass().getSimpleName(), printf, formatter);
+        } catch (IllegalArgumentException e) {
+            Assert.fail("mismatch for " + format + " at locale " + l.toLanguageTag() + " with " + value.getClass().getSimpleName() +": " + Helpers.resolveThrowableException(e));
         }
     }
 
@@ -111,6 +102,24 @@ public class TestVarFormatter {
         checkFormat(Math.PI, "%f");
         checkFormat(Math.PI, "%10.2f");
         checkFormat(Math.PI, "%+10.2f");
+        checkFormat(Math.PI, "% 10.2f");
+        checkFormat(Math.PI, "%-10.2f");
+        checkFormat(Math.PI, "%010.2f");
+        // %f add an exact number of floating digit, even if they are 0
+        checkFormat(1.0, "%f");
+        checkFormat(1.0, "%10.2f");
+        checkFormat(1.0, "%+10.2f");
+        checkFormat(1.0, "%-10.2f");
+        checkFormat(1.0, "%010.2f");
+        // - is a pain to check in many languages, just check for common english
+        testWithLocale(Locale.ENGLISH, -1.0, "%f");
+        testWithLocale(Locale.ENGLISH, -1.0, "%10.2f");
+        testWithLocale(Locale.ENGLISH, -1.0, "%+10.2f");
+        testWithLocale(Locale.ENGLISH, -1.0, "%-10.2f");
+        // DecimalFormat and printf are unable to agree about maximum length for negative number padded with 0, too much work to fix
+        AssertionError ex = Assert.assertThrows(AssertionError.class, () -> testWithLocale(Locale.ENGLISH, -1.0, "%010.2f"));
+        Assert.assertEquals("mismatch for %010.2f at locale en with Double expected:<-00000[]1.00> but was:<-00000[0]1.00>", ex.getMessage());
+
     }
 
     private void checkDate(Object date) {
@@ -415,7 +424,7 @@ public class TestVarFormatter {
     @Test
     public void formatAllImplicit() {
         VarFormatter vf = new VarFormatter("${%s}", Locale.ENGLISH);
-        List<String> obj = Arrays.asList(new String[] {"1", "2", "3"});
+        List<String> obj = Arrays.asList("1", "2", "3");
         String formatted = vf.format(obj);
         Assert.assertEquals("[1, 2, 3]", formatted);
     }
@@ -423,7 +432,7 @@ public class TestVarFormatter {
     @Test
     public void formatAllExplicit() {
         VarFormatter vf = new VarFormatter("${.%s}", Locale.ENGLISH);
-        List<String> obj = Arrays.asList("1", "2", "3");
+        List<String> obj = List.of("1", "2", "3");
         String formatted = vf.format(obj);
         Assert.assertEquals("[1, 2, 3]", formatted);
     }
