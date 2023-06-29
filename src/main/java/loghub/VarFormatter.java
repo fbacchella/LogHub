@@ -52,25 +52,6 @@ import lombok.Getter;
 
 public class VarFormatter {
 
-    public static final DontCareFieldPosition INSTANCE = new DontCareFieldPosition(); 
-
-    private static final class DontCareFieldPosition extends FieldPosition {
-        private DontCareFieldPosition() {
-            super(Integer.MIN_VALUE);
-        }
-
-        @Override
-        public void setBeginIndex(int i) {
-            // Do nothing
-        }
-
-        @Override
-        public void setEndIndex(int i) {
-            // Do nothing
-        }
-
-    }
-
     private static final class Flags {
         public final boolean leftjustified;
         public final boolean alternateform;
@@ -157,43 +138,45 @@ public class VarFormatter {
         public Object parseObject(String source, ParsePosition pos) {
             throw new UnsupportedOperationException("Can't parse an object");
         }
-        protected void pad(StringBuffer toAppendTo, CharSequence formatted) {
-            if (formatted.length() < size) {
-                toAppendTo.append(padding, 0, size - formatted.length());
+    }
+
+    private static class RightJustifyNumberFormat extends JustifyFormat {
+        RightJustifyNumberFormat(DecimalFormat f, int size) {
+            super(f, size);
+        }
+        public StringBuffer format(Object obj, StringBuffer toAppendTo, FieldPosition pos) {
+            toAppendTo.ensureCapacity(toAppendTo.length() + size);
+            int oldLength = toAppendTo.length();
+            f.format(obj, toAppendTo, pos);
+            if ((oldLength + size) > toAppendTo.length()) {
+                toAppendTo.insert(oldLength, padding, 0, oldLength + size - toAppendTo.length());
             }
-        }
-    }
-
-    private static class RightJustifyFormat extends JustifyFormat {
-        RightJustifyFormat(DecimalFormat f, int size) {
-            super(f, size);
-        }
-        public StringBuffer format(Object obj, StringBuffer toAppendTo, FieldPosition pos) {
-            CharSequence formatted = f.format(obj, new StringBuffer(), pos);
-            pad(toAppendTo, formatted);
-            return toAppendTo.append(formatted);
-        }
-    }
-
-    private static class LeftJustifyFormat extends JustifyFormat {
-        LeftJustifyFormat(DecimalFormat f, int size) {
-            super(f, size);
-        }
-        public StringBuffer format(Object obj, StringBuffer toAppendTo, FieldPosition pos) {
-            CharSequence formatted = f.format(obj, new StringBuffer(), pos);
-            toAppendTo.append(formatted);
-            pad(toAppendTo, formatted);
             return toAppendTo;
         }
     }
 
-    private static final class NonDecimalFormat extends Format {
+    private static class LeftJustifyNumberFormat extends JustifyFormat {
+        LeftJustifyNumberFormat(DecimalFormat f, int size) {
+            super(f, size);
+        }
+        public StringBuffer format(Object obj, StringBuffer toAppendTo, FieldPosition pos) {
+            toAppendTo.ensureCapacity(toAppendTo.length() + size);
+            int oldLength = toAppendTo.length();
+            f.format(obj, toAppendTo, pos);
+            if ((oldLength + size) > toAppendTo.length()) {
+                toAppendTo.append(padding, 0, oldLength + size - toAppendTo.length());
+            }
+            return toAppendTo;
+        }
+    }
+
+    private static final class NonDecimalNumberFormat extends Format {
         private final Locale l;
         private final int base;
         private final boolean toUpper;
         private final Flags flags;
         private final int size;
-        private NonDecimalFormat(Locale l, int base, boolean toUpper, Flags flags, int size) {
+        private NonDecimalNumberFormat(Locale l, int base, boolean toUpper, Flags flags, int size) {
             this.l = l;
             this.base = base;
             this.toUpper = toUpper;
@@ -330,7 +313,7 @@ public class VarFormatter {
                     int minutes = Math.abs(offsetS) / 60;
                     int offset = (minutes / 60) * 100 + (minutes % 60);
                     DecimalFormat df = getDecimalFormat("0000", l).get();
-                    df.format(offset, sb, INSTANCE);
+                    df.format(offset, sb, new FieldPosition(0));
                 };
                 zoned = true;
                 chronologyCheck = false;
@@ -498,12 +481,12 @@ public class VarFormatter {
 
         private BiConsumer<StringBuffer, TemporalAccessor> formatTemporalAccessor(Locale l, String formatPattern, TemporalField field) {
             ThreadLocal<DecimalFormat> nf = getDecimalFormat(formatPattern, l);
-            return (sb, ta) -> nf.get().format(ta.get(field), sb, INSTANCE);
+            return (sb, ta) -> nf.get().format(ta.get(field), sb, new FieldPosition(0));
         }
 
         private BiConsumer<StringBuffer, TemporalAccessor> formatTemporalAccessor(Locale l, String formatPattern, TemporalQuery<Long> transformd) {
             ThreadLocal<DecimalFormat> nf = getDecimalFormat(formatPattern, l);
-            return (sb, ta) -> nf.get().format(transformd.queryFrom(ta), sb, INSTANCE);
+            return (sb, ta) -> nf.get().format(transformd.queryFrom(ta), sb, new FieldPosition(0));
         }
 
         private ThreadLocal<DecimalFormat> getDecimalFormat(String pattern, Locale locale) {
@@ -671,7 +654,7 @@ public class VarFormatter {
                 }
             }
         }
-        return mf.format(resolved, new StringBuffer(), INSTANCE).toString();
+        return mf.format(resolved, new StringBuffer(), new FieldPosition(0)).toString();
     }
 
     private static final Locale LOCALEJAPANESERA = Locale.forLanguageTag("ja-JP-u-ca-japanese-x-lvariant-JP");
@@ -814,8 +797,8 @@ public class VarFormatter {
             case 'h': return new NonParsingFormat(Locale.getDefault(), isUpper, i -> cut.apply(i == null ? "null" : Integer.toHexString(i.hashCode())));
             case 'c': return new NonParsingFormat(Locale.getDefault(), isUpper, i -> (i instanceof Character) ? i.toString() : "null");
             case 'd': {Format f = numberFormat(locale, conversion, flags, true, length, precision, isUpper); return new NonParsingFormat(locale, false, f::format);}
-            case 'o': return new NonDecimalFormat(locale, 8, isUpper, flags, length);
-            case 'x': return new NonDecimalFormat(locale, 16, isUpper, flags, length);
+            case 'o': return new NonDecimalNumberFormat(locale, 8, isUpper, flags, length);
+            case 'x': return new NonDecimalNumberFormat(locale, 16, isUpper, flags, length);
             case 'e': {Format f = numberFormat(locale, conversion, flags, false, length, precision, isUpper); return new NonParsingFormat(locale, false, f::format);}
             case 'f': {Format f = numberFormat(locale, conversion, flags, false, length, precision, isUpper); return new NonParsingFormat(locale, false, f::format);}
             case 'g': {Format f = numberFormat(locale, conversion, flags, false, length, precision, isUpper); return new NonParsingFormat(locale, false, f::format);}
@@ -856,10 +839,12 @@ public class VarFormatter {
         if (symbols.getDigit() == '0') {
             df.setMinimumIntegerDigits(fixed);
         }
-        if (flags.leftjustified) {
-            return new LeftJustifyFormat(df, length);
+        if (length < 0) {
+            return df;
+        } else if (flags.leftjustified) {
+            return new LeftJustifyNumberFormat(df, length);
         } else {
-            return new RightJustifyFormat(df, length);
+            return new RightJustifyNumberFormat(df, length);
         }
     }
 

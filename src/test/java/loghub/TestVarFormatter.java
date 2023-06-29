@@ -92,6 +92,7 @@ public class TestVarFormatter {
     @Test
     public void test3() {
         checkFormat(65535, "%-10d");
+        checkFormat(65535, "%10d");
         checkFormat(65535, "%d");
         checkFormat(65535, "%010d");
         checkFormat(-65535, "%(d");
