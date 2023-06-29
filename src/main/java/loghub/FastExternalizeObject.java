@@ -28,6 +28,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 
 import loghub.events.EventsFactory;
+import loghub.types.MacAddress;
 import lombok.Getter;
 
 public class FastExternalizeObject {
@@ -385,6 +386,7 @@ public class FastExternalizeObject {
         immutables.add(InetAddress.class);
         immutables.add(Inet4Address.class);
         immutables.add(Inet6Address.class);
+        immutables.add(MacAddress.class);
     }
 
     public static <T> void register(Class<T> clazz, Class<? extends ObjectFaster<T>> of) {
