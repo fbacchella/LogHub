@@ -2,6 +2,7 @@ package loghub.processors;
 
 import java.beans.IntrospectionException;
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.logging.log4j.Level;
@@ -98,9 +99,58 @@ public class TestVarExtractor {
     }
 
     @Test
+    public void testCollisionList() throws ProcessorException {
+        VarExtractor.Builder builder = VarExtractor.getBuilder();
+        builder.setField(VariablePath.of(".message"));
+        builder.setParser("(?<name>[a-z]+)=(?<value>[^;]+);?");
+        builder.setCollision(VarExtractor.Collision_handling.AS_LIST);
+        VarExtractor t = builder.build();
+
+        Event e = factory.newEvent();
+        e.put("message", "a=1;b=2;c=3;a=4");
+        e.process(t);
+        Assert.assertEquals("key a not found", List.of("1", "4"), e.get("a"));
+        Assert.assertEquals("key b not found", "2", e.get("b"));
+        Assert.assertEquals("key c not found", "3", e.get("c"));
+    }
+
+    @Test
+    public void testCollisionFirst() throws ProcessorException {
+        VarExtractor.Builder builder = VarExtractor.getBuilder();
+        builder.setField(VariablePath.of(".message"));
+        builder.setParser("(?<name>[a-z]+)=(?<value>[^;]+);?");
+        builder.setCollision(VarExtractor.Collision_handling.KEEP_FIRST);
+        VarExtractor t = builder.build();
+
+        Event e = factory.newEvent();
+        e.put("message", "a=1;b=2;c=3;a=4");
+        e.process(t);
+        Assert.assertEquals("key a not found", "1", e.get("a"));
+        Assert.assertEquals("key b not found", "2", e.get("b"));
+        Assert.assertEquals("key c not found", "3", e.get("c"));
+    }
+
+    @Test
+    public void testCollisionLast() throws ProcessorException {
+        VarExtractor.Builder builder = VarExtractor.getBuilder();
+        builder.setField(VariablePath.of(".message"));
+        builder.setParser("(?<name>[a-z]+)=(?<value>[^;]+);?");
+        builder.setCollision(VarExtractor.Collision_handling.KEEP_LAST);
+        VarExtractor t = builder.build();
+
+        Event e = factory.newEvent();
+        e.put("message", "a=1;b=2;c=3;a=4");
+        e.process(t);
+        Assert.assertEquals("key a not found", "4", e.get("a"));
+        Assert.assertEquals("key b not found", "2", e.get("b"));
+        Assert.assertEquals("key c not found", "3", e.get("c"));
+    }
+
+    @Test
     public void test_loghub_processors_VarExtractor() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.processors.VarExtractor"
                 , BeanChecks.BeanInfo.build("parser", String.class)
+                , BeanChecks.BeanInfo.build("collision", VarExtractor.Collision_handling.class)
                 , BeanChecks.BeanInfo.build("destination", VariablePath.class)
                 , BeanChecks.BeanInfo.build("destinationTemplate", VarFormatter.class)
                 , BeanChecks.BeanInfo.build("field", VariablePath.class)

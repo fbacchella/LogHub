@@ -1,5 +1,7 @@
 package loghub.processors;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -9,7 +11,7 @@ import lombok.Setter;
 
 /**
  * This transformer parse a field using a regex that extract name and value.
- * The regex must contains two named group name and value. The field is parsed until exhaustion. The unmatched content will stay in the field
+ * The regex must contain two named group name and value. The field is parsed until exhaustion. The unmatched content will stay in the field
  * unless everything match, in this case, the field is removed.
  * <p>
  * The default parser is "(?&lt;name&gt;\p{Alnum}+)\p{Space}?[=:]\p{Space}?(?&lt;value&gt;[^;,:]+)[;,:]?" and should match most common case
@@ -19,9 +21,17 @@ import lombok.Setter;
 @BuilderClass(VarExtractor.Builder.class)
 public class VarExtractor extends FieldsProcessor {
 
+    public enum Collision_handling {
+        KEEP_FIRST,
+        KEEP_LAST,
+        AS_LIST,
+    }
+
     public static class Builder extends FieldsProcessor.Builder<VarExtractor> {
         @Setter
         private String parser = "(?<name>\\p{Alnum}+)\\s?[=:]\\s?(?<value>[^;,:]+)[;,:]?";
+        @Setter
+        private Collision_handling collision = Collision_handling.KEEP_LAST;
         public VarExtractor build() {
             return new VarExtractor(this);
         }
@@ -31,11 +41,13 @@ public class VarExtractor extends FieldsProcessor {
     }
 
     private final ThreadLocal<Matcher> matchersGenerator ;
+    private final Collision_handling collision;
 
     public VarExtractor(Builder builder) {
         super(builder);
         Pattern parser = Pattern.compile(builder.parser);
         matchersGenerator = ThreadLocal.withInitial(() -> parser.matcher(""));
+        collision = builder.collision;
     }
 
     @Override
@@ -51,7 +63,19 @@ public class VarExtractor extends FieldsProcessor {
             String value = m.group("value");
             if (key != null && ! key.isEmpty() && value != null) {
                 parsed = true;
-                event.put(key, value);
+                if (! event.containsKey(key)) {
+                    event.put(key, value);
+                } else {
+                    switch (collision) {
+                    case KEEP_LAST:
+                        event.put(key, value);
+                        break;
+                    case KEEP_FIRST:
+                        break;
+                    case AS_LIST:
+                        event.merge(key, value, this::listDuplicate);
+                    }
+                }
             }
             after = message.substring(m.end());
             m.region(m.end(), m.regionEnd());
@@ -64,6 +88,13 @@ public class VarExtractor extends FieldsProcessor {
         } else {
             return FieldsProcessor.RUNSTATUS.REMOVE;
         }
+    }
+
+    private <T> List<T> listDuplicate(T v1, T v2) {
+        @SuppressWarnings("unchecked")
+        List<T> l= (v1 instanceof List) ? (List<T>) v1 : new ArrayList<>(List.of(v1));
+        l.add(v2);
+        return l;
     }
 
     @Override
