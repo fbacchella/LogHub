@@ -278,4 +278,13 @@ class EventWrapper extends Event {
         return event.getPipelineLogger();
     }
 
+    @Override
+    public Throwable popException() {
+        Throwable t = super.popException();
+        if (t == null) {
+            t = event.popException();
+        }
+        return t;
+    }
+
 }

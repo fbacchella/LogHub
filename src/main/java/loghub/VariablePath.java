@@ -26,6 +26,10 @@ public abstract class VariablePath {
         return false;
     }
 
+    public boolean isException() {
+        return false;
+    }
+
     public boolean isIndirect() {
         return false;
     }
@@ -152,6 +156,37 @@ public abstract class VariablePath {
         @Override
         public boolean equals(Object obj) {
             return obj instanceof TimeStamp;
+        }
+    }
+
+    private static class LastException extends FixedLength {
+        @Override
+        public String toString() {
+            return "[" + Event.LASTEXCEPTIONKEY + "]";
+        }
+
+        @Override
+        public boolean isTimestamp() {
+            return true;
+        }
+        public String get(int index) {
+            if (index == 0) {
+                return Event.LASTEXCEPTIONKEY;
+            } else {
+                throw new ArrayIndexOutOfBoundsException();
+            }
+        }
+        @Override
+        public String groovyExpression() {
+            return "event.getGroovyLastException()";
+        }
+        @Override
+        public int hashCode() {
+            return LastException.class.hashCode();
+        }
+        @Override
+        public boolean equals(Object obj) {
+            return obj instanceof LastException;
         }
     }
 
@@ -340,6 +375,8 @@ public abstract class VariablePath {
     }
 
     public static final VariablePath TIMESTAMP = new TimeStamp();
+
+    public static final VariablePath LASTEXCEPTION = new LastException();
 
     public static final VariablePath EMPTY = new Empty();
 

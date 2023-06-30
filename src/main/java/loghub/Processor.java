@@ -1,5 +1,6 @@
 package loghub;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.apache.logging.log4j.LogManager;
@@ -7,6 +8,8 @@ import org.apache.logging.log4j.Logger;
 
 import loghub.configuration.Properties;
 import loghub.events.Event;
+import loghub.processors.AnonymousSubPipeline;
+import loghub.processors.UnstackException;
 import lombok.Setter;
 
 public abstract class Processor {
@@ -52,7 +55,12 @@ public abstract class Processor {
         ifexpression = builder.ifexpression;
         success = builder.success;
         failure = builder.failure;
-        exception = builder.exception;
+        if (builder.exception != null) {
+            AnonymousSubPipeline asp = new AnonymousSubPipeline();
+            List<Processor> processor = List.of(builder.exception, new UnstackException());
+            asp.setPipeline(new Pipeline(processor, null, null));
+            exception = asp;
+        }
         id = builder.id;
     }
 

@@ -2,6 +2,7 @@ package loghub.events;
 
 import java.io.Serializable;
 import java.time.Instant;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -12,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Queue;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Stream;
@@ -37,6 +39,7 @@ import loghub.metrics.Stats.PipelineStat;
 public abstract class Event extends HashMap<String, Object> implements Serializable {
 
     public static final String TIMESTAMPKEY = "@timestamp";
+    public static final String LASTEXCEPTIONKEY = "@lastException";
     public static final String CONTEXTKEY = "@context";
     public static final String INDIRECTMARK = "<-";
     public static final String EVENT_ENTRY = "loghub.Event";
@@ -168,6 +171,8 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
         }
     }
 
+    private final Queue<Throwable> exceptionStack = Collections.asLifoQueue(new ArrayDeque<>());
+
     public Object applyAtPath(Action f, VariablePath path, Object value) {
         return applyAtPath(f, path, value, false);
     }
@@ -245,6 +250,15 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
             }
             default:
                 throw new IllegalArgumentException("Invalid action on a timestamp");
+            }
+        } else if (path.isException()) {
+            if (f == Action.GET) {
+                return Optional.ofNullable(getLastException())
+                               .map(Helpers::resolveThrowableException)
+                               .map(Object.class::cast)
+                               .orElse(NullOrMissingValue.MISSING);
+            } else {
+                throw new IllegalArgumentException("Invalid action on a last exception");
             }
         } else if (path == VariablePath.EMPTY) {
             if (f.mapAction) {
@@ -334,7 +348,13 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
         return new UncheckedProcessorException(new ProcessorException(getRealEvent(), message));
     }
 
-    
+    public Object getGroovyLastException() {
+        return Optional.ofNullable(getLastException())
+                       .map(Helpers::resolveThrowableException)
+                       .map(Object.class::cast)
+                       .orElse(NullOrMissingValue.MISSING);
+    }
+
     /**
      * Used in groovy code only
      * @param path
@@ -481,6 +501,16 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
 
     public abstract Logger getPipelineLogger();
 
+    public void pushException(Throwable t) {
+        exceptionStack.add(t);
+    }
+
+    public Throwable popException() {
+        return exceptionStack.poll();
+    }
+    public Throwable getLastException() {
+        return exceptionStack.peek();
+    }
     /**
      * An event is only equals to itself.
      * @param o object to be compared for equality with this map

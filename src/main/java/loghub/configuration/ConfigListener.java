@@ -796,6 +796,8 @@ class ConfigListener extends RouteBaseListener {
     private VariablePath convertEventVariable(EventVariableContext ev) {
         if (ev.ts != null) {
             return VariablePath.TIMESTAMP;
+        } else if (ev.lex != null) {
+            return VariablePath.LASTEXCEPTION;
         } else if (ev.ctx != null && ev.vp1 == null ) {
             return VariablePath.ofContext(Collections.emptyList());
         } else if (ev.ctx != null) {

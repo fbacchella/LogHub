@@ -53,16 +53,17 @@ public class TestConditions {
     }
 
     @Test
-    public void testfailure() throws InterruptedException, ProcessorException, ConfigException, IOException {
+    public void testfailure() throws ProcessorException, ConfigException, IOException {
         Properties conf = Tools.loadConf("conditions.conf");
 
         Event sent = factory.newEvent();
         sent.put("a", "a");
-
         Tools.runProcessing(sent, conf.namedPipeLine.get("failurepipe"), conf);
-
-        Assert.assertEquals("conversion not expected", "a", sent.get("a"));
-        Assert.assertEquals("conversion not expected", "failure", sent.get("test"));
+        Assert.assertNull(sent.getLastException());
+        Assert.assertEquals("a", sent.get("a"));
+        Assert.assertEquals("failure", sent.get("test"));
+        Assert.assertEquals("failure", sent.get("test"));
+        Assert.assertEquals("Field with path \"[a]\" invalid: Unable to parse \"a\" as a java.lang.Integer: For input string: \"a\"", sent.get("lastException"));
     }
 
     @Test

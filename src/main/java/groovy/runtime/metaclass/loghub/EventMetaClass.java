@@ -23,8 +23,9 @@ public class EventMetaClass extends DelegatingMetaClass {
         case "getMeta": return ev.getMeta(arguments[0].toString());
         case "getGroovyPath": return ev.getGroovyPath(arguments);
         case "getGroovyIndirectPath": return ev.getGroovyIndirectPath(arguments);
+        case "getGroovyLastException": return ev.getGroovyLastException();
         default: {
-            assert false;
+            assert false : "Unknown method " + methodName;
             return super.invokeMethod(object, methodName, arguments);
         }
         }

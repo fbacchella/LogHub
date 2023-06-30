@@ -281,15 +281,17 @@ public class EventsProcessor extends Thread {
                 // A "do nothing" process
                 status = ProcessingStatus.CONTINUE;
             } catch (ProcessorException | UncheckedProcessorException ex) {
-                e.getPipelineLogger().atWarn()
-                                     .withThrowable(ex)
-                                     .log("Got the processing exception {} for event {}", () -> ex.getMessage(), () -> e);
+                ProcessorException rex = ex instanceof ProcessorException ? (ProcessorException) ex : ((UncheckedProcessorException)ex).getProcessorException();
                 Processor exceptionProcessor = p.getException();
+                e.getPipelineLogger().atLevel(exceptionProcessor == null ? Level.WARN : Level.DEBUG)
+                                     .withThrowable(rex)
+                                     .log("Got the processing exception {} for event {}", rex::getMessage, () -> e);
                 if (exceptionProcessor != null) {
+                    e.pushException(rex);
                     e.insertProcessor(exceptionProcessor);
                     status = ProcessingStatus.CONTINUE;
                 } else {
-                    e.doMetric(Stats.PipelineStat.FAILURE, ex);
+                    e.doMetric(Stats.PipelineStat.FAILURE, rex);
                     status = ProcessingStatus.ERROR;
                 }
             } catch (Throwable ex) {
