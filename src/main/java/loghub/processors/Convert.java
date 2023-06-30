@@ -15,6 +15,7 @@ import loghub.Helpers;
 import loghub.ProcessorException;
 import loghub.configuration.BeansManager;
 import loghub.events.Event;
+import loghub.types.MacAddress;
 import lombok.Setter;
 
 /**
@@ -81,6 +82,8 @@ public class Convert extends FieldsProcessor {
             return value;
         } else if (value instanceof byte[] && clazz == String.class) {
             return new String((byte[]) value, charset);
+        } else if (value instanceof byte[] && clazz == MacAddress.class) {
+            return new MacAddress((byte[]) value);
         } else if (value instanceof byte[] && InetAddress.class == clazz) {
             try {
                 return InetAddress.getByAddress((byte[]) value);
