@@ -5,78 +5,80 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import loghub.Processor;
+import loghub.BuilderClass;
 import loghub.ProcessorException;
-import loghub.VariablePath;
 import loghub.events.Event;
-import lombok.Getter;
-import lombok.Setter;
 
 /**
- * Implementations of the CEF specifications, see https://kc.mcafee.com/resources/sites/MCAFEE/content/live/CORP_KNOWLEDGEBASE/78000/KB78712/en_US/CEF_White_Paper_20100722.pdf.
+ * Implementations of the CEF specifications, see
+ * <a href="https://www.microfocus.com/documentation/arcsight/arcsight-smartconnectors-8.4/pdfdoc/cef-implementation-standard/cef-implementation-standard.pdf">Micro Focus Security ArcSight Common Event Format</a>.
  * <p>
- * They are totally brain dead, many corner case and missing escape missing: single | or &lt;space&gt; are allowed in extensions.
- * 
+ * They are totally brain-dead, many corner case and missing escape missing: single | or &lt;space&gt; are allowed in extensions.
+ *
  * @author Fabrice Bacchella
  *
  */
-public class ParseCef extends Processor {
+@BuilderClass(ParseCef.Builder.class)
+public class ParseCef extends FieldsProcessor {
 
     private static final String[] COLUMNS = new String[]{"version", "device_vendor", "device_product", "device_version", "device_event_class_id", "name", "severity"};
-    private static final Pattern fieldPattern = Pattern.compile("(?:[^\\|]|(?<=\\\\)\\|)+");
-    private static final Pattern extensionPattern = Pattern.compile("(?<key>[a-zA-Z0-9_]+)=(?<value>(?:[^ ]| (?! *[a-zA-Z0-9_]+=))+)");
+    private static final Pattern fieldPattern = Pattern.compile("(?:(\\d+)|(?:[^|]|(?<=\\\\)\\|)+)(?=\\|)");
+    private static final Pattern extensionPattern = Pattern.compile("(?<key>\\w+)=(?<value>(?:[^ ]| (?! *\\w+=))+)");
+    private static final ThreadLocal<Matcher> fieldMatcherSource = ThreadLocal.withInitial(() -> fieldPattern.matcher(""));
+    private static final ThreadLocal<Matcher> extensionMatcherSource = ThreadLocal.withInitial(() -> extensionPattern.matcher(""));
 
-    @Getter @Setter
-    private VariablePath field = VariablePath.of("message");
-    private ThreadLocal<Matcher> fieldMatcherSource = ThreadLocal.withInitial(() -> fieldPattern.matcher(""));
-    private ThreadLocal<Matcher> extensionMatcherSource = ThreadLocal.withInitial(() -> extensionPattern.matcher(""));
+    public static class Builder extends FieldsProcessor.Builder<ParseCef> {
+        public ParseCef build() {
+            return new ParseCef(this);
+        }
+    }
+    public static ParseCef.Builder getBuilder() {
+        return new ParseCef.Builder();
+    }
+
+    public ParseCef(ParseCef.Builder builder) {
+        super(builder);
+    }
 
     @Override
-    public boolean process(Event event) throws ProcessorException {
-        String message = event.getAtPath(field).toString();
+    public Object fieldFunction(Event event, Object value)
+            throws ProcessorException {
+        String message = value.toString();
         if (! message.startsWith("CEF:")) {
             throw event.buildException("not a CEF message: \"" + message + "\"");
         }
-        message = message.substring(4);
+        Matcher m = fieldMatcherSource.get();
+        Matcher m2 = extensionMatcherSource.get();
         try {
             Map<String, Object> cefContent = new HashMap<>(COLUMNS.length);
             // The CEF specifications are totally brain-dead, so nothing is easy, needs to be parsed with care
-            Matcher m = fieldMatcherSource.get();
             m.reset(message);
+            m.region(4, message.length());
 
-            // First resolution of the CEF fields
-            int i = -1;
-            while (++i < 7 && m.find()) {
-                String column = COLUMNS[i];
-                switch (column) {
-                case "version":
-                case "severity":
-                    try {
-                        cefContent.put(column, Integer.valueOf(m.group()));
-                    } catch (Exception e) {
-                        cefContent.put(column + "_failed", m.group());
+            for (String column: COLUMNS) {
+                if (!m.find()) {
+                    throw event.buildException("Not a valid CEF message");
+                } else {
+                    if (m.group(1) != null && ("version".equals(column) || "severity".equals(column))) {
+                        cefContent.put(column, Integer.valueOf(m.group(1)));
+                    } else {
+                        cefContent.put(column, m.group().replace("\\\\", "\\").replace("\\|", "|"));
                     }
-                    break;
-                default:
-                    cefContent.put(column, m.group().replace("\\\\", "\\").replace("\\|", "|"));
                 }
             }
             String extension = message.substring(m.end() + 1);
 
             //Resolution of extensions
             Map<String, Object> cefExtensions = new HashMap<>();
-            Matcher m2 = extensionMatcherSource.get();
             m2.reset(extension);
             while (m2.find()) {
                 cefExtensions.put(m2.group("key"), m2.group("value").replace("\\\\", "\\").replace("\\=", "=").replace("\\n", "\n").replace("\\r", "\r"));
             }
-
-            event.put("cef_fields", cefContent);
-            event.put("cef_extensions", cefExtensions);
-
-            return true;
-        } catch (Exception e) {
-            throw event.buildException("failed to parse CEF: " + message, e);
+            cefContent.put("extensions", cefExtensions);
+            return cefContent;
+        } finally {
+            m.reset();
+            m2.reset();
         }
     }
 
