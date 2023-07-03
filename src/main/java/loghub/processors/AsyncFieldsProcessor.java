@@ -36,7 +36,7 @@ public abstract class AsyncFieldsProcessor<FI, F extends Future<FI>> extends Fie
                 }
             };
             try {
-                return processField(event, toprocess, resolver);
+                return processField(event, toprocess, resolver, r -> event.putAtPath(resolveDestination(toprocess), r));
             } catch (UncheckedProcessorException ex) {
                 throw ex.getProcessorException();
             }

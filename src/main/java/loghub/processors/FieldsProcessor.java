@@ -4,15 +4,20 @@ import java.lang.annotation.Documented;
 import java.lang.annotation.Inherited;
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import loghub.Helpers;
 import loghub.IgnoredEventException;
@@ -64,6 +69,8 @@ public abstract class FieldsProcessor extends Processor {
         private Object[] fields;
         @Setter
         private boolean inPlace = false;
+        @Setter
+        private boolean iterate = false;
         public void setDestination(VariablePath destination) {
             this.destination = destination;
             if (destination != null) {
@@ -89,6 +96,8 @@ public abstract class FieldsProcessor extends Processor {
     private VarFormatter destinationTemplate = null;
     @Getter
     private boolean inPlace = false;
+    @Getter @Setter
+    private boolean iterate = false;
 
     protected class FieldSubProcessor extends Processor {
 
@@ -106,14 +115,39 @@ public abstract class FieldsProcessor extends Processor {
         public boolean process(Event event) throws ProcessorException {
             toprocess = processing.next();
             if (processing.hasNext()) {
-                // Still variables to process, so reinsert this process
+                // More variables to process, so reinsert this process
                 event.insertProcessor(this);
             }
-            boolean containsKey = event.containsAtPath(toprocess);
-            if (containsKey) {
-                return FieldsProcessor.this.filterField(event, toprocess);
+            if (! event.containsAtPath(toprocess)) {
+                throw event.buildException("Field " + toprocess + " vanished");
+            } else if (isIterable(event, toprocess)){
+                Object value = event.getAtPath(toprocess);
+                List<Object> values;
+                if (value instanceof Collection) {
+                    @SuppressWarnings("unchecked")
+                    Collection<Object> c = (Collection<Object>)value;
+                    values = new ArrayList<>(c);
+                 } else {
+                    values = Arrays.stream((Object[])value).collect(Collectors.toList());
+                }
+                List<Object> results = new ArrayList<>((values).size() * 2);
+                Collections.reverse(values);
+                event.insertProcessor(new Processor() {
+                    @Override
+                    public boolean process(Event event) {
+                        event.putAtPath(resolveDestination(toprocess), results);
+                        return false;
+                    }
+                });
+                values.forEach(v -> event.insertProcessor(new Processor() {
+                    @Override
+                    public boolean process(Event ev) throws ProcessorException {
+                        return FieldsProcessor.this.filterField(event, toprocess, v, results::add);
+                    }
+                }));
+                throw IgnoredEventException.INSTANCE;
             } else {
-                throw event.buildException("field " + toprocess + " vanished");
+                return FieldsProcessor.this.filterField(event, toprocess, event.getAtPath(toprocess), r -> event.putAtPath(resolveDestination(toprocess), r));
             }
         }
 
@@ -132,6 +166,7 @@ public abstract class FieldsProcessor extends Processor {
     protected FieldsProcessor(Builder<? extends FieldsProcessor> builder) {
         super(builder);
         this.inPlace = builder.inPlace && getClass().getAnnotation(InPlace.class) != null;
+        this.iterate = builder.iterate;
         if (inPlace) {
             this.destinationTemplate = null;
             this.destination = null;
@@ -161,7 +196,7 @@ public abstract class FieldsProcessor extends Processor {
     @Override
     public boolean configure(Properties properties) {
         if ( (getFailure() != null || getSuccess() != null || getException() != null) && patterns.length > 0) {
-            logger.error("Will not run conditionnal processors when multiple fields are defined");
+            logger.error("Will not run conditional processors when multiple fields are defined");
             return false;
         }
         return super.configure(properties);
@@ -187,23 +222,24 @@ public abstract class FieldsProcessor extends Processor {
                 delegate(nextfields, event);
             }
             throw IgnoredEventException.INSTANCE;
+        } else if (! event.containsAtPath(field)) {
+            throw IgnoredEventException.INSTANCE;
+        } else if (isIterable(event, field)) {
+            // The returned value is iterable and iteration for each value was requested, delegate it
+            delegate(Set.of(field), event);
+            throw IgnoredEventException.INSTANCE;
         } else {
             // A single variable to process
-            if (event.containsAtPath(field)) {
-                return doExecution(event, field);
-            } else {
-                throw IgnoredEventException.INSTANCE;
-            }
+            return doExecution(event, field);
         }
     }
 
     boolean doExecution(Event event, VariablePath currentField) throws ProcessorException {
-        return filterField(event, currentField);
+        return filterField(event, currentField, event.getAtPath(currentField), v -> event.putAtPath(resolveDestination(currentField), v));
     }
 
-    private boolean filterField(Event event, VariablePath currentField) throws ProcessorException {
-        logger.trace("transforming field {} on {}", currentField, event);
-        Object value = event.getAtPath(currentField);
+    private boolean filterField(Event event, VariablePath currentField, Object value, Consumer<Object> postProcess) throws ProcessorException {
+        logger.trace("Processing field {} on {}", currentField, event);
         if (getClass().getAnnotation(ProcessNullField.class) == null && value == null) {
             return false;
         }
@@ -214,16 +250,17 @@ public abstract class FieldsProcessor extends Processor {
                 throw new UncheckedProcessorException(ex);
             }
         };
-        return processField(event, currentField, resolver);
+        return processField(event, currentField, resolver, postProcess);
     }
 
-    protected boolean processField(Event event, VariablePath currentField, Supplier<Object> resolver) throws ProcessorException {
+    boolean processField(Event event, VariablePath currentField, Supplier<Object> resolver,
+            Consumer<Object> postProcess) throws ProcessorException {
         try {
             Object processed = resolver.get();
             if (processed instanceof Map && inPlace) {
                 event.putAll((Map) processed);
             } else if (! (processed instanceof RUNSTATUS)) {
-                event.putAtPath(resolveDestination(currentField), processed);
+                postProcess.accept(processed);
             } else if (processed == RUNSTATUS.REMOVE) {
                 event.removeAtPath(currentField);
             }
@@ -267,6 +304,15 @@ public abstract class FieldsProcessor extends Processor {
         }
     }
 
+    private boolean isIterable(Event event, VariablePath vp) {
+        if (! event.containsAtPath(vp)) {
+            return false;
+        } else {
+            Object value = event.getAtPath(vp);
+            return iterate && value != null && (value instanceof Collection || value.getClass().isArray());
+        }
+    }
+
     FieldSubProcessor getSubProcessor(Iterator<VariablePath> processing) {
         return new FieldSubProcessor(processing);
     }
@@ -299,6 +345,7 @@ public abstract class FieldsProcessor extends Processor {
             destinationTemplate = null;
         }
     }
+
     public void setDestination(VariablePath destination) {
         this.destination = destination;
         if (destination != null) {
@@ -306,6 +353,7 @@ public abstract class FieldsProcessor extends Processor {
             this.inPlace = false;
         }
     }
+
     public void setDestinationTemplate(VarFormatter destinationTemplate) {
         this.destinationTemplate = destinationTemplate;
         if (destinationTemplate != null) {
