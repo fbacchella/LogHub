@@ -370,7 +370,6 @@ public class TestDateParser {
         event.put("field", parseDate);
         Assert.assertTrue(parse.process(event));
         Instant date = (Instant) event.get("field");
-        System.err.format("%s %s %d.09%d%n", expected, date, date.getEpochSecond(), date.getNano());
         Assert.assertEquals(expected, date);
     }
 

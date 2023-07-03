@@ -96,7 +96,6 @@ public class TestFieldsProcessor {
         e.put("b", new Object[]{4, 5, 6});
         e.put("c", 2);
         Tools.runProcessing(e, "main", Collections.singletonList(p));
-        System.err.println(e);
         Assert.assertEquals("destination field wrong", List.of(1, 2, 3), e.get("a_done"));
         Assert.assertEquals("destination field wrong", List.of(4, 5, 6), e.get("b_done"));
         Assert.assertEquals("destination field wrong", 2, e.get("c_done"));

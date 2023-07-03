@@ -221,7 +221,6 @@ public class TestUrlParser {
                     b.setInPlace(true);
                 }, "original",
                 "ftp://ftp.is.co.za/rfc/rfc1808.txt");
-        System.err.println(event);
         Assert.assertEquals("ftp", event.get("scheme"));
     }
 
@@ -232,7 +231,6 @@ public class TestUrlParser {
                     b.setInPlace(true);
                 }, "original",
                 "ldap://[2001:db8::7]/c=GB?objectClass?one");
-        System.err.println(event);
         Assert.assertEquals("ldap", event.get("scheme"));
         Assert.assertEquals("[2001:db8::7]", event.get("domain"));
         Assert.assertEquals("objectClass?one", event.get("query"));
@@ -246,7 +244,6 @@ public class TestUrlParser {
                     b.setInPlace(true);
                 }, "original",
                 "mailto:John.Doe@example.com");
-        System.err.println(event);
         Assert.assertEquals("mailto", event.get("scheme"));
         Assert.assertEquals("John.Doe@example.com", event.get("specific"));
     }
@@ -258,7 +255,6 @@ public class TestUrlParser {
                     b.setInPlace(true);
                 }, "original",
                 "news:comp.infosystems.www.servers.unix");
-        System.err.println(event);
         Assert.assertEquals("news", event.get("scheme"));
         Assert.assertEquals("comp.infosystems.www.servers.unix", event.get("specific"));
     }
@@ -270,7 +266,6 @@ public class TestUrlParser {
                     b.setInPlace(true);
                 }, "original",
                 "tel:+1-816-555-1212");
-        System.err.println(event);
         Assert.assertEquals("tel", event.get("scheme"));
         Assert.assertEquals("+1-816-555-1212", event.get("specific"));
     }
@@ -282,7 +277,6 @@ public class TestUrlParser {
                     b.setInPlace(true);
                 }, "original",
                 "telnet://192.0.2.16:80/");
-        System.err.println(event);
         Assert.assertEquals("telnet", event.get("scheme"));
         Assert.assertEquals(80, event.get("port"));
         Assert.assertEquals("192.0.2.16", event.get("domain"));
@@ -296,7 +290,6 @@ public class TestUrlParser {
                     b.setInPlace(true);
                 }, "original",
                 "urn:oasis:names:specification:docbook:dtd:xml:4.1.2");
-        System.err.println(event);
         Assert.assertEquals("urn", event.get("scheme"));
         Assert.assertEquals("oasis:names:specification:docbook:dtd:xml:4.1.2", event.get("specific"));
     }
