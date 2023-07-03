@@ -115,6 +115,25 @@ public class TestVarExtractor {
     }
 
     @Test
+    // Needs an explicit test because AS_LIST uses merge, that needs to be overridden in EventWrapper
+    public void testCollisionListWrapped() throws ProcessorException {
+        VarExtractor.Builder builder = VarExtractor.getBuilder();
+        builder.setField(VariablePath.of(".message"));
+        builder.setParser("(?<name>[a-z]+)=(?<value>[^;]+);?");
+        builder.setCollision(VarExtractor.Collision_handling.AS_LIST);
+        VarExtractor t = builder.build();
+
+        Event e = factory.newEvent();
+        e.put("message", "a=1;b=2;c=3;a=4");
+        Event wrapped = e.wrap(VariablePath.of("d1.d2"));
+        wrapped.process(t);
+        System.err.println(e);
+        Assert.assertEquals("key a not found", List.of("1", "4"), e.getAtPath(VariablePath.of(List.of("d1", "d2", "a"))));
+        Assert.assertEquals("key b not found", "2", e.getAtPath(VariablePath.of(List.of("d1", "d2", "b"))));
+        Assert.assertEquals("key c not found", "3", e.getAtPath(VariablePath.of(List.of("d1", "d2", "c"))));
+    }
+
+    @Test
     public void testCollisionFirst() throws ProcessorException {
         VarExtractor.Builder builder = VarExtractor.getBuilder();
         builder.setField(VariablePath.of(".message"));

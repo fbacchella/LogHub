@@ -116,7 +116,14 @@ class EventWrapper extends Event {
     @SuppressWarnings("unchecked")
     @Override
     public Collection<Object> values() {
-        return (Collection<Object>) action( Action.VALUES, null);
+        return (Collection<Object>) action(Action.VALUES, null);
+    }
+
+    @Override
+    public Object merge(String key, Object value, BiFunction<? super Object, ? super Object, ?> remappingFunction) {
+        @SuppressWarnings("unchecked")
+        Map<String, Object> current = (Map<String, Object>) event.applyAtPath(Action.GET, this.path, null);
+        return current.merge(key, value, remappingFunction);
     }
 
     @Override
@@ -246,7 +253,6 @@ class EventWrapper extends Event {
     public Event unwrap() {
         return event;
     }
-
 
     @Override
     public Map<String, Object> getMetas() {
