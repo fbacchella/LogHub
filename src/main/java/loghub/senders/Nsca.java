@@ -40,7 +40,7 @@ public class Nsca extends Sender {
         private String encryption = null;
         @Setter
         private Map<String, String> mapping;
-         @Override
+        @Override
         public Nsca build() {
             return new Nsca(this);
         }

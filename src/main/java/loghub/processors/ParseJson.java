@@ -36,7 +36,7 @@ public class ParseJson extends FieldsProcessor {
                     if (key.startsWith("@")) {
                         event.put(atPrefix + key.substring(1), e.getValue());
                     } else {
-                        event.put( key, e.getValue());
+                        event.put(key, e.getValue());
                     }
                 }
                 return FieldsProcessor.RUNSTATUS.NOSTORE;

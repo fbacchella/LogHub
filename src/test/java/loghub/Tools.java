@@ -135,7 +135,7 @@ public class Tools {
         sent.inject(pipe, props.mainQueue, false);
         Event toprocess;
         Processor processor;
-        // Process all the events, will hang forever if it don't finish
+        // Process all the events, will hang forever if it doesn't finish
         try {
             while ((toprocess = props.mainQueue.poll(5, TimeUnit.SECONDS)) != null) {
                 while ((processor = toprocess.next()) != null) {

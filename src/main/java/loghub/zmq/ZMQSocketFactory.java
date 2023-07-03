@@ -83,7 +83,7 @@ public class ZMQSocketFactory implements AutoCloseable {
     private final ZapService zapService;
     private Map<String, ZConfig> publicKeys;
     private UncaughtExceptionHandler delegatedExceptionHandler = this::defaultUncaughtExceptionHandler;
-    // lock to prevent concurent creation of sockets and factory stopping
+    // lock to prevent concurrent creation of sockets and factory stopping
     private final ReadWriteLock factoryLock = new ReentrantReadWriteLock();
     // Once the factory stopped, it can't be reused, even in case of stop failure
     private final AtomicBoolean active = new AtomicBoolean(true);

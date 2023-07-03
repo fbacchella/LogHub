@@ -33,7 +33,6 @@ public class ZMQHelper {
         }
     }
 
-
     public static class SocketInfo {
         public final Method method;
         public final Sockets type;

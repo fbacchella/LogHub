@@ -69,7 +69,7 @@ public abstract class Processor {
         if (success != null && ! success.configure(properties)) {
             return false;
         }
-        if( failure != null && ! failure.configure(properties)) {
+        if (failure != null && ! failure.configure(properties)) {
             return false;
         }
         return exception == null || exception.configure(properties);

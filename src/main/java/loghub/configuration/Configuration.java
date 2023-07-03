@@ -462,7 +462,7 @@ public class Configuration {
     private Properties analyze(ConfigListener conf) throws ConfigException {
         Map<String, Object> newProperties = new HashMap<>(conf.properties.size() + Properties.PROPSNAMES.values().length + System.getProperties().size());
 
-        // Resolvers properties found and and it to new properties
+        // Resolvers properties found and add it to new properties
         @SuppressWarnings("unchecked")
         UnaryOperator<Object> resolve = i -> ((i instanceof ConfigListener.ObjectWrapped) ? ((ConfigListener.ObjectWrapped<Object>) i).wrapped : i);
         conf.properties.forEach((key, value) -> newProperties.put(key, resolve.apply(value)));

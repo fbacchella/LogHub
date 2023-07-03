@@ -128,8 +128,8 @@ public class ElasticSearch extends AbstractHttpSender {
                 }
             }
         }
-        // If a index date format was given use it
-        // If neither index date format or index expression is given, uses a default value: 'loghub-'yyyy.MM.dd
+        // If an index date format was given use it
+        // If neither index date format nor index expression is given, uses a default value: 'loghub-'yyyy.MM.dd
         if (builder.dateformat != null || builder.index == null) {
             esIndexFormat = ThreadLocal.withInitial( () -> {
                 String dateformat = Optional.ofNullable(builder.dateformat).orElse("'loghub-'yyyy.MM.dd");
@@ -259,7 +259,7 @@ public class ElasticSearch extends AbstractHttpSender {
                 } else {
                     settings.put("_index", indexvalue);
                 }
-                // Only put type informations is using old, pre 7.x handling of type
+                // Only put type information if using old, pre 7.x handling of type
                 if (typeHandling != TYPEHANDLING.DEPRECATED) {
                     String typevalue = Optional.ofNullable(type.eval(e)).map(Object::toString).orElse(null);
                     if (typevalue == null || typevalue.isBlank()) {
@@ -355,7 +355,7 @@ public class ElasticSearch extends AbstractHttpSender {
         Set<String> readonly = new HashSet<>();
         try {
             do {
-                Thread.sleep(wait);
+                wait(wait);
                 if (! doCheckIndices(indices, missing, readonly)) {
                     break;
                 }
@@ -561,7 +561,7 @@ public class ElasticSearch extends AbstractHttpSender {
                     JsonNode node = jsonreader.readTree(response.getContentReader());
                     return transform.apply(node);
                 } else if ((status - status % 100) == 200 || (status - status % 100) == 500) {
-                    // This node return 200 but not a application/json, or a 500
+                    // This node return 200 but not an application/json, or a 500
                     // Looks like this node is broken try another one
                     logger.warn("Broken node: {}, returned '{} {}' {}", newEndPoint, status, response.getStatusMessage(), response.getMimeType());
                 } else if (failureHandlers.containsKey(status) && "application/json".equals(responseMimeType)){

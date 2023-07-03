@@ -41,7 +41,7 @@ public abstract class Encoder {
     }
 
     /**
-     * A encoder to be used within processor, so don't check on sender
+     * An encoder to be used within processor, so don't check on sender
      * @param properties
      * @return
      */

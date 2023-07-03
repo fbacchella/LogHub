@@ -637,7 +637,7 @@ public final class Helpers {
     }
 
     /**
-     * Filter a a set of properties, keeping only those starting with the given prefix and removing it.
+     * Filter a set of properties, keeping only those starting with the given prefix and removing it.
      * @param input
      * @param prefix
      * @return

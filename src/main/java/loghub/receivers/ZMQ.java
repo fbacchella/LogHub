@@ -30,7 +30,7 @@ public class ZMQ extends Receiver<ZMQ, ZMQ.Builder> {
         @Setter
         String listen = "tcp://localhost:2120";
         @Setter
-        int hwm= 1000;
+        int hwm = 1000;
         @Setter
         SocketType type = SocketType.SUB;
         @Setter

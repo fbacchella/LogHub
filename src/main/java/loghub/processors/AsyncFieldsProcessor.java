@@ -91,7 +91,6 @@ public abstract class AsyncFieldsProcessor<FI, F extends Future<FI>> extends Fie
         private int timeout = 10;
     }
 
-
     public abstract Object asyncProcess(Event event, FI content) throws ProcessorException;
     public abstract boolean manageException(Event event, Exception e, VariablePath variablePath) throws ProcessorException;
     public abstract BiConsumer<Event, F> getTimeoutHandler();

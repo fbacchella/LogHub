@@ -80,7 +80,7 @@ public class PriorityBlockingQueue extends AbstractQueue<Event>
      * Creates a {@code PriorityBlockingQueue} with the given (fixed) capacity.
      *
      * @param capacity the capacity of this queue
-     * @param weight the relative weight of the non blocking {@link Event}. If 0, it will disable priority management and only one queue will be used
+     * @param weight the relative weight of the non-blocking {@link Event}. If 0, it will disable priority management and only one queue will be used
      * @throws IllegalArgumentException if {@code capacity} is not greater
      *         than zero or the weight is negative.
      */
@@ -147,7 +147,7 @@ public class PriorityBlockingQueue extends AbstractQueue<Event>
                 Thread.currentThread().interrupt();
                 return false;
             } finally {
-                // InterruptedException can happens before or after locking
+                // InterruptedException can happen before or after locking
                 // as it's thrown from lockInterruptibly or putBlocking.
                 if (locked) {
                     backpressureReadLock.unlock();
@@ -200,8 +200,6 @@ public class PriorityBlockingQueue extends AbstractQueue<Event>
      * so immediately without violating capacity restrictions, returning
      * {@code true} upon success and throwing an
      * {@link IllegalStateException} if no space is currently available.
-     * When using a capacity-restricted queue, it is generally preferable to
-     * use {@link #offer(Object) offer}.
      *
      * @param e the {@link Event} to add
      * @return {@code true} (as specified by {@link Collection#add})
@@ -477,7 +475,7 @@ public class PriorityBlockingQueue extends AbstractQueue<Event>
     }
 
     /**
-     * Not implemented, will throws a {@link UnsupportedOperationException}
+     * Not implemented, will throw a {@link UnsupportedOperationException}
      */
     @Override
     public int drainTo(Collection<? super Event> c) {
@@ -485,7 +483,7 @@ public class PriorityBlockingQueue extends AbstractQueue<Event>
     }
 
     /**
-     * Not implemented, will throws a {@link UnsupportedOperationException}
+     * Not implemented, will throw a {@link UnsupportedOperationException}
      */
     @Override
     public int drainTo(Collection<? super Event> c, int maxElements) {
@@ -493,7 +491,7 @@ public class PriorityBlockingQueue extends AbstractQueue<Event>
     }
 
     /**
-     * Atomically removes all of the elements from both queues.
+     * Atomically removes all the elements from both queues.
      * The queue will be empty after this call returns.
      */
     @Override
