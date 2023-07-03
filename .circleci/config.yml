@@ -2,7 +2,7 @@ version: 2.1
 jobs:
     checkout:
         docker:
-            - image: cimg/openjdk:18.0
+            - image: cimg/openjdk:20.0
         steps:
             - checkout
             - restore_cache:
@@ -28,7 +28,7 @@ jobs:
                     - usr/share/snmp/mibs/
     build:
         docker:
-            - image: cimg/openjdk:18.0
+            - image: cimg/openjdk:20.0
         steps:
             - attach_workspace:
                 at: /tmp/ws
@@ -46,9 +46,9 @@ jobs:
                 paths:
                     - home/circleci/.m2/repository
                     - home/circleci/project/target
-    testsj18:
+    testsj20:
         docker:
-            - image: cimg/openjdk:18.0
+            - image: cimg/openjdk:20.0
         steps:
             - attach_workspace:
                 at: /tmp/ws
@@ -127,7 +127,7 @@ jobs:
             #don't persist_to_workspace, can't be done in parallel with testsj14
     publish:
         docker:
-            - image: cimg/openjdk:18.0
+            - image: cimg/openjdk:20.0
         steps:
             - attach_workspace:
                 at: /tmp/ws
@@ -158,7 +158,7 @@ jobs:
                     - home/circleci/.sonar/cache
     savecache:
         docker:
-            - image: cimg/openjdk:18.0
+            - image: cimg/openjdk:20.0
         steps:
             - attach_workspace:
                 at: /tmp/ws
@@ -181,7 +181,7 @@ workflows:
       - build:
           requires:
               - checkout
-      - testsj18:
+      - testsj20:
             requires:
                 - build
       - testsj17:
@@ -194,7 +194,7 @@ workflows:
           requires:
               - testsj11
               - testsj17
-              - testsj18
+              - testsj20
       - savecache:
           requires:
               - publish
