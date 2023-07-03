@@ -1,12 +1,14 @@
 package loghub.processors;
 
 import java.io.IOException;
+import java.io.StringReader;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
+import java.util.List;
 import java.util.UUID;
 import java.util.function.Function;
 
@@ -17,10 +19,12 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import loghub.Helpers;
 import loghub.LogUtils;
 import loghub.ProcessorException;
 import loghub.Tools;
 import loghub.VariablePath;
+import loghub.configuration.Configuration;
 import loghub.configuration.Properties;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
@@ -34,9 +38,9 @@ public class TestConvert {
     static public void configure() throws IOException {
         Tools.configure();
         Logger logger = LogManager.getLogger();
-        LogUtils.setLevel(logger, Level.TRACE, "loghub.processors.SyslogPriority");
+        LogUtils.setLevel(logger, Level.TRACE, "loghub.processors.Convert");
     }
-    
+
     private void check(String className, Class<?> reference, Object invalue, Object outvalue) throws ProcessorException {
         Convert.Builder builder = Convert.getBuilder();
         builder.setField(VariablePath.of("message"));
@@ -94,8 +98,19 @@ public class TestConvert {
 
     @Test
     public void TestNope() throws ProcessorException, UnknownHostException {
-        check("java.lang.Number", Integer.class, Integer.valueOf(38), 38);
+        check("java.lang.Number", Integer.class, 38, 38);
         check("java.net.InetAddress", java.net.Inet4Address.class, InetAddress.getByName("127.0.0.1"), InetAddress.getByName("127.0.0.1"));
+    }
+
+    @Test
+    public void TestIterableEtl() throws ProcessorException, IOException {
+        String configFile = "pipeline[convert] { (java.lang.Integer)[message] }";
+        Properties p =  Configuration.parse(new StringReader(configFile));
+        Helpers.parallelStartProcessor(p);
+        Event ev = factory.newEvent();
+        ev.putAtPath(VariablePath.of("message"), List.of("1", "2", "3"));
+        Tools.runProcessing(ev, p.namedPipeLine.get("convert"), p);
+        Assert.assertEquals(List.of(1, 2, 3), ev.get("message"));
     }
 
     @Test(expected=loghub.ProcessorException.class)

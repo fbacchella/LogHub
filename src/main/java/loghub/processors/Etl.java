@@ -56,23 +56,19 @@ public abstract class Etl extends Processor {
 
     public static class Convert extends Etl {
         private String className = null;
-        private loghub.processors.Convert convert;
+        private loghub.processors.Convert converter;
         @Override
         public boolean process(Event event) throws ProcessorException {
-            if (event.containsAtPath(lvalue)) {
-                Object val = event.getAtPath(lvalue);
-                event.putAtPath(lvalue, convert.fieldFunction(event, val));
-                return true;
-            } else {
-                return false;
-            }
+            return converter.process(event);
         }
         @Override
         public boolean configure(Properties properties) {
             loghub.processors.Convert.Builder builder = loghub.processors.Convert.getBuilder();
             builder.setClassName(className);
-            convert = builder.build();
-            return convert.configure(properties) && super.configure(properties);
+            builder.setField(lvalue);
+            builder.setDestination(lvalue);
+            converter = builder.build();
+            return converter.configure(properties) && super.configure(properties);
         }
         public String getClassName() {
             return className;

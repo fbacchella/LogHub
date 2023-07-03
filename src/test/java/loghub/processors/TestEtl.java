@@ -356,15 +356,13 @@ public class TestEtl {
     }
 
     @Test
-    public void testConvertNull() throws ProcessorException {
-        Event ev = RunEtl("(java.lang.Integer) [a]", i -> {}, false);
-        Assert.assertTrue(ev.isEmpty());
+    public void testConvertNull() {
+        Assert.assertThrows(loghub.IgnoredEventException.class, () -> RunEtl("(java.lang.Integer) [a]", i -> {}, false));
     }
 
     @Test
-    public void testConvertNullPath() throws ProcessorException {
-        Event ev = RunEtl("(java.lang.Integer) [a b]", i -> {}, false);
-        Assert.assertTrue(ev.isEmpty());
+    public void testConvertNullPath() {
+        Assert.assertThrows(loghub.IgnoredEventException.class, () -> RunEtl("(java.lang.Integer) [a b]", i -> {}, false));
     }
 
     @Test
