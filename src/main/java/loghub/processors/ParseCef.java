@@ -19,6 +19,7 @@ import loghub.events.Event;
  *
  */
 @BuilderClass(ParseCef.Builder.class)
+@FieldsProcessor.InPlace
 public class ParseCef extends FieldsProcessor {
 
     private static final String[] COLUMNS = new String[]{"version", "device_vendor", "device_product", "device_version", "device_event_class_id", "name", "severity"};

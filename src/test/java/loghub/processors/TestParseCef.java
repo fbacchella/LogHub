@@ -36,19 +36,7 @@ public class TestParseCef {
         LogUtils.setLevel(logger, Level.TRACE, "loghub.processors");
     }
 
-    @Test
-    public void testCef() throws ProcessorException {
-        ParseCef.Builder builder = ParseCef.getBuilder();
-        builder.setField(VariablePath.of(new String[]{"message"}));
-        builder.setDestination(VariablePath.of(new String[]{"cef"}));
-        ParseCef parse = builder.build();
-        Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
-
-        Event event = factory.newEvent();
-        event.put("message", "CEF:0|security|threatmanager|1.0|100|detected a \\| in packet|10|src=10.0.0.1 act=blocked a \\\\ dst=1.1.1.1 comment=with | in it comment2=with \\= in it comment3=with \\n in it comment4=with \\r in it  app=3");
-        Assert.assertTrue(parse.process(event));
-        @SuppressWarnings("unchecked")
-        Map<String, Object> fields= (Map<String, Object>) event.get("cef");
+    private void check(Map<String, Object> fields) {
         String[] fields_names = new String[]{"version", "device_vendor", "device_product", "device_version", "device_event_class_id", "name", "severity"};
         Object[] fields_values = new Object[]{0, "security", "threatmanager", "1.0", "100", "detected a | in packet", 10};
         for (int i=0; i < fields_names.length; i++) {
@@ -61,6 +49,36 @@ public class TestParseCef {
         for (int i=0; i < extensions_names.length; i++) {
             Assert.assertEquals(extensions_values[i], extensions.get(extensions_names[i]));
         }
+    }
+
+    @Test
+    public void testCef() throws ProcessorException {
+        ParseCef.Builder builder = ParseCef.getBuilder();
+        builder.setField(VariablePath.of(new String[]{"message"}));
+        builder.setDestination(VariablePath.of(new String[]{"cef"}));
+        ParseCef parse = builder.build();
+        Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
+
+        Event event = factory.newEvent();
+        event.put("message", "CEF:0|security|threatmanager|1.0|100|detected a \\| in packet|10|src=10.0.0.1 act=blocked a \\\\ dst=1.1.1.1 comment=with | in it comment2=with \\= in it comment3=with \\n in it comment4=with \\r in it  app=3");
+        Assert.assertTrue(parse.process(event));
+        @SuppressWarnings("unchecked")
+        Map<String, Object> fields = (Map<String, Object>) event.get("cef");
+        check(fields);
+    }
+
+    @Test
+    public void testCefInPlace() throws ProcessorException {
+        ParseCef.Builder builder = ParseCef.getBuilder();
+        builder.setField(VariablePath.of(new String[]{"message"}));
+        builder.setInPlace(true);
+        ParseCef parse = builder.build();
+        Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
+
+        Event event = factory.newEvent();
+        event.putAtPath(VariablePath.of(new String[]{"message"}), "CEF:0|security|threatmanager|1.0|100|detected a \\| in packet|10|src=10.0.0.1 act=blocked a \\\\ dst=1.1.1.1 comment=with | in it comment2=with \\= in it comment3=with \\n in it comment4=with \\r in it  app=3");
+        Assert.assertTrue(parse.process(event));
+        check(event);
     }
 
     @Test
