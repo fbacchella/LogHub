@@ -13,6 +13,7 @@ import java.util.Optional;
 import loghub.BuilderClass;
 import loghub.Helpers;
 import loghub.ProcessorException;
+import loghub.VariablePath;
 import loghub.configuration.BeansManager;
 import loghub.events.Event;
 import loghub.types.MacAddress;
@@ -166,6 +167,13 @@ public class Convert extends FieldsProcessor {
                 throw event.buildException("Unable to parse \""+ valueStr +"\" as a " + className + ": " + Helpers.resolveThrowableException(ex));
             }
         }
+    }
+
+    @Override
+    protected boolean isIterable(Event event, VariablePath vp) {
+        // Does not make real sense to convert individual bytes
+        Object value = event.getAtPath(vp);
+        return ! (value instanceof byte[]) && super.isIterable(event, vp);
     }
 
 }

@@ -70,7 +70,7 @@ public abstract class FieldsProcessor extends Processor {
         @Setter
         private boolean inPlace = false;
         @Setter
-        private boolean iterate = false;
+        private boolean iterate = true;
         public void setDestination(VariablePath destination) {
             this.destination = destination;
             if (destination != null) {
@@ -304,7 +304,7 @@ public abstract class FieldsProcessor extends Processor {
         }
     }
 
-    private boolean isIterable(Event event, VariablePath vp) {
+    protected boolean isIterable(Event event, VariablePath vp) {
         if (! event.containsAtPath(vp)) {
             return false;
         } else {
