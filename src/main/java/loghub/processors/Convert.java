@@ -89,7 +89,6 @@ public class Convert extends FieldsProcessor {
             try {
                 return InetAddress.getByAddress((byte[]) value);
             } catch (UnknownHostException ex) {
-                logger.debug("Failed to parse IP address {}", () -> Helpers.resolveThrowableException(ex));
                 throw event.buildException("Failed to parse IP address", ex);
             }
         } else if (value instanceof byte[]) {
@@ -130,41 +129,45 @@ public class Convert extends FieldsProcessor {
             }
         } else {
             String valueStr = value.toString();
-            try {
-                Object o;
-                switch (className) {
-                case "java.lang.Integer":
-                    o = Integer.valueOf(valueStr);
-                    break;
-                case "java.lang.Byte" :
-                    o = Byte.valueOf(valueStr);
-                    break;
-                case "java.lang.Short":
-                    o = Short.valueOf(valueStr);
-                    break;
-                case "java.lang.Long":
-                    o = Long.valueOf(valueStr);
-                    break;
-                case "java.lang.Float":
-                    o = Float.valueOf(valueStr);
-                    break;
-                case "java.lang.Double":
-                    o = Double.valueOf(valueStr);
-                    break;
-                case "java.lang.Boolean":
-                    o = Boolean.valueOf(valueStr);
-                    break;
-                case "java.net.InetAddress":
-                    o = InetAddress.getByName(valueStr);
-                    break;
-                default:
-                    o = BeansManager.constructFromString(clazz, valueStr);
-                    break;
+            if (valueStr.isBlank()) {
+                return RUNSTATUS.NOSTORE;
+            } else {
+                try {
+                    Object o;
+                    switch (className) {
+                    case "java.lang.Integer":
+                        o = Integer.valueOf(valueStr);
+                        break;
+                    case "java.lang.Byte" :
+                        o = Byte.valueOf(valueStr);
+                        break;
+                    case "java.lang.Short":
+                        o = Short.valueOf(valueStr);
+                        break;
+                    case "java.lang.Long":
+                        o = Long.valueOf(valueStr);
+                        break;
+                    case "java.lang.Float":
+                        o = Float.valueOf(valueStr);
+                        break;
+                    case "java.lang.Double":
+                        o = Double.valueOf(valueStr);
+                        break;
+                    case "java.lang.Boolean":
+                        o = Boolean.valueOf(valueStr);
+                        break;
+                    case "java.net.InetAddress":
+                        o = InetAddress.getByName(valueStr);
+                        break;
+                    default:
+                        o = BeansManager.constructFromString(clazz, valueStr);
+                        break;
+                    }
+                    return o;
+                } catch (NumberFormatException | InvocationTargetException | UnknownHostException ex) {
+                    logger.debug(() -> "Failed to parsed event " + event, ex);
+                    throw event.buildException("Unable to parse \""+ valueStr +"\" as a " + className + ": " + Helpers.resolveThrowableException(ex));
                 }
-                return o;
-            } catch (NumberFormatException | InvocationTargetException | UnknownHostException ex) {
-                logger.debug(() -> "Failed to parsed event " + event, ex);
-                throw event.buildException("Unable to parse \""+ valueStr +"\" as a " + className + ": " + Helpers.resolveThrowableException(ex));
             }
         }
     }
