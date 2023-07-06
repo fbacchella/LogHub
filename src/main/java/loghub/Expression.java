@@ -8,6 +8,7 @@ import java.time.DateTimeException;
 import java.time.Instant;
 import java.time.temporal.TemporalAccessor;
 import java.util.AbstractMap;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collection;
 import java.util.Collections;
@@ -21,6 +22,8 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -249,7 +252,7 @@ public class Expression {
         }
     }
 
-    public Object stringMethod(String method, Object arg) {
+    public Object stringFunction(String method, Object arg) {
         if (arg == NullOrMissingValue.MISSING) {
             throw IgnoredEventException.INSTANCE;
         } else {
@@ -274,6 +277,46 @@ public class Expression {
                 // Can’t be reached
                 throw IgnoredEventException.INSTANCE;
             }
+        }
+    }
+
+    public Object join(Object arg1, Object arg2) {
+        if (arg1 == NullOrMissingValue.MISSING || arg2 == NullOrMissingValue.MISSING) {
+            throw IgnoredEventException.INSTANCE;
+        } else if (arg2 == null || arg2 == NullOrMissingValue.NULL) {
+            return NullOrMissingValue.NULL;
+        } else {
+            Stream<String> strSrc = null;
+            if (arg2 instanceof Collection) {
+                Collection<?> list = (Collection<?>) arg2;
+                strSrc = list.stream().map(Object::toString);
+            } else if (arg2 instanceof int[]) {
+                strSrc = Arrays.stream((int[]) arg2).mapToObj(Integer::toString);
+            } else if (arg2 instanceof long[]) {
+                strSrc = Arrays.stream((long[]) arg2).mapToObj(Long::toString);
+            } else if (arg2 instanceof double[]) {
+                strSrc = Arrays.stream((double[]) arg2).mapToObj(Double::toString);
+            } else if (Object[].class.isAssignableFrom(arg2.getClass())){
+                strSrc = Arrays.stream((Object[])arg2).map(Object::toString);
+            }
+            if (strSrc != null) {
+                String separator = (arg1 != null && arg1 != NullOrMissingValue.NULL) ? arg1.toString(): "";
+                return strSrc.collect(Collectors.joining(separator));
+            } else {
+                return arg2.toString();
+            }
+        }
+    }
+
+    public Object split(Object arg1, Object arg2) {
+        if (arg1 == NullOrMissingValue.MISSING || arg2 == NullOrMissingValue.MISSING) {
+            throw IgnoredEventException.INSTANCE;
+        } else if (arg1 == NullOrMissingValue.NULL || arg1 == null ) {
+            return arg2;
+        } else if (arg2 == null || arg2 == NullOrMissingValue.NULL) {
+            return NullOrMissingValue.NULL;
+        } else {
+            return arg2.toString().split(arg1.toString());
         }
     }
 

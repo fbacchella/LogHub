@@ -200,6 +200,7 @@ expression
     |   '(' e3 = expression ')'
     |   expression '[' arrayIndexSign='-'? arrayIndex=IntegerLiteral ']'
     |   stringFunction = (Trim | Capitalize | IsBlank | Normalize | Uncapitalize | Lowercase | Uppercase) '(' expression ')'
+    |   stringBiFunction = (Join | Split) '(' expression ',' expression ')'
     |   now = 'now'
     |   isEmpty = 'isEmpty' '(' expression ')'
     |   collection=('set' | 'list') expressionsList
@@ -212,6 +213,8 @@ IsBlank: 'isBlank';
 Normalize: 'normalize';
 Lowercase: 'lowercase';
 Uppercase: 'uppercase';
+Join: 'join';
+Split: 'split';
 
 expressionsList
     : '(' expression ( ','  expression )* ','? ')'
@@ -262,7 +265,7 @@ identifier
     | 'FATAL' | 'ERROR' | 'WARN' | 'INFO' | 'DEBUG' | 'TRACE'
     | 'new' | 'instanceof' | 'now' | 'isEmpty'
     | 'sources' | 'true' | 'false' | 'null' | 'drop'
-    | 'trim' | 'capitalize' | 'uncapitalize' | 'isBlank' | 'normalize' | 'lowercase' | 'uppercase'
+    | 'trim' | 'capitalize' | 'uncapitalize' | 'isBlank' | 'normalize' | 'lowercase' | 'uppercase' | 'split' | 'join'
     | 'text' | 'blob'
     | 'set' | 'list'
     | Identifier

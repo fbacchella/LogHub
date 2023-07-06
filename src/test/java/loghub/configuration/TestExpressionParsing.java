@@ -9,6 +9,7 @@ import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.security.Principal;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
@@ -16,6 +17,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.SortedSet;
+import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -572,6 +575,38 @@ public class TestExpressionParsing {
         Event ev = factory.newEvent();
         ev.put("a", value);
         return evalExpression(String.format("%s([a])", function),ev);
+    }
+
+    @Test
+    public void testSplit() throws ExpressionException, ProcessorException {
+        Event ev = factory.newEvent();
+        ev.put("a", "1 2 3");
+        ev.put("b", ' ');
+        ev.put("c", null);
+        Assert.assertArrayEquals(new String[]{"1", "2", "3"}, (String[])evalExpression("split(\" \", [a])",ev));
+        Assert.assertArrayEquals(new String[]{"1", "2", "3"}, (String[])evalExpression("split([b], [a])",ev));
+        Assert.assertEquals("1 2 3", evalExpression("split(null, [a])",ev));
+        Assert.assertEquals(null, evalExpression("split(' ', [c]))",ev));
+        Assert.assertThrows(IgnoredEventException.class, () -> evalExpression("split(null, [d])",ev));
+        Assert.assertThrows(IgnoredEventException.class, () -> evalExpression("split([d], [a])",ev));
+    }
+
+    @Test
+    public void testJoin() throws ExpressionException, ProcessorException {
+        Event ev = factory.newEvent();
+        ev.put("a", List.of(1, 2, 3));
+        ev.put("b", new TreeSet(List.of(1, 2, 3, 1)));
+        ev.put("c", ' ');
+        ev.put("d", null);
+        Assert.assertEquals("1 2 3", evalExpression("join(\" \", set(1, 2, 3))",ev));
+        Assert.assertEquals("1 2 3", evalExpression("join(\" \", list(1, 2, 3))",ev));
+        Assert.assertEquals("1 2 3", evalExpression("join(\" \", [a])",ev));
+        Assert.assertEquals("1 2 3", evalExpression("join(\" \", [b])",ev));
+        Assert.assertEquals("1 2 3", evalExpression("join([c], [a])",ev));
+        Assert.assertEquals("123", evalExpression("join(null, [a])",ev));
+        Assert.assertEquals("123", evalExpression("join([d], [a])",ev));
+        Assert.assertThrows(IgnoredEventException.class, () -> evalExpression("split(' ', [e])",ev));
+        Assert.assertThrows(IgnoredEventException.class, () -> evalExpression("split([e], [a])",ev));
     }
 
     @Test
