@@ -30,7 +30,6 @@ import org.codehaus.groovy.control.CompilationUnit;
 import org.codehaus.groovy.runtime.StringGroovyMethods;
 import org.codehaus.groovy.runtime.typehandling.DefaultTypeTransformation;
 import org.codehaus.groovy.runtime.typehandling.NumberMath;
-import org.codehaus.groovy.runtime.wrappers.PojoWrapper;
 
 import groovy.lang.Binding;
 import groovy.lang.GroovyClassLoader;
@@ -212,9 +211,6 @@ public class Expression {
     }
 
     public Object protect(String op, Object arg) {
-        if (arg instanceof PojoWrapper) {
-            arg = ((PojoWrapper)arg).unwrap();
-        }
         switch (op) {
         case "**":
         case "*":
@@ -284,8 +280,6 @@ public class Expression {
     public Object nullfilter(Object arg) {
         if (arg == null) {
             return NullOrMissingValue.NULL;
-        } else if (arg instanceof PojoWrapper) {
-            return ((PojoWrapper)arg).unwrap();
         } else {
             return arg;
         }

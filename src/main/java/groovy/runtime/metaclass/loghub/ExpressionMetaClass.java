@@ -1,5 +1,9 @@
 package groovy.runtime.metaclass.loghub;
 
+import java.util.Arrays;
+
+import org.codehaus.groovy.runtime.wrappers.PojoWrapper;
+
 import groovy.lang.DelegatingMetaClass;
 import groovy.lang.MetaClass;
 import loghub.Expression;
@@ -18,6 +22,9 @@ public class ExpressionMetaClass extends DelegatingMetaClass {
     @Override
     public Object invokeMethod(Object object, String methodName, Object[] arguments) {
         assert object instanceof Expression;
+        arguments = Arrays.stream(arguments)
+                          .map(i -> i instanceof PojoWrapper ? ((PojoWrapper)i).unwrap() : i)
+                          .toArray(Object[]::new);
         Expression ex = (Expression) object;
         switch (methodName) {
         case "protect": return ex.protect(arguments[0].toString(), arguments[1]);
