@@ -188,7 +188,8 @@ expression
     |   e1 = expression op5=('+'|'-') e2=expression
     |   e1 = expression op6=('<<'|'>>'|'>>>') e2=expression
     |   e1 = expression op7=('<'|'<='|'>'|'>=') e2=expression
-    |   e1 = expression op7bis=('in'|'!in'|'instanceof'|'!instanceof') e2=expression
+    |   e1 = expression opin=('in'|'!in') e2=expression
+    |   e1 = expression opinstance=('instanceof'|'!instanceof') e2=expression
     |   e1 = expression op8=('=='|'!='|'<=>') e2=expression
     |   e1 = expression op8bis=('==='|'!==') e2=expression
     |   e1 = expression opm=matchOperator patternLiteral

@@ -201,6 +201,11 @@ public class TestExpressionParsing {
         Event ev = factory.newEvent();
         Object[] tryExpression = new Object[] {
                 "1 instanceof java.lang.Integer", true,
+                "1 !instanceof java.lang.Integer", false,
+                "'a' in \"bac\"", true,
+                "'d' in \"bac\"", false,
+                "1 in list(1,2,3)", true,
+                "4 in list(1,2,3)", false,
                 "2 ** 3", 8,
                 "2 ** (999999999 +1)", Double.NaN,
                 "2 * 2 ", 4,
@@ -289,6 +294,7 @@ public class TestExpressionParsing {
                 "2 == [a]", false,
                 "[a] == 2", false,
                 "[a] instanceof java.lang.Integer", false,
+                "[a] !instanceof java.lang.Integer", true,
                 "2 ** [a]", IgnoredEventException.class,
                 "[a] ** 2", IgnoredEventException.class,
                 "[a] * 2 ", IgnoredEventException.class,

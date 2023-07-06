@@ -1046,12 +1046,18 @@ class ConfigListener extends RouteBaseListener {
             Object post = stack.pop();
             Object pre = stack.pop();
             expression = String.format(Locale.ENGLISH, "ex.compare(\"%s\", %s, %s)", op, pre, post);
-        } else if (ctx.op7bis != null) {
-            // 'in'|'!in'|'instanceof'|'!instanceof'
-            String op = ctx.op7bis.getText();
+        } else if (ctx.opin != null) {
+            // 'in'|'!in'
+            String op = ctx.opin.getText();
             Object post = stack.pop();
             Object pre = stack.pop();
-            expression = String.format("%s %s %s", pre, op, post);
+            expression = String.format("ex.in(\"%s\", %s, %s)", op, pre, post);
+        } else if (ctx.opinstance != null) {
+            // 'instanceof'|'!instanceof'
+            String op = ctx.opinstance.getText();
+            Object post = stack.pop();
+            Object pre = stack.pop();
+            expression = String.format("ex.instanceof(\"%s\", %s, %s)", op, pre, post);
         } else if (ctx.op8 != null) {
             // '=='|'!='|'<=>'
             String op = ctx.op8.getText();
