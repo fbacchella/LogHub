@@ -290,14 +290,8 @@ public class Expression {
             if (arg2 instanceof Collection) {
                 Collection<?> list = (Collection<?>) arg2;
                 strSrc = list.stream().map(Object::toString);
-            } else if (arg2 instanceof int[]) {
-                strSrc = Arrays.stream((int[]) arg2).mapToObj(Integer::toString);
-            } else if (arg2 instanceof long[]) {
-                strSrc = Arrays.stream((long[]) arg2).mapToObj(Long::toString);
-            } else if (arg2 instanceof double[]) {
-                strSrc = Arrays.stream((double[]) arg2).mapToObj(Double::toString);
-            } else if (Object[].class.isAssignableFrom(arg2.getClass())){
-                strSrc = Arrays.stream((Object[])arg2).map(Object::toString);
+            } else if (arg2.getClass().isArray()) {
+                strSrc = Arrays.stream(DefaultTypeTransformation.primitiveArrayBox(arg2)).map(Object::toString);
             }
             if (strSrc != null) {
                 String separator = (arg1 != null && arg1 != NullOrMissingValue.NULL) ? arg1.toString(): "";

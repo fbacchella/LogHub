@@ -595,12 +595,18 @@ public class TestExpressionParsing {
     public void testJoin() throws ExpressionException, ProcessorException {
         Event ev = factory.newEvent();
         ev.put("a", List.of(1, 2, 3));
+        ev.put("aL", new Long[]{1L, 2L, 3L});
+        ev.put("af", new float[]{1.0f, 2.0f, 3.0f});
+        ev.put("ac", new char[]{'1', '2', '3'});
         ev.put("b", new TreeSet(List.of(1, 2, 3, 1)));
         ev.put("c", ' ');
         ev.put("d", null);
         Assert.assertEquals("1 2 3", evalExpression("join(\" \", set(1, 2, 3))",ev));
         Assert.assertEquals("1 2 3", evalExpression("join(\" \", list(1, 2, 3))",ev));
         Assert.assertEquals("1 2 3", evalExpression("join(\" \", [a])",ev));
+        Assert.assertEquals("1 2 3", evalExpression("join(\" \", [aL])",ev));
+        Assert.assertEquals("1.0 2.0 3.0", evalExpression("join(\" \", [af])",ev));
+        Assert.assertEquals("1 2 3", evalExpression("join(\" \", [ac])",ev));
         Assert.assertEquals("1 2 3", evalExpression("join(\" \", [b])",ev));
         Assert.assertEquals("1 2 3", evalExpression("join([c], [a])",ev));
         Assert.assertEquals("123", evalExpression("join(null, [a])",ev));
