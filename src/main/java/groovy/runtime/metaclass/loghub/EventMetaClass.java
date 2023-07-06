@@ -10,6 +10,7 @@ public class EventMetaClass extends DelegatingMetaClass {
         super(theClass);
     }
 
+    @SuppressWarnings("unused")
     public EventMetaClass(MetaClass theClass) {
         super(theClass);
     }

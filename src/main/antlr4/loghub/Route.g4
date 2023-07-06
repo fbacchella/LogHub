@@ -204,7 +204,7 @@ expression
     |   stringBiFunction = (Join | Split) '(' expression ',' expression ')'
     |   now = 'now'
     |   isEmpty = 'isEmpty' '(' expression ')'
-    |   collection=('set' | 'list') expressionsList
+    |   collection=('set' | 'list') ('(' ')' | expressionsList)
     ;
 
 Trim: 'trim';

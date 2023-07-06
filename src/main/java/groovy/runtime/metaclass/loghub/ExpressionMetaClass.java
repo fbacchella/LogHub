@@ -13,6 +13,7 @@ public class ExpressionMetaClass extends DelegatingMetaClass {
         super(theClass);
     }
 
+    @SuppressWarnings("unused")
     public ExpressionMetaClass(MetaClass theClass) {
         super(theClass);
     }
@@ -37,6 +38,8 @@ public class ExpressionMetaClass extends DelegatingMetaClass {
         case "regex": return ex.regex(arguments[0], arguments[1].toString(), arguments[2].toString());
         case "in": return ex.in(arguments[0].toString(), arguments[1], arguments[2]);
         case "instanceof": return ex.instanceOf(arguments[0].toString(), arguments[1], arguments[2]);
+        case "newCollection": return ex.newCollection(arguments[0].toString());
+        case "asCollection": return ex.asCollection(arguments[0].toString(), arguments[1]);
         default:
             assert false;
             return super.invokeMethod(object, methodName, arguments);

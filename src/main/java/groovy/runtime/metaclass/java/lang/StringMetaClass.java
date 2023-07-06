@@ -14,6 +14,7 @@ public class StringMetaClass extends DelegatingMetaClass {
         super(theClass);
     }
 
+    @SuppressWarnings("unused")
     public StringMetaClass(MetaClass theClass) {
         super(theClass);
     }

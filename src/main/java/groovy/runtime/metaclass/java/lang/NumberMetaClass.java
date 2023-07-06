@@ -17,6 +17,7 @@ public class NumberMetaClass extends DelegatingMetaClass {
         super(theClass);
     }
 
+    @SuppressWarnings("unused")
     public NumberMetaClass(MetaClass theClass) {
         super(theClass);
     }
@@ -94,6 +95,11 @@ public class NumberMetaClass extends DelegatingMetaClass {
             }
             return value;
         } else {
+            for (Object argument : arguments) {
+                if (argument instanceof NullOrMissingValue) {
+                    throw IgnoredEventException.INSTANCE;
+                }
+            }
             return super.invokeMethod(object, methodName, arguments);
         }
     }

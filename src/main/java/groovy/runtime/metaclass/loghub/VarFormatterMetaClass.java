@@ -10,6 +10,7 @@ public class VarFormatterMetaClass extends DelegatingMetaClass {
         super(theClass);
     }
 
+    @SuppressWarnings("unused")
     public VarFormatterMetaClass(MetaClass theClass) {
         super(theClass);
     }

@@ -12,6 +12,7 @@ public class NullOrNoneValueMetaClass extends DelegatingMetaClass {
         super(theClass);
     }
 
+    @SuppressWarnings("unused")
     public NullOrNoneValueMetaClass(MetaClass theClass) {
         super(theClass);
     }
@@ -22,7 +23,6 @@ public class NullOrNoneValueMetaClass extends DelegatingMetaClass {
         switch (methodName) {
         case GroovyOperators.EQUALS: return val.equals(arguments[0]);
         case GroovyOperators.COMPARE_TO: return val.compareTo(arguments[0]);
-        case "isCase": return false;
         case "asBoolean": return false;
         default:
             throw IgnoredEventException.INSTANCE;

@@ -252,6 +252,8 @@ public class TestExpressionParsing {
                 "2 == [a b]", false,
                 "[a b] == 2", false,
                 "[a b] instanceof java.lang.Integer", false,
+                "2 instanceof [a b]", false,
+                "null instanceof [a b]", false,
                 "2 ** [a b]", IgnoredEventException.class,
                 "[a b] ** 2", IgnoredEventException.class,
                 "[a b] * 2 ", IgnoredEventException.class,
@@ -295,6 +297,7 @@ public class TestExpressionParsing {
                 "[a] == 2", false,
                 "[a] instanceof java.lang.Integer", false,
                 "[a] !instanceof java.lang.Integer", true,
+                "null instanceof [a]", true,
                 "2 ** [a]", IgnoredEventException.class,
                 "[a] ** 2", IgnoredEventException.class,
                 "[a] * 2 ", IgnoredEventException.class,
@@ -318,6 +321,7 @@ public class TestExpressionParsing {
                 "true && [a]", false,
                 "false || [a]", false,
                 "2 in [a]", false,
+                "null in [a]", true,
                 ".~ [a]", IgnoredEventException.class,
                 "! [a]", true,
                 "+ [a]", IgnoredEventException.class,
@@ -341,6 +345,7 @@ public class TestExpressionParsing {
                 "3 <= 2", false,
                 "2 <= 2", true,
                 "2 >= 2", true,
+                "2 <= \"b\"", true,
         };
         enumerateExpressions(ev, tryExpression);
     }
@@ -391,7 +396,7 @@ public class TestExpressionParsing {
 
     @Test
     public void testNeedUnwrap() throws ProcessorException, ExpressionException {
-        // This expression fails if unwrap of PojoWrapper is not done in Expression.nullfilter
+        // This expression fails if unwrap of PojoWrapper is not done
         Set i = (Set) evalExpression("set(1, 2, 3) + 4", factory.newEvent());
         Assert.assertEquals(Set.of(1, 2, 3, 4), i);
     }

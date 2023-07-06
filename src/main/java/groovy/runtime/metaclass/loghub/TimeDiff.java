@@ -16,6 +16,7 @@ public class TimeDiff extends DelegatingMetaClass {
         super(theClass);
     }
 
+    @SuppressWarnings("unused")
     public TimeDiff(MetaClass theClass) {
         super(theClass);
     }

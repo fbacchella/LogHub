@@ -1125,8 +1125,12 @@ class ConfigListener extends RouteBaseListener {
             expression = String.format("ex.isEmpty(%s)", subexpression);
         } else if (ctx.collection != null) {
             String collectionType = ctx.collection.getText();
-            Object subexpression = stack.pop();
-            expression = String.format("(%s%s)", subexpression, "set".equals(collectionType) ? " as Set" : "");
+            if (ctx.expressionsList() == null) {
+                expression = String.format("ex.newCollection(\"%s\")", collectionType);
+            } else {
+                Object subexpression = stack.pop();
+                expression = String.format("ex.asCollection(\"%s\", %s)", collectionType, subexpression);
+            }
         } else {
             throw new IllegalStateException("Unreachable code");
         }

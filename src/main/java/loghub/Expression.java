@@ -8,6 +8,7 @@ import java.time.DateTimeException;
 import java.time.Instant;
 import java.time.temporal.TemporalAccessor;
 import java.util.AbstractMap;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collection;
@@ -15,8 +16,10 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -40,9 +43,12 @@ import groovy.lang.GroovySystem;
 import groovy.lang.MetaClassRegistry;
 import groovy.lang.Script;
 import groovy.runtime.metaclass.java.lang.NumberMetaClass;
+import groovy.runtime.metaclass.java.lang.StringMetaClass;
 import groovy.runtime.metaclass.loghub.EventMetaClass;
+import groovy.runtime.metaclass.loghub.ExpressionMetaClass;
 import groovy.runtime.metaclass.loghub.NullOrNoneValueMetaClass;
 import groovy.runtime.metaclass.loghub.TimeDiff;
+import groovy.runtime.metaclass.loghub.VarFormatterMetaClass;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
 import lombok.Getter;
@@ -60,6 +66,10 @@ public class Expression {
 
     static {
         MetaClassRegistry registry = GroovySystem.getMetaClassRegistry();
+
+        registry.setMetaClass(String.class, new StringMetaClass(String.class));
+        registry.setMetaClass(Expression.class, new ExpressionMetaClass(Expression.class));
+        registry.setMetaClass(VarFormatter.class, new VarFormatterMetaClass(VarFormatter.class));
 
         for (Class<?> c: new Class[] {NullOrMissingValue.NULL.getClass(), NullOrMissingValue.MISSING.getClass()}) {
             registry.setMetaClass(c, new NullOrNoneValueMetaClass(c));
@@ -233,21 +243,14 @@ public class Expression {
         case "|":
             if (arg == NullOrMissingValue.MISSING) {
                 throw IgnoredEventException.INSTANCE;
-            } else if (arg == null) {
-                return NullOrMissingValue.NULL;
-            } else {
-                return arg;
-            }
+            } else
+                return Objects.requireNonNullElse(arg, NullOrMissingValue.NULL);
         case "&&":
         case "||":
         case "==":
         case "===":
         case "!=":
-            if (arg == null) {
-                return NullOrMissingValue.NULL;
-            } else {
-                return arg;
-            }
+            return Objects.requireNonNullElse(arg, NullOrMissingValue.NULL);
         default: return arg;
         }
     }
@@ -315,10 +318,75 @@ public class Expression {
     }
 
     public Object nullfilter(Object arg) {
-        if (arg == null) {
-            return NullOrMissingValue.NULL;
+        return Objects.requireNonNullElse(arg, NullOrMissingValue.NULL);
+    }
+
+    public Object instanceOf(String cmd, Object obj, Object clazz) {
+        boolean result;
+        if ((obj == null || obj == NullOrMissingValue.NULL) && (clazz == null || clazz == NullOrMissingValue.NULL)) {
+            result = true;
+        } else if (obj instanceof NullOrMissingValue || clazz instanceof NullOrMissingValue || obj == null ) {
+            result = false;
         } else {
-            return arg;
+            result = ((Class<?>)clazz).isAssignableFrom(obj.getClass());
+        }
+        return cmd.startsWith("!") != result;
+    }
+
+    public Object in(String cmd, Object obj1, Object obj2) {
+        boolean result;
+        if ((obj1 == null || obj1 == NullOrMissingValue.NULL) && (obj2 == null || obj2 == NullOrMissingValue.NULL)) {
+            result = !cmd.startsWith("!");
+        } else if (obj1 == NullOrMissingValue.MISSING) {
+            throw IgnoredEventException.INSTANCE;
+        } else if (obj2 instanceof Collection) {
+            result = ((Collection<?>)obj2).contains(obj1);
+        } else if (obj2.getClass().isArray()) {
+            result = DefaultTypeTransformation.primitiveArrayToList(obj2).contains(obj1);
+        } else if ((obj1 instanceof CharSequence || obj1 instanceof Character) && obj2 instanceof CharSequence) {
+            result = obj2.toString().contains(obj1.toString());
+        } else {
+            result = false;
+        }
+        return cmd.startsWith("!") != result;
+    }
+
+    public Object newCollection(String collectionType) {
+        if ("set".equals(collectionType)) {
+            return new LinkedHashSet<>();
+        } else if ("list".equals(collectionType)) {
+            return new ArrayList<>();
+        } else {
+            assert true: "unreachable";
+            throw IgnoredEventException.INSTANCE;
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    public <T> Object asCollection(String collectionType, Object argument) {
+        if ("set".equals(collectionType)) {
+            if (argument instanceof Set) {
+                return argument;
+            } else if (argument instanceof Collection) {
+                return new LinkedHashSet<>((Collection<T>) argument);
+            } else if (argument.getClass().isArray()) {
+                return new LinkedHashSet<T>(DefaultTypeTransformation.primitiveArrayToList(argument));
+            } else {
+                return new LinkedHashSet<>(Set.of((T)argument));
+            }
+        } else if ("list".equals(collectionType)) {
+            if (argument instanceof List) {
+                return argument;
+            } else if (argument instanceof Collection) {
+                return new ArrayList<>((Collection<T>) argument);
+            } else if (argument.getClass().isArray()) {
+                return new ArrayList<T>(DefaultTypeTransformation.primitiveArrayToList(argument));
+            } else {
+                return new ArrayList<>(List.of((T) argument));
+            }
+        } else {
+            assert true: "unreachable";
+            throw IgnoredEventException.INSTANCE;
         }
     }
 
@@ -326,7 +394,7 @@ public class Expression {
         if (Object[].class.isAssignableFrom(iterable.getClass())) {
             Object[] a = (Object[]) iterable;
             int pos = index >= 0 ? index : (a.length + index);
-            if (a.length > pos || pos < 0) {
+            if (a.length > pos) {
                 return a[pos];
             } else {
                 throw IgnoredEventException.INSTANCE;
@@ -334,7 +402,7 @@ public class Expression {
         } else if (iterable instanceof List) {
             List<?> l = (List<?>) iterable;
             int pos = index >= 0 ? index : (l.size() + index);
-            if (l.size() > pos || pos < 0) {
+            if (l.size() > pos) {
                 return l.get(pos);
             } else {
                 throw IgnoredEventException.INSTANCE;
@@ -374,16 +442,12 @@ public class Expression {
             }
         } else if ("==".equals(operator) && arg1 != null) {
             return arg1.equals(arg2);
-        } else if ("==".equals(operator) && (arg1 == null || arg1 == NullOrMissingValue.NULL)) {
+        } else if ("==".equals(operator)) {
             return (arg2 == null || arg2 == NullOrMissingValue.NULL);
         } else if ("!=".equals(operator) && arg1 != null) {
             return ! arg1.equals(arg2);
-        } else if ("!=".equals(operator) && (arg1 == null || arg1 == NullOrMissingValue.NULL)) {
+        } else if ("!=".equals(operator)) {
             return (arg2 != null && arg2 != NullOrMissingValue.NULL);
-        } else if (arg1 == NullOrMissingValue.MISSING || arg2 == NullOrMissingValue.MISSING) {
-            throw IgnoredEventException.INSTANCE;
-        } else if ("==".equals(operator) && (arg2 == null || arg2 instanceof NullOrMissingValue)) {
-            return true;
         } else {
             assert false : String.format("%s %s %s", arg1, operator, arg2);
             throw IgnoredEventException.INSTANCE;
