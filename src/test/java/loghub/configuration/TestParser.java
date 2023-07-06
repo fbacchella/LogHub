@@ -46,7 +46,7 @@ public class TestParser {
 
     @Ignore
     @Test
-    public void test2() throws IOException, InterruptedException {
+    public void test2() throws IOException {
         CharStream cs = CharStreams.fromStream(getClass().getClassLoader().getResourceAsStream("test.conf"), CharsetUtil.UTF_8);
         RouteLexer lexer = new RouteLexer(cs);
 

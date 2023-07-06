@@ -29,7 +29,7 @@ public class ParseCsv extends FieldsProcessor {
     @Override
     public boolean configure(Properties properties) {
         CsvSchema.Builder sbuilder = CsvSchema.builder();
-        Arrays.stream(columns).forEach(i -> sbuilder.addColumn(i));
+        Arrays.stream(columns).forEach(sbuilder::addColumn);
         sbuilder.setColumnSeparator(separator);
         sbuilder.setNullValue(nullValue);
 

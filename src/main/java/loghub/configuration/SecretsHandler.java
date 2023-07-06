@@ -166,7 +166,6 @@ public class SecretsHandler implements Closeable {
             ks.setEntry(alias, new KeyStore.SecretKeyEntry(generatedSecret), keyStorePP);
             modified = true;
         } catch (KeyStoreException ex) {
-            ex.printStackTrace();
             throw new IllegalStateException("Keystore environment unusable", ex);
         }
     }

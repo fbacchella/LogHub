@@ -77,8 +77,8 @@ public class PausedEvent<KEY> {
      * Builder to build {@link PausedEvent}.
      */
     public static final class Builder<KEY> {
-        private Event event;
-        private KEY key;
+        private final Event event;
+        private final KEY key;
         private Processor onSuccess = DONOTHING;
         private Processor onFailure = DONOTHING;
         private Processor onExpiration = DONOTHING;

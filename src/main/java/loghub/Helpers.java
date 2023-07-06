@@ -549,11 +549,12 @@ public final class Helpers {
             results.forEach(f -> {
                 try {
                     boolean result = f.get();
-                    if (! result) {
+                    if (!result) {
                         throw new IllegalStateException("Failed to start a processor");
                     }
                 } catch (ExecutionException ex) {
-                    throw new IllegalStateException("Failed to start a processor: " + Helpers.resolveThrowableException(ex), ex.getCause());
+                    throw new IllegalStateException(
+                            "Failed to start a processor: " + Helpers.resolveThrowableException(ex), ex.getCause());
                 } catch (InterruptedException ex) {
                     Thread.currentThread().interrupt();
                     throw new IllegalStateException("Interrupted while starting a processor");

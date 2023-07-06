@@ -26,7 +26,7 @@ import com.auth0.jwt.interfaces.Payload;
 
 public class JWTHandler {
 
-    private static final Predicate<String> JWTREGEX = Pattern.compile("^(?:[-A-Za-z0-9_]+)\\.(?:[-A-Za-z0-9_]+)\\.(?:[-A-Za-z0-9_]+)$").asPredicate();
+    private static final Predicate<String> JWTREGEX = Pattern.compile("^[-A-Za-z0-9_]+\\.[-A-Za-z0-9_]+\\.[-A-Za-z0-9_]+$").asPredicate();
 
     public static class JWTPrincipal implements Principal, Header, Payload {
         private final DecodedJWT jwt;

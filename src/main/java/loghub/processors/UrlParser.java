@@ -8,7 +8,6 @@ import java.util.Map;
 import java.util.Optional;
 
 import loghub.BuilderClass;
-import loghub.Helpers;
 import loghub.ProcessorException;
 import loghub.events.Event;
 import lombok.Setter;

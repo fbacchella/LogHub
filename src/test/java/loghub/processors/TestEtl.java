@@ -30,6 +30,7 @@ import loghub.IgnoredEventException;
 import loghub.LogUtils;
 import loghub.NullOrMissingValue;
 import loghub.ProcessorException;
+import loghub.RouteParser;
 import loghub.Tools;
 import loghub.VarFormatter;
 import loghub.VariablePath;
@@ -60,7 +61,7 @@ public class TestEtl {
 
     private Event RunEtl(String exp, Consumer<Event> filer, boolean status, CompletableFuture<Event> holder) throws ProcessorException {
         Map<String, VarFormatter> formatters = new HashMap<>();
-        Etl e =  ConfigurationTools.buildFromFragment(exp, i -> i.etl(), formatters);
+        Etl e =  ConfigurationTools.buildFromFragment(exp, RouteParser::etl, formatters);
         Map<String, Object> settings = new HashMap<>(1);
         settings.put("__FORMATTERS", formatters);
         e.configure(new Properties(settings));
@@ -74,7 +75,7 @@ public class TestEtl {
     }
 
     private Etl parseEtl(String exp) {
-        Etl e =  ConfigurationTools.buildFromFragment(exp, i -> i.etl());
+        Etl e =  ConfigurationTools.buildFromFragment(exp, RouteParser::etl);
         e.configure(new Properties(Collections.emptyMap()));
         return e;
     }
@@ -136,7 +137,7 @@ public class TestEtl {
     }
 
     @Test
-    public void test5() throws ProcessorException, InterruptedException, ConfigException, IOException {
+    public void test5() throws ProcessorException, ConfigException, IOException {
         Properties conf = Tools.loadConf("etl.conf");
         Helpers.parallelStartProcessor(conf);
         Event sent = factory.newEvent();
@@ -148,7 +149,7 @@ public class TestEtl {
     }
 
     @Test
-    public void test7() throws ProcessorException, InterruptedException, ConfigException, IOException {
+    public void test7() throws ProcessorException, ConfigException, IOException {
         Properties conf = Tools.loadConf("etl.conf");
         Helpers.parallelStartProcessor(conf);
         Event sent = factory.newEvent();
@@ -161,7 +162,7 @@ public class TestEtl {
     }
 
     @Test
-    public void test8() throws ProcessorException, InterruptedException, ConfigException, IOException {
+    public void test8() throws ProcessorException, ConfigException, IOException {
         Properties conf = Tools.loadConf("etl.conf");
         Helpers.parallelStartProcessor(conf);
         Event sent = factory.newEvent();
@@ -181,22 +182,22 @@ public class TestEtl {
     }
 
     @Test
-    public void testElementMissing() throws ProcessorException, InterruptedException, ExecutionException {
+    public void testElementMissing() throws InterruptedException, ExecutionException {
         CompletableFuture<Event> holder = new CompletableFuture<>();
         Assert.assertThrows(IgnoredEventException.class, () -> RunEtl("[b] = [a]", i -> {}, true, holder));
         Assert.assertTrue(holder.get().isEmpty());
     }
 
     @Test
-    public void testPathMissing() throws ProcessorException, InterruptedException, ExecutionException {
+    public void testPathMissing() throws InterruptedException, ExecutionException {
         CompletableFuture<Event> holder = new CompletableFuture<>();
         Assert.assertThrows(IgnoredEventException.class, () -> RunEtl("[c] = [a b]", i -> {}, true, holder));
         Assert.assertTrue(holder.get().isEmpty());
     }
 
     @Test
-    public void testElementNull() throws ProcessorException, InterruptedException, ExecutionException {
-        Event ev =  RunEtl("[b] = [a]", i -> {i.put("a", NullOrMissingValue.NULL);});
+    public void testElementNull() throws ProcessorException {
+        Event ev =  RunEtl("[b] = [a]", i -> i.put("a", NullOrMissingValue.NULL));
         Assert.assertTrue(ev.containsKey("b"));
         Assert.assertNull(ev.get("b"));
         // Ensure that JUnis is not doing any magic tricks when checking NotNull
@@ -263,9 +264,9 @@ public class TestEtl {
             i.put("d", 1);
         });
         Assert.assertEquals(1, ev.remove("c"));
-        Assert.assertEquals(null, ev.remove("d"));
+        Assert.assertNull(ev.remove("d"));
         Assert.assertSame(amap, ev.remove("a"));
-        Assert.assertEquals(null, ev.remove("a"));
+        Assert.assertNull(ev.remove("a"));
         Assert.assertTrue(ev.isEmpty());
     }
 
@@ -331,7 +332,7 @@ public class TestEtl {
     public void testMetaToValueMove() throws ProcessorException {
         Event ev =  RunEtl("[a] < [#b]", i -> i.putMeta("b", 1));
         Assert.assertEquals(1, ev.get("a"));
-        Assert.assertEquals(null, ev.getMeta("b"));
+        Assert.assertNull(ev.getMeta("b"));
     }
 
     @Test
@@ -399,7 +400,7 @@ public class TestEtl {
     }
 
     @Test
-    public void testMappingNull() throws ProcessorException, InterruptedException, ExecutionException {
+    public void testMappingNull() throws InterruptedException, ExecutionException {
         CompletableFuture<Event> holder = new CompletableFuture<>();
         Assert.assertThrows(IgnoredEventException.class, () -> RunEtl("[ a b ] @ [ a b ] {0: 1} ", i -> {}, true, holder));
         Assert.assertTrue(holder.get().isEmpty());
@@ -414,7 +415,7 @@ public class TestEtl {
 
         Event ev2 =  RunEtl("[a] =+ 1", i -> i.put("a", new Number[]{0L}));
         Number[] v2 = (Number[]) ev2.get("a");
-        Assert.assertArrayEquals(new Number[]{0l, 1}, v2);
+        Assert.assertArrayEquals(new Number[]{0L, 1}, v2);
 
         Event ev3 =  RunEtl("[a] =+ 1", i -> i.put("a", new ArrayList<>(List.of("0"))));
         List<Object> v3 = (List<Object>) ev3.get("a");

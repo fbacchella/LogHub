@@ -19,13 +19,12 @@ import loghub.events.EventsFactory;
 
 public class TestConditions {
 
-    private static Logger logger;
     private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
     static public void configure() throws IOException {
         Tools.configure();
-        logger = LogManager.getLogger();
+        Logger logger = LogManager.getLogger();
         LogUtils.setLevel(logger, Level.TRACE, "loghub.Expression");
     }
 
@@ -67,7 +66,7 @@ public class TestConditions {
     }
 
     @Test
-    public void testsubpipe() throws InterruptedException, ProcessorException, ConfigException, IOException {
+    public void testsubpipe() throws ProcessorException, ConfigException, IOException {
         Properties conf = Tools.loadConf("conditions.conf");
 
         Event sent = factory.newEvent();
@@ -79,16 +78,16 @@ public class TestConditions {
     }
 
     @Test
-    public void testignored() throws InterruptedException, ProcessorException, ConfigException, IOException {
+    public void testignored() throws ProcessorException, ConfigException, IOException {
         Properties conf = Tools.loadConf("conditions.conf");
 
         Event sent = factory.newEvent();
         sent.put("z", "1");
 
         Tools.runProcessing(sent, conf.namedPipeLine.get("ignore"), conf);
-        Assert.assertEquals("success was called", null, sent.get("b"));
-        Assert.assertEquals("failure was called", null, sent.get("c"));
-        Assert.assertEquals("exception was called", null, sent.get("d"));
+        Assert.assertNull("success was called", sent.get("b"));
+        Assert.assertNull("failure was called", sent.get("c"));
+        Assert.assertNull("exception was called", sent.get("d"));
         Assert.assertEquals("Event was processed, when it should not have been", "1", sent.get("z"));
     }
 

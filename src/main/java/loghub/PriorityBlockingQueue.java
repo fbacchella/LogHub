@@ -371,7 +371,7 @@ public class PriorityBlockingQueue extends AbstractQueue<Event>
     @Override
     public Event take() throws InterruptedException {
         if (weight == 0) {
-            return Optional.ofNullable(asyncQueue.take()).map(qe -> qe.event).orElse(null);
+            return Optional.of(asyncQueue.take()).map(qe -> qe.event).orElse(null);
         } else {
             Event found = null;
             while (found == null) {
@@ -529,7 +529,7 @@ public class PriorityBlockingQueue extends AbstractQueue<Event>
             } finally {
                 writeLock.unlock();
             }
-            return new Iterator<Event>() {
+            return new Iterator<>() {
 
                 @Override
                 public boolean hasNext() {

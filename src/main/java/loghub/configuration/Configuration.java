@@ -6,6 +6,7 @@ import java.io.Reader;
 import java.io.UncheckedIOException;
 import java.net.MalformedURLException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.charset.StandardCharsets;
@@ -608,14 +609,13 @@ public class Configuration {
                 file = url.getFile();
                 break;
             case "jar":
-                url = new URL(url.getFile().replaceFirst("!.*", ""));
-                file = url.getFile();
+                file = new URI(url.getFile().replaceFirst("!.*", "")).toURL().getFile();
                 break;
             default:
                 throw new IllegalArgumentException("unmanaged ressource URL");
             }
             return Paths.get(file);
-        } catch (MalformedURLException e) {
+        } catch (MalformedURLException | URISyntaxException e) {
             throw new IllegalArgumentException("can't locate the ressource file path", e);
         }
     }

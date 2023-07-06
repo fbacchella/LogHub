@@ -310,8 +310,9 @@ public class Merge extends Processor {
     }
 
     private static final Function<Event, Event> prepareEvent = i -> {
-        i.entrySet().forEach(j -> {
-            if (j.getValue() instanceof StringBuilder) i.put(j.getKey(), j.getValue().toString());
+        i.forEach((key, value) -> {
+            if (value instanceof StringBuilder)
+                i.put(key, value.toString());
         });
         return i;
     };

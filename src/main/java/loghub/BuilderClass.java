@@ -11,5 +11,5 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
 @Retention(RUNTIME)
 @Target(TYPE)
 public @interface BuilderClass {
-    Class<? extends AbstractBuilder<? extends Object>> value();
+    Class<? extends AbstractBuilder<?>> value();
 }

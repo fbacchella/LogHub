@@ -56,6 +56,7 @@ public class TestGeoip2 {
         });
         Map<Object, Object> geoinfos = run(geoip);
         assertEquals(1, geoinfos.size());
+        @SuppressWarnings("unchecked")
         Map<String, String> country = (Map<String, String>) geoinfos.get("country");
         assertEquals("United States", country.get("name"));
         assertEquals("US", country.get("code"));
@@ -132,7 +133,7 @@ public class TestGeoip2 {
         builder.setTypes(typesNames);
         builder.setLocale("en");
         Geoip2 geoip = builder.build();
-        geoip.configure(props);
+        Assert.assertTrue(geoip.configure(props));
 
         Event e = factory.newEvent();
         e.put("ip", "192.168.205.12");

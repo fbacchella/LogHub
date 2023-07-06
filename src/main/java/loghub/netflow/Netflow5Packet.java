@@ -25,8 +25,8 @@ public class Netflow5Packet implements NetflowPacket {
     private final long sequenceNumber;
     private final int type;
     private final Integer id;
-    private final short sampling_interval;
-    private final byte sampling_mode;
+    private final short samplingInterval;
+    private final byte samplingMode;
     List<Map<String, Object>> records;
 
     public Netflow5Packet(ByteBuf bbuf) {
@@ -48,40 +48,40 @@ public class Netflow5Packet implements NetflowPacket {
         type = Byte.toUnsignedInt(bbuf.readByte());
         id = Byte.toUnsignedInt(bbuf.readByte());
         //Sampling interval
-        short sampling_interval_buffer = bbuf.readShort();
-        sampling_interval = (short) (sampling_interval_buffer & 0x3FF);
-        sampling_mode = (byte) (sampling_interval_buffer >> 14);
+        short samplingIntervalBuffer = bbuf.readShort();
+        samplingInterval = (short) (samplingIntervalBuffer & 0x3FF);
+        samplingMode = (byte) (samplingIntervalBuffer >> 14);
 
         records = new ArrayList<>(count);
         byte[] addrbuffer = new byte[4];
         for(int i = 0; i < count; i++) {
             try {
-                Map<String, Object> record = new HashMap<>(20);
+                Map<String, Object> nfRecord = new HashMap<>(20);
                 bbuf.readBytes(addrbuffer);
-                record.put(PacketFactory.TYPEKEY, TemplateType.Records);
-                record.put("srcaddr", InetAddress.getByAddress(addrbuffer));
+                nfRecord.put(PacketFactory.TYPEKEY, TemplateType.Records);
+                nfRecord.put("srcaddr", InetAddress.getByAddress(addrbuffer));
                 bbuf.readBytes(addrbuffer);
-                record.put("dstaddr", InetAddress.getByAddress(addrbuffer));
+                nfRecord.put("dstaddr", InetAddress.getByAddress(addrbuffer));
                 bbuf.readBytes(addrbuffer);
-                record.put("nexthop", InetAddress.getByAddress(addrbuffer));
-                record.put("input", Short.toUnsignedInt(bbuf.readShort()));
-                record.put("output", Short.toUnsignedInt(bbuf.readShort()));
-                record.put("dPkts", Integer.toUnsignedLong(bbuf.readInt()));
-                record.put("dOctets", Integer.toUnsignedLong(bbuf.readInt()));
-                record.put("first", Integer.toUnsignedLong(bbuf.readInt()));
-                record.put("last", Integer.toUnsignedLong(bbuf.readInt()));
-                record.put("srcport", Short.toUnsignedInt(bbuf.readShort()));
-                record.put("dstport", Short.toUnsignedInt(bbuf.readShort()));
+                nfRecord.put("nexthop", InetAddress.getByAddress(addrbuffer));
+                nfRecord.put("input", Short.toUnsignedInt(bbuf.readShort()));
+                nfRecord.put("output", Short.toUnsignedInt(bbuf.readShort()));
+                nfRecord.put("dPkts", Integer.toUnsignedLong(bbuf.readInt()));
+                nfRecord.put("dOctets", Integer.toUnsignedLong(bbuf.readInt()));
+                nfRecord.put("first", Integer.toUnsignedLong(bbuf.readInt()));
+                nfRecord.put("last", Integer.toUnsignedLong(bbuf.readInt()));
+                nfRecord.put("srcport", Short.toUnsignedInt(bbuf.readShort()));
+                nfRecord.put("dstport", Short.toUnsignedInt(bbuf.readShort()));
                 bbuf.readByte();  // some padding;
-                record.put("tcp_flags", bbuf.readByte());
-                record.put("prot", Byte.toUnsignedInt(bbuf.readByte()));
-                record.put("tos", Byte.toUnsignedInt(bbuf.readByte()));
-                record.put("src_as", Short.toUnsignedInt(bbuf.readShort()));
-                record.put("dst_as", Short.toUnsignedInt(bbuf.readShort()));
-                record.put("src_mask", Byte.toUnsignedInt(bbuf.readByte()));
-                record.put("dst_mask", Byte.toUnsignedInt(bbuf.readByte()));
+                nfRecord.put("tcp_flags", bbuf.readByte());
+                nfRecord.put("prot", Byte.toUnsignedInt(bbuf.readByte()));
+                nfRecord.put("tos", Byte.toUnsignedInt(bbuf.readByte()));
+                nfRecord.put("src_as", Short.toUnsignedInt(bbuf.readShort()));
+                nfRecord.put("dst_as", Short.toUnsignedInt(bbuf.readShort()));
+                nfRecord.put("src_mask", Byte.toUnsignedInt(bbuf.readByte()));
+                nfRecord.put("dst_mask", Byte.toUnsignedInt(bbuf.readByte()));
                 bbuf.readShort();  // some padding;
-                records.add(record);
+                records.add(nfRecord);
             } catch (IndexOutOfBoundsException e) {
                 break;
             } catch (Exception e) {
@@ -125,14 +125,14 @@ public class Netflow5Packet implements NetflowPacket {
      * @return the sampling_mode
      */
     public byte getSamplingMode() {
-        return sampling_mode;
+        return samplingMode;
     }
 
     /**
      * @return the sampling_interval
      */
     public short getSamplingInterval() {
-        return sampling_interval;
+        return samplingInterval;
     }
 
     /**

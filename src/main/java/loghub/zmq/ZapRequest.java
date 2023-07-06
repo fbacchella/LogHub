@@ -97,7 +97,7 @@ public class ZapRequest {
                        + (mechanism != null ? "mechanism=" + mechanism + ", " : "")
                        + (clientKey != null ? "clientKey=" + Base64.getEncoder().encodeToString(clientKey) + ", " : "")
                        + (userId != null ? "userId=" + userId + ", " : "")
-                       + (metadata != null ? "metadata=" + metadata : "") + "]";
+                       + "metadata=" + metadata + "]";
     }
 
 }

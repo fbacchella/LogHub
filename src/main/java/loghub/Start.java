@@ -287,7 +287,7 @@ public class Start {
     String pipeLineTest = null;
     int exitcode = ExitCode.OK;
 
-    // To be executed before LogManager.getLogger() to ensure that log4j2 will use the basis context selector
+    // To be executed before LogManager.getLogger() to ensure that log4j2 will use the basic context selector
     // Not the smart one for web app.
     static {
         System.setProperty("Log4jContextSelector", "org.apache.logging.log4j.core.selector.BasicContextSelector");
@@ -296,7 +296,7 @@ public class Start {
 
     private static final Logger logger = LogManager.getLogger();
 
-    public static void main(final String[] args) {
+    public static void main(String[] args) {
         Start main = new Start();
         main.canexit = true;
         CommandPassword passwd = new CommandPassword();
@@ -554,7 +554,7 @@ public class Start {
             JmxService.stop();
             if (dumpstats) {
                 long endtime = System.nanoTime();
-                double runtime = ((endtime - starttime)) / 1.0e9;
+                double runtime = (endtime - starttime) / 1.0e9;
                 System.out.format("Received: %.2f/s%n", Stats.getReceived() / runtime);
                 System.out.format("Dropped: %.2f/s%n", Stats.getDropped() / runtime);
                 System.out.format("Sent: %.2f/s%n", Stats.getSent() / runtime);

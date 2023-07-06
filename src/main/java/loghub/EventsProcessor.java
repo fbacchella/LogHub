@@ -76,7 +76,7 @@ public class EventsProcessor extends Thread {
                 }
             } while (lasttryblockedAsync != lastblockedAsync);
 
-            Event event = null;
+            Event event;
             try {
                 event = inQueue.take();
             } catch (InterruptedException e) {
