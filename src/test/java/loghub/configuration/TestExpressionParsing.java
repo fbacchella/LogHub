@@ -13,6 +13,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -174,7 +175,7 @@ public class TestExpressionParsing {
     }
 
     private void enumerateExpressions(Event ev, Object[] tryExpression) {
-        Map<String, Object> tests = new HashMap<>(tryExpression.length / 2);
+        Map<String, Object> tests = new LinkedHashMap<>(tryExpression.length / 2);
         for (int i = 0; i < tryExpression.length; ) {
             tests.put(tryExpression[i++].toString(), tryExpression[i++]);
         }
@@ -237,6 +238,25 @@ public class TestExpressionParsing {
                 "!0", true,
                 "!true", false,
                 "!false", true,
+        };
+        enumerateExpressions(ev, tryExpression);
+    }
+
+    @Test
+    public void testOperatorsPath() {
+        Event ev = factory.newEvent();
+        ev.put("a", "");
+        ev.put("b", 1);
+        ev.put("c", "word");
+        ev.put("d", 'w');
+        Object[] tryExpression = new Object[] {
+                "[a] == \"\"", true,
+                "[b] == 1", true,
+                "[c] == \"word\"", true,
+                "[c] == \"\"", false,
+                "[b] instanceof java.lang.Integer", true,
+                "[b] !instanceof java.lang.Integer", false,
+                "[d] in [c]", true,
         };
         enumerateExpressions(ev, tryExpression);
     }
