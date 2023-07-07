@@ -14,7 +14,7 @@ public class Encoder extends Processor {
     @Getter @Setter
     loghub.encoders.Encoder encoder;
     @Getter @Setter
-    private VariablePath field = VariablePath.of(new String[]{"message"});
+    private VariablePath field = VariablePath.of("message");
 
     @Override
     public boolean configure(Properties properties) {

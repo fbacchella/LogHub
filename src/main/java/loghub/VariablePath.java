@@ -8,14 +8,24 @@ import java.util.Objects;
 import java.util.StringJoiner;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import loghub.events.Event;
 
 public abstract class VariablePath {
-    
-    private static final PathTree<Object, VariablePath> PATH_CACHE = new PathTree<>(VariablePath.of(""));
-    private static final PathTree<Object, VariablePath> PATH_CACHE_INDIRECT = new PathTree<>(VariablePath.of(""));
-    private static final Map<String, VariablePath>      PATH_CACHE_STRING = new ConcurrentHashMap<>();
+
+    public static final VariablePath EMPTY = new Empty();
+
+    public static final VariablePath TIMESTAMP = new TimeStamp();
+
+    public static final VariablePath LASTEXCEPTION = new LastException();
+
+    public static final VariablePath ALLMETAS = new AllMeta();
+
+    private static final PathTree<String, VariablePath> PATH_CACHE          = new PathTree<>(EMPTY);
+    private static final PathTree<String, VariablePath> PATH_CACHE_INDIRECT = new PathTree<>(VariablePath.of(EMPTY));
+    private static final Map<String, VariablePath>      PATH_CACHE_META     = new ConcurrentHashMap<>();
+    private static final Map<String, VariablePath>      PATH_CACHE_STRING   = new ConcurrentHashMap<>();
 
     private VariablePath() {
     }
@@ -106,7 +116,8 @@ public abstract class VariablePath {
         }
         void getArguments(StringBuilder buffer) {
             buffer.append(Arrays.stream(path)
-                    .map(s -> '"' + s + '"')
+                    .map(s -> s.replace("'", "\\'"))
+                    .map(s -> "'''" + s + "'''")
                     .collect(Collectors.joining(","))
                     );
         }
@@ -166,7 +177,7 @@ public abstract class VariablePath {
         }
 
         @Override
-        public boolean isTimestamp() {
+        public boolean isException() {
             return true;
         }
         public String get(int index) {
@@ -315,7 +326,7 @@ public abstract class VariablePath {
         }
         @Override
         public VariablePath append(String element) {
-            return PATH_CACHE.computeChildIfAbsent(new String[]{}, element, () -> new Plain(new String[] {element}));
+            return VariablePath.of(element);
         }
         @Override
         public String get(int index) {
@@ -374,14 +385,6 @@ public abstract class VariablePath {
         }
     }
 
-    public static final VariablePath TIMESTAMP = new TimeStamp();
-
-    public static final VariablePath LASTEXCEPTION = new LastException();
-
-    public static final VariablePath EMPTY = new Empty();
-
-    public static final VariablePath ALLMETAS = new AllMeta();
-
     public static VariablePath ofContext(String[] path) {
         return new Context(Arrays.copyOf(path, path.length));
     }
@@ -391,19 +394,19 @@ public abstract class VariablePath {
     }
 
     public static VariablePath ofMeta(String meta) {
-        return new Meta(meta);
-    }
-
-    public static VariablePath ofIndirect(Object[] path) {
-        return PATH_CACHE_INDIRECT.computeIfAbsent(path, () -> new Indirect(Arrays.stream(path).map(Object::toString).toArray(String[]::new)));
+        return PATH_CACHE_META.computeIfAbsent(meta, Meta::new);
     }
 
     public static VariablePath ofIndirect(String[] path) {
-        return PATH_CACHE_INDIRECT.computeIfAbsent(path, () -> new Indirect(Arrays.copyOf(path, path.length)));
+        return ofIndirect(Arrays.stream(path));
     }
 
     public static VariablePath ofIndirect(List<String> path) {
-        return new Indirect(path.toArray(String[]::new));
+        return ofIndirect(path.stream());
+    }
+
+    public static VariablePath ofIndirect(Stream<String> path) {
+        return PATH_CACHE_INDIRECT.computeIfAbsent(path, p -> new Indirect(p.toArray(String[]::new)));
     }
 
     /**
@@ -411,39 +414,34 @@ public abstract class VariablePath {
      * @param path as a dotted notation
      * @return thew new VariablePath
      */
-    public static VariablePath of(String path) {
+    public static VariablePath parse(String path) {
         if (path.isBlank()) {
             return EMPTY;
+        } else if (Event.TIMESTAMPKEY.equals(path)) {
+            return TIMESTAMP;
+        } else if (Event.LASTEXCEPTIONKEY.equals(path)) {
+            return LASTEXCEPTION;
+        } else if (path.startsWith("#")) {
+            return PATH_CACHE_STRING.computeIfAbsent(path, s -> VariablePath.ofMeta(path.substring(1)));
+        } else if (path.startsWith(Event.CONTEXTKEY)) {
+            return PATH_CACHE_STRING.computeIfAbsent(path, s -> VariablePath.ofContext(pathElements(path.substring(Event.CONTEXTKEY.length()))));
+        } else if (path.startsWith(Event.INDIRECTMARK)) {
+            return PATH_CACHE_STRING.computeIfAbsent(path, s -> VariablePath.ofIndirect(pathElements(path.substring(Event.INDIRECTMARK.length()))));
         } else {
-            return PATH_CACHE_STRING.computeIfAbsent(path, s -> {
-                String[] pathParsed = pathElements(path).toArray(String[]::new);
-                return PATH_CACHE.computeIfAbsent(pathParsed, () -> new Plain(pathParsed));
-            });
+            return PATH_CACHE_STRING.computeIfAbsent(path, s -> VariablePath.of(pathElements(path)));
         }
     }
 
-    public static VariablePath of(Object[] path) {
-        if (path.length == 0) {
-            return EMPTY;
-        } else {
-            return PATH_CACHE.computeIfAbsent(path, () -> new Plain(Arrays.stream(path).map(Object::toString).toArray(String[]::new)));
-        }
-    }
-
-    public static VariablePath of(String[] path) {
-        if (path.length == 0) {
-            return EMPTY;
-        } else {
-            return PATH_CACHE.computeIfAbsent(path, () -> new Plain(Arrays.copyOf(path, path.length)));
-        }
+    public static VariablePath of(String... path) {
+        return of(Arrays.stream(path));
     }
 
     public static VariablePath of(List<String> path) {
-        if (path.isEmpty()) {
-            return EMPTY;
-        } else {
-            return new Plain(path.toArray(String[]::new));
-        }
+        return of(path.stream());
+    }
+
+    public static VariablePath of(Stream<String> path) {
+        return PATH_CACHE.computeIfAbsent(path, p -> new Plain(p.toArray(String[]::new)));
     }
 
     public static VariablePath of(VariablePath vp) {

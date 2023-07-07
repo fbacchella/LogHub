@@ -38,8 +38,8 @@ public class TestVarExtractor {
     @Test
     public void test1() throws ProcessorException {
         VarExtractor.Builder builder = VarExtractor.getBuilder();
-        builder.setPath(VariablePath.of("sub"));
-        builder.setField(VariablePath.of(".message"));
+        builder.setPath(VariablePath.parse("sub"));
+        builder.setField(VariablePath.parse(".message"));
         builder.setParser("(?<name>[a-z]+)[=:](?<value>[^;]+);?");
         VarExtractor t = builder.build();
 
@@ -56,7 +56,7 @@ public class TestVarExtractor {
     @Test
     public void test2() throws ProcessorException {
         VarExtractor.Builder builder = VarExtractor.getBuilder();
-        builder.setField(VariablePath.of(".message"));
+        builder.setField(VariablePath.parse(".message"));
         builder.setParser("(?<name>[a-z]+)[=:](?<value>[^;]+);?");
         VarExtractor t = builder.build();
 
@@ -71,7 +71,7 @@ public class TestVarExtractor {
     @Test
     public void test3() throws ProcessorException {
         VarExtractor.Builder builder = VarExtractor.getBuilder();
-        builder.setField(VariablePath.of(".message"));
+        builder.setField(VariablePath.parse(".message"));
         VarExtractor t = builder.build();
 
         Event e = factory.newEvent();
@@ -85,7 +85,7 @@ public class TestVarExtractor {
     @Test
     public void testMixed() throws ProcessorException {
         VarExtractor.Builder builder = VarExtractor.getBuilder();
-        builder.setField(VariablePath.of(".message"));
+        builder.setField(VariablePath.parse(".message"));
         builder.setParser("(?<name>[a-z]+)=(?<value>[^;]+);?");
         VarExtractor t = builder.build();
 
@@ -101,7 +101,7 @@ public class TestVarExtractor {
     @Test
     public void testCollisionList() throws ProcessorException {
         VarExtractor.Builder builder = VarExtractor.getBuilder();
-        builder.setField(VariablePath.of(".message"));
+        builder.setField(VariablePath.parse(".message"));
         builder.setParser("(?<name>[a-z]+)=(?<value>[^;]+);?");
         builder.setCollision(VarExtractor.Collision_handling.AS_LIST);
         VarExtractor t = builder.build();
@@ -118,14 +118,14 @@ public class TestVarExtractor {
     // Needs an explicit test because AS_LIST uses merge, that needs to be overridden in EventWrapper
     public void testCollisionListWrapped() throws ProcessorException {
         VarExtractor.Builder builder = VarExtractor.getBuilder();
-        builder.setField(VariablePath.of(".message"));
+        builder.setField(VariablePath.parse(".message"));
         builder.setParser("(?<name>[a-z]+)=(?<value>[^;]+);?");
         builder.setCollision(VarExtractor.Collision_handling.AS_LIST);
         VarExtractor t = builder.build();
 
         Event e = factory.newEvent();
         e.put("message", "a=1;b=2;c=3;a=4");
-        Event wrapped = e.wrap(VariablePath.of("d1.d2"));
+        Event wrapped = e.wrap(VariablePath.parse("d1.d2"));
         wrapped.process(t);
         System.err.println(e);
         Assert.assertEquals("key a not found", List.of("1", "4"), e.getAtPath(VariablePath.of(List.of("d1", "d2", "a"))));
@@ -136,7 +136,7 @@ public class TestVarExtractor {
     @Test
     public void testCollisionFirst() throws ProcessorException {
         VarExtractor.Builder builder = VarExtractor.getBuilder();
-        builder.setField(VariablePath.of(".message"));
+        builder.setField(VariablePath.parse(".message"));
         builder.setParser("(?<name>[a-z]+)=(?<value>[^;]+);?");
         builder.setCollision(VarExtractor.Collision_handling.KEEP_FIRST);
         VarExtractor t = builder.build();
@@ -152,7 +152,7 @@ public class TestVarExtractor {
     @Test
     public void testCollisionLast() throws ProcessorException {
         VarExtractor.Builder builder = VarExtractor.getBuilder();
-        builder.setField(VariablePath.of(".message"));
+        builder.setField(VariablePath.parse(".message"));
         builder.setParser("(?<name>[a-z]+)=(?<value>[^;]+);?");
         builder.setCollision(VarExtractor.Collision_handling.KEEP_LAST);
         VarExtractor t = builder.build();

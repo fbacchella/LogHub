@@ -333,7 +333,7 @@ class ConfigListener extends RouteBaseListener {
             beanValue = new ObjectWrapped(ev);
         } else if (ctx.fsv != null) {
             beanName = ctx.bn.getText();
-            Object value = VariablePath.of(ctx.fsv.getText());
+            Object value = VariablePath.parse(ctx.fsv.getText());
             beanValue = new ObjectWrapped(value);
         } else if (ctx.bn != null) {
             beanName = ctx.bn.getText();
@@ -815,7 +815,7 @@ class ConfigListener extends RouteBaseListener {
                 return VariablePath.of(path);
             }
         } else {
-            return VariablePath.of(".");
+            return VariablePath.parse(".");
         }
     }
     private List<String> convertEventVariable(VarPathContext vp) {

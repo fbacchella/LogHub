@@ -38,9 +38,9 @@ public class TestUserAgent {
     @Test
     public void test1() throws ProcessorException {
         UserAgent.Builder builder = UserAgent.getBuilder();
-        builder.setField(VariablePath.of(new String[] {"User-Agent"}));
+        builder.setField(VariablePath.of("User-Agent"));
         builder.setCacheSize(10);
-        builder.setDestination(VariablePath.of("agent"));
+        builder.setDestination(VariablePath.parse("agent"));
 
         UserAgent ua = builder.build();
         Assert.assertTrue("configuration failed", ua.configure(new Properties(Collections.emptyMap())));
@@ -51,7 +51,7 @@ public class TestUserAgent {
         event.put("User-Agent", uaString);
         Assert.assertTrue(ua.process(event));
         System.out.println(event);
-        Object family = event.getAtPath(VariablePath.of(new String[] {"agent", "userAgent", "family"}));
+        Object family = event.getAtPath(VariablePath.of("agent", "userAgent", "family"));
         Assert.assertEquals("can't find user agent parsing", "Mobile Safari", family);
         Object osfamilly = event.getAtPath(VariablePath.of(new String[] {"agent", "os", "family"}));
         Assert.assertEquals("can't find user agent parsing", "iOS", osfamilly);
@@ -60,10 +60,10 @@ public class TestUserAgent {
     @Test
     public void testDownload() {
         UserAgent.Builder builder = UserAgent.getBuilder();
-        builder.setField(VariablePath.of(new String[] {"User-Agent"}));
+        builder.setField(VariablePath.of("User-Agent"));
         builder.setCacheSize(10);
-        builder.setDestination(VariablePath.of("agent"));
         builder.setAgentsUrl(TestUserAgent.class.getClassLoader().getResource("regexes.yaml").toString());
+        builder.setDestination(VariablePath.parse("agent"));
         UserAgent ua = builder.build();
         Assert.assertTrue("configuration failed", ua.configure(new Properties(Collections.emptyMap())));
     }

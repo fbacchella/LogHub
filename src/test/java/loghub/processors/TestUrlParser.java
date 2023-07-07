@@ -128,8 +128,8 @@ public class TestUrlParser {
     @Test
     public void test1() throws ProcessorException {
         Event event = runTest(b -> {
-                    b.setField(VariablePath.of(new String[] {"input_field"}));
-                    b.setDestination(VariablePath.of("url"));
+                    b.setField(VariablePath.of("input_field"));
+                    b.setDestination(VariablePath.parse("url"));
                 }, "input_field",
                 "http://myusername:mypassword@www.example.com:80/foo.gif?key1=val1&key2=val2#frag");
         @SuppressWarnings("unchecked")
@@ -140,7 +140,7 @@ public class TestUrlParser {
     @Test
     public void test2() throws ProcessorException {
         Event event = runTest(b -> {
-                    b.setField(VariablePath.of(new String[] {"original"}));
+                    b.setField(VariablePath.of("original"));
                     b.setInPlace(true);
                 }, "original",
                 "http://myusername:mypassword@www.example.com:80/foo.gif?key1=val1&key2=val2#frag");
@@ -150,7 +150,7 @@ public class TestUrlParser {
     @Test
     public void testExtention1() throws ProcessorException {
         Event event = runTest(b -> {
-                    b.setField(VariablePath.of(new String[] {"original"}));
+                    b.setField(VariablePath.of("original"));
                     b.setInPlace(true);
                 }, "original",
                 "http://myusername:mypassword@www.example.com:80/foo?key1=val1&key2=val2#frag");
@@ -161,7 +161,7 @@ public class TestUrlParser {
     @Test
     public void testExtention2() throws ProcessorException {
         Event event = runTest(b -> {
-                    b.setField(VariablePath.of(new String[] {"original"}));
+                    b.setField(VariablePath.of("original"));
                     b.setInPlace(true);
                 }, "original",
                 "http://myusername:mypassword@www.example.com:80/foo.?key1=val1&key2=val2#frag");
@@ -172,7 +172,7 @@ public class TestUrlParser {
     @Test
     public void testExtention3() throws ProcessorException {
         Event event = runTest(b -> {
-                    b.setField(VariablePath.of(new String[] {"original"}));
+                    b.setField(VariablePath.of("original"));
                     b.setInPlace(true);
                 }, "original",
                 "http://myusername:mypassword@www.example.com:80/.gif?key1=val1&key2=val2#frag");
@@ -183,7 +183,7 @@ public class TestUrlParser {
     @Test
     public void testUserInfo1() throws ProcessorException {
         Event event = runTest(b -> {
-                    b.setField(VariablePath.of(new String[] {"original"}));
+                    b.setField(VariablePath.of("original"));
                     b.setInPlace(true);
                 }, "original",
                 "http://myusername@www.example.com:80/foo.gif?key1=val1&key2=val2#frag");
@@ -195,7 +195,7 @@ public class TestUrlParser {
     @Test
     public void testUserInfo2() throws ProcessorException {
         Event event = runTest(b -> {
-                    b.setField(VariablePath.of(new String[] {"original"}));
+                    b.setField(VariablePath.of("original"));
                     b.setInPlace(true);
                 }, "original",
                 "http://myusername:@www.example.com:80/foo.gif?key1=val1&key2=val2#frag");
@@ -206,7 +206,7 @@ public class TestUrlParser {
     @Test
     public void testUserInfo3() throws ProcessorException {
         Event event = runTest(b -> {
-                    b.setField(VariablePath.of(new String[] {"original"}));
+                    b.setField(VariablePath.of("original"));
                     b.setInPlace(true);
                 }, "original",
                 "http://:password@www.example.com:80/foo.gif?key1=val1&key2=val2#frag");
@@ -217,7 +217,7 @@ public class TestUrlParser {
     @Test
     public void testRfcExample1() throws ProcessorException {
         Event event = runTest(b -> {
-                    b.setField(VariablePath.of(new String[] {"original"}));
+                    b.setField(VariablePath.of("original"));
                     b.setInPlace(true);
                 }, "original",
                 "ftp://ftp.is.co.za/rfc/rfc1808.txt");
@@ -227,7 +227,7 @@ public class TestUrlParser {
     @Test
     public void testRfcExample3() throws ProcessorException {
         Event event = runTest(b -> {
-                    b.setField(VariablePath.of(new String[] {"original"}));
+                    b.setField(VariablePath.of("original"));
                     b.setInPlace(true);
                 }, "original",
                 "ldap://[2001:db8::7]/c=GB?objectClass?one");
@@ -240,7 +240,7 @@ public class TestUrlParser {
     @Test
     public void testRfcExample4() throws ProcessorException {
         Event event = runTest(b -> {
-                    b.setField(VariablePath.of(new String[] {"original"}));
+                    b.setField(VariablePath.of("original"));
                     b.setInPlace(true);
                 }, "original",
                 "mailto:John.Doe@example.com");
@@ -251,7 +251,7 @@ public class TestUrlParser {
     @Test
     public void testRfcExample5() throws ProcessorException {
         Event event = runTest(b -> {
-                    b.setField(VariablePath.of(new String[] {"original"}));
+                    b.setField(VariablePath.of("original"));
                     b.setInPlace(true);
                 }, "original",
                 "news:comp.infosystems.www.servers.unix");
@@ -262,7 +262,7 @@ public class TestUrlParser {
     @Test
     public void testRfcExample6() throws ProcessorException {
         Event event = runTest(b -> {
-                    b.setField(VariablePath.of(new String[] {"original"}));
+                    b.setField(VariablePath.of("original"));
                     b.setInPlace(true);
                 }, "original",
                 "tel:+1-816-555-1212");
@@ -273,7 +273,7 @@ public class TestUrlParser {
     @Test
     public void testRfcExample7() throws ProcessorException {
         Event event = runTest(b -> {
-                    b.setField(VariablePath.of(new String[] {"original"}));
+                    b.setField(VariablePath.of("original"));
                     b.setInPlace(true);
                 }, "original",
                 "telnet://192.0.2.16:80/");
@@ -286,7 +286,7 @@ public class TestUrlParser {
     @Test
     public void testRfcExample8() throws ProcessorException {
         Event event = runTest(b -> {
-                    b.setField(VariablePath.of(new String[] {"original"}));
+                    b.setField(VariablePath.of("original"));
                     b.setInPlace(true);
                 }, "original",
                 "urn:oasis:names:specification:docbook:dtd:xml:4.1.2");

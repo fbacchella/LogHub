@@ -1,13 +1,13 @@
 package loghub.processors;
 
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 import org.apache.log4j.spi.LoggingEvent;
 
+import loghub.VariablePath;
 import loghub.events.Event;
 
 public class Log4JExtract extends ObjectExtractor<LoggingEvent> {
@@ -37,8 +37,7 @@ public class Log4JExtract extends ObjectExtractor<LoggingEvent> {
         if(m.size() > 0) {
             event.put("properties", m);
         }
-        Date d = new Date(o.getTimeStamp());
-        event.put(Event.TIMESTAMPKEY, d);
+        event.putAtPath(VariablePath.TIMESTAMP, o.getTimeStamp());
         event.put("message", o.getRenderedMessage());
     }
 

@@ -51,7 +51,7 @@ public class Hierarchical extends Processor {
         for (String eventField: new HashSet<>(event.keySet())) {
             for (Pattern p: patterns) {
                 if (p.matcher(eventField).matches()) {
-                    localRenamer.setSource(VariablePath.of(new String[] {eventField}));
+                    localRenamer.setSource(VariablePath.of(eventField));
                     List<String> path = VariablePath.pathElements(eventField);
                     if (!path.isEmpty()) {
                         VariablePath d = destination;

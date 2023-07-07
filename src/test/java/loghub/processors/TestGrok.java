@@ -40,7 +40,7 @@ public class TestGrok {
     @Test
     public void TestLoadPatterns1() throws ProcessorException {
         Grok.Builder builder = Grok.getBuilder();
-        builder.setField(VariablePath.of(new String[] {"message"}));
+        builder.setField(VariablePath.of("message"));
         builder.setPattern("%{COMBINEDAPACHELOG}");
         Grok grok = builder.build();
 
@@ -58,7 +58,7 @@ public class TestGrok {
     @Test
     public void TestLoadPatterns2() throws ProcessorException {
         Grok.Builder builder = Grok.getBuilder();
-        builder.setField(VariablePath.of(new String[] {"message"}));
+        builder.setField(VariablePath.of("message"));
         builder.setPattern("(?:%{SYSLOG_LINE})");
         Grok grok = builder.build();
 
@@ -78,7 +78,7 @@ public class TestGrok {
         Grok.Builder builder = Grok.getBuilder();
         builder.setCustomPatterns(Collections.singletonMap("FETCHING", "fetching user_deny.db entry"));
         builder.setPattern("%{FETCHING:message} for '%{USERNAME:imap_user}'");
-        builder.setField(VariablePath.of(new String[] {"message"}));
+        builder.setField(VariablePath.of("message"));
         Grok grok = builder.build();
 
         Properties props = new Properties(Collections.emptyMap());
@@ -146,13 +146,13 @@ public class TestGrok {
         Event e = factory.newEvent();
         e.put("remotehost", "www.google.com");
         Tools.runProcessing(e, "main", Collections.singletonList(grok));
-        Assert.assertEquals("invalid FQDN matching", "www", e.getAtPath(VariablePath.of(new String[] {"google", "com"})));
+        Assert.assertEquals("invalid FQDN matching", "www", e.getAtPath(VariablePath.of("google", "com")));
     }
 
     @Test
     public void TestTyped() throws ProcessorException {
         Grok.Builder builder = Grok.getBuilder();
-        builder.setField(VariablePath.of(new String[] {"message"}));
+        builder.setField(VariablePath.of("message"));
         builder.setPattern("%{INT:value:long}");
         Grok grok = builder.build();
 

@@ -14,9 +14,9 @@ import lombok.Setter;
 @FieldsProcessor.InPlace
 public class SyslogPriority extends FieldsProcessor {
     
-    private static final VariablePath ECSPATHFACILITY = VariablePath.of(new String[] {".", "log", "syslog", "facility"}) ;
-    private static final VariablePath ECSPATHSEVERITY = VariablePath.of(new String[] {".", "log", "syslog", "severity"});
-    private static final VariablePath ECSPATHPRIORITY = VariablePath.of(new String[] {".", "log", "syslog", "priority"});
+    private static final VariablePath ECSPATHFACILITY = VariablePath.of(".", "log", "syslog", "facility") ;
+    private static final VariablePath ECSPATHSEVERITY = VariablePath.of(".", "log", "syslog", "severity");
+    private static final VariablePath ECSPATHPRIORITY = VariablePath.of(".", "log", "syslog", "priority");
 
     private String[] facilitiesNames = new String[]{"kernel",
                                                     "user-level",

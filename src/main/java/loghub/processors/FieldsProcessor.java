@@ -58,7 +58,7 @@ public abstract class FieldsProcessor extends Processor {
         REMOVE
     }
 
-    private static final VariablePath DEFAULT_FIELD = VariablePath.of(new String[]{"message"});
+    private static final VariablePath DEFAULT_FIELD = VariablePath.of("message");
 
     public abstract static class Builder<FP extends FieldsProcessor> extends Processor.Builder<FP> {
         private VariablePath destination;
@@ -211,7 +211,7 @@ public abstract class FieldsProcessor extends Processor {
             for (String eventField: new HashSet<>(event.keySet())) {
                 for (Pattern p: patterns) {
                     if (p.matcher(eventField).matches()) {
-                        nextfields.add(VariablePath.of(new String[] {eventField}));
+                        nextfields.add(VariablePath.of(eventField));
                         break;
                     }
                 }
@@ -284,9 +284,8 @@ public abstract class FieldsProcessor extends Processor {
 
     protected VariablePath resolveDestination(VariablePath currentField) {
         if (destinationTemplate != null) {
-            return VariablePath.of(new String[] {
-                    destinationTemplate.format(Collections.singletonMap("field", currentField.get(currentField.length() -1)))
-            });
+            return VariablePath.of(
+                    destinationTemplate.format(Collections.singletonMap("field", currentField.get(currentField.length() -1))));
         } else if (destination != null) {
             return destination;
         } else {

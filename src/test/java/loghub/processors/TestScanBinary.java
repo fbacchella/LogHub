@@ -25,7 +25,7 @@ public class TestScanBinary {
         ScanBinary fs = new ScanBinary();
         fs.setBitsNames(new String[] {"PF_PROT", "PF_WRITE", "PF_USER", "PF_RSVD", "PF_INSTR"});
         fs.configure(new Properties(Collections.emptyMap()));
-        fs.setField(VariablePath.of(new String[] {"binary"}));
+        fs.setField(VariablePath.of("binary"));
 
         Event e = factory.newEvent();
         e.put("binary", "13");
@@ -40,7 +40,7 @@ public class TestScanBinary {
         fs.setBitsNames(new String[] {"a", "b", "c"});
         fs.setAsMap(true);
         fs.configure(new Properties(Collections.emptyMap()));
-        fs.setField(VariablePath.of(new String[] {"binary"}));
+        fs.setField(VariablePath.of("binary"));
 
         Event e = factory.newEvent();
         e.put("binary", 0b101);
@@ -58,8 +58,8 @@ public class TestScanBinary {
         fs.setBitsNames(new String[] {"a", "b", "c"});
         fs.setFieldsLength(new Integer[] {3, 2, 1});
         fs.configure(new Properties(Collections.emptyMap()));
-        fs.setField(VariablePath.of(new String[] {"binary"}));
-        fs.setDestination(VariablePath.of("value"));
+        fs.setField(VariablePath.of("binary"));
+        fs.setDestination(VariablePath.parse("value"));
 
         Event e = factory.newEvent();
         e.put("binary", 0b110101);

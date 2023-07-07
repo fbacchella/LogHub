@@ -100,7 +100,7 @@ public abstract class Processor {
      * @param fieldprefix the fieldprefix to set
      */
     public void setPath(String fieldprefix) {
-        this.path = VariablePath.of(fieldprefix);
+        this.path = VariablePath.parse(fieldprefix);
     }
 
     public void setIf(Expression ifexpression) {

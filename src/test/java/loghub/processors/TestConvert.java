@@ -43,7 +43,7 @@ public class TestConvert {
 
     private void check(String className, Class<?> reference, Object invalue, Object outvalue) throws ProcessorException {
         Convert.Builder builder = Convert.getBuilder();
-        builder.setField(VariablePath.of("message"));
+        builder.setField(VariablePath.parse("message"));
         builder.setClassName(className);
         Convert cv = builder.build();
 
@@ -108,7 +108,7 @@ public class TestConvert {
         Properties p =  Configuration.parse(new StringReader(configFile));
         Helpers.parallelStartProcessor(p);
         Event ev = factory.newEvent();
-        ev.putAtPath(VariablePath.of("message"), List.of("1", "2", "3"));
+        ev.putAtPath(VariablePath.parse("message"), List.of("1", "2", "3"));
         Tools.runProcessing(ev, p.namedPipeLine.get("convert"), p);
         Assert.assertEquals(List.of(1, 2, 3), ev.get("message"));
     }

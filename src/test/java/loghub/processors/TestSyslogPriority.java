@@ -40,7 +40,7 @@ public class TestSyslogPriority {
     @Test
     public void TestResolvedString() throws ProcessorException {
         SyslogPriority sp = new SyslogPriority();
-        sp.setField(VariablePath.of(new String[] {"message"}));
+        sp.setField(VariablePath.of("message"));
 
         Properties props = new Properties(Collections.emptyMap());
 
@@ -60,7 +60,7 @@ public class TestSyslogPriority {
         SyslogPriority sp = new SyslogPriority();
         sp.setInPlace(true);
         sp.setEcs(true);
-        sp.setField(VariablePath.of(new String[] {"priority"}));
+        sp.setField(VariablePath.of("priority"));
 
         Properties props = new Properties(Collections.emptyMap());
 
@@ -81,7 +81,7 @@ public class TestSyslogPriority {
     @Test
     public void TestResolvedStringEcs() throws ProcessorException {
         SyslogPriority sp = new SyslogPriority();
-        sp.setField(VariablePath.of(new String[] {"message"}));
+        sp.setField(VariablePath.of("message"));
         sp.setEcs(true);
 
         Properties props = new Properties(Collections.emptyMap());
@@ -91,17 +91,17 @@ public class TestSyslogPriority {
         Event e = factory.newEvent();
         e.put("message", "38");
         Assert.assertTrue(e.process(sp));
-        Assert.assertEquals("informational", e.getAtPath(VariablePath.of(new String[] {"log", "syslog", "severity", "name"})));
-        Assert.assertEquals(6, e.getAtPath(VariablePath.of(new String[] {"log", "syslog", "severity", "code"})));
+        Assert.assertEquals("informational", e.getAtPath(VariablePath.of("log", "syslog", "severity", "name")));
+        Assert.assertEquals(6, e.getAtPath(VariablePath.of("log", "syslog", "severity", "code")));
         Assert.assertEquals("security/authorization", e.getAtPath(VariablePath.of(new String[] {"log", "syslog", "facility", "name"})));
-        Assert.assertEquals(4, e.getAtPath(VariablePath.of(new String[] {"log", "syslog", "facility", "code"})));
-        Assert.assertEquals(38, e.getAtPath(VariablePath.of(new String[] {"log", "syslog", "priority"})));
+        Assert.assertEquals(4, e.getAtPath(VariablePath.of("log", "syslog", "facility", "code")));
+        Assert.assertEquals(38, e.getAtPath(VariablePath.of("log", "syslog", "priority")));
     }
 
     @Test
     public void TestResolvedStringEcsOverflow() throws ProcessorException {
         SyslogPriority sp = new SyslogPriority();
-        sp.setField(VariablePath.of(new String[] {"message"}));
+        sp.setField(VariablePath.of("message"));
         sp.setEcs(true);
 
         Properties props = new Properties(Collections.emptyMap());
@@ -111,18 +111,18 @@ public class TestSyslogPriority {
         Event e = factory.newEvent();
         e.put("message", 255);
         Assert.assertTrue(e.process(sp));
-        Assert.assertEquals("debug", e.getAtPath(VariablePath.of(new String[] {"log", "syslog", "severity", "name"})));
-        Assert.assertEquals(7, e.getAtPath(VariablePath.of(new String[] {"log", "syslog", "severity", "code"})));
+        Assert.assertEquals("debug", e.getAtPath(VariablePath.of("log", "syslog", "severity", "name")));
+        Assert.assertEquals(7, e.getAtPath(VariablePath.of("log", "syslog", "severity", "code")));
 
-        Assert.assertEquals(NullOrMissingValue.MISSING, e.getAtPath(VariablePath.of(new String[] {"log", "syslog", "facility", "name"})));
-        Assert.assertEquals(31, e.getAtPath(VariablePath.of(new String[] {"log", "syslog", "facility", "code"})));
+        Assert.assertEquals(NullOrMissingValue.MISSING, e.getAtPath(VariablePath.of("log", "syslog", "facility", "name")));
+        Assert.assertEquals(31, e.getAtPath(VariablePath.of("log", "syslog", "facility", "code")));
     }
 
     @SuppressWarnings("unchecked")
     @Test
     public void TestNotResolvedString() throws ProcessorException {
         SyslogPriority sp = new SyslogPriority();
-        sp.setField(VariablePath.of(new String[] {"message"}));
+        sp.setField(VariablePath.of("message"));
         sp.setResolve(false);
 
         Properties props = new Properties(Collections.emptyMap());
@@ -142,7 +142,7 @@ public class TestSyslogPriority {
     @Test
     public void TestResolvedNumber() throws ProcessorException {
         SyslogPriority sp = new SyslogPriority();
-        sp.setField(VariablePath.of(new String[] {"message"}));
+        sp.setField(VariablePath.of("message"));
 
         Properties props = new Properties(Collections.emptyMap());
 
@@ -160,7 +160,7 @@ public class TestSyslogPriority {
     @Test
     public void TestResolvedStringOverflow() throws ProcessorException {
         SyslogPriority sp = new SyslogPriority();
-        sp.setField(VariablePath.of(new String[] {"message"}));
+        sp.setField(VariablePath.of("message"));
         sp.setEcs(false);
 
         Properties props = new Properties(Collections.emptyMap());
@@ -170,15 +170,15 @@ public class TestSyslogPriority {
         Event e = factory.newEvent();
         e.put("message", 255);
         Assert.assertTrue(e.process(sp));
-        Assert.assertEquals("debug", e.getAtPath(VariablePath.of(new String[] {"message", "severity"})));
-        Assert.assertEquals("31", e.getAtPath(VariablePath.of(new String[] {"message", "facility"})));
+        Assert.assertEquals("debug", e.getAtPath(VariablePath.of("message", "severity")));
+        Assert.assertEquals("31", e.getAtPath(VariablePath.of("message", "facility")));
     }
 
     @SuppressWarnings("unchecked")
     @Test
     public void TestNotResolvedNumber() throws ProcessorException {
         SyslogPriority sp = new SyslogPriority();
-        sp.setField(VariablePath.of(new String[] {"message"}));
+        sp.setField(VariablePath.of("message"));
         sp.setResolve(false);
 
         Properties props = new Properties(Collections.emptyMap());
@@ -197,7 +197,7 @@ public class TestSyslogPriority {
     @Test(expected=ProcessorException.class)
     public void TestNotMatch() throws ProcessorException {
         SyslogPriority sp = new SyslogPriority();
-        sp.setField(VariablePath.of(new String[] {"message"}));
+        sp.setField(VariablePath.of("message"));
 
         Properties props = new Properties(Collections.emptyMap());
 

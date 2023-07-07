@@ -171,7 +171,7 @@ public class TestFieldsProcessor {
                                  "";
         Properties p =  Configuration.parse(new StringReader(confile));
         Event ev = factory.newEvent();
-        ev.putAtPath(VariablePath.of("message"), "1.1.1.1");
+        ev.putAtPath(VariablePath.parse("message"), "1.1.1.1");
         Tools.runProcessing(ev, p.namedPipeLine.get("defaultmessage"), p);
         InetAddress inet = (InetAddress) ev.get("message");
         Assert.assertArrayEquals(new byte[]{1,1,1,1}, inet.getAddress());

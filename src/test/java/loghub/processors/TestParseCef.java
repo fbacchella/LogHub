@@ -54,8 +54,8 @@ public class TestParseCef {
     @Test
     public void testCef() throws ProcessorException {
         ParseCef.Builder builder = ParseCef.getBuilder();
-        builder.setField(VariablePath.of(new String[]{"message"}));
-        builder.setDestination(VariablePath.of(new String[]{"cef"}));
+        builder.setField(VariablePath.of("message"));
+        builder.setDestination(VariablePath.of("cef"));
         ParseCef parse = builder.build();
         Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
 
@@ -70,13 +70,13 @@ public class TestParseCef {
     @Test
     public void testCefInPlace() throws ProcessorException {
         ParseCef.Builder builder = ParseCef.getBuilder();
-        builder.setField(VariablePath.of(new String[]{"message"}));
+        builder.setField(VariablePath.of("message"));
         builder.setInPlace(true);
         ParseCef parse = builder.build();
         Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
 
         Event event = factory.newEvent();
-        event.putAtPath(VariablePath.of(new String[]{"message"}), "CEF:0|security|threatmanager|1.0|100|detected a \\| in packet|10|src=10.0.0.1 act=blocked a \\\\ dst=1.1.1.1 comment=with | in it comment2=with \\= in it comment3=with \\n in it comment4=with \\r in it  app=3");
+        event.putAtPath(VariablePath.of("message"), "CEF:0|security|threatmanager|1.0|100|detected a \\| in packet|10|src=10.0.0.1 act=blocked a \\\\ dst=1.1.1.1 comment=with | in it comment2=with \\= in it comment3=with \\n in it comment4=with \\r in it  app=3");
         Assert.assertTrue(parse.process(event));
         check(event);
     }

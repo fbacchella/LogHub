@@ -91,7 +91,7 @@ public class Grok extends FieldsProcessor {
                     }
                     // . is a special field name, it means a value to put back in the original field
                     if (!".".equals(destinationField)) {
-                        event.putAtPath(VariablePath.of(destinationField), stored);
+                        event.putAtPath(VariablePath.parse(destinationField), stored);
                     } else {
                         returned = stored;
                     }

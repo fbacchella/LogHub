@@ -50,7 +50,7 @@ public class TestDateParser {
     public void test1() throws ProcessorException {
         DateParser.Builder builder = DateParser.getBuilder();
         builder.setPattern("ISO_DATE_TIME");
-        builder.setField(VariablePath.of("field"));
+        builder.setField(VariablePath.parse("field"));
         DateParser parse = builder.build();
         Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
 
@@ -67,7 +67,7 @@ public class TestDateParser {
     public void test1bis() throws ProcessorException {
         DateParser.Builder builder = DateParser.getBuilder();
         builder.setPattern("yyyy-MM-ddTHH:mm:ss.SSSZ");
-        builder.setField(VariablePath.of("field"));
+        builder.setField(VariablePath.parse("field"));
         DateParser parse = builder.build();
         Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
 
@@ -83,7 +83,7 @@ public class TestDateParser {
     public void test2() throws ProcessorException {
         DateParser.Builder builder = DateParser.getBuilder();
         builder.setPattern("yyyy-MM-dd'T'HH:m:ss.SSSSSSXXX");
-        builder.setField(VariablePath.of("field"));
+        builder.setField(VariablePath.parse("field"));
         DateParser parse = builder.build();
         Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
 
@@ -99,7 +99,7 @@ public class TestDateParser {
         DateParser.Builder builder = DateParser.getBuilder();
         builder.setPattern("yyyy-MM-dd'T'HH:m:ss");
         builder.setTimezone(new Expression("Z"));
-        builder.setField(VariablePath.of("field"));
+        builder.setField(VariablePath.parse("field"));
         DateParser parse = builder.build();
         Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
 
@@ -113,7 +113,7 @@ public class TestDateParser {
     @Test
     public void test4() throws ProcessorException {
         DateParser.Builder builder = DateParser.getBuilder();
-        builder.setField(VariablePath.of("field"));
+        builder.setField(VariablePath.parse("field"));
         DateParser parse = builder.build();
         Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
 
@@ -136,7 +136,7 @@ public class TestDateParser {
 
         try {
             DateParser.Builder builder = DateParser.getBuilder();
-            builder.setField(VariablePath.of("field"));
+            builder.setField(VariablePath.parse("field"));
             builder.setTimezone(new Expression(ZoneId.of("CET")));
             builder.setLocale(new Expression(Locale.FRANCE.toLanguageTag()));
             builder.setPattern("d MMM HH:mm:ss");
@@ -165,7 +165,7 @@ public class TestDateParser {
         DateParser.Builder builder = DateParser.getBuilder();
         builder.setPattern("MMM dd HH:mm:ss");
         builder.setTimezone(new Expression("Z"));
-        builder.setField(VariablePath.of("field"));
+        builder.setField(VariablePath.parse("field"));
         DateParser parse = builder.build();
         Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
 
@@ -183,7 +183,7 @@ public class TestDateParser {
         DateParser.Builder builder = DateParser.getBuilder();
         builder.setPattern("yyyy-MM-dd'T'HH:m:ss.SSSxx");
         builder.setTimezone(new Expression("CET"));
-        builder.setField(VariablePath.of("field"));
+        builder.setField(VariablePath.parse("field"));
         DateParser parse = builder.build();
         Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
 
@@ -202,7 +202,7 @@ public class TestDateParser {
         DateParser.Builder builder = DateParser.getBuilder();
         builder.setPattern("iso");
         builder.setTimezone(new Expression("CET"));
-        builder.setField(VariablePath.of("field"));
+        builder.setField(VariablePath.parse("field"));
         DateParser parse = builder.build();
         Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
 
@@ -218,7 +218,7 @@ public class TestDateParser {
 
         DateParser.Builder builder = DateParser.getBuilder();
         builder.setPattern("ISO_INSTANT");
-        builder.setField(VariablePath.of("field"));
+        builder.setField(VariablePath.parse("field"));
         DateParser parse = builder.build();
         Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
 
@@ -235,7 +235,7 @@ public class TestDateParser {
         DateParser.Builder builder = DateParser.getBuilder();
         builder.setPattern("MMM dd HH:mm:ss");
         builder.setTimezone(new Expression("CET"));
-        builder.setField(VariablePath.of("field"));
+        builder.setField(VariablePath.parse("field"));
         DateParser parse = builder.build();
         Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
 
@@ -250,7 +250,7 @@ public class TestDateParser {
         DateParser.Builder builder = DateParser.getBuilder();
         builder.setPattern("MMM dd HH:mm:ss.SSS");
         builder.setTimezone(new Expression("CET"));
-        builder.setField(VariablePath.of("field"));
+        builder.setField(VariablePath.parse("field"));
         DateParser parse = builder.build();
         Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
 
@@ -267,7 +267,7 @@ public class TestDateParser {
         DateParser.Builder builder = DateParser.getBuilder();
         builder.setPattern("seconds");
         builder.setTimezone(new Expression("CET"));
-        builder.setField(VariablePath.of("field"));
+        builder.setField(VariablePath.parse("field"));
         DateParser parse = builder.build();
         Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
 
@@ -284,7 +284,7 @@ public class TestDateParser {
         DateParser.Builder builder = DateParser.getBuilder();
         builder.setPattern("seconds");
         builder.setTimezone(new Expression("CET"));
-        builder.setField(VariablePath.of("field"));
+        builder.setField(VariablePath.parse("field"));
         DateParser processor = builder.build();
         Assert.assertTrue(processor.configure(new Properties(Collections.emptyMap())));
 
@@ -298,7 +298,7 @@ public class TestDateParser {
         DateParser.Builder builder = DateParser.getBuilder();
         builder.setPattern("milliseconds");
         builder.setTimezone(new Expression("CET"));
-        builder.setField(VariablePath.of("field"));
+        builder.setField(VariablePath.parse("field"));
         DateParser processor = builder.build();
         Assert.assertTrue(processor.configure(new Properties(Collections.emptyMap())));
 
@@ -333,7 +333,7 @@ public class TestDateParser {
         DateParser.Builder builder = DateParser.getBuilder();
         builder.setPatterns(new String[] {parseformat});
         builder.setTimezone(new Expression("America/Los_Angeles"));
-        builder.setField(VariablePath.of("field"));
+        builder.setField(VariablePath.parse("field"));
         DateParser parse = builder.build();
         Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
 
@@ -362,7 +362,7 @@ public class TestDateParser {
         builder.setPattern(patternName);
         builder.setLocale(new Expression(Locale.ENGLISH.toLanguageTag()));
         builder.setTimezone(new Expression("UTC"));
-        builder.setField(VariablePath.of("field"));
+        builder.setField(VariablePath.parse("field"));
         DateParser parse = builder.build();
         Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
 

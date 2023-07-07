@@ -52,7 +52,7 @@ public class TestSplit {
         Split parse = new Split();
         parse.setPattern(pattern);
         parse.setKeepempty(keepempty);
-        parse.setField(VariablePath.of("field"));
+        parse.setField(VariablePath.parse("field"));
         Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
         Event event = factory.newEvent();
         event.put("field", message);

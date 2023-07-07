@@ -63,7 +63,7 @@ public class TestUrlDecoders {
     @Test
     public void testFailedStrict() throws ProcessorException {
         DecodeUrl.Builder builder = DecodeUrl.getBuilder();
-        builder.setField(VariablePath.of("userAgent"));
+        builder.setField(VariablePath.parse("userAgent"));
         builder.setLoop(true);
         builder.setStrict(true);
         DecodeUrl t = builder.build();
@@ -77,7 +77,7 @@ public class TestUrlDecoders {
     @Test
     public void testFailedNotStrict() throws ProcessorException {
         DecodeUrl.Builder builder = DecodeUrl.getBuilder();
-        builder.setField(VariablePath.of("userAgent"));
+        builder.setField(VariablePath.parse("userAgent"));
         builder.setLoop(true);
         builder.setStrict(false);
         DecodeUrl t = builder.build();

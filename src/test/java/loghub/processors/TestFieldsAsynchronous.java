@@ -160,7 +160,7 @@ public class TestFieldsAsynchronous {
         Event e = factory.newEvent();
         e.put("a", 1);
         Builder builder = new Builder();
-        builder.setField(VariablePath.of(new String[] {"a"}));
+        builder.setField(VariablePath.of("a"));
         SleepingProcessor sp = builder.build();
         Groovy gp = new Groovy();
         gp.setScript("event.a = 2");
@@ -185,7 +185,7 @@ public class TestFieldsAsynchronous {
         e.put("a", 1);
         Builder builder = new Builder();
         builder.setTimeout(1);
-        builder.setField(VariablePath.of(new String[] {"a"}));
+        builder.setField(VariablePath.of("a"));
         SleepingProcessor sp = builder.build();
         Groovy gp = new Groovy();
         gp.setScript("event.failure = true");
@@ -213,7 +213,7 @@ public class TestFieldsAsynchronous {
         Event e = factory.newEvent();
         e.put("a", 1);
         Builder builder = new Builder();
-        builder.setField(VariablePath.of(new String[] {"a"}));
+        builder.setField(VariablePath.of("a"));
         SleepingProcessor sp = builder.build();
         Groovy gp = new Groovy();
         gp.setScript("event.a = 2");
@@ -237,7 +237,7 @@ public class TestFieldsAsynchronous {
         Event e = factory.newEvent();
         e.put("a", 1);
         Builder builder = new Builder();
-        builder.setField(VariablePath.of(new String[] {"a"}));
+        builder.setField(VariablePath.of("a"));
         SleepingProcessor sp = builder.build();
         Groovy gp = new Groovy();
         gp.setScript("event.a = 2");

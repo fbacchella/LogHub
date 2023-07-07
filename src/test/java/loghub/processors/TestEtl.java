@@ -84,39 +84,39 @@ public class TestEtl {
     public void test1() throws ProcessorException, Expression.ExpressionException {
         Properties props = new Properties(Collections.emptyMap());
         Etl.Assign etl = new Etl.Assign();
-        etl.setLvalue(VariablePath.of(new String[]{"a", "b"}));
+        etl.setLvalue(VariablePath.of("a", "b"));
         etl.setExpression(new Expression("event.c + 1", props.groovyClassLoader, props.formatters));
         boolean done = etl.configure(props);
         Assert.assertTrue("configuration failed", done);
         Event event = factory.newEvent();
         event.put("c", 0);
         event.process(etl);
-        Assert.assertEquals("evaluation failed", 1, event.getAtPath(VariablePath.of(new String[] {"a", "b"})));
+        Assert.assertEquals("evaluation failed", 1, event.getAtPath(VariablePath.of("a", "b")));
     }
 
     @Test
     public void test2() throws ProcessorException {
         Etl etl = new Etl.Remove();
-        etl.setLvalue(VariablePath.of(new String[]{"a"}));
+        etl.setLvalue(VariablePath.of("a"));
         boolean done = etl.configure(new Properties(Collections.emptyMap()));
         Assert.assertTrue("configuration failed", done);
         Event event = factory.newEvent();
         event.put("a", 0);
         etl.process(event);
-        Assert.assertEquals("evaluation failed", NullOrMissingValue.MISSING, event.getAtPath(VariablePath.of(new String[] {"a"})));
+        Assert.assertEquals("evaluation failed", NullOrMissingValue.MISSING, event.getAtPath(VariablePath.of("a")));
     }
 
     @Test
     public void test3() throws ProcessorException {
         Etl.Rename etl = new Etl.Rename();
-        etl.setLvalue(VariablePath.of(new String[]{"b"}));
-        etl.setSource(VariablePath.of(new String[]{"a"}));
+        etl.setLvalue(VariablePath.of("b"));
+        etl.setSource(VariablePath.of("a"));
         boolean done = etl.configure(new Properties(Collections.emptyMap()));
         Assert.assertTrue("configuration failed", done);
         Event event = factory.newEvent();
         event.put("a", 0);
         etl.process(event);
-        Assert.assertEquals("evaluation failed", 0, event.getAtPath(VariablePath.of(new String[] {"b"})));
+        Assert.assertEquals("evaluation failed", 0, event.getAtPath(VariablePath.of("b")));
     }
 
     @Test
@@ -126,7 +126,7 @@ public class TestEtl {
         properties.put("__FORMATTERS", formats);
         Properties props = new Properties(properties);
         Etl.Assign etl = new Etl.Assign();
-        etl.setLvalue(VariablePath.of(new String[]{"a"}));
+        etl.setLvalue(VariablePath.of("a"));
         etl.setExpression(new Expression("formatters.a.format(event.getTimestamp())", props.groovyClassLoader, props.formatters));
         boolean done = etl.configure(props);
         Assert.assertTrue("configuration failed", done);

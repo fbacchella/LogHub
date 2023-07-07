@@ -272,12 +272,12 @@ public class TestConfigurations {
         Assert.assertEquals("a", pr.getField().get(0));
         Assert.assertEquals("b", pr.getPathArray().get(0));
         Event ev = factory.newEvent();
-        ev.putAtPath(VariablePath.of("b.a"), "http://loghub.fr/?test=true");
+        ev.putAtPath(VariablePath.parse("b.a"), "http://loghub.fr/?test=true");
         Tools.runProcessing(ev, p.namedPipeLine.get("withpath"), p);
-        Assert.assertEquals("/", ev.getAtPath(VariablePath.of("b.a.path")));
-        Assert.assertEquals("http", ev.getAtPath(VariablePath.of("b.a.scheme")));
-        Assert.assertEquals("loghub.fr", ev.getAtPath(VariablePath.of("b.a.domain")));
-        Assert.assertEquals("test=true", ev.getAtPath(VariablePath.of("b.a.query")));
+        Assert.assertEquals("/", ev.getAtPath(VariablePath.parse("b.a.path")));
+        Assert.assertEquals("http", ev.getAtPath(VariablePath.parse("b.a.scheme")));
+        Assert.assertEquals("loghub.fr", ev.getAtPath(VariablePath.parse("b.a.domain")));
+        Assert.assertEquals("test=true", ev.getAtPath(VariablePath.parse("b.a.query")));
     }
 
     @Test
@@ -293,13 +293,13 @@ public class TestConfigurations {
         Assert.assertEquals("c", pr.getPathArray().get(0));
         Assert.assertEquals("d", pr.getPathArray().get(1));
         Event ev = factory.newEvent();
-        ev.putAtPath(VariablePath.of("c.d.a.b"), "http://loghub.fr/?test=true");
+        ev.putAtPath(VariablePath.parse("c.d.a.b"), "http://loghub.fr/?test=true");
         Tools.runProcessing(ev, p.namedPipeLine.get("withpath"), p);
         System.err.println(ev);
-        Assert.assertEquals("/", ev.getAtPath(VariablePath.of("c.d.a.b.path")));
-        Assert.assertEquals("http", ev.getAtPath(VariablePath.of("c.d.a.b.scheme")));
-        Assert.assertEquals("loghub.fr", ev.getAtPath(VariablePath.of("c.d.a.b.domain")));
-        Assert.assertEquals("test=true", ev.getAtPath(VariablePath.of("c.d.a.b.query")));
+        Assert.assertEquals("/", ev.getAtPath(VariablePath.parse("c.d.a.b.path")));
+        Assert.assertEquals("http", ev.getAtPath(VariablePath.parse("c.d.a.b.scheme")));
+        Assert.assertEquals("loghub.fr", ev.getAtPath(VariablePath.parse("c.d.a.b.domain")));
+        Assert.assertEquals("test=true", ev.getAtPath(VariablePath.parse("c.d.a.b.query")));
     }
 
     @Test

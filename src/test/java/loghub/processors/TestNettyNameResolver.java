@@ -84,8 +84,8 @@ public class TestNettyNameResolver {
 
         Tools.ProcessingStatus status = dorequest(i -> {
             i.setResolver("169.254.1.1");
-            i.setField(VariablePath.of(new String[] {"host"}));
-            i.setDestination(VariablePath.of("fqdn"));
+            i.setField(VariablePath.of("host"));
+            i.setDestination(VariablePath.parse("fqdn"));
             i.setTimeout(2);
             i.setQueueDepth(0); // Avoid using semaphore
         }, e);
@@ -105,8 +105,8 @@ public class TestNettyNameResolver {
         e.put("host", InetAddress.getByName("169.254.1.1"));
 
         Tools.ProcessingStatus status = dorequest(i -> {
-            i.setField(VariablePath.of(new String[] {"host"}));
-            i.setDestination(VariablePath.of("fqdn"));
+            i.setField(VariablePath.of("host"));
+            i.setDestination(VariablePath.parse("fqdn"));
             i.setTimeout(4);
         } , e, "1.1.254.169.in-addr.arpa");
 
@@ -123,8 +123,8 @@ public class TestNettyNameResolver {
         e.put("host", InetAddress.getByName("198.41.0.4"));
 
         Tools.ProcessingStatus status = dorequest(i -> {
-            i.setField(VariablePath.of(new String[] {"host"}));
-            i.setDestination(VariablePath.of("fqdn"));
+            i.setField(VariablePath.of("host"));
+            i.setDestination(VariablePath.parse("fqdn"));
         } , e, "4.0.41.198.in-addr.arpa");
 
         e = status.mainQueue.take();
@@ -140,8 +140,8 @@ public class TestNettyNameResolver {
         e.put("host", "198.41.0.4");
 
         Tools.ProcessingStatus status = dorequest(i -> {
-            i.setField(VariablePath.of(new String[] {"host"}));
-            i.setDestination(VariablePath.of("fqdn"));
+            i.setField(VariablePath.of("host"));
+            i.setDestination(VariablePath.parse("fqdn"));
         } , e, "4.0.41.198.in-addr.arpa");
 
         e = status.mainQueue.take();
@@ -157,8 +157,8 @@ public class TestNettyNameResolver {
         e.put("host", InetAddress.getByName("2001:503:ba3e::2:30"));
 
         Tools.ProcessingStatus status = dorequest(i -> {
-            i.setField(VariablePath.of(new String[] {"host"}));
-            i.setDestination(VariablePath.of("fqdn"));
+            i.setField(VariablePath.of("host"));
+            i.setDestination(VariablePath.parse("fqdn"));
         } , e, "0.3.0.0.2.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.e.3.a.b.3.0.5.0.1.0.0.2.ip6.arpa");
 
         e = status.mainQueue.take();
@@ -174,8 +174,8 @@ public class TestNettyNameResolver {
         e.put("host", "2001:503:ba3e::2:30");
 
         Tools.ProcessingStatus status = dorequest(i -> {
-            i.setField(VariablePath.of(new String[] {"host"}));
-            i.setDestination(VariablePath.of("fqdn"));
+            i.setField(VariablePath.of("host"));
+            i.setDestination(VariablePath.parse("fqdn"));
         } , e, "0.3.0.0.2.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.e.3.a.b.3.0.5.0.1.0.0.2.ip6.arpa");
 
         e = status.mainQueue.take();

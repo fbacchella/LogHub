@@ -37,7 +37,7 @@ public class TestParseJson {
     @Test
     public void testSuccess() throws ProcessorException {
         ParseJson parse = new ParseJson();
-        parse.setField(VariablePath.of(new String[] {"message"}));
+        parse.setField(VariablePath.of("message"));
         parse.setAtPrefix("|");
         Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
         Event event = factory.newEvent();
@@ -53,7 +53,7 @@ public class TestParseJson {
     @Test(expected=ProcessorException.class)
     public void testFailure() throws ProcessorException {
         ParseJson parse = new ParseJson();
-        parse.setField(VariablePath.of(new String[] {"message"}));
+        parse.setField(VariablePath.of("message"));
         Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
         Event event = factory.newEvent();
         event.put("message", "{");

@@ -73,8 +73,8 @@ public class TestGeoip2 {
     private Geoip2 build(Consumer<Geoip2.Builder> builderTweaks) {
         Properties props = new Properties(Collections.emptyMap());
         Geoip2.Builder builder = Geoip2.getBuilder();
-        builder.setField(VariablePath.of("ip"));
-        builder.setDestination(VariablePath.of("geoip"));
+        builder.setField(VariablePath.parse("ip"));
+        builder.setDestination(VariablePath.parse("geoip"));
         Geoip2.LocationType[] types = Geoip2.LocationType.values();
         String[] typesNames = new String[types.length];
         for(int i = 0 ; i < types.length ; i++) {
@@ -122,8 +122,8 @@ public class TestGeoip2 {
     public void testProcessGeneric() throws ProcessorException {
         Properties props = new Properties(Collections.emptyMap());
         Geoip2.Builder builder = Geoip2.getBuilder();
-        builder.setField(VariablePath.of(new String[] {"ip"}));
-        builder.setDestination(VariablePath.of("geoip"));
+        builder.setField(VariablePath.of("ip"));
+        builder.setDestination(VariablePath.parse("geoip"));
         builder.setGeoipdb("/tmp/3ds-internal.mmdb");
         Geoip2.LocationType[] types = Geoip2.LocationType.values();
         String[] typesNames = new String[types.length];

@@ -36,11 +36,11 @@ public class TestEventApply {
     public void testPath() {
         Event e = factory.newEvent();
         e.setTimestamp(new Date(0));
-        e.applyAtPath(Event.Action.PUT, VariablePath.of("a.b.c"), 1, true);
+        e.applyAtPath(Event.Action.PUT, VariablePath.parse("a.b.c"), 1, true);
         e.put("d", 2);
-        e.applyAtPath(Event.Action.PUT, VariablePath.of("e"), 3, true);
+        e.applyAtPath(Event.Action.PUT, VariablePath.parse("e"), 3, true);
         e.applyAtPath(Event.Action.PUT, VariablePath.ofMeta("f"), 4, true);
-        e.applyAtPath(Event.Action.PUT, VariablePath.of("h"), Collections.emptyMap(), true);
+        e.applyAtPath(Event.Action.PUT, VariablePath.parse("h"), Collections.emptyMap(), true);
         Assert.assertEquals(4, e.keySet().size());
 
         applyAction(e, true, Event.Action.CONTAINSVALUE, 2);

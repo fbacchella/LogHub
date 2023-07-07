@@ -61,7 +61,7 @@ public class TestHierarchical {
         String confile = "pipeline[hierarchy] {loghub.processors.Hierarchical {destination:[tmp], fields: [\"a.*\", \"b\"] }}";
         Properties props = Configuration.parse(new StringReader(confile));
         Hierarchical hierarchy = (Hierarchical) props.namedPipeLine.get("hierarchy").processors.get(0);
-        Assert.assertEquals(VariablePath.of("tmp"), hierarchy.getDestination());
+        Assert.assertEquals(VariablePath.parse("tmp"), hierarchy.getDestination());
         Pattern[] patterns = hierarchy.getPatterns();
         Assert.assertEquals(2, patterns.length);
         Assert.assertEquals(Helpers.convertGlobToRegex("a.*").pattern(), patterns[0].pattern());
@@ -73,15 +73,15 @@ public class TestHierarchical {
         String confile = "pipeline[hierarchy] {path[sub](loghub.processors.Hierarchical {destination: [.], fields: [\"a.*\", \"b\"] })}";
         Properties conf = Configuration.parse(new StringReader(confile));
         Event ev = factory.newEvent();
-        Event sub = ev.wrap(VariablePath.of("sub"));
+        Event sub = ev.wrap(VariablePath.parse("sub"));
         sub.put("a.b", 1);
         sub.put("b", 2);
         sub.put("c", 3);
         Tools.runProcessing(ev, conf.namedPipeLine.get("hierarchy"), conf);
         conf.mainQueue.poll(1, TimeUnit.SECONDS);
-        Assert.assertEquals(1, ev.getAtPath(VariablePath.of("a.b")));
-        Assert.assertEquals(2, ev.getAtPath(VariablePath.of("b")));
-        Assert.assertEquals(3, ev.getAtPath(VariablePath.of("sub.c")));
+        Assert.assertEquals(1, ev.getAtPath(VariablePath.parse("a.b")));
+        Assert.assertEquals(2, ev.getAtPath(VariablePath.parse("b")));
+        Assert.assertEquals(3, ev.getAtPath(VariablePath.parse("sub.c")));
     }
 
     @Test
@@ -95,16 +95,16 @@ public class TestHierarchical {
                     e.put("", 4);
                     return e;
                 });
-        Assert.assertEquals(1, ev.getAtPath(VariablePath.of("a.b")));
-        Assert.assertEquals(2, ev.getAtPath(VariablePath.of("c.d")));
-        Assert.assertEquals(3, ev.getAtPath(VariablePath.of("e")));
+        Assert.assertEquals(1, ev.getAtPath(VariablePath.parse("a.b")));
+        Assert.assertEquals(2, ev.getAtPath(VariablePath.parse("c.d")));
+        Assert.assertEquals(3, ev.getAtPath(VariablePath.parse("e")));
         Assert.assertEquals(4, ev.get(""));
     }
 
     @Test
     public void TestHierarchy1() throws ProcessorException {
         Event ev = process(b -> {
-                    b.setDestination(VariablePath.of(new String[] {"tmp"}));
+                    b.setDestination(VariablePath.of("tmp"));
                     b.setFields(new String[]{"*.*"});
         },
                 e -> {
@@ -114,9 +114,9 @@ public class TestHierarchical {
                     e.put("", 4);
                     return e;
                 });
-        Assert.assertEquals(1, ev.getAtPath(VariablePath.of("tmp.a.b")));
-        Assert.assertEquals(2, ev.getAtPath(VariablePath.of("tmp.c.d")));
-        Assert.assertEquals(3, ev.getAtPath(VariablePath.of("e")));
+        Assert.assertEquals(1, ev.getAtPath(VariablePath.parse("tmp.a.b")));
+        Assert.assertEquals(2, ev.getAtPath(VariablePath.parse("tmp.c.d")));
+        Assert.assertEquals(3, ev.getAtPath(VariablePath.parse("e")));
         Assert.assertEquals(4, ev.get(""));
     }
 
@@ -131,17 +131,17 @@ public class TestHierarchical {
                     e.put("", 5);
                     return e;
                 });
-        Assert.assertEquals(1, ev.getAtPath(VariablePath.of("a.b")));
-        Assert.assertEquals(2, ev.getAtPath(VariablePath.of("c.d")));
+        Assert.assertEquals(1, ev.getAtPath(VariablePath.parse("a.b")));
+        Assert.assertEquals(2, ev.getAtPath(VariablePath.parse("c.d")));
         Assert.assertEquals(3, ev.get("e"));
-        Assert.assertEquals(4, ev.getAtPath(VariablePath.of("f")));
+        Assert.assertEquals(4, ev.getAtPath(VariablePath.parse("f")));
         Assert.assertEquals(5, ev.get(""));
     }
 
     @Test
     public void TestHierarchy3() throws ProcessorException {
         Event ev = process(b -> {
-                    b.setDestination(VariablePath.of(new String[] {"tmp"}));
+                    b.setDestination(VariablePath.of("tmp"));
                     b.setFields(new String[]{"a.*"});
                 },
                 e -> {
@@ -151,9 +151,9 @@ public class TestHierarchical {
                     e.put("", 4);
                     return e;
                 });
-        Assert.assertEquals(1, ev.getAtPath(VariablePath.of("tmp.a.b")));
+        Assert.assertEquals(1, ev.getAtPath(VariablePath.parse("tmp.a.b")));
         Assert.assertEquals(2, ev.get("c.d"));
-        Assert.assertEquals(3, ev.getAtPath(VariablePath.of("e")));
+        Assert.assertEquals(3, ev.getAtPath(VariablePath.parse("e")));
         Assert.assertEquals(4, ev.get(""));
     }
 
@@ -161,19 +161,19 @@ public class TestHierarchical {
     public void TestHierarchy4() throws ProcessorException {
         Event ev = process(b -> {
             b.setFields(new String[] {"*"});
-            b.setDestination(VariablePath.of("."));
+            b.setDestination(VariablePath.parse("."));
         },
                 e -> {
-                    e.putAtPath(VariablePath.of(new String[]{"s", "a.b"}), 1);
-                    e.putAtPath(VariablePath.of(new String[]{"s", "c.d"}), 2);
-                    e.putAtPath(VariablePath.of(new String[]{"e"}), 3);
-                    return e.wrap(VariablePath.of("s"));
+                    e.putAtPath(VariablePath.of("s", "a.b"), 1);
+                    e.putAtPath(VariablePath.of("s", "c.d"), 2);
+                    e.putAtPath(VariablePath.of("e"), 3);
+                    return e.wrap(VariablePath.parse("s"));
                 });
         ev = ev.unwrap();
-        Assert.assertEquals(1, ev.getAtPath(VariablePath.of("a.b")));
-        Assert.assertEquals(2, ev.getAtPath(VariablePath.of("c.d")));
+        Assert.assertEquals(1, ev.getAtPath(VariablePath.parse("a.b")));
+        Assert.assertEquals(2, ev.getAtPath(VariablePath.parse("c.d")));
         Assert.assertEquals(3, ev.get("e"));
-        Assert.assertTrue(((Map<?, ?>)ev.getAtPath(VariablePath.of("s"))).isEmpty());
+        Assert.assertTrue(((Map<?, ?>)ev.getAtPath(VariablePath.parse("s"))).isEmpty());
     }
 
     @Test

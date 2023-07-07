@@ -51,7 +51,7 @@ public class TestCrlf {
         builder.setEscape(escape);
         builder.setFormat(format);
         Crlf parse = new Crlf(builder);
-        parse.setField(VariablePath.of("field"));
+        parse.setField(VariablePath.parse("field"));
         Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
         Event event = factory.newEvent();
         event.put("field", input);

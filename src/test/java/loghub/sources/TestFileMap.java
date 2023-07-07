@@ -58,7 +58,7 @@ public class TestFileMap {
 
         Mapper p = new Mapper();
         p.setExpression(ConfigurationTools.unWrap("[type]", i -> i.expression()));
-        p.setLvalue(VariablePath.of(new String[] {"type"}));
+        p.setLvalue(VariablePath.of("type"));
         p.setMap(s);
 
         Event e = factory.newEvent();
@@ -79,7 +79,7 @@ public class TestFileMap {
 
         Mapper p = new Mapper();
         p.setExpression(ConfigurationTools.unWrap("[type]", i -> i.expression()));
-        p.setLvalue(VariablePath.of(new String[] {"type"}));
+        p.setLvalue(VariablePath.of("type"));
         p.setMap(s);
 
         Event e = factory.newEvent();

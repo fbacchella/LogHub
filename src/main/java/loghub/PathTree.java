@@ -1,8 +1,14 @@
 package loghub;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.stream.Stream;
 
 import lombok.Getter;
 
@@ -49,12 +55,26 @@ public class PathTree<T, V> {
         current.children.put(path[path.length -1], newNode);
     }
 
-    public V computeIfAbsent(T[] path, Supplier<V> supplier) {
-        Node<T, V> current = root;
-        for (int i = 0; i < path.length - 1; i++) {
-            current = current.children.computeIfAbsent(path[i], k -> new Node<>(null));
+    public V computeIfAbsent(T[] path, Function<List<T>, V> supplier) {
+        return computeIfAbsent(Arrays.stream(path), supplier);
+    }
+
+    public V computeIfAbsent(List<T> path, Function<List<T>, V> supplier) {
+        return computeIfAbsent(path.stream(), supplier);
+    }
+
+    public V computeIfAbsent(Stream<T> path, Function<List<T>, V> supplier) {
+        AtomicReference<Node<T, V>> currentRef = new AtomicReference<>(root);
+        List<T> resolvedPath = new ArrayList<>();
+        path.forEach(n -> {
+            currentRef.set(currentRef.get().children.computeIfAbsent(n, k -> new Node<>(null)));
+            resolvedPath.add(n);
+        });
+        Node<T, V> current = currentRef.get();
+        if (current.value == null) {
+            current.value = supplier.apply(resolvedPath);
         }
-        return current.children.compute(path[path.length - 1], (k, v) -> resolveNodeWithValue(v, supplier)).value;
+        return current.value;
     }
 
     public V computeChildIfAbsent(T[] path, T child, Supplier<V> supplier) {
