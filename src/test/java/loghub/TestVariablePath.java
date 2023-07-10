@@ -3,6 +3,7 @@ package loghub;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -13,13 +14,15 @@ import loghub.events.EventsFactory;
 
 public class TestVariablePath {
 
+    private static final Pattern  groovyPattern = Pattern.compile("event.getGroovyPath\\(\\d+\\)");
+
     @Test
     public void single() {
         VariablePath vp = VariablePath.parse("a");
         Assert.assertSame(vp, VariablePath.of("a"));
         Assert.assertEquals(vp, VariablePath.of(Collections.singletonList("a")));
         Assert.assertEquals("[a]", vp.toString());
-        Assert.assertEquals("event.getGroovyPath('''a''')", vp.groovyExpression());
+        Assert.assertTrue(groovyPattern.matcher(vp.groovyExpression()).matches());
         Assert.assertSame(VariablePath.of("a", "b"), vp.append("b"));
     }
 
@@ -38,7 +41,7 @@ public class TestVariablePath {
         }
         Assert.assertTrue((Boolean) sub.get("."));
         Expression expression = new Expression(vp.groovyExpression(), new Properties(Collections.emptyMap()).groovyClassLoader, Collections.emptyMap());
-        Assert.assertTrue((Boolean)expression.eval(ev));
+        Assert.assertEquals(true, expression.eval(ev));
     }
 
     @Test
@@ -59,7 +62,7 @@ public class TestVariablePath {
         Assert.assertEquals(VariablePath.of("a", "b", "c"), vp);
         Assert.assertEquals(VariablePath.of(List.of("a","b", "c")), vp);
         Assert.assertEquals("[a.b.c]", vp.toString());
-        Assert.assertEquals("event.getGroovyPath('''a''','''b''','''c''')", vp.groovyExpression());
+        Assert.assertTrue(groovyPattern.matcher(vp.groovyExpression()).matches());
     }
 
     @Test
@@ -75,7 +78,7 @@ public class TestVariablePath {
         VariablePath vp = VariablePath.parse(".a.b.c");
         Assert.assertEquals(VariablePath.of(".", "a","b", "c"), vp);
         Assert.assertEquals("[.a.b.c]", vp.toString());
-        Assert.assertEquals("event.getGroovyPath('''.''','''a''','''b''','''c''')", vp.groovyExpression());
+        Assert.assertTrue(groovyPattern.matcher(vp.groovyExpression()).matches());
     }
 
     @Test

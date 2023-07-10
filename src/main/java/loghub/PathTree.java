@@ -85,6 +85,10 @@ public class PathTree<T, V> {
         return current.children.compute(child, (k, v) -> resolveNodeWithValue(v, supplier)).value;
     }
 
+    public void clear() {
+        root.children.clear();
+    }
+
     private Node<T, V> resolveNodeWithValue(Node<T, V> node, Supplier<V> supplier) {
         if (node == null) {
             return new Node<>(supplier.get());

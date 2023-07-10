@@ -18,12 +18,11 @@ public class EventMetaClass extends DelegatingMetaClass {
     @Override
     public Object invokeMethod(Object object, String methodName, Object[] arguments) {
         Event ev = (Event) object;
-        switch(methodName) {
+        switch (methodName) {
         case "getTimestamp": return ev.getTimestamp();
         case "getConnectionContext": return ev.getConnectionContext();
         case "getMeta": return ev.getMeta(arguments[0].toString());
-        case "getGroovyPath": return ev.getGroovyPath(arguments);
-        case "getGroovyIndirectPath": return ev.getGroovyIndirectPath(arguments);
+        case "getGroovyPath": return ev.getGroovyPath((int)arguments[0]);
         case "getGroovyLastException": return ev.getGroovyLastException();
         default: {
             assert false : "Unknown method " + methodName;

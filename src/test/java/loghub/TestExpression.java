@@ -38,26 +38,28 @@ public class TestExpression {
 
     @Test
     public void test1() throws ExpressionException, ProcessorException {
+        VariablePath vp = VariablePath.of("value");
         VarFormatter format = new VarFormatter("${value}");
         Map<String, VarFormatter> formatters = Collections.singletonMap("faaf", format);
-        String expressionScript = "event.getGroovyPath(\"value\") == formatters.faaf.format(event)";
+        String expressionScript = vp.groovyExpression() + " == formatters.faaf.format(event)";
         Expression expression = new Expression(expressionScript, new Properties(Collections.emptyMap()).groovyClassLoader, formatters);
         Event ev = factory.newEvent();
         ev.put("value", "a");
-        Object o = expression.eval(ev);
-        Assert.assertEquals("failed to parse expression", true, (Boolean)o);
+        Boolean b = (Boolean) expression.eval(ev);
+        Assert.assertTrue(b);
     }
 
     @Test
     public void test2() throws ExpressionException, ProcessorException {
+        VariablePath vp = VariablePath.of("a", "b");
         VarFormatter format = new VarFormatter("${b}");
         Map<String, VarFormatter> formatters = Collections.singletonMap("faaf", format);
-        String expressionScript = "event.getGroovyPath(\"a\", \"b\") + formatters.faaf.format(event.a)";
+        String expressionScript = vp.groovyExpression() + " + formatters.faaf.format(event.a)";
         Expression expression = new Expression(expressionScript, new Properties(Collections.emptyMap()).groovyClassLoader, formatters);
         Event ev = factory.newEvent();
-        ev.put("a", Collections.singletonMap("b", 1));
+        ev.put("a", Map.of("b", 1));
         Object o = expression.eval(ev);
-        Assert.assertEquals("failed to parse expression", "11", (String)o);
+        Assert.assertEquals("11", o);
     }
 
     @Test

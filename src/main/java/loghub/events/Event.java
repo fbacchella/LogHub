@@ -357,20 +357,12 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
 
     /**
      * Used in groovy code only
-     * @param path
-     * @return
+     * @param vpid a {@link VariablePath} unique identifier
+     * @return the value of event at {@link VariablePath} matching vpid
      */
-    public Object getGroovyPath(Object... path) {
-        return Optional.ofNullable(applyAtPath(Action.GET, VariablePath.of(Arrays.stream(path).map(String.class::cast)), null, false)).orElse(NullOrMissingValue.NULL);
-    }
-
-    /**
-     * Used in groovy code only
-     * @param path
-     * @return
-     */
-    public Object getGroovyIndirectPath(Object... path) {
-        return Optional.ofNullable(applyAtPath(Action.GET, VariablePath.ofIndirect(Arrays.stream(path).map(String.class::cast)), null, false)).orElse(NullOrMissingValue.NULL);
+    public Object getGroovyPath(int vpid) {
+        VariablePath vp = VariablePath.getById(vpid);
+        return Optional.ofNullable(applyAtPath(Action.GET, vp, null, false)).orElse(NullOrMissingValue.NULL);
     }
 
     /**

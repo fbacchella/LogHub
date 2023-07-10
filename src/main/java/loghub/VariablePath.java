@@ -7,27 +7,60 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.StringJoiner;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 
 import loghub.events.Event;
 
 public abstract class VariablePath {
 
-    public static final VariablePath EMPTY = new Empty();
+    private static final AtomicInteger VP_COUNT;
 
-    public static final VariablePath TIMESTAMP = new TimeStamp();
+    public static final VariablePath EMPTY;
+    public static final VariablePath TIMESTAMP;
+    public static final VariablePath LASTEXCEPTION;
+    public static final VariablePath ALLMETAS;
 
-    public static final VariablePath LASTEXCEPTION = new LastException();
+    private static final PathTree<String, VariablePath>  PATH_CACHE;
+    private static final PathTree<String, VariablePath>  PATH_CACHE_INDIRECT;
+    private static final PathTree<String, VariablePath>  PATH_CACHE_CONTEXT;
+    private static final Map<String, VariablePath>       PATH_CACHE_META;
+    private static final Map<String, VariablePath>       PATH_CACHE_STRING;
+    private static final AtomicReference<VariablePath[]> PATH_CACHE_ID;
 
-    public static final VariablePath ALLMETAS = new AllMeta();
+    static {
+        VP_COUNT = new AtomicInteger(0);
+        PATH_CACHE_ID = new AtomicReference<>(new VariablePath[128]);
+        EMPTY = new Empty();
+        TIMESTAMP = new TimeStamp();
+        LASTEXCEPTION = new LastException();
+        ALLMETAS = new AllMeta();
+        PATH_CACHE = new PathTree<>(EMPTY);
+        PATH_CACHE_INDIRECT = new PathTree<>(EMPTY);
+        PATH_CACHE_CONTEXT = new PathTree<>(new Context(new String[]{}));
+        PATH_CACHE_META = new ConcurrentHashMap<>();
+        PATH_CACHE_STRING = new ConcurrentHashMap<>();
+    }
 
-    private static final PathTree<String, VariablePath> PATH_CACHE          = new PathTree<>(EMPTY);
-    private static final PathTree<String, VariablePath> PATH_CACHE_INDIRECT = new PathTree<>(VariablePath.of(EMPTY));
-    private static final Map<String, VariablePath>      PATH_CACHE_META     = new ConcurrentHashMap<>();
-    private static final Map<String, VariablePath>      PATH_CACHE_STRING   = new ConcurrentHashMap<>();
+    final int id;
 
     private VariablePath() {
+        id = VP_COUNT.getAndIncrement();
+        PATH_CACHE_ID.updateAndGet(v -> {
+            VariablePath[] content;
+            if ((id + 10) >= v.length) {
+                content = Arrays.copyOf(v, (v.length + (v.length >> 1)));
+            } else {
+                content = v;
+            }
+            content[id] = this;
+            return content;
+        });
+    }
+
+    public String groovyExpression() {
+        return "event.getGroovyPath(" + id + ")";
     }
 
     public abstract String get(int index);
@@ -63,8 +96,6 @@ public abstract class VariablePath {
 
     public abstract String toString();
 
-    public abstract String groovyExpression();
-
     private abstract static class FixedLength extends VariablePath {
         @Override
         public int length() {
@@ -79,6 +110,7 @@ public abstract class VariablePath {
     private abstract static class VariableLength extends VariablePath {
         private final int hash;
         final String[] path;
+        private final AtomicReference<Map<String, VariablePath>> childsRef = new AtomicReference<>();
         private VariableLength(String[] path) {
             this.path = path;
             this.hash = Objects.hash(getClass(), Arrays.hashCode(path));
@@ -89,12 +121,20 @@ public abstract class VariablePath {
         }
         @Override
         public VariablePath append(String element) {
-            return PATH_CACHE.computeChildIfAbsent(path, element, () -> {
+            Map<String, VariablePath> childs = childsRef.updateAndGet(this::getCacheInstance);
+            return childs.computeIfAbsent(element, this::findInCache);
+        }
+        private Map<String, VariablePath> getCacheInstance(Map<String, VariablePath> v) {
+            return v == null ? new ConcurrentHashMap<>() : v;
+        }
+        VariablePath findInCache(String s) {
+            return getCache().computeChildIfAbsent(path, s, () -> {
                 String[] newPath = Arrays.copyOf(path, path.length + 1);
-                newPath[newPath.length - 1] = element;
+                newPath[newPath.length - 1] = s;
                 return newInstance(newPath);
             });
         }
+        abstract PathTree<String, VariablePath> getCache();
         @Override
         public String get(int index) {
             return path[index];
@@ -113,13 +153,6 @@ public abstract class VariablePath {
                 }
                 return joiner.toString();
             }
-        }
-        void getArguments(StringBuilder buffer) {
-            buffer.append(Arrays.stream(path)
-                    .map(s -> s.replace("'", "\\'"))
-                    .map(s -> "'''" + s + "'''")
-                    .collect(Collectors.joining(","))
-                    );
         }
         @Override
         public int hashCode() {
@@ -262,6 +295,10 @@ public abstract class VariablePath {
             return true;
         }
         @Override
+        PathTree<String, VariablePath> getCache() {
+            return PATH_CACHE_CONTEXT;
+        }
+        @Override
         VariablePath newInstance(String[] newPath) {
             return new Context(newPath);
         }
@@ -288,12 +325,8 @@ public abstract class VariablePath {
             return new Indirect(newPath);
         }
         @Override
-        public String groovyExpression() {
-            StringBuilder buffer = new StringBuilder("event");
-            buffer.append(".getGroovyIndirectPath(");
-            getArguments(buffer);
-            buffer.append(")");
-            return buffer.toString();
+        PathTree<String, VariablePath> getCache() {
+            return PATH_CACHE_INDIRECT;
         }
     }
 
@@ -310,12 +343,8 @@ public abstract class VariablePath {
             return new Plain(newPath);
         }
         @Override
-        public String groovyExpression() {
-            StringBuilder buffer = new StringBuilder("event");
-            buffer.append(".getGroovyPath(");
-            getArguments(buffer);
-            buffer.append(")");
-            return buffer.toString();
+        PathTree<String, VariablePath> getCache() {
+            return PATH_CACHE;
         }
     }
 
@@ -386,11 +415,15 @@ public abstract class VariablePath {
     }
 
     public static VariablePath ofContext(String[] path) {
-        return new Context(Arrays.copyOf(path, path.length));
+        return ofContext(Arrays.stream(path));
     }
 
     public static VariablePath ofContext(List<String> path) {
-        return new Context(path.toArray(String[]::new));
+        return ofContext(path.stream());
+    }
+
+    public static VariablePath ofContext(Stream<String> path) {
+        return PATH_CACHE_CONTEXT.computeIfAbsent(path, p -> new Context(p.toArray(String[]::new)));
     }
 
     public static VariablePath ofMeta(String meta) {
@@ -422,13 +455,16 @@ public abstract class VariablePath {
         } else if (Event.LASTEXCEPTIONKEY.equals(path)) {
             return LASTEXCEPTION;
         } else if (path.startsWith("#")) {
-            return PATH_CACHE_STRING.computeIfAbsent(path, s -> VariablePath.ofMeta(path.substring(1)));
+            return PATH_CACHE_STRING.computeIfAbsent(path, s -> VariablePath.ofMeta(s.substring(1)));
         } else if (path.startsWith(Event.CONTEXTKEY)) {
-            return PATH_CACHE_STRING.computeIfAbsent(path, s -> VariablePath.ofContext(pathElements(path.substring(Event.CONTEXTKEY.length()))));
+            return PATH_CACHE_STRING.computeIfAbsent(path, s -> VariablePath.ofContext(pathElements(s.substring(Event.CONTEXTKEY.length()))));
         } else if (path.startsWith(Event.INDIRECTMARK)) {
-            return PATH_CACHE_STRING.computeIfAbsent(path, s -> VariablePath.ofIndirect(pathElements(path.substring(Event.INDIRECTMARK.length()))));
+            return PATH_CACHE_STRING.computeIfAbsent(path, s -> VariablePath.ofIndirect(pathElements(s.substring(Event.INDIRECTMARK.length()))));
         } else {
-            return PATH_CACHE_STRING.computeIfAbsent(path, s -> VariablePath.of(pathElements(path)));
+            return PATH_CACHE_STRING.computeIfAbsent(path, s -> {
+                List<String> parts = pathElements(s);
+                return PATH_CACHE.computeIfAbsent(parts, p -> new Plain(p.toArray(String[]::new)));
+            });
         }
     }
 
@@ -471,6 +507,18 @@ public abstract class VariablePath {
             elements.add(path.substring(curs));
         }
         return elements;
+    }
+
+    public static VariablePath getById(int id) {
+        return PATH_CACHE_ID.get()[id];
+    }
+
+    /**
+     * Compact the caches after parsing the configuration. All the {@link VariablePath} should be in the id cache
+     */
+    public static synchronized void compact() {
+        PATH_CACHE.clear();
+        PATH_CACHE_INDIRECT.clear();
     }
 
 }
