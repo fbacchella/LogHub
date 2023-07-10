@@ -134,6 +134,25 @@ public class TestNettyNameResolver {
     }
 
     @Test(timeout=6000)
+    public void arootasipv4addrWithCollection() throws Throwable {
+        Event e = factory.newEvent();
+        /// resolving a.root-servers.net. in IPv4
+        e.put("host", List.of(InetAddress.getByName("198.41.0.4"), InetAddress.getByName("198.41.0.4")));
+
+        Tools.ProcessingStatus status = dorequest(i -> {
+            i.setField(VariablePath.of("host"));
+            i.setDestination(VariablePath.parse("fqdn"));
+        } , e, "4.0.41.198.in-addr.arpa");
+
+        e = status.mainQueue.take();
+        List<String> fqdns = (List<String>) e.get("fqdn");
+        Assert.assertEquals("resolution failed", "a.root-servers.net", fqdns.get(0));
+        Assert.assertEquals("resolution failed", "a.root-servers.net", fqdns.get(1));
+        Assert.assertEquals("Queue not empty: " + status.mainQueue, 0, status.mainQueue.size());
+        Assert.assertEquals("Still waiting events: " + status.repository, 0, status.repository.waiting());
+    }
+
+    @Test(timeout=6000)
     public void arootasipv4string() throws ProcessorException, InterruptedException, ConfigException, IOException {
         Event e = factory.newEvent();
         /// resolving a.root-servers.net. in IPv4 as String

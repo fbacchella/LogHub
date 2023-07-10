@@ -128,6 +128,30 @@ public class TestFieldsAsynchronous {
         Assert.assertEquals(getClass().getCanonicalName(), e.get("b"));
     }
 
+    @Test(timeout=2000)
+    public void successWithCollection() throws ProcessorException, InterruptedException {
+        long started = Instant.now().toEpochMilli();
+        logger.debug("starting");
+        todo = (v) -> {
+            if ( ! v.isDone()) {
+                v.setSuccess(TestFieldsAsynchronous.this);
+            }
+        };
+        transform = (e, v) -> v.getClass().getCanonicalName();
+        Event e = factory.newEvent();
+        e.put("a", List.of(1, 2));
+        e.put("b", List.of(3, 4));
+        Builder builder = new Builder();
+        builder.setFields(new String[] {"a", "b"});
+        SleepingProcessor sp = builder.build();
+        Tools.ProcessingStatus status = Tools.runProcessing(e, "main", Collections.singletonList(sp), (i,j) -> { /* empty */ });
+        e = status.mainQueue.take();
+        long end = Instant.now().toEpochMilli();
+        Assert.assertTrue(String.format("slept for %d ms",  end - started), end > started + 200);
+        Assert.assertEquals(List.of(getClass().getCanonicalName(), getClass().getCanonicalName()), e.get("a"));
+        Assert.assertEquals(List.of(getClass().getCanonicalName(), getClass().getCanonicalName()), e.get("b"));
+    }
+
     @Test(timeout=1000)
     public void successWithDestination() throws ProcessorException, InterruptedException {
         long started = Instant.now().toEpochMilli();

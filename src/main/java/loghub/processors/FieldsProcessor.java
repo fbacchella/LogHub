@@ -99,7 +99,30 @@ public abstract class FieldsProcessor extends Processor {
     @Getter @Setter
     private boolean iterate = false;
 
-    protected class FieldSubProcessor extends Processor {
+    protected abstract class DelegatorProcessor extends Processor {
+
+        public DelegatorProcessor() {
+            super(FieldsProcessor.this.logger);
+        }
+
+        @Override
+        public Processor getFailure() {
+            return FieldsProcessor.this.getFailure();
+        }
+
+        @Override
+        public Processor getSuccess() {
+            return FieldsProcessor.this.getSuccess();
+        }
+
+        @Override
+        public Processor getException() {
+            return FieldsProcessor.this.getException();
+        }
+
+    }
+
+    protected class FieldSubProcessor extends DelegatorProcessor {
 
         final Iterator<VariablePath> processing;
 
@@ -107,7 +130,7 @@ public abstract class FieldsProcessor extends Processor {
         protected VariablePath toprocess;
 
         FieldSubProcessor(Iterator<VariablePath> processing) {
-            super(FieldsProcessor.this.logger);
+            super();
             this.processing = processing;
         }
 
@@ -139,12 +162,7 @@ public abstract class FieldsProcessor extends Processor {
                         return false;
                     }
                 });
-                values.forEach(v -> event.insertProcessor(new Processor() {
-                    @Override
-                    public boolean process(Event ev) throws ProcessorException {
-                        return FieldsProcessor.this.filterField(event, toprocess, v, results::add);
-                    }
-                }));
+                addCollectionsProcessing(values, event, toprocess, results);
                 throw IgnoredEventException.INSTANCE;
             } else {
                 return FieldsProcessor.this.filterField(event, toprocess, event.getAtPath(toprocess), r -> event.putAtPath(resolveDestination(toprocess), r));
@@ -238,7 +256,7 @@ public abstract class FieldsProcessor extends Processor {
         return filterField(event, currentField, event.getAtPath(currentField), v -> event.putAtPath(resolveDestination(currentField), v));
     }
 
-    private boolean filterField(Event event, VariablePath currentField, Object value, Consumer<Object> postProcess) throws ProcessorException {
+    boolean filterField(Event event, VariablePath currentField, Object value, Consumer<Object> postProcess) throws ProcessorException {
         logger.trace("Processing field {} on {}", currentField, event);
         if (getClass().getAnnotation(ProcessNullField.class) == null && value == null) {
             return false;
@@ -314,6 +332,15 @@ public abstract class FieldsProcessor extends Processor {
 
     FieldSubProcessor getSubProcessor(Iterator<VariablePath> processing) {
         return new FieldSubProcessor(processing);
+    }
+
+    void addCollectionsProcessing(List<Object> values, Event event, VariablePath toprocess, List<Object> results) {
+        values.forEach(v -> event.insertProcessor(new Processor() {
+            @Override
+            public boolean process(Event ev) throws ProcessorException {
+                return FieldsProcessor.this.filterField(event, toprocess, v, results::add);
+            }
+        }));
     }
 
     public Object[] getFields() {
