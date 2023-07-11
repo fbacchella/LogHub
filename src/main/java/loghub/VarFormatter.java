@@ -1,5 +1,6 @@
 package loghub;
 
+import java.io.UncheckedIOException;
 import java.lang.reflect.Array;
 import java.text.DateFormatSymbols;
 import java.text.DecimalFormat;
@@ -48,6 +49,15 @@ import java.util.regex.Pattern;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.Version;
+import com.fasterxml.jackson.databind.ObjectWriter;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.json.JsonMapper;
+import com.fasterxml.jackson.databind.module.SimpleModule;
+
+import loghub.jackson.EventSerializer;
+import loghub.jackson.JacksonBuilder;
 import lombok.Getter;
 
 public class VarFormatter {
@@ -89,6 +99,34 @@ public class VarFormatter {
             this.zeropadded = lZeroPadded;
             this.grouping = lGrouping;
             this.parenthesis = lParenthesis;
+        }
+    }
+
+    private static final class JsonFormat extends Format {
+        private static final ObjectWriter writer;
+        static {
+            SimpleModule module = new SimpleModule("LogHub", new Version(1, 0, 0, null, "loghub", "EventToJson"));
+            module.addSerializer(new EventSerializer());
+
+            writer = JacksonBuilder.get(JsonMapper.class)
+                                   .module(module)
+                                   .setConfigurator(om -> om.configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false))
+                                   .getWriter()
+            ;
+        }
+
+        @Override
+        public StringBuffer format(Object obj, StringBuffer toAppendTo,
+                FieldPosition pos) {
+            try {
+                return toAppendTo.append(writer.writeValueAsString(obj));
+            } catch (JsonProcessingException e) {
+                throw new UncheckedIOException("Can't serialized value: " + Helpers.resolveThrowableException(e), e);
+            }
+        }
+        @Override
+        public Object parseObject(String source, ParsePosition pos) {
+            throw new UnsupportedOperationException("Can't parse an object");
         }
     }
 
@@ -806,6 +844,7 @@ public class VarFormatter {
             case 't': return new ExtendedDateFormat(locale, timeFormat, ctz, isUpper);
             case '%': return new NonParsingFormat(Locale.getDefault(), false, i -> "%");
             case 'n': return new NonParsingFormat(Locale.getDefault(), false, i -> System.lineSeparator());
+            case 'j': return new JsonFormat();
             default: throw new IllegalArgumentException("Invalid format specifier: " + format);
             }
         } else {

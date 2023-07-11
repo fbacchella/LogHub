@@ -28,9 +28,18 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectReader;
+import com.fasterxml.jackson.databind.json.JsonMapper;
+
+import loghub.events.Event;
+import loghub.events.EventsFactory;
+import loghub.jackson.JacksonBuilder;
+
 public class TestVarFormatter {
 
     private static final Logger logger = LogManager.getLogger();
+    private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
     static public void configure() throws IOException {
@@ -201,6 +210,33 @@ public class TestVarFormatter {
             String formatted = formatter.format(Instant.ofEpochSecond(times[i]));
             Assert.assertEquals(weekNum[i], formatted);
         }
+    }
+
+    private <T> T readJson(Object toSerialize) throws JsonProcessingException {
+        ObjectReader reader = JacksonBuilder.get(JsonMapper.class).getReader();
+        VarFormatter formatter = new VarFormatter("${%j}");
+        String serialized = formatter.format(toSerialize);
+        return reader.readValue(serialized);
+    }
+
+    @Test
+    public void testJson() throws JsonProcessingException {
+        Map<String, Object> mapping = Map.of("a", 1, "b", List.of(2,3, 4), "c", Instant.ofEpochSecond(0));
+        Map<String, Object> mapped = readJson(mapping);
+        Assert.assertEquals(mapping.get("a"), mapped.get("a"));
+        Assert.assertEquals(mapping.get("b"), mapped.get("b"));
+        Assert.assertEquals("1970-01-01T00:00:00Z", mapped.get("c"));
+
+        Event ev = factory.newEvent();
+        ev.setTimestamp(Instant.ofEpochSecond(0));
+        Map<String, Object> eventMapped = readJson(ev);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> eventMap = (Map<String, Object>) eventMapped.get("loghub.Event");
+        Assert.assertEquals("1970-01-01T00:00:00.000+00:00", eventMap.get("@timestamp"));
+        Assert.assertEquals(Collections.emptyMap(), eventMap.get("@fields"));
+        Assert.assertEquals(Collections.emptyMap(), eventMap.get("@METAS"));
+
+        Assert.assertEquals("loghub", readJson("loghub"));
     }
 
     @Test
