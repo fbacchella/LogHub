@@ -10,7 +10,7 @@ import lombok.Getter;
 
 public interface AsyncProcessor<FI, F extends Future<FI>> {
     
-    public static class PausedEventException extends RuntimeException {
+    class PausedEventException extends RuntimeException {
 
         @Getter
         private final Future<?> future;
@@ -27,16 +27,16 @@ public interface AsyncProcessor<FI, F extends Future<FI>> {
 
     }
 
-    public boolean processCallback(Event event, FI content) throws ProcessorException;
-    public boolean manageException(Event event, Exception e) throws ProcessorException;
+    boolean processCallback(Event event, FI content) throws ProcessorException;
+    boolean manageException(Event event, Exception e) throws ProcessorException;
     /**
      * Will be called if the event processing timeout. If can be null, but then the processor
      * must handle by his own the timeout, without any external help
      * @return a timeout handler, or null
      */
-    public BiConsumer<Event, F> getTimeoutHandler();
-    public int getTimeout();
-    public default Optional<Semaphore> getLimiter() {
+    BiConsumer<Event, F> getTimeoutHandler();
+    int getTimeout();
+    default Optional<Semaphore> getLimiter() {
         return Optional.empty();
     }
 }

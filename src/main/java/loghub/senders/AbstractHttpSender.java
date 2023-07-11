@@ -125,7 +125,7 @@ public abstract class AbstractHttpSender extends Sender {
         }
     }
 
-    protected static interface ContentWriter {
+    protected interface ContentWriter {
         void writeTo(OutputStream outStream) throws IOException;
     }
 
@@ -137,7 +137,7 @@ public abstract class AbstractHttpSender extends Sender {
 
         private final org.apache.hc.core5.http.ContentType realType;
 
-        private ContentType(org.apache.hc.core5.http.ContentType realType) {
+        ContentType(org.apache.hc.core5.http.ContentType realType) {
             this.realType = realType;
         }
         
@@ -212,10 +212,10 @@ public abstract class AbstractHttpSender extends Sender {
 
     @MXBean
     public interface HttpClientStatsMBean {
-        public int getAvailable();
-        public int getLeased();
-        public int getMax();
-        public int getPending();
+        int getAvailable();
+        int getLeased();
+        int getMax();
+        int getPending();
     }
 
     public class Implementation extends StandardMBean implements HttpClientStatsMBean {

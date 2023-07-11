@@ -9,7 +9,7 @@ public abstract class AbstractBuilder<B extends Object> {
      * To be used when the build object might need an expression builder
      */
     public interface WithCompiler {
-        public void setCompiler(Function<String, Expression> compiler);
+        void setCompiler(Function<String, Expression> compiler);
     }
 
     public abstract B build();

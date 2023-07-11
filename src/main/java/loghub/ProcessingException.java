@@ -4,8 +4,8 @@ import loghub.events.Event;
 
 public interface ProcessingException {
 
-    public Event getEvent();
+    Event getEvent();
     
-    public Throwable getCause();
+    Throwable getCause();
 
 }
