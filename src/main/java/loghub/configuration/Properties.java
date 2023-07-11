@@ -37,6 +37,7 @@ import loghub.PriorityBlockingQueue;
 import loghub.Processor;
 import loghub.ThreadBuilder;
 import loghub.VarFormatter;
+import loghub.VariablePath;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
 import loghub.metrics.ExceptionsMBean;

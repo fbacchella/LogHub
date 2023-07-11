@@ -481,14 +481,17 @@ public final class Helpers {
                 temp = protocol + "://" + temp;
             }
             try {
-                URL newEndPoint = new URL(temp);
-                endPoints[i] = new URL(
+                URL newEndPoint = URI.create(temp).toURL();
+                endPoints[i] = new URI(
                                        (newEndPoint.getProtocol() != null ? newEndPoint.getProtocol() : protocol),
+                                       null,
                                        (newEndPoint.getHost() != null ? newEndPoint.getHost() : "localhost"),
                                        (newEndPoint.getPort() > 0 ? newEndPoint.getPort() : port),
-                                       (newEndPoint.getPath() != null ? newEndPoint.getPath() : "")
-                                );
-            } catch (MalformedURLException e) {
+                                       (newEndPoint.getPath() != null ? newEndPoint.getPath() : ""),
+                                       null,
+                                       null
+                                ).toURL();
+            } catch (MalformedURLException | URISyntaxException e) {
                 logger.error("invalid destination {}: {}", destinations[i], e.getMessage());
             }
         }
