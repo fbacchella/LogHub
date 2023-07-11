@@ -136,7 +136,8 @@ public class Expression {
         return m;
     });
     private static final ThreadLocal<BindingMap> bindings = ThreadLocal.withInitial(BindingMap::new);
-    private static final Map<String, ThreadLocal<Matcher>> PATTERN_CACHE = new ConcurrentHashMap<>();
+    private static final Map<String, Pattern> PATTERN_CACHE = new ConcurrentHashMap<>();
+    private static final Map<String, ThreadLocal<Matcher>> MATCHER_CACHE = new ConcurrentHashMap<>();
 
     @Getter
     private final String expression;
@@ -313,7 +314,7 @@ public class Expression {
         } else if (arg2 == null || arg2 == NullOrMissingValue.NULL) {
             return NullOrMissingValue.NULL;
         } else {
-            return arg2.toString().split(arg1.toString());
+            return PATTERN_CACHE.computeIfAbsent(arg1.toString(), Pattern::compile).split(arg2.toString());
         }
     }
 
@@ -511,10 +512,10 @@ public class Expression {
         } else if (arg == NullOrMissingValue.MISSING) {
             return arg;
         } else {
-            Matcher m = PATTERN_CACHE.computeIfAbsent(encodedPattern, k -> {
+            Matcher m = MATCHER_CACHE.computeIfAbsent(encodedPattern, k -> {
                 byte[] patternBytes = Base64.getDecoder().decode(k);
                 String pattern = new String(patternBytes, StandardCharsets.UTF_8);
-                return ThreadLocal.withInitial(() -> Pattern.compile(pattern).matcher(""));
+                return ThreadLocal.withInitial(() -> PATTERN_CACHE.computeIfAbsent(pattern, Pattern::compile).matcher(""));
             }).get();
             m.reset(arg.toString());
             if ("==~".equals(op)) {
@@ -548,6 +549,7 @@ public class Expression {
         synchronized(scriptsMaps) {
             scriptsMaps.forEach(Map::clear);
         }
+        MATCHER_CACHE.clear();
         PATTERN_CACHE.clear();
     }
 
