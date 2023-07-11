@@ -39,15 +39,16 @@ public class TestSyslogPriority {
     @SuppressWarnings("unchecked")
     @Test
     public void TestResolvedString() throws ProcessorException {
-        SyslogPriority sp = new SyslogPriority();
-        sp.setField(VariablePath.of("message"));
+        SyslogPriority.Builder builder = SyslogPriority.getBuilder();
+        builder.setField(VariablePath.of("message"));
+        SyslogPriority sp = builder.build();
 
         Properties props = new Properties(Collections.emptyMap());
 
         Assert.assertTrue(sp.configure(props));
 
         Event e = factory.newEvent();
-        e.put("message", "38");
+        e.put("message", "86");
         Assert.assertTrue(e.process(sp));
         String severity = (String)((Map<String, Object>)e.get("message")).get("severity");
         String facility = (String)((Map<String, Object>)e.get("message")).get("facility");
@@ -57,10 +58,11 @@ public class TestSyslogPriority {
 
     @Test
     public void TestResolvedStringInPlaceEcs() throws ProcessorException {
-        SyslogPriority sp = new SyslogPriority();
-        sp.setInPlace(true);
-        sp.setEcs(true);
-        sp.setField(VariablePath.of("priority"));
+        SyslogPriority.Builder builder = SyslogPriority.getBuilder();
+        builder.setInPlace(true);
+        builder.setEcs(true);
+        builder.setField(VariablePath.of("priority"));
+        SyslogPriority sp = builder.build();
 
         Properties props = new Properties(Collections.emptyMap());
 
@@ -72,7 +74,9 @@ public class TestSyslogPriority {
         e = e.wrap(syslogPath);
         Assert.assertTrue(e.process(sp));
         e = e.unwrap();
+        @SuppressWarnings("unchecked")
         Map<String, Object> severity = (Map<String, Object>) e.getAtPath(syslogPath.append("severity"));
+        @SuppressWarnings("unchecked")
         Map<String, Object> facility = (Map<String, Object>) e.getAtPath(syslogPath.append("facility"));
         Assert.assertEquals(Map.of("name", "informational", "code", 6), severity);
         Assert.assertEquals(Map.of("name", "security/authorization", "code", 4), facility);
@@ -80,9 +84,10 @@ public class TestSyslogPriority {
 
     @Test
     public void TestResolvedStringEcs() throws ProcessorException {
-        SyslogPriority sp = new SyslogPriority();
-        sp.setField(VariablePath.of("message"));
-        sp.setEcs(true);
+        SyslogPriority.Builder builder = SyslogPriority.getBuilder();
+        builder.setField(VariablePath.of("message"));
+        builder.setEcs(true);
+        SyslogPriority sp = builder.build();
 
         Properties props = new Properties(Collections.emptyMap());
 
@@ -93,16 +98,17 @@ public class TestSyslogPriority {
         Assert.assertTrue(e.process(sp));
         Assert.assertEquals("informational", e.getAtPath(VariablePath.of("log", "syslog", "severity", "name")));
         Assert.assertEquals(6, e.getAtPath(VariablePath.of("log", "syslog", "severity", "code")));
-        Assert.assertEquals("security/authorization", e.getAtPath(VariablePath.of(new String[] {"log", "syslog", "facility", "name"})));
+        Assert.assertEquals("security/authorization", e.getAtPath(VariablePath.of("log", "syslog", "facility", "name")));
         Assert.assertEquals(4, e.getAtPath(VariablePath.of("log", "syslog", "facility", "code")));
         Assert.assertEquals(38, e.getAtPath(VariablePath.of("log", "syslog", "priority")));
     }
 
     @Test
     public void TestResolvedStringEcsOverflow() throws ProcessorException {
-        SyslogPriority sp = new SyslogPriority();
-        sp.setField(VariablePath.of("message"));
-        sp.setEcs(true);
+        SyslogPriority.Builder builder = SyslogPriority.getBuilder();
+        builder.setField(VariablePath.of("message"));
+        builder.setEcs(true);
+        SyslogPriority sp = builder.build();
 
         Properties props = new Properties(Collections.emptyMap());
 
@@ -121,9 +127,10 @@ public class TestSyslogPriority {
     @SuppressWarnings("unchecked")
     @Test
     public void TestNotResolvedString() throws ProcessorException {
-        SyslogPriority sp = new SyslogPriority();
-        sp.setField(VariablePath.of("message"));
-        sp.setResolve(false);
+        SyslogPriority.Builder builder = SyslogPriority.getBuilder();
+        builder.setField(VariablePath.of("message"));
+        builder.setResolve(false);
+        SyslogPriority sp = builder.build();
 
         Properties props = new Properties(Collections.emptyMap());
 
@@ -141,8 +148,9 @@ public class TestSyslogPriority {
     @SuppressWarnings("unchecked")
     @Test
     public void TestResolvedNumber() throws ProcessorException {
-        SyslogPriority sp = new SyslogPriority();
-        sp.setField(VariablePath.of("message"));
+        SyslogPriority.Builder builder = SyslogPriority.getBuilder();
+        builder.setField(VariablePath.of("message"));
+        SyslogPriority sp = builder.build();
 
         Properties props = new Properties(Collections.emptyMap());
 
@@ -159,9 +167,10 @@ public class TestSyslogPriority {
 
     @Test
     public void TestResolvedStringOverflow() throws ProcessorException {
-        SyslogPriority sp = new SyslogPriority();
-        sp.setField(VariablePath.of("message"));
-        sp.setEcs(false);
+        SyslogPriority.Builder builder = SyslogPriority.getBuilder();
+        builder.setField(VariablePath.of("message"));
+        builder.setEcs(false);
+        SyslogPriority sp = builder.build();
 
         Properties props = new Properties(Collections.emptyMap());
 
@@ -177,9 +186,10 @@ public class TestSyslogPriority {
     @SuppressWarnings("unchecked")
     @Test
     public void TestNotResolvedNumber() throws ProcessorException {
-        SyslogPriority sp = new SyslogPriority();
-        sp.setField(VariablePath.of("message"));
-        sp.setResolve(false);
+        SyslogPriority.Builder builder = SyslogPriority.getBuilder();
+        builder.setField(VariablePath.of("message"));
+        builder.setResolve(false);
+        SyslogPriority sp = builder.build();
 
         Properties props = new Properties(Collections.emptyMap());
 
@@ -194,10 +204,11 @@ public class TestSyslogPriority {
         Assert.assertEquals(4, facility);
     }
 
-    @Test(expected=ProcessorException.class)
+    @Test
     public void TestNotMatch() throws ProcessorException {
-        SyslogPriority sp = new SyslogPriority();
-        sp.setField(VariablePath.of("message"));
+        SyslogPriority.Builder builder = SyslogPriority.getBuilder();
+        builder.setField(VariablePath.of("message"));
+        SyslogPriority sp = builder.build();
 
         Properties props = new Properties(Collections.emptyMap());
 
@@ -205,14 +216,14 @@ public class TestSyslogPriority {
 
         Event e = factory.newEvent();
         e.put("message", Instant.now());
-        e.process(sp);
+        Assert.assertThrows(ProcessorException.class, () -> e.process(sp));
     }
 
     @Test
     public void test_loghub_processors_SyslogPriority() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.processors.SyslogPriority"
-                              , BeanChecks.BeanInfo.build("Facilities", BeanChecks.LSTRING)
-                              , BeanChecks.BeanInfo.build("Severities", BeanChecks.LSTRING)
+                              , BeanChecks.BeanInfo.build("facilities", BeanChecks.LSTRING)
+                              , BeanChecks.BeanInfo.build("severities", BeanChecks.LSTRING)
                               , BeanChecks.BeanInfo.build("ecs", Boolean.TYPE)
                               , BeanChecks.BeanInfo.build("resolve", Boolean.TYPE)
                               , BeanChecks.BeanInfo.build("inPlace", Boolean.TYPE)

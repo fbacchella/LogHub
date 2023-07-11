@@ -174,27 +174,30 @@ public class TestConfigurations {
     // Ensure that multi-fields processor don't access a success sub-pipeline
     @Test
     public void testBadFields1() {
-        SyslogPriority processor = new SyslogPriority();
-        processor.setSuccess(new Identity());
-        processor.setFields(new String[]{"a", "b"});
+        SyslogPriority.Builder builder = SyslogPriority.getBuilder();
+        builder.setSuccess(new Identity());
+        builder.setFields(new String[]{"a", "b"});
+        SyslogPriority processor = builder.build();
         Assert.assertFalse(processor.configure(new Properties(Collections.emptyMap())));
     }
 
     // Ensure that multi-fields processor don't access a success sub-pipeline
     @Test
     public void testBadFields2() {
-        SyslogPriority processor = new SyslogPriority();
-        processor.setFailure(new Identity());
-        processor.setFields(new String[]{"a", "b"});
+        SyslogPriority.Builder builder = SyslogPriority.getBuilder();
+        builder.setFailure(new Identity());
+        builder.setFields(new String[]{"a", "b"});
+        SyslogPriority processor = builder.build();
         Assert.assertFalse(processor.configure(new Properties(Collections.emptyMap())));
     }
 
     // Ensure that multi-fields processor don't access a success sub-pipeline
     @Test
     public void testBadFields3() {
-        SyslogPriority processor = new SyslogPriority();
-        processor.setException(new Identity());
-        processor.setFields(new String[]{"a", "b"});
+        SyslogPriority.Builder builder = SyslogPriority.getBuilder();
+        builder.setException(new Identity());
+        builder.setFields(new String[]{"a", "b"});
+        SyslogPriority processor = builder.build();
         Assert.assertFalse(processor.configure(new Properties(Collections.emptyMap())));
     }
 
