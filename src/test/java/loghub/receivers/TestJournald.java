@@ -9,6 +9,7 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -91,9 +92,8 @@ public class TestJournald {
                     os.write(buf, 0, len);
                 }
             }
-            try (InputStreamReader is = new InputStreamReader(cnx.getInputStream(), "utf-8");
-                 BufferedReader br = new BufferedReader(is);
-                ) {
+            try (InputStreamReader is = new InputStreamReader(cnx.getInputStream(), StandardCharsets.UTF_8);
+                 BufferedReader br = new BufferedReader(is)) {
                       StringBuilder response = new StringBuilder();
                       String responseLine = null;
                       while ((responseLine = br.readLine()) != null) {

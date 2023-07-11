@@ -1,8 +1,8 @@
 package loghub.netty.http;
 
-import java.io.UnsupportedEncodingException;
 import java.lang.management.ManagementFactory;
 import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.AbstractMap;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -56,11 +56,7 @@ public class JmxProxy extends HttpRequestProcessing {
     protected void processRequest(FullHttpRequest request, ChannelHandlerContext ctx) throws HttpRequestFailure {
         String rawname = request.uri().replace("/jmx/", "");
         String name;
-        try {
-            name = URLDecoder.decode(rawname, "UTF-8");
-        } catch (UnsupportedEncodingException e) {
-            throw new HttpRequestFailure(HttpResponseStatus.NOT_FOUND, String.format("malformed object name '%s': %s", rawname, e.getMessage()));
-        }
+        name = URLDecoder.decode(rawname, StandardCharsets.UTF_8);
         try {
             Set<ObjectName> objectinstance = server.queryNames(new ObjectName(name), null);
             if (objectinstance.isEmpty()) {

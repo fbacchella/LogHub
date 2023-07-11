@@ -1,9 +1,9 @@
 package loghub.netty.http;
 
-import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
@@ -35,8 +35,9 @@ public class GraphMetric extends HttpRequestProcessing implements ChannelInbound
         try {
             String path = request.uri().replace("/graph", "");
             URI uri = new URI(path);
-            response.headers().set(HttpHeaderNames.LOCATION, "/static/index.html?q=" + URLEncoder.encode(uri.getPath(), "UTF-8"));
-        } catch (URISyntaxException | UnsupportedEncodingException e) {
+            response.headers().set(HttpHeaderNames.LOCATION, "/static/index.html?q=" + URLEncoder.encode(uri.getPath(),
+                    StandardCharsets.UTF_8));
+        } catch (URISyntaxException e) {
             //Not reachable
         }
     }

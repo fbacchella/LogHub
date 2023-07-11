@@ -1,7 +1,7 @@
 package loghub.encoders;
 
 import java.io.IOException;
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -57,7 +57,7 @@ public class TestToJson {
 
         byte[] result = encoder.encode(e);
 
-        String formatted = new String(result, Charset.forName("UTF-8"));
+        String formatted = new String(result, StandardCharsets.UTF_8);
         Assert.assertEquals(pretty, formatted.contains("\n"));
         ObjectReader reader = JacksonBuilder.get(JsonMapper.class).getReader();
         Map<String, Object> m = reader.readValue(formatted);

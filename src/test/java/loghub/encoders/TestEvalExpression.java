@@ -2,7 +2,7 @@ package loghub.encoders;
 
 import java.beans.IntrospectionException;
 import java.io.IOException;
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 
 import org.apache.logging.log4j.Level;
@@ -46,7 +46,7 @@ public class TestEvalExpression {
 
         byte[] result = encoder.encode(e);
 
-        String formatted = new String(result, Charset.forName("UTF-16"));
+        String formatted = new String(result, StandardCharsets.UTF_16);
         Assert.assertEquals("Formatting failed", "V1: 02", formatted);
     }
 
