@@ -220,6 +220,8 @@ public class Properties extends HashMap<String, Object> {
         eventsprocessors = Collections.unmodifiableSet(allep);
 
         super.putAll(properties);
+
+        VariablePath.compact();
     }
 
     /**
