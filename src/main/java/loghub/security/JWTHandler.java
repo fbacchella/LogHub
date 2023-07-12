@@ -96,7 +96,7 @@ public class JWTHandler {
 
     public static class Builder {
         private String issuer  = "LogHub";
-        private Period validity = Period.ofMonths(3).normalized();
+        private final Period validity = Period.ofMonths(3).normalized();
         private String alg;
         private String secret;
         private boolean active = false;

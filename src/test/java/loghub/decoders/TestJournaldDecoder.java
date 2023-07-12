@@ -88,7 +88,7 @@ public class TestJournaldDecoder {
         events.forEach(e -> Assert.assertFalse(((Map<String, Object>)e.get("fields_trusted")).containsKey("realtime_timestamp")));
         events.forEach(e -> Assert.assertFalse(((Map<String, Object>)e.get("fields_trusted")).containsKey("source_realtime_timestamp")));
         
-        events.stream().map(e -> (Event) e)
+        events.stream().map(Event.class::cast)
                        .map(Event::getTimestamp)
                        .map(Date::getTime)
                        .forEach(i -> Assert.assertTrue(i <= 1637065006095L));

@@ -48,7 +48,7 @@ public class ScanBinary extends FieldsProcessor {
             try {
                 nvalue = Long.decode((String)value);
             } catch (NumberFormatException e) {
-                throw event.buildException("Can't parse as number " + value.toString(), e);
+                throw event.buildException("Can't parse as number " + value, e);
             }
         }
         if (nvalue < 0) {
@@ -62,7 +62,7 @@ public class ScanBinary extends FieldsProcessor {
                     parsed.add(bitsNames[i].toString());
                 }
             }
-            return parsed.toArray(new String[parsed.size()]);
+            return parsed.toArray(new String[0]);
         } else {
             Map<String, Number> values = new HashMap<>(fieldsLength.length);
             for (int i = 0 ; i < fieldsLength.length  ; i++) {

@@ -414,7 +414,7 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
             if (pathURI.getPath().toLowerCase().endsWith(".policy")) {
                 loadDomain(pathURI, fileParams);
             } else if (Paths.get(pathURI.getPath()).endsWith("cacerts")) {
-                fileParams.computeIfAbsent("password", k -> "changeit");
+                fileParams.putIfAbsent("password", "changeit");
                 loadKeystore("JKS", pathURI, fileParams);
             } else {
                 String mimetype = resolveMimeType(pathURI, fileParams);

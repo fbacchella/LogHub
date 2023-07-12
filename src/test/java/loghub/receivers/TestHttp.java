@@ -195,7 +195,7 @@ public class TestHttp {
     public void testHttpPostForm() throws IOException {
         makeReceiver( i -> {}, Collections.emptyMap());
         doRequest(new URL("http", hostname, port, "/"),
-                  "a=1&b=c%20d".getBytes("UTF-8"),
+                  "a=1&b=c%20d".getBytes(StandardCharsets.UTF_8),
                   i -> {
                       try {
                           i.setRequestMethod("POST");

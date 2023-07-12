@@ -10,7 +10,6 @@ import java.util.function.Supplier;
 
 import io.netty.util.concurrent.Future;
 import loghub.AsyncProcessor;
-import loghub.Processor;
 import loghub.ProcessorException;
 import loghub.UncheckedProcessorException;
 import loghub.VariablePath;

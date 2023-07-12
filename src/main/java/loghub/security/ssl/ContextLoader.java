@@ -146,7 +146,7 @@ public class ContextLoader {
                                             .filter(validIssuers::contains)
                                             .toArray(Principal[]::new);
                         } else if (validIssuers != null){
-                            return validIssuers.stream().toArray(Principal[]::new);
+                            return validIssuers.toArray(Principal[]::new);
                         } else {
                             return issuers;
                         }

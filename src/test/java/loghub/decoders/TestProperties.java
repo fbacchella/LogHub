@@ -3,7 +3,6 @@ package loghub.decoders;
 import java.beans.IntrospectionException;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
@@ -44,7 +43,7 @@ public class TestProperties {
         String values = "a->2->b: first\na->3->c: second";
         Stream<Map<String, Object>> so = dec.decode(ConnectionContext.EMPTY, values.getBytes(StandardCharsets.UTF_8));
         @SuppressWarnings("unchecked")
-        Map<String, List<Map<String, Object>>>[] read = so.toArray(i -> new HashMap[i]);
+        Map<String, List<Map<String, Object>>>[] read = so.toArray(Map[]::new);
         Assert.assertEquals(1, read.length);
         Map<String, List<Map<String, Object>>> props = read[0];
         Assert.assertEquals(1, props.keySet().size());

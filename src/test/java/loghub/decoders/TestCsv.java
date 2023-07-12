@@ -3,7 +3,6 @@ package loghub.decoders;
 import java.beans.IntrospectionException;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Stream;
 
@@ -42,7 +41,7 @@ public class TestCsv {
         String values = "1,2,3\n4,5,6\n";
         Stream<Map<String, Object>> so = dec.decode(ConnectionContext.EMPTY, values.getBytes(StandardCharsets.UTF_8));
         @SuppressWarnings("unchecked")
-        Map<String, Object>[] read = so.toArray(i -> new HashMap[i]);
+        Map<String, Object>[] read = so.toArray(Map[]::new);
         Assert.assertEquals("1", read[0].get("a"));
         Assert.assertEquals("2", read[0].get("b"));
         Assert.assertEquals("3", read[0].get("c"));
@@ -61,7 +60,7 @@ public class TestCsv {
         String values = "a;b;c\n1;2;3\n4;5;6\n";
         Stream<Map<String, Object>> so = dec.decode(ConnectionContext.EMPTY, values.getBytes(StandardCharsets.UTF_8));
         @SuppressWarnings("unchecked")
-        Map<String, Object>[] read = so.toArray(i -> new HashMap[i]);
+        Map<String, Object>[] read = so.toArray(Map[]::new);
         Assert.assertEquals("1", read[0].get("a"));
         Assert.assertEquals("2", read[0].get("b"));
         Assert.assertEquals("3", read[0].get("c"));
