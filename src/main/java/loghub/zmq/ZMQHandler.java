@@ -126,6 +126,7 @@ public class ZMQHandler<M> implements AutoCloseable {
             makeThreadLocal = null;
             runningThread = Thread.currentThread();
             SocketBuilder sbuilder = zfactory.getBuilder(builder.method, builder.type, socketUrl).setTopic(builder.topic).setImmediate(false);
+            sbuilder.setHwm(builder.hwm);
             sbuilder.setSocketLogger(builder.logger);
             Mechanisms security = builder.security;
             sbuilder.setSecurity(security);
