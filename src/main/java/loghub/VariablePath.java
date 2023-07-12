@@ -521,4 +521,17 @@ public abstract class VariablePath {
         PATH_CACHE_INDIRECT.clear();
     }
 
+    /**
+     * Used internally in tests
+     */
+    static synchronized void reset() {
+        VP_COUNT.set(0);
+        PATH_CACHE_ID.set(new VariablePath[128]);
+        PATH_CACHE.clear();
+        PATH_CACHE_INDIRECT.clear();
+        PATH_CACHE_CONTEXT.clear();
+        PATH_CACHE_META.clear();
+        PATH_CACHE_STRING.clear();
+    }
+
 }

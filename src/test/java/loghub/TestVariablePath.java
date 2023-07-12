@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.regex.Pattern;
 
 import org.junit.Assert;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import loghub.configuration.Properties;
@@ -15,6 +16,11 @@ import loghub.events.EventsFactory;
 public class TestVariablePath {
 
     private static final Pattern  groovyPattern = Pattern.compile("event.getGroovyPath\\(\\d+\\)");
+
+    @BeforeClass
+    public static void reset() {
+        VariablePath.reset();
+    }
 
     @Test
     public void single() {
