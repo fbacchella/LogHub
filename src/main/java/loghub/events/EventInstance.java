@@ -31,6 +31,7 @@ import loghub.FastExternalizeObject;
 import loghub.FastExternalizeObject.FastObjectInputStream;
 import loghub.FastExternalizeObject.FastObjectOutputStream;
 import loghub.Helpers;
+import loghub.NullOrMissingValue;
 import loghub.Pipeline;
 import loghub.PriorityBlockingQueue;
 import loghub.Processor;
@@ -387,7 +388,11 @@ class EventInstance extends Event {
 
     @Override
     public Object getMeta(String key) {
-        return metas.get(key);
+        if (metas.containsKey(key)) {
+            return metas.get(key);
+        } else {
+            return NullOrMissingValue.MISSING;
+        }
     }
 
     @Override

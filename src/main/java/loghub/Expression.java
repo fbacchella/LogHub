@@ -392,7 +392,9 @@ public class Expression {
     }
 
     public Object getIterableIndex(Object iterable, int index) {
-        if (Object[].class.isAssignableFrom(iterable.getClass())) {
+        if (iterable == null || iterable == NullOrMissingValue.NULL) {
+            return NullOrMissingValue.NULL;
+        } else if (Object[].class.isAssignableFrom(iterable.getClass())) {
             Object[] a = (Object[]) iterable;
             int pos = index >= 0 ? index : (a.length + index);
             if (a.length > pos) {
@@ -408,8 +410,6 @@ public class Expression {
             } else {
                 throw IgnoredEventException.INSTANCE;
             }
-        } else if (iterable == NullOrMissingValue.NULL) {
-            return NullOrMissingValue.NULL;
         } else if (iterable == NullOrMissingValue.MISSING) {
             throw IgnoredEventException.INSTANCE;
         } else {
@@ -418,7 +418,13 @@ public class Expression {
     }
 
     public Object compare(String operator, Object arg1, Object arg2) {
-        if (! "!=".equals(operator) && ! "==".equals(operator) && (arg1 instanceof NullOrMissingValue || arg2 instanceof NullOrMissingValue)) {
+        if (arg1 == null) {
+            arg1 = NullOrMissingValue.NULL;
+        }
+        if (arg2 == null) {
+            arg2 = NullOrMissingValue.NULL;
+        }
+        if (arg1 == NullOrMissingValue.MISSING || arg2 == NullOrMissingValue.MISSING) {
             throw IgnoredEventException.INSTANCE;
         } else if ((arg1 instanceof Comparable && arg2 instanceof Comparable)){
             int compare = compareObjects(arg1, arg2);
@@ -441,16 +447,11 @@ public class Expression {
                 assert false : String.format("%s %s %s", arg1, operator, arg2);
                 throw IgnoredEventException.INSTANCE;
             }
-        } else if ("==".equals(operator) && arg1 != null) {
-            return arg1.equals(arg2);
         } else if ("==".equals(operator)) {
-            return (arg2 == null || arg2 == NullOrMissingValue.NULL);
-        } else if ("!=".equals(operator) && arg1 != null) {
-            return ! arg1.equals(arg2);
+            return arg1.equals(arg2);
         } else if ("!=".equals(operator)) {
-            return (arg2 != null && arg2 != NullOrMissingValue.NULL);
+            return ! arg1.equals(arg2);
         } else {
-            assert false : String.format("%s %s %s", arg1, operator, arg2);
             throw IgnoredEventException.INSTANCE;
         }
     }

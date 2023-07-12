@@ -230,7 +230,9 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
         Map<String, Object> current = this;
         String key;
         if (path.isMeta()) {
-            if (path.length() != 0) {
+            if (path.length() != 0 && f == Action.GET) {
+                return getMeta(path.get(0));
+            } else if (path.length() != 0) {
                 return f.action.apply(getMetas(), path.get(0), value);
             } else if (f.mapAction) {
                 return f.action.apply(getMetas(), null, value);

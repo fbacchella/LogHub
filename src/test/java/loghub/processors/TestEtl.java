@@ -332,7 +332,7 @@ public class TestEtl {
     public void testMetaToValueMove() throws ProcessorException {
         Event ev =  RunEtl("[a] < [#b]", i -> i.putMeta("b", 1));
         Assert.assertEquals(1, ev.get("a"));
-        Assert.assertNull(ev.getMeta("b"));
+        Assert.assertEquals(NullOrMissingValue.MISSING, ev.getMeta("b"));
     }
 
     @Test
