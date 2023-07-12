@@ -167,8 +167,7 @@ public class TestFieldsProcessor {
     public void testDefaultMessage() throws ProcessorException, IOException {
         String confile = "pipeline[defaultmessage] {\n" +
                                  "   loghub.processors.Convert {className: \"java.net.InetAddress\"}\n" +
-                                 "}\n" +
-                                 "";
+                                 "}\n";
         Properties p =  Configuration.parse(new StringReader(confile));
         Event ev = factory.newEvent();
         ev.putAtPath(VariablePath.parse("message"), "1.1.1.1");

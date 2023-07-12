@@ -68,7 +68,7 @@ public class TestExpression {
         Expression expression = new Expression(expressionScript, new Properties(Collections.emptyMap()).groovyClassLoader, Collections.emptyMap());
         Event ev = factory.newEvent();
         Object o = expression.eval(ev);
-        Assert.assertEquals("failed to parse expression", "a", (String)o);
+        Assert.assertEquals("failed to parse expression", "a", o);
     }
 
   @Test

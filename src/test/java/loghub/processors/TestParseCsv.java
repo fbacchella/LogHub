@@ -46,7 +46,7 @@ public class TestParseCsv {
         Assert.assertEquals("1", event.get("a"));
         Assert.assertEquals("2", event.get("b"));
         Assert.assertEquals("\\\"", event.get("c"));
-        Assert.assertEquals(null, event.get("d"));
+        Assert.assertNull(event.get("d"));
     }
 
     @Test

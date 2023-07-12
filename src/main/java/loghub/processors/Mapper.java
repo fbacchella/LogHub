@@ -29,7 +29,7 @@ public class Mapper extends Etl {
         // So ensure the the key is an integer
         // Ignore float/double case, floating point key don't make sense
         if (key instanceof Number && ! (key instanceof Integer) && ! (key instanceof Double) && ! (key instanceof Float)) {
-            key = Integer.valueOf(((Number) key).intValue());
+            key = ((Number) key).intValue();
         }
         if (! map.containsKey(key)) {
             return false;

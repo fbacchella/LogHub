@@ -8,14 +8,14 @@ public abstract class NullOrMissingValue {
     public static final NullOrMissingValue MISSING = new NullOrMissingValue() {
         @Override
         public String toString() {
-            return Objects.toString("NoValue");
+            return "NoValue";
         }
     };
 
     public static final NullOrMissingValue NULL = new NullOrMissingValue() {
         @Override
         public String toString() {
-            return Objects.toString("NullValue");
+            return "NullValue";
         }
     };
 

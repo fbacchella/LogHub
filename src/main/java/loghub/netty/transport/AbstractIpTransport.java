@@ -142,7 +142,7 @@ public abstract class AbstractIpTransport<M, T extends AbstractIpTransport<M, T,
         SSLEngine engine = getEngine();
         SSLParameters params = engine.getSSLParameters();
         params.setServerNames(Collections.singletonList(new SNIHostName(endpoint)));
-        params.setApplicationProtocols(applicationProtocols.stream().toArray(String[]::new));
+        params.setApplicationProtocols(applicationProtocols.toArray(String[]::new));
         engine.setSSLParameters(params);
         engine.setUseClientMode(true);
         pipeline.addLast("ssl", new SslHandler(engine));

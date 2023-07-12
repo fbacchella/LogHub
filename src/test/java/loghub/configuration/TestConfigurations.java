@@ -233,8 +233,7 @@ public class TestConfigurations {
         ConfigException ex = Assert.assertThrows(ConfigException.class, () -> {
             String confile = "pipeline[bad] {\n" + 
                     "   loghub.processors.Identity {bad: true}\n" + 
-                    "}\n" + 
-                    "";
+                    "}\n";
             Configuration.parse(new StringReader(confile));
         });
         Assert.assertEquals("Unknown bean 'bad' for loghub.processors.Identity", ex.getMessage());
@@ -268,8 +267,7 @@ public class TestConfigurations {
     public void testPathString() throws ConfigException, IOException, ProcessorException {
         String confile = "pipeline[withpath] {\n" +
                         "   loghub.processors.UrlParser {field: \"a\", path: \"b\"}\n" +
-                        "}\n" + 
-                        "";
+                        "}\n";
         Properties  p = Configuration.parse(new StringReader(confile));
         UrlParser pr = (UrlParser) p.namedPipeLine.get("withpath").processors.get(0);
         Assert.assertEquals("a", pr.getField().get(0));
@@ -287,8 +285,7 @@ public class TestConfigurations {
     public void testPathEventVariable() throws ConfigException, IOException, ProcessorException {
         String confile = "pipeline[withpath] {\n" +
                         "   loghub.processors.UrlParser {field: [a b], path: [c d]}\n" +
-                        "}\n" + 
-                        "";
+                        "}\n";
         Properties  p =  Configuration.parse(new StringReader(confile));
         UrlParser pr = (UrlParser) p.namedPipeLine.get("withpath").processors.get(0);
         Assert.assertEquals("a", pr.getField().get(0));
@@ -310,8 +307,7 @@ public class TestConfigurations {
         try {
             String confile = "input {\n" + 
                             "    loghub.receivers.TimeSerie { decoder: loghub.decoders.StringCodec { charset: \"NONE\"}, frequency: 10 }\n" + 
-                            "} | $main\n" + 
-                            "";
+                            "} | $main\n";
             Configuration.parse(new StringReader(confile));
             Assert.fail("An exception was expected");
         } catch (ConfigException e) {

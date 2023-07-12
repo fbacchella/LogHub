@@ -33,7 +33,7 @@ public class Merge extends Processor {
             @Override
             BiFunction<Object, Object, Object> cumulate(Object seed) {
                 String stringSeed = seed == null ? "" : seed.toString();
-                return (last, next) -> last == null ? new StringBuilder().append(next).toString() : new StringBuilder(last.toString()).append(stringSeed).append(next).toString();
+                return (last, next) -> last == null ? String.valueOf(next) : last + stringSeed + next;
             }
         },
         LIST {
@@ -47,9 +47,8 @@ public class Merge extends Processor {
                 } else if (source instanceof List) {
                     return (List<Object>) source;
                 } else if (source.getClass().isArray()) {
-                    newList = new ArrayList<>();
                     Object[] seedArray = (Object[]) source;
-                    newList.addAll(Arrays.asList(seedArray));
+                    newList = new ArrayList<>(Arrays.asList(seedArray));
                 } else {
                     newList = new ArrayList<>();
                     newList.add(source);
@@ -201,9 +200,9 @@ public class Merge extends Processor {
                     } else if (last == null) {
                         return next;
                     } else if (last instanceof String) {
-                        return new StringBuilder(last.toString()).append(next.toString());
+                        return new StringBuilder(last.toString()).append(next);
                     } else if (last instanceof StringBuilder) {
-                        return ((StringBuilder)last).append(next.toString());
+                        return ((StringBuilder)last).append(next);
                     } else if (last instanceof Number && next instanceof Number) {
                         return ((Number)last).longValue() + ((Number)next).longValue();
                     } else if (last instanceof Date || next instanceof Date) {
@@ -223,7 +222,7 @@ public class Merge extends Processor {
             } else if (o instanceof Boolean) {
                 return (Boolean) o;
             } else if (o instanceof String) {
-                return Boolean.valueOf(o.toString());
+                return Boolean.parseBoolean(o.toString());
             } else if (o instanceof Integer || o instanceof Long ) {
                 return ((Number) o).intValue() != 0;
             } else if (o instanceof Number) {
@@ -259,7 +258,7 @@ public class Merge extends Processor {
             } else if (o instanceof Number ) {
                 return ((Number) o).doubleValue();
             } else if (o instanceof Boolean) {
-                return (double) (Boolean.TRUE.equals(o) ? 1.0 : 0.0);
+                return Boolean.TRUE.equals(o) ? 1.0 : 0.0;
             } else if (o instanceof String) {
                 try {
                     return Double.parseDouble(o.toString());

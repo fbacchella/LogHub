@@ -47,11 +47,11 @@ public class TestBeanManager {
     public void testBoolean() throws InvocationTargetException, IntrospectionException {
         BeanContener c = new BeanContener();
         beansManager.beanSetter(c, "bool", true);
-        Assert.assertEquals(true, c.isBool());
+        Assert.assertTrue(c.isBool());
         beansManager.beanSetter(c, "bool", Boolean.FALSE);
-        Assert.assertEquals(false, c.isBool());
+        Assert.assertFalse(c.isBool());
         beansManager.beanSetter(c, "bool", Boolean.FALSE.toString());
-        Assert.assertEquals(false, c.isBool());
+        Assert.assertFalse(c.isBool());
     }
 
     @Test
@@ -59,7 +59,7 @@ public class TestBeanManager {
         BeanContener c = new BeanContener();
         beansManager.beanSetter(c, "doublefloat", Math.E);
         Assert.assertEquals(Math.E, c.getDoublefloat(), 0);
-        beansManager.beanSetter(c, "doublefloat", Double.valueOf(Math.PI));
+        beansManager.beanSetter(c, "doublefloat", Math.PI);
         Assert.assertEquals(Math.PI, c.getDoublefloat(), 0);
         beansManager.beanSetter(c, "doublefloat", "1.3333");
         Assert.assertEquals((float)1.3333, 1e-4, c.getDoublefloat());
@@ -70,7 +70,7 @@ public class TestBeanManager {
         BeanContener c = new BeanContener();
         beansManager.beanSetter(c, "simplefloat", (float) Math.E);
         Assert.assertEquals((float)Math.E, c.getSimplefloat(), 0);
-        beansManager.beanSetter(c, "simplefloat", Float.valueOf((float)Math.PI) );
+        beansManager.beanSetter(c, "simplefloat", (float) Math.PI);
         Assert.assertEquals((float)Math.PI, c.getSimplefloat(), 0);
         beansManager.beanSetter(c, "simplefloat", "1.3333");
         Assert.assertEquals((float)1.3333, 1e-4, c.getSimplefloat());
@@ -81,7 +81,7 @@ public class TestBeanManager {
         BeanContener c = new BeanContener();
         beansManager.beanSetter(c, "octet", (byte)4);
         Assert.assertEquals((byte)4, c.getOctet());
-        beansManager.beanSetter(c, "octet", Byte.valueOf((byte)8));
+        beansManager.beanSetter(c, "octet", (byte) 8);
         Assert.assertEquals((byte)8, c.getOctet());
         beansManager.beanSetter(c, "octet", "16");
         Assert.assertEquals((byte)16, c.getOctet());
@@ -92,7 +92,7 @@ public class TestBeanManager {
         BeanContener c = new BeanContener();
         beansManager.beanSetter(c, "i16", (short)4);
         Assert.assertEquals((short)4, c.getI16());
-        beansManager.beanSetter(c, "i16", Short.valueOf((short)8));
+        beansManager.beanSetter(c, "i16", (short) 8);
         Assert.assertEquals((short)8, c.getI16());
         beansManager.beanSetter(c, "i16", "16");
         Assert.assertEquals((short)16, c.getI16());
@@ -103,7 +103,7 @@ public class TestBeanManager {
         BeanContener c = new BeanContener();
         beansManager.beanSetter(c, "integer", 4);
         Assert.assertEquals(4, c.getInteger());
-        beansManager.beanSetter(c, "integer", Integer.valueOf(8));
+        beansManager.beanSetter(c, "integer", 8);
         Assert.assertEquals(8, c.getInteger());
         beansManager.beanSetter(c, "integer", "16");
         Assert.assertEquals(16, c.getInteger());
@@ -114,7 +114,7 @@ public class TestBeanManager {
         BeanContener c = new BeanContener();
         beansManager.beanSetter(c, "i64", 4L);
         Assert.assertEquals(4L, c.getI64());
-        beansManager.beanSetter(c, "i64", Long.valueOf(8L));
+        beansManager.beanSetter(c, "i64", 8L);
         Assert.assertEquals(8L, c.getI64());
         beansManager.beanSetter(c, "i64", "16");
         Assert.assertEquals(16L, c.getI64());
@@ -125,7 +125,7 @@ public class TestBeanManager {
         BeanContener c = new BeanContener();
         beansManager.beanSetter(c, "character", 'a');
         Assert.assertEquals('a', c.getCharacter());
-        beansManager.beanSetter(c, "character", Character.valueOf('b'));
+        beansManager.beanSetter(c, "character", 'b');
         Assert.assertEquals('b', c.getCharacter());
         beansManager.beanSetter(c, "character", "c");
         Assert.assertEquals('c', c.getCharacter());
@@ -158,7 +158,7 @@ public class TestBeanManager {
     @Test
     public void testExpression() throws InvocationTargetException, IntrospectionException, ProcessorException {
         BeanContener c = new BeanContener();
-        Stream.of(Byte.valueOf((byte) 1), Short.valueOf((short)1), Integer.valueOf(1), Long.valueOf(1), Math.PI, 1.0f, "a", 'a', this).forEach(o -> {
+        Stream.of((byte) 1, (short) 1, 1, 1L, Math.PI, 1.0f, "a", 'a', this).forEach(o -> {
             try {
                 beansManager.beanSetter(c, "ex", o);
                 Assert.assertEquals(o, c.getEx().eval(null));

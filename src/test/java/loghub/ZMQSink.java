@@ -48,14 +48,15 @@ public class ZMQSink<M> extends Thread implements AutoCloseable {
         @Setter
         byte[] topic = null;
 
-        private Builder() {};
+        private Builder() {}
+
         public ZMQSink<M> build() {
-            return new ZMQSink<M>(this);
+            return new ZMQSink<>(this);
         }
     }
 
     public static <M> Builder<M> getBuilder() {
-        return new Builder<M>();
+        return new Builder<>();
     }
 
     private final ZMQHandler<M> handler;

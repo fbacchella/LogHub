@@ -284,7 +284,6 @@ public final class Helpers {
 
     /**
      * Taken from <a href="http://stackoverflow.com/questions/1247772/is-there-an-equivalent-of-java-util-regex-for-glob-type-patterns">glob to java regex</a>
-     *
      * Converts a standard POSIX Shell globbing pattern into a regular expression
      * pattern. The result can be used with the standard {@link java.util.regex} API to
      * recognize strings which match the glob pattern.
@@ -621,7 +620,7 @@ public final class Helpers {
             } else if ("file".equals(sourceURI.getScheme()) && sourceURI.getHost() != null) {
                 // Written as file://relativepath, mistake the first part as a host
                 String newPath = sourceURI.getHost() + ((sourceURI.getPath() == null || sourceURI.getPath().isEmpty()) ? "" : "/" + sourceURI.getPath());
-                newURI = new URI("file", null, "//" + root.resolve(newPath).toAbsolutePath().toString(),
+                newURI = new URI("file", null, "//" + root.resolve(newPath).toAbsolutePath(),
                         sourceURI.getQuery(), sourceURI.getFragment());
             } else if ("file".equals(sourceURI.getScheme()) && sourceURI.getSchemeSpecificPart() != null && sourceURI.getPath() == null){
                 // If file is a relative URI, it's not resolved, and it's stored in the SSP

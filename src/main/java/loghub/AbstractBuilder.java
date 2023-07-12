@@ -3,7 +3,7 @@ package loghub;
 import java.lang.reflect.InvocationTargetException;
 import java.util.function.Function;
 
-public abstract class AbstractBuilder<B extends Object> {
+public abstract class AbstractBuilder<B> {
 
     /**
      * To be used when the build object might need an expression builder

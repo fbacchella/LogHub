@@ -65,7 +65,7 @@ public class TestNull {
             b.setEncode(false);
             b.setBatchSize(10);
             b.setFlushInterval(1);
-        }, (Encoder) null);
+        }, null);
         Assert.assertTrue(queue.isEmpty());
         long duration = System.nanoTime() - start;
         Assert.assertTrue(duration > TimeUnit.SECONDS.toNanos(1) && duration < TimeUnit.SECONDS.toNanos(2));

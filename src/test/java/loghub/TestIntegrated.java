@@ -71,7 +71,7 @@ public class TestIntegrated {
         ExceptionsMBean exceptions = JMX.newMBeanProxy(mbs, ExceptionsMBean.Implementation.NAME, ExceptionsMBean.class);
 
         try (Socket sender = tctxt.getFactory().getBuilder(Method.CONNECT, SocketType.PUSH, "inproc://listener").build();
-             Socket receiver = tctxt.getFactory().getBuilder(Method.CONNECT, SocketType.PULL, "inproc://sender").build();) {
+             Socket receiver = tctxt.getFactory().getBuilder(Method.CONNECT, SocketType.PULL, "inproc://sender").build()) {
             sender.setHWM(200);
             receiver.setHWM(200);
             AtomicLong send = new AtomicLong();
@@ -97,7 +97,7 @@ public class TestIntegrated {
                     String content = receiver.recvStr();
                     Assert.assertTrue(content, messagePattern.matcher(content).find());
                     Thread.sleep(1);
-                };
+                }
                 Thread.sleep(50);
             }
             Thread.sleep(10);

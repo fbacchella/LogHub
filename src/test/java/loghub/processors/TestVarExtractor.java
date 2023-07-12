@@ -127,7 +127,6 @@ public class TestVarExtractor {
         e.put("message", "a=1;b=2;c=3;a=4");
         Event wrapped = e.wrap(VariablePath.parse("d1.d2"));
         wrapped.process(t);
-        System.err.println(e);
         Assert.assertEquals("key a not found", List.of("1", "4"), e.getAtPath(VariablePath.of(List.of("d1", "d2", "a"))));
         Assert.assertEquals("key b not found", "2", e.getAtPath(VariablePath.of(List.of("d1", "d2", "b"))));
         Assert.assertEquals("key c not found", "3", e.getAtPath(VariablePath.of(List.of("d1", "d2", "c"))));

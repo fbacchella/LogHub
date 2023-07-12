@@ -129,7 +129,7 @@ public class TestZMQReceiver {
         String keyPub;
         try (ByteArrayOutputStream pubkeyBuffer = new ByteArrayOutputStream()) {
             Files.copy(keyPubpath, pubkeyBuffer);
-            keyPub = new String(pubkeyBuffer.toByteArray(), StandardCharsets.UTF_8);
+            keyPub = pubkeyBuffer.toString(StandardCharsets.UTF_8);
         }
         dotest(r -> {
             r.setMethod(Method.BIND);
@@ -146,7 +146,7 @@ public class TestZMQReceiver {
         String keyPub;
         try (ByteArrayOutputStream pubkeyBuffer = new ByteArrayOutputStream()) {
             Files.copy(keyPubpath, pubkeyBuffer);
-            keyPub = new String(pubkeyBuffer.toByteArray(), StandardCharsets.UTF_8);
+            keyPub = pubkeyBuffer.toString(StandardCharsets.UTF_8);
         }
 
         dotest(r -> {

@@ -108,7 +108,7 @@ public class TestZMQSender {
 
         ZMQ.Builder builder = ZMQ.getBuilder();
         builder.setEncoder(ToJson.getBuilder().build());
-        builder.setType(SocketType.PUSH.PUSH);
+        builder.setType(SocketType.PUSH);
         builder.setDestination(rendezvous);
         configure.accept(builder);
 
@@ -162,7 +162,7 @@ public class TestZMQSender {
             Path keyPubpath = tctxt.getCertDir().resolve("zmqtest.pub");
             try (ByteArrayOutputStream pubkeyBuffer = new ByteArrayOutputStream()) {
                 Files.copy(keyPubpath, pubkeyBuffer);
-                return new String(pubkeyBuffer.toByteArray(), StandardCharsets.UTF_8);
+                return pubkeyBuffer.toString(StandardCharsets.UTF_8);
             }
         } catch (IOException ex) {
             throw new UncheckedIOException(ex);

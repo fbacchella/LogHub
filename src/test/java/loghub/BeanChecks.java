@@ -20,16 +20,16 @@ public class BeanChecks {
 
     private static Logger logger;
 
-    public static final Class<? extends String[]> LSTRING = new String[] {}.getClass();
+    public static final Class<? extends String[]> LSTRING = String[].class;
 
     public static class BeanInfo {
         private final String beanName;
-        private final Class<? extends Object> beanType;
-        private BeanInfo(String beanName, Class<? extends Object> beanType) {
+        private final Class<?> beanType;
+        private BeanInfo(String beanName, Class<?> beanType) {
             this.beanName = beanName;
             this.beanType = beanType;
         }
-        public static BeanInfo build(String beanName, Class<? extends Object> beanType) {
+        public static BeanInfo build(String beanName, Class<?> beanType) {
             return new BeanInfo(beanName, beanType);
         }
         private PropertyDescriptor getPropertyDescriptor(Class<?> testedClass) throws IntrospectionException {

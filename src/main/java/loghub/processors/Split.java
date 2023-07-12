@@ -45,7 +45,7 @@ public class Split extends FieldsProcessor {
                     .ifPresent(elements::add);
             previousPos = end;
         }
-        Optional.of(valueString.substring(previousPos, valueString.length()))
+        Optional.of(valueString.substring(previousPos))
                 .filter(s -> keepempty || ! s.isEmpty())
                 .ifPresent(elements::add);
         return elements;

@@ -617,7 +617,7 @@ public class TestExpressionParsing {
         Assert.assertArrayEquals(new String[]{"1", "2", "3"}, (String[])evalExpression("split(\" \", [a])",ev));
         Assert.assertArrayEquals(new String[]{"1", "2", "3"}, (String[])evalExpression("split([b], [a])",ev));
         Assert.assertEquals("1 2 3", evalExpression("split(null, [a])",ev));
-        Assert.assertEquals(null, evalExpression("split(' ', [c]))",ev));
+        Assert.assertNull(evalExpression("split(' ', [c]))", ev));
         Assert.assertThrows(IgnoredEventException.class, () -> evalExpression("split(null, [d])",ev));
         Assert.assertThrows(IgnoredEventException.class, () -> evalExpression("split([d], [a])",ev));
     }

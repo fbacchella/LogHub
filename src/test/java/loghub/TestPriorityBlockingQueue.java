@@ -39,7 +39,7 @@ public class TestPriorityBlockingQueue {
         Event[] result = queue.toArray(new Event[0]);
         for (int i = 0 ; i < 11 ; i++) {
             if (result[i].containsKey("#sync")) {
-                Assert.assertTrue("" + i, i > 8 && i <= 9);
+                Assert.assertEquals(String.valueOf(i), 9, i);
                 break;
             }
         }
@@ -71,7 +71,7 @@ public class TestPriorityBlockingQueue {
         Event[] result = queue.toArray(new Event[0]);
         for (int i = 0 ; i < 11 ; i++) {
             if (result[i].containsKey("#sync")) {
-                Assert.assertTrue("" + i, i >= 6 && i <= 7);
+                Assert.assertTrue(String.valueOf(i), i >= 6 && i <= 7);
                 break;
             }
         }

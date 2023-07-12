@@ -414,16 +414,14 @@ public class ElasticSearch extends AbstractHttpSender {
     private boolean doCheckIndices(Set<String> indices, Set<String> missing, Set<String> readonly) {
         missing.clear();
         readonly.clear();
-        StringBuilder filePart = new StringBuilder();
-        filePart.append("/");
-        filePart.append(String.join(",", indices));
-        filePart.append("/_settings/index.number_of_shards,index.blocks.read_only_allow_delete?allow_no_indices=true&ignore_unavailable=true&flat_settings=true");
+        String filePart = "/" + String.join(",", indices)
+                              + "/_settings/index.number_of_shards,index.blocks.read_only_allow_delete?allow_no_indices=true&ignore_unavailable=true&flat_settings=true";
         Map<String, String> aliases = getAliases(indices);
         Function<JsonNode, Boolean> transform = node -> {
             scanResults(node, aliases, missing, readonly);
             return Boolean.TRUE;
         };
-        return doquery(null, filePart.toString(), transform, Collections.emptyMap(), Boolean.FALSE);
+        return doquery(null, filePart, transform, Collections.emptyMap(), Boolean.FALSE);
     }
 
     private Map<String, String> getAliases(Set<String> indices) {

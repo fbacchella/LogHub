@@ -135,7 +135,6 @@ public class PacketsTest {
             logger.debug("    {} {} {} {} {}\n", i.getVersion(), i.getLength(), i.getSequenceNumber(), i.getExportTime(), i.getId());
             i.getRecords().forEach(j -> logger.debug("        {}\n", j));
         });
-        ;
     }
 
     @SuppressWarnings("unchecked")

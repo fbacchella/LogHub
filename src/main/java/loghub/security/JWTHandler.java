@@ -144,7 +144,7 @@ public class JWTHandler {
     }
 
     public String getToken(Principal p) {
-        return  getToken(p, (UnaryOperator<JWTCreator.Builder>) null);
+        return  getToken(p, null);
     }
 
     public String getToken(Principal p, UnaryOperator<JWTCreator.Builder> filler) {

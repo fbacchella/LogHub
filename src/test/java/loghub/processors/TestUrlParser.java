@@ -97,7 +97,7 @@ public class TestUrlParser {
         Assert.assertTrue(parser.configure(new Properties(Collections.emptyMap())));
         Event event = factory.newEvent();
         event.put("message", "_http://loghub.fr:80/index.html");
-        Assert.assertEquals(false, parser.process(event));
+        Assert.assertFalse(parser.process(event));
     }
 
     private void testContent(Map<String, Object> uriParts) {

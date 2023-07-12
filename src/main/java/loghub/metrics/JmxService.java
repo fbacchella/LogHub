@@ -230,7 +230,7 @@ public class JmxService {
 
     private static void startJmxReporter(Configuration conf) {
         ObjectNameFactory donf = new DefaultObjectNameFactory();
-        Pattern pipepattern = Pattern.compile("^([^\\.]+)\\.(.+?)(\\.([a-zA-z0-9]+))?$");
+        Pattern pipepattern = Pattern.compile("^([^\\.]+)\\.(.+?)(\\.([a-zA-Z0-9]+))?$");
         ObjectNameFactory factory = (t, d, n) -> createMetricName(t, d, n, donf, pipepattern);
         reporter = JmxReporter.forRegistry(Stats.metricsRegistry).createsObjectNamesWith(factory).registerWith(mbs).build();
         reporter.start();

@@ -255,7 +255,7 @@ public class Properties extends HashMap<String, Object> {
     }
 
     @Override
-    public void putAll(Map<? extends String, ? extends Object> m) {
+    public void putAll(Map<? extends String, ?> m) {
         throw new UnsupportedOperationException("read only");
     }
 
@@ -281,12 +281,12 @@ public class Properties extends HashMap<String, Object> {
 
     @Override
     public Object merge(String key, Object value,
-                        BiFunction<? super Object, ? super Object, ? extends Object> remappingFunction) {
+                        BiFunction<? super Object, ? super Object, ?> remappingFunction) {
         throw new UnsupportedOperationException("read only");
     }
 
     @Override
-    public void replaceAll(BiFunction<? super String, ? super Object, ? extends Object> function) {
+    public void replaceAll(BiFunction<? super String, ? super Object, ?> function) {
         throw new UnsupportedOperationException("read only");
     }
 

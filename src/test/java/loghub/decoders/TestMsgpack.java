@@ -48,7 +48,7 @@ public class TestMsgpack {
 
     private final static MessagePackMapper objectMapper = JacksonBuilder.get(MessagePackMapper.class)
                                                                         .getMapper();
-    private final static Map<String, Object> obj = new HashMap<String, Object>();
+    private final static Map<String, Object> obj = new HashMap<>();
 
     static {
         obj.put("a", "0");
@@ -148,7 +148,8 @@ public class TestMsgpack {
             public TestReceiver build() {
                 return null;
             }
-        };
+        }
+
         public static Builder getBuilder() {
             return new Builder();
         }
@@ -176,7 +177,6 @@ public class TestMsgpack {
 
     @Test
     public void testDecoder() throws JsonProcessingException, InvocationTargetException {
-
         byte[] bs = objectMapper.writeValueAsBytes(obj);
 
         TestReceiver.Builder builder = TestReceiver.getBuilder();
@@ -270,7 +270,7 @@ public class TestMsgpack {
         Assert.assertEquals("array element 0 not found", "0", l.get(0));
         Assert.assertEquals("array element 1 not found", 1, l.get(1));
         Assert.assertEquals("array element 2 not found", 2.0, l.get(2));
-        Assert.assertEquals("array element 3 not found", null, l.get(3));
+        Assert.assertNull("array element 3 not found", l.get(3));
     }
 
 }

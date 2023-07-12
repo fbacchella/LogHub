@@ -1,7 +1,5 @@
 package loghub;
 
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
@@ -21,7 +19,7 @@ public class Pipeline {
     public final String nextPipeline;
 
     public Pipeline(List<Processor> steps, String name, String nextPipeline) {
-        processors = Collections.unmodifiableList(new ArrayList<>(steps));
+        processors = List.copyOf(steps);
         this.name = name;
         this.nextPipeline = nextPipeline;
         // Pipelines can be anonymous

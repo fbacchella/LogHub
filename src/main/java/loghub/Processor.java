@@ -123,7 +123,7 @@ public abstract class Processor {
             } else if (status instanceof Number ){
                 // If it's an integer, it will map 0 to false, any other value to true
                 // A floating number will always return false, exact 0 don't really exist for float
-                return ! "0".equals(((Number)status).toString());
+                return ! "0".equals(status.toString());
             } else if (status instanceof String ){
                 return ! ((String) status).isEmpty();
             } else {
