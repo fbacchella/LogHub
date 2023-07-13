@@ -38,7 +38,7 @@ public abstract class ConnectionContext<A> implements Serializable {
 
     };
 
-    private Principal peerPrincipal;
+    protected Principal peerPrincipal;
 
     protected ConnectionContext() {
         peerPrincipal = EMPTYPRINCIPAL;

@@ -29,6 +29,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import loghub.events.EventsFactory;
 import loghub.types.MacAddress;
+import loghub.zmq.ZmqConnectionContext;
 import lombok.Getter;
 
 public class FastExternalizeObject {
@@ -387,6 +388,7 @@ public class FastExternalizeObject {
         immutables.add(Inet4Address.class);
         immutables.add(Inet6Address.class);
         immutables.add(MacAddress.class);
+        immutables.add(ZmqConnectionContext.class);
     }
 
     public static <T> void register(Class<T> clazz, Class<? extends ObjectFaster<T>> of) {
