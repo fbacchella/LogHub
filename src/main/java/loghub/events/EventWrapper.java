@@ -127,7 +127,7 @@ class EventWrapper extends Event {
     }
 
     @Override
-    public Event duplicate() {
+    public Event duplicate() throws ProcessorException {
         return event.duplicate();
     }
 

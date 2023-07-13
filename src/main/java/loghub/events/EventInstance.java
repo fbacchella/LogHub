@@ -164,7 +164,7 @@ class EventInstance extends Event {
      * <p>
      * @return a copy of this event, with a different key
      */
-    public Event duplicate() {
+    public Event duplicate() throws ProcessorException {
         // FastObjectInputStream
         try (ByteArrayOutputStream bos = new ByteArrayOutputStream(); FastObjectOutputStream oos = new FastObjectOutputStream(bos)) {
             oos.writeObjectFast(this);
@@ -173,13 +173,8 @@ class EventInstance extends Event {
             try (FastObjectInputStream ois = new FastObjectInputStream(bos.toByteArray(), factory, oos)) {
                 return ((EventInstance) ois.readObjectFast());
             }
-        } catch (NotSerializableException ex) {
-            logger.info("Event copy failed: {}", Helpers.resolveThrowableException(ex));
-            logger.catching(Level.DEBUG, ex);
-            return null;
-        } catch (ClassNotFoundException | IOException | SecurityException | IllegalArgumentException ex) {
-            logger.fatal("Event copy failed: {}", Helpers.resolveThrowableException(ex), ex);
-            return null;
+        } catch (ClassNotFoundException | IOException | RuntimeException ex) {
+            throw new ProcessorException(this, "Unable to serialise event : " + Helpers.resolveThrowableException(ex), ex);
         }
     }
 

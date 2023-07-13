@@ -404,7 +404,7 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
 
     public abstract void finishPipeline();
 
-    public abstract Event duplicate();
+    public abstract Event duplicate() throws ProcessorException;
 
     public abstract Processor next();
 

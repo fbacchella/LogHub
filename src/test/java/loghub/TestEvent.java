@@ -16,7 +16,6 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import loghub.EventsProcessor.ProcessingStatus;
-import loghub.configuration.ConfigException;
 import loghub.configuration.Properties;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
@@ -30,7 +29,7 @@ public class TestEvent {
     private static class Looper extends Processor {
 
         @Override
-        public boolean process(Event event) throws ProcessorException {
+        public boolean process(Event event) {
             event.appendProcessor(this);
             return true;
         }
@@ -52,7 +51,7 @@ public class TestEvent {
     }
 
     @Test
-    public void TestForkable() {
+    public void testCanFork() throws ProcessorException {
         Event e = factory.newTestEvent();
         Pipeline ppl = new Pipeline(Collections.emptyList(), "main", "next");
         e.refill(ppl);
@@ -64,6 +63,29 @@ public class TestEvent {
         Assert.assertEquals("cloned value not found", e.get("key"), e2.get("key"));
         e.end();
         e2.end();
+    }
+
+    @Test
+    public void testCantFork() {
+        Event e = factory.newTestEvent(new ConnectionContext<>() {
+            {
+                this.setPrincipal(() -> "loghub");
+            }
+            @Override
+            public Object getLocalAddress() {
+                return null;
+            }
+
+            @Override
+            public Object getRemoteAddress() {
+                return null;
+            }
+        });
+        Pipeline ppl = new Pipeline(Collections.emptyList(), "main", "next");
+        e.refill(ppl);
+        e.put("key", "value");
+        ProcessorException ex = Assert.assertThrows(ProcessorException.class, e::duplicate);
+        Assert.assertTrue(ex.getMessage().startsWith("Unable to serialise event : "));
     }
 
     @Test
@@ -143,6 +165,7 @@ public class TestEvent {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testWrapDepthSuccess() {
         Event event = factory.newEvent();
         List<String> path = new ArrayList<>();
@@ -156,7 +179,7 @@ public class TestEvent {
             wrap1.put("value", true);
             Assert.assertEquals(true, wrap1.get("value"));
             Assert.assertEquals(true, ((Map<String, Object>)event.getAtPath(vp)).get("value"));
-             event.clear();
+            event.clear();
         }
     }
 
