@@ -246,7 +246,6 @@ public class TestElasticSearch {
                               , BeanInfo.build("templatePath", String.class)
                               , BeanInfo.build("templateName", String.class)
                               , BeanInfo.build("withTemplate", Boolean.TYPE)
-                              , BeanInfo.build("login", String.class)
                               , BeanInfo.build("password", String.class)
                               , BeanInfo.build("typeHandling", TYPEHANDLING.class)
                               , BeanInfo.build("ilm", Boolean.TYPE)

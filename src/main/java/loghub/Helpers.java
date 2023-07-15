@@ -469,9 +469,9 @@ public final class Helpers {
         return builder.toString();
     }
 
-    public static URL[] stringsToUrl(String[] destinations, int port, String protocol, Logger logger) {
+    public static URI[] stringsToUri(String[] destinations, int port, String protocol, Logger logger) {
         // Uses URI parsing to read destination given by the user.
-        URL[] endPoints = new URL[destinations.length];
+        URI[] endPoints = new URI[destinations.length];
         for (int i = 0 ; i < destinations.length ; i++) {
             String temp = destinations[i];
             if ( !temp.contains("//")) {
@@ -487,7 +487,7 @@ public final class Helpers {
                                        (newEndPoint.getPath() != null ? newEndPoint.getPath() : ""),
                                        null,
                                        null
-                                ).toURL();
+                                );
             } catch (MalformedURLException | URISyntaxException e) {
                 logger.error("invalid destination {}: {}", destinations[i], e.getMessage());
             }

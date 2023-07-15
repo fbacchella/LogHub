@@ -1,6 +1,6 @@
 package loghub.receivers;
 
-import java.net.URL;
+import java.net.URI;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
@@ -95,7 +95,7 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> {
     @Override
     public boolean configure(loghub.configuration.Properties properties) {
         Properties props = new Properties();
-        URL[] brokersUrl = Helpers.stringsToUrl(brokers, port, "http", logger);
+        URI[] brokersUrl = Helpers.stringsToUri(brokers, port, "http", logger);
         String resolvedBrokers = Arrays.stream(brokersUrl)
                                        .map( i -> i.getHost() + ":" + i.getPort())
                                        .collect(Collectors.joining(","))

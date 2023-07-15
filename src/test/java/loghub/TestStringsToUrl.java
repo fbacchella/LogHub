@@ -1,6 +1,7 @@
 package loghub;
 
 import java.io.IOException;
+import java.net.URI;
 import java.net.URL;
 import java.util.Arrays;
 
@@ -24,7 +25,7 @@ public class TestStringsToUrl {
 
     @Test
     public void testone() {
-        URL[] endPoints = Helpers.stringsToUrl(new String[] {"onehost", "otherhost:8080"}, 80, "http", logger);
+        URI[] endPoints = Helpers.stringsToUri(new String[] {"onehost", "otherhost:8080"}, 80, "http", logger);
         Assert.assertEquals("onehost", endPoints[0].getHost());
         Assert.assertEquals("otherhost", endPoints[1].getHost());
 
@@ -38,7 +39,7 @@ public class TestStringsToUrl {
 
     @Test
     public void testtwo() {
-        URL[] endPoints = Helpers.stringsToUrl(new String[] {"onehost", "http://otherhost:8080"}, -1, "https", logger);
+        URI[] endPoints = Helpers.stringsToUri(new String[] {"onehost", "http://otherhost:8080"}, -1, "https", logger);
         Assert.assertEquals("onehost", endPoints[0].getHost());
         Assert.assertEquals("otherhost", endPoints[1].getHost());
 

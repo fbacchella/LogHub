@@ -5,7 +5,9 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.UncheckedIOException;
 import java.net.MalformedURLException;
+import java.net.URI;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
@@ -42,6 +44,9 @@ import loghub.ProcessorException;
 import loghub.configuration.Properties;
 import loghub.encoders.EncodeException;
 import loghub.events.Event;
+import loghub.httpclient.ContentType;
+import loghub.httpclient.HttpRequest;
+import loghub.httpclient.HttpResponse;
 import loghub.jackson.JacksonBuilder;
 import loghub.metrics.Stats;
 import lombok.Setter;
@@ -51,7 +56,7 @@ import lombok.Setter;
 @SelfEncoder
 @BuilderClass(ElasticSearch.Builder.class)
 public class ElasticSearch extends AbstractHttpSender {
-    
+
     enum TYPEHANDLING {
         USING,
         MIGRATING,
@@ -112,7 +117,6 @@ public class ElasticSearch extends AbstractHttpSender {
     private final String pipeline;
 
     private final ThreadLocal<DateFormat> esIndexFormat;
-    private final ThreadLocal<URL[]> urlArrayCopy;
 
     public ElasticSearch(Builder builder) {
         super(builder);
@@ -148,7 +152,6 @@ public class ElasticSearch extends AbstractHttpSender {
         typeHandling = builder.typeHandling;
         ilm = builder.ilm;
         pipeline = builder.pipeline;
-        urlArrayCopy = ThreadLocal.withInitial(() -> Arrays.copyOf(endPoints, endPoints.length));
     }
 
     @Override
@@ -186,7 +189,7 @@ public class ElasticSearch extends AbstractHttpSender {
 
     @Override
     protected void flush(Batch documents) throws SendException {
-        HttpRequest request = new HttpRequest();
+        HttpRequest request = httpClient.getRequest();
         // This list contains the event futures that will be effectively sent to ES
         List<EventFuture> tosend = new ArrayList<>(documents.size());
 
@@ -395,7 +398,7 @@ public class ElasticSearch extends AbstractHttpSender {
             filePart.append("/");
             filePart.append(i);
             filePart.append("-000001");
-            HttpRequest request = new HttpRequest().setVerb("PUT");
+            HttpRequest request = httpClient.getRequest().setVerb("PUT");
             request.setTypeAndContent(ContentType.APPLICATION_JSON, os -> {
                 Map<String, Object> index = Collections.singletonMap(i, Collections.emptyMap());
                 Map<String, Object> body = Collections.singletonMap("aliases", index);
@@ -520,10 +523,10 @@ public class ElasticSearch extends AbstractHttpSender {
         if (needsrefresh == null) {
             return false;
         } else if (needsrefresh) {
-            HttpRequest puttemplate = new HttpRequest().setVerb("PUT");
+            HttpRequest puttemplate = httpClient.getRequest().setVerb("PUT");
             try {
                 String jsonbody = json.writeValueAsString(wantedtemplate);
-                puttemplate.setTypeAndContent(ContentType.APPLICATION_JSON, jsonbody.getBytes(ContentType.APPLICATION_JSON.getCharset()));
+                puttemplate.setTypeAndContent(ContentType.APPLICATION_JSON, jsonbody.getBytes(StandardCharsets.UTF_8));
             } catch (IOException e) {
                 logger.fatal("Can't build buffer: {}", () -> e);
                 logger.catching(Level.DEBUG, e);
@@ -541,37 +544,33 @@ public class ElasticSearch extends AbstractHttpSender {
 
     private <T> T doquery(HttpRequest request, String filePart, Function<JsonNode, T> transform, Map<Integer, Function<JsonNode, T>> failureHandlers, T onFailure) {
         if (request == null) {
-            request = new HttpRequest();
+            request = httpClient.getRequest();
         }
-        URL[] localendPoints = urlArrayCopy.get();
+        URI[] localendPoints = Arrays.copyOf(this.endpoints, endpoints.length);
         Helpers.shuffleArray(localendPoints);
-        for (URL endPoint: localendPoints) {
-            URL newEndPoint;
-            try {
-                newEndPoint = new URL(endPoint.getProtocol(), endPoint.getHost(), endPoint.getPort(), endPoint.getFile() + filePart);
-            } catch (MalformedURLException e1) {
-                continue;
-            }
-            request.setUrl(newEndPoint);
-            logger.trace("{} {}", request.getVerb(), request.getUrl());
-            try (HttpResponse response = doRequest(request)) {
+        for (URI endPoint: localendPoints) {
+            URI newEndPoint;
+            newEndPoint = endPoint.resolve(filePart);
+            request.setUri(newEndPoint);
+            logger.trace("{} {}", request.getVerb(), request.getUri());
+            try (HttpResponse response = httpClient.doRequest(request)) {
                 if (response.isConnexionFailed()) {
                     continue;
                 }
                 int status = response.getStatus();
-                String responseMimeType = response.getMimeType();
-                if ((status - status % 100) == 200 && "application/json".equals(responseMimeType)) {
+                ContentType responseMimeType = response.getMimeType();
+                if ((status - status % 100) == 200 && ContentType.APPLICATION_JSON.equals(responseMimeType)) {
                     JsonNode node = jsonreader.readTree(response.getContentReader());
                     return transform.apply(node);
                 } else if ((status - status % 100) == 200 || (status - status % 100) == 500) {
                     // This node return 200 but not an application/json, or a 500
                     // Looks like this node is broken try another one
                     logger.warn("Broken node: {}, returned '{} {}' {}", newEndPoint, status, response.getStatusMessage(), response.getMimeType());
-                } else if (failureHandlers.containsKey(status) && "application/json".equals(responseMimeType)){
+                } else if (failureHandlers.containsKey(status) && ContentType.APPLICATION_JSON.equals(responseMimeType)){
                     JsonNode node = jsonreader.readTree(response.getContentReader());
                     // Only ES failures can be handled
                     return failureHandlers.get(status).apply(node);
-                } else if ("application/json".equals(responseMimeType)){
+                } else if (ContentType.APPLICATION_JSON.equals(responseMimeType)){
                     JsonNode node = jsonreader.readTree(response.getContentReader());
                     logger.error("Invalid query: {} {}, return '{} {}'", request.getVerb(), newEndPoint, status, response.getStatusMessage());
                     logger.debug("Error body: {}", node);

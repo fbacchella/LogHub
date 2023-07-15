@@ -3,6 +3,7 @@ package loghub.senders;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -15,6 +16,14 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
+
+import javax.management.InstanceAlreadyExistsException;
+import javax.management.MBeanRegistrationException;
+import javax.management.MBeanServer;
+import javax.management.MalformedObjectNameException;
+import javax.management.NotCompliantMBeanException;
+import javax.management.ObjectName;
+import javax.management.StandardMBean;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -506,6 +515,19 @@ public abstract class Sender extends Thread implements Closeable {
 
     public final int getWorkersCount() {
         return threads != null ? threads.length : 0;
+    }
+
+    public boolean registerMbean(Object mbean, String name) {
+        try {
+            ObjectName on = new ObjectName("loghub:type=Senders,servicename=" + getSenderName() + ",name=" + name);
+            MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
+            mbs.registerMBean(mbean, on);
+            return true;
+        } catch (NotCompliantMBeanException | MalformedObjectNameException
+                 | InstanceAlreadyExistsException | MBeanRegistrationException e) {
+            logger.error("jmx configuration failed: {}", Helpers.resolveThrowableException(e), e);
+            return false;
+        }
     }
 
 }
