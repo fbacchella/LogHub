@@ -299,12 +299,15 @@ public class Start {
         main.canexit = true;
         CommandPassword passwd = new CommandPassword();
         CommandJwt jwt = new CommandJwt();
+        EsPipelineConvert esPipelineConvert = new EsPipelineConvert();
         JCommander jcom = JCommander
                         .newBuilder()
                         .addObject(main)
                         .addCommand(passwd)
                         .addCommand(jwt)
                         .acceptUnknownOptions(true)
+                        .addCommand(esPipelineConvert)
+                        .acceptUnknownOptions(false)
                         .build();
 
         try {
@@ -344,6 +347,9 @@ public class Start {
                 System.err.println("JWT state broken: " + Helpers.resolveThrowableException(ex));
                 System.exit(ExitCode.OPERATIONFAILED);
             }
+        } else if ("espipeline".equals(jcom.getParsedCommand())) {
+            esPipelineConvert.process();
+            System.exit(ExitCode.OK);
         } else if (main.timepattern != null) {
             DatetimeProcessor tested = PatternResolver.createNewFormatter(main.timepattern);
             for (String date: jcom.getUnknownOptions()) {
