@@ -42,9 +42,8 @@ public abstract class AbstractHttpSender extends Sender {
     protected AbstractHttpSender(Builder<? extends AbstractHttpSender> builder) {
         super(builder);
         try {
-            Class<? extends AbstractHttpClientService> httpClientClass = (Class<? extends AbstractHttpClientService>) this.getClass().getClassLoader().loadClass(
-                    builder.clientService);
-            AbstractHttpClientService.Builder<?> clientBuilder = (AbstractHttpClientService.Builder<?>) AbstractBuilder.resolve(httpClientClass);
+            Class<AbstractHttpClientService> clientClass = (Class<AbstractHttpClientService>) getClass().getClassLoader().loadClass(builder.clientService);
+            AbstractHttpClientService.Builder clientBuilder = (AbstractHttpClientService.Builder) AbstractBuilder.resolve(clientClass);
             endpoints = Helpers.stringsToUri(builder.destinations, -1, "https", logger);
             clientBuilder.setPort(builder.port);
             clientBuilder.setTimeout(builder.timeout);
@@ -56,10 +55,8 @@ public abstract class AbstractHttpSender extends Sender {
                 clientBuilder.setSslContext(builder.sslContext);
                 clientBuilder.setSslKeyAlias(builder.sslKeyAlias);
             }
-
-            httpClient = httpClientClass.getConstructor(AbstractHttpSender.class, AbstractHttpSender.Builder.class).newInstance(this, builder);
-        } catch (InstantiationException | NoSuchMethodException | IllegalAccessException | InvocationTargetException |
-                 ClassNotFoundException e) {
+            httpClient = (AbstractHttpClientService) clientBuilder.build();
+        } catch (InvocationTargetException | ClassNotFoundException e) {
             throw new RuntimeException(e);
         }
     }

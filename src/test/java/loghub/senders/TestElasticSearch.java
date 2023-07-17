@@ -26,6 +26,7 @@ import loghub.BeanChecks;
 import loghub.BeanChecks.BeanInfo;
 import loghub.Expression;
 import loghub.LogUtils;
+import loghub.MockHttpClient;
 import loghub.RouteParser;
 import loghub.Tools;
 import loghub.configuration.ConfigurationTools;
@@ -49,17 +50,19 @@ public class TestElasticSearch {
         TimeZone.setDefault(TimeZone.getTimeZone("GMT"));
     }
 
-    @Ignore
     @Test
     public void testSend() throws InterruptedException {
         Stats.reset();
         int count = 20;
         ElasticSearch.Builder esbuilder = new ElasticSearch.Builder();
-        esbuilder.setDestinations(new String[]{"http://localhost:9200", });
+        esbuilder.setDestinations(new String[]{"http://localhost:9200"});
+        esbuilder.setWithTemplate(false);
         esbuilder.setTimeout(1);
         esbuilder.setBatchSize(10);
         esbuilder.setType(new Expression("type"));
         esbuilder.setTypeHandling(TYPEHANDLING.MIGRATING);
+        esbuilder.setClientService(MockHttpClient.class.getName());
+        esbuilder.setIndex(new Expression("default"));
         try (ElasticSearch es = esbuilder.build()) {
             es.setInQueue(new ArrayBlockingQueue<>(count));
             Assert.assertTrue("Elastic configuration failed", es.configure(new Properties(Collections.emptyMap())));

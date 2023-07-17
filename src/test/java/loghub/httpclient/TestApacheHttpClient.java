@@ -2,6 +2,7 @@ package loghub.httpclient;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
 import java.util.stream.Collectors;
 
@@ -12,6 +13,7 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import loghub.AbstractBuilder;
 import loghub.LogUtils;
 import loghub.Tools;
 
@@ -27,7 +29,6 @@ public class TestApacheHttpClient {
     @Test
     public void testConnection() throws IOException {
         ApacheHttpClientService.Builder clientBuilder = ApacheHttpClientService.getBuilder();
-        //clientBuilder.setDestinations(new String[]{"www.google.com"});
         clientBuilder.setPort(443);
         clientBuilder.setTimeout(10);
         clientBuilder.setUser(null);
@@ -48,4 +49,12 @@ public class TestApacheHttpClient {
             Assert.assertTrue(joined.contains("</html>"));
         }
     }
+
+    @Test
+    public void testLoad() throws InvocationTargetException, ClassNotFoundException {
+        Class<AbstractHttpClientService> clientClass = (Class<AbstractHttpClientService>) this.getClass().getClassLoader().loadClass("loghub.httpclient.ApacheHttpClientService");
+        AbstractHttpClientService.Builder builder = (AbstractHttpClientService.Builder) AbstractBuilder.resolve(clientClass);
+        Assert.assertEquals(ApacheHttpClientService.Builder.class, builder.getClass());
+    }
+
 }

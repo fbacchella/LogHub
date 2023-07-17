@@ -80,7 +80,6 @@ public class ApacheHttpClientService extends AbstractHttpClientService {
         int getPending();
     }
 
-    @Accessors(fluent = false, chain = true)
     public static class Builder extends AbstractHttpClientService.Builder<ApacheHttpClientService> {
         @Override
         public ApacheHttpClientService build() {
