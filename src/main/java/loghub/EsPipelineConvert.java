@@ -6,6 +6,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
+import java.util.regex.MatchResult;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -90,6 +92,9 @@ public class EsPipelineConvert {
             case "grok":
                 grok(params, prefix);
                 break;
+            case "geoip":
+                geoip(params, prefix);
+                break;
             case "kv":
                 kv(params, prefix);
                 break;
@@ -125,18 +130,21 @@ public class EsPipelineConvert {
         processPipeline(List.of(process), prefix);
     }
     private void set(Map<String, Object> params, String prefix) {
+        params.remove("description");
         Object source = params.containsKey("value") ? resolveValue(params.remove("value")) : resolveField(params.remove("copy_from"));
         String field = resolveField((params.remove("field")));
         System.out.format("%s%s = %s |%n", etlFilter(prefix, params), field, source);
     }
 
     private void stringOperator(String operator, Map<String, Object> params, String prefix) {
+        params.remove("description");
         Object destination = params.containsKey("target_field") ? params.remove("target_field") : params.get("field");
         String field = resolveField((params.remove("field")));
         System.out.format("%s%s = %s(%s) |%n", etlFilter(prefix, params), resolveField(destination), operator, field);
     }
 
     private void remove(Map<String, Object> params, String prefix) {
+        params.remove("description");
         if (params.get("field") instanceof String) {
             String field = resolveField((params.remove("field")));
             System.out.format("%s%s- |%n", etlFilter(prefix, params), field);
@@ -150,6 +158,7 @@ public class EsPipelineConvert {
     }
 
     private void append(Map<String, Object> params, String prefix) {
+        params.remove("description");
         Object value = resolveValue(params.remove("value"));
         String field = resolveField((params.remove("field")));
         if (value instanceof List) {
@@ -168,10 +177,33 @@ public class EsPipelineConvert {
             System.out.format("%s// %s", prefix, params);
         }
         if (ifExpress != null && !ifExpress.isBlank()) {
-            return String.format("%s// %s ? ", prefix, ifExpress);
+            String transformed = resolveExpression(ifExpress);
+            return transformed != null ? String.format("%s%s ? ", prefix, transformed) : String.format("%s// %s ? ", prefix, ifExpress);
         } else {
             return prefix;
         }
+    }
+
+    private final Pattern varPattern = Pattern.compile("ctx\\??\\.([_.a-zA-Z0-9?]+)");
+    private final Pattern stringPattern = Pattern.compile("'([^']*)'");
+    private final Pattern containsPattern = Pattern.compile("(\\[.*]).contains\\((.*)\\)");
+    Map<Pattern, Function<MatchResult, String>> transformers = Map.ofEntries(
+            Map.entry(Pattern.compile("ctx\\??\\.([_.a-zA-Z0-9?]+)"), mr -> "[" + mr.group(1).replace(".", " ").replace("?", "") + "]"),
+            Map.entry(Pattern.compile("'([^']*)'"), mr -> "\"" + mr.group(1) + "\""),
+            Map.entry(Pattern.compile("(\\[.*]).contains\\((.*)\\)"), mr -> mr.group(2) + " in " + mr.group(1))
+            );
+    private String resolveExpression(String expr) {
+        for (Map.Entry<Pattern, Function<MatchResult, String>> e: transformers.entrySet()) {
+            expr = e.getKey().matcher(expr).replaceAll(e.getValue());
+        }
+        //expr = varPattern.matcher(expr).replaceAll(this::convert);
+        //expr = stringPattern.matcher(expr).replaceAll(mr -> "\"" + mr.group(1) + "\"");
+        //expr = containsPattern.matcher(expr).replaceAll(mr -> mr.group(2) + " in " + mr.group(1));
+        return expr;
+     }
+
+    private String convert(MatchResult mr) {
+        return "[" + mr.group(1).replace(".", " ").replace("?", "") + "]";
     }
 
     Pattern ingestPipelinePattern = Pattern.compile("\\{\\{ IngestPipeline \"(.*)\" }}");
@@ -204,6 +236,18 @@ public class EsPipelineConvert {
         doProcessor(prefix, "loghub.processors.Grok", filterComments(params, attributes), attributes);
     }
 
+    private void geoip(Map<String, Object> params, String prefix) {
+        Map<String, Object> attributes = new HashMap<>();
+        Object types = params.remove("properties");
+        attributes.put("types", types != null ? types : List.of("country","city", "location"));
+        String geoipdb = (String) params.remove("database_file");
+        attributes.put("geoipdb", geoipdb != null ? geoipdb : "/usr/share/GeoIP/GeoIP2-City.mmdb");
+        attributes.put("refresh", "P2D");
+        attributes.put("field", resolveValue(params.remove("field")));
+        attributes.put("destination", resolveValue(params.remove("target_field")));
+        doProcessor(prefix, "loghub.processors.Geoip2", filterComments(params, attributes), attributes);
+    }
+
     private void kv(Map<String, Object> params, String prefix) {
         Map<String, Object> attributes = new HashMap<>();
         char field_split = Optional.ofNullable(params.remove("field_split")).map(String.class::cast).map(s -> s.charAt(0)).orElse(' ');
@@ -228,13 +272,21 @@ public class EsPipelineConvert {
     }
 
     private void doProcessor(String prefix, String processor, String comment, Map<String, Object> fields) {
+        if (fields.containsKey("description") && fields.get("description") != null && ! fields.get("description").toString().isBlank() ) {
+            System.out.format("%s// %s%n", prefix, fields.remove("description"));
+        }
         System.out.format("%s%s {%n", prefix, processor);
         if (comment != null && ! comment.isBlank()) {
             System.out.format("%s    // %s%n", prefix, comment);
         }
         for (Map.Entry<String, Object> e: fields.entrySet()) {
             if ("if".equals(e.getKey()) && e.getValue() != null) {
-                System.out.format("%s    //if: %s%n", prefix, e.getValue());
+                String transformed = resolveExpression(e.getValue().toString());
+                if (transformed != null) {
+                    System.out.format("%s    if: %s%n", prefix, transformed);
+                } else {
+                    System.out.format("%s    //if: %s%n", prefix, e.getValue());
+                }
             } else if ("failure".equals(e.getKey()) && e.getValue() != null) {
                 System.out.format("%s    failure: (%n", prefix);
                 processPipeline((List<Map<String, Map<String, Object>>>) e.getValue(), prefix + "        ");
@@ -246,11 +298,10 @@ public class EsPipelineConvert {
             } else if (e.getValue() instanceof Map) {
                 Map<String, Object> map = (Map<String, Object>) e.getValue();
                 StringBuffer definitions = new StringBuffer();
-                definitions.append("{%n");
                 for (Map.Entry<String, Object> me: map.entrySet()) {
-                    definitions.append("    ").append('"').append(me.getKey()).append("\": \"").append(me.getValue()).append(",\n");
+                    definitions.append(prefix).append("        \"").append(me.getKey()).append("\": \"").append(me.getValue()).append("\",\n");
                 }
-                definitions.append(prefix).append("}%n");
+                System.out.format("%s    %s: {%n%s    %s},%n", prefix, e.getKey(), definitions, prefix);
             } else if (e.getValue() instanceof List) {
                 List<?> val = (List<?>) e.getValue();
                 String valStr = val.stream()
@@ -304,6 +355,7 @@ public class EsPipelineConvert {
         attributes.put("if", params.remove("if"));
         attributes.put("failure", params.remove("on_failure"));
         attributes.put("iterate", params.remove("iterate"));
+        attributes.put("description", params.remove("description"));
         return params.isEmpty() ? null : params.toString();
     }
 
