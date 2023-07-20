@@ -95,6 +95,9 @@ public class EsPipelineConvert {
             case "geoip":
                 geoip(params, prefix);
                 break;
+            case "split":
+                split(params, prefix);
+                break;
             case "kv":
                 kv(params, prefix);
                 break;
@@ -115,7 +118,7 @@ public class EsPipelineConvert {
         for (String line: source.split("[\n\r\u0085\u2028\u2029]+")) {
             System.out.format("%s  %s%n", prefix, line);
         }
-        System.out.format("%s*/%s%n", prefix, params);
+        System.out.format("%s*/%n", prefix);
     }
 
     private void foreach(Map<String, Object> params, String prefix) {
@@ -196,9 +199,6 @@ public class EsPipelineConvert {
         for (Map.Entry<Pattern, Function<MatchResult, String>> e: transformers.entrySet()) {
             expr = e.getKey().matcher(expr).replaceAll(e.getValue());
         }
-        //expr = varPattern.matcher(expr).replaceAll(this::convert);
-        //expr = stringPattern.matcher(expr).replaceAll(mr -> "\"" + mr.group(1) + "\"");
-        //expr = containsPattern.matcher(expr).replaceAll(mr -> mr.group(2) + " in " + mr.group(1));
         return expr;
      }
 
@@ -246,6 +246,13 @@ public class EsPipelineConvert {
         attributes.put("field", resolveValue(params.remove("field")));
         attributes.put("destination", resolveValue(params.remove("target_field")));
         doProcessor(prefix, "loghub.processors.Geoip2", filterComments(params, attributes), attributes);
+    }
+
+    private void split(Map<String, Object> params, String prefix) {
+        Map<String, Object> attributes = new HashMap<>();
+        attributes.put("field", resolveValue(params.remove("field")));
+        attributes.put("separator", resolveValue(params.remove("separator")));
+        doProcessor(prefix, "loghub.processors.Split", filterComments(params, attributes), attributes);
     }
 
     private void kv(Map<String, Object> params, String prefix) {
@@ -299,7 +306,7 @@ public class EsPipelineConvert {
                 Map<String, Object> map = (Map<String, Object>) e.getValue();
                 StringBuffer definitions = new StringBuffer();
                 for (Map.Entry<String, Object> me: map.entrySet()) {
-                    definitions.append(prefix).append("        \"").append(me.getKey()).append("\": \"").append(me.getValue()).append("\",\n");
+                    definitions.append(prefix).append("        \"").append(me.getKey()).append("\": ").append(resolveValue(me.getValue())).append(",\n");
                 }
                 System.out.format("%s    %s: {%n%s    %s},%n", prefix, e.getKey(), definitions, prefix);
             } else if (e.getValue() instanceof List) {
@@ -315,15 +322,20 @@ public class EsPipelineConvert {
         System.out.format("%s} |%n", prefix);
     }
 
-    private static final Pattern valuePattern = Pattern.compile("\\{\\{\\{(.*)}}}");
+    private static final Pattern valuePattern = Pattern.compile("\\{\\{(.*)}}");
 
     private Object resolveValue(Object value) {
         if (value instanceof String) {
             Matcher m = valuePattern.matcher((String)value);
             if (m.matches()) {
-                return resolveField(m.group(1));
+                String variable  = m.group(1);
+                if (variable.startsWith("{") && variable.endsWith("}")) {
+                    variable = variable.substring(1, variable.length() -1);
+                }
+                return resolveField(variable);
             } else {
-                return String.format("\"%s\"", value);
+                String valStr = (String) value;
+                return String.format("\"%s\"", valStr.replace("\\", "\\\\").replace("\"", "\\\""));
             }
         } else {
             return value;
@@ -333,6 +345,8 @@ public class EsPipelineConvert {
     private String resolveField(Object name) {
         if ("_ingest.on_failure_message".equals(name)) {
             return "[@lastException]";
+        } else if ("_ingest.timestamp".equals(name)) {
+            return "now";
         } else if (name != null) {
             List<String> path = new ArrayList<>();
             for (String parts: name.toString().split("\\.")) {
