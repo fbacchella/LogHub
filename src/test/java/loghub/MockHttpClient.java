@@ -1,122 +1,157 @@
 package loghub;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.io.Reader;
 import java.io.StringReader;
+import java.net.URI;
 import java.security.GeneralSecurityException;
+import java.util.Deque;
+import java.util.List;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
 import loghub.httpclient.AbstractHttpClientService;
 import loghub.httpclient.ContentType;
 import loghub.httpclient.ContentWriter;
 import loghub.httpclient.HttpRequest;
 import loghub.httpclient.HttpResponse;
+import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.experimental.Accessors;
 
-@BuilderClass(MockHttpClient.Builder.class)
 public abstract class MockHttpClient extends AbstractHttpClientService {
 
-    public static class Builder extends AbstractHttpClientService.Builder<MockHttpClient> {
-        @Override
-        public MockHttpClient build() {
-            return new MockHttpClient(this);
-        }
-    }
-    public static MockHttpClient.Builder getBuilder() {
-        return new MockHttpClient.Builder();
+    private final Function<HttpRequest, HttpResponse> operations;
+    protected MockHttpClient(Function<HttpRequest, HttpResponse> operations, Builder builder) {
+        super(builder);
+        this.operations = operations;
     }
 
-    protected MockHttpClient(Builder builder) {
-        super(builder);
+    @Accessors(fluent = false, chain = true)
+    public static class ResponseBuilder {
+        @Setter
+        private ContentType mimeType = ContentType.TEXT_HTML;
+        @Setter
+        private String host = "localhost";
+        @Setter
+        private Reader contentReader = new StringReader("");
+        @Setter
+        private int status = 200;
+        @Setter
+        private String statusMessage = "OK";
+        @Setter
+        private boolean connexionFailed = false;
+        @Setter
+        private IOException ioException = null;
+        @Setter
+        private GeneralSecurityException sslException = null;
+
+        public HttpResponse build() {
+            return new HttpResponse() {
+                @Override
+                public ContentType getMimeType() {
+                    return mimeType;
+                }
+
+                @Override
+                public String getHost() {
+                    return host;
+                }
+
+                @Override
+                public Reader getContentReader() throws IOException {
+                    return contentReader;
+                }
+
+                @Override
+                public int getStatus() {
+                    return status;
+                }
+
+                @Override
+                public String getStatusMessage() {
+                    return statusMessage;
+                }
+
+                @Override
+                public boolean isConnexionFailed() {
+                    return connexionFailed;
+                }
+
+                @Override
+                public IOException getSocketException() {
+                    return ioException;
+                }
+
+                @Override
+                public GeneralSecurityException getSslexception() {
+                    return sslException;
+                }
+
+                @Override
+                public void close() throws IOException {
+
+                }
+            };
+        }
+    }
+
+    @Accessors(fluent = false, chain = true)
+    @Data
+    public static class MockHttpRequest extends HttpRequest {
+        @Getter @Setter
+        String httpVersion = "1.1";
+        @Getter @Setter
+        String verb = "GET";
+        @Getter @Setter
+        URI uri;
+        public byte[] content;
+
+        @Override
+        public HttpRequest setHttpVersion(int major, int minor) {
+            httpVersion = String.format("%d/%d", major, minor);
+            return this;
+        }
+
+        @Override
+        public HttpRequest addHeader(String header, String value) {
+            return this;
+        }
+
+        @Override
+        public HttpRequest clearHeaders() {
+            return this;
+        }
+
+        @Override
+        public HttpRequest setTypeAndContent(ContentType mimeType, byte[] content) {
+            this.content = content;
+            return setContentType(mimeType);
+        }
+
+        @Override
+        public HttpRequest setTypeAndContent(ContentType mimeType, ContentWriter source) {
+            try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+                source.writeTo(baos);
+                content = baos.toByteArray();
+                return setContentType(mimeType);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
     }
 
     @Override
     public HttpRequest getRequest() {
-        return new HttpRequest() {
-
-            @Override
-            public String getHttpVersion() {
-                return null;
-            }
-
-            @Override
-            public HttpRequest setHttpVersion(int major, int minor) {
-                return null;
-            }
-
-            @Override
-            public HttpRequest addHeader(String header, String value) {
-                return null;
-            }
-
-            @Override
-            public HttpRequest clearHeaders() {
-                return null;
-            }
-
-            @Override
-            public HttpRequest setTypeAndContent(ContentType mimeType, byte[] content) {
-                return null;
-            }
-
-            @Override
-            public HttpRequest setTypeAndContent(ContentType mimeType, ContentWriter source) {
-                return null;
-            }
-        };
+        return new MockHttpRequest();
     }
 
     @Override
     public HttpResponse doRequest(HttpRequest request) {
-        System.err.println(request.getVerb());
-        System.err.println(request.getUri());
-        return new HttpResponse() {
-            @Override
-            public ContentType getMimeType() {
-                return ContentType.APPLICATION_JSON;
-            }
-
-            @Override
-            public String getHost() {
-                return null;
-            }
-
-            @Override
-            public Reader getContentReader() throws IOException {
-                if ("GET".equals(request.getVerb()) && "http://localhost:9200/".equals(request.getUri().toString())) {
-                    return new StringReader("{\n" + "  \"name\" : \"29831d98af7a\",\n" + "  \"cluster_name\" : \"docker-cluster\",\n" + "  \"cluster_uuid\" : \"L-U1-kUcTT2N6sUoi7hErQ\",\n" + "  \"version\" : {\n" + "    \"number\" : \"8.8.2\",\n" + "    \"build_flavor\" : \"default\",\n" + "    \"build_type\" : \"docker\",\n" + "    \"build_hash\" : \"98e1271edf932a480e4262a471281f1ee295ce6b\",\n" + "    \"build_date\" : \"2023-06-26T05:16:16.196344851Z\",\n" + "    \"build_snapshot\" : false,\n" + "    \"lucene_version\" : \"9.6.0\",\n" + "    \"minimum_wire_compatibility_version\" : \"7.17.0\",\n" + "    \"minimum_index_compatibility_version\" : \"7.0.0\"\n" + "  },\n" + "  \"tagline\" : \"You Know, for Search\"\n" + "}\n");
-                } else {
-                    return new StringReader("");
-                }
-            }
-
-            @Override
-            public int getStatus() {
-                return 200;
-            }
-
-            @Override
-            public String getStatusMessage() {
-                return null;
-            }
-
-            @Override
-            public boolean isConnexionFailed() {
-                return false;
-            }
-
-            @Override
-            public IOException getSocketException() {
-                return null;
-            }
-
-            @Override
-            public GeneralSecurityException getSslexception() {
-                return null;
-            }
-
-            @Override
-            public void close() throws IOException {
-
-            }
-        };
+        return operations.apply(request);
     }
+
 }

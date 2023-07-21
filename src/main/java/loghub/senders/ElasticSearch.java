@@ -546,6 +546,7 @@ public class ElasticSearch extends AbstractHttpSender {
         if (request == null) {
             request = httpClient.getRequest();
         }
+        request.setContentType(ContentType.APPLICATION_JSON);
         URI[] localendPoints = Arrays.copyOf(this.endpoints, endpoints.length);
         Helpers.shuffleArray(localendPoints);
         for (URI endPoint: localendPoints) {

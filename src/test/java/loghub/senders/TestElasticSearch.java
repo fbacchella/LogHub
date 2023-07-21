@@ -7,20 +7,29 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.TimeZone;
 import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.function.Function;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.config.Configurator;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
 
 import com.codahale.metrics.Meter;
+import com.fasterxml.jackson.core.json.JsonWriteFeature;
+import com.fasterxml.jackson.databind.MappingIterator;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 
 import loghub.BeanChecks;
 import loghub.BeanChecks.BeanInfo;
@@ -33,6 +42,11 @@ import loghub.configuration.ConfigurationTools;
 import loghub.configuration.Properties;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
+import loghub.httpclient.AbstractHttpClientService;
+import loghub.httpclient.ContentType;
+import loghub.httpclient.HttpRequest;
+import loghub.httpclient.HttpResponse;
+import loghub.jackson.JacksonBuilder;
 import loghub.metrics.Stats;
 import loghub.senders.ElasticSearch.TYPEHANDLING;
 
@@ -40,6 +54,29 @@ public class TestElasticSearch {
 
     private static Logger logger;
     private final EventsFactory factory = new EventsFactory();
+    private static final ObjectMapper jsonMapper = JacksonBuilder.get(JsonMapper.class)
+                                                           .setConfigurator(m -> m.configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false)
+                                                                                         .configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true))
+                                                           .feature(JsonWriteFeature.ESCAPE_NON_ASCII)
+                                                           .getMapper();
+
+    @BuilderClass(MockElasticClient.Builder.class)
+    public static class MockElasticClient extends MockHttpClient {
+        public static class Builder extends AbstractHttpClientService.Builder<MockElasticClient> {
+            @Override
+            public MockElasticClient build() {
+                return new MockElasticClient(this);
+            }
+        }
+
+        public static MockElasticClient.Builder getBuilder() {
+            return new MockElasticClient.Builder();
+        }
+
+        protected MockElasticClient(MockElasticClient.Builder builder) {
+            super(httpOps, builder);
+        }
+    }
 
     @BeforeClass
     static public void configure() throws IOException {
@@ -50,9 +87,17 @@ public class TestElasticSearch {
         TimeZone.setDefault(TimeZone.getTimeZone("GMT"));
     }
 
+    private static Function<HttpRequest, HttpResponse> httpOps = null;
+
+    @Before
+    public void resetOps() {
+        httpOps = null;
+    }
+
     @Test
     public void testSend() throws InterruptedException {
         Stats.reset();
+        httpOps = this::ElasticMockDialog;
         int count = 20;
         ElasticSearch.Builder esbuilder = new ElasticSearch.Builder();
         esbuilder.setDestinations(new String[]{"http://localhost:9200"});
@@ -61,7 +106,7 @@ public class TestElasticSearch {
         esbuilder.setBatchSize(10);
         esbuilder.setType(new Expression("type"));
         esbuilder.setTypeHandling(TYPEHANDLING.MIGRATING);
-        esbuilder.setClientService(MockHttpClient.class.getName());
+        esbuilder.setClientService(MockElasticClient.class.getName());
         esbuilder.setIndex(new Expression("default"));
         try (ElasticSearch es = esbuilder.build()) {
             es.setInQueue(new ArrayBlockingQueue<>(count));
@@ -78,6 +123,54 @@ public class TestElasticSearch {
             Thread.sleep(1000);
         }
         Assert.assertEquals(count, Stats.getSent());
+    }
+
+    private HttpResponse ElasticMockDialog(HttpRequest req) {
+        MockHttpClient.MockHttpRequest r = (MockHttpClient.MockHttpRequest)req;
+        switch (req.getUri().toString()) {
+        case "http://localhost:9200/default/_alias?ignore_unavailable=true":
+            Assert.assertEquals("GET", req.getVerb());
+            Assert.assertEquals(ContentType.APPLICATION_JSON, req.getContentType());
+            Assert.assertNull(r.content);
+            return new MockHttpClient.ResponseBuilder()
+                                     .setMimeType(ContentType.APPLICATION_JSON)
+                                     .setContentReader( new StringReader("{\"default-000001\" : {\"aliases\" : {\"default\" : { }}}}"))
+                                     .build();
+        case "http://localhost:9200/default/_settings/index.number_of_shards,index.blocks.read_only_allow_delete?allow_no_indices=true&ignore_unavailable=true&flat_settings=true":
+            Assert.assertEquals("GET", req.getVerb());
+            Assert.assertEquals(ContentType.APPLICATION_JSON, req.getContentType());
+            Assert.assertNull(r.content);
+            return new MockHttpClient.ResponseBuilder()
+                                     .setMimeType(ContentType.APPLICATION_JSON)
+                                     .setContentReader(new StringReader("{\"default-000001\": {\"settings\": {\"index.number_of_shards\" : \"1\"}}}"))
+                                     .build();
+        case "http://localhost:9200/_bulk":
+            Assert.assertEquals("POST", req.getVerb());
+            Assert.assertEquals(ContentType.APPLICATION_JSON, req.getContentType());
+            try {
+                Map<String, Object> responseContent = new HashMap<>();
+                responseContent.put("errors", false);
+                try (MappingIterator mi = jsonMapper.readerFor(Object.class).readValues(r.content)) {
+                    while (mi.hasNext()) {
+                        Map<String, Map<String, Object>> o1 = (Map<String, Map<String, Object>>) mi.next();
+                        Map<String, Object> o2 = (Map<String, Object>) mi.next();
+                        Assert.assertEquals(Map.ofEntries(Map.entry("_index", "default"), Map.entry("_type", "type")), o1.get("index"));
+                        Assert.assertEquals("junit", o2.get("type"));
+                        Assert.assertTrue(o2.containsKey("value"));
+                        Assert.assertTrue(o2.containsKey("@timestamp"));
+                    }
+                }
+                return new MockHttpClient.ResponseBuilder()
+                               .setMimeType(ContentType.APPLICATION_JSON)
+                               .setContentReader(new StringReader(jsonMapper.writerFor(Map.class).writeValueAsString(responseContent)))
+                               .build();
+
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        default:
+            throw new IllegalStateException("Not handled");
+        }
     }
 
     @Ignore
