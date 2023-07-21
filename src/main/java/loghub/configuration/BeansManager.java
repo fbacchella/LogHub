@@ -8,6 +8,8 @@ import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -129,6 +131,8 @@ public class BeansManager {
                 return (T) Short.valueOf(value);
             } else if (clazz == Boolean.TYPE || Boolean.class.equals(clazz)) {
                 return (T) Boolean.valueOf(value);
+            } else if (clazz == InetAddress.class) {
+                return (T) InetAddress.getByName(value);
             } else if (clazz == Character.TYPE || Character.class.equals(clazz) && value.length() == 1) {
                 return (T) Character.valueOf(value.charAt(0));
             } else if (Enum.class.isAssignableFrom(clazz)) {
@@ -146,8 +150,8 @@ public class BeansManager {
                 c = clazz.getConstructor(String.class);
             }
             return c.newInstance(value);
-        } catch (SecurityException | NoSuchMethodException | IllegalArgumentException |
-                 InstantiationException | IllegalAccessException ex) {
+        } catch (SecurityException | NoSuchMethodException | IllegalArgumentException | InstantiationException |
+                 IllegalAccessException | UnknownHostException ex) {
             throw new InvocationTargetException(ex, clazz.getName());
         }
     }
