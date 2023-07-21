@@ -29,8 +29,6 @@ public abstract class AbstractHttpSender extends Sender {
         @Setter
         private String clientService;
         @Setter
-        protected boolean withSSL = false;
-        @Setter
         protected String sslKeyAlias;
         @Setter
         protected SSLContext sslContext;
@@ -50,8 +48,7 @@ public abstract class AbstractHttpSender extends Sender {
             clientBuilder.setUser(builder.user);
             clientBuilder.setPassword(builder.password);
             clientBuilder.setWorkers(builder.workers);
-            if (builder.withSSL) {
-                clientBuilder.setWithSSL(true);
+            if (builder.sslContext != null) {
                 clientBuilder.setSslContext(builder.sslContext);
                 clientBuilder.setSslKeyAlias(builder.sslKeyAlias);
             }

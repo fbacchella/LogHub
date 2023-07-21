@@ -275,8 +275,7 @@ public class ApacheHttpClientService extends AbstractHttpClientService {
                                                                                                       .build())
                                                                       .setValidateAfterInactivity(TimeValue.ofSeconds(1))
                                                                       .setConnPoolPolicy(PoolReusePolicy.FIFO);
-
-        if (builder.withSSL) {
+        if (builder.sslContext != null) {
             cmBuilder.setSSLSocketFactory(SSLConnectionSocketFactoryBuilder.create()
                                                   .setSslContext(builder.sslContext)
                                                   .setTlsVersions(TLS.V_1_3, TLS.V_1_2)

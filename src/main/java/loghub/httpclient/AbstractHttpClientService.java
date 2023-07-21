@@ -34,8 +34,6 @@ public abstract class AbstractHttpClientService {
         @Setter
         protected ObjectName jmxParent = null;
         @Setter
-        protected boolean withSSL = false;
-        @Setter
         protected String sslKeyAlias;
         @Setter
         protected SSLContext sslContext;
