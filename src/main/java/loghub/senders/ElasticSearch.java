@@ -73,6 +73,8 @@ public class ElasticSearch extends AbstractHttpSender {
         private TYPEHANDLING typeHandling = TYPEHANDLING.USING;
         @Setter
         private boolean ilm = false;
+        @Setter
+        private String pipeline = null;
 
         public Builder() {
             this.setPort(9200);
@@ -107,6 +109,7 @@ public class ElasticSearch extends AbstractHttpSender {
     private final boolean withTemplate;
     private final TYPEHANDLING typeHandling;
     private final boolean ilm;
+    private final String pipeline;
 
     private final ThreadLocal<DateFormat> esIndexFormat;
     private final ThreadLocal<URL[]> urlArrayCopy;
@@ -144,6 +147,7 @@ public class ElasticSearch extends AbstractHttpSender {
         index = builder.index;
         typeHandling = builder.typeHandling;
         ilm = builder.ilm;
+        pipeline = builder.pipeline;
         urlArrayCopy = ThreadLocal.withInitial(() -> Arrays.copyOf(endPoints, endPoints.length));
     }
 
@@ -210,7 +214,8 @@ public class ElasticSearch extends AbstractHttpSender {
                 throw new UncheckedIOException(e);
             }
         };
-        Map<String, ?> response = doquery(request, "/_bulk", reader, Collections.emptyMap(), null);
+        String bulkArgs = "/_bulk" + pipeline != null ? "?pipeline=" + pipeline : "";
+        Map<String, ?> response = doquery(request, bulkArgs, reader, Collections.emptyMap(), null);
         if (response != null && Boolean.TRUE.equals(response.get("errors"))) {
             @SuppressWarnings("unchecked")
             List<Map<String, ?>> items = (List<Map<String, ?>>) response.get("items");
