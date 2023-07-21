@@ -8,6 +8,7 @@ import javax.net.ssl.SSLContext;
 import loghub.AbstractBuilder;
 import loghub.Helpers;
 import loghub.httpclient.AbstractHttpClientService;
+import loghub.httpclient.ApacheHttpClientService;
 import lombok.Setter;
 
 public abstract class AbstractHttpSender extends Sender {
@@ -27,7 +28,7 @@ public abstract class AbstractHttpSender extends Sender {
         @Setter
         private int workers;
         @Setter
-        private String clientService;
+        private String clientService = ApacheHttpClientService.class.getName();
         @Setter
         protected String sslKeyAlias;
         @Setter
