@@ -8,6 +8,12 @@ public enum ContentType {
             return AbstractHttpClientService.TEXT_HTML;
         }
     },
+    TEXT_PLAIN {
+        @Override
+        public String getMimeType() {
+            return AbstractHttpClientService.TEXT_PLAIN;
+        }
+    },
     APPLICATION_OCTET_STREAM {
         @Override
         public String getMimeType() {

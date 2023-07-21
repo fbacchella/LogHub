@@ -128,6 +128,10 @@ public class ApacheHttpClientService extends AbstractHttpClientService {
                 return org.apache.hc.core5.http.ContentType.APPLICATION_OCTET_STREAM;
             case APPLICATION_XML:
                 return org.apache.hc.core5.http.ContentType.APPLICATION_XML;
+            case TEXT_PLAIN:
+                return org.apache.hc.core5.http.ContentType.TEXT_PLAIN;
+            case TEXT_HTML:
+                return org.apache.hc.core5.http.ContentType.TEXT_HTML;
             default:
                 throw new IllegalArgumentException("Unknown content type");
             }
@@ -162,6 +166,8 @@ public class ApacheHttpClientService extends AbstractHttpClientService {
                 return ContentType.APPLICATION_OCTET_STREAM;
             case AbstractHttpClientService.TEXT_HTML:
                 return ContentType.TEXT_HTML;
+            case AbstractHttpClientService.TEXT_PLAIN:
+                return ContentType.TEXT_PLAIN;
             default:
                 throw new IllegalStateException("Unhandled content type: " + ct.getMimeType());
             }
