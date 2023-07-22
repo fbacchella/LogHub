@@ -214,7 +214,7 @@ public class ElasticSearch extends AbstractHttpSender {
                 throw new UncheckedIOException(e);
             }
         };
-        String bulkArgs = "/_bulk" + pipeline != null ? "?pipeline=" + pipeline : "";
+        String bulkArgs = "/_bulk" + (pipeline != null ? "?pipeline=" + pipeline : "");
         Map<String, ?> response = doquery(request, bulkArgs, reader, Collections.emptyMap(), null);
         if (response != null && Boolean.TRUE.equals(response.get("errors"))) {
             @SuppressWarnings("unchecked")
