@@ -29,12 +29,10 @@ public class TestApacheHttpClient {
     @Test
     public void testConnection() throws IOException {
         ApacheHttpClientService.Builder clientBuilder = ApacheHttpClientService.getBuilder();
-        clientBuilder.setPort(443);
         clientBuilder.setTimeout(10);
         clientBuilder.setUser(null);
         clientBuilder.setPassword(null);
         clientBuilder.setWorkers(2);
-        clientBuilder.setWithSSL(true);
         clientBuilder.setSslKeyAlias(null);
 
         AbstractHttpClientService httpClient = clientBuilder.build();

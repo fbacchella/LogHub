@@ -20,15 +20,11 @@ public abstract class AbstractHttpClientService {
 
     public abstract static class Builder<B extends AbstractHttpClientService> extends AbstractBuilder<B> {
         @Setter
-        protected String protocol = "http";
-        @Setter
         protected String password = null;
         @Setter
         protected String user = null;
         @Setter
         protected int timeout = 2;
-        @Setter
-        protected int port = -1;
         @Setter
         protected int workers;
         @Setter

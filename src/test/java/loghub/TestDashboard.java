@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.lang.management.ManagementFactory;
 import java.net.HttpURLConnection;
+import java.net.URI;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
@@ -35,6 +36,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 
 import loghub.configuration.Properties;
+import loghub.httpclient.ApacheHttpClientService;
+import loghub.httpclient.ContentType;
+import loghub.httpclient.HttpRequest;
+import loghub.httpclient.HttpResponse;
 import loghub.metrics.JmxService;
 
 public class TestDashboard {
@@ -79,6 +84,23 @@ public class TestDashboard {
         String page = readContent(cnx);
         Assert.assertTrue(page.startsWith("<!DOCTYPE html>"));
         cnx.disconnect();
+    }
+
+    @Test
+    public void getIndexWithClient() throws IllegalArgumentException, IOException {
+        ApacheHttpClientService.Builder builder = ApacheHttpClientService.getBuilder();
+        ApacheHttpClientService client = builder.build();
+        HttpRequest req = client.getRequest();
+        req.setUri(URI.create(String.format("http://localhost:%d/static/index.html", port)));
+        try(HttpResponse rep = client.doRequest(req)) {
+            Assert.assertEquals(200, rep.getStatus());
+            Assert.assertEquals(ContentType.TEXT_HTML, rep.getMimeType());
+            try (BufferedReader reader = new BufferedReader(rep.getContentReader())) {
+                StringBuilder buf = new StringBuilder();
+                reader.lines().forEach(buf::append);
+                Assert.assertTrue(buf.toString().startsWith("<!DOCTYPE html>"));
+            }
+        }
     }
 
     @Test

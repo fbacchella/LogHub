@@ -44,7 +44,6 @@ public abstract class AbstractHttpSender extends Sender {
             Class<AbstractHttpClientService> clientClass = (Class<AbstractHttpClientService>) getClass().getClassLoader().loadClass(builder.clientService);
             AbstractHttpClientService.Builder clientBuilder = (AbstractHttpClientService.Builder) AbstractBuilder.resolve(clientClass);
             endpoints = Helpers.stringsToUri(builder.destinations, -1, "https", logger);
-            clientBuilder.setPort(builder.port);
             clientBuilder.setTimeout(builder.timeout);
             clientBuilder.setUser(builder.user);
             clientBuilder.setPassword(builder.password);

@@ -175,7 +175,7 @@ public class ApacheHttpClientService extends AbstractHttpClientService {
 
         @Override
         public String getHost() {
-            return host.toURI();
+            return host.getHostName();
         }
 
         @Override

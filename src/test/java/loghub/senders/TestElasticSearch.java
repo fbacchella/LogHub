@@ -169,7 +169,7 @@ public class TestElasticSearch {
                 throw new RuntimeException(e);
             }
         default:
-            throw new IllegalStateException("Not handled");
+            throw new IllegalStateException("Not handled : " + req.getUri());
         }
     }
 
