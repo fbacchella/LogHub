@@ -179,7 +179,6 @@ expression
     |   c = characterLiteral
     |   l = nonStringliteral
     |   ev = eventVariable
-    |   qi = QualifiedIdentifier
     |   'new' newclass = qualifiedIdentifier '(' expression ')'
     |   op1=('.~'|'!') e1=expression
     |   e1 = expression op2='**' e2=expression
@@ -189,7 +188,8 @@ expression
     |   e1 = expression op6=('<<'|'>>'|'>>>') e2=expression
     |   e1 = expression op7=('<'|'<='|'>'|'>=') e2=expression
     |   e1 = expression opin=('in'|'!in') e2=expression
-    |   e1 = expression opinstance=('instanceof'|'!instanceof') e2=expression
+    |   e1 = expression (neg='!')? opinstance='instanceof' qi=qualifiedIdentifier
+    |   e1 = expression opinstance='!instanceof' qi=qualifiedIdentifier
     |   e1 = expression op8=('=='|'!='|'<=>') e2=expression
     |   e1 = expression op8bis=('==='|'!==') e2=expression
     |   e1 = expression opm=matchOperator patternLiteral

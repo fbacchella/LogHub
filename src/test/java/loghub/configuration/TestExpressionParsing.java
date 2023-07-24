@@ -193,6 +193,23 @@ public class TestExpressionParsing {
     }
 
     @Test
+    public void testInstanceOf() {
+        Event ev = factory.newEvent();
+        ev.put("a", 1);
+        ev.put("b", "c");
+        Object[] tryExpression = new Object[] {
+                "1 instanceof java.lang.Integer", true,
+                "1 !instanceof java.lang.Integer", false,
+                "[a] instanceof java.lang.Integer", true,
+                "[b] instanceof java.lang.Integer", false,
+                "[a] !instanceof java.lang.Integer", false,
+                "[b] !instanceof java.lang.Integer", true,
+                "[b] ! instanceof java.lang.Integer", true,
+        };
+        enumerateExpressions(ev, tryExpression);
+    }
+
+    @Test
     public void testOperators() {
         Event ev = factory.newEvent();
         Object[] tryExpression = new Object[] {
@@ -268,8 +285,6 @@ public class TestExpressionParsing {
                 "2 == [a b]", IgnoredEventException.class,
                 "[a b] == 2", IgnoredEventException.class,
                 "[a b] instanceof java.lang.Integer", false,
-                "2 instanceof [a b]", false,
-                "null instanceof [a b]", false,
                 "2 ** [a b]", IgnoredEventException.class,
                 "[a b] ** 2", IgnoredEventException.class,
                 "[a b] * 2 ", IgnoredEventException.class,
@@ -318,7 +333,6 @@ public class TestExpressionParsing {
                 "[a] == 2", false,
                 "[a] instanceof java.lang.Integer", false,
                 "[a] !instanceof java.lang.Integer", true,
-                "null instanceof [a]", true,
                 "2 ** [a]", IgnoredEventException.class,
                 "[a] ** 2", IgnoredEventException.class,
                 "[a] * 2 ", IgnoredEventException.class,

@@ -990,8 +990,6 @@ class ConfigListener extends RouteBaseListener {
         } else if (ctx.ev != null) {
             VariablePath path = convertEventVariable(ctx.ev);
             expression = path.groovyExpression();
-        } else if (ctx.qi != null) {
-            expression = ctx.qi.getText();
         } else if (ctx.opm != null) {
             Object pre = stack.pop();
             String pattern = ctx.patternLiteral().PatternLiteral().getText();
@@ -1054,10 +1052,9 @@ class ConfigListener extends RouteBaseListener {
             expression = String.format("ex.in(\"%s\", %s, %s)", op, pre, post);
         } else if (ctx.opinstance != null) {
             // 'instanceof'|'!instanceof'
-            String op = ctx.opinstance.getText();
-            Object post = stack.pop();
+            String op = (ctx.neg != null ? "!" :"") + ctx.opinstance.getText();
             Object pre = stack.pop();
-            expression = String.format("ex.instanceof(\"%s\", %s, %s)", op, pre, post);
+            expression = String.format("ex.instanceof(\"%s\", %s, %s)", op, pre, ctx.qualifiedIdentifier().getText());
         } else if (ctx.op8 != null) {
             // '=='|'!='|'<=>'
             String op = ctx.op8.getText();
