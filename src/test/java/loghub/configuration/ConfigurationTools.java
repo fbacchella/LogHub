@@ -38,6 +38,7 @@ public class ConfigurationTools {
         parser.addErrorListener(errListener);
 
         T tree = extractor.apply(parser);
+        Assert.assertEquals(tree.getText(), tokens.getText());
         ConfigListener conf = ConfigListener.builder().build();
         conf.startWalk(tree, fragment, parser);
         Object o = null;
