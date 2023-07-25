@@ -128,12 +128,17 @@ public class Configuration {
         RouteParser parser = new RouteParser(tokens);
         parser.removeErrorListeners();
         parser.addErrorListener(errListener);
+        RouteParser.ConfigurationContext configurationContext = parser.configuration();
         // First pass, to identify the class loader to use
         // The class loader must be defined in the first configuration file, not included one
-        resolveClassPath(cs, parser);
-        tokens.seek(0);
+        if (! lockedProperties.containsKey("plugins")) {
+            logger.debug("Resolving classpath");
+            resolveClassPath(configurationContext, cs);
+        }
         parser.filter.setClassLoader(classLoader);
-        Tree tree = Tree.of(cs, parser.configuration(), parser);
+        logger.debug("Find configuration root");
+        Tree tree = Tree.of(cs, configurationContext, parser);
+        logger.debug("Scan properties");
         scanProperty(tree);
         trees.add(tree);
         return tree.config.property().stream()
@@ -145,8 +150,8 @@ public class Configuration {
          .reduce((a, b) -> a || b).orElse(true);
     }
 
-    private void resolveClassPath(CharStream cs, RouteParser parser) {
-        for (PropertyContext pc: parser.configuration().property()) {
+    private void resolveClassPath(RouteParser.ConfigurationContext configurationContext, CharStream cs) {
+        for (PropertyContext pc: configurationContext.property()) {
             if ("plugins".equals(pc.propertyName.getText())) {
                 String[] path = getStringOrArrayLiteral(pc.beanValue());
                 if (path.length > 0) {
@@ -337,7 +342,6 @@ public class Configuration {
 
     private Properties runparsing(CharStream cs) throws ConfigException {
         try {
-
             List<Tree> trees = new ArrayList<>();
 
             boolean found = findStreams(cs, trees);
@@ -362,7 +366,7 @@ public class Configuration {
                                                         .jwtHandler(resolveJwtHander())
                                                         .cacheManager(cacheManager)
                                                         .build();
-
+            logger.debug("Walk configuration");
             trees.forEach(t -> {
                 resolveSources(t, conflistener);
                 conflistener.startWalk(t.config, t.stream, t.parser);
@@ -505,7 +509,7 @@ public class Configuration {
         newProperties.put(Properties.PROPSNAMES.OUTPUTQUEUE.toString(), outputQueues);
 
         // Fill the receivers list
-        List<Receiver> receivers = new ArrayList<>();
+        List<Receiver<?, ?>> receivers = new ArrayList<>();
         for (Input i: conf.inputs) {
             if (i.piperef == null || ! namedPipeLine.containsKey(i.piperef)) {
                 throw new ConfigException("Invalid input, no destination pipeline: " + i);
