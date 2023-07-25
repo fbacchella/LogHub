@@ -157,8 +157,18 @@ public class TestExpression {
         ev.put("a", null);
         Assert.assertNull(new Expression(NullOrMissingValue.NULL).eval(null));
         Assert.assertNull(new Expression(VariablePath.of("a")).eval(ev));
-        Expression nullexp = new Expression("null", new Properties(Collections.emptyMap()).groovyClassLoader, Collections.emptyMap());
+        Expression nullexp = new Expression("null", new Properties(Collections.emptyMap()).groovyClassLoader,
+                Collections.emptyMap());
         Assert.assertNull(nullexp.eval(ev));
+    }
+
+    @Test
+    public void testLambda() throws ProcessorException, ExpressionException {
+        String expressionScript = "value + 1";
+        Expression expression = new Expression(expressionScript, new Properties(Collections.emptyMap()).groovyClassLoader, Collections.emptyMap());
+        Event ev = factory.newEvent();
+        Object o = expression.eval(ev, 2);
+        Assert.assertEquals(3, o);
     }
 
 }

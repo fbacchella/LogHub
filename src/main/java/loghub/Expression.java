@@ -42,6 +42,7 @@ import org.codehaus.groovy.runtime.typehandling.NumberMath;
 
 import groovy.lang.Binding;
 import groovy.lang.GroovyClassLoader;
+import groovy.lang.GroovyRuntimeException;
 import groovy.lang.GroovySystem;
 import groovy.lang.MetaClass;
 import groovy.lang.MetaClassRegistry;
@@ -128,6 +129,7 @@ public class Expression {
 
         private Event event;
         private Expression ex;
+        private Object value;
         private final Binding binding;
         BindingMap() {
             this.binding = new Binding(this);
@@ -142,6 +144,7 @@ public class Expression {
             case "event": return event;
             case "formatters": return ex.formatters;
             case "ex": return ex;
+            case "value": return value;
             default: throw new MissingPropertyException(key + ex.expression, null);
             }
         }
@@ -193,7 +196,7 @@ public class Expression {
     }
 
     /**
-     * The parser can send a literal when a expression was expected. Just store it to be returned.
+     * The parser can send a literal when an expression was expected. Just store it to be returned.
      * If it's a String value, it's easier to handle it as a formatter that will be applied to the event.
      *
      * @param literal the literal value
@@ -225,6 +228,10 @@ public class Expression {
 
 
     public Object eval(Event event) throws ProcessorException {
+        return eval(event, null);
+    }
+
+    public Object eval(Event event, Object value) throws ProcessorException {
         if (literal instanceof VariablePath) {
             return Optional.ofNullable(event.getAtPath((VariablePath)literal))
                            .map(o -> { if (o == NullOrMissingValue.MISSING) throw IgnoredEventException.INSTANCE; else return o;})
@@ -244,6 +251,7 @@ public class Expression {
             logger.trace("Evaluating script {} with formatters {}", expression, formatters);
             BindingMap bmap = bindings.get();
             bmap.event = event;
+            bmap.value = value;
             bmap.ex = this;
             Optional<Script> optls = Optional.empty();
             try {
