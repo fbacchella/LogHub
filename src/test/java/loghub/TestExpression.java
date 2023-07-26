@@ -163,7 +163,7 @@ public class TestExpression {
     }
 
     @Test
-    public void testLambda() throws ProcessorException, ExpressionException {
+    public void testWithArg() throws ProcessorException, ExpressionException {
         String expressionScript = "value + 1";
         Expression expression = new Expression(expressionScript, new Properties(Collections.emptyMap()).groovyClassLoader, Collections.emptyMap());
         Event ev = factory.newEvent();

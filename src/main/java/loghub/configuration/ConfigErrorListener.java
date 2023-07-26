@@ -1,6 +1,7 @@
 package loghub.configuration;
 
 import org.antlr.v4.runtime.BaseErrorListener;
+import org.antlr.v4.runtime.FailedPredicateException;
 import org.antlr.v4.runtime.RecognitionException;
 import org.antlr.v4.runtime.Recognizer;
 import org.apache.logging.log4j.LogManager;
@@ -14,6 +15,10 @@ public class ConfigErrorListener extends BaseErrorListener {
     public void syntaxError(Recognizer<?, ?> recognizer,
             Object offendingSymbol, int line, int charPositionInLine,
             String msg, RecognitionException e) {
+        // Generated when parsing lambda as the predicate is in the middle of the clause
+        if (e instanceof FailedPredicateException) {
+            msg = "Invalid lambda definition";
+        }
         String sourceFileName;
         if (e != null) {
             sourceFileName = e.getInputStream().getSourceName();

@@ -10,7 +10,7 @@ import loghub.configuration.GrammarParserFiltering.BEANTYPE;
 import loghub.configuration.GrammarParserFiltering.SECTION;
 }
 @parser::members {
-
+    String lambdaVariable;
     SECTION currentSection;
     boolean inSection(SECTION s) {
         return s==currentSection;
@@ -90,6 +90,7 @@ beanValue
     | {filter.allowedBeanType(BEANTYPE.BOOLEAN)}? booleanLiteral
     | nullLiteral
     | {filter.allowedBeanType(BEANTYPE.SECRET)}? secret
+    | {filter.allowedBeanType(BEANTYPE.LAMBDA)}? lambda
     | {filter.allowedBeanType(BEANTYPE.EXPRESSION)}? expression
     | {filter.allowedBeanType(BEANTYPE.OPTIONAL_ARRAY)}? (stringLiteral | array)
     | {filter.allowedBeanType(BEANTYPE.MAP)}? map)
@@ -171,6 +172,8 @@ secret: '*' id=Identifier ('.' SecretAttribute )? ;
 
 SecretAttribute: 'text' | 'blob';
 
+lambda: identifier {lambdaVariable = $identifier.text;} '->' expression {lambdaVariable = null;};
+
 // The rules from https://groovy-lang.org/operators.html#_operator_precedence needs to be explicited
 // because expressions are rewritten
 expression
@@ -205,6 +208,7 @@ expression
     |   now = 'now'
     |   isEmpty = 'isEmpty' '(' expression ')'
     |   collection=('set' | 'list') ('(' ')' | expressionsList)
+    |   lambdavar=Identifier {lambdaVariable != null && lambdaVariable.equals($lambdavar.text)}?
     ;
 
 Trim: 'trim';

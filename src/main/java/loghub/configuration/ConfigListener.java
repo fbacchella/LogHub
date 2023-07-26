@@ -37,6 +37,7 @@ import groovy.lang.GroovyClassLoader;
 import loghub.AbstractBuilder;
 import loghub.Expression;
 import loghub.Helpers;
+import loghub.Lambda;
 import loghub.Pipeline;
 import loghub.Processor;
 import loghub.RouteBaseListener;
@@ -1192,6 +1193,8 @@ class ConfigListener extends RouteBaseListener {
                 ExpressionInfo expressions = getExpressionList(exlist);
                 expression = new ExpressionInfo(String.format(Locale.ENGLISH, "ex.asCollection(\"%s\", %s)", collectionType, expressions.expression), expressions.type);
             }
+        } else if (ctx.lambdavar != null) {
+            expression = new ExpressionInfo("value", ExpressionType.VARIABLE);
         } else {
             throw new IllegalStateException("Unreachable code");
         }
@@ -1233,6 +1236,12 @@ class ConfigListener extends RouteBaseListener {
 
     private ExpressionInfo binaryInfixOperator(ExpressionInfo pre, String op, ExpressionInfo post) {
         return new ExpressionInfo(String.format(Locale.ENGLISH, "ex.nullfilter(%s) %s ex.protect(\"%s\", %s)", pre.expression, op, op, post.expression), pre.type, post.type);
+    }
+
+    @Override
+    public void exitLambda(RouteParser.LambdaContext ctx) {
+        ObjectWrapped<Expression> exw = (ObjectWrapped<Expression>) stack.pop();
+        stack.push(new ObjectWrapped<>(new Lambda(exw.wrapped)));
     }
 
 }

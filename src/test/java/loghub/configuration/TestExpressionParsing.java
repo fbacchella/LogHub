@@ -35,6 +35,7 @@ import loghub.Expression;
 import loghub.Expression.ExpressionException;
 import loghub.IgnoredEventException;
 import loghub.IpConnectionContext;
+import loghub.Lambda;
 import loghub.LogUtils;
 import loghub.NullOrMissingValue;
 import loghub.ProcessorException;
@@ -780,6 +781,20 @@ public class TestExpressionParsing {
             ev.put("a", o);
             Assert.assertFalse((boolean) evalExpression("isEmpty([a])", ev));
         }
+    }
+
+    @Test
+    public void parseLambda() throws ProcessorException {
+        String lambda = "x -> x + 1";
+        Lambda l = ConfigurationTools.unWrap(lambda, RouteParser::lambda, new HashMap<>());
+        Assert.assertEquals(2, l.getExpression().eval(null, 1));
+    }
+
+    @Test
+    public void parseBadLambda() throws ProcessorException {
+        String lambda = "x -> y + 1";
+        ConfigException ex = Assert.assertThrows(ConfigException.class, () -> ConfigurationTools.unWrap(lambda, RouteParser::lambda, new HashMap<>()));
+        Assert.assertEquals("Invalid lambda definition", ex.getMessage());
     }
 
 }

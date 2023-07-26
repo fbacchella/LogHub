@@ -14,6 +14,7 @@ import java.util.stream.Stream;
 
 import loghub.BuilderClass;
 import loghub.Expression;
+import loghub.Lambda;
 import lombok.Setter;
 
 public class GrammarParserFiltering {
@@ -40,6 +41,7 @@ public class GrammarParserFiltering {
         SECRET,
         EXPRESSION,
         OPTIONAL_ARRAY,
+        LAMBDA,
     }
 
     private static final Map<String, BEANTYPE> PROPERTIES_TYPES = Map.ofEntries(
@@ -144,6 +146,8 @@ public class GrammarParserFiltering {
                 currentBeanType =  BEANTYPE.ENUM;
             } else if (Expression.class.equals(clazz)) {
                 currentBeanType =  BEANTYPE.EXPRESSION;
+            } else if (Lambda.class.equals(clazz)) {
+                currentBeanType =  BEANTYPE.LAMBDA;
             } else if (Map.class.isAssignableFrom(clazz)) {
                 currentBeanType =  BEANTYPE.MAP;
             } else {
