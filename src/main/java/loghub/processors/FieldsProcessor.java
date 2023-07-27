@@ -4,12 +4,15 @@ import java.lang.annotation.Documented;
 import java.lang.annotation.Inherited;
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Deque;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -56,6 +59,12 @@ public abstract class FieldsProcessor extends Processor {
         FAILED,
         NOSTORE,
         REMOVE
+    }
+
+    protected enum TRAVERSAL_ORDER {
+        NONE,
+        DEPTH,
+        BREADTH,
     }
 
     private static final VariablePath DEFAULT_FIELD = VariablePath.of("message");
@@ -143,7 +152,7 @@ public abstract class FieldsProcessor extends Processor {
             }
             if (! event.containsAtPath(toprocess)) {
                 throw event.buildException("Field " + toprocess + " vanished");
-            } else if (isIterable(event, toprocess)){
+            } else if (isIterable(event, toprocess) && FieldsProcessor.this.getTraversal() == TRAVERSAL_ORDER.NONE){
                 Object value = event.getAtPath(toprocess);
                 List<Object> values;
                 if (value instanceof Collection) {
@@ -222,14 +231,15 @@ public abstract class FieldsProcessor extends Processor {
 
     @Override
     public boolean process(Event event) throws ProcessorException {
+        Set<VariablePath> nextfields = new LinkedHashSet<>();
         if (patterns.length != 0) {
             // Patterns found, try to process many variables
-            Set<VariablePath> nextfields = new HashSet<>();
             //Build a set of fields that needs to be processed
             for (String eventField: new HashSet<>(event.keySet())) {
                 for (Pattern p: patterns) {
                     if (p.matcher(eventField).matches()) {
-                        nextfields.add(VariablePath.of(eventField));
+                        VariablePath vp = VariablePath.of(eventField);
+                        walkTree(event, vp, nextfields);
                         break;
                     }
                 }
@@ -242,7 +252,12 @@ public abstract class FieldsProcessor extends Processor {
             throw IgnoredEventException.INSTANCE;
         } else if (! event.containsAtPath(field)) {
             throw IgnoredEventException.INSTANCE;
-        } else if (isIterable(event, field)) {
+        } else if (getTraversal() != TRAVERSAL_ORDER.NONE) {
+            // A tree walk was requested, starting from this node
+            walkTree(event, field, nextfields);
+            delegate(nextfields, event);
+            throw IgnoredEventException.INSTANCE;
+        } else if (isIterable(event, field) ) {
             // The returned value is iterable and iteration for each value was requested, delegate it
             delegate(Set.of(field), event);
             throw IgnoredEventException.INSTANCE;
@@ -250,6 +265,48 @@ public abstract class FieldsProcessor extends Processor {
             // A single variable to process
             return doExecution(event, field);
         }
+    }
+
+    /**
+     * The algorithm used are taken from wikipedia, <a href="https://en.wikipedia.org/wiki/Tree_traversal">...</a>
+     * @param event
+     * @param base
+     * @param nextfields
+     */
+    private void walkTree(Event event, VariablePath base, Set<VariablePath> nextfields) {
+        TRAVERSAL_ORDER recurse = getTraversal();
+        if (recurse == TRAVERSAL_ORDER.DEPTH && event.getAtPath(base) instanceof Map) {
+            walkTreeDepthPostOrder(event, base, nextfields);
+        } else if (recurse == TRAVERSAL_ORDER.BREADTH && event.getAtPath(base) instanceof Map) {
+            walkTreeBreadth(event, base, nextfields);
+        } else {
+            nextfields.add(base);
+        }
+    }
+
+    private void walkTreeBreadth(Event event, VariablePath base, Set<VariablePath> nextfields) {
+        Deque<VariablePath> queue = new ArrayDeque<>();
+        queue.add(base);
+        while (! queue.isEmpty()) {
+            VariablePath nodepath = queue.removeFirst();
+            nextfields.add(nodepath);
+            if (event.getAtPath(nodepath) instanceof Map) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> node = (Map<String, Object>) event.getAtPath(nodepath);
+                for (String key: node.keySet()) {
+                    queue.add(nodepath.append(key));
+                }
+            }
+        }
+    }
+
+    private void walkTreeDepthPostOrder(Event event, VariablePath base, Set<VariablePath> nextfields) {
+        @SuppressWarnings("unchecked")
+        Map<String, Object> node = (Map<String, Object>) event.getAtPath(base);
+        for (String key: node.keySet()) {
+            walkTree(event, base.append(key), nextfields);
+        }
+        nextfields.add(base);
     }
 
     boolean doExecution(Event event, VariablePath currentField) throws ProcessorException {
@@ -386,6 +443,10 @@ public abstract class FieldsProcessor extends Processor {
             this.destination = null;
             this.inPlace = false;
         }
+    }
+
+    public TRAVERSAL_ORDER getTraversal() {
+        return TRAVERSAL_ORDER.NONE;
     }
 
 }
