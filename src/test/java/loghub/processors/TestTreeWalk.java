@@ -129,12 +129,27 @@ public class TestTreeWalk {
     }
 
     @Test
-    public void testIterable() throws ProcessorException {
+    public void testIterate() throws ProcessorException {
         Event e = factory.newEvent();
         e.putAtPath(VariablePath.parse("f.b.c"), List.of("1", "2"));
         e.putAtPath(VariablePath.parse("f.b.d"), "3");
         e.putAtPath(VariablePath.parse("f.e"), "4");
-        runTest(b -> b.setTraversal(FieldsProcessor.TRAVERSAL_ORDER.DEPTH), e, List.of(List.of("1", "2"), "3", "4"));
+        runTest(b -> {
+            b.setTraversal(FieldsProcessor.TRAVERSAL_ORDER.DEPTH);
+            b.setIterate(true);
+        }, e, List.of("1", "2", "3", "4"));
+    }
+
+    @Test
+    public void testNotIterate() throws ProcessorException {
+        Event e = factory.newEvent();
+        e.putAtPath(VariablePath.parse("f.b.c"), List.of("1", "2"));
+        e.putAtPath(VariablePath.parse("f.b.d"), "3");
+        e.putAtPath(VariablePath.parse("f.e"), "4");
+        runTest(b -> {
+            b.setTraversal(FieldsProcessor.TRAVERSAL_ORDER.DEPTH);
+            b.setIterate(false);
+        }, e, List.of(List.of("1", "2"), "3", "4"));
     }
 
 }

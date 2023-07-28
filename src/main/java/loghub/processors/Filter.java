@@ -52,9 +52,4 @@ public class Filter extends TreeWalkProcessor {
         }
     }
 
-    @Override
-    public boolean isIterate() {
-        return false;
-    }
-
 }

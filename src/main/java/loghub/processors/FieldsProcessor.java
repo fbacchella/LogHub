@@ -152,7 +152,7 @@ public abstract class FieldsProcessor extends Processor {
             }
             if (! event.containsAtPath(toprocess)) {
                 throw event.buildException("Field " + toprocess + " vanished");
-            } else if (isIterable(event, toprocess) && FieldsProcessor.this.getTraversal() == TRAVERSAL_ORDER.NONE){
+            } else if (isIterable(event, toprocess)){
                 Object value = event.getAtPath(toprocess);
                 List<Object> values;
                 if (value instanceof Collection) {
@@ -167,8 +167,10 @@ public abstract class FieldsProcessor extends Processor {
                 event.insertProcessor(new Processor() {
                     @Override
                     public boolean process(Event event) {
-                        event.putAtPath(resolveDestination(toprocess), results);
-                        return false;
+                        if (! (FieldsProcessor.this instanceof Filter && results.isEmpty())) {
+                            event.putAtPath(resolveDestination(toprocess), results);
+                        }
+                        return true;
                     }
                 });
                 addCollectionsProcessing(values, event, toprocess, results);
