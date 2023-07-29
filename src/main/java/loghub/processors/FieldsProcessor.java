@@ -66,7 +66,7 @@ public abstract class FieldsProcessor extends Processor {
         @Setter
         private VariablePath field = DEFAULT_FIELD;
         @Setter
-        private Object[] fields;
+        private String[] fields;
         @Setter
         private boolean inPlace = false;
         @Setter
@@ -198,7 +198,7 @@ public abstract class FieldsProcessor extends Processor {
             this.globs = new String[builder.fields.length];
             this.patterns = new Pattern[builder.fields.length];
             for (int i = 0 ; i < builder.fields.length ; i++) {
-                this.globs[i] = builder.fields[i].toString();
+                this.globs[i] = builder.fields[i];
                 this.patterns[i] = Helpers.convertGlobToRegex(this.globs[i]);
             }
         } else {
@@ -343,11 +343,11 @@ public abstract class FieldsProcessor extends Processor {
         }));
     }
 
-    public Object[] getFields() {
+    public String[] getFields() {
         return Arrays.copyOf(globs, globs.length);
     }
 
-    public void setFields(Object[] fields) {
+    public void setFields(String[] fields) {
         this.globs = new String[fields.length];
         this.patterns = new Pattern[fields.length];
         for (int i = 0 ; i < fields.length ; i++) {

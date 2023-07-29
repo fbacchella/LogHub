@@ -109,7 +109,7 @@ public class TestGeoip2 {
                 , BeanChecks.BeanInfo.build("destination", VariablePath.class)
                 , BeanChecks.BeanInfo.build("destinationTemplate", VarFormatter.class)
                 , BeanChecks.BeanInfo.build("field", VariablePath.class)
-                , BeanChecks.BeanInfo.build("fields", Object[].class)
+                , BeanChecks.BeanInfo.build("fields", String[].class)
                 , BeanChecks.BeanInfo.build("path", VariablePath.class)
                 , BeanChecks.BeanInfo.build("if", Expression.class)
                 , BeanChecks.BeanInfo.build("success", Processor.class)

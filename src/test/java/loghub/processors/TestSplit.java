@@ -66,7 +66,7 @@ public class TestSplit {
                 , BeanChecks.BeanInfo.build("pattern", String.class)
                 , BeanChecks.BeanInfo.build("destination", VariablePath.class)
                 , BeanChecks.BeanInfo.build("field", VariablePath.class)
-                , BeanChecks.BeanInfo.build("fields", Object[].class)
+                , BeanChecks.BeanInfo.build("fields", String[].class)
                 , BeanChecks.BeanInfo.build("path", String.class)
                 , BeanChecks.BeanInfo.build("if", Expression.class)
                 , BeanChecks.BeanInfo.build("success", Processor.class)

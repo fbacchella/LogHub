@@ -309,7 +309,7 @@ public class TestNettyNameResolver {
                               , BeanInfo.build("timeout", Integer.TYPE)
                               , BeanInfo.build("destination", VariablePath.class)
                               , BeanInfo.build("field", VariablePath.class)
-                              , BeanInfo.build("fields", Object[].class)
+                              , BeanInfo.build("fields", String[].class)
                               , BeanInfo.build("path", VariablePath.class)
                               , BeanInfo.build("if", Expression.class)
                               , BeanInfo.build("success", Processor.class)
