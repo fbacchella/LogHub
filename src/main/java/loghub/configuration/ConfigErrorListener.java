@@ -14,7 +14,6 @@ public class ConfigErrorListener extends BaseErrorListener {
     public void syntaxError(Recognizer<?, ?> recognizer,
             Object offendingSymbol, int line, int charPositionInLine,
             String msg, RecognitionException e) {
-        logger.error("line {}@{}: {}", line, charPositionInLine, msg);
         String sourceFileName;
         if (e != null) {
             sourceFileName = e.getInputStream().getSourceName();
@@ -23,6 +22,7 @@ public class ConfigErrorListener extends BaseErrorListener {
         } else {
             sourceFileName = "UNKNOWN FILE";
         }
+        logger.error("File {}, line {}@{}: {}", sourceFileName, line, charPositionInLine, msg);
         throw new ConfigException(msg, sourceFileName, line, charPositionInLine);
     }
 }
