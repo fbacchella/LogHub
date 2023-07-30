@@ -15,6 +15,9 @@ import loghub.configuration.GrammarParserFiltering.SECTION;
     boolean inSection(SECTION s) {
         return s==currentSection;
     }
+    boolean inLambda() {
+        return lambdaVariable != null;
+    }
     public GrammarParserFiltering filter = new GrammarParserFiltering();
 }
 
@@ -82,7 +85,6 @@ beanName
 
 beanValue
     : ({filter.allowedBeanType(BEANTYPE.OBJECT)}? object
-    | {filter.allowedBeanType(BEANTYPE.ARRAY)}? array
     | {filter.allowedBeanType(BEANTYPE.INTEGER)}? integerLiteral
     | {filter.allowedBeanType(BEANTYPE.FLOAT)}? floatingPointLiteral
     | {filter.allowedBeanType(BEANTYPE.CHARACTER)}? characterLiteral
@@ -92,6 +94,7 @@ beanValue
     | {filter.allowedBeanType(BEANTYPE.SECRET)}? secret
     | {filter.allowedBeanType(BEANTYPE.LAMBDA)}? lambda
     | {filter.allowedBeanType(BEANTYPE.EXPRESSION)}? expression
+    | {filter.allowedBeanType(BEANTYPE.ARRAY)}? array
     | {filter.allowedBeanType(BEANTYPE.OPTIONAL_ARRAY)}? (stringLiteral | array)
     | {filter.allowedBeanType(BEANTYPE.MAP)}? map)
     ;
@@ -208,7 +211,7 @@ expression
     |   now = 'now'
     |   isEmpty = 'isEmpty' '(' expression ')'
     |   collection=('set' | 'list') ('(' ')' | expressionsList)
-    |   lambdavar=Identifier {lambdaVariable != null && lambdaVariable.equals($lambdavar.text)}?
+    |   {inLambda()}? lambdavar=Identifier {lambdaVariable.equals($lambdavar.text)}?
     ;
 
 Trim: 'trim';

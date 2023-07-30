@@ -16,8 +16,11 @@ import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 
+import loghub.BuilderClass;
 import loghub.EventsProcessor;
+import loghub.Expression;
 import loghub.LogUtils;
+import loghub.Processor;
 import loghub.ProcessorException;
 import loghub.Tools;
 import loghub.VariablePath;
@@ -27,6 +30,8 @@ import loghub.events.EventsFactory;
 import loghub.processors.Identity;
 import loghub.processors.SyslogPriority;
 import loghub.processors.UrlParser;
+import lombok.Getter;
+import lombok.Setter;
 
 public class TestConfigurations {
 
@@ -138,13 +143,48 @@ public class TestConfigurations {
         Assert.assertEquals(10, conf.mainQueue.getWeight());
     }
 
+    @BuilderClass(TestArrayProcessor.Builder.class)
+    public static class TestArrayProcessor extends Processor {
+        public static class Builder extends Processor.Builder<TestArrayProcessor> {
+            @Setter
+            private Expression[] expressions;
+            public TestArrayProcessor build() {
+                return new TestArrayProcessor(this);
+            }
+        }
+        public static TestArrayProcessor.Builder getBuilder() {
+            return new TestArrayProcessor.Builder();
+        }
+
+        @Getter
+        private final Expression[] expressions;
+        public TestArrayProcessor(Builder builder) {
+            expressions = builder.expressions;
+        }
+
+        @Override
+        public boolean process(Event event) throws ProcessorException {
+            return false;
+        }
+    }
+
     @Test
-    public void testArray() throws ConfigException, IOException {
+    public void testArray() throws ConfigException, IOException, ProcessorException {
         Properties p = Tools.loadConf("array.conf", false);
-        SyslogPriority pr = (SyslogPriority) p.identifiedProcessors.get("withArray");
-        String[] fields = (String[]) pr.getFields();
-        Assert.assertEquals(1, fields.length);
-        Assert.assertEquals("*", fields[0]);
+        List<Processor> main = p.namedPipeLine.get("main").processors;
+        SyslogPriority pr = (SyslogPriority) main.get(0);
+        String[] fields = pr.getFields();
+        Assert.assertEquals(2, fields.length);
+        Assert.assertEquals("a", fields[0]);
+        Assert.assertEquals("b", fields[1]);
+        TestArrayProcessor pr2 = (TestArrayProcessor) main.get(1);
+        Expression[] expressions = pr2.getExpressions();
+        Assert.assertEquals(2, expressions.length);
+        Event ev = factory.newEvent();
+        ev.put("a", 1);
+        ev.put("b", 2);
+        Assert.assertEquals(1, expressions[0].eval(ev));
+        Assert.assertEquals(2, expressions[1].eval(ev));
     }
 
     @Test

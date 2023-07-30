@@ -791,7 +791,7 @@ public class TestExpressionParsing {
     }
 
     @Test
-    public void parseBadLambda() throws ProcessorException {
+    public void parseBadLambda() {
         String lambda = "x -> y + 1";
         ConfigException ex = Assert.assertThrows(ConfigException.class, () -> ConfigurationTools.unWrap(lambda, RouteParser::lambda, new HashMap<>()));
         Assert.assertEquals("Invalid lambda definition", ex.getMessage());
