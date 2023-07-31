@@ -3,7 +3,10 @@ package loghub;
 import java.lang.reflect.InvocationTargetException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.security.Principal;
 import java.time.DateTimeException;
 import java.time.Instant;
 import java.time.temporal.TemporalAccessor;
@@ -40,12 +43,15 @@ import org.codehaus.groovy.runtime.typehandling.NumberMath;
 import groovy.lang.Binding;
 import groovy.lang.GroovyClassLoader;
 import groovy.lang.GroovySystem;
+import groovy.lang.MetaClass;
 import groovy.lang.MetaClassRegistry;
+import groovy.lang.MissingPropertyException;
 import groovy.lang.Script;
 import groovy.runtime.metaclass.java.lang.NumberMetaClass;
 import groovy.runtime.metaclass.java.lang.StringMetaClass;
 import groovy.runtime.metaclass.loghub.EventMetaClass;
 import groovy.runtime.metaclass.loghub.ExpressionMetaClass;
+import groovy.runtime.metaclass.loghub.FastPathMetaClass;
 import groovy.runtime.metaclass.loghub.NullOrNoneValueMetaClass;
 import groovy.runtime.metaclass.loghub.TimeDiff;
 import groovy.runtime.metaclass.loghub.VarFormatterMetaClass;
@@ -86,6 +92,24 @@ public class Expression {
         for (Class<?> c: EventsFactory.getEventClasses()) {
             registry.setMetaClass(c, new EventMetaClass(c));
         }
+
+        registry.setMetaClassCreationHandle(new MetaClassRegistry.MetaClassCreationHandle() {
+            @Override
+            protected MetaClass createNormalMetaClass(Class theClass, MetaClassRegistry registry) {
+                if (NullOrMissingValue.class.isAssignableFrom(theClass)
+                            || ConnectionContext.class.isAssignableFrom(theClass)
+                            || Principal.class.isAssignableFrom(theClass)
+                            || InetAddress.class.isAssignableFrom(theClass)
+                            || InetSocketAddress.class.isAssignableFrom(theClass)
+                            || Map.class.isAssignableFrom(theClass)
+                            || Set.class.isAssignableFrom(theClass)
+                ) {
+                    return new FastPathMetaClass(super.createNormalMetaClass(theClass, registry));
+                } else {
+                    return super.createNormalMetaClass(theClass, registry);
+                }
+            }
+        });
     }
 
     /**
@@ -118,7 +142,7 @@ public class Expression {
             case "event": return event;
             case "formatters": return ex.formatters;
             case "ex": return ex;
-            default: return null;
+            default: throw new MissingPropertyException(key + ex.expression, null);
             }
         }
 
