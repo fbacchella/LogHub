@@ -969,7 +969,7 @@ class ConfigListener extends RouteBaseListener {
             } else {
                 String key = "h_" + Integer.toHexString(format.hashCode());
                 try {
-                    formatters.put(key, new VarFormatter(format));
+                    formatters.put(key, vf);
                 } catch (IllegalArgumentException ex) {
                     logger.catching(Level.DEBUG, ex);
                     throw new RecognitionException(ex.getMessage(), parser, stream, ctx);
