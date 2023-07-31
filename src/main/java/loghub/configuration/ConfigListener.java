@@ -152,6 +152,59 @@ class ConfigListener extends RouteBaseListener {
         }
     }
 
+    private enum ExpressionType {
+        CONSTANT,
+        LITTERAL,
+        VARIABLE,
+        OPERATOR,
+        FORMATTER,
+        VARPATH
+    }
+
+    private static class ExpressionInfo {
+        private String expression;
+        private ExpressionType type;
+        private Object litteral;
+        ExpressionInfo(String newExpression, ExpressionType newType) {
+            expression = newExpression;
+            type = newType;
+        }
+        ExpressionInfo(String newExpression, ExpressionType type1, ExpressionType type2) {
+            expression = newExpression;
+            if (type1 == ExpressionType.VARIABLE || type2 == ExpressionType.VARIABLE ||
+                        type1 == ExpressionType.VARPATH || type2 == ExpressionType.VARPATH) {
+                type = ExpressionType.VARIABLE;
+            } else {
+                type = ExpressionType.CONSTANT;
+            }
+        }
+        ExpressionInfo(String newExpression, VariablePath vp) {
+            expression = newExpression;
+            type = ExpressionType.VARPATH;
+            litteral = vp;
+        }
+        ExpressionInfo(String newExpression, VarFormatter vf) {
+            expression = newExpression;
+            type = ExpressionType.FORMATTER;
+            litteral = vf;
+        }
+        ExpressionInfo(String newExpression, Object litteral) {
+            expression = newExpression;
+            type = ExpressionType.LITTERAL;
+            this.litteral = litteral;
+        }
+
+        public ExpressionInfo join(String newExpression, ExpressionType newType) {
+            expression = newExpression;
+            if (newType == ExpressionType.VARIABLE || type == ExpressionType.VARPATH) {
+                type = ExpressionType.VARIABLE;
+            } else if (newType == ExpressionType.OPERATOR && type == ExpressionType.LITTERAL){
+                type = ExpressionType.CONSTANT;
+            }
+            return this;
+        }
+    }
+
     interface Pipenode {}
 
     static final class PipenodesList implements Pipenode {
@@ -928,13 +981,13 @@ class ConfigListener extends RouteBaseListener {
 
     @Override
     public void exitExpressionsList(ExpressionsListContext ctx) {
-        List<String> expressionsList = new ArrayList<>();
+        List<ExpressionInfo> expressionsList = new ArrayList<>();
         Object se;
         while ((se = stack.pop()) != StackMarker.EXPRESSION_LIST) {
-            expressionsList.add((String)se);
+            expressionsList.add((ExpressionInfo)se);
         }
         Collections.reverse(expressionsList);
-        stack.push(expressionsList.toString());
+        stack.push(expressionsList);
     }
 
     @Override
@@ -944,7 +997,7 @@ class ConfigListener extends RouteBaseListener {
 
     @Override
     public void exitExpression(ExpressionContext ctx) {
-        String expression;
+        ExpressionInfo expression;
         if (ctx.sl != null) {
             String format = ctx.sl.getText();
             VarFormatter vf = new VarFormatter(format);
@@ -962,7 +1015,7 @@ class ConfigListener extends RouteBaseListener {
                     }
                 }).forEach(buffer::append);
                 buffer.append("\"");
-                expression = buffer.toString();
+                expression = new ExpressionInfo(buffer.toString(), ExpressionType.LITTERAL);
                 if (ctx.expressionsList() != null) {
                     stack.pop();
                 }
@@ -975,23 +1028,25 @@ class ConfigListener extends RouteBaseListener {
                     throw new RecognitionException(ex.getMessage(), parser, stream, ctx);
                 }
                 if (ctx.expressionsList() != null) {
-                    String subexpression = (String) stack.pop();
-                    expression = String.format("formatters.%s.format(%s)", key, subexpression);
+                    @SuppressWarnings("unchecked")
+                    List<ExpressionInfo> exlist = (List<ExpressionInfo>) stack.pop();
+                    ExpressionInfo expressions = getExpressionList(exlist);
+                    expression = new ExpressionInfo(String.format("formatters.%s.format(%s)", key, expressions.expression), expressions.type);
                 } else {
-                    expression = String.format("formatters.%s.format(event)", key);
+                    expression = new ExpressionInfo(String.format("formatters.%s.format(event)", key), vf);
                 }
             }
         } else if (ctx.nl != null) {
-            expression = "loghub.NullOrMissingValue.NULL";
+            expression = new ExpressionInfo("loghub.NullOrMissingValue.NULL", loghub.NullOrMissingValue.NULL);
         } else if (ctx.c != null) {
-            expression = String.format("('%s' as char)", ctx.c.getText());
+            expression =  new ExpressionInfo(String.format("('%s' as char)", ctx.c.getText()), ExpressionType.CONSTANT);
         } else if (ctx.l != null) {
-            expression = ctx.l.getText();
+            expression =  new ExpressionInfo(ctx.l.getText(), ExpressionType.LITTERAL);
         } else if (ctx.ev != null) {
             VariablePath path = convertEventVariable(ctx.ev);
-            expression = path.groovyExpression();
+            expression = new ExpressionInfo(path.groovyExpression(), path);
         } else if (ctx.opm != null) {
-            Object pre = stack.pop();
+            ExpressionInfo pre = (ExpressionInfo) stack.pop();
             String pattern = ctx.patternLiteral().PatternLiteral().getText();
             // Check that the pattern compiles
             try {
@@ -1004,147 +1059,172 @@ class ConfigListener extends RouteBaseListener {
             patternBytes = Arrays.copyOfRange(patternBytes, 1, patternBytes.length -1);
             // Needs to encode the pattern, as Groovy does not handle escaping in the same way in patterns and in strings
             String encoded = Base64.getEncoder().encodeToString(patternBytes);
-            expression = String.format("ex.regex((%s), \"%s\", \"%s\")", pre, ctx.opm.getText(), encoded);
+            expression = pre.join(String.format("ex.regex((%s), \"%s\", \"%s\")", pre.expression, ctx.opm.getText(), encoded), ExpressionType.OPERATOR);
         } else if (ctx.op1 != null) {
             // '.~'|'!'
+            ExpressionInfo post = (ExpressionInfo) stack.pop();
             String op1 = ctx.op1.getText();
             op1 = ".~".equals(op1) ? "~" : op1;
-            expression = op1 + " " + stack.pop();
+            expression = post.join(op1 + " " + post.expression, ExpressionType.OPERATOR);
         } else if (ctx.op2 != null) {
             // '**'
             String op = ctx.op2.getText();
-            Object post = stack.pop();
-            Object pre = stack.pop();
+            ExpressionInfo post = (ExpressionInfo) stack.pop();
+            ExpressionInfo pre = (ExpressionInfo) stack.pop();
             expression = binaryInfixOperator(pre, op, post);
         } else if (ctx.op3 != null) {
             // '+'|'-'
+            ExpressionInfo post = (ExpressionInfo) stack.pop();
             String op3 = ctx.op3.getText();
-            expression = op3 + " " + stack.pop();
+            expression = post.join(op3 + " " + post.expression, ExpressionType.OPERATOR);
         } else if (ctx.op4 != null) {
             // '*'|'/'|'%'
             String op = ctx.op4.getText();
-            Object post = stack.pop();
-            Object pre = stack.pop();
+            ExpressionInfo post = (ExpressionInfo) stack.pop();
+            ExpressionInfo pre = (ExpressionInfo) stack.pop();
             expression = binaryInfixOperator(pre, op, post);
         } else if (ctx.op5 != null) {
             // '+'|'-'
             String op = ctx.op5.getText();
-            Object post = stack.pop();
-            Object pre = stack.pop();
+            ExpressionInfo post = (ExpressionInfo) stack.pop();
+            ExpressionInfo pre = (ExpressionInfo) stack.pop();
             expression = binaryInfixOperator(pre, op, post);
         } else if (ctx.op6 != null) {
             // '<<'|'>>'|'>>>'
             String op = ctx.op6.getText();
-            Object post = stack.pop();
-            Object pre = stack.pop();
+            ExpressionInfo post = (ExpressionInfo) stack.pop();
+            ExpressionInfo pre = (ExpressionInfo) stack.pop();
             expression = binaryInfixOperator(pre, op, post);
         } else if (ctx.op7 != null) {
             // '<'|'<='|'>'|'>='
             String op = ctx.op7.getText();
-            Object post = stack.pop();
-            Object pre = stack.pop();
-            expression = String.format(Locale.ENGLISH, "ex.compare(\"%s\", %s, %s)", op, pre, post);
+            ExpressionInfo post = (ExpressionInfo) stack.pop();
+            ExpressionInfo pre = (ExpressionInfo) stack.pop();
+            expression = new ExpressionInfo(String.format(Locale.ENGLISH, "ex.compare(\"%s\", %s, %s)", op, pre.expression, post.expression), pre.type, post.type);
         } else if (ctx.opin != null) {
             // 'in'|'!in'
             String op = ctx.opin.getText();
-            Object post = stack.pop();
-            Object pre = stack.pop();
-            expression = String.format("ex.in(\"%s\", %s, %s)", op, pre, post);
+            ExpressionInfo post = (ExpressionInfo) stack.pop();
+            ExpressionInfo pre = (ExpressionInfo) stack.pop();
+            expression = new ExpressionInfo(String.format("ex.in(\"%s\", %s, %s)", op, pre.expression, post.expression), pre.type, post.type);
         } else if (ctx.opinstance != null) {
             // 'instanceof'|'!instanceof'
             String op = (ctx.neg != null ? "!" :"") + ctx.opinstance.getText();
-            Object pre = stack.pop();
-            expression = String.format("ex.instanceof(\"%s\", %s, %s)", op, pre, ctx.qualifiedIdentifier().getText());
+            ExpressionInfo pre = (ExpressionInfo) stack.pop();
+            expression = pre.join(String.format("ex.instanceof(\"%s\", %s, %s)", op, pre.expression, ctx.qualifiedIdentifier().getText()), ExpressionType.OPERATOR);
         } else if (ctx.op8 != null) {
             // '=='|'!='|'<=>'
             String op = ctx.op8.getText();
-            Object post = stack.pop();
-            Object pre = stack.pop();
-            expression = String.format(Locale.ENGLISH, "ex.compare(\"%s\", %s, %s)", op, pre, post);
+            ExpressionInfo post = (ExpressionInfo) stack.pop();
+            ExpressionInfo pre = (ExpressionInfo) stack.pop();
+            expression = new ExpressionInfo(String.format(Locale.ENGLISH, "ex.compare(\"%s\", %s, %s)", op, pre.expression, post.expression), pre.type, post.type);
         } else if (ctx.op8bis != null) {
             // '==='|'!=='
             String op = ctx.op8bis.getText();
-            Object post = stack.pop();
-            Object pre = stack.pop();
+            ExpressionInfo post = (ExpressionInfo) stack.pop();
+            ExpressionInfo pre = (ExpressionInfo) stack.pop();
             expression = binaryInfixOperator(pre, op, post);
         } else if (ctx.op9 != null) {
             // '.&'
             String op = ctx.op9.getText().substring(1);
-            Object post = stack.pop();
-            Object pre = stack.pop();
+            ExpressionInfo post = (ExpressionInfo) stack.pop();
+            ExpressionInfo pre = (ExpressionInfo) stack.pop();
             expression = binaryInfixOperator(pre, op, post);
         } else if (ctx.op10 != null) {
             // '.^'
             String op = ctx.op10.getText().substring(1);
-            Object post = stack.pop();
-            Object pre = stack.pop();
+            ExpressionInfo post = (ExpressionInfo) stack.pop();
+            ExpressionInfo pre = (ExpressionInfo) stack.pop();
             expression = binaryInfixOperator(pre, op, post);
         } else if (ctx.op11 != null) {
             // '.|'
             String op = ctx.op11.getText().substring(1);
-            Object post = stack.pop();
-            Object pre = stack.pop();
+            ExpressionInfo post = (ExpressionInfo) stack.pop();
+            ExpressionInfo pre = (ExpressionInfo) stack.pop();
             expression = binaryInfixOperator(pre, op, post);
         } else if (ctx.op12 != null) {
             // '&&'
             String op = ctx.op12.getText();
-            Object post = stack.pop();
-            Object pre = stack.pop();
+            ExpressionInfo post = (ExpressionInfo) stack.pop();
+            ExpressionInfo pre = (ExpressionInfo) stack.pop();
             expression = binaryInfixOperator(pre, op, post);
         } else if (ctx.op13 != null) {
             // '||'
             String op = ctx.op13.getText();
-            Object post = stack.pop();
-            Object pre = stack.pop();
+            ExpressionInfo post = (ExpressionInfo) stack.pop();
+            ExpressionInfo pre = (ExpressionInfo) stack.pop();
             expression = binaryInfixOperator(pre, op, post);
         } else if (ctx.e3 != null) {
-            Object subexpression = stack.pop();
-            expression = "(" + subexpression + ")";
+            ExpressionInfo subexpression = (ExpressionInfo) stack.pop();
+            expression = subexpression.join("(" + subexpression.expression + ")", ExpressionType.OPERATOR);
         } else if (ctx.newclass != null) {
-            Object subexpression = stack.pop();
-            expression = String.format("new %s(%s)", ctx.newclass.getText(), subexpression);
+            ExpressionInfo subexpression = (ExpressionInfo) stack.pop();
+            expression = subexpression.join(String.format("new %s(%s)", ctx.newclass.getText(), subexpression.expression), ExpressionType.VARIABLE);
         } else if (ctx.arrayIndex != null) {
             String arrayIndex = ctx.arrayIndex.getText();
             String arrayIndexSign = ctx.arrayIndexSign != null ? ctx.arrayIndexSign.getText() : "";
-            Object subexpression = stack.pop();
-            expression = String.format("ex.getIterableIndex(%s, %s%s)", subexpression, arrayIndexSign, arrayIndex);
+            ExpressionInfo subexpression = (ExpressionInfo)stack.pop();
+            expression = subexpression.join(String.format("ex.getIterableIndex(%s, %s%s)", subexpression.expression, arrayIndexSign, arrayIndex), ExpressionType.VARIABLE);
         } else if (ctx.stringFunction != null) {
-            Object subexpression = stack.pop();
-            expression =  String.format("ex.stringFunction(\"%s\", %s)", ctx.stringFunction.getText(), subexpression);
+            ExpressionInfo subexpression = (ExpressionInfo)stack.pop();
+            expression =  subexpression.join(String.format("ex.stringFunction(\"%s\", %s)", ctx.stringFunction.getText(), subexpression.expression), ExpressionType.OPERATOR);
         } else if (ctx.stringBiFunction != null) {
-            Object subexpression = stack.pop();
-            Object pattern = stack.pop();
-            expression = String.format("ex.%s(%s, %s)", ctx.stringBiFunction.getText(), pattern, subexpression);
+            ExpressionInfo subexpression = (ExpressionInfo)stack.pop();
+            ExpressionInfo pattern = (ExpressionInfo)stack.pop();
+            expression = new ExpressionInfo(String.format("ex.%s(%s, %s)", ctx.stringBiFunction.getText(), pattern.expression, subexpression.expression), ExpressionType.OPERATOR);
         } else if (ctx.now != null) {
-            expression = "java.time.Instant.now()";
+            expression = new ExpressionInfo("java.time.Instant.now()", ExpressionType.VARIABLE);
         } else if (ctx.isEmpty != null) {
-            Object subexpression = stack.pop();
-            expression = String.format("ex.isEmpty(%s)", subexpression);
+            ExpressionInfo subexpression = (ExpressionInfo)stack.pop();
+            expression = subexpression.join(String.format("ex.isEmpty(%s)", subexpression.expression), ExpressionType.OPERATOR);
         } else if (ctx.collection != null) {
             String collectionType = ctx.collection.getText();
             if (ctx.expressionsList() == null) {
-                expression = String.format("ex.newCollection(\"%s\")", collectionType);
+                expression = new ExpressionInfo(String.format("ex.newCollection(\"%s\")", collectionType), ExpressionType.VARIABLE);
             } else {
-                Object subexpression = stack.pop();
-                expression = String.format("ex.asCollection(\"%s\", %s)", collectionType, subexpression);
+                @SuppressWarnings("unchecked")
+                List<ExpressionInfo> exlist = (List<ExpressionInfo>) stack.pop();
+                ExpressionInfo expressions = getExpressionList(exlist);
+                expression = new ExpressionInfo(String.format(Locale.ENGLISH, "ex.asCollection(\"%s\", %s)", collectionType, expressions.expression), expressions.type);
             }
         } else {
             throw new IllegalStateException("Unreachable code");
         }
         expressionDepth--;
         if (expressionDepth == 0) {
-            try {
-                stack.push(new ObjectWrapped<>(new Expression(expression, groovyClassLoader, formatters)));
-            } catch (Expression.ExpressionException e) {
-                throw new RecognitionException(Helpers.resolveThrowableException(e), parser, stream, ctx);
+            switch (expression.type) {
+            case VARPATH:
+                stack.push(new ObjectWrapped<>(new Expression(expression.litteral)));
+                break;
+            case FORMATTER:
+                stack.push(new ObjectWrapped<>(new Expression(expression.litteral, formatters)));
+                break;
+            default:
+                try {
+                    stack.push(new ObjectWrapped<>(new Expression(expression.expression, groovyClassLoader, formatters)));
+                } catch (Expression.ExpressionException e) {
+                    throw new RecognitionException(Helpers.resolveThrowableException(e), parser, stream, ctx);
+                }
             }
         } else {
             stack.push(expression);
         }
     }
 
-    private String binaryInfixOperator(Object pre, String op, Object post) {
-        return String.format(Locale.ENGLISH, "ex.nullfilter(%s) %s ex.protect(\"%s\", %s)", pre, op, op, post);
+    private ExpressionInfo getExpressionList(List<ExpressionInfo> expressions) {
+        StringBuilder exlist = new StringBuilder();
+        ExpressionType nextType = ExpressionType.CONSTANT;
+        for (ExpressionInfo exinfo: expressions) {
+            if (exinfo.type == ExpressionType.VARIABLE || exinfo.type == ExpressionType.VARPATH) {
+                nextType = ExpressionType.VARIABLE;
+            }
+            exlist.append(exlist.length() == 0 ? "": ", ").append(exinfo.expression);
+        }
+        return new ExpressionInfo(String.format(Locale.ENGLISH, "[%s]", exlist), nextType);
+    }
+
+    private ExpressionInfo binaryInfixOperator(ExpressionInfo pre, String op, ExpressionInfo post) {
+        return new ExpressionInfo(String.format(Locale.ENGLISH, "ex.nullfilter(%s) %s ex.protect(\"%s\", %s)", pre.expression, op, op, post.expression), pre.type, post.type);
     }
 
 }

@@ -602,8 +602,9 @@ public class TestExpressionParsing {
         Event ev = factory.newEvent(new IpConnectionContext(new InetSocketAddress("127.0.0.1", 35710), new InetSocketAddress("localhost", 80), null));
         Principal p = () -> "user";
         ev.getConnectionContext().setPrincipal(p);
-        Object value = evalExpression("[@context principal name ] == \"user\"", ev);
-        Assert.assertEquals(true, value);
+        // Checking both order of expression, change the way groovy handle it
+        Assert.assertEquals(true, evalExpression("[@context principal name] == \"user\"", ev));
+        Assert.assertEquals(true, evalExpression("\"user\" == [@context principal name]", ev));
         InetSocketAddress localAddr = (InetSocketAddress) evalExpression("[@context localAddress]", ev, Collections.singletonMap("h_" + formatHash, new VarFormatter(format)));
         Assert.assertEquals(35710, localAddr.getPort());
     }
@@ -616,7 +617,7 @@ public class TestExpressionParsing {
         Event ev = factory.newEvent(new IpConnectionContext(new InetSocketAddress("127.0.0.1", 35710), new InetSocketAddress("localhost", 80), null));
         Principal p = () -> "user";
         ev.getConnectionContext().setPrincipal(p);
-        Object value = evalExpression("[ @context.principal.name ] == \"user\"", ev);
+        Object value = evalExpression("[@context.principal.name] == \"user\"", ev);
         Assert.assertEquals(true, value);
         InetSocketAddress localAddr = (InetSocketAddress) evalExpression("[ @context.localAddress]", ev, Collections.singletonMap("h_" + formatHash, new VarFormatter(format)));
         Assert.assertEquals(35710, localAddr.getPort());

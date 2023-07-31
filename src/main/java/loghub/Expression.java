@@ -200,19 +200,37 @@ public class Expression {
      */
     public Expression(Object literal) {
         if (literal instanceof String) {
-            this.formatters = Collections.singletonMap(FORMATTER, new VarFormatter((String) literal));
-            this.literal = null;
+            VarFormatter vf = new VarFormatter((String) literal);
+            if (! vf.isEmpty()) {
+                this.literal = vf;
+                this.expression = (String) literal;
+            } else {
+                this.literal = literal;
+                this.expression = null;
+            }
         } else {
-            this.formatters = null;
             this.literal = literal;
+            this.expression = null;
         }
+        this.loader = null;
+        this.formatters = Map.of();
+    }
+
+    public Expression(Object literal, Map<String, VarFormatter> formatters) {
+        this.literal = literal;
         this.expression = null;
         this.loader = null;
+        this.formatters = formatters;
     }
+
 
     public Object eval(Event event) throws ProcessorException {
         if (literal instanceof VariablePath) {
-            return Optional.ofNullable(event.getAtPath((VariablePath)literal)).orElse(NullOrMissingValue.NULL);
+            return Optional.ofNullable(event.getAtPath((VariablePath)literal))
+                           .map(o -> { if (o == NullOrMissingValue.MISSING) throw IgnoredEventException.INSTANCE; else return o;})
+                           .orElse(NullOrMissingValue.NULL);
+        } else if (literal instanceof VarFormatter) {
+            return ((VarFormatter) literal).format(event);
         } else if (literal != null) {
             // It's a constant expression, no need to evaluate it
             return literal;

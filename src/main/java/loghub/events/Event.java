@@ -239,6 +239,8 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
             } else {
                 throw new IllegalArgumentException("No variable specified for " + f);
             }
+        } else if (path.isContext()) {
+            return VariablePath.resolveContext(this, path);
         } else if (path.isTimestamp()) {
             switch(f) {
             case GET:

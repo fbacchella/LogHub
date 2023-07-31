@@ -1,7 +1,14 @@
 package loghub;
 
+import java.beans.FeatureDescriptor;
+import java.beans.IntrospectionException;
+import java.beans.Introspector;
+import java.beans.PropertyDescriptor;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -9,6 +16,7 @@ import java.util.StringJoiner;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import loghub.events.Event;
@@ -22,12 +30,13 @@ public abstract class VariablePath {
     public static final VariablePath LASTEXCEPTION;
     public static final VariablePath ALLMETAS;
 
-    private static final PathTree<String, VariablePath>  PATH_CACHE;
-    private static final PathTree<String, VariablePath>  PATH_CACHE_INDIRECT;
-    private static final PathTree<String, VariablePath>  PATH_CACHE_CONTEXT;
-    private static final Map<String, VariablePath>       PATH_CACHE_META;
-    private static final Map<String, VariablePath>       PATH_CACHE_STRING;
-    private static final AtomicReference<VariablePath[]> PATH_CACHE_ID;
+    private static final PathTree<String, VariablePath>     PATH_CACHE;
+    private static final PathTree<String, VariablePath>     PATH_CACHE_INDIRECT;
+    private static final PathTree<String, VariablePath>     PATH_CACHE_CONTEXT;
+    private static final Map<String, VariablePath>          PATH_CACHE_META;
+    private static final Map<String, VariablePath>          PATH_CACHE_STRING;
+    private static final AtomicReference<VariablePath[]>    PATH_CACHE_ID;
+    private static final Map<Class<?>, Map<String, Method>> CONTEXT_BEANS = new ConcurrentHashMap<>();
 
     static {
         VP_COUNT = new AtomicInteger(0);
@@ -306,6 +315,17 @@ public abstract class VariablePath {
         public String groovyExpression() {
             return "event.getConnectionContext()" + pathSuffix();
         }
+        private Object resolve(Event ev) {
+            Object o = ev.getConnectionContext();
+            for (String s: path) {
+                try {
+                    o = beanResolver(o, s).invoke(o);
+                } catch (IllegalAccessException | InvocationTargetException ex) {
+                    throw new IllegalArgumentException(String.format("Not a valid context path %s: %s", this, Helpers.resolveThrowableException(ex)), ex);
+                }
+            }
+            return o;
+        }
     }
 
     private static class Indirect extends VariableLength {
@@ -521,6 +541,26 @@ public abstract class VariablePath {
         PATH_CACHE_INDIRECT.clear();
     }
 
+    public static Object resolveContext(Event ev, VariablePath vp) {
+        if (!vp.isContext()) {
+            throw new IllegalArgumentException("Not a context path");
+        } else {
+            return ((Context)vp).resolve(ev);
+        }
+    }
+
+    public Method beanResolver(Object beanObject, String beanName) {
+        return CONTEXT_BEANS.computeIfAbsent(beanObject.getClass(), c -> {
+            try {
+                return Stream.of(Introspector.getBeanInfo(c, Object.class).getPropertyDescriptors())
+                               .filter(pd -> pd.getReadMethod() != null)
+                               .collect(Collectors.toMap(FeatureDescriptor::getName, PropertyDescriptor::getReadMethod));
+            } catch (IntrospectionException e) {
+                return Collections.emptyMap();
+            }
+        }).get(beanName);
+    }
+
     /**
      * Used internally in tests
      */
@@ -532,6 +572,7 @@ public abstract class VariablePath {
         PATH_CACHE_CONTEXT.clear();
         PATH_CACHE_META.clear();
         PATH_CACHE_STRING.clear();
+        CONTEXT_BEANS.clear();
     }
 
 }
