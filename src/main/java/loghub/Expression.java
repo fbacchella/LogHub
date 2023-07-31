@@ -56,7 +56,7 @@ import lombok.Getter;
 /**
  * Evaluate groovy expressions.
  * <p>
- * It uses an internal compiled cache, for lazy compilation. But it still check expression during instantiation
+ * It uses an internal compiled cache, for lazy compilation. But it still checks expression during instantiation
  * @author Fabrice Bacchella
  *
  */
@@ -138,6 +138,7 @@ public class Expression {
     private static final ThreadLocal<BindingMap> bindings = ThreadLocal.withInitial(BindingMap::new);
     private static final Map<String, Pattern> PATTERN_CACHE = new ConcurrentHashMap<>();
     private static final Map<String, ThreadLocal<Matcher>> MATCHER_CACHE = new ConcurrentHashMap<>();
+    private static final Pattern VARPATH_PATTERN = Pattern.compile("event.getGroovyPath\\((\\d+)\\)");
 
     @Getter
     private final String expression;
@@ -146,19 +147,25 @@ public class Expression {
     private final Object literal;
 
     public Expression(String expression, GroovyClassLoader loader, Map<String, VarFormatter> formatters) throws ExpressionException {
-        logger.trace("adding expression {}", expression);
-        try {
-            // Check the expression, but using a CompilationUnit is much faster than generating the execution class
-            CompilationUnit cu = new CompilationUnit(loader);
-            cu.addSource("", expression);
-            cu.compile();
-        } catch (CompilationFailedException ex) {
-            throw new ExpressionException(ex);
+        Matcher m = VARPATH_PATTERN.matcher(expression);
+        if (m.matches()) {
+            int vpid = Integer.parseInt(m.group(1));
+            literal = VariablePath.getById(vpid);
+        } else {
+            this.literal = null;
+            logger.trace("adding expression {}", expression);
+            try {
+                // Check the expression, but using a CompilationUnit is much faster than generating the execution class
+                CompilationUnit cu = new CompilationUnit(loader);
+                cu.addSource("", expression);
+                cu.compile();
+            } catch (CompilationFailedException ex) {
+                throw new ExpressionException(ex);
+            }
         }
         this.expression = expression;
         this.loader = loader;
         this.formatters = formatters;
-        this.literal = null;
     }
 
     /**
@@ -180,7 +187,9 @@ public class Expression {
     }
 
     public Object eval(Event event) throws ProcessorException {
-        if (literal != null) {
+        if (literal instanceof VariablePath) {
+            return Optional.ofNullable(event.getAtPath((VariablePath)literal)).orElse(NullOrMissingValue.NULL);
+        } else if (literal != null) {
             // It's a constant expression, no need to evaluate it
             return literal;
         } else if (formatters.containsKey(FORMATTER)) {
