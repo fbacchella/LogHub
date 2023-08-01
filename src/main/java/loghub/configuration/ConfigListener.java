@@ -316,10 +316,7 @@ class ConfigListener extends RouteBaseListener {
     }
 
     private void pushLiteral(Object content) {
-        // Don't keep literal in a expression, they will be managed in groovy
-        if (expressionDepth == 0) {
-            stack.push(new ObjectWrapped<>(content));
-        }
+        stack.push(new ObjectWrapped<>(content));
     }
 
     @Override
@@ -1015,7 +1012,7 @@ class ConfigListener extends RouteBaseListener {
                     }
                 }).forEach(buffer::append);
                 buffer.append("\"");
-                expression = new ExpressionInfo(buffer.toString(), ExpressionType.LITTERAL);
+                expression = new ExpressionInfo(buffer.toString(), format);
                 if (ctx.expressionsList() != null) {
                     stack.pop();
                 }
@@ -1036,12 +1033,20 @@ class ConfigListener extends RouteBaseListener {
                     expression = new ExpressionInfo(String.format("formatters.%s.format(event)", key), vf);
                 }
             }
+            // Unstack the useless String litteral
+            stack.pop();
         } else if (ctx.nl != null) {
+            @SuppressWarnings("unchecked")
+            ObjectWrapped<?> litteral = (ObjectWrapped<?>) stack.pop();
             expression = new ExpressionInfo("loghub.NullOrMissingValue.NULL", loghub.NullOrMissingValue.NULL);
         } else if (ctx.c != null) {
-            expression =  new ExpressionInfo(String.format("('%s' as char)", ctx.c.getText()), ExpressionType.CONSTANT);
+            @SuppressWarnings("unchecked")
+            ObjectWrapped<?> litteral = (ObjectWrapped<?>) stack.pop();
+             expression =  new ExpressionInfo(String.format("('%s' as char)", ctx.c.getText()), litteral.wrapped);
         } else if (ctx.l != null) {
-            expression =  new ExpressionInfo(ctx.l.getText(), ExpressionType.LITTERAL);
+            @SuppressWarnings("unchecked")
+            ObjectWrapped<?> litteral = (ObjectWrapped<?>) stack.pop();
+            expression =  new ExpressionInfo(ctx.l.getText(), litteral.wrapped);
         } else if (ctx.ev != null) {
             VariablePath path = convertEventVariable(ctx.ev);
             expression = new ExpressionInfo(path.groovyExpression(), path);
@@ -1198,6 +1203,9 @@ class ConfigListener extends RouteBaseListener {
                 break;
             case FORMATTER:
                 stack.push(new ObjectWrapped<>(new Expression(expression.litteral, formatters)));
+                break;
+            case LITTERAL:
+                stack.push(new ObjectWrapped<>(new Expression(expression.litteral)));
                 break;
             default:
                 try {

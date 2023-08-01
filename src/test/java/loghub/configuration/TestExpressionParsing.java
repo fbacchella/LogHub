@@ -581,6 +581,18 @@ public class TestExpressionParsing {
     }
 
     @Test
+    public void testIntegerLitteral() throws ExpressionException, ProcessorException {
+        Event ev = factory.newEvent();
+        Assert.assertEquals(1, evalExpression("1", ev));
+    }
+
+    @Test
+    public void testNullLitteral() throws ExpressionException, ProcessorException {
+        Event ev = factory.newEvent();
+        Assert.assertEquals(NullOrMissingValue.NULL, evalExpression("null", ev));
+    }
+
+    @Test
     public void testCollectionList() throws ExpressionException, ProcessorException {
         Event ev = factory.newEvent();
         ev.put("a", 1);
