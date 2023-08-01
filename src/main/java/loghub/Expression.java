@@ -488,13 +488,13 @@ public class Expression {
         }
         if (arg1 == NullOrMissingValue.MISSING || arg2 == NullOrMissingValue.MISSING) {
             throw IgnoredEventException.INSTANCE;
+        } else if ("==".equals(operator)) {
+            return arg1.equals(arg2);
+        } else if ("!=".equals(operator)) {
+            return ! arg1.equals(arg2);
         } else if ((arg1 instanceof Comparable && arg2 instanceof Comparable)){
             int compare = compareObjects(arg1, arg2);
             switch (operator) {
-            case "!=":
-                return compare != 0;
-            case "==":
-                return compare == 0;
             case "<":
                 return compare < 0;
             case ">":
@@ -509,10 +509,6 @@ public class Expression {
                 assert false : String.format("%s %s %s", arg1, operator, arg2);
                 throw IgnoredEventException.INSTANCE;
             }
-        } else if ("==".equals(operator)) {
-            return arg1.equals(arg2);
-        } else if ("!=".equals(operator)) {
-            return ! arg1.equals(arg2);
         } else {
             throw IgnoredEventException.INSTANCE;
         }
