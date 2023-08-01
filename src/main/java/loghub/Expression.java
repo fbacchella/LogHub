@@ -209,7 +209,7 @@ public class Expression {
                 this.expression = null;
             }
         } else {
-            this.literal = literal;
+            this.literal = literal == null ? NullOrMissingValue.NULL : literal;
             this.expression = null;
         }
         this.loader = null;
@@ -228,9 +228,12 @@ public class Expression {
         if (literal instanceof VariablePath) {
             return Optional.ofNullable(event.getAtPath((VariablePath)literal))
                            .map(o -> { if (o == NullOrMissingValue.MISSING) throw IgnoredEventException.INSTANCE; else return o;})
-                           .orElse(NullOrMissingValue.NULL);
+                           .map(o -> { if (o == NullOrMissingValue.NULL) return null; else return o;})
+                           .orElse(null);
         } else if (literal instanceof VarFormatter) {
             return ((VarFormatter) literal).format(event);
+        } else if (literal == NullOrMissingValue.NULL) {
+            return null;
         } else if (literal != null) {
             // It's a constant expression, no need to evaluate it
             return literal;

@@ -151,4 +151,14 @@ public class TestExpression {
         });
     }
 
+    @Test
+    public void testNull() throws ProcessorException, ExpressionException {
+        Event ev = factory.newEvent();
+        ev.put("a", null);
+        Assert.assertNull(new Expression(NullOrMissingValue.NULL).eval(null));
+        Assert.assertNull(new Expression(VariablePath.of("a")).eval(ev));
+        Expression nullexp = new Expression("null", new Properties(Collections.emptyMap()).groovyClassLoader, Collections.emptyMap());
+        Assert.assertNull(nullexp.eval(ev));
+    }
+
 }
