@@ -1202,7 +1202,7 @@ class ConfigListener extends RouteBaseListener {
                 stack.push(new ObjectWrapped<>(new Expression(expression.litteral)));
                 break;
             case FORMATTER:
-                stack.push(new ObjectWrapped<>(new Expression(expression.litteral, formatters)));
+                stack.push(new ObjectWrapped<>(new Expression((VarFormatter) expression.litteral, formatters)));
                 break;
             case LITTERAL:
                 stack.push(new ObjectWrapped<>(new Expression(expression.litteral)));

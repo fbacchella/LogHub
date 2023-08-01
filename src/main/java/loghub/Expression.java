@@ -216,8 +216,8 @@ public class Expression {
         this.formatters = Map.of();
     }
 
-    public Expression(Object literal, Map<String, VarFormatter> formatters) {
-        this.literal = literal;
+    public Expression(VarFormatter format, Map<String, VarFormatter> formatters) {
+        this.literal = format;
         this.expression = null;
         this.loader = null;
         this.formatters = formatters;
