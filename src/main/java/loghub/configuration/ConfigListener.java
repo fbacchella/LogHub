@@ -1037,8 +1037,7 @@ class ConfigListener extends RouteBaseListener {
             // Unstack the useless String litteral
             stack.pop();
         } else if (ctx.nl != null) {
-            @SuppressWarnings("unchecked")
-            ObjectWrapped<?> litteral = (ObjectWrapped<?>) stack.pop();
+            stack.pop();
             expression = new ExpressionInfo("loghub.NullOrMissingValue.NULL", loghub.NullOrMissingValue.NULL);
         } else if (ctx.c != null) {
             @SuppressWarnings("unchecked")
@@ -1169,15 +1168,15 @@ class ConfigListener extends RouteBaseListener {
         } else if (ctx.arrayIndex != null) {
             String arrayIndex = ctx.arrayIndex.getText();
             String arrayIndexSign = ctx.arrayIndexSign != null ? ctx.arrayIndexSign.getText() : "";
-            ExpressionInfo subexpression = (ExpressionInfo)stack.pop();
+            ExpressionInfo subexpression = (ExpressionInfo) stack.pop();
             expression = subexpression.join(String.format("ex.getIterableIndex(%s, %s%s)", subexpression.expression, arrayIndexSign, arrayIndex), ExpressionType.VARIABLE);
         } else if (ctx.stringFunction != null) {
-            ExpressionInfo subexpression = (ExpressionInfo)stack.pop();
+            ExpressionInfo subexpression = (ExpressionInfo) stack.pop();
             expression =  subexpression.join(String.format("ex.stringFunction(\"%s\", %s)", ctx.stringFunction.getText(), subexpression.expression), ExpressionType.OPERATOR);
         } else if (ctx.stringBiFunction != null) {
-            ExpressionInfo subexpression = (ExpressionInfo)stack.pop();
-            ExpressionInfo pattern = (ExpressionInfo)stack.pop();
-            expression = new ExpressionInfo(String.format("ex.%s(%s, %s)", ctx.stringBiFunction.getText(), pattern.expression, subexpression.expression), ExpressionType.OPERATOR);
+            ExpressionInfo subexpression = (ExpressionInfo) stack.pop();
+            ExpressionInfo charExpression = (ExpressionInfo) stack.pop();
+            expression = new ExpressionInfo(String.format("ex.%s(%s, %s)", ctx.stringBiFunction.getText(), charExpression.expression, subexpression.expression), charExpression.type, subexpression.type);
         } else if (ctx.now != null) {
             expression = new ExpressionInfo("java.time.Instant.now()", ExpressionType.VARIABLE);
         } else if (ctx.isEmpty != null) {
