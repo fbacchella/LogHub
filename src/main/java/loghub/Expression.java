@@ -486,15 +486,21 @@ public class Expression {
         if (arg2 == null) {
             arg2 = NullOrMissingValue.NULL;
         }
+        boolean dateCompare = (arg1 instanceof Date || arg1 instanceof TemporalAccessor) &&
+                              (arg2 instanceof Date || arg2 instanceof TemporalAccessor);
         if (arg1 == NullOrMissingValue.MISSING || arg2 == NullOrMissingValue.MISSING) {
             throw IgnoredEventException.INSTANCE;
-        } else if ("==".equals(operator)) {
+        } else if ("==".equals(operator) && !dateCompare) {
             return arg1.equals(arg2);
-        } else if ("!=".equals(operator)) {
+        } else if ("!=".equals(operator) && !dateCompare) {
             return ! arg1.equals(arg2);
-        } else if ((arg1 instanceof Comparable && arg2 instanceof Comparable)){
+        } else if (dateCompare || (arg1 instanceof Comparable && arg2 instanceof Comparable)){
             int compare = compareObjects(arg1, arg2);
             switch (operator) {
+            case "==":
+                return compare == 0;
+            case "!=":
+                return compare != 0;
             case "<":
                 return compare < 0;
             case ">":

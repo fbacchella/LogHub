@@ -9,6 +9,7 @@ import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.security.Principal;
 import java.time.Instant;
+import java.time.ZoneId;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
@@ -405,6 +406,26 @@ public class TestExpressionParsing {
         ev.put("a", Instant.ofEpochMilli(0));
         Object o = evalExpression("[@timestamp] == [a]", ev);
         Assert.assertEquals(true, o);
+    }
+
+    @Test
+    public void testTimestampCompareMixedType() throws ProcessorException, ExpressionException {
+        Event ev = factory.newEvent();
+        ev.setTimestamp(new Date(0));
+        ev.put("a", Instant.ofEpochMilli(0));
+        ev.put("b", new Date(0));
+        Assert.assertEquals(true, evalExpression("[a] == [b]", ev));
+        Assert.assertEquals(true, evalExpression("[b] == [a]", ev));
+    }
+
+    @Test
+    public void testTimestampCompareTemporalAccessorType() throws ProcessorException, ExpressionException {
+        Event ev = factory.newEvent();
+        ev.setTimestamp(new Date(0));
+        ev.put("a", Instant.ofEpochMilli(0));
+        ev.put("b", Instant.ofEpochMilli(0).atZone(ZoneId.systemDefault()));
+        Assert.assertEquals(true, evalExpression("[a] == [b]", ev));
+        Assert.assertEquals(true, evalExpression("[b] == [a]", ev));
     }
 
     @Test
