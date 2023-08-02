@@ -86,7 +86,7 @@ public class Properties extends HashMap<String, Object> {
         }
     }
 
-    private class ZMQFactoryReference {
+    private static class ZMQFactoryReference {
         private ZMQSocketFactory.ZMQSocketFactoryBuilder builder = null;
         private ZMQSocketFactory factory = null;
     }

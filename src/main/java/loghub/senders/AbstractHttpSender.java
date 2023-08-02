@@ -152,7 +152,7 @@ public abstract class AbstractHttpSender extends Sender {
 
     }
 
-    protected class HttpResponse implements Closeable {
+    protected static class HttpResponse implements Closeable {
         private final HttpHost host;
         private final Optional<CloseableHttpResponse> response;
         private final IOException socketException;
@@ -218,7 +218,7 @@ public abstract class AbstractHttpSender extends Sender {
         int getPending();
     }
 
-    public class Implementation extends StandardMBean implements HttpClientStatsMBean {
+    public static class Implementation extends StandardMBean implements HttpClientStatsMBean {
         private final ConnPoolControl<HttpRoute> pool;
         public Implementation(ConnPoolControl<HttpRoute> pool) throws NotCompliantMBeanException {
             super(HttpClientStatsMBean.class);
