@@ -1,6 +1,5 @@
 package groovy.runtime.metaclass.loghub;
 
-import groovy.lang.DelegatingMetaClass;
 import groovy.lang.MetaClass;
 import loghub.events.Event;
 

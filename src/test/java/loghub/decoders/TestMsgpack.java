@@ -32,7 +32,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import loghub.AbstractBuilder;
 import loghub.ConnectionContext;
 import loghub.LogUtils;
-import loghub.ThreadBuilder;
 import loghub.Tools;
 import loghub.configuration.Properties;
 import loghub.encoders.EncodeException;

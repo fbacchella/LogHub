@@ -2,7 +2,6 @@ package groovy.runtime.metaclass.java.lang;
 
 import org.codehaus.groovy.runtime.StringGroovyMethods;
 
-import groovy.lang.DelegatingMetaClass;
 import groovy.lang.MetaClass;
 import groovy.runtime.metaclass.GroovyOperators;
 import loghub.IgnoredEventException;
