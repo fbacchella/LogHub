@@ -1,5 +1,6 @@
 package loghub;
 
+import java.lang.reflect.Array;
 import java.lang.reflect.InvocationTargetException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -475,6 +476,25 @@ public class Expression {
             throw IgnoredEventException.INSTANCE;
         } else {
             throw new IllegalArgumentException("Array operation on not iterable object");
+        }
+    }
+
+    public Object isEmpty(Object arg) {
+        if (arg == NullOrMissingValue.MISSING) {
+            throw IgnoredEventException.INSTANCE;
+        }
+        if (arg == null || arg == NullOrMissingValue.NULL) {
+            return true;
+        } else if (arg instanceof String) {
+            return ((String) arg).isEmpty();
+        } else if (arg instanceof Collection) {
+            return ((Collection<?>) arg).isEmpty();
+        } else if (arg instanceof Map) {
+            return ((Map<?, ?>) arg).isEmpty();
+        } else if (arg.getClass().isArray()) {
+            return Array.getLength(arg) == 0;
+        } else {
+            return false;
         }
     }
 

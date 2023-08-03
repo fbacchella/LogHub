@@ -43,6 +43,7 @@ import loghub.ProcessorException;
 import loghub.RouteParser;
 import loghub.Tools;
 import loghub.VarFormatter;
+import loghub.VariablePath;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
 
@@ -788,7 +789,16 @@ public class TestExpressionParsing {
             Assert.assertTrue((boolean) evalExpression("isEmpty([a])", ev));
         }
         Event ev = factory.newEvent();
-        Assert.assertTrue((boolean) evalExpression("isEmpty([a])", ev));
+        Assert.assertTrue((boolean) evalExpression("isEmpty([.])", ev));
+    }
+
+
+    @Test
+    public void testIsEmptyIgnore() throws ProcessorException, ExpressionException {
+        Event ev = factory.newEvent();
+        ev.putAtPath(VariablePath.of("event", "type"), "debug");
+        Assert.assertThrows(IgnoredEventException.class, () -> evalExpression("isEmpty([event start])", ev));
+        Assert.assertThrows(IgnoredEventException.class, () -> evalExpression("isEmpty([a])", ev));
     }
 
     @Test

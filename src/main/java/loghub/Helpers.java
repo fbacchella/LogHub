@@ -654,20 +654,4 @@ public final class Helpers {
                     .collect(Collectors.toMap(i -> i.getKey().substring(prefixLength), Map.Entry::getValue));
     }
 
-    public static Object isEmpty(Object arg) {
-        if (arg == null || arg == NullOrMissingValue.MISSING || arg == NullOrMissingValue.NULL) {
-            return true;
-        } else if (arg instanceof String) {
-            return ((String) arg).isEmpty();
-        } else if (arg instanceof Collection) {
-            return ((Collection<?>) arg).isEmpty();
-        } else if (arg instanceof Map) {
-            return ((Map<?, ?>) arg).isEmpty();
-        } else if (arg.getClass().isArray()) {
-            return Array.getLength(arg) == 0;
-        } else {
-            return false;
-        }
-    }
-
 }
