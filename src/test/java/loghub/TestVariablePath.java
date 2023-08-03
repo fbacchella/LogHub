@@ -88,6 +88,14 @@ public class TestVariablePath {
     }
 
     @Test
+    public void root() {
+        VariablePath vp = VariablePath.parse(".");
+        Assert.assertEquals(VariablePath.of("."), vp);
+        Assert.assertEquals("[.]", vp.toString());
+        Assert.assertTrue(groovyPattern.matcher(vp.groovyExpression()).matches());
+    }
+
+    @Test
     public void meta() {
         VariablePath vp = VariablePath.ofMeta("a");
         Assert.assertSame(vp, VariablePath.parse("#a"));

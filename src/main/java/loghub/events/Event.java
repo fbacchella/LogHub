@@ -272,6 +272,9 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
             }
         } else {
             key = path.get(0);
+            if (".".equals(key) && path.length() == 1) {
+                return this;
+            }
             for (int i = 0 ; i < path.length() - 1; i++) {
                 String currentkey = path.get(i);
                 if (".".equals(currentkey)) {

@@ -101,6 +101,12 @@ public class TestExpressionParsing {
     }
 
     @Test
+    public void testRoot() throws ProcessorException, ExpressionException {
+        Event ev =  factory.newEvent();
+        Assert.assertEquals(ev, evalExpression("[.]", ev));
+    }
+
+    @Test
     public void testFormatterSimple() throws ExpressionException, ProcessorException {
         String format = "${#1%02d}";
         Event ev =  factory.newEvent();
