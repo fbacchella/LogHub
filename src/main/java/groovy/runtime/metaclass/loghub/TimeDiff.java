@@ -5,6 +5,7 @@ import java.time.Duration;
 import java.time.temporal.Temporal;
 import java.util.Date;
 
+import groovy.lang.DelegatingMetaClass;
 import groovy.lang.MetaClass;
 import groovy.runtime.metaclass.GroovyOperators;
 import loghub.IgnoredEventException;

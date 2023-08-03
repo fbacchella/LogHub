@@ -5,6 +5,7 @@ import java.math.BigInteger;
 
 import org.codehaus.groovy.runtime.typehandling.NumberMath;
 
+import groovy.lang.DelegatingMetaClass;
 import groovy.lang.MetaClass;
 import groovy.runtime.metaclass.GroovyOperators;
 import loghub.IgnoredEventException;

@@ -2,6 +2,7 @@ package groovy.runtime.metaclass.loghub;
 
 import org.codehaus.groovy.runtime.wrappers.PojoWrapper;
 
+import groovy.lang.DelegatingMetaClass;
 import groovy.lang.MetaClass;
 import loghub.Expression;
 import loghub.Helpers;

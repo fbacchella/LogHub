@@ -5,6 +5,7 @@ import java.net.InetSocketAddress;
 import java.security.Principal;
 import java.util.Map;
 
+import groovy.lang.DelegatingMetaClass;
 import groovy.lang.MetaClass;
 import loghub.ConnectionContext;
 import loghub.NullOrMissingValue;
