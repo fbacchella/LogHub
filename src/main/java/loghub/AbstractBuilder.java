@@ -1,16 +1,8 @@
 package loghub;
 
 import java.lang.reflect.InvocationTargetException;
-import java.util.function.Function;
 
 public abstract class AbstractBuilder<B> {
-
-    /**
-     * To be used when the build object might need an expression builder
-     */
-    public interface WithCompiler {
-        void setCompiler(Function<String, Expression> compiler);
-    }
 
     public abstract B build();
 

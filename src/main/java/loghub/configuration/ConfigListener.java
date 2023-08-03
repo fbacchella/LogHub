@@ -422,9 +422,6 @@ class ConfigListener extends RouteBaseListener {
             logger.debug("Loading {} with {}", qualifiedName, classLoader);
             Class<?> objectClass = classLoader.loadClass(qualifiedName);
             AbstractBuilder<?> builder = AbstractBuilder.resolve(objectClass);
-            if (builder instanceof AbstractBuilder.WithCompiler) {
-                ((AbstractBuilder.WithCompiler)builder).setCompiler(this::compile);
-            }
             return new ObjectWrapped<>(builder != null ? builder : objectClass.getConstructor().newInstance());
         } catch (ClassNotFoundException e) {
             throw new RecognitionException("Unknown class " + qualifiedName, parser, stream, ctx);
@@ -432,14 +429,6 @@ class ConfigListener extends RouteBaseListener {
             throw new RecognitionException("Unsuable class " + qualifiedName + ": " + Helpers.resolveThrowableException(e), parser, stream, ctx);
         } catch (InvocationTargetException e) {
             throw new RecognitionException("Unsuable class " + qualifiedName + ": " + Helpers.resolveThrowableException(e.getCause()), parser, stream, ctx);
-        }
-    }
-
-    private Expression compile(String expression) {
-        try {
-            return new Expression(expression, groovyClassLoader, formatters);
-        } catch (Expression.ExpressionException ex) {
-            throw new UndeclaredThrowableException(ex);
         }
     }
 
