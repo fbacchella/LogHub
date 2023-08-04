@@ -1,12 +1,14 @@
 package loghub.configuration;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.function.BiFunction;
 
-import org.antlr.v4.runtime.ParserRuleContext;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
+import groovy.lang.GroovyClassLoader;
 import loghub.Expression;
 import loghub.Helpers;
 import loghub.NullOrMissingValue;
@@ -15,7 +17,9 @@ import loghub.VarFormatter;
 import loghub.VariablePath;
 import lombok.Getter;
 
-class ExpressionInfo {
+class ExpressionBuilder {
+
+    private static final Logger logger = LogManager.getLogger();
 
     enum ExpressionType {
         CONSTANT,
@@ -27,33 +31,33 @@ class ExpressionInfo {
         LAMBDA
     }
 
-    private final ConfigListener configListener;
+    private final Map<String, VarFormatter> formatters;
+    private final GroovyClassLoader groovyClassLoader;
+
     @Getter
     private String expression;
     @Getter
     private ExpressionType type;
     private Object payload;
-    private ExpressionInfo previous = null;
+    private ExpressionBuilder previous = null;
 
-    static ExpressionInfo of(ConfigListener configListener) {
-        return new ExpressionInfo(configListener);
+    ExpressionBuilder(GroovyClassLoader groovyClassLoader, Map<String, VarFormatter> formatters) {
+        this.formatters = formatters;
+        this.groovyClassLoader = groovyClassLoader;
     }
 
-    private ExpressionInfo(ConfigListener configListener) {
-        this.configListener = configListener;
-    }
-
+    @SuppressWarnings("unchecked")
     public <T> T getPayload() {
         return (T) payload;
     }
 
-    public ExpressionInfo join(String newExpression, ExpressionType newType) {
+    public ExpressionBuilder join(String newExpression, ExpressionType newType) {
         expression = newExpression;
         return this.join(newType);
     }
 
-    public ExpressionInfo snap() {
-        ExpressionInfo next = new ExpressionInfo(configListener);
+    public ExpressionBuilder snap() {
+        ExpressionBuilder next = new ExpressionBuilder(groovyClassLoader, formatters);
         next.expression = this.expression;
         next.type = this.type;
         next.payload = this.payload;
@@ -61,49 +65,49 @@ class ExpressionInfo {
         return next;
     }
 
-    ExpressionInfo setNull() {
+    ExpressionBuilder setNull() {
         this.expression = "loghub.NullOrMissingValue.NULL";
         this.payload = NullOrMissingValue.NULL;
         this.type = ExpressionType.LITTERAL;
         return this;
     }
 
-    ExpressionInfo setCharacter(Character c) {
+    ExpressionBuilder setCharacter(Character c) {
         this.expression = String.format("('%s' as char)", c);
         this.payload = c;
         this.type = ExpressionType.LITTERAL;
         return this;
     }
 
-    ExpressionInfo setPayload(Object l) {
+    ExpressionBuilder setPayload(Object l) {
         this.payload = l;
         this.type = ExpressionType.LITTERAL;
         return this;
     }
 
-    ExpressionInfo setExpression(String format, Object... args) {
+    ExpressionBuilder setExpression(String format, Object... args) {
         for (int i=0; i < args.length; i++) {
-            if (args[i] instanceof  ExpressionInfo) {
-                args[i] = ((ExpressionInfo)args[i] ).expression;
+            if (args[i] instanceof ExpressionBuilder) {
+                args[i] = ((ExpressionBuilder)args[i] ).expression;
             }
         }
         expression = String.format(Locale.ENGLISH, format, args);
         return this;
     }
 
-    public ExpressionInfo setVariablePath(VariablePath path) {
+    public ExpressionBuilder setVariablePath(VariablePath path) {
         expression = path.groovyExpression();
         type = ExpressionType.VARPATH;
         payload = path;
         return this;
     }
 
-    public ExpressionInfo setType(ExpressionType type) {
+    public ExpressionBuilder setType(ExpressionType type) {
         this.type = type;
         return this;
     }
 
-    ExpressionInfo join(ExpressionType newType) {
+    ExpressionBuilder join(ExpressionType newType) {
         if (newType == ExpressionType.LAMBDA) {
             type = ExpressionType.LAMBDA;
         } else if (previous == null) {
@@ -116,7 +120,7 @@ class ExpressionInfo {
         return this;
     }
 
-    ExpressionInfo merge(ExpressionInfo exi1, ExpressionInfo exi2) {
+    ExpressionBuilder merge(ExpressionBuilder exi1, ExpressionBuilder exi2) {
         ExpressionType type1 = exi1.type;
         ExpressionType type2 = exi2.type;
         if (type1 == ExpressionType.VARIABLE || type2 == ExpressionType.VARIABLE || type1 == ExpressionType.VARPATH || type2 == ExpressionType.VARPATH || type1 == ExpressionType.LAMBDA || type2 == ExpressionType.LAMBDA) {
@@ -127,14 +131,14 @@ class ExpressionInfo {
         return this;
     }
 
-    public ExpressionInfo setLambda(Expression.ExpressionLambda lambda) {
+    public ExpressionBuilder setLambda(Expression.ExpressionLambda lambda) {
         type = ExpressionType.LAMBDA;
         this.payload = lambda;
         return this;
     }
 
 
-    public ExpressionInfo setLambda(ExpressionInfo subexpression, BiFunction<Expression.ExpressionLambda, Expression.ExpressionData, Object> lambda) {
+    public ExpressionBuilder setLambda(ExpressionBuilder subexpression, BiFunction<Expression.ExpressionLambda, Expression.ExpressionData, Object> lambda) {
         Expression.ExpressionLambda sublambda = subexpression.asLambda();
         if (sublambda != null) {
             setLambda(ed -> lambda.apply(sublambda, ed));
@@ -144,7 +148,7 @@ class ExpressionInfo {
         return this;
     }
 
-    public ExpressionInfo setLambda(ExpressionInfo subexpression1, ExpressionInfo subexpression2, Helpers.TriFunction<Expression.ExpressionLambda, Expression.ExpressionLambda, Expression.ExpressionData, Object> lambda) {
+    public ExpressionBuilder setLambda(ExpressionBuilder subexpression1, ExpressionBuilder subexpression2, Helpers.TriFunction<Expression.ExpressionLambda, Expression.ExpressionLambda, Expression.ExpressionData, Object> lambda) {
         Expression.ExpressionLambda sublambda1 = subexpression1.asLambda();
         Expression.ExpressionLambda sublambda2 = subexpression2.asLambda();
         if (sublambda1 != null && sublambda2 != null) {
@@ -155,26 +159,20 @@ class ExpressionInfo {
         return this;
     }
 
-    public ExpressionInfo setOperator(String format, Object... args) {
+    public ExpressionBuilder setOperator(String format, Object... args) {
         setExpression(format, args);
         join(ExpressionType.OPERATOR);
         return this;
     }
 
-    public ExpressionInfo setBiOperator(String format, ExpressionInfo exp1, ExpressionInfo exp2) {
-        setExpression(format, exp1, exp2);
-        merge(exp1, exp2);
-        return this;
-    }
-
-    public ExpressionInfo setBiOperator(String format, String operator, ExpressionInfo exp1, ExpressionInfo exp2) {
+    public ExpressionBuilder setBiOperator(String format, String operator, ExpressionBuilder exp1, ExpressionBuilder exp2) {
         setExpression(format, operator, exp1, exp2);
         merge(exp1, exp2);
         return this;
     }
 
 
-    ExpressionInfo binaryInfixOperator(ExpressionInfo pre, String op, ExpressionInfo post) {
+    ExpressionBuilder binaryInfixOperator(ExpressionBuilder pre, String op, ExpressionBuilder post) {
         String preStringFormat;
         if (pre.type == ExpressionType.LITTERAL && pre.payload != null) {
             preStringFormat = "(%s)";
@@ -196,20 +194,20 @@ class ExpressionInfo {
         return this;
     }
 
-    public ExpressionInfo setVarFormatter(VarFormatter vf) {
+    public ExpressionBuilder setVarFormatter(VarFormatter vf) {
         this.type = ExpressionType.FORMATTER;
         this.payload = vf;
         return this;
     }
 
-    ExpressionInfo getExpressionList(List<ExpressionInfo> expressions) {
+    ExpressionBuilder getExpressionList(List<ExpressionBuilder> expressions) {
         StringBuilder exlist = new StringBuilder();
-        ExpressionInfo.ExpressionType nextType = ExpressionInfo.ExpressionType.CONSTANT;
-        for (ExpressionInfo exinfo: expressions) {
-            if (exinfo.getType() == ExpressionInfo.ExpressionType.VARIABLE ||
-                        exinfo.getType() == ExpressionInfo.ExpressionType.VARPATH ||
-                        exinfo.getType() == ExpressionInfo.ExpressionType.LAMBDA) {
-                nextType = ExpressionInfo.ExpressionType.VARIABLE;
+        ExpressionBuilder.ExpressionType nextType = ExpressionBuilder.ExpressionType.CONSTANT;
+        for (ExpressionBuilder exinfo: expressions) {
+            if (exinfo.getType() == ExpressionBuilder.ExpressionType.VARIABLE ||
+                        exinfo.getType() == ExpressionBuilder.ExpressionType.VARPATH ||
+                        exinfo.getType() == ExpressionBuilder.ExpressionType.LAMBDA) {
+                nextType = ExpressionBuilder.ExpressionType.VARIABLE;
             }
             exlist.append(exlist.length() == 0 ? "": ", ").append(exinfo.getExpression());
         }
@@ -218,16 +216,17 @@ class ExpressionInfo {
         return this;
     }
 
-    Expression build(ConfigListener configListener, ParserRuleContext ctx) throws Expression.ExpressionException {
+    Expression build() throws Expression.ExpressionException {
+        logger.trace("New expression of type {}: {}", type, expression);
         switch (type) {
         case LAMBDA:
         case VARPATH:
         case LITTERAL:
             return new Expression(payload);
         case FORMATTER:
-            return new Expression((VarFormatter) payload, configListener.formatters);
+            return new Expression((VarFormatter) payload, formatters);
         default:
-            return new Expression(expression, configListener.groovyClassLoader, configListener.formatters);
+            return new Expression(expression, groovyClassLoader, formatters);
         }
     }
 
@@ -236,8 +235,7 @@ class ExpressionInfo {
         case LITTERAL:
             return ed -> payload;
         case LAMBDA:
-            Expression.ExpressionLambda lambda = getPayload();
-            return lambda;
+            return getPayload();
         case VARPATH:
             VariablePath vp = getPayload();
             return ed -> ed.getEvent().getAtPath(vp);
@@ -246,7 +244,7 @@ class ExpressionInfo {
             return ed -> vf.format(ed.getEvent());
         case CONSTANT:
             try {
-                Object value = new Expression(expression, configListener.groovyClassLoader, configListener.formatters).eval(null);
+                Object value = new Expression(expression, groovyClassLoader, formatters).eval(null);
                 return ed -> value;
             } catch (ProcessorException | RuntimeException | Expression.ExpressionException e) {
                 return null;
