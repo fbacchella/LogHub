@@ -86,9 +86,9 @@ public class TestExpressionParsing {
 
     @Test
     public void testUnary() throws ExpressionException, ProcessorException {
-        Assert.assertEquals("2", evalExpression("-(-2)").toString());
-        Assert.assertEquals("-2", evalExpression(".~1").toString());
-        Assert.assertEquals("false", evalExpression("!1").toString());
+        Assert.assertEquals(2, evalExpression("-(-2)"));
+        Assert.assertEquals(-2, evalExpression(".~1"));
+        Assert.assertEquals(false, evalExpression("!1"));
     }
 
     @Test
@@ -216,6 +216,12 @@ public class TestExpressionParsing {
                 "[b] ! instanceof java.lang.Integer", true,
         };
         enumerateExpressions(ev, tryExpression);
+    }
+
+    @Test
+    public void testInstanceOfFailed() {
+        RecognitionException ex = Assert.assertThrows(RecognitionException.class, () -> evalExpression("1 instanceof not.a.class"));
+        Assert.assertEquals("Class not found: not.a.class", ex.getMessage());
     }
 
     @Test
@@ -560,12 +566,11 @@ public class TestExpressionParsing {
         Assert.assertEquals(false, i);
     }
 
-    @Test(expected = IgnoredEventException.class)
+    @Test
     public void
     testPatternMissing() throws ExpressionException, ProcessorException {
         Event ev = factory.newEvent();
-        ev.put("a", NullOrMissingValue.MISSING);
-        evalExpression("[a] ==~ /.*/",ev);
+        Assert.assertThrows(IgnoredEventException.class, () -> evalExpression("[a] ==~ /.*/",ev));
     }
 
     @Test
@@ -787,9 +792,11 @@ public class TestExpressionParsing {
             Event ev = factory.newEvent();
             ev.put("a", o);
             Assert.assertTrue((boolean) evalExpression("isEmpty([a])", ev));
+            Assert.assertFalse((boolean) evalExpression("! isEmpty([a])", ev));
         }
         Event ev = factory.newEvent();
         Assert.assertTrue((boolean) evalExpression("isEmpty([.])", ev));
+        Assert.assertFalse((boolean) evalExpression("! isEmpty([.])", ev));
     }
 
 
@@ -817,6 +824,7 @@ public class TestExpressionParsing {
             Event ev = factory.newEvent();
             ev.put("a", o);
             Assert.assertFalse((boolean) evalExpression("isEmpty([a])", ev));
+            Assert.assertTrue((boolean) evalExpression("! isEmpty([a])", ev));
         }
     }
 
@@ -825,6 +833,13 @@ public class TestExpressionParsing {
         String lambda = "x -> x + 1";
         Lambda l = ConfigurationTools.unWrap(lambda, RouteParser::lambda, new HashMap<>());
         Assert.assertEquals(2, l.getExpression().eval(null, 1));
+    }
+
+    @Test
+    public void parseLambdaIsEmpty() throws ProcessorException {
+        String lambda = "x -> isEmpty(x)";
+        Lambda l = ConfigurationTools.unWrap(lambda, RouteParser::lambda, new HashMap<>());
+        Assert.assertEquals(true, l.getExpression().eval(null, List.of()));
     }
 
     @Test

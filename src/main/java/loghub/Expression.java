@@ -1,5 +1,6 @@
 package loghub;
 
+import java.io.Closeable;
 import java.lang.reflect.Array;
 import java.lang.reflect.InvocationTargetException;
 import java.math.BigDecimal;
@@ -48,6 +49,7 @@ import groovy.lang.MetaClass;
 import groovy.lang.MetaClassRegistry;
 import groovy.lang.MissingPropertyException;
 import groovy.lang.Script;
+import groovy.runtime.metaclass.GroovyOperators;
 import groovy.runtime.metaclass.java.lang.NumberMetaClass;
 import groovy.runtime.metaclass.java.lang.StringMetaClass;
 import groovy.runtime.metaclass.loghub.EventMetaClass;
@@ -71,8 +73,9 @@ public class Expression {
 
     private static final String FORMATTER = "__FORMATTER__";
 
+    static private final MetaClassRegistry registry = GroovySystem.getMetaClassRegistry();
+
     static {
-        MetaClassRegistry registry = GroovySystem.getMetaClassRegistry();
 
         registry.setMetaClass(String.class, new StringMetaClass(String.class));
         registry.setMetaClass(Expression.class, new ExpressionMetaClass(Expression.class));
@@ -125,11 +128,21 @@ public class Expression {
         }
     }
 
-    private static class BindingMap extends AbstractMap<String, Object> {
+    public interface ExpressionData {
+        Event getEvent();
+        Expression getExpression();
+        Object getValue();
+        Map<String, VarFormatter> getFormatters();
+    }
 
+    private static class BindingMap extends AbstractMap<String, Object> implements ExpressionData, Closeable {
+        @Getter
         private Event event;
-        private Expression ex;
+        @Getter
+        private Expression expression;
+        @Getter
         private Object value;
+        private Script script;
         private final Binding binding;
         BindingMap() {
             this.binding = new Binding(this);
@@ -138,17 +151,35 @@ public class Expression {
         public Set<Entry<String, Object>> entrySet() {
             return Collections.emptySet();
         }
+
         @Override
         public Object get(Object key) {
             switch (key.toString()) {
             case "event": return event;
-            case "formatters": return ex.formatters;
-            case "ex": return ex;
+            case "formatters": return expression.formatters;
+            case "ex": return expression;
             case "value": return value;
-            default: throw new MissingPropertyException(key + ex.expression, null);
+            default: throw new MissingPropertyException(key + expression.expression, null);
             }
         }
 
+        @Override
+        public Map<String, VarFormatter> getFormatters() {
+            return expression.formatters;
+        }
+
+        @Override
+        public void close() {
+            expression = null;
+            event = null;
+            value = null;
+            Optional.ofNullable(script).ifPresent(s -> s.setBinding(EMPTYBIDDING));
+            script = null;
+        }
+    }
+
+    public interface ExpressionLambda {
+        Object apply(ExpressionData data);
     }
 
     private static final Logger logger = LogManager.getLogger();
@@ -239,6 +270,16 @@ public class Expression {
                            .orElse(null);
         } else if (literal instanceof VarFormatter) {
             return ((VarFormatter) literal).format(event);
+        } else if (literal instanceof ExpressionLambda) {
+            ExpressionLambda lambda = (ExpressionLambda) literal;
+            try (BindingMap bmap = resolveBindings(event, value)) {
+                Object o = lambda.apply(bmap);
+                return o == NullOrMissingValue.NULL ? null : o;
+            } catch (IgnoredEventException e) {
+                throw e;
+            } catch (RuntimeException ex) {
+                throw event.buildException(String.format("failed expression '%s': %s", expression, Helpers.resolveThrowableException(ex)), ex);
+            }
         } else if (literal == NullOrMissingValue.NULL) {
             return null;
         } else if (literal != null) {
@@ -249,16 +290,9 @@ public class Expression {
             return this.formatters.get(FORMATTER).format(event);
         } else {
             logger.trace("Evaluating script {} with formatters {}", expression, formatters);
-            BindingMap bmap = bindings.get();
-            bmap.event = event;
-            bmap.value = value;
-            bmap.ex = this;
-            Optional<Script> optls = Optional.empty();
-            try {
+            try (BindingMap bmap = resolveBindings(event, value)) {
                 // Lazy compilation, will only compile if expression is needed
-                Script localscript = compilationCache.get().computeIfAbsent(expression, this::compile);
-                localscript.setBinding(bmap.binding);
-                return Optional.ofNullable(localscript.run())
+                return Optional.ofNullable(bmap.script.run())
                         .map(o -> { if (o == NullOrMissingValue.MISSING) throw IgnoredEventException.INSTANCE; else return o;})
                         .map(o -> { if (o == NullOrMissingValue.NULL) return null; else return o;})
                         .orElse(null);
@@ -268,12 +302,22 @@ public class Expression {
                 throw e;
             } catch (Exception e) {
                 throw event.buildException(String.format("failed expression '%s': %s", expression, Helpers.resolveThrowableException(e)), e);
-            } finally {
-                optls.ifPresent(b -> b.setBinding(EMPTYBIDDING));
-                bmap.ex = null;
-                bmap.event = null;
             }
         }
+    }
+
+    private BindingMap resolveBindings(Event event, Object value) {
+        BindingMap bmap = bindings.get();
+        bmap.event = event;
+        bmap.value = value;
+        bmap.expression = this;
+        if (expression != null) {
+            bmap.script = compilationCache.get().computeIfAbsent(expression, this::compile);
+            bmap.script.setBinding(bmap.binding);
+        } else {
+            bmap.script = null;
+        }
+        return bmap;
     }
 
     @SuppressWarnings("unchecked")
@@ -384,14 +428,12 @@ public class Expression {
         return Objects.requireNonNullElse(arg, NullOrMissingValue.NULL);
     }
 
-    public Object instanceOf(String cmd, Object obj, Object clazz) {
+    public Object instanceOf(String cmd, Object obj, Class<?> clazz) {
         boolean result;
-        if ((obj == null || obj == NullOrMissingValue.NULL) && (clazz == null || clazz == NullOrMissingValue.NULL)) {
-            result = true;
-        } else if (obj instanceof NullOrMissingValue || clazz instanceof NullOrMissingValue || obj == null ) {
+        if (obj instanceof NullOrMissingValue || obj == null ) {
             result = false;
         } else {
-            result = ((Class<?>)clazz).isAssignableFrom(obj.getClass());
+            result = clazz.isAssignableFrom(obj.getClass());
         }
         return cmd.startsWith("!") != result;
     }
@@ -479,7 +521,7 @@ public class Expression {
         }
     }
 
-    public Object isEmpty(Object arg) {
+    public boolean isEmpty(Object arg) {
         if (arg == NullOrMissingValue.MISSING) {
             throw IgnoredEventException.INSTANCE;
         }
@@ -594,7 +636,7 @@ public class Expression {
         if (arg == NullOrMissingValue.NULL || arg == null || arg instanceof Collection || arg instanceof Map || arg.getClass().isArray()) {
             return false;
         } else if (arg == NullOrMissingValue.MISSING) {
-            return arg;
+            throw IgnoredEventException.INSTANCE;
         } else {
             Matcher m = MATCHER_CACHE.computeIfAbsent(encodedPattern, k -> {
                 byte[] patternBytes = Base64.getDecoder().decode(k);
@@ -613,6 +655,70 @@ public class Expression {
             } else {
                 throw IgnoredEventException.INSTANCE;
             }
+        }
+    }
+
+    public boolean asBoolean(Object arg) {
+        if (arg == NullOrMissingValue.MISSING) {
+            throw IgnoredEventException.INSTANCE;
+        } else if (arg instanceof Boolean) {
+            return (Boolean) arg;
+        } else if (arg instanceof Float || arg instanceof Double || arg instanceof BigDecimal) {
+            return ((Number) arg).doubleValue() != 0;
+        } else if (arg instanceof Number) {
+            return ((Number) arg).longValue() != 0;
+        } else {
+            return isEmpty(arg);
+        }
+    }
+
+    public Object groovyOperator(String operator, Object arg1, Object arg2) {
+        if ("===".equals(operator) || "!==".equals(operator)) {
+            return (System.identityHashCode(arg1) == System.identityHashCode(arg2)) ^ ("!==".equals(operator));
+        } else {
+            MetaClass mc = registry.getMetaClass(arg1.getClass());
+            String groovyName;
+            switch (operator) {
+            case "+":
+                groovyName = GroovyOperators.PLUS;
+                break;
+            case "*":
+                groovyName = GroovyOperators.MULTIPLY;
+                break;
+            case "/":
+                groovyName = GroovyOperators.DIV;
+                break;
+            case "-":
+                groovyName = GroovyOperators.MINUS;
+                break;
+            case "%":
+                groovyName = GroovyOperators.MOD;
+                break;
+            case "**":
+                groovyName = GroovyOperators.POWER;
+                break;
+            case "<<":
+                groovyName = GroovyOperators.LEFT_SHIFT;
+                break;
+            case ">>":
+                groovyName = GroovyOperators.RIGHT_SHIFT;
+                break;
+            case ">>>":
+                groovyName = GroovyOperators.RIGHT_SHIFT_UNSIGNED;
+                break;
+            case "^":
+                groovyName = GroovyOperators.XOR;
+                break;
+            case "|":
+                groovyName = GroovyOperators.OR;
+                break;
+            case "&":
+                groovyName = GroovyOperators.AND;
+                break;
+            default:
+                throw new UnsupportedOperationException(operator);
+            }
+            return mc.invokeMethod(arg1, groovyName, new Object[]{arg2});
         }
     }
 

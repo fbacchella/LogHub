@@ -37,7 +37,7 @@ public class ExpressionMetaClass extends DelegatingMetaClass {
         case "isEmpty": return ex.isEmpty(arguments[0]);
         case "regex": return ex.regex(arguments[0], arguments[1].toString(), arguments[2].toString());
         case "in": return ex.in(arguments[0].toString(), arguments[1], arguments[2]);
-        case "instanceof": return ex.instanceOf(arguments[0].toString(), arguments[1], arguments[2]);
+        case "instanceof": return ex.instanceOf(arguments[0].toString(), arguments[1], (Class)arguments[2]);
         case "newCollection": return ex.newCollection(arguments[0].toString());
         case "asCollection": return ex.asCollection(arguments[0].toString(), arguments[1]);
         default:

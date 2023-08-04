@@ -30,9 +30,9 @@ public class NumberMetaClass extends DelegatingMetaClass {
             } else {
                 throw IgnoredEventException.INSTANCE;
             }
-        } else if (arguments.length == 1 && object instanceof Number && arguments[0] instanceof Number){
-            Number arg1 = (Number)object;
-            Number arg2 = (Number)arguments[0];
+        } else if (arguments.length == 1 && object instanceof Number && arguments[0] instanceof Number) {
+            Number arg1 = (Number) object;
+            Number arg2 = (Number) arguments[0];
             Number value = null;
             switch (methodName) {
             case GroovyOperators.DIV:

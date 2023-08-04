@@ -186,7 +186,8 @@ expression
     |   l = nonStringliteral
     |   ev = eventVariable
     |   'new' newclass = qualifiedIdentifier '(' expression ')'
-    |   op1=('.~'|'!') e1=expression
+    |   opnotlogical='!' e1=expression
+    |   opnotbinary='.~' e1=expression
     |   e1 = expression op2='**' e2=expression
     |   op3=('+'|'-') e1=expression
     |   e1 = expression op4=('*'|'/'|'%') e2=expression
