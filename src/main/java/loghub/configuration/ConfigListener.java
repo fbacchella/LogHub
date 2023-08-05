@@ -968,10 +968,16 @@ class ConfigListener extends RouteBaseListener {
                     @SuppressWarnings("unchecked")
                     List<ExpressionBuilder> exlist = stack.popTyped();
                     ExpressionBuilder expressions = newExpressionBuilder().getExpressionList(exlist);
+
                     expression = newExpressionBuilder()
                                                .setVarFormatter(vf)
                                                .setExpression("formatters.%s.format(%s)", key, expressions)
                                                .setType(expressions.getType());
+                    if (expression.getType() == ExpressionBuilder.ExpressionType.LAMBDA) {
+                        Expression.ExpressionLambda listlambda = expressions.getPayload();
+                        expression = expression.setLambda(ed -> vf.format(listlambda.apply(ed)));
+                    }
+
                 } else {
                     expression = newExpressionBuilder()
                                                .setExpression("formatters.%s.format(event)", key)
@@ -1021,7 +1027,9 @@ class ConfigListener extends RouteBaseListener {
         } else if (ctx.opnotbinary != null) {
             // '.~'
             ExpressionBuilder post = stack.popTyped();
-            expression = post.snap().setOperator("~ %s", post);
+            expression = post.snap()
+                             .setOperator("~ %s", post)
+                             .setLambda(post, (l, ed) -> ed.getExpression().groovyOperator("~", l.apply(ed)));
         } else if (ctx.op2 != null) {
             // '**'
             String op = ctx.op2.getText();
@@ -1034,7 +1042,8 @@ class ConfigListener extends RouteBaseListener {
             String op3 = ctx.op3.getText();
             int sign = "-".equals(op3) ? -1 : 1;
             expression = post.snap()
-                             .setOperator("%s %s", op3, post);
+                             .setOperator("%s(%s)", op3, post)
+                             .setLambda(post, (l, ed) -> ed.getExpression().groovyOperator("*", sign, l.apply(ed)));
         } else if (ctx.op4 != null) {
             // '*'|'/'|'%'
             String op = ctx.op4.getText();

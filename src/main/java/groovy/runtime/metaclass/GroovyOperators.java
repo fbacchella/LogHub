@@ -18,6 +18,7 @@ public final class GroovyOperators {
     public static final String AS_BOOLEAN = "asBoolean";
     public static final String EQUALS = "equals";
     public static final String AS_TYPE = "asType";
+    public static final String BITWISE_NEGATE = "bitwiseNegate";
 
     private GroovyOperators() {
         // No instantiation class

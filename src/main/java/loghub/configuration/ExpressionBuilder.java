@@ -3,7 +3,9 @@ package loghub.configuration;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.BiFunction;
+import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -213,6 +215,10 @@ class ExpressionBuilder {
         }
         setExpression("[%s]", exlist);
         setType(nextType);
+        payload = fromList(expressions);
+        if (payload != null) {
+            type = ExpressionType.LAMBDA;
+        }
         return this;
     }
 
@@ -238,14 +244,14 @@ class ExpressionBuilder {
             return getPayload();
         case VARPATH:
             VariablePath vp = getPayload();
-            return ed -> ed.getEvent().getAtPath(vp);
+            return ed -> ed.getExpression().nullfilter(ed.getEvent().getAtPath(vp));
         case FORMATTER:
             VarFormatter vf = getPayload();
             return ed -> vf.format(ed.getEvent());
         case CONSTANT:
             try {
                 Object value = new Expression(expression, groovyClassLoader, formatters).eval(null);
-                return ed -> value;
+                return value != null ? ed -> value : ed -> NullOrMissingValue.NULL;
             } catch (ProcessorException | RuntimeException | Expression.ExpressionException e) {
                 return null;
             }
@@ -253,6 +259,16 @@ class ExpressionBuilder {
         case VARIABLE:
         default:
             return null;
+        }
+    }
+
+    private Expression.ExpressionLambda fromList(List<ExpressionBuilder> list) {
+        List<Expression.ExpressionLambda> lambdas = list.stream().map(eb -> eb.asLambda()).filter(Objects::nonNull).collect(Collectors.toList());
+        if (list.size() != lambdas.size()) {
+            // one of the lambda was null, so the whole list is not usable.
+            return null;
+        } else {
+            return ed -> lambdas.stream().map(l -> l.apply(ed)).collect(Collectors.toList());
         }
     }
 

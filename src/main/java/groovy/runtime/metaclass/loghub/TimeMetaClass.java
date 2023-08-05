@@ -10,14 +10,10 @@ import groovy.lang.MetaClass;
 import groovy.runtime.metaclass.GroovyOperators;
 import loghub.IgnoredEventException;
 
-public class TimeDiff extends DelegatingMetaClass {
-
-    public TimeDiff(Class<?> theClass) {
-        super(theClass);
-    }
+public class TimeMetaClass extends DelegatingMetaClass {
 
     @SuppressWarnings("unused")
-    public TimeDiff(MetaClass theClass) {
+    public TimeMetaClass(MetaClass theClass) {
         super(theClass);
     }
 

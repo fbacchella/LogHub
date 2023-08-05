@@ -8,11 +8,6 @@ import loghub.NullOrMissingValue;
 
 public class NullOrNoneValueMetaClass extends DelegatingMetaClass {
 
-    public NullOrNoneValueMetaClass(Class<?> theClass) {
-        super(theClass);
-    }
-
-    @SuppressWarnings("unused")
     public NullOrNoneValueMetaClass(MetaClass theClass) {
         super(theClass);
     }
@@ -25,7 +20,11 @@ public class NullOrNoneValueMetaClass extends DelegatingMetaClass {
         case GroovyOperators.COMPARE_TO: return val.compareTo(arguments[0]);
         case "asBoolean": return false;
         default:
-            throw IgnoredEventException.INSTANCE;
+            if (object == NullOrMissingValue.NULL) {
+                return NullOrMissingValue.NULL;
+            } else {
+                throw IgnoredEventException.INSTANCE;
+            }
         }
     }
 

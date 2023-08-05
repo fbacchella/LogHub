@@ -4,13 +4,14 @@ import java.io.Closeable;
 import java.lang.reflect.Array;
 import java.lang.reflect.InvocationTargetException;
 import java.math.BigDecimal;
-import java.math.BigInteger;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.security.Principal;
 import java.time.DateTimeException;
 import java.time.Instant;
+import java.time.temporal.Temporal;
 import java.time.temporal.TemporalAccessor;
 import java.util.AbstractMap;
 import java.util.ArrayList;
@@ -28,6 +29,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -50,16 +52,20 @@ import groovy.lang.MetaClassRegistry;
 import groovy.lang.MissingPropertyException;
 import groovy.lang.Script;
 import groovy.runtime.metaclass.GroovyOperators;
+import groovy.runtime.metaclass.java.lang.BooleanMetaClass;
+import groovy.runtime.metaclass.java.lang.CharacterMetaClass;
 import groovy.runtime.metaclass.java.lang.NumberMetaClass;
 import groovy.runtime.metaclass.java.lang.StringMetaClass;
+import groovy.runtime.metaclass.java.net.InetAddressMetaClass;
+import groovy.runtime.metaclass.java.util.CollectionMetaClass;
+import groovy.runtime.metaclass.java.util.MapMetaClass;
 import groovy.runtime.metaclass.loghub.EventMetaClass;
 import groovy.runtime.metaclass.loghub.ExpressionMetaClass;
-import groovy.runtime.metaclass.loghub.FastPathMetaClass;
+import groovy.runtime.metaclass.loghub.LambdaPropertyMetaClass;
 import groovy.runtime.metaclass.loghub.NullOrNoneValueMetaClass;
-import groovy.runtime.metaclass.loghub.TimeDiff;
+import groovy.runtime.metaclass.loghub.TimeMetaClass;
 import groovy.runtime.metaclass.loghub.VarFormatterMetaClass;
 import loghub.events.Event;
-import loghub.events.EventsFactory;
 import lombok.Getter;
 
 /**
@@ -73,45 +79,90 @@ public class Expression {
 
     private static final String FORMATTER = "__FORMATTER__";
 
-    static private final MetaClassRegistry registry = GroovySystem.getMetaClassRegistry();
+    private static final MetaClassRegistry registry = GroovySystem.getMetaClassRegistry();
 
     static {
-
-        registry.setMetaClass(String.class, new StringMetaClass(String.class));
-        registry.setMetaClass(Expression.class, new ExpressionMetaClass(Expression.class));
-        registry.setMetaClass(VarFormatter.class, new VarFormatterMetaClass(VarFormatter.class));
-
-        for (Class<?> c: new Class[] {NullOrMissingValue.NULL.getClass(), NullOrMissingValue.MISSING.getClass()}) {
-            registry.setMetaClass(c, new NullOrNoneValueMetaClass(c));
-        }
-
-        for (Class<?> c: new Class[] {Integer.class, Byte.class, Double.class, Float.class, Long.class, Short.class, BigDecimal.class, BigInteger.class}) {
-            registry.setMetaClass(c, new NumberMetaClass(c));
-        }
-
-        for (Class<?> c: new Class[] {Date.class, Instant.class}) {
-            registry.setMetaClass(c, new TimeDiff(c));
-        }
-
-        for (Class<?> c: EventsFactory.getEventClasses()) {
-            registry.setMetaClass(c, new EventMetaClass(c));
-        }
+        java.util.Map<Class<?>, Function<MetaClass, MetaClass>> metaClassFactories = new HashMap<>();
+        metaClassFactories.put(String.class, StringMetaClass::new);
+        metaClassFactories.put(Character.class, CharacterMetaClass::new);
+        metaClassFactories.put(Expression.class, ExpressionMetaClass::new);
+        metaClassFactories.put(VarFormatter.class, VarFormatterMetaClass::new);
+        metaClassFactories.put(Boolean.class, BooleanMetaClass::new);
+        metaClassFactories.put(NullOrMissingValue.NULL.getClass(), NullOrNoneValueMetaClass::new);
+        metaClassFactories.put(NullOrMissingValue.MISSING.getClass(), NullOrNoneValueMetaClass::new);
+        metaClassFactories.put(InetAddress.class, InetAddressMetaClass::new);
+        metaClassFactories.put(Date.class, TimeMetaClass::new);
+        metaClassFactories.put(Temporal.class, TimeMetaClass::new);
+        metaClassFactories.put(Number.class, NumberMetaClass::new);
+        metaClassFactories.put(Map.class, MapMetaClass::new);
+        metaClassFactories.put(Collection.class, CollectionMetaClass::new);
+        metaClassFactories.put(NullOrMissingValue.class,
+                mc -> new LambdaPropertyMetaClass(mc, java.util.Map.ofEntries(
+                    java.util.Map.entry("NULL", o -> NullOrMissingValue.NULL),
+                    java.util.Map.entry("MISSING", o -> NullOrMissingValue.MISSING))
+                )
+        );
+        metaClassFactories.put(ConnectionContext.class,
+                mc -> new LambdaPropertyMetaClass(mc, java.util.Map.ofEntries(
+                        java.util.Map.entry("principal", o -> ((ConnectionContext<?>)o).getPrincipal()),
+                        java.util.Map.entry("localAddress", o -> ((ConnectionContext<?>)o).getLocalAddress()),
+                        java.util.Map.entry("remoteAddress", o -> ((ConnectionContext<?>)o).getRemoteAddress())
+                    )
+                )
+        );
+        metaClassFactories.put(Principal.class,
+                mc -> new LambdaPropertyMetaClass(mc, java.util.Map.ofEntries(
+                        java.util.Map.entry("name", o -> ((Principal)o).getName())
+                    )
+                )
+        );
+        metaClassFactories.put(InetAddress.class,
+                mc -> new LambdaPropertyMetaClass(mc, java.util.Map.ofEntries(
+                        java.util.Map.entry("hostAddress", o -> ((InetAddress)o).getHostAddress())
+                    )
+                )
+        );
+        metaClassFactories.put(InetSocketAddress.class,
+                mc -> new LambdaPropertyMetaClass(mc, java.util.Map.ofEntries(
+                        java.util.Map.entry("hostAddress", o -> ((InetSocketAddress)o).getAddress())
+                    )
+                )
+        );
+        metaClassFactories.put(Event.class, EventMetaClass::new);
 
         registry.setMetaClassCreationHandle(new MetaClassRegistry.MetaClassCreationHandle() {
             @Override
             protected MetaClass createNormalMetaClass(Class theClass, MetaClassRegistry registry) {
-                if (NullOrMissingValue.class.isAssignableFrom(theClass)
-                            || ConnectionContext.class.isAssignableFrom(theClass)
-                            || Principal.class.isAssignableFrom(theClass)
-                            || InetAddress.class.isAssignableFrom(theClass)
-                            || InetSocketAddress.class.isAssignableFrom(theClass)
-                            || Map.class.isAssignableFrom(theClass)
-                            || Set.class.isAssignableFrom(theClass)
-                ) {
-                    return new FastPathMetaClass(super.createNormalMetaClass(theClass, registry));
+                if (metaClassFactories.containsKey(theClass)) {
+                    return doCreate(theClass, theClass);
+                } else if (Event.class.isAssignableFrom(theClass)) {
+                    return doCreate(Event.class, theClass);
+                } else if (Temporal.class.isAssignableFrom(theClass)) {
+                    return doCreate(Temporal.class, theClass);
+                } else if (Number.class.isAssignableFrom(theClass)) {
+                    return doCreate(Number.class, theClass);
+                } else if (Collection.class.isAssignableFrom(theClass)) {
+                    return doCreate(Collection.class, theClass);
+                } else if (ConnectionContext.class.isAssignableFrom(theClass)) {
+                    return doCreate(ConnectionContext.class, theClass);
+                } else if (Principal.class.isAssignableFrom(theClass)) {
+                    return doCreate(Principal.class, theClass);
+                } else if (InetAddress.class.isAssignableFrom(theClass)) {
+                    return doCreate(InetAddress.class, theClass);
+                } else if (InetSocketAddress.class.isAssignableFrom(theClass)) {
+                    return doCreate(InetSocketAddress.class, theClass);
+                } else if (Map.class.isAssignableFrom(theClass)) {
+                    return doCreate(Map.class, theClass);
+                } else if (Script.class.isAssignableFrom(theClass)) {
+                    return super.createNormalMetaClass(theClass, registry);
                 } else {
+                    logger.debug("Creating unhandler MetaClass {}", theClass::getName);
                     return super.createNormalMetaClass(theClass, registry);
                 }
+            }
+            MetaClass doCreate(Class<?> key, Class<?> c) {
+                logger.trace("Handling class {} with {}", c::getName, key::getName);
+                return metaClassFactories.get(key).apply(super.createNormalMetaClass(c, registry));
             }
         });
     }
@@ -132,7 +183,7 @@ public class Expression {
         Event getEvent();
         Expression getExpression();
         Object getValue();
-        Map<String, VarFormatter> getFormatters();
+        java.util.Map<String, VarFormatter> getFormatters();
     }
 
     private static class BindingMap extends AbstractMap<String, Object> implements ExpressionData, Closeable {
@@ -164,7 +215,7 @@ public class Expression {
         }
 
         @Override
-        public Map<String, VarFormatter> getFormatters() {
+        public java.util.Map<String, VarFormatter> getFormatters() {
             return expression.formatters;
         }
 
@@ -185,26 +236,26 @@ public class Expression {
     private static final Logger logger = LogManager.getLogger();
 
     private static final Binding EMPTYBIDDING = new Binding();
-    private static final Set<Map<String, Script>> scriptsMaps = new HashSet<>();
-    private static final ThreadLocal<Map<String, Script>> compilationCache = ThreadLocal.withInitial(() -> {
-        Map<String, Script> m = new HashMap<>();
+    private static final Set<java.util.Map<String, Script>> scriptsMaps = new HashSet<>();
+    private static final ThreadLocal<java.util.Map<String, Script>> compilationCache = ThreadLocal.withInitial(() -> {
+        java.util.Map<String, Script> m = new HashMap<>();
         synchronized(scriptsMaps) {
             scriptsMaps.add(m);
         }
         return m;
     });
     private static final ThreadLocal<BindingMap> bindings = ThreadLocal.withInitial(BindingMap::new);
-    private static final Map<String, Pattern> PATTERN_CACHE = new ConcurrentHashMap<>();
-    private static final Map<String, ThreadLocal<Matcher>> MATCHER_CACHE = new ConcurrentHashMap<>();
+    private static final java.util.Map<String, Pattern> PATTERN_CACHE = new ConcurrentHashMap<>();
+    private static final java.util.Map<String, ThreadLocal<Matcher>> MATCHER_CACHE = new ConcurrentHashMap<>();
     private static final Pattern VARPATH_PATTERN = Pattern.compile("event.getGroovyPath\\((\\d+)\\)");
 
     @Getter
     private final String expression;
-    private final Map<String, VarFormatter> formatters;
+    private final java.util.Map<String, VarFormatter> formatters;
     private final GroovyClassLoader loader;
     private final Object literal;
 
-    public Expression(String expression, GroovyClassLoader loader, Map<String, VarFormatter> formatters) throws ExpressionException {
+    public Expression(String expression, GroovyClassLoader loader, java.util.Map<String, VarFormatter> formatters) throws ExpressionException {
         Matcher m = VARPATH_PATTERN.matcher(expression);
         if (m.matches()) {
             int vpid = Integer.parseInt(m.group(1));
@@ -247,10 +298,10 @@ public class Expression {
             this.expression = null;
         }
         this.loader = null;
-        this.formatters = Map.of();
+        this.formatters = java.util.Map.of();
     }
 
-    public Expression(VarFormatter format, Map<String, VarFormatter> formatters) {
+    public Expression(VarFormatter format, java.util.Map<String, VarFormatter> formatters) {
         this.literal = format;
         this.expression = null;
         this.loader = null;
@@ -531,8 +582,8 @@ public class Expression {
             return ((String) arg).isEmpty();
         } else if (arg instanceof Collection) {
             return ((Collection<?>) arg).isEmpty();
-        } else if (arg instanceof Map) {
-            return ((Map<?, ?>) arg).isEmpty();
+        } else if (arg instanceof java.util.Map) {
+            return ((java.util.Map<?, ?>) arg).isEmpty();
         } else if (arg.getClass().isArray()) {
             return Array.getLength(arg) == 0;
         } else {
@@ -540,13 +591,27 @@ public class Expression {
         }
     }
 
+    private Object checkStringIp(Object arg1, Object arg2) {
+        try {
+            if (arg1 instanceof InetAddress && arg2 instanceof String) {
+                if (((String) arg2).startsWith("/")) {
+                    arg2 = ((String) arg2).substring(1);
+                }
+                return InetAddress.getByName((String)arg2);
+            } else {
+                return arg2;
+            }
+        } catch (UnknownHostException e) {
+            return arg2;
+        }
+    }
+
     public Object compare(String operator, Object arg1, Object arg2) {
-        if (arg1 == null) {
-            arg1 = NullOrMissingValue.NULL;
-        }
-        if (arg2 == null) {
-            arg2 = NullOrMissingValue.NULL;
-        }
+        arg1 = nullfilter(arg1);
+        arg2 = protect(operator, arg2);
+        // Detect if comparing an IP with a String, try to compare both as InetAddress
+        arg2 = checkStringIp(arg1, arg2);
+        arg1 = checkStringIp(arg2, arg1);
         boolean dateCompare = (arg1 instanceof Date || arg1 instanceof TemporalAccessor) &&
                               (arg2 instanceof Date || arg2 instanceof TemporalAccessor);
         if (arg1 == NullOrMissingValue.MISSING || arg2 == NullOrMissingValue.MISSING) {
@@ -633,7 +698,7 @@ public class Expression {
     }
 
     public Object regex(Object arg, String op, String encodedPattern) {
-        if (arg == NullOrMissingValue.NULL || arg == null || arg instanceof Collection || arg instanceof Map || arg.getClass().isArray()) {
+        if (arg == NullOrMissingValue.NULL || arg == null || arg instanceof Collection || arg instanceof java.util.Map || arg.getClass().isArray()) {
             return false;
         } else if (arg == NullOrMissingValue.MISSING) {
             throw IgnoredEventException.INSTANCE;
@@ -668,14 +733,36 @@ public class Expression {
         } else if (arg instanceof Number) {
             return ((Number) arg).longValue() != 0;
         } else {
-            return isEmpty(arg);
+            return ! isEmpty(arg);
         }
     }
 
+    public Object groovyOperator(String operator, Object arg1) {
+        arg1 = nullfilter(arg1);
+        if (arg1 == NullOrMissingValue.NULL) {
+            throw IgnoredEventException.INSTANCE;
+        }
+        MetaClass mc = registry.getMetaClass(arg1.getClass());
+        String groovyName;
+        switch (operator) {
+        case "~":
+            groovyName = GroovyOperators.BITWISE_NEGATE;
+            break;
+        default:
+            throw new UnsupportedOperationException(operator);
+        }
+        return mc.invokeMethod(arg1, groovyName, new Object[]{});
+    }
+
     public Object groovyOperator(String operator, Object arg1, Object arg2) {
+        arg1 = nullfilter(arg1);
+        arg2 = protect(operator, arg2);
         if ("===".equals(operator) || "!==".equals(operator)) {
             return (System.identityHashCode(arg1) == System.identityHashCode(arg2)) ^ ("!==".equals(operator));
         } else {
+            if (arg1 == NullOrMissingValue.NULL) {
+                throw IgnoredEventException.INSTANCE;
+            }
             MetaClass mc = registry.getMetaClass(arg1.getClass());
             String groovyName;
             switch (operator) {
@@ -737,7 +824,7 @@ public class Expression {
      */
     public static void clearCache() {
         synchronized(scriptsMaps) {
-            scriptsMaps.forEach(Map::clear);
+            scriptsMaps.forEach(java.util.Map::clear);
         }
         MATCHER_CACHE.clear();
         PATTERN_CACHE.clear();

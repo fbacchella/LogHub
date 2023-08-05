@@ -6,11 +6,6 @@ import loghub.events.Event;
 
 public class EventMetaClass extends DelegatingMetaClass {
 
-    public EventMetaClass(Class<?> theClass) {
-        super(theClass);
-    }
-
-    @SuppressWarnings("unused")
     public EventMetaClass(MetaClass theClass) {
         super(theClass);
     }
@@ -25,7 +20,6 @@ public class EventMetaClass extends DelegatingMetaClass {
         case "getGroovyPath": return ev.getGroovyPath((int)arguments[0]);
         case "getGroovyLastException": return ev.getGroovyLastException();
         default: {
-            assert false : "Unknown method " + methodName;
             return super.invokeMethod(object, methodName, arguments);
         }
         }

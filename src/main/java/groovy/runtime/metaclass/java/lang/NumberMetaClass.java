@@ -13,11 +13,6 @@ import loghub.NullOrMissingValue;
 
 public class NumberMetaClass extends DelegatingMetaClass {
 
-    public NumberMetaClass(Class<?> theClass) {
-        super(theClass);
-    }
-
-    @SuppressWarnings("unused")
     public NumberMetaClass(MetaClass theClass) {
         super(theClass);
     }
@@ -94,6 +89,14 @@ public class NumberMetaClass extends DelegatingMetaClass {
                 }
             }
             return value;
+        } else if ("compareTo".equals(methodName)) {
+            if (arguments[0] instanceof NullOrMissingValue) {
+                throw IgnoredEventException.INSTANCE;
+            } else if (! (arguments[0] instanceof Number)) {
+                throw new ClassCastException(arguments[0] + " not a number");
+            } else {
+                return super.invokeMethod(object, methodName, arguments);
+            }
         } else {
             for (Object argument : arguments) {
                 if (argument instanceof NullOrMissingValue) {

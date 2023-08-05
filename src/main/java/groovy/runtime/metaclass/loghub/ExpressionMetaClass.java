@@ -5,15 +5,9 @@ import org.codehaus.groovy.runtime.wrappers.PojoWrapper;
 import groovy.lang.DelegatingMetaClass;
 import groovy.lang.MetaClass;
 import loghub.Expression;
-import loghub.Helpers;
 
 public class ExpressionMetaClass extends DelegatingMetaClass {
 
-    public ExpressionMetaClass(Class<?> theClass) {
-        super(theClass);
-    }
-
-    @SuppressWarnings("unused")
     public ExpressionMetaClass(MetaClass theClass) {
         super(theClass);
     }
@@ -41,10 +35,8 @@ public class ExpressionMetaClass extends DelegatingMetaClass {
         case "newCollection": return ex.newCollection(arguments[0].toString());
         case "asCollection": return ex.asCollection(arguments[0].toString(), arguments[1]);
         default:
-            assert false;
             return super.invokeMethod(object, methodName, arguments);
         }
     }
-    
-    
+
 }
