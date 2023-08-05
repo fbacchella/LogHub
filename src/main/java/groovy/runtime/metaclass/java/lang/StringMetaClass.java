@@ -4,7 +4,7 @@ import org.codehaus.groovy.runtime.StringGroovyMethods;
 
 import groovy.lang.DelegatingMetaClass;
 import groovy.lang.MetaClass;
-import groovy.runtime.metaclass.GroovyOperators;
+import groovy.runtime.metaclass.GroovyMethods;
 import loghub.IgnoredEventException;
 import loghub.NullOrMissingValue;
 
@@ -17,23 +17,23 @@ public class StringMetaClass extends DelegatingMetaClass {
     @Override
     public Object invokeMethod(Object object, String methodName, Object[] arguments) {
         if (arguments.length == 1 && arguments[0] instanceof NullOrMissingValue) {
-            if (GroovyOperators.COMPARE_TO.equals(methodName)) {
+            if (GroovyMethods.COMPARE_TO.equals(methodName)) {
                 return false;
             } else {
                 throw IgnoredEventException.INSTANCE;
             }
         }
-        if (GroovyOperators.COMPARE_TO.equals(methodName)) {
+        if (GroovyMethods.COMPARE_TO.equals(methodName)) {
             if (arguments[0] instanceof CharSequence) {
                 return object.toString().compareTo(arguments[0].toString());
             } else {
                 return false;
             }
-        } else if (GroovyOperators.AS_BOOLEAN.equals(methodName)){
+        } else if (GroovyMethods.AS_BOOLEAN.equals(methodName)){
             return StringGroovyMethods.asBoolean(object.toString());
-        } else if (GroovyOperators.PLUS.equals(methodName)){
+        } else if (GroovyMethods.PLUS.equals(methodName)){
             return object.toString() + arguments[0].toString();
-        } else if (GroovyOperators.AS_TYPE.equals(methodName) && arguments[0] == Character.TYPE){
+        } else if (GroovyMethods.AS_TYPE.equals(methodName) && arguments[0] == Character.TYPE){
             return object.toString().charAt(0);
         } else {
             return super.invokeMethod(object, methodName, arguments);

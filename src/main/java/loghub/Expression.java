@@ -51,7 +51,7 @@ import groovy.lang.MetaClass;
 import groovy.lang.MetaClassRegistry;
 import groovy.lang.MissingPropertyException;
 import groovy.lang.Script;
-import groovy.runtime.metaclass.GroovyOperators;
+import groovy.runtime.metaclass.GroovyMethods;
 import groovy.runtime.metaclass.java.lang.BooleanMetaClass;
 import groovy.runtime.metaclass.java.lang.CharacterMetaClass;
 import groovy.runtime.metaclass.java.lang.NumberMetaClass;
@@ -743,15 +743,8 @@ public class Expression {
             throw IgnoredEventException.INSTANCE;
         }
         MetaClass mc = registry.getMetaClass(arg1.getClass());
-        String groovyName;
-        switch (operator) {
-        case "~":
-            groovyName = GroovyOperators.BITWISE_NEGATE;
-            break;
-        default:
-            throw new UnsupportedOperationException(operator);
-        }
-        return mc.invokeMethod(arg1, groovyName, new Object[]{});
+        GroovyMethods groovyOp = GroovyMethods.resolveSymbol(operator);
+        return mc.invokeMethod(arg1, groovyOp.groovyMethod, new Object[]{});
     }
 
     public Object groovyOperator(String operator, Object arg1, Object arg2) {
@@ -764,48 +757,8 @@ public class Expression {
                 throw IgnoredEventException.INSTANCE;
             }
             MetaClass mc = registry.getMetaClass(arg1.getClass());
-            String groovyName;
-            switch (operator) {
-            case "+":
-                groovyName = GroovyOperators.PLUS;
-                break;
-            case "*":
-                groovyName = GroovyOperators.MULTIPLY;
-                break;
-            case "/":
-                groovyName = GroovyOperators.DIV;
-                break;
-            case "-":
-                groovyName = GroovyOperators.MINUS;
-                break;
-            case "%":
-                groovyName = GroovyOperators.MOD;
-                break;
-            case "**":
-                groovyName = GroovyOperators.POWER;
-                break;
-            case "<<":
-                groovyName = GroovyOperators.LEFT_SHIFT;
-                break;
-            case ">>":
-                groovyName = GroovyOperators.RIGHT_SHIFT;
-                break;
-            case ">>>":
-                groovyName = GroovyOperators.RIGHT_SHIFT_UNSIGNED;
-                break;
-            case "^":
-                groovyName = GroovyOperators.XOR;
-                break;
-            case "|":
-                groovyName = GroovyOperators.OR;
-                break;
-            case "&":
-                groovyName = GroovyOperators.AND;
-                break;
-            default:
-                throw new UnsupportedOperationException(operator);
-            }
-            return mc.invokeMethod(arg1, groovyName, new Object[]{arg2});
+            GroovyMethods groovyOp = GroovyMethods.resolveSymbol(operator);
+            return mc.invokeMethod(arg1, groovyOp.groovyMethod, new Object[]{arg2});
         }
     }
 

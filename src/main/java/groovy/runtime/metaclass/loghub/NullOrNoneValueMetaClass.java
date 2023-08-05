@@ -2,7 +2,7 @@ package groovy.runtime.metaclass.loghub;
 
 import groovy.lang.DelegatingMetaClass;
 import groovy.lang.MetaClass;
-import groovy.runtime.metaclass.GroovyOperators;
+import groovy.runtime.metaclass.GroovyMethods;
 import loghub.IgnoredEventException;
 import loghub.NullOrMissingValue;
 
@@ -15,10 +15,10 @@ public class NullOrNoneValueMetaClass extends DelegatingMetaClass {
     @Override
     public Object invokeMethod(Object object, String methodName, Object[] arguments) {
         NullOrMissingValue val = (NullOrMissingValue) object;
-        switch (methodName) {
-        case GroovyOperators.EQUALS: return val.equals(arguments[0]);
-        case GroovyOperators.COMPARE_TO: return val.compareTo(arguments[0]);
-        case "asBoolean": return false;
+        switch (GroovyMethods.resolveGroovyName(methodName)) {
+        case EQUALS: return val.equals(arguments[0]);
+        case COMPARE_TO: return val.compareTo(arguments[0]);
+        case AS_BOOLEAN: return false;
         default:
             if (object == NullOrMissingValue.NULL) {
                 return NullOrMissingValue.NULL;
