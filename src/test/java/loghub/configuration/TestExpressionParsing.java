@@ -5,7 +5,9 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.math.BigDecimal;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.security.Principal;
 import java.time.Instant;
@@ -109,10 +111,11 @@ public class TestExpressionParsing {
 
     @Test
     public void testFormatterSimple() throws ExpressionException, ProcessorException {
-        String format = "${#1%02d}";
+        String format = "${#1%02d} ${#2%02d}";
         Event ev =  factory.newEvent();
         ev.put("a", 1);
-        Assert.assertEquals("01", evalExpression("\"" + format + "\"([a])", ev));
+        ev.put("b", 2);
+        Assert.assertEquals("01 02", evalExpression("\"" + format + "\"([a], [b])", ev));
     }
 
     @Test
@@ -228,6 +231,7 @@ public class TestExpressionParsing {
     public void testOperators() {
         Event ev = factory.newEvent();
         Object[] tryExpression = new Object[] {
+                "'a' + 'b'", "ab",
                 "1 instanceof java.lang.Integer", true,
                 "1 !instanceof java.lang.Integer", false,
                 "'a' in \"bac\"", true,
@@ -319,11 +323,11 @@ public class TestExpressionParsing {
                 "2 .^ [a b]", IgnoredEventException.class,
                 "2 .| [a b]", IgnoredEventException.class,
                 "2 .& [a b]", IgnoredEventException.class,
-                "true && [a b]", false,
-                "false || [a b]", false,
+                "true && [a b]", IgnoredEventException.class,
+                "false || [a b]", IgnoredEventException.class,
                 "2 in [a b]", false,
                 ".~ [a b]", IgnoredEventException.class,
-                "! [a b]", true,
+                "! [a b]", IgnoredEventException.class,
                 "+ [a b]", IgnoredEventException.class,
                 "- [a b]", IgnoredEventException.class,
                 "[#a]", IgnoredEventException.class,
@@ -360,7 +364,6 @@ public class TestExpressionParsing {
                 "2 >>> [a]", IgnoredEventException.class,
                 "2 <= [a]", IgnoredEventException.class,
                 "2 >= [a]", IgnoredEventException.class,
-                "2 < 3", true,
                 "2 < [a]", IgnoredEventException.class,
                 "2 > [a]", IgnoredEventException.class,
                 "2 <=> [a]", IgnoredEventException.class,
@@ -568,7 +571,7 @@ public class TestExpressionParsing {
 
     @Test
     public void
-    testPatternMissing() throws ExpressionException, ProcessorException {
+    testPatternMissing() {
         Event ev = factory.newEvent();
         Assert.assertThrows(IgnoredEventException.class, () -> evalExpression("[a] ==~ /.*/",ev));
     }
@@ -738,6 +741,16 @@ public class TestExpressionParsing {
     }
 
     @Test
+    public void testCharOperator() throws ExpressionException, ProcessorException {
+        Event ev = factory.newEvent();
+        ev.put("a", ' ');
+        ev.put("b", '1');
+        ev.put("c", '2');
+        Assert.assertEquals("", evalExpression("trim([a])",ev));
+        Assert.assertEquals("12", evalExpression("[b] + [c]",ev));
+    }
+
+    @Test
     public void testComplexString() throws ExpressionException, ProcessorException {
         Event ev = factory.newEvent();
         String toEval = "a\"\\\t\n\r" + String.valueOf(Character.toChars(0x10000));
@@ -801,7 +814,7 @@ public class TestExpressionParsing {
 
 
     @Test
-    public void testIsEmptyIgnore() throws ProcessorException, ExpressionException {
+    public void testIsEmptyIgnore() {
         Event ev = factory.newEvent();
         ev.putAtPath(VariablePath.of("event", "type"), "debug");
         Assert.assertThrows(IgnoredEventException.class, () -> evalExpression("isEmpty([event start])", ev));
@@ -847,6 +860,18 @@ public class TestExpressionParsing {
         String lambda = "x -> y + 1";
         ConfigException ex = Assert.assertThrows(ConfigException.class, () -> ConfigurationTools.unWrap(lambda, RouteParser::lambda, new HashMap<>()));
         Assert.assertEquals("Invalid lambda definition", ex.getMessage());
+    }
+
+    @Test
+    public void testIp() throws ProcessorException, ExpressionException, UnknownHostException {
+        Event ev = factory.newEvent();
+        ev.put("a", InetAddress.getByName("192.168.1.1"));
+        ev.put("b", InetAddress.getByName("www.google.com"));
+        ev.put("c", InetAddress.getByName("127.0.0.1"));
+        Assert.assertTrue((boolean) evalExpression("[a] == \"192.168.1.1\"", ev));
+        Assert.assertTrue((boolean) evalExpression("[a] == \"/192.168.1.1\"", ev));
+        Assert.assertTrue((boolean) evalExpression("[b] == \"www.google.com\"", ev));
+        Assert.assertTrue((boolean) evalExpression("[c] == \"localhost\"", ev));
     }
 
 }
