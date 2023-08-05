@@ -12,6 +12,8 @@ import java.nio.charset.StandardCharsets;
 import java.security.Principal;
 import java.time.Instant;
 import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
@@ -269,6 +271,25 @@ public class TestExpressionParsing {
                 "!0", true,
                 "!true", false,
                 "!false", true,
+        };
+        enumerateExpressions(ev, tryExpression);
+    }
+
+    @Test
+    public void dateCompare() {
+        Instant now = Instant.now();
+        Event ev = factory.newEvent();
+        ev.put("a", now);
+        ev.put("b", Date.from(now));
+        ev.put("c", ZonedDateTime.ofInstant(now, ZoneId.systemDefault()));
+        ev.put("d", 1);
+        Object[] tryExpression = new Object[] {
+                "[a] <=> [b]", 0,
+                "[b] <=> [c]", 0,
+                "[c] <=> [a]", 0,
+                "[a] <=> [d]", IgnoredEventException.class,
+                "[b] <=> [d]", IgnoredEventException.class,
+                "[c] <=> [d]", IgnoredEventException.class
         };
         enumerateExpressions(ev, tryExpression);
     }

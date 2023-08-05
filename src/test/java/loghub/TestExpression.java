@@ -2,8 +2,6 @@ package loghub;
 
 import java.io.IOException;
 import java.time.Instant;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
@@ -25,13 +23,12 @@ import loghub.events.EventsFactory;
 
 public class TestExpression {
 
-    private static Logger logger ;
     private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
     static public void configure() throws IOException {
         Tools.configure();
-        logger = LogManager.getLogger();
+        Logger logger = LogManager.getLogger();
         LogUtils.setLevel(logger, Level.TRACE, "loghub.Expression", "loghub.VarFormatter");
         Expression.clearCache();
     }
@@ -72,7 +69,7 @@ public class TestExpression {
     }
 
   @Test
-    public void testStringFormat() throws ExpressionException, ProcessorException {
+    public void testStringFormat() throws ProcessorException {
         String format = "${a%s} ${b%02d}";
         Expression expression = new Expression(format);
         Event ev = factory.newEvent();
@@ -83,7 +80,7 @@ public class TestExpression {
     }
 
     @Test
-    public void testFailsCompilation() throws ExpressionException, ProcessorException {
+    public void testFailsCompilation() {
         // An expression valid in loghub, but not in groovy, should be catched
         String expressionScript = "event.getGroovyPath(\"host\") instanceof formatters.h_473e3665.format(event)";
         ExpressionException ex = Assert.assertThrows(ExpressionException.class, 
@@ -92,7 +89,7 @@ public class TestExpression {
     }
 
     @Test
-    public void testDateDiff() throws ExpressionException, ProcessorException {
+    public void testDateDiff() {
         Instant now = Instant.now();
         Event ev = factory.newEvent();
         ev.put("a", now.minusMillis(1100));
@@ -116,36 +113,6 @@ public class TestExpression {
         Assert.assertEquals("event.d - event.a", 1.1, results.get("event.d - event.a"), 1e-3);
         Assert.assertThrows(IgnoredEventException.class, () -> {
             Expression exp = new Expression("event.c -1", new Properties(Collections.emptyMap()).groovyClassLoader, Collections.emptyMap());
-            exp.eval(ev);
-            Assert.fail();
-        });
-    }
-
-    @Test
-    public void dateCompare() {
-        Instant now = Instant.now();
-        Event ev = factory.newEvent();
-        ev.put("a", now);
-        ev.put("b", Date.from(now));
-        ev.put("c", ZonedDateTime.ofInstant(now, ZoneId.systemDefault()));
-        ev.put("d", 1);
-        String[] scripts = new String[] { "ex.compare(\"<=>\", event.a, event.b)", "ex.compare(\"<=>\", event.b, event.c)", "ex.compare(\"<=>\", event.c, event.a)"};
-        Map<String, Integer> results = new HashMap<>(scripts.length);
-        Arrays.stream(scripts).forEach(s -> {
-            try {
-                Expression exp = new Expression(s, new Properties(Collections.emptyMap()).groovyClassLoader, Collections.emptyMap());
-                Integer f = (Integer) exp.eval(ev);
-                results.put(s, f);
-            } catch (ExpressionException | ProcessorException e) {
-                throw new RuntimeException(e);
-            }
-        });
-        Assert.assertEquals(scripts.length, results.size());
-        results.forEach((k,v) -> {
-            Assert.assertEquals(k, 0, v.intValue());
-        });
-        Assert.assertThrows(IgnoredEventException.class, () -> {
-            Expression exp = new Expression("ex.compare(\"<=>\", event.a, event.d)", new Properties(Collections.emptyMap()).groovyClassLoader, Collections.emptyMap());
             exp.eval(ev);
             Assert.fail();
         });
