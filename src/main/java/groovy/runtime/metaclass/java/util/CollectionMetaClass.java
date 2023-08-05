@@ -5,6 +5,7 @@ import java.util.Collection;
 
 import groovy.lang.DelegatingMetaClass;
 import groovy.lang.MetaClass;
+import groovy.runtime.metaclass.GroovyMethods;
 import loghub.Helpers;
 
 public class CollectionMetaClass extends DelegatingMetaClass {
@@ -15,10 +16,10 @@ public class CollectionMetaClass extends DelegatingMetaClass {
 
     @Override
     public Object invokeMethod(Object object, String methodName, Object[] arguments) {
+        GroovyMethods method = GroovyMethods.resolveGroovyName(methodName);
         @SuppressWarnings("unchecked")
         Collection collection = (Collection)object;
-        switch (methodName) {
-        case "plus":
+        if (method == GroovyMethods.PLUS) {
             try {
                 Collection c = collection.getClass().getConstructor().newInstance();
                 c.addAll(collection);
@@ -29,7 +30,7 @@ public class CollectionMetaClass extends DelegatingMetaClass {
             } catch (NoSuchMethodException | InstantiationException | IllegalAccessException | InvocationTargetException ex) {
                 throw new UnsupportedOperationException("Unable to duplication collection " + Helpers.resolveThrowableException(ex), ex);
             }
-        default:
+        } else {
             return super.invokeMethod(object, methodName, arguments);
         }
     }

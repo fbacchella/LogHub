@@ -16,26 +16,28 @@ public class StringMetaClass extends DelegatingMetaClass {
 
     @Override
     public Object invokeMethod(Object object, String methodName, Object[] arguments) {
+        GroovyMethods method = GroovyMethods.resolveGroovyName(methodName);
         if (arguments.length == 1 && arguments[0] instanceof NullOrMissingValue) {
-            if (GroovyMethods.COMPARE_TO.equals(methodName)) {
+            if (method == GroovyMethods.COMPARE_TO) {
                 return false;
             } else {
                 throw IgnoredEventException.INSTANCE;
             }
         }
-        if (GroovyMethods.COMPARE_TO.equals(methodName)) {
+        switch (method) {
+        case COMPARE_TO:
             if (arguments[0] instanceof CharSequence) {
                 return object.toString().compareTo(arguments[0].toString());
             } else {
                 return false;
             }
-        } else if (GroovyMethods.AS_BOOLEAN.equals(methodName)){
+        case AS_BOOLEAN:
             return StringGroovyMethods.asBoolean(object.toString());
-        } else if (GroovyMethods.PLUS.equals(methodName)){
+        case PLUS:
             return object.toString() + arguments[0].toString();
-        } else if (GroovyMethods.AS_TYPE.equals(methodName) && arguments[0] == Character.TYPE){
-            return object.toString().charAt(0);
-        } else {
+        case AS_TYPE:
+            return arguments[0] == Character.TYPE ?  object.toString().charAt(0): super.invokeMethod(object, methodName, arguments);
+        default:
             return super.invokeMethod(object, methodName, arguments);
         }
     }

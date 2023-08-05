@@ -19,17 +19,18 @@ public class NumberMetaClass extends DelegatingMetaClass {
 
     @Override
     public Object invokeMethod(Object object, String methodName, Object[] arguments) {
+        GroovyMethods method = GroovyMethods.resolveGroovyName(methodName);
         if (arguments.length == 1 && arguments[0] instanceof NullOrMissingValue) {
-            if (GroovyMethods.COMPARE_TO.equals(methodName)) {
+            if (method == GroovyMethods.COMPARE_TO) {
                 return false;
             } else {
                 throw IgnoredEventException.INSTANCE;
             }
-        } else if (arguments.length == 1 && object instanceof Number && arguments[0] instanceof Number) {
+        } else if (arguments.length == 1 && arguments[0] instanceof Number) {
             Number arg1 = (Number) object;
             Number arg2 = (Number) arguments[0];
             Number value = null;
-            switch (GroovyMethods.resolveGroovyName(methodName)) {
+            switch (method) {
             case DIV:
                 value = NumberMath.divide(arg1, arg2);
                 break;
@@ -73,6 +74,10 @@ public class NumberMetaClass extends DelegatingMetaClass {
                         // value will stay Double.NaN
                     }
                 }
+                break;
+            case COMPARE_TO:
+                value = NumberMath.compareTo(arg1, arg2);
+                break;
             }
             if (NumberMath.isBigDecimal(value)) {
                 BigDecimal bd = (BigDecimal) value;
@@ -89,14 +94,10 @@ public class NumberMetaClass extends DelegatingMetaClass {
                 }
             }
             return value;
-        } else if ("compareTo".equals(methodName)) {
-            if (arguments[0] instanceof NullOrMissingValue) {
-                throw IgnoredEventException.INSTANCE;
-            } else if (! (arguments[0] instanceof Number)) {
-                throw new ClassCastException(arguments[0] + " not a number");
-            } else {
-                return super.invokeMethod(object, methodName, arguments);
-            }
+        } else if (method == GroovyMethods.COMPARE_TO) {
+            throw new ClassCastException(arguments[0] + " not a number");
+        } else if (method == GroovyMethods.BITWISE_NEGATE) {
+            return NumberMath.bitwiseNegate((Number) object);
         } else {
             for (Object argument : arguments) {
                 if (argument instanceof NullOrMissingValue) {

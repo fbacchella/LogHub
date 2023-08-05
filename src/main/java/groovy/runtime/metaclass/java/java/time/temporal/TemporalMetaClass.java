@@ -1,4 +1,4 @@
-package groovy.runtime.metaclass.loghub;
+package groovy.runtime.metaclass.java.java.time.temporal;
 
 import java.time.DateTimeException;
 import java.time.Duration;
@@ -10,10 +10,9 @@ import groovy.lang.MetaClass;
 import groovy.runtime.metaclass.GroovyMethods;
 import loghub.IgnoredEventException;
 
-public class TimeMetaClass extends DelegatingMetaClass {
+public class TemporalMetaClass extends DelegatingMetaClass {
 
-    @SuppressWarnings("unused")
-    public TimeMetaClass(MetaClass theClass) {
+    public TemporalMetaClass(MetaClass theClass) {
         super(theClass);
     }
 
