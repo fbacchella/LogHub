@@ -965,7 +965,6 @@ class ConfigListener extends RouteBaseListener {
                     throw new RecognitionException(ex.getMessage(), parser, stream, ctx);
                 }
                 if (ctx.expressionsList() != null) {
-                    @SuppressWarnings("unchecked")
                     List<ExpressionBuilder> exlist = stack.popTyped();
                     ExpressionBuilder expressions = newExpressionBuilder().getExpressionList(exlist);
 
@@ -1145,7 +1144,7 @@ class ConfigListener extends RouteBaseListener {
             ExpressionBuilder subexpression = stack.popTyped();
             expression = subexpression.snap()
                                       .setOperator("(%s)", subexpression)
-                                      .setLambda(subexpression, (l, ed) -> l.apply(ed));
+                                      .setLambda(subexpression, Expression.ExpressionLambda::apply);
         } else if (ctx.newclass != null) {
             ExpressionBuilder subexpression = stack.popTyped();
             expression = subexpression.snap()
@@ -1202,7 +1201,6 @@ class ConfigListener extends RouteBaseListener {
                                            .snap()
                                            .setLambda(ed -> ed.getExpression().newCollection(collectionType));
             } else {
-                @SuppressWarnings("unchecked")
                 List<ExpressionBuilder> exlist = stack.popTyped();
                 ExpressionBuilder expressions = newExpressionBuilder().getExpressionList(exlist);
                 expression = newExpressionBuilder()
@@ -1214,17 +1212,13 @@ class ConfigListener extends RouteBaseListener {
         } else if (ctx.lambdavar != null) {
             expression = newExpressionBuilder()
                                        .setExpression("value")
-                                       .setLambda(ed -> ed.getValue());
+                                       .setLambda(Expression.ExpressionData::getValue);
         } else {
             throw new IllegalStateException("Unreachable code");
         }
         expressionDepth--;
         if (expressionDepth == 0) {
-            try {
-                stack.push(new ObjectWrapped<>(expression.build()));
-            } catch (Expression.ExpressionException e) {
-                throw new RecognitionException(Helpers.resolveThrowableException(e), parser, stream, ctx);
-            }
+            stack.push(new ObjectWrapped<>(expression.build()));
         } else {
             stack.push(expression);
         }
@@ -1236,7 +1230,7 @@ class ConfigListener extends RouteBaseListener {
 
     @Override
     public void exitLambda(RouteParser.LambdaContext ctx) {
-        ObjectWrapped<Expression> exw = (ObjectWrapped<Expression>) stack.pop();
+        ObjectWrapped<Expression> exw = stack.popTyped();
         stack.push(new ObjectWrapped<>(new Lambda(exw.wrapped)));
     }
 

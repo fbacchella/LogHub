@@ -93,7 +93,7 @@ public class TestExpression {
                 Expression exp = new Expression(s, new Properties(Collections.emptyMap()).groovyClassLoader, Collections.emptyMap());
                 double f = (double) exp.eval(ev);
                 results.put(s, f);
-            } catch (ExpressionException | ProcessorException e) {
+            } catch (ProcessorException e) {
                 throw new RuntimeException(e);
             }
         });

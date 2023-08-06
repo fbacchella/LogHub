@@ -35,7 +35,6 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.codehaus.groovy.control.CompilationFailedException;
@@ -45,24 +44,24 @@ import org.codehaus.groovy.runtime.typehandling.NumberMath;
 
 import groovy.lang.Binding;
 import groovy.lang.GroovyClassLoader;
+import groovy.lang.GroovyShell;
 import groovy.lang.GroovySystem;
 import groovy.lang.MetaClass;
 import groovy.lang.MetaClassRegistry;
 import groovy.lang.MissingPropertyException;
 import groovy.lang.Script;
 import groovy.runtime.metaclass.GroovyMethods;
+import groovy.runtime.metaclass.java.java.time.temporal.TemporalMetaClass;
 import groovy.runtime.metaclass.java.lang.BooleanMetaClass;
 import groovy.runtime.metaclass.java.lang.CharacterMetaClass;
 import groovy.runtime.metaclass.java.lang.NumberMetaClass;
 import groovy.runtime.metaclass.java.lang.StringMetaClass;
-import groovy.runtime.metaclass.java.net.InetAddressMetaClass;
 import groovy.runtime.metaclass.java.util.CollectionMetaClass;
 import groovy.runtime.metaclass.java.util.MapMetaClass;
 import groovy.runtime.metaclass.loghub.EventMetaClass;
 import groovy.runtime.metaclass.loghub.ExpressionMetaClass;
 import groovy.runtime.metaclass.loghub.LambdaPropertyMetaClass;
 import groovy.runtime.metaclass.loghub.NullOrNoneValueMetaClass;
-import groovy.runtime.metaclass.java.java.time.temporal.TemporalMetaClass;
 import groovy.runtime.metaclass.loghub.VarFormatterMetaClass;
 import loghub.events.Event;
 import lombok.Getter;
@@ -80,6 +79,8 @@ public class Expression {
 
     private static final MetaClassRegistry registry = GroovySystem.getMetaClassRegistry();
 
+    private static final Logger logger = LogManager.getLogger();
+
     static {
         java.util.Map<Class<?>, Function<MetaClass, MetaClass>> metaClassFactories = new HashMap<>();
         metaClassFactories.put(String.class, StringMetaClass::new);
@@ -89,7 +90,6 @@ public class Expression {
         metaClassFactories.put(Boolean.class, BooleanMetaClass::new);
         metaClassFactories.put(NullOrMissingValue.NULL.getClass(), NullOrNoneValueMetaClass::new);
         metaClassFactories.put(NullOrMissingValue.MISSING.getClass(), NullOrNoneValueMetaClass::new);
-        metaClassFactories.put(InetAddress.class, InetAddressMetaClass::new);
         metaClassFactories.put(Date.class, TemporalMetaClass::new);
         metaClassFactories.put(Temporal.class, TemporalMetaClass::new);
         metaClassFactories.put(Number.class, NumberMetaClass::new);
@@ -123,12 +123,13 @@ public class Expression {
         );
         metaClassFactories.put(InetSocketAddress.class,
                 mc -> new LambdaPropertyMetaClass(mc, java.util.Map.ofEntries(
-                        java.util.Map.entry("hostAddress", o -> ((InetSocketAddress)o).getAddress())
+                        java.util.Map.entry("address", o -> ((InetSocketAddress)o).getAddress())
                     )
                 )
         );
         metaClassFactories.put(Event.class, EventMetaClass::new);
 
+        Set<Class<?>> skipClasses = Set.of(Binding.class, GroovyShell.class);
         registry.setMetaClassCreationHandle(new MetaClassRegistry.MetaClassCreationHandle() {
             @Override
             protected MetaClass createNormalMetaClass(Class theClass, MetaClassRegistry registry) {
@@ -148,14 +149,14 @@ public class Expression {
                     return doCreate(Principal.class, theClass);
                 } else if (InetAddress.class.isAssignableFrom(theClass)) {
                     return doCreate(InetAddress.class, theClass);
-                } else if (InetSocketAddress.class.isAssignableFrom(theClass)) {
-                    return doCreate(InetSocketAddress.class, theClass);
                 } else if (Map.class.isAssignableFrom(theClass)) {
                     return doCreate(Map.class, theClass);
+                } else if (skipClasses.contains(theClass)) {
+                    return super.createNormalMetaClass(theClass, registry);
                 } else if (Script.class.isAssignableFrom(theClass)) {
                     return super.createNormalMetaClass(theClass, registry);
                 } else {
-                    logger.debug("Creating unhandler MetaClass {}", theClass::getName);
+                    logger.debug("Creating unhandled MetaClass {}", theClass::getName);
                     return super.createNormalMetaClass(theClass, registry);
                 }
             }
@@ -164,6 +165,7 @@ public class Expression {
                 return metaClassFactories.get(key).apply(super.createNormalMetaClass(c, registry));
             }
         });
+        registry.getMetaClassCreationHandler().setDisableCustomMetaClassLookup(true);
     }
 
     /**
@@ -232,8 +234,6 @@ public class Expression {
         Object apply(ExpressionData data);
     }
 
-    private static final Logger logger = LogManager.getLogger();
-
     private static final Binding EMPTYBIDDING = new Binding();
     private static final Set<java.util.Map<String, Script>> scriptsMaps = new HashSet<>();
     private static final ThreadLocal<java.util.Map<String, Script>> compilationCache = ThreadLocal.withInitial(() -> {
@@ -254,7 +254,7 @@ public class Expression {
     private final GroovyClassLoader loader;
     private final Object literal;
 
-    public Expression(String expression, GroovyClassLoader loader, java.util.Map<String, VarFormatter> formatters) throws ExpressionException {
+    public Expression(String expression, GroovyClassLoader loader, java.util.Map<String, VarFormatter> formatters) {
         Matcher m = VARPATH_PATTERN.matcher(expression);
         if (m.matches()) {
             int vpid = Integer.parseInt(m.group(1));
@@ -629,7 +629,6 @@ public class Expression {
             case "<=>":
                 return compare;
             default:
-                assert false : String.format("%s %s %s", arg1, operator, arg2);
                 throw IgnoredEventException.INSTANCE;
             }
         } else {
@@ -750,16 +749,6 @@ public class Expression {
             MetaClass mc = registry.getMetaClass(arg1.getClass());
             GroovyMethods groovyOp = GroovyMethods.resolveSymbol(operator);
             return mc.invokeMethod(arg1, groovyOp.groovyMethod, new Object[]{arg2});
-        }
-    }
-
-    public static void logError(ExpressionException e, String source, Logger logger) {
-        Throwable cause = e.getCause();
-        if (cause instanceof CompilationFailedException) {
-            logger.error("Groovy compilation failed for expression {}: {}", () -> source, e::getMessage);
-        } else {
-            logger.error("Critical groovy error for expression {}: {}", () -> source, () -> Helpers.resolveThrowableException(cause));
-            logger.throwing(Level.DEBUG, e.getCause());
         }
     }
 

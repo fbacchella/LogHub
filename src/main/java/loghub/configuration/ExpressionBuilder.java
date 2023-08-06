@@ -222,7 +222,7 @@ class ExpressionBuilder {
         return this;
     }
 
-    Expression build() throws Expression.ExpressionException {
+    Expression build() {
         logger.trace("New expression of type {}: {}", type, expression);
         switch (type) {
         case LAMBDA:
@@ -252,7 +252,7 @@ class ExpressionBuilder {
             try {
                 Object value = new Expression(expression, groovyClassLoader, formatters).eval(null);
                 return value != null ? ed -> value : ed -> NullOrMissingValue.NULL;
-            } catch (ProcessorException | RuntimeException | Expression.ExpressionException e) {
+            } catch (ProcessorException | RuntimeException e) {
                 return null;
             }
         case OPERATOR:
@@ -263,7 +263,7 @@ class ExpressionBuilder {
     }
 
     private Expression.ExpressionLambda fromList(List<ExpressionBuilder> list) {
-        List<Expression.ExpressionLambda> lambdas = list.stream().map(eb -> eb.asLambda()).filter(Objects::nonNull).collect(Collectors.toList());
+        List<Expression.ExpressionLambda> lambdas = list.stream().map(ExpressionBuilder::asLambda).filter(Objects::nonNull).collect(Collectors.toList());
         if (list.size() != lambdas.size()) {
             // one of the lambda was null, so the whole list is not usable.
             return null;

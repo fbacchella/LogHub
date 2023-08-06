@@ -8,7 +8,7 @@ public enum GroovyMethods {
     COMPARE_TO("compareTo", null),
     DIV("div", "/"),
     MULTIPLY("multiply", "*"),
-    XOR("XOR", "^"),
+    XOR("xor", "^"),
     LEFT_SHIFT("leftShift", "<<"),
     RIGHT_SHIFT("rightShift", ">>"),
     RIGHT_SHIFT_UNSIGNED("rightShiftUnsigned", ">>>"),

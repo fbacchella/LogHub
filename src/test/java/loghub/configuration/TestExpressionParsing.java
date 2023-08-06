@@ -13,7 +13,6 @@ import java.security.Principal;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
@@ -38,6 +37,7 @@ import org.junit.Test;
 import loghub.ConnectionContext;
 import loghub.Expression;
 import loghub.Expression.ExpressionException;
+import loghub.Helpers;
 import loghub.IgnoredEventException;
 import loghub.IpConnectionContext;
 import loghub.Lambda;
@@ -194,14 +194,14 @@ public class TestExpressionParsing {
                 Assert.assertEquals(x, r, o);
             } catch (IgnoredEventException e) {
                 if (r != IgnoredEventException.class) {
-                    Assert.fail(x + ", got an unexpected " + r);
+                    Assert.fail(x + ", got an unexpected " + Helpers.resolveThrowableException(e));
                 }
             } catch (ProcessorException e) {
                 if (r != ProcessorException.class) {
-                    Assert.fail(x + ", got an unexpected " + r);
+                    Assert.fail(x + ", got an unexpected " + Helpers.resolveThrowableException(e));
                 }
             } catch (ExpressionException e) {
-                Assert.fail(x + ", got an unexpected " + e.getMessage());
+                Assert.fail(x + ", got an unexpected " + Helpers.resolveThrowableException(e));
             }
         });
     }
