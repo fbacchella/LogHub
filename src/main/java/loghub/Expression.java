@@ -39,7 +39,6 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.codehaus.groovy.control.CompilationFailedException;
-import org.codehaus.groovy.control.CompilationUnit;
 import org.codehaus.groovy.runtime.StringGroovyMethods;
 import org.codehaus.groovy.runtime.typehandling.DefaultTypeTransformation;
 import org.codehaus.groovy.runtime.typehandling.NumberMath;
@@ -263,14 +262,6 @@ public class Expression {
         } else {
             this.literal = null;
             logger.trace("adding expression {}", expression);
-            try {
-                // Check the expression, but using a CompilationUnit is much faster than generating the execution class
-                CompilationUnit cu = new CompilationUnit(loader);
-                cu.addSource("", expression);
-                cu.compile();
-            } catch (CompilationFailedException ex) {
-                throw new ExpressionException(ex);
-            }
         }
         this.expression = expression;
         this.loader = loader;

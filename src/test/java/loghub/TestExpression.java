@@ -11,7 +11,6 @@ import java.util.Map;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.codehaus.groovy.control.MultipleCompilationErrorsException;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -77,15 +76,6 @@ public class TestExpression {
         ev.put("b", 2);
         Object o = expression.eval(ev);
         Assert.assertEquals("1 02", o);
-    }
-
-    @Test
-    public void testFailsCompilation() {
-        // An expression valid in loghub, but not in groovy, should be catched
-        String expressionScript = "event.getGroovyPath(\"host\") instanceof formatters.h_473e3665.format(event)";
-        ExpressionException ex = Assert.assertThrows(ExpressionException.class, 
-                () -> new Expression(expressionScript, new Properties(Collections.emptyMap()).groovyClassLoader, Collections.emptyMap()));
-        Assert.assertEquals(MultipleCompilationErrorsException.class, ex.getCause().getClass());
     }
 
     @Test
