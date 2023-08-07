@@ -665,18 +665,25 @@ public class TestExpressionParsing {
     }
 
     @Test
-    public void testContext() throws ExpressionException, ProcessorException {
+    public void testContext() throws ExpressionException, ProcessorException, UnknownHostException {
+        Event ev = factory.newEvent(new IpConnectionContext(new InetSocketAddress("127.0.0.1", 31712), new InetSocketAddress("www.google.com", 443), null));
+        Principal p = () -> "user";
+        ev.getConnectionContext().setPrincipal(p);
+        Assert.assertEquals(InetAddress.getByName("127.0.0.1"), evalExpression("[@context localAddress address]", ev));
+        Assert.assertTrue((boolean) evalExpression("[@context localAddress address] == \"127.0.0.1\"", ev));
+        Assert.assertTrue((boolean) evalExpression("[@context localAddress port] == 31712", ev));
+        Assert.assertTrue((boolean) evalExpression("[@context remoteAddress address] == \"www.google.com\"", ev));
+        Assert.assertTrue((boolean) evalExpression("[@context remoteAddress port] == 443", ev));
+        Assert.assertTrue((boolean) evalExpression("[@context principal name] == \"user\"", ev));
+        loghub.ProcessorException ex = Assert.assertThrows(loghub.ProcessorException.class, () -> evalExpression("[@context bad] == 443", ev));
+        Assert.assertEquals("Failed expression: Unknown attribute bad", ex.getMessage());
+
         String format = "user";
         String formatHash = Integer.toHexString(format.hashCode());
 
-        Event ev = factory.newEvent(new IpConnectionContext(new InetSocketAddress("127.0.0.1", 35710), new InetSocketAddress("localhost", 80), null));
-        Principal p = () -> "user";
-        ev.getConnectionContext().setPrincipal(p);
         // Checking both order of expression, change the way groovy handle it
-        Assert.assertEquals(true, evalExpression("[@context principal name] == \"user\"", ev));
         Assert.assertEquals(true, evalExpression("\"user\" == [@context principal name]", ev));
         InetSocketAddress localAddr = (InetSocketAddress) evalExpression("[@context localAddress]", ev, Collections.singletonMap("h_" + formatHash, new VarFormatter(format)));
-        Assert.assertEquals(35710, localAddr.getPort());
     }
 
     @Test

@@ -313,6 +313,7 @@ public class Expression {
         } else if (literal instanceof VarFormatter) {
             return ((VarFormatter) literal).format(event);
         } else if (literal instanceof ExpressionLambda) {
+            // TODO: how to keep the original source of the expression
             ExpressionLambda lambda = (ExpressionLambda) literal;
             try (BindingMap bmap = resolveBindings(event, value)) {
                 Object o = lambda.apply(bmap);
@@ -320,7 +321,7 @@ public class Expression {
             } catch (IgnoredEventException e) {
                 throw e;
             } catch (RuntimeException ex) {
-                throw event.buildException(String.format("failed expression '%s': %s", expression, Helpers.resolveThrowableException(ex)), ex);
+                throw event.buildException(String.format("Failed expression: %s", Helpers.resolveThrowableException(ex)), ex);
             }
         } else if (literal == NullOrMissingValue.NULL) {
             return null;

@@ -319,12 +319,29 @@ public abstract class VariablePath {
             Object o = ev.getConnectionContext();
             for (String s: path) {
                 try {
-                    o = beanResolver(o, s).invoke(o);
+                    o = beanResolver(o, s);
                 } catch (IllegalAccessException | InvocationTargetException ex) {
                     throw new IllegalArgumentException(String.format("Not a valid context path %s: %s", this, Helpers.resolveThrowableException(ex)), ex);
                 }
             }
             return o;
+        }
+        private Object beanResolver(Object beanObject, String beanName)
+                throws InvocationTargetException, IllegalAccessException {
+            Method m = CONTEXT_BEANS.computeIfAbsent(beanObject.getClass(), c -> {
+                try {
+                    return Stream.of(Introspector.getBeanInfo(c, Object.class).getPropertyDescriptors())
+                                   .filter(pd -> pd.getReadMethod() != null)
+                                   .collect(Collectors.toMap(FeatureDescriptor::getName, PropertyDescriptor::getReadMethod));
+                } catch (IntrospectionException e) {
+                    return Collections.emptyMap();
+                }
+            }).get(beanName);
+            if (m == null) {
+                throw new IllegalArgumentException("Unknown attribute " + beanName);
+            } else {
+                return m.invoke(beanObject);
+            }
         }
     }
 
@@ -547,18 +564,6 @@ public abstract class VariablePath {
         } else {
             return ((Context)vp).resolve(ev);
         }
-    }
-
-    public Method beanResolver(Object beanObject, String beanName) {
-        return CONTEXT_BEANS.computeIfAbsent(beanObject.getClass(), c -> {
-            try {
-                return Stream.of(Introspector.getBeanInfo(c, Object.class).getPropertyDescriptors())
-                               .filter(pd -> pd.getReadMethod() != null)
-                               .collect(Collectors.toMap(FeatureDescriptor::getName, PropertyDescriptor::getReadMethod));
-            } catch (IntrospectionException e) {
-                return Collections.emptyMap();
-            }
-        }).get(beanName);
     }
 
     /**
