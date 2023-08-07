@@ -152,13 +152,13 @@ public abstract class VariablePath {
             if (path.length == 1 && ".".equals(path[0])) {
                 return ".";
             } else {
-                StringJoiner joiner = new StringJoiner(".");
+                StringJoiner joiner = new StringJoiner(" ");
                 for (int i=0; i < path.length; i++) {
-                    if (i == 0 && ".".equals(path[i])) {
-                        joiner.add("");
-                    } else {
-                        joiner.add(path[i]);
-                    }
+                    char prefix = path[i].charAt(0);
+                    boolean identifier = prefix == '.' ||
+                                         (Character.isJavaIdentifierStart(prefix) && prefix != '$' &&
+                                                 path[i].codePoints().allMatch(Character::isJavaIdentifierPart));
+                    joiner.add(identifier ? path[i] : '"' +  path[i].replace("\"", "\\\"") + '"');
                 }
                 return joiner.toString();
             }

@@ -47,6 +47,7 @@ public class TestVariablePath {
         Assert.assertTrue((Boolean) sub.get("."));
         Expression expression = new Expression(vp);
         Assert.assertEquals(true, expression.eval(ev));
+        Assert.assertEquals("[\"\uD87E\uDC1A\" αρετη \"$dollar\" \"\\\"quoted\\\"\"]", VariablePath.of(new String(Character.toChars(0x2F81A)), "αρετη", "$dollar", "\"quoted\"").toString());
     }
 
     @Test
@@ -66,7 +67,7 @@ public class TestVariablePath {
         Assert.assertFalse(vp.isIndirect());
         Assert.assertEquals(VariablePath.of("a", "b", "c"), vp);
         Assert.assertEquals(VariablePath.of(List.of("a","b", "c")), vp);
-        Assert.assertEquals("[a.b.c]", vp.toString());
+        Assert.assertEquals("[a b c]", vp.toString());
         Assert.assertTrue(groovyPattern.matcher(vp.groovyExpression()).matches());
     }
 
@@ -82,7 +83,7 @@ public class TestVariablePath {
     public void rooted() {
         VariablePath vp = VariablePath.parse(".a.b.c");
         Assert.assertEquals(VariablePath.of(".", "a","b", "c"), vp);
-        Assert.assertEquals("[.a.b.c]", vp.toString());
+        Assert.assertEquals("[. a b c]", vp.toString());
         Assert.assertTrue(groovyPattern.matcher(vp.groovyExpression()).matches());
     }
 
