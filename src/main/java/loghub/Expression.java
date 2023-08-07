@@ -246,7 +246,6 @@ public class Expression {
     private static final ThreadLocal<BindingMap> bindings = ThreadLocal.withInitial(BindingMap::new);
     private static final java.util.Map<String, Pattern> PATTERN_CACHE = new ConcurrentHashMap<>();
     private static final java.util.Map<String, ThreadLocal<Matcher>> MATCHER_CACHE = new ConcurrentHashMap<>();
-    private static final Pattern VARPATH_PATTERN = Pattern.compile("event.getGroovyPath\\((\\d+)\\)");
 
     @Getter
     private final String expression;
@@ -255,14 +254,8 @@ public class Expression {
     private final Object literal;
 
     public Expression(String expression, GroovyClassLoader loader, java.util.Map<String, VarFormatter> formatters) {
-        Matcher m = VARPATH_PATTERN.matcher(expression);
-        if (m.matches()) {
-            int vpid = Integer.parseInt(m.group(1));
-            literal = VariablePath.getById(vpid);
-        } else {
-            this.literal = null;
-            logger.trace("adding expression {}", expression);
-        }
+        this.literal = null;
+        logger.trace("adding expression {}", expression);
         this.expression = expression;
         this.loader = loader;
         this.formatters = formatters;

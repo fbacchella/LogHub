@@ -9,7 +9,6 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import loghub.configuration.Properties;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
 
@@ -34,7 +33,7 @@ public class TestVariablePath {
 
     @Test
     @SuppressWarnings("unchecked")
-    public void pathological() throws Expression.ExpressionException, ProcessorException {
+    public void pathological() throws ProcessorException {
         List<String> pathological = List.of("'", "\n", "\"", ".");
         VariablePath vp = VariablePath.of(pathological);
         Event ev = new EventsFactory().newEvent();
@@ -46,7 +45,7 @@ public class TestVariablePath {
             }
         }
         Assert.assertTrue((Boolean) sub.get("."));
-        Expression expression = new Expression(vp.groovyExpression(), new Properties(Collections.emptyMap()).groovyClassLoader, Collections.emptyMap());
+        Expression expression = new Expression(vp);
         Assert.assertEquals(true, expression.eval(ev));
     }
 
