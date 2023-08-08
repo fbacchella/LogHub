@@ -14,8 +14,8 @@ public class TestProcessor {
 
     private final EventsFactory factory = new EventsFactory();
 
-    private Expression getExpression(String expressionScript) throws Expression.ExpressionException {
-        return new Expression(expressionScript, new Properties(Collections.emptyMap()).groovyClassLoader, Collections.emptyMap());
+    private Expression getExpression(String expressionScript) {
+        return Tools.parseExpression(expressionScript, Collections.emptyMap());
     }
 
     @Test
@@ -41,7 +41,7 @@ public class TestProcessor {
     }
 
     @Test
-    public void testIf() throws ProcessorException, Expression.ExpressionException {
+    public void testIf() throws ProcessorException {
         Event e = factory.newEvent();
 
         Processor p = new Identity();

@@ -11,6 +11,7 @@ import java.security.cert.CertificateException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -23,6 +24,7 @@ import org.junit.Assert;
 import io.netty.util.concurrent.Future;
 import loghub.configuration.ConfigException;
 import loghub.configuration.Configuration;
+import loghub.configuration.ConfigurationTools;
 import loghub.configuration.Properties;
 import loghub.events.Event;
 import loghub.processors.UnwrapEvent;
@@ -171,5 +173,21 @@ public class Tools {
     }
 
     public static final Function<Date, Boolean> isRecent = i -> { long now = new Date().getTime() ; return (i.getTime() > (now - 60000)) && (i.getTime() < (now + 60000));};
+
+    public static Expression parseExpression(String exp, Map<String, VarFormatter> formats) {
+        return ConfigurationTools.unWrap(exp, RouteParser::expression, formats);
+    }
+
+    public static  Object evalExpression(String exp, Event ev, Map<String, VarFormatter> formats) throws ProcessorException {
+        return parseExpression(exp, formats).eval(ev);
+    }
+
+    public static  Object evalExpression(String exp, Event ev) throws Expression.ExpressionException, ProcessorException {
+        return evalExpression(exp, ev, new HashMap<>());
+    }
+
+    public static  Object evalExpression(String exp) throws Expression.ExpressionException, ProcessorException {
+        return evalExpression(exp, null, new HashMap<>());
+    }
 
 }

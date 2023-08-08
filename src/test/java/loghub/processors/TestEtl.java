@@ -81,7 +81,7 @@ public class TestEtl {
         Properties props = new Properties(Collections.emptyMap());
         Etl.Assign etl = new Etl.Assign();
         etl.setLvalue(VariablePath.of("a", "b"));
-        etl.setExpression(new Expression("event.c + 1", props.groovyClassLoader, props.formatters));
+        etl.setExpression(Tools.parseExpression("[c] + 1", props.formatters));
         boolean done = etl.configure(props);
         Assert.assertTrue("configuration failed", done);
         Event event = factory.newEvent();
@@ -116,14 +116,15 @@ public class TestEtl {
     }
 
     @Test
-    public void test4() throws ProcessorException, Expression.ExpressionException {
-        Map<String, VarFormatter> formats = Collections.singletonMap("a", new VarFormatter("${%t<GMT>H}"));
+    public void test4() throws ProcessorException {
+        Map<String, VarFormatter> formats = new HashMap<>();
         Map<String, Object> properties = new HashMap<>();
         properties.put("__FORMATTERS", formats);
         Properties props = new Properties(properties);
         Etl.Assign etl = new Etl.Assign();
         etl.setLvalue(VariablePath.of("a"));
-        etl.setExpression(new Expression("formatters.a.format(event.getTimestamp())", props.groovyClassLoader, props.formatters));
+        etl.setExpression(Tools.parseExpression("\"${#1%t<GMT>H}\"([@timestamp])", formats));
+        //etl.setExpression(new Expression("formatters.a.format(event.getTimestamp())", props.groovyClassLoader, props.formatters));
         boolean done = etl.configure(props);
         Assert.assertTrue("configuration failed", done);
         Event event = factory.newEvent();
@@ -177,19 +178,26 @@ public class TestEtl {
         Assert.assertTrue(ev.isEmpty());
     }
 
-    @Test
-    public void testElementMissing() throws InterruptedException, ExecutionException {
+    private void runElementMissing(String etl) throws ExecutionException, InterruptedException {
         CompletableFuture<Event> holder = new CompletableFuture<>();
-        Assert.assertThrows(IgnoredEventException.class, () -> RunEtl("[b] = [a]", i -> {}, true, holder));
+        Assert.assertThrows(IgnoredEventException.class, () -> RunEtl(etl, i -> {}, true, holder));
         Assert.assertTrue(holder.get().isEmpty());
     }
 
     @Test
-    public void testPathMissing() throws InterruptedException, ExecutionException {
-        CompletableFuture<Event> holder = new CompletableFuture<>();
-        Assert.assertThrows(IgnoredEventException.class, () -> RunEtl("[c] = [a b]", i -> {}, true, holder));
-        Assert.assertTrue(holder.get().isEmpty());
+    public void testElementMissing() throws InterruptedException, ExecutionException {
+        runElementMissing("[b] = [a]");
     }
+
+    @Test
+    public void testPathMissing() throws InterruptedException, ExecutionException {
+        runElementMissing("[c] = [a b]");
+    }
+
+    @Test
+    public void testMappingNull() throws InterruptedException, ExecutionException {
+        runElementMissing("[a b] @ [a b] {0: 1}");
+     }
 
     @Test
     public void testElementNull() throws ProcessorException {
@@ -377,7 +385,7 @@ public class TestEtl {
 
     @Test
     public void testCastComplex() throws ProcessorException {
-        Event ev =  RunEtl("[ #principal ] = ([ #principal ] =~ /([^@]+)(@.*)?/ )[1]", i -> i.putMeta("principal", "nobody"));
+        Event ev =  RunEtl("[#principal] = ([#principal] =~ /([^@]+)(@.*)?/ )[1]", i -> i.putMeta("principal", "nobody"));
         Assert.assertEquals("nobody", ev.getMeta("principal"));
         Assert.assertTrue(ev.isEmpty());
     }
@@ -396,13 +404,6 @@ public class TestEtl {
     }
 
     @Test
-    public void testMappingNull() throws InterruptedException, ExecutionException {
-        CompletableFuture<Event> holder = new CompletableFuture<>();
-        Assert.assertThrows(IgnoredEventException.class, () -> RunEtl("[ a b ] @ [ a b ] {0: 1} ", i -> {}, true, holder));
-        Assert.assertTrue(holder.get().isEmpty());
-    }
-
-    @Test
     public void testAppend() throws ProcessorException {
         // Comprehensive type testing is done in loghub.TestEvent#testAppend()
         Event ev1 =  RunEtl("[a] =+ 1", i -> i.put("a", new int[]{0}));
@@ -414,10 +415,12 @@ public class TestEtl {
         Assert.assertArrayEquals(new Number[]{0L, 1}, v2);
 
         Event ev3 =  RunEtl("[a] =+ 1", i -> i.put("a", new ArrayList<>(List.of("0"))));
+        @SuppressWarnings("unchecked")
         List<Object> v3 = (List<Object>) ev3.get("a");
         Assert.assertEquals(List.of("0", 1), v3);
 
         Event ev4 =  RunEtl("[a] =+ 1", i -> {});
+        @SuppressWarnings("unchecked")
         List<Object> v4 = (List<Object>) ev4.get("a");
         Assert.assertEquals(List.of(1), v4);
 

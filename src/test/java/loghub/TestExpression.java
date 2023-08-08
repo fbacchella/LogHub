@@ -2,10 +2,10 @@ package loghub;
 
 import java.io.IOException;
 import java.time.Instant;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.logging.log4j.Level;
@@ -34,34 +34,24 @@ public class TestExpression {
 
     @Test
     public void test1() throws ExpressionException, ProcessorException {
-        VariablePath vp = VariablePath.of("value");
-        VarFormatter format = new VarFormatter("${value}");
-        Map<String, VarFormatter> formatters = Collections.singletonMap("faaf", format);
-        String expressionScript = vp.groovyExpression() + " == formatters.faaf.format(event)";
-        Expression expression = new Expression(expressionScript, new Properties(Collections.emptyMap()).groovyClassLoader, formatters);
+        String expressionScript = "[value] == \"${value}\"";
         Event ev = factory.newEvent();
         ev.put("value", "a");
-        Boolean b = (Boolean) expression.eval(ev);
+        Boolean b = (Boolean) Tools.evalExpression(expressionScript, ev);
         Assert.assertTrue(b);
     }
 
     @Test
     public void test2() throws ExpressionException, ProcessorException {
-        VariablePath vp = VariablePath.of("a", "b");
-        VarFormatter format = new VarFormatter("${b}");
-        Map<String, VarFormatter> formatters = Collections.singletonMap("faaf", format);
-        String expressionScript = vp.groovyExpression() + " + formatters.faaf.format(event.a)";
-        Expression expression = new Expression(expressionScript, new Properties(Collections.emptyMap()).groovyClassLoader, formatters);
         Event ev = factory.newEvent();
-        ev.put("a", Map.of("b", 1));
-        Object o = expression.eval(ev);
+        ev.putAtPath(VariablePath.of("a", "b"), 1);
+        Object o = Tools.evalExpression("[a b] + \"${a.b}\"", ev);
         Assert.assertEquals("11", o);
     }
 
     @Test
-    public void test3() throws ExpressionException, ProcessorException {
-        String expressionScript = "\"a\"";
-        Expression expression = new Expression(expressionScript, new Properties(Collections.emptyMap()).groovyClassLoader, Collections.emptyMap());
+    public void test3() throws ProcessorException {
+        Expression expression = Tools.parseExpression("\"a\"", Collections.emptyMap());
         Event ev = factory.newEvent();
         Object o = expression.eval(ev);
         Assert.assertEquals("failed to parse expression", "a", o);
@@ -69,8 +59,8 @@ public class TestExpression {
 
   @Test
     public void testStringFormat() throws ProcessorException {
-        String format = "${a%s} ${b%02d}";
-        Expression expression = new Expression(format);
+        String format = "\"${a%s} ${b%02d}\"";
+        Expression expression = Tools.parseExpression(format, new HashMap<>());
         Event ev = factory.newEvent();
         ev.put("a", "1");
         ev.put("b", 2);
@@ -86,30 +76,31 @@ public class TestExpression {
         ev.put("b", now);
         ev.put("c", Date.from(now.minusMillis(1100)));
         ev.put("d", Date.from(now));
-        String[] scripts = new String[] { "event.a - event.b", "event.b - event.c", "event.c - event.d", "event.d - event.a"};
-        Map<String, Double> results = new HashMap<>(scripts.length);
-        Arrays.stream(scripts).forEach(s -> {
+        List<String>  scripts = List.of("[a] - [b]", "[b] - [c]", "[c] - [d]", "[d] - [a]");
+        Map<String, Double> results = new HashMap<>(scripts.size() * 2);
+        scripts.forEach(s -> {
             try {
-                Expression exp = new Expression(s, new Properties(Collections.emptyMap()).groovyClassLoader, Collections.emptyMap());
+                Expression exp = Tools.parseExpression(s, Collections.emptyMap());
+                //Expression exp = new Expression(s, new Properties(Collections.emptyMap()).groovyClassLoader, Collections.emptyMap());
                 double f = (double) exp.eval(ev);
                 results.put(s, f);
             } catch (ProcessorException e) {
                 throw new RuntimeException(e);
             }
         });
-        Assert.assertEquals("event.a - event.b", -1.1, results.get("event.a - event.b"), 1e-3);
-        Assert.assertEquals("event.b - event.c", 1.1, results.get("event.b - event.c"), 1e-3);
-        Assert.assertEquals("event.c - event.d", -1.1, results.get("event.c - event.d"), 1e-3);
-        Assert.assertEquals("event.d - event.a", 1.1, results.get("event.d - event.a"), 1e-3);
+        Assert.assertEquals("[a] - [b]", -1.1, results.get("[a] - [b]"), 1e-3);
+        Assert.assertEquals("[b] - [c]", 1.1, results.get("[b] - [c]"), 1e-3);
+        Assert.assertEquals("[c] - [d]", -1.1, results.get("[c] - [d]"), 1e-3);
+        Assert.assertEquals("[d] - [a]", 1.1, results.get("[d] - [a]"), 1e-3);
         Assert.assertThrows(IgnoredEventException.class, () -> {
-            Expression exp = new Expression("event.c -1", new Properties(Collections.emptyMap()).groovyClassLoader, Collections.emptyMap());
+            Expression exp = Tools.parseExpression("[c] - 1", Collections.emptyMap());
             exp.eval(ev);
             Assert.fail();
         });
     }
 
     @Test
-    public void testNull() throws ProcessorException, ExpressionException {
+    public void testNull() throws ProcessorException {
         Event ev = factory.newEvent();
         ev.put("a", null);
         Assert.assertNull(new Expression(NullOrMissingValue.NULL).eval(null));
@@ -120,7 +111,7 @@ public class TestExpression {
     }
 
     @Test
-    public void testWithArg() throws ProcessorException, ExpressionException {
+    public void testWithArg() throws ProcessorException {
         String expressionScript = "value + 1";
         Expression expression = new Expression(expressionScript, new Properties(Collections.emptyMap()).groovyClassLoader, Collections.emptyMap());
         Event ev = factory.newEvent();
