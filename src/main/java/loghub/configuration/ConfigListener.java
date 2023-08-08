@@ -1043,32 +1043,12 @@ class ConfigListener extends RouteBaseListener {
             expression = post.snap()
                              .setOperator("%s(%s)", op3, post)
                              .setLambda(post, (l, ed) -> ed.getExpression().groovyOperator("*", sign, l.apply(ed)));
-        } else if (ctx.op4 != null) {
-            // '*'|'/'|'%'
-            String op = ctx.op4.getText();
+        } else if (ctx.opinfix != null) {
+            // '*'|'/'|'%' |'+'|'-'|'<<'|'>>'|'>>>'
+            String op = ctx.opinfix.getText();
             ExpressionBuilder post = stack.popTyped();
             ExpressionBuilder pre = stack.popTyped();
             expression = newExpressionBuilder().binaryInfixOperator(pre, op, post);
-        } else if (ctx.op5 != null) {
-            // '+'|'-'
-            String op = ctx.op5.getText();
-            ExpressionBuilder post = stack.popTyped();
-            ExpressionBuilder pre = stack.popTyped();
-            expression = newExpressionBuilder().binaryInfixOperator(pre, op, post);
-        } else if (ctx.op6 != null) {
-            // '<<'|'>>'|'>>>'
-            String op = ctx.op6.getText();
-            ExpressionBuilder post = (ExpressionBuilder) stack.pop();
-            ExpressionBuilder pre = (ExpressionBuilder) stack.pop();
-            expression = newExpressionBuilder().binaryInfixOperator(pre, op, post);
-        } else if (ctx.op7 != null) {
-            // '<'|'<='|'>'|'>='
-            String op = ctx.op7.getText();
-            ExpressionBuilder post = (ExpressionBuilder) stack.pop();
-            ExpressionBuilder pre = (ExpressionBuilder) stack.pop();
-            expression = newExpressionBuilder()
-                                       .setBiOperator("ex.compare(\"%s\", %s, %s)", op, pre, post)
-                                       .setLambda(pre, post, (l1, l2, ed) -> ed.getExpression().compare(op, l1.apply(ed), l2.apply(ed)));
         } else if (ctx.opin != null) {
             // 'in'|'!in'
             String op = ctx.opin.getText();
@@ -1091,9 +1071,9 @@ class ConfigListener extends RouteBaseListener {
             } catch (ClassNotFoundException e) {
                 throw new RecognitionException(Helpers.resolveThrowableException(e), parser, stream, ctx);
             }
-        } else if (ctx.op8 != null) {
-            // '=='|'!='|'<=>'
-            String op = ctx.op8.getText();
+        } else if (ctx.opcomp != null) {
+            // '=='|'!='|'<=>' | '==='|'!=='|'<'|'<='|'>'|'>='
+            String op = ctx.opcomp.getText();
             ExpressionBuilder post = stack.popTyped();
             ExpressionBuilder pre = stack.popTyped();
             expression = newExpressionBuilder()
@@ -1107,30 +1087,9 @@ class ConfigListener extends RouteBaseListener {
             expression = newExpressionBuilder()
                                              .setExpression("ex.compare(\"%s\", %s, %s)", op, path.groovyExpression(), "Expression.ANYVALUE")
                                              .setLambda(ed -> ed.getExpression().compare(op, ed.getEvent().getAtPath(path), Expression.ANYVALUE));
-        } else if (ctx.op8bis != null) {
-            // '==='|'!=='
-            String op = ctx.op8bis.getText();
-            ExpressionBuilder post = stack.popTyped();
-            ExpressionBuilder pre = stack.popTyped();
-            expression = newExpressionBuilder()
-                                 .setBiOperator("ex.compare(\"%s\", %s, %s)", op, pre, post)
-                                 .snap()
-                                 .setLambda(pre, post, (l1, l2, ed) -> ed.getExpression().compare(op, l1.apply(ed), l2.apply(ed)));
-        } else if (ctx.op9 != null) {
-            // '.&'
-            String op = ctx.op9.getText().substring(1);
-            ExpressionBuilder post = stack.popTyped();
-            ExpressionBuilder pre = stack.popTyped();
-            expression = newExpressionBuilder().binaryInfixOperator(pre, op, post);
-        } else if (ctx.op10 != null) {
-            // '.^'
-            String op = ctx.op10.getText().substring(1);
-            ExpressionBuilder post = stack.popTyped();
-            ExpressionBuilder pre = stack.popTyped();
-            expression = newExpressionBuilder().binaryInfixOperator(pre, op, post);
-        } else if (ctx.op11 != null) {
-            // '.|'
-            String op = ctx.op11.getText().substring(1);
+        } else if (ctx.opbininfix != null) {
+            // '.&'|'.^'|'.|'
+            String op = ctx.opbininfix.getText().substring(1);
             ExpressionBuilder post = stack.popTyped();
             ExpressionBuilder pre = stack.popTyped();
             expression = newExpressionBuilder().binaryInfixOperator(pre, op, post);

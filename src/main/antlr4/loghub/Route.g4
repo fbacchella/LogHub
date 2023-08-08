@@ -190,20 +190,20 @@ expression
     |   opnotbinary='.~' e1=expression
     |   e1 = expression op2='**' e2=expression
     |   op3=('+'|'-') e1=expression
-    |   e1 = expression op4=('*'|'/'|'%') e2=expression
-    |   e1 = expression op5=('+'|'-') e2=expression
-    |   e1 = expression op6=('<<'|'>>'|'>>>') e2=expression
-    |   e1 = expression op7=('<'|'<='|'>'|'>=') e2=expression
+    |   e1 = expression opinfix=('*'|'/'|'%') e2=expression
+    |   e1 = expression opinfix=('+'|'-') e2=expression
+    |   e1 = expression opinfix=('<<'|'>>'|'>>>') e2=expression
+    |   e1 = expression opcomp=('<'|'<='|'>'|'>=') e2=expression
     |   e1 = expression opin=('in'|'!in') e2=expression
     |   e1 = expression (neg='!')? opinstance='instanceof' qi=qualifiedIdentifier
     |   e1 = expression opinstance='!instanceof' qi=qualifiedIdentifier
     |   (exists = eventVariable op=('=='|'!=') '*' | '*' op=('=='|'!=') exists = eventVariable)
-    |   e1 = expression op8=('=='|'!='|'<=>') e2=expression
-    |   e1 = expression op8bis=('==='|'!==') e2=expression
+    |   e1 = expression opcomp=('=='|'!='|'<=>') e2=expression
+    |   e1 = expression opcomp=('==='|'!==') e2=expression
     |   e1 = expression opm=matchOperator patternLiteral
-    |   e1 = expression op9='.&' e2=expression
-    |   e1 = expression op10='.^' e2=expression
-    |   e1 = expression op11='.|' e2=expression
+    |   e1 = expression opbininfix='.&' e2=expression
+    |   e1 = expression opbininfix='.^' e2=expression
+    |   e1 = expression opbininfix='.|' e2=expression
     |   e1 = expression op12='&&' e2=expression
     |   e1 = expression op13='||' e2=expression
     |   '(' e3 = expression ')'
