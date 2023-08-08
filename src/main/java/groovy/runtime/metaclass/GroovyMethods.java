@@ -21,7 +21,8 @@ public enum GroovyMethods {
     AS_BOOLEAN("asBoolean", null),
     EQUALS("equals", null),
     AS_TYPE("asType", null),
-    BITWISE_NEGATE("bitwiseNegate", "~");
+    BITWISE_NEGATE("bitwiseNegate", "~"),
+    CLONE("clone", null);
 
     private static final Map<String, GroovyMethods> mapSymbol = new HashMap<>();
     private static final Map<String, GroovyMethods> mapGroovyMethod = new HashMap<>();
