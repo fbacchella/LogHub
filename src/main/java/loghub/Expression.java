@@ -393,8 +393,9 @@ public class Expression {
         case "&&":
         case "||":
         case "==":
-        case "===":
         case "!=":
+        case "===":
+        case "!==":
             return Objects.requireNonNullElse(arg, NullOrMissingValue.NULL);
         default: return arg;
         }
@@ -609,6 +610,10 @@ public class Expression {
             return arg1.equals(arg2);
         } else if ("!=".equals(operator) && !dateCompare) {
             return ! arg1.equals(arg2);
+        } else if ("===".equals(operator) && !dateCompare) {
+            return System.identityHashCode(arg1) == System.identityHashCode(arg2);
+        } else if ("!==".equals(operator) && !dateCompare) {
+            return System.identityHashCode(arg1) != System.identityHashCode(arg2);
         } else if (dateCompare || (arg1 instanceof Comparable && arg2 instanceof Comparable)){
             int compare = compareObjects(arg1, arg2);
             switch (operator) {

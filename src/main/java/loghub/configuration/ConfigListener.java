@@ -1112,7 +1112,10 @@ class ConfigListener extends RouteBaseListener {
             String op = ctx.op8bis.getText();
             ExpressionBuilder post = stack.popTyped();
             ExpressionBuilder pre = stack.popTyped();
-            expression = newExpressionBuilder().binaryInfixOperator(pre, op, post);
+            expression = newExpressionBuilder()
+                                 .setBiOperator("ex.compare(\"%s\", %s, %s)", op, pre, post)
+                                 .snap()
+                                 .setLambda(pre, post, (l1, l2, ed) -> ed.getExpression().compare(op, l1.apply(ed), l2.apply(ed)));
         } else if (ctx.op9 != null) {
             // '.&'
             String op = ctx.op9.getText().substring(1);
