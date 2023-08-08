@@ -234,6 +234,8 @@ public class Expression {
         Object apply(ExpressionData data);
     }
 
+    public static final Object ANYVALUE = new Object();
+
     private static final Binding EMPTYBIDDING = new Binding();
     private static final Set<java.util.Map<String, Script>> scriptsMaps = new HashSet<>();
     private static final ThreadLocal<java.util.Map<String, Script>> compilationCache = ThreadLocal.withInitial(() -> {
@@ -599,7 +601,9 @@ public class Expression {
         arg1 = checkStringIp(arg2, arg1);
         boolean dateCompare = (arg1 instanceof Date || arg1 instanceof TemporalAccessor) &&
                               (arg2 instanceof Date || arg2 instanceof TemporalAccessor);
-        if (arg1 == NullOrMissingValue.MISSING || arg2 == NullOrMissingValue.MISSING) {
+        if (arg2 == ANYVALUE) {
+            return ((arg1 != NullOrMissingValue.MISSING) ^ "!=".equals(operator));
+        } else if (arg1 == NullOrMissingValue.MISSING || arg2 == NullOrMissingValue.MISSING) {
             throw IgnoredEventException.INSTANCE;
         } else if ("==".equals(operator) && !dateCompare) {
             return arg1.equals(arg2);

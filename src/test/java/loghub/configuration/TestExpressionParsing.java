@@ -870,6 +870,21 @@ public class TestExpressionParsing {
     }
 
     @Test
+    public void testExistsTrue() throws ProcessorException, ExpressionException {
+        Event ev = factory.newEvent();
+        ev.putAtPath(VariablePath.of("event", "type"), "debug");
+        ev.putAtPath(VariablePath.of("empty"), null);
+        Assert.assertTrue((Boolean) evalExpression("[event type] == *", ev));
+        Assert.assertTrue((Boolean) evalExpression("[empty] == *", ev));
+    }
+
+    @Test
+    public void testExistsFalse() throws ProcessorException, ExpressionException {
+        Event ev = factory.newEvent();
+        Assert.assertFalse((Boolean) evalExpression("[a] == *", ev));
+    }
+
+    @Test
     public void parseLambda() throws ProcessorException {
         String lambda = "x -> x + 1";
         Lambda l = ConfigurationTools.unWrap(lambda, RouteParser::lambda, new HashMap<>());

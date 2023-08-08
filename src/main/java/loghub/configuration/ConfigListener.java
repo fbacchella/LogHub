@@ -1100,6 +1100,13 @@ class ConfigListener extends RouteBaseListener {
                                        .setBiOperator("ex.compare(\"%s\", %s, %s)", op, pre, post)
                                        .snap()
                                        .setLambda(pre, post, (l1, l2, ed) -> ed.getExpression().compare(op, l1.apply(ed), l2.apply(ed)));
+        } else if (ctx.exists != null) {
+            // (== | !=) *
+            VariablePath path = convertEventVariable(ctx.exists);
+            String op = ctx.op.getText();
+            expression = newExpressionBuilder()
+                                             .setExpression("ex.compare(\"%s\", %s, %s)", op, path.groovyExpression(), "Expression.ANYVALUE")
+                                             .setLambda(ed -> ed.getExpression().compare(op, ed.getEvent().getAtPath(path), Expression.ANYVALUE));
         } else if (ctx.op8bis != null) {
             // '==='|'!=='
             String op = ctx.op8bis.getText();

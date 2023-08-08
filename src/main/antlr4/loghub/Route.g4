@@ -197,6 +197,7 @@ expression
     |   e1 = expression opin=('in'|'!in') e2=expression
     |   e1 = expression (neg='!')? opinstance='instanceof' qi=qualifiedIdentifier
     |   e1 = expression opinstance='!instanceof' qi=qualifiedIdentifier
+    |   (exists = eventVariable op=('=='|'!=') '*' | '*' op=('=='|'!=') exists = eventVariable)
     |   e1 = expression op8=('=='|'!='|'<=>') e2=expression
     |   e1 = expression op8bis=('==='|'!==') e2=expression
     |   e1 = expression opm=matchOperator patternLiteral
