@@ -24,7 +24,11 @@ public class CollectionMetaClass extends DelegatingMetaClass {
                 @SuppressWarnings("unchecked")
                 Collection<Object> c = collection.getClass().getConstructor().newInstance();
                 c.addAll(collection);
-                Collections.addAll(collection, arguments);
+                if ( ! (arguments[0] instanceof Collection)) {
+                    c.add(arguments[0]);
+                } else {
+                    c.addAll((Collection)arguments[0]);
+                }
                 return c;
             } catch (NoSuchMethodException | InstantiationException | IllegalAccessException | InvocationTargetException ex) {
                 // Fails to resolve using a fast path, perhaps groovy will be smarter.

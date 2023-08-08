@@ -493,10 +493,13 @@ public class TestExpressionParsing {
     }
 
     @Test
-    public void testNeedUnwrap() throws ProcessorException, ExpressionException {
-        // This expression fails if unwrap of PojoWrapper is not done
-        Set<?> i = (Set<?>) evalExpression("set(1, 2, 3) + 4", factory.newEvent());
-        Assert.assertEquals(Set.of(1, 2, 3, 4), i);
+    public void testCollectionsJoin() throws ProcessorException, ExpressionException {
+        Set<?> i1 = (Set<?>) evalExpression("set(1, 2, 3) + list(4,5,6)", factory.newEvent());
+        Assert.assertEquals(Set.of(1, 2, 3, 4, 5, 6), i1);
+        List<?> i2 = (List<?>) evalExpression("list(1, 2, 3) + set(4,5,6)", factory.newEvent());
+        Assert.assertEquals(List.of(1, 2, 3, 4, 5, 6), i2);
+        List<?> i3 = (List<?>) evalExpression("list(1, 2, 3) + 4", factory.newEvent());
+        Assert.assertEquals(List.of(1, 2, 3, 4), i3);
     }
 
     @Test
