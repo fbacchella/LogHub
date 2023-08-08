@@ -317,9 +317,13 @@ public abstract class VariablePath {
         }
         private Object resolve(Event ev) {
             Object o = ev.getConnectionContext();
-            for (String s: path) {
+            for (int i=0; i < path.length; i++) {
                 try {
-                    o = beanResolver(o, s);
+                    o = beanResolver(o, path[i]);
+                    // beanResolver return null before end of path, it's a missing value
+                    if (o == null && i < (path.length - 1)) {
+                        return NullOrMissingValue.MISSING;
+                    }
                 } catch (IllegalAccessException | InvocationTargetException ex) {
                     throw new IllegalArgumentException(String.format("Not a valid context path %s: %s", this, Helpers.resolveThrowableException(ex)), ex);
                 }
@@ -338,7 +342,7 @@ public abstract class VariablePath {
                 }
             }).get(beanName);
             if (m == null) {
-                throw new IllegalArgumentException("Unknown attribute " + beanName);
+                return NullOrMissingValue.MISSING;
             } else {
                 return m.invoke(beanObject);
             }

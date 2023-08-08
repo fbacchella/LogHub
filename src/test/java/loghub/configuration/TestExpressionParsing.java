@@ -675,8 +675,6 @@ public class TestExpressionParsing {
         Assert.assertTrue((boolean) evalExpression("[@context remoteAddress address] == \"www.google.com\"", ev));
         Assert.assertTrue((boolean) evalExpression("[@context remoteAddress port] == 443", ev));
         Assert.assertTrue((boolean) evalExpression("[@context principal name] == \"user\"", ev));
-        loghub.ProcessorException ex = Assert.assertThrows(loghub.ProcessorException.class, () -> evalExpression("[@context bad] == 443", ev));
-        Assert.assertEquals("Failed expression: Unknown attribute bad", ex.getMessage());
 
         String format = "user";
         String formatHash = Integer.toHexString(format.hashCode());
@@ -684,6 +682,18 @@ public class TestExpressionParsing {
         // Checking both order of expression, change the way groovy handle it
         Assert.assertEquals(true, evalExpression("\"user\" == [@context principal name]", ev));
         InetSocketAddress localAddr = (InetSocketAddress) evalExpression("[@context localAddress]", ev, Collections.singletonMap("h_" + formatHash, new VarFormatter(format)));
+    }
+
+    @Test
+    public void testContextNullOrMissing() throws ExpressionException, ProcessorException, UnknownHostException {
+        Event ev = factory.newEvent();
+        Principal p = () -> null;
+        ev.getConnectionContext().setPrincipal(p);
+        Assert.assertTrue((boolean) evalExpression("isEmpty([@context principal name])", ev));
+        Assert.assertTrue((boolean) evalExpression("isEmpty([@context localAddress])", ev));
+        Assert.assertThrows(loghub.IgnoredEventException.class, () -> evalExpression("[@context localAddress port] == 443", ev));
+        Assert.assertThrows(loghub.IgnoredEventException.class, () -> evalExpression("[@context bad] == 443", ev));
+        Assert.assertThrows(loghub.IgnoredEventException.class, () -> evalExpression("[@context remoteAddress path] == 443", ev));
     }
 
     @Test
@@ -871,17 +881,19 @@ public class TestExpressionParsing {
 
     @Test
     public void testExistsTrue() throws ProcessorException, ExpressionException {
-        Event ev = factory.newEvent();
+        Event ev = factory.newEvent(new IpConnectionContext(InetSocketAddress.createUnresolved("localhost", 0), InetSocketAddress.createUnresolved("localhost", 0), null));
         ev.putAtPath(VariablePath.of("event", "type"), "debug");
         ev.putAtPath(VariablePath.of("empty"), null);
         Assert.assertTrue((Boolean) evalExpression("[event type] == *", ev));
         Assert.assertTrue((Boolean) evalExpression("[empty] == *", ev));
+        Assert.assertTrue((Boolean) evalExpression("[@context localAddress port] == *", ev));
     }
 
     @Test
     public void testExistsFalse() throws ProcessorException, ExpressionException {
         Event ev = factory.newEvent();
         Assert.assertFalse((Boolean) evalExpression("[a] == *", ev));
+        Assert.assertFalse((Boolean) evalExpression("[@context localAddress port] == *", ev));
     }
 
     @Test
