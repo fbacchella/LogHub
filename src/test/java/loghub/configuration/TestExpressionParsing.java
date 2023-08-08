@@ -502,11 +502,14 @@ public class TestExpressionParsing {
     @Test
     public void testArrayMixed() throws ExpressionException, ProcessorException {
         Event ev = factory.newEvent();
-        ev.put("a", new Integer[] { 1, 2, 3});
+        ev.put("a", new Integer[] {1, 2, 3});
         ev.put("b", List.of(4, 5, 6));
         ev.put("c", new LinkedHashSet<>(List.of(7, 8, 9)));
         Object[] i = (Object[]) evalExpression("[a] + [b] + [c]", ev);
         Assert.assertArrayEquals(new Integer[]{1, 2, 3, 4, 5, 6, 7, 8, 9}, i);
+        // Check by starting with an immutable list and no public constructor
+        Object i2 = evalExpression("[b] + [c]", ev);
+        Assert.assertEquals(List.of(4, 5, 6, 7, 8, 9), i2);
     }
 
     @Test
