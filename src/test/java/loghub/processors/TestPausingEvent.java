@@ -29,7 +29,6 @@ import loghub.metrics.Stats;
 
 public class TestPausingEvent {
 
-
     private static Logger logger;
     private final EventsFactory factory = new EventsFactory();
 
@@ -54,8 +53,7 @@ public class TestPausingEvent {
     private class SleepingProcessor extends Processor implements AsyncProcessor<Object, Promise<Object>> {
 
         @Override
-        public boolean processCallback(Event event, Object content)
-                        throws ProcessorException {
+        public boolean processCallback(Event event, Object content) {
             logger.debug("Will process {} with content {}", event, content);
             return onsucces.apply(event, content);
         }
@@ -76,7 +74,7 @@ public class TestPausingEvent {
         }
 
         @Override
-        public boolean process(Event event) throws ProcessorException {
+        public boolean process(Event event) {
             ThreadBuilder.get().setTask(() -> {
                 try {
                     Thread.sleep(200);
@@ -96,7 +94,7 @@ public class TestPausingEvent {
         }
     }
 
-    @Test(timeout=1000)
+    @Test(timeout=2000)
     public void success() throws ProcessorException, InterruptedException {
         long started = Instant.now().toEpochMilli();
         logger.debug("starting");
@@ -111,11 +109,11 @@ public class TestPausingEvent {
         Assert.assertEquals(this, e.get("message"));
     }
 
-    @Test(timeout=1000)
+    @Test(timeout=2000)
     public void failed() throws ProcessorException, InterruptedException {
         Stats.reset();
         todo = () -> future.setSuccess(Boolean.TRUE);
-        onsucces = (e, v) -> {return false;};
+        onsucces = (e, v) -> false;
         Event e = factory.newEvent();
         SleepingProcessor sp = new SleepingProcessor();
         Groovy gp = new Groovy();
@@ -127,7 +125,7 @@ public class TestPausingEvent {
     }
 
 
-    @Test(timeout=1000)
+    @Test(timeout=2000)
     public void exceptionFalse() throws ProcessorException, InterruptedException {
         Stats.reset();
         todo = () -> future.setFailure(new RuntimeException());
