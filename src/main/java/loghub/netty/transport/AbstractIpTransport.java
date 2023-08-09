@@ -54,7 +54,7 @@ public abstract class AbstractIpTransport<M, T extends AbstractIpTransport<M, T,
         protected String sslKeyAlias;
         @Setter
         protected ClientAuthentication sslClientAuthentication;
-        protected List<String> applicationProtocols = new ArrayList<>(0);
+        protected final List<String> applicationProtocols = new ArrayList<>(0);
         public void addApplicationProtocol(String protocol) {
             applicationProtocols.add(protocol);
         }

@@ -46,7 +46,7 @@ public class TestPausingEvent {
         }
     }
 
-    PausingPromise future = new PausingPromise();
+    final PausingPromise future = new PausingPromise();
     Runnable todo;
     BiFunction<Event, Object, Boolean> onsucces;
     BiFunction<Event, Exception, Boolean> onexception;

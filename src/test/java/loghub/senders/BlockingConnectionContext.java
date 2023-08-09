@@ -11,7 +11,7 @@ import loghub.ConnectionContext;
  */
 public class BlockingConnectionContext extends ConnectionContext<Semaphore> {
 
-    Semaphore lock = new Semaphore(1);
+    final Semaphore lock = new Semaphore(1);
 
     public BlockingConnectionContext() {
         lock.drainPermits();

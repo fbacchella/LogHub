@@ -128,7 +128,7 @@ class ConfigListener extends RouteBaseListener {
 
     static final class Input {
         final List<ObjectWrapped<Receiver>> receiver;
-        String piperef;
+        final String piperef;
         Input(List<ObjectWrapped<Receiver>>receiver, String piperef) {
             this.piperef = piperef;
             this.receiver = receiver;

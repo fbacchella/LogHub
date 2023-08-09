@@ -55,7 +55,7 @@ public class ZMQFlow extends Thread implements AutoCloseable {
 
     public volatile boolean running = false;
     private final Supplier<byte[]> source;
-    private int msPause;
+    private final int msPause;
     private final ZMQHandler<byte[]> handler;
 
     private ZMQFlow(Builder builder) {

@@ -23,7 +23,7 @@ import loghub.events.EventsFactory;
 
 public class TestMap {
 
-    EventsFactory factory = new EventsFactory();
+    final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
     static public void configure() throws IOException {

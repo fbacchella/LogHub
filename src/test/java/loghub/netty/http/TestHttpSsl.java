@@ -57,7 +57,7 @@ public class TestHttpSsl {
         Configurator.setLevel("org", Level.WARN);
     }
 
-    Function<Map<String, Object> , SSLContext> getContext = (props) -> {
+    final Function<Map<String, Object> , SSLContext> getContext = (props) -> {
         Map<String, Object> properties = new HashMap<>();
         properties.put("context", "TLSv1.2");
         properties.put("trusts", Tools.getDefaultKeyStore());
