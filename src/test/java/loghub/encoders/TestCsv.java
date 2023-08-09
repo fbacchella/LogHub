@@ -42,7 +42,7 @@ public class TestCsv {
     }
 
     private Expression parseExpression(String exp) {
-        return ConfigurationTools.unWrap(exp, RouteParser::expression, Collections.emptyMap());
+        return ConfigurationTools.unWrap(exp, RouteParser::expression);
     }
 
     private void check(Csv.Builder builder, String expectedFormat) throws EncodeException {

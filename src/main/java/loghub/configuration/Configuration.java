@@ -505,7 +505,6 @@ public class Configuration {
         Map<String, BlockingQueue<Event>> outputQueues = new HashMap<>(namedPipeLine.size());
         conf.outputPipelines.forEach( i-> outputQueues.put(i, new LinkedBlockingQueue<>(queuesDepth)));
 
-        newProperties.put(Properties.PROPSNAMES.FORMATTERS.toString(), conf.formatters);
         newProperties.put(Properties.PROPSNAMES.MAINQUEUE.toString(), mainQueue);
         newProperties.put(Properties.PROPSNAMES.OUTPUTQUEUE.toString(), outputQueues);
 

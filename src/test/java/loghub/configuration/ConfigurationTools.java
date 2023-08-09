@@ -1,7 +1,5 @@
 package loghub.configuration;
 
-import java.util.HashMap;
-import java.util.Map;
 import java.util.function.Function;
 
 import org.antlr.v4.runtime.CharStream;
@@ -12,7 +10,6 @@ import org.junit.Assert;
 
 import loghub.RouteLexer;
 import loghub.RouteParser;
-import loghub.VarFormatter;
 import loghub.configuration.ConfigListener.ObjectWrapped;
 
 public class ConfigurationTools {
@@ -21,14 +18,10 @@ public class ConfigurationTools {
     }
 
     public static Object parseFragment(String fragment, Function<RouteParser, ? extends ParserRuleContext> extractor) {
-        return ConfigurationTools.parseFragment(CharStreams.fromString(fragment), extractor, new HashMap<>());
+        return ConfigurationTools.parseFragment(CharStreams.fromString(fragment), extractor);
     }
 
-    public static Object parseFragment(String fragment, Function<RouteParser, ? extends ParserRuleContext> extractor, Map<String, VarFormatter> formatters) {
-        return ConfigurationTools.parseFragment(CharStreams.fromString(fragment), extractor, formatters);
-    }
-
-    public static <T extends ParserRuleContext> Object parseFragment(CharStream fragment, Function<RouteParser, T> extractor, Map<String, VarFormatter> formatters) {
+    public static <T extends ParserRuleContext> Object parseFragment(CharStream fragment, Function<RouteParser, T> extractor) {
         RouteLexer lexer = new RouteLexer(fragment);
 
         CommonTokenStream tokens = new CommonTokenStream(lexer);
@@ -46,7 +39,6 @@ public class ConfigurationTools {
             o = conf.stack.pop();
         }
         Assert.assertTrue(conf.stack.isEmpty());
-        formatters.putAll(conf.formatters);
         return o;
     }
 
@@ -56,21 +48,9 @@ public class ConfigurationTools {
         return parsed.wrapped;
     }
 
-    public static <T> T buildFromFragment(String fragment, Function<RouteParser, ? extends ParserRuleContext> extractor, Map<String, VarFormatter> formatters) {
-        @SuppressWarnings("unchecked")
-        ObjectWrapped<T> parsed = (ObjectWrapped<T>) ConfigurationTools.parseFragment(fragment, extractor, formatters);
-        return parsed.wrapped;
-    }
-
     public static <T> T unWrap(String fragment, Function<RouteParser, ? extends ParserRuleContext> extractor) {
         @SuppressWarnings("unchecked")
         ObjectWrapped<T> parsed = (ObjectWrapped<T>) ConfigurationTools.parseFragment(fragment, extractor);
-        return parsed.wrapped;
-    }
-
-    public static <T> T unWrap(String fragment, Function<RouteParser, ? extends ParserRuleContext> extractor, Map<String, VarFormatter> formatters) {
-        @SuppressWarnings("unchecked")
-        ObjectWrapped<T> parsed = (ObjectWrapped<T>) ConfigurationTools.parseFragment(fragment, extractor, formatters);
         return parsed.wrapped;
     }
 

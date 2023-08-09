@@ -56,10 +56,8 @@ public class TestEtl {
     }
 
     private Event RunEtl(String exp, Consumer<Event> filer, boolean status, CompletableFuture<Event> holder) throws ProcessorException {
-        Map<String, VarFormatter> formatters = new HashMap<>();
-        Etl e =  ConfigurationTools.buildFromFragment(exp, RouteParser::etl, formatters);
+        Etl e =  ConfigurationTools.buildFromFragment(exp, RouteParser::etl);
         Map<String, Object> settings = new HashMap<>(1);
-        settings.put("__FORMATTERS", formatters);
         e.configure(new Properties(settings));
         Event ev = factory.newEvent();
         if (holder != null) {
@@ -81,7 +79,7 @@ public class TestEtl {
         Properties props = new Properties(Collections.emptyMap());
         Etl.Assign etl = new Etl.Assign();
         etl.setLvalue(VariablePath.of("a", "b"));
-        etl.setExpression(Tools.parseExpression("[c] + 1", props.formatters));
+        etl.setExpression(Tools.parseExpression("[c] + 1"));
         boolean done = etl.configure(props);
         Assert.assertTrue("configuration failed", done);
         Event event = factory.newEvent();
@@ -123,7 +121,7 @@ public class TestEtl {
         Properties props = new Properties(properties);
         Etl.Assign etl = new Etl.Assign();
         etl.setLvalue(VariablePath.of("a"));
-        etl.setExpression(Tools.parseExpression("\"${#1%t<GMT>H}\"([@timestamp])", formats));
+        etl.setExpression(Tools.parseExpression("\"${#1%t<GMT>H}\"([@timestamp])"));
         //etl.setExpression(new Expression("formatters.a.format(event.getTimestamp())", props.groovyClassLoader, props.formatters));
         boolean done = etl.configure(props);
         Assert.assertTrue("configuration failed", done);

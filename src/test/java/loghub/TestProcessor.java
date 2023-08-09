@@ -15,7 +15,7 @@ public class TestProcessor {
     private final EventsFactory factory = new EventsFactory();
 
     private Expression getExpression(String expressionScript) {
-        return Tools.parseExpression(expressionScript, Collections.emptyMap());
+        return Tools.parseExpression(expressionScript);
     }
 
     @Test

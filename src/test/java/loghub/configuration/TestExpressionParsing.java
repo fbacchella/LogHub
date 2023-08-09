@@ -46,7 +46,6 @@ import loghub.NullOrMissingValue;
 import loghub.ProcessorException;
 import loghub.RouteParser;
 import loghub.Tools;
-import loghub.VarFormatter;
 import loghub.VariablePath;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
@@ -665,7 +664,7 @@ public class TestExpressionParsing {
     @Test
     public void testMultiFormat() throws ProcessorException {
         String format = "\"${a%s} ${b%02d}\"";
-        Expression expression = Tools.parseExpression(format, new HashMap<>());
+        Expression expression = Tools.parseExpression(format);
         Event ev = factory.newEvent();
         ev.put("a", "1");
         ev.put("b", 2);
@@ -685,9 +684,8 @@ public class TestExpressionParsing {
         Map<String, Double> results = new HashMap<>(scripts.size() * 2);
         scripts.forEach(s -> {
             try {
-                Expression exp = Tools.parseExpression(s, Collections.emptyMap());
-                //Expression exp = new Expression(s, new Properties(Collections.emptyMap()).groovyClassLoader, Collections.emptyMap());
-                double f = (double) exp.eval(ev);
+                Expression exp = Tools.parseExpression(s);
+                 double f = (double) exp.eval(ev);
                 results.put(s, f);
             } catch (ProcessorException e) {
                 throw new RuntimeException(e);
@@ -697,7 +695,7 @@ public class TestExpressionParsing {
         Assert.assertEquals("[b] - [c]", 1.1, results.get("[b] - [c]"), 1e-3);
         Assert.assertEquals("[c] - [d]", -1.1, results.get("[c] - [d]"), 1e-3);
         Assert.assertEquals("[d] - [a]", 1.1, results.get("[d] - [a]"), 1e-3);
-        Expression exp = Tools.parseExpression("[c] - 1", Collections.emptyMap());
+        Expression exp = Tools.parseExpression("[c] - 1");
         Assert.assertThrows(IgnoredEventException.class, () -> exp.eval(ev));
     }
 
@@ -745,15 +743,12 @@ public class TestExpressionParsing {
 
     @Test
     public void testDottedContext() throws ExpressionException, ProcessorException {
-        String format = "user";
-        String formatHash = Integer.toHexString(format.hashCode());
-
         Event ev = factory.newEvent(new IpConnectionContext(new InetSocketAddress("127.0.0.1", 35710), new InetSocketAddress("localhost", 80), null));
         Principal p = () -> "user";
         ev.getConnectionContext().setPrincipal(p);
         Object value = Tools.evalExpression("[@context.principal.name] == \"user\"", ev);
         Assert.assertEquals(true, value);
-        InetSocketAddress localAddr = (InetSocketAddress) Tools.evalExpression("[ @context.localAddress]", ev, Collections.singletonMap("h_" + formatHash, new VarFormatter(format)));
+        InetSocketAddress localAddr = (InetSocketAddress) Tools.evalExpression("[ @context.localAddress]", ev);
         Assert.assertEquals(35710, localAddr.getPort());
     }
 
@@ -871,7 +866,7 @@ public class TestExpressionParsing {
               .filter(Matcher::matches)
               .map(ma -> ma.group(1))
               .map(s -> "[" + s + "]")
-              .forEach(s -> Tools.parseExpression(s, Collections.emptyMap()));
+              .forEach(Tools::parseExpression);
         }
     }
 
@@ -946,21 +941,21 @@ public class TestExpressionParsing {
     @Test
     public void parseLambda() throws ProcessorException {
         String lambda = "x -> x + 1";
-        Lambda l = ConfigurationTools.unWrap(lambda, RouteParser::lambda, new HashMap<>());
+        Lambda l = ConfigurationTools.unWrap(lambda, RouteParser::lambda);
         Assert.assertEquals(2, l.getExpression().eval(null, 1));
     }
 
     @Test
     public void parseLambdaIsEmpty() throws ProcessorException {
         String lambda = "x -> isEmpty(x)";
-        Lambda l = ConfigurationTools.unWrap(lambda, RouteParser::lambda, new HashMap<>());
+        Lambda l = ConfigurationTools.unWrap(lambda, RouteParser::lambda);
         Assert.assertEquals(true, l.getExpression().eval(null, List.of()));
     }
 
     @Test
     public void parseBadLambda() {
         String lambda = "x -> y + 1";
-        ConfigException ex = Assert.assertThrows(ConfigException.class, () -> ConfigurationTools.unWrap(lambda, RouteParser::lambda, Collections.emptyMap()));
+        ConfigException ex = Assert.assertThrows(ConfigException.class, () -> ConfigurationTools.unWrap(lambda, RouteParser::lambda));
         Assert.assertEquals("Invalid lambda definition", ex.getMessage());
     }
 

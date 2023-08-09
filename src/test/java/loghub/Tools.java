@@ -11,7 +11,6 @@ import java.security.cert.CertificateException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -174,20 +173,16 @@ public class Tools {
 
     public static final Function<Date, Boolean> isRecent = i -> { long now = new Date().getTime() ; return (i.getTime() > (now - 60000)) && (i.getTime() < (now + 60000));};
 
-    public static Expression parseExpression(String exp, Map<String, VarFormatter> formats) {
-        return ConfigurationTools.unWrap(exp, RouteParser::expression, formats);
-    }
-
-    public static  Object evalExpression(String exp, Event ev, Map<String, VarFormatter> formats) throws ProcessorException {
-        return parseExpression(exp, formats).eval(ev);
+    public static Expression parseExpression(String exp) {
+        return ConfigurationTools.unWrap(exp, RouteParser::expression);
     }
 
     public static  Object evalExpression(String exp, Event ev) throws Expression.ExpressionException, ProcessorException {
-        return evalExpression(exp, ev, new HashMap<>());
+        return parseExpression(exp).eval(ev);
     }
 
     public static  Object evalExpression(String exp) throws Expression.ExpressionException, ProcessorException {
-        return evalExpression(exp, null, new HashMap<>());
+        return evalExpression(exp, null);
     }
 
 }

@@ -1,7 +1,6 @@
 package loghub.configuration;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
@@ -25,15 +24,12 @@ class ExpressionBuilder {
         LAMBDA
     }
 
-    private final Map<String, VarFormatter> formatters;
-
     @Getter
     private ExpressionType type;
     private Object payload;
     private ExpressionBuilder previous = null;
 
-    ExpressionBuilder(Map<String, VarFormatter> formatters) {
-        this.formatters = formatters;
+    ExpressionBuilder() {
     }
 
     @SuppressWarnings("unchecked")
@@ -42,7 +38,7 @@ class ExpressionBuilder {
     }
 
     public ExpressionBuilder snap() {
-        ExpressionBuilder next = new ExpressionBuilder(formatters);
+        ExpressionBuilder next = new ExpressionBuilder();
         next.type = this.type;
         next.payload = this.payload;
         next.previous = this;
@@ -177,7 +173,7 @@ class ExpressionBuilder {
         case LITERAL:
             return new Expression(payload);
         case FORMATTER:
-            return new Expression((VarFormatter) payload, formatters);
+            return new Expression(payload);
         default:
             throw new UnsupportedOperationException("Unreachable");
         }

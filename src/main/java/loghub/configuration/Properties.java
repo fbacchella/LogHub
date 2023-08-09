@@ -36,7 +36,6 @@ import loghub.Pipeline;
 import loghub.PriorityBlockingQueue;
 import loghub.Processor;
 import loghub.ThreadBuilder;
-import loghub.VarFormatter;
 import loghub.VariablePath;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
@@ -61,7 +60,6 @@ public class Properties extends HashMap<String, Object> {
         CLASSLOADERNAME,
         GROOVYCLASSLOADERNAME,
         NAMEDPIPELINES,
-        FORMATTERS,
         MAINQUEUE,
         OUTPUTQUEUE,
         QUEUESDEPTH,
@@ -99,7 +97,6 @@ public class Properties extends HashMap<String, Object> {
     public final Collection<Sender> senders;
     public final Map<String, Source> sources;
     public final GroovyClassLoader groovyClassLoader;
-    public final Map<String, VarFormatter> formatters;
     public final JmxService.Configuration jmxServiceConfiguration;
     public final int numWorkers;
     public final PriorityBlockingQueue mainQueue;
@@ -157,13 +154,6 @@ public class Properties extends HashMap<String, Object> {
             }
         }));
         identifiedProcessors = _identifiedProcessors.size() > 0 ? Collections.unmodifiableMap(_identifiedProcessors) : Collections.emptyMap();
-
-        //buffer is here to make writing tests easier
-        if (properties.containsKey(PROPSNAMES.FORMATTERS.toString())) {
-            formatters = Collections.unmodifiableMap((Map<String, VarFormatter>) properties.remove(PROPSNAMES.FORMATTERS.toString()));
-        } else {
-            formatters = Collections.emptyMap();
-        }
 
         if (properties.containsKey("numWorkers")) {
             numWorkers = (Integer) properties.remove("numWorkers");

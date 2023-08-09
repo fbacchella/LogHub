@@ -28,7 +28,6 @@ import org.antlr.v4.runtime.Parser;
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.RecognitionException;
 import org.antlr.v4.runtime.tree.ParseTreeWalker;
-import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -216,7 +215,6 @@ class ConfigListener extends RouteBaseListener {
     final List<Input> inputs = new ArrayList<>();
     final List<Output> outputs = new ArrayList<>();
     final Map<String, Object> properties = new HashMap<>();
-    final Map<String, VarFormatter> formatters = new HashMap<>();
     final Map<String, AtomicReference<Source>> sources = new HashMap<>();
     final Set<String> outputPipelines = new HashSet<>();
     final SSLContext sslContext;
@@ -940,13 +938,6 @@ class ConfigListener extends RouteBaseListener {
                     stack.pop();
                 }
             } else {
-                String key = "h_" + Integer.toHexString(format.hashCode());
-                try {
-                    formatters.put(key, vf);
-                } catch (IllegalArgumentException ex) {
-                    logger.catching(Level.DEBUG, ex);
-                    throw new RecognitionException(ex.getMessage(), parser, stream, ctx);
-                }
                 if (ctx.expressionsList() != null) {
                     List<ExpressionBuilder> exlist = stack.popTyped();
                     ExpressionBuilder expressions = newExpressionBuilder().getExpressionList(exlist);
@@ -1178,7 +1169,7 @@ class ConfigListener extends RouteBaseListener {
     }
 
     private ExpressionBuilder newExpressionBuilder() {
-        return new ExpressionBuilder(formatters);
+        return new ExpressionBuilder();
     }
 
     @Override

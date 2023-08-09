@@ -68,8 +68,6 @@ import lombok.Getter;
  */
 public class Expression {
 
-    private static final String FORMATTER = "__FORMATTER__";
-
     private static final MetaClassRegistry registry = GroovySystem.getMetaClassRegistry();
 
     private static final Logger logger = LogManager.getLogger();
@@ -177,7 +175,6 @@ public class Expression {
         Event getEvent();
         Expression getExpression();
         Object getValue();
-        java.util.Map<String, VarFormatter> getFormatters();
     }
 
     private static class BindingMap implements ExpressionData, Closeable {
@@ -187,11 +184,6 @@ public class Expression {
         private Expression expression;
         @Getter
         private Object value;
-
-        @Override
-        public java.util.Map<String, VarFormatter> getFormatters() {
-            return expression.formatters;
-        }
 
         @Override
         public void close() {
@@ -213,7 +205,6 @@ public class Expression {
 
     @Getter
     private final String expression;
-    private final java.util.Map<String, VarFormatter> formatters;
     private final Object literal;
 
     /**
@@ -236,13 +227,11 @@ public class Expression {
             this.literal = literal == null ? NullOrMissingValue.NULL : literal;
             this.expression = null;
         }
-        this.formatters = java.util.Map.of();
     }
 
-    public Expression(VarFormatter format, java.util.Map<String, VarFormatter> formatters) {
+    public Expression(VarFormatter format) {
         this.literal = format;
         this.expression = null;
-        this.formatters = formatters;
     }
 
 
@@ -274,9 +263,6 @@ public class Expression {
         } else if (literal != null) {
             // It's a constant expression, no need to evaluate it
             return literal;
-        } else if (formatters.containsKey(FORMATTER)) {
-            // A string expression was given, it might have been a format string to apply to the event
-            return this.formatters.get(FORMATTER).format(event);
         } else {
             throw new UnsupportedOperationException("Unreachable");
         }
