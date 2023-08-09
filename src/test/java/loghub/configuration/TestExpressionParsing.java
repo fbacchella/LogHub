@@ -86,7 +86,10 @@ public class TestExpressionParsing {
 
     @Test
     public void testNew() throws ExpressionException, ProcessorException {
-        Assert.assertEquals(new Date(3), Tools.evalExpression("new java.util.Date(1+2)"));
+        Assert.assertEquals(new Date(3), Tools.evalExpression("new java.util.Date(1+2)", factory.newEvent()));
+        Assert.assertEquals("", Tools.evalExpression("new java.lang.String()", factory.newEvent()));
+        ProcessorException ex = Assert.assertThrows(ProcessorException.class, () -> Tools.evalExpression("new class.not.exist()", factory.newEvent()));
+        Assert.assertEquals("Failed expression: Unknown class class.not.exist", ex.getMessage());
     }
 
     @Test

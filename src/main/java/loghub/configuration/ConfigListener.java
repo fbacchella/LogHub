@@ -1115,10 +1115,21 @@ class ConfigListener extends RouteBaseListener {
                                       .setOperator("(%s)", subexpression)
                                       .setLambda(subexpression, Expression.ExpressionLambda::apply);
         } else if (ctx.newclass != null) {
-            ExpressionBuilder subexpression = stack.popTyped();
-            expression = subexpression.snap()
-                                      .setExpression("new %s(%s)", ctx.newclass.getText(), subexpression)
-                                      .setType(ExpressionBuilder.ExpressionType.VARIABLE);
+            Expression.ExpressionLambda argsLambda;
+            ExpressionBuilder expressions;
+            if (ctx.expressionsList() != null) {
+                List<ExpressionBuilder> exlist = stack.popTyped();
+                expressions = newExpressionBuilder().getExpressionList(exlist);
+                argsLambda = expressions.getPayload();
+            } else {
+                argsLambda = ed -> List.of();
+                expressions = newExpressionBuilder().setExpression("");
+            }
+            expression = newExpressionBuilder()
+                                 .setExpression("new %s(%s)", ctx.newclass.getText(), expressions)
+                                 .setType(ExpressionBuilder.ExpressionType.VARIABLE)
+                                 .setLambda(ed -> ed.getExpression().newInstance(ctx.newclass.getText(),
+                                            (List<Object>) argsLambda.apply(ed)));
         } else if (ctx.arrayIndex != null) {
             String arrayIndexSign = ctx.arrayIndexSign != null ? ctx.arrayIndexSign.getText() : "";
             int arrayIndex = Integer.parseInt(arrayIndexSign + ctx.arrayIndex.getText());

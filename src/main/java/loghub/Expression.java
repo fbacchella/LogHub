@@ -755,6 +755,16 @@ public class Expression {
         }
     }
 
+    public Object newInstance(String theClassName, List<Object> args) {
+        try {
+            Class <?> theClass = this.getClass().getClassLoader().loadClass(theClassName);
+            MetaClass mc = registry.getMetaClass(theClass);
+            return mc.invokeConstructor(args.toArray(Object[]::new));
+        } catch (ClassNotFoundException e) {
+            throw new IllegalArgumentException("Unknown class " + theClassName);
+        }
+    }
+
     /**
      * Clear the compilation cache
      */
