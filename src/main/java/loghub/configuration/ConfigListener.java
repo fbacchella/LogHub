@@ -1100,10 +1100,15 @@ class ConfigListener extends RouteBaseListener {
             } else {
                 argsLambda = ed -> List.of();
             }
-            expression = newExpressionBuilder()
-                                 .setType(ExpressionBuilder.ExpressionType.VARIABLE)
-                                 .setLambda(ed -> ed.getExpression().newInstance(ctx.newclass.getText(),
-                                            (List<Object>) argsLambda.apply(ed)));
+            try {
+                Class<?> theClass = this.classLoader.loadClass(ctx.newclass.getText());
+                expression = newExpressionBuilder()
+                                     .setType(ExpressionBuilder.ExpressionType.VARIABLE)
+                                     .setLambda(ed -> ed.getExpression().newInstance(theClass,
+                                                (List<Object>) argsLambda.apply(ed)));
+            } catch (ClassNotFoundException e) {
+                throw new RecognitionException("Unknown class: " + ctx.newclass.getText(), parser, stream, ctx);
+            }
         } else if (ctx.arrayIndex != null) {
             String arrayIndexSign = ctx.arrayIndexSign != null ? ctx.arrayIndexSign.getText() : "";
             int arrayIndex = Integer.parseInt(arrayIndexSign + ctx.arrayIndex.getText());
