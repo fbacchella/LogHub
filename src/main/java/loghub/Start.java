@@ -421,18 +421,15 @@ public class Start {
             p.configure(props);
             FieldsProcessor fp = (FieldsProcessor) p;
             Event ev = props.eventsFactory.newEvent();
-            try {
-                new BufferedReader(new InputStreamReader(System.in, "UTF-8")).lines().forEach( i -> {
-                    try {
-                        ev.put("message", i);
-                        fp.fieldFunction(ev, i);
-                        System.out.format("%s -> %s%n", i, ev);
-                    } catch (ProcessorException e) {
-                        System.err.println("Processing failed:" + e.getMessage());
-                    }
-                });
-            } catch (UnsupportedEncodingException e) {
-            }
+            new BufferedReader(new InputStreamReader(System.in, StandardCharsets.UTF_8)).lines().forEach( i -> {
+                try {
+                    ev.put("message", i);
+                    fp.fieldFunction(ev, i);
+                    System.out.format("%s -> %s%n", i, ev);
+                } catch (ProcessorException e) {
+                    System.err.println("Processing failed:" + e.getMessage());
+                }
+            });
         }
     }
 
