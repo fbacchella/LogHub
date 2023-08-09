@@ -20,7 +20,6 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import loghub.Expression;
 import loghub.Helpers;
 import loghub.IgnoredEventException;
 import loghub.LogUtils;

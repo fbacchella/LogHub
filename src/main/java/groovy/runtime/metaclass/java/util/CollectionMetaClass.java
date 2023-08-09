@@ -2,7 +2,6 @@ package groovy.runtime.metaclass.java.util;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.Collection;
-import java.util.Collections;
 
 import groovy.lang.DelegatingMetaClass;
 import groovy.lang.MetaClass;
