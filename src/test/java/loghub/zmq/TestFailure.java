@@ -60,7 +60,7 @@ public class TestFailure {
         String endpoint = "pgm://localhost:" + Tools.tryGetPort();
         try (
              Socket s1 = ctx.getBuilder(Method.BIND, SocketType.PUB, endpoint).build();
-             Socket s2 = ctx.getBuilder(Method.BIND, SocketType.SUB, endpoint).build();) {
+             Socket s2 = ctx.getBuilder(Method.BIND, SocketType.SUB, endpoint).build()) {
             // empty
         } catch (ZMQCheckedException ex) {
             Assert.assertEquals(Error.EPROTONOSUPPORT, ex.getError());

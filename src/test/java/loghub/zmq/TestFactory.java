@@ -39,7 +39,7 @@ public class TestFactory {
             CountDownLatch latch = new CountDownLatch(2);
             Thread t1 = ThreadBuilder.get().setDaemon(true).setTask(() -> {
                 try (Socket pull = factory.getBuilder(Method.BIND, SocketType.PULL, rendezvous).setImmediate(false).build();
-                     ZPoller poller = factory.getZPoller();){
+                     ZPoller poller = factory.getZPoller()){
                     try {
                         Thread.sleep(100);
                     } catch (InterruptedException e1) {
@@ -69,7 +69,7 @@ public class TestFactory {
             }).build(true);
             Thread t2 = ThreadBuilder.get().setDaemon(true).setTask(() -> {
                 try (Socket push = factory.getBuilder(Method.CONNECT, SocketType.PUSH, rendezvous).setImmediate(false).build();
-                     ZPoller poller = factory.getZPoller();) {
+                     ZPoller poller = factory.getZPoller()) {
                     try {
                         Thread.sleep(100);
                     } catch (InterruptedException e1) {
