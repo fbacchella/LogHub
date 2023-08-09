@@ -41,7 +41,7 @@ public class TestToJson {
         LogUtils.setLevel(logger, Level.TRACE);
     }
 
-    private void check(boolean pretty, boolean textdate) throws EncodeException, JsonMappingException, JsonProcessingException {
+    private void check(boolean pretty, boolean textdate) throws EncodeException, JsonProcessingException {
         ToJson.Builder builder = ToJson.getBuilder();
         builder.setPretty(pretty);
         builder.setDateAsText(textdate);
@@ -76,17 +76,17 @@ public class TestToJson {
     }
 
     @Test
-    public void testPretty() throws JsonMappingException, JsonProcessingException, EncodeException {
+    public void testPretty() throws JsonProcessingException, EncodeException {
         check(true, false);
     }
 
     @Test
-    public void testCompact() throws JsonMappingException, JsonProcessingException, EncodeException {
+    public void testCompact() throws JsonProcessingException, EncodeException {
         check(false, false);
     }
 
     @Test
-    public void testDateText() throws JsonMappingException, JsonProcessingException, EncodeException {
+    public void testDateText() throws JsonProcessingException, EncodeException {
         check(false, true);
     }
 
