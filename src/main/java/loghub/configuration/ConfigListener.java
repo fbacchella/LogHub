@@ -680,8 +680,7 @@ class ConfigListener extends RouteBaseListener {
             // if no pipe name given, events are sent to the main pipe
             piperef = new PipeRefName("main");
         }
-        @SuppressWarnings("unchecked")
-        List<ObjectWrapped<Receiver>> receivers = (List<ObjectWrapped<Receiver>>) stack.pop();
+        List<ObjectWrapped<Receiver>> receivers = stack.popTyped();
         Input input = new Input(receivers, piperef.piperef);
         inputs.add(input);
         logger.debug("adding new input {}", input);
@@ -935,23 +934,7 @@ class ConfigListener extends RouteBaseListener {
             String format = ctx.sl.getText();
             VarFormatter vf = new VarFormatter(format);
             if (vf.isEmpty()) {
-                StringBuilder buffer = new StringBuilder("\"");
-                format.chars().mapToObj(i -> {
-                    if (Character.isISOControl(i)) {
-                        return String.format("\\u%04X", i);
-                    } else if (i == '\\') {
-                        return "\\\\";
-                    } else if (i == '"') {
-                        return "\\\"";
-                    } else if (i == '%') {
-                        return "%%";
-                    } else {
-                        return String.valueOf(Character.toChars(i));
-                    }
-                }).forEach(buffer::append);
-                buffer.append("\"");
                 expression = newExpressionBuilder()
-                                           .setExpression(buffer.toString())
                                            .setPayload(format);
                 if (ctx.expressionsList() != null) {
                     stack.pop();
@@ -970,7 +953,6 @@ class ConfigListener extends RouteBaseListener {
 
                     expression = newExpressionBuilder()
                                                .setVarFormatter(vf)
-                                               .setExpression("formatters.%s.format(%s)", key, expressions)
                                                .setType(expressions.getType());
                     if (expression.getType() == ExpressionBuilder.ExpressionType.LAMBDA) {
                         Expression.ExpressionLambda listlambda = expressions.getPayload();
@@ -979,7 +961,6 @@ class ConfigListener extends RouteBaseListener {
 
                 } else {
                     expression = newExpressionBuilder()
-                                               .setExpression("formatters.%s.format(event)", key)
                                                .setVarFormatter(vf);
                 }
             }
@@ -994,7 +975,6 @@ class ConfigListener extends RouteBaseListener {
         } else if (ctx.l != null) {
             ObjectWrapped<Object> literal = stack.popTyped();
             expression = newExpressionBuilder()
-                                       .setExpression(ctx.l.getText())
                                        .setPayload(literal.wrapped);
         } else if (ctx.ev != null) {
             VariablePath path = convertEventVariable(ctx.ev);
@@ -1012,7 +992,7 @@ class ConfigListener extends RouteBaseListener {
                 String encoded = Base64.getEncoder().encodeToString(patternBytes);
                 String patterOperator = ctx.opm.getText();
                 expression = pre.snap()
-                                .setOperator("ex.regex((%s), \"%s\", \"%s\")", pre, patterOperator, encoded)
+                                .setOperator()
                                 .setLambda(pre, (l, ed) -> ed.getExpression().regex(l.apply(ed), patterOperator, encoded));
             } catch (PatternSyntaxException e) {
                 throw new RecognitionException(Helpers.resolveThrowableException(e), parser, stream, ctx);
@@ -1021,13 +1001,12 @@ class ConfigListener extends RouteBaseListener {
             // '!'
             ExpressionBuilder post = stack.popTyped();
             expression = post.snap()
-                             .setExpression("! %s", post)
-                             .setLambda(post, (l, ed) -> ! ed.getExpression().asBoolean(l.apply(ed)));
+                              .setLambda(post, (l, ed) -> ! ed.getExpression().asBoolean(l.apply(ed)));
         } else if (ctx.opnotbinary != null) {
             // '.~'
             ExpressionBuilder post = stack.popTyped();
             expression = post.snap()
-                             .setOperator("~ %s", post)
+                             .setOperator()
                              .setLambda(post, (l, ed) -> ed.getExpression().groovyOperator("~", l.apply(ed)));
         } else if (ctx.op2 != null) {
             // '**'
@@ -1041,7 +1020,7 @@ class ConfigListener extends RouteBaseListener {
             String op3 = ctx.op3.getText();
             int sign = "-".equals(op3) ? -1 : 1;
             expression = post.snap()
-                             .setOperator("%s(%s)", op3, post)
+                             .setOperator()
                              .setLambda(post, (l, ed) -> ed.getExpression().groovyOperator("*", sign, l.apply(ed)));
         } else if (ctx.opinfix != null) {
             // '*'|'/'|'%' |'+'|'-'|'<<'|'>>'|'>>>'
@@ -1055,7 +1034,7 @@ class ConfigListener extends RouteBaseListener {
             ExpressionBuilder post = stack.popTyped();
             ExpressionBuilder pre = stack.popTyped();
             expression = newExpressionBuilder()
-                                       .setBiOperator("ex.in(\"%s\", %s, %s)", op, pre, post)
+                                       .setBiOperator(pre, post)
                                        .snap()
                                        .setLambda(pre, post, (l1, l2, ed) -> ed.getExpression().in(op, l1.apply(ed), l2.apply(ed)));
         } else if (ctx.opinstance != null) {
@@ -1066,7 +1045,6 @@ class ConfigListener extends RouteBaseListener {
                 ExpressionBuilder pre = (ExpressionBuilder) stack.pop();
                 Class<?> clazz = classLoader.loadClass(className);
                 expression = newExpressionBuilder()
-                                           .setExpression("ex.instanceof(\"%s\", %s, %s)", op, pre.getExpression(), className)
                                            .setLambda(pre, (l, ed) -> ed.getExpression().instanceOf(op, l.apply(ed), clazz));
             } catch (ClassNotFoundException e) {
                 throw new RecognitionException(Helpers.resolveThrowableException(e), parser, stream, ctx);
@@ -1077,7 +1055,7 @@ class ConfigListener extends RouteBaseListener {
             ExpressionBuilder post = stack.popTyped();
             ExpressionBuilder pre = stack.popTyped();
             expression = newExpressionBuilder()
-                                       .setBiOperator("ex.compare(\"%s\", %s, %s)", op, pre, post)
+                                       .setBiOperator(pre, post)
                                        .snap()
                                        .setLambda(pre, post, (l1, l2, ed) -> ed.getExpression().compare(op, l1.apply(ed), l2.apply(ed)));
         } else if (ctx.exists != null) {
@@ -1085,7 +1063,6 @@ class ConfigListener extends RouteBaseListener {
             VariablePath path = convertEventVariable(ctx.exists);
             String op = ctx.op.getText();
             expression = newExpressionBuilder()
-                                             .setExpression("ex.compare(\"%s\", %s, %s)", op, path.groovyExpression(), "Expression.ANYVALUE")
                                              .setLambda(ed -> ed.getExpression().compare(op, ed.getEvent().getAtPath(path), Expression.ANYVALUE));
         } else if (ctx.opbininfix != null) {
             // '.&'|'.^'|'.|'
@@ -1112,21 +1089,18 @@ class ConfigListener extends RouteBaseListener {
         } else if (ctx.e3 != null) {
             ExpressionBuilder subexpression = stack.popTyped();
             expression = subexpression.snap()
-                                      .setOperator("(%s)", subexpression)
+                                      .setOperator()
                                       .setLambda(subexpression, Expression.ExpressionLambda::apply);
         } else if (ctx.newclass != null) {
             Expression.ExpressionLambda argsLambda;
-            ExpressionBuilder expressions;
             if (ctx.expressionsList() != null) {
                 List<ExpressionBuilder> exlist = stack.popTyped();
-                expressions = newExpressionBuilder().getExpressionList(exlist);
+                ExpressionBuilder expressions = newExpressionBuilder().getExpressionList(exlist);
                 argsLambda = expressions.getPayload();
             } else {
                 argsLambda = ed -> List.of();
-                expressions = newExpressionBuilder().setExpression("");
             }
             expression = newExpressionBuilder()
-                                 .setExpression("new %s(%s)", ctx.newclass.getText(), expressions)
                                  .setType(ExpressionBuilder.ExpressionType.VARIABLE)
                                  .setLambda(ed -> ed.getExpression().newInstance(ctx.newclass.getText(),
                                             (List<Object>) argsLambda.apply(ed)));
@@ -1135,14 +1109,13 @@ class ConfigListener extends RouteBaseListener {
             int arrayIndex = Integer.parseInt(arrayIndexSign + ctx.arrayIndex.getText());
             ExpressionBuilder subexpression = stack.popTyped();
             expression = subexpression.snap()
-                                      .setExpression("ex.getIterableIndex(%s, %s)", subexpression, arrayIndex)
                                       .join(ExpressionBuilder.ExpressionType.OPERATOR)
                                       .setLambda(subexpression, (l, ed) -> ed.getExpression().getIterableIndex(l.apply(ed), arrayIndex));
         } else if (ctx.stringFunction != null) {
             ExpressionBuilder subexpression = stack.popTyped();
             String stringFunction = ctx.stringFunction.getText();
             expression = subexpression.snap()
-                                      .setOperator("ex.stringFunction(\"%s\", %s)", stringFunction, subexpression)
+                                      .setOperator()
                                       .setLambda(subexpression, (l, ed) -> ed.getExpression().stringFunction(stringFunction, l.apply(ed)));
 
         } else if (ctx.stringBiFunction != null) {
@@ -1159,24 +1132,21 @@ class ConfigListener extends RouteBaseListener {
                 throw new RecognitionException("Unhandled string function: " + biFunction, parser, stream, ctx);
             }
             expression = newExpressionBuilder()
-                                       .setExpression("ex.%s(%s, %s)", biFunction, charExpression, subexpression)
                                        .merge(charExpression, subexpression)
                                        .snap()
                                        .setLambda(charExpression, subexpression, triFunction);
         } else if (ctx.now != null) {
             expression = newExpressionBuilder()
-                                       .setExpression("java.time.Instant.now()")
                                        .setLambda(ed -> Instant.now());
         } else if (ctx.isEmpty != null) {
             ExpressionBuilder subexpression = stack.popTyped();
             expression = subexpression.snap()
-                                      .setOperator("ex.isEmpty(%s)", subexpression)
+                                      .setOperator()
                                       .setLambda(subexpression, (l, ed) -> ed.getExpression().isEmpty(l.apply(ed)));
         } else if (ctx.collection != null) {
             String collectionType = ctx.collection.getText();
             if (ctx.expressionsList() == null) {
                 expression = newExpressionBuilder()
-                                           .setExpression("ex.newCollection(\"%s\")", collectionType)
                                            .setType(ExpressionBuilder.ExpressionType.VARIABLE)
                                            .snap()
                                            .setLambda(ed -> ed.getExpression().newCollection(collectionType));
@@ -1185,13 +1155,11 @@ class ConfigListener extends RouteBaseListener {
                 ExpressionBuilder expressions = newExpressionBuilder().getExpressionList(exlist);
                 expression = newExpressionBuilder()
                                            .setType(expressions.getType())
-                                           .setExpression("ex.asCollection(\"%s\", %s)", collectionType, expressions)
                                            .snap()
                                            .setLambda(expressions, (l, ed) -> ed.getExpression().asCollection(collectionType, l.apply(ed)));
             }
         } else if (ctx.lambdavar != null) {
             expression = newExpressionBuilder()
-                                       .setExpression("value")
                                        .setLambda(Expression.ExpressionData::getValue);
         } else {
             throw new IllegalStateException("Unreachable code");
@@ -1205,7 +1173,7 @@ class ConfigListener extends RouteBaseListener {
     }
 
     private ExpressionBuilder newExpressionBuilder() {
-        return new ExpressionBuilder(groovyClassLoader, formatters);
+        return new ExpressionBuilder(formatters);
     }
 
     @Override

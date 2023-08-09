@@ -1,31 +1,23 @@
 package loghub.configuration;
 
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
-import groovy.lang.GroovyClassLoader;
 import loghub.Expression;
 import loghub.Helpers;
 import loghub.NullOrMissingValue;
-import loghub.ProcessorException;
 import loghub.VarFormatter;
 import loghub.VariablePath;
 import lombok.Getter;
 
 class ExpressionBuilder {
 
-    private static final Logger logger = LogManager.getLogger();
-
     enum ExpressionType {
         CONSTANT,
-        LITTERAL,
+        LITERAL,
         VARIABLE,
         OPERATOR,
         FORMATTER,
@@ -34,18 +26,14 @@ class ExpressionBuilder {
     }
 
     private final Map<String, VarFormatter> formatters;
-    private final GroovyClassLoader groovyClassLoader;
 
-    @Getter
-    private String expression;
     @Getter
     private ExpressionType type;
     private Object payload;
     private ExpressionBuilder previous = null;
 
-    ExpressionBuilder(GroovyClassLoader groovyClassLoader, Map<String, VarFormatter> formatters) {
+    ExpressionBuilder(Map<String, VarFormatter> formatters) {
         this.formatters = formatters;
-        this.groovyClassLoader = groovyClassLoader;
     }
 
     @SuppressWarnings("unchecked")
@@ -53,14 +41,8 @@ class ExpressionBuilder {
         return (T) payload;
     }
 
-    public ExpressionBuilder join(String newExpression, ExpressionType newType) {
-        expression = newExpression;
-        return this.join(newType);
-    }
-
     public ExpressionBuilder snap() {
-        ExpressionBuilder next = new ExpressionBuilder(groovyClassLoader, formatters);
-        next.expression = this.expression;
+        ExpressionBuilder next = new ExpressionBuilder(formatters);
         next.type = this.type;
         next.payload = this.payload;
         next.previous = this;
@@ -68,37 +50,24 @@ class ExpressionBuilder {
     }
 
     ExpressionBuilder setNull() {
-        this.expression = "loghub.NullOrMissingValue.NULL";
         this.payload = NullOrMissingValue.NULL;
-        this.type = ExpressionType.LITTERAL;
+        this.type = ExpressionType.LITERAL;
         return this;
     }
 
     ExpressionBuilder setCharacter(Character c) {
-        this.expression = String.format("('%s' as char)", c);
         this.payload = c;
-        this.type = ExpressionType.LITTERAL;
+        this.type = ExpressionType.LITERAL;
         return this;
     }
 
     ExpressionBuilder setPayload(Object l) {
         this.payload = l;
-        this.type = ExpressionType.LITTERAL;
-        return this;
-    }
-
-    ExpressionBuilder setExpression(String format, Object... args) {
-        for (int i=0; i < args.length; i++) {
-            if (args[i] instanceof ExpressionBuilder) {
-                args[i] = ((ExpressionBuilder)args[i] ).expression;
-            }
-        }
-        expression = String.format(Locale.ENGLISH, format, args);
+        this.type = ExpressionType.LITERAL;
         return this;
     }
 
     public ExpressionBuilder setVariablePath(VariablePath path) {
-        expression = path.groovyExpression();
         type = ExpressionType.VARPATH;
         payload = path;
         return this;
@@ -116,7 +85,7 @@ class ExpressionBuilder {
             type = newType;
         } else if (newType == ExpressionType.VARIABLE || previous.type == ExpressionType.VARPATH) {
             type = ExpressionType.VARIABLE;
-        } else if (newType == ExpressionType.OPERATOR && previous.type == ExpressionType.LITTERAL) {
+        } else if (newType == ExpressionType.OPERATOR && previous.type == ExpressionType.LITERAL) {
             type = ExpressionType.CONSTANT;
         }
         return this;
@@ -161,36 +130,18 @@ class ExpressionBuilder {
         return this;
     }
 
-    public ExpressionBuilder setOperator(String format, Object... args) {
-        setExpression(format, args);
+    public ExpressionBuilder setOperator() {
         join(ExpressionType.OPERATOR);
         return this;
     }
 
-    public ExpressionBuilder setBiOperator(String format, String operator, ExpressionBuilder exp1, ExpressionBuilder exp2) {
-        setExpression(format, operator, exp1, exp2);
+    public ExpressionBuilder setBiOperator(ExpressionBuilder exp1, ExpressionBuilder exp2) {
         merge(exp1, exp2);
         return this;
     }
 
 
     ExpressionBuilder binaryInfixOperator(ExpressionBuilder pre, String op, ExpressionBuilder post) {
-        String preStringFormat;
-        if (pre.type == ExpressionType.LITTERAL && pre.payload != null) {
-            preStringFormat = "(%s)";
-        } else {
-            preStringFormat = "ex.nullfilter(%s)";
-        }
-        String postStringFormat;
-        String postOp;
-        if (post.type == ExpressionType.LITTERAL && post.payload != null) {
-            postStringFormat = "%s(%s)";
-            postOp = "";
-        } else {
-            postStringFormat = "ex.protect(\"%s\", %s)";
-            postOp = op;
-        }
-        setExpression(preStringFormat + " %s " + postStringFormat, pre, op, postOp, post);
         merge(pre, post);
         setLambda(pre, post, (l1, l2, ed) -> ed.getExpression().groovyOperator(op, l1.apply(ed), l2.apply(ed)));
         return this;
@@ -203,7 +154,6 @@ class ExpressionBuilder {
     }
 
     ExpressionBuilder getExpressionList(List<ExpressionBuilder> expressions) {
-        StringBuilder exlist = new StringBuilder();
         ExpressionBuilder.ExpressionType nextType = ExpressionBuilder.ExpressionType.CONSTANT;
         for (ExpressionBuilder exinfo: expressions) {
             if (exinfo.getType() == ExpressionBuilder.ExpressionType.VARIABLE ||
@@ -211,9 +161,7 @@ class ExpressionBuilder {
                         exinfo.getType() == ExpressionBuilder.ExpressionType.LAMBDA) {
                 nextType = ExpressionBuilder.ExpressionType.VARIABLE;
             }
-            exlist.append(exlist.length() == 0 ? "": ", ").append(exinfo.getExpression());
         }
-        setExpression("[%s]", exlist);
         setType(nextType);
         payload = fromList(expressions);
         if (payload != null) {
@@ -223,22 +171,21 @@ class ExpressionBuilder {
     }
 
     Expression build() {
-        logger.trace("New expression of type {}: {}", type, expression);
         switch (type) {
         case LAMBDA:
         case VARPATH:
-        case LITTERAL:
+        case LITERAL:
             return new Expression(payload);
         case FORMATTER:
             return new Expression((VarFormatter) payload, formatters);
         default:
-            return new Expression(expression, groovyClassLoader, formatters);
+            throw new UnsupportedOperationException("Unreachable");
         }
     }
 
     Expression.ExpressionLambda asLambda() {
         switch (type) {
-        case LITTERAL:
+        case LITERAL:
             return ed -> payload;
         case LAMBDA:
             return getPayload();
@@ -249,12 +196,7 @@ class ExpressionBuilder {
             VarFormatter vf = getPayload();
             return ed -> vf.format(ed.getEvent());
         case CONSTANT:
-            try {
-                Object value = new Expression(expression, groovyClassLoader, formatters).eval(null);
-                return value != null ? ed -> value : ed -> NullOrMissingValue.NULL;
-            } catch (ProcessorException | RuntimeException e) {
-                return null;
-            }
+            throw new UnsupportedOperationException("Unreachable");
         case OPERATOR:
         case VARIABLE:
         default:

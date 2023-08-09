@@ -2,7 +2,6 @@ package loghub;
 
 import java.io.Closeable;
 import java.lang.reflect.Array;
-import java.lang.reflect.InvocationTargetException;
 import java.math.BigDecimal;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -13,15 +12,12 @@ import java.time.DateTimeException;
 import java.time.Instant;
 import java.time.temporal.Temporal;
 import java.time.temporal.TemporalAccessor;
-import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -37,18 +33,15 @@ import java.util.stream.Stream;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.codehaus.groovy.control.CompilationFailedException;
 import org.codehaus.groovy.runtime.StringGroovyMethods;
 import org.codehaus.groovy.runtime.typehandling.DefaultTypeTransformation;
 import org.codehaus.groovy.runtime.typehandling.NumberMath;
 
 import groovy.lang.Binding;
-import groovy.lang.GroovyClassLoader;
 import groovy.lang.GroovyShell;
 import groovy.lang.GroovySystem;
 import groovy.lang.MetaClass;
 import groovy.lang.MetaClassRegistry;
-import groovy.lang.MissingPropertyException;
 import groovy.lang.Script;
 import groovy.runtime.metaclass.GroovyMethods;
 import groovy.runtime.metaclass.java.java.time.temporal.TemporalMetaClass;
@@ -187,33 +180,13 @@ public class Expression {
         java.util.Map<String, VarFormatter> getFormatters();
     }
 
-    private static class BindingMap extends AbstractMap<String, Object> implements ExpressionData, Closeable {
+    private static class BindingMap implements ExpressionData, Closeable {
         @Getter
         private Event event;
         @Getter
         private Expression expression;
         @Getter
         private Object value;
-        private Script script;
-        private final Binding binding;
-        BindingMap() {
-            this.binding = new Binding(this);
-        }
-        @Override
-        public Set<Entry<String, Object>> entrySet() {
-            return Collections.emptySet();
-        }
-
-        @Override
-        public Object get(Object key) {
-            switch (key.toString()) {
-            case "event": return event;
-            case "formatters": return expression.formatters;
-            case "ex": return expression;
-            case "value": return value;
-            default: throw new MissingPropertyException(key + expression.expression, null);
-            }
-        }
 
         @Override
         public java.util.Map<String, VarFormatter> getFormatters() {
@@ -225,8 +198,6 @@ public class Expression {
             expression = null;
             event = null;
             value = null;
-            Optional.ofNullable(script).ifPresent(s -> s.setBinding(EMPTYBIDDING));
-            script = null;
         }
     }
 
@@ -236,15 +207,6 @@ public class Expression {
 
     public static final Object ANYVALUE = new Object();
 
-    private static final Binding EMPTYBIDDING = new Binding();
-    private static final Set<java.util.Map<String, Script>> scriptsMaps = new HashSet<>();
-    private static final ThreadLocal<java.util.Map<String, Script>> compilationCache = ThreadLocal.withInitial(() -> {
-        java.util.Map<String, Script> m = new HashMap<>();
-        synchronized(scriptsMaps) {
-            scriptsMaps.add(m);
-        }
-        return m;
-    });
     private static final ThreadLocal<BindingMap> bindings = ThreadLocal.withInitial(BindingMap::new);
     private static final java.util.Map<String, Pattern> PATTERN_CACHE = new ConcurrentHashMap<>();
     private static final java.util.Map<String, ThreadLocal<Matcher>> MATCHER_CACHE = new ConcurrentHashMap<>();
@@ -252,16 +214,7 @@ public class Expression {
     @Getter
     private final String expression;
     private final java.util.Map<String, VarFormatter> formatters;
-    private final GroovyClassLoader loader;
     private final Object literal;
-
-    public Expression(String expression, GroovyClassLoader loader, java.util.Map<String, VarFormatter> formatters) {
-        this.literal = null;
-        logger.trace("adding expression {}", expression);
-        this.expression = expression;
-        this.loader = loader;
-        this.formatters = formatters;
-    }
 
     /**
      * The parser can send a literal when an expression was expected. Just store it to be returned.
@@ -283,14 +236,12 @@ public class Expression {
             this.literal = literal == null ? NullOrMissingValue.NULL : literal;
             this.expression = null;
         }
-        this.loader = null;
         this.formatters = java.util.Map.of();
     }
 
     public Expression(VarFormatter format, java.util.Map<String, VarFormatter> formatters) {
         this.literal = format;
         this.expression = null;
-        this.loader = null;
         this.formatters = formatters;
     }
 
@@ -327,20 +278,7 @@ public class Expression {
             // A string expression was given, it might have been a format string to apply to the event
             return this.formatters.get(FORMATTER).format(event);
         } else {
-            logger.trace("Evaluating script {} with formatters {}", expression, formatters);
-            try (BindingMap bmap = resolveBindings(event, value)) {
-                // Lazy compilation, will only compile if expression is needed
-                return Optional.ofNullable(bmap.script.run())
-                        .map(o -> { if (o == NullOrMissingValue.MISSING) throw IgnoredEventException.INSTANCE; else return o;})
-                        .map(o -> { if (o == NullOrMissingValue.NULL) return null; else return o;})
-                        .orElse(null);
-            } catch (UnsupportedOperationException e) {
-                throw event.buildException(String.format("script compilation failed '%s': %s", expression, Helpers.resolveThrowableException(e.getCause())), e);
-            } catch (IgnoredEventException e) {
-                throw e;
-            } catch (Exception e) {
-                throw event.buildException(String.format("failed expression '%s': %s", expression, Helpers.resolveThrowableException(e)), e);
-            }
+            throw new UnsupportedOperationException("Unreachable");
         }
     }
 
@@ -349,23 +287,7 @@ public class Expression {
         bmap.event = event;
         bmap.value = value;
         bmap.expression = this;
-        if (expression != null) {
-            bmap.script = compilationCache.get().computeIfAbsent(expression, this::compile);
-            bmap.script.setBinding(bmap.binding);
-        } else {
-            bmap.script = null;
-        }
         return bmap;
-    }
-
-    @SuppressWarnings("unchecked")
-    private Script compile(String unused) {
-        try {
-            Class<Script> groovyClass = loader.parseClass(expression);
-            return groovyClass.getConstructor().newInstance();
-        } catch (CompilationFailedException | IllegalAccessException | InstantiationException | IllegalArgumentException | InvocationTargetException | NoSuchMethodException | SecurityException e) {
-            throw new UnsupportedOperationException(new ExpressionException(e));
-        }
     }
 
     public Object protect(String op, Object arg) {
@@ -769,9 +691,6 @@ public class Expression {
      * Clear the compilation cache
      */
     public static void clearCache() {
-        synchronized(scriptsMaps) {
-            scriptsMaps.forEach(java.util.Map::clear);
-        }
         MATCHER_CACHE.clear();
         PATTERN_CACHE.clear();
     }
