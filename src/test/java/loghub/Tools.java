@@ -177,11 +177,11 @@ public class Tools {
         return ConfigurationTools.unWrap(exp, RouteParser::expression);
     }
 
-    public static  Object evalExpression(String exp, Event ev) throws Expression.ExpressionException, ProcessorException {
+    public static  Object evalExpression(String exp, Event ev) throws ProcessorException {
         return parseExpression(exp).eval(ev);
     }
 
-    public static  Object evalExpression(String exp) throws Expression.ExpressionException, ProcessorException {
+    public static  Object evalExpression(String exp) throws ProcessorException {
         return evalExpression(exp, null);
     }
 

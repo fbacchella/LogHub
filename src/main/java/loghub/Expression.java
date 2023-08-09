@@ -4,10 +4,8 @@ import java.io.Closeable;
 import java.lang.reflect.Array;
 import java.math.BigDecimal;
 import java.net.InetAddress;
-import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
-import java.security.Principal;
 import java.time.DateTimeException;
 import java.time.Instant;
 import java.time.temporal.Temporal;
@@ -37,25 +35,16 @@ import org.codehaus.groovy.runtime.StringGroovyMethods;
 import org.codehaus.groovy.runtime.typehandling.DefaultTypeTransformation;
 import org.codehaus.groovy.runtime.typehandling.NumberMath;
 
-import groovy.lang.Binding;
-import groovy.lang.GroovyShell;
 import groovy.lang.GroovySystem;
 import groovy.lang.MetaClass;
 import groovy.lang.MetaClassRegistry;
-import groovy.lang.Script;
 import groovy.runtime.metaclass.GroovyMethods;
 import groovy.runtime.metaclass.java.java.time.temporal.TemporalMetaClass;
-import groovy.runtime.metaclass.java.lang.BooleanMetaClass;
 import groovy.runtime.metaclass.java.lang.CharacterMetaClass;
 import groovy.runtime.metaclass.java.lang.NumberMetaClass;
 import groovy.runtime.metaclass.java.lang.StringMetaClass;
 import groovy.runtime.metaclass.java.util.CollectionMetaClass;
-import groovy.runtime.metaclass.java.util.MapMetaClass;
-import groovy.runtime.metaclass.loghub.EventMetaClass;
-import groovy.runtime.metaclass.loghub.ExpressionMetaClass;
-import groovy.runtime.metaclass.loghub.LambdaPropertyMetaClass;
 import groovy.runtime.metaclass.loghub.NullOrNoneValueMetaClass;
-import groovy.runtime.metaclass.loghub.VarFormatterMetaClass;
 import loghub.events.Event;
 import lombok.Getter;
 
@@ -76,51 +65,13 @@ public class Expression {
         java.util.Map<Class<?>, Function<MetaClass, MetaClass>> metaClassFactories = new HashMap<>();
         metaClassFactories.put(String.class, StringMetaClass::new);
         metaClassFactories.put(Character.class, CharacterMetaClass::new);
-        metaClassFactories.put(Expression.class, ExpressionMetaClass::new);
-        metaClassFactories.put(VarFormatter.class, VarFormatterMetaClass::new);
-        metaClassFactories.put(Boolean.class, BooleanMetaClass::new);
         metaClassFactories.put(NullOrMissingValue.NULL.getClass(), NullOrNoneValueMetaClass::new);
         metaClassFactories.put(NullOrMissingValue.MISSING.getClass(), NullOrNoneValueMetaClass::new);
         metaClassFactories.put(Date.class, TemporalMetaClass::new);
         metaClassFactories.put(Temporal.class, TemporalMetaClass::new);
         metaClassFactories.put(Number.class, NumberMetaClass::new);
-        metaClassFactories.put(Map.class, MapMetaClass::new);
         metaClassFactories.put(Collection.class, CollectionMetaClass::new);
-        metaClassFactories.put(NullOrMissingValue.class,
-                mc -> new LambdaPropertyMetaClass(mc, java.util.Map.ofEntries(
-                    java.util.Map.entry("NULL", o -> NullOrMissingValue.NULL),
-                    java.util.Map.entry("MISSING", o -> NullOrMissingValue.MISSING))
-                )
-        );
-        metaClassFactories.put(ConnectionContext.class,
-                mc -> new LambdaPropertyMetaClass(mc, java.util.Map.ofEntries(
-                        java.util.Map.entry("principal", o -> ((ConnectionContext<?>)o).getPrincipal()),
-                        java.util.Map.entry("localAddress", o -> ((ConnectionContext<?>)o).getLocalAddress()),
-                        java.util.Map.entry("remoteAddress", o -> ((ConnectionContext<?>)o).getRemoteAddress())
-                    )
-                )
-        );
-        metaClassFactories.put(Principal.class,
-                mc -> new LambdaPropertyMetaClass(mc, java.util.Map.ofEntries(
-                        java.util.Map.entry("name", o -> ((Principal)o).getName())
-                    )
-                )
-        );
-        metaClassFactories.put(InetAddress.class,
-                mc -> new LambdaPropertyMetaClass(mc, java.util.Map.ofEntries(
-                        java.util.Map.entry("hostAddress", o -> ((InetAddress)o).getHostAddress())
-                    )
-                )
-        );
-        metaClassFactories.put(InetSocketAddress.class,
-                mc -> new LambdaPropertyMetaClass(mc, java.util.Map.ofEntries(
-                        java.util.Map.entry("address", o -> ((InetSocketAddress)o).getAddress())
-                    )
-                )
-        );
-        metaClassFactories.put(Event.class, EventMetaClass::new);
 
-        Set<Class<?>> skipClasses = Set.of(Binding.class, GroovyShell.class);
         registry.setMetaClassCreationHandle(new MetaClassRegistry.MetaClassCreationHandle() {
             @Override
             protected MetaClass createNormalMetaClass(Class theClass, MetaClassRegistry registry) {
@@ -134,18 +85,6 @@ public class Expression {
                     return doCreate(Number.class, theClass);
                 } else if (Collection.class.isAssignableFrom(theClass)) {
                     return doCreate(Collection.class, theClass);
-                } else if (ConnectionContext.class.isAssignableFrom(theClass)) {
-                    return doCreate(ConnectionContext.class, theClass);
-                } else if (Principal.class.isAssignableFrom(theClass)) {
-                    return doCreate(Principal.class, theClass);
-                } else if (InetAddress.class.isAssignableFrom(theClass)) {
-                    return doCreate(InetAddress.class, theClass);
-                } else if (Map.class.isAssignableFrom(theClass)) {
-                    return doCreate(Map.class, theClass);
-                } else if (skipClasses.contains(theClass)) {
-                    return super.createNormalMetaClass(theClass, registry);
-                } else if (Script.class.isAssignableFrom(theClass)) {
-                    return super.createNormalMetaClass(theClass, registry);
                 } else {
                     logger.debug("Creating unhandled MetaClass {}", theClass::getName);
                     return super.createNormalMetaClass(theClass, registry);
@@ -157,18 +96,6 @@ public class Expression {
             }
         });
         registry.getMetaClassCreationHandler().setDisableCustomMetaClassLookup(true);
-    }
-
-    /**
-     * Used to wrap some too generic or RuntimeException and catch it, to have a better management
-     * of expressions errors.
-     * @author Fabrice Bacchella
-     *
-     */
-    public static class ExpressionException extends Exception {
-        public ExpressionException(Throwable cause) {
-            super(cause);
-        }
     }
 
     public interface ExpressionData {

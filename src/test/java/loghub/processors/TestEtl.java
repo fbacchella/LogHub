@@ -75,7 +75,7 @@ public class TestEtl {
     }
 
     @Test
-    public void test1() throws ProcessorException, Expression.ExpressionException {
+    public void test1() throws ProcessorException {
         Properties props = new Properties(Collections.emptyMap());
         Etl.Assign etl = new Etl.Assign();
         etl.setLvalue(VariablePath.of("a", "b"));
