@@ -809,8 +809,15 @@
                                     <artifact>org.codehaus.groovy:groovy</artifact>
                                     <excludes>
                                         <exclude>groovyjarjarpicocli/**</exclude>
+                                        <exclude>groovyjarjarantlr/**</exclude>
+                                        <exclude>groovyjarjarantlr4/**</exclude>
                                         <exclude>groovy/cli/**</exclude>
                                         <exclude>groovy/ui/**</exclude>
+                                        <exclude>org/apache/groovy/antlr/**</exclude>
+                                        <exclude>org/apache/groovy/parser/antlr4/**</exclude>
+                                        <exclude>org/codehaus/groovy/antlr/**</exclude>
+                                        <!--exclude>org/codehaus/groovy/ast/**</exclude-->
+                                        <exclude>org/codehaus/groovy/classgen/**</exclude>
                                     </excludes>
                                     <includes>
                                         <include>**</include>

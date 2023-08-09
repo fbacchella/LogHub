@@ -186,9 +186,10 @@ public class TestFieldsAsynchronous {
         Builder builder = new Builder();
         builder.setField(VariablePath.of("a"));
         SleepingProcessor sp = builder.build();
-        Groovy gp = new Groovy();
-        gp.setScript("event.a = 2");
-        sp.setFailure(gp);
+        Etl.Assign assign = new Etl.Assign();
+        assign.setExpression(Tools.parseExpression("2"));
+        assign.setLvalue(VariablePath.of("a"));
+        sp.setFailure(assign);
         Tools.ProcessingStatus status = Tools.runProcessing(e, "main", Collections.singletonList(sp), (i,j) -> { /* empty */ });
         e = status.mainQueue.take();
         Assert.assertEquals(2, e.get("a"));
@@ -211,23 +212,26 @@ public class TestFieldsAsynchronous {
         builder.setTimeout(1);
         builder.setField(VariablePath.of("a"));
         SleepingProcessor sp = builder.build();
-        Groovy gp = new Groovy();
-        gp.setScript("event.failure = true");
-        sp.setFailure(gp);
+
+        Etl.Assign assign = new Etl.Assign();
+        assign.setExpression(Tools.parseExpression("true"));
+        assign.setLvalue(VariablePath.of("failure"));
+        sp.setFailure(assign);
+
         List<Processor> processors = new ArrayList<>(2);
 
-        Groovy gp2 = new Groovy();
-        gp2.setScript("event.b = true");
+        Etl.Assign assign2 = new Etl.Assign();
+        assign2.setExpression(Tools.parseExpression("true"));
+        assign2.setLvalue(VariablePath.of("b"));
 
         processors.add(sp);
-        processors.add(gp2);
+        processors.add(assign2);
         Tools.ProcessingStatus status = Tools.runProcessing(e, "main", processors, (i,j) -> { /* empty */ });
         e = status.mainQueue.take();
         Assert.assertEquals(true, e.get("failure"));
         Assert.assertEquals(true, e.get("b"));
         Assert.assertEquals(1, e.get("a"));
     }
-
 
     @Test(timeout=1000)
     public void exceptionFalse() throws ProcessorException, InterruptedException {
@@ -239,9 +243,10 @@ public class TestFieldsAsynchronous {
         Builder builder = new Builder();
         builder.setField(VariablePath.of("a"));
         SleepingProcessor sp = builder.build();
-        Groovy gp = new Groovy();
-        gp.setScript("event.a = 2");
-        sp.setFailure(gp);
+        Etl.Assign assign = new Etl.Assign();
+        assign.setExpression(Tools.parseExpression("2"));
+        assign.setLvalue(VariablePath.of("a"));
+        sp.setFailure(assign);
         Tools.ProcessingStatus status = Tools.runProcessing(e, "main", Collections.singletonList(sp), (i,j) -> { /* empty */ });
         e = status.mainQueue.take();
         Assert.assertEquals(2, e.get("a"));
@@ -263,9 +268,10 @@ public class TestFieldsAsynchronous {
         Builder builder = new Builder();
         builder.setField(VariablePath.of("a"));
         SleepingProcessor sp = builder.build();
-        Groovy gp = new Groovy();
-        gp.setScript("event.a = 2");
-        sp.setException(gp);
+        Etl.Assign assign = new Etl.Assign();
+        assign.setExpression(Tools.parseExpression("2"));
+        assign.setLvalue(VariablePath.of("a"));
+        sp.setException(assign);
         Tools.ProcessingStatus status = Tools.runProcessing(e, "main", Collections.singletonList(sp), (i,j) -> { /* empty */ });
         e = status.mainQueue.take();
         Assert.assertEquals(2, e.get("a"));
