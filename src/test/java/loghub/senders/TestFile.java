@@ -25,6 +25,7 @@ import loghub.Expression;
 import loghub.LogUtils;
 import loghub.ProcessorException;
 import loghub.Tools;
+import loghub.VarFormatter;
 import loghub.configuration.Properties;
 import loghub.encoders.EncodeException;
 import loghub.encoders.EvalExpression;
@@ -58,7 +59,7 @@ public class TestFile {
     private File send(Consumer<File.Builder> prepare, long expectedSize, boolean close) throws IOException, InterruptedException {
         outFile = Paths.get(folder.getRoot().getCanonicalPath(), "file1").toAbsolutePath().toString();
         EvalExpression.Builder builder1 = EvalExpression.getBuilder();
-        builder1.setFormat(new loghub.Expression("${message%s}"));
+        builder1.setFormat(new Expression("${message%s}", new VarFormatter("${message%s}")));
         EvalExpression sf = builder1.build();
 
         File.Builder fb = File.getBuilder();

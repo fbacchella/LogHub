@@ -166,14 +166,16 @@ class ExpressionBuilder {
         return this;
     }
 
-    Expression build() {
+    Expression build(String source) {
         switch (type) {
         case LAMBDA:
+            return new Expression(source, (Expression.ExpressionLambda) payload);
         case VARPATH:
+            return new Expression(source, (VariablePath) payload);
         case LITERAL:
-            return new Expression(payload);
+            return new Expression(source, payload);
         case FORMATTER:
-            return new Expression(payload);
+            return new Expression(source, (VarFormatter) payload);
         default:
             throw new UnsupportedOperationException("Unreachable");
         }

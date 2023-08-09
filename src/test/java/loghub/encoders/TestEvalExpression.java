@@ -16,6 +16,7 @@ import loghub.BeanChecks;
 import loghub.Expression;
 import loghub.LogUtils;
 import loghub.Tools;
+import loghub.VarFormatter;
 import loghub.configuration.Properties;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
@@ -37,7 +38,7 @@ public class TestEvalExpression {
     public void testone() throws EncodeException {
         EvalExpression.Builder builder = EvalExpression.getBuilder();
         builder.setCharset("UTF-16");
-        builder.setFormat(new loghub.Expression("${K1}: ${K2%02d}"));
+        builder.setFormat(new Expression(new VarFormatter("${K1}: ${K2%02d}")));
         EvalExpression encoder = builder.build();
         Assert.assertTrue(encoder.configure(new Properties(Collections.emptyMap()), InMemorySender.getBuilder().build()));
         Event e = factory.newEvent();

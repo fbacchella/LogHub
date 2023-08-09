@@ -424,7 +424,7 @@ public class Merge extends Processor {
 
     @Override
     public String getName() {
-        return "Merge/" + index.getExpression();
+        return "Merge/" + index.getSource();
     }
 
     public Map<String, Object> getSeeds() {

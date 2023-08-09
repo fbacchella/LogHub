@@ -143,7 +143,7 @@ public class TestCsv {
     @Test
     public void test_loghub_encoders_Csv() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.encoders.Csv"
-                , BeanChecks.BeanInfo.build("values", Object[].class)
+                , BeanChecks.BeanInfo.build("values", Expression[].class)
                 , BeanChecks.BeanInfo.build("features", Object[].class)
                 , BeanChecks.BeanInfo.build("separator", Character.TYPE)
                 , BeanChecks.BeanInfo.build("lineSeparator", String.class)

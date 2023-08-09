@@ -203,68 +203,65 @@ public class Expression {
     private static final java.util.Map<String, Pattern> PATTERN_CACHE = new ConcurrentHashMap<>();
     private static final java.util.Map<String, ThreadLocal<Matcher>> MATCHER_CACHE = new ConcurrentHashMap<>();
 
+    private final ExpressionLambda evaluator;
     @Getter
-    private final String expression;
-    private final Object literal;
+    private final String source;
 
-    /**
-     * The parser can send a literal when an expression was expected. Just store it to be returned.
-     * If it's a String value, it's easier to handle it as a formatter that will be applied to the event.
-     *
-     * @param literal the literal value
-     */
     public Expression(Object literal) {
         if (literal instanceof String) {
-            VarFormatter vf = new VarFormatter((String) literal);
-            if (! vf.isEmpty()) {
-                this.literal = vf;
-                this.expression = (String) literal;
-            } else {
-                this.literal = literal;
-                this.expression = null;
-            }
+            this.source = String.format("\"%s\"", literal);
+        } else if (literal instanceof Character) {
+            this.source = String.format("'%s'", literal);
         } else {
-            this.literal = literal == null ? NullOrMissingValue.NULL : literal;
-            this.expression = null;
+            this.source = literal.toString();
         }
+        this.evaluator = ed -> literal;
+    }
+
+    public Expression(String source, Object literal) {
+        this.evaluator = ed -> literal;
+        this.source = source;
+    }
+
+    public Expression(String source, VarFormatter format) {
+        this.evaluator = ed -> format.format(ed.getEvent());
+        this.source = source;
     }
 
     public Expression(VarFormatter format) {
-        this.literal = format;
-        this.expression = null;
+        this.evaluator = ed -> format.format(ed.getEvent());
+        this.source = format.toString();
     }
 
+    public Expression(String source, VariablePath path) {
+        this.evaluator = ed -> ed.getEvent().getAtPath(path);
+        this.source = source;
+    }
+
+    public Expression(VariablePath path) {
+        this.evaluator = ed -> ed.getEvent().getAtPath(path);
+        this.source = path.toString();
+    }
+
+    public Expression(String source, ExpressionLambda evaluator) {
+        this.evaluator = evaluator;
+        this.source = source;
+    }
 
     public Object eval(Event event) throws ProcessorException {
         return eval(event, null);
     }
 
     public Object eval(Event event, Object value) throws ProcessorException {
-        if (literal instanceof VariablePath) {
-            return Optional.ofNullable(event.getAtPath((VariablePath)literal))
+        try (BindingMap bmap = resolveBindings(event, value)) {
+            return Optional.ofNullable(evaluator.apply(bmap))
                            .map(o -> { if (o == NullOrMissingValue.MISSING) throw IgnoredEventException.INSTANCE; else return o;})
-                           .map(o -> { if (o == NullOrMissingValue.NULL) return null; else return o;})
+                           .filter(o -> o != NullOrMissingValue.NULL)
                            .orElse(null);
-        } else if (literal instanceof VarFormatter) {
-            return ((VarFormatter) literal).format(event);
-        } else if (literal instanceof ExpressionLambda) {
-            // TODO: how to keep the original source of the expression
-            ExpressionLambda lambda = (ExpressionLambda) literal;
-            try (BindingMap bmap = resolveBindings(event, value)) {
-                Object o = lambda.apply(bmap);
-                return o == NullOrMissingValue.NULL ? null : o;
-            } catch (IgnoredEventException e) {
-                throw e;
-            } catch (RuntimeException ex) {
-                throw event.buildException(String.format("Failed expression: %s", Helpers.resolveThrowableException(ex)), ex);
-            }
-        } else if (literal == NullOrMissingValue.NULL) {
-            return null;
-        } else if (literal != null) {
-            // It's a constant expression, no need to evaluate it
-            return literal;
-        } else {
-            throw new UnsupportedOperationException("Unreachable");
+        } catch (IgnoredEventException e) {
+            throw e;
+        } catch (RuntimeException ex) {
+            throw event.buildException(String.format("Failed expression %s: %s", source, Helpers.resolveThrowableException(ex)), ex);
         }
     }
 

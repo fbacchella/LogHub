@@ -27,6 +27,7 @@ import org.antlr.v4.runtime.IntStream;
 import org.antlr.v4.runtime.Parser;
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.RecognitionException;
+import org.antlr.v4.runtime.misc.Interval;
 import org.antlr.v4.runtime.tree.ParseTreeWalker;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -1162,7 +1163,15 @@ class ConfigListener extends RouteBaseListener {
         }
         expressionDepth--;
         if (expressionDepth == 0) {
-            stack.push(new ObjectWrapped<>(expression.build()));
+            String expressionSource;
+            if (stream instanceof CharStream) {
+                CharStream cs = (CharStream) stream;
+                Interval i = Interval.of(ctx.start.getStartIndex(), ctx.stop.getStopIndex());
+                expressionSource = cs.getText(i);
+            } else {
+                expressionSource = ctx.getText();
+            }
+            stack.push(new ObjectWrapped<>(expression.build(expressionSource)));
         } else {
             stack.push(expression);
         }

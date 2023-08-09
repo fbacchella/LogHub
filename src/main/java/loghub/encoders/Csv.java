@@ -33,7 +33,7 @@ public class Csv extends AbstractJacksonEncoder<Csv.Builder, CsvMapper> {
 
     public static class Builder extends AbstractJacksonEncoder.Builder<Csv> {
         @Setter
-        private Object[] values = new Object[0];
+        private Expression[] values = new Expression[0];
         @Setter
         private Object[] features = new String[]{"ALWAYS_QUOTE_STRINGS"};
         @Setter
@@ -67,9 +67,7 @@ public class Csv extends AbstractJacksonEncoder<Csv.Builder, CsvMapper> {
 
     private Csv(Csv.Builder builder) {
         super(builder);
-        values = Arrays.stream(builder.values)
-                       .map(i -> (Expression)(i instanceof Expression ? i : new Expression(i)))
-                       .toArray(Expression[]::new);
+        values = Arrays.copyOf(builder.values, builder.values.length);
         this.zoneId = ZoneId.of(builder.zoneId);
         this.charset = Charset.forName(builder.charset);
         Locale locale = Locale.forLanguageTag(builder.locale);
