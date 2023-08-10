@@ -224,7 +224,7 @@ public class TestExpressionParsing {
                 "1 in list(1,2,3)", true,
                 "4 in list(1,2,3)", false,
                 "2 ** 3", 8,
-                "2 ** (999999999 +1)", Double.NaN,
+                "2 ** (999999999 + 1)", Double.NaN,
                 "2 * 2 ", 4,
                 "2 + 4", 6,
                 "2 - 1", 1,

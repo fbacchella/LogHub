@@ -2,23 +2,25 @@ package loghub.configuration;
 
 import java.util.List;
 import java.util.Objects;
-import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 
 import loghub.Expression;
-import loghub.Helpers;
-import loghub.NullOrMissingValue;
 import loghub.VarFormatter;
 import loghub.VariablePath;
 import lombok.Getter;
 
 class ExpressionBuilder {
 
+    public interface BiFunction {
+        Object eval(Expression.ExpressionData ed, Expression.ExpressionLambda l1, Expression.ExpressionLambda l2);
+    }
+
+    public interface Function {
+        Object eval(Expression.ExpressionData ed, Expression.ExpressionLambda l);
+    }
+
     enum ExpressionType {
-        CONSTANT,
         LITERAL,
-        VARIABLE,
-        OPERATOR,
         FORMATTER,
         VARPATH,
         LAMBDA
@@ -27,9 +29,8 @@ class ExpressionBuilder {
     @Getter
     private ExpressionType type;
     private Object payload;
-    private ExpressionBuilder previous = null;
 
-    ExpressionBuilder() {
+    private ExpressionBuilder() {
     }
 
     @SuppressWarnings("unchecked")
@@ -37,132 +38,13 @@ class ExpressionBuilder {
         return (T) payload;
     }
 
-    public ExpressionBuilder snap() {
-        ExpressionBuilder next = new ExpressionBuilder();
-        next.type = this.type;
-        next.payload = this.payload;
-        next.previous = this;
-        return next;
-    }
-
-    ExpressionBuilder setNull() {
-        this.payload = NullOrMissingValue.NULL;
-        this.type = ExpressionType.LITERAL;
-        return this;
-    }
-
-    ExpressionBuilder setCharacter(Character c) {
-        this.payload = c;
-        this.type = ExpressionType.LITERAL;
-        return this;
-    }
-
     ExpressionBuilder setPayload(Object l) {
         this.payload = l;
-        this.type = ExpressionType.LITERAL;
-        return this;
-    }
-
-    public ExpressionBuilder setVariablePath(VariablePath path) {
-        type = ExpressionType.VARPATH;
-        payload = path;
         return this;
     }
 
     public ExpressionBuilder setType(ExpressionType type) {
         this.type = type;
-        return this;
-    }
-
-    ExpressionBuilder join(ExpressionType newType) {
-        if (newType == ExpressionType.LAMBDA) {
-            type = ExpressionType.LAMBDA;
-        } else if (previous == null) {
-            type = newType;
-        } else if (newType == ExpressionType.VARIABLE || previous.type == ExpressionType.VARPATH) {
-            type = ExpressionType.VARIABLE;
-        } else if (newType == ExpressionType.OPERATOR && previous.type == ExpressionType.LITERAL) {
-            type = ExpressionType.CONSTANT;
-        }
-        return this;
-    }
-
-    ExpressionBuilder merge(ExpressionBuilder exi1, ExpressionBuilder exi2) {
-        ExpressionType type1 = exi1.type;
-        ExpressionType type2 = exi2.type;
-        if (type1 == ExpressionType.VARIABLE || type2 == ExpressionType.VARIABLE || type1 == ExpressionType.VARPATH || type2 == ExpressionType.VARPATH || type1 == ExpressionType.LAMBDA || type2 == ExpressionType.LAMBDA) {
-            type = ExpressionType.VARIABLE;
-        } else {
-            type = ExpressionType.CONSTANT;
-        }
-        return this;
-    }
-
-    public ExpressionBuilder setLambda(Expression.ExpressionLambda lambda) {
-        type = ExpressionType.LAMBDA;
-        this.payload = lambda;
-        return this;
-    }
-
-
-    public ExpressionBuilder setLambda(ExpressionBuilder subexpression, BiFunction<Expression.ExpressionLambda, Expression.ExpressionData, Object> lambda) {
-        Expression.ExpressionLambda sublambda = subexpression.asLambda();
-        if (sublambda != null) {
-            setLambda(ed -> lambda.apply(sublambda, ed));
-        } else {
-            join(ExpressionType.OPERATOR);
-        }
-        return this;
-    }
-
-    public ExpressionBuilder setLambda(ExpressionBuilder subexpression1, ExpressionBuilder subexpression2, Helpers.TriFunction<Expression.ExpressionLambda, Expression.ExpressionLambda, Expression.ExpressionData, Object> lambda) {
-        Expression.ExpressionLambda sublambda1 = subexpression1.asLambda();
-        Expression.ExpressionLambda sublambda2 = subexpression2.asLambda();
-        if (sublambda1 != null && sublambda2 != null) {
-            setLambda(ed -> lambda.apply(sublambda1, sublambda2, ed));
-        } else {
-            join(ExpressionType.OPERATOR);
-        }
-        return this;
-    }
-
-    public ExpressionBuilder setOperator() {
-        join(ExpressionType.OPERATOR);
-        return this;
-    }
-
-    public ExpressionBuilder setBiOperator(ExpressionBuilder exp1, ExpressionBuilder exp2) {
-        merge(exp1, exp2);
-        return this;
-    }
-
-
-    ExpressionBuilder binaryInfixOperator(ExpressionBuilder pre, String op, ExpressionBuilder post) {
-        merge(pre, post);
-        setLambda(pre, post, (l1, l2, ed) -> ed.getExpression().groovyOperator(op, l1.apply(ed), l2.apply(ed)));
-        return this;
-    }
-
-    public ExpressionBuilder setVarFormatter(VarFormatter vf) {
-        this.type = ExpressionType.FORMATTER;
-        this.payload = vf;
-        return this;
-    }
-
-    ExpressionBuilder getExpressionList(List<ExpressionBuilder> expressions) {
-        ExpressionBuilder.ExpressionType nextType = ExpressionBuilder.ExpressionType.CONSTANT;
-        for (ExpressionBuilder exinfo: expressions) {
-            if (exinfo.getType() == ExpressionBuilder.ExpressionType.VARIABLE ||
-                        exinfo.getType() == ExpressionBuilder.ExpressionType.VARPATH ||
-                        exinfo.getType() == ExpressionBuilder.ExpressionType.LAMBDA) {
-                nextType = ExpressionBuilder.ExpressionType.VARIABLE;
-            }
-        }
-        setType(nextType);
-        payload = fromList(expressions);
-        if (payload != null) {
-            type = ExpressionType.LAMBDA;
-        }
         return this;
     }
 
@@ -177,11 +59,11 @@ class ExpressionBuilder {
         case FORMATTER:
             return new Expression(source, (VarFormatter) payload);
         default:
-            throw new UnsupportedOperationException("Unreachable");
+            throw new UnsupportedOperationException("Unreachable " + type);
         }
     }
 
-    Expression.ExpressionLambda asLambda() {
+    private Expression.ExpressionLambda asLambda() {
         switch (type) {
         case LITERAL:
             return ed -> payload;
@@ -193,23 +75,54 @@ class ExpressionBuilder {
         case FORMATTER:
             VarFormatter vf = getPayload();
             return ed -> vf.format(ed.getEvent());
-        case CONSTANT:
-            throw new UnsupportedOperationException("Unreachable");
-        case OPERATOR:
-        case VARIABLE:
         default:
-            return null;
+            throw new UnsupportedOperationException("Unreachable " + type);
         }
     }
 
-    private Expression.ExpressionLambda fromList(List<ExpressionBuilder> list) {
+    private ExpressionBuilder setPayload(List<ExpressionBuilder> list) {
         List<Expression.ExpressionLambda> lambdas = list.stream().map(ExpressionBuilder::asLambda).filter(Objects::nonNull).collect(Collectors.toList());
-        if (list.size() != lambdas.size()) {
-            // one of the lambda was null, so the whole list is not usable.
-            return null;
-        } else {
-            return ed -> lambdas.stream().map(l -> l.apply(ed)).collect(Collectors.toList());
-        }
+        this.payload = (Expression.ExpressionLambda)ed -> lambdas.stream().map(l -> l.apply(ed)).collect(Collectors.toList());
+        return this;
+    }
+
+    public static ExpressionBuilder of(VarFormatter vf) {
+        return new ExpressionBuilder().setType(ExpressionType.FORMATTER).setPayload(vf);
+    }
+
+    public static ExpressionBuilder of(Object litteral) {
+        return new ExpressionBuilder().setType(ExpressionType.LITERAL).setPayload(litteral);
+    }
+
+    public static ExpressionBuilder of(VariablePath vp) {
+        return new ExpressionBuilder().setType(ExpressionType.VARPATH).setPayload(vp);
+    }
+
+    public static ExpressionBuilder of(List<ExpressionBuilder> expressions) {
+        return new ExpressionBuilder().setType(ExpressionType.LAMBDA).setPayload(expressions);
+    }
+
+    public static ExpressionBuilder of(ExpressionBuilder pre, String op, ExpressionBuilder post) {
+        Expression.ExpressionLambda l1 = pre.asLambda();
+        Expression.ExpressionLambda l2 = post.asLambda();
+        Expression.ExpressionLambda lambda = ed -> ed.getExpression().groovyOperator(op, l1.apply(ed), l2.apply(ed));
+        return new ExpressionBuilder().setType(ExpressionType.LAMBDA).setPayload(lambda);
+    }
+
+    public static ExpressionBuilder of(Expression.ExpressionLambda l) {
+        return new ExpressionBuilder().setType(ExpressionType.LAMBDA).setPayload(l);
+    }
+
+    public static ExpressionBuilder of(ExpressionBuilder pre, ExpressionBuilder post, BiFunction f) {
+        Expression.ExpressionLambda l1 = pre.asLambda();
+        Expression.ExpressionLambda l2 = post.asLambda();
+        Expression.ExpressionLambda l = ed -> f.eval(ed, l1, l2);
+        return new ExpressionBuilder().setType(ExpressionType.LAMBDA).setPayload(l);
+    }
+
+    public static ExpressionBuilder of(ExpressionBuilder exp, Function f) {
+        Expression.ExpressionLambda l = ed -> f.eval(ed, exp.asLambda());
+        return new ExpressionBuilder().setType(ExpressionType.LAMBDA).setPayload(l);
     }
 
 }

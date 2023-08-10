@@ -37,6 +37,7 @@ import loghub.AbstractBuilder;
 import loghub.Expression;
 import loghub.Helpers;
 import loghub.Lambda;
+import loghub.NullOrMissingValue;
 import loghub.Pipeline;
 import loghub.Processor;
 import loghub.RouteBaseListener;
@@ -933,44 +934,33 @@ class ConfigListener extends RouteBaseListener {
             String format = ctx.sl.getText();
             VarFormatter vf = new VarFormatter(format);
             if (vf.isEmpty()) {
-                expression = newExpressionBuilder()
-                                           .setPayload(format);
+                expression = ExpressionBuilder.of(format);
                 if (ctx.expressionsList() != null) {
                     stack.pop();
                 }
+            } else  if (ctx.expressionsList() != null) {
+                List<ExpressionBuilder> exlist = stack.popTyped();
+                ExpressionBuilder expressions = ExpressionBuilder.of(exlist);
+                Expression.ExpressionLambda listlambda = expressions.getPayload();
+                expression = ExpressionBuilder.of(ed -> vf.format(listlambda.apply(ed)));
+
             } else {
-                if (ctx.expressionsList() != null) {
-                    List<ExpressionBuilder> exlist = stack.popTyped();
-                    ExpressionBuilder expressions = newExpressionBuilder().getExpressionList(exlist);
-
-                    expression = newExpressionBuilder()
-                                               .setVarFormatter(vf)
-                                               .setType(expressions.getType());
-                    if (expression.getType() == ExpressionBuilder.ExpressionType.LAMBDA) {
-                        Expression.ExpressionLambda listlambda = expressions.getPayload();
-                        expression = expression.setLambda(ed -> vf.format(listlambda.apply(ed)));
-                    }
-
-                } else {
-                    expression = newExpressionBuilder()
-                                               .setVarFormatter(vf);
-                }
+                expression = ExpressionBuilder.of(vf);
             }
             // Unstack the useless String litteral
             stack.pop();
         } else if (ctx.nl != null) {
             stack.pop();
-            expression = newExpressionBuilder().setNull();
+            expression = ExpressionBuilder.of(NullOrMissingValue.NULL);
         } else if (ctx.c != null) {
             ObjectWrapped<Character> payload = stack.popTyped();
-            expression = newExpressionBuilder().setCharacter(payload.wrapped);
+            expression = ExpressionBuilder.of(payload.wrapped);
         } else if (ctx.l != null) {
             ObjectWrapped<Object> literal = stack.popTyped();
-            expression = newExpressionBuilder()
-                                       .setPayload(literal.wrapped);
+            expression = ExpressionBuilder.of(literal.wrapped);
         } else if (ctx.ev != null) {
             VariablePath path = convertEventVariable(ctx.ev);
-            expression = newExpressionBuilder().setVariablePath(path);
+            expression = ExpressionBuilder.of(path);
         } else if (ctx.opm != null) {
            try {
                ExpressionBuilder pre = stack.popTyped();
@@ -983,52 +973,36 @@ class ConfigListener extends RouteBaseListener {
                 // Needs to encode the pattern, as Groovy does not handle escaping in the same way in patterns and in strings
                 String encoded = Base64.getEncoder().encodeToString(patternBytes);
                 String patterOperator = ctx.opm.getText();
-                expression = pre.snap()
-                                .setOperator()
-                                .setLambda(pre, (l, ed) -> ed.getExpression().regex(l.apply(ed), patterOperator, encoded));
+                expression = ExpressionBuilder.of(pre, (ed, l) -> ed.getExpression().regex(l.apply(ed), patterOperator, encoded));
             } catch (PatternSyntaxException e) {
                 throw new RecognitionException(Helpers.resolveThrowableException(e), parser, stream, ctx);
             }
         } else if (ctx.opnotlogical != null) {
             // '!'
             ExpressionBuilder post = stack.popTyped();
-            expression = post.snap()
-                              .setLambda(post, (l, ed) -> ! ed.getExpression().asBoolean(l.apply(ed)));
+            expression = ExpressionBuilder.of(post, (ed, l) -> ! ed.getExpression().asBoolean(l.apply(ed)));
         } else if (ctx.opnotbinary != null) {
             // '.~'
             ExpressionBuilder post = stack.popTyped();
-            expression = post.snap()
-                             .setOperator()
-                             .setLambda(post, (l, ed) -> ed.getExpression().groovyOperator("~", l.apply(ed)));
-        } else if (ctx.op2 != null) {
-            // '**'
-            String op = ctx.op2.getText();
-            ExpressionBuilder post = stack.popTyped();
-            ExpressionBuilder pre = stack.popTyped();
-            expression = newExpressionBuilder().binaryInfixOperator(pre, op, post);
+            expression = ExpressionBuilder.of(post, (ed, l) -> ed.getExpression().groovyOperator("~", l.apply(ed)));
         } else if (ctx.op3 != null) {
             // '+'|'-'
             ExpressionBuilder post = stack.popTyped();
             String op3 = ctx.op3.getText();
-            int sign = "-".equals(op3) ? -1 : 1;
-            expression = post.snap()
-                             .setOperator()
-                             .setLambda(post, (l, ed) -> ed.getExpression().groovyOperator("*", sign, l.apply(ed)));
+            ExpressionBuilder sign = ExpressionBuilder.of("-".equals(op3) ? -1 : 1);
+            expression = ExpressionBuilder.of(post, sign, (ed, l1, l2) -> ed.getExpression().groovyOperator("*", l1.apply(ed), l2.apply(ed)));
         } else if (ctx.opinfix != null) {
-            // '*'|'/'|'%' |'+'|'-'|'<<'|'>>'|'>>>'
+            // '*'|'/'|'%' |'+'|'-'|'<<'|'>>'|'>>>'|'**'
             String op = ctx.opinfix.getText();
             ExpressionBuilder post = stack.popTyped();
             ExpressionBuilder pre = stack.popTyped();
-            expression = newExpressionBuilder().binaryInfixOperator(pre, op, post);
+            expression = ExpressionBuilder.of(pre, op, post);
         } else if (ctx.opin != null) {
             // 'in'|'!in'
             String op = ctx.opin.getText();
             ExpressionBuilder post = stack.popTyped();
             ExpressionBuilder pre = stack.popTyped();
-            expression = newExpressionBuilder()
-                                       .setBiOperator(pre, post)
-                                       .snap()
-                                       .setLambda(pre, post, (l1, l2, ed) -> ed.getExpression().in(op, l1.apply(ed), l2.apply(ed)));
+            expression = ExpressionBuilder.of(pre, post, (ed, l1, l2) -> ed.getExpression().in(op, l1.apply(ed), l2.apply(ed)));
         } else if (ctx.opinstance != null) {
             String className = ctx.qualifiedIdentifier().getText();
             try {
@@ -1036,8 +1010,7 @@ class ConfigListener extends RouteBaseListener {
                 String op = (ctx.neg != null ? "!" :"") + ctx.opinstance.getText();
                 ExpressionBuilder pre = (ExpressionBuilder) stack.pop();
                 Class<?> clazz = classLoader.loadClass(className);
-                expression = newExpressionBuilder()
-                                           .setLambda(pre, (l, ed) -> ed.getExpression().instanceOf(op, l.apply(ed), clazz));
+                expression = ExpressionBuilder.of(pre, (ed, l) -> ed.getExpression().instanceOf(op, l.apply(ed), clazz));
             } catch (ClassNotFoundException e) {
                 throw new RecognitionException(Helpers.resolveThrowableException(e), parser, stream, ctx);
             }
@@ -1046,58 +1019,45 @@ class ConfigListener extends RouteBaseListener {
             String op = ctx.opcomp.getText();
             ExpressionBuilder post = stack.popTyped();
             ExpressionBuilder pre = stack.popTyped();
-            expression = newExpressionBuilder()
-                                       .setBiOperator(pre, post)
-                                       .snap()
-                                       .setLambda(pre, post, (l1, l2, ed) -> ed.getExpression().compare(op, l1.apply(ed), l2.apply(ed)));
+            expression = ExpressionBuilder.of(pre, post, (ed, l1, l2) -> ed.getExpression().compare(op, l1.apply(ed), l2.apply(ed)));
         } else if (ctx.exists != null) {
             // (== | !=) *
             VariablePath path = convertEventVariable(ctx.exists);
             String op = ctx.op.getText();
-            expression = newExpressionBuilder()
-                                             .setLambda(ed -> ed.getExpression().compare(op, ed.getEvent().getAtPath(path), Expression.ANYVALUE));
+            expression = ExpressionBuilder.of(ed -> ed.getExpression().compare(op, ed.getEvent().getAtPath(path), Expression.ANYVALUE));
         } else if (ctx.opbininfix != null) {
             // '.&'|'.^'|'.|'
             String op = ctx.opbininfix.getText().substring(1);
             ExpressionBuilder post = stack.popTyped();
             ExpressionBuilder pre = stack.popTyped();
-            expression = newExpressionBuilder().binaryInfixOperator(pre, op, post);
+            expression = ExpressionBuilder.of(pre, op, post);
         } else if (ctx.op12 != null) {
-            // '&&'
+            // '||'
             ExpressionBuilder post = stack.popTyped();
             ExpressionBuilder pre = stack.popTyped();
-            expression = newExpressionBuilder()
-                                       .binaryInfixOperator(pre, "&&", post)
-                                       .setLambda(pre, post, (l1, l2, ed) -> ed.getExpression().asBoolean(l1.apply(ed))
-                                            && ed.getExpression().asBoolean(l2.apply(ed)));
+            expression = ExpressionBuilder.of(pre, post, (ed, l1, l2) -> ed.getExpression().asBoolean(l1.apply(ed))
+                                                                                 && ed.getExpression().asBoolean(l2.apply(ed)));
         } else if (ctx.op13 != null) {
             // '||'
             ExpressionBuilder post = stack.popTyped();
             ExpressionBuilder pre = stack.popTyped();
-            expression = newExpressionBuilder()
-                                 .binaryInfixOperator(pre, "||", post)
-                                 .setLambda(pre, post, (l1, l2, ed) -> ed.getExpression().asBoolean(l1.apply(ed))
-                                                                               || ed.getExpression().asBoolean(l2.apply(ed)));
+            expression = ExpressionBuilder.of(pre, post, (ed, l1, l2) -> ed.getExpression().asBoolean(l1.apply(ed))
+                                                                                 || ed.getExpression().asBoolean(l2.apply(ed)));
         } else if (ctx.e3 != null) {
-            ExpressionBuilder subexpression = stack.popTyped();
-            expression = subexpression.snap()
-                                      .setOperator()
-                                      .setLambda(subexpression, Expression.ExpressionLambda::apply);
+            expression = stack.popTyped();
         } else if (ctx.newclass != null) {
             Expression.ExpressionLambda argsLambda;
             if (ctx.expressionsList() != null) {
                 List<ExpressionBuilder> exlist = stack.popTyped();
-                ExpressionBuilder expressions = newExpressionBuilder().getExpressionList(exlist);
+                ExpressionBuilder expressions = ExpressionBuilder.of(exlist);
                 argsLambda = expressions.getPayload();
             } else {
                 argsLambda = ed -> List.of();
             }
             try {
-                Class<?> theClass = this.classLoader.loadClass(ctx.newclass.getText());
-                expression = newExpressionBuilder()
-                                     .setType(ExpressionBuilder.ExpressionType.VARIABLE)
-                                     .setLambda(ed -> ed.getExpression().newInstance(theClass,
-                                                (List<Object>) argsLambda.apply(ed)));
+                Class<?> theClass = classLoader.loadClass(ctx.newclass.getText());
+                expression = ExpressionBuilder.of(ed -> ed.getExpression().newInstance(theClass,
+                        (List<Object>) argsLambda.apply(ed)));
             } catch (ClassNotFoundException e) {
                 throw new RecognitionException("Unknown class: " + ctx.newclass.getText(), parser, stream, ctx);
             }
@@ -1105,59 +1065,42 @@ class ConfigListener extends RouteBaseListener {
             String arrayIndexSign = ctx.arrayIndexSign != null ? ctx.arrayIndexSign.getText() : "";
             int arrayIndex = Integer.parseInt(arrayIndexSign + ctx.arrayIndex.getText());
             ExpressionBuilder subexpression = stack.popTyped();
-            expression = subexpression.snap()
-                                      .join(ExpressionBuilder.ExpressionType.OPERATOR)
-                                      .setLambda(subexpression, (l, ed) -> ed.getExpression().getIterableIndex(l.apply(ed), arrayIndex));
+            expression = ExpressionBuilder.of(subexpression, (ed, l) -> ed.getExpression().getIterableIndex(l.apply(ed), arrayIndex));
         } else if (ctx.stringFunction != null) {
             ExpressionBuilder subexpression = stack.popTyped();
             String stringFunction = ctx.stringFunction.getText();
-            expression = subexpression.snap()
-                                      .setOperator()
-                                      .setLambda(subexpression, (l, ed) -> ed.getExpression().stringFunction(stringFunction, l.apply(ed)));
+            expression = ExpressionBuilder.of(subexpression, (ed, l) -> ed.getExpression().stringFunction(stringFunction, l.apply(ed)));
 
         } else if (ctx.stringBiFunction != null) {
             ExpressionBuilder subexpression = stack.popTyped();
             ExpressionBuilder charExpression = stack.popTyped();
             String biFunction = ctx.stringBiFunction.getText();
-            Helpers.TriFunction<Expression.ExpressionLambda, Expression.ExpressionLambda, Expression.ExpressionData, Object> triFunction;
+            ExpressionBuilder.BiFunction triFunction;
             if ("join".equals(biFunction)) {
-                triFunction = (l1, l2, ed) -> ed.getExpression().join(l1.apply(ed), l2.apply(ed));
+                triFunction = (ed, l1, l2) -> ed.getExpression().join(l1.apply(ed), l2.apply(ed));
             } else if ("split".equals(biFunction)){
-                triFunction = (l1, l2, ed) -> ed.getExpression().split(l1.apply(ed), l2.apply(ed));
+                triFunction = (ed, l1, l2) -> ed.getExpression().split(l1.apply(ed), l2.apply(ed));
             } else {
                 // Never reached, but will break tests if changed
                 throw new RecognitionException("Unhandled string function: " + biFunction, parser, stream, ctx);
             }
-            expression = newExpressionBuilder()
-                                       .merge(charExpression, subexpression)
-                                       .snap()
-                                       .setLambda(charExpression, subexpression, triFunction);
+            expression = ExpressionBuilder.of(charExpression, subexpression, triFunction);
         } else if (ctx.now != null) {
-            expression = newExpressionBuilder()
-                                       .setLambda(ed -> Instant.now());
+            expression = ExpressionBuilder.of(ed -> Instant.now());
         } else if (ctx.isEmpty != null) {
             ExpressionBuilder subexpression = stack.popTyped();
-            expression = subexpression.snap()
-                                      .setOperator()
-                                      .setLambda(subexpression, (l, ed) -> ed.getExpression().isEmpty(l.apply(ed)));
+            expression = ExpressionBuilder.of(subexpression, (ed, l) -> ed.getExpression().isEmpty(l.apply(ed)));
         } else if (ctx.collection != null) {
             String collectionType = ctx.collection.getText();
             if (ctx.expressionsList() == null) {
-                expression = newExpressionBuilder()
-                                           .setType(ExpressionBuilder.ExpressionType.VARIABLE)
-                                           .snap()
-                                           .setLambda(ed -> ed.getExpression().newCollection(collectionType));
+                expression = ExpressionBuilder.of(ed -> ed.getExpression().newCollection(collectionType));
             } else {
                 List<ExpressionBuilder> exlist = stack.popTyped();
-                ExpressionBuilder expressions = newExpressionBuilder().getExpressionList(exlist);
-                expression = newExpressionBuilder()
-                                           .setType(expressions.getType())
-                                           .snap()
-                                           .setLambda(expressions, (l, ed) -> ed.getExpression().asCollection(collectionType, l.apply(ed)));
+                ExpressionBuilder expressions = ExpressionBuilder.of(exlist);
+                expression = ExpressionBuilder.of(expressions, (ed, l) -> ed.getExpression().asCollection(collectionType, l.apply(ed)));
             }
         } else if (ctx.lambdavar != null) {
-            expression = newExpressionBuilder()
-                                       .setLambda(Expression.ExpressionData::getValue);
+            expression = ExpressionBuilder.of(Expression.ExpressionData::getValue);
         } else {
             throw new IllegalStateException("Unreachable code");
         }
@@ -1175,10 +1118,6 @@ class ConfigListener extends RouteBaseListener {
         } else {
             stack.push(expression);
         }
-    }
-
-    private ExpressionBuilder newExpressionBuilder() {
-        return new ExpressionBuilder();
     }
 
     @Override

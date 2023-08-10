@@ -174,6 +174,10 @@ public class Expression {
         this.source = source;
     }
 
+    public Object eval() throws ProcessorException {
+        return eval(null, null);
+    }
+
     public Object eval(Event event) throws ProcessorException {
         return eval(event, null);
     }

@@ -188,7 +188,7 @@ expression
     |   'new' newclass = qualifiedIdentifier ('(' ')' | expressionsList)
     |   opnotlogical='!' e1=expression
     |   opnotbinary='.~' e1=expression
-    |   e1 = expression op2='**' e2=expression
+    |   e1 = expression opinfix='**' e2=expression
     |   op3=('+'|'-') e1=expression
     |   e1 = expression opinfix=('*'|'/'|'%') e2=expression
     |   e1 = expression opinfix=('+'|'-') e2=expression
