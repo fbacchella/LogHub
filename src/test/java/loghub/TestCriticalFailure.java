@@ -48,7 +48,7 @@ public class TestCriticalFailure {
         Properties props = Tools.loadConf(new StringReader(confile));
         Start runner = new Start();
         runner.setCanexit(false);
-        runner.launch(props);
+        runner.launch(props, SystemdHandler.nope());
         Event ev = Mocker.getMock();
         doThrow(new OutOfMemoryError()).when(ev).next();
         when(ev.getCurrentPipeline()).thenReturn("newpipe");
@@ -70,7 +70,7 @@ public class TestCriticalFailure {
         Properties props = Tools.loadConf(new StringReader(confile));
         Start runner = new Start();
         runner.setCanexit(false);
-        runner.launch(props);
+        runner.launch(props, SystemdHandler.nope());
         Event ev = Mocker.getMock();
         doThrow(new StackOverflowError()).when(ev).process(any());
         when(ev.getCurrentPipeline()).thenReturn("newpipe");

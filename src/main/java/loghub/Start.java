@@ -379,9 +379,14 @@ public class Start {
                 System.err.println("No configuration file given");
                 exitcode = ExitCode.INVALIDCONFIGURATION;
             } else {
+                SystemdHandler systemd = SystemdHandler.start();
+                systemd.setStatus("Parsing configuration");
                 Properties props = Configuration.parse(configFile);
                 if (!test) {
-                    launch(props);
+                    systemd.setStatus("Launching");
+                    launch(props, systemd);
+                    systemd.setStatus("Started");
+                    systemd.started();
                     logger.warn("LogHub started");
                 } else if (testedprocessor != null) {
                     testProcessor(props, testedprocessor);
@@ -432,7 +437,7 @@ public class Start {
         }
     }
 
-    public void launch(Properties props) throws ConfigException, IOException {
+    public void launch(Properties props, SystemdHandler systemd) throws ConfigException, IOException {
         try {
             JmxService.start(props.jmxServiceConfiguration);
         } catch (IOException e) {
@@ -530,6 +535,8 @@ public class Start {
         Sender[] senders = props.senders.stream().toArray(Sender[]::new);
         Timer loghubtimer = props.timer;
         Runnable shutdown = () -> {
+            systemd.stopping();
+            systemd.setStatus("Stopping");
             loghubtimer.cancel();
             for (int i = 0 ; i < receivers.length ; i++) {
                 Receiver r = receivers[i];
