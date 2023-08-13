@@ -43,7 +43,6 @@ import groovy.runtime.metaclass.java.lang.CharacterMetaClass;
 import groovy.runtime.metaclass.java.lang.NumberMetaClass;
 import groovy.runtime.metaclass.java.lang.StringMetaClass;
 import groovy.runtime.metaclass.java.util.CollectionMetaClass;
-import groovy.runtime.metaclass.loghub.NullOrNoneValueMetaClass;
 import loghub.events.Event;
 import lombok.Getter;
 
@@ -64,8 +63,6 @@ public class Expression {
         java.util.Map<Class<?>, Function<MetaClass, MetaClass>> metaClassFactories = new HashMap<>();
         metaClassFactories.put(String.class, StringMetaClass::new);
         metaClassFactories.put(Character.class, CharacterMetaClass::new);
-        metaClassFactories.put(NullOrMissingValue.NULL.getClass(), NullOrNoneValueMetaClass::new);
-        metaClassFactories.put(NullOrMissingValue.MISSING.getClass(), NullOrNoneValueMetaClass::new);
         metaClassFactories.put(Date.class, TemporalMetaClass::new);
         metaClassFactories.put(Temporal.class, TemporalMetaClass::new);
         metaClassFactories.put(Number.class, NumberMetaClass::new);
@@ -76,8 +73,6 @@ public class Expression {
             protected MetaClass createNormalMetaClass(Class theClass, MetaClassRegistry registry) {
                 if (metaClassFactories.containsKey(theClass)) {
                     return doCreate(theClass, theClass);
-                } else if (Event.class.isAssignableFrom(theClass)) {
-                    return doCreate(Event.class, theClass);
                 } else if (Temporal.class.isAssignableFrom(theClass)) {
                     return doCreate(Temporal.class, theClass);
                 } else if (Number.class.isAssignableFrom(theClass)) {
@@ -567,7 +562,7 @@ public class Expression {
 
     public Object groovyOperator(String operator, Object arg1) {
         arg1 = nullfilter(arg1);
-        if (arg1 == NullOrMissingValue.NULL) {
+        if (arg1 instanceof NullOrMissingValue) {
             throw IgnoredEventException.INSTANCE;
         }
         MetaClass mc = registry.getMetaClass(arg1.getClass());
@@ -581,7 +576,7 @@ public class Expression {
         if ("===".equals(operator) || "!==".equals(operator)) {
             return (System.identityHashCode(arg1) == System.identityHashCode(arg2)) ^ ("!==".equals(operator));
         } else {
-            if (arg1 == NullOrMissingValue.NULL) {
+            if (arg1 instanceof NullOrMissingValue) {
                 throw IgnoredEventException.INSTANCE;
             }
             MetaClass mc = registry.getMetaClass(arg1.getClass());
