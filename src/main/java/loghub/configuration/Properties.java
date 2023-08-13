@@ -25,7 +25,6 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.core.LoggerContext;
 
-import groovy.lang.GroovyClassLoader;
 import io.netty.util.concurrent.Future;
 import loghub.Dashboard;
 import loghub.EventsProcessor;
@@ -96,7 +95,6 @@ public class Properties extends HashMap<String, Object> {
     public final Collection<Receiver> receivers;
     public final Collection<Sender> senders;
     public final Map<String, Source> sources;
-    public final GroovyClassLoader groovyClassLoader;
     public final JmxService.Configuration jmxServiceConfiguration;
     public final int numWorkers;
     public final PriorityBlockingQueue mainQueue;
@@ -124,8 +122,6 @@ public class Properties extends HashMap<String, Object> {
 
         classloader = Optional.ofNullable((ClassLoader) properties.remove(PROPSNAMES.CLASSLOADERNAME.toString()))
                               .orElseGet(Properties.class::getClassLoader);
-        groovyClassLoader = Optional.ofNullable((GroovyClassLoader) properties.remove(PROPSNAMES.GROOVYCLASSLOADERNAME.toString()))
-                                    .orElseGet(() -> new GroovyClassLoader(classloader));
         cacheManager = Optional.ofNullable((CacheManager) properties.remove(PROPSNAMES.CACHEMANGER.toString()))
                                     .orElseGet(() -> new CacheManager(classloader));
 

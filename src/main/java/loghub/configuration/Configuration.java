@@ -83,7 +83,6 @@ public class Configuration {
     private Set<String> inputpipelines = new HashSet<>();
     private Set<String> outputpipelines = new HashSet<>();
     private ClassLoader classLoader = Configuration.class.getClassLoader();
-    private GroovyClassLoader groovyClassLoader = new GroovyClassLoader(classLoader);
     private CacheManager cacheManager = new CacheManager(classLoader);
     private SecretsHandler secrets = null;
     private final Map<String, String> lockedProperties = new HashMap<>();
@@ -158,7 +157,6 @@ public class Configuration {
                     try {
                         logger.debug("Looking for plugins in {}", (Object[])path);
                         classLoader = doClassLoader(path);
-                        groovyClassLoader = new GroovyClassLoader(classLoader);
                         cacheManager = new CacheManager(classLoader);
                         lockedProperties.put("plugins", pc.beanValue().getText());
                     } catch (IOException | UncheckedIOException ex) {
@@ -358,7 +356,6 @@ public class Configuration {
             configurationProperties.entrySet().removeIf(e -> e.getValue() == null);
             ConfigListener conflistener = ConfigListener.builder()
                                                         .classLoader(classLoader)
-                                                        .groovyClassLoader(groovyClassLoader)
                                                         .secrets(secrets)
                                                         .lockedProperties(lockedProperties)
                                                         .sslContext(resolveSslContext())
