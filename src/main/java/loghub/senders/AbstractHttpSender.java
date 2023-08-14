@@ -14,7 +14,7 @@ import lombok.Setter;
 public abstract class AbstractHttpSender extends Sender {
     public abstract static class Builder<S extends AbstractHttpSender> extends Sender.Builder<S> {
         @Setter
-        public String protocol = "http";
+        public String protocol = "https";
         @Setter
         private String user = null;
         @Setter
@@ -43,7 +43,7 @@ public abstract class AbstractHttpSender extends Sender {
         try {
             Class<AbstractHttpClientService> clientClass = (Class<AbstractHttpClientService>) getClass().getClassLoader().loadClass(builder.clientService);
             AbstractHttpClientService.Builder clientBuilder = (AbstractHttpClientService.Builder) AbstractBuilder.resolve(clientClass);
-            endpoints = Helpers.stringsToUri(builder.destinations, -1, "https", logger);
+            endpoints = Helpers.stringsToUri(builder.destinations, builder.port, builder.protocol, logger);
             clientBuilder.setTimeout(builder.timeout);
             clientBuilder.setUser(builder.user);
             clientBuilder.setPassword(builder.password);
