@@ -240,6 +240,7 @@ public class TestExpressionParsing {
                 "2 < 2", false,
                 "2 > 2", false,
                 "2 == 2", true,
+                "2 != 2", false,
                 "2 === 2", true,
                 "2 !== 2", false,
                 "2 <=> 2", 0,
@@ -273,7 +274,19 @@ public class TestExpressionParsing {
                 "[c] <=> [a]", 0,
                 "[a] <=> [d]", IgnoredEventException.class,
                 "[b] <=> [d]", IgnoredEventException.class,
-                "[c] <=> [d]", IgnoredEventException.class
+                "[c] <=> [d]", IgnoredEventException.class,
+                "[a] == [b]", true,
+                "[b] == [c]", true,
+                "[c] == [a]", true,
+                "[a] != [b]", false,
+                "[b] != [c]", false,
+                "[c] != [a]", false,
+                "[a] == [d]", false,
+                "[b] == [d]", false,
+                "[c] == [d]", false,
+                "[d] == [a]", false,
+                "[d] == [b]", false,
+                "[d] == [c]", false
         };
         enumerateExpressions(ev, tryExpression);
     }
@@ -331,7 +344,8 @@ public class TestExpressionParsing {
                 "2 .& [a b]", IgnoredEventException.class,
                 "true && [a b]", IgnoredEventException.class,
                 "false || [a b]", IgnoredEventException.class,
-                "2 in [a b]", false,
+                "2 in [a b]", IgnoredEventException.class,
+                "[a] in list(1,2,3)", IgnoredEventException.class,
                 ".~ [a b]", IgnoredEventException.class,
                 "! [a b]", IgnoredEventException.class,
                 "+ [a b]", IgnoredEventException.class,
@@ -379,6 +393,8 @@ public class TestExpressionParsing {
                 "2 .& [a]", IgnoredEventException.class,
                 "true && [a]", false,
                 "false || [a]", false,
+                "[a] && true", false,
+                "[a] || false", false,
                 "2 in [a]", false,
                 "null in [a]", true,
                 ".~ [a]", IgnoredEventException.class,
@@ -700,7 +716,11 @@ public class TestExpressionParsing {
     public void testCollectionList() throws ProcessorException {
         Event ev = factory.newEvent();
         ev.put("a", 1);
+        ev.put("b", List.of(1, 2, 3));
+        ev.put("c", Set.of(1, 2, 3));
+        ev.put("d", new Integer[]{1, 2, 3});
         Assert.assertEquals(List.of('a', "a", 1), Tools.evalExpression("list('a', \"a\", [a])", ev));
+        Assert.assertEquals(List.of(), Tools.evalExpression("list()", ev));
     }
 
     @Test
@@ -708,6 +728,7 @@ public class TestExpressionParsing {
         Event ev = factory.newEvent();
         ev.put("a", 1);
         Assert.assertEquals(Set.of('a', "a", 1), Tools.evalExpression("set('a', 'a', \"a\", \"a\", [a])", ev));
+        Assert.assertEquals(Set.of(), Tools.evalExpression("set()", ev));
     }
 
     @Test
@@ -789,8 +810,10 @@ public class TestExpressionParsing {
         Assert.assertEquals("1 2 3", Tools.evalExpression("join([c], [a])",ev));
         Assert.assertEquals("123", Tools.evalExpression("join(null, [a])",ev));
         Assert.assertEquals("123", Tools.evalExpression("join([d], [a])",ev));
-        Assert.assertThrows(IgnoredEventException.class, () -> Tools.evalExpression("split(' ', [e])",ev));
-        Assert.assertThrows(IgnoredEventException.class, () -> Tools.evalExpression("split([e], [a])",ev));
+        Assert.assertEquals(null, Tools.evalExpression("join(\" \", [d])",ev));
+        Assert.assertEquals("1 2 3", Tools.evalExpression("join(\" \", \"1 2 3\")",ev));
+        Assert.assertThrows(IgnoredEventException.class, () -> Tools.evalExpression("join(' ', [e])",ev));
+        Assert.assertThrows(IgnoredEventException.class, () -> Tools.evalExpression("join([e], [a])",ev));
     }
 
     @Test
@@ -815,6 +838,7 @@ public class TestExpressionParsing {
         ev.put("a", "1");
         ev.put("b", "2");
         Assert.assertEquals("12", Tools.evalExpression("[a] + [b]",ev));
+        Assert.assertThrows(IgnoredEventException.class, () -> Tools.evalExpression("isBlank([c])",ev) );
     }
 
     @Test
@@ -966,6 +990,26 @@ public class TestExpressionParsing {
         Assert.assertTrue((boolean) Tools.evalExpression("[a] == \"/192.168.1.1\"", ev));
         Assert.assertTrue((boolean) Tools.evalExpression("[b] == \"www.google.com\"", ev));
         Assert.assertTrue((boolean) Tools.evalExpression("[c] == \"localhost\"", ev));
+    }
+
+    @Test
+    public void testBoolean() throws ProcessorException {
+        Event ev = factory.newEvent();
+        ev.put("a", true);
+        ev.put("b", 1);
+        ev.put("c", 1.0);
+        ev.put("d", false);
+        ev.put("e", 0);
+        ev.put("f", 0.0);
+        Assert.assertTrue((boolean) Tools.evalExpression("[a] && [b]", ev));
+        Assert.assertTrue((boolean) Tools.evalExpression("[a] && [c]", ev));
+        Assert.assertTrue((boolean) Tools.evalExpression("[b] && [c]", ev));
+        Assert.assertFalse((boolean) Tools.evalExpression("[a] && [d]", ev));
+        Assert.assertFalse((boolean) Tools.evalExpression("[a] && [e]", ev));
+        Assert.assertFalse((boolean) Tools.evalExpression("[b] && [f]", ev));
+        Assert.assertTrue((boolean) Tools.evalExpression("[a] || [d]", ev));
+        Assert.assertTrue((boolean) Tools.evalExpression("[a] || [e]", ev));
+        Assert.assertTrue((boolean) Tools.evalExpression("[b] || [f]", ev));
     }
 
 }

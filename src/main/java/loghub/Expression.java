@@ -252,8 +252,8 @@ public class Expression {
             case "uppercase":
                 return nullarg ? NullOrMissingValue.NULL : arg.toString().toUpperCase();
             default:
-                assert false: method;
                 // Can’t be reached
+                assert false: method;
                 throw IgnoredEventException.INSTANCE;
             }
         }
@@ -309,10 +309,10 @@ public class Expression {
 
     public Object in(String cmd, Object obj1, Object obj2) {
         boolean result;
-        if ((obj1 == null || obj1 == NullOrMissingValue.NULL) && (obj2 == null || obj2 == NullOrMissingValue.NULL)) {
-            result = !cmd.startsWith("!");
-        } else if (obj1 == NullOrMissingValue.MISSING) {
+        if (obj1 == NullOrMissingValue.MISSING || obj2 == NullOrMissingValue.MISSING) {
             throw IgnoredEventException.INSTANCE;
+        } else if ((obj1 == null || obj1 == NullOrMissingValue.NULL) && (obj2 == null || obj2 == NullOrMissingValue.NULL)) {
+            result = !cmd.startsWith("!");
         } else if (obj2 instanceof Collection) {
             result = ((Collection<?>)obj2).contains(obj1);
         } else if (obj2.getClass().isArray()) {
@@ -331,7 +331,8 @@ public class Expression {
         } else if ("list".equals(collectionType)) {
             return new ArrayList<>();
         } else {
-            assert true: "unreachable";
+            // Can’t be reached
+            assert false: collectionType;
             throw IgnoredEventException.INSTANCE;
         }
     }
@@ -359,7 +360,8 @@ public class Expression {
                 return new ArrayList<>(List.of((T) argument));
             }
         } else {
-            assert true: "unreachable";
+            // Can’t be reached
+            assert false: collectionType;
             throw IgnoredEventException.INSTANCE;
         }
     }
@@ -462,6 +464,7 @@ public class Expression {
             case "<=>":
                 return compare;
             default:
+                assert false : operator;
                 throw IgnoredEventException.INSTANCE;
             }
         } else {
@@ -571,18 +574,12 @@ public class Expression {
     }
 
     public Object groovyOperator(String operator, Object arg1, Object arg2) {
-        arg1 = nullfilter(arg1);
-        arg2 = protect(operator, arg2);
-        if ("===".equals(operator) || "!==".equals(operator)) {
-            return (System.identityHashCode(arg1) == System.identityHashCode(arg2)) ^ ("!==".equals(operator));
-        } else {
-            if (arg1 instanceof NullOrMissingValue) {
-                throw IgnoredEventException.INSTANCE;
-            }
-            MetaClass mc = registry.getMetaClass(arg1.getClass());
-            GroovyMethods groovyOp = GroovyMethods.resolveSymbol(operator);
-            return mc.invokeMethod(arg1, groovyOp.groovyMethod, new Object[]{arg2});
+        if (arg1 instanceof NullOrMissingValue) {
+            throw IgnoredEventException.INSTANCE;
         }
+        MetaClass mc = registry.getMetaClass(arg1.getClass());
+        GroovyMethods groovyOp = GroovyMethods.resolveSymbol(operator);
+        return mc.invokeMethod(arg1, groovyOp.groovyMethod, new Object[]{arg2});
     }
 
     public Object newInstance(Class <?> theClass, List<Object> args) {

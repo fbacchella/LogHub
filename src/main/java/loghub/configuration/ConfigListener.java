@@ -1030,7 +1030,7 @@ class ConfigListener extends RouteBaseListener {
             ExpressionBuilder pre = stack.popTyped();
             expression = ExpressionBuilder.of(pre, op, post);
         } else if (ctx.op12 != null) {
-            // '||'
+            // '&&'
             ExpressionBuilder post = stack.popTyped();
             ExpressionBuilder pre = stack.popTyped();
             expression = ExpressionBuilder.of(pre, post, (ed, l1, l2) -> ed.getExpression().asBoolean(l1.apply(ed))
@@ -1068,7 +1068,6 @@ class ConfigListener extends RouteBaseListener {
             ExpressionBuilder subexpression = stack.popTyped();
             String stringFunction = ctx.stringFunction.getText();
             expression = ExpressionBuilder.of(subexpression, (ed, l) -> ed.getExpression().stringFunction(stringFunction, l.apply(ed)));
-
         } else if (ctx.stringBiFunction != null) {
             ExpressionBuilder subexpression = stack.popTyped();
             ExpressionBuilder charExpression = stack.popTyped();
