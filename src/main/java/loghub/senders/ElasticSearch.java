@@ -40,6 +40,7 @@ import loghub.BuilderClass;
 import loghub.CanBatch;
 import loghub.Expression;
 import loghub.Helpers;
+import loghub.IgnoredEventException;
 import loghub.ProcessorException;
 import loghub.configuration.Properties;
 import loghub.encoders.EncodeException;
@@ -179,16 +180,21 @@ public class ElasticSearch extends AbstractHttpSender {
     }
     
     private String eventIndex(Event event) throws ProcessorException {
-        // if evaluation of the expression returns null, it failed and default to the loghub index
-        String indexname = Optional.ofNullable(index.eval(event)).map(Object::toString).orElse("loghub");
-        if (esIndexFormat != null) {
-            indexname = indexname + esIndexFormat.get().format(event.getTimestamp());
+        try {
+            // if evaluation of the expression returns null, it failed and default to the loghub index
+            String indexname = Optional.ofNullable(index.eval(event)).map(Object::toString).orElse(null);
+            if (esIndexFormat != null && indexname != null) {
+                indexname = indexname + esIndexFormat.get().format(event.getTimestamp());
+            }
+            return indexname;
+        } catch (IgnoredEventException ex) {
+            return null;
         }
-        return indexname;
     }
 
     @Override
     protected void flush(Batch documents) throws SendException {
+        logger.debug("Flushing {} events", documents::size);
         HttpRequest request = httpClient.getRequest();
         // This list contains the event futures that will be effectively sent to ES
         List<EventFuture> tosend = new ArrayList<>(documents.size());
@@ -209,8 +215,7 @@ public class ElasticSearch extends AbstractHttpSender {
         // We can go on with the documents creations
         request.setTypeAndContent(ContentType.APPLICATION_JSON, os -> putContent(documents, tosend, os));
         request.setVerb("POST");
-        Function<JsonNode, Map<String, ?>> reader;
-        reader = node -> {
+        Function<JsonNode, Map<String, ?>> reader = node -> {
             try {
                 return jsonreader.readValue(node);
             } catch (IOException e) {
@@ -233,11 +238,13 @@ public class ElasticSearch extends AbstractHttpSender {
                     Map<String, ?> error =  Optional.ofNullable((Map<String, ?>) errorindex.get("error")).orElse(Collections.emptyMap());
                     String type = (String) error.get("type");
                     String errorReason = (String) error.get("reason");
-                    Optional<Map<?, ?>> errorCause = Optional.ofNullable((Map<?, ?>) error.get("caused_by"));
-                    f.failure(String.format("%s %s, caused by %s %s",
+                    @SuppressWarnings("unchecked")
+                    Map<String, String> errorCause = (Map<String, String>) error.get("caused_by");
+                    String causedBy = errorCause != null ?  String.format(", caused by '%s', %s", errorCause.get("type"), errorCause.get("reason")) : "";
+                    f.failure(String.format("'%s', %s%s",
                                             type,
                                             errorReason,
-                                            errorCause.orElse(Collections.emptyMap()).get("type"), errorCause.orElse(Collections.emptyMap()).get("reason")));
+                                            causedBy));
                 }
             }
         } else if (response != null && Boolean.FALSE.equals(response.get("errors"))) {
@@ -348,6 +355,7 @@ public class ElasticSearch extends AbstractHttpSender {
             waitIndices(indices);
         }
         if (ilm && ! missing.isEmpty()) {
+            logger.debug("Creating indices {}", missing);
             createIndicesWithIML(missing);
         }
     }
@@ -355,7 +363,7 @@ public class ElasticSearch extends AbstractHttpSender {
     /**
      * Wait for all the read only indicies to be OK.
      * @param indices the indices in read only mode
-     * @throws SendException
+     * @throws SendException if send was interrupted
      */
     private synchronized void waitIndices(Set<String> indices) throws SendException {
         int wait = 1;
@@ -417,19 +425,23 @@ public class ElasticSearch extends AbstractHttpSender {
      * @param indices Indices to check
      * @param missing A set that will contains missing indices after the check.
      * @param readonly A set that will contains indices in read only mode after the check.
-     * @return
+     * @return true if indices created
      */
     private boolean doCheckIndices(Set<String> indices, Set<String> missing, Set<String> readonly) {
-        missing.clear();
-        readonly.clear();
-        String filePart = "/" + String.join(",", indices)
-                              + "/_settings/index.number_of_shards,index.blocks.read_only_allow_delete?allow_no_indices=true&ignore_unavailable=true&flat_settings=true";
-        Map<String, String> aliases = getAliases(indices);
-        Function<JsonNode, Boolean> transform = node -> {
-            scanResults(node, aliases, missing, readonly);
-            return Boolean.TRUE;
-        };
-        return doquery(null, filePart, transform, Collections.emptyMap(), Boolean.FALSE);
+        if (indices.isEmpty()) {
+            return true;
+        } else {
+            missing.clear();
+            readonly.clear();
+            String filePart = "/" + String.join(",", indices)
+                                      + "/_settings/index.number_of_shards,index.blocks.read_only_allow_delete?allow_no_indices=true&ignore_unavailable=true&flat_settings=true";
+            Map<String, String> aliases = getAliases(indices);
+            Function<JsonNode, Boolean> transform = node -> {
+                scanResults(node, aliases, missing, readonly);
+                return Boolean.TRUE;
+            };
+            return doquery(null, filePart, transform, Collections.emptyMap(), Boolean.FALSE);
+        }
     }
 
     private Map<String, String> getAliases(Set<String> indices) {

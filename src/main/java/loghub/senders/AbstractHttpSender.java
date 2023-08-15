@@ -41,6 +41,7 @@ public abstract class AbstractHttpSender extends Sender {
     protected AbstractHttpSender(Builder<? extends AbstractHttpSender> builder) {
         super(builder);
         try {
+            @SuppressWarnings("unchecked")
             Class<AbstractHttpClientService> clientClass = (Class<AbstractHttpClientService>) getClass().getClassLoader().loadClass(builder.clientService);
             AbstractHttpClientService.Builder clientBuilder = (AbstractHttpClientService.Builder) AbstractBuilder.resolve(clientClass);
             endpoints = Helpers.stringsToUri(builder.destinations, builder.port, builder.protocol, logger);
@@ -53,8 +54,8 @@ public abstract class AbstractHttpSender extends Sender {
                 clientBuilder.setSslKeyAlias(builder.sslKeyAlias);
             }
             httpClient = (AbstractHttpClientService) clientBuilder.build();
-        } catch (InvocationTargetException | ClassNotFoundException e) {
-            throw new RuntimeException(e);
+        } catch (InvocationTargetException | ClassNotFoundException ex) {
+            throw new IllegalArgumentException("HTTP client class not usable: " + Helpers.resolveThrowableException(ex), ex);
         }
     }
 
