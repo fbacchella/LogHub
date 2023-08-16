@@ -5,19 +5,18 @@ import java.lang.reflect.Array;
 import java.math.BigDecimal;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.nio.charset.StandardCharsets;
 import java.time.DateTimeException;
 import java.time.Instant;
 import java.time.temporal.Temporal;
 import java.time.temporal.TemporalAccessor;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Base64;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -121,8 +120,15 @@ public class Expression {
     public static final Object ANYVALUE = new Object();
 
     private static final ThreadLocal<BindingMap> bindings = ThreadLocal.withInitial(BindingMap::new);
-    private static final java.util.Map<String, Pattern> PATTERN_CACHE = new ConcurrentHashMap<>();
-    private static final java.util.Map<String, ThreadLocal<Matcher>> MATCHER_CACHE = new ConcurrentHashMap<>();
+
+    private static final Function<Pattern, Matcher> MATCHER_CACHE;
+    private static final Runnable MATCHER_CLEAN;
+
+    static {
+        Map<Pattern, ThreadLocal<Matcher>> cache = new ConcurrentHashMap<>();
+        MATCHER_CACHE = p -> cache.computeIfAbsent(p, k -> ThreadLocal.withInitial(() -> k.matcher(""))).get();
+        MATCHER_CLEAN = cache::clear;
+    }
 
     private final ExpressionLambda evaluator;
     @Getter
@@ -259,11 +265,23 @@ public class Expression {
         }
     }
 
-    public Object join(Object arg1, Object arg2) {
-        if (arg1 == NullOrMissingValue.MISSING || arg2 == NullOrMissingValue.MISSING) {
+    public Object gsub(Object apply, Pattern pattern, String replacement) {
+        if (apply == NullOrMissingValue.MISSING) {
             throw IgnoredEventException.INSTANCE;
-        } else if (arg2 == null || arg2 == NullOrMissingValue.NULL) {
+        } else if (apply == null || apply == NullOrMissingValue.NULL) {
             return NullOrMissingValue.NULL;
+        } else {
+            Matcher m = MATCHER_CACHE.apply(pattern);
+            m.reset(apply.toString());
+            return m.replaceAll(replacement);
+        }
+    }
+
+    public Object join(String separator, Object arg2) {
+        if (arg2 == null || arg2 == NullOrMissingValue.NULL) {
+            return NullOrMissingValue.NULL;
+        } else if (arg2 == NullOrMissingValue.MISSING) {
+            throw IgnoredEventException.INSTANCE;
         } else {
             Stream<String> strSrc = null;
             if (arg2 instanceof Collection) {
@@ -273,7 +291,6 @@ public class Expression {
                 strSrc = Arrays.stream(DefaultTypeTransformation.primitiveArrayBox(arg2)).map(Object::toString);
             }
             if (strSrc != null) {
-                String separator = (arg1 != null && arg1 != NullOrMissingValue.NULL) ? arg1.toString(): "";
                 return strSrc.collect(Collectors.joining(separator));
             } else {
                 return arg2.toString();
@@ -281,15 +298,13 @@ public class Expression {
         }
     }
 
-    public Object split(Object arg1, Object arg2) {
-        if (arg1 == NullOrMissingValue.MISSING || arg2 == NullOrMissingValue.MISSING) {
+    public Object split(Object arg1, Pattern pattern) {
+        if (arg1 == NullOrMissingValue.MISSING) {
             throw IgnoredEventException.INSTANCE;
         } else if (arg1 == NullOrMissingValue.NULL || arg1 == null ) {
-            return arg2;
-        } else if (arg2 == null || arg2 == NullOrMissingValue.NULL) {
             return NullOrMissingValue.NULL;
         } else {
-            return PATTERN_CACHE.computeIfAbsent(arg1.toString(), Pattern::compile).split(arg2.toString());
+            return pattern.splitAsStream(arg1.toString()).collect(Collectors.toList());
         }
     }
 
@@ -523,17 +538,13 @@ public class Expression {
         }
     }
 
-    public Object regex(Object arg, String op, String encodedPattern) {
+    public Object regex(Object arg, String op, Pattern pattern) {
         if (arg == NullOrMissingValue.NULL || arg == null || arg instanceof Collection || arg instanceof java.util.Map || arg.getClass().isArray()) {
             return false;
         } else if (arg == NullOrMissingValue.MISSING) {
             throw IgnoredEventException.INSTANCE;
         } else {
-            Matcher m = MATCHER_CACHE.computeIfAbsent(encodedPattern, k -> {
-                byte[] patternBytes = Base64.getDecoder().decode(k);
-                String pattern = new String(patternBytes, StandardCharsets.UTF_8);
-                return ThreadLocal.withInitial(() -> PATTERN_CACHE.computeIfAbsent(pattern, Pattern::compile).matcher(""));
-            }).get();
+            Matcher m = MATCHER_CACHE.apply(pattern);
             m.reset(arg.toString());
             if ("==~".equals(op)) {
                 return m.matches();
@@ -591,8 +602,7 @@ public class Expression {
      * Clear the compilation cache
      */
     public static void clearCache() {
-        MATCHER_CACHE.clear();
-        PATTERN_CACHE.clear();
+        MATCHER_CLEAN.run();
     }
 
 }

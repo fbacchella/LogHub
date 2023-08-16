@@ -86,7 +86,8 @@ public class TestExpressionParsing {
     public void testNew() throws ProcessorException {
         Assert.assertEquals(new Date(3), Tools.evalExpression("new java.util.Date(1+2)", factory.newEvent()));
         Assert.assertEquals("", Tools.evalExpression("new java.lang.String()", factory.newEvent()));
-        RecognitionException ex = Assert.assertThrows(RecognitionException.class, () -> Tools.evalExpression("new class.not.exist()", factory.newEvent()));
+        Event ev = factory.newEvent();
+        RecognitionException ex = Assert.assertThrows(RecognitionException.class, () -> Tools.evalExpression("new class.not.exist()", ev));
         Assert.assertEquals("Unknown class: class.not.exist", ex.getMessage());
     }
 
@@ -577,8 +578,8 @@ public class TestExpressionParsing {
     public void testPatternBoolean() throws ProcessorException {
         Event ev = factory.newEvent();
         ev.put("a", "abc");
-        Boolean i = (Boolean) Tools.evalExpression("[a] ==~ /(a.)(.)/",ev);
-        Assert.assertEquals(true, i);
+        Assert.assertTrue((boolean) Tools.evalExpression("[a] ==~ /(a.)(.)/",ev));
+        Assert.assertTrue((boolean) Tools.evalExpression("[a] ==~ \"\"\"(a.)(.)\"\"\"",ev));
     }
 
     @Test
@@ -780,14 +781,27 @@ public class TestExpressionParsing {
     public void testSplit() throws ProcessorException {
         Event ev = factory.newEvent();
         ev.put("a", "1 2 3");
-        ev.put("b", ' ');
+        ev.put("b", "1/2/3");
         ev.put("c", null);
-        Assert.assertArrayEquals(new String[]{"1", "2", "3"}, (String[])Tools.evalExpression("split(\" \", [a])",ev));
-        Assert.assertArrayEquals(new String[]{"1", "2", "3"}, (String[])Tools.evalExpression("split([b], [a])",ev));
-        Assert.assertEquals("1 2 3", Tools.evalExpression("split(null, [a])",ev));
-        Assert.assertNull(Tools.evalExpression("split(' ', [c])", ev));
-        Assert.assertThrows(IgnoredEventException.class, () -> Tools.evalExpression("split(null, [d])",ev));
-        Assert.assertThrows(IgnoredEventException.class, () -> Tools.evalExpression("split([d], [a])",ev));
+        Assert.assertEquals(List.of("1", "2", "3"), Tools.evalExpression("split(\" \", [a])",ev));
+        Assert.assertEquals(List.of("1", "2", "3"), Tools.evalExpression("split(/ /, [a])",ev));
+        Assert.assertEquals(List.of("1", "2", "3"), Tools.evalExpression("split(\"\"\"/\"\"\", [b])",ev));
+        Assert.assertNull(Tools.evalExpression("split(\" \", [c])", ev));
+        Assert.assertThrows(IgnoredEventException.class, () -> Tools.evalExpression("split(/ /, [d])",ev));
+    }
+
+    @Test
+    public void testGsub() throws ProcessorException {
+        Event ev = factory.newEvent();
+        ev.put("a", "1 2 3");
+        ev.put("b", "1/2/3");
+        ev.put("c", null);
+        Assert.assertEquals("1-2-3", Tools.evalExpression("gsub([a], / /, \"-\")",ev));
+        Assert.assertEquals("1/2/3", Tools.evalExpression("gsub([b], / /, \"-\")",ev));
+        Assert.assertEquals("1-2-3", Tools.evalExpression("gsub([b], \"\"\"/\"\"\", \"-\")",ev));
+        Assert.assertEquals("1 2 3", Tools.evalExpression("gsub([a], \"\"\"/\"\"\", \"-\")",ev));
+        Assert.assertNull(Tools.evalExpression("gsub([c], / /, \"-\")", ev));
+        Assert.assertThrows(IgnoredEventException.class, () -> Tools.evalExpression("gsub([d], / /, \"-\")",ev));
     }
 
     @Test
@@ -807,13 +821,9 @@ public class TestExpressionParsing {
         Assert.assertEquals("1.0 2.0 3.0", Tools.evalExpression("join(\" \", [af])",ev));
         Assert.assertEquals("1 2 3", Tools.evalExpression("join(\" \", [ac])",ev));
         Assert.assertEquals("1 2 3", Tools.evalExpression("join(\" \", [b])",ev));
-        Assert.assertEquals("1 2 3", Tools.evalExpression("join([c], [a])",ev));
-        Assert.assertEquals("123", Tools.evalExpression("join(null, [a])",ev));
-        Assert.assertEquals("123", Tools.evalExpression("join([d], [a])",ev));
-        Assert.assertEquals(null, Tools.evalExpression("join(\" \", [d])",ev));
+        Assert.assertNull(Tools.evalExpression("join(\" \", [d])", ev));
         Assert.assertEquals("1 2 3", Tools.evalExpression("join(\" \", \"1 2 3\")",ev));
-        Assert.assertThrows(IgnoredEventException.class, () -> Tools.evalExpression("join(' ', [e])",ev));
-        Assert.assertThrows(IgnoredEventException.class, () -> Tools.evalExpression("join([e], [a])",ev));
+        Assert.assertThrows(IgnoredEventException.class, () -> Tools.evalExpression("join(\" \", [e])",ev));
     }
 
     @Test

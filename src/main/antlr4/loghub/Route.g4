@@ -200,7 +200,7 @@ expression
     |   (exists = eventVariable op=('=='|'!=') '*' | '*' op=('=='|'!=') exists = eventVariable)
     |   e1 = expression opcomp=('=='|'!='|'<=>') e2=expression
     |   e1 = expression opcomp=('==='|'!==') e2=expression
-    |   e1 = expression opm=matchOperator patternLiteral
+    |   e1 = expression opm=matchOperator pattern
     |   e1 = expression opbininfix='.&' e2=expression
     |   e1 = expression opbininfix='.^' e2=expression
     |   e1 = expression opbininfix='.|' e2=expression
@@ -209,7 +209,9 @@ expression
     |   '(' e3 = expression ')'
     |   expression '[' arrayIndexSign='-'? arrayIndex=IntegerLiteral ']'
     |   stringFunction = (Trim | Capitalize | IsBlank | Normalize | Uncapitalize | Lowercase | Uppercase) '(' expression ')'
-    |   stringBiFunction = (Join | Split) '(' expression ',' expression ')'
+    |   join = Join '(' stringLiteral ',' expression  ')'
+    |   split = Split '(' (pattern | stringLiteral) ',' expression ')'
+    |   gsub = 'gsub' '(' expression ',' pattern ',' stringLiteral ')'
     |   now = 'now'
     |   isEmpty = 'isEmpty' '(' expression ')'
     |   collection=('set' | 'list') ('(' ')' | expressionsList)
@@ -275,7 +277,7 @@ identifier
     | 'FATAL' | 'ERROR' | 'WARN' | 'INFO' | 'DEBUG' | 'TRACE'
     | 'new' | 'instanceof' | 'now' | 'isEmpty'
     | 'sources' | 'true' | 'false' | 'null' | 'drop'
-    | 'trim' | 'capitalize' | 'uncapitalize' | 'isBlank' | 'normalize' | 'lowercase' | 'uppercase' | 'split' | 'join'
+    | 'trim' | 'capitalize' | 'uncapitalize' | 'isBlank' | 'normalize' | 'lowercase' | 'uppercase' | 'split' | 'join' | 'gsub'
     | 'text' | 'blob'
     | 'set' | 'list'
     | Identifier
@@ -555,18 +557,19 @@ stringLiteral
     :   StringLiteral
     ;
 
-patternLiteral
-    :   PatternLiteral
+pattern
+    :   Pattern
     ;
 
-PatternLiteral
-    :   '/' PatternCharacter+ '/' {loghub.Helpers.cleanPattern(this);}
+Pattern
+    :  '/' PatternCharacter+? '/'
+    |   '"""' .+? '"""'
     ;
-    
+
 fragment
 PatternCharacter
     :   '\\' [\r\n] [\r\n]?   // A unix-macos-windows line feed needs to be escaped
-    |   ~[/\r\n]
+    |   ~[\r\n]
     ;
 
 StringLiteral

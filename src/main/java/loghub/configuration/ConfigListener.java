@@ -7,7 +7,6 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -32,7 +31,6 @@ import org.antlr.v4.runtime.tree.ParseTreeWalker;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import groovy.lang.GroovyClassLoader;
 import loghub.AbstractBuilder;
 import loghub.Expression;
 import loghub.Helpers;
@@ -226,6 +224,7 @@ class ConfigListener extends RouteBaseListener {
     private String currentPipeLineName = null;
     private int expressionDepth = 0;
     private final ParseTreeWalker walker = new ParseTreeWalker();
+    private final java.util.Map<String, Pattern> patternCache = new HashMap<>();
 
     private final ClassLoader classLoader;
     private final SecretsHandler secrets;
@@ -925,28 +924,41 @@ class ConfigListener extends RouteBaseListener {
         expressionDepth++;
     }
 
+    private static final Pattern regexContent = Pattern.compile("\\\\([\r\n]){1,2}?");
+
+    @Override
+    public void exitPattern(RouteParser.PatternContext ctx) {
+        try {
+            String patternDef = ctx.Pattern().getText();
+            int wrapperCount = patternDef.charAt(0) == '/' ? 1 : 3;
+            // Remove the wrapping / .. /
+            patternDef = patternDef.substring(wrapperCount, patternDef.length() - wrapperCount);
+            patternDef = regexContent.matcher(patternDef).replaceAll("$1");
+            Pattern pattern = patternCache.computeIfAbsent(patternDef, Pattern::compile);
+            stack.push(new ObjectWrapped<>(pattern));
+        } catch (PatternSyntaxException e) {
+            throw new RecognitionException(Helpers.resolveThrowableException(e), parser, stream, ctx);
+        }
+    }
+
     @Override
     public void exitExpression(ExpressionContext ctx) {
         ExpressionBuilder expression;
         if (ctx.sl != null) {
-            String format = ctx.sl.getText();
+            List<ExpressionBuilder> exlist = ctx.expressionsList() != null ? stack.popTyped() : null;
+            ObjectWrapped<String> stringWrapped = stack.popTyped();
+            String format = stringWrapped.wrapped;
             VarFormatter vf = new VarFormatter(format);
             if (vf.isEmpty()) {
                 expression = ExpressionBuilder.of(format);
-                if (ctx.expressionsList() != null) {
-                    stack.pop();
-                }
-            } else  if (ctx.expressionsList() != null) {
-                List<ExpressionBuilder> exlist = stack.popTyped();
+            } else  if (exlist != null) {
                 ExpressionBuilder expressions = ExpressionBuilder.of(exlist);
-                Expression.ExpressionLambda listlambda = expressions.getPayload();
-                expression = ExpressionBuilder.of(ed -> vf.format(listlambda.apply(ed)));
+                Expression.ExpressionLambda listLambda = expressions.getPayload();
+                expression = ExpressionBuilder.of(ed -> vf.format(listLambda.apply(ed)));
 
             } else {
                 expression = ExpressionBuilder.of(vf);
             }
-            // Unstack the useless String litteral
-            stack.pop();
         } else if (ctx.nl != null) {
             stack.pop();
             expression = ExpressionBuilder.of(NullOrMissingValue.NULL);
@@ -960,21 +972,11 @@ class ConfigListener extends RouteBaseListener {
             VariablePath path = convertEventVariable(ctx.ev);
             expression = ExpressionBuilder.of(path);
         } else if (ctx.opm != null) {
-           try {
-               ExpressionBuilder pre = stack.popTyped();
-               String pattern = ctx.patternLiteral().PatternLiteral().getText();
-               // Remove the wrapping / .. /
-               pattern = pattern.substring(1, pattern.length() -1);
-               // Check that the pattern compiles
-                Pattern.compile(pattern);
-                byte[] patternBytes = pattern.getBytes(StandardCharsets.UTF_8);
-                // Needs to encode the pattern, as Groovy does not handle escaping in the same way in patterns and in strings
-                String encoded = Base64.getEncoder().encodeToString(patternBytes);
-                String patterOperator = ctx.opm.getText();
-                expression = ExpressionBuilder.of(pre, (ed, l) -> ed.getExpression().regex(l.apply(ed), patterOperator, encoded));
-            } catch (PatternSyntaxException e) {
-                throw new RecognitionException(Helpers.resolveThrowableException(e), parser, stream, ctx);
-            }
+            ObjectWrapped<Pattern> patternWrap = stack.popTyped();
+            Pattern pattern = patternWrap.wrapped;
+            ExpressionBuilder pre = stack.popTyped();
+            String patterOperator = ctx.opm.getText();
+            expression = ExpressionBuilder.of(pre, (ed, l) -> ed.getExpression().regex(l.apply(ed), patterOperator, pattern));
         } else if (ctx.opnotlogical != null) {
             // '!'
             ExpressionBuilder post = stack.popTyped();
@@ -1068,20 +1070,31 @@ class ConfigListener extends RouteBaseListener {
             ExpressionBuilder subexpression = stack.popTyped();
             String stringFunction = ctx.stringFunction.getText();
             expression = ExpressionBuilder.of(subexpression, (ed, l) -> ed.getExpression().stringFunction(stringFunction, l.apply(ed)));
-        } else if (ctx.stringBiFunction != null) {
-            ExpressionBuilder subexpression = stack.popTyped();
-            ExpressionBuilder charExpression = stack.popTyped();
-            String biFunction = ctx.stringBiFunction.getText();
-            ExpressionBuilder.BiFunction triFunction;
-            if ("join".equals(biFunction)) {
-                triFunction = (ed, l1, l2) -> ed.getExpression().join(l1.apply(ed), l2.apply(ed));
-            } else if ("split".equals(biFunction)){
-                triFunction = (ed, l1, l2) -> ed.getExpression().split(l1.apply(ed), l2.apply(ed));
+        } else if (ctx.join != null) {
+            ExpressionBuilder source = stack.popTyped();
+            ObjectWrapped<String> joinWrapper = stack.popTyped();
+            expression = ExpressionBuilder.of(source, (ed, l) -> ed.getExpression().join(joinWrapper.wrapped, l.apply(ed)));
+        } else if (ctx.split != null) {
+            ExpressionBuilder source = stack.popTyped();
+            Pattern pattern;
+            if (ctx.pattern() != null) {
+                ObjectWrapped<Pattern> patternWrapper = stack.popTyped();
+                pattern = patternWrapper.wrapped;
             } else {
-                // Never reached, but will break tests if changed
-                throw new RecognitionException("Unhandled string function: " + biFunction, parser, stream, ctx);
+                ObjectWrapped<String> patternWrapper = stack.popTyped();
+                try {
+                    pattern = Pattern.compile(patternWrapper.wrapped);
+                } catch (PatternSyntaxException ex) {
+                    throw new RecognitionException(Helpers.resolveThrowableException(ex), parser, stream, ctx);
+                }
             }
-            expression = ExpressionBuilder.of(charExpression, subexpression, triFunction);
+            expression = ExpressionBuilder.of(source, (ed, l) -> ed.getExpression().split(l.apply(ed), pattern));
+        } else if (ctx.gsub != null) {
+            ObjectWrapped<String> substitution = stack.popTyped();
+            ObjectWrapped<Pattern> patternWrapped  = stack.popTyped();
+            ExpressionBuilder source = stack.popTyped();
+            expression = ExpressionBuilder.of(source,
+                    (ed, l) -> ed.getExpression().gsub(l.apply(ed), patternWrapped.wrapped, substitution.wrapped));
         } else if (ctx.now != null) {
             expression = ExpressionBuilder.of(ed -> Instant.now());
         } else if (ctx.isEmpty != null) {

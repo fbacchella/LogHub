@@ -518,12 +518,6 @@ public final class Helpers {
         });
     }
 
-    private static final Pattern regexContent = Pattern.compile("\\\\([\r\n]){1,2}?");
-    public static void cleanPattern(RouteLexer p) {
-        String newText = regexContent.matcher(p.getText()).replaceAll("$1");
-        p.setText(newText);
-    }
-
     public static String ListenString(String listen) {
         if (listen == null || "*".equals(listen)) {
             return "0.0.0.0";
