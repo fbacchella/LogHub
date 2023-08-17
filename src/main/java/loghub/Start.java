@@ -290,6 +290,7 @@ public class Start {
     // Not the smart one for web app.
     static {
         System.setProperty("Log4jContextSelector", "org.apache.logging.log4j.core.selector.BasicContextSelector");
+        System.setProperty("log4j.shutdownHookEnabled", "false");
         System.setProperty("java.util.logging.manager", "org.apache.logging.log4j.jul.LogManager");
     }
 
@@ -564,6 +565,7 @@ public class Start {
                 System.out.format("Failures: %.2f/s%n", Stats.getFailed() / runtime);
                 System.out.format("Exceptions: %.2f/s%n", Stats.getExceptionsCount() / runtime);
             }
+            LogManager.shutdown();
         };
 
         shutdownAction = ThreadBuilder.get()
