@@ -16,7 +16,6 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
-import java.util.Timer;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -41,7 +40,6 @@ import loghub.configuration.SecretsHandler;
 import loghub.configuration.TestEventProcessing;
 import loghub.events.Event;
 import loghub.metrics.JmxService;
-import loghub.metrics.Stats;
 import loghub.processors.FieldsProcessor;
 import loghub.receivers.Receiver;
 import loghub.security.JWTHandler;
@@ -531,46 +529,24 @@ public class Start {
 
         // The shutdown runnable needs to be able to run on degraded JVM,
         // so reduced allocation and executed code inside
-        Receiver[] receivers = props.receivers.stream().toArray(Receiver[]::new);
-        EventsProcessor[] eventProcessors = props.eventsprocessors.stream().toArray(EventsProcessor[]::new);
-        Sender[] senders = props.senders.stream().toArray(Sender[]::new);
-        Timer loghubtimer = props.timer;
-        Runnable shutdown = () -> {
-            systemd.stopping();
-            systemd.setStatus("Stopping");
-            loghubtimer.cancel();
-            for (int i = 0 ; i < receivers.length ; i++) {
-                Receiver r = receivers[i];
-                r.stopReceiving();
-                receivers[i] = null;
-            }
-            for (int i = 0 ; i < eventProcessors.length ; i++) {
-                EventsProcessor ep = eventProcessors[i];
-                ep.stopProcessing();
-                eventProcessors[i] = null;
-            }
-            for (int i = 0 ; i < senders.length ; i++) {
-                Sender s = senders[i];
-                s.stopSending();
-                senders[i] = null;
-            }
-            props.terminate();
-            JmxService.stop();
-            if (dumpstats) {
-                long endtime = System.nanoTime();
-                double runtime = (endtime - starttime) / 1.0e9;
-                System.out.format("Received: %.2f/s%n", Stats.getReceived() / runtime);
-                System.out.format("Dropped: %.2f/s%n", Stats.getDropped() / runtime);
-                System.out.format("Sent: %.2f/s%n", Stats.getSent() / runtime);
-                System.out.format("Failures: %.2f/s%n", Stats.getFailed() / runtime);
-                System.out.format("Exceptions: %.2f/s%n", Stats.getExceptionsCount() / runtime);
-            }
-            LogManager.shutdown();
-        };
-
+        Receiver<?, ?>[] receivers = props.receivers.toArray(Receiver[]::new);
+        EventsProcessor[] eventProcessors = props.eventsprocessors.toArray(EventsProcessor[]::new);
+        Sender[] senders = props.senders.toArray(Sender[]::new);
+        Runnable shutdownTask = ShutdownTask.builder()
+                                              .eventProcessors(eventProcessors)
+                                              .loghubtimer(props.timer)
+                                              .startTime(starttime)
+                                              .repositories(props.eventsRepositories())
+                                              .dumpStats(dumpstats)
+                                              .eventProcessors(eventProcessors)
+                                              .systemd(systemd)
+                                              .receivers(receivers)
+                                              .senders(senders)
+                                              .terminator(props.terminator())
+                                              .build();
         shutdownAction = ThreadBuilder.get()
                                       .setDaemon(false) // not a daemon, so it will prevent stopping the JVM until finished
-                                      .setTask(shutdown)
+                                      .setTask(shutdownTask)
                                       .setName("StopEventsProcessing")
                                       .setShutdownHook(true)
                                       .setExceptionHandler(null)

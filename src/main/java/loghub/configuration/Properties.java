@@ -289,6 +289,10 @@ public class Properties extends HashMap<String, Object> {
         shutdownTasks.forEach(Runnable::run);
     }
 
+    public Runnable terminator() {
+        return () -> shutdownTasks.forEach(Runnable::run);
+    }
+
     private Dashboard buildDashboad(Map<String, Object> collect) {
         Dashboard.Builder builder = Dashboard.getBuilder();
         int port = (Integer) collect.compute("port", (i,j) -> {
