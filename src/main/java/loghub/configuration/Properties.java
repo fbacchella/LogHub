@@ -25,6 +25,7 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.core.LoggerContext;
 
+import io.netty.util.HashedWheelTimer;
 import io.netty.util.concurrent.Future;
 import loghub.Dashboard;
 import loghub.EventsProcessor;
@@ -109,6 +110,7 @@ public class Properties extends HashMap<String, Object> {
     public final CacheManager cacheManager;
     public final Set<EventsProcessor> eventsprocessors;
     public final EventsFactory eventsFactory = new EventsFactory();
+    public final HashedWheelTimer processExpiration = new HashedWheelTimer(ThreadBuilder.get().setDaemon(true).getFactory("EventsRepository-timeoutmanager"));
 
     public final Timer timer = new Timer("loghubtimer", true);
 
@@ -120,6 +122,7 @@ public class Properties extends HashMap<String, Object> {
     public Properties(Map<String, Object> properties) {
         Stats.reset();
         Expression.clearCache();
+        processExpiration.start();
 
         classloader = Optional.ofNullable((ClassLoader) properties.remove(PROPSNAMES.CLASSLOADERNAME.toString()))
                               .orElseGet(Properties.class::getClassLoader);

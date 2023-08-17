@@ -44,7 +44,7 @@ public class EventsRepository<KEY> {
         static <K> PauseContext<K> of(PausedEvent<K> paused, EventsRepository<K> repository) {
             Timeout task;
             if (paused.timeoutHandling && paused.duration > 0 && paused.unit != null) {
-                task = processExpiration.newTimeout(i -> repository.runTimeout(paused), paused.duration, paused.unit);
+                task = repository.processExpiration.newTimeout(i -> repository.runTimeout(paused), paused.duration, paused.unit);
             } else {
                 task = null;
             }
@@ -54,18 +54,14 @@ public class EventsRepository<KEY> {
 
     private static final Logger logger = LogManager.getLogger();
 
-    private static final HashedWheelTimer processExpiration;
-    static {
-        processExpiration = new HashedWheelTimer(ThreadBuilder.get().setDaemon(true).getFactory("EventsRepository-timeoutmanager"));
-        processExpiration.start();
-    }
-
     private final Map<KEY, PauseContext<KEY>> allPaused = new ConcurrentHashMap<>();
     private final PriorityBlockingQueue mainQueue;
     private final ReadWriteLock running = new ReentrantReadWriteLock();
+    private final HashedWheelTimer processExpiration;
 
     public EventsRepository(Properties properties) {
         mainQueue = properties.mainQueue;
+        processExpiration = properties.processExpiration;
         properties.registerEventsRepository(this);
     }
 
@@ -82,7 +78,6 @@ public class EventsRepository<KEY> {
                 Thread.currentThread().interrupt();
             }
         }
-        processExpiration.stop();
         allPaused.keySet().forEach(
                 k -> Optional.ofNullable(allPaused.remove(k))
                              .map(c -> {
