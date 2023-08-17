@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -100,7 +101,7 @@ public class PacketsTest {
         .map(i -> {logger.debug(i + ": "); return i;})
         .map(i -> "/netflow/packets/" + i)
         .map(i-> getClass().getResourceAsStream(i))
-        .filter(i -> i != null)
+        .filter(Objects::nonNull)
         .map(i -> {
             try {
                 ByteArrayOutputStream out = new ByteArrayOutputStream();

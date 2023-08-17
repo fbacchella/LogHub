@@ -229,7 +229,7 @@ public class TestElasticSearch {
         Assert.assertEquals(count, Stats.getSent());
         Assert.assertEquals(count, Stats.getSenderError().size());
         Assert.assertEquals(count, Stats.getSent());
-        logger.debug("Events failed: {}", () -> Stats.getSenderError());
+        logger.debug("Events failed: {}", Stats::getSenderError);
     }
 
     @Test

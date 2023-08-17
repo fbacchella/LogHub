@@ -372,7 +372,8 @@ public class Configuration {
         } catch (RecognitionException e) {
             if (e.getCtx() instanceof ParserRuleContext) {
                 ParserRuleContext ctx = (ParserRuleContext) e.getCtx();
-                logger.error("File {}, line {}@{}: {}", () -> ctx.start.getInputStream().getSourceName(), () -> ctx.start.getLine(), () -> ctx.start.getCharPositionInLine(), () -> e.getMessage());
+                logger.error("File {}, line {}@{}: {}", () -> ctx.start.getInputStream().getSourceName(), () -> ctx.start.getLine(), () -> ctx.start.getCharPositionInLine(),
+                        e::getMessage);
                 throw new ConfigException(e.getMessage(), e.getInputStream().getSourceName(), ctx.start, e);
             } else {
                 throw e;

@@ -13,6 +13,7 @@ import org.junit.Test;
 
 import loghub.LogUtils;
 import loghub.ProcessorException;
+import loghub.RouteParser;
 import loghub.Tools;
 import loghub.Tools.ProcessingStatus;
 import loghub.VariablePath;
@@ -57,7 +58,7 @@ public class TestFileMap {
         s.configure(null);
 
         Mapper p = new Mapper();
-        p.setExpression(ConfigurationTools.unWrap("[type]", i -> i.expression()));
+        p.setExpression(ConfigurationTools.unWrap("[type]", RouteParser::expression));
         p.setLvalue(VariablePath.of("type"));
         p.setMap(s);
 
@@ -78,7 +79,7 @@ public class TestFileMap {
         s.configure(null);
 
         Mapper p = new Mapper();
-        p.setExpression(ConfigurationTools.unWrap("[type]", i -> i.expression()));
+        p.setExpression(ConfigurationTools.unWrap("[type]", RouteParser::expression));
         p.setLvalue(VariablePath.of("type"));
         p.setMap(s);
 

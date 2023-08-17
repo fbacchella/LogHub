@@ -21,6 +21,7 @@ import org.msgpack.jackson.dataformat.MessagePackMapper;
 import com.fasterxml.jackson.databind.ObjectReader;
 
 import loghub.LogUtils;
+import loghub.RouteParser;
 import loghub.Tools;
 import loghub.configuration.ConfigException;
 import loghub.configuration.ConfigurationTools;
@@ -45,13 +46,15 @@ public class TestMsgpack {
 
     @Test
     public void testParsing() {
-        ConfigurationTools.parseFragment("output { loghub.senders.Stdout { encoder: loghub.encoders.Msgpack { forwardEvent: true}}}", i -> i.output());
+        ConfigurationTools.parseFragment("output { loghub.senders.Stdout { encoder: loghub.encoders.Msgpack { forwardEvent: true}}}",
+                RouteParser::output);
     }
 
     @Test
     public void testParsingFailedBadBean() {
         RecognitionException ex = Assert.assertThrows(RecognitionException.class, () -> {
-            ConfigurationTools.parseFragment("output { loghub.senders.Stdout { encoder: loghub.encoders.Msgpack { notbean: 1}}}", i -> i.output());
+            ConfigurationTools.parseFragment("output { loghub.senders.Stdout { encoder: loghub.encoders.Msgpack { notbean: 1}}}",
+                    RouteParser::output);
         });
         Assert.assertEquals("Unknown bean 'notbean' for loghub.encoders.Msgpack", ex.getMessage());
     }
@@ -59,7 +62,8 @@ public class TestMsgpack {
     @Test
     public void testParsingFailedbadType() {
         ConfigException ex = Assert.assertThrows(ConfigException.class, () -> {
-            ConfigurationTools.parseFragment("output { loghub.senders.Stdout { encoder: loghub.encoders.Msgpack { forwardEvent: 1}}}", i -> i.output());
+            ConfigurationTools.parseFragment("output { loghub.senders.Stdout { encoder: loghub.encoders.Msgpack { forwardEvent: 1}}}",
+                    RouteParser::output);
         });
         Assert.assertEquals("no viable alternative at input '1'", ex.getMessage());
     }

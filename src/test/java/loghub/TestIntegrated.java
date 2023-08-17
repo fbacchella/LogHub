@@ -106,7 +106,8 @@ public class TestIntegrated {
             metrics.addAll(mbs.queryNames(new ObjectName("loghub:*"), null));
             long blocked = 0;
 
-            dumpstatus(mbs, metrics, i -> i.toString().startsWith("loghub:type=Pipeline,servicename=") , i -> i.getCount(), JmxMeterMBean.class);
+            dumpstatus(mbs, metrics, i -> i.toString().startsWith("loghub:type=Pipeline,servicename=") ,
+                    JmxMeterMBean::getCount, JmxMeterMBean.class);
             logger.debug("dropped: " + Stats.getDropped());
             logger.debug("failed: " + Stats.getFailed());
             logger.debug("received: " + Stats.getReceived());
@@ -125,13 +126,13 @@ public class TestIntegrated {
     private static <C> long dumpstatus(MBeanServer mbs, Set<ObjectName> metrics, Function<ObjectName, Boolean> filter, Function<C, Long> counter, Class<C> proxyClass) {
         AtomicLong count = new AtomicLong();
         metrics.stream()
-        .filter( i -> filter.apply(i))
+        .filter(filter::apply)
         .map( i -> {
             logger.debug(i.toString() + ": ");
             return i;
         })
         .map( i -> JMX.newMBeanProxy(mbs, i, proxyClass))
-        .map(i -> counter.apply(i))
+        .map(counter::apply)
         .forEach( i -> {
             count.addAndGet(i);
             logger.debug(i);
