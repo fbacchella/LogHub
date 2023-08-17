@@ -29,11 +29,11 @@ public class CharacterMetaClass extends DelegatingMetaClass {
                 return false;
             }
         } else if (GroovyMethods.AS_BOOLEAN.groovyMethod.equals(methodName)){
-            return c.charValue() != '\0';
+            return c != '\0';
         } else if (GroovyMethods.PLUS.groovyMethod.equals(methodName)){
             return object.toString() + arguments[0].toString();
         } else if (GroovyMethods.AS_TYPE.groovyMethod.equals(methodName) && arguments[0] == Character.TYPE){
-            return c.charValue();
+            return c;
         } else {
             return super.invokeMethod(object, methodName, arguments);
         }
