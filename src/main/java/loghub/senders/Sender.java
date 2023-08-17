@@ -13,6 +13,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import org.apache.logging.log4j.Level;
@@ -148,7 +149,7 @@ public abstract class Sender extends Thread implements Closeable {
             isAsync = true;
             batchSize = builder.batchSize;
             threads = new Thread[builder.workers];
-            batches = new LinkedBlockingQueue<>(threads.length * 8);
+            batches = new LinkedBlockingQueue<>(threads.length * 2);
             publisher = getPublisher();
             batch = new AtomicReference<>(new Batch(this));
         } else {
@@ -254,23 +255,51 @@ public abstract class Sender extends Thread implements Closeable {
             closed = true;
             customStopSending();
             if (isWithBatch()) {
-                // Mark all waiting events as missed
-                Optional.ofNullable(batch.getAndSet(NULL_BATCH)).orElse(NULL_BATCH).forEach(ef -> ef.complete(false));
+                // Stop accepting new events
+                interrupt();
+                // Push the current batch to the publishing batches
+                Optional.ofNullable(batch.getAndSet(NULL_BATCH)).filter(b -> b != NULL_BATCH).ifPresent(b -> {
+                    try {
+                        batches.offer(b, 1000, TimeUnit.MILLISECONDS);
+                        logger.debug("Last batch of {} event(s)", b::size);
+                    } catch (InterruptedException e) {
+                        // Failed to offer the batch, all events are failed
+                        b.forEach(ef -> ef.complete(false));
+                        Thread.currentThread().interrupt();
+                    }
+                });
+                // Add a mark for each worker, to stop accepting
+                Stream.of(threads).forEach(t -> {
+                    try {
+                        batches.offer(NULL_BATCH, 1000, TimeUnit.MILLISECONDS);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                });
+                // Wait to give a chance to each worker to get a batch to process
+                Stream.of(threads).forEach(t -> {
+                    try {
+                        t.join(1000);
+                    } catch (InterruptedException e) {
+                        t.interrupt();
+                        Thread.currentThread().interrupt();
+                    }
+                });
                 List<Batch> missedBatches = new ArrayList<>();
                 // Empty the waiting batches list and put the end-of-processing mark instead
                 batches.drainTo(missedBatches);
-                // Add a mark for each worker
-                for (int i = 0; i < threads.length; i++) {
-                    batches.add(NULL_BATCH);
+                if (! missedBatches.isEmpty()) {
+                    missedBatches.forEach(b -> b.forEach(ef -> ef.complete(false)));
+                    logger.warn("Missed {} events", () -> missedBatches.stream().flatMapToInt(b -> IntStream.of(b.size())).sum());
                 }
-                missedBatches.forEach(b -> b.forEach(ef -> ef.complete(false)));
                 // Wait for all publisher threads to be finished
                 Arrays.stream(threads).forEach(t -> {
                     try {
+                        // Still running ? Needs to be interrupted
+                        t.join(100);
                         t.interrupt();
-                        t.join(1000);
                     } catch (InterruptedException e) {
-                        interrupt();
+                        Thread.currentThread().interrupt();
                     }
                 });
             }
@@ -279,7 +308,7 @@ public abstract class Sender extends Thread implements Closeable {
                 interrupt();
                 join();
             } catch (InterruptedException e) {
-                interrupt();
+                Thread.currentThread().interrupt();
             }
         }
     }
@@ -299,7 +328,7 @@ public abstract class Sender extends Thread implements Closeable {
                 Thread.yield();
             } else if (closed || workingBatch == NULL_BATCH) {
                 // got the empty batch or closed, will not be processing, the sender is stopping
-                batch.set(NULL_BATCH);
+                batch.set(workingBatch);
                 return false;
             } else {
                 // got the batch, now process it
