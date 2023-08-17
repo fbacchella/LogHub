@@ -3,6 +3,8 @@ package loghub;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Function;
 
 import org.apache.logging.log4j.Level;
@@ -26,7 +28,7 @@ public class EventsRepository<KEY> {
         private PauseContext(PausedEvent<K> pausedEvent, Timeout task) {
             this.pausedEvent = pausedEvent;
             this.task = task;
-            // It current pipeline is null, it's new event
+            // Its current pipeline is null, it's a new event
             if (pausedEvent.event.getCurrentPipeline() != null) {
                 Stats.pauseEvent(pausedEvent.event.getCurrentPipeline());
                 startTime = System.nanoTime();
@@ -60,14 +62,49 @@ public class EventsRepository<KEY> {
 
     private final Map<KEY, PauseContext<KEY>> allPaused = new ConcurrentHashMap<>();
     private final PriorityBlockingQueue mainQueue;
+    private final ReadWriteLock running = new ReentrantReadWriteLock();
 
     public EventsRepository(Properties properties) {
         mainQueue = properties.mainQueue;
+        properties.registerEventsRepository(this);
     }
 
-    public PausedEvent<KEY> pause(PausedEvent<KEY> paused) {
-        logger.trace("Pausing {}", paused);
-        return allPaused.computeIfAbsent(paused.key, k -> PauseContext.of(paused, this)).pausedEvent;
+    public int stop() {
+        // Never released, will never accept new event anymore
+        running.writeLock().lock();
+        int count;
+        int tryWait = 0;
+        // Wait 1 second to allows some sleeping events to wake up
+        while((count = allPaused.size()) > 0 && tryWait++ < 10) {
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+        processExpiration.stop();
+        allPaused.keySet().forEach(
+                k -> Optional.ofNullable(allPaused.remove(k))
+                             .map(c -> {
+                                Optional.ofNullable(c.task).ifPresent(Timeout::cancel);
+                                return c.pausedEvent;
+                             })
+                             .ifPresent(pe -> pe.timeout(pe.event, k)));
+        return count;
+    }
+
+    public boolean pause(PausedEvent<KEY> paused) {
+        if (running.readLock().tryLock()) {
+            try {
+                logger.trace("Pausing {}", paused);
+                allPaused.computeIfAbsent(paused.key, k -> PauseContext.of(paused, this));
+                return true;
+            } finally {
+                running.readLock().unlock();
+            }
+        } else {
+            return false;
+        }
     }
 
     /**
@@ -85,17 +122,25 @@ public class EventsRepository<KEY> {
     }
 
     public PausedEvent<KEY> cancel(KEY key) {
-        logger.trace("cancel {}", key);
-        PauseContext<KEY> ctx = allPaused.remove(key);
-        if (ctx == null) {
-            logger.warn("Canceling unknown event with key {}", key);
+        if (running.readLock().tryLock()) {
+            logger.trace("cancel {}", key);
+            try {
+                PauseContext<KEY> ctx = allPaused.remove(key);
+                if (ctx == null) {
+                    logger.warn("Canceling unknown event with key {}", key);
+                    return null;
+                }
+                if (ctx.task != null) {
+                    ctx.task.cancel();
+                }
+                ctx.restartEvent();
+                return ctx.pausedEvent;
+            } finally {
+                running.readLock().unlock();
+            }
+        } else {
             return null;
         }
-        if (ctx.task != null) {
-            ctx.task.cancel();
-        }
-        ctx.restartEvent();
-        return ctx.pausedEvent;
     }
 
     public void succed(KEY key) {

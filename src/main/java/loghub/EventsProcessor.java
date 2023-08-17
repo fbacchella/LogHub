@@ -245,23 +245,27 @@ public class EventsProcessor extends Thread {
                                     .expiration(ap.getTimeout(), TimeUnit.SECONDS)
                                     .onTimeout(ap.getTimeoutHandler())
                                     .build();
-                    evrepo.pause(paused);
-                    // Create the processor that will process the call back processor
-                    @SuppressWarnings({ "rawtypes", "unchecked"})
-                    FutureProcessor<?, ? extends Future<?>> pauser = new FutureProcessor(future, paused, ap);
-                    e.insertProcessor(pauser);
-                    // Store the callback information
-                    future.addListener(i -> {
-                        ap.getLimiter().ifPresent(Semaphore::release);
-                        evrepo.cancel(future);
-                        // the listener must not call blocking call.
-                        // So if the bounded queue block, use a non-blocking queue dedicated
-                        // to postpone processing of the offer.
-                        if (! inQueue.offer(e)) {
-                            blockedAsync.put(e);
-                        }
-                    });
-                    status = ProcessingStatus.PAUSED;
+                    if (evrepo.pause(paused)) {
+                        // Create the processor that will process the call back processor
+                        @SuppressWarnings({ "rawtypes", "unchecked"})
+                        FutureProcessor<?, ? extends Future<?>> pauser = new FutureProcessor(future, paused, ap);
+                        e.insertProcessor(pauser);
+                        // Store the callback information
+                        future.addListener(i -> {
+                            ap.getLimiter().ifPresent(Semaphore::release);
+                            evrepo.cancel(future);
+                            // the listener must not call blocking call.
+                            // So if the bounded queue block, use a non-blocking queue dedicated
+                            // to postpone processing of the offer.
+                            if (! inQueue.offer(e)) {
+                                blockedAsync.put(e);
+                            }
+                        });
+                        status = ProcessingStatus.PAUSED;
+                    } else {
+                        status = ProcessingStatus.DROPED;
+                        e.doMetric(Stats.PipelineStat.DROP);
+                    }
                 } else if (ex.getFuture() == null) {
                     // No future, internal handling of the pause
                     status = ProcessingStatus.PAUSED;

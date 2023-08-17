@@ -114,6 +114,7 @@ public class Properties extends HashMap<String, Object> {
 
     private final Set<Runnable> shutdownTasks = new HashSet<>();
     private final AtomicReference<ZMQFactoryReference> zmqFactoryReference = new AtomicReference<>(new ZMQFactoryReference());
+    private final Set<EventsRepository<?>> repositories = new HashSet<>();
 
     @SuppressWarnings("unchecked")
     public Properties(Map<String, Object> properties) {
@@ -209,6 +210,14 @@ public class Properties extends HashMap<String, Object> {
         super.putAll(properties);
 
         VariablePath.compact();
+    }
+
+    public void registerEventsRepository(EventsRepository<?> repository) {
+        repositories.add(repository);
+    }
+
+    public Set<EventsRepository<?>> eventsRepositories() {
+        return Collections.unmodifiableSet(repositories);
     }
 
     /**
