@@ -386,9 +386,7 @@ public class TestConfigurations {
                 "http.jwt: \"true\"",
                 "timezone: 1",
                 "locale: true")) {
-            Assert.assertThrows(ConfigException.class, () -> {
-                Configuration.parse(new StringReader(confile));
-            });
+            Assert.assertThrows(ConfigException.class, () -> Configuration.parse(new StringReader(confile)));
         }
     }
 

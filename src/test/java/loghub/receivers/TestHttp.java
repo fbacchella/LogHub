@@ -270,9 +270,7 @@ public class TestHttp {
         URL dest = new URL("http", hostname, port, "/?a=1");
         doRequest(dest,
                   new byte[]{},
-                  i -> {
-                      i.setRequestProperty("Authorization", "Bearer " + jwtToken);
-                  }, 200);
+                  i -> i.setRequestProperty("Authorization", "Bearer " + jwtToken), 200);
         Event e = queue.poll();
         Assert.assertEquals("1", e.get("a"));
         Assert.assertEquals("user", e.getConnectionContext().getPrincipal().getName());
@@ -343,9 +341,7 @@ public class TestHttp {
 
     @Test(timeout = 5000)
     public void testFailedEncoder() throws IOException {
-        makeReceiver(i -> {
-            i.setDecoders(Collections.singletonMap("application/json", ReceiverTools.getFailingDecoder()));
-        }, Collections.emptyMap());
+        makeReceiver(i -> i.setDecoders(Collections.singletonMap("application/json", ReceiverTools.getFailingDecoder())), Collections.emptyMap());
         doRequest(new URL("http", hostname, port, "/?a=1"),
                 new byte[]{},
                 i -> {}, 200);

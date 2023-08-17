@@ -112,9 +112,7 @@ public class TestHttpSsl {
     @Test
     public void TestClientAuthentication()
             throws IOException, IllegalArgumentException {
-        URL theURL = startHttpServer(Collections.emptyMap(), i -> {
-            i.setSslClientAuthentication(ClientAuthentication.REQUIRED);
-        });
+        URL theURL = startHttpServer(Collections.emptyMap(), i -> i.setSslClientAuthentication(ClientAuthentication.REQUIRED));
         resource.setModelHandlers(new SimpleHandler());
         HttpsURLConnection cnx = (HttpsURLConnection) theURL.openConnection();
         cnx.setSSLSocketFactory(getContext.apply(Collections.emptyMap()).getSocketFactory());
