@@ -253,7 +253,6 @@ public abstract class Sender extends Thread implements Closeable {
     public final synchronized void stopSending() {
         try {
             closed = true;
-            customStopSending();
             if (isWithBatch()) {
                 // Stop accepting new events
                 interrupt();
@@ -303,6 +302,7 @@ public abstract class Sender extends Thread implements Closeable {
                     }
                 });
             }
+            customStopSending();
         } finally {
             try {
                 interrupt();
