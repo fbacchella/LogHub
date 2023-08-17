@@ -254,31 +254,27 @@ public class JmxService {
                             .setJaasConfig(conf.jaasConfig)
                             .build();
 
-            env.put(JMXConnectorServer.AUTHENTICATOR,
-                    new JMXAuthenticator() {
-                @Override
-                public Subject authenticate(Object credentials) {
+            env.put(JMXConnectorServer.AUTHENTICATOR, (JMXAuthenticator) credentials -> {
 
-                    Principal p = null;
-                    if ((credentials instanceof String[])) {
-                        String[] loginPassword = (String[]) credentials;
-                        if (loginPassword.length == 2) {
-                            p = ah.checkLoginPassword(loginPassword[0],
-                                                      loginPassword[1].toCharArray());
-                            loginPassword[1] = null;
-                            if (p == null) {
-                                throw new SecurityException("Invalid user");
-                            }
+                Principal p = null;
+                if ((credentials instanceof String[])) {
+                    String[] loginPassword = (String[]) credentials;
+                    if (loginPassword.length == 2) {
+                        p = ah.checkLoginPassword(loginPassword[0],
+                                                  loginPassword[1].toCharArray());
+                        loginPassword[1] = null;
+                        if (p == null) {
+                            throw new SecurityException("Invalid user");
                         }
                     }
-                    if (p == null) {
-                        throw new SecurityException("Invalid configuration");
-                    } else {
-                        return new Subject(true,
-                                           Collections.singleton(p),
-                                           Collections.emptySet(),
-                                           Collections.emptySet());
-                    }
+                }
+                if (p == null) {
+                    throw new SecurityException("Invalid configuration");
+                } else {
+                    return new Subject(true,
+                                       Collections.singleton(p),
+                                       Collections.emptySet(),
+                                       Collections.emptySet());
                 }
             });
         }

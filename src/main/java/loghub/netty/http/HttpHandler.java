@@ -176,12 +176,8 @@ public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRe
      * @param message
      */
     protected void addLogger(ChannelFuture sendFuture, String method, String uri, int status, String message) {
-        sendFuture.addListener(new ChannelFutureListener() {
-            @Override
-            public void operationComplete(ChannelFuture future) throws Exception {
-                logger.info("{} {}: {} {}", method, uri, status, message);
-            }
-        });
+        sendFuture.addListener(
+                (ChannelFutureListener) future -> logger.info("{} {}: {} {}", method, uri, status, message));
     }
 
     /**
