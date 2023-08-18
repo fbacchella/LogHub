@@ -237,8 +237,9 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
     public Enumeration<String> engineAliases() {
         Iterator<KeyStore> iter = stores.iterator();
 
-        return new Enumeration<String>(){
+        return new Enumeration<>() {
             private Enumeration<String> enumerator = findNext(null, iter);
+
             @Override
             public boolean hasMoreElements() {
                 enumerator = findNext(enumerator, iter);
