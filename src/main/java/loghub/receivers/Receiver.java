@@ -243,7 +243,7 @@ public abstract class Receiver<R extends Receiver<R, B>, B extends Receiver.Buil
                             .filter(i -> i instanceof Date || i instanceof Instant || i instanceof Number)
                             .filter(newEvent::setTimestamp)
                             .ifPresent(ts -> content.remove(timeStampField));
-                    content.entrySet().forEach(i -> newEvent.put(i.getKey(), i.getValue()));
+                    newEvent.putAll(content);
                 }
                 if (newEvent.getConnectionContext() == null) {
                     Stats.newReceivedError(this, "Received an event without context");
