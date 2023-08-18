@@ -410,7 +410,7 @@ public abstract class FieldsProcessor extends Processor {
         this.globs = new String[fields.length];
         this.patterns = new Pattern[fields.length];
         for (int i = 0 ; i < fields.length ; i++) {
-            this.globs[i] = fields[i].toString();
+            this.globs[i] = fields[i];
             this.patterns[i] = Helpers.convertGlobToRegex(this.globs[i]);
         }
     }
