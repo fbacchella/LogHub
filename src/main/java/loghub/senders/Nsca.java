@@ -61,7 +61,7 @@ public class Nsca extends Sender {
     }
 
     private final NagiosPassiveCheckSender sender;
-    private final EnumMap mapping = new EnumMap<>(MAPFIELD.class);
+    private final EnumMap<MAPFIELD, Object> mapping = new EnumMap<>(MAPFIELD.class);
     private final String name;
     public Nsca(Builder builder) {
         super(builder);

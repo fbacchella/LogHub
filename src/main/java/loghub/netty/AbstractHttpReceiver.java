@@ -29,7 +29,7 @@ public abstract class AbstractHttpReceiver<R extends AbstractHttpReceiver<R, B>,
     protected void tweakNettyBuilder(B builder, NettyTransport.Builder<?, HttpMessage, ?, ?> nettyTransportBuilder) {
         super.tweakNettyBuilder(builder, nettyTransportBuilder);
         if (nettyTransportBuilder instanceof AbstractIpTransport.Builder) {
-            ((AbstractIpTransport.Builder)nettyTransportBuilder).addApplicationProtocol(ApplicationProtocolNames.HTTP_1_1);
+            ((AbstractIpTransport.Builder<?, ?, ?>)nettyTransportBuilder).addApplicationProtocol(ApplicationProtocolNames.HTTP_1_1);
         }
     }
 

@@ -198,7 +198,7 @@ public class Start {
                     System.err.println("bad claim: " + value);
                     System.exit(ExitCode.INVALIDARGUMENTS);
                 }
-                return new AbstractMap.SimpleImmutableEntry(s[0], s[1]);
+                return new AbstractMap.SimpleImmutableEntry<>(s[0], s[1]);
             }
         }
 

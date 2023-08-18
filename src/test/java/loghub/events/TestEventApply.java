@@ -200,9 +200,9 @@ public class TestEventApply {
         Assert.assertNull(e.applyAtPath(Event.Action.CLEAR, VariablePath.ALLMETAS, null));
         Assert.assertEquals(true, e.applyAtPath(Event.Action.ISEMPTY, VariablePath.ALLMETAS, null));
         Assert.assertEquals(Collections.emptySet(),
-                new HashSet( (Collection) e.applyAtPath(Event.Action.VALUES, VariablePath.ALLMETAS, null)));
+                new HashSet<>( (Collection) e.applyAtPath(Event.Action.VALUES, VariablePath.ALLMETAS, null)));
         Assert.assertEquals(Collections.emptySet(),
-                new HashSet( (Collection) e.applyAtPath(Event.Action.KEYSET, VariablePath.ALLMETAS, null)));
+                new HashSet<>( (Collection) e.applyAtPath(Event.Action.KEYSET, VariablePath.ALLMETAS, null)));
         for(Event.Action a: List.of(Event.Action.GET,
                                     Event.Action.PUT,
                                     Event.Action.APPEND,
