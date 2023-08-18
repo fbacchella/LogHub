@@ -103,22 +103,16 @@ public class PacketsTest {
         .map(i-> getClass().getResourceAsStream(i))
         .filter(Objects::nonNull)
         .map(i -> {
-            try {
+            try (i) {
                 ByteArrayOutputStream out = new ByteArrayOutputStream();
-                byte[] buffer = new byte[8*1024];
-                for (int length; (length = i.read(buffer)) != -1; ){
+                byte[] buffer = new byte[8 * 1024];
+                for (int length; (length = i.read(buffer)) != -1; ) {
                     out.write(buffer, 0, length);
                 }
                 return out;
             } catch (Exception e) {
                 Assert.fail(e.getMessage());
                 return null;
-            } finally {
-                try {
-                    i.close();
-                } catch (IOException e1) {
-                    // Don't care
-                }
             }
         })
         .map(i -> Unpooled.wrappedBuffer(i.toByteArray()))
@@ -148,22 +142,16 @@ public class PacketsTest {
         .map(i -> "/netflow/packets/" + i)
         .map(i-> getClass().getResourceAsStream(i))
         .map(i -> {
-            try {
+            try (i) {
                 ByteArrayOutputStream out = new ByteArrayOutputStream();
-                byte[] buffer = new byte[8*1024];
-                for (int length; (length = i.read(buffer)) != -1; ){
+                byte[] buffer = new byte[8 * 1024];
+                for (int length; (length = i.read(buffer)) != -1; ) {
                     out.write(buffer, 0, length);
                 }
                 return out;
             } catch (Exception e) {
                 Assert.fail(e.getMessage());
                 return null;
-            } finally {
-                try {
-                    i.close();
-                } catch (IOException e) {
-                    // Don't care
-                }
             }
         })
         .map(i -> Unpooled.wrappedBuffer(i.toByteArray()))
