@@ -354,7 +354,7 @@ public abstract class AbstractHttpSender extends Sender {
             CloseableHttpResponse response = client.execute(host, request, context);
             return new HttpResponse(host, response, null, null);
         } catch (HttpHostConnectException e) {
-            String message = "";
+            String message;
             try {
                 if (e.getCause() != null) {
                     throw e.getCause();

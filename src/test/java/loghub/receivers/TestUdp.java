@@ -80,7 +80,7 @@ public class TestUdp {
 
             Assert.assertTrue(r.configure(new Properties(Collections.emptyMap())));
             r.start();
-            int originalMessageSize = 0;
+            int originalMessageSize;
             try(DatagramSocket send = new DatagramSocket()) {
                 StringBuilder buffer = new StringBuilder();
                 while (buffer.length() <= size) {

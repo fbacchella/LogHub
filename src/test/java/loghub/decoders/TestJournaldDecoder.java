@@ -42,7 +42,7 @@ public class TestJournaldDecoder {
     public void testReadOnce() throws DecodeException, IOException {
         ByteBuf readBuffer = ByteBufAllocator.DEFAULT.buffer(4096);
         try (InputStream is = getClass().getClassLoader().getResourceAsStream("binaryjournald")) {
-            int read = 0;
+            int read;
             do {
                 read = readBuffer.writeBytes(is, 4096);
             } while (read > 0);
@@ -60,7 +60,7 @@ public class TestJournaldDecoder {
         decoder.configure(new Properties(Collections.emptyMap()), null);
         List<Map<String, Object>> events = new ArrayList<>();
         try (InputStream is = getClass().getClassLoader().getResourceAsStream("binaryjournald")) {
-            int read = 0;
+            int read;
             do {
                 ByteBuf readBuffer = ByteBufAllocator.DEFAULT.buffer(1024);
                 read = readBuffer.writeBytes(is, 1024);

@@ -95,7 +95,7 @@ public class TestJournald {
             try (InputStreamReader is = new InputStreamReader(cnx.getInputStream(), StandardCharsets.UTF_8);
                  BufferedReader br = new BufferedReader(is)) {
                       StringBuilder response = new StringBuilder();
-                      String responseLine = null;
+                      String responseLine;
                       while ((responseLine = br.readLine()) != null) {
                           response.append(responseLine.trim());
                       }
