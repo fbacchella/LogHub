@@ -445,19 +445,6 @@ public class Start {
             throw new IllegalStateException("JMX start failed: " + Helpers.resolveThrowableException(e));
         }
 
-        if (props.dashboard != null) {
-            try {
-                props.dashboard.start();
-            } catch (IllegalArgumentException e) {
-                logger.error("Unable to start HTTP dashboard: {}", Helpers.resolveThrowableException(e));
-                logger.catching(Level.DEBUG, e);
-                throw new IllegalStateException("Unable to start HTTP dashboard: " + Helpers.resolveThrowableException(e));
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new IllegalStateException("Interrupted while starting dashboard");
-            }
-        }
-
         // Used to remember if configuration process succeded
         // So ensure that the whole configuration is tested instead needed
         // many tests
@@ -527,23 +514,37 @@ public class Start {
             throw new IllegalStateException("Failed to start a component, see logs for more details");
         }
 
+        // The dashboard is used as an isAlive, last things to start.
+        if (props.dashboard != null) {
+            try {
+                props.dashboard.start();
+            } catch (IllegalArgumentException e) {
+                logger.error("Unable to start HTTP dashboard: {}", Helpers.resolveThrowableException(e));
+                logger.catching(Level.DEBUG, e);
+                throw new IllegalStateException("Unable to start HTTP dashboard: " + Helpers.resolveThrowableException(e));
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IllegalStateException("Interrupted while starting dashboard");
+            }
+        }
+
         // The shutdown runnable needs to be able to run on degraded JVM,
         // so reduced allocation and executed code inside
         Receiver<?, ?>[] receivers = props.receivers.toArray(Receiver[]::new);
         EventsProcessor[] eventProcessors = props.eventsprocessors.toArray(EventsProcessor[]::new);
         Sender[] senders = props.senders.toArray(Sender[]::new);
         Runnable shutdownTask = ShutdownTask.builder()
-                                              .eventProcessors(eventProcessors)
-                                              .loghubtimer(props.timer)
-                                              .startTime(starttime)
-                                              .repositories(props.eventsRepositories())
-                                              .dumpStats(dumpstats)
-                                              .eventProcessors(eventProcessors)
-                                              .systemd(systemd)
-                                              .receivers(receivers)
-                                              .senders(senders)
-                                              .terminator(props.terminator())
-                                              .build();
+                                            .eventProcessors(eventProcessors)
+                                            .loghubtimer(props.timer)
+                                            .startTime(starttime)
+                                            .repositories(props.eventsRepositories())
+                                            .dumpStats(dumpstats)
+                                            .eventProcessors(eventProcessors)
+                                            .systemd(systemd)
+                                            .receivers(receivers)
+                                            .senders(senders)
+                                            .terminator(props.terminator())
+                                            .build();
         shutdownAction = ThreadBuilder.get()
                                       .setDaemon(false) // not a daemon, so it will prevent stopping the JVM until finished
                                       .setTask(shutdownTask)
