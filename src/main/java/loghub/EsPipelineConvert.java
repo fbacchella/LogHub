@@ -101,6 +101,9 @@ public class EsPipelineConvert {
             case "kv":
                 kv(params, prefix);
                 break;
+            case "dissect":
+                dissect(params, prefix);
+                break;
             default:
                 System.out.println(prefix + "// " + processor);
             }
@@ -193,8 +196,8 @@ public class EsPipelineConvert {
     Map<Pattern, Function<MatchResult, String>> transformers = Map.ofEntries(
             Map.entry(Pattern.compile("ctx\\??\\.([_.a-zA-Z0-9?]+)"), mr -> "[" + mr.group(1).replace(".", " ").replace("?", "") + "]"),
             Map.entry(Pattern.compile("'([^']*)'"), mr -> "\"" + mr.group(1) + "\""),
-            Map.entry(Pattern.compile("(\\[.*]).contains\\((.*)\\)"), mr -> mr.group(2) + " in " + mr.group(1))
-            );
+            Map.entry(Pattern.compile("(\\[.*]).contains\\((.*)\\)"), mr -> mr.group(2) + " in list" + mr.group(1).replace("[", "(").replace("]", ")"))
+    );
     private String resolveExpression(String expr) {
         for (Map.Entry<Pattern, Function<MatchResult, String>> e: transformers.entrySet()) {
             expr = e.getKey().matcher(expr).replaceAll(e.getValue());
@@ -241,8 +244,8 @@ public class EsPipelineConvert {
         Object types = params.remove("properties");
         attributes.put("types", types != null ? types : List.of("country","city", "location"));
         String geoipdb = (String) params.remove("database_file");
-        attributes.put("geoipdb", geoipdb != null ? geoipdb : "/usr/share/GeoIP/GeoIP2-City.mmdb");
-        attributes.put("refresh", "P2D");
+        attributes.put("geoipdb", resolveValue(geoipdb != null ? geoipdb : "/usr/share/GeoIP/GeoIP2-City.mmdb"));
+        attributes.put("refresh", resolveValue("P2D"));
         attributes.put("field", resolveValue(params.remove("field")));
         attributes.put("destination", resolveValue(params.remove("target_field")));
         doProcessor(prefix, "loghub.processors.Geoip2", filterComments(params, attributes), attributes);
@@ -251,7 +254,7 @@ public class EsPipelineConvert {
     private void split(Map<String, Object> params, String prefix) {
         Map<String, Object> attributes = new HashMap<>();
         attributes.put("field", resolveValue(params.remove("field")));
-        attributes.put("separator", resolveValue(params.remove("separator")));
+        attributes.put("pattern", resolveValue(params.remove("separator")));
         doProcessor(prefix, "loghub.processors.Split", filterComments(params, attributes), attributes);
     }
 
@@ -276,6 +279,12 @@ public class EsPipelineConvert {
         }
         attributes.put("className", resolveValue(className));
         doProcessor(prefix, "loghub.processors.Convert", filterComments(params, attributes), attributes);
+    }
+
+    private void dissect(Map<String, Object> params, String prefix) {
+        Map<String, Object> attributes = new HashMap<>();
+        attributes.put("pattern", resolveValue(params.remove("pattern")));
+        doProcessor(prefix, "loghub.processors.Dissect", filterComments(params, attributes), attributes);
     }
 
     private void doProcessor(String prefix, String processor, String comment, Map<String, Object> fields) {
@@ -312,7 +321,8 @@ public class EsPipelineConvert {
             } else if (e.getValue() instanceof List) {
                 List<?> val = (List<?>) e.getValue();
                 String valStr = val.stream()
-                                   .map(i -> String.format("\"%s\"", i))
+                                   .map(this::resolveValue)
+                                   .map(String.class::cast)
                                    .collect(Collectors.joining(", "));
                 System.out.format("%s    %s: [%s],%n", prefix, e.getKey(), valStr);
             } else if (e.getValue() != null) {
@@ -337,8 +347,10 @@ public class EsPipelineConvert {
                 String valStr = (String) value;
                 return String.format("\"%s\"", valStr.replace("\\", "\\\\").replace("\"", "\\\""));
             }
+        } else if (value == null) {
+            return "null";
         } else {
-            return value;
+            return value.toString();
         }
     }
 
