@@ -139,6 +139,8 @@ public class Expression {
             this.source = String.format("\"%s\"", literal);
         } else if (literal instanceof Character) {
             this.source = String.format("'%s'", literal);
+        } else if (literal == null) {
+            this.source = null;
         } else {
             this.source = literal.toString();
         }
