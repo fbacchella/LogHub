@@ -62,9 +62,6 @@ public class TestFactory {
                 } catch (ZMQCheckedException  ex) {
                     ex.printStackTrace();
                     received.setLength(0);
-                } catch (IOException ex) {
-                    ex.printStackTrace();
-                    received.setLength(0);
                 }
             }).build(true);
             Thread t2 = ThreadBuilder.get().setDaemon(true).setTask(() -> {
@@ -84,9 +81,6 @@ public class TestFactory {
                     logger.trace("Sended: {}", rc);
                     latch.countDown();
                 } catch (ZMQCheckedException  ex) {
-                    ex.printStackTrace();
-                    received.setLength(0);
-                } catch (IOException ex) {
                     ex.printStackTrace();
                     received.setLength(0);
                 }
