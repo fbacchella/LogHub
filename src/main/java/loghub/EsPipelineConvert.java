@@ -73,7 +73,7 @@ public class EsPipelineConvert {
                 append(params, prefix);
                 break;
             case "rename":
-                System.out.format("%s%s < %s |%n", prefix, resolveField(params.get("target_field")), resolveField((params.get("field"))));
+                System.out.format("%s%s < %s |%n", etlFilter(prefix, params), resolveField(params.get("target_field")), resolveField((params.get("field"))));
                 break;
             case "trim":
             case "lowercase":
@@ -103,6 +103,9 @@ public class EsPipelineConvert {
                 break;
             case "dissect":
                 dissect(params, prefix);
+                break;
+            case "gsub":
+                gsub(params, prefix);
                 break;
             default:
                 System.out.println(prefix + "// " + processor);
@@ -253,7 +256,6 @@ public class EsPipelineConvert {
 
     private void split(Map<String, Object> params, String prefix) {
         Map<String, Object> attributes = new HashMap<>();
-        attributes.put("field", resolveValue(params.remove("field")));
         attributes.put("pattern", resolveValue(params.remove("separator")));
         doProcessor(prefix, "loghub.processors.Split", filterComments(params, attributes), attributes);
     }
@@ -270,12 +272,22 @@ public class EsPipelineConvert {
     private void convert(Map<String, Object> params, String prefix) {
         Map<String, Object> attributes = new HashMap<>();
         String className;
-        switch (params.remove("type").toString()) {
-            case "ip":
-                className = "java.net.InetAddress";
-                break;
-            default:
-                className = "java.lang.String";
+        String type = (String) params.remove("type");
+        switch (type) {
+        case "ip":
+            className = "java.net.InetAddress";
+            break;
+        case "long":
+            className = "java.lang.Long";
+            break;
+        case "integer":
+            className = "java.lang.Integer";
+            break;
+        case "string":
+            className = "java.lang.String";
+            break;
+        default:
+            throw new UnsupportedOperationException(type);
         }
         attributes.put("className", resolveValue(className));
         doProcessor(prefix, "loghub.processors.Convert", filterComments(params, attributes), attributes);
@@ -285,6 +297,17 @@ public class EsPipelineConvert {
         Map<String, Object> attributes = new HashMap<>();
         attributes.put("pattern", resolveValue(params.remove("pattern")));
         doProcessor(prefix, "loghub.processors.Dissect", filterComments(params, attributes), attributes);
+    }
+
+    private void gsub(Map<String, Object> params, String prefix) {
+        Object field = resolveField(params.remove("field"));
+        Object target_field = resolveField(params.remove("target_field"));
+        if (target_field == null) {
+            target_field = field;
+        }
+        Object pattern = params.remove("pattern");
+        Object replacement = params.remove("replacement");
+        System.out.format("%s%s = gsub(%s, /%s/, %s) |%n", etlFilter(prefix, params), target_field, field, pattern, resolveField(replacement));
     }
 
     private void doProcessor(String prefix, String processor, String comment, Map<String, Object> fields) {
@@ -342,7 +365,7 @@ public class EsPipelineConvert {
                 if (variable.startsWith("{") && variable.endsWith("}")) {
                     variable = variable.substring(1, variable.length() -1);
                 }
-                return resolveField(variable);
+                return resolveField(variable.trim());
             } else {
                 String valStr = (String) value;
                 return String.format("\"%s\"", valStr.replace("\\", "\\\\").replace("\"", "\\\""));
@@ -376,12 +399,12 @@ public class EsPipelineConvert {
     }
 
     private String filterComments(Map<String, Object> params, Map<String, Object> attributes) {
-        attributes.put("field", resolveField(params.remove("field")));
-        attributes.put("destination", resolveField(params.remove("target_field")));
-        attributes.put("if", params.remove("if"));
-        attributes.put("failure", params.remove("on_failure"));
-        attributes.put("iterate", params.remove("iterate"));
-        attributes.put("description", params.remove("description"));
+        Optional.ofNullable(params.remove("field")).map(this::resolveField).ifPresent(v -> attributes.put("field", v));
+        Optional.ofNullable(params.remove("target_field")).map(this::resolveField).ifPresent(v -> attributes.put("destination", v));
+        Optional.ofNullable(params.remove("if")).ifPresent(v -> attributes.put("if", v));
+        Optional.ofNullable(params.remove("on_failure")).ifPresent(v -> attributes.put("failure", v));
+        Optional.ofNullable(params.remove("iterate")).ifPresent(v -> attributes.put("iterate", v));
+        Optional.ofNullable(params.remove("description")).ifPresent(v -> attributes.put("description", v));
         return params.isEmpty() ? null : params.toString();
     }
 
