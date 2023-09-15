@@ -268,9 +268,14 @@ public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<Dn
         if (future.cause() instanceof DnsNameResolverTimeoutException) {
             logger.debug("Timeout failure for {}", dnsquery::name);
             DnsResponse response = new DefaultDnsResponse(1);
-            response.addRecord(DnsSection.QUESTION, dnsquery);
-            response.setCode(DnsResponseCode.SERVFAIL);
-            hostCache.put(new DnsCacheKey(dnsquery), new DnsCacheEntry(response, failureCachingTtl));
+            try {
+                response.addRecord(DnsSection.QUESTION, dnsquery);
+                response.setCode(DnsResponseCode.SERVFAIL);
+                hostCache.put(new DnsCacheKey(dnsquery), new DnsCacheEntry(response, failureCachingTtl));
+            } finally {
+                response.release();
+            }
+
         }
     }
 
