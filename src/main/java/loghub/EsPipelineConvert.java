@@ -73,7 +73,7 @@ public class EsPipelineConvert {
                 append(params, prefix);
                 break;
             case "rename":
-                System.out.format("%s%s < %s |%n", etlFilter(prefix, params), resolveField(params.get("target_field")), resolveField((params.get("field"))));
+                rename(params, prefix);
                 break;
             case "trim":
             case "lowercase":
@@ -111,6 +111,12 @@ public class EsPipelineConvert {
                 System.out.println(prefix + "// " + processor);
             }
         }
+    }
+
+    private void rename(Map<String, Object> params, String prefix) {
+        String target_field = (String) params.remove("target_field");
+        String field = (String) params.remove("field");
+        System.out.format("%s%s < %s |%n", etlFilter(prefix, params), resolveField(target_field), resolveField(field));
     }
 
     private void script(Map<String, Object> params, String prefix) {
