@@ -11,7 +11,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.release>11</maven.compiler.release>
         <log4j>2.20.0</log4j>
-        <antlr>4.13.0</antlr>
+        <antlr>4.13.1</antlr>
         <jackson>2.15.2</jackson>
         <metrics>4.2.19</metrics>
         <cache2k>2.6.1.Final</cache2k>
@@ -19,7 +19,7 @@
         <cacheapi.version>1.1.1</cacheapi.version>
         <snmp4j.version>3.7.7</snmp4j.version>
         <geoip2.version>3.0.2</geoip2.version>
-        <netty.version>4.1.96.Final</netty.version>
+        <netty.version>4.1.97.Final</netty.version>
         <dependency.locations.enabled>true</dependency.locations.enabled>
         <!-- Indirection needed to keep optionnal jacoco settings and external argument lines-->
         <arg.line></arg.line>
@@ -70,7 +70,7 @@
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-core</artifactId>
-            <version>5.4.0</version>
+            <version>5.5.0</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -116,7 +116,7 @@
         <dependency>
             <groupId>org.codehaus.groovy</groupId>
             <artifactId>groovy</artifactId>
-            <version>3.0.18</version>
+            <version>3.0.19</version>
         </dependency>
         <dependency>
             <groupId>org.antlr</groupId>
@@ -244,6 +244,7 @@
         <dependency>
             <groupId>org.jruby.joni</groupId>
             <artifactId>joni</artifactId>
+            <!-- API change in 2.2 -->
             <version>2.1.48</version>
         </dependency>
         <dependency>
@@ -320,14 +321,14 @@
         <!-- **************** -->
         <dependency>
             <groupId>org.bouncycastle</groupId>
-            <artifactId>bcprov-jdk15on</artifactId>
-            <version>1.70</version>
+            <artifactId>bcprov-jdk18on</artifactId>
+            <version>1.76</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.bouncycastle</groupId>
-            <artifactId>bctls-jdk15on</artifactId>
-            <version>1.70</version>
+            <artifactId>bctls-jdk18on</artifactId>
+            <version>1.76</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -342,7 +343,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-enforcer-plugin</artifactId>
-                    <version>3.3.0</version>
+                    <version>3.4.1</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -450,7 +451,7 @@
                 <plugin>
                     <groupId>org.sonarsource.scanner.maven</groupId>
                     <artifactId>sonar-maven-plugin</artifactId>
-                    <version>3.9.1.2184</version>
+                    <version>3.10.0.2594</version>
                 </plugin>
                 <plugin>
                     <groupId>org.projectlombok</groupId>
@@ -490,7 +491,7 @@
             <extension>
                 <groupId>org.apache.maven.surefire</groupId>
                 <artifactId>surefire-junit4</artifactId>
-                <version>3.0.0-M9</version>
+                <version>3.1.2</version>
             </extension>
             <!-- Yes many versions are needed -->
             <extension>
@@ -984,7 +985,7 @@
             <dependency>
                 <groupId>org.slf4j</groupId>
                 <artifactId>slf4j-api</artifactId>
-                <version>2.0.7</version>
+                <version>2.0.9</version>
             </dependency>
             <!-- Because of https://issues.apache.org/jira/browse/CODEC-279, tests for JWT was failing -->
             <dependency>
@@ -995,7 +996,14 @@
             <dependency>
                 <groupId>org.yaml</groupId>
                 <artifactId>snakeyaml</artifactId>
-                <version>2.1</version>
+                <version>2.2</version>
+            </dependency>
+            <!-- Included by jsendnsca -->
+            <dependency>
+                <groupId>org.bouncycastle</groupId>
+                <artifactId>bcprov-jdk15on</artifactId>
+                <version>1.70</version>
+                <scope>provided</scope>
             </dependency>
         </dependencies>
     </dependencyManagement>
