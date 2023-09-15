@@ -128,7 +128,6 @@ public class TestDissect {
         Assert.assertEquals("1", ev.getAtPath(VariablePath.parse("a.b")));
         Assert.assertEquals("2", ev.getAtPath(VariablePath.parse("c.d")));
         Assert.assertEquals("3", ev.getAtPath(VariablePath.parse("#meta")));
-        System.err.println(ev);
     }
 
     private void dobuild(String pattern, Consumer<Dissect.Builder> configure,  String value, Object expected) throws ProcessorException {

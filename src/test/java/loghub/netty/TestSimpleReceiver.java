@@ -8,7 +8,9 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -89,6 +91,9 @@ public class TestSimpleReceiver {
         }
 
     }
+
+    @Rule
+    public TemporaryFolder folder = new TemporaryFolder();
 
     @BeforeClass
     static public void configure() throws IOException {
@@ -172,12 +177,12 @@ public class TestSimpleReceiver {
 
     @Test(timeout = 5000)
     public void testUnixStream() throws InterruptedException {
-        runTest(TRANSPORT.UNIX_STREAM, POLLER.DEFAULTPOLLER, "socketstream", Tools.tryGetPort());
+        runTest(TRANSPORT.UNIX_STREAM, POLLER.DEFAULTPOLLER, folder.getRoot().toPath().resolve("socketstream").toString(), Tools.tryGetPort());
     }
 
     @Test(timeout = 5000)
     public void testUnixDgram() throws InterruptedException {
-        runTest(TRANSPORT.UNIX_DGRAM, POLLER.DEFAULTPOLLER, "socketdgram", Tools.tryGetPort());
+        runTest(TRANSPORT.UNIX_DGRAM, POLLER.DEFAULTPOLLER, folder.getRoot().toPath().resolve("socketdgram").toString(), Tools.tryGetPort());
     }
 
 }

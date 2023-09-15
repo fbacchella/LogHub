@@ -335,7 +335,6 @@ public class TestConfigurations {
         Event ev = factory.newEvent();
         ev.putAtPath(VariablePath.parse("c.d.a.b"), "http://loghub.fr/?test=true");
         Tools.runProcessing(ev, p.namedPipeLine.get("withpath"), p);
-        System.err.println(ev);
         Assert.assertEquals("/", ev.getAtPath(VariablePath.parse("c.d.a.b.path")));
         Assert.assertEquals("http", ev.getAtPath(VariablePath.parse("c.d.a.b.scheme")));
         Assert.assertEquals("loghub.fr", ev.getAtPath(VariablePath.parse("c.d.a.b.domain")));

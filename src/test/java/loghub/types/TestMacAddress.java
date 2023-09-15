@@ -42,7 +42,6 @@ public class TestMacAddress {
         ObjectWriter writer = JacksonBuilder.get(JsonMapper.class).getWriter();
         String serialized = writer.writeValueAsString(new MacAddress("3D:F2:C9:A6:B3:4F"));
         Assert.assertEquals('"' + STANDARDFORMAT48 + '"', serialized);
-        System.err.println(serialized);
     }
 
 }
