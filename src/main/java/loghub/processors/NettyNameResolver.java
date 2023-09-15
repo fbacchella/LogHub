@@ -21,6 +21,7 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.channel.socket.DatagramChannel;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.dns.DefaultDnsQuestion;
+import io.netty.handler.codec.dns.DefaultDnsResponse;
 import io.netty.handler.codec.dns.DnsPtrRecord;
 import io.netty.handler.codec.dns.DnsQuestion;
 import io.netty.handler.codec.dns.DnsRecord;
@@ -31,6 +32,7 @@ import io.netty.handler.codec.dns.DnsSection;
 import io.netty.resolver.dns.DnsNameResolver;
 import io.netty.resolver.dns.DnsNameResolverBuilder;
 import io.netty.resolver.dns.DnsNameResolverException;
+import io.netty.resolver.dns.DnsNameResolverTimeoutException;
 import io.netty.resolver.dns.DnsServerAddressStreamProviders;
 import io.netty.resolver.dns.SingletonDnsServerAddressStreamProvider;
 import io.netty.resolver.dns.UnixResolverDnsServerAddressStreamProvider;
@@ -73,8 +75,11 @@ public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<Dn
         final DnsResponseCode code;
         final Instant eol;
 
-        DnsCacheEntry(AddressedEnvelope<DnsResponse, InetSocketAddress> envelope) {
-            DnsResponse resp = envelope.content();
+        DnsCacheEntry(AddressedEnvelope<DnsResponse, InetSocketAddress> envelope, int failureCachine) {
+            this(envelope.content(), failureCachine);
+        }
+
+        DnsCacheEntry(DnsResponse resp, int failureCachine) {
             // Some peoples return CNAME in PTR request so check we got the requested PTR
             DnsRecord tmpAnswserRr = null;
             int respCount = resp.count(DnsSection.ANSWER);
@@ -91,8 +96,8 @@ public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<Dn
             questionRr = resp.recordAt((DnsSection.QUESTION));
             code = resp.code();
             // Default to 5s on failure, just to avoid wild loop
-            // Also check than the answerRR is not null, some servers are happy to return ok on failure
-            int ttl = (code.intValue() == NOERROR && answserRr != null) ? (int) answserRr.timeToLive() : 5;
+            // Also checks that the answerRR is not null, some servers are happy to return ok on failure
+            int ttl = (code.intValue() == NOERROR && answserRr != null) ? (int) answserRr.timeToLive() : failureCachine;
             eol = Instant.now().plus(ttl, ChronoUnit.SECONDS);
             assert ! (answserRr instanceof ReferenceCounted);
             assert ! (questionRr instanceof ReferenceCounted);
@@ -115,6 +120,8 @@ public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<Dn
         private String etcResolvConf = null;
         private String etcResolverDir = null;
         private String resolver = null;
+        @Setter
+        private int failureCaching = 300;
         @Setter
         private int cacheSize = 10000;
         @Setter
@@ -159,13 +166,16 @@ public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<Dn
 
     private final DnsNameResolver dnsResolver;
     private final Cache<DnsCacheKey, DnsCacheEntry> hostCache;
+    private int failureCachingTtl;
 
     public NettyNameResolver(Builder builder) {
         super(builder);
+        this.failureCachingTtl = builder.failureCaching;
         DnsNameResolverBuilder resolverBuilder = new DnsNameResolverBuilder(EVENTLOOPGROUP.next())
                                                  .queryTimeoutMillis(getTimeout() * 1000L)
                                                  .channelFactory(() -> (DatagramChannel) POLLER.DEFAULTPOLLER.clientChannelProvider(TRANSPORT.UDP))
                                                  .socketChannelFactory(() -> (SocketChannel) POLLER.DEFAULTPOLLER.clientChannelProvider(TRANSPORT.TCP))
+                                                 .negativeTtl(failureCachingTtl)
                 ;
         InetSocketAddress resolverAddr;
         Object parent;
@@ -178,7 +188,7 @@ public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<Dn
             }
         } else if (builder.etcResolvConf != null && builder.etcResolverDir != null) {
             try {
-                resolverBuilder = resolverBuilder.nameServerProvider(new UnixResolverDnsServerAddressStreamProvider(builder.etcResolvConf, builder.etcResolverDir));
+                resolverBuilder.nameServerProvider(new UnixResolverDnsServerAddressStreamProvider(builder.etcResolvConf, builder.etcResolverDir));
                 parent = builder.etcResolvConf + "/" + builder.etcResolverDir;
             } catch (IOException ex) {
                 throw new IllegalArgumentException(String.format("Unusable resolv.conf/resolvers dir' %s/%s'", builder.etcResolvConf, builder.etcResolverDir));
@@ -186,13 +196,13 @@ public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<Dn
         } else if (builder.resolver != null) {
             try {
                 resolverAddr = new InetSocketAddress(InetAddress.getByName(builder.resolver), 53);
-                resolverBuilder = resolverBuilder.nameServerProvider(new SingletonDnsServerAddressStreamProvider(resolverAddr));
+                resolverBuilder.nameServerProvider(new SingletonDnsServerAddressStreamProvider(resolverAddr));
                 parent = resolverAddr;
             } catch (UnknownHostException e) {
                 throw new IllegalArgumentException(String.format("Unknown resolver '%s'", builder.resolver));
             }
         } else if (builder.defaultResolver) {
-            resolverBuilder = resolverBuilder.nameServerProvider(DnsServerAddressStreamProviders.platformDefault());
+            resolverBuilder.nameServerProvider(DnsServerAddressStreamProviders.platformDefault());
             parent = "platformDefault";
         } else {
             throw new IllegalArgumentException("No resolver enabled");
@@ -243,6 +253,7 @@ public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<Dn
                 return found;
             } else {
                 Future<AddressedEnvelope<DnsResponse, InetSocketAddress>> future = dnsResolver.query(dnsquery);
+                future.addListener(f -> handleFuture(dnsquery, f));
                 throw new AsyncProcessor.PausedEventException(future);
             }
         } else if (addr instanceof String) {
@@ -250,6 +261,16 @@ public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<Dn
             return addr;
         } else {
             return false;
+        }
+    }
+
+    private void handleFuture(DnsQuestion dnsquery, Future<? super AddressedEnvelope<DnsResponse, InetSocketAddress>> future) {
+        if (future.cause() instanceof DnsNameResolverTimeoutException) {
+            logger.debug("Timeout failure for {}", dnsquery::name);
+            DnsResponse response = new DefaultDnsResponse(1);
+            response.addRecord(DnsSection.QUESTION, dnsquery);
+            response.setCode(DnsResponseCode.SERVFAIL);
+            hostCache.put(new DnsCacheKey(dnsquery), new DnsCacheEntry(response, failureCachingTtl));
         }
     }
 
@@ -279,7 +300,7 @@ public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<Dn
         if (! me.exists()) {
             @SuppressWarnings("unchecked")
             AddressedEnvelope<DnsResponse, InetSocketAddress> envelope = (AddressedEnvelope<DnsResponse, InetSocketAddress>) args[0];
-            me.setValue(new DnsCacheEntry(envelope));
+            me.setValue(new DnsCacheEntry(envelope, failureCachingTtl));
         }
         return store(me.getValue());
     }
@@ -317,7 +338,7 @@ public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<Dn
             DnsQuestion dnsquery = new DefaultDnsQuestion(query, DnsRecordType.PTR);
             Future<AddressedEnvelope<DnsResponse, InetSocketAddress>> future = dnsResolver.query(dnsquery);
             enveloppe = future.get();
-            hostCache.put(new DnsCacheKey(dnsquery), new DnsCacheEntry(enveloppe));
+            hostCache.put(new DnsCacheKey(dnsquery), new DnsCacheEntry(enveloppe, failureCachingTtl));
             return enveloppe.content().recordAt((DnsSection.ANSWER));
         } catch (ExecutionException e) {
             throw e.getCause();

@@ -48,7 +48,7 @@ public class TestNettyNameResolver {
     static public void configure() throws IOException {
         Tools.configure();
         logger = LogManager.getLogger();
-        LogUtils.setLevel(logger, Level.TRACE, "loghub.processors.NettyNameResolver", "io.netty.resolver.dns", "loghub.configuration.CacheManager");
+        LogUtils.setLevel(logger, Level.TRACE, "loghub.processors.NettyNameResolver", "io.netty.resolver.dns", "loghub.configuration.CacheManager", "javax.cache", "org.cache2k");
     }
 
     @After
@@ -77,13 +77,13 @@ public class TestNettyNameResolver {
         return Tools.runProcessing(e, "main", Collections.singletonList(proc), prepare, getProperties());
     }
 
-    @Test(timeout=4000)
+    @Test(timeout=6000)
     public void badresolvertimeout() throws Throwable {
         Event e = factory.newEvent();
         e.put("host", InetAddress.getByName("10.0.0.1"));
 
         Tools.ProcessingStatus status = dorequest(i -> {
-            i.setResolver("169.254.1.1");
+            i.setResolver("192.0.2.1");
             i.setField(VariablePath.of("host"));
             i.setDestination(VariablePath.parse("fqdn"));
             i.setTimeout(2);
@@ -93,22 +93,32 @@ public class TestNettyNameResolver {
         e = status.mainQueue.take();
         Assert.assertNull("resolution not failed", e.get("fqdn"));
         // Check that the second processor executed was indeed paused
+        Assert.assertEquals("resolution not paused", 1, status.status.stream().filter(s -> "PAUSED".equals(s)).count());
         Assert.assertEquals("resolution not paused", "PAUSED", status.status.get(2));
         Assert.assertEquals("Queue not empty: " + status.mainQueue, 0, status.mainQueue.size());
         Assert.assertEquals("Still waiting events: " + status.repository, 0, status.repository.waiting());
+
+        Tools.ProcessingStatus status2 = dorequest(i -> {
+            i.setResolver("192.0.2.1");
+            i.setField(VariablePath.of("host"));
+            i.setDestination(VariablePath.parse("fqdn"));
+            i.setTimeout(2);
+            i.setQueueDepth(0); // Avoid using semaphore
+        }, e);
+        Assert.assertEquals("resolution paused", 0, status2.status.stream().filter(s -> "PAUSED".equals(s)).count());
     }
 
     @Test(timeout=6000)
     public void badresolvernxdomain() throws Throwable {
         Event e = factory.newEvent();
         /// resolve a no existing name
-        e.put("host", InetAddress.getByName("169.254.1.1"));
+        e.put("host", InetAddress.getByName("149.65.149.20"));
 
         Tools.ProcessingStatus status = dorequest(i -> {
             i.setField(VariablePath.of("host"));
             i.setDestination(VariablePath.parse("fqdn"));
             i.setTimeout(4);
-        } , e, "1.1.254.169.in-addr.arpa");
+        } , e, "20.149.65.149.in-addr.arpa");
 
         e = status.mainQueue.take();
         Assert.assertNull("resolution not failed", e.get("fqdn"));
