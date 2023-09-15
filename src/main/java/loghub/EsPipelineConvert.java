@@ -307,7 +307,7 @@ public class EsPipelineConvert {
         }
         Object pattern = params.remove("pattern");
         Object replacement = params.remove("replacement");
-        System.out.format("%s%s = gsub(%s, /%s/, %s) |%n", etlFilter(prefix, params), target_field, field, pattern, resolveField(replacement));
+        System.out.format("%s%s = gsub(%s, /%s/, %s) |%n", etlFilter(prefix, params), target_field, field, pattern, resolveValue(replacement));
     }
 
     private void doProcessor(String prefix, String processor, String comment, Map<String, Object> fields) {
