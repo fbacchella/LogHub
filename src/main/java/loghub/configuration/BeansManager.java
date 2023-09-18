@@ -5,7 +5,6 @@ import java.beans.IntrospectionException;
 import java.beans.Introspector;
 import java.beans.PropertyDescriptor;
 import java.lang.reflect.Array;
-import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.InetAddress;
@@ -106,17 +105,16 @@ public class BeansManager {
     /**
      * Create an object providing the class and a String argument. So the class must have
      * a constructor taking only a string as an argument.
-     * It can manage native type and return an boxed object
+     * It can manage native type and return a boxed object
      * @param <T> The value type
      * @param clazz the class of the new object
      * @param value the value as a string
-     * @return a convertion from String
+     * @return a conversion from String
      * @throws InvocationTargetException if it fails to construct the value
      */
     @SuppressWarnings({ "unchecked", "rawtypes" })
     public static <T> T constructFromString(Class<T> clazz, String value) throws InvocationTargetException {
         try {
-            Constructor<T> c;
             if (clazz == Integer.TYPE || Integer.class.equals(clazz)) {
                 return (T) Integer.valueOf(value);
             } else if (clazz == Double.TYPE || Double.class.equals(clazz)) {
@@ -136,23 +134,26 @@ public class BeansManager {
             } else if (clazz == Character.TYPE || Character.class.equals(clazz) && value.length() == 1) {
                 return (T) Character.valueOf(value.charAt(0));
             } else if (Enum.class.isAssignableFrom(clazz)) {
-                try {
-                    return (T) Enum.valueOf((Class)clazz, value);
-                } catch (IllegalArgumentException e) {
-                    return (T) Arrays.stream(clazz.getEnumConstants())
-                                     .map(Object::toString)
-                                     .filter(s -> s.equalsIgnoreCase(value))
-                                     .findAny()
-                                     .map(s -> Enum.valueOf((Class)clazz, s))
-                                     .orElseThrow(() -> new IllegalArgumentException("Not matching value " + value));
-                }
+                return (T) resolveEnum((Class<? extends Enum>)clazz, value);
             } else {
-                c = clazz.getConstructor(String.class);
+                return clazz.getConstructor(String.class).newInstance(value);
             }
-            return c.newInstance(value);
         } catch (SecurityException | NoSuchMethodException | IllegalArgumentException | InstantiationException |
                  IllegalAccessException | UnknownHostException ex) {
             throw new InvocationTargetException(ex, clazz.getName());
+        }
+    }
+
+    private static <E extends Enum<E>> E resolveEnum(Class<E> clazz, String value) {
+        try {
+            return Enum.valueOf(clazz, value);
+        } catch (IllegalArgumentException e) {
+            return Arrays.stream(clazz.getEnumConstants())
+                               .map(Object::toString)
+                               .filter(s -> s.equalsIgnoreCase(value))
+                               .findAny()
+                               .map(s -> Enum.valueOf(clazz, s))
+                               .orElseThrow(() -> new IllegalArgumentException("Not matching value " + value));
         }
     }
 
