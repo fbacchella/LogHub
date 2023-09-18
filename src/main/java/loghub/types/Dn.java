@@ -11,18 +11,21 @@ import javax.naming.ldap.Rdn;
 
 import com.fasterxml.jackson.annotation.JsonValue;
 
+import loghub.Helpers;
+import lombok.Data;
 import lombok.Getter;
 
+@Getter
+@Data
 public class Dn {
 
-    @Getter
     private final LdapName name;
 
     public Dn(String name) {
         try {
             this.name = new LdapName(name);
-        } catch (InvalidNameException e) {
-            throw new IllegalArgumentException(e.getMessage(), e);
+        } catch (InvalidNameException ex) {
+            throw new IllegalArgumentException(Helpers.resolveThrowableException(ex), ex);
         }
     }
 

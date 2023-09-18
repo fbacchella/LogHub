@@ -19,6 +19,7 @@ public class TestDn {
     }
 
     private void compare(String dn, String expected) {
+        Assert.assertEquals(new Dn(expected), new Dn(dn));
         Assert.assertEquals(expected, new Dn(dn).toString());
     }
 

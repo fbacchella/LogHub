@@ -28,6 +28,7 @@ import loghub.configuration.Configuration;
 import loghub.configuration.Properties;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
+import loghub.types.Dn;
 import loghub.types.MacAddress;
 
 public class TestConvert {
@@ -80,6 +81,7 @@ public class TestConvert {
         check("java.lang.Float", Float.class, "38", (float) 38);
         check("java.net.InetAddress", java.net.Inet4Address.class, "127.0.0.1", InetAddress.getByName("127.0.0.1"));
         check("java.net.InetAddress", java.net.Inet6Address.class, "::1", InetAddress.getByName("::1"));
+        check("loghub.types.Dn", Dn.class, "cn=Mango, ou=Fruits; o=Food", new Dn("cn=Mango, ou=Fruits, o=Food"));
     }
 
     @Test
