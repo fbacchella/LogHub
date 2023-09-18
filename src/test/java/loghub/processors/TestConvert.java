@@ -81,6 +81,7 @@ public class TestConvert {
         check("java.lang.Float", Float.class, "38", (float) 38);
         check("java.net.InetAddress", java.net.Inet4Address.class, "127.0.0.1", InetAddress.getByName("127.0.0.1"));
         check("java.net.InetAddress", java.net.Inet6Address.class, "::1", InetAddress.getByName("::1"));
+        check("loghub.types.MacAddress", MacAddress.class, "3d:f2:c9:a6:b3:4f", new MacAddress(new byte[]{(byte)0x3D, (byte)0xF2, (byte)0xC9, (byte)0xA6, (byte)0xB3, (byte)0x4F}));
         check("loghub.types.Dn", Dn.class, "cn=Mango, ou=Fruits; o=Food", new Dn("cn=Mango, ou=Fruits, o=Food"));
     }
 
@@ -95,7 +96,7 @@ public class TestConvert {
         check("java.lang.String", String.class, "message with éèœ".getBytes(StandardCharsets.UTF_8), "message with éèœ");
         check("java.net.InetAddress", java.net.Inet4Address.class, InetAddress.getByName("127.0.0.1").getAddress(), InetAddress.getByName("127.0.0.1"));
         check("java.net.InetAddress", java.net.Inet6Address.class, InetAddress.getByName("::1").getAddress(), InetAddress.getByName("::1"));
-        check("loghub.types.MacAddress", MacAddress .class, new MacAddress(new byte[]{(byte)0x3D, (byte)0xF2, (byte)0xC9, (byte)0xA6, (byte)0xB3, (byte)0x4F}), new MacAddress(new byte[]{(byte)0x3D, (byte)0xF2, (byte)0xC9, (byte)0xA6, (byte)0xB3, (byte)0x4F}));
+        check("loghub.types.MacAddress", MacAddress.class, new MacAddress(new byte[]{(byte)0x3D, (byte)0xF2, (byte)0xC9, (byte)0xA6, (byte)0xB3, (byte)0x4F}), new MacAddress(new byte[]{(byte)0x3D, (byte)0xF2, (byte)0xC9, (byte)0xA6, (byte)0xB3, (byte)0x4F}));
     }
 
     @Test
@@ -128,6 +129,12 @@ public class TestConvert {
     @Test(expected=loghub.ProcessorException.class)
     public void TestBufferTooSmall() throws ProcessorException {
         check("java.lang.Double", Double.class, generate(4, b -> b.putFloat((float)38)), (double) 38);
+    }
+
+    @Test
+    public void TestInvalidIp() {
+        ProcessorException ex = Assert.assertThrows(loghub.ProcessorException.class, () -> check("java.net.InetAddress", java.net.Inet4Address.class, "www.google.com", "www.google.com"));
+        Assert.assertEquals("Field with path \"[message]\" invalid: \"www.google.com\" not a valid IP address", ex.getMessage());
     }
 
 }

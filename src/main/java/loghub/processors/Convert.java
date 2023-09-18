@@ -157,7 +157,11 @@ public class Convert extends FieldsProcessor {
                         o = Boolean.valueOf(valueStr);
                         break;
                     case "java.net.InetAddress":
-                        o = InetAddress.getByName(valueStr);
+                        o = Helpers.parseIpAddress(valueStr);
+                        if (o == null) {
+                            logger.debug(() -> "Failed to parsed event " + event);
+                            throw event.buildException("\"" + valueStr + "\" not a valid IP address");
+                        }
                         break;
                     default:
                         o = BeansManager.constructFromString(clazz, valueStr);
