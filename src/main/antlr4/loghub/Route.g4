@@ -214,6 +214,7 @@ expression
     |   gsub = 'gsub' '(' expression ',' pattern ',' stringLiteral ')'
     |   now = 'now'
     |   isEmpty = 'isEmpty' '(' expression ')'
+    |   isIp = 'isIP' '(' expression ')'
     |   collection=('set' | 'list') ('(' ')' | expressionsList)
     |   {inLambda()}? lambdavar=Identifier {lambdaVariable.equals($lambdavar.text)}?
     ;
@@ -275,7 +276,7 @@ identifier
     | 'if' | 'success' | 'failure' | 'exception' | 'field' | 'fields' | 'destination' | 'destinationTemplate' | 'encoder' | 'log' | 'fire' | 'pipeline' | 'output' | 'onExpiration'
     | 'defaultMeta' | 'map'
     | 'FATAL' | 'ERROR' | 'WARN' | 'INFO' | 'DEBUG' | 'TRACE'
-    | 'new' | 'instanceof' | 'now' | 'isEmpty'
+    | 'new' | 'instanceof' | 'now' | 'isEmpty' | 'isIP'
     | 'sources' | 'true' | 'false' | 'null' | 'drop'
     | 'trim' | 'capitalize' | 'uncapitalize' | 'isBlank' | 'normalize' | 'lowercase' | 'uppercase' | 'split' | 'join' | 'gsub'
     | 'text' | 'blob'

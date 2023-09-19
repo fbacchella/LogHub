@@ -1100,6 +1100,9 @@ class ConfigListener extends RouteBaseListener {
         } else if (ctx.isEmpty != null) {
             ExpressionBuilder subexpression = stack.popTyped();
             expression = ExpressionBuilder.of(subexpression, (ed, l) -> ed.getExpression().isEmpty(l.apply(ed)));
+        } else if (ctx.isIp != null) {
+            ExpressionBuilder subexpression = stack.popTyped();
+            expression = ExpressionBuilder.of(subexpression, (ed, l) -> ed.getExpression().isIpAddress(l.apply(ed)));
         } else if (ctx.collection != null) {
             String collectionType = ctx.collection.getText();
             if (ctx.expressionsList() == null) {

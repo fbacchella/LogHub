@@ -42,6 +42,7 @@ import groovy.runtime.metaclass.java.lang.CharacterMetaClass;
 import groovy.runtime.metaclass.java.lang.NumberMetaClass;
 import groovy.runtime.metaclass.java.lang.StringMetaClass;
 import groovy.runtime.metaclass.java.util.CollectionMetaClass;
+import io.netty.util.NetUtil;
 import loghub.events.Event;
 import lombok.Getter;
 
@@ -428,13 +429,24 @@ public class Expression {
         }
     }
 
+    public boolean isIpAddress(Object arg) {
+        if (arg == NullOrMissingValue.MISSING) {
+            throw IgnoredEventException.INSTANCE;
+        } else if (arg == null || arg == NullOrMissingValue.NULL) {
+            return false;
+        } else if (arg instanceof String) {
+            return NetUtil.isValidIpV4Address((String) arg) || NetUtil.isValidIpV6Address((String) arg);
+        } else
+            return arg instanceof InetAddress;
+    }
+
     private Object checkStringIp(Object arg1, Object arg2) {
         try {
-            if (arg1 instanceof InetAddress && arg2 instanceof String) {
+            if ((arg1 instanceof InetAddress || arg1 instanceof InetAddress[]) && arg2 instanceof String) {
                 if (((String) arg2).startsWith("/")) {
                     arg2 = ((String) arg2).substring(1);
                 }
-                return InetAddress.getByName((String)arg2);
+                return InetAddress.getAllByName((String)arg2);
             } else {
                 return arg2;
             }
@@ -451,10 +463,14 @@ public class Expression {
         arg1 = checkStringIp(arg2, arg1);
         boolean dateCompare = (arg1 instanceof Date || arg1 instanceof TemporalAccessor) &&
                               (arg2 instanceof Date || arg2 instanceof TemporalAccessor);
+        boolean ipCompare = (arg1 instanceof InetAddress || arg1 instanceof InetAddress[]) &&
+                            (arg2 instanceof InetAddress || arg2 instanceof InetAddress[]);
         if (arg2 == ANYVALUE) {
             return ((arg1 != NullOrMissingValue.MISSING) ^ "!=".equals(operator));
         } else if (arg1 == NullOrMissingValue.MISSING || arg2 == NullOrMissingValue.MISSING) {
             throw IgnoredEventException.INSTANCE;
+        } else if ("==".equals(operator) && ipCompare) {
+            return ipCompare(arg1, arg2);
         } else if ("==".equals(operator) && !dateCompare) {
             return arg1.equals(arg2);
         } else if ("!=".equals(operator) && !dateCompare) {
@@ -486,6 +502,26 @@ public class Expression {
             }
         } else {
             throw IgnoredEventException.INSTANCE;
+        }
+    }
+
+    private Object ipCompare(Object arg1, Object arg2) {
+        if (arg1 instanceof InetAddress && arg2 instanceof InetAddress[]) {
+            InetAddress ip1 = (InetAddress) arg1;
+            InetAddress[] ip2 = (InetAddress[]) arg2;
+            return Arrays.asList(ip2).contains(ip1);
+        } else if (arg2 instanceof InetAddress && arg1 instanceof InetAddress[]) {
+            InetAddress ip1 = (InetAddress) arg2;
+            InetAddress[] ip2 = (InetAddress[]) arg1;
+            return Arrays.asList(ip2).contains(ip1);
+        } else if (arg2 instanceof InetAddress[] && arg1 instanceof InetAddress[]) {
+            Set<InetAddress> ip1 = Set.of((InetAddress[]) arg1);
+            Set<InetAddress> ip2 = Set.of((InetAddress[]) arg2);
+            return ip1.stream().anyMatch(ip2::contains);
+        } else {
+            // Not reachable
+            assert false;
+            return false;
         }
     }
 

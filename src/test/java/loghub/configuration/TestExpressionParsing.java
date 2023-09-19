@@ -996,10 +996,26 @@ public class TestExpressionParsing {
         ev.put("a", InetAddress.getByName("192.168.1.1"));
         ev.put("b", InetAddress.getByName("www.google.com"));
         ev.put("c", InetAddress.getByName("127.0.0.1"));
+        ev.put("d", InetAddress.getByName("::1"));
+        // Simulate a host with both IPv4 and IPv6, not always true
+        ev.put("e", new InetAddress[] {InetAddress.getByName("127.0.0.1"), InetAddress.getByName("::1")});
+
         Assert.assertTrue((boolean) Tools.evalExpression("[a] == \"192.168.1.1\"", ev));
         Assert.assertTrue((boolean) Tools.evalExpression("[a] == \"/192.168.1.1\"", ev));
         Assert.assertTrue((boolean) Tools.evalExpression("[b] == \"www.google.com\"", ev));
         Assert.assertTrue((boolean) Tools.evalExpression("[c] == \"localhost\"", ev));
+        Assert.assertTrue((boolean) Tools.evalExpression("[e] == \"127.0.0.1\"", ev));
+        Assert.assertTrue((boolean) Tools.evalExpression("[e] == \"::1\"", ev));
+        Assert.assertTrue((boolean) Tools.evalExpression("\"192.168.1.1\" == [a]", ev));
+        Assert.assertTrue((boolean) Tools.evalExpression("\"/192.168.1.1\" == [a]", ev));
+        Assert.assertTrue((boolean) Tools.evalExpression("\"www.google.com\" == [b]", ev));
+        Assert.assertTrue((boolean) Tools.evalExpression("\"localhost\" == [c]", ev));
+        Assert.assertTrue((boolean) Tools.evalExpression("\"127.0.0.1\" == [e]", ev));
+        Assert.assertTrue((boolean) Tools.evalExpression("\"::1\" == [e]", ev));
+        Assert.assertTrue((boolean) Tools.evalExpression("isIP([a])", ev));
+        Assert.assertTrue((boolean) Tools.evalExpression("isIP(\"192.168.1.1\")", ev));
+        Assert.assertFalse((boolean) Tools.evalExpression("isIP(\"www.google.com\")", ev));
+        Assert.assertTrue((boolean) Tools.evalExpression("isIP(\"::1\")", ev));
     }
 
     @Test
