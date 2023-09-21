@@ -45,13 +45,16 @@ public class TestSplit {
         Assert.assertEquals("[a, b, c]", r1.toString());
         r1 = test("#", false,"#a#b#c#");
         Assert.assertEquals("[a, b, c]", r1.toString());
+        r1 = test(",", false,"a");
+        Assert.assertEquals(List.of("a"), r1);
     }
 
     @SuppressWarnings("unchecked")
     private List<String> test(String pattern, boolean keepempty, String message) throws ProcessorException {
-        Split parse = new Split();
-        parse.setPattern(pattern);
-        parse.setKeepempty(keepempty);
+        Split.Builder builder = Split.getBuilder();
+        builder.setPattern(pattern);
+        builder.setKeepempty(keepempty);
+        Split parse = builder.build();
         parse.setField(VariablePath.parse("field"));
         Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
         Event event = factory.newEvent();
@@ -67,7 +70,7 @@ public class TestSplit {
                 , BeanChecks.BeanInfo.build("destination", VariablePath.class)
                 , BeanChecks.BeanInfo.build("field", VariablePath.class)
                 , BeanChecks.BeanInfo.build("fields", String[].class)
-                , BeanChecks.BeanInfo.build("path", String.class)
+                , BeanChecks.BeanInfo.build("path", VariablePath.class)
                 , BeanChecks.BeanInfo.build("if", Expression.class)
                 , BeanChecks.BeanInfo.build("success", Processor.class)
                 , BeanChecks.BeanInfo.build("failure", Processor.class)

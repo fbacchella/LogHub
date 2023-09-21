@@ -6,30 +6,39 @@ import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import loghub.BuilderClass;
 import loghub.ProcessorException;
-import loghub.configuration.Properties;
 import loghub.events.Event;
 import lombok.Getter;
 import lombok.Setter;
 
-/**
- * A processor that take a String field and transform it to any object that can
- * take a String as a constructor.
- * 
- * It uses the custom class loader.
- * 
- * @author Fabrice Bacchella
- *
- */
 @FieldsProcessor.ProcessNullField
+@BuilderClass(Split.Builder.class)
 public class Split extends FieldsProcessor {
 
-    @Getter @Setter
-    private String pattern = "\n";
-    @Getter @Setter
-    private boolean keepempty = true;
-    private Pattern effectivePattern = Pattern.compile(pattern);
-    private final ThreadLocal<Matcher> matchers = ThreadLocal.withInitial(() -> effectivePattern.matcher(""));
+    public static class Builder extends FieldsProcessor.Builder<Split> {
+        @Setter
+        private String pattern = "\n";
+        @Setter
+        private boolean keepempty = true;
+        public Split build() {
+            return new Split(this);
+        }
+    }
+    public static Split.Builder getBuilder() {
+        return new Split.Builder();
+    }
+
+    @Getter
+    private final boolean keepempty;
+    private final ThreadLocal<Matcher> matchers;
+
+    private Split(Split.Builder builder) {
+        super(builder);
+        keepempty = builder.keepempty;
+        Pattern pattern = Pattern.compile(builder.pattern);
+        matchers = ThreadLocal.withInitial(() -> pattern.matcher(""));
+    }
 
     @Override
     public Object fieldFunction(Event event, Object value) throws ProcessorException {
@@ -48,14 +57,8 @@ public class Split extends FieldsProcessor {
         Optional.of(valueString.substring(previousPos))
                 .filter(s -> keepempty || ! s.isEmpty())
                 .ifPresent(elements::add);
+        matchers.get().reset("");
         return elements;
     }
-
-    @Override
-    public boolean configure(Properties properties) {
-        effectivePattern = Pattern.compile(pattern);
-        return super.configure(properties);
-    }
-
 
 }
