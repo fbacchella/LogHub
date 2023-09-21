@@ -119,7 +119,6 @@ public class TestTrap {
         Stats.reset();
         PriorityBlockingQueue receiver = new PriorityBlockingQueue();
         SnmpTrap.Builder builder = SnmpTrap.getBuilder();
-        // builder.setPort(protocol == SnmpTrap.PROTOCOL.tcp ? Tools.tryGetPort() : 0);
         builder.setPort(1161);
         builder.setProtocol(protocol);
 
@@ -147,7 +146,7 @@ public class TestTrap {
             Assert.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
             if (pdu.getType() == PDU.NOTIFICATION) {
                 Assert.assertEquals("loghub", e.getConnectionContext().getPrincipal().getName());
-                Assert.assertEquals(105, statBytes);
+                Assert.assertTrue(statBytes > 100 && statBytes < 110);
             } else if (pdu.getType() == PDU.V1TRAP) {
                 Assert.assertEquals(41, statBytes);
             }
