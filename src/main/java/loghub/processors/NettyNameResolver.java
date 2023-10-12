@@ -1,5 +1,6 @@
 package loghub.processors;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.Inet4Address;
 import java.net.Inet6Address;
@@ -12,6 +13,9 @@ import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.concurrent.ExecutionException;
 import java.util.function.BiConsumer;
+import java.util.function.Function;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import javax.cache.Cache;
 import javax.cache.processor.MutableEntry;
@@ -33,11 +37,14 @@ import io.netty.resolver.dns.DnsNameResolver;
 import io.netty.resolver.dns.DnsNameResolverBuilder;
 import io.netty.resolver.dns.DnsNameResolverException;
 import io.netty.resolver.dns.DnsNameResolverTimeoutException;
+import io.netty.resolver.dns.DnsServerAddressStream;
+import io.netty.resolver.dns.DnsServerAddressStreamProvider;
 import io.netty.resolver.dns.DnsServerAddressStreamProviders;
-import io.netty.resolver.dns.SingletonDnsServerAddressStreamProvider;
+import io.netty.resolver.dns.SequentialDnsServerAddressStreamProvider;
 import io.netty.resolver.dns.UnixResolverDnsServerAddressStreamProvider;
 import io.netty.util.ReferenceCounted;
 import io.netty.util.concurrent.Future;
+import io.netty.util.concurrent.Promise;
 import loghub.AsyncProcessor;
 import loghub.BuilderClass;
 import loghub.Helpers;
@@ -53,16 +60,19 @@ import lombok.EqualsAndHashCode;
 import lombok.Setter;
 
 @BuilderClass(NettyNameResolver.Builder.class)
-public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<DnsResponse,InetSocketAddress>, Future<AddressedEnvelope<DnsResponse,InetSocketAddress>>> {
+public class NettyNameResolver extends
+        AsyncFieldsProcessor<AddressedEnvelope<DnsResponse, InetSocketAddress>, Future<AddressedEnvelope<DnsResponse, InetSocketAddress>>> {
 
     @EqualsAndHashCode
     private static class DnsCacheKey {
         private final String query;
         private final DnsRecordType type;
+
         public DnsCacheKey(DnsQuestion query) {
             this.query = query.name();
             this.type = query.type();
         }
+
         @Override
         public String toString() {
             return "[" + query + " IN " + type.name() + "]";
@@ -99,9 +109,9 @@ public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<Dn
             // Also checks that the answerRR is not null, some servers are happy to return ok on failure
             int ttl = (code.intValue() == NOERROR && answserRr != null) ? (int) answserRr.timeToLive() : failureCachine;
             eol = Instant.now().plus(ttl, ChronoUnit.SECONDS);
-            assert ! (answserRr instanceof ReferenceCounted);
-            assert ! (questionRr instanceof ReferenceCounted);
-            assert ! (code instanceof ReferenceCounted);
+            assert !(answserRr instanceof ReferenceCounted);
+            assert !(questionRr instanceof ReferenceCounted);
+            assert !(code instanceof ReferenceCounted);
         }
 
         @Override
@@ -110,22 +120,30 @@ public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<Dn
         }
     }
 
+    enum RESOLUTION_MODE {
+        SEQUENTIAL,
+        PARALLEL,
+    }
+
     private static final int NOERROR = DnsResponseCode.NOERROR.intValue();
     private static final EventLoopGroup EVENTLOOPGROUP = POLLER.DEFAULTPOLLER.getEventLoopGroup(1, ThreadBuilder.get().setDaemon(false).getFactory("dnsresolver"));
     private static final VarFormatter reverseFormatV4 = new VarFormatter("${#1%d}.${#2%d}.${#3%d}.${#4%d}.in-addr.arpa.");
     private static final VarFormatter reverseFormatV6 = new VarFormatter("${#1%x}.${#2%x}.");
 
-    public static class Builder extends AsyncFieldsProcessor.Builder<NettyNameResolver, AddressedEnvelope<DnsResponse,InetSocketAddress>, Future<AddressedEnvelope<DnsResponse,InetSocketAddress>>> {
+    public static class Builder extends
+            AsyncFieldsProcessor.Builder<NettyNameResolver, AddressedEnvelope<DnsResponse, InetSocketAddress>, Future<AddressedEnvelope<DnsResponse, InetSocketAddress>>> {
         private boolean defaultResolver = true;
         private String etcResolvConf = null;
         private String etcResolverDir = null;
-        private String resolver = null;
+        private String[] resolvers = null;
         @Setter
         private int failureCaching = 300;
         @Setter
         private int cacheSize = 10000;
         @Setter
         private CacheManager cacheManager = new CacheManager(getClass().getClassLoader());
+        @Setter
+        private RESOLUTION_MODE resolutionMode = RESOLUTION_MODE.SEQUENTIAL;
 
         @Override
         public NettyNameResolver build() {
@@ -137,78 +155,102 @@ public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<Dn
             if (defaultResolver) {
                 etcResolvConf = null;
                 etcResolverDir = null;
-                resolver = null;
+                resolvers = null;
             }
         }
 
         public void setEtcResolvConf(String etcResolvConf) {
             this.etcResolvConf = etcResolvConf;
             this.defaultResolver = false;
-            this.resolver = null;
+            this.resolvers = null;
         }
 
         public void setEtcResolverDir(String etcResolverDir) {
             this.etcResolverDir = etcResolverDir;
             this.defaultResolver = false;
-            this.resolver = null;
+            this.resolvers = null;
         }
 
         public void setResolver(String resolver) {
-            this.resolver = resolver;
+            setResolvers(new String[] { resolver });
+        }
+
+        public void setResolvers(String[] resolvers) {
+            this.resolvers = resolvers;
             etcResolvConf = null;
             etcResolverDir = null;
             this.defaultResolver = false;
         }
+
     }
+
     public static Builder getBuilder() {
         return new Builder();
     }
 
     private final DnsNameResolver dnsResolver;
     private final Cache<DnsCacheKey, DnsCacheEntry> hostCache;
-    private int failureCachingTtl;
+    private final int failureCachingTtl;
+    private final Function<DnsQuestion, Future<AddressedEnvelope<DnsResponse, InetSocketAddress>>> resolution;
 
     public NettyNameResolver(Builder builder) {
         super(builder);
         this.failureCachingTtl = builder.failureCaching;
         DnsNameResolverBuilder resolverBuilder = new DnsNameResolverBuilder(EVENTLOOPGROUP.next())
-                                                 .queryTimeoutMillis(getTimeout() * 1000L)
-                                                 .channelFactory(() -> (DatagramChannel) POLLER.DEFAULTPOLLER.clientChannelProvider(TRANSPORT.UDP))
-                                                 .socketChannelFactory(() -> (SocketChannel) POLLER.DEFAULTPOLLER.clientChannelProvider(TRANSPORT.TCP))
-                                                 .negativeTtl(failureCachingTtl)
-                ;
-        InetSocketAddress resolverAddr;
+                                                         .queryTimeoutMillis(getTimeout() * 1000L)
+                                                         .channelFactory(() -> (DatagramChannel) POLLER.DEFAULTPOLLER.clientChannelProvider(TRANSPORT.UDP))
+                                                         .socketChannelFactory(() -> (SocketChannel) POLLER.DEFAULTPOLLER.clientChannelProvider(TRANSPORT.TCP))
+                                                         .negativeTtl(failureCachingTtl);
         Object parent;
+        DnsServerAddressStreamProvider dsasp;
         if (builder.etcResolvConf != null && builder.etcResolverDir == null) {
             try {
-                resolverBuilder = resolverBuilder.nameServerProvider(new UnixResolverDnsServerAddressStreamProvider(Paths.get(builder.etcResolvConf).toFile()));
+                dsasp = new UnixResolverDnsServerAddressStreamProvider(Paths.get(builder.etcResolvConf).toFile());
                 parent = builder.etcResolvConf;
             } catch (IOException ex) {
                 throw new IllegalArgumentException(String.format("Unusable resolv.conf '%s'", builder.etcResolvConf));
             }
-        } else if (builder.etcResolvConf != null && builder.etcResolverDir != null) {
+        } else if (builder.etcResolvConf != null) {
             try {
-                resolverBuilder.nameServerProvider(new UnixResolverDnsServerAddressStreamProvider(builder.etcResolvConf, builder.etcResolverDir));
-                parent = builder.etcResolvConf + "/" + builder.etcResolverDir;
+                dsasp = new UnixResolverDnsServerAddressStreamProvider(builder.etcResolvConf, builder.etcResolverDir);
+                parent = builder.etcResolvConf + File.pathSeparator + builder.etcResolverDir;
             } catch (IOException ex) {
-                throw new IllegalArgumentException(String.format("Unusable resolv.conf/resolvers dir' %s/%s'", builder.etcResolvConf, builder.etcResolverDir));
+                throw new IllegalArgumentException(
+                        String.format("Unusable resolv.conf/resolvers dir' %s/%s'", builder.etcResolvConf,
+                                builder.etcResolverDir));
             }
-        } else if (builder.resolver != null) {
-            try {
-                resolverAddr = new InetSocketAddress(InetAddress.getByName(builder.resolver), 53);
-                resolverBuilder.nameServerProvider(new SingletonDnsServerAddressStreamProvider(resolverAddr));
-                parent = resolverAddr;
-            } catch (UnknownHostException e) {
-                throw new IllegalArgumentException(String.format("Unknown resolver '%s'", builder.resolver));
-            }
+        } else if (builder.resolvers != null) {
+            Matcher m = Pattern.compile("^([^:]+)(?::(\\d+))?$").matcher("");
+            InetSocketAddress[] addresses = Arrays.stream(builder.resolvers).map(s -> {
+                m.reset(s);
+                if (m.matches()) {
+                    int port = m.group(2) != null ? Integer.parseInt(m.group(2)) : 53;
+                    try {
+                        return new InetSocketAddress(InetAddress.getByName(m.group(1)), port);
+                    } catch (UnknownHostException e) {
+                        throw new IllegalArgumentException("Invalid DNS server: " + m.group(1), e);
+                    }
+                } else {
+                    throw new IllegalArgumentException("Invalid DNS server: " + s);
+                }
+            }).toArray(InetSocketAddress[]::new);
+            dsasp = new SequentialDnsServerAddressStreamProvider(addresses);
+            parent = String.join(",", builder.resolvers);
         } else if (builder.defaultResolver) {
-            resolverBuilder.nameServerProvider(DnsServerAddressStreamProviders.platformDefault());
+            dsasp = DnsServerAddressStreamProviders.platformDefault();
             parent = "platformDefault";
         } else {
-            throw new IllegalArgumentException("No resolver enabled");
+            throw new IllegalArgumentException("No resolver configured");
         }
+        resolverBuilder.nameServerProvider(dsasp);
         dnsResolver = resolverBuilder.build();
-        hostCache = builder.cacheManager.getBuilder(DnsCacheKey.class, DnsCacheEntry.class)
+        if (builder.resolutionMode == RESOLUTION_MODE.PARALLEL) {
+            resolution = q -> parallelResolution(q, dsasp);
+        } else {
+            resolution = dnsResolver::query;
+        }
+        hostCache = builder.cacheManager
+                           .getBuilder(DnsCacheKey.class, DnsCacheEntry.class)
                            .setName("NameResolver", parent)
                            .setCacheSize(builder.cacheSize)
                            .build();
@@ -233,7 +275,7 @@ public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<Dn
             Inet4Address ipv4 = (Inet4Address) ipaddr;
             byte[] parts = ipv4.getAddress();
             // the & 0xFF is needed because bytes are signed bytes
-            toresolv = reverseFormatV4.format(Arrays.asList(parts[3] & 0xFF , parts[2] & 0xFF , parts[1] & 0xFF, parts[0] & 0xFF));
+            toresolv = reverseFormatV4.format(Arrays.asList(parts[3] & 0xFF, parts[2] & 0xFF, parts[1] & 0xFF, parts[0] & 0xFF));
         } else if (ipaddr instanceof Inet6Address) {
             Inet6Address ipv6 = (Inet6Address) ipaddr;
             byte[] parts = ipv6.getAddress();
@@ -252,7 +294,7 @@ public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<Dn
             if (found != null) {
                 return found;
             } else {
-                Future<AddressedEnvelope<DnsResponse, InetSocketAddress>> future = dnsResolver.query(dnsquery);
+                Future<AddressedEnvelope<DnsResponse, InetSocketAddress>> future = resolution.apply(dnsquery);
                 future.addListener(f -> handleFuture(dnsquery, f));
                 throw new AsyncProcessor.PausedEventException(future);
             }
@@ -262,6 +304,25 @@ public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<Dn
         } else {
             return false;
         }
+    }
+
+    private Future<AddressedEnvelope<DnsResponse, InetSocketAddress>> parallelResolution(DnsQuestion dnsquery,
+            DnsServerAddressStreamProvider dsasp) {
+        Promise<AddressedEnvelope<DnsResponse, InetSocketAddress>> answerFuture = EVENTLOOPGROUP.next().newPromise();
+        DnsServerAddressStream dsas = dsasp.nameServerAddressStream(dnsquery.name());
+        for (int i = 0; i < dsas.size(); i++) {
+            Future<AddressedEnvelope<DnsResponse, InetSocketAddress>> tryFuture = dnsResolver.query(dsas.next(),
+                    dnsquery);
+            tryFuture.addListener(f -> {
+                if (!answerFuture.isDone()) {
+                    handleFuture(dnsquery, f);
+                    @SuppressWarnings("unchecked")
+                    AddressedEnvelope<DnsResponse, InetSocketAddress> value = (AddressedEnvelope<DnsResponse, InetSocketAddress>) f.getNow();
+                    answerFuture.setSuccess(value);
+                }
+            });
+        }
+        return answerFuture;
     }
 
     private void handleFuture(DnsQuestion dnsquery, Future<? super AddressedEnvelope<DnsResponse, InetSocketAddress>> future) {
@@ -275,11 +336,10 @@ public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<Dn
             } finally {
                 response.release();
             }
-
         }
     }
 
-    private Object checkTTL(MutableEntry<NettyNameResolver.DnsCacheKey,NettyNameResolver.DnsCacheEntry> i, Object[] j) {
+    private Object checkTTL(MutableEntry<NettyNameResolver.DnsCacheKey, NettyNameResolver.DnsCacheEntry> i, Object[] j) {
         if (i.exists() && i.getValue().eol.isBefore(Instant.now())) {
             i.remove();
             return null;
@@ -301,10 +361,10 @@ public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<Dn
         }
     }
 
-    private Object addEntry(MutableEntry<NettyNameResolver.DnsCacheKey,NettyNameResolver.DnsCacheEntry> me, Object[] args) {
-        if (! me.exists()) {
-            @SuppressWarnings("unchecked")
-            AddressedEnvelope<DnsResponse, InetSocketAddress> envelope = (AddressedEnvelope<DnsResponse, InetSocketAddress>) args[0];
+    private Object addEntry(MutableEntry<NettyNameResolver.DnsCacheKey, NettyNameResolver.DnsCacheEntry> me,
+            Object[] args) {
+        if (!me.exists()) {
+            @SuppressWarnings("unchecked") AddressedEnvelope<DnsResponse, InetSocketAddress> envelope = (AddressedEnvelope<DnsResponse, InetSocketAddress>) args[0];
             me.setValue(new DnsCacheEntry(envelope, failureCachingTtl));
         }
         return store(me.getValue());
@@ -333,11 +393,10 @@ public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<Dn
     /**
      * Used by test to warm up the cache
      *
-     * @param query
-     * @return
-     * @throws Throwable
+     * @param query the query to warm up
+     * @return the DNS query answer record
      */
-    DnsRecord warmUp(String query) throws Throwable {
+    DnsRecord warmUp(String query) throws ExecutionException, InterruptedException {
         AddressedEnvelope<DnsResponse, InetSocketAddress> enveloppe = null;
         try {
             DnsQuestion dnsquery = new DefaultDnsQuestion(query, DnsRecordType.PTR);
@@ -345,8 +404,6 @@ public class NettyNameResolver extends AsyncFieldsProcessor<AddressedEnvelope<Dn
             enveloppe = future.get();
             hostCache.put(new DnsCacheKey(dnsquery), new DnsCacheEntry(enveloppe, failureCachingTtl));
             return enveloppe.content().recordAt((DnsSection.ANSWER));
-        } catch (ExecutionException e) {
-            throw e.getCause();
         } finally {
             if (enveloppe != null) {
                 enveloppe.release();

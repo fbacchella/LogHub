@@ -8,6 +8,7 @@ import java.net.InetSocketAddress;
 import java.net.URL;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -26,6 +27,7 @@ import loghub.AsyncProcessor;
 import loghub.BeanChecks;
 import loghub.BeanChecks.BeanInfo;
 import loghub.Expression;
+import loghub.Helpers;
 import loghub.LogUtils;
 import loghub.Processor;
 import loghub.ProcessorException;
@@ -34,6 +36,7 @@ import loghub.VarFormatter;
 import loghub.VariablePath;
 import loghub.configuration.CacheManager;
 import loghub.configuration.ConfigException;
+import loghub.configuration.Configuration;
 import loghub.configuration.Properties;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
@@ -48,7 +51,7 @@ public class TestNettyNameResolver {
     static public void configure() throws IOException {
         Tools.configure();
         logger = LogManager.getLogger();
-        LogUtils.setLevel(logger, Level.TRACE, "loghub.processors.NettyNameResolver", "io.netty.resolver.dns", "loghub.configuration.CacheManager", "javax.cache", "org.cache2k");
+        LogUtils.setLevel(logger, Level.TRACE, "loghub.processors.NettyNameResolver", "io.netty.resolver", "loghub.configuration.CacheManager", "javax.cache", "org.cache2k");
     }
 
     @After
@@ -69,8 +72,8 @@ public class TestNettyNameResolver {
                         proc.warmUp(name);
                     }
                 }
-            } catch (Throwable e1) {
-                throw new RuntimeException(e1);
+            } catch (ExecutionException | InterruptedException ex) {
+                throw new RuntimeException(ex);
             }
         };
 
@@ -93,7 +96,7 @@ public class TestNettyNameResolver {
         e = status.mainQueue.take();
         Assert.assertNull("resolution not failed", e.get("fqdn"));
         // Check that the second processor executed was indeed paused
-        Assert.assertEquals("resolution not paused", 1, status.status.stream().filter(s -> "PAUSED".equals(s)).count());
+        Assert.assertEquals("resolution not paused", 1, status.status.stream().filter("PAUSED"::equals).count());
         Assert.assertEquals("resolution not paused", "PAUSED", status.status.get(2));
         Assert.assertEquals("Queue not empty: " + status.mainQueue, 0, status.mainQueue.size());
         Assert.assertEquals("Still waiting events: " + status.repository, 0, status.repository.waiting());
@@ -105,7 +108,7 @@ public class TestNettyNameResolver {
             i.setTimeout(2);
             i.setQueueDepth(0); // Avoid using semaphore
         }, e);
-        Assert.assertEquals("resolution paused", 0, status2.status.stream().filter(s -> "PAUSED".equals(s)).count());
+        Assert.assertEquals("resolution paused", 0, status2.status.stream().filter("PAUSED"::equals).count());
     }
 
     @Test(timeout=6000)
@@ -155,6 +158,7 @@ public class TestNettyNameResolver {
         } , e, "4.0.41.198.in-addr.arpa");
 
         e = status.mainQueue.take();
+        @SuppressWarnings("unchecked")
         List<String> fqdns = (List<String>) e.get("fqdn");
         Assert.assertEquals("resolution failed", "a.root-servers.net", fqdns.get(0));
         Assert.assertEquals("resolution failed", "a.root-servers.net", fqdns.get(1));
@@ -266,7 +270,7 @@ public class TestNettyNameResolver {
     public void testResolvConf() throws ProcessorException, InterruptedException, ExecutionException, ConfigException, IOException {
         NettyNameResolver.Builder builder = NettyNameResolver.getBuilder();
         URL etcResolvConfURL = this.getClass().getClassLoader().getResource("resolv.conf");
-        builder.setEtcResolvConf(etcResolvConfURL.getFile());
+        builder.setEtcResolvConf(Objects.requireNonNull(etcResolvConfURL).getFile());
         NettyNameResolver proc = builder.build();
         Assert.assertTrue(proc.configure(getProperties()));
 
@@ -309,9 +313,30 @@ public class TestNettyNameResolver {
     }
 
     @Test
+    public void TestParallel() throws ProcessorException, IOException {
+        String configFile = "pipeline[resolve] { loghub.processors.NettyNameResolver{resolvers: [\"8.8.8.8:53\", \"8.8.4.4:53\"], resolutionMode: \"PARALLEL\"}  }";
+        Properties p =  Configuration.parse(new StringReader(configFile));
+        Helpers.parallelStartProcessor(p);
+        Event ev = factory.newEvent();
+        ev.putAtPath(VariablePath.parse("message"), "198.41.0.4");
+        Tools.runProcessing(ev, p.namedPipeLine.get("resolve"), p);
+        Assert.assertEquals("a.root-servers.net", ev.get("message"));
+    }
+
+    @Test
+    public void TestFailing() {
+        String configFile = "pipeline[resolve] { loghub.processors.NettyNameResolver{resolver: \"8.8.8.8:5a3\", resolutionMode: \"PARALLEL\"}  }";
+        StringReader configReader = new StringReader(configFile);
+        ConfigException ex = Assert.assertThrows(ConfigException.class, () -> Configuration.parse(configReader));
+        Assert.assertEquals("Invalid DNS server: 8.8.8.8:5a3", ex.getMessage());
+    }
+
+    @Test
     public void test_loghub_processors_NettyNameResolver() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.processors.NettyNameResolver"
+                              , BeanInfo.build("resolutionMode", NettyNameResolver.RESOLUTION_MODE.class)
                               , BeanInfo.build("resolver", String.class)
+                              , BeanInfo.build("resolvers", String[].class)
                               , BeanInfo.build("etcResolvConf", String.class)
                               , BeanInfo.build("etcResolverDir", String.class)
                               , BeanInfo.build("defaultResolver", Boolean.TYPE)
