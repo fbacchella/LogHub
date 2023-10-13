@@ -11,6 +11,7 @@ import java.nio.file.Paths;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
+import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -247,7 +248,7 @@ public class NettyNameResolver extends
         if (builder.resolutionMode == RESOLUTION_MODE.PARALLEL) {
             resolution = q -> parallelResolution(q, dsasp);
         } else {
-            resolution = dnsResolver::query;
+            resolution = this::sequentialResolution;
         }
         hostCache = builder.cacheManager
                            .getBuilder(DnsCacheKey.class, DnsCacheEntry.class)
@@ -295,7 +296,6 @@ public class NettyNameResolver extends
                 return found;
             } else {
                 Future<AddressedEnvelope<DnsResponse, InetSocketAddress>> future = resolution.apply(dnsquery);
-                future.addListener(f -> handleFuture(dnsquery, f));
                 throw new AsyncProcessor.PausedEventException(future);
             }
         } else if (addr instanceof String) {
@@ -306,26 +306,57 @@ public class NettyNameResolver extends
         }
     }
 
-    private Future<AddressedEnvelope<DnsResponse, InetSocketAddress>> parallelResolution(DnsQuestion dnsquery,
-            DnsServerAddressStreamProvider dsasp) {
+    private Future<AddressedEnvelope<DnsResponse, InetSocketAddress>> sequentialResolution(DnsQuestion dnsquery) {
+        Future<AddressedEnvelope<DnsResponse, InetSocketAddress>> future = this.dnsResolver.query(dnsquery);
+        future.addListener(f -> detectTimeout(dnsquery, f));
+        return future;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Future<AddressedEnvelope<DnsResponse, InetSocketAddress>> parallelResolution (
+            DnsQuestion dnsquery,
+            DnsServerAddressStreamProvider dsasp
+    ) {
         Promise<AddressedEnvelope<DnsResponse, InetSocketAddress>> answerFuture = EVENTLOOPGROUP.next().newPromise();
         DnsServerAddressStream dsas = dsasp.nameServerAddressStream(dnsquery.name());
         for (int i = 0; i < dsas.size(); i++) {
-            Future<AddressedEnvelope<DnsResponse, InetSocketAddress>> tryFuture = dnsResolver.query(dsas.next(),
-                    dnsquery);
-            tryFuture.addListener(f -> {
-                if (!answerFuture.isDone()) {
-                    handleFuture(dnsquery, f);
-                    @SuppressWarnings("unchecked")
-                    AddressedEnvelope<DnsResponse, InetSocketAddress> value = (AddressedEnvelope<DnsResponse, InetSocketAddress>) f.getNow();
-                    answerFuture.setSuccess(value);
-                }
-            });
+            InetSocketAddress isa = dsas.next();
+            Future<AddressedEnvelope<DnsResponse, InetSocketAddress>> tryFuture = dnsResolver.query(isa, dnsquery);
+            tryFuture.addListener(f -> handleParallelFuture(dnsquery, answerFuture, (Future<AddressedEnvelope<DnsResponse, InetSocketAddress>>) f));
         }
         return answerFuture;
     }
 
-    private void handleFuture(DnsQuestion dnsquery, Future<? super AddressedEnvelope<DnsResponse, InetSocketAddress>> future) {
+    private void handleParallelFuture(
+            DnsQuestion dnsQuery,
+            Promise<AddressedEnvelope<DnsResponse, InetSocketAddress>> answerFuture,
+            Future<AddressedEnvelope<DnsResponse, InetSocketAddress>> paralleleFuture
+    ) {
+        AddressedEnvelope<DnsResponse, InetSocketAddress> value = null;
+        if (! answerFuture.isDone()) {
+            try {
+                value = paralleleFuture.get();
+                value.retain();
+                answerFuture.setSuccess(value);
+            } catch (RuntimeException ex) {
+                answerFuture.setFailure(ex);
+            } catch (ExecutionException ex) {
+                detectTimeout(dnsQuery, paralleleFuture);
+                answerFuture.setFailure(ex.getCause());
+            } catch (InterruptedException ex) {
+                Thread.currentThread().interrupt();
+                answerFuture.cancel(true);
+                logger.debug("Interrupted", ex);
+            } finally {
+                Optional.ofNullable(value).ifPresent(ReferenceCounted::release);
+            }
+        } else if (paralleleFuture.isSuccess()) {
+            value = paralleleFuture.getNow();
+            value.release();
+        }
+    }
+
+    private void detectTimeout(DnsQuestion dnsquery, Future<? super AddressedEnvelope<DnsResponse, InetSocketAddress>> future) {
         if (future.cause() instanceof DnsNameResolverTimeoutException) {
             logger.debug("Timeout failure for {}", dnsquery::name);
             DnsResponse response = new DefaultDnsResponse(1);
@@ -364,7 +395,8 @@ public class NettyNameResolver extends
     private Object addEntry(MutableEntry<NettyNameResolver.DnsCacheKey, NettyNameResolver.DnsCacheEntry> me,
             Object[] args) {
         if (!me.exists()) {
-            @SuppressWarnings("unchecked") AddressedEnvelope<DnsResponse, InetSocketAddress> envelope = (AddressedEnvelope<DnsResponse, InetSocketAddress>) args[0];
+            @SuppressWarnings("unchecked")
+            AddressedEnvelope<DnsResponse, InetSocketAddress> envelope = (AddressedEnvelope<DnsResponse, InetSocketAddress>) args[0];
             me.setValue(new DnsCacheEntry(envelope, failureCachingTtl));
         }
         return store(me.getValue());
