@@ -332,27 +332,23 @@ public class NettyNameResolver extends
             Promise<AddressedEnvelope<DnsResponse, InetSocketAddress>> answerFuture,
             Future<AddressedEnvelope<DnsResponse, InetSocketAddress>> paralleleFuture
     ) {
-        AddressedEnvelope<DnsResponse, InetSocketAddress> value = null;
-        if (! answerFuture.isDone()) {
-            try {
-                value = paralleleFuture.get();
-                value.retain();
-                answerFuture.setSuccess(value);
-            } catch (RuntimeException ex) {
-                answerFuture.setFailure(ex);
-            } catch (ExecutionException ex) {
-                detectTimeout(dnsQuery, paralleleFuture);
-                answerFuture.setFailure(ex.getCause());
-            } catch (InterruptedException ex) {
-                Thread.currentThread().interrupt();
-                answerFuture.cancel(true);
-                logger.debug("Interrupted", ex);
-            } finally {
-                Optional.ofNullable(value).ifPresent(ReferenceCounted::release);
+        synchronized (answerFuture) {
+            if (! answerFuture.isDone()) {
+                try {
+                    answerFuture.setSuccess(paralleleFuture.get());
+                } catch (RuntimeException ex) {
+                    answerFuture.setFailure(ex);
+                } catch (ExecutionException ex) {
+                    detectTimeout(dnsQuery, paralleleFuture);
+                    answerFuture.setFailure(ex.getCause());
+                } catch (InterruptedException ex) {
+                    Thread.currentThread().interrupt();
+                    answerFuture.cancel(true);
+                    logger.debug("Interrupted", ex);
+                }
+            } else if (paralleleFuture.isSuccess()) {
+                paralleleFuture.getNow().release();
             }
-        } else if (paralleleFuture.isSuccess()) {
-            value = paralleleFuture.getNow();
-            value.release();
         }
     }
 
