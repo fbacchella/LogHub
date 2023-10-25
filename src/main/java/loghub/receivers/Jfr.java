@@ -111,9 +111,17 @@ public class Jfr extends Receiver<Jfr, Jfr.Builder> {
     private Event convertEvent(RecordedEvent re) {
         Event ev = getEventsFactory().newEvent();
         ev.putAll(fields(re));
-        ev.put("endTime", re.getEndTime());
-        ev.put("startTime", re.getStartTime());
-        ev.put("duration", convertDuration.apply(re.getDuration()));
+        Duration duration = re.getDuration();
+        if (duration.toNanos() == 0) {
+            ev.put("eventTime", re.getEndTime());
+            ev.remove("endTime");
+            ev.remove("startTime");
+            ev.remove("duration");
+        } else {
+            ev.put("endTime", re.getEndTime());
+            ev.put("startTime", re.getStartTime());
+            ev.put("duration", convertDuration.apply(re.getDuration()));
+        }
         ev.put("eventType", re.getEventType().getName());
         ev.setTimestamp(re.getEndTime());
         return ev;
