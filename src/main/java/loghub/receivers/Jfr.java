@@ -16,6 +16,7 @@ import java.util.stream.Stream;
 
 import org.apache.logging.log4j.LogBuilder;
 
+import jdk.jfr.Category;
 import jdk.jfr.Timespan;
 import jdk.jfr.Timestamp;
 import jdk.jfr.ValueDescriptor;
@@ -123,7 +124,19 @@ public class Jfr extends Receiver<Jfr, Jfr.Builder> {
             ev.put("duration", convertDuration.apply(re.getDuration()));
         }
         ev.put("eventType", re.getEventType().getName());
+        if (ev.containsKey("name") && ev.containsKey("value")) {
+            String name = (String) ev.remove("name");
+            Object value = ev.remove("value");
+            ev.put(name, value);
+        } else if (ev.containsKey("key") && ev.containsKey("value")) {
+            String key = (String) ev.remove("key");
+            Object value = ev.remove("value");
+            ev.put(key, value);
+        }
         ev.setTimestamp(re.getEndTime());
+        Optional.ofNullable(re.getEventType().getAnnotation(Category.class))
+                .map(c -> String.join("/", c.value()))
+                .ifPresent(c -> ev.putMeta("category", c));
         return ev;
     }
 
