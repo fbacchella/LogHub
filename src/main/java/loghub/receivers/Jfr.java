@@ -4,30 +4,20 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.apache.logging.log4j.LogBuilder;
 
 import jdk.jfr.Category;
-import jdk.jfr.Timespan;
-import jdk.jfr.Timestamp;
 import jdk.jfr.ValueDescriptor;
-import jdk.jfr.consumer.RecordedClass;
-import jdk.jfr.consumer.RecordedClassLoader;
 import jdk.jfr.consumer.RecordedEvent;
-import jdk.jfr.consumer.RecordedMethod;
 import jdk.jfr.consumer.RecordedObject;
 import jdk.jfr.consumer.RecordedStackTrace;
-import jdk.jfr.consumer.RecordedThread;
-import jdk.jfr.consumer.RecordedThreadGroup;
 import jdk.jfr.consumer.RecordingFile;
 import loghub.BuilderClass;
 import loghub.Helpers;
@@ -36,13 +26,23 @@ import lombok.Setter;
 
 @SelfDecoder
 @BuilderClass(Jfr.Builder.class)
+@Blocking
 public class Jfr extends Receiver<Jfr, Jfr.Builder> {
+
+    public enum DURATION_FORMAT {
+        KEEP,
+        NANOS,
+        MICROS,
+        MILLIS,
+        SECONDS,
+        SECONDS_FLOAT,
+    }
 
     public static class Builder extends Receiver.Builder<Jfr, Jfr.Builder> {
         @Setter
         protected String jfrFile = "-";
         @Setter
-        protected ChronoUnit periodUnit = null;
+        protected DURATION_FORMAT durationUnit = null;
         public Jfr build() {
             return new Jfr(this);
         }
@@ -53,12 +53,12 @@ public class Jfr extends Receiver<Jfr, Jfr.Builder> {
     }
 
     private final Path jfrFile;
-    private final Function<Duration, Object> convertDuration;
+    private final DURATION_FORMAT durationUnit;
 
     protected Jfr(Jfr.Builder builder) {
         super(builder);
         jfrFile = Paths.get(Helpers.fileUri(builder.jfrFile));
-        convertDuration = builder.periodUnit != null ? d -> d.get(builder.periodUnit) : d -> d;
+        durationUnit = builder.durationUnit;
     }
 
     @Override
@@ -68,7 +68,8 @@ public class Jfr extends Receiver<Jfr, Jfr.Builder> {
             AtomicReference<RecordedEvent> refRe = new AtomicReference<>();
             if (setRecordedEvent(recordingFile, refRe)) {
                 return Stream.iterate(refRe.get(), e -> setRecordedEvent(recordingFile, refRe), e -> refRe.get())
-                             .map(this::convertEvent);
+                             .map(this::convertEvent)
+                             .parallel();
             } else {
                 return Stream.empty();
             }
@@ -121,7 +122,7 @@ public class Jfr extends Receiver<Jfr, Jfr.Builder> {
         } else {
             ev.put("endTime", re.getEndTime());
             ev.put("startTime", re.getStartTime());
-            ev.put("duration", convertDuration.apply(re.getDuration()));
+            ev.put("duration", convertDuration(re.getDuration()));
         }
         ev.put("eventType", re.getEventType().getName());
         if (ev.containsKey("name") && ev.containsKey("value")) {
@@ -143,9 +144,9 @@ public class Jfr extends Receiver<Jfr, Jfr.Builder> {
     private Map<String, Object> fields(RecordedObject object) {
         Map<String, Object> values = new HashMap<>();
         object.getFields().stream()
-                .map(vd -> Map.entry(vd.getName(), Optional.ofNullable(convert(object, vd))))
-                .filter(e -> e.getValue().isPresent())
-                .forEach(e -> values.put(e.getKey(), e.getValue().get()));
+                          .map(vd -> Map.entry(vd.getName(), Optional.ofNullable(convert(object, vd))))
+                          .filter(e -> e.getValue().isPresent())
+                          .forEach(e -> values.put(e.getKey(), e.getValue().get()));
         return values;
     }
 
@@ -158,83 +159,76 @@ public class Jfr extends Receiver<Jfr, Jfr.Builder> {
     }
 
     private Object convertFromContentType(RecordedObject object, ValueDescriptor descriptor) {
-        Object value = object.getValue(descriptor.getName());
-        if (value == null) {
-            return null;
-        } else {
-            switch (descriptor.getContentType()) {
-            case "jdk.jfr.Timestamp":
-                return resolveTimeStamp(descriptor, (Long) value);
-            case "jdk.jfr.Timespan":
-                return resolveTimeSpan(descriptor, (Long) value);
-            default:
-                return convertFromtype(object, descriptor);
-            }
+        switch (descriptor.getContentType()) {
+        case "jdk.jfr.Timestamp":
+            return object.getInstant(descriptor.getName());
+        case "jdk.jfr.Timespan":
+            return convertDuration(object.getDuration(descriptor.getName()));
+        default:
+            return convertFromtype(object, descriptor);
         }
     }
 
-    private Object resolveTimeStamp(ValueDescriptor descriptor, long value) {
-        String unit = descriptor.getAnnotation(Timestamp.class).value();
-        switch (unit) {
-        case Timestamp.MILLISECONDS_SINCE_EPOCH:
-            return Instant.ofEpochMilli(value);
-        case Timestamp.TICKS:
-            return value;
-        default:
-            throw new IllegalArgumentException(unit);
+    private Object convertDuration(Duration duration) {
+        // Some events uses long limits to signify infinite
+        if (durationUnit != DURATION_FORMAT.KEEP && (duration.toSeconds() == Long.MIN_VALUE || duration.toSeconds() == Long.MAX_VALUE)) {
+            return duration.toSeconds();
         }
-    }
-
-    private Object resolveTimeSpan(ValueDescriptor descriptor, long value) {
-        String unit = descriptor.getAnnotation(Timespan.class).value();
-        Function<ChronoUnit, Object> resolveDuration = c-> convertDuration.apply(Duration.of(value, c));
-        switch (unit) {
-        case Timespan.MICROSECONDS:
-        return resolveDuration.apply(ChronoUnit.MICROS);
-        case Timespan.MILLISECONDS:
-            return resolveDuration.apply(ChronoUnit.MILLIS);
-        case Timespan.NANOSECONDS:
-            return resolveDuration.apply(ChronoUnit.NANOS);
-        case Timespan.SECONDS:
-            return resolveDuration.apply(ChronoUnit.SECONDS);
-        case Timespan.TICKS:
-            return value;
+        switch (durationUnit) {
+        case KEEP:
+            return duration;
+        case NANOS:
+            return duration.toNanos();
+        case MICROS:
+            return duration.toNanos() / 1000L;
+        case MILLIS:
+            return duration.toMillis();
+        case SECONDS:
+            return duration.toSeconds();
+        case SECONDS_FLOAT:
+            return duration.toSeconds() + (double) duration.toNanosPart()/ 1_000_000_000;
         default:
-            throw new IllegalArgumentException(unit);
+            throw new IllegalArgumentException(durationUnit.toString());
         }
     }
 
     private Object convertFromtype(RecordedObject object, ValueDescriptor descriptor) {
-        Object value = object.getValue(descriptor.getName());
-        if (value == null) {
-            return null;
-        } else {
-            switch (descriptor.getTypeName()) {
-            case "java.lang.Class": return resolve((RecordedClass) value);
-            case "java.lang.Thread": return resolve((RecordedThread) value);
-            case "jdk.types.StackTrace": return resolve((RecordedStackTrace) value);
-            case "jdk.types.ClassLoader": return resolve((RecordedClassLoader) value);
-            case "jdk.types.Method": return resolve((RecordedMethod) value);
-            case "jdk.types.ThreadGroup": return resolve((RecordedThreadGroup) value);
-            case "jdk.types.VirtualSpace":
-            case "jdk.types.MetaspaceSizes":
-            case "jdk.types.G1EvacuationStatistics":
-            case "jdk.types.Module":
-            case "jdk.types.Package":
-            case "jdk.types.OldObject":
-                return resolve((RecordedObject) value);
-            default:
+        String name = descriptor.getName();
+        switch (descriptor.getTypeName()) {
+        case "boolean":
+            return object.getBoolean(name);
+        case "char":
+            return object.getChar(name);
+        case "byte":
+            return object.getByte(name);
+        case "short":
+            return object.getShort(name);
+        case "int":
+            return object.getInt(name);
+        case "long":
+            return object.getLong(name);
+        case "float":
+            return object.getFloat(name);
+        case "double":
+            return object.getDouble(name);
+        case "jdk.types.StackTrace":
+            return resolveStack(object.getValue(name));
+        default:
+            Object value = object.getValue(name);
+            if (value instanceof RecordedObject) {
+                return resolve((RecordedObject)value);
+            } else {
                 return value;
             }
         }
     }
 
-    private Object resolve(RecordedStackTrace stack) {
-        return stack.getFrames().stream().map(this::resolve).collect(Collectors.toList());
+    private Object resolveStack(RecordedStackTrace stack) {
+        return stack == null ? null : stack.getFrames().stream().map(this::resolve).collect(Collectors.toList());
     }
 
     private Object resolve(RecordedObject object) {
-        return fields(object);
+        return object == null ? null : fields(object);
     }
 
     @Override
