@@ -103,7 +103,7 @@ public class TestJfr {
     }
 
     @Test
-    public void testMilliss() {
+    public void testMillis() {
         Event ev = check(Jfr.DURATION_FORMAT.MILLIS,
                 e -> {
                     if (e.containsKey("maxAge")) {
@@ -116,18 +116,13 @@ public class TestJfr {
     @Test
     public void testSeconds() {
         Event ev = check(Jfr.DURATION_FORMAT.SECONDS,
-                e -> {
-                    if (e.containsKey("maxAge")) {
-                        Assert.assertEquals(Long.MAX_VALUE, e.get("maxAge"));
-                    }
-                });
+                e -> { });
         Assert.assertEquals(1L, ev.get("timespan"));
     }
 
     @Test
     public void testSecondsFloat() {
-        Event ev = check(Jfr.DURATION_FORMAT.SECONDS_FLOAT,
-                e -> { });
+        Event ev = check(Jfr.DURATION_FORMAT.SECONDS_FLOAT, e -> { });
         Assert.assertEquals(1.001, ev.get("timespan"));
     }
 

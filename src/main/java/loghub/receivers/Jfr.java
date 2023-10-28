@@ -170,26 +170,27 @@ public class Jfr extends Receiver<Jfr, Jfr.Builder> {
     }
 
     private Object convertDuration(Duration duration) {
-        // Some events uses long limits to signify infinite
-        if (durationUnit != DURATION_FORMAT.KEEP && (duration.toSeconds() == Long.MIN_VALUE || duration.toSeconds() == Long.MAX_VALUE)) {
-            return duration.toSeconds();
-        }
-        switch (durationUnit) {
-        case KEEP:
-            return duration;
-        case NANOS:
-            return duration.toNanos();
-        case MICROS:
-            return duration.toNanos() / 1000L;
-        case MILLIS:
-            return duration.toMillis();
-        case SECONDS:
-            return duration.toSeconds();
-        case SECONDS_FLOAT:
-            return duration.toSeconds() + (double) duration.toNanosPart()/ 1_000_000_000;
-        default:
-            throw new IllegalArgumentException(durationUnit.toString());
-        }
+        try {
+            switch (durationUnit) {
+            case KEEP:
+                return duration;
+            case NANOS:
+                return duration.toNanos();
+            case MICROS:
+                return duration.toNanos() / 1000L;
+            case MILLIS:
+                return duration.toMillis();
+            case SECONDS:
+                return duration.toSeconds();
+            case SECONDS_FLOAT:
+                return duration.toSeconds() + (double) duration.toNanosPart()/ 1_000_000_000;
+            default:
+                throw new IllegalArgumentException(durationUnit.toString());
+            }
+        } catch (ArithmeticException e) {
+            // SECONDS_FLOAT don't throw ArithmeticException, so don't handle the double case
+            return duration.isNegative() ? Long.MIN_VALUE : Long.MAX_VALUE;
+         }
     }
 
     private Object convertFromtype(RecordedObject object, ValueDescriptor descriptor) {
