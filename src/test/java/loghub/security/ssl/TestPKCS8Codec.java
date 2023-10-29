@@ -9,6 +9,7 @@ import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
+import java.util.Arrays;
 import java.util.stream.Stream;
 
 import org.junit.Test;
@@ -16,7 +17,7 @@ import org.junit.Test;
 public class TestPKCS8Codec {
 
     @Test
-    public void testRead() throws IOException, NoSuchAlgorithmException {
+    public void testRead() {
         Stream<String> algos = Stream.of(
                 "DSA",
                 "DiffieHellman",
@@ -76,10 +77,12 @@ public class TestPKCS8Codec {
                 try {
                     byte[] buffer = new byte[4096];
                     is.read(buffer);
-                    PKCS8Codec codec = new PKCS8Codec(ByteBuffer.wrap(buffer));
+                    ByteBuffer bb = ByteBuffer.wrap(buffer);
+                    PKCS8Codec codec = new PKCS8Codec(bb);
                     codec.read();
-                    PKCS8EncodedKeySpec keyspec = new PKCS8EncodedKeySpec(buffer);
+                    byte[] keyBuffer = Arrays.copyOf(buffer, bb.position());
                     KeyFactory kf = KeyFactory.getInstance(codec.getAlgo());
+                    PKCS8EncodedKeySpec keyspec = new PKCS8EncodedKeySpec(keyBuffer);
                     kf.generatePrivate(keyspec);
                 } catch (NoSuchAlgorithmException e) {
                     // No ED25519 on java 1.9
