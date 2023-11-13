@@ -4,7 +4,9 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
@@ -38,6 +40,7 @@ import loghub.netty.http.HttpRequestFailure;
 import loghub.netty.http.HttpRequestProcessing;
 import loghub.netty.http.RequestAccept;
 import loghub.netty.transport.TRANSPORT;
+import lombok.Setter;
 
 @Blocking
 @SelfDecoder
@@ -126,7 +129,7 @@ public class Journald extends AbstractHttpReceiver<Journald, Journald.Builder> {
                 chunkContent.retain();
                 decoder.decode(getConnectionContext(ctx), chunksBuffer)
                        .map(Event.class::cast)
-                       .forEach(events::add);
+                       .forEach(this::checkedAdd);
                 chunksBuffer.discardReadComponents();
             }
             // end of POST, clean everything and forward data
@@ -142,6 +145,18 @@ public class Journald extends AbstractHttpReceiver<Journald, Journald.Builder> {
                 chunksBuffer = null;
                 super.decode(ctx, LastHttpContent.EMPTY_LAST_CONTENT, out);
             }
+        }
+
+        private void checkedAdd(Event ev) {
+            if (maxWaitingEvents > 0 && events.size() > maxWaitingEvents) {
+                // Just drop the older events to save memory will keep consuming them
+                events.set(events.size() - Journald.this.maxWaitingEvents, null);
+                // If the events waiting size is too big, reduce it.
+                if (events.size() > Journald.this.maxWaitingEvents * 2 ) {
+                    events = events.stream().filter(Objects::nonNull).collect(Collectors.toList());
+                }
+            }
+            events.add(ev);
         }
 
         private void streamFailure(ChannelHandlerContext ctx) {
@@ -181,6 +196,8 @@ public class Journald extends AbstractHttpReceiver<Journald, Journald.Builder> {
         public Builder() {
             setTransport(TRANSPORT.TCP);
         }
+        @Setter
+        private int maxWaitingEvents = -1;
         @Override
         public Journald build() {
             return new Journald(this);
@@ -190,8 +207,10 @@ public class Journald extends AbstractHttpReceiver<Journald, Journald.Builder> {
         return new Builder();
     }
 
+    private final int maxWaitingEvents;
     protected Journald(Builder builder) {
         super(builder);
+        this.maxWaitingEvents = builder.maxWaitingEvents;
     }
 
     @Override
