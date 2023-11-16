@@ -563,7 +563,8 @@ public class ElasticSearch extends AbstractHttpSender {
         Helpers.shuffleArray(localendPoints);
         for (URI endPoint: localendPoints) {
             URI newEndPoint;
-            newEndPoint = endPoint.resolve(filePart);
+            // The resolve("/") is needed for Java 11
+            newEndPoint = endPoint.resolve("/").resolve(filePart);
             request.setUri(newEndPoint);
             logger.trace("{} {}", request.getVerb(), request.getUri());
             try (HttpResponse response = httpClient.doRequest(request)) {
