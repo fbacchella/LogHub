@@ -5,9 +5,11 @@ import java.io.IOException;
 import java.io.StringReader;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -28,6 +30,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.codahale.metrics.Meter;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.json.JsonWriteFeature;
 import com.fasterxml.jackson.databind.MappingIterator;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -42,6 +45,7 @@ import loghub.Expression;
 import loghub.LogUtils;
 import loghub.MockHttpClient;
 import loghub.Tools;
+import loghub.VariablePath;
 import loghub.configuration.Properties;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
@@ -62,6 +66,203 @@ public class TestElasticSearch {
                                                                                   .configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true))
                                                            .feature(JsonWriteFeature.ESCAPE_NON_ASCII)
                                                            .getMapper();
+
+    private abstract static class HttpDialogElement {
+        private final String verb;
+        HttpDialogElement(String verb) {
+            this.verb = verb;
+        }
+        abstract boolean match(MockHttpClient.MockHttpRequest req);
+        abstract HttpResponse doResponse(MockHttpClient.MockHttpRequest req) throws IOException;
+
+        boolean matchVerb(HttpRequest req) {
+            return verb.equalsIgnoreCase(req.getVerb());
+        }
+    }
+
+    private static class HttpRoot extends HttpDialogElement {
+        HttpRoot() {
+            super("GET");
+        }
+        @Override
+        public boolean match(MockHttpClient.MockHttpRequest req) {
+            return matchVerb(req) && "/".equals(req.getUri().getPath());
+        }
+
+        @Override
+        public HttpResponse doResponse(MockHttpClient.MockHttpRequest req) {
+            Assert.assertNull(req.content);
+            return new MockHttpClient.ResponseBuilder()
+                           .setMimeType(ContentType.APPLICATION_JSON)
+                           .setContentReader( new StringReader("{\n" + "  \"name\" : \"localhost\",\n" + "  \"cluster_name\" : \"loghub\",\n" + "  \"cluster_uuid\" : \"c5KDJoxeSrybF3IEuSseKw\",\n" + "  \"version\" : {\n" + "    \"number\" : \"7.17.10\",\n" + "    \"build_flavor\" : \"default\",\n" + "    \"build_type\" : \"rpm\",\n" + "    \"build_hash\" : \"fecd68e3150eda0c307ab9a9d7557f5d5fd71349\",\n" + "    \"build_date\" : \"2023-04-23T05:33:18.138275597Z\",\n" + "    \"build_snapshot\" : false,\n" + "    \"lucene_version\" : \"8.11.1\",\n" + "    \"minimum_wire_compatibility_version\" : \"6.8.0\",\n" + "    \"minimum_index_compatibility_version\" : \"6.0.0-beta1\"\n" + "  },\n" + "  \"tagline\" : \"You Know, for Search\"\n" + "}"))
+                           .build();
+        }
+    }
+
+    private static class HttpGetTemplate extends HttpDialogElement {
+        private final String template;
+        HttpGetTemplate(String template) {
+            super("GET");
+            this.template = template;
+        }
+        @Override
+        public boolean match(MockHttpClient.MockHttpRequest req) {
+            return matchVerb(req) && ("/_template/" + template).equals(req.getUri().getPath());
+        }
+
+        @Override
+        public HttpResponse doResponse(MockHttpClient.MockHttpRequest req) throws JsonProcessingException {
+            Assert.assertNull(req.content);
+            Map<String, Object> responseContent = Map.of("loghub", Map.of());
+            return new MockHttpClient.ResponseBuilder()
+                           .setMimeType(ContentType.APPLICATION_JSON)
+                           .setContentReader(new StringReader(jsonMapper.writerFor(Map.class).writeValueAsString(responseContent)))
+                           .build();
+        }
+    }
+
+    private static class HttpPutTemplate extends HttpDialogElement {
+        private final String template;
+        HttpPutTemplate(String template) {
+            super("PUT");
+            this.template = template;
+        }
+        @Override
+        public boolean match(MockHttpClient.MockHttpRequest req) {
+            return matchVerb(req) && ("/_template/" + template).equals(req.getUri().getPath());
+        }
+
+        @Override
+        public HttpResponse doResponse(MockHttpClient.MockHttpRequest req) throws IOException {
+            Map<?, ?> details = jsonMapper.readerFor(Map.class).readValue(req.getContent());
+            Assert.assertTrue(details.containsKey("mappings"));
+            Assert.assertTrue(details.containsKey("index_patterns"));
+            Assert.assertTrue(details.containsKey("settings"));
+            Map<String, Object> responseContent = Map.of("loghub", Map.of());
+            return new MockHttpClient.ResponseBuilder()
+                           .setMimeType(ContentType.APPLICATION_JSON)
+                           .setContentReader(new StringReader(jsonMapper.writerFor(Map.class).writeValueAsString(responseContent)))
+                           .build();
+        }
+    }
+
+    private class HttpGetAlias extends HttpDialogElement {
+        private final String index;
+        private final Map<String, String> aliases;
+        HttpGetAlias(String index, Map<String, String> aliases) {
+            super("GET");
+            this.index = index;
+            this.aliases = aliases;
+        }
+
+        @Override
+        public boolean match(MockHttpClient.MockHttpRequest req) {
+            return matchVerb(req) && comparePath(index, "/_alias", req.getUri());
+        }
+
+        @Override
+        public HttpResponse doResponse(MockHttpClient.MockHttpRequest req) throws JsonProcessingException {
+            Assert.assertEquals("ignore_unavailable=true", req.getUri().getQuery());
+            Assert.assertNull(req.content);
+            Map<String, Map<String, Map<?, ?>>> responseContent = new HashMap<>();
+            aliases.forEach((key, value) -> responseContent.put(value, Map.of("aliases", Map.of(key, Map.of()))));
+            return new MockHttpClient.ResponseBuilder()
+                           .setMimeType(ContentType.APPLICATION_JSON)
+                           .setContentReader(new StringReader(jsonMapper.writerFor(Map.class).writeValueAsString(responseContent)))
+                           .build();
+        }
+    }
+
+    private class HttpGetSettings extends HttpDialogElement {
+        private final String index;
+        private final Map<String, Object> settings;
+        HttpGetSettings(String index, Map<String, Object> settings) {
+            super("GET");
+            this.index = index;
+            this.settings = settings;
+        }
+        @Override
+        public boolean match(MockHttpClient.MockHttpRequest req) {
+            return matchVerb(req) && comparePath(index, "/_settings/index.number_of_shards,index.blocks.read_only_allow_delete", req.getUri());
+        }
+
+        @Override
+        public HttpResponse doResponse(MockHttpClient.MockHttpRequest req) throws JsonProcessingException {
+            Assert.assertEquals("allow_no_indices=true&ignore_unavailable=true&flat_settings=true", req.getUri().getQuery());
+            return new MockHttpClient.ResponseBuilder()
+                           .setMimeType(ContentType.APPLICATION_JSON)
+                           .setStatus(200)
+                           .setContentReader(new StringReader(jsonMapper.writerFor(Map.class).writeValueAsString(settings)))
+                           .build();
+        }
+    }
+
+    private class HttpPutIndex extends HttpDialogElement {
+        private final String index;
+        private final String alias;
+        HttpPutIndex(String index, String alias) {
+            super("PUT");
+            this.index = index;
+            this.alias = alias;
+        }
+        @Override
+        public boolean match(MockHttpClient.MockHttpRequest req) {
+            return matchVerb(req) && comparePath(index, "", req.getUri()) || comparePath(index + "-000001", "", req.getUri());
+        }
+
+        @Override
+        public HttpResponse doResponse(MockHttpClient.MockHttpRequest req) throws IOException {
+            Map<?, ?> details = jsonMapper.readerFor(Map.class).readValue(req.getContent());
+            Assert.assertEquals(Map.of(alias, Map.of()), details.get("aliases"));
+            return new MockHttpClient.ResponseBuilder()
+                           .setMimeType(ContentType.APPLICATION_JSON)
+                           .setStatus(200)
+                           .build();
+        }
+    }
+
+    private static class HttpPostBulk extends HttpDialogElement {
+        private final List<Map<String, ?>> errors;
+        HttpPostBulk() {
+            super("POST");
+            errors = List.of();
+        }
+        HttpPostBulk(List<Map<String, ?>> errors) {
+            super("POST");
+            this.errors = errors;
+
+        }
+        @Override
+        public boolean match(MockHttpClient.MockHttpRequest req) {
+            return matchVerb(req) && "/_bulk".equals(req.getUri().getPath());
+        }
+
+        @Override
+        public HttpResponse doResponse(MockHttpClient.MockHttpRequest req) throws IOException {
+            List<Map<String, ?>> details;
+            try(MappingIterator<Map<String, ?>> iter = jsonMapper.readerFor(Map.class).readValues(req.getContent())) {
+                details = iter.readAll();
+            }
+            Map<String, Object> response = new HashMap<>(details.size() * 2);
+            response.put("errors", ! errors.isEmpty());
+            List<Map<String, Object>> items = new ArrayList<>(details.size());
+            for (int i = 0; i < details.size() ; i+= 2) {
+                Map<String, Map<String, Object>> meta = (Map<String, Map<String, Object>>) details.get(i);
+                Map<String, Object> entryResult = new HashMap<>(Map.of("_index", meta.get("index").get("_index"), "status", 200));
+                if (! errors.isEmpty() && errors.get(i/2) != null) {
+                    entryResult.put("error", errors.get(i/2));
+                    entryResult.put("status", 400);
+                }
+                items.add(Map.of("index", entryResult));
+            }
+            response.put("items", items);
+            return new MockHttpClient.ResponseBuilder()
+                           .setMimeType(ContentType.APPLICATION_JSON)
+                           .setStatus(200)
+                           .setContentReader(new StringReader(jsonMapper.writerFor(Map.class).writeValueAsString(response)))
+                           .build();
+        }
+    }
 
     @BuilderClass(MockElasticClient.Builder.class)
     public static class MockElasticClient extends MockHttpClient {
@@ -95,6 +296,25 @@ public class TestElasticSearch {
     @Before
     public void resetOps() {
         httpOps = null;
+    }
+
+    private HttpResponse elasticMockDialog(HttpRequest req, Deque<HttpDialogElement> steps) {
+        try {
+            MockHttpClient.MockHttpRequest r = (MockHttpClient.MockHttpRequest) req;
+            Assert.assertEquals(ContentType.APPLICATION_JSON, req.getContentType());
+            Assert.assertEquals("localhost", req.getUri().getHost());
+            if (steps.getFirst().match(r)) {
+                return steps.removeFirst().doResponse(r);
+            } else {
+                Assert.fail("Unhandled request " + req);
+                // Never reached
+                return null;
+            }
+        } catch (IOException ex) {
+            Assert.fail("Got Exception " + ex);
+            // Never reached
+            return null;
+        }
     }
 
     private HttpResponse elasticMockDialog(String index, HttpRequest req, Function<MappingIterator<Map<String, ?>>, Map<String, Object>> bulkHandling) {
@@ -335,68 +555,46 @@ public class TestElasticSearch {
             while ( ! queue.isEmpty()) {
                 Thread.sleep(100);
             }
+            es.stopSending();
         }
         Assert.assertEquals(count, Stats.getSent());
         Assert.assertEquals(0, Stats.getFailed());
         Assert.assertEquals(0, Stats.getMetric(Meter.class, "Allevents.inflight").getCount());
     }
 
-    private Map<String, Object> failedBulk(MappingIterator<Map<String, ?>> mi, String index, String type) {
-        Map<String, Object> responseContent = new HashMap<>();
-        responseContent.put("errors", true);
-        List<Map<String, ?>> items = new ArrayList<>();
-        responseContent.put("items", items);
-        while (mi.hasNext()) {
-            @SuppressWarnings("unchecked")
-            Map<String, Map<String, Object>> o1 = (Map<String, Map<String, Object>>) mi.next();
-            @SuppressWarnings("unchecked")
-            Map<String, Object> o2 = (Map<String, Object>) mi.next();
-            Assert.assertEquals(Map.ofEntries(Map.entry("_index", index), Map.entry("_type", type)), o1.get("index"));
-            Assert.assertEquals("junit", o2.get("type"));
-            Assert.assertTrue(o2.containsKey("value"));
-            Assert.assertTrue(o2.containsKey("@timestamp"));
-            Object value = o2.get("value");
-            if (! "1970-01-01T00:00:00.000+00:00".equals(value)) {
-                Map<String, String> caused_by = Map.ofEntries(
-                        Map.entry("type", "illegal_argument_exception"),
-                        Map.entry("reason", String.format("For input string: \"%s\"", value))
-                );
-                Map<String, Object> error = Map.ofEntries(
-                        Map.entry("type", "mapper_parsing_exception"),
-                        Map.entry("reason", "failed to parse field [value] of type [date] in document with id 'id'. Preview of field's value: 'a'"),
-                        Map.entry("caused_by", caused_by)
-                );
-                Map<String, Object> status = Map.ofEntries(
-                        Map.entry("_index", index),
-                        Map.entry("_type", type),
-                        Map.entry("status", 400),
-                        Map.entry("error", error)
-                        );
-                items.add(Map.of("index", status));
-            } else {
-                Map<String, Object> status = Map.ofEntries(
-                        Map.entry("_index", index),
-                        Map.entry("_type", type),
-                        Map.entry("result", "created")
-                );
-                items.add(Map.of("index", status));
-            }
-        }
-        return responseContent;
-    }
-
     @Test(timeout = 2000)
     public void testSomeFailed() {
-        Function<MappingIterator<Map<String, ?>>, Map<String, Object>> handleBulk = mi -> failedBulk(mi, "default", "_doc");
-        httpOps = r -> this.elasticMockDialog("default", r, handleBulk);
+        List<Map<String, ?>> errors = new ArrayList<>(3);
+        errors.add(null);
+        errors.add(Map.of("type", "mapper_parsing_exception",
+                        "reason", "failed to parse field [value] of type [date] in document with id 'id'. Preview of field's value: 'a'",
+                        "caused_by", Map.of(
+                                "type", "illegal_argument_exception",
+                                "reason", "For input string: \"a\""
+                        )));
+        errors.add(Map.of("type", "invalid_index_name_exceptionn",
+                "reason", "Invalid index name [04A], must be lowercase",
+                "index_uuid", "_na_",
+                "index", "BADINDEX"
+                ));
+        Deque<HttpDialogElement> steps = new ArrayDeque<>(List.of(new HttpRoot(), new HttpGetTemplate("loghub"), new HttpPutTemplate("loghub"),
+                new HttpGetAlias("default,BADINDEX", Map.of()),
+                new HttpGetSettings("default,BADINDEX",Map.of(
+                        "default", Map.of("settings", Map.of("index", Map.of("number_of_shards", "1"))),
+                        "BADINDEX", Map.of("settings", Map.of("index", Map.of("number_of_shards", "1"))))),
+                new HttpPostBulk(errors)
+        ));
+        httpOps = r -> elasticMockDialog(r, steps);
+        //Function<MappingIterator<Map<String, ?>>, Map<String, Object>> handleBulk = mi -> failedBulk(mi, "default", "_doc");
+        //httpOps = r -> this.elasticMockDialog("default", r, handleBulk);
         Stats.reset();
-        int count = 20;
+        int count = 1;
         ElasticSearch.Builder esbuilder = new ElasticSearch.Builder();
         esbuilder.setDestinations(new String[]{"http://localhost:9200", });
         esbuilder.setTimeout(1);
-        esbuilder.setBatchSize(count * 2);
+        esbuilder.setBatchSize(count * 3);
         esbuilder.setFlushInterval(500);
-        esbuilder.setIndex(new Expression("default"));
+        esbuilder.setIndex(new Expression("[#index]", VariablePath.ofMeta("index")));
         esbuilder.setClientService(MockElasticClient.class.getName());
         try (ElasticSearch es = esbuilder.build()) {
             es.setInQueue(new ArrayBlockingQueue<>(count));
@@ -406,6 +604,7 @@ public class TestElasticSearch {
                 Event ev = factory.newEvent();
                 ev.put("type", "junit");
                 ev.put("value", new Date(0));
+                ev.putMeta("index", "default");
                 ev.setTimestamp(new Date(0));
                 Assert.assertTrue(es.queue(ev));
             }
@@ -413,6 +612,15 @@ public class TestElasticSearch {
                 Event ev = factory.newEvent();
                 ev.put("type", "junit");
                 ev.put("value", "atest" + i);
+                ev.putMeta("index", "default");
+                ev.setTimestamp(new Date(0));
+                Assert.assertTrue(es.queue(ev));
+            }
+            for (int i = 0 ; i < count ; i++) {
+                Event ev = factory.newEvent();
+                ev.put("type", "junit");
+                ev.put("value", "atest" + i);
+                ev.putMeta("index", "BADINDEX");
                 ev.setTimestamp(new Date(0));
                 Assert.assertTrue(es.queue(ev));
             }
@@ -420,10 +628,56 @@ public class TestElasticSearch {
         Assert.assertEquals(0, Stats.getDropped());
         Assert.assertEquals(0, Stats.getExceptionsCount());
         Assert.assertEquals(0, Stats.getInflight());
-        Assert.assertEquals(count * 2, Stats.getReceived());
-        Assert.assertEquals(20, Stats.getFailed());
+        Assert.assertEquals(3, Stats.getReceived());
+        Assert.assertEquals(2, Stats.getFailed());
+        Assert.assertEquals(1, Stats.getSent());
+        Assert.assertEquals(2, Stats.getSenderError().size());
+        logger.debug("Events failed: {}", Stats::getSenderError);
+    }
+
+    @Test(timeout = 2000)
+    public void testWithIlm() {
+        Deque<HttpDialogElement> steps = new ArrayDeque<>(List.of(
+                new HttpGetAlias("index1,index2", Map.of("index1", "index1-00002")),
+                new HttpGetSettings("index1,index2", Map.of("index1-00002", Map.of("settings", Map.of("index", Map.of("number_of_shards", "1"))))),
+                new HttpGetAlias("index2", Map.of()),
+                new HttpGetSettings("index2", Map.of()),
+                new HttpPutIndex("index2-000001", "index2"), new HttpPostBulk()
+
+        ));
+        httpOps = r -> elasticMockDialog(r, steps);
+        Stats.reset();
+        int count = 20;
+        ElasticSearch.Builder esbuilder = new ElasticSearch.Builder();
+        esbuilder.setDestinations(new String[]{"http://localhost:9200", });
+        esbuilder.setTimeout(1);
+        esbuilder.setBatchSize(count * 2);
+        esbuilder.setFlushInterval(500);
+        esbuilder.setIndex(new Expression("[#index]", VariablePath.ofMeta("index")));
+        esbuilder.setWithTemplate(false);
+        esbuilder.setClientService(MockElasticClient.class.getName());
+        esbuilder.setIlm(true);
+        try (ElasticSearch es = esbuilder.build()) {
+            es.setInQueue(new ArrayBlockingQueue<>(count));
+            Assert.assertTrue("Elastic configuration failed", es.configure(new Properties(Collections.emptyMap())));
+            es.start();
+            for (int i = 0 ; i < count ; i++) {
+                Event ev = factory.newEvent();
+                ev.put("type", "junit");
+                ev.put("value", new Date(0));
+                ev.setTimestamp(new Date(0));
+                ev.putMeta("index", "index" + (i % 2 + 1));
+                Assert.assertTrue(es.queue(ev));
+            }
+            es.stopSending();
+        }
+        Assert.assertEquals(0, Stats.getDropped());
+        Assert.assertEquals(0, Stats.getExceptionsCount());
+        Assert.assertEquals(0, Stats.getInflight());
+        Assert.assertEquals(count, Stats.getReceived());
+        Assert.assertEquals(0, Stats.getFailed());
         Assert.assertEquals(count, Stats.getSent());
-        Assert.assertEquals(count, Stats.getSenderError().size());
+        Assert.assertEquals(0, Stats.getSenderError().size());
         Assert.assertEquals(count, Stats.getSent());
         logger.debug("Events failed: {}", Stats::getSenderError);
     }
