@@ -11,6 +11,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.ThreadFactory;
+import java.util.stream.Stream;
 
 import javax.net.ssl.SSLHandshakeException;
 
@@ -330,6 +331,10 @@ public abstract class NettyTransport<SA extends SocketAddress, M, T extends Nett
         } else {
             return null;
         }
+    }
+
+    public Stream<Channel> getChannels() {
+        return listeningChannels.stream().map(ChannelFuture::channel);
     }
 
 }
