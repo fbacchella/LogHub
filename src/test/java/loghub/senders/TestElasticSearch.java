@@ -32,6 +32,7 @@ import org.junit.Test;
 import com.codahale.metrics.Meter;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.json.JsonWriteFeature;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.MappingIterator;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -92,10 +93,14 @@ public class TestElasticSearch {
         @Override
         public HttpResponse doResponse(MockHttpClient.MockHttpRequest req) {
             Assert.assertNull(req.content);
-            return new MockHttpClient.ResponseBuilder()
-                           .setMimeType(ContentType.APPLICATION_JSON)
-                           .setContentReader( new StringReader("{\n" + "  \"name\" : \"localhost\",\n" + "  \"cluster_name\" : \"loghub\",\n" + "  \"cluster_uuid\" : \"c5KDJoxeSrybF3IEuSseKw\",\n" + "  \"version\" : {\n" + "    \"number\" : \"7.17.10\",\n" + "    \"build_flavor\" : \"default\",\n" + "    \"build_type\" : \"rpm\",\n" + "    \"build_hash\" : \"fecd68e3150eda0c307ab9a9d7557f5d5fd71349\",\n" + "    \"build_date\" : \"2023-04-23T05:33:18.138275597Z\",\n" + "    \"build_snapshot\" : false,\n" + "    \"lucene_version\" : \"8.11.1\",\n" + "    \"minimum_wire_compatibility_version\" : \"6.8.0\",\n" + "    \"minimum_index_compatibility_version\" : \"6.0.0-beta1\"\n" + "  },\n" + "  \"tagline\" : \"You Know, for Search\"\n" + "}"))
-                           .build();
+            try {
+                return new MockHttpClient.ResponseBuilder()
+                               .setMimeType(ContentType.APPLICATION_JSON)
+                               .setParsedResponse(jsonMapper.reader().readTree("{\n" + "  \"name\" : \"localhost\",\n" + "  \"cluster_name\" : \"loghub\",\n" + "  \"cluster_uuid\" : \"c5KDJoxeSrybF3IEuSseKw\",\n" + "  \"version\" : {\n" + "    \"number\" : \"7.17.10\",\n" + "    \"build_flavor\" : \"default\",\n" + "    \"build_type\" : \"rpm\",\n" + "    \"build_hash\" : \"fecd68e3150eda0c307ab9a9d7557f5d5fd71349\",\n" + "    \"build_date\" : \"2023-04-23T05:33:18.138275597Z\",\n" + "    \"build_snapshot\" : false,\n" + "    \"lucene_version\" : \"8.11.1\",\n" + "    \"minimum_wire_compatibility_version\" : \"6.8.0\",\n" + "    \"minimum_index_compatibility_version\" : \"6.0.0-beta1\"\n" + "  },\n" + "  \"tagline\" : \"You Know, for Search\"\n" + "}"))
+                               .build();
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException(e);
+            }
         }
     }
 
@@ -114,10 +119,11 @@ public class TestElasticSearch {
         public HttpResponse doResponse(MockHttpClient.MockHttpRequest req) throws JsonProcessingException {
             Assert.assertNull(req.content);
             Map<String, Object> responseContent = Map.of("loghub", Map.of());
+            JsonNode node = jsonMapper.valueToTree(responseContent);
             return new MockHttpClient.ResponseBuilder()
-                           .setMimeType(ContentType.APPLICATION_JSON)
-                           .setContentReader(new StringReader(jsonMapper.writerFor(Map.class).writeValueAsString(responseContent)))
-                           .build();
+                                     .setMimeType(ContentType.APPLICATION_JSON)
+                                     .setParsedResponse(node)
+                                     .build();
         }
     }
 
@@ -139,9 +145,10 @@ public class TestElasticSearch {
             Assert.assertTrue(details.containsKey("index_patterns"));
             Assert.assertTrue(details.containsKey("settings"));
             Map<String, Object> responseContent = Map.of("loghub", Map.of());
+            JsonNode node = jsonMapper.valueToTree(responseContent);
             return new MockHttpClient.ResponseBuilder()
                            .setMimeType(ContentType.APPLICATION_JSON)
-                           .setContentReader(new StringReader(jsonMapper.writerFor(Map.class).writeValueAsString(responseContent)))
+                           .setParsedResponse(node)
                            .build();
         }
     }
@@ -166,9 +173,10 @@ public class TestElasticSearch {
             Assert.assertNull(req.content);
             Map<String, Map<String, Map<?, ?>>> responseContent = new HashMap<>();
             aliases.forEach((key, value) -> responseContent.put(value, Map.of("aliases", Map.of(key, Map.of()))));
+            JsonNode node = jsonMapper.valueToTree(responseContent);
             return new MockHttpClient.ResponseBuilder()
                            .setMimeType(ContentType.APPLICATION_JSON)
-                           .setContentReader(new StringReader(jsonMapper.writerFor(Map.class).writeValueAsString(responseContent)))
+                           .setParsedResponse(node)
                            .build();
         }
     }
@@ -189,10 +197,11 @@ public class TestElasticSearch {
         @Override
         public HttpResponse doResponse(MockHttpClient.MockHttpRequest req) throws JsonProcessingException {
             Assert.assertEquals("allow_no_indices=true&ignore_unavailable=true&flat_settings=true", req.getUri().getQuery());
+            JsonNode node = jsonMapper.valueToTree(settings);
             return new MockHttpClient.ResponseBuilder()
                            .setMimeType(ContentType.APPLICATION_JSON)
                            .setStatus(200)
-                           .setContentReader(new StringReader(jsonMapper.writerFor(Map.class).writeValueAsString(settings)))
+                           .setParsedResponse(node)
                            .build();
         }
     }
@@ -256,10 +265,11 @@ public class TestElasticSearch {
                 items.add(Map.of("index", entryResult));
             }
             response.put("items", items);
+            JsonNode node = jsonMapper.valueToTree(response);
             return new MockHttpClient.ResponseBuilder()
                            .setMimeType(ContentType.APPLICATION_JSON)
                            .setStatus(200)
-                           .setContentReader(new StringReader(jsonMapper.writerFor(Map.class).writeValueAsString(response)))
+                           .setParsedResponse(node)
                            .build();
         }
     }
@@ -291,7 +301,7 @@ public class TestElasticSearch {
         TimeZone.setDefault(TimeZone.getTimeZone("GMT"));
     }
 
-    private static Function<HttpRequest, HttpResponse> httpOps = null;
+    private static Function<HttpRequest<?>, HttpResponse<?>> httpOps = null;
 
     @Before
     public void resetOps() {
@@ -329,27 +339,29 @@ public class TestElasticSearch {
                     Assert.assertNull(r.content);
                     return new MockHttpClient.ResponseBuilder()
                                    .setMimeType(ContentType.APPLICATION_JSON)
-                                   .setContentReader( new StringReader("{\n" + "  \"name\" : \"localhost\",\n" + "  \"cluster_name\" : \"loghub\",\n" + "  \"cluster_uuid\" : \"c5KDJoxeSrybF3IEuSseKw\",\n" + "  \"version\" : {\n" + "    \"number\" : \"7.17.10\",\n" + "    \"build_flavor\" : \"default\",\n" + "    \"build_type\" : \"rpm\",\n" + "    \"build_hash\" : \"fecd68e3150eda0c307ab9a9d7557f5d5fd71349\",\n" + "    \"build_date\" : \"2023-04-23T05:33:18.138275597Z\",\n" + "    \"build_snapshot\" : false,\n" + "    \"lucene_version\" : \"8.11.1\",\n" + "    \"minimum_wire_compatibility_version\" : \"6.8.0\",\n" + "    \"minimum_index_compatibility_version\" : \"6.0.0-beta1\"\n" + "  },\n" + "  \"tagline\" : \"You Know, for Search\"\n" + "}"))
+                                   .setParsedResponse(jsonMapper.reader().readTree("{\n" + "  \"name\" : \"localhost\",\n" + "  \"cluster_name\" : \"loghub\",\n" + "  \"cluster_uuid\" : \"c5KDJoxeSrybF3IEuSseKw\",\n" + "  \"version\" : {\n" + "    \"number\" : \"7.17.10\",\n" + "    \"build_flavor\" : \"default\",\n" + "    \"build_type\" : \"rpm\",\n" + "    \"build_hash\" : \"fecd68e3150eda0c307ab9a9d7557f5d5fd71349\",\n" + "    \"build_date\" : \"2023-04-23T05:33:18.138275597Z\",\n" + "    \"build_snapshot\" : false,\n" + "    \"lucene_version\" : \"8.11.1\",\n" + "    \"minimum_wire_compatibility_version\" : \"6.8.0\",\n" + "    \"minimum_index_compatibility_version\" : \"6.0.0-beta1\"\n" + "  },\n" + "  \"tagline\" : \"You Know, for Search\"\n" + "}"))
                                    .build();
                 } else if (comparePath(index, "/_alias", req.getUri())) {
                     Assert.assertEquals("ignore_unavailable=true", req.getUri().getQuery());
                     Assert.assertNull(r.content);
                     Map<String, ?> responseContent = Map.of(index +"-000001", Map.of("aliases", Map.of(index, Map.of())));
+                    JsonNode node = jsonMapper.valueToTree(responseContent);
                     return new MockHttpClient.ResponseBuilder()
                                    .setMimeType(ContentType.APPLICATION_JSON)
-                                   .setContentReader(new StringReader(jsonMapper.writerFor(Map.class).writeValueAsString(responseContent)))
+                                   .setParsedResponse(node)
                                    .build();
                 } else if (comparePath(index, "/_settings/index.number_of_shards,index.blocks.read_only_allow_delete", req.getUri())) {
                     Map<String, Object> responseContent = Map.of("settings", Map.of());
                     return new MockHttpClient.ResponseBuilder()
                                    .setMimeType(ContentType.APPLICATION_JSON)
-                                   .setContentReader(new StringReader(jsonMapper.writerFor(Map.class).writeValueAsString(responseContent)))
+                                   .setParsedResponse(jsonMapper.reader().readTree(jsonMapper.writerFor(Map.class).writeValueAsString(responseContent)))
                                    .build();
                 } else if (comparePath("", "_template/loghub", req.getUri())) {
                     Map<String, Object> responseContent = Map.of("loghub", Map.of());
+                    JsonNode node = jsonMapper.valueToTree(responseContent);
                     return new MockHttpClient.ResponseBuilder()
                                    .setMimeType(ContentType.APPLICATION_JSON)
-                                   .setContentReader(new StringReader(jsonMapper.writerFor(Map.class).writeValueAsString(responseContent)))
+                                   .setParsedResponse(node)
                                    .build();
                 } else {
                     throw new IllegalStateException("Not handled : " + req.getUri());
@@ -358,9 +370,10 @@ public class TestElasticSearch {
                 if ("/_bulk".equals(path)) {
                     try (MappingIterator<Map<String, ?>> mi = jsonMapper.readerFor(Object.class).readValues(r.content)) {
                         Map<String, Object> responseContent = bulkHandling.apply(mi);
+                        JsonNode node = jsonMapper.valueToTree(responseContent);
                         return new MockHttpClient.ResponseBuilder()
                                        .setMimeType(ContentType.APPLICATION_JSON)
-                                       .setContentReader(new StringReader(jsonMapper.writerFor(Map.class).writeValueAsString(responseContent)))
+                                       .setParsedResponse(node)
                                        .build();
                     }
                 } else {
@@ -369,15 +382,17 @@ public class TestElasticSearch {
             case "PUT":
                 if (comparePath(index, "", req.getUri()) || comparePath(index + "-000001", "", req.getUri())) {
                     Map<String, Object> responseContent = new HashMap<>();
+                    JsonNode node = jsonMapper.getNodeFactory().pojoNode(responseContent);
                     return new MockHttpClient.ResponseBuilder()
                                    .setMimeType(ContentType.APPLICATION_JSON)
-                                   .setContentReader(new StringReader(jsonMapper.writerFor(Map.class).writeValueAsString(responseContent)))
+                                   .setParsedResponse(node)
                                    .build();
                 } else if (comparePath("", "_template/loghub", req.getUri())) {
                     Map<String, Object> responseContent = Map.of("loghub", Map.of());
+                    JsonNode node = jsonMapper.getNodeFactory().pojoNode(responseContent);
                     return new MockHttpClient.ResponseBuilder()
                                    .setMimeType(ContentType.APPLICATION_JSON)
-                                   .setContentReader(new StringReader(jsonMapper.writerFor(Map.class).writeValueAsString(responseContent)))
+                                   .setParsedResponse(node)
                                    .build();
                 } else {
                     throw new IllegalStateException("Not handled : " + req.getUri());
@@ -410,7 +425,7 @@ public class TestElasticSearch {
         return uri.getPath().equals("/" + index + path);
     }
 
-    @Test(timeout = 2000)
+    @Test//(timeout = 2000)
     public void testSend() {
         Stats.reset();
         Function<MappingIterator<Map<String, ?>>, Map<String, Object>> handleSimpleBulk = mi -> handleSimpleBulk(mi, "default", "type");

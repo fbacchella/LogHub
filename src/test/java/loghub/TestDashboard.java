@@ -77,7 +77,7 @@ public class TestDashboard {
 
     @Test
     public void getIndex() throws IllegalArgumentException, IOException {
-        URL theurl = new URL(String.format("http://localhost:%d/static/index.html", port));
+        URL theurl = URI.create(String.format("http://localhost:%d/static/index.html", port)).toURL();
         HttpURLConnection cnx = (HttpURLConnection) theurl.openConnection();
         cnx.setInstanceFollowRedirects(false);
         Assert.assertEquals(200, cnx.getResponseCode());
@@ -90,16 +90,19 @@ public class TestDashboard {
     public void getIndexWithClient() throws IllegalArgumentException, IOException {
         ApacheHttpClientService.Builder builder = ApacheHttpClientService.getBuilder();
         ApacheHttpClientService client = builder.build();
-        HttpRequest req = client.getRequest();
+        HttpRequest<Object> req = client.getRequest();
         req.setUri(URI.create(String.format("http://localhost:%d/static/index.html", port)));
-        try(HttpResponse rep = client.doRequest(req)) {
-            Assert.assertEquals(200, rep.getStatus());
-            Assert.assertEquals(ContentType.TEXT_HTML, rep.getMimeType());
-            try (BufferedReader reader = new BufferedReader(rep.getContentReader())) {
+        req.setConsumeText(r -> {
+            try (BufferedReader reader = new BufferedReader(r)) {
                 StringBuilder buf = new StringBuilder();
                 reader.lines().forEach(buf::append);
                 Assert.assertTrue(buf.toString().startsWith("<!DOCTYPE html>"));
+                return null;
             }
+        });
+        try (HttpResponse<Object> rep = client.doRequest(req)) {
+            Assert.assertEquals(200, rep.getStatus());
+            Assert.assertEquals(ContentType.TEXT_HTML, rep.getMimeType());
         }
     }
 
@@ -125,7 +128,7 @@ public class TestDashboard {
 
     @Test
     public void getFailure1() throws IOException {
-        URL theurl = new URL(String.format("http://localhost:%d/metric/1", port));
+        URL theurl = URI.create(String.format("http://localhost:%d/metric/1", port)).toURL();
         HttpURLConnection cnx = (HttpURLConnection) theurl.openConnection();
         cnx.setInstanceFollowRedirects(false);
         Assert.assertEquals(400, cnx.getResponseCode());
@@ -135,7 +138,7 @@ public class TestDashboard {
 
     @Test
     public void getFailure2() throws IOException {
-        URL theurl = new URL(String.format("http://localhost:%d/metric/stranges", port));
+        URL theurl = URI.create(String.format("http://localhost:%d/metric/stranges", port)).toURL();
         HttpURLConnection cnx = (HttpURLConnection) theurl.openConnection();
         cnx.setInstanceFollowRedirects(false);
         Assert.assertEquals(400, cnx.getResponseCode());
@@ -162,13 +165,13 @@ public class TestDashboard {
     private void checkMetric(String path) throws IOException, IntrospectionException, InstanceNotFoundException, MalformedObjectNameException, ReflectionException {
         MBeanServer server = ManagementFactory.getPlatformMBeanServer();
 
-        URL theurl = new URL(String.format("http://localhost:%d/graph/" + path, port));
+        URL theurl = URI.create(String.format("http://localhost:%d/graph/" + path, port)).toURL();
         HttpURLConnection cnx = (HttpURLConnection) theurl.openConnection();
         cnx.setInstanceFollowRedirects(false);
         Assert.assertEquals(301, cnx.getResponseCode());
         Assert.assertEquals("/static/index.html?q=%2F" + path, cnx.getHeaderField("location"));
 
-        theurl = new URL(String.format("http://localhost:%d/metric/" + path, port));
+        theurl = URI.create(String.format("http://localhost:%d/metric/" + path, port)).toURL();
         TypeReference<List<Map<String, String>>> tr = new TypeReference<>() { };
         List<Map<String, String>> data = json.get().readValue(theurl, tr);
         for(Map<String, String> m: data) {

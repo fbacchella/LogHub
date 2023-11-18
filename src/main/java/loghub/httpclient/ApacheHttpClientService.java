@@ -1,10 +1,9 @@
 package loghub.httpclient;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
-import java.io.Reader;
-import java.io.StringReader;
 import java.lang.management.ManagementFactory;
 import java.net.ConnectException;
 import java.net.SocketTimeoutException;
@@ -17,7 +16,6 @@ import java.util.Hashtable;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
@@ -35,16 +33,17 @@ import org.apache.hc.client5.http.HttpRoute;
 import org.apache.hc.client5.http.auth.AuthScope;
 import org.apache.hc.client5.http.auth.CredentialsProvider;
 import org.apache.hc.client5.http.auth.UsernamePasswordCredentials;
+import org.apache.hc.client5.http.config.ConnectionConfig;
 import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.impl.auth.BasicCredentialsProvider;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
-import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
 import org.apache.hc.client5.http.impl.classic.HttpClientBuilder;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
 import org.apache.hc.client5.http.protocol.HttpClientContext;
 import org.apache.hc.client5.http.ssl.SSLConnectionSocketFactoryBuilder;
 import org.apache.hc.core5.http.ClassicHttpRequest;
+import org.apache.hc.core5.http.ClassicHttpResponse;
 import org.apache.hc.core5.http.HttpEntity;
 import org.apache.hc.core5.http.HttpHost;
 import org.apache.hc.core5.http.HttpVersion;
@@ -64,6 +63,7 @@ import org.apache.logging.log4j.Level;
 
 import loghub.BuilderClass;
 import loghub.Helpers;
+import lombok.Getter;
 import lombok.experimental.Accessors;
 
 @BuilderClass(ApacheHttpClientService.Builder.class)
@@ -91,7 +91,7 @@ public class ApacheHttpClientService extends AbstractHttpClientService {
     }
 
     @Accessors(fluent = false, chain = true)
-    private class HcHttpRequest extends HttpRequest {
+    private static class HcHttpRequest<T> extends HttpRequest<T> {
         private HttpVersion httpVersion = HttpVersion.HTTP_1_1;
         private final List<BasicHeader> headers = new ArrayList<>();
         private HttpEntity content;
@@ -99,23 +99,23 @@ public class ApacheHttpClientService extends AbstractHttpClientService {
         public String getHttpVersion() {
             return httpVersion.toString();
         }
-        public HcHttpRequest setHttpVersion(int major, int minor) {
+        public HcHttpRequest<T> setHttpVersion(int major, int minor) {
             this.httpVersion = HttpVersion.get(major, minor);
             return this;
         }
-        public HcHttpRequest addHeader(String header, String value) {
+        public HcHttpRequest<T> addHeader(String header, String value) {
             headers.add(new BasicHeader(header, value));
             return this;
         }
-        public HcHttpRequest clearHeaders() {
+        public HcHttpRequest<T> clearHeaders() {
             headers.clear();
             return this;
         }
-        public HcHttpRequest setTypeAndContent(ContentType mimeType, byte[] content) {
+        public HcHttpRequest<T> setTypeAndContent(ContentType mimeType, byte[] content) {
             this.content = HttpEntities.createGzipped(content, mapContentType(mimeType));
             return this;
         }
-        public HcHttpRequest setTypeAndContent(ContentType mimeType, ContentWriter source) {
+        public HcHttpRequest<T> setTypeAndContent(ContentType mimeType, ContentWriter source) {
             IOCallback<OutputStream> cp = source::writeTo;
             content = HttpEntities.createGzipped(cp, mapContentType(mimeType));
             return this;
@@ -138,40 +138,19 @@ public class ApacheHttpClientService extends AbstractHttpClientService {
         }
     }
 
+    @lombok.Builder
     @Accessors(fluent = false, chain = true)
-    private class HcHttpResponse extends loghub.httpclient.HttpResponse {
+    private static class HcHttpResponse<T> extends loghub.httpclient.HttpResponse<T> {
         private final HttpHost host;
-        private final Optional<CloseableHttpResponse> response;
+        private final ClassicHttpResponse response;
+        @Getter
         private final IOException socketException;
-        private final GeneralSecurityException sslexception;
-        private final org.apache.hc.core5.http.ContentType ct;
-        private final HttpEntity resultBody;
-
-        private HcHttpResponse(HttpHost host, CloseableHttpResponse response, IOException socketException, GeneralSecurityException sslexception) {
-            this.host = host;
-            this.response = Optional.ofNullable(response);
-            this.socketException = socketException;
-            this.sslexception = sslexception;
-            resultBody = response.getEntity();
-            ct = Optional.ofNullable(resultBody).map(HttpEntity::getContentType).map(org.apache.hc.core5.http.ContentType::parse).orElse(null);
-        }
-        @Override
-        public ContentType getMimeType() {
-            switch (ct.getMimeType()) {
-            case AbstractHttpClientService.APPLICATION_JSON:
-                return ContentType.APPLICATION_JSON;
-            case AbstractHttpClientService.APPLICATION_XML:
-                return ContentType.APPLICATION_XML;
-            case AbstractHttpClientService.APPLICATION_OCTET_STREAM:
-                return ContentType.APPLICATION_OCTET_STREAM;
-            case AbstractHttpClientService.TEXT_HTML:
-                return ContentType.TEXT_HTML;
-            case AbstractHttpClientService.TEXT_PLAIN:
-                return ContentType.TEXT_PLAIN;
-            default:
-                throw new IllegalStateException("Unhandled content type: " + ct.getMimeType());
-            }
-        }
+        @Getter
+        private final GeneralSecurityException sslException;
+        @Getter
+        private final ContentType mimeType;
+        @Getter
+        private final T parsedResponse;
 
         @Override
         public String getHost() {
@@ -180,48 +159,36 @@ public class ApacheHttpClientService extends AbstractHttpClientService {
 
         @Override
         public void close() throws IOException {
-            if (response.isPresent()) {
-                response.get().close();
+            if (response != null) {
+                response.close();
             }
         }
 
         @Override
-        public Reader getContentReader() throws IOException {
-            if (resultBody != null) {
-                Charset cs = Optional.ofNullable(ct).map(org.apache.hc.core5.http.ContentType::getCharset).orElse(StandardCharsets.UTF_8);
-                return new InputStreamReader(resultBody.getContent(), cs);
-            } else {
-                return new StringReader("");
-            }
-       }
-
-        @Override
         public int getStatus() {
-            return response.map(CloseableHttpResponse::getCode).orElse(-1);
+            if (response != null) {
+                return response.getCode();
+            } else {
+                throw new IllegalStateException(socketException);
+            }
         }
 
         @Override
         public String getStatusMessage() {
-            return response.map(CloseableHttpResponse::getReasonPhrase).orElse("");
+            if (response != null) {
+                return response.getReasonPhrase();
+            } else {
+                throw new IllegalStateException(socketException);
+            }
         }
 
         @Override
         public boolean isConnexionFailed() {
-            return socketException != null || sslexception != null;
-        }
-
-        @Override
-        public IOException getSocketException() {
-            return socketException;
-        }
-
-        @Override
-        public GeneralSecurityException getSslexception() {
-            return sslexception;
+            return socketException != null || sslException != null;
         }
     }
 
-    private class Implementation extends StandardMBean implements HttpClientStatsMBean {
+    private static class Implementation extends StandardMBean implements HttpClientStatsMBean {
         private final ConnPoolControl<HttpRoute> pool;
         public Implementation(ConnPoolControl<HttpRoute> pool) throws NotCompliantMBeanException {
             super(HttpClientStatsMBean.class);
@@ -245,7 +212,6 @@ public class ApacheHttpClientService extends AbstractHttpClientService {
         }
     }
 
-    private final CredentialsProvider credsProvider;
     private final CloseableHttpClient client;
     private final Map<URI, HttpHost> hosts;
 
@@ -253,6 +219,7 @@ public class ApacheHttpClientService extends AbstractHttpClientService {
         super(builder);
         // Two names for login/user
         String user = builder.user;
+        CredentialsProvider credsProvider;
         if (user != null && builder.password != null) {
             BasicCredentialsProvider provider = new BasicCredentialsProvider();
             UsernamePasswordCredentials creds = new UsernamePasswordCredentials(user, builder.password.toCharArray());
@@ -273,7 +240,11 @@ public class ApacheHttpClientService extends AbstractHttpClientService {
                                                                                                       .setSoKeepAlive(true)
                                                                                                       .setSoTimeout(timeout, TimeUnit.SECONDS)
                                                                                                       .build())
-                                                                      .setValidateAfterInactivity(TimeValue.ofSeconds(1))
+                                                                      .setDefaultConnectionConfig(ConnectionConfig.custom()
+                                                                                                          .setValidateAfterInactivity(TimeValue.ofSeconds(1))
+                                                                                                          .setSocketTimeout(timeout, TimeUnit.SECONDS)
+                                                                                                          .setConnectTimeout(timeout, TimeUnit.SECONDS)
+                                                                                                          .build())
                                                                       .setConnPoolPolicy(PoolReusePolicy.FIFO);
         if (builder.sslContext != null) {
             cmBuilder.setSSLSocketFactory(SSLConnectionSocketFactoryBuilder.create()
@@ -302,7 +273,6 @@ public class ApacheHttpClientService extends AbstractHttpClientService {
         clientBuilder.setConnectionManager(cm);
         clientBuilder.setDefaultRequestConfig(RequestConfig.custom()
                                                       .setConnectionRequestTimeout(timeout, TimeUnit.SECONDS)
-                                                      .setConnectTimeout(timeout, TimeUnit.SECONDS)
                                                       .build());
         clientBuilder.disableCookieManagement();
         if (credsProvider != null) {
@@ -313,39 +283,40 @@ public class ApacheHttpClientService extends AbstractHttpClientService {
     }
 
     @Override
-    public HttpRequest getRequest() {
-        return new HcHttpRequest();
+    public <T> HttpRequest<T> getRequest() {
+        return new HcHttpRequest<>();
     }
 
     @Override
-    public HttpResponse doRequest(HttpRequest therequest) {
-        HcHttpRequest hcrequest = (HcHttpRequest)therequest;
+    public <T> HttpResponse<T> doRequest(HttpRequest<T> therequest) {
+        HcHttpResponse.HcHttpResponseBuilder<T> builder = HcHttpResponse.builder();
+        @SuppressWarnings("unchecked")
+        HcHttpRequest<HcHttpResponse<T>> hcrequest = (HcHttpRequest<HcHttpResponse<T>>) therequest;
         HttpClientContext context = HttpClientContext.create();
 
         HttpHost host = hosts.computeIfAbsent(therequest.uri,
                 u -> new HttpHost(u.getScheme(), u.getHost(), u.getPort())
         );
-
+        builder.host(host);
         Method method = Method.valueOf(therequest.verb.toUpperCase(Locale.ENGLISH));
-        ClassicHttpRequest request = new BasicClassicHttpRequest(method, host, therequest.uri.getPath());
+        ClassicHttpRequest request = new BasicClassicHttpRequest(method, therequest.uri);
         if (hcrequest.content != null) {
             request.setEntity(hcrequest.content);
         }
         hcrequest.headers.forEach(request::addHeader);
         try {
             // Don't close CloseableHttpResponse, it's handle by HttpResponse
-            CloseableHttpResponse response = client.execute(host, request, context);
-            return new HcHttpResponse(host, response, null, null);
+            return client.execute(host, request, context, t -> resolve(builder, therequest, t).build());
         } catch (HttpHostConnectException e) {
-            String message = "";
+            String message;
             try {
                 if (e.getCause() != null) {
                     throw e.getCause();
                 } else {
-                    message = String.format("Comunication with %s failed: %s", host, Helpers.resolveThrowableException(e));
+                    message = String.format("Communication with %s failed: %s", host, Helpers.resolveThrowableException(e));
                 }
             } catch (ConnectException ex) {
-                message = String.format("Comunication to %s refused", host);
+                message = String.format("Communication to %s refused", host);
             } catch (SocketTimeoutException ex) {
                 message = String.format("Slow response from %s", host);
             } catch (Throwable ex) {
@@ -354,7 +325,7 @@ public class ApacheHttpClientService extends AbstractHttpClientService {
             }
             logger.error(message);
             logger.catching(Level.DEBUG, e.getCause());
-            return new HcHttpResponse(host, null, e, null);
+            return builder.socketException(e).build();
         } catch (IOException e) {
             Throwable rootCause = e;
             while (rootCause.getCause() != null){
@@ -362,14 +333,54 @@ public class ApacheHttpClientService extends AbstractHttpClientService {
             }
             // A TLS exception, will not help to retry
             if (rootCause instanceof GeneralSecurityException) {
-                logger.error("Secure comunication with {} failed: {}", host, Helpers.resolveThrowableException(rootCause));
+                logger.error("Secure communication with {} failed: {}", host, Helpers.resolveThrowableException(rootCause));
                 logger.catching(Level.DEBUG, rootCause);
-                return new HcHttpResponse(host, null, null, (GeneralSecurityException) rootCause);
+                return builder.sslException((GeneralSecurityException) rootCause).build();
             } else {
-                logger.error("Comunication with {} failed: {}", host, Helpers.resolveThrowableException(e));
+                logger.error("Communication with {} failed: {}", host, Helpers.resolveThrowableException(e));
                 logger.catching(Level.DEBUG, e);
-                return new HcHttpResponse(host, null, e, null);
+                return builder.socketException(e).build();
             }
+        }
+    }
+
+    private <T> HcHttpResponse.HcHttpResponseBuilder<T> resolve(HcHttpResponse.HcHttpResponseBuilder<T> builder, HttpRequest<T> request, ClassicHttpResponse response)
+            throws IOException {
+        builder.response(response);
+        HttpEntity content = response.getEntity();
+        if (content != null) {
+            org.apache.hc.core5.http.ContentType ct = org.apache.hc.core5.http.ContentType.parse(content.getContentType());
+            ContentType mimeType = resolveMimeType(content);
+            builder.mimeType(mimeType);
+            try (InputStream contentStream = content.getContent()) {
+                if (mimeType.isTextBody()) {
+                    Charset cs = ct.getCharset(StandardCharsets.UTF_8);
+                    builder.parsedResponse(request.consumeText.read(new InputStreamReader(contentStream, cs)));
+                } else {
+                    builder.parsedResponse(request.consumeBytes.read(contentStream));
+                }
+            } catch (IOException e) {
+                builder.socketException(e);
+            }
+        }
+        return builder;
+    }
+
+    private ContentType resolveMimeType(HttpEntity content) {
+        org.apache.hc.core5.http.ContentType ct = org.apache.hc.core5.http.ContentType.parse(content.getContentType());
+        switch (ct.getMimeType()) {
+        case AbstractHttpClientService.APPLICATION_JSON:
+            return ContentType.APPLICATION_JSON;
+        case AbstractHttpClientService.APPLICATION_XML:
+            return ContentType.APPLICATION_XML;
+        case AbstractHttpClientService.APPLICATION_OCTET_STREAM:
+            return ContentType.APPLICATION_OCTET_STREAM;
+        case AbstractHttpClientService.TEXT_HTML:
+            return ContentType.TEXT_HTML;
+        case AbstractHttpClientService.TEXT_PLAIN:
+            return ContentType.TEXT_PLAIN;
+        default:
+            throw new IllegalStateException("Unhandled content type: " + content.getContentType());
         }
     }
 

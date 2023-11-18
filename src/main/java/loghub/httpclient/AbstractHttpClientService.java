@@ -47,9 +47,9 @@ public abstract class AbstractHttpClientService {
         password = builder.password;
     }
 
-    public abstract HttpRequest getRequest();
+    public abstract <T> HttpRequest<T> getRequest();
 
-    public abstract HttpResponse doRequest(HttpRequest request);
+    public abstract <T> HttpResponse<T> doRequest(HttpRequest<T> request);
 
     public void customStopSending() {
         // Nothing to do

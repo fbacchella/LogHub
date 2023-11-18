@@ -2,16 +2,13 @@ package loghub.httpclient;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.io.Reader;
 import java.security.GeneralSecurityException;
 
-public abstract class HttpResponse implements Closeable {
+public abstract class HttpResponse<T> implements Closeable {
 
     public abstract ContentType getMimeType();
 
     public abstract String getHost();
-
-    public abstract Reader getContentReader() throws IOException;
 
     public abstract int getStatus();
 
@@ -21,6 +18,8 @@ public abstract class HttpResponse implements Closeable {
 
     public abstract IOException getSocketException();
 
-    public abstract GeneralSecurityException getSslexception();
+    public abstract GeneralSecurityException getSslException();
+
+    public abstract T getParsedResponse();
 
 }
