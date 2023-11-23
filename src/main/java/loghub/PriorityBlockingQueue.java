@@ -15,7 +15,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Function;
 
@@ -44,8 +43,7 @@ public class PriorityBlockingQueue extends AbstractQueue<Event>
         /**
          * Create an {@link Event} wrapper.
          *
-         * @param {@link Event}
-         * 
+         * @param event the event to queue
          * @throws IllegalArgumentException if the element is {@code null}.
          */
         public QueueElement(Event event) {
@@ -63,8 +61,7 @@ public class PriorityBlockingQueue extends AbstractQueue<Event>
     private final ReadWriteLock masterlock = new ReentrantReadWriteLock();
     private final Lock readLock = masterlock.readLock();
     private final Lock writeLock = masterlock.readLock();
-    private final Lock selectLock = new ReentrantLock();
-    
+
     // A lock that will prevent ingestions of new events in receivers
     // The write lock can be held when a generic blocked sitation is detected
     private final ReadWriteLock backpressureLock = new ReentrantReadWriteLock();
@@ -133,7 +130,7 @@ public class PriorityBlockingQueue extends AbstractQueue<Event>
      * space is available.</p>
      * @param ev The event to inject.
      * @param blocking fails or block when queue is full.
-     * @return
+     * @return true if the event was queued
      */
     public boolean inject(Event ev, boolean blocking) {
         if (blocking) {
@@ -171,7 +168,7 @@ public class PriorityBlockingQueue extends AbstractQueue<Event>
      * <p>It should be called only by processors. If the queue is full, the injection thread
      * will hangs receivers using {@link #inject(Event, boolean)} to
      * allow the pipeline to process waiting events.</p>
-     * @param ev
+     * @param ev the event to inject
      */
     public void asyncInject(Event ev) {
         // If offer success, no need to delay injection in the injection thread
@@ -495,7 +492,7 @@ public class PriorityBlockingQueue extends AbstractQueue<Event>
      * The queue will be empty after this call returns.
      */
     @Override
-    public synchronized void clear() {
+    public void clear() {
         writeLock.lock();
         try {
             syncQueue.clear();
@@ -555,19 +552,17 @@ public class PriorityBlockingQueue extends AbstractQueue<Event>
         }
     }
 
-    private synchronized BlockingQueue<QueueElement> select() {
+    private BlockingQueue<QueueElement> select() {
         if (weight == 0) {
             return asyncQueue;
         } else {
             readLock.lock();
-            selectLock.lock();
             try {
                 long referenceTime = System.nanoTime();
                 long syncElementDelay = Optional.ofNullable(syncQueue.peek()).map(e -> (referenceTime - e.baseTime)).orElse(-1L);
                 long asyncElementDelay = Optional.ofNullable(asyncQueue.peek()).map(e -> (referenceTime - e.baseTime) * weight).orElse(-1L);
                 return syncElementDelay > asyncElementDelay ? syncQueue : asyncQueue;
             } finally {
-                selectLock.unlock();
                 readLock.unlock();
             }
         }
