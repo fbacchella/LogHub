@@ -383,6 +383,9 @@ public class Configuration {
 
     private Map.Entry<String, Object> resoveSecret(Map.Entry<String, Object> e) {
         RouteParser.SecretContext ctx = (RouteParser.SecretContext) e.getValue();
+        if (secrets == null) {
+            throw new ConfigException("Secret used, but no secrets store defined", ctx.id.getTokenSource().getSourceName(), ctx.start);
+        }
         byte[] secret = secrets.get(ctx.id.getText());
         Object value;
         if (secret == null) {

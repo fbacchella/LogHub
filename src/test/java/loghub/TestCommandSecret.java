@@ -20,6 +20,7 @@ import org.junit.rules.TemporaryFolder;
 
 import loghub.Start.CommandPassword;
 import loghub.configuration.ConfigException;
+import loghub.configuration.Configuration;
 import loghub.configuration.Properties;
 import loghub.configuration.SecretsHandler;
 
@@ -118,6 +119,13 @@ public class TestCommandSecret {
     public void testFailureWrongType() {
         ConfigException ex = Assert.assertThrows(ConfigException.class, () -> Tools.loadConf(new StringReader("numWorkers: *password2")));
         Assert.assertEquals("no viable alternative at input '*'", ex.getMessage());
+    }
+
+    @Test
+    public void testMissingSecrets() {
+        ConfigException ex = Assert.assertThrows(ConfigException.class, () -> Configuration.parse(new StringReader("secret: *secret")));
+        Assert.assertEquals("Secret used, but no secrets store defined", ex.getMessage());
+        Assert.assertEquals("file <unknown>, line 1:8", ex.getLocation());
     }
 
 }
