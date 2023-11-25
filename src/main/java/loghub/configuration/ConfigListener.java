@@ -3,6 +3,7 @@ package loghub.configuration;
 import java.beans.IntrospectionException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.UndeclaredThrowableException;
+import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayDeque;
@@ -283,8 +284,32 @@ class ConfigListener extends RouteBaseListener {
 
     @Override
     public void enterIntegerLiteral(IntegerLiteralContext ctx) {
-        String content = ctx.IntegerLiteral().getText();
-        pushLiteral(Integer.valueOf(content));
+        int base;
+        String text;
+        if (ctx.BinaryDigits() != null) {
+            base = 2;
+            text = ctx.BinaryDigits().getText().substring(2);
+        } else if (ctx.HexDigits() != null) {
+            base = 16;
+            text = ctx.HexDigits().getText().substring(2);
+        } else if (ctx.OctalDigits() != null) {
+            base = 8;
+            text = ctx.OctalDigits().getText().substring(2);
+        } else {
+            base = 10;
+            text = ctx.DecimalDigits().getText();
+        }
+        Number litteral;
+        try {
+            litteral = Integer.valueOf(text, base);
+        } catch (NumberFormatException nfe) {
+            try {
+                litteral = Long.valueOf(text, base);
+            } catch (NumberFormatException e) {
+                litteral = new BigInteger(text, base);
+            }
+        }
+        pushLiteral(litteral);
     }
 
     @Override
@@ -1062,8 +1087,8 @@ class ConfigListener extends RouteBaseListener {
                 throw new RecognitionException("Unknown class: " + ctx.newclass.getText(), parser, stream, ctx);
             }
         } else if (ctx.arrayIndex != null) {
-            String arrayIndexSign = ctx.arrayIndexSign != null ? ctx.arrayIndexSign.getText() : "";
-            int arrayIndex = Integer.parseInt(arrayIndexSign + ctx.arrayIndex.getText());
+            int arrayIndexSign = ctx.arrayIndexSign != null ? -1 : 1;
+            int arrayIndex = ((ObjectWrapped<Number>) stack.popTyped()).wrapped.intValue() * arrayIndexSign;
             ExpressionBuilder subexpression = stack.popTyped();
             expression = ExpressionBuilder.of(subexpression, (ed, l) -> ed.getExpression().getIterableIndex(l.apply(ed), arrayIndex));
         } else if (ctx.stringFunction != null) {

@@ -207,7 +207,7 @@ expression
     |   e1 = expression op12='&&' e2=expression
     |   e1 = expression op13='||' e2=expression
     |   '(' e3 = expression ')'
-    |   expression '[' arrayIndexSign='-'? arrayIndex=IntegerLiteral ']'
+    |   expression '[' arrayIndexSign='-'? arrayIndex=integerLiteral ']'
     |   stringFunction = (Trim | Capitalize | IsBlank | Normalize | Uncapitalize | Lowercase | Uppercase) '(' expression ')'
     |   join = Join '(' stringLiteral ',' expression  ')'
     |   split = Split '(' (pattern | stringLiteral) ',' expression ')'
@@ -341,44 +341,14 @@ nonStringliteral
 // §3.10.1 Integer Literals
 
 integerLiteral
-    : IntegerLiteral
+    :   DecimalDigits
+    |   HexDigits
+    |   OctalDigits
+    |   BinaryDigits
     ;
 
-IntegerLiteral
-    :   DecimalIntegerLiteral
-    |   HexIntegerLiteral
-    |   OctalIntegerLiteral
-    |   BinaryIntegerLiteral
-    ;
-
-fragment
-DecimalIntegerLiteral
-    :   DecimalNumeral IntegerTypeSuffix?
-    ;
-fragment
-HexIntegerLiteral
-    :   HexNumeral IntegerTypeSuffix?
-    ;
-    
-fragment
-OctalIntegerLiteral
-    :   OctalNumeral IntegerTypeSuffix?
-    ;
-
-fragment
-BinaryIntegerLiteral
-    :   BinaryNumeral IntegerTypeSuffix?
-    ;
-
-fragment
-IntegerTypeSuffix
-    :   [lL]
-    ;
-
-fragment
-DecimalNumeral
-    :   '0'
-    |   NonZeroDigit (Digits? | Underscores Digits)
+DecimalDigits
+    :   Digits
     ;
 
 fragment
@@ -410,12 +380,11 @@ Underscores
 
 fragment
 HexNumeral
-    :   '0' [xX] HexDigits
+    :   ('0x' | '0X') HexDigits
     ;
 
-fragment
 HexDigits
-    :   HexDigit (HexDigitOrUnderscore* HexDigit)?
+    :   ('0x' | '0X') HexDigit (HexDigitOrUnderscore* HexDigit)?
     ;
 
 fragment
@@ -429,14 +398,8 @@ HexDigitOrUnderscore
     |   '_'
     ;
 
-fragment
-OctalNumeral
-    :   '0' Underscores? OctalDigits
-    ;
-
-fragment
 OctalDigits
-    :   OctalDigit (OctalDigitOrUnderscore* OctalDigit)?
+    :   ('0o' | '0o') OctalDigit (OctalDigitOrUnderscore* OctalDigit)?
     ;
 
 fragment
@@ -450,14 +413,8 @@ OctalDigitOrUnderscore
     |   '_'
     ;
 
-fragment
-BinaryNumeral
-    :   '0' [bB] BinaryDigits
-    ;
-
-fragment
 BinaryDigits
-    :   BinaryDigit (BinaryDigitOrUnderscore* BinaryDigit)?
+    :   ('0b' | '0B') BinaryDigit (BinaryDigitOrUnderscore* BinaryDigit)?
     ;
 
 fragment

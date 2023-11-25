@@ -650,6 +650,10 @@ public class TestExpressionParsing {
     public void testIntegerLitteral() throws ProcessorException {
         Event ev = factory.newEvent();
         Assert.assertEquals(1, Tools.evalExpression("1", ev));
+        Assert.assertEquals(100, Tools.evalExpression("0100", ev));
+        Assert.assertEquals(10, Tools.evalExpression("0xa", ev));
+        Assert.assertEquals(511, Tools.evalExpression("0o777", ev));
+        Assert.assertEquals(7, Tools.evalExpression("0b111", ev));
     }
 
     @Test
