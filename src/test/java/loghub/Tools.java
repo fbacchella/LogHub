@@ -177,8 +177,17 @@ public class Tools {
         return ConfigurationTools.unWrap(exp, RouteParser::expression);
     }
 
-    public static  Object evalExpression(String exp, Event ev) throws ProcessorException {
-        return parseExpression(exp).eval(ev);
+    public static Object resolveExpression(String exp) {
+        return ConfigurationTools.unWrap(exp, RouteParser::expression);
+    }
+
+    public static Object evalExpression(String exp, Event ev) throws ProcessorException {
+        Object resolved = ConfigurationTools.unWrap(exp, RouteParser::expression);
+        if (resolved instanceof Expression) {
+            return ((Expression)resolved).eval(ev);
+        } else {
+            return resolved;
+        }
     }
 
     public static  Object evalExpression(String exp) throws ProcessorException {

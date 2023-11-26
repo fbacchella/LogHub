@@ -5,6 +5,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
@@ -45,6 +46,7 @@ import loghub.NullOrMissingValue;
 import loghub.ProcessorException;
 import loghub.RouteParser;
 import loghub.Tools;
+import loghub.VarFormatter;
 import loghub.VariablePath;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
@@ -61,25 +63,25 @@ public class TestExpressionParsing {
     }
 
     @Test
-    public void testSimple() throws ProcessorException {
-        Assert.assertEquals("3", Tools.evalExpression("1 + 2").toString());
+    public void testSimple() {
+        Assert.assertEquals("3", Tools.resolveExpression("1 + 2").toString());
     }
 
     @Test
-    public void testOr() throws ProcessorException {
-        Assert.assertEquals("3", Tools.evalExpression("1 .| 2").toString());
+    public void testOr() {
+        Assert.assertEquals("3", Tools.resolveExpression("1 .| 2").toString());
     }
 
     @Test
     public void testUnary() throws ProcessorException {
-        Assert.assertEquals(2, Tools.evalExpression("-(-2)"));
+        Assert.assertEquals(2, Tools.resolveExpression("-(-2)"));
         Assert.assertEquals(-2, Tools.evalExpression(".~1"));
         Assert.assertEquals(false, Tools.evalExpression("!1"));
     }
 
     @Test
-    public void testSubExpression() throws ProcessorException {
-        Assert.assertEquals("12", Tools.evalExpression("(1 + 2) * 4").toString());
+    public void testSubExpression() {
+        Assert.assertEquals("12", Tools.resolveExpression("(1 + 2) * 4").toString());
     }
 
     @Test
@@ -198,6 +200,7 @@ public class TestExpressionParsing {
         Object[] tryExpression = new Object[] {
                 "1 instanceof java.lang.Integer", true,
                 "1 !instanceof java.lang.Integer", false,
+                "1 ! instanceof java.lang.Integer", false,
                 "[a] instanceof java.lang.Integer", true,
                 "[b] instanceof java.lang.Integer", false,
                 "[a] !instanceof java.lang.Integer", false,
@@ -634,32 +637,30 @@ public class TestExpressionParsing {
     }
 
     @Test
-    public void testStringLitteral() throws ProcessorException {
+    public void testStringLitteral() {
         String format = "b";
-        Event ev = factory.newEvent();
-        ev.put("a", 1);
-        Assert.assertEquals("b", Tools.evalExpression("\"" + format + "\"", ev));
+        Assert.assertEquals("b", Tools.resolveExpression("\"" + format + "\""));
     }
 
     @Test
-    public void testCharacterLitteral() throws ProcessorException {
-        Assert.assertEquals('a', Tools.evalExpression("'a'"));
+    public void testCharacterLitteral() {
+        Assert.assertEquals('a', Tools.resolveExpression("'a'"));
     }
 
     @Test
-    public void testIntegerLitteral() throws ProcessorException {
-        Event ev = factory.newEvent();
-        Assert.assertEquals(1, Tools.evalExpression("1", ev));
-        Assert.assertEquals(100, Tools.evalExpression("0100", ev));
-        Assert.assertEquals(10, Tools.evalExpression("0xa", ev));
-        Assert.assertEquals(511, Tools.evalExpression("0o777", ev));
-        Assert.assertEquals(7, Tools.evalExpression("0b111", ev));
+    public void testIntegerLitteral() {
+        Assert.assertEquals(1, Tools.resolveExpression("1"));
+        Assert.assertEquals(100, Tools.resolveExpression("0100"));
+        Assert.assertEquals(Long.MAX_VALUE, Tools.resolveExpression("" + Long.MAX_VALUE));
+        Assert.assertEquals(new BigInteger("19223372036854775807"), Tools.resolveExpression("1" + Long.MAX_VALUE));
+        Assert.assertEquals(10, Tools.resolveExpression("0xa"));
+        Assert.assertEquals(511, Tools.resolveExpression("0o777"));
+        Assert.assertEquals(7, Tools.resolveExpression("0b111"));
     }
 
     @Test
-    public void testNullLitteral() throws ProcessorException {
-        Event ev = factory.newEvent();
-        Assert.assertEquals(NullOrMissingValue.NULL, Tools.evalExpression("null", ev));
+    public void testNullLitteral() {
+        Assert.assertEquals(NullOrMissingValue.NULL, Tools.resolveExpression("null"));
     }
 
     @Test
@@ -866,8 +867,7 @@ public class TestExpressionParsing {
     }
 
     @Test
-    public void testComplexString() throws ProcessorException {
-        Event ev = factory.newEvent();
+    public void testComplexString() {
         String toEval = "a\"\\\t\n\r" + String.valueOf(Character.toChars(0x10000));
         StringBuilder buffer = new StringBuilder();
         toEval.chars().mapToObj(i -> {
@@ -882,7 +882,7 @@ public class TestExpressionParsing {
             }
         }).forEach(buffer::append);
         String expression = String.format(Locale.US, "\"%s\"", buffer);
-        Assert.assertEquals(toEval, Tools.evalExpression(expression, ev));
+        Assert.assertEquals(toEval, Tools.resolveExpression(expression));
     }
 
     @Test
@@ -1040,6 +1040,29 @@ public class TestExpressionParsing {
         Assert.assertTrue((boolean) Tools.evalExpression("[a] || [d]", ev));
         Assert.assertTrue((boolean) Tools.evalExpression("[a] || [e]", ev));
         Assert.assertTrue((boolean) Tools.evalExpression("[b] || [f]", ev));
+    }
+
+    @Test
+    public void constantOptimization() throws ProcessorException {
+        ExpressionBuilder b1 = ExpressionBuilder.of(1);
+        ExpressionBuilder b2 = ExpressionBuilder.of(2);
+        ExpressionBuilder b3 = ExpressionBuilder.of(b1, "+", b2);
+        Assert.assertEquals(3, b3.build("1+2").eval());
+    }
+
+    @Test
+    public void staticFormat() throws ProcessorException {
+        ExpressionBuilder b1 = ExpressionBuilder.of(new VarFormatter("1"));
+        Assert.assertEquals("1", b1.build("1").eval());
+    }
+
+    @Test
+    public void lambdaOptimization() throws ProcessorException {
+        ExpressionBuilder b1 = ExpressionBuilder.of(1);
+        ExpressionBuilder b2 = ExpressionBuilder.of(b1, o -> Expression.instanceOf(false, o, Integer.class));
+        ExpressionBuilder b3 = ExpressionBuilder.of(b1, o -> Expression.instanceOf(true, o, Integer.class));
+        Assert.assertEquals(true, b2.build("1 instanceof Integer").eval());
+        Assert.assertEquals(false, b3.build("1 ! instanceof Integer").eval());
     }
 
 }

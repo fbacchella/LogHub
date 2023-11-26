@@ -18,6 +18,7 @@ import io.netty.channel.DefaultEventLoop;
 import io.netty.util.concurrent.DefaultPromise;
 import io.netty.util.concurrent.Promise;
 import loghub.AsyncProcessor;
+import loghub.Expression;
 import loghub.LogUtils;
 import loghub.Processor;
 import loghub.ProcessorException;
@@ -118,7 +119,7 @@ public class TestPausingEvent {
         Event e = factory.newEvent();
         SleepingProcessor sp = new SleepingProcessor();
         Etl.Assign assign = new Etl.Assign();
-        assign.setExpression(Tools.parseExpression("1"));
+        assign.setExpression(new Expression(1));
         assign.setLvalue(VariablePath.of("a"));
         sp.setFailure(assign);
         Tools.ProcessingStatus status = Tools.runProcessing(e, "main", Collections.singletonList(sp), (i,j) -> { /* empty */ });
@@ -135,7 +136,7 @@ public class TestPausingEvent {
         Event e = factory.newEvent();
         SleepingProcessor sp = new SleepingProcessor();
         Etl.Assign assign = new Etl.Assign();
-        assign.setExpression(Tools.parseExpression("1"));
+        assign.setExpression(new Expression(1));
         assign.setLvalue(VariablePath.of("a"));
         sp.setFailure(assign);
         Tools.ProcessingStatus status = Tools.runProcessing(e, "main", Collections.singletonList(sp), (i,j) -> { /* empty */ });
@@ -155,7 +156,7 @@ public class TestPausingEvent {
         Event e = factory.newEvent();
         SleepingProcessor sp = new SleepingProcessor();
         Etl.Assign assign = new Etl.Assign();
-        assign.setExpression(Tools.parseExpression("1"));
+        assign.setExpression(new Expression(1));
         assign.setLvalue(VariablePath.of("a"));
         sp.setException(assign);
         Tools.ProcessingStatus status = Tools.runProcessing(e, "main", Collections.singletonList(sp), (i,j) -> { /* empty */ });

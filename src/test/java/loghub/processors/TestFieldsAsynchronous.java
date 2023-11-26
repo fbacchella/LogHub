@@ -21,6 +21,7 @@ import io.netty.channel.DefaultEventLoop;
 import io.netty.util.concurrent.DefaultPromise;
 import io.netty.util.concurrent.Promise;
 import loghub.AsyncProcessor;
+import loghub.Expression;
 import loghub.LogUtils;
 import loghub.Processor;
 import loghub.ProcessorException;
@@ -187,7 +188,7 @@ public class TestFieldsAsynchronous {
         builder.setField(VariablePath.of("a"));
         SleepingProcessor sp = builder.build();
         Etl.Assign assign = new Etl.Assign();
-        assign.setExpression(Tools.parseExpression("2"));
+        assign.setExpression(new Expression(2));
         assign.setLvalue(VariablePath.of("a"));
         sp.setFailure(assign);
         Tools.ProcessingStatus status = Tools.runProcessing(e, "main", Collections.singletonList(sp), (i,j) -> { /* empty */ });
@@ -214,14 +215,14 @@ public class TestFieldsAsynchronous {
         SleepingProcessor sp = builder.build();
 
         Etl.Assign assign = new Etl.Assign();
-        assign.setExpression(Tools.parseExpression("true"));
+        assign.setExpression(new Expression(true));
         assign.setLvalue(VariablePath.of("failure"));
         sp.setFailure(assign);
 
         List<Processor> processors = new ArrayList<>(2);
 
         Etl.Assign assign2 = new Etl.Assign();
-        assign2.setExpression(Tools.parseExpression("true"));
+        assign2.setExpression(new Expression(true));
         assign2.setLvalue(VariablePath.of("b"));
 
         processors.add(sp);
@@ -244,7 +245,7 @@ public class TestFieldsAsynchronous {
         builder.setField(VariablePath.of("a"));
         SleepingProcessor sp = builder.build();
         Etl.Assign assign = new Etl.Assign();
-        assign.setExpression(Tools.parseExpression("2"));
+        assign.setExpression(new Expression(2));
         assign.setLvalue(VariablePath.of("a"));
         sp.setFailure(assign);
         Tools.ProcessingStatus status = Tools.runProcessing(e, "main", Collections.singletonList(sp), (i,j) -> { /* empty */ });
@@ -269,7 +270,7 @@ public class TestFieldsAsynchronous {
         builder.setField(VariablePath.of("a"));
         SleepingProcessor sp = builder.build();
         Etl.Assign assign = new Etl.Assign();
-        assign.setExpression(Tools.parseExpression("2"));
+        assign.setExpression(new Expression(2));
         assign.setLvalue(VariablePath.of("a"));
         sp.setException(assign);
         Tools.ProcessingStatus status = Tools.runProcessing(e, "main", Collections.singletonList(sp), (i,j) -> { /* empty */ });

@@ -14,10 +14,6 @@ public class TestProcessor {
 
     private final EventsFactory factory = new EventsFactory();
 
-    private Expression getExpression(String expressionScript) {
-        return Tools.parseExpression(expressionScript);
-    }
-
     @Test
     public void testPath() {
         Processor p = new Processor() {
@@ -46,31 +42,31 @@ public class TestProcessor {
 
         Processor p = new Identity();
 
-        p.setIf(getExpression("true"));
+        p.setIf(new Expression(true));
         p.configure(new Properties(Collections.emptyMap()));
         Assert.assertTrue(p.isprocessNeeded(e));
 
-        p.setIf(getExpression("false"));
+        p.setIf(new Expression(false));
         p.configure(new Properties(Collections.emptyMap()));
         Assert.assertFalse(p.isprocessNeeded(e));
 
-        p.setIf(getExpression("0"));
+        p.setIf(new Expression(0));
         p.configure(new Properties(Collections.emptyMap()));
         Assert.assertFalse(p.isprocessNeeded(e));
 
-        p.setIf(getExpression("1"));
+        p.setIf(new Expression(1));
         p.configure(new Properties(Collections.emptyMap()));
         Assert.assertTrue(p.isprocessNeeded(e));
 
-        p.setIf(getExpression("0.1"));
+        p.setIf(new Expression(0.1));
         p.configure(new Properties(Collections.emptyMap()));
         Assert.assertTrue(p.isprocessNeeded(e));
 
-        p.setIf(getExpression("\"bob\""));
+        p.setIf(new Expression("bob"));
         p.configure(new Properties(Collections.emptyMap()));
         Assert.assertTrue(p.isprocessNeeded(e));
 
-        p.setIf(getExpression("\"\""));
+        p.setIf(new Expression(""));
         p.configure(new Properties(Collections.emptyMap()));
         Assert.assertFalse(p.isprocessNeeded(e));
     }

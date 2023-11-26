@@ -207,7 +207,7 @@ public class Expression {
         return bmap;
     }
 
-    public Object protect(String op, Object arg) {
+    public static Object protect(String op, Object arg) {
         switch (op) {
         case "**":
         case "*":
@@ -240,7 +240,7 @@ public class Expression {
         }
     }
 
-    public Object stringFunction(String method, Object arg) {
+    public static Object stringFunction(String method, Object arg) {
         if (arg == NullOrMissingValue.MISSING) {
             throw IgnoredEventException.INSTANCE;
         } else {
@@ -268,7 +268,7 @@ public class Expression {
         }
     }
 
-    public Object gsub(Object apply, Pattern pattern, String replacement) {
+    public static Object gsub(Object apply, Pattern pattern, String replacement) {
         if (apply == NullOrMissingValue.MISSING) {
             throw IgnoredEventException.INSTANCE;
         } else if (apply == null || apply == NullOrMissingValue.NULL) {
@@ -280,7 +280,7 @@ public class Expression {
         }
     }
 
-    public Object join(String separator, Object arg2) {
+    public static Object join(String separator, Object arg2) {
         if (arg2 == null || arg2 == NullOrMissingValue.NULL) {
             return NullOrMissingValue.NULL;
         } else if (arg2 == NullOrMissingValue.MISSING) {
@@ -301,7 +301,7 @@ public class Expression {
         }
     }
 
-    public Object split(Object arg1, Pattern pattern) {
+    public static Object split(Object arg1, Pattern pattern) {
         if (arg1 == NullOrMissingValue.MISSING) {
             throw IgnoredEventException.INSTANCE;
         } else if (arg1 == NullOrMissingValue.NULL || arg1 == null ) {
@@ -311,21 +311,21 @@ public class Expression {
         }
     }
 
-    public Object nullfilter(Object arg) {
+    public static Object nullfilter(Object arg) {
         return Objects.requireNonNullElse(arg, NullOrMissingValue.NULL);
     }
 
-    public Object instanceOf(String cmd, Object obj, Class<?> clazz) {
+    public static boolean instanceOf(boolean negated, Object obj, Class<?> clazz) {
         boolean result;
         if (obj instanceof NullOrMissingValue || obj == null ) {
             result = false;
         } else {
             result = clazz.isAssignableFrom(obj.getClass());
         }
-        return cmd.startsWith("!") != result;
+        return negated != result;
     }
 
-    public Object in(String cmd, Object obj1, Object obj2) {
+    public static boolean in(String cmd, Object obj1, Object obj2) {
         boolean result;
         if (obj1 == NullOrMissingValue.MISSING || obj2 == NullOrMissingValue.MISSING) {
             throw IgnoredEventException.INSTANCE;
@@ -343,7 +343,7 @@ public class Expression {
         return cmd.startsWith("!") != result;
     }
 
-    public Object newCollection(String collectionType) {
+    public static Object newCollection(String collectionType) {
         if ("set".equals(collectionType)) {
             return new LinkedHashSet<>();
         } else if ("list".equals(collectionType)) {
@@ -356,7 +356,7 @@ public class Expression {
     }
 
     @SuppressWarnings("unchecked")
-    public <T> Object asCollection(String collectionType, Object argument) {
+    public static <T> Object asCollection(String collectionType, Object argument) {
         if ("set".equals(collectionType)) {
             if (argument instanceof Set) {
                 return argument;
@@ -384,7 +384,7 @@ public class Expression {
         }
     }
 
-    public Object getIterableIndex(Object iterable, int index) {
+    public static Object getIterableIndex(Object iterable, int index) {
         if (iterable == null || iterable == NullOrMissingValue.NULL) {
             return NullOrMissingValue.NULL;
         } else if (Object[].class.isAssignableFrom(iterable.getClass())) {
@@ -410,7 +410,7 @@ public class Expression {
         }
     }
 
-    public boolean isEmpty(Object arg) {
+    public static boolean isEmpty(Object arg) {
         if (arg == NullOrMissingValue.MISSING) {
             throw IgnoredEventException.INSTANCE;
         }
@@ -429,7 +429,7 @@ public class Expression {
         }
     }
 
-    public boolean isIpAddress(Object arg) {
+    public static boolean isIpAddress(Object arg) {
         if (arg == NullOrMissingValue.MISSING) {
             throw IgnoredEventException.INSTANCE;
         } else if (arg == null || arg == NullOrMissingValue.NULL) {
@@ -440,7 +440,7 @@ public class Expression {
             return arg instanceof InetAddress;
     }
 
-    private Object checkStringIp(Object arg1, Object arg2) {
+    private static Object checkStringIp(Object arg1, Object arg2) {
         try {
             if ((arg1 instanceof InetAddress || arg1 instanceof InetAddress[]) && arg2 instanceof String) {
                 if (((String) arg2).startsWith("/")) {
@@ -455,7 +455,7 @@ public class Expression {
         }
     }
 
-    public Object compare(String operator, Object arg1, Object arg2) {
+    public static Object compare(String operator, Object arg1, Object arg2) {
         arg1 = nullfilter(arg1);
         arg2 = protect(operator, arg2);
         // Detect if comparing an IP with a String, try to compare both as InetAddress
@@ -505,7 +505,7 @@ public class Expression {
         }
     }
 
-    private Object ipCompare(Object arg1, Object arg2) {
+    private static boolean ipCompare(Object arg1, Object arg2) {
         if (arg1 instanceof InetAddress && arg2 instanceof InetAddress[]) {
             InetAddress ip1 = (InetAddress) arg1;
             InetAddress[] ip2 = (InetAddress[]) arg2;
@@ -525,7 +525,7 @@ public class Expression {
         }
     }
 
-    private int compareObjects(Object arg1, Object arg2) {
+    private static int compareObjects(Object arg1, Object arg2) {
         if (arg1 instanceof Number && arg2 instanceof Number) {
             return NumberMath.compareTo((Number)arg1, (Number)arg2);
         } else if (arg1 instanceof Date && arg2 instanceof TemporalAccessor) {
@@ -576,7 +576,7 @@ public class Expression {
         }
     }
 
-    public Object regex(Object arg, String op, Pattern pattern) {
+    public static Object regex(Object arg, String op, Pattern pattern) {
         if (arg == NullOrMissingValue.NULL || arg == null || arg instanceof Collection || arg instanceof java.util.Map || arg.getClass().isArray()) {
             return false;
         } else if (arg == NullOrMissingValue.MISSING) {
@@ -598,7 +598,7 @@ public class Expression {
         }
     }
 
-    public boolean asBoolean(Object arg) {
+    public static boolean asBoolean(Object arg) {
         if (arg == NullOrMissingValue.MISSING) {
             throw IgnoredEventException.INSTANCE;
         } else if (arg instanceof Boolean) {
@@ -612,7 +612,7 @@ public class Expression {
         }
     }
 
-    public Object groovyOperator(String operator, Object arg1) {
+    public static Object groovyOperator(String operator, Object arg1) {
         arg1 = nullfilter(arg1);
         if (arg1 instanceof NullOrMissingValue) {
             throw IgnoredEventException.INSTANCE;
@@ -622,7 +622,7 @@ public class Expression {
         return mc.invokeMethod(arg1, groovyOp.groovyMethod, new Object[]{});
     }
 
-    public Object groovyOperator(String operator, Object arg1, Object arg2) {
+    public static Object groovyOperator(String operator, Object arg1, Object arg2) {
         if (arg1 instanceof NullOrMissingValue) {
             throw IgnoredEventException.INSTANCE;
         }
@@ -631,9 +631,10 @@ public class Expression {
         return mc.invokeMethod(arg1, groovyOp.groovyMethod, new Object[]{arg2});
     }
 
-    public Object newInstance(Class <?> theClass, List<Object> args) {
+    @SuppressWarnings("unchecked")
+    public static <T> T newInstance(Class <T> theClass, List<Object> args) {
         MetaClass mc = registry.getMetaClass(theClass);
-        return mc.invokeConstructor(args.toArray(Object[]::new));
+        return (T) mc.invokeConstructor(args.toArray(Object[]::new));
     }
 
     /**
