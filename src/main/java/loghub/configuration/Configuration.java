@@ -271,7 +271,9 @@ public class Configuration {
         } else if (bvc.characterLiteral() != null) {
             return bvc.getText().charAt(0);
         } else if (bvc.integerLiteral() != null) {
-            return Integer.valueOf(bvc.getText());
+            return ConfigListener.resolveNumberLiteral(bvc.integerLiteral());
+        } else if (bvc.floatingPointLiteral() != null) {
+            return Double.valueOf(bvc.getText());
         } else if (bvc.nullLiteral() != null) {
             return null;
         } else if (bvc.array() != null) {
@@ -279,7 +281,7 @@ public class Configuration {
         } else if (bvc.secret() != null) {
             return bvc.secret();
         } else {
-            throw new IllegalArgumentException("bean value unidentified " + bvc.getText());
+            throw new ConfigException("Invalid property value " + bvc.getText(), bvc.start.getTokenSource().getSourceName(), bvc.start);
         }
     }
 

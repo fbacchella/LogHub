@@ -6,6 +6,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.logging.log4j.Level;
@@ -20,6 +21,7 @@ import loghub.BuilderClass;
 import loghub.EventsProcessor;
 import loghub.Expression;
 import loghub.LogUtils;
+import loghub.NullOrMissingValue;
 import loghub.Processor;
 import loghub.ProcessorException;
 import loghub.Tools;
@@ -384,8 +386,33 @@ public class TestConfigurations {
                 "queueDepth: 'a'",
                 "http.jwt: \"true\"",
                 "timezone: 1",
-                "locale: true")) {
-            Assert.assertThrows(ConfigException.class, () -> Configuration.parse(new StringReader(confile)));
+                "locale: true",
+                "encoder: loghub.encoders.ToJson")) {
+            ConfigException ex = Assert.assertThrows(ConfigException.class, () -> Configuration.parse(new StringReader(confile)));
+        }
+    }
+
+    @Test
+    public void testGoodProperty() throws IOException {
+        Map<String, Object> properties = Map.of(
+                "a: 0x0a", 10,
+                "a: 0o12", 10,
+                "a: 0b1010", 10,
+                "a: true", true,
+                "a: 1.0", 1.0,
+                "a: [\"a\", \"b\"]", new String[]{"a","b"},
+                "a: null", NullOrMissingValue.NULL);
+        for (Map.Entry<String, Object> property: properties.entrySet()) {
+            Properties props = Configuration.parse(new StringReader(property.getKey()));
+            String message = "For " + property.getKey();
+            if (property.getValue() == NullOrMissingValue.NULL) {
+                Assert.assertTrue(message,  props.containsKey("a"));
+                Assert.assertEquals(message, null, props.get("a"));
+            } else if (property.getValue().getClass().isArray()){
+                Assert.assertArrayEquals(message, (Object[])property.getValue(), (Object[])props.get("a"));
+            } else {
+                Assert.assertEquals(message, property.getValue(), props.get("a"));
+            }
         }
     }
 
