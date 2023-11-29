@@ -52,7 +52,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.LoggerContext;
 
-import groovy.lang.GroovyClassLoader;
 import loghub.Helpers;
 import loghub.Helpers.ThrowingConsumer;
 import loghub.Helpers.ThrowingPredicate;
@@ -364,6 +363,7 @@ public class Configuration {
                                                         .jaasConfig(resolveJaasConfig())
                                                         .jwtHandler(resolveJwtHander())
                                                         .cacheManager(cacheManager)
+                                                        .properties(new ConfigurationProperties(configurationProperties))
                                                         .build();
             logger.debug("Walk configuration");
             trees.forEach(t -> {

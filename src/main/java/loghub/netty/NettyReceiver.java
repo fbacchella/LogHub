@@ -1,5 +1,6 @@
 package loghub.netty;
 
+import java.lang.reflect.InvocationTargetException;
 import java.net.SocketAddress;
 import java.util.Objects;
 import java.util.Optional;
@@ -13,6 +14,8 @@ import io.netty.util.Attribute;
 import io.netty.util.AttributeKey;
 import loghub.ConnectionContext;
 import loghub.Helpers;
+import loghub.configuration.BeansManager;
+import loghub.configuration.ConfigurationProperties;
 import loghub.configuration.Properties;
 import loghub.decoders.DecodeException;
 import loghub.events.Event;
@@ -27,11 +30,13 @@ import lombok.Setter;
 
 public abstract class NettyReceiver<R extends NettyReceiver<R, M, B>, M, B extends NettyReceiver.Builder<R, M, B>> extends Receiver<R, B> {
 
+    public static final String POLLER_PROPERTY_NAME = "poller";
+
     protected static final AttributeKey<ConnectionContext<? extends SocketAddress>> CONNECTIONCONTEXTATTRIBUTE = AttributeKey.newInstance(ConnectionContext.class.getName());
 
     public abstract static class Builder<R extends NettyReceiver<R, M, B>, M, B extends NettyReceiver.Builder<R, M, B>> extends Receiver.Builder<R, B> {
         @Setter
-        protected POLLER poller = POLLER.DEFAULTPOLLER;
+        protected POLLER poller = null;
         @Setter
         protected int workerThreads = 1;
         @Setter
@@ -46,6 +51,8 @@ public abstract class NettyReceiver<R extends NettyReceiver<R, M, B>, M, B exten
         protected int sndBuf = -1;
         @Setter
         protected int backlog = -1;
+        @Setter
+        protected ConfigurationProperties properties;
     }
 
     protected final NettyTransport<?, M, ?, ?> transport;
@@ -74,6 +81,19 @@ public abstract class NettyReceiver<R extends NettyReceiver<R, M, B>, M, B exten
                 nettyIpBuilder.setSslKeyAlias(getSSLKeyAlias());
                 nettyIpBuilder.setWithSsl(true);
             }
+        }
+        if (builder.poller != null) {
+            nettyBuilder.setPoller(builder.poller);
+        } else if (builder.properties != null && builder.properties.containsKey(POLLER_PROPERTY_NAME)) {
+            String pollerName = builder.properties.get(POLLER_PROPERTY_NAME).toString();
+            try {
+                POLLER poller = BeansManager.constructFromString(POLLER.class, pollerName);
+                nettyBuilder.setPoller(poller);
+            } catch (InvocationTargetException e) {
+                throw new IllegalArgumentException("Unhandled poller: \"" + pollerName + "\"", e);
+            }
+        } else {
+            nettyBuilder.setPoller(POLLER.DEFAULTPOLLER);
         }
         tweakNettyBuilder(builder, nettyBuilder);
         this.transport = nettyBuilder.build();

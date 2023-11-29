@@ -1,6 +1,7 @@
 package loghub.netty;
 
 import java.io.IOException;
+import java.io.StringReader;
 import java.util.Collections;
 
 import org.apache.logging.log4j.Level;
@@ -21,10 +22,13 @@ import io.netty.channel.socket.DatagramPacket;
 import io.netty.channel.unix.DomainDatagramPacket;
 import io.netty.handler.codec.LineBasedFrameDecoder;
 import io.netty.util.CharsetUtil;
+import loghub.BuilderClass;
 import loghub.LogUtils;
 import loghub.Pipeline;
 import loghub.PriorityBlockingQueue;
 import loghub.Tools;
+import loghub.configuration.ConfigException;
+import loghub.configuration.Configuration;
 import loghub.configuration.Properties;
 import loghub.decoders.StringCodec;
 import loghub.events.Event;
@@ -36,6 +40,7 @@ import loghub.netty.transport.TRANSPORT;
 public class TestSimpleReceiver {
 
     @CloseOnError
+    @BuilderClass(TesterReceiver.Builder.class)
     private static class TesterReceiver extends NettyReceiver<TestSimpleReceiver.TesterReceiver, Object, TestSimpleReceiver.TesterReceiver.Builder>
             implements ConsumerProvider {
 
@@ -183,6 +188,28 @@ public class TestSimpleReceiver {
     @Test(timeout = 5000)
     public void testUnixDgram() throws InterruptedException {
         runTest(TRANSPORT.UNIX_DGRAM, POLLER.DEFAULTPOLLER, folder.getRoot().toPath().resolve("socketdgram").toString(), Tools.tryGetPort());
+    }
+
+    private void parseReceiverConfig(String config) throws IOException {
+        Properties conf = Configuration.parse(new StringReader(config));
+        try (NettyReceiver<?, ?, ?> r = (NettyReceiver<?, ?, ?>) conf.receivers.stream().findAny().orElseThrow(() -> new IllegalStateException("No received defined"))) {
+            Assert.assertEquals(POLLER.NIO, r.transport.getPoller());
+        }
+    }
+    @Test
+    public void testParsing() throws IOException {
+        parseReceiverConfig("input {\n" + "    loghub.netty.TestSimpleReceiver$TesterReceiver { transport: \"TCP\", poller: \"NIO\"            }\n" + "} | $main pipeline[main]{}\n");
+    }
+
+    @Test
+    public void testPollerProperty() throws IOException {
+        parseReceiverConfig("poller: \"NIO\" input {\n" + "    loghub.netty.TestSimpleReceiver$TesterReceiver { transport: \"TCP\",             }\n" + "} | $main pipeline[main]{}\n");
+    }
+
+    @Test
+    public void testWrongPollerProperty() {
+        ConfigException ex = Assert.assertThrows(ConfigException.class, () -> parseReceiverConfig("poller: \"NONE\" input {\n" + "    loghub.netty.TestSimpleReceiver$TesterReceiver { transport: \"TCP\",             }\n" + "} | $main pipeline[main]{}\n"));
+        Assert.assertEquals("Unhandled poller: \"NONE\": loghub.netty.transport.POLLER: Not matching value NONE", ex.getMessage());
     }
 
 }

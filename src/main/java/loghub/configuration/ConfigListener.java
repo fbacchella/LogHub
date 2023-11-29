@@ -13,6 +13,8 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
@@ -111,7 +113,8 @@ class ConfigListener extends RouteBaseListener {
             javax.security.auth.login.Configuration.class,
             JWTHandler.class,
             ClassLoader.class,
-            CacheManager.class
+            CacheManager.class,
+            ConfigurationProperties.class,
     };
 
     private enum StackMarker {
@@ -216,7 +219,6 @@ class ConfigListener extends RouteBaseListener {
     final Map<String, PipenodesList> pipelines = new HashMap<>();
     final List<Input> inputs = new ArrayList<>();
     final List<Output> outputs = new ArrayList<>();
-    final Map<String, Object> properties = new HashMap<>();
     final Map<String, AtomicReference<Source>> sources = new HashMap<>();
     final Set<String> outputPipelines = new HashSet<>();
     final SSLContext sslContext;
@@ -233,13 +235,15 @@ class ConfigListener extends RouteBaseListener {
     private final Map<String, String> lockedProperties;
     private final CacheManager cacheManager;
     private final BeansManager beansManager;
+    final ConfigurationProperties properties;
 
     private Parser parser;
     private IntStream stream;
 
     @Builder
     private ConfigListener(ClassLoader classLoader, SecretsHandler secrets, Map<String, String> lockedProperties,
-            SSLContext sslContext, javax.security.auth.login.Configuration jaasConfig, JWTHandler jwtHandler, CacheManager cacheManager) {
+            SSLContext sslContext, javax.security.auth.login.Configuration jaasConfig, JWTHandler jwtHandler, CacheManager cacheManager,
+            ConfigurationProperties properties) {
         this.classLoader = classLoader != null ? classLoader : ConfigListener.class.getClassLoader();
         this.secrets = secrets != null ? secrets : SecretsHandler.empty();
         this.lockedProperties = lockedProperties != null ? lockedProperties : new HashMap<>();
@@ -248,6 +252,7 @@ class ConfigListener extends RouteBaseListener {
         this.jaasConfig = jaasConfig;
         this.jwtHandler = jwtHandler;
         this.cacheManager = cacheManager;
+        this.properties = Optional.ofNullable(properties).filter(Objects::nonNull).orElseGet(ConfigurationProperties::new);
     }
 
     public void startWalk(ParserRuleContext config, CharStream stream, RouteParser parser) {
@@ -402,6 +407,8 @@ class ConfigListener extends RouteBaseListener {
                             value = this.classLoader;
                         } else if (c == CacheManager.class) {
                             value = this.cacheManager;
+                        } else if (c == ConfigurationProperties.class) {
+                            value = this.properties;
                         } else {
                             throw new IllegalStateException("Unhandled bean injection value");
                         }
@@ -687,16 +694,7 @@ class ConfigListener extends RouteBaseListener {
     @Override
     public void exitProperty(PropertyContext ctx) {
         assert stack.peek() instanceof ObjectWrapped;
-        Object value = ((ObjectWrapped<?>) stack.pop()).wrapped;
-        String key = ctx.propertyName.getText();
-        // Avoid reprocess already processed properties
-        String lockedValue = lockedProperties.get(key);
-        String valueString = ctx.beanValue().getText();
-        if (lockedValue == null || lockedValue.equals(valueString)) {
-            properties.put(key, value);
-        } else {
-            throw new RecognitionException("Redefined property " + key, parser, stream, ctx);
-        }
+        stack.pop();
     }
 
     @Override

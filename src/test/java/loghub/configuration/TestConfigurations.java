@@ -400,15 +400,11 @@ public class TestConfigurations {
                 "a: 0b1010", 10,
                 "a: true", true,
                 "a: 1.0", 1.0,
-                "a: [\"a\", \"b\"]", new String[]{"a","b"},
-                "a: null", NullOrMissingValue.NULL);
+                "a: [\"a\", \"b\"]", new String[]{"a","b"});
         for (Map.Entry<String, Object> property: properties.entrySet()) {
             Properties props = Configuration.parse(new StringReader(property.getKey()));
             String message = "For " + property.getKey();
-            if (property.getValue() == NullOrMissingValue.NULL) {
-                Assert.assertTrue(message,  props.containsKey("a"));
-                Assert.assertEquals(message, null, props.get("a"));
-            } else if (property.getValue().getClass().isArray()){
+            if (property.getValue().getClass().isArray()){
                 Assert.assertArrayEquals(message, (Object[])property.getValue(), (Object[])props.get("a"));
             } else {
                 Assert.assertEquals(message, property.getValue(), props.get("a"));
