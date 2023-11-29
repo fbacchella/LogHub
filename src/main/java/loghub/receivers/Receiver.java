@@ -6,7 +6,7 @@ import java.util.Date;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
 
 import javax.net.ssl.SSLContext;
@@ -148,19 +148,13 @@ public abstract class Receiver<R extends Receiver<R, B>, B extends Receiver.Buil
 
     @Override
     public void run() {
-        AtomicLong eventseen = new AtomicLong();
-        int looptry = 0;
-        int wait = 100;
+        AtomicBoolean eventSeen = new AtomicBoolean();
         while (! isInterrupted()) {
             getStream().forEach(e -> {
                 try {
                     if (e != null) {
                         logger.trace("new message received: {}", e);
-                        eventseen.incrementAndGet();
-                        //Wrap, but not a problem, just count as 1
-                        if (eventseen.get() < 0) {
-                            eventseen.set(1);
-                        }
+                        eventSeen.set(true);
                         send(e);
                     }
                 } catch (Exception ex) {
@@ -168,26 +162,14 @@ public abstract class Receiver<R extends Receiver<R, B>, B extends Receiver.Buil
                     logger.catching(Level.DEBUG, ex);
                 }
             });
-            // The previous loop didn't catch anything
-            // So try some recovery
-            if (eventseen.get() == 0) {
-                looptry++;
-                logger.debug("event seen = 0, try = {}", looptry);
-                // A little magic, give the CPU to other threads
-                Thread.yield();
-                if (looptry > 3) {
-                    try {
-                        Thread.sleep(wait);
-                        wait = wait * 2;
-                        looptry = 0;
-                    } catch (InterruptedException ex) {
-                        Thread.currentThread().interrupt();
-                        break;
-                    }
+            // Avoid a wild loop for a sleeping receiver, a little sleep
+            if (eventSeen.get()) {
+                try {
+                    Thread.sleep(100);
+                 } catch (InterruptedException ex) {
+                    Thread.currentThread().interrupt();
+                    break;
                 }
-            } else {
-                looptry = 0;
-                wait = 0;
             }
         }
         close();
