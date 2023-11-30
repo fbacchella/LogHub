@@ -18,7 +18,7 @@
         <mainClass>loghub.Start</mainClass>
         <cacheapi.version>1.1.1</cacheapi.version>
         <snmp4j.version>3.7.7</snmp4j.version>
-        <geoip2.version>3.0.2</geoip2.version>
+        <geoip2.version>4.0.1</geoip2.version>
         <netty.version>4.1.101.Final</netty.version>
         <dependency.locations.enabled>true</dependency.locations.enabled>
         <!-- Indirection needed to keep optionnal jacoco settings and external argument lines-->

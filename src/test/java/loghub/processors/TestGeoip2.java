@@ -2,6 +2,7 @@ package loghub.processors;
 
 import java.beans.IntrospectionException;
 import java.io.IOException;
+import java.io.StringReader;
 import java.util.Collections;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -20,6 +21,8 @@ import loghub.ProcessorException;
 import loghub.Tools;
 import loghub.VarFormatter;
 import loghub.VariablePath;
+import loghub.configuration.CacheManager;
+import loghub.configuration.Configuration;
 import loghub.configuration.Properties;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
@@ -83,6 +86,7 @@ public class TestGeoip2 {
         builder.setTypes(typesNames);
         builder.setLocale("en");
         builder.setGeoipdb(TestGeoip2.class.getResource("/GeoLite2-Country.mmdb").toString());
+        builder.setCacheManager(props.cacheManager);
         builderTweaks.accept(builder);
         Geoip2 geoip = builder.build();
         geoip.configure(props);
@@ -100,6 +104,21 @@ public class TestGeoip2 {
     }
 
     @Test
+    public void parseConfig() throws IOException, ProcessorException {
+        String geoipPath = TestGeoip2.class.getResource("/GeoLite2-City.mmdb").toString();
+        String config = String.format("pipeline[geoip]{loghub.processors.Geoip2 {geoipdb: \"%s\", field: [ip], types: [\"country\"], destination: [geoip]}}", geoipPath);
+        Properties conf = Configuration.parse(new StringReader(config));
+        Geoip2 geoip = conf.namedPipeLine.get("geoip").processors.stream().findAny().map(Geoip2.class::cast).orElseThrow(() -> new IllegalStateException("No received defined"));
+        geoip.configure(conf);
+        Map<Object, Object> geoinfos = run(geoip);
+        assertEquals(1, geoinfos.size());
+        @SuppressWarnings("unchecked")
+        Map<String, String> country = (Map<String, String>) geoinfos.get("country");
+        assertEquals("US", country.get("code"));
+    }
+
+
+    @Test
     public void test_loghub_processors_Geoip2() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.processors.Geoip2"
                 , BeanChecks.BeanInfo.build("geoipdb", String.class)
@@ -108,6 +127,7 @@ public class TestGeoip2 {
                 , BeanChecks.BeanInfo.build("cacheSize", Integer.TYPE)
                 , BeanChecks.BeanInfo.build("destination", VariablePath.class)
                 , BeanChecks.BeanInfo.build("destinationTemplate", VarFormatter.class)
+                , BeanChecks.BeanInfo.build("cacheManager", CacheManager.class)
                 , BeanChecks.BeanInfo.build("field", VariablePath.class)
                 , BeanChecks.BeanInfo.build("fields", String[].class)
                 , BeanChecks.BeanInfo.build("path", VariablePath.class)
