@@ -150,6 +150,7 @@ public abstract class Receiver<R extends Receiver<R, B>, B extends Receiver.Buil
     public void run() {
         AtomicBoolean eventSeen = new AtomicBoolean();
         while (! isInterrupted()) {
+            eventSeen.set(false);
             getStream().forEach(e -> {
                 try {
                     if (e != null) {
