@@ -176,6 +176,15 @@ public class SnmpTrap extends Receiver<SnmpTrap, SnmpTrap.Builder> implements Co
         return super.configure(properties);
     }
 
+    @Override
+    public void start() {
+        // Useless receiver thread, don't bother to start it
+    }
+
+    @Override
+    public void run() {
+    }
+
     private <A extends Address> void doStats(TransportMapping<? super A> transportMapping, A a,
             ByteBuffer byteBuffer, TransportStateReference transportStateReference) {
         logger.trace("Bytes received {}", byteBuffer::remaining);
