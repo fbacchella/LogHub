@@ -26,8 +26,6 @@ public abstract class AbstractHttpSender extends Sender {
         @Setter
         private String[] destinations;
         @Setter
-        private int workers;
-        @Setter
         private String clientService = ApacheHttpClientService.class.getName();
         @Setter
         protected String sslKeyAlias;
