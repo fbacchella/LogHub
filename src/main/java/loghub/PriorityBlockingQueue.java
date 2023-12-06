@@ -7,6 +7,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -88,11 +89,11 @@ public class PriorityBlockingQueue extends AbstractQueue<Event>
         if (weight < 0) {
             throw new IllegalArgumentException("Weight can't be negative");
         }
-        asyncQueue = new LinkedBlockingQueue<>(capacity);
+        asyncQueue = new ArrayBlockingQueue<>(capacity);
         if (weight == 0) {
             syncQueue = asyncQueue;
         } else {
-            syncQueue = new LinkedBlockingQueue<>(capacity);
+            syncQueue = new ArrayBlockingQueue<>(capacity);
         }
         this.weight = weight;
     }
