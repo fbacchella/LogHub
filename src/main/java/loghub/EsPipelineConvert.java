@@ -107,6 +107,9 @@ public class EsPipelineConvert {
             case "gsub":
                 gsub(params, prefix);
                 break;
+            case "user_agent":
+                userAgent(params, prefix);
+                break;
             default:
                 System.out.println(prefix + "// " + processor);
             }
@@ -260,6 +263,13 @@ public class EsPipelineConvert {
         doProcessor(prefix, "loghub.processors.Geoip2", filterComments(params, attributes), attributes);
     }
 
+    private void userAgent(Map<String, Object> params, String prefix) {
+        Map<String, Object> attributes = new HashMap<>();
+        attributes.put("field", resolveValue(params.remove("field")));
+        attributes.put("destination", resolveValue(params.remove("target_field")));
+        doProcessor(prefix, "loghub.processors.UserAgent", filterComments(params, attributes), attributes);
+    }
+
     private void split(Map<String, Object> params, String prefix) {
         Map<String, Object> attributes = new HashMap<>();
         attributes.put("pattern", resolveValue(params.remove("separator")));
@@ -291,6 +301,9 @@ public class EsPipelineConvert {
             break;
         case "string":
             className = "java.lang.String";
+            break;
+        case "double":
+            className = "java.lang.Double";
             break;
         default:
             throw new UnsupportedOperationException(type);
