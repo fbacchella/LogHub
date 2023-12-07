@@ -1,13 +1,12 @@
 package loghub.processors;
 
 import java.io.ByteArrayInputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetAddress;
 import java.net.URI;
 import java.net.UnknownHostException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -335,8 +334,15 @@ public class Geoip2 extends FieldsProcessor {
     }
 
     private void refresh() {
-        byte[] newContent = readNewDb();
-        if (newContent.length != 0) {
+        Object newContent;
+        try {
+            newContent = readNewDb();
+        } catch (IOException e) {
+            logger.error("Unable to read the GeoIP database content: {}", () -> Helpers.resolveThrowableException(e));
+            logger.catching(Level.DEBUG, e);
+            return;
+        }
+        if (newContent != null) {
             try {
                 dbProtectionLock.writeLock().lockInterruptibly();
             } catch (InterruptedException e) {
@@ -344,9 +350,18 @@ public class Geoip2 extends FieldsProcessor {
                 // Give up the lock tentative in case of interruption
                 return;
             }
-            try (InputStream is = new ByteArrayInputStream(newContent)) {
-                reader = new Reader(is, geoipCache);
+            try {
                 geoipCache.reset();
+                if (reader != null) {
+                    reader.close();
+                }
+                if (newContent instanceof File) {
+                    reader = new Reader((File) newContent, geoipCache);
+                } else {
+                    try (InputStream is = new ByteArrayInputStream((byte[])newContent)) {
+                        reader = new Reader(is, geoipCache);
+                    }
+                }
                 lastBuildDate = reader.getMetadata().getBuildDate().getTime();
             } catch (IOException e) {
                 logger.error("Unable to read the GeoIP database content: {}", () -> Helpers.resolveThrowableException(e));
@@ -357,52 +372,39 @@ public class Geoip2 extends FieldsProcessor {
         }
     }
 
-    private byte[] readNewDb() {
+    private Object readNewDb() throws IOException {
         byte[] content = null;
+        Reader temproraryReader = null;
         if (geoipdb != null && "file".equals(geoipdb.getScheme())) {
-            try (InputStream is = Files.newInputStream(Path.of(geoipdb))) {
-                content = is.readAllBytes();
-            } catch (IOException e) {
-                logger.error("can't read geoip database {}: {}", () -> geoipdb, () -> Helpers.resolveThrowableException(e));
-                logger.catching(Level.DEBUG, e);
-            }
+            temproraryReader = new Reader(new File(geoipdb.getPath()));
         } else if (geoipdb != null) {
             try (InputStream is = geoipdb.toURL().openStream()) {
                 content = is.readAllBytes();
-            } catch (IOException e) {
-                logger.error("can't read geoip database {}: {}", () -> geoipdb, () -> Helpers.resolveThrowableException(e));
-                logger.catching(Level.DEBUG, e);
+                temproraryReader = new Reader(new ByteArrayInputStream(content));
             }
         } else {
-            try {
-                try (InputStream is = Geoip2.class.getResourceAsStream("GeoLite2-City.mmdb")) {
-                    if (is == null) {
-                        logger.error("Didn't find a default database");
-                    } else {
-                        content = is.readAllBytes();
-                    }
+            try (InputStream is = Geoip2.class.getResourceAsStream("GeoLite2-City.mmdb")) {
+                if (is == null) {
+                    logger.error("Didn't find a default database");
+                } else {
+                    content = is.readAllBytes();
+                    temproraryReader = new Reader(new ByteArrayInputStream(content));
                 }
-            } catch (IOException e) {
-                logger.error("Didn't find a default database");
-                logger.catching(Level.DEBUG, e);
             }
         }
-        if (content != null) {
+        if (temproraryReader != null) {
             try {
-                Reader lreader = new Reader(new ByteArrayInputStream(content));
-                if (lreader.getMetadata().getBuildDate().getTime() > lastBuildDate) {
-                    return content;
+                if (temproraryReader.getMetadata().getBuildDate().getTime() > lastBuildDate) {
+                    return content != null ? content : new File(geoipdb.getPath());
                 } else {
-                    return new byte[0];
+                    return null;
                 }
-            } catch (IOException e) {
-                logger.error("Unable to read the GeoIP database content: {}", () -> Helpers.resolveThrowableException(e));
-                logger.catching(Level.DEBUG, e);
-                return new byte[0];
+            } finally {
+                temproraryReader.close();
             }
         } else {
             logger.debug("No update needed for {}", geoipdb);
-            return new byte[0];
+            return null;
         }
     }
 
