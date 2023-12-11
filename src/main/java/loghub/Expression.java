@@ -467,7 +467,10 @@ public class Expression {
                             (arg2 instanceof InetAddress || arg2 instanceof InetAddress[]);
         if (arg2 == ANYVALUE) {
             return ((arg1 != NullOrMissingValue.MISSING) ^ "!=".equals(operator));
-        } else if (arg1 == NullOrMissingValue.MISSING || arg2 == NullOrMissingValue.MISSING) {
+        } else if ((arg1 == NullOrMissingValue.MISSING || arg2 == NullOrMissingValue.MISSING) &&
+                                                         ("==".equals(operator) || "===".equals(operator))) {
+            return false;
+        } else if ((arg1 == NullOrMissingValue.MISSING || arg2 == NullOrMissingValue.MISSING)) {
             throw IgnoredEventException.INSTANCE;
         } else if ("==".equals(operator) && ipCompare) {
             return ipCompare(arg1, arg2);

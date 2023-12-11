@@ -318,14 +318,13 @@ public class TestExpressionParsing {
     public void testValueMissing() {
         Event ev = factory.newEvent();
         Object[] tryExpression = new Object[] {
-                "[#a] == null", IgnoredEventException.class,
-                "null == [a b]", IgnoredEventException.class,
-                "[a b] == null", IgnoredEventException.class,
+                "null == [a b]", false,
+                "[a b] == null", false,
                 "[a b] != null", IgnoredEventException.class,
-                "[a b] === null", IgnoredEventException.class,
+                "[a b] === null", false,
                 "[a b] !== null", IgnoredEventException.class,
-                "2 == [a b]", IgnoredEventException.class,
-                "[a b] == 2", IgnoredEventException.class,
+                "2 == [a b]", false,
+                "[a b] == 2", false,
                 "[a b] instanceof java.lang.Integer", false,
                 "2 ** [a b]", IgnoredEventException.class,
                 "[a b] ** 2", IgnoredEventException.class,
@@ -355,9 +354,10 @@ public class TestExpressionParsing {
                 "+ [a b]", IgnoredEventException.class,
                 "- [a b]", IgnoredEventException.class,
                 "[#a]", IgnoredEventException.class,
-                "null == [#a]", IgnoredEventException.class,
-                "2 == [#a]", IgnoredEventException.class,
-                "[#a] == 2", IgnoredEventException.class,
+                "[#a] == null", false,
+                "null == [#a]", false,
+                "2 == [#a]", false,
+                "[#a] == 2", false,
         };
         enumerateExpressions(ev, tryExpression);
     }
@@ -760,9 +760,9 @@ public class TestExpressionParsing {
         ev.getConnectionContext().setPrincipal(p);
         Assert.assertTrue((boolean) Tools.evalExpression("isEmpty([@context principal name])", ev));
         Assert.assertTrue((boolean) Tools.evalExpression("isEmpty([@context localAddress])", ev));
-        Assert.assertThrows(loghub.IgnoredEventException.class, () -> Tools.evalExpression("[@context localAddress port] == 443", ev));
-        Assert.assertThrows(loghub.IgnoredEventException.class, () -> Tools.evalExpression("[@context bad] == 443", ev));
-        Assert.assertThrows(loghub.IgnoredEventException.class, () -> Tools.evalExpression("[@context remoteAddress path] == 443", ev));
+        Assert.assertFalse((boolean) Tools.evalExpression("[@context localAddress port] == 443", ev));
+        Assert.assertFalse((boolean) Tools.evalExpression("[@context bad] == 443", ev));
+        Assert.assertFalse((boolean) Tools.evalExpression("[@context remoteAddress path] == 443", ev));
     }
 
     @Test
