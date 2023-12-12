@@ -3,12 +3,14 @@ package loghub.receivers;
 import java.beans.IntrospectionException;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.io.StringReader;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
@@ -18,7 +20,6 @@ import javax.net.ssl.SSLContext;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.junit.After;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -30,6 +31,7 @@ import loghub.LogUtils;
 import loghub.Pipeline;
 import loghub.PriorityBlockingQueue;
 import loghub.Tools;
+import loghub.configuration.ConfigException;
 import loghub.configuration.Properties;
 import loghub.decoders.Decoder;
 import loghub.decoders.Json;
@@ -53,11 +55,6 @@ public class TestTcpLinesStream {
     private int port;
     private PriorityBlockingQueue queue;
 
-    @After
-    public void stopReceiver() {
-
-    }
-
     @Test(timeout=5000)
     public void testSimple() throws IOException, InterruptedException {
         try (TcpLinesStream ignored = makeReceiver(i -> {}, Collections.emptyMap())){
@@ -75,9 +72,54 @@ public class TestTcpLinesStream {
     }
 
     @Test(timeout=5000)
+    public void testZeroSeparator() throws IOException, InterruptedException {
+        try (TcpLinesStream ignored = makeReceiver(i -> i.setSeparator("\0"), Collections.emptyMap())){
+            try (Socket socket = new Socket(InetAddress.getLoopbackAddress(), port)) {
+                OutputStream os = socket.getOutputStream();
+                os.write("LogHub1\0LogHub2\0".getBytes(StandardCharsets.UTF_8));
+                os.flush();
+            }
+            for (Event e: List.of(queue.poll(1, TimeUnit.SECONDS), queue.poll(1, TimeUnit.SECONDS))) {
+                Assert.assertNotNull(e);
+                String message = (String) e.get("message");
+                Assert.assertTrue(message.startsWith("LogHub"));
+                Assert.assertEquals("LogHub".length() + 1, message.length());
+                Assert.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
+            }
+        }
+    }
+
+    @Test(timeout = 5000)
+    public void testParse() throws ConfigException, IOException, InterruptedException {
+        port = Tools.tryGetPort();
+        String confile = "input {" +
+                                 "    loghub.receivers.TcpLinesStream {\n" +
+                                 "        separator: \"\\01\\02\",\n" +
+                                 "        port: " + port + ",\n" +
+                                 "    }" +
+                                 "} | $main\n" +
+                                 "pipeline[main] {}";
+        Properties conf = Tools.loadConf(new StringReader(confile));
+        try (TcpLinesStream r = (TcpLinesStream) conf.receivers.stream().findAny().orElseThrow();
+             Socket socket = new Socket(InetAddress.getLoopbackAddress(), port)) {
+            OutputStream os = socket.getOutputStream();
+            os.write("LogHub1\01\02LogHub2\01\02".getBytes(StandardCharsets.UTF_8));
+            os.flush();
+            for (Event e: List.of(conf.mainQueue.poll(1, TimeUnit.SECONDS), conf.mainQueue.poll(1, TimeUnit.SECONDS))) {
+                Assert.assertNotNull(e);
+                String message = (String) e.get("message");
+                Assert.assertTrue(message.startsWith("LogHub"));
+                Assert.assertEquals("LogHub".length() + 1, message.length());
+                Assert.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
+            }
+        }
+    }
+
+
+    @Test(timeout=5000)
     public void testJson() throws IOException, InterruptedException {
         try (TcpLinesStream ignored = makeReceiver(i -> {}, Collections.emptyMap(), () -> Json.getBuilder().build())){
-            try(Socket socket = new Socket(InetAddress.getLoopbackAddress(), port)) {
+            try (Socket socket = new Socket(InetAddress.getLoopbackAddress(), port)) {
                 OutputStream os = socket.getOutputStream();
                 os.write("{\"program\": \"LogHub\"}\n".getBytes(StandardCharsets.UTF_8));
                 os.flush();
@@ -158,6 +200,7 @@ public class TestTcpLinesStream {
     public void test_loghub_receivers_TcpLinesStream() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.receivers.TcpLinesStream"
                               , BeanInfo.build("maxLength", Integer.TYPE)
+                              , BeanInfo.build("separator", String.class)
                               , BeanInfo.build("timeStampField", String.class)
                               , BeanInfo.build("filter", Filter.class)
                               , BeanInfo.build("poller", POLLER.class)
