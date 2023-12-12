@@ -638,13 +638,26 @@ public class TestExpressionParsing {
 
     @Test
     public void testStringLitteral() {
-        String format = "b";
-        Assert.assertEquals("b", Tools.resolveExpression("\"" + format + "\""));
+        Assert.assertEquals("loghub", Tools.resolveExpression("\"loghub\""));
+        Assert.assertEquals("\0", Tools.resolveExpression("\"\\0\""));
+        Assert.assertEquals("\1", Tools.resolveExpression("\"\\01\""));
+        Assert.assertEquals("\11", Tools.resolveExpression("\"\\11\""));
+        Assert.assertEquals("\111", Tools.resolveExpression("\"\\111\""));
+        Assert.assertEquals("a\111a", Tools.resolveExpression("\"a\\111a\""));
+        Assert.assertEquals("1\1", Tools.resolveExpression("\"1\\1\""));
+        Assert.assertEquals("\1", Tools.resolveExpression("\"\\u0001\""));
+        Assert.assertEquals("α", Tools.resolveExpression("\"\\u03B1\""));
+        Assert.assertEquals("Aαa", Tools.resolveExpression("\"A\\u03B1a\""));
+        Assert.assertEquals("\uD83C\uDF09", Tools.resolveExpression("\"\\ud83c\\udf09\""));
+        Assert.assertEquals("\n", Tools.resolveExpression("\"\\n\""));
+        Assert.assertEquals("\\n", Tools.resolveExpression("\"\\\\n\""));
     }
 
     @Test
     public void testCharacterLitteral() {
         Assert.assertEquals('a', Tools.resolveExpression("'a'"));
+        Assert.assertEquals('\n', Tools.resolveExpression("'\n'"));
+        Assert.assertEquals('α', Tools.resolveExpression("'\u03B1'"));
     }
 
     @Test
