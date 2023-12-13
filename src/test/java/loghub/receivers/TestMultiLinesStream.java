@@ -9,13 +9,10 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
-
-import javax.net.ssl.SSLContext;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -33,15 +30,11 @@ import loghub.PriorityBlockingQueue;
 import loghub.Tools;
 import loghub.configuration.ConfigException;
 import loghub.configuration.Properties;
-import loghub.decoders.Decoder;
-import loghub.decoders.Json;
-import loghub.decoders.StringCodec;
 import loghub.events.Event;
 import loghub.netty.transport.POLLER;
 import loghub.security.ssl.ClientAuthentication;
-import loghub.security.ssl.ContextLoader;
 
-public class TestTcpLinesStream {
+public class TestMultiLinesStream {
 
     private static Logger logger;
 
@@ -49,7 +42,7 @@ public class TestTcpLinesStream {
     static public void configure() throws IOException {
         Tools.configure();
         logger = LogManager.getLogger();
-        LogUtils.setLevel(logger, Level.TRACE, "loghub.receivers.TcpLinesStream", "loghub.netty", "loghub.EventsProcessor", "loghub.security");
+        LogUtils.setLevel(logger, Level.TRACE, "loghub.receivers.MultiLinesStream", "loghub.netty", "loghub.EventsProcessor", "loghub.security", "loghub");
     }
 
     private int port;
@@ -57,7 +50,7 @@ public class TestTcpLinesStream {
 
     @Test(timeout=5000)
     public void testSimple() throws IOException, InterruptedException {
-        try (TcpLinesStream ignored = makeReceiver(i -> {}, Collections.emptyMap())){
+        try (MultiLinesStream ignored = makeReceiver(i -> {}, Collections.emptyMap())){
             try (Socket socket = new Socket(InetAddress.getLoopbackAddress(), port)) {
                 OutputStream os = socket.getOutputStream();
                 os.write("LogHub\n".getBytes(StandardCharsets.UTF_8));
@@ -73,7 +66,7 @@ public class TestTcpLinesStream {
 
     @Test(timeout=5000)
     public void testZeroSeparator() throws IOException, InterruptedException {
-        try (TcpLinesStream ignored = makeReceiver(i -> i.setSeparator("\0"), Collections.emptyMap())){
+        try (MultiLinesStream ignored = makeReceiver(i -> i.setSeparator("\0"), Collections.emptyMap())){
             try (Socket socket = new Socket(InetAddress.getLoopbackAddress(), port)) {
                 OutputStream os = socket.getOutputStream();
                 os.write("LogHub1\0LogHub2\0".getBytes(StandardCharsets.UTF_8));
@@ -89,88 +82,75 @@ public class TestTcpLinesStream {
         }
     }
 
+    @Test(timeout=5000)
+    public void testWithMerge() throws IOException, InterruptedException {
+        try (MultiLinesStream ignored = makeReceiver(i -> { }, Collections.emptyMap())){
+            try (Socket socket = new Socket(InetAddress.getLoopbackAddress(), port)) {
+                OutputStream os = socket.getOutputStream();
+                os.write("LogHub1\n  details\nLogHub2\n".getBytes(StandardCharsets.UTF_8));
+                os.flush();
+            }
+            int i = 0;
+            Event e;
+            while ((e = queue.poll(1, TimeUnit.SECONDS)) != null) {
+                Assert.assertNotNull(e);
+                String message = (String) e.get("message");
+                if (i == 0) {
+                    Assert.assertEquals("LogHub1\ndetails", message);
+                } else {
+                    Assert.assertEquals("LogHub2", message);
+                }
+                Assert.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
+                i++;
+            }
+            Assert.assertEquals(2, i);
+        }
+    }
+
     @Test(timeout = 5000)
     public void testParse() throws ConfigException, IOException, InterruptedException {
         port = Tools.tryGetPort();
         String confile = "input {" +
-                                 "    loghub.receivers.TcpLinesStream {\n" +
+                                 "    loghub.receivers.MultiLinesStream {\n" +
                                  "        separator: \"\\n\\00\",\n" +
+                                 "        mergePattern: \"--(?<payload>.*)\",\n" +
                                  "        port: " + port + ",\n" +
+                                 "        joinWith: \": \",\n" +
                                  "    }" +
                                  "} | $main\n" +
                                  "pipeline[main] {}";
         Properties conf = Tools.loadConf(new StringReader(confile));
-        try (TcpLinesStream r = (TcpLinesStream) conf.receivers.stream().findAny().orElseThrow();
+        try (MultiLinesStream r = (MultiLinesStream) conf.receivers.stream().findAny().orElseThrow();
              Socket socket = new Socket(InetAddress.getLoopbackAddress(), port)) {
             OutputStream os = socket.getOutputStream();
-            os.write("LogHub1\n\0LogHub2\n\0".getBytes(StandardCharsets.UTF_8));
+            os.write("LogHub1\n\0--details\n\0LogHub2\n\0".getBytes(StandardCharsets.UTF_8));
             os.flush();
-            for (Event e: List.of(conf.mainQueue.poll(1, TimeUnit.SECONDS), conf.mainQueue.poll(1, TimeUnit.SECONDS))) {
+            int i = 0;
+            Event e;
+            while ((e = conf.mainQueue.poll(1, TimeUnit.SECONDS)) != null) {
                 Assert.assertNotNull(e);
                 String message = (String) e.get("message");
-                Assert.assertTrue(message.startsWith("LogHub"));
-                Assert.assertEquals("LogHub".length() + 1, message.length());
+                socket.close();
+                if (i == 0) {
+                    Assert.assertEquals("LogHub1: details", message);
+                } else {
+                    Assert.assertEquals("LogHub2", message);
+                }
                 Assert.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
+                i++;
             }
+            Assert.assertEquals(2, i);
         }
     }
 
-
-    @Test(timeout=5000)
-    public void testJson() throws IOException, InterruptedException {
-        try (TcpLinesStream ignored = makeReceiver(i -> {}, Collections.emptyMap(), () -> Json.getBuilder().build())){
-            try (Socket socket = new Socket(InetAddress.getLoopbackAddress(), port)) {
-                OutputStream os = socket.getOutputStream();
-                os.write("{\"program\": \"LogHub\"}\n".getBytes(StandardCharsets.UTF_8));
-                os.flush();
-            }
-            Event e = queue.poll(1, TimeUnit.SECONDS);
-            Assert.assertNotNull(e);
-            String message = (String) e.get("program");
-            Assert.assertEquals("LogHub", message);
-            Assert.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
-        }
-    }
-
-    @Test(timeout=5000)
-    public void testSSL() throws IOException, InterruptedException {
-        Map<String, Object> properties = new HashMap<>();
-        properties.put("trusts", Tools.getDefaultKeyStore());
-        SSLContext cssctx = ContextLoader.build(null, properties);
-        try (TcpLinesStream ignored = makeReceiver(i -> {
-                    i.setSslContext(cssctx);
-                    i.setWithSSL(true);
-                    i.setSSLKeyAlias("localhost (loghub ca)");
-                    i.setSSLClientAuthentication(ClientAuthentication.WANTED);
-                },
-                new HashMap<>(Collections.singletonMap("ssl.trusts", new String[] {getClass().getResource("/loghub.p12").getFile()}))
-        )){
-            try (Socket socket = cssctx.getSocketFactory().createSocket(InetAddress.getLoopbackAddress(), port)) {
-                OutputStream os = socket.getOutputStream();
-                os.write("LogHub\n".getBytes(StandardCharsets.UTF_8));
-                os.flush();
-            }
-            Event e = queue.poll(6, TimeUnit.SECONDS);
-            Assert.assertEquals("CN=localhost", e.getConnectionContext().getPrincipal().getName());
-            String message = (String) e.get("message");
-            Assert.assertEquals("LogHub", message);
-            Assert.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
-        }
-    }
-
-    private TcpLinesStream makeReceiver(Consumer<TcpLinesStream.Builder> prepare, Map<String, Object> propsMap) {
-        return makeReceiver(prepare, propsMap, () -> StringCodec.getBuilder().build());
-    }
-
-    private TcpLinesStream makeReceiver(Consumer<TcpLinesStream.Builder> prepare, Map<String, Object> propsMap, java.util.function.Supplier<Decoder> decodsup) {
+    private MultiLinesStream makeReceiver(Consumer<MultiLinesStream.Builder> prepare, Map<String, Object> propsMap) {
         port = Tools.tryGetPort();
         queue = new PriorityBlockingQueue();
-        TcpLinesStream.Builder builder = TcpLinesStream.getBuilder();
+        MultiLinesStream.Builder builder = MultiLinesStream.getBuilder();
         builder.setPort(port);
-        builder.setDecoder(decodsup.get());
         prepare.accept(builder);
 
-        TcpLinesStream receiver = builder.build();
+        MultiLinesStream receiver = builder.build();
         receiver.setOutQueue(queue);
         receiver.setPipeline(new Pipeline(Collections.emptyList(), "testtcplinesstream", null));
         Assert.assertTrue(receiver.configure(new Properties(propsMap)));
@@ -197,10 +177,12 @@ public class TestTcpLinesStream {
     }
 
     @Test
-    public void test_loghub_receivers_TcpLinesStream() throws IntrospectionException, ReflectiveOperationException {
-        BeanChecks.beansCheck(logger, "loghub.receivers.TcpLinesStream"
+    public void test_loghub_receivers_MultiLinesStream() throws IntrospectionException, ReflectiveOperationException {
+        BeanChecks.beansCheck(logger, "loghub.receivers.MultiLinesStream"
                               , BeanInfo.build("maxLength", Integer.TYPE)
                               , BeanInfo.build("separator", String.class)
+                              , BeanInfo.build("joinWith", String.class)
+                              , BeanInfo.build("mergePattern", String.class)
                               , BeanInfo.build("timeStampField", String.class)
                               , BeanInfo.build("filter", Filter.class)
                               , BeanInfo.build("poller", POLLER.class)
