@@ -66,7 +66,7 @@ public class TestFileMap {
         e.put("type", "1");
 
         ProcessingStatus ps = Tools.runProcessing(e, "main", Collections.singletonList(p));
-        Event ep = ps.mainQueue.remove();
+        Event ep = ps.mainQueue.poll().get();
         Assert.assertEquals("octetDeltaCount", ep.get("type"));
     }
 
@@ -87,7 +87,7 @@ public class TestFileMap {
         e.put("type", "a");
 
         ProcessingStatus ps = Tools.runProcessing(e, "main", Collections.singletonList(p));
-        Event ep = ps.mainQueue.remove();
+        Event ep = ps.mainQueue.poll().get();
         Assert.assertEquals(1, ep.get("type"));
     }
 

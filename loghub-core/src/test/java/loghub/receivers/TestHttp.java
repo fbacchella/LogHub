@@ -38,7 +38,7 @@ import loghub.ConnectionContext;
 import loghub.IpConnectionContext;
 import loghub.LogUtils;
 import loghub.Pipeline;
-import loghub.PriorityBlockingQueue;
+import loghub.queue.PriorityBlockingQueue;
 import loghub.Tools;
 import loghub.configuration.ConfigException;
 import loghub.configuration.Properties;
@@ -139,7 +139,7 @@ public class TestHttp {
                               throw new UncheckedIOException(e1);
                           }
                       }, 200);
-            Event e = queue.poll();
+            Event e = queue.poll().get();
             logger.debug(e.getClass());
             Integer a = (Integer) e.get("a");
             Assert.assertEquals(1, a.intValue());
@@ -176,7 +176,7 @@ public class TestHttp {
                   new byte[]{},
                   i -> {}, 200);
 
-        Event e = queue.poll();
+        Event e = queue.poll().get();
         String a = (String) e.get("a");
         Assert.assertEquals("1", a);
         Assert.assertEquals("CN=localhost", e.getConnectionContext().getPrincipal().toString());
@@ -204,7 +204,7 @@ public class TestHttp {
                           throw new UncheckedIOException(e1);
                       }
                   }, 200);
-        Event e = queue.poll();
+        Event e = queue.poll().get();
         Assert.assertEquals("1", e.get("a"));
         Assert.assertEquals("c d", e.get("b"));
         Assert.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
@@ -252,7 +252,7 @@ public class TestHttp {
                       String authStr = Base64.getEncoder().encodeToString("user:password".getBytes());
                       i.setRequestProperty("Authorization", "Basic " + authStr);
                   }, 200);
-        Event e = queue.poll();
+        Event e = queue.poll().get();
         Assert.assertEquals("1", e.get("a"));
         Assert.assertEquals("user", e.getConnectionContext().getPrincipal().getName());
         Assert.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
@@ -271,7 +271,7 @@ public class TestHttp {
         doRequest(dest,
                   new byte[]{},
                   i -> i.setRequestProperty("Authorization", "Bearer " + jwtToken), 200);
-        Event e = queue.poll();
+        Event e = queue.poll().get();
         Assert.assertEquals("1", e.get("a"));
         Assert.assertEquals("user", e.getConnectionContext().getPrincipal().getName());
         Assert.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
@@ -293,7 +293,7 @@ public class TestHttp {
                       String authStr = Base64.getEncoder().encodeToString((":" + jwtToken).getBytes());
                       i.setRequestProperty("Authorization", "Basic " + authStr);
                   }, 200);
-        Event e = queue.poll();
+        Event e = queue.poll().get();
         Assert.assertEquals("1", e.get("a"));
         Assert.assertEquals("user", e.getConnectionContext().getPrincipal().getName());
         Assert.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
@@ -346,7 +346,7 @@ public class TestHttp {
                 new byte[]{},
                 i -> {}, 200);
 
-        Event e = queue.poll();
+        Event e = queue.poll().get();
         logger.debug(e.getClass());
         String a = (String) e.get("a");
         Assert.assertEquals("1", a);

@@ -26,7 +26,7 @@ import loghub.BeanChecks.BeanInfo;
 import loghub.Filter;
 import loghub.LogUtils;
 import loghub.Pipeline;
-import loghub.PriorityBlockingQueue;
+import loghub.queue.PriorityBlockingQueue;
 import loghub.Tools;
 import loghub.configuration.ConfigException;
 import loghub.configuration.Properties;
@@ -56,7 +56,7 @@ public class TestMultiLinesStream {
                 os.write("LogHub\n".getBytes(StandardCharsets.UTF_8));
                 os.flush();
             }
-            Event e = queue.poll(1, TimeUnit.SECONDS);
+            Event e = queue.poll(1, TimeUnit.SECONDS).get();
             Assert.assertNotNull(e);
             String message = (String) e.get("message");
             Assert.assertEquals("LogHub", message);
@@ -72,7 +72,7 @@ public class TestMultiLinesStream {
                 os.write("LogHub1\0LogHub2\0".getBytes(StandardCharsets.UTF_8));
                 os.flush();
             }
-            for (Event e: List.of(queue.poll(1, TimeUnit.SECONDS), queue.poll(1, TimeUnit.SECONDS))) {
+            for (Event e: List.of(queue.poll(1, TimeUnit.SECONDS).get(), queue.poll(1, TimeUnit.SECONDS).get())) {
                 Assert.assertNotNull(e);
                 String message = (String) e.get("message");
                 Assert.assertTrue(message.startsWith("LogHub"));
@@ -92,7 +92,7 @@ public class TestMultiLinesStream {
             }
             int i = 0;
             Event e;
-            while ((e = queue.poll(1, TimeUnit.SECONDS)) != null) {
+            while ((e = queue.poll(1, TimeUnit.SECONDS).orElse(null)) != null) {
                 Assert.assertNotNull(e);
                 String message = (String) e.get("message");
                 if (i == 0) {
@@ -127,7 +127,7 @@ public class TestMultiLinesStream {
             os.flush();
             int i = 0;
             Event e;
-            while ((e = conf.mainQueue.poll(1, TimeUnit.SECONDS)) != null) {
+            while ((e = conf.mainQueue.poll(1, TimeUnit.SECONDS).orElse(null)) != null) {
                 Assert.assertNotNull(e);
                 String message = (String) e.get("message");
                 socket.close();

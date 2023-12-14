@@ -62,7 +62,7 @@ public class TestCriticalFailure {
         Event ev = Mocker.getMock();
         doThrow(new OutOfMemoryError()).when(ev).next();
         when(ev.getCurrentPipeline()).thenReturn("newpipe");
-        props.mainQueue.add(ev);
+        props.mainQueue.offer(ev);
 
         props.eventsprocessors.forEach(t -> {
             try {
@@ -99,7 +99,7 @@ public class TestCriticalFailure {
             latch.countDown();
             return null;
         }).when(ev).doMetric(any(), any());
-        props.mainQueue.add(ev);
+        props.mainQueue.offer(ev);
         latch.await();
         props.eventsprocessors.forEach(EventsProcessor::stopProcessing);
         Assert.assertTrue(art.get() instanceof StackOverflowError);

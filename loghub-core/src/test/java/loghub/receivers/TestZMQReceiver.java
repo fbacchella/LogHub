@@ -28,7 +28,7 @@ import loghub.BeanChecks.BeanInfo;
 import loghub.ConnectionContext;
 import loghub.LogUtils;
 import loghub.Pipeline;
-import loghub.PriorityBlockingQueue;
+import loghub.queue.PriorityBlockingQueue;
 import loghub.Tools;
 import loghub.ZMQFactory;
 import loghub.ZMQFlow;
@@ -86,7 +86,7 @@ public class TestZMQReceiver {
             receiver.setPipeline(new Pipeline(Collections.emptyList(), "testone", null));
             Assert.assertTrue(receiver.configure(p));
             receiver.start();
-            Event e = receiveQueue.poll(2000, TimeUnit.MILLISECONDS);
+            Event e = receiveQueue.poll(2000, TimeUnit.MILLISECONDS).get();
             Assert.assertNotNull("No event received", e);
             ConnectionContext<String> connectionContext = e.getConnectionContext();
             Assert.assertTrue(ZMQ_SOCKETADDRESS_PATTERN.matcher(connectionContext.getLocalAddress()).matches());
