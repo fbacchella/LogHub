@@ -25,7 +25,7 @@ import io.netty.util.CharsetUtil;
 import loghub.BuilderClass;
 import loghub.LogUtils;
 import loghub.Pipeline;
-import loghub.PriorityBlockingQueue;
+import loghub.queue.PriorityBlockingQueue;
 import loghub.Tools;
 import loghub.configuration.ConfigException;
 import loghub.configuration.Configuration;

@@ -25,6 +25,7 @@ import loghub.processors.Forwarder;
 import loghub.processors.FutureProcessor;
 import loghub.processors.UnwrapEvent;
 import loghub.processors.WrapEvent;
+import loghub.queue.PriorityBlockingQueue;
 
 public class EventsProcessor extends Thread {
 
@@ -38,7 +39,7 @@ public class EventsProcessor extends Thread {
     private static final Logger logger = LogManager.getLogger();
     private static final AtomicInteger id = new AtomicInteger();
 
-    private final BlockingQueue<Event> inQueue;
+    private final PriorityBlockingQueue inQueue;
     private final Map<String, BlockingQueue<Event>> outQueues;
     private final Map<String,Pipeline> namedPipelines;
     private final int maxSteps;

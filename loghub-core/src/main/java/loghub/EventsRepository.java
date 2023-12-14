@@ -17,6 +17,7 @@ import loghub.configuration.Properties;
 import loghub.events.Event;
 import loghub.metrics.Stats;
 import loghub.metrics.Stats.PipelineStat;
+import loghub.queue.PriorityBlockingQueue;
 
 public class EventsRepository<KEY> {
 

@@ -90,7 +90,7 @@ public class TestWithZMQ {
 
         try (ZMQSink<String> receiver = sinkbuilder.build();
              ZMQFlow sender = flowbuilder.build()) {
-            Event received = conf.mainQueue.poll(1, TimeUnit.SECONDS);
+            Event received = conf.mainQueue.poll(1, TimeUnit.SECONDS).get();
             Assert.assertNotNull("nothing received", received);
             conf.outputQueues.get("main").add(received);
             Assert.assertTrue(latch.await(2, TimeUnit.SECONDS));

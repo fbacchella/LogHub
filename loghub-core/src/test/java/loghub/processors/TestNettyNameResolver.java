@@ -233,7 +233,7 @@ public class TestNettyNameResolver {
         } , e, "0.3.0.0.2.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.e.3.a.b.3.0.5.0.1.0.0.2.ip6.arpa", "4.0.41.198.in-addr.arpa");
 
         do {
-            e = status.mainQueue.element();
+            e = status.mainQueue.peek().get();
             Thread.sleep(10);
         } while (e.size() != 8);
 

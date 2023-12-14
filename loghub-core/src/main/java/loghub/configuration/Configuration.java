@@ -54,7 +54,7 @@ import loghub.Helpers;
 import loghub.Helpers.ThrowingConsumer;
 import loghub.Helpers.ThrowingPredicate;
 import loghub.Pipeline;
-import loghub.PriorityBlockingQueue;
+import loghub.queue.PriorityBlockingQueue;
 import loghub.RouteLexer;
 import loghub.RouteParser;
 import loghub.RouteParser.ArrayContext;

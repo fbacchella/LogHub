@@ -30,7 +30,7 @@ public class TestFire {
         LogUtils.setLevel(logger, Level.TRACE);
     }
 
-    @Test
+    @Test(timeout = 5000)
     public void test() throws ProcessorException, InterruptedException, ConfigException, IOException {
         Properties conf = Tools.loadConf("fire.conf");
         Helpers.parallelStartProcessor(conf);
@@ -38,8 +38,8 @@ public class TestFire {
         sent.put("count", 2);
 
         Tools.runProcessing(sent, conf.namedPipeLine.get("main"), conf);
-        Event old = conf.mainQueue.remove();
-        Event newevent = conf.mainQueue.remove();
+        Event old = conf.mainQueue.poll().get();
+        Event newevent = conf.mainQueue.poll().get();
         Assert.assertEquals("Not matching old event", old.get("count"), 2);
         Assert.assertEquals("Event not fired", 6, newevent.get("c"));
 

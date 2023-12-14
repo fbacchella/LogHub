@@ -42,7 +42,7 @@ import loghub.EventsRepository;
 import loghub.Expression;
 import loghub.Helpers;
 import loghub.Pipeline;
-import loghub.PriorityBlockingQueue;
+import loghub.queue.PriorityBlockingQueue;
 import loghub.Processor;
 import loghub.ThreadBuilder;
 import loghub.VariablePath;

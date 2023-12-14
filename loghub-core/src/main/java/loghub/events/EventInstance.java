@@ -31,7 +31,7 @@ import loghub.FastExternalizeObject.FastObjectOutputStream;
 import loghub.Helpers;
 import loghub.NullOrMissingValue;
 import loghub.Pipeline;
-import loghub.PriorityBlockingQueue;
+import loghub.queue.PriorityBlockingQueue;
 import loghub.Processor;
 import loghub.ProcessorException;
 import loghub.SubPipeline;
