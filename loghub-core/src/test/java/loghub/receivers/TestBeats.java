@@ -33,7 +33,7 @@ import loghub.BeanChecks.BeanInfo;
 import loghub.Filter;
 import loghub.LogUtils;
 import loghub.Pipeline;
-import loghub.PriorityBlockingQueue;
+import loghub.queue.PriorityBlockingQueue;
 import loghub.Tools;
 import loghub.configuration.Properties;
 import loghub.events.Event;
@@ -69,7 +69,7 @@ public class TestBeats {
             makeReceiver( i -> { /* */ }, Collections.emptyMap());
             List<Map<?, ?>> batch = Collections.singletonList(Collections.singletonMap("message", "LogHub"));
             sendFrame(encode(batch), new Socket());
-            Event e = queue.poll(1, TimeUnit.SECONDS);
+            Event e = queue.poll(1, TimeUnit.SECONDS).get();
             Assert.assertNotNull(e);
             String message = (String) e.get("message");
             Assert.assertEquals("LogHub", message);
@@ -87,8 +87,7 @@ public class TestBeats {
         try {
             makeReceiver( i -> { /* */ }, Collections.emptyMap());
             sendFrame(ByteBuffer.allocate(100), new Socket());
-            Event e = queue.poll(1, TimeUnit.SECONDS);
-            Assert.assertNull(e);
+            Assert.assertTrue(queue.poll(1, TimeUnit.SECONDS).isEmpty());
         } catch (IOException | InterruptedException | RuntimeException e) {
             if (receiver != null) {
                 receiver.stopReceiving();
@@ -115,7 +114,7 @@ public class TestBeats {
             sendFrame(out, new Socket());
             List<Map<?, ?>> batch = Collections.singletonList(Collections.singletonMap("message", "LogHub"));
             sendFrame(encode(batch), new Socket());
-            Event e = queue.poll(1, TimeUnit.SECONDS);
+            Event e = queue.poll(1, TimeUnit.SECONDS).get();
             Assert.assertNotNull(e);
             String message = (String) e.get("message");
             Assert.assertEquals("LogHub", message);
@@ -143,7 +142,7 @@ public class TestBeats {
             List<Map<?, ?>> batch = Collections.singletonList(Collections.singletonMap("message", "LogHub"));
             Socket s = sslctx.getSocketFactory().createSocket();
             sendFrame(encode(batch), s);
-            Event e = queue.poll(6, TimeUnit.SECONDS);
+            Event e = queue.poll(6, TimeUnit.SECONDS).get();
             String message = (String) e.get("message");
             Assert.assertEquals("LogHub", message);
             Assert.assertTrue(Tools.isRecent.apply(e.getTimestamp()));

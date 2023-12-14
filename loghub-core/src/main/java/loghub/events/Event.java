@@ -28,7 +28,7 @@ import loghub.Helpers;
 import loghub.IgnoredEventException;
 import loghub.NullOrMissingValue;
 import loghub.Pipeline;
-import loghub.PriorityBlockingQueue;
+import loghub.queue.PriorityBlockingQueue;
 import loghub.Processor;
 import loghub.ProcessorException;
 import loghub.UncheckedProcessorException;

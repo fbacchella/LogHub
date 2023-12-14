@@ -147,7 +147,7 @@ public class TestEvent {
         Properties conf = Tools.loadConf(new StringReader(confile));
         Event sent = factory.newEvent();
         Tools.runProcessing(sent, conf.namedPipeLine.get("main"), conf);
-        Event received = conf.mainQueue.remove();
+        Event received = conf.mainQueue.poll().get();
         Assert.assertFalse(received.containsKey("a"));
         Assert.assertTrue(received.containsKey("b"));
     }
@@ -159,7 +159,7 @@ public class TestEvent {
         Event sent = factory.newEvent();
         sent.put("message", "bc");
         Tools.runProcessing(sent, conf.namedPipeLine.get("main"), conf);
-        Event received = conf.mainQueue.remove();
+        Event received = conf.mainQueue.poll().get();
         Assert.assertFalse(received.containsKey("a"));
         Assert.assertTrue(received.containsKey("message"));
     }

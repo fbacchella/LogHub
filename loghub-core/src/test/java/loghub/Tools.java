@@ -28,6 +28,7 @@ import loghub.configuration.Properties;
 import loghub.events.Event;
 import loghub.processors.UnwrapEvent;
 import loghub.processors.WrapEvent;
+import loghub.queue.PriorityBlockingQueue;
 import loghub.security.ssl.MultiKeyStoreProvider;
 
 import static loghub.EventsProcessor.ProcessingStatus.DROPED;
@@ -137,7 +138,7 @@ public class Tools {
         Processor processor;
         // Process all the events, will hang forever if it doesn't finish
         try {
-            while ((toprocess = props.mainQueue.poll(5, TimeUnit.SECONDS)) != null) {
+            while ((toprocess = props.mainQueue.poll(5, TimeUnit.SECONDS).orElse(null)) != null) {
                 while ((processor = toprocess.next()) != null) {
                     EventsProcessor.ProcessingStatus status = ep.process(toprocess, processor);
                     ps.status.add(status.name());

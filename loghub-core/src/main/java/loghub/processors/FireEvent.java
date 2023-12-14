@@ -4,7 +4,7 @@ import java.util.Map;
 
 import loghub.Expression;
 import loghub.Pipeline;
-import loghub.PriorityBlockingQueue;
+import loghub.queue.PriorityBlockingQueue;
 import loghub.Processor;
 import loghub.ProcessorException;
 import loghub.VariablePath;

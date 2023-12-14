@@ -52,7 +52,7 @@ import com.codahale.metrics.Meter;
 import loghub.BeanChecks;
 import loghub.LogUtils;
 import loghub.Pipeline;
-import loghub.PriorityBlockingQueue;
+import loghub.queue.PriorityBlockingQueue;
 import loghub.Tools;
 import loghub.configuration.Properties;
 import loghub.events.Event;
@@ -96,7 +96,7 @@ public class TestTrap {
             trapEvent.setPDU(pdu);
 
             r.processPdu(trapEvent);
-            Event e = receiver.poll();
+            Event e = receiver.poll().get();
             Assert.assertNotNull(e);
             Assert.assertTrue(Tools.isRecent.apply(e.getTimestamp()));
             checkEvent.accept(e);
@@ -140,7 +140,7 @@ public class TestTrap {
             snmpTarget.setRetries(1);
             snmpTarget.setTimeout(100);
             snmp.send(pdu, snmpTarget);
-            Event e = receiver.poll(100, TimeUnit.MILLISECONDS);
+            Event e = receiver.poll(100, TimeUnit.MILLISECONDS).get();
             Assert.assertNotNull(e);
             long statBytes = Stats.getMetric(Meter.class, Receiver.class, "bytes").getCount();
             Assert.assertTrue(Tools.isRecent.apply(e.getTimestamp()));

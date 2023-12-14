@@ -2,7 +2,7 @@ package loghub.processors;
 
 import loghub.Helpers;
 import loghub.Pipeline;
-import loghub.PriorityBlockingQueue;
+import loghub.queue.PriorityBlockingQueue;
 import loghub.Processor;
 import loghub.ProcessorException;
 import loghub.configuration.Properties;

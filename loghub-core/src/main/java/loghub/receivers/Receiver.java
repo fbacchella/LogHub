@@ -23,7 +23,7 @@ import loghub.Filter;
 import loghub.FilterException;
 import loghub.Helpers;
 import loghub.Pipeline;
-import loghub.PriorityBlockingQueue;
+import loghub.queue.PriorityBlockingQueue;
 import loghub.configuration.Properties;
 import loghub.decoders.DecodeException;
 import loghub.decoders.DecodeException.RuntimeDecodeException;

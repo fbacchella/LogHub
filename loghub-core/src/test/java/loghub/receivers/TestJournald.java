@@ -26,7 +26,7 @@ import loghub.BeanChecks;
 import loghub.BeanChecks.BeanInfo;
 import loghub.LogUtils;
 import loghub.Pipeline;
-import loghub.PriorityBlockingQueue;
+import loghub.queue.PriorityBlockingQueue;
 import loghub.Tools;
 import loghub.configuration.Properties;
 import loghub.security.ssl.ClientAuthentication;

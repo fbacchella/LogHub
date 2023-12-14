@@ -56,8 +56,8 @@ public class TestConfigurations {
         Event sent = factory.newEvent();
         logger.debug("pipelines: " + conf.pipelines);
         logger.debug("namedPipeLine: " + conf.namedPipeLine);
-        conf.mainQueue.add(sent);
-        Event received = conf.mainQueue.poll(1, TimeUnit.SECONDS);
+        conf.mainQueue.offer(sent);
+        Event received = conf.mainQueue.poll(1, TimeUnit.SECONDS).get();
         Assert.assertEquals("not expected event received", sent, received);
     }
 
@@ -68,8 +68,8 @@ public class TestConfigurations {
 
         logger.debug("pipelines: " + conf.pipelines);
         logger.debug("namedPipeLine: " + conf.namedPipeLine);
-        conf.mainQueue.add(sent);
-        Event received = conf.mainQueue.poll(1, TimeUnit.SECONDS);
+        conf.mainQueue.offer(sent);
+        Event received = conf.mainQueue.poll(1, TimeUnit.SECONDS).get();
         Assert.assertEquals("not expected event received", sent, received);
     }
 
@@ -196,7 +196,7 @@ public class TestConfigurations {
         Event sent = factory.newEvent();
         sent.put("a", "1");
         Tools.runProcessing(sent, conf.namedPipeLine.get("main"), conf);
-        Event received = conf.mainQueue.remove();
+        Event received = conf.mainQueue.poll().get();
         Assert.assertEquals("Subpipeline not processed", "1", received.get("a"));
     }
 
@@ -208,7 +208,7 @@ public class TestConfigurations {
         sent.put("b", "2");
 
         Tools.runProcessing(sent, conf.namedPipeLine.get("main"), conf);
-        Event received = conf.mainQueue.remove();
+        Event received = conf.mainQueue.poll().get();
         Assert.assertEquals("Subpipeline not processed", 1, received.get("a"));
         Assert.assertEquals("Subpipeline not processed", 2, received.get("b"));
     }

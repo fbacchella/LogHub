@@ -84,8 +84,8 @@ public class TestFork {
         forker.fork(event);
 
         // Removing the original event
-        conf.mainQueue.remove();
-        Event forked = conf.mainQueue.remove();
+        conf.mainQueue.poll();
+        Event forked = conf.mainQueue.poll().get();
         Map<?, ?> message = (Map<?, ?>) forked.get("message");
         Assert.assertEquals(boolMap, message.get("boolMap"));
         Assert.assertEquals(intMap, message.get("intMap"));

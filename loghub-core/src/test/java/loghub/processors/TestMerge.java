@@ -77,7 +77,7 @@ public class TestMerge {
         Assert.assertThrows(ProcessorException.DroppedEventException.class, () -> m.process(e2));
 
         Thread.yield();
-        Event e = p.mainQueue.remove();
+        Event e = p.mainQueue.poll().get();
         Assert.assertTrue(p.mainQueue.isEmpty());
         Assert.assertEquals("2,2", e.get("b"));
         Assert.assertEquals(8.0, (double) e.get("d"), 1e-5);
@@ -107,7 +107,7 @@ public class TestMerge {
         Assert.assertNull(ex.getFuture());
         Thread.sleep(2000);
         // Will throw exception if event was not fired
-        p.mainQueue.element();
+        p.mainQueue.peek().get();
     }
 
     @Test

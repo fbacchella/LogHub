@@ -63,14 +63,14 @@ public class ProcessorTest {
             } catch (ProcessorException ex) {
                 throw new RuntimeException(ex);
             }
-            logger.debug(ps.mainQueue.remove());
-            logger.debug(ps.mainQueue.remove());
-            logger.debug(ps.mainQueue.remove());
-            logger.debug(ps.mainQueue.remove());
-            logger.debug(ps.mainQueue.remove());
-            logger.debug(ps.mainQueue.remove());
-            logger.debug(ps.mainQueue.remove());
-            logger.debug(ps.mainQueue.remove());
+            logger.debug(ps.mainQueue.poll());
+            logger.debug(ps.mainQueue.poll());
+            logger.debug(ps.mainQueue.poll());
+            logger.debug(ps.mainQueue.poll());
+            logger.debug(ps.mainQueue.poll());
+            logger.debug(ps.mainQueue.poll());
+            logger.debug(ps.mainQueue.poll());
+            logger.debug(ps.mainQueue.poll());
 
             Assert.assertTrue(ps.mainQueue.isEmpty());
         });
