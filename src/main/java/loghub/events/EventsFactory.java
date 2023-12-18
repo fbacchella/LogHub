@@ -1,13 +1,24 @@
 package loghub.events;
 
+import java.lang.ref.Reference;
+import java.lang.ref.ReferenceQueue;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+import com.codahale.metrics.Timer;
 
 import loghub.ConnectionContext;
 import loghub.Pipeline;
 
 public class EventsFactory {
+
+    private static final Logger logger = LogManager.getLogger();
+
+    final ReferenceQueue<Event> referenceQueue = new ReferenceQueue<>();
 
     private static final Class[] EVENT_CLASSES = new Class[] { EventWrapper.class, EventInstance.class, Event.class};
     public static Iterable<Class> getEventClasses() {
@@ -28,14 +39,32 @@ public class EventsFactory {
     }
 
     public Event newEvent() {
+        leakDetector();
         return new EventInstance(ConnectionContext.EMPTY, this);
     }
 
     public Event newEvent(ConnectionContext<?> ctx) {
+        leakDetector();
         return new EventInstance(ctx, this);
     }
+
     public static void deadEvent(ConnectionContext<?> ctx) {
         new EventInstance(ConnectionContext.EMPTY, null).end();
+    }
+
+    private void leakDetector() {
+        Reference<?> referenceFromQueue;
+        while ((referenceFromQueue = referenceQueue.poll()) != null) {
+            ((EventFinalizer)referenceFromQueue).finalizeResources();
+            referenceFromQueue.clear();
+        }
+    }
+
+    static void finishEvent(boolean leak, Timer.Context timer) {
+        timer.close();
+        if (leak) {
+            logger.error("Event leaked");
+        }
     }
 
 }

@@ -129,27 +129,19 @@ class EventInstance extends Event {
         }
         processors = new LinkedList<>();
         executionStack = Collections.asLifoQueue(new ArrayDeque<>());
-        ref = new EventFinalizer(this, timer, executionStack);
+        ref = new EventFinalizer(this, factory.referenceQueue, timer);
     }
 
     public void end() {
         ref.clear();
         Optional.ofNullable(ctx).ifPresent(ConnectionContext::acknowledge);
         if (! test) {
-            EventInstance.finish(false, timer, executionStack);
+            EventsFactory.finishEvent(false, timer);
             Stats.eventEnd(stepsCount);
         } else {
             synchronized(this) {
                 notify();
             }
-        }
-    }
-
-    static void finish(boolean leak, Context timer, Queue<ExecutionStackElement> executionStack) {
-        timer.close();
-        executionStack.forEach(ExecutionStackElement::close);
-        if (leak) {
-            logger.error("Event leaked in " + executionStack);
         }
     }
 
