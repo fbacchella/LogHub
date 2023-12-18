@@ -35,6 +35,10 @@ public interface StatsMBean {
         return Stats.getMetric(Counter.class, Stats.class, Stats.METRIC_ALL_INFLIGHT).getCount();
     }
 
+    default long getLeaked() {
+        return Stats.getMetric(Counter.class, Stats.class, Stats.METRIC_ALL_EVENT_LEAKED).getCount();
+    }
+
     class Implementation extends StandardMBean implements StatsMBean {
 
         public static final ObjectName NAME;
@@ -55,6 +59,7 @@ public interface StatsMBean {
             getEventLifeTime95();
             getUnhandledExceptions();
             getInflight();
+            getLeaked();
         }
 
     }

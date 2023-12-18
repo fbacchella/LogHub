@@ -111,6 +111,7 @@ class EventInstance extends Event {
     private final EventsFactory factory;
     private Context timer;
     private Logger pipeLineLogger;
+    private final EventFinalizer ref;
 
     // The context for exact pipeline timing
     Queue<ExecutionStackElement> executionStack;
@@ -128,13 +129,14 @@ class EventInstance extends Event {
         }
         processors = new LinkedList<>();
         executionStack = Collections.asLifoQueue(new ArrayDeque<>());
+        ref = new EventFinalizer(this, factory.referenceQueue, timer);
     }
 
     public void end() {
+        ref.clear();
         Optional.ofNullable(ctx).ifPresent(ConnectionContext::acknowledge);
         if (! test) {
-            timer.close();
-            executionStack.forEach(ExecutionStackElement::close);
+            EventsFactory.finishEvent(false, timer);
             Stats.eventEnd(stepsCount);
         } else {
             synchronized(this) {
