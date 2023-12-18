@@ -304,7 +304,6 @@ class ConfigListener extends RouteBaseListener {
         pushLiteral(null);
     }
 
-    
     @Override
     public void exitSecret(SecretContext ctx) {
         if (secrets == null) {

@@ -142,10 +142,6 @@ public abstract class NettyReceiver<R extends NettyReceiver<R, M, B>, M, B exten
         throw new UnsupportedOperationException();
     }
 
-    public ByteBuf getContent(ChannelHandlerContext ctx, M msg) {
-        return getContent(msg);
-    }
-
     public Stream<Event> nettyMessageDecode(ChannelHandlerContext ctx, ByteBuf message) {
         ConnectionContext<?> cctx = ctx.channel().attr(NettyReceiver.CONNECTIONCONTEXTATTRIBUTE).get();
         return decodeStream(cctx, message);

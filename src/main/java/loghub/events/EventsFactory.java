@@ -1,6 +1,5 @@
 package loghub.events;
 
-import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -8,11 +7,6 @@ import loghub.ConnectionContext;
 import loghub.Pipeline;
 
 public class EventsFactory {
-
-    private static final Class[] EVENT_CLASSES = new Class[] { EventWrapper.class, EventInstance.class, Event.class};
-    public static Iterable<Class> getEventClasses() {
-        return () -> Arrays.stream(EVENT_CLASSES).iterator();
-    }
 
     private final Map<Pipeline, PreSubPipline> preSubpiplines = new ConcurrentHashMap<>();
 

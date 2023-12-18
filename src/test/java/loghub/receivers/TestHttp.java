@@ -334,7 +334,7 @@ public class TestHttp {
             @SuppressWarnings("unused")
             Properties conf = Tools.loadConf(new StringReader(confile));
         } catch (ConfigException ex) {
-            Assert.assertEquals("No default decoder can be defined", ex.getMessage());
+            Assert.assertEquals("Decoder loghub.decoders.Msgpack will be ignored, this receiver handle decoding", ex.getMessage());
             Assert.assertEquals("file <unknown>, line 1:11", ex.getLocation());
         }
     }

@@ -158,7 +158,6 @@ public class TestApacheHttpClient {
             Assert.assertEquals(200, response.getStatus());
             Assert.assertEquals("application/json", response.getMimeType().getMimeType());
             Map<String, Object> data = response.getParsedResponse();
-            System.err.println(data);
             Assert.assertEquals("/?q=true", data.get("URI"));
             Assert.assertEquals("PUT", data.get("VERB"));
             @SuppressWarnings("unchecked")

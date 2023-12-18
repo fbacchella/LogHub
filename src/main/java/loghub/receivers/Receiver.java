@@ -98,7 +98,14 @@ public abstract class Receiver<R extends Receiver<R, B>, B extends Receiver.Buil
         setDaemon(true);
         logger = LogManager.getLogger(Helpers.getFirstInitClass());
         this.blocking = isBlocking() && builder.blocking;
-        this.decoder = builder.decoder;
+        if (getClass().getAnnotation(SelfDecoder.class) != null) {
+            if (builder.decoder != null) {
+                throw new IllegalArgumentException("Decoder " + builder.decoder.getClass().getName().toString() + " will be ignored, this receiver handle decoding");
+            }
+            this.decoder = null;
+        } else {
+            this.decoder = builder.decoder;
+        }
         this.withSSL = builder.withSSL;
         this.sslContext = builder.sslContext;
         this.SSLClientAuthentication = builder.SSLClientAuthentication;

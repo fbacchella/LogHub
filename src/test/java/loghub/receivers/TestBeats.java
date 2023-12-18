@@ -37,7 +37,6 @@ import loghub.Pipeline;
 import loghub.PriorityBlockingQueue;
 import loghub.Tools;
 import loghub.configuration.Properties;
-import loghub.decoders.StringCodec;
 import loghub.events.Event;
 import loghub.jackson.JacksonBuilder;
 import loghub.netty.transport.POLLER;
@@ -181,7 +180,6 @@ public class TestBeats {
         queue = new PriorityBlockingQueue();
         Beats.Builder builder = Beats.getBuilder();
         builder.setPort(port);
-        builder.setDecoder(StringCodec.getBuilder().build());
         prepare.accept(builder);
 
         receiver = new Beats(builder);

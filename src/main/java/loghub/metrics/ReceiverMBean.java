@@ -75,6 +75,6 @@ public interface ReceiverMBean {
             return exception.getCount();
         }
 
-   }
+    }
 
 }

@@ -85,7 +85,7 @@ public class EventsProcessor extends Thread {
             }
             { // Needed because eventtemp must be final
                 final Event eventtemp  = event;
-                logger.trace("received {} in {}", () -> eventtemp, eventtemp::getCurrentPipeline);
+                logger.trace("received {}", () -> eventtemp);
             }
             Context tctxt = Stats.startProcessingEvent();
             Processor processor = event.next();

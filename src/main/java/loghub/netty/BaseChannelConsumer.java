@@ -62,7 +62,7 @@ public class BaseChannelConsumer<R extends NettyReceiver<R, SM, B>, SM, B extend
     private class ContentExtractor extends MessageToMessageDecoder<SM> {
         @Override
         protected void decode(ChannelHandlerContext ctx, SM msg, List<Object> out) {
-            ByteBuf content = r.getContent(ctx, msg);
+            ByteBuf content = r.getContent(msg);
             // Often the content and the message are linked.
             // To avoid a useless copy, keep the message.
             if (content.equals(msg)) {
@@ -98,6 +98,7 @@ public class BaseChannelConsumer<R extends NettyReceiver<R, SM, B>, SM, B extend
 
     @Override
     public void addHandlers(ChannelPipeline p) {
+        logger.debug("New connection {}", () -> p.channel());
         p.addFirst(ContextExtractor.NAME, extractor);
         p.addLast("ContentExtractor", new ContentExtractor());
         filter.ifPresent(i -> p.addLast("Filter", i));

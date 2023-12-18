@@ -144,7 +144,7 @@ public class Http extends AbstractHttpReceiver<Http, Http.Builder> {
 
     protected Http(Builder builder) {
         super(builder);
-        if (this.decoder != null) {
+        if (builder.decoder != null) {
             throw new IllegalArgumentException("No default decoder can be defined");
         } else {
             this.decoders = Map.copyOf(builder.decoders);
