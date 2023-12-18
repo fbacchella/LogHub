@@ -28,12 +28,12 @@ import loghub.Helpers;
 import loghub.IgnoredEventException;
 import loghub.NullOrMissingValue;
 import loghub.Pipeline;
-import loghub.queue.PriorityBlockingQueue;
 import loghub.Processor;
 import loghub.ProcessorException;
 import loghub.UncheckedProcessorException;
 import loghub.VariablePath;
 import loghub.metrics.Stats.PipelineStat;
+import loghub.queue.PriorityBlockingQueue;
 
 @JsonIdentityInfo(generator = ObjectIdGenerators.IntSequenceGenerator.class)
 public abstract class Event extends HashMap<String, Object> implements Serializable {
@@ -172,7 +172,8 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
     }
 
     private final Queue<Throwable> exceptionStack = Collections.asLifoQueue(new ArrayDeque<>());
-
+    Event() {
+    }
     public Object applyAtPath(Action f, VariablePath path, Object value) {
         return applyAtPath(f, path, value, false);
     }

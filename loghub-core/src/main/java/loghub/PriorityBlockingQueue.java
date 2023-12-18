@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Spliterator;
 import java.util.Spliterators;
@@ -14,6 +15,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
@@ -44,10 +46,10 @@ public class PriorityBlockingQueue {
             cursorBlocking = new AtomicInteger(0);
             referenceTime = System.nanoTime();
             try {
-                for (QueueElement qe : PriorityBlockingQueue.this.asyncQueue) {
+                for (QueueElement qe : PriorityBlockingQueue.this.asyncQueue.iterator(QueueElement::new)) {
                     asyncEvents.add(qe);
                 }
-                for (QueueElement qe : PriorityBlockingQueue.this.syncQueue) {
+                for (QueueElement qe : PriorityBlockingQueue.this.syncQueue.iterator(QueueElement::new)) {
                     blockingEvents.add(qe);
                 }
             } finally {
@@ -83,23 +85,21 @@ public class PriorityBlockingQueue {
      */
     private static class QueueElement {
 
-        private final Event event;
-        private final long baseTime;
+        private volatile Event event;
+        private volatile long baseTime;
 
-        /**
-         * Create an {@link Event} wrapper.
-         *
-         * @param event the event to queue
-         * @throws IllegalArgumentException if the element is {@code null}.
-         */
-        public QueueElement(Event event) {
-            if (event == null) {
-                throw new NullPointerException("Null event inserted");
-            }
-            this.event = event;
-            this.baseTime = System.nanoTime();
+        public QueueElement() {
         }
 
+        public QueueElement(QueueElement element) {
+            this.event = element.event;
+            this.baseTime = element.baseTime;
+        }
+
+        public void setEvent(Event event) {
+            this.event = event;
+            baseTime = System.nanoTime();
+        }
     }
 
     private final RingBuffer<QueueElement> asyncQueue;
@@ -109,10 +109,10 @@ public class PriorityBlockingQueue {
     private final Lock writeLock = masterlock.readLock();
 
     // A lock that will prevent ingestions of new events in receivers
-    // The write lock can be held when a generic blocked sitation is detected
+    // The write lock can be held when a generic blocked situation is detected
     private final ReadWriteLock backpressureLock = new ReentrantReadWriteLock();
     private final Lock backpressureReadLock = backpressureLock.readLock();
-    private final Lock backpressureWriteLock = backpressureLock.readLock();
+    private final Lock backpressureWriteLock = backpressureLock.writeLock();
     // The injection thread that will process asynchronously injected events.
     private final ExecutorService asyncInjectors = Executors.newSingleThreadExecutor(this::getExecutorThread);
 
@@ -134,11 +134,11 @@ public class PriorityBlockingQueue {
         if (weight < 0) {
             throw new IllegalArgumentException("Weight can't be negative");
         }
-        asyncQueue = new RingBuffer<>(capacity, false, QueueElement.class);
+        asyncQueue = new RingBuffer<>(capacity, QueueElement.class, QueueElement::new, this::cleanElement);
         if (weight == 0) {
             syncQueue = asyncQueue;
         } else {
-            syncQueue = new RingBuffer<>(capacity, true, QueueElement.class);
+            syncQueue = new RingBuffer<>(capacity, QueueElement.class, QueueElement::new, this::cleanElement);
         }
         this.weight = weight;
     }
@@ -148,9 +148,14 @@ public class PriorityBlockingQueue {
      * {@link Integer#MAX_VALUE} and no priority management.
      */
     public PriorityBlockingQueue() {
-        asyncQueue = new RingBuffer<>(1000, true, QueueElement.class);
+        asyncQueue = new RingBuffer<>(1000, QueueElement.class, QueueElement::new, this::cleanElement);
         syncQueue = asyncQueue;
         this.weight = 0;
+    }
+
+    private void cleanElement(QueueElement element) {
+        element.event = null;
+        element.baseTime = Long.MIN_VALUE;
     }
 
     /**
@@ -248,7 +253,7 @@ public class PriorityBlockingQueue {
     public Optional<Event> peek() {
         readLock.lock();
         try {
-            return resolve(RingBuffer::peek);
+            return resolve(rb -> rb.peek(qe -> qe.event));
         } finally {
             readLock.unlock();
         }
@@ -279,16 +284,17 @@ public class PriorityBlockingQueue {
     }
 
     private void privatePut(Event e, RingBuffer<QueueElement> queue) throws InterruptedException {
+        Objects.requireNonNull(e);
+        Consumer<QueueElement> setter = qe -> qe.setEvent(e);
         if (this.weight == 0) {
-            queue.put(new QueueElement(e));
+            queue.put(setter);
         } else {
-            QueueElement qe = new QueueElement(e);
             boolean inserted = false;
             while (!inserted) {
                 // A loop to avoid holding the read lock.
                 readLock.lockInterruptibly();
                 try {
-                    inserted = queue.put(qe, 10, TimeUnit.MILLISECONDS);
+                    inserted = queue.put(setter, 10, TimeUnit.MILLISECONDS);
                 } finally {
                     readLock.unlock();
                 } 
@@ -310,7 +316,7 @@ public class PriorityBlockingQueue {
     public boolean offer(Event event) {
         readLock.lock();
         try {
-            return asyncQueue.put(new QueueElement(event));
+            return asyncQueue.put(qe -> qe.setEvent(event));
         } finally {
             readLock.unlock();
         }
@@ -331,24 +337,19 @@ public class PriorityBlockingQueue {
      * @throws NullPointerException if the specified element is {@code null}
      */
     public boolean offer(Event e, long timeout, TimeUnit unit) throws InterruptedException {
-        return privateOffer(e, timeout, unit, asyncQueue);
-    }
-
-    private boolean privateOffer(Event e, long timeout, TimeUnit unit, RingBuffer<QueueElement> queue) throws InterruptedException {
         if (weight == 0) {
-            return queue.put(new QueueElement(e), timeout, unit);
+            return asyncQueue.put(qe -> qe.setEvent(e), timeout, unit);
         } else {
-            QueueElement qe = new QueueElement(e);
             long endDelay = TimeUnit.NANOSECONDS.convert(timeout, unit) + System.nanoTime();
             boolean inserted = false;
             while (!inserted && endDelay > System.nanoTime()) {
                 // A loop to avoid holding the read lock.
                 readLock.lockInterruptibly();
                 try {
-                    inserted = queue.put(qe, 10, TimeUnit.MILLISECONDS);
+                    inserted = asyncQueue.put(qe -> qe.setEvent(e), 10, TimeUnit.MILLISECONDS);
                 } finally {
                     readLock.unlock();
-                } 
+                }
             }
             return inserted;
         }
@@ -366,19 +367,19 @@ public class PriorityBlockingQueue {
      */
     public Event take() throws InterruptedException {
         if (weight == 0) {
-            return Optional.of(asyncQueue.take()).map(qe -> qe.event).orElseThrow(IllegalStateException::new);
+            return asyncQueue.take(qe -> qe.event);
         } else {
-            Optional<Event> found = Optional.empty();
-            while (found.isEmpty()) {
+            Event found = null;
+            while (found == null) {
                 // A loop to avoid holding the read lock.
                 readLock.lockInterruptibly();
                 try {
-                    found = resolveInterrupted(q -> q.poll(10, TimeUnit.MILLISECONDS));
+                    found = resolveInterrupted(q -> q.poll(qe -> qe.event, 10, TimeUnit.MILLISECONDS));
                 } finally {
                     readLock.unlock();
                 }
             }
-            return found.orElseThrow(IllegalStateException::new);
+            return found;
         }
     }
 
@@ -391,7 +392,7 @@ public class PriorityBlockingQueue {
     public Optional<Event> poll() {
         readLock.lock();
         try {
-            return resolve(RingBuffer::poll);
+            return resolve(rb -> rb.poll(qe -> qe.event));
         } finally {
             readLock.unlock();
         }
@@ -415,20 +416,20 @@ public class PriorityBlockingQueue {
      */
     public Optional<Event> poll(long timeout, TimeUnit unit) throws InterruptedException {
         if (weight == 0) {
-            return Optional.ofNullable(asyncQueue.poll(timeout, unit)).map(qe -> qe.event);
+            return Optional.ofNullable(asyncQueue.poll(qe -> qe.event, timeout, unit));
         } else {
             long endDelay = TimeUnit.NANOSECONDS.convert(timeout, unit) +  System.nanoTime();
-            Optional<Event> found = Optional.empty();
-            while (found.isEmpty() && endDelay > System.nanoTime()) {
+            Event found = null;
+            while (found == null && endDelay > System.nanoTime()) {
                 // A loop to avoid holding the read lock.
                 readLock.lockInterruptibly();
                 try {
-                    found = resolveInterrupted(q -> q.poll(10, TimeUnit.MILLISECONDS));
+                    found = resolveInterrupted(q -> q.poll(qe -> qe.event, 10, TimeUnit.MILLISECONDS));
                 } finally {
                     readLock.unlock();
                 } 
             }
-            return found;
+            return Optional.ofNullable(found);
         }
     }
 
@@ -516,8 +517,8 @@ public class PriorityBlockingQueue {
             List<Event> events;
             try {
                 events = new ArrayList<>(asyncQueue.size() + 10);
-                for (QueueElement qe: asyncQueue) {
-                    events.add(qe.event);
+                for (Event event: asyncQueue.iterator(qe -> qe.event)) {
+                    events.add(event);
             }
             } finally {
                 writeLock.unlock();
@@ -535,8 +536,8 @@ public class PriorityBlockingQueue {
             readLock.lock();
             try {
                 long referenceTime = System.nanoTime();
-                long syncElementDelay = Optional.ofNullable(syncQueue.peek()).map(e -> (referenceTime - e.baseTime)).orElse(-1L);
-                long asyncElementDelay = Optional.ofNullable(asyncQueue.peek()).map(e -> (referenceTime - e.baseTime) * weight).orElse(-1L);
+                long syncElementDelay = Optional.ofNullable(syncQueue.peek(e -> referenceTime - e.baseTime)).orElse(-1L);
+                long asyncElementDelay = Optional.ofNullable(asyncQueue.peek(e -> (referenceTime - e.baseTime) * weight)).orElse(-1L);
                 return syncElementDelay > asyncElementDelay ? syncQueue : asyncQueue;
             } finally {
                 readLock.unlock();
@@ -544,18 +545,18 @@ public class PriorityBlockingQueue {
         }
     }
 
-    private Optional<Event> resolveInterrupted(FunctionInterrupted resolver) throws InterruptedException {
+    private Event resolveInterrupted(FunctionInterrupted resolver) throws InterruptedException {
         RingBuffer<QueueElement> q = select();
-        return Optional.ofNullable(resolver.apply(q)).map(qe -> qe.event);
+        return resolver.apply(q);
     }
 
-    private Optional<Event> resolve(Function<RingBuffer<QueueElement>, QueueElement> resolver) {
+    private Optional<Event> resolve(Function<RingBuffer<QueueElement>, Event> resolver) {
         RingBuffer<QueueElement> q = select();
-        return Optional.ofNullable(resolver.apply(q)).map(qe -> qe.event);
+        return Optional.ofNullable(resolver.apply(q));
     }
 
     private interface FunctionInterrupted {
-        QueueElement apply(RingBuffer<QueueElement> queue) throws InterruptedException ;
+        Event apply(RingBuffer<QueueElement> queue) throws InterruptedException ;
     }
 
     private Thread getExecutorThread(Runnable r) {
