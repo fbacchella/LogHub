@@ -2,31 +2,40 @@ package loghub.queue;
 
 import java.lang.reflect.Array;
 import java.util.Iterator;
-import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 
 class RingBuffer<E> {
 
+    private final Lock semaphoreLock = new ReentrantLock();
+    private final Condition notFull  = semaphoreLock.newCondition();
+    private final Condition notEmpty = semaphoreLock.newCondition();
     private final AtomicLong headCursor = new AtomicLong(0);
     private final AtomicLong tailCursor = new AtomicLong(0);
-    private final Semaphore capacitySemaphore;
-    private final Semaphore notEmptySemaphore;
     private final E[] entries;
+    private final Lock[] entryLocks;
     private final Consumer<E> cleaner;
+    private final int capacityMask;
+
 
     public RingBuffer(int capacity, Class<E> entriesClass, Supplier<E> entriesSupplier, Consumer<E> cleaner) {
         // Calculate the next power of 2, greater than or equal to x.
         // From Hacker's Delight, Chapter 3, Harry S. Warren Jr.
         capacity = 1 << (Integer.SIZE - Integer.numberOfLeadingZeros(capacity - 1));
-        capacitySemaphore = new Semaphore(capacity);
-        notEmptySemaphore = new Semaphore(0);
+        capacityMask = (capacity - 1);
         entries = arrayInstance(entriesClass, capacity);
+        entryLocks = new Lock[capacity];
         for (int i = 0; i < capacity; i++) {
             entries[i] = entriesSupplier.get();
+            entryLocks[i] = new ReentrantLock();
         }
         this.cleaner = cleaner;
     }
@@ -42,23 +51,111 @@ class RingBuffer<E> {
         }
         headCursor.set(0);
         tailCursor.set(0);
-        notEmptySemaphore.acquireUninterruptibly(notEmptySemaphore.availablePermits());
-        capacitySemaphore.drainPermits();
-        capacitySemaphore.release(entries.length);
     }
 
     int remainingCapacity() {
-        return entries.length - (int) (headCursor.get() - tailCursor.get());
+        semaphoreLock.lock();
+        try {
+            return entries.length - (int) (headCursor.get() - tailCursor.get());
+        } finally {
+            semaphoreLock.unlock();
+        }
+    }
+
+    int resolvePos(Condition c1, Condition c2, BooleanSupplier check, LongSupplier cursor) throws InterruptedException {
+        semaphoreLock.lock();
+        try {
+            while (check.getAsBoolean()) {
+                c1.await();
+            }
+            return lockEntry(cursor.getAsLong() & capacityMask);
+        } finally {
+            c2.signal();
+            semaphoreLock.unlock();
+        }
+    }
+
+    int tryResolvePos(Condition c1, Condition c2, long timeout, TimeUnit timeUnit, BooleanSupplier check, LongSupplier cursor) throws InterruptedException {
+        long end = System.nanoTime() + timeUnit.toNanos(timeout);
+        if (! semaphoreLock.tryLock(timeout, timeUnit)) {
+            return -1;
+        }
+        try {
+            long now = System.nanoTime();
+            while (end > now && check.getAsBoolean()) {
+                c1.awaitNanos(end - now);
+                now = System.nanoTime();
+            }
+            if (end > now) {
+                return lockEntry(cursor.getAsLong() & capacityMask);
+            } else {
+                return -1;
+            }
+        } finally {
+            c2.signal();
+            semaphoreLock.unlock();
+        }
+    }
+
+    int tryResolvePos(BooleanSupplier check, LongSupplier cursor) {
+        semaphoreLock.lock();
+        try {
+            if (check.getAsBoolean()) {
+                return lockEntry(cursor.getAsLong() & capacityMask);
+            } else {
+                return -1;
+            }
+        } finally {
+            semaphoreLock.unlock();
+        }
+    }
+
+    private boolean checkIsEmpty() {
+        return headCursor.get() == tailCursor.get();
+    }
+
+    private boolean checkIsFull() {
+        return (headCursor.get() - tailCursor.get()) == (entries.length);
+    }
+
+    private int lockEntry(long pos) {
+        entryLocks[(int)pos].lock();
+        return (int)pos;
+    }
+
+    private void applySetter(int pos, Consumer<E> setter) {
+        try {
+            setter.accept(entries[pos]);
+        } finally {
+            entryLocks[pos].unlock();
+        }
+    }
+
+    private <V> V applyExtract(int pos, Function<E, V> extract, boolean clean) {
+        try {
+            return extract.apply(entries[pos]);
+        } finally {
+            if (clean) {
+                cleaner.accept(entries[pos]);
+            }
+            entryLocks[pos].unlock();
+        }
+    }
+
+    boolean isEmpty() {
+        semaphoreLock.lock();
+        try {
+            return checkIsEmpty();
+        } finally {
+            semaphoreLock.unlock();
+        }
     }
 
     boolean put(Consumer<E> setter, long timeout, TimeUnit timeUnit) {
         try {
-            if (capacitySemaphore.tryAcquire(timeout, timeUnit)) {
-                int pos = (int) (headCursor.getAndIncrement() % entries.length);
-                synchronized (entries[pos]) {
-                    setter.accept(entries[pos]);
-                }
-                notEmptySemaphore.release();
+            int pos;
+            if ((pos = tryResolvePos(notFull, notEmpty, timeout, timeUnit, this::checkIsFull, headCursor::getAndIncrement)) >= 0) {
+                applySetter(pos, setter);
                 return true;
             } else {
                 return false;
@@ -71,12 +168,8 @@ class RingBuffer<E> {
 
     boolean put(Consumer<E> setter) {
         try {
-            capacitySemaphore.acquire();
-            int pos = (int) (headCursor.getAndIncrement() % entries.length);
-            synchronized (entries[pos]) {
-                setter.accept(entries[pos]);
-            }
-            notEmptySemaphore.release();
+            int pos = resolvePos(notFull, notEmpty, this::checkIsFull, headCursor::getAndIncrement);
+            applySetter(pos, setter);
             return true;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -85,31 +178,16 @@ class RingBuffer<E> {
     }
 
     <V> V take(Function<E, V> extract) throws InterruptedException {
-        notEmptySemaphore.acquire();
-        int pos = (int) (tailCursor.getAndIncrement() % entries.length);
-        synchronized (entries[pos]) {
-            try {
-                return extract.apply(entries[pos]);
-            } finally {
-                cleaner.accept(entries[pos]);
-                capacitySemaphore.release();
-            }
-        }
+        int pos = resolvePos(notEmpty, notFull, this::checkIsEmpty, tailCursor::getAndIncrement);
+        return applyExtract(pos, extract, true);
     }
 
 
     <V> V poll(Function<E, V> extract, long timeout, TimeUnit unit) {
         try {
-            if (notEmptySemaphore.tryAcquire(timeout, unit)) {
-                int pos = (int) (tailCursor.getAndIncrement() % entries.length);
-                synchronized (entries[pos]) {
-                    try {
-                        return extract.apply(entries[pos]);
-                    } finally {
-                        cleaner.accept(entries[pos]);
-                        capacitySemaphore.release();
-                    }
-                }
+            int pos;
+            if ((pos = tryResolvePos(notEmpty, notFull, timeout, unit, this::checkIsEmpty, tailCursor::getAndIncrement)) >= 0) {
+                return applyExtract(pos, extract, true);
             } else {
                 return null;
             }
@@ -120,27 +198,18 @@ class RingBuffer<E> {
     }
 
     <V> V poll(Function<E, V> extract) {
-        if (notEmptySemaphore.tryAcquire()) {
-            int pos = (int) (tailCursor.getAndIncrement() % entries.length);
-            synchronized (entries[pos]) {
-                try {
-                    return extract.apply(entries[pos]);
-                } finally {
-                    cleaner.accept(entries[pos]);
-                    capacitySemaphore.release();
-                }
-            }
+        int pos;
+        if ((pos = tryResolvePos(this::checkIsEmpty, tailCursor::getAndIncrement)) >= 0) {
+            return applyExtract(pos, extract, true);
         } else {
             return null;
         }
     }
 
     <V> V peek(Function<E, V> extract) {
-        if (notEmptySemaphore.availablePermits() > 0) {
-            int pos = (int) (tailCursor.get() % entries.length);
-            synchronized (entries[pos]) {
-                return extract.apply(entries[pos]);
-            }
+        int pos;
+        if ((pos = tryResolvePos(this::checkIsEmpty, tailCursor::get)) > 0) {
+            return applyExtract(pos, extract, false);
         } else {
             return null;
         }
@@ -166,15 +235,9 @@ class RingBuffer<E> {
         }
         @Override
         public V next() {
-            int pos = (int) (i++ % entries.length);
-            synchronized (entries[pos]) {
-                return extractor.apply(entries[pos]);
-            }
+            int pos = (int) (i++  & capacityMask);
+            return extractor.apply(entries[pos]);
         }
-    }
-
-    boolean isEmpty() {
-        return notEmptySemaphore.availablePermits() == 0;
     }
 
 }

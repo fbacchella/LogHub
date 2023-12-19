@@ -92,11 +92,13 @@ public class PriorityBlockingQueue {
         }
 
         public QueueElement(QueueElement element) {
+            Objects.requireNonNull(element.event);
             this.event = element.event;
             this.baseTime = element.baseTime;
         }
 
         public void setEvent(Event event) {
+            Objects.requireNonNull(event);
             this.event = event;
             baseTime = System.nanoTime();
         }
@@ -494,12 +496,13 @@ public class PriorityBlockingQueue {
     }
 
     public boolean isEmpty() {
-        if (weight == 0) {
-            return asyncQueue.isEmpty();
-        }
         writeLock.lock();
         try {
-            return asyncQueue.isEmpty() && syncQueue.isEmpty();
+            if (weight == 0) {
+                return asyncQueue.isEmpty();
+            } else {
+                return asyncQueue.isEmpty() && syncQueue.isEmpty();
+            }
         } finally {
             writeLock.unlock();
         }
