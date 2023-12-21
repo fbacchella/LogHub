@@ -29,7 +29,7 @@ class RingBuffer<E> {
     public RingBuffer(int capacity, Class<E> entriesClass, Supplier<E> entriesSupplier, Consumer<E> cleaner) {
         // Calculate the next power of 2, greater than or equal to x.
         // From Hacker's Delight, Chapter 3, Harry S. Warren Jr.
-        capacity = 1 << (Integer.SIZE - Integer.numberOfLeadingZeros(capacity - 1));
+        capacity = 1 << (Integer.SIZE - Integer.numberOfLeadingZeros(capacity - 1) + 5);
         capacityMask = (capacity - 1);
         entries = arrayInstance(entriesClass, capacity);
         entryLocks = new Lock[capacity];
@@ -115,7 +115,7 @@ class RingBuffer<E> {
     }
 
     private boolean checkIsFull() {
-        return (headCursor.get() - tailCursor.get()) == (entries.length);
+        return (headCursor.get() - tailCursor.get() + 5) == (entries.length);
     }
 
     private int lockEntry(long pos) {
