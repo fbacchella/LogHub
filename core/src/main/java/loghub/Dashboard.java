@@ -13,6 +13,7 @@ import loghub.netty.HttpChannelConsumer;
 import loghub.netty.http.GetMetric;
 import loghub.netty.http.GraphMetric;
 import loghub.netty.http.JmxProxy;
+import loghub.netty.http.JolokiaService;
 import loghub.netty.http.JwtToken;
 import loghub.netty.http.ResourceFiles;
 import loghub.netty.http.RootRedirect;
@@ -54,6 +55,10 @@ public class Dashboard {
         boolean withJwtUrl = false;
         @Setter
         JWTHandler jwtHandlerUrl = null;
+        @Setter
+        boolean withJolokia = false;
+        @Setter
+        String jolokiaPolicyLocation = null;
         public Dashboard build() {
             return new Dashboard(this);
         }
@@ -65,6 +70,7 @@ public class Dashboard {
 
     private final SimpleChannelInboundHandler<FullHttpRequest> ROOTREDIRECT = new RootRedirect();
     private final SimpleChannelInboundHandler<FullHttpRequest> JMXPROXY = new JmxProxy();
+    private final SimpleChannelInboundHandler<FullHttpRequest> JOLOKIA_SERVICE;
     private final SimpleChannelInboundHandler<FullHttpRequest> GETMETRIC = new GetMetric();
     private final SimpleChannelInboundHandler<FullHttpRequest> GRAPHMETRIC = new GraphMetric();
     private final SimpleChannelInboundHandler<FullHttpRequest> tokenGenerator;
@@ -100,6 +106,13 @@ public class Dashboard {
             tokenGenerator = null;
             tokenFilter = null;
         }
+        if (builder.withJolokia) {
+            JOLOKIA_SERVICE = JolokiaService.getBuilder()
+                                            .setPolicyLocation(builder.jolokiaPolicyLocation)
+                                            .build();
+        } else {
+            JOLOKIA_SERVICE = null;
+        }
     }
 
     private AuthenticationHandler getAuthenticationHandler(boolean withJwt, JWTHandler jwtHandler,
@@ -120,6 +133,9 @@ public class Dashboard {
         p.addLast(ROOTREDIRECT);
         p.addLast(new ResourceFiles());
         p.addLast(JMXPROXY);
+        if (JOLOKIA_SERVICE != null) {
+            p.addLast(JOLOKIA_SERVICE);
+        }
         p.addLast(GETMETRIC);
         p.addLast(GRAPHMETRIC);
         if (tokenGenerator != null && tokenFilter != null) {

@@ -15,6 +15,7 @@ import io.netty.channel.ChannelPipeline;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpContentCompressor;
+import io.netty.handler.codec.http.HttpContentDecompressor;
 import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.codec.http.HttpServerKeepAliveHandler;
@@ -77,6 +78,7 @@ public class HttpChannelConsumer implements ChannelConsumer {
     @Override
     public void addHandlers(ChannelPipeline p) {
         p.addLast("HttpServerCodec", serverCodecSupplier.get());
+        p.addLast("HttpContentDeCompressor", new HttpContentDecompressor());
         p.addLast("httpKeepAlive", new HttpServerKeepAliveHandler());
         p.addLast("HttpContentCompressor", new HttpContentCompressor());
         p.addLast("ChunkedWriteHandler", new ChunkedWriteHandler());
