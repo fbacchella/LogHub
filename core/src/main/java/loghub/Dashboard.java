@@ -85,20 +85,7 @@ public class Dashboard {
                                       .setModelSetup(this::setupModel)
                                       .build();
 
-        TcpTransport.Builder transportBuilder = TRANSPORT.TCP.getBuilder();
-        transportBuilder.setThreadPrefix("Dashboard");
-        transportBuilder.setPoller(builder.poller);
-        transportBuilder.setConsumer(consumer);
-        transportBuilder.setEndpoint(builder.listen);
-        transportBuilder.setPort(builder.port);
-
-        if (builder.withSSL) {
-            transportBuilder.setWithSsl(true);
-            transportBuilder.setSslContext(builder.sslContext);
-            transportBuilder.setSslKeyAlias(builder.sslKeyAlias);
-            transportBuilder.setSslClientAuthentication(builder.sslClientAuthentication);
-        }
-        transport = transportBuilder.build();
+        transport = getTransport(builder, consumer);
         if (authHandler != null && authHandler.getJwtHandler() != null) {
             tokenGenerator = new JwtToken(authHandler.getJwtHandler());
             tokenFilter = new TokenFilter(authHandler);
@@ -113,6 +100,23 @@ public class Dashboard {
         } else {
             JOLOKIA_SERVICE = null;
         }
+    }
+
+    private TcpTransport getTransport(Builder builder, HttpChannelConsumer consumer) {
+        TcpTransport.Builder transportBuilder = TRANSPORT.TCP.getBuilder();
+        transportBuilder.setThreadPrefix("Dashboard");
+        transportBuilder.setPoller(builder.poller);
+        transportBuilder.setConsumer(consumer);
+        transportBuilder.setEndpoint(builder.listen);
+        transportBuilder.setPort(builder.port);
+
+        if (builder.withSSL) {
+            transportBuilder.setWithSsl(true);
+            transportBuilder.setSslContext(builder.sslContext);
+            transportBuilder.setSslKeyAlias(builder.sslKeyAlias);
+            transportBuilder.setSslClientAuthentication(builder.sslClientAuthentication);
+        }
+        return transportBuilder.build();
     }
 
     private AuthenticationHandler getAuthenticationHandler(boolean withJwt, JWTHandler jwtHandler,

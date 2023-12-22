@@ -197,7 +197,7 @@ public class Properties extends HashMap<String, Object> {
             throw new ConfigException("Unusable JMX setup: " + Helpers.resolveThrowableException(ex), ex);
         }
 
-        dashboard = buildDashboad(Helpers.filterPrefix(properties, "http"));
+        dashboard = buildDashboard(Helpers.filterPrefix(properties, "http"));
 
         sources = (Map<String, Source>) properties.remove(PROPSNAMES.SOURCES.toString());
 
@@ -325,18 +325,21 @@ public class Properties extends HashMap<String, Object> {
         return () -> shutdownTasks.forEach(Runnable::run);
     }
 
-    private Dashboard buildDashboad(Map<String, Object> collect) {
+    private Dashboard buildDashboard(Map<String, Object> collect) {
         Dashboard.Builder builder = Dashboard.getBuilder();
-        int port = (Integer) collect.compute("port", (i,j) -> {
-            if (j != null && ! (j instanceof Integer)) {
-                throw new IllegalArgumentException("http dasbhoard port is not an integer");
+        int port = ((Number) collect.compute("port", (i, j) -> {
+            if (j != null && ! (j instanceof Number)) {
+                throw new IllegalArgumentException("HTTP dashboard port is not an integer");
             }
             return j != null ? j : -1;
-        });
+        })).intValue();
         if (port < 0) {
             return null;
         }
         builder.setPort(port);
+        if (collect.containsKey("listen")) {
+            builder.setListen(collect.get("listen").toString());
+        }
         if (Boolean.TRUE.equals(collect.get("withSSL"))) {
             builder.setWithSSL(true);
             builder.setSslContext(ssl);
@@ -355,6 +358,14 @@ public class Properties extends HashMap<String, Object> {
         String jaasName = collect.compute("jaasName", (i,j) -> (j != null) ? j : "").toString();
         if (jaasName != null && ! jaasName.isBlank()) {
             builder.setJaasNameJwt(jaasName).setJaasConfigJwt(jaasConfig);
+        }
+        if (Boolean.TRUE.equals(collect.compute("withJolokia", (i,j) -> Boolean.TRUE.equals(j)))) {
+            builder.setWithJolokia(true);
+            if (collect.containsKey("jolokiaPolicyLocation")) {
+                builder.setJolokiaPolicyLocation(collect.get("jolokiaPolicyLocation").toString());
+            }
+        } else {
+            builder.setWithJolokia(false);
         }
         return builder.build();
     }
