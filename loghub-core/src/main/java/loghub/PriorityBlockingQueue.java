@@ -15,7 +15,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
@@ -242,7 +241,7 @@ public class PriorityBlockingQueue {
     public Optional<Event> peek() {
         readLock.lock();
         try {
-            return resolve(rb -> rb.peek(qe -> qe.event));
+            return resolve(rb -> rb.peek().event);
         } finally {
             readLock.unlock();
         }
@@ -355,14 +354,14 @@ public class PriorityBlockingQueue {
      */
     public Event take() throws InterruptedException {
         if (weight == 0) {
-            return asyncQueue.take(qe -> qe.event);
+            return asyncQueue.take().event;
         } else {
             Event found = null;
             while (found == null) {
                 // A loop to avoid holding the read lock.
                 readLock.lockInterruptibly();
                 try {
-                    found = resolveInterrupted(q -> q.poll(qe -> qe.event, 10, TimeUnit.MILLISECONDS));
+                    found = resolveInterrupted(q -> q.poll(10, TimeUnit.MILLISECONDS).event);
                 } finally {
                     readLock.unlock();
                 }
@@ -380,7 +379,7 @@ public class PriorityBlockingQueue {
     public Optional<Event> poll() {
         readLock.lock();
         try {
-            return resolve(rb -> rb.poll(qe -> qe.event));
+            return resolve(rb -> rb.poll().event);
         } finally {
             readLock.unlock();
         }
@@ -404,7 +403,7 @@ public class PriorityBlockingQueue {
      */
     public Optional<Event> poll(long timeout, TimeUnit unit) throws InterruptedException {
         if (weight == 0) {
-            return Optional.ofNullable(asyncQueue.poll(qe -> qe.event, timeout, unit));
+            return Optional.ofNullable(asyncQueue.poll(timeout, unit).event);
         } else {
             long endDelay = TimeUnit.NANOSECONDS.convert(timeout, unit) +  System.nanoTime();
             Event found = null;
@@ -412,7 +411,7 @@ public class PriorityBlockingQueue {
                 // A loop to avoid holding the read lock.
                 readLock.lockInterruptibly();
                 try {
-                    found = resolveInterrupted(q -> q.poll(qe -> qe.event, 10, TimeUnit.MILLISECONDS));
+                    found = resolveInterrupted(q -> q.poll(10, TimeUnit.MILLISECONDS).event);
                 } finally {
                     readLock.unlock();
                 } 
@@ -525,8 +524,8 @@ public class PriorityBlockingQueue {
             readLock.lock();
             try {
                 long referenceTime = System.nanoTime();
-                long syncElementDelay = Optional.ofNullable(syncQueue.peek(e -> referenceTime - e.baseTime)).orElse(-1L);
-                long asyncElementDelay = Optional.ofNullable(asyncQueue.peek(e -> (referenceTime - e.baseTime) * weight)).orElse(-1L);
+                long syncElementDelay = Optional.ofNullable(syncQueue.peek()).map(qe -> referenceTime - qe.baseTime).orElse(-1L);
+                long asyncElementDelay = Optional.ofNullable(asyncQueue.peek()).map(qe -> (referenceTime - qe.baseTime) * weight).orElse(-1L);
                 return syncElementDelay > asyncElementDelay ? syncQueue : asyncQueue;
             } finally {
                 readLock.unlock();
