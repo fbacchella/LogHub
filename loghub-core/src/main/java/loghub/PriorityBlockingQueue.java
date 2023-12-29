@@ -46,10 +46,10 @@ public class PriorityBlockingQueue {
             cursorBlocking = new AtomicInteger(0);
             referenceTime = System.nanoTime();
             try {
-                for (QueueElement qe : PriorityBlockingQueue.this.asyncQueue.iterator(QueueElement::new)) {
+                for (QueueElement qe : PriorityBlockingQueue.this.asyncQueue.iterator()) {
                     asyncEvents.add(qe);
                 }
-                for (QueueElement qe : PriorityBlockingQueue.this.syncQueue.iterator(QueueElement::new)) {
+                for (QueueElement qe : PriorityBlockingQueue.this.syncQueue.iterator()) {
                     blockingEvents.add(qe);
                 }
             } finally {
@@ -85,23 +85,15 @@ public class PriorityBlockingQueue {
      */
     private static class QueueElement {
 
-        private volatile Event event;
-        private volatile long baseTime;
+        private final Event event;
+        private final long baseTime;
 
-        public QueueElement() {
-        }
-
-        public QueueElement(QueueElement element) {
-            Objects.requireNonNull(element.event);
-            this.event = element.event;
-            this.baseTime = element.baseTime;
-        }
-
-        public void setEvent(Event event) {
+        public QueueElement(Event event) {
             Objects.requireNonNull(event);
             this.event = event;
-            baseTime = System.nanoTime();
+            this.baseTime = System.nanoTime();
         }
+
     }
 
     private final RingBuffer<QueueElement> asyncQueue;
@@ -136,11 +128,11 @@ public class PriorityBlockingQueue {
         if (weight < 0) {
             throw new IllegalArgumentException("Weight can't be negative");
         }
-        asyncQueue = new RingBuffer<>(capacity, QueueElement.class, QueueElement::new, this::cleanElement);
+        asyncQueue = new RingBuffer<>(capacity);
         if (weight == 0) {
             syncQueue = asyncQueue;
         } else {
-            syncQueue = new RingBuffer<>(capacity, QueueElement.class, QueueElement::new, this::cleanElement);
+            syncQueue = new RingBuffer<>(capacity);
         }
         this.weight = weight;
     }
@@ -150,14 +142,9 @@ public class PriorityBlockingQueue {
      * {@link Integer#MAX_VALUE} and no priority management.
      */
     public PriorityBlockingQueue() {
-        asyncQueue = new RingBuffer<>(1000, QueueElement.class, QueueElement::new, this::cleanElement);
+        asyncQueue = new RingBuffer<>(1000);
         syncQueue = asyncQueue;
         this.weight = 0;
-    }
-
-    private void cleanElement(QueueElement element) {
-        element.event = null;
-        element.baseTime = Long.MIN_VALUE;
     }
 
     /**
@@ -287,16 +274,15 @@ public class PriorityBlockingQueue {
 
     private void privatePut(Event e, RingBuffer<QueueElement> queue) throws InterruptedException {
         Objects.requireNonNull(e);
-        Consumer<QueueElement> setter = qe -> qe.setEvent(e);
         if (this.weight == 0) {
-            queue.put(setter);
+            queue.put(new QueueElement(e));
         } else {
             boolean inserted = false;
             while (!inserted) {
                 // A loop to avoid holding the read lock.
                 readLock.lockInterruptibly();
                 try {
-                    inserted = queue.put(setter, 10, TimeUnit.MILLISECONDS);
+                    inserted = queue.put(new QueueElement(e), 10, TimeUnit.MILLISECONDS);
                 } finally {
                     readLock.unlock();
                 } 
@@ -318,7 +304,7 @@ public class PriorityBlockingQueue {
     public boolean offer(Event event) {
         readLock.lock();
         try {
-            return asyncQueue.put(qe -> qe.setEvent(event));
+            return asyncQueue.put(new QueueElement(event));
         } finally {
             readLock.unlock();
         }
@@ -340,7 +326,7 @@ public class PriorityBlockingQueue {
      */
     public boolean offer(Event e, long timeout, TimeUnit unit) throws InterruptedException {
         if (weight == 0) {
-            return asyncQueue.put(qe -> qe.setEvent(e), timeout, unit);
+            return asyncQueue.put(new QueueElement(e), timeout, unit);
         } else {
             long endDelay = TimeUnit.NANOSECONDS.convert(timeout, unit) + System.nanoTime();
             boolean inserted = false;
@@ -348,7 +334,7 @@ public class PriorityBlockingQueue {
                 // A loop to avoid holding the read lock.
                 readLock.lockInterruptibly();
                 try {
-                    inserted = asyncQueue.put(qe -> qe.setEvent(e), 10, TimeUnit.MILLISECONDS);
+                    inserted = asyncQueue.put(new QueueElement(e), 10, TimeUnit.MILLISECONDS);
                 } finally {
                     readLock.unlock();
                 }
@@ -520,8 +506,8 @@ public class PriorityBlockingQueue {
             List<Event> events;
             try {
                 events = new ArrayList<>(asyncQueue.size() + 10);
-                for (Event event: asyncQueue.iterator(qe -> qe.event)) {
-                    events.add(event);
+                for (QueueElement qe: asyncQueue.iterator()) {
+                    events.add(qe.event);
             }
             } finally {
                 writeLock.unlock();
