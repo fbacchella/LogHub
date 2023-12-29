@@ -6,7 +6,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.LockSupport;
-import java.util.function.Function;
 
 class RingBuffer<E> {
 
@@ -79,33 +78,27 @@ class RingBuffer<E> {
         }
     }
 
-    <V> V take(Function<E, V> extract) throws InterruptedException {
+    E take() throws InterruptedException {
         notEmptySemaphore.acquire();
         int pos = (int) (tailCursor.getAndIncrement() & capacityMask);
-        try {
-            E entry;
-            while ((entry = entries[pos].getAndSet(null)) == null) {
-                LockSupport.parkNanos(100);
-            }
-            return extract.apply(entry);
-        } finally {
-            capacitySemaphore.release();
+        E entry;
+        while ((entry = entries[pos].getAndSet(null)) == null) {
+            LockSupport.parkNanos(100);
         }
+        capacitySemaphore.release();
+        return entry;
     }
 
-    <V> V poll(Function<E, V> extract, long timeout, TimeUnit unit) {
+    E poll(long timeout, TimeUnit unit) {
         try {
             if (notEmptySemaphore.tryAcquire(timeout, unit)) {
                 int pos = (int) (tailCursor.getAndIncrement() & capacityMask);
-                try {
-                    E entry;
-                    while ((entry = entries[pos].getAndSet(null)) == null) {
-                        LockSupport.parkNanos(100);
-                    }
-                    return extract.apply(entry);
-                } finally {
-                    capacitySemaphore.release();
+                E entry;
+                while ((entry = entries[pos].getAndSet(null)) == null) {
+                    LockSupport.parkNanos(100);
                 }
+                capacitySemaphore.release();
+                return entry;
             } else {
                 return null;
             }
@@ -115,35 +108,29 @@ class RingBuffer<E> {
         }
     }
 
-    <V> V poll(Function<E, V> extract) {
+    E poll() {
         if (notEmptySemaphore.tryAcquire()) {
             int pos = (int) (tailCursor.getAndIncrement() & capacityMask);
-            try {
-                E entry;
-                while ((entry = entries[pos].getAndSet(null)) == null) {
-                    LockSupport.parkNanos(100);
-                }
-                return extract.apply(entry);
-            } finally {
-                capacitySemaphore.release();
+            E entry;
+            while ((entry = entries[pos].getAndSet(null)) == null) {
+                LockSupport.parkNanos(100);
             }
+            capacitySemaphore.release();
+            return entry;
         } else {
             return null;
         }
     }
 
-    <V> V peek(Function<E, V> extract) {
+    E peek() {
         if (notEmptySemaphore.tryAcquire()) {
             int pos = (int) (tailCursor.get() & capacityMask);
-            try {
-                E entry;
-                while ((entry = entries[pos].get()) == null) {
-                    LockSupport.parkNanos(100);
-                }
-                return extract.apply(entry);
-            } finally {
-                notEmptySemaphore.release();
+            E entry;
+            while ((entry = entries[pos].get()) == null) {
+                LockSupport.parkNanos(100);
             }
+            notEmptySemaphore.release();
+            return entry;
         } else {
             return null;
         }
@@ -172,10 +159,6 @@ class RingBuffer<E> {
 
     boolean isEmpty() {
         return notEmptySemaphore.availablePermits() == 0;
-    }
-
-    private String dumpState(int pos) {
-        return String.format("pos=%d available=%d used=%d", pos, capacitySemaphore.availablePermits(), notEmptySemaphore.availablePermits());
     }
 
 }
