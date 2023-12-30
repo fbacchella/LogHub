@@ -127,11 +127,11 @@ public class PriorityBlockingQueue {
         if (weight < 0) {
             throw new IllegalArgumentException("Weight can't be negative");
         }
-        asyncQueue = new RingBuffer<>(capacity);
+        asyncQueue = new RingBuffer<>(capacity, QueueElement.class);
         if (weight == 0) {
             syncQueue = asyncQueue;
         } else {
-            syncQueue = new RingBuffer<>(capacity);
+            syncQueue = new RingBuffer<>(capacity, QueueElement.class);
         }
         this.weight = weight;
     }
@@ -141,7 +141,7 @@ public class PriorityBlockingQueue {
      * {@link Integer#MAX_VALUE} and no priority management.
      */
     public PriorityBlockingQueue() {
-        asyncQueue = new RingBuffer<>(1000);
+        asyncQueue = new RingBuffer<>(1000, QueueElement.class);
         syncQueue = asyncQueue;
         this.weight = 0;
     }
@@ -241,7 +241,7 @@ public class PriorityBlockingQueue {
     public Optional<Event> peek() {
         readLock.lock();
         try {
-            return resolve(rb -> rb.peek().event);
+            return resolve(RingBuffer::peek);
         } finally {
             readLock.unlock();
         }
@@ -310,39 +310,6 @@ public class PriorityBlockingQueue {
     }
 
     /**
-     * Insert the {@link Event} into the asynchronous queue, waiting up to the
-     * specified wait time if necessary for space to become available.
-     *
-     * @param e the {@link Event} to add
-     * @param timeout how long to wait before giving up, in units of
-     *        <code>unit</code>
-     * @param unit a <code>TimeUnit</code> determining how to interpret the
-     *        <code>timeout</code> parameter
-     * @return <code>true</code> if successful, or <code>false</code> if
-     *         the specified waiting time elapses before space is available
-     * @throws InterruptedException if interrupted while waiting
-     * @throws NullPointerException if the specified element is {@code null}
-     */
-    public boolean offer(Event e, long timeout, TimeUnit unit) throws InterruptedException {
-        if (weight == 0) {
-            return asyncQueue.put(new QueueElement(e), timeout, unit);
-        } else {
-            long endDelay = TimeUnit.NANOSECONDS.convert(timeout, unit) + System.nanoTime();
-            boolean inserted = false;
-            while (!inserted && endDelay > System.nanoTime()) {
-                // A loop to avoid holding the read lock.
-                readLock.lockInterruptibly();
-                try {
-                    inserted = asyncQueue.put(new QueueElement(e), 10, TimeUnit.MILLISECONDS);
-                } finally {
-                    readLock.unlock();
-                }
-            }
-            return inserted;
-        }
-    }
-
-    /**
      * Retrieves and removes the oldest {@link Event} using the weight ratio, waiting if necessary
      * until one becomes available.
      * <p>
@@ -361,7 +328,7 @@ public class PriorityBlockingQueue {
                 // A loop to avoid holding the read lock.
                 readLock.lockInterruptibly();
                 try {
-                    found = resolveInterrupted(q -> q.poll(10, TimeUnit.MILLISECONDS).event);
+                    found = resolveInterrupted(q -> q.poll(10, TimeUnit.MILLISECONDS)).orElse(null);
                 } finally {
                     readLock.unlock();
                 }
@@ -379,7 +346,7 @@ public class PriorityBlockingQueue {
     public Optional<Event> poll() {
         readLock.lock();
         try {
-            return resolve(rb -> rb.poll().event);
+            return resolve(RingBuffer::poll);
         } finally {
             readLock.unlock();
         }
@@ -403,20 +370,20 @@ public class PriorityBlockingQueue {
      */
     public Optional<Event> poll(long timeout, TimeUnit unit) throws InterruptedException {
         if (weight == 0) {
-            return Optional.ofNullable(asyncQueue.poll(timeout, unit).event);
+            return Optional.ofNullable(asyncQueue.poll(timeout, unit)).map(qe -> qe.event);
         } else {
             long endDelay = TimeUnit.NANOSECONDS.convert(timeout, unit) +  System.nanoTime();
-            Event found = null;
-            while (found == null && endDelay > System.nanoTime()) {
+            Optional<Event> found = Optional.empty();
+            while (found.isEmpty() && endDelay > System.nanoTime()) {
                 // A loop to avoid holding the read lock.
                 readLock.lockInterruptibly();
                 try {
-                    found = resolveInterrupted(q -> q.poll(10, TimeUnit.MILLISECONDS).event);
+                    found = resolveInterrupted(q -> q.poll(10, TimeUnit.MILLISECONDS));
                 } finally {
                     readLock.unlock();
                 } 
             }
-            return Optional.ofNullable(found);
+            return found;
         }
     }
 
@@ -533,18 +500,18 @@ public class PriorityBlockingQueue {
         }
     }
 
-    private Event resolveInterrupted(FunctionInterrupted resolver) throws InterruptedException {
+    private Optional<Event> resolveInterrupted(FunctionInterrupted resolver) throws InterruptedException {
         RingBuffer<QueueElement> q = select();
-        return resolver.apply(q);
+        return Optional.ofNullable(resolver.apply(q)).map(qe -> qe.event);
     }
 
-    private Optional<Event> resolve(Function<RingBuffer<QueueElement>, Event> resolver) {
+    private Optional<Event> resolve(Function<RingBuffer<QueueElement>, QueueElement> resolver) {
         RingBuffer<QueueElement> q = select();
-        return Optional.ofNullable(resolver.apply(q));
+        return Optional.ofNullable(resolver.apply(q)).map(qe -> qe.event);
     }
 
     private interface FunctionInterrupted {
-        Event apply(RingBuffer<QueueElement> queue) throws InterruptedException ;
+        QueueElement apply(RingBuffer<QueueElement> queue) throws InterruptedException ;
     }
 
     private Thread getExecutorThread(Runnable r) {

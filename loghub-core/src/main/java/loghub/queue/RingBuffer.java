@@ -1,39 +1,59 @@
 package loghub.queue;
 
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.VarHandle;
+import java.lang.reflect.Array;
+import java.util.Arrays;
 import java.util.Iterator;
+import java.util.NoSuchElementException;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.LockSupport;
 
 class RingBuffer<E> {
+
+    private static final VarHandle HANDLE = MethodHandles.arrayElementVarHandle(Object[].class);
 
     private final AtomicLong headCursor = new AtomicLong(0);
     private final AtomicLong tailCursor = new AtomicLong(0);
     private final Semaphore capacitySemaphore;
     private final Semaphore notEmptySemaphore;
-    private final AtomicReference<E>[] entries;
+    private final E[] entries;
     private final int capacity;
     private final int capacityMask;
 
-    public RingBuffer(int capacity) {
+    public RingBuffer(int capacity, Class<E> entriesClass) {
         // Calculate the next power of 2, greater than or equal to x.
         // From Hacker's Delight, Chapter 3, Harry S. Warren Jr.
         this.capacity = 1 << (Integer.SIZE - Integer.numberOfLeadingZeros(capacity - 1));
         capacityMask = this.capacity - 1;
         capacitySemaphore = new Semaphore(this.capacity);
         notEmptySemaphore = new Semaphore(0);
-        entries = new AtomicReference[this.capacity];
-        for (int i = 0; i < entries.length; i++) {
-            entries[i] = new AtomicReference<>();
-        }
+        entries = arrayInstance(entriesClass, this.capacity);
+    }
+
+    @SuppressWarnings("unchecked")
+    private E[] arrayInstance(Class<E> entriesClass, int capacity) {
+        return (E[]) Array.newInstance(entriesClass, capacity);
+    }
+
+    private boolean compareAndSet(int pos, E refValue, E newValue) {
+        return HANDLE.compareAndSet(this.entries, pos, refValue, newValue);
+    }
+
+    @SuppressWarnings("unchecked")
+    private E getAndSet(int pos, E newValue) {
+        return  (E) HANDLE.getAndSet(this.entries, pos, newValue);
+    }
+
+    @SuppressWarnings("unchecked")
+    private E get(int pos) {
+        return (E) HANDLE.get(this.entries, pos);
     }
 
     void clear() {
-        for (AtomicReference<E> entry : entries) {
-            entry.set(null);
-        }
+        Arrays.fill(entries, null);
         headCursor.set(0);
         tailCursor.set(0);
         notEmptySemaphore.drainPermits();
@@ -49,7 +69,7 @@ class RingBuffer<E> {
         try {
             if (capacitySemaphore.tryAcquire(timeout, timeUnit)) {
                 int pos = (int) (headCursor.getAndIncrement() & capacityMask);
-                while (! entries[pos].compareAndSet(null, newEntry)) {
+                while (! compareAndSet(pos, null, newEntry)) {
                     LockSupport.parkNanos(100);
                 }
                 notEmptySemaphore.release();
@@ -67,7 +87,7 @@ class RingBuffer<E> {
         try {
             capacitySemaphore.acquire();
             int pos = (int) (headCursor.getAndIncrement() & capacityMask);
-            while( ! entries[pos].compareAndSet(null, newEntry)) {
+            while( ! compareAndSet(pos, null, newEntry)) {
                 LockSupport.parkNanos(100);
             }
             notEmptySemaphore.release();
@@ -82,7 +102,7 @@ class RingBuffer<E> {
         notEmptySemaphore.acquire();
         int pos = (int) (tailCursor.getAndIncrement() & capacityMask);
         E entry;
-        while ((entry = entries[pos].getAndSet(null)) == null) {
+        while ((entry = getAndSet(pos, null)) == null) {
             LockSupport.parkNanos(100);
         }
         capacitySemaphore.release();
@@ -94,7 +114,7 @@ class RingBuffer<E> {
             if (notEmptySemaphore.tryAcquire(timeout, unit)) {
                 int pos = (int) (tailCursor.getAndIncrement() & capacityMask);
                 E entry;
-                while ((entry = entries[pos].getAndSet(null)) == null) {
+                while ((entry =getAndSet(pos, null)) == null) {
                     LockSupport.parkNanos(100);
                 }
                 capacitySemaphore.release();
@@ -112,7 +132,7 @@ class RingBuffer<E> {
         if (notEmptySemaphore.tryAcquire()) {
             int pos = (int) (tailCursor.getAndIncrement() & capacityMask);
             E entry;
-            while ((entry = entries[pos].getAndSet(null)) == null) {
+            while ((entry = getAndSet(pos, null)) == null) {
                 LockSupport.parkNanos(100);
             }
             capacitySemaphore.release();
@@ -126,7 +146,7 @@ class RingBuffer<E> {
         if (notEmptySemaphore.tryAcquire()) {
             int pos = (int) (tailCursor.get() & capacityMask);
             E entry;
-            while ((entry = entries[pos].get()) == null) {
+            while ((entry = get(pos)) == null) {
                 LockSupport.parkNanos(100);
             }
             notEmptySemaphore.release();
@@ -152,8 +172,16 @@ class RingBuffer<E> {
         }
         @Override
         public E next() {
-            int pos = (int) (i++ % entries.length);
-            return entries[pos].get();
+            int pos = (int) (i & capacityMask);
+            E entry;
+            while ((entry = get(pos)) == null && i < headCursor.get()) {
+                LockSupport.parkNanos(100);
+            }
+            if (entry == null) {
+                throw new NoSuchElementException();
+            }
+            i++;
+            return get(pos);
         }
     }
 
