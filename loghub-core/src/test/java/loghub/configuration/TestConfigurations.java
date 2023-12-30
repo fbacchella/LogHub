@@ -140,8 +140,8 @@ public class TestConfigurations {
         }
         Assert.assertEquals("input not found", 1, conf.receivers.size());
         Assert.assertEquals("ouput not found", 3, conf.senders.size());
-        Assert.assertEquals(5, conf.mainQueue.remainingCapacity());
-        Assert.assertEquals(5, conf.mainQueue.remainingBlockingCapacity());
+        Assert.assertEquals(8, conf.mainQueue.remainingCapacity());
+        Assert.assertEquals(8, conf.mainQueue.remainingBlockingCapacity());
         Assert.assertEquals(10, conf.mainQueue.getWeight());
     }
 
