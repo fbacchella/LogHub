@@ -3,7 +3,6 @@ package loghub.senders;
 import java.beans.IntrospectionException;
 import java.io.IOException;
 import java.util.Collections;
-import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
@@ -25,6 +24,7 @@ import loghub.encoders.Encoder;
 import loghub.encoders.EvalExpression;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
+import loghub.queue.RingBuffer;
 
 public class TestNull {
 
@@ -38,7 +38,7 @@ public class TestNull {
         LogUtils.setLevel(logger, Level.TRACE, "loghub.senders.Null", "loghub.encoders.StringField");
     }
 
-    private final ArrayBlockingQueue<Event> queue = new ArrayBlockingQueue<>(10);
+    private final RingBuffer<Event> queue = new RingBuffer<>(10, Event.class);
 
     private Null send(Consumer<Null.Builder> prepare, Encoder encoder) throws InterruptedException {
         Null.Builder nb = Null.getBuilder();
@@ -52,7 +52,7 @@ public class TestNull {
 
         Event ev = factory.newEvent(new BlockingConnectionContext());
         ev.put("message", 1);
-        queue.add(ev);
+        queue.put(ev);
         ConnectionContext<Semaphore> ctxt = ev.getConnectionContext();
         ctxt.getLocalAddress().acquire();
         return nullsender;

@@ -11,7 +11,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.LockSupport;
 
-class RingBuffer<E> {
+public class RingBuffer<E> {
 
     private static final VarHandle HANDLE = MethodHandles.arrayElementVarHandle(Object[].class);
 
@@ -83,7 +83,7 @@ class RingBuffer<E> {
         }
     }
 
-    boolean put(E newEntry) {
+    public boolean put(E newEntry) {
         try {
             capacitySemaphore.acquire();
             int pos = (int) (headCursor.getAndIncrement() & capacityMask);
@@ -98,7 +98,7 @@ class RingBuffer<E> {
         }
     }
 
-    E take() throws InterruptedException {
+    public E take() throws InterruptedException {
         notEmptySemaphore.acquire();
         int pos = (int) (tailCursor.getAndIncrement() & capacityMask);
         E entry;
@@ -109,7 +109,7 @@ class RingBuffer<E> {
         return entry;
     }
 
-    E poll(long timeout, TimeUnit unit) {
+    public E poll(long timeout, TimeUnit unit) {
         try {
             if (notEmptySemaphore.tryAcquire(timeout, unit)) {
                 int pos = (int) (tailCursor.getAndIncrement() & capacityMask);
@@ -156,7 +156,7 @@ class RingBuffer<E> {
         }
     }
 
-    int size() {
+    public int size() {
         return (int) (headCursor.get() - tailCursor.get());
     }
 
@@ -185,7 +185,7 @@ class RingBuffer<E> {
         }
     }
 
-    boolean isEmpty() {
+    public boolean isEmpty() {
         return notEmptySemaphore.availablePermits() == 0;
     }
 

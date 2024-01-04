@@ -8,8 +8,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collections;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -39,6 +37,7 @@ import loghub.encoders.EncodeException;
 import loghub.encoders.ToJson;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
+import loghub.queue.RingBuffer;
 import loghub.zmq.ZMQCheckedException;
 import loghub.zmq.ZMQHelper.Method;
 import loghub.zmq.ZMQSocketFactory;
@@ -91,14 +90,14 @@ public class TestZMQSender {
                     .setType(SocketType.PULL);
         sinkconfigure.accept(sinkbuilder);
 
-        BlockingQueue<Event> queue = new ArrayBlockingQueue<>(10);
+        RingBuffer<Event> queue = new RingBuffer<>(10, Event.class);
         AtomicInteger count = new AtomicInteger();
         Thread injector = ThreadBuilder.get().setTask(() -> {
             try {
                 while (true) {
                     Event ev = factory.newEvent();
                     ev.put("message", count.incrementAndGet());
-                    queue.offer(ev);
+                    queue.put(ev);
                     Thread.sleep(50);
                 }
             } catch (InterruptedException e) {
