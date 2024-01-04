@@ -2,7 +2,6 @@ package loghub.senders;
 
 import java.io.IOException;
 import java.util.Collections;
-import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.Semaphore;
 
 import org.junit.Assert;
@@ -16,6 +15,7 @@ import loghub.encoders.Encoder;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
 import loghub.metrics.Stats;
+import loghub.queue.RingBuffer;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
@@ -32,7 +32,7 @@ public class SenderTools {
 
     public static <S extends Sender> void send(Sender.Builder<S> builder)
             throws IOException, InterruptedException, EncodeException {
-        ArrayBlockingQueue<Event> queue = new ArrayBlockingQueue<>(10);
+        RingBuffer<Event> queue = new RingBuffer<>(10, Event.class);
 
         Encoder encoder = mock(Encoder.class);
         doThrow(new EncodeException("Dummy exception")).when(encoder).encode(any(Event.class));
@@ -44,7 +44,7 @@ public class SenderTools {
         Assert.assertTrue(sender.configure(new Properties(Collections.emptyMap())));
         sender.start();
         Event ev = factory.newEvent(new BlockingConnectionContext());
-        queue.add(ev);
+        queue.put(ev);
         ConnectionContext<Semaphore> ctxt = ev.getConnectionContext();
         ctxt.getLocalAddress().acquire();
         Assert.assertEquals(1, Stats.getMetric(Meter.class, Sender.class, "failedSend").getCount());

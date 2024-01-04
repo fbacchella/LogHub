@@ -26,6 +26,7 @@ import loghub.processors.FutureProcessor;
 import loghub.processors.UnwrapEvent;
 import loghub.processors.WrapEvent;
 import loghub.queue.PriorityBlockingQueue;
+import loghub.queue.RingBuffer;
 
 public class EventsProcessor extends Thread {
 
@@ -40,7 +41,7 @@ public class EventsProcessor extends Thread {
     private static final AtomicInteger id = new AtomicInteger();
 
     private final PriorityBlockingQueue inQueue;
-    private final Map<String, BlockingQueue<Event>> outQueues;
+    private final Map<String, RingBuffer<Event>> outQueues;
     private final Map<String,Pipeline> namedPipelines;
     private final int maxSteps;
     private final EventsRepository<Future<?>> evrepo;
@@ -49,7 +50,7 @@ public class EventsProcessor extends Thread {
     private final BlockingQueue<Event> blockedAsync = new LinkedBlockingQueue<>();
     private Event lastblockedAsync = null;
 
-    public EventsProcessor(PriorityBlockingQueue inQueue, Map<String, BlockingQueue<Event>> outQueues, Map<String,Pipeline> namedPipelines, int maxSteps, EventsRepository<Future<?>> evrepo) {
+    public EventsProcessor(PriorityBlockingQueue inQueue, Map<String, RingBuffer<Event>> outQueues, Map<String,Pipeline> namedPipelines, int maxSteps, EventsRepository<Future<?>> evrepo) {
         this.inQueue = inQueue;
         this.outQueues = outQueues;
         this.namedPipelines = namedPipelines;
@@ -164,12 +165,8 @@ public class EventsProcessor extends Thread {
                     event.end();
                 } else if (event.getCurrentPipeline() != null && outQueues.containsKey(event.getCurrentPipeline())) {
                     // Put in the output queue, where the wanting output will come to take it
-                    try {
-                        outQueues.get(event.getCurrentPipeline()).put(event);
-                    } catch (InterruptedException e) {
-                        event.doMetric(PipelineStat.EXCEPTION, e);
+                    if (!outQueues.get(event.getCurrentPipeline()).put(event) ) {
                         event.end();
-                        Thread.currentThread().interrupt();
                     }
                 } else if (event.getCurrentPipeline() != null && ! outQueues.containsKey(event.getCurrentPipeline())) {
                     event.doMetric(PipelineStat.EXCEPTION, new IllegalArgumentException("No sender consuming pipeline " + event.getCurrentPipeline()));

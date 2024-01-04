@@ -9,7 +9,6 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
-import java.util.concurrent.ArrayBlockingQueue;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -27,6 +26,7 @@ import loghub.configuration.Properties;
 import loghub.encoders.ToJson;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
+import loghub.queue.RingBuffer;
 
 public class TestUdp {
 
@@ -41,7 +41,7 @@ public class TestUdp {
     }
 
 
-    private final ArrayBlockingQueue<Event> queue = new ArrayBlockingQueue<>(10);
+    private final RingBuffer<Event> queue = new RingBuffer<>(10, Event.class);
 
     private DatagramChannel ssocket;
     private int port;
@@ -80,10 +80,10 @@ public class TestUdp {
 
         Event ev = factory.newEvent();
         ev.put("message", 1);
-        queue.add(ev);
+        queue.put(ev);
         ev = factory.newEvent();
         ev.put("message", 2);
-        queue.add(ev);
+        queue.put(ev);
 
         ByteBuffer content = ByteBuffer.allocate(100);
         ssocket.configureBlocking(false);
