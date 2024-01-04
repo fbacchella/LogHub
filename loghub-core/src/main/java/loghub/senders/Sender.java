@@ -8,10 +8,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.IntStream;
@@ -138,7 +136,7 @@ public abstract class Sender extends Thread implements Closeable {
     private final Filter filter;
     private volatile long lastFlush = 0;
     private final Thread[] threads;
-    private final BlockingQueue<Batch> batches;
+    private final RingBuffer<Batch> batches;
     private final Runnable publisher;
     private final AtomicReference<Batch> batch;
     private final long flushInterval;
@@ -163,7 +161,7 @@ public abstract class Sender extends Thread implements Closeable {
             isAsync = true;
             batchSize = builder.batchSize;
             threads = new Thread[builder.workers];
-            batches = new LinkedBlockingQueue<>(threads.length * 2);
+            batches = new RingBuffer<>(threads.length * 2, Batch.class);
             publisher = getPublisher();
             batch = new AtomicReference<>(new Batch(this));
         } else {
@@ -251,7 +249,7 @@ public abstract class Sender extends Thread implements Closeable {
                 long now = System.currentTimeMillis();
                 if ((now - lastFlush) > flushInterval) {
                     batch.set(new Batch(this));
-                    batches.add(currentBatch);
+                    batches.put(currentBatch);
                     lastFlush = now;
                 } else {
                     // Not flushing, put it back
@@ -272,22 +270,16 @@ public abstract class Sender extends Thread implements Closeable {
                 interrupt();
                 // Push the current batch to the publishing batches
                 Optional.ofNullable(batch.getAndSet(NULL_BATCH)).filter(b -> b != NULL_BATCH).ifPresent(b -> {
-                    try {
-                        batches.offer(b, 1000, TimeUnit.MILLISECONDS);
-                        logger.debug("Last batch of {} event(s)", b::size);
-                    } catch (InterruptedException e) {
+                    if (! batches.put(b, 1000, TimeUnit.MILLISECONDS)) {
                         // Failed to offer the batch, all events are failed
                         b.forEach(ef -> ef.complete(false));
-                        Thread.currentThread().interrupt();
+                    } else {
+                        logger.debug("Last batch of {} event(s)", b::size);
                     }
                 });
                 // Add a mark for each worker, to stop accepting
                 Stream.of(threads).forEach(t -> {
-                    try {
-                        batches.offer(NULL_BATCH, 1000, TimeUnit.MILLISECONDS);
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                    }
+                    batches.put(NULL_BATCH, 1000, TimeUnit.MILLISECONDS);
                 });
                 // Wait to give a chance to each worker to get a batch to process
                 Stream.of(threads).forEach(t -> {
@@ -354,13 +346,9 @@ public abstract class Sender extends Thread implements Closeable {
             if (workingBatch.size() >= batchSize) {
                 // If batch is full, don't put it back, but queue it for flush
                 logger.trace("Batch full, flush");
-                try {
-                    batches.put(workingBatch);
-                    // A new batch will be returned to the holder
-                    workingBatch = new Batch(this);
-                } catch (InterruptedException e) {
-                    interrupt();
-                }
+                batches.put(workingBatch);
+                // A new batch will be returned to the holder
+                workingBatch = new Batch(this);
                 if (batches.size() > threads.length) {
                     logger.warn("{} waiting flush batches, add workers", () -> batches.size() - threads.length);
                 }
@@ -504,6 +492,7 @@ public abstract class Sender extends Thread implements Closeable {
             Stats.sentEvent(this);
         } else {
             Stats.failedSentEvent(this, event);
+            logger.warn("Failed {}", () -> event);
         }
         event.end();
     }
