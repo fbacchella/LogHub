@@ -4,6 +4,7 @@ import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
 import java.lang.reflect.Array;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.concurrent.Semaphore;
@@ -53,11 +54,11 @@ public class RingBuffer<E> {
     }
 
     void clear() {
+        notEmptySemaphore.drainPermits();
+        capacitySemaphore.drainPermits();
         Arrays.fill(entries, null);
         headCursor.set(0);
         tailCursor.set(0);
-        notEmptySemaphore.drainPermits();
-        capacitySemaphore.drainPermits();
         capacitySemaphore.release(capacity);
     }
 
@@ -65,7 +66,7 @@ public class RingBuffer<E> {
         return entries.length - (int) (headCursor.get() - tailCursor.get());
     }
 
-    boolean put(E newEntry, long timeout, TimeUnit timeUnit) {
+    public boolean put(E newEntry, long timeout, TimeUnit timeUnit) {
         try {
             if (capacitySemaphore.tryAcquire(timeout, timeUnit)) {
                 int pos = (int) (headCursor.getAndIncrement() & capacityMask);
@@ -183,6 +184,20 @@ public class RingBuffer<E> {
             i++;
             return get(pos);
         }
+    }
+
+    public void drainTo(Collection<E> destination) {
+        capacitySemaphore.drainPermits();
+        notEmptySemaphore.drainPermits();
+        for (long i = tailCursor.get() ; i < headCursor.get(); i++) {
+            E entry;
+            int pos = (int) (i & capacityMask);
+            while ((entry = get(pos)) == null && i < headCursor.get()) {
+                LockSupport.parkNanos(100);
+            }
+            destination.add(entry);
+        }
+        clear();
     }
 
     public boolean isEmpty() {
