@@ -92,7 +92,7 @@ public class TestWithZMQ {
              ZMQFlow sender = flowbuilder.build()) {
             Event received = conf.mainQueue.poll(1, TimeUnit.SECONDS).get();
             Assert.assertNotNull("nothing received", received);
-            conf.outputQueues.get("main").add(received);
+            conf.outputQueues.get("main").put(received);
             Assert.assertTrue(latch.await(2, TimeUnit.SECONDS));
             //byte[] buffer = out.recv();
             //Assert.assertEquals("wrong send message", "something", new String(buffer));

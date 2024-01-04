@@ -15,7 +15,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
@@ -42,7 +41,6 @@ import loghub.EventsRepository;
 import loghub.Expression;
 import loghub.Helpers;
 import loghub.Pipeline;
-import loghub.queue.PriorityBlockingQueue;
 import loghub.Processor;
 import loghub.ThreadBuilder;
 import loghub.VariablePath;
@@ -52,6 +50,8 @@ import loghub.metrics.ExceptionsMBean;
 import loghub.metrics.JmxService;
 import loghub.metrics.Stats;
 import loghub.metrics.StatsMBean;
+import loghub.queue.PriorityBlockingQueue;
+import loghub.queue.RingBuffer;
 import loghub.receivers.Receiver;
 import loghub.security.JWTHandler;
 import loghub.security.ssl.ClientAuthentication;
@@ -110,7 +110,7 @@ public class Properties extends HashMap<String, Object> {
     public final JmxService.Configuration jmxServiceConfiguration;
     public final int numWorkers;
     public final PriorityBlockingQueue mainQueue;
-    public final Map<String, BlockingQueue<Event>> outputQueues;
+    public final Map<String, RingBuffer<Event>> outputQueues;
     public final int queuesDepth;
     public final int maxSteps;
     public final EventsRepository<Future<?>> repository;
@@ -212,7 +212,7 @@ public class Properties extends HashMap<String, Object> {
         // Default values are for tests, so the build unusable queuing environment
         queuesDepth = properties.containsKey(PROPSNAMES.QUEUESDEPTH.toString()) ? (int) properties.remove(PROPSNAMES.QUEUESDEPTH.toString()) : 0;
         mainQueue = properties.containsKey(PROPSNAMES.MAINQUEUE.toString()) ? (PriorityBlockingQueue) properties.remove(PROPSNAMES.MAINQUEUE.toString()) : new PriorityBlockingQueue();
-        outputQueues = properties.containsKey(PROPSNAMES.OUTPUTQUEUE.toString()) ? (Map<String, BlockingQueue<Event>>) properties.remove(PROPSNAMES.OUTPUTQUEUE.toString()) : null;
+        outputQueues = properties.containsKey(PROPSNAMES.OUTPUTQUEUE.toString()) ? (Map<String, RingBuffer<Event>>) properties.remove(PROPSNAMES.OUTPUTQUEUE.toString()) : null;
 
         Stats.waitingQueue(mainQueue::size);
 

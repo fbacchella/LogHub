@@ -5,7 +5,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Collections;
-import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.Semaphore;
 import java.util.function.Consumer;
 
@@ -32,6 +31,7 @@ import loghub.encoders.EvalExpression;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
 import loghub.metrics.Stats;
+import loghub.queue.RingBuffer;
 
 public class TestFile {
 
@@ -49,7 +49,7 @@ public class TestFile {
     public TemporaryFolder folder = new TemporaryFolder();
 
     private String outFile;
-    private final ArrayBlockingQueue<Event> queue = new ArrayBlockingQueue<>(10);
+    private final RingBuffer<Event> queue = new RingBuffer<>(10, Event.class);
 
     @Before
     public void reset() {
@@ -74,7 +74,7 @@ public class TestFile {
 
         Event ev = factory.newEvent(new BlockingConnectionContext());
         ev.put("message", 1);
-        queue.add(ev);
+        queue.put(ev);
         ConnectionContext<Semaphore> ctxt = ev.getConnectionContext();
         ctxt.getLocalAddress().acquire();
 

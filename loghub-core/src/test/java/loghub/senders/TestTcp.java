@@ -10,7 +10,6 @@ import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
-import java.util.concurrent.ArrayBlockingQueue;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -30,6 +29,7 @@ import loghub.encoders.EncodeException;
 import loghub.encoders.ToJson;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
+import loghub.queue.RingBuffer;
 
 public class TestTcp {
 
@@ -43,7 +43,7 @@ public class TestTcp {
         LogUtils.setLevel(logger, Level.TRACE, "loghub.senders.Tcp");
     }
 
-    private final ArrayBlockingQueue<Event> queue = new ArrayBlockingQueue<>(10);
+    private final RingBuffer<Event> queue = new RingBuffer<>(10, Event.class);
 
     private ServerSocketChannel ssocket;
     private int port;
@@ -83,10 +83,10 @@ public class TestTcp {
 
         Event ev = factory.newEvent(ConnectionContext.EMPTY);
         ev.put("message", 1);
-        queue.add(ev);
+        queue.put(ev);
         ev = factory.newEvent(ConnectionContext.EMPTY);
         ev.put("message", 2);
-        queue.add(ev);
+        queue.put(ev);
 
         ByteBuffer content = ByteBuffer.allocate(100);
         SocketChannel channel = ssocket.accept();

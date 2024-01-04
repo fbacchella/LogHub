@@ -42,6 +42,7 @@ import loghub.encoders.EncodeException;
 import loghub.encoders.Encoder;
 import loghub.events.Event;
 import loghub.metrics.Stats;
+import loghub.queue.RingBuffer;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -125,7 +126,7 @@ public abstract class Sender extends Thread implements Closeable {
 
     protected final Logger logger;
 
-    private BlockingQueue<Event> inQueue;
+    private RingBuffer<Event> inQueue;
     @Getter
     private final Encoder encoder;
     private final boolean isAsync;
@@ -507,7 +508,7 @@ public abstract class Sender extends Thread implements Closeable {
         event.end();
     }
 
-    public void setInQueue(BlockingQueue<Event> inQueue) {
+    public void setInQueue(RingBuffer<Event> inQueue) {
         this.inQueue = inQueue;
     }
 

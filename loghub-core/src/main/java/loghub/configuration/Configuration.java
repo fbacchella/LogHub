@@ -33,8 +33,6 @@ import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TimeZone;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
@@ -54,7 +52,6 @@ import loghub.Helpers;
 import loghub.Helpers.ThrowingConsumer;
 import loghub.Helpers.ThrowingPredicate;
 import loghub.Pipeline;
-import loghub.queue.PriorityBlockingQueue;
 import loghub.RouteLexer;
 import loghub.RouteParser;
 import loghub.RouteParser.ArrayContext;
@@ -64,6 +61,8 @@ import loghub.RouteParser.SourcesContext;
 import loghub.configuration.ConfigListener.Input;
 import loghub.configuration.ConfigListener.Output;
 import loghub.events.Event;
+import loghub.queue.PriorityBlockingQueue;
+import loghub.queue.RingBuffer;
 import loghub.receivers.Receiver;
 import loghub.security.JWTHandler;
 import loghub.security.ssl.SslContextBuilder;
@@ -514,8 +513,8 @@ public class Configuration {
                                   (newProperties.containsKey("queueWeigth") ? (Integer) newProperties.remove("queueWeigth") : DEFAULTQUEUEWEIGHT);
 
         PriorityBlockingQueue mainQueue = new PriorityBlockingQueue(queuesDepth, queueWeight);
-        Map<String, BlockingQueue<Event>> outputQueues = new HashMap<>(namedPipeLine.size());
-        conf.outputPipelines.forEach( i-> outputQueues.put(i, new LinkedBlockingQueue<>(queuesDepth)));
+        Map<String, RingBuffer<Event>> outputQueues = new HashMap<>(namedPipeLine.size());
+        conf.outputPipelines.forEach( i-> outputQueues.put(i, new RingBuffer<>(queuesDepth, Event.class)));
 
         newProperties.put(Properties.PROPSNAMES.MAINQUEUE.toString(), mainQueue);
         newProperties.put(Properties.PROPSNAMES.OUTPUTQUEUE.toString(), outputQueues);
@@ -546,7 +545,7 @@ public class Configuration {
                 throw new IllegalArgumentException("Invalid output, no source pipeline: " + o);
             }
             for (ConfigListener.ObjectWrapped<Sender> desc: o.sender) {
-                BlockingQueue<Event> out = outputQueues.get(o.piperef);
+                RingBuffer<Event> out = outputQueues.get(o.piperef);
                 Sender s = desc.wrapped;
                 s.setInQueue(out);
                 senders.add(s);
