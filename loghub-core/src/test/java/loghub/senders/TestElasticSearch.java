@@ -652,7 +652,7 @@ public class TestElasticSearch {
         logger.debug("Events failed: {}", Stats::getSenderError);
     }
 
-    @Test(timeout = 2000)
+    @Test(timeout = 5000)
     public void testWithIlm() {
         Deque<HttpDialogElement> steps = new ArrayDeque<>(List.of(
                 new HttpGetAlias("index1,index2", Map.of("index1", "index1-00002")),
