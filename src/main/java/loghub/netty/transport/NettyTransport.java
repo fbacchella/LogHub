@@ -73,6 +73,9 @@ public abstract class NettyTransport<SA extends SocketAddress, M, T extends Nett
         protected int timeout = 1;
         @Setter
         protected POLLER poller = POLLER.DEFAULTPOLLER;
+        @Setter
+        protected ThreadFactory workerThreadFactory = null;
+        protected ThreadFactory acceptorThreadFactory = null;
         protected Builder() {
             // Not public constructor
         }
@@ -135,6 +138,9 @@ public abstract class NettyTransport<SA extends SocketAddress, M, T extends Nett
     protected final TRANSPORT transport;
     @Getter
     protected final POLLER poller;
+    @Getter
+    protected ThreadFactory workerThreadFactory;
+    protected ThreadFactory acceptorThreadFactory;
 
     protected final Logger logger = LogManager.getLogger(Helpers.getFirstInitClass());
 
@@ -152,6 +158,7 @@ public abstract class NettyTransport<SA extends SocketAddress, M, T extends Nett
         this.consumer = b.consumer;
         this.threadPrefix = b.threadPrefix;
         this.timeout = b.timeout;
+        this.workerThreadFactory = b.workerThreadFactory;
     }
 
     public ChannelFuture connect() throws InterruptedException {
@@ -161,10 +168,11 @@ public abstract class NettyTransport<SA extends SocketAddress, M, T extends Nett
         }
         Bootstrap bootstrap = new Bootstrap();
         bootstrap.channelFactory(() -> poller.clientChannelProvider(transport));
-        ThreadFactory threadFactory = ThreadBuilder.get()
-                                              .setDaemon(true)
-                                              .getFactory(getStringPrefix() + "/" + address);
-        EventLoopGroup workerGroup = poller.getEventLoopGroup(1, threadFactory);
+        ThreadFactory nettyThreadFactory = ThreadBuilder.get()
+                                                        .setDaemon(true)
+                                                        .setFactory(this.workerThreadFactory)
+                                                        .getFactory(getStringPrefix() + "/" + address);
+        EventLoopGroup workerGroup = poller.getEventLoopGroup(1, nettyThreadFactory);
         bootstrap.group(workerGroup);
         addHandlers(bootstrap);
         finisher = Optional.of(workerGroup::shutdownGracefully);
@@ -221,10 +229,11 @@ public abstract class NettyTransport<SA extends SocketAddress, M, T extends Nett
             logger.warn("Multiple worker, but not using native poller, it's useless");
             localWorkersThread = 1;
         }
-        ThreadFactory threadFactory = ThreadBuilder.get()
-                                                   .setDaemon(true)
-                                                   .getFactory(getStringPrefix() + "/" + address.toString());
-        EventLoopGroup workerGroup = poller.getEventLoopGroup(localWorkersThread, threadFactory);
+        ThreadFactory nettyThreadFactory = ThreadBuilder.get()
+                                                        .setDaemon(true)
+                                                        .setFactory(this.workerThreadFactory)
+                                                        .getFactory(getStringPrefix() + "/" + address.toString());
+        EventLoopGroup workerGroup = poller.getEventLoopGroup(localWorkersThread, nettyThreadFactory);
         finisher = Optional.of(workerGroup::shutdownGracefully);
         bootstrap.group(workerGroup);
         addHandlers(bootstrap);
@@ -239,18 +248,20 @@ public abstract class NettyTransport<SA extends SocketAddress, M, T extends Nett
     private void bindConnected(SocketAddress address) {
         ServerBootstrap bootstrap = new ServerBootstrap();
         bootstrap.channelFactory(() -> poller.serverChannelProvider(transport));
-        ThreadFactory threadFactoryBosses = ThreadBuilder.get()
-                                                         .setDaemon(true)
-                                                         .getFactory(getStringPrefix() + "/" + address + "/bosses");
-        EventLoopGroup bossGroup = poller.getEventLoopGroup(getWorkerThreads(), threadFactoryBosses);
+        ThreadFactory threadFactoryAcceptors = ThreadBuilder.get()
+                                                            .setDaemon(true)
+                                                            .setFactory(this.acceptorThreadFactory)
+                                                            .getFactory(getStringPrefix() + "/" + address + "/acceptors");
+        EventLoopGroup acceptorGroup = poller.getEventLoopGroup(getWorkerThreads(), threadFactoryAcceptors);
         ThreadFactory workerFactoryWorkers = ThreadBuilder.get()
                                                           .setDaemon(true)
+                                                          .setFactory(this.workerThreadFactory)
                                                           .getFactory(getStringPrefix() + "/" + address + "/workers");
         EventLoopGroup workerGroup = poller.getEventLoopGroup(getWorkerThreads(), workerFactoryWorkers);
-        bootstrap.group(bossGroup, workerGroup);
+        bootstrap.group(acceptorGroup, workerGroup);
         finisher = Optional.of(() -> {
             workerGroup.shutdownGracefully();
-            bossGroup.shutdownGracefully();
+            acceptorGroup.shutdownGracefully();
         });
         addHandlers(bootstrap);
         consumer.addOptions(bootstrap);

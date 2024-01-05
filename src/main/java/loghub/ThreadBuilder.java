@@ -97,6 +97,7 @@ public class ThreadBuilder {
         newBuilder.daemon = daemon;
         newBuilder.shutdownHook = shutdownHook;
         newBuilder.exceptionHandler = exceptionHandler;
+        newBuilder.factory = factory;
 
         return r -> {
             // synchronized so the ThreadFactory is thread safe
