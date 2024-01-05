@@ -39,6 +39,10 @@ public interface StatsMBean {
         return Stats.getMetric(Counter.class, Stats.class, Stats.METRIC_ALL_EVENT_LEAKED).getCount();
     }
 
+    default long getDuplicateEnd() {
+        return Stats.getMetric(Counter.class, Stats.class, Stats.METRIC_ALL_EVENT_DUPLICATEEND).getCount();
+    }
+
     class Implementation extends StandardMBean implements StatsMBean {
 
         public static final ObjectName NAME;
@@ -60,6 +64,7 @@ public interface StatsMBean {
             getUnhandledExceptions();
             getInflight();
             getLeaked();
+            getDuplicateEnd();
         }
 
     }

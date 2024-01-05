@@ -49,7 +49,6 @@ public class EventsFactory {
         Reference<?> referenceFromQueue;
         while ((referenceFromQueue = referenceQueue.poll()) != null) {
             ((EventFinalizer)referenceFromQueue).finalizeResources();
-            referenceFromQueue.clear();
         }
     }
 

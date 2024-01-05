@@ -61,6 +61,7 @@ public final class Stats {
     static final String METRIC_PIPELINE_PAUSED = "paused";
     static final String METRIC_PIPELINE_PAUSED_COUNT = "pausedCount";
     static final String METRIC_ALL_EVENT_LEAKED = "EventLeaked";
+    static final String METRIC_ALL_EVENT_DUPLICATEEND = "EventDuplicateEnd";
 
     // A metrics cache, as calculating a metric name can be expensive.
     private static final Map<Object, Map<String, Metric>> metricsCache = new ConcurrentHashMap<>(3);
@@ -415,6 +416,10 @@ public final class Stats {
     public static void eventLeaked() {
         getMetric(Counter.class, Stats.class, Stats.METRIC_ALL_INFLIGHT).dec();
         getMetric(Counter.class, METRIC_ALL_EVENT_LEAKED).inc();
+    }
+
+    public static void duplicateEnd() {
+        getMetric(Counter.class, METRIC_ALL_EVENT_DUPLICATEEND).inc();
     }
 
     public static void waitingQueue(IntSupplier source) {

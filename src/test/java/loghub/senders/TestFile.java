@@ -120,13 +120,14 @@ public class TestFile {
         @SuppressWarnings("resource")
         File fsend = send(i -> {}, -1, false);
         Files.setPosixFilePermissions(Paths.get(fsend.getFileName().eval(null).toString()), Collections.emptySet());
-        Event ev = factory.newEvent();
-        ev.put("message", 2);
+        Event evok = factory.newEvent();
+        evok.put("message", 2);
         // This one should pass, as cache is reused
-        fsend.send(ev);
+        fsend.send(evok);
         fsend.close();
-        ev.put("message", 3);
-        fsend.send(ev);
+        Event evko = factory.newEvent();
+        evko.put("message", 3);
+        fsend.send(evko);
         //Ensure flush, aka try write
         fsend.customStopSending();
         Assert.assertEquals(2, Stats.getSent());
