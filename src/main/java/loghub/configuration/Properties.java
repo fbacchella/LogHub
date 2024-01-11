@@ -1,5 +1,8 @@
 package loghub.configuration;
 
+import java.lang.management.ManagementFactory;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.Collections;
@@ -12,6 +15,7 @@ import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
 
@@ -23,7 +27,10 @@ import javax.net.ssl.SSLContext;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.LoggerContext;
+
+import com.sun.management.HotSpotDiagnosticMXBean;
 
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.concurrent.Future;
@@ -109,6 +116,7 @@ public class Properties extends HashMap<String, Object> {
     public final Dashboard dashboard;
     public final CacheManager cacheManager;
     public final Set<EventsProcessor> eventsprocessors;
+    public final Runnable hprofdump;
     public final EventsFactory eventsFactory = new EventsFactory();
     public final HashedWheelTimer processExpiration = new HashedWheelTimer(ThreadBuilder.get().setDaemon(true).getFactory("EventsRepository-timeoutmanager"));
 
@@ -210,9 +218,30 @@ public class Properties extends HashMap<String, Object> {
         }
         eventsprocessors = Collections.unmodifiableSet(allep);
 
+        hprofdump = properties.containsKey("hprofDumpPath") ? makeHprofDump((String)properties.remove("hprofDumpPath")) : () -> {};
+
         super.putAll(properties);
 
         VariablePath.compact();
+    }
+
+    private Runnable makeHprofDump(String hprofFile) {
+        Semaphore firstCrash = new Semaphore(1);
+        HotSpotDiagnosticMXBean diagnosticMBean = ManagementFactory.getPlatformMXBean(HotSpotDiagnosticMXBean.class);
+        Path hprofPath = Path.of(hprofFile);
+        Logger logger = LogManager.getLogger("loghub");
+        return () -> {
+            // Only dump once
+           if (firstCrash.tryAcquire()) {
+               logger.warn("Dumping jvm content to " + hprofFile);
+                try {
+                    Files.deleteIfExists(hprofPath);
+                    diagnosticMBean.dumpHeap(hprofFile, true);
+                } catch (Exception ex) {
+                    logger.error("Unable to dump hprof: {}", () -> Helpers.resolveThrowableException(ex));
+                }
+            }
+        };
     }
 
     public void registerEventsRepository(EventsRepository<?> repository) {

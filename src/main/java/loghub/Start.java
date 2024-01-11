@@ -79,6 +79,7 @@ public class Start {
 
     // Memorize canexit, needed when loghub.Start is tested
     private static boolean testscanexit;
+    private static Runnable hprofdump = () -> {};
 
     /**
      * To be called when a fatal exception is detected. It will generate a shutdown with a failure exit code.<br>
@@ -88,6 +89,7 @@ public class Start {
     public static synchronized void fatalException(Throwable t) {
         // No emergency exist on InterruptedException, it's already a controlled shutdown
         if (! (t instanceof InterruptedException) && ! catchedcritical) {
+            hprofdump.run();
             System.err.println("Caught a fatal exception");
             t.printStackTrace();
             shutdown();
@@ -437,6 +439,7 @@ public class Start {
     }
 
     public void launch(Properties props, SystemdHandler systemd) throws ConfigException, IOException {
+        Start.hprofdump = props.hprofdump;
         try {
             JmxService.start(props.jmxServiceConfiguration);
         } catch (IOException e) {

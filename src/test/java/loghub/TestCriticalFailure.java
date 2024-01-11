@@ -2,6 +2,7 @@ package loghub;
 
 import java.io.IOException;
 import java.io.StringReader;
+import java.nio.file.Files;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -11,7 +12,9 @@ import org.apache.logging.log4j.Logger;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import loghub.configuration.ConfigException;
 import loghub.configuration.Properties;
@@ -29,6 +32,9 @@ import static org.mockito.Mockito.when;
 
 public class TestCriticalFailure {
 
+    @Rule
+    public TemporaryFolder folder = new TemporaryFolder();
+
     @BeforeClass
     static public void configure() throws IOException {
         Tools.configure();
@@ -43,7 +49,7 @@ public class TestCriticalFailure {
 
     @Test(timeout=10000)
     public void test() throws ConfigException, IOException, InterruptedException{
-        String confile = "pipeline[newpipe] {}";
+        String confile = String.format("pipeline[newpipe] {} hprofDumpPath:\"%s/loghub.hprof\"", folder.getRoot());
 
         Properties props = Tools.loadConf(new StringReader(confile));
         Start runner = new Start();
@@ -61,6 +67,7 @@ public class TestCriticalFailure {
                 Assert.fail();
             }
         });
+        Assert.assertTrue(Files.exists(folder.getRoot().toPath().resolve("loghub.hprof")));
     }
 
     @Test(timeout=10000)
@@ -86,7 +93,6 @@ public class TestCriticalFailure {
         doAnswer(i -> {
             arps.set(i.getArgument(0));
             art.set(i.getArgument(1));
-            System.out.println();
             latch.countDown();
             return null;
         }).when(ev).doMetric(any(), any());

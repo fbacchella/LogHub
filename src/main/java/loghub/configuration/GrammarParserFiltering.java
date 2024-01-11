@@ -45,6 +45,7 @@ public class GrammarParserFiltering {
     }
 
     private static final Map<String, BEANTYPE> PROPERTIES_TYPES = Map.ofEntries(
+            Map.entry("hprofDumpPath", BEANTYPE.STRING),
             Map.entry("http.SSLKeyAlias", BEANTYPE.STRING),
             Map.entry("http.jaasName", BEANTYPE.STRING),
             Map.entry("http.jwt", BEANTYPE.BOOLEAN),
