@@ -17,6 +17,7 @@ import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpContent;
+import io.netty.handler.codec.http.HttpDecoderConfig;
 import io.netty.handler.codec.http.HttpExpectationFailedEvent;
 import io.netty.handler.codec.http.HttpMessage;
 import io.netty.handler.codec.http.HttpMethod;
@@ -192,11 +193,11 @@ public class Journald extends AbstractHttpReceiver<Journald, Journald.Builder> {
 
     }
 
+    @Setter
     public static class Builder extends AbstractHttpReceiver.Builder<Journald, Journald.Builder> {
         public Builder() {
             setTransport(TRANSPORT.TCP);
         }
-        @Setter
         private int maxWaitingEvents = -1;
         @Override
         public Journald build() {
@@ -222,7 +223,9 @@ public class Journald extends AbstractHttpReceiver<Journald, Journald.Builder> {
     protected void configureConsumer(HttpChannelConsumer.Builder builder) {
         builder.setAggregatorSupplier(JournaldAgregator::new);
         // journald-upload uses 16kiB chunk buffers, the default HttpServerCodec uses 8kiB bytebuf
-        builder.setServerCodecSupplier(() -> new HttpServerCodec(512, 1024, 32768, true, 32768, false, false));
+        HttpDecoderConfig decoderConfig = new HttpDecoderConfig().setMaxChunkSize(32768)
+                                                                 .setInitialBufferSize(32768);
+        builder.setServerCodecSupplier(() -> new HttpServerCodec(decoderConfig));
     }
 
     @Override
