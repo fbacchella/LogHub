@@ -55,16 +55,6 @@
             <version>5.2.3</version>
         </dependency>
         <dependency>
-            <groupId>org.snmp4j</groupId>
-            <artifactId>snmp4j</artifactId>
-            <version>${snmp4j.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.snmp4j</groupId>
-            <artifactId>snmp4j-log4j</artifactId>
-            <version>2.8.11</version>
-        </dependency>
-        <dependency>
             <groupId>org.codehaus.groovy</groupId>
             <artifactId>groovy</artifactId>
             <version>3.0.20</version>
@@ -117,11 +107,6 @@
             <groupId>javax.cache</groupId>
             <artifactId>cache-api</artifactId>
             <version>${cacheapi.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>fr.jrds</groupId>
-            <artifactId>snmpcodec</artifactId>
-            <version>0.0.8-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>io.netty</groupId>
@@ -187,11 +172,6 @@
             <artifactId>joni</artifactId>
             <!-- API change in 2.2 -->
             <version>2.1.48</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.kafka</groupId>
-            <artifactId>kafka-clients</artifactId>
-            <version>1.1.1</version>
         </dependency>
         <dependency>
             <groupId>com.beust</groupId>
@@ -266,11 +246,6 @@
             <version>1.77</version>
             <scope>test</scope>
         </dependency>
-        <dependency>
-            <groupId>fr.loghub</groupId>
-            <artifactId>zabbixsender</artifactId>
-            <version>0.0.6-SNAPSHOT</version>
-        </dependency>
     </dependencies>
     <build>
         <plugins>
@@ -297,95 +272,17 @@
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-shade-plugin</artifactId>
+                <artifactId>maven-jar-plugin</artifactId>
                 <executions>
                     <execution>
-                        <phase>package</phase>
+                        <id>default-jar</id>
+                    </execution>
+                    <execution>
                         <goals>
-                            <goal>shade</goal>
+                            <goal>test-jar</goal>
                         </goals>
                         <configuration>
-                            <minimizeJar>true</minimizeJar>
-                            <transformers>
-                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                    <mainClass>${mainClass}</mainClass>
-                                    <manifestEntries>
-                                        <Multi-Release>true</Multi-Release>
-                                    </manifestEntries>
-                                </transformer>
-                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer" />
-                            </transformers>
-                            <filters>
-                                <filter>
-                                    <!-- Shading signed JARs will fail without this. http://stackoverflow.com/questions/999489/invalid-signature-file-when-attempting-to-run-a-jar -->
-                                    <artifact>*:*</artifact>
-                                    <excludes>
-                                        <exclude>META-INF/*.SF</exclude>
-                                        <exclude>META-INF/*.DSA</exclude>
-                                        <exclude>META-INF/*.RSA</exclude>
-                                    </excludes>
-                                </filter>
-                                <filter>
-                                    <artifact>javax.cache:cache-api</artifact>
-                                    <includes>
-                                        <include>**</include>
-                                    </includes>
-                                </filter>
-                                <filter>
-                                    <artifact>org.cache2k:*</artifact>
-                                    <includes>
-                                        <include>**</include>
-                                    </includes>
-                                </filter>
-                                <filter>
-                                    <artifact>io.krakens:java-grok</artifact>
-                                    <excludes>
-                                        <exclude>patterns/*</exclude>
-                                    </excludes>
-                                </filter>
-                                <filter>
-                                    <artifact>log4j:log4j</artifact>
-                                    <includes>
-                                        <include>org/apache/log4j/spi/LoggingEvent.class</include>
-                                    </includes>
-                                </filter>
-                                <filter>
-                                    <artifact>org.apache.logging.log4j:log4j-*</artifact>
-                                    <includes>
-                                        <include>**</include>
-                                    </includes>
-                                </filter>
-                                <filter>
-                                    <artifact>org.codehaus.groovy:groovy</artifact>
-                                    <excludes>
-                                        <exclude>groovyjarjarpicocli/**</exclude>
-                                        <exclude>groovyjarjarantlr/**</exclude>
-                                        <exclude>groovyjarjarantlr4/**</exclude>
-                                        <exclude>groovy/cli/**</exclude>
-                                        <exclude>groovy/ui/**</exclude>
-                                        <exclude>org/apache/groovy/antlr/**</exclude>
-                                        <exclude>org/apache/groovy/parser/antlr4/**</exclude>
-                                        <exclude>org/codehaus/groovy/antlr/**</exclude>
-                                        <!--exclude>org/codehaus/groovy/ast/**</exclude-->
-                                        <exclude>org/codehaus/groovy/classgen/**</exclude>
-                                    </excludes>
-                                    <includes>
-                                        <include>**</include>
-                                    </includes>
-                                </filter>
-                                <filter>
-                                    <artifact>org.msgpack:msgpack-core</artifact>
-                                    <includes>
-                                        <include>**</include>
-                                    </includes>
-                                </filter>
-                                <filter>
-                                    <artifact>com.fasterxml.woodstox:woodstox-core</artifact>
-                                    <includes>
-                                        <include>**</include>
-                                    </includes>
-                                </filter>
-                            </filters>
+                            <classifier>tests</classifier>
                         </configuration>
                     </execution>
                 </executions>

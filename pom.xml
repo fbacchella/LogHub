@@ -17,7 +17,6 @@
         <cache2k>2.6.1.Final</cache2k>
         <mainClass>loghub.Start</mainClass>
         <cacheapi.version>1.1.1</cacheapi.version>
-        <snmp4j.version>3.7.7</snmp4j.version>
         <geoip2.version>4.2.0</geoip2.version>
         <netty.version>4.1.104.Final</netty.version>
         <dependency.locations.enabled>true</dependency.locations.enabled>
@@ -499,6 +498,10 @@
 
     <modules>
         <module>core</module>
+        <module>kafka</module>
+        <module>shaded</module>
+        <module>snmp</module>
+        <module>zabbix</module>
     </modules>
 
     <profiles>
