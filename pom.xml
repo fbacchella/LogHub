@@ -498,8 +498,8 @@
 
     <modules>
         <module>core</module>
-        <module>kafka</module>
         <module>shaded</module>
+        <module>kafka</module>
         <module>snmp</module>
         <module>zabbix</module>
     </modules>
