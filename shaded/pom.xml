@@ -55,6 +55,12 @@
                                     </excludes>
                                 </filter>
                                 <filter>
+                                    <artifact>fr.loghub:loghub-core</artifact>
+                                    <includes>
+                                        <include>**</include>
+                                    </includes>
+                                </filter>
+                                <filter>
                                     <artifact>javax.cache:cache-api</artifact>
                                     <includes>
                                         <include>**</include>
