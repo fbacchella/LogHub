@@ -1,4 +1,4 @@
-package loghub;
+package loghub.commands;
 
 import java.io.IOException;
 import java.io.StringReader;
@@ -16,6 +16,11 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import loghub.EventsProcessor;
+import loghub.LogUtils;
+import loghub.ProcessorException;
+import loghub.SystemdHandler;
+import loghub.Tools;
 import loghub.configuration.ConfigException;
 import loghub.configuration.Properties;
 import loghub.events.Event;
@@ -52,8 +57,7 @@ public class TestCriticalFailure {
         String confile = String.format("pipeline[newpipe] {} hprofDumpPath:\"%s/loghub.hprof\"", folder.getRoot());
 
         Properties props = Tools.loadConf(new StringReader(confile));
-        Start runner = new Start();
-        runner.setCanexit(false);
+        Launch runner = new Launch();
         runner.launch(props, SystemdHandler.nope());
         Event ev = Mocker.getMock();
         doThrow(new OutOfMemoryError()).when(ev).next();
@@ -71,12 +75,11 @@ public class TestCriticalFailure {
     }
 
     @Test(timeout=10000)
-    public void testlatter() throws ConfigException, IOException, InterruptedException, ProcessorException{
+    public void testlatter() throws ConfigException, IOException, InterruptedException, ProcessorException {
         String confile = "pipeline[newpipe] {}";
 
         Properties props = Tools.loadConf(new StringReader(confile));
-        Start runner = new Start();
-        runner.setCanexit(false);
+        Launch runner = new Launch();
         runner.launch(props, SystemdHandler.nope());
         Event ev = Mocker.getMock();
         doThrow(new StackOverflowError()).when(ev).process(any());

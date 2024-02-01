@@ -1,4 +1,4 @@
-package loghub;
+package loghub.commands;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -8,6 +8,7 @@ import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.security.KeyStoreException;
+import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
@@ -18,7 +19,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import loghub.Start.CommandPassword;
+import loghub.Tools;
 import loghub.configuration.ConfigException;
 import loghub.configuration.Configuration;
 import loghub.configuration.Properties;
@@ -35,17 +36,15 @@ public class TestCommandSecret {
         cmd.storeFile = Paths.get(folder.getRoot().getAbsolutePath(), "secretstore").toString();
 
         cmd.create = true;
-        cmd.process();
-
-        IllegalArgumentException createFailed = Assert.assertThrows(IllegalArgumentException.class, cmd::process);
-        Assert.assertEquals("Can't overwrite existing secret store", createFailed.getMessage());
+        cmd.run(List.of());
+        Assert.assertEquals(13, cmd.run(List.of()));
 
         cmd.create = false;
         cmd.add = true;
         cmd.alias = "password1";
         cmd.secretValue = "secret1";
         cmd.fromConsole = false;
-        cmd.process();
+        cmd.run(List.of());
 
         File blobcontent = folder.newFile();
         Random r = new Random();
@@ -61,7 +60,7 @@ public class TestCommandSecret {
         cmd.fromFile = blobcontent.getPath();
         cmd.fromConsole = false;
         cmd.secretValue = null;
-        cmd.process();
+        cmd.run(List.of());
 
         try (SecretsHandler sh = SecretsHandler.load(cmd.storeFile)) {
             Set<String> secrets = sh.list().map(Map.Entry::getKey).collect(Collectors.toSet());
@@ -75,7 +74,7 @@ public class TestCommandSecret {
         cmd.delete = true;
         cmd.add = false;
         cmd.alias = "password2";
-        cmd.process();
+        cmd.run(List.of());
 
         try (SecretsHandler sh = SecretsHandler.load(cmd.storeFile)) {
             Set<String> secrets = sh.list().map(Map.Entry::getKey).collect(Collectors.toSet());
