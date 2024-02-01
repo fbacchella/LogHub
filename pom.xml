@@ -523,6 +523,7 @@
         <module>kafka</module>
         <module>snmp</module>
         <module>zabbix</module>
+        <module>nsca</module>
     </modules>
 
     <profiles>
