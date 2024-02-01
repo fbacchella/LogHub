@@ -597,47 +597,13 @@
     </repositories>
 
     <ciManagement>
-        <system>Jenkins</system>
-        <url>http://jrds.fr/jenkins/job/Loghub/</url>
+        <system>CircleCI</system>
+        <url>https://app.circleci.com/pipelines/github/fbacchella/LogHub</url>
     </ciManagement>
     <issueManagement>
         <system>GitHub</system>
         <url>https://github.com/fbacchella/LogHub/issues</url>
     </issueManagement>
-    <dependencyManagement>
-        <dependencies>
-            <dependency>
-                <groupId>org.slf4j</groupId>
-                <artifactId>slf4j-api</artifactId>
-                <version>2.0.11</version>
-            </dependency>
-            <!-- Because of https://issues.apache.org/jira/browse/CODEC-279, tests for JWT was failing -->
-            <dependency>
-                <groupId>commons-codec</groupId>
-                <artifactId>commons-codec</artifactId>
-                <version>1.16.0</version>
-            </dependency>
-            <dependency>
-                <groupId>org.yaml</groupId>
-                <artifactId>snakeyaml</artifactId>
-                <version>2.2</version>
-            </dependency>
-            <!-- Included by jsendnsca -->
-            <dependency>
-                <groupId>org.bouncycastle</groupId>
-                <artifactId>bcprov-jdk15on</artifactId>
-                <version>1.70</version>
-                <scope>provided</scope>
-            </dependency>
-            <!-- Included by org.msgpack:jackson-dataformat-msgpack -->
-            <dependency>
-                <groupId>com.fasterxml.jackson.core</groupId>
-                <artifactId>jackson-databind</artifactId>
-                <version>${jackson}</version>
-                <scope>provided</scope>
-            </dependency>
-        </dependencies>
-    </dependencyManagement>
     <distributionManagement>
         <repository>
             <id>sonatype-nexus-staging</id>
