@@ -327,6 +327,36 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-javadoc-plugin</artifactId>
             </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>default-jar</id>
+                    </execution>
+                    <execution>
+                        <goals>
+                            <goal>test-jar</goal>
+                        </goals>
+                        <configuration>
+                            <classifier>tests</classifier>
+                            <includes>
+                                <include>loghub/MockHttpClient*.class</include>
+                                <include>configuration/ConfigurationTools*.class</include>
+                                <include>loghub/LogUtils.class</include>
+                                <include>loghub/Tools*.class</include>
+                                <include>loghub/receivers/ReceiverTools.class</include>
+                                <include>loghub/senders/SenderTools.class</include>
+                                <include>loghub/senders/InMemorySender.class</include>
+                                <include>loghub/senders/BlockingConnectionContext.class</include>
+                                <include>loghub/BeanChecks*.class</include>
+                                <include>loghub/MockHttpClient*.class</include>
+                                <include>loghub/events/Mocker*.class</include>
+                            </includes>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
     <reporting>
