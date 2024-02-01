@@ -133,27 +133,6 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <configuration>
-                    <!-- issue https://issues.apache.org/jira/browse/SUREFIRE-1588, show only on circle-ci -->
-                    <useSystemClassLoader>false</useSystemClassLoader>
-                    <systemProperties>
-                        <property>
-                            <name>java.awt.headless</name>
-                            <value>true</value>
-                        </property>
-                        <property>
-                            <name>maven.surefire</name>
-                            <value>true</value>
-                        </property>
-                        <property>
-                            <!-- Request by VarFormatter tests, locale and chronology handling changed in Java9+ -->
-                            <!-- In java 8, only the value JRE works, in Java9+ both JRE and CLDR are OK -->
-                            <name>java.locale.providers</name>
-                            <value>JRE</value>
-                        </property>
-                    </systemProperties>
-                    <trimStackTrace>false</trimStackTrace>
-                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

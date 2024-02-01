@@ -37,7 +37,6 @@ public class Tools {
 
     static public void configure() throws IOException {
         Locale.setDefault(new Locale("POSIX"));
-        System.getProperties().setProperty("java.awt.headless","true");
         LogUtils.configure();
     }
 
