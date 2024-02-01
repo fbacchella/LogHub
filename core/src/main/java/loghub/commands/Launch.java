@@ -38,7 +38,7 @@ public class Launch implements BaseCommand {
     private static final Logger logger = LogManager.getLogger();
 
     @Parameter(names = {"--configfile", "-c"}, description = "File")
-    public String configFile = null;
+    private String configFile = null;
 
     @Parameter(names = {"--help", "-h"}, help = true)
     private boolean help;

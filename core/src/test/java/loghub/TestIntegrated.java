@@ -3,18 +3,16 @@ package loghub;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 
-import javax.management.InstanceNotFoundException;
-import javax.management.IntrospectionException;
 import javax.management.JMX;
 import javax.management.MBeanServer;
 import javax.management.MalformedObjectNameException;
 import javax.management.ObjectName;
-import javax.management.ReflectionException;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -28,8 +26,10 @@ import org.zeromq.SocketType;
 import org.zeromq.ZMQ.Socket;
 import org.zeromq.ZMQException;
 
+import com.beust.jcommander.JCommander;
 import com.codahale.metrics.jmx.JmxReporter.JmxMeterMBean;
 
+import loghub.commands.Launch;
 import loghub.configuration.ConfigException;
 import loghub.configuration.Configuration;
 import loghub.metrics.ExceptionsMBean;
@@ -59,10 +59,14 @@ public class TestIntegrated {
     }
 
     @Test(timeout=10000)
-    public void runStart() throws ConfigException, IOException, InterruptedException, IntrospectionException, InstanceNotFoundException, MalformedObjectNameException, ReflectionException, ZMQCheckedException {
+    public void runStart() throws ConfigException, InterruptedException, MalformedObjectNameException,
+                                          ZMQCheckedException {
         loghub.metrics.Stats.reset();
         String conffile = Configuration.class.getClassLoader().getResource("test.conf").getFile();
-        Start.main(new String[] {"--canexit", "-c", conffile});
+        Launch launch = new Launch();
+        JCommander jcom = JCommander.newBuilder().addObject(launch).build();
+        jcom.parse("-c", conffile);
+        launch.run(List.of());
         Thread.sleep(500);
         
         MBeanServer mbs =  ManagementFactory.getPlatformMBeanServer(); 
@@ -83,13 +87,14 @@ public class TestIntegrated {
                         Thread.sleep(1);
                     }
                 } catch (InterruptedException | ZMQException e) {
+                    // Ignore
                 }
                 logger.debug("All events sent");
             })
                          .setDaemon(true)
                          .setExceptionHandler(null)
                          .build(true);
-            Pattern messagePattern = Pattern.compile("\\{\"a\":1,\"b\":\"(google-public-dns-a|8.8.8.8|dns\\.google)\",\"message\":\"message \\d+\"\\}");
+            Pattern messagePattern = Pattern.compile("\\{\"a\":1,\"b\":\"(google-public-dns-a|8.8.8.8|dns\\.google)\",\"message\":\"message \\d+\"}");
             while(send.get() < 5 || loghub.metrics.Stats.getInflight() != 0) {
                 logger.debug("send: {}, in flight: {}", send.get(), loghub.metrics.Stats.getInflight());
                 while (receiver.getEvents() > 0) {
@@ -127,12 +132,9 @@ public class TestIntegrated {
         AtomicLong count = new AtomicLong();
         metrics.stream()
         .filter(filter::apply)
-        .map( i -> {
-            logger.debug(i.toString() + ": ");
-            return i;
-        })
+        .peek(i -> logger.debug(i.toString() + ": "))
         .map( i -> JMX.newMBeanProxy(mbs, i, proxyClass))
-        .map(counter::apply)
+        .map(counter)
         .forEach( i -> {
             count.addAndGet(i);
             logger.debug(i);
