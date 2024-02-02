@@ -525,6 +525,7 @@
         <module>zabbix</module>
         <module>espipeline</module>
         <module>nsca</module>
+        <module>jolokia</module>
     </modules>
 
     <profiles>

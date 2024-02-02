@@ -42,6 +42,12 @@ import lombok.experimental.Accessors;
 @RequestAccept(path="/jolokia", methods={"GET", "POST"})
 public class JolokiaService extends HttpRequestProcessing {
 
+    public static JolokiaService of(Map<String, Object> properties) {
+        return JolokiaService.getBuilder()
+                             .setPolicyLocation((String) properties.get("jolokiaPolicyLocation"))
+                             .build();
+    }
+
     @Accessors(chain=true)
     public static class Builder {
         @Setter
@@ -82,7 +88,7 @@ public class JolokiaService extends HttpRequestProcessing {
         config.put("debug", "true");
         Restrictor restrictor = null;
         if (builder.policyLocation != null) {
-            config.put("policyLocation", builder.policyLocation);
+            config.put("policyLocation", Helpers.fileUri(builder.policyLocation).toString());
         } else {
             try {
                 restrictor = RestrictorFactory.lookupPolicyRestrictor("classpath:jolokia-access.xml");

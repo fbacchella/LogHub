@@ -327,6 +327,7 @@ public class Properties extends HashMap<String, Object> {
 
     private Dashboard buildDashboard(Map<String, Object> collect) {
         Dashboard.Builder builder = Dashboard.getBuilder();
+        builder.setClassLoader(classloader);
         int port = ((Number) collect.compute("port", (i, j) -> {
             if (j != null && ! (j instanceof Number)) {
                 throw new IllegalArgumentException("HTTP dashboard port is not an integer");

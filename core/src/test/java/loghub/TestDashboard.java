@@ -187,34 +187,7 @@ public class TestDashboard {
         ApacheHttpClientService client = builder.build();
 
         try (HttpResponse<Map<String, ?>> rep = runRequest(client, "GET", "/version", null)) {
-            Assert.assertEquals(200, rep.getStatus());
-            Assert.assertEquals(ContentType.APPLICATION_JSON, rep.getMimeType());
-            Map<String, ?> body = rep.getParsedResponse();
-            Assert.assertEquals(200, body.get("status"));
-        }
-
-        String bodypost1 = json.get().writer().writeValueAsString(Map.of("type", "read",
-                "mbean", "java.lang:type=Memory",
-                "attribute", "HeapMemoryUsage",
-                "path", "used"));
-
-
-        try (HttpResponse<Map<String, ?>> rep = runRequest(client, "POST", "/", bodypost1)) {
-            Assert.assertEquals(200, rep.getStatus());
-            Assert.assertEquals(ContentType.APPLICATION_JSON, rep.getMimeType());
-            Map<String, ?> body = rep.getParsedResponse();
-            Assert.assertEquals(403, body.get("status"));
-            Assert.assertTrue(body.containsKey("request"));
-            Assert.assertTrue(body.containsKey("error_type"));
-        }
-
-        try (HttpResponse<Map<String, ?>> rep = runRequest(client, "GET", "/read/loghub:type=Global/Inflight", "")) {
-            Assert.assertEquals(200, rep.getStatus());
-            Assert.assertEquals(ContentType.APPLICATION_JSON, rep.getMimeType());
-            Map<String, ?> body = rep.getParsedResponse();
-            Assert.assertEquals(200, body.get("status"));
-            Assert.assertTrue(body.containsKey("request"));
-            Assert.assertTrue(body.containsKey("value"));
+            Assert.assertEquals(404, rep.getStatus());
         }
     }
 

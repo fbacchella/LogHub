@@ -1,5 +1,9 @@
 package loghub;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.util.Map;
+
 import javax.net.ssl.SSLContext;
 import javax.security.auth.login.Configuration;
 
@@ -13,7 +17,6 @@ import loghub.netty.HttpChannelConsumer;
 import loghub.netty.http.GetMetric;
 import loghub.netty.http.GraphMetric;
 import loghub.netty.http.JmxProxy;
-import loghub.netty.http.JolokiaService;
 import loghub.netty.http.JwtToken;
 import loghub.netty.http.ResourceFiles;
 import loghub.netty.http.RootRedirect;
@@ -59,6 +62,8 @@ public class Dashboard {
         boolean withJolokia = false;
         @Setter
         String jolokiaPolicyLocation = null;
+        @Setter
+        ClassLoader classLoader = Dashboard.class.getClassLoader();
         public Dashboard build() {
             return new Dashboard(this);
         }
@@ -94,9 +99,22 @@ public class Dashboard {
             tokenFilter = null;
         }
         if (builder.withJolokia) {
-            JOLOKIA_SERVICE = JolokiaService.getBuilder()
-                                            .setPolicyLocation(builder.jolokiaPolicyLocation)
-                                            .build();
+            // temporary variable as the stacking of exceptions confuse the compiler
+            SimpleChannelInboundHandler<FullHttpRequest> jolokiaServiceTemp = null;
+            try {
+                Class<?> jsClass = builder.classLoader.loadClass("loghub.netty.http.JolokiaService");
+                Map<String, Object> jsProps;
+                if (builder.jolokiaPolicyLocation != null) {
+                    jsProps = Map.of("jolokiaPolicyLocation", builder.jolokiaPolicyLocation);
+                } else {
+                    jsProps = Map.of();
+                }
+                Method ofMethod = jsClass.getMethod("of", Map.class);
+                jolokiaServiceTemp = (SimpleChannelInboundHandler<FullHttpRequest>)ofMethod.invoke(null, jsProps);
+            } catch (ClassNotFoundException | NoSuchMethodException | IllegalAccessException | InvocationTargetException ex) {
+                logger.atDebug().withThrowable(ex).log("Failed to start Jolokia service: {}", () -> Helpers.resolveThrowableException(ex));
+            }
+            JOLOKIA_SERVICE = jolokiaServiceTemp;
         } else {
             JOLOKIA_SERVICE = null;
         }
