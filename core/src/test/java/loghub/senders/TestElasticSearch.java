@@ -2,7 +2,6 @@ package loghub.senders;
 
 import java.beans.IntrospectionException;
 import java.io.IOException;
-import java.io.StringReader;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayDeque;
@@ -24,12 +23,13 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.config.Configurator;
+import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import com.codahale.metrics.Meter;
+import com.codahale.metrics.Counter;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.json.JsonWriteFeature;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -116,7 +116,7 @@ public class TestElasticSearch {
         }
 
         @Override
-        public HttpResponse doResponse(MockHttpClient.MockHttpRequest req) throws JsonProcessingException {
+        public HttpResponse doResponse(MockHttpClient.MockHttpRequest req) {
             Assert.assertNull(req.content);
             Map<String, Object> responseContent = Map.of("loghub", Map.of());
             JsonNode node = jsonMapper.valueToTree(responseContent);
@@ -168,7 +168,7 @@ public class TestElasticSearch {
         }
 
         @Override
-        public HttpResponse doResponse(MockHttpClient.MockHttpRequest req) throws JsonProcessingException {
+        public HttpResponse doResponse(MockHttpClient.MockHttpRequest req) {
             Assert.assertEquals("ignore_unavailable=true", req.getUri().getQuery());
             Assert.assertNull(req.content);
             Map<String, Map<String, Map<?, ?>>> responseContent = new HashMap<>();
@@ -195,7 +195,7 @@ public class TestElasticSearch {
         }
 
         @Override
-        public HttpResponse doResponse(MockHttpClient.MockHttpRequest req) throws JsonProcessingException {
+        public HttpResponse doResponse(MockHttpClient.MockHttpRequest req) {
             Assert.assertEquals("allow_no_indices=true&ignore_unavailable=true&flat_settings=true", req.getUri().getQuery());
             JsonNode node = jsonMapper.valueToTree(settings);
             return new MockHttpClient.ResponseBuilder()
@@ -299,6 +299,12 @@ public class TestElasticSearch {
         LogUtils.setLevel(logger, Level.TRACE, "loghub.senders.ElasticSearch", "loghub.HttpTestServer");
         Configurator.setLevel("org", Level.WARN);
         TimeZone.setDefault(TimeZone.getTimeZone("GMT"));
+    }
+
+    @AfterClass
+    static public void checkLeaks() {
+        Assert.assertEquals(0, Stats.getMetric(Counter.class, Stats.class, "EventLeaked").getCount());
+        Assert.assertEquals(0, Stats.getMetric(Counter.class, Stats.class, "EventDuplicateEnd").getCount());
     }
 
     private static Function<HttpRequest<?>, HttpResponse<?>> httpOps = null;
@@ -538,7 +544,7 @@ public class TestElasticSearch {
         }
     }
 
-    @Test//(timeout = 2000)
+    @Test(timeout = 5000)
     public void testSendInQueue() throws InterruptedException {
         Stats.reset();
         String index = UUID.randomUUID().toString();
@@ -567,14 +573,13 @@ public class TestElasticSearch {
                 queue.put(ev);
                 logger.debug("sent {}", ev);
             }
-            while ( ! queue.isEmpty()) {
+            while (Stats.getMetric(Counter.class, Stats.class, "inflight").getCount() != 0) {
                 Thread.sleep(100);
             }
             es.stopSending();
         }
         Assert.assertEquals(count, Stats.getSent());
         Assert.assertEquals(0, Stats.getFailed());
-        Assert.assertEquals(0, Stats.getMetric(Meter.class, "Allevents.inflight").getCount());
     }
 
     @Test(timeout = 2000)
@@ -600,8 +605,6 @@ public class TestElasticSearch {
                 new HttpPostBulk(errors)
         ));
         httpOps = r -> elasticMockDialog(r, steps);
-        //Function<MappingIterator<Map<String, ?>>, Map<String, Object>> handleBulk = mi -> failedBulk(mi, "default", "_doc");
-        //httpOps = r -> this.elasticMockDialog("default", r, handleBulk);
         Stats.reset();
         int count = 1;
         ElasticSearch.Builder esbuilder = new ElasticSearch.Builder();
