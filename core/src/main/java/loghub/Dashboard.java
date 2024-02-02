@@ -99,6 +99,7 @@ public class Dashboard {
             tokenFilter = null;
         }
         if (builder.withJolokia) {
+            logger.debug("Jolokia requested");
             // temporary variable as the stacking of exceptions confuse the compiler
             SimpleChannelInboundHandler<FullHttpRequest> jolokiaServiceTemp = null;
             try {
@@ -112,7 +113,7 @@ public class Dashboard {
                 Method ofMethod = jsClass.getMethod("of", Map.class);
                 jolokiaServiceTemp = (SimpleChannelInboundHandler<FullHttpRequest>)ofMethod.invoke(null, jsProps);
             } catch (ClassNotFoundException | NoSuchMethodException | IllegalAccessException | InvocationTargetException ex) {
-                logger.atDebug().withThrowable(ex).log("Failed to start Jolokia service: {}", () -> Helpers.resolveThrowableException(ex));
+                logger.atError().withThrowable(ex).log("Failed to start Jolokia service: {}", () -> Helpers.resolveThrowableException(ex));
             }
             JOLOKIA_SERVICE = jolokiaServiceTemp;
         } else {

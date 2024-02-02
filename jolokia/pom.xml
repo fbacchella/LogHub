@@ -27,7 +27,6 @@
             <artifactId>jolokia-agent-jvm</artifactId>
             <version>2.0.1</version>
             <classifier>javaagent</classifier>
-            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>fr.loghub</groupId>
@@ -63,10 +62,20 @@
                                         <exclude>META-INF/*.RSA</exclude>
                                     </excludes>
                                 </filter>
+                                <filter>
+                                    <artifact>org.jolokia:*</artifact>
+                                    <excludes>
+                                        <exclude>org/jolokia/server/core/osgi/**</exclude>
+                                        <exclude>org/jolokia/service/discovery/Multicast*</exclude>
+                                        <exclude>org/jolokia/service/osgi/**</exclude>
+                                        <exclude>org/jolokia/service/history/osgi/**</exclude>
+                                    </excludes>
+                                </filter>
                             </filters>
                             <artifactSet>
                                 <includes>
-                                    <include>org.jolokia:*</include>
+                                    <include>org.jolokia:jolokia-agent-jvm:*:javaagent</include>
+                                    <include>org.jolokia</include>
                                 </includes>
                             </artifactSet>
                         </configuration>

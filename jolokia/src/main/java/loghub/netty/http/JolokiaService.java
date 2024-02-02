@@ -9,6 +9,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.jolokia.jvmagent.JvmAgentConfig;
 import org.jolokia.jvmagent.ParsedUri;
 import org.jolokia.server.core.config.Configuration;
@@ -61,21 +63,22 @@ public class JolokiaService extends HttpRequestProcessing {
     }
 
     private class Log4j2LogHandler implements LogHandler {
+        Logger logger = LogManager.getLogger("org.jolokia");
         @Override
         public void debug(String message) {
-            JolokiaService.this.logger.debug(message);
+            logger.debug(message);
         }
         @Override
         public void info(String message) {
-            JolokiaService.this.logger.info(message);
+            logger.info(message);
         }
         @Override
         public void error(String message, Throwable t) {
-            JolokiaService.this.logger.error(message);
+            logger.error(message);
         }
         @Override
         public boolean isDebug() {
-            return JolokiaService.this.logger.isDebugEnabled();
+            return logger.isDebugEnabled();
         }
     }
 
