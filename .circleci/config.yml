@@ -9,14 +9,14 @@ jobs:
                 key: loghub-{{ checksum "pom.xml" }}
             - run: mkdir -p /home/circleci/.sonar/cache /home/circleci/.m2/repository
             - run:
-                # A bug in dependency:go-offline, see https://issues.apache.org/jira/browse/MDEP-688
                 command: |
                     sudo apt-get update
                     sudo apt install libsnmp-base snmp-mibs-downloader
                     sudo sudo mv /usr/share/snmp/mibs/ietf/* /usr/share/snmp/mibs/
                     sudo sudo mv /usr/share/snmp/mibs/iana/* /usr/share/snmp/mibs/
                     sudo rm /usr/share/snmp/mibs/HPR-MIB
-                    mvn -B dependency:resolve dependency:resolve-plugins sonar:help jacoco:help -Psonar,versions -s .circleci/settings.xml
+                    # A bug in dependency:go-offline, see https://issues.apache.org/jira/browse/MDEP-688
+                    mvn -B dependency:resolve dependency:resolve-plugins sonar:help jacoco:help gpg:help -Psonar,versions -fn
                 environment:
                     MAVEN_OPTS: "-Xmx1024m"
             - persist_to_workspace:
