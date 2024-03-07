@@ -4,14 +4,12 @@
 
     <parent>
         <groupId>fr.loghub</groupId>
-        <artifactId>loghub</artifactId>
+        <artifactId>loghub-pom</artifactId>
         <version>0.0.1-SNAPSHOT</version>
     </parent>
 
-    <name>LogHub shaded</name>
-
-    <artifactId>loghub-shaded</artifactId>
-    <packaging>jar</packaging>
+    <artifactId>loghub</artifactId>
+    <name>LogHub :: Executable</name>
 
     <dependencies>
         <dependency>
@@ -167,13 +165,13 @@
             <dependency>
                 <groupId>org.slf4j</groupId>
                 <artifactId>slf4j-api</artifactId>
-                <version>2.0.11</version>
+                <version>${slf4j.version}</version>
             </dependency>
             <!-- Because of https://issues.apache.org/jira/browse/CODEC-279, tests for JWT was failing -->
             <dependency>
                 <groupId>commons-codec</groupId>
                 <artifactId>commons-codec</artifactId>
-                <version>1.16.0</version>
+                <version>1.16.1</version>
             </dependency>
             <dependency>
                 <groupId>org.yaml</groupId>

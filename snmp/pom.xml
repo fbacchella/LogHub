@@ -4,17 +4,15 @@
 
     <parent>
         <groupId>fr.loghub</groupId>
-        <artifactId>loghub</artifactId>
+        <artifactId>loghub-pom</artifactId>
         <version>0.0.1-SNAPSHOT</version>
     </parent>
 
-    <name>LogHub Snmp Traps</name>
-
     <artifactId>loghub-snmp</artifactId>
-    <packaging>jar</packaging>
+    <name>LogHub :: Snmp Traps</name>
 
     <properties>
-        <snmp4j.version>3.7.7</snmp4j.version>
+        <snmp4j.version>3.7.8</snmp4j.version>
     </properties>
 
     <dependencies>

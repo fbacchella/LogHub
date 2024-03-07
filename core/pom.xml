@@ -4,16 +4,36 @@
 
     <parent>
         <groupId>fr.loghub</groupId>
-        <artifactId>loghub</artifactId>
+        <artifactId>loghub-pom</artifactId>
         <version>0.0.1-SNAPSHOT</version>
     </parent>
 
-    <name>LogHub core</name>
-
     <artifactId>loghub-core</artifactId>
     <packaging>jar</packaging>
+    <name>LogHub :: Core</name>
 
     <dependencies>
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-core</artifactId>
+            <version>${log4j.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-jul</artifactId>
+            <version>${log4j.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-jpl</artifactId>
+            <version>${log4j.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.beust</groupId>
+            <artifactId>jcommander</artifactId>
+            <version>${jcommander.version}</version>
+        </dependency>
         <!-- Needed for loghub.processors.Log4JExtract. It's incompatible with org.apache.logging.log4j:log4j-1.2-api.
              That could conflict with log4j configuration but SNMP4J is the only current library that uses log4j 1.2, 
              but it's already intercepted so no configuration conflict here.
@@ -26,7 +46,7 @@
         <dependency>
             <groupId>org.msgpack</groupId>
             <artifactId>jackson-dataformat-msgpack</artifactId>
-            <version>0.9.7</version>
+            <version>0.9.8</version>
             <exclusions>
                 <exclusion>
                     <groupId>com.fasterxml.jackson.core</groupId>
@@ -39,7 +59,7 @@
         <dependency>
             <groupId>org.zeromq</groupId>
             <artifactId>jeromq</artifactId>
-            <version>0.6.0-SNAPSHOT</version>
+            <version>0.7.0-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>fr.loghub</groupId>
@@ -56,7 +76,7 @@
         <dependency>
             <groupId>org.codehaus.groovy</groupId>
             <artifactId>groovy</artifactId>
-            <version>3.0.20</version>
+            <version>3.0.21</version>
         </dependency>
         <dependency>
             <groupId>org.antlr</groupId>
@@ -209,7 +229,7 @@
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-compress</artifactId>
-            <version>1.25.0</version>
+            <version>1.26.0</version>
         </dependency>
         <dependency>
             <groupId>org.tukaani</groupId>
@@ -246,7 +266,7 @@
             <dependency>
                 <groupId>org.slf4j</groupId>
                 <artifactId>slf4j-api</artifactId>
-                <version>2.0.11</version>
+                <version>${slf4j.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

@@ -5,12 +5,12 @@
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>fr.loghub</groupId>
-        <artifactId>loghub</artifactId>
+        <artifactId>loghub-pom</artifactId>
         <version>0.0.1-SNAPSHOT</version>
     </parent>
 
     <artifactId>loghub-espipeline</artifactId>
-    <name>LogHub pipeline converter</name>
+    <name>LogHub :: Pipeline converter</name>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -26,6 +26,12 @@
             <groupId>com.fasterxml.jackson.dataformat</groupId>
             <artifactId>jackson-dataformat-yaml</artifactId>
             <version>${jackson}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.beust</groupId>
+            <artifactId>jcommander</artifactId>
+            <version>${jcommander.version}</version>
+            <scope>provided</scope>
         </dependency>
     </dependencies>
 

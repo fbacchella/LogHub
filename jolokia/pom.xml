@@ -5,12 +5,12 @@
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>fr.loghub</groupId>
-        <artifactId>loghub</artifactId>
+        <artifactId>loghub-pom</artifactId>
         <version>0.0.1-SNAPSHOT</version>
     </parent>
 
-    <name>LogHub Jolokia exporter</name>
     <artifactId>loghub-jolokia</artifactId>
+    <name>LogHub :: Jolokia exporter</name>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -25,7 +25,7 @@
         <dependency>
             <groupId>org.jolokia</groupId>
             <artifactId>jolokia-agent-jvm</artifactId>
-            <version>2.0.1</version>
+            <version>2.0.2</version>
             <classifier>javaagent</classifier>
         </dependency>
         <dependency>

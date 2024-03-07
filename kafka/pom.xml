@@ -4,14 +4,13 @@
 
     <parent>
         <groupId>fr.loghub</groupId>
-        <artifactId>loghub</artifactId>
+        <artifactId>loghub-pom</artifactId>
         <version>0.0.1-SNAPSHOT</version>
     </parent>
 
-    <name>LogHub kafka</name>
 
     <artifactId>loghub-kafka</artifactId>
-    <packaging>jar</packaging>
+    <name>LogHub :: Kafka</name>
 
     <dependencies>
         <dependency>
