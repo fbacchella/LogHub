@@ -109,6 +109,10 @@ public abstract class NettyReceiver<R extends NettyReceiver<R, M, B>, M, B exten
 
     @Override
     public boolean configure(Properties properties) {
+        if (! transport.getPoller().isAvailable()) {
+            logger.error("Unavailable poller {}", transport.getPoller());
+            return false;
+        }
         try {
             transport.bind();
             return super.configure(properties);

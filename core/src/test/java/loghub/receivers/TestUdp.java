@@ -179,12 +179,8 @@ public class TestUdp {
         }
     }
 
-    /**
-     * Fails on non-linux
-     * @throws IOException
-     */
     @Test
-    public void testMultiThreads() throws IOException {
+    public void testMultiThreads() {
         int port = Tools.tryGetPort();
         try (Udp r = getReceiver(b -> {
             b.setBufferSize(4000);
@@ -194,7 +190,24 @@ public class TestUdp {
             b.setPoller(POLLER.DEFAULTPOLLER);
             b.setDecoder(StringCodec.getBuilder().build());
         })) {
-            Assert.assertTrue(r.configure(new Properties(Collections.emptyMap())));
+            Assert.assertEquals(POLLER.DEFAULTPOLLER.isUnixSocket(), r.configure(new Properties(Collections.emptyMap())));
+            r.start();
+        }
+    }
+
+    @Test
+    public void testMultiThreadsFails() {
+        int port = Tools.tryGetPort();
+        try (Udp r = getReceiver(b -> {
+            b.setBufferSize(4000);
+            b.setHost(InetAddress.getLoopbackAddress().getHostAddress());
+            b.setPort(port);
+            b.setWorkerThreads(4);
+            b.setPoller(POLLER.NIO);
+            b.setDecoder(StringCodec.getBuilder().build());
+        })) {
+            // Failing because no unix socket available
+            Assert.assertFalse(r.configure(new Properties(Collections.emptyMap())));
             r.start();
         }
     }

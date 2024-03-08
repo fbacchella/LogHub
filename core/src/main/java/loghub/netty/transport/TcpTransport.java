@@ -9,7 +9,6 @@ import io.netty.bootstrap.Bootstrap;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOption;
-import io.netty.channel.epoll.EpollChannelOption;
 import io.netty.util.Attribute;
 import loghub.ConnectionContext;
 import loghub.IpConnectionContext;
@@ -40,11 +39,7 @@ public class TcpTransport extends AbstractIpTransport<Object, TcpTransport, TcpT
         }
         bootstrap.option(ChannelOption.TCP_NODELAY, true);
         bootstrap.childOption(ChannelOption.SO_KEEPALIVE, true);
-        if (poller == POLLER.EPOLL) {
-            bootstrap.childOption(EpollChannelOption.TCP_KEEPCNT, 3);
-            bootstrap.childOption(EpollChannelOption.TCP_KEEPIDLE , 60);
-            bootstrap.childOption(EpollChannelOption.TCP_KEEPINTVL , 10);
-        }
+        poller.setKeepAlive(bootstrap, 3, 60 ,10);
     }
 
     @Override
@@ -53,11 +48,7 @@ public class TcpTransport extends AbstractIpTransport<Object, TcpTransport, TcpT
         super.configureBootStrap(bootstrap);
         bootstrap.option(ChannelOption.TCP_NODELAY, true);
         bootstrap.option(ChannelOption.SO_KEEPALIVE, true);
-        if (poller == POLLER.EPOLL) {
-            bootstrap.option(EpollChannelOption.TCP_KEEPCNT, 3);
-            bootstrap.option(EpollChannelOption.TCP_KEEPIDLE , 60);
-            bootstrap.option(EpollChannelOption.TCP_KEEPINTVL , 10);
-        }
+        poller.setKeepAlive(bootstrap, 3, 60 ,10);
         if (timeout >= 0) {
             bootstrap.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, timeout);
         }

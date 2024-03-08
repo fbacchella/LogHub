@@ -1,0 +1,3 @@
+loghub.netty.transport.KQueuePollerServiceProvider
+loghub.netty.transport.NioPollerServiceProvider
+loghub.netty.transport.OioPollerServiceProvider

@@ -225,7 +225,7 @@ public abstract class NettyTransport<SA extends SocketAddress, M, T extends Nett
         // Needed because Netty's UDP is not multi-thread, see http://marrachem.blogspot.fr/2014/09/multi-threaded-udp-server-with-netty-on.html
         if (poller.isUnixSocket() && workerThreads > 1) {
             bootstrap.option(UnixChannelOption.SO_REUSEPORT, true);
-        } else if (!poller.isUnixSocket() && workerThreads > 1){
+        } else if (!poller.isUnixSocket() && workerThreads > 1) {
             logger.warn("Multiple worker, but not using native poller, it's useless");
             localWorkersThread = 1;
         }
