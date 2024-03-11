@@ -275,14 +275,14 @@
     </reporting>
 
     <modules>
-        <module>core</module>
+        <module>loghub-core</module>
         <module>shaded</module>
-        <module>kafka</module>
-        <module>snmp</module>
-        <module>zabbix</module>
-        <module>espipeline</module>
-        <module>nsca</module>
-        <module>jolokia</module>
+        <module>loghub-kafka</module>
+        <module>loghub-snmp</module>
+        <module>loghub-zabbix</module>
+        <module>loghub-espipeline</module>
+        <module>loghub-nsca</module>
+        <module>loghub-jolokia</module>
     </modules>
 
     <profiles>
