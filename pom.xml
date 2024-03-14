@@ -11,9 +11,9 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.release>11</maven.compiler.release>
-        <log4j.version>2.23.0</log4j.version>
+        <log4j.version>2.23.1</log4j.version>
         <antlr>4.13.1</antlr>
-        <jackson>2.16.1</jackson>
+        <jackson>2.17.0</jackson>
         <metrics>4.2.25</metrics>
         <cache2k>2.6.1.Final</cache2k>
         <mainClass>loghub.Start</mainClass>
@@ -98,7 +98,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-assembly-plugin</artifactId>
-                    <version>3.6.0</version>
+                    <version>3.7.0</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -326,9 +326,9 @@
                         <reportSets>
                             <reportSet>
                                 <reports>
-                                    <report>dependency-updates-report</report>
-                                    <report>plugin-updates-report</report>
-                                    <report>property-updates-report</report>
+                                    <report>dependency-updates-aggregate-report</report>
+                                    <report>plugin-updates-aggregate-report</report>
+                                    <report>parent-updates-report</report>
                                 </reports>
                             </reportSet>
                         </reportSets>
