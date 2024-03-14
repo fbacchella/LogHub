@@ -7,7 +7,6 @@ import javax.cache.Cache;
 import io.github.bucket4j.Bandwidth;
 import io.github.bucket4j.Bucket;
 import io.github.bucket4j.BucketConfiguration;
-import io.github.bucket4j.Refill;
 import io.github.bucket4j.distributed.proxy.ProxyManager;
 import io.github.bucket4j.grid.jcache.JCacheProxyManager;
 import io.github.bucket4j.local.SynchronizationStrategy;
@@ -22,16 +21,11 @@ import lombok.Setter;
 @BuilderClass(RateLimiter.Builder.class)
 public class RateLimiter extends Processor {
 
+    @Setter
     public static class Builder extends Processor.Builder<RateLimiter> {
-        @Setter
         private Expression key = null;
-        @Setter
         private long rate;
-        @Setter
         private long burstRate = -1;
-        @Setter
-        private int burstDuration = 10;
-        @Setter
         private CacheManager cacheManager = new CacheManager(getClass().getClassLoader());
         public RateLimiter build() {
             return new RateLimiter(this);
@@ -49,14 +43,19 @@ public class RateLimiter extends Processor {
     public RateLimiter(Builder builder) {
         keyExpression = builder.key;
         if (builder.burstRate < builder.rate && builder.burstRate > 0) {
-            logger.error("Burst rate must be superior to rate");
+            throw new IllegalArgumentException("Burst rate must be superior to rate");
         }
         Bandwidth limit;
-        if (builder.burstRate < 0) {
-            limit = Bandwidth.builder().capacity(builder.rate).refillGreedy(builder.rate, Duration.ofSeconds(1)).build();
+        if (builder.burstRate > 0) {
+            limit = Bandwidth.builder()
+                             .capacity(builder.burstRate)
+                             .refillGreedy(builder.rate, Duration.ofSeconds(1))
+                             .build();
         } else {
-            Refill refill = Refill.greedy( builder.rate, Duration.ofSeconds(1));
-            limit = Bandwidth.classic( builder.burstRate, refill);
+            limit = Bandwidth.builder()
+                            .capacity(builder.rate)
+                            .refillGreedy(builder.rate, Duration.ofSeconds(1))
+                            .build();
         }
         if (keyExpression != null) {
             configuration = BucketConfiguration.builder()
@@ -69,7 +68,10 @@ public class RateLimiter extends Processor {
             buckets = new JCacheProxyManager<>(cache);
             singleBucket = null;
         } else {
-            singleBucket = Bucket.builder().withSynchronizationStrategy(SynchronizationStrategy.LOCK_FREE).addLimit(limit).build();
+            singleBucket = Bucket.builder()
+                                 .withSynchronizationStrategy(SynchronizationStrategy.LOCK_FREE)
+                                 .addLimit(limit)
+                                 .build();
             buckets = null;
             configuration = null;
         }
@@ -81,7 +83,7 @@ public class RateLimiter extends Processor {
         if (singleBucket != null) {
             currentBucket = singleBucket;
         } else {
-            currentBucket = buckets.builder().build(keyExpression.eval(event), configuration);
+            currentBucket = buckets.builder().build(keyExpression.eval(event), () -> configuration);
         }
         try {
             currentBucket.asBlocking().consume(1);

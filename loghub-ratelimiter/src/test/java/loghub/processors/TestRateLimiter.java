@@ -3,9 +3,11 @@ package loghub.processors;
 import java.beans.IntrospectionException;
 import java.io.IOException;
 import java.io.StringReader;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -39,13 +41,11 @@ public class TestRateLimiter {
         LogUtils.setLevel(logger, Level.TRACE, "loghub.processors.RateLimiter");
     }
 
-    @Test
-    public void testRate() throws InterruptedException, ConfigException, IOException {
-        Properties props = Tools.loadConf(new StringReader("queueDepth: 10 queueWeigth: 2"));
+    private int runFlow(Duration testDuration, Consumer<RateLimiter.Builder> configurator) throws IOException, InterruptedException {
+        Properties props = Tools.loadConf(new StringReader("queueDepth: 1 queueWeigth: 2"));
         AtomicInteger ai = new AtomicInteger();
         RateLimiter.Builder builder = RateLimiter.getBuilder();
-        builder.setRate(100);
-        builder.setBurstRate(-1);
+        configurator.accept(builder);
         RateLimiter rl = builder.build();
         Assert.assertTrue(rl.configure(props));
         Pipeline pipe = new Pipeline(Collections.singletonList(rl), "main", null);
@@ -60,18 +60,30 @@ public class TestRateLimiter {
         Map<String, Pipeline> namedPipeLine = Collections.singletonMap("main,", pipe);
         EventsProcessor ep = new EventsProcessor(props.mainQueue, props.outputQueues, namedPipeLine, 100, props.repository);
         ep.start();
-        Thread.sleep(5000);
+        Thread.sleep(testDuration.toMillis());
         t.interrupt();
         ep.interrupt();
-        System.err.println(ai.get());
-        Assert.assertTrue(ai.get() < 500);
+        return ai.get();
+    }
+
+    @Test
+    public void testRate() throws InterruptedException, ConfigException, IOException {
+        Duration testDuration = Duration.ofSeconds(5);
+        int countRate = runFlow(testDuration, b -> b.setRate(100));
+        int countBurstRate = runFlow(testDuration, b -> {
+            b.setRate(100);
+            b.setBurstRate(200);
+        });
+        logger.debug("Nominal requested rate is {}", () -> (float)countRate /testDuration.toSeconds());
+        logger.debug("Burst requested rate is {}", () -> (float)countBurstRate /testDuration.toSeconds());
+        Assert.assertTrue("Got " + ((float)countRate / testDuration.toSeconds()) + " event/s", countRate < countBurstRate);
     }
 
     @Test
     public void testBeans() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.processors.RateLimiter"
-                              , BeanChecks.BeanInfo.build("rate", Integer.TYPE)
-                              , BeanChecks.BeanInfo.build("burstRate", Integer.TYPE)
+                              , BeanChecks.BeanInfo.build("rate", Long.TYPE)
+                              , BeanChecks.BeanInfo.build("burstRate", Long.TYPE)
                               , BeanChecks.BeanInfo.build("key", Expression.class)
         );
     }
