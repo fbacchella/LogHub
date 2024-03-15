@@ -3,69 +3,50 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>fr.loghub</groupId>
-    <artifactId>loghub</artifactId>
+    <artifactId>loghub-pom</artifactId>
+    <name>LogHub</name>
     <version>0.0.1-SNAPSHOT</version>
-    <packaging>jar</packaging>
+    <packaging>pom</packaging>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.release>11</maven.compiler.release>
-        <log4j>2.22.1</log4j>
+        <log4j.version>2.23.1</log4j.version>
         <antlr>4.13.1</antlr>
-        <jackson>2.16.1</jackson>
-        <metrics>4.2.23</metrics>
+        <jackson>2.17.0</jackson>
+        <metrics>4.2.25</metrics>
         <cache2k>2.6.1.Final</cache2k>
         <mainClass>loghub.Start</mainClass>
         <cacheapi.version>1.1.1</cacheapi.version>
-        <snmp4j.version>3.7.7</snmp4j.version>
         <geoip2.version>4.2.0</geoip2.version>
-        <netty.version>4.1.104.Final</netty.version>
+        <netty.version>4.1.107.Final</netty.version>
+        <jcommander.version>1.82</jcommander.version>
+        <slf4j.version>2.0.12</slf4j.version>
         <dependency.locations.enabled>true</dependency.locations.enabled>
         <!-- Indirection needed to keep optionnal jacoco settings and external argument lines-->
         <arg.line></arg.line>
         <argLine>${arg.line}</argLine>
     </properties>
     <dependencies>
-        <!-- Needed for loghub.processors.Log4JExtract. It's incompatible with org.apache.logging.log4j:log4j-1.2-api.
-             That could conflict with log4j configuration but SNMP4J is the only current library that uses log4j 1.2, 
-             but it's already intercepted so no configuration conflict here.
-         -->
-        <dependency>
-            <groupId>ch.qos.reload4j</groupId>
-            <artifactId>reload4j</artifactId>
-            <version>1.2.25</version>
-        </dependency>
         <dependency>
             <groupId>org.apache.logging.log4j</groupId>
             <artifactId>log4j-api</artifactId>
-            <version>${log4j}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.logging.log4j</groupId>
-            <artifactId>log4j-core</artifactId>
-            <version>${log4j}</version>
+            <version>${log4j.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.logging.log4j</groupId>
             <artifactId>log4j-slf4j2-impl</artifactId>
-            <version>${log4j}</version>
+            <version>${log4j.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.logging.log4j</groupId>
             <artifactId>log4j-jcl</artifactId>
-            <version>${log4j}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.logging.log4j</groupId>
-            <artifactId>log4j-jul</artifactId>
-            <version>${log4j}</version>
-            <scope>runtime</scope>
+            <version>${log4j.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.logging.log4j</groupId>
             <artifactId>log4j-jpl</artifactId>
-            <version>${log4j}</version>
-            <scope>runtime</scope>
+            <version>${log4j.version}</version>
         </dependency>
         <dependency>
             <groupId>junit</groupId>
@@ -76,112 +57,8 @@
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-core</artifactId>
-            <version>5.8.0</version>
+            <version>5.11.0</version>
             <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.msgpack</groupId>
-            <artifactId>jackson-dataformat-msgpack</artifactId>
-            <version>0.9.7</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>com.fasterxml.jackson.core</groupId>
-                    <artifactId>jackson-core</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <!-- **************** -->
-        <!-- ZMQ dependencies -->
-        <dependency>
-            <groupId>org.zeromq</groupId>
-            <artifactId>jeromq</artifactId>
-            <version>0.6.0-SNAPSHOT</version>
-        </dependency>
-        <dependency>
-            <groupId>fr.loghub</groupId>
-            <artifactId>naclprovider</artifactId>
-            <version>0.0.1-SNAPSHOT</version>
-        </dependency>
-        <!-- end of ZMQ dependencies -->
-        <!-- **************** -->
-        <dependency>
-            <groupId>org.apache.httpcomponents.client5</groupId>
-            <artifactId>httpclient5</artifactId>
-            <version>5.2.3</version>
-        </dependency>
-        <dependency>
-            <groupId>org.snmp4j</groupId>
-            <artifactId>snmp4j</artifactId>
-            <version>${snmp4j.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.snmp4j</groupId>
-            <artifactId>snmp4j-log4j</artifactId>
-            <version>2.8.11</version>
-        </dependency>
-        <dependency>
-            <groupId>org.codehaus.groovy</groupId>
-            <artifactId>groovy</artifactId>
-            <version>3.0.20</version>
-        </dependency>
-        <dependency>
-            <groupId>org.antlr</groupId>
-            <artifactId>antlr4</artifactId>
-            <version>${antlr}</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.antlr</groupId>
-            <artifactId>antlr4-runtime</artifactId>
-            <version>${antlr}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.maxmind.geoip2</groupId>
-            <artifactId>geoip2</artifactId>
-            <version>${geoip2.version}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>com.fasterxml.jackson.core</groupId>
-                    <artifactId>jackson-core</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>org.cache2k</groupId>
-            <artifactId>cache2k-api</artifactId>
-            <version>${cache2k}</version>
-            <type>pom</type>
-        </dependency>
-        <dependency>
-            <groupId>org.cache2k</groupId>
-            <artifactId>cache2k-core</artifactId>
-            <version>${cache2k}</version>
-            <type>pom</type>
-        </dependency>
-        <dependency>
-            <groupId>org.cache2k</groupId>
-            <artifactId>cache2k-jcache</artifactId>
-            <version>${cache2k}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.cache2k</groupId>
-            <artifactId>cache2k-jmx</artifactId>
-            <version>${cache2k}</version>
-        </dependency>
-        <dependency>
-            <groupId>javax.cache</groupId>
-            <artifactId>cache-api</artifactId>
-            <version>${cacheapi.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>fr.jrds</groupId>
-            <artifactId>snmpcodec</artifactId>
-            <version>0.0.8-SNAPSHOT</version>
-        </dependency>
-        <dependency>
-            <groupId>io.netty</groupId>
-            <artifactId>netty-all</artifactId>
-            <version>${netty.version}</version>
         </dependency>
         <dependency>
             <groupId>io.dropwizard.metrics</groupId>
@@ -194,153 +71,10 @@
             <version>${metrics}</version>
         </dependency>
         <dependency>
-            <groupId>com.github.jsendnsca</groupId>
-            <artifactId>jsendnsca</artifactId>
-            <version>2.1.1</version>
-        </dependency>
-        <!-- ******************** -->
-        <!-- Jackson dependencies -->
-        <dependency>
-            <groupId>com.fasterxml.jackson.dataformat</groupId>
-            <artifactId>jackson-dataformat-csv</artifactId>
-            <version>${jackson}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.fasterxml.jackson.dataformat</groupId>
-            <artifactId>jackson-dataformat-properties</artifactId>
-            <version>${jackson}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-annotations</artifactId>
-            <version>${jackson}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.fasterxml.jackson.module</groupId>
-            <artifactId>jackson-module-afterburner</artifactId>
-            <version>${jackson}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.fasterxml.jackson.datatype</groupId>
-            <artifactId>jackson-datatype-jsr310</artifactId>
-            <version>${jackson}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.fasterxml.jackson.datatype</groupId>
-            <artifactId>jackson-datatype-jdk8</artifactId>
-            <version>${jackson}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.fasterxml.jackson.dataformat</groupId>
-            <artifactId>jackson-dataformat-xml</artifactId>
-            <version>${jackson}</version>
-        </dependency>
-        <!-- end of Jackson dependencies -->
-        <!-- *************************** -->
-        <dependency>
-            <groupId>com.sun.activation</groupId>
-            <artifactId>javax.activation</artifactId>
-            <version>1.2.0</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.commons</groupId>
-            <artifactId>commons-csv</artifactId>
-            <version>1.10.0</version>
-        </dependency>
-        <dependency>
-            <groupId>org.jruby.joni</groupId>
-            <artifactId>joni</artifactId>
-            <!-- API change in 2.2 -->
-            <version>2.1.48</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.kafka</groupId>
-            <artifactId>kafka-clients</artifactId>
-            <version>1.1.1</version>
-        </dependency>
-        <dependency>
-            <groupId>com.beust</groupId>
-            <artifactId>jcommander</artifactId>
-            <version>1.82</version>
-        </dependency>
-        <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <version>1.18.30</version>
             <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.auth0</groupId>
-            <artifactId>java-jwt</artifactId>
-            <version>4.4.0</version>
-        </dependency>
-        <dependency>
-            <groupId>io.krakens</groupId>
-            <artifactId>java-grok</artifactId>
-            <version>0.1.9</version>
-        </dependency>
-        <dependency>
-            <groupId>com.github.ua-parser</groupId>
-            <artifactId>uap-java</artifactId>
-            <version>1.6.1</version>
-            <exclusions>
-                <exclusion>
-                    <!-- Excluded because caching is done using cache2k -->
-                    <groupId>org.apache.commons</groupId>
-                    <artifactId>commons-collections4</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>com.axibase</groupId>
-            <artifactId>date-processor</artifactId>
-            <version>1.1.0</version>
-        </dependency>
-        <dependency>
-            <groupId>fr.loghub</groupId>
-            <artifactId>netty-beats</artifactId>
-            <version>1.0.1-SNAPSHOT</version>
-        </dependency>
-        <!-- **************** -->
-        <!-- Compress dependencies -->
-        <dependency>
-            <groupId>org.apache.commons</groupId>
-            <artifactId>commons-compress</artifactId>
-            <version>1.26.0</version>
-        </dependency>
-        <dependency>
-            <groupId>org.tukaani</groupId>
-            <artifactId>xz</artifactId>
-            <version>1.9</version>
-        </dependency>
-        <dependency>
-            <groupId>com.github.luben</groupId>
-            <artifactId>zstd-jni</artifactId>
-            <version>1.5.5-11</version>
-        </dependency>
-        <dependency>
-            <groupId>org.brotli</groupId>
-            <artifactId>dec</artifactId>
-            <version>0.1.2</version>
-        </dependency>
-        <!-- end of compress dependencies -->
-        <!-- **************** -->
-        <dependency>
-            <groupId>org.bouncycastle</groupId>
-            <artifactId>bcprov-jdk18on</artifactId>
-            <version>1.77</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.bouncycastle</groupId>
-            <artifactId>bctls-jdk18on</artifactId>
-            <version>1.77</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>fr.loghub</groupId>
-            <artifactId>zabbixsender</artifactId>
-            <version>0.0.6-SNAPSHOT</version>
         </dependency>
     </dependencies>
     <build>
@@ -369,7 +103,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-assembly-plugin</artifactId>
-                    <version>3.6.0</version>
+                    <version>3.7.0</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -428,6 +162,22 @@
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-surefire-plugin</artifactId>
                     <version>3.2.5</version>
+                    <configuration>
+                        <!-- issue https://issues.apache.org/jira/browse/SUREFIRE-1588, show only on circle-ci -->
+                        <useSystemClassLoader>false</useSystemClassLoader>
+                        <!-- systemProperties is deprecated, but systemPropertyVariables is broken -->
+                        <systemProperties>
+                            <property>
+                                <name>java.awt.headless</name>
+                                <value>true</value>
+                            </property>
+                            <property>
+                                <name>maven.surefire</name>
+                                <value>true</value>
+                            </property>
+                        </systemProperties>
+                        <trimStackTrace>false</trimStackTrace>
+                    </configuration>
                 </plugin>
                 <plugin>
                     <groupId>org.jacoco</groupId>
@@ -472,7 +222,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-shade-plugin</artifactId>
-                    <version>3.5.1</version>
+                    <version>3.5.2</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -481,236 +231,6 @@
                 </plugin>
             </plugins>
         </pluginManagement>
-        <!-- Used to help dependency:go-offline -->
-        <extensions>
-            <!-- duplicated from plugin, needs to be explicitly downloaded -->
-            <extension>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-project-info-reports-plugin</artifactId>
-                <version>3.1.1</version>
-            </extension>
-            <extension>
-                <groupId>junit</groupId>
-                <artifactId>junit</artifactId>
-                <version>4.0</version>
-            </extension>
-            <extension>
-                <groupId>org.apache.maven.surefire</groupId>
-                <artifactId>surefire-junit4</artifactId>
-                <version>3.2.2</version>
-            </extension>
-            <!-- Yes many versions are needed -->
-            <extension>
-                <groupId>org.apache.felix</groupId>
-                <artifactId>maven-bundle-plugin</artifactId>
-                <version>2.1.0</version>
-            </extension>
-            <extension>
-                <groupId>org.apache.felix</groupId>
-                <artifactId>maven-bundle-plugin</artifactId>
-                <version>2.3.4</version>
-            </extension>
-            <extension>
-                <groupId>org.apache.felix</groupId>
-                <artifactId>maven-bundle-plugin</artifactId>
-                <version>2.3.6</version>
-            </extension>
-            <extension>
-                <groupId>org.apache.felix</groupId>
-                <artifactId>maven-bundle-plugin</artifactId>
-                <version>2.3.7</version>
-            </extension>
-            <extension>
-                <groupId>org.apache.felix</groupId>
-                <artifactId>maven-bundle-plugin</artifactId>
-                <version>2.5.3</version>
-            </extension>
-            <extension>
-                <groupId>org.apache.felix</groupId>
-                <artifactId>maven-bundle-plugin</artifactId>
-                <version>3.0.1</version>
-            </extension>
-            <extension>
-                <groupId>org.apache.felix</groupId>
-                <artifactId>maven-bundle-plugin</artifactId>
-                <version>3.2.0</version>
-            </extension>
-            <extension>
-                <groupId>org.apache.felix</groupId>
-                <artifactId>maven-bundle-plugin</artifactId>
-                <version>3.3.0</version>
-            </extension>
-            <extension>
-                <groupId>org.apache.felix</groupId>
-                <artifactId>maven-bundle-plugin</artifactId>
-                <version>3.5.0</version>
-            </extension>
-            <extension>
-                <groupId>org.apache.felix</groupId>
-                <artifactId>maven-bundle-plugin</artifactId>
-                <version>4.1.0</version>
-            </extension>
-            <extension>
-                <groupId>org.sonatype.plugins</groupId>
-                <artifactId>nexus-staging-maven-plugin</artifactId>
-                <version>1.6.3</version>
-            </extension>
-            <extension>
-                <groupId>org.sonatype.plugins</groupId>
-                <artifactId>nexus-staging-maven-plugin</artifactId>
-                <version>1.6.7</version>
-            </extension>
-            <extension>
-                <groupId>org.sonatype.plugins</groupId>
-                <artifactId>nexus-staging-maven-plugin</artifactId>
-                <version>1.6.8</version>
-            </extension>
-            <extension>
-                <groupId>org.apache.maven</groupId>
-                <artifactId>maven-archiver</artifactId>
-                <version>2.6</version>
-            </extension>
-            <extension>
-                <groupId>org.apache.maven.shared</groupId>
-                <artifactId>maven-artifact-transfer</artifactId>
-                <version>0.9.0</version>
-            </extension>
-            <extension>
-                <groupId>org.apache.maven.wagon</groupId>
-                <artifactId>wagon-webdav-jackrabbit</artifactId>
-                <version>2.1</version>
-            </extension>
-            <extension>
-                <groupId>org.apache.maven.wagon</groupId>
-                <artifactId>wagon-webdav-jackrabbit</artifactId>
-                <version>2.2</version>
-            </extension>
-            <extension>
-                <groupId>org.apache.maven.wagon</groupId>
-                <artifactId>wagon-webdav</artifactId>
-                <version>1.0-beta-2</version>
-            </extension>
-            <extension>
-                <groupId>org.apache.maven.skins</groupId>
-                <artifactId>maven-default-skin</artifactId>
-                <version>1.2</version>
-            </extension>
-            <extension>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-help-plugin</artifactId>
-                <version>3.1.1</version>
-            </extension>
-            <extension>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-project-info-reports-plugin</artifactId>
-                <version>3.1.2</version>
-            </extension>
-            <extension>
-                <groupId>org.apache.maven.shared</groupId>
-                <artifactId>maven-shared-jar</artifactId>
-                <version>1.2</version>
-            </extension>
-            <extension>
-                <groupId>org.apache.maven.scm</groupId>
-                <artifactId>maven-scm-manager-plexus</artifactId>
-                <version>1.9.1</version>
-            </extension>
-            <extension>
-                <groupId>org.apache.maven.scm</groupId>
-                <artifactId>maven-scm-provider-gitexe</artifactId>
-                <version>1.9.1</version>
-            </extension>
-            <extension>
-                <groupId>org.kathrynhuxtable.maven.wagon</groupId>
-                <artifactId>wagon-gitsite</artifactId>
-                <version>0.3.1</version>
-            </extension>
-            <extension>
-                <groupId>kr.motd.maven</groupId>
-                <artifactId>os-maven-plugin</artifactId>
-                <version>1.6.0</version>
-            </extension>
-            <extension>
-                <groupId>org.apache.maven.skins</groupId>
-                <artifactId>maven-fluido-skin</artifactId>
-                <version>1.5</version>
-            </extension>
-            <extension>
-                <groupId>io.takari.maven.plugins</groupId>
-                <artifactId>takari-lifecycle-plugin</artifactId>
-                <version>1.11.12</version>
-            </extension>
-            <extension>
-                <groupId>org.sonarsource.sonar-packaging-maven-plugin</groupId>
-                <artifactId>sonar-packaging-maven-plugin</artifactId>
-                <version>1.18.0.372</version>
-            </extension>
-            <extension>
-                <groupId>com.github.stephenc.jcip</groupId>
-                <artifactId>jcip-annotations</artifactId>
-                <version>1.0-1</version>
-            </extension>
-            <extension>
-                <groupId>org.hamcrest</groupId>
-                <artifactId>hamcrest-library</artifactId>
-                <version>1.3</version>
-            </extension>
-            <extension>
-                <groupId>org.easytesting</groupId>
-                <artifactId>fest-assert</artifactId>
-                <version>1.4</version>
-            </extension>
-            <extension>
-                <groupId>org.easytesting</groupId>
-                <artifactId>fest-util</artifactId>
-                <version>1.1.6</version>
-            </extension>
-            <extension>
-                <groupId>org.apache.felix</groupId>
-                <artifactId>maven-bundle-plugin</artifactId>
-                <version>5.1.1</version>
-            </extension>
-            <extension>
-                <groupId>org.apache.maven.skins</groupId>
-                <artifactId>maven-default-skin</artifactId>
-                <version>1.3</version>
-            </extension>
-            <extension>
-                <groupId>org.eluder.coveralls</groupId>
-                <artifactId>coveralls-maven-plugin</artifactId>
-                <version>4.3.0</version>
-            </extension>
-            <extension>
-                <groupId>org.apache.felix</groupId>
-                <artifactId>maven-bundle-plugin</artifactId>
-                <version>5.1.2</version>
-            </extension>
-            <extension>
-                <groupId>kr.motd.maven</groupId>
-                <artifactId>os-maven-plugin</artifactId>
-                <version>1.7.0</version>
-            </extension>
-            <extension>
-                <groupId>org.apache.maven.wagon</groupId>
-                <artifactId>wagon-ssh-external</artifactId>
-                <version>3.4.3</version>
-            </extension>
-            <extension>
-                <groupId>org.apache.maven.wagon</groupId>
-                <artifactId>wagon-ssh</artifactId>
-                <version>2.0</version>
-            </extension>
-            <extension>
-                <groupId>org.jvnet.wagon-svn</groupId>
-                <artifactId>wagon-svn</artifactId>
-                <version>1.9</version>
-            </extension>
-            <extension>
-                <groupId>io.takari.maven.plugins</groupId>
-                <artifactId>takari-lifecycle-plugin</artifactId>
-                <version>1.12.3</version>
-            </extension>
-        </extensions>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -744,149 +264,6 @@
                     </execution>
                 </executions>
             </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <configuration>
-                    <showWarnings>true</showWarnings>
-                    <!-- needed for maven-plugin-javadoc to find the source version to use -->
-                </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-shade-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>shade</goal>
-                        </goals>
-                        <configuration>
-                            <minimizeJar>true</minimizeJar>
-                            <transformers>
-                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                    <mainClass>${mainClass}</mainClass>
-                                    <manifestEntries>
-                                        <Multi-Release>true</Multi-Release>
-                                    </manifestEntries>
-                                </transformer>
-                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer" />
-                            </transformers>
-                            <filters>
-                                <filter>
-                                    <!-- Shading signed JARs will fail without this. http://stackoverflow.com/questions/999489/invalid-signature-file-when-attempting-to-run-a-jar -->
-                                    <artifact>*:*</artifact>
-                                    <excludes>
-                                        <exclude>META-INF/*.SF</exclude>
-                                        <exclude>META-INF/*.DSA</exclude>
-                                        <exclude>META-INF/*.RSA</exclude>
-                                    </excludes>
-                                </filter>
-                                <filter>
-                                    <artifact>javax.cache:cache-api</artifact>
-                                    <includes>
-                                        <include>**</include>
-                                    </includes>
-                                </filter>
-                                <filter>
-                                    <artifact>org.cache2k:*</artifact>
-                                    <includes>
-                                        <include>**</include>
-                                    </includes>
-                                </filter>
-                                <filter>
-                                    <artifact>io.krakens:java-grok</artifact>
-                                    <excludes>
-                                        <exclude>patterns/*</exclude>
-                                    </excludes>
-                                </filter>
-                                <filter>
-                                    <artifact>log4j:log4j</artifact>
-                                    <includes>
-                                        <include>org/apache/log4j/spi/LoggingEvent.class</include>
-                                    </includes>
-                                </filter>
-                                <filter>
-                                    <artifact>org.apache.logging.log4j:log4j-*</artifact>
-                                    <includes>
-                                        <include>**</include>
-                                    </includes>
-                                </filter>
-                                <filter>
-                                    <artifact>org.codehaus.groovy:groovy</artifact>
-                                    <excludes>
-                                        <exclude>groovyjarjarpicocli/**</exclude>
-                                        <exclude>groovyjarjarantlr/**</exclude>
-                                        <exclude>groovyjarjarantlr4/**</exclude>
-                                        <exclude>groovy/cli/**</exclude>
-                                        <exclude>groovy/ui/**</exclude>
-                                        <exclude>org/apache/groovy/antlr/**</exclude>
-                                        <exclude>org/apache/groovy/parser/antlr4/**</exclude>
-                                        <exclude>org/codehaus/groovy/antlr/**</exclude>
-                                        <!--exclude>org/codehaus/groovy/ast/**</exclude-->
-                                        <exclude>org/codehaus/groovy/classgen/**</exclude>
-                                    </excludes>
-                                    <includes>
-                                        <include>**</include>
-                                    </includes>
-                                </filter>
-                                <filter>
-                                    <artifact>org.msgpack:msgpack-core</artifact>
-                                    <includes>
-                                        <include>**</include>
-                                    </includes>
-                                </filter>
-                                <filter>
-                                    <artifact>com.fasterxml.woodstox:woodstox-core</artifact>
-                                    <includes>
-                                        <include>**</include>
-                                    </includes>
-                                </filter>
-                            </filters>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.antlr</groupId>
-                <artifactId>antlr4-maven-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>antlr4</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-surefire-plugin</artifactId>
-                <configuration>
-                    <!-- issue https://issues.apache.org/jira/browse/SUREFIRE-1588, show only on circle-ci -->
-                    <useSystemClassLoader>false</useSystemClassLoader>
-                    <systemProperties>
-                        <property>
-                            <name>java.awt.headless</name>
-                            <value>true</value>
-                        </property>
-                        <property>
-                            <name>maven.surefire</name>
-                            <value>true</value>
-                        </property>
-                        <property>
-                            <!-- Request by VarFormatter tests, locale and chronology handling changed in Java9+ -->
-                            <!-- In java 8, only the value JRE works, in Java9+ both JRE and CLDR are OK -->
-                            <name>java.locale.providers</name>
-                            <value>JRE</value>
-                        </property>
-                    </systemProperties>
-                    <trimStackTrace>false</trimStackTrace>
-                </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-javadoc-plugin</artifactId>
-            </plugin>
         </plugins>
     </build>
     <reporting>
@@ -901,6 +278,18 @@
             </plugin>
         </plugins>
     </reporting>
+
+    <modules>
+        <module>loghub-core</module>
+        <module>loghub-executable</module>
+        <module>loghub-kafka</module>
+        <module>loghub-snmp</module>
+        <module>loghub-zabbix</module>
+        <module>loghub-espipeline</module>
+        <module>loghub-nsca</module>
+        <module>loghub-jolokia</module>
+        <module>loghub-ratelimiter</module>
+    </modules>
 
     <profiles>
         <profile>
@@ -942,9 +331,9 @@
                         <reportSets>
                             <reportSet>
                                 <reports>
-                                    <report>dependency-updates-report</report>
-                                    <report>plugin-updates-report</report>
-                                    <report>property-updates-report</report>
+                                    <report>dependency-updates-aggregate-report</report>
+                                    <report>plugin-updates-aggregate-report</report>
+                                    <report>parent-updates-report</report>
                                 </reports>
                             </reportSet>
                         </reportSets>
@@ -954,7 +343,6 @@
         </profile>
     </profiles>
 
-    <name>LogHub</name>
     <url>https://github.com/fbacchella/LogHub/wiki</url>
     <inceptionYear>2014</inceptionYear>
     <licenses>
@@ -979,46 +367,13 @@
     </repositories>
 
     <ciManagement>
-        <system>Jenkins</system>
-        <url>http://jrds.fr/jenkins/job/Loghub/</url>
+        <system>CircleCI</system>
+        <url>https://app.circleci.com/pipelines/github/fbacchella/LogHub</url>
     </ciManagement>
     <issueManagement>
         <system>GitHub</system>
         <url>https://github.com/fbacchella/LogHub/issues</url>
     </issueManagement>
-    <dependencyManagement>
-        <dependencies>
-            <dependency>
-                <groupId>org.slf4j</groupId>
-                <artifactId>slf4j-api</artifactId>
-                <version>2.0.11</version>
-            </dependency>
-            <!-- Because of https://issues.apache.org/jira/browse/CODEC-279, tests for JWT was failing -->
-            <dependency>
-                <groupId>commons-codec</groupId>
-                <artifactId>commons-codec</artifactId>
-                <version>1.16.0</version>
-            </dependency>
-            <dependency>
-                <groupId>org.yaml</groupId>
-                <artifactId>snakeyaml</artifactId>
-                <version>2.2</version>
-            </dependency>
-            <!-- Included by jsendnsca -->
-            <dependency>
-                <groupId>org.bouncycastle</groupId>
-                <artifactId>bcprov-jdk15on</artifactId>
-                <version>1.70</version>
-                <scope>provided</scope>
-            </dependency>
-            <!-- Included by org.msgpack:jackson-dataformat-msgpack -->
-            <dependency>
-                <groupId>com.fasterxml.jackson.core</groupId>
-                <artifactId>jackson-databind</artifactId>
-                <version>${jackson}</version>
-            </dependency>
-        </dependencies>
-    </dependencyManagement>
     <distributionManagement>
         <repository>
             <id>sonatype-nexus-staging</id>

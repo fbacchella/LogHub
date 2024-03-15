@@ -38,14 +38,14 @@ jobs:
                     mv -n /tmp/ws/home/circleci/project/* /home/circleci/project/
                     mv -n /tmp/ws/home/circleci/project/.??* /home/circleci/project/
             - run:
-                command: mvn -B clean compile -s .circleci/settings.xml
+                command: mvn -B clean verify -DskipTests -s .circleci/settings.xml
                 environment:
                     MAVEN_OPTS: "-Xmx2048m"
             - persist_to_workspace:
                 root: /
                 paths:
                     - home/circleci/.m2/repository
-                    - home/circleci/project/target
+                    - home/circleci/project
     testsj21:
         docker:
             - image: cimg/openjdk:21.0
@@ -63,13 +63,13 @@ jobs:
                 command: |
                     # If no symbolic name, it's a PR, will run sonar
                     if [ -n "$(git symbolic-ref HEAD 2>/dev/null )" ] ; then
-                        SONAR="jacoco:report sonar:sonar -Psonar"
+                        SONAR="jacoco:report sonar:sonar -Psonar -Dsonar.projectKey=$SONARCLOUD_PROJECTKEY"
                         echo "Doing sonar"
                     else
                         SONAR=""
                     fi
                     mkdir -p /tmp/$CIRCLE_JOB
-                    mvn -B test $SONAR -Pskip -Darg.line="-Xmx2048m -Djava.io.tmpdir=/tmp/$CIRCLE_JOB" -s .circleci/settings.xml
+                    mvn -B verify $SONAR -Pskip -Darg.line="-Xmx2048m -Djava.io.tmpdir=/tmp/$CIRCLE_JOB" -s .circleci/settings.xml
                 environment:
                     MAVEN_OPTS: "-Xmx1024m"
             - store_test_results:
@@ -96,7 +96,7 @@ jobs:
             - run:
                   command: |
                       mkdir -p /tmp/$CIRCLE_JOB
-                      mvn -B test -Pskip -Darg.line="-Xmx2048m -Djava.io.tmpdir=/tmp/$CIRCLE_JOB" -s .circleci/settings.xml
+                      mvn -B verify -Pskip -Darg.line="-Xmx2048m -Djava.io.tmpdir=/tmp/$CIRCLE_JOB" -s .circleci/settings.xml
                   environment:
                       MAVEN_OPTS: "-Xmx512m"
             - store_test_results:
@@ -119,7 +119,7 @@ jobs:
             - run:
                 command: |
                     mkdir -p /tmp/$CIRCLE_JOB
-                    mvn -B test -Pskip -Darg.line="-Xmx2048m -Djava.io.tmpdir=/tmp/$CIRCLE_JOB" -s .circleci/settings.xml
+                    mvn -B verify -Pskip -Darg.line="-Xmx2048m -Djava.io.tmpdir=/tmp/$CIRCLE_JOB" -s .circleci/settings.xml
                 environment:
                     MAVEN_OPTS: "-Xmx512m"
             - store_test_results:
@@ -141,12 +141,12 @@ jobs:
                 command: |
                     # If no symbolic name, it's a PR, will not publish results
                     if [ -n "$(git symbolic-ref HEAD 2>/dev/null )" ] ; then
-                        PUBLISH="deploy"
+                        PUBLISH="deploy:deploy"
                     else
-                        PUBLISH="install"
+                        PUBLISH="install:install"
                     fi
                     echo "publishing jobs: $PUBLISH"
-                    mvn -B $PUBLISH -Pskip -Dmaven.test.skip=true -s .circleci/settings.xml
+                    mvn -B jar:jar jar:test-jar source:jar-no-fork $PUBLISH -s .circleci/settings.xml
                 environment:
                     MAVEN_OPTS: "-Dorg.slf4j.simpleLogger.log.org.apache.maven.plugins.shade=ERROR -Xmx2048m"
             - store_artifacts:

@@ -1,0 +1,4 @@
+loghub.netty.transport.EpollPollerServiceProvider
+loghub.netty.transport.IoUringPollerServiceProvider
+loghub.netty.transport.NioPollerServiceProvider
+loghub.netty.transport.OioPollerServiceProvider
