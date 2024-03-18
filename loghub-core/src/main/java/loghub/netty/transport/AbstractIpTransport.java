@@ -134,7 +134,7 @@ public abstract class AbstractIpTransport<M, T extends AbstractIpTransport<M, T,
               /proc/sys/net/core/wmem_max file.  The minimum (doubled)
               value for this option is 2048.
         */
-        if (rcvBuf > 0 && ch.config().getOption(ChannelOption.SO_SNDBUF) != (sndBuf * 2)) {
+        if (sndBuf > 0 && ch.config().getOption(ChannelOption.SO_SNDBUF) != (sndBuf * 2)) {
             logger.warn("Wrong sndBuf value, {} instead of {}", () -> ch.config().getOption(ChannelOption.SO_SNDBUF) / 2, () -> sndBuf);
         }
     }
