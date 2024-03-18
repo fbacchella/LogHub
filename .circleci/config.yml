@@ -151,6 +151,34 @@ jobs:
                     MAVEN_OPTS: "-Dorg.slf4j.simpleLogger.log.org.apache.maven.plugins.shade=ERROR -Xmx2048m"
             - store_artifacts:
                 path: /home/circleci/.m2/repository/fr/loghub/loghub
+                destination: /loghub
+            - store_artifacts:
+                  path: /home/circleci/.m2/repository/fr/loghub/loghub-core
+                  destination: /loghub-core
+            - store_artifacts:
+                  path: /home/circleci/.m2/repository/fr/loghub/loghub-espipeline
+                  destination: /loghub-espipeline
+            - store_artifacts:
+                  path: /home/circleci/.m2/repository/fr/loghub/loghub-jolokia
+                  destination: /loghub-jolokia
+            - store_artifacts:
+                  path: /home/circleci/.m2/repository/fr/loghub/loghub-kafka
+                  destination: /loghub-kafka
+            - store_artifacts:
+                  path: /home/circleci/.m2/repository/fr/loghub/loghub-nsca
+                  destination: /loghub-nsca
+            - store_artifacts:
+                  path: /home/circleci/.m2/repository/fr/loghub/loghub-pom
+                  destination: /loghub-pom
+            - store_artifacts:
+                  path: /home/circleci/.m2/repository/fr/loghub/loghub-ratelimiter
+                  destination: /loghub-ratelimiter
+            - store_artifacts:
+                  path: /home/circleci/.m2/repository/fr/loghub/loghub-snmp
+                  destination: /loghub-snmp
+            - store_artifacts:
+                  path: /home/circleci/.m2/repository/fr/loghub/loghub-zabbix
+                  destination: /loghub-zabbix
             - persist_to_workspace:
                 root: /
                 paths:
