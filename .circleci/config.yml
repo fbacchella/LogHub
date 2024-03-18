@@ -146,7 +146,7 @@ jobs:
                         PUBLISH="install"
                     fi
                     echo "publishing jobs: $PUBLISH"
-                    mvn -B jar:jar jar:test-jar source:jar-no-fork $PUBLISH -s .circleci/settings.xml
+                    mvn -B $PUBLISH -Pskip $GPGSIGN -Dmaven.test.skip=true -Dmaven.javadoc.skip=false -s .circleci/settings.xml
                 environment:
                     MAVEN_OPTS: "-Dorg.slf4j.simpleLogger.log.org.apache.maven.plugins.shade=ERROR -Xmx2048m"
             - store_artifacts:
