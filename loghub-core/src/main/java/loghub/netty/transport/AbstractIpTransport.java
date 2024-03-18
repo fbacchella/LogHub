@@ -36,7 +36,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 @Getter
-public abstract class AbstractIpTransport<M, T extends AbstractIpTransport<M, T, B>, B extends AbstractIpTransport.Builder<M, T, B>> extends  NettyTransport <InetSocketAddress, M, T, B> {
+public abstract class AbstractIpTransport<M, T extends AbstractIpTransport<M, T, B>, B extends AbstractIpTransport.Builder<M, T, B>> extends NettyTransport <InetSocketAddress, M, T, B> {
 
     public static final AttributeKey<SSLSession> SSLSESSIONATTRIBUTE = AttributeKey.newInstance(SSLSession.class.getName());
     public static final AttributeKey<SSLEngine> SSLSENGINATTRIBUTE = AttributeKey.newInstance(SSLEngine.class.getName());
@@ -108,6 +108,34 @@ public abstract class AbstractIpTransport<M, T extends AbstractIpTransport<M, T,
             addSslClientHandler(ch.pipeline());
         } else if (withSsl) {
             addSslHandler(ch.pipeline());
+        }
+        /* From linux man page:
+            SO_RCVBUF
+              Sets or gets the maximum socket receive buffer in bytes.
+              The kernel doubles this value (to allow space for
+              bookkeeping overhead) when it is set using setsockopt(2),
+              and this doubled value is returned by getsockopt(2).  The
+              default value is set by the
+              /proc/sys/net/core/rmem_default file, and the maximum
+              allowed value is set by the /proc/sys/net/core/rmem_max
+              file.  The minimum (doubled) value for this option is 256.
+        */
+        if (rcvBuf > 0 && ch.config().getOption(ChannelOption.SO_RCVBUF) != (rcvBuf * 2)) {
+            logger.warn("Wrong rcvBuf value, {} instead of {}", () -> ch.config().getOption(ChannelOption.SO_RCVBUF) / 2, () -> rcvBuf);
+        }
+        /* From linux man page:
+           SO_SNDBUF
+              Sets or gets the maximum socket send buffer in bytes.  The
+              kernel doubles this value (to allow space for bookkeeping
+              overhead) when it is set using setsockopt(2), and this
+              doubled value is returned by getsockopt(2).  The default
+              value is set by the /proc/sys/net/core/wmem_default file
+              and the maximum allowed value is set by the
+              /proc/sys/net/core/wmem_max file.  The minimum (doubled)
+              value for this option is 2048.
+        */
+        if (rcvBuf > 0 && ch.config().getOption(ChannelOption.SO_SNDBUF) != (sndBuf * 2)) {
+            logger.warn("Wrong sndBuf value, {} instead of {}", () -> ch.config().getOption(ChannelOption.SO_SNDBUF) / 2, () -> sndBuf);
         }
     }
 
