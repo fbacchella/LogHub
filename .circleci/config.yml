@@ -140,10 +140,10 @@ jobs:
             - run:
                 command: |
                     # If no symbolic name, it's a PR, will not publish results
-                    if [ -n "$(git symbolic-ref HEAD 2>/dev/null )" ] ; then
-                        PUBLISH="deploy:deploy"
+                    if [ -n "$(git symbolic-ref HEAD 2>/dev/null)" ] ; then
+                        PUBLISH="deploy"
                     else
-                        PUBLISH="install:install"
+                        PUBLISH="install"
                     fi
                     echo "publishing jobs: $PUBLISH"
                     mvn -B jar:jar jar:test-jar source:jar-no-fork $PUBLISH -s .circleci/settings.xml
