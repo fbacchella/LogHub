@@ -12,11 +12,14 @@ import io.netty.channel.ChannelOption;
 import io.netty.util.Attribute;
 import loghub.ConnectionContext;
 import loghub.IpConnectionContext;
+import lombok.Setter;
 
 @TransportEnum(TRANSPORT.TCP)
 public class TcpTransport extends AbstractIpTransport<Object, TcpTransport, TcpTransport.Builder> {
 
+    @Setter
     public static class Builder extends AbstractIpTransport.Builder<Object, TcpTransport, TcpTransport.Builder> {
+        protected boolean noDelay = false;
         @Override
         public TcpTransport build() {
             return new TcpTransport(this);
@@ -26,27 +29,28 @@ public class TcpTransport extends AbstractIpTransport<Object, TcpTransport, TcpT
         return new TcpTransport.Builder();
     }
 
+    protected final boolean noDelay;
+
     public TcpTransport(TcpTransport.Builder builder) {
         super(builder);
+        this.noDelay = builder.noDelay;
     }
 
     @Override
     public void configureServerBootStrap(ServerBootstrap bootstrap) {
         super.configureServerBootStrap(bootstrap);
-        super.configureAbstractBootStrap(bootstrap);
         if (getBacklog() >= 0) {
             bootstrap.option(ChannelOption.SO_BACKLOG, getBacklog());
         }
-        bootstrap.option(ChannelOption.TCP_NODELAY, true);
+        bootstrap.option(ChannelOption.TCP_NODELAY, noDelay);
         bootstrap.childOption(ChannelOption.SO_KEEPALIVE, true);
         poller.setKeepAlive(bootstrap, 3, 60 ,10);
     }
 
     @Override
     protected void configureBootStrap(Bootstrap bootstrap) {
-        super.configureAbstractBootStrap(bootstrap);
         super.configureBootStrap(bootstrap);
-        bootstrap.option(ChannelOption.TCP_NODELAY, true);
+        bootstrap.option(ChannelOption.TCP_NODELAY, noDelay);
         bootstrap.option(ChannelOption.SO_KEEPALIVE, true);
         poller.setKeepAlive(bootstrap, 3, 60 ,10);
         if (timeout >= 0) {

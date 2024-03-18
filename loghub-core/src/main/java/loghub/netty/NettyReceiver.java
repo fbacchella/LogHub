@@ -24,6 +24,7 @@ import loghub.netty.transport.AbstractIpTransport;
 import loghub.netty.transport.NettyTransport;
 import loghub.netty.transport.POLLER;
 import loghub.netty.transport.TRANSPORT;
+import loghub.netty.transport.TcpTransport;
 import loghub.receivers.Receiver;
 import lombok.Getter;
 import lombok.Setter;
@@ -34,24 +35,17 @@ public abstract class NettyReceiver<R extends NettyReceiver<R, M, B>, M, B exten
 
     protected static final AttributeKey<ConnectionContext<? extends SocketAddress>> CONNECTIONCONTEXTATTRIBUTE = AttributeKey.newInstance(ConnectionContext.class.getName());
 
+    @Setter
     public abstract static class Builder<R extends NettyReceiver<R, M, B>, M, B extends NettyReceiver.Builder<R, M, B>> extends Receiver.Builder<R, B> {
-        @Setter
         protected POLLER poller = null;
-        @Setter
         protected int workerThreads = 1;
-        @Setter
         protected TRANSPORT transport;
-        @Setter
         protected int port;
-        @Setter
         protected String host = null;
-        @Setter
         protected int rcvBuf = -1;
-        @Setter
         protected int sndBuf = -1;
-        @Setter
         protected int backlog = -1;
-        @Setter
+        protected boolean noDelay = false;
         protected ConfigurationProperties properties;
     }
 
@@ -74,6 +68,9 @@ public abstract class NettyReceiver<R extends NettyReceiver<R, M, B>, M, B exten
             nettyIpBuilder.setPort(builder.port);
             nettyIpBuilder.setRcvBuf(builder.rcvBuf);
             nettyIpBuilder.setSndBuf(builder.sndBuf);
+            if (builder.transport == TRANSPORT.TCP) {
+                ((TcpTransport.Builder) nettyIpBuilder).setNoDelay(builder.noDelay);
+            }
             if (isWithSSL()) {
                 nettyIpBuilder.setWithSsl(true);
                 nettyIpBuilder.setSslContext(getSslContext());

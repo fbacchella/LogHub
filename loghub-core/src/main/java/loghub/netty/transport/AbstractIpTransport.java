@@ -21,6 +21,8 @@ import javax.security.auth.login.FailedLoginException;
 import org.apache.logging.log4j.Logger;
 
 import io.netty.bootstrap.AbstractBootstrap;
+import io.netty.bootstrap.Bootstrap;
+import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
@@ -33,6 +35,7 @@ import loghub.security.ssl.ClientAuthentication;
 import lombok.Getter;
 import lombok.Setter;
 
+@Getter
 public abstract class AbstractIpTransport<M, T extends AbstractIpTransport<M, T, B>, B extends AbstractIpTransport.Builder<M, T, B>> extends  NettyTransport <InetSocketAddress, M, T, B> {
 
     public static final AttributeKey<SSLSession> SSLSESSIONATTRIBUTE = AttributeKey.newInstance(SSLSession.class.getName());
@@ -60,21 +63,13 @@ public abstract class AbstractIpTransport<M, T extends AbstractIpTransport<M, T,
         }
     }
 
-    @Getter
     protected final int port;
-    @Getter
     protected final int rcvBuf;
-    @Getter
     protected final int sndBuf;
-    @Getter
     protected final boolean withSsl;
-    @Getter
     protected final SSLContext sslContext;
-    @Getter
     protected final String sslKeyAlias;
-    @Getter
     protected final ClientAuthentication sslClientAuthentication;
-    @Getter
     protected final List<String> applicationProtocols;
 
     protected AbstractIpTransport(B builder) {
@@ -98,7 +93,6 @@ public abstract class AbstractIpTransport<M, T extends AbstractIpTransport<M, T,
     }
 
     void configureAbstractBootStrap(AbstractBootstrap<?, ?> bootstrap) {
-        bootstrap.option(ChannelOption.TCP_NODELAY, true);
         if (rcvBuf > 0) {
             bootstrap.option(ChannelOption.SO_RCVBUF, rcvBuf);
         }
@@ -191,6 +185,18 @@ public abstract class AbstractIpTransport<M, T extends AbstractIpTransport<M, T,
             }
         }
         return null;
+    }
+
+    @Override
+    protected void configureServerBootStrap(ServerBootstrap bootstrap) {
+        configureAbstractBootStrap(bootstrap);
+        super.configureServerBootStrap(bootstrap);
+    }
+
+    @Override
+    protected void configureBootStrap(Bootstrap bootstrap) {
+        configureAbstractBootStrap(bootstrap);
+        super.configureBootStrap(bootstrap);
     }
 
 }

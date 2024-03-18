@@ -2,8 +2,6 @@ package loghub.netty.transport;
 
 import java.net.InetSocketAddress;
 
-import io.netty.bootstrap.Bootstrap;
-import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.sctp.SctpMessage;
 import loghub.ConnectionContext;
@@ -24,18 +22,6 @@ public class SctpTransport
 
     protected SctpTransport(Builder builder) {
         super(builder);
-    }
-
-    @Override
-    protected void configureServerBootStrap(ServerBootstrap bootstrap) {
-        super.configureAbstractBootStrap(bootstrap);
-        super.configureServerBootStrap(bootstrap);
-    }
-
-    @Override
-    protected void configureBootStrap(Bootstrap bootstrap) {
-        super.configureAbstractBootStrap(bootstrap);
-        super.configureBootStrap(bootstrap);
     }
 
     @Override
