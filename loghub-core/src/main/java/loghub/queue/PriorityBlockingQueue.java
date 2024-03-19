@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Spliterator;
 import java.util.Spliterators;
@@ -44,10 +45,10 @@ public class PriorityBlockingQueue {
             cursorBlocking = new AtomicInteger(0);
             referenceTime = System.nanoTime();
             try {
-                for (QueueElement qe : PriorityBlockingQueue.this.asyncQueue) {
+                for (QueueElement qe : PriorityBlockingQueue.this.asyncQueue.iterator()) {
                     asyncEvents.add(qe);
                 }
-                for (QueueElement qe : PriorityBlockingQueue.this.syncQueue) {
+                for (QueueElement qe : PriorityBlockingQueue.this.syncQueue.iterator()) {
                     blockingEvents.add(qe);
                 }
             } finally {
@@ -86,16 +87,8 @@ public class PriorityBlockingQueue {
         private final Event event;
         private final long baseTime;
 
-        /**
-         * Create an {@link Event} wrapper.
-         *
-         * @param event the event to queue
-         * @throws IllegalArgumentException if the element is {@code null}.
-         */
         public QueueElement(Event event) {
-            if (event == null) {
-                throw new NullPointerException("Null event inserted");
-            }
+            Objects.requireNonNull(event);
             this.event = event;
             this.baseTime = System.nanoTime();
         }
@@ -109,10 +102,10 @@ public class PriorityBlockingQueue {
     private final Lock writeLock = masterlock.readLock();
 
     // A lock that will prevent ingestions of new events in receivers
-    // The write lock can be held when a generic blocked sitation is detected
+    // The write lock can be held when a generic blocked situation is detected
     private final ReadWriteLock backpressureLock = new ReentrantReadWriteLock();
     private final Lock backpressureReadLock = backpressureLock.readLock();
-    private final Lock backpressureWriteLock = backpressureLock.readLock();
+    private final Lock backpressureWriteLock = backpressureLock.writeLock();
     // The injection thread that will process asynchronously injected events.
     private final ExecutorService asyncInjectors = Executors.newSingleThreadExecutor(this::getExecutorThread);
 
@@ -134,11 +127,11 @@ public class PriorityBlockingQueue {
         if (weight < 0) {
             throw new IllegalArgumentException("Weight can't be negative");
         }
-        asyncQueue = new RingBuffer<>(capacity, false, QueueElement.class);
+        asyncQueue = new RingBuffer<>(capacity, QueueElement.class);
         if (weight == 0) {
             syncQueue = asyncQueue;
         } else {
-            syncQueue = new RingBuffer<>(capacity, true, QueueElement.class);
+            syncQueue = new RingBuffer<>(capacity, QueueElement.class);
         }
         this.weight = weight;
     }
@@ -148,7 +141,7 @@ public class PriorityBlockingQueue {
      * {@link Integer#MAX_VALUE} and no priority management.
      */
     public PriorityBlockingQueue() {
-        asyncQueue = new RingBuffer<>(1000, true, QueueElement.class);
+        asyncQueue = new RingBuffer<>(1000, QueueElement.class);
         syncQueue = asyncQueue;
         this.weight = 0;
     }
@@ -237,7 +230,7 @@ public class PriorityBlockingQueue {
         }
     }
 
-     /**
+    /**
      * Retrieves, but does not remove, the longest waiting {@link Event} of the two queue
      * or returns {@code null} if both queues are empty.
      * <p>
@@ -279,19 +272,19 @@ public class PriorityBlockingQueue {
     }
 
     private void privatePut(Event e, RingBuffer<QueueElement> queue) throws InterruptedException {
+        Objects.requireNonNull(e);
         if (this.weight == 0) {
             queue.put(new QueueElement(e));
         } else {
-            QueueElement qe = new QueueElement(e);
             boolean inserted = false;
             while (!inserted) {
                 // A loop to avoid holding the read lock.
                 readLock.lockInterruptibly();
                 try {
-                    inserted = queue.put(qe, 10, TimeUnit.MILLISECONDS);
+                    inserted = queue.put(new QueueElement(e), 10, TimeUnit.MILLISECONDS);
                 } finally {
                     readLock.unlock();
-                } 
+                }
             }
         }
     }
@@ -317,44 +310,6 @@ public class PriorityBlockingQueue {
     }
 
     /**
-     * Insert the {@link Event} into the asynchronous queue, waiting up to the
-     * specified wait time if necessary for space to become available.
-     *
-     * @param e the {@link Event} to add
-     * @param timeout how long to wait before giving up, in units of
-     *        <code>unit</code>
-     * @param unit a <code>TimeUnit</code> determining how to interpret the
-     *        <code>timeout</code> parameter
-     * @return <code>true</code> if successful, or <code>false</code> if
-     *         the specified waiting time elapses before space is available
-     * @throws InterruptedException if interrupted while waiting
-     * @throws NullPointerException if the specified element is {@code null}
-     */
-    public boolean offer(Event e, long timeout, TimeUnit unit) throws InterruptedException {
-        return privateOffer(e, timeout, unit, asyncQueue);
-    }
-
-    private boolean privateOffer(Event e, long timeout, TimeUnit unit, RingBuffer<QueueElement> queue) throws InterruptedException {
-        if (weight == 0) {
-            return queue.put(new QueueElement(e), timeout, unit);
-        } else {
-            QueueElement qe = new QueueElement(e);
-            long endDelay = TimeUnit.NANOSECONDS.convert(timeout, unit) + System.nanoTime();
-            boolean inserted = false;
-            while (!inserted && endDelay > System.nanoTime()) {
-                // A loop to avoid holding the read lock.
-                readLock.lockInterruptibly();
-                try {
-                    inserted = queue.put(qe, 10, TimeUnit.MILLISECONDS);
-                } finally {
-                    readLock.unlock();
-                } 
-            }
-            return inserted;
-        }
-    }
-
-    /**
      * Retrieves and removes the oldest {@link Event} using the weight ratio, waiting if necessary
      * until one becomes available.
      * <p>
@@ -366,19 +321,19 @@ public class PriorityBlockingQueue {
      */
     public Event take() throws InterruptedException {
         if (weight == 0) {
-            return Optional.of(asyncQueue.take()).map(qe -> qe.event).orElseThrow(IllegalStateException::new);
+            return asyncQueue.take().event;
         } else {
-            Optional<Event> found = Optional.empty();
-            while (found.isEmpty()) {
+            Event found = null;
+            while (found == null) {
                 // A loop to avoid holding the read lock.
                 readLock.lockInterruptibly();
                 try {
-                    found = resolveInterrupted(q -> q.poll(10, TimeUnit.MILLISECONDS));
+                    found = resolveInterrupted(q -> q.poll(10, TimeUnit.MILLISECONDS)).orElse(null);
                 } finally {
                     readLock.unlock();
                 }
             }
-            return found.orElseThrow(IllegalStateException::new);
+            return found;
         }
     }
 
@@ -426,7 +381,7 @@ public class PriorityBlockingQueue {
                     found = resolveInterrupted(q -> q.poll(10, TimeUnit.MILLISECONDS));
                 } finally {
                     readLock.unlock();
-                } 
+                }
             }
             return found;
         }
@@ -449,19 +404,19 @@ public class PriorityBlockingQueue {
         return asyncQueue.remainingCapacity();
     }
 
-   /**
-    * Returns the number of additional {@link Event} that the blocking queue can ideally
-    * (in the absence of memory or resource constraints) accept without
-    * blocking, or {@code Integer.MAX_VALUE} if there is no intrinsic
-    * limit.
-    *
-    * <p>Note that you <em>cannot</em> always tell if an attempt to insert
-    * an element will succeed by inspecting {@code remainingCapacity}
-    * because it may be the case that another thread is about to
-    * insert or remove an element.
-    *
-    * @return the remaining capacity
-    */
+    /**
+     * Returns the number of additional {@link Event} that the blocking queue can ideally
+     * (in the absence of memory or resource constraints) accept without
+     * blocking, or {@code Integer.MAX_VALUE} if there is no intrinsic
+     * limit.
+     *
+     * <p>Note that you <em>cannot</em> always tell if an attempt to insert
+     * an element will succeed by inspecting {@code remainingCapacity}
+     * because it may be the case that another thread is about to
+     * insert or remove an element.
+     *
+     * @return the remaining capacity
+     */
     public int remainingBlockingCapacity() {
         return syncQueue.remainingCapacity();
     }
@@ -493,12 +448,13 @@ public class PriorityBlockingQueue {
     }
 
     public boolean isEmpty() {
-        if (weight == 0) {
-            return asyncQueue.isEmpty();
-        }
         writeLock.lock();
         try {
-            return asyncQueue.isEmpty() && syncQueue.isEmpty();
+            if (weight == 0) {
+                return asyncQueue.isEmpty();
+            } else {
+                return asyncQueue.isEmpty() && syncQueue.isEmpty();
+            }
         } finally {
             writeLock.unlock();
         }
@@ -516,9 +472,9 @@ public class PriorityBlockingQueue {
             List<Event> events;
             try {
                 events = new ArrayList<>(asyncQueue.size() + 10);
-                for (QueueElement qe: asyncQueue) {
+                for (QueueElement qe: asyncQueue.iterator()) {
                     events.add(qe.event);
-            }
+                }
             } finally {
                 writeLock.unlock();
             }
@@ -535,8 +491,8 @@ public class PriorityBlockingQueue {
             readLock.lock();
             try {
                 long referenceTime = System.nanoTime();
-                long syncElementDelay = Optional.ofNullable(syncQueue.peek()).map(e -> (referenceTime - e.baseTime)).orElse(-1L);
-                long asyncElementDelay = Optional.ofNullable(asyncQueue.peek()).map(e -> (referenceTime - e.baseTime) * weight).orElse(-1L);
+                long syncElementDelay = Optional.ofNullable(syncQueue.peek()).map(qe -> referenceTime - qe.baseTime).orElse(-1L);
+                long asyncElementDelay = Optional.ofNullable(asyncQueue.peek()).map(qe -> (referenceTime - qe.baseTime) * weight).orElse(-1L);
                 return syncElementDelay > asyncElementDelay ? syncQueue : asyncQueue;
             } finally {
                 readLock.unlock();
@@ -560,9 +516,9 @@ public class PriorityBlockingQueue {
 
     private Thread getExecutorThread(Runnable r) {
         return ThreadBuilder.get()
-                            .setName("AsyncInternalInjector")
-                            .setDaemon(false)
-                            .setTask(r)
-                            .build();
+                       .setName("AsyncInternalInjector")
+                       .setDaemon(false)
+                       .setTask(r)
+                       .build();
     }
 }
