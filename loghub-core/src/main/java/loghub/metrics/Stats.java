@@ -432,7 +432,7 @@ public final class Stats {
     }
 
     public static long getDropped() {
-        return getMetric(Meter.class, Stats.class, Stats.METRIC_PIPELINE_DROPPED).getCount();
+        return getMetric(Meter.class, String.class, Stats.METRIC_PIPELINE_DROPPED).getCount();
     }
 
     public static long getSent() {
