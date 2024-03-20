@@ -62,11 +62,12 @@ public class ShutdownTask implements Runnable {
         if (dumpStats) {
             long endtime = System.nanoTime();
             double runtime = (endtime - startTime) / 1.0e9;
-            System.out.format("Received: %.2f/s%n", Stats.getReceived() / runtime);
-            System.out.format("Dropped: %.2f/s%n", Stats.getDropped() / runtime);
-            System.out.format("Sent: %.2f/s%n", Stats.getSent() / runtime);
-            System.out.format("Failures: %.2f/s%n", Stats.getFailed() / runtime);
-            System.out.format("Exceptions: %.2f/s%n", Stats.getExceptionsCount() / runtime);
+            System.out.format("Received: %d%n", Stats.getReceived());
+            System.out.format("Blocked: %d%n", Stats.getBlocked());
+            System.out.format("Dropped: %d%n", Stats.getDropped());
+            System.out.format("Sent: %d%n", Stats.getSent());
+            System.out.format("Failures: %d%n", Stats.getFailed());
+            System.out.format("Exceptions: %d%n", Stats.getExceptionsCount());
         }
         LogManager.shutdown();
     }

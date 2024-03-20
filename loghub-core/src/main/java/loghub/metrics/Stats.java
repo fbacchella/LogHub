@@ -431,6 +431,10 @@ public final class Stats {
         return getMetric(Timer.class, Stats.class, Stats.METRIC_ALL_TIMER).getCount();
     }
 
+    public static Object getBlocked() {
+        return getMetric(Meter.class, Receiver.class, Stats.METRIC_RECEIVER_BLOCKED).getCount();
+    }
+
     public static long getDropped() {
         return getMetric(Meter.class, String.class, Stats.METRIC_PIPELINE_DROPPED).getCount();
     }
