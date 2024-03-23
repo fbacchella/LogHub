@@ -5,6 +5,7 @@ import java.util.concurrent.ThreadFactory;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelConfig;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.ServerChannel;
 
@@ -20,6 +21,9 @@ public interface PollerServiceProvider {
         // default does nothing
     }
     default void setKeepAlive(Bootstrap bootstrap, int cnt, int idle, int intvl) {
+        // default does nothing
+    }
+    default void setKeepAlive(ChannelConfig config, int cnt, int idle, int intvl) {
         // default does nothing
     }
 }

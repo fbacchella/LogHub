@@ -8,6 +8,7 @@ import org.apache.logging.log4j.Logger;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelConfig;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.ServerChannel;
 import io.netty.channel.epoll.Epoll;
@@ -91,6 +92,13 @@ public class EpollPollerServiceProvider implements PollerServiceProvider {
         bootstrap.option(EpollChannelOption.TCP_KEEPCNT, 3);
         bootstrap.option(EpollChannelOption.TCP_KEEPIDLE , 60);
         bootstrap.option(EpollChannelOption.TCP_KEEPINTVL , 10);
+    }
+
+    @Override
+    public void setKeepAlive(ChannelConfig config, int cnt, int idle, int intvl) {
+        config.setOption(EpollChannelOption.TCP_KEEPCNT, 3);
+        config.setOption(EpollChannelOption.TCP_KEEPIDLE , 60);
+        config.setOption(EpollChannelOption.TCP_KEEPINTVL , 10);
     }
 
 }

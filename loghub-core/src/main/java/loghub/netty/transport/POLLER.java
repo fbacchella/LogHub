@@ -14,6 +14,7 @@ import org.apache.logging.log4j.Logger;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelConfig;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.ServerChannel;
 
@@ -51,12 +52,16 @@ public enum POLLER {
         return pollers[ordinal()].getEventLoopGroup();
     }
 
-    void setKeepAlive(ServerBootstrap bootstrap, int cnt, int idle, int intvl) {
+    public void setKeepAlive(ServerBootstrap bootstrap, int cnt, int idle, int intvl) {
         pollers[ordinal()].setKeepAlive(bootstrap, cnt, idle, intvl);
     }
 
-    void setKeepAlive(Bootstrap bootstrap, int cnt, int idle, int intvl) {
+    public void setKeepAlive(Bootstrap bootstrap, int cnt, int idle, int intvl) {
         pollers[ordinal()].setKeepAlive(bootstrap, cnt, idle, intvl);
+    }
+
+    public void setKeepAlive(ChannelConfig config, int cnt, int idle, int intvl) {
+        pollers[ordinal()].setKeepAlive(config, cnt, idle, intvl);
     }
 
     public static POLLER DEFAULTPOLLER;

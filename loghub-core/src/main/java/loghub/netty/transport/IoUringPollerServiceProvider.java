@@ -12,6 +12,7 @@ import org.apache.logging.log4j.Logger;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelConfig;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.ServerChannel;
 import io.netty.incubator.channel.uring.IOUring;
@@ -103,6 +104,13 @@ public class IoUringPollerServiceProvider implements PollerServiceProvider {
         bootstrap.option(IOUringChannelOption.TCP_KEEPCNT, 3);
         bootstrap.option(IOUringChannelOption.TCP_KEEPIDLE , 60);
         bootstrap.option(IOUringChannelOption.TCP_KEEPINTVL , 10);
+    }
+
+    @Override
+    public void setKeepAlive(ChannelConfig config, int cnt, int idle, int intvl) {
+        config.setOption(IOUringChannelOption.TCP_KEEPCNT, 3);
+        config.setOption(IOUringChannelOption.TCP_KEEPIDLE , 60);
+        config.setOption(IOUringChannelOption.TCP_KEEPINTVL , 10);
     }
 
 }
