@@ -3,8 +3,6 @@ package loghub.netty.http;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
-import java.net.URLDecoder;
-import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -163,8 +161,7 @@ public class JolokiaService extends HttpRequestProcessing {
 
     private ParsedUri parseUri(FullHttpRequest request) {
         String rawname = request.uri().replace("/jolokia/", "");
-        String name = URLDecoder.decode(rawname, StandardCharsets.UTF_8);
-        return new ParsedUri(URI.create(name));
+        return new ParsedUri(URI.create(rawname));
     }
 
 }

@@ -11,6 +11,31 @@
             <attribute mode="read">*</attribute>
             <operation>read,list</operation>
         </mbean>
+        <mbean>
+            <name>loghub:level=details,name=*,type=*</name>
+            <attribute mode="read">*</attribute>
+            <operation>read,list</operation>
+        </mbean>
+        <mbean>
+            <name>java.lang:type=Runtime</name>
+            <attribute mode="read">*</attribute>
+            <operation>read,list</operation>
+        </mbean>
+        <mbean>
+            <name>java.lang:type=MemoryPool,name=*</name>
+            <attribute mode="read">*</attribute>
+            <operation>read,list</operation>
+        </mbean>
+        <mbean>
+            <name>java.lang:type=GarbageCollector,name=*</name>
+            <attribute mode="read">*</attribute>
+            <operation>read,list</operation>
+        </mbean>
+        <mbean>
+            <name>java.nio:type=BufferPool,name=*</name>
+            <attribute mode="read">*</attribute>
+            <operation>read,list</operation>
+        </mbean>
     </allow>
 
     <deny>
