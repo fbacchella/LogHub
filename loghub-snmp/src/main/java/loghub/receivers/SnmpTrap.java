@@ -97,6 +97,8 @@ public class SnmpTrap extends Receiver<SnmpTrap, SnmpTrap.Builder> implements Co
         private String listen = "0.0.0.0";
         @Setter
         private int worker = 1;
+        @Setter
+        protected int rcvBuf = -1;
         @Override
         public SnmpTrap build() {
             return new SnmpTrap(this);
@@ -127,6 +129,9 @@ public class SnmpTrap extends Receiver<SnmpTrap, SnmpTrap.Builder> implements Co
             switch (builder.protocol) {
             case udp:
                 transport = new DefaultUdpTransportMapping((UdpAddress) listenAddress);
+                if (builder.rcvBuf > 0){
+                    ((DefaultUdpTransportMapping)transport).setReceiveBufferSize(builder.rcvBuf);
+                }
                 break;
             case tcp:
                 transport = new DefaultTcpTransportMapping((TcpAddress) listenAddress);

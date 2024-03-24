@@ -324,6 +324,7 @@ public class TestTrap {
         BeanChecks.beansCheck(logger, "loghub.receivers.SnmpTrap"
                 , BeanChecks.BeanInfo.build("port", Integer.TYPE)
                 , BeanChecks.BeanInfo.build("protocol", SnmpTrap.PROTOCOL.class)
+                , BeanChecks.BeanInfo.build("rcvBuf", Integer.TYPE)
                 , BeanChecks.BeanInfo.build("listen", String.class)
                 , BeanChecks.BeanInfo.build("worker", Integer.TYPE)
                 , BeanChecks.BeanInfo.build("withSSL", Boolean.TYPE)
