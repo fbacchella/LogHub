@@ -40,6 +40,7 @@ import loghub.configuration.Configuration;
 import loghub.configuration.Properties;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
+import loghub.netty.transport.POLLER;
 
 public class TestNettyNameResolver {
 
@@ -350,6 +351,9 @@ public class TestNettyNameResolver {
                               , BeanInfo.build("success", Processor.class)
                               , BeanInfo.build("failure", Processor.class)
                               , BeanInfo.build("exception", Processor.class)
+                              , BeanInfo.build("poller", POLLER.class)
+                              , BeanInfo.build("rcvBuf", Integer.TYPE)
+                              , BeanInfo.build("sndBuf", Integer.TYPE)
                         );
     }
 

@@ -11,7 +11,6 @@ import java.nio.file.Paths;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
-import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -22,9 +21,12 @@ import javax.cache.Cache;
 import javax.cache.processor.MutableEntry;
 
 import io.netty.channel.AddressedEnvelope;
-import io.netty.channel.EventLoopGroup;
-import io.netty.channel.socket.DatagramChannel;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelConfig;
+import io.netty.channel.ChannelOption;
+import io.netty.channel.EventLoop;
 import io.netty.channel.socket.SocketChannel;
+import io.netty.channel.socket.SocketChannelConfig;
 import io.netty.handler.codec.dns.DefaultDnsQuestion;
 import io.netty.handler.codec.dns.DefaultDnsResponse;
 import io.netty.handler.codec.dns.DnsPtrRecord;
@@ -127,7 +129,6 @@ public class NettyNameResolver extends
     }
 
     private static final int NOERROR = DnsResponseCode.NOERROR.intValue();
-    private static final EventLoopGroup EVENTLOOPGROUP = POLLER.DEFAULTPOLLER.getEventLoopGroup(1, ThreadBuilder.get().setDaemon(false).getFactory("dnsresolver"));
     private static final VarFormatter reverseFormatV4 = new VarFormatter("${#1%d}.${#2%d}.${#3%d}.${#4%d}.in-addr.arpa.");
     private static final VarFormatter reverseFormatV6 = new VarFormatter("${#1%x}.${#2%x}.");
 
@@ -145,6 +146,12 @@ public class NettyNameResolver extends
         private CacheManager cacheManager = new CacheManager(getClass().getClassLoader());
         @Setter
         private RESOLUTION_MODE resolutionMode = RESOLUTION_MODE.SEQUENTIAL;
+        @Setter
+        protected POLLER poller = POLLER.DEFAULTPOLLER;
+        @Setter
+        protected int rcvBuf = -1;
+        @Setter
+        protected int sndBuf = -1;
 
         @Override
         public NettyNameResolver build() {
@@ -193,14 +200,16 @@ public class NettyNameResolver extends
     private final Cache<DnsCacheKey, DnsCacheEntry> hostCache;
     private final int failureCachingTtl;
     private final Function<DnsQuestion, Future<AddressedEnvelope<DnsResponse, InetSocketAddress>>> resolution;
+    private final EventLoop eventLoop;
 
     public NettyNameResolver(Builder builder) {
         super(builder);
-        this.failureCachingTtl = builder.failureCaching;
-        DnsNameResolverBuilder resolverBuilder = new DnsNameResolverBuilder(EVENTLOOPGROUP.next())
+        failureCachingTtl = builder.failureCaching;
+        eventLoop = builder.poller.getEventLoopGroup(1, ThreadBuilder.get().setDaemon(false).getFactory("dnsresolver")).next();
+        DnsNameResolverBuilder resolverBuilder = new DnsNameResolverBuilder(eventLoop)
                                                          .queryTimeoutMillis(getTimeout() * 1000L)
-                                                         .channelFactory(() -> (DatagramChannel) POLLER.DEFAULTPOLLER.clientChannelProvider(TRANSPORT.UDP))
-                                                         .socketChannelFactory(() -> (SocketChannel) POLLER.DEFAULTPOLLER.clientChannelProvider(TRANSPORT.TCP))
+                                                         .channelFactory(() -> channelFactory(TRANSPORT.UDP, builder.poller, builder.rcvBuf, builder.sndBuf))
+                                                         .socketChannelFactory(() -> channelFactory(TRANSPORT.TCP, builder.poller, builder.rcvBuf, builder.sndBuf))
                                                          .negativeTtl(failureCachingTtl);
         Object parent;
         DnsServerAddressStreamProvider dsasp;
@@ -255,6 +264,25 @@ public class NettyNameResolver extends
                            .setName("NameResolver", parent)
                            .setCacheSize(builder.cacheSize)
                            .build();
+    }
+
+    <C extends Channel> C channelFactory(TRANSPORT transport, POLLER poller, int rcvBuf,  int sndBuf) {
+        @SuppressWarnings("unchecked")
+        C channel = (C) poller.clientChannelProvider(transport);
+        if (channel instanceof SocketChannel) {
+            SocketChannelConfig config = (SocketChannelConfig) channel.config();
+            config.setOption(ChannelOption.TCP_NODELAY, true);
+            poller.setKeepAlive(config, 3, 60 ,10);
+        } else {
+            ChannelConfig config = channel.config();
+            if (rcvBuf > 0) {
+                config.setOption(ChannelOption.SO_RCVBUF, rcvBuf);
+            }
+            if (sndBuf > 0) {
+                config.setOption(ChannelOption.SO_SNDBUF, sndBuf);
+            }
+        }
+        return channel;
     }
 
     @Override
@@ -317,7 +345,7 @@ public class NettyNameResolver extends
             DnsQuestion dnsquery,
             DnsServerAddressStreamProvider dsasp
     ) {
-        Promise<AddressedEnvelope<DnsResponse, InetSocketAddress>> answerFuture = EVENTLOOPGROUP.next().newPromise();
+        Promise<AddressedEnvelope<DnsResponse, InetSocketAddress>> answerFuture = eventLoop.newPromise();
         DnsServerAddressStream dsas = dsasp.nameServerAddressStream(dnsquery.name());
         for (int i = 0; i < dsas.size(); i++) {
             InetSocketAddress isa = dsas.next();
