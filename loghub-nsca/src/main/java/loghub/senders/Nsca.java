@@ -1,10 +1,12 @@
 package loghub.senders;
 
-import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.util.Arrays;
 import java.util.EnumMap;
+import java.util.List;
 import java.util.Map;
-import java.util.stream.Stream;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 import com.googlecode.jsendnsca.Level;
 import com.googlecode.jsendnsca.MessagePayload;
@@ -14,8 +16,9 @@ import com.googlecode.jsendnsca.NagiosSettings;
 import com.googlecode.jsendnsca.encryption.Encryption;
 
 import loghub.BuilderClass;
+import loghub.Expression;
+import loghub.ProcessorException;
 import loghub.configuration.Properties;
-import loghub.encoders.EncodeException;
 import loghub.events.Event;
 import lombok.Setter;
 
@@ -23,23 +26,16 @@ import lombok.Setter;
 @BuilderClass(Nsca.Builder.class)
 public class Nsca extends Sender {
 
+    @Setter
     public static class Builder extends Sender.Builder<Nsca> {
-        @Setter
         private int port = -1;
-        @Setter
-        private String nagiosServer;
-        @Setter
+        private String nagiosServer = "localhost";
         private String password = null;
-        @Setter
         private int connectTimeout = -1;
-        @Setter
         private int timeout = -1;
-        @Setter
         private boolean largeMessageSupport = false;
-        @Setter
         private String encryption = null;
-        @Setter
-        private Map<String, String> mapping;
+        private Map<String, Object> mapping;
         @Override
         public Nsca build() {
             return new Nsca(this);
@@ -49,30 +45,25 @@ public class Nsca extends Sender {
         return new Builder();
     }
 
-    private enum MAPFIELD {
+    private enum FIELDS {
         HOST,
         MESSAGE,
         LEVEL,
         SERVICE,
-        ;
-        static Stream<MAPFIELD> enumerate() {
-            return Arrays.stream(MAPFIELD.values());
-        }
     }
+    private static final List<FIELDS> MAPFIELDS = Arrays.stream(FIELDS.values()).collect(Collectors.toList());
 
     private final NagiosPassiveCheckSender sender;
-    private final EnumMap<MAPFIELD, Object> mapping = new EnumMap<>(MAPFIELD.class);
+    private final EnumMap<FIELDS, Expression> mappings = new EnumMap<>(FIELDS.class);
     private final String name;
     public Nsca(Builder builder) {
         super(builder);
-        builder.mapping.forEach((k, v) -> mapping.put(MAPFIELD.valueOf(k.toUpperCase()), v));
+        builder.mapping.forEach((k, v) -> mappings.put(FIELDS.valueOf(k.toUpperCase()), convertToExpression(v)));
         NagiosSettings settings = new NagiosSettings();
         if (builder.port > 0) {
             settings.setPort(builder.port);
         }
-        if (builder.nagiosServer != null) {
-            settings.setNagiosHost(builder.nagiosServer);
-        }
+        settings.setNagiosHost(builder.nagiosServer);
         if (builder.encryption != null) {
             Encryption encryption = Encryption.valueOf(builder.encryption.trim().toUpperCase());
             settings.setEncryption(encryption);
@@ -89,22 +80,31 @@ public class Nsca extends Sender {
         if (builder.largeMessageSupport) {
             settings.enableLargeMessageSupport();
         }
+        logger.debug("Configuring a nagios server {}", settings);
         sender = new NagiosPassiveCheckSender(settings);
         name = "NSCA/" + builder.nagiosServer;
+    }
+
+    private Expression convertToExpression(Object v) {
+        if (v instanceof Expression) {
+            return (Expression)v;
+        } else {
+            return new Expression(v);
+        }
     }
 
     @Override
     public boolean configure(Properties properties) {
         try {
-            // Uses a map to ensure that each field is tested, for easier debuging
-            return MAPFIELD.enumerate().map( i -> {
-                if (!mapping.containsKey(i)) {
+            // Uses a map to ensure that each field is tested, for easier debugging
+            return MAPFIELDS.stream().allMatch(i -> {
+                if (!mappings.containsKey(i)) {
                     logger.error("NSCA mapping field '{}' missing", i);
                     return false;
                 } else {
                     return true;
                 }
-            }).allMatch(i -> i) && super.configure(properties);
+            }) && super.configure(properties);
         } catch (IllegalArgumentException e) {
             logger.error("invalid NSCA configuration: {}", e.getMessage());
             return false;
@@ -112,29 +112,30 @@ public class Nsca extends Sender {
     }
 
     @Override
-    public boolean send(Event event) throws SendException, EncodeException {
-        boolean allfields = MAPFIELD.enumerate().allMatch( i -> {
-            if (!event.containsKey(mapping.get(i))) {
-                logger.error("event mapping field '{}' value missing", mapping.get(i));
-                return false;
-            } else {
-                return true;
-            }
-        });
-        if (!allfields) {
-            return false;
-        }
-        Level level = Level.tolevel(event.get(mapping.get(MAPFIELD.LEVEL)).toString().trim().toUpperCase());
-        String serviceName = event.get(mapping.get(MAPFIELD.SERVICE)).toString();
-        String message = event.get(mapping.get(MAPFIELD.MESSAGE)).toString();
-        String hostName = event.get(mapping.get(MAPFIELD.HOST)).toString();
-        MessagePayload payload = new MessagePayload(hostName, level, serviceName, message);
+    public boolean send(Event event) throws SendException {
         try {
-            sender.send(payload);
-            return true;
-        } catch (NagiosException | IOException e) {
+            Level level = Level.tolevel(resolve(FIELDS.LEVEL, event).trim().toUpperCase());
+            String serviceName = resolve(FIELDS.SERVICE, event);
+            String message = resolve(FIELDS.MESSAGE, event);
+            String hostName = resolve(FIELDS.HOST, event);
+            MessagePayload payload = new MessagePayload(hostName, level, serviceName, message);
+            logger.debug("Message payload is {}", payload);
+            try {
+                sender.send(payload);
+                return true;
+            } catch (NagiosException | UncheckedIOException e) {
+                throw new SendException(e);
+            }
+        } catch (ProcessorException e) {
             throw new SendException(e);
         }
+    }
+
+    private String resolve(FIELDS field, Event event) throws ProcessorException {
+        Object val = mappings.get(field).eval(event);
+        return Optional.ofNullable(val)
+                       .orElse("null")
+                       .toString();
     }
 
     @Override
