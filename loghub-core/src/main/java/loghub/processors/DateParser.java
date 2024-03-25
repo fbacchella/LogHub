@@ -5,6 +5,7 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.TemporalAccessor;
+import java.time.zone.ZoneRulesException;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.LinkedHashMap;
@@ -61,12 +62,10 @@ public class DateParser extends FieldsProcessor {
 
     private static final Map<DatetimeProcessorKey, DatetimeProcessor> processorsCache = new ConcurrentHashMap<>();
 
+    @Setter
     public static class Builder extends FieldsProcessor.Builder<DateParser> {
-        @Setter
         private Expression locale = new Expression(Locale.ENGLISH.getLanguage());
-        @Setter
         private Expression timezone = new Expression(ZoneId.systemDefault());
-        @Setter
         private String[] patterns = List.of("iso_nanos",
                                     "eee, d MMM yyyy HH:mm:ss Z",
                                     "d MMM yyyy HH:mm:ss Z",
@@ -113,20 +112,23 @@ public class DateParser extends FieldsProcessor {
         } else {
             String dateString = value.toString();
             logger.debug("trying to parse {}", dateString);
+            String eventTimeZone = timezone.eval(event).toString();
+            String eventLocale = locale.eval(event).toString();
             for (String pattern : patterns) {
-                DatetimeProcessorKey key = new DatetimeProcessorKey(pattern, timezone.eval(event).toString(),
-                        locale.eval(event).toString());
-                DatetimeProcessor formatter = processorsCache.computeIfAbsent(key, k -> key.getDatetimeProcessor());
-                logger.trace("trying to parse {} with {}", dateString, key.parser);
+                DatetimeProcessorKey key = new DatetimeProcessorKey(pattern, eventTimeZone, eventLocale);
                 try {
+                    DatetimeProcessor formatter = processorsCache.computeIfAbsent(key, k -> key.getDatetimeProcessor());
+                    logger.trace("trying to parse {} with {}", dateString, key.parser);
                     ZonedDateTime dateParsed = formatter.parse(dateString);
                     logger.trace("parsed {} as {}", dateString, dateParsed);
                     return dateParsed.toInstant();
-                } catch (IllegalArgumentException | DateTimeParseException | StringIndexOutOfBoundsException e) {
+                } catch (ZoneRulesException ex) {
+                    throw new ProcessorException(event, String.format(Helpers.resolveThrowableException(ex)));
+                } catch (IllegalArgumentException | DateTimeParseException | StringIndexOutOfBoundsException ex) {
                     //no problem, just wrong parser, keep trying
-                    logger.debug("failed to parse date with pattern {}: {}", () -> key.parser,
-                            () -> Helpers.resolveThrowableException(e));
-                    logger.catching(Level.TRACE, e);
+                    logger.debug("Failed to parse date with pattern {}: {}", () -> key.parser,
+                            () -> Helpers.resolveThrowableException(ex));
+                    logger.catching(Level.TRACE, ex);
                 }
             }
             return FieldsProcessor.RUNSTATUS.FAILED;

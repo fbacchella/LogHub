@@ -3,6 +3,7 @@ package loghub.processors;
 import java.beans.IntrospectionException;
 import java.io.IOException;
 import java.time.Instant;
+import java.time.Month;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -149,11 +150,39 @@ public class TestDateParser {
             Instant date = (Instant) event.get("field");
             ZonedDateTime zdt = ZonedDateTime.ofInstant(date, ZoneId.of("UTC"));
             // Hour 04 in CET is now parsed back as 03 in UTC
-            Assert.assertEquals(3, zdt.get(ChronoField.HOUR_OF_DAY));
+            Assert.assertEquals(3, zdt.getHour());
             // Year was set to current year
-            Assert.assertEquals(now.get(ChronoField.YEAR), zdt.get(ChronoField.YEAR));
+            Assert.assertEquals(now.getYear(), zdt.getYear());
             // Month was parsed from janv (french) to january
-            Assert.assertEquals(1, zdt.get(ChronoField.MONTH_OF_YEAR));
+            Assert.assertEquals(Month.JANUARY, zdt.getMonth());
+        } finally {
+            TimeZone.setDefault(defaultTz);
+            Locale.setDefault(defaultLocale);
+        }
+    }
+
+    @Test
+    public void testBadTimezone() {
+        TimeZone defaultTz = TimeZone.getDefault();
+        Locale defaultLocale = Locale.getDefault();
+
+        TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
+        Locale.setDefault(Locale.ENGLISH);
+
+        try {
+            DateParser.Builder builder = DateParser.getBuilder();
+            builder.setField(VariablePath.parse("field"));
+            builder.setTimezone(new Expression(VariablePath.of("tz")));
+            builder.setLocale(new Expression(Locale.FRANCE.toLanguageTag()));
+            builder.setPattern("d MMM HH:mm:ss");
+            DateParser parse = builder.build();
+            Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
+
+            Event event = factory.newEvent();
+            event.put("field", "1 janv. 04:00:00");
+            event.put("tz", "Eastern");
+            ProcessorException exception = Assert.assertThrows(ProcessorException.class, () -> parse.process(event));
+            Assert.assertEquals("Field with path \"[field]\" invalid: Unknown time-zone ID: Eastern", exception.getMessage());
         } finally {
             TimeZone.setDefault(defaultTz);
             Locale.setDefault(defaultLocale);
@@ -174,7 +203,7 @@ public class TestDateParser {
         parse.process(event);
         Instant date = (Instant) event.get("field");
         OffsetDateTime t = OffsetDateTime.ofInstant(date, ZoneId.of("GMT"));
-        int year = OffsetDateTime.now().get(ChronoField.YEAR);
+        int year = OffsetDateTime.now().getYear();
         Assert.assertEquals("date not parsed", year, t.getLong(ChronoField.YEAR));
     }
 
@@ -381,9 +410,9 @@ public class TestDateParser {
         checkPattern("RFC_822_WEEK_DAY", "Fri, 11 Dec 2009 08:48:25 +0000", Instant.ofEpochSecond(1260521305L));
         checkPattern("RFC_822_SHORT", "1 Dec 2009 08:48:25 +0000", Instant.ofEpochSecond(1259657305L));
         checkPattern("RFC_822_SHORT", "11 Dec 2009 08:48:25 +0000", Instant.ofEpochSecond(1260521305L));
-        ZonedDateTime expected = Instant.ofEpochSecond(1259657305L).atZone(ZoneId.of("UTC")).with(ChronoField.YEAR, ZonedDateTime.now().get(ChronoField.YEAR));
+        ZonedDateTime expected = Instant.ofEpochSecond(1259657305L).atZone(ZoneId.of("UTC")).withYear(ZonedDateTime.now().getYear());
         checkPattern("RFC_3164", "Dec 1 08:48:25", expected.toInstant());
-        checkPattern("RFC_3164", "Dec 11 08:48:25", expected.with(ChronoField.DAY_OF_MONTH, 11).toInstant());
+        checkPattern("RFC_3164", "Dec 11 08:48:25", expected.withDayOfMonth(11).toInstant());
         Instant now = Instant.now();
         checkPattern("milliseconds", Long.toString(now.toEpochMilli()), Instant.ofEpochMilli(now.toEpochMilli()));
         checkPattern("seconds", Long.toString(now.getEpochSecond()), Instant.ofEpochSecond(now.getEpochSecond()));
