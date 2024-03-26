@@ -286,6 +286,20 @@ public class TestEtl {
     }
 
     @Test
+    public void testMapLong() throws ProcessorException {
+        Event ev =  RunEtl("[a] @ [b] { 1: 10, 2: 20 }", i -> i.put("b", 1L));
+        Assert.assertEquals(10, ev.remove("a"));
+        Assert.assertEquals(1L, ev.remove("b"));
+        Assert.assertTrue(ev.isEmpty());
+    }
+
+    @Test
+    public void testMapFailed() {
+        Assert.assertThrows(IgnoredEventException.class, () -> RunEtl("[a] @ [b] { 1: 10, 2: 20 }", i -> i.put("b", 3)));
+        Assert.assertThrows(IgnoredEventException.class, () -> RunEtl("[a] @ [b] { 1: 10, 2: 20 }", i -> {}));
+    }
+
+    @Test
     public void testTimestamp() throws ProcessorException {
         Event ev =  RunEtl("[@timestamp] = 1000", i -> {});
         Assert.assertEquals(1000, ev.getTimestamp().getTime());
