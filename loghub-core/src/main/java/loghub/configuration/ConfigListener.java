@@ -383,7 +383,34 @@ class ConfigListener extends RouteBaseListener {
     @Override
     public void enterObject(ObjectContext ctx) {
         String qualifiedName = ctx.QualifiedIdentifier().getText();
-        stack.push(getObject(qualifiedName, ctx));
+        ObjectWrapped<Object> wobject = getObject(qualifiedName, ctx);
+        // Check for some beans to inject
+        for (Class<?> c: INJECTED_BEANS_CLASSES) {
+            beansManager.getBeanByType(wobject.wrapped, c).ifPresent(m -> {
+                try {
+                    Object value;
+                    if (c == SSLContext.class) {
+                        value = this.sslContext;
+                    } else if (c == Configuration.class) {
+                        value = this.jaasConfig;
+                    } else if (c == JWTHandler.class) {
+                        value = this.jwtHandler;
+                    } else if (c == ClassLoader.class) {
+                        value = this.classLoader;
+                    } else if (c == CacheManager.class) {
+                        value = this.cacheManager;
+                    } else if (c == ConfigurationProperties.class) {
+                        value = this.properties;
+                    } else {
+                        throw new IllegalStateException("Unhandled bean injection value");
+                    }
+                    m.invoke(wobject.wrapped, value);
+                } catch (IllegalAccessException | InvocationTargetException ex) {
+                    throw new RecognitionException(Helpers.resolveThrowableException(ex), parser, stream, ctx);
+                }
+            });
+        }
+        stack.push(wobject);
     }
 
     @Override
@@ -391,32 +418,6 @@ class ConfigListener extends RouteBaseListener {
         ObjectWrapped<Object> wobject = stack.popTyped();
         if (wobject.wrapped instanceof AbstractBuilder) {
             AbstractBuilder<?> builder = (AbstractBuilder<?>) wobject.wrapped;
-            // Check for some beans to inject
-            for (Class<?> c: INJECTED_BEANS_CLASSES) {
-                beansManager.getBeanByType(builder, c).ifPresent(m -> {
-                    try {
-                        Object value;
-                        if (c == SSLContext.class) {
-                            value = this.sslContext;
-                        } else if (c == Configuration.class) {
-                            value = this.jaasConfig;
-                        } else if (c == JWTHandler.class) {
-                            value = this.jwtHandler;
-                        } else if (c == ClassLoader.class) {
-                            value = this.classLoader;
-                        } else if (c == CacheManager.class) {
-                            value = this.cacheManager;
-                        } else if (c == ConfigurationProperties.class) {
-                            value = this.properties;
-                        } else {
-                            throw new IllegalStateException("Unhandled bean injection value");
-                        }
-                        m.invoke(builder, value);
-                    } catch (IllegalAccessException | InvocationTargetException ex) {
-                        throw new RecognitionException(Helpers.resolveThrowableException(ex), parser, stream, ctx);
-                    }
-                });
-            }
             try {
                 Object created = builder.build();
                 stack.push(new ObjectWrapped<>(created));
