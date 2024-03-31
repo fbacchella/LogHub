@@ -4,13 +4,16 @@ import java.beans.FeatureDescriptor;
 import java.beans.IntrospectionException;
 import java.beans.Introspector;
 import java.beans.PropertyDescriptor;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayDeque;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import loghub.BuilderClass;
 import loghub.Expression;
@@ -18,6 +21,8 @@ import loghub.Lambda;
 import lombok.Setter;
 
 public class GrammarParserFiltering {
+
+    Logger logger = LogManager.getLogger();
 
     private final Map<Class<?>, Map<String, Method>> beans = new HashMap<>();
 
@@ -112,15 +117,7 @@ public class GrammarParserFiltering {
         Class<?> currentClass = objectStack.isEmpty() ? null : objectStack.peek();
         Method m;
         if (currentClass != null && ! Object.class.equals(currentClass)) {
-            m = beans.computeIfAbsent(objectStack.peek(), c -> {
-                try {
-                    return Stream.of(Introspector.getBeanInfo(c, Object.class).getPropertyDescriptors())
-                                   .filter(pd -> pd.getWriteMethod() != null)
-                                   .collect(Collectors.toMap(FeatureDescriptor::getName, PropertyDescriptor::getWriteMethod));
-                } catch (IntrospectionException e) {
-                    return Collections.emptyMap();
-                }
-            }).get(beanName);
+            m = beans.computeIfAbsent(objectStack.peek(), this::resolveBeans).get(beanName);
         } else {
             m = null;
         }
@@ -159,6 +156,30 @@ public class GrammarParserFiltering {
             }
         } else {
             currentBeanType =  null;
+        }
+    }
+
+    private Map<String, Method> resolveBeans(Class<?> c) {
+        try {
+            Map<String, Method> introspectedBeans = Stream.of(Introspector.getBeanInfo(c, Object.class).getPropertyDescriptors())
+                                                          .filter(pd -> pd.getWriteMethod() != null)
+                                                          .collect(Collectors.toMap(FeatureDescriptor::getName, PropertyDescriptor::getWriteMethod));
+            Map<String, Method> beans = new HashMap<>(introspectedBeans);
+            Class<?> resolvingClass = c;
+            while (resolvingClass != null) {
+                BeansPostProcess annotation = resolvingClass.getAnnotation(BeansPostProcess.class);
+                if (annotation != null) {
+                    Class<? extends BeansPostProcess.Processor> processorClass = annotation.value();
+                    BeansPostProcess.Processor processor = processorClass.getConstructor().newInstance();
+                    processor.process(beans);
+                }
+                resolvingClass = resolvingClass.getSuperclass();
+            }
+            logger.debug("Found beans for {}: {}", c::getName, beans::keySet);
+            return beans;
+        } catch (IntrospectionException | InstantiationException | NoSuchMethodException | IllegalAccessException | InvocationTargetException ex) {
+            logger.atError().withThrowable(ex).log("Failed to resolve beans for {}", c::getName);
+            return Map.of();
         }
     }
 
