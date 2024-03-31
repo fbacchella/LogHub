@@ -130,9 +130,9 @@ public class TestBeats {
 
     @Test(timeout=5000)
     public void testSSL() throws IOException, InterruptedException {
-        SSLContext sslctx = SslContextBuilder.getBuilder()
-                                             .setTrusts(Tools.getDefaultKeyStore())
-                                             .build();
+        SslContextBuilder builder = SslContextBuilder.getBuilder();
+        builder.setTrusts(Tools.getDefaultKeyStore());
+        SSLContext sslctx = builder.build();
         try {
             makeReceiver( i -> {
                 i.setSslContext(sslctx);

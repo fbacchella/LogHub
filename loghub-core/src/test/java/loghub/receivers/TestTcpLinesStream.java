@@ -136,18 +136,18 @@ public class TestTcpLinesStream {
     public void testSSL() throws IOException, InterruptedException {
         Map<String, Object> properties = new HashMap<>();
         properties.put("trusts", Tools.getDefaultKeyStore());
-        SSLContext cssctx = SslContextBuilder.getBuilder()
-                                             .setTrusts(Tools.getDefaultKeyStore())
-                                             .build();
+        SslContextBuilder builder = SslContextBuilder.getBuilder();
+        builder.setTrusts(Tools.getDefaultKeyStore());
+        SSLContext sslctx = builder.build();
         try (TcpLinesStream ignored = makeReceiver(i -> {
-                    i.setSslContext(cssctx);
+                    i.setSslContext(sslctx);
                     i.setWithSSL(true);
                     i.setSSLKeyAlias("localhost (loghub ca)");
                     i.setSSLClientAuthentication(ClientAuthentication.WANTED);
                 },
                 new HashMap<>(Collections.singletonMap("ssl.trusts", new String[] {getClass().getResource("/loghub.p12").getFile()}))
         )){
-            try (Socket socket = cssctx.getSocketFactory().createSocket(InetAddress.getLoopbackAddress(), port)) {
+            try (Socket socket = sslctx.getSocketFactory().createSocket(InetAddress.getLoopbackAddress(), port)) {
                 OutputStream os = socket.getOutputStream();
                 os.write("LogHub\n".getBytes(StandardCharsets.UTF_8));
                 os.flush();

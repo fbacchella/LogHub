@@ -2,6 +2,7 @@ package loghub.security.ssl;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.nio.file.Path;
 import java.security.KeyManagementException;
 import java.security.KeyStore;
@@ -33,15 +34,28 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import loghub.Helpers;
+import loghub.configuration.BeansPostProcess;
 import loghub.configuration.ConfigException;
 import lombok.Setter;
-import lombok.experimental.Accessors;
 
 @Setter
-@Accessors(chain = true)
+@BeansPostProcess(SslContextBuilder.BeansProcessor.class)
 public class SslContextBuilder {
 
     private static final String DEFAULT_SECURERANDOM;
+    public static class BeansProcessor extends BeansPostProcess.Processor {
+
+        @Override
+        public void process(Map<String, Method> beans) {
+            try {
+                Method m = SslContextBuilder.class.getDeclaredMethod("setTrusts", Object[].class);
+                beans.put("trusts", m);
+            } catch (NoSuchMethodException e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }
+
     static {
         String operatingSystem = System.getProperty("os.name", "");
         if (operatingSystem.startsWith("Windows")){
@@ -179,14 +193,16 @@ public class SslContextBuilder {
         }
     }
 
-    public SslContextBuilder setTrusts(Path keystore) {
+    public void setTrusts(Path keystore) {
         this.trusts = getKeyStore(keystore.toString());
-        return this;
     }
 
-    public SslContextBuilder setTrusts(KeyStore keystore) {
+    public void setTrusts(KeyStore keystore) {
         this.trusts = keystore;
-        return this;
+    }
+
+    public void setTrusts(Object[] trusts) {
+        this.trusts = getKeyStore(trusts);
     }
 
     public SslContextBuilder copy() {
@@ -199,7 +215,7 @@ public class SslContextBuilder {
         newBuilder.secureRandom = secureRandom;
         newBuilder.classLoader = classLoader;
         newBuilder.trusts = trusts;
-        newBuilder.trustedIssuers = Set.copyOf(trustedIssuers);
+        newBuilder.trustedIssuers = trustedIssuers != null ? Set.copyOf(trustedIssuers) : null;
         return newBuilder;
     }
 

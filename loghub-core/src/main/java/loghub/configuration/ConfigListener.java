@@ -431,6 +431,17 @@ class ConfigListener extends RouteBaseListener {
     }
 
     @Override
+    public void enterSslContext(RouteParser.SslContextContext ctx) {
+        stack.push(new ObjectWrapped<>(sslBuilder.copy()));
+    }
+
+    @Override
+    public void exitSslContext(RouteParser.SslContextContext ctx) {
+        ObjectWrapped<SslContextBuilder> wobject = stack.popTyped();
+        stack.push(new ObjectWrapped<>(wobject.wrapped.build()));
+    }
+
+    @Override
     public void exitPipenode(PipenodeContext ctx) {
         Object o = stack.pop();
         if( (o instanceof ObjectWrapped) ) {

@@ -66,8 +66,8 @@ object: QualifiedIdentifier   {filter.enterObject($QualifiedIdentifier.text);} b
 beansDescription: ('{' (bean (',' bean)*)? ','? '}') ?;
 
 // All defined bean names must be replicated as identifier
-bean
-    : {inSection(SECTION.INPUT)}?    (bn='decoder' ':' object)
+bean :
+    {inSection(SECTION.INPUT)}?    (bn='decoder' ':' object)
     | {inSection(SECTION.PIPELINE)}? (bn='if' ':' expression)
     | {inSection(SECTION.PIPELINE)}? (bn=('success' | 'failure' | 'exception') ':' pipenode)
     | {inSection(SECTION.PIPELINE)}? (bn='field' ':' (fsv=stringLiteral | fev=eventVariable))
@@ -76,7 +76,12 @@ bean
     | {inSection(SECTION.PIPELINE)}? (bn='destination' ':' (fsv=stringLiteral | fev=eventVariable))
     | {inSection(SECTION.PIPELINE)}? (bn='destinationTemplate' ':' stringLiteral)
     | {inSection(SECTION.OUTPUT)}?   (bn='encoder' ':' object)
+    | (bn='sslContext' ':' sslContext)
     | (beanName ':' beanValue {filter.cleanBeanType();})
+    ;
+
+sslContext :
+    {filter.enterObject("loghub.security.ssl.SslContextBuilder");} beansDescription {filter.exitObject();}
     ;
 
 beanName
@@ -272,7 +277,7 @@ sourcedef
     ;
 
 identifier
-    :'index' | 'seeds' | 'doFire' | 'onFire' | 'expiration' | 'forward' | 'default' | 'merge' | 'inPipeline' | 'path' | 'bean' | 'field' | 'input' | 'in' | 'decoder'
+    : 'index' | 'seeds' | 'doFire' | 'onFire' | 'expiration' | 'forward' | 'default' | 'merge' | 'inPipeline' | 'path' | 'bean' | 'field' | 'input' | 'in' | 'decoder' | 'sslContext'
     | 'if' | 'success' | 'failure' | 'exception' | 'field' | 'fields' | 'destination' | 'destinationTemplate' | 'encoder' | 'log' | 'fire' | 'pipeline' | 'output' | 'onExpiration'
     | 'defaultMeta' | 'map'
     | 'FATAL' | 'ERROR' | 'WARN' | 'INFO' | 'DEBUG' | 'TRACE'
