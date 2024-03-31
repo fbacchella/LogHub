@@ -1,10 +1,6 @@
 package loghub.security.ssl;
 
 import java.io.IOException;
-import java.security.KeyStoreException;
-import java.security.NoSuchAlgorithmException;
-import java.security.NoSuchProviderException;
-import java.security.cert.CertificateException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -22,19 +18,15 @@ import loghub.Tools;
 
 public class TestSSL {
 
-    private static Logger logger;
-
     @BeforeClass
     static public void configure() throws IOException {
         Tools.configure();
-        logger = LogManager.getLogger();
+        Logger logger = LogManager.getLogger();
         LogUtils.setLevel(logger, Level.TRACE, "loghub.security.ssl");
     }
 
     @Test
-    public void testContextLoader()
-            throws NoSuchAlgorithmException, KeyStoreException, NoSuchProviderException, CertificateException,
-            IOException {
+    public void testContextLoader() {
         Map<String, Object> properties = new HashMap<>();
         properties.put("context", "TLSV1.2");
         properties.put("providerclass", "org.bouncycastle.jsse.provider.BouncyCastleJsseProvider");
@@ -43,19 +35,22 @@ public class TestSSL {
         properties.put("trusts", Tools.getDefaultKeyStore());
         properties.put("issuers", new Object[] {"CN=Issuer,DC=loghub,DC=fr"});
 
-        SSLContext newCtxt = ContextLoader.build(TestSSL.class.getClassLoader(), properties);
+        SSLContext newCtxt = SslContextBuilder.getBuilder(properties).build();
         Assert.assertNotNull(newCtxt);
         Assert.assertEquals("TLSV1.2", newCtxt.getProtocol());
         Assert.assertEquals("BCJSSE", newCtxt.getProvider().getName());
     }
 
     @Test
-    public void testContextLoaderFailed() throws NoSuchAlgorithmException {
+    public void testContextLoaderFailed() {
         Map<String, Object> properties = new HashMap<>();
         properties.put("context", "NOTLS");
 
-        SSLContext newCtxt = ContextLoader.build(TestSSL.class.getClassLoader(), properties);
-        Assert.assertNull(newCtxt);
+        IllegalArgumentException ex = Assert.assertThrows(
+                IllegalArgumentException.class,
+                () -> SslContextBuilder.getBuilder(TestSSL.class.getClassLoader(), properties).build()
+        );
+        Assert.assertEquals("NOTLS SSLContext not available", ex.getCause().getMessage());
     }
 
 }

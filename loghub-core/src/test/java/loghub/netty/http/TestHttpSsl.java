@@ -33,7 +33,7 @@ import loghub.LogUtils;
 import loghub.Tools;
 import loghub.netty.transport.TcpTransport;
 import loghub.security.ssl.ClientAuthentication;
-import loghub.security.ssl.ContextLoader;
+import loghub.security.ssl.SslContextBuilder;
 
 public class TestHttpSsl {
 
@@ -62,7 +62,7 @@ public class TestHttpSsl {
         properties.put("context", "TLSv1.2");
         properties.put("trusts", Tools.getDefaultKeyStore());
         properties.putAll(props);
-        SSLContext newCtxt = ContextLoader.build(null, properties);
+        SSLContext newCtxt = SslContextBuilder.getBuilder(properties).build();
         Assert.assertEquals("TLSv1.2", newCtxt.getProtocol());
         return newCtxt;
     };

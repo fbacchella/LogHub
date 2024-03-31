@@ -47,7 +47,7 @@ import loghub.decoders.Json;
 import loghub.events.Event;
 import loghub.security.JWTHandler;
 import loghub.security.ssl.ClientAuthentication;
-import loghub.security.ssl.ContextLoader;
+import loghub.security.ssl.SslContextBuilder;
 
 public class TestHttp {
 
@@ -111,7 +111,7 @@ public class TestHttp {
             Map<String, Object> properties = new HashMap<>();
             properties.put("trusts", getClass().getResource("/loghub.p12").getFile());
             properties.put("issuers", new String[] {"CN=loghub CA"});
-            SSLContext cssctx = ContextLoader.build(null, properties);
+            SSLContext cssctx = SslContextBuilder.getBuilder(null, properties).build();
             cnx.setSSLSocketFactory(cssctx.getSocketFactory());
         }
         prepare.accept(conn);
@@ -166,7 +166,7 @@ public class TestHttp {
 
     @Test(timeout = 5000)
     public void testHttpsGet() throws IOException {
-        SSLContext sslctx = ContextLoader.build(getClass().getClassLoader(), new HashMap<>(Collections.singletonMap("trusts", getClass().getResource("/loghub.p12").getFile())));
+        SSLContext sslctx = SslContextBuilder.getBuilder(getClass().getClassLoader(), new HashMap<>(Collections.singletonMap("trusts", getClass().getResource("/loghub.p12").getFile()))).build();
         makeReceiver(i -> {
             i.setSslContext(sslctx);
             i.setWithSSL(true);

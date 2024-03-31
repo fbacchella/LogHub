@@ -39,7 +39,7 @@ import loghub.decoders.StringCodec;
 import loghub.events.Event;
 import loghub.netty.transport.POLLER;
 import loghub.security.ssl.ClientAuthentication;
-import loghub.security.ssl.ContextLoader;
+import loghub.security.ssl.SslContextBuilder;
 
 public class TestTcpLinesStream {
 
@@ -136,7 +136,9 @@ public class TestTcpLinesStream {
     public void testSSL() throws IOException, InterruptedException {
         Map<String, Object> properties = new HashMap<>();
         properties.put("trusts", Tools.getDefaultKeyStore());
-        SSLContext cssctx = ContextLoader.build(null, properties);
+        SSLContext cssctx = SslContextBuilder.getBuilder()
+                                             .setTrusts(Tools.getDefaultKeyStore())
+                                             .build();
         try (TcpLinesStream ignored = makeReceiver(i -> {
                     i.setSslContext(cssctx);
                     i.setWithSSL(true);

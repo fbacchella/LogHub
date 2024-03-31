@@ -9,7 +9,6 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -41,7 +40,7 @@ import loghub.events.Event;
 import loghub.jackson.JacksonBuilder;
 import loghub.netty.transport.POLLER;
 import loghub.security.ssl.ClientAuthentication;
-import loghub.security.ssl.ContextLoader;
+import loghub.security.ssl.SslContextBuilder;
 
 public class TestBeats {
 
@@ -131,7 +130,9 @@ public class TestBeats {
 
     @Test(timeout=5000)
     public void testSSL() throws IOException, InterruptedException {
-        SSLContext sslctx = ContextLoader.build(getClass().getClassLoader(), new HashMap<>(Collections.singletonMap("trusts", getClass().getResource("/loghub.p12").getFile())));
+        SSLContext sslctx = SslContextBuilder.getBuilder()
+                                             .setTrusts(Tools.getDefaultKeyStore())
+                                             .build();
         try {
             makeReceiver( i -> {
                 i.setSslContext(sslctx);

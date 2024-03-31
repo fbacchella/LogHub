@@ -53,6 +53,7 @@ import loghub.metrics.StatsMBean;
 import loghub.receivers.Receiver;
 import loghub.security.JWTHandler;
 import loghub.security.ssl.ClientAuthentication;
+import loghub.security.ssl.SslContextBuilder;
 import loghub.senders.Sender;
 import loghub.sources.Source;
 import loghub.zmq.ZMQSocketFactory;
@@ -64,6 +65,7 @@ public class Properties extends HashMap<String, Object> {
         JWTHANDLER,
         JAASCONFIG,
         SSLCONTEXT,
+        SSLCONTEXTBUILDER,
         CLASSLOADERNAME,
         GROOVYCLASSLOADERNAME,
         NAMEDPIPELINES,
@@ -110,6 +112,7 @@ public class Properties extends HashMap<String, Object> {
     public final int queuesDepth;
     public final int maxSteps;
     public final EventsRepository<Future<?>> repository;
+    public final SslContextBuilder sslBuilder;
     public final SSLContext ssl;
     public final javax.security.auth.login.Configuration jaasConfig;
     public final JWTHandler jwtHandler;
@@ -175,7 +178,10 @@ public class Properties extends HashMap<String, Object> {
             maxSteps = 128;
         }
 
-        ssl = (SSLContext) properties.get(PROPSNAMES.SSLCONTEXT.toString());
+        sslBuilder = Optional.ofNullable((SslContextBuilder) properties.get(PROPSNAMES.SSLCONTEXTBUILDER.toString()))
+                             .orElseGet(SslContextBuilder::getBuilder);
+        ssl = Optional.ofNullable((SSLContext) properties.get(PROPSNAMES.SSLCONTEXT.toString()))
+                      .orElseGet(sslBuilder::build);
         jaasConfig = (javax.security.auth.login.Configuration) properties.get(PROPSNAMES.JAASCONFIG.toString());
         jwtHandler = (JWTHandler) properties.get(PROPSNAMES.JWTHANDLER.toString());
 
@@ -184,7 +190,7 @@ public class Properties extends HashMap<String, Object> {
         try {
             jmxServiceConfiguration = JmxService.configuration()
                             .setProperties(Helpers.filterPrefix(properties, "jmx"))
-                            .setSslContext(ssl)
+                            .setSslContext(sslBuilder.build())
                             .register(StatsMBean.Implementation.NAME, new StatsMBean.Implementation())
                             .register(ExceptionsMBean.Implementation.NAME, new ExceptionsMBean.Implementation())
                             .registerReceivers(receivers)
@@ -343,7 +349,7 @@ public class Properties extends HashMap<String, Object> {
         }
         if (Boolean.TRUE.equals(collect.get("withSSL"))) {
             builder.setWithSSL(true);
-            builder.setSslContext(ssl);
+            builder.setSslContext(sslBuilder.build());
             String clientAuthentication = collect.compute("SSLClientAuthentication", (i, j) -> j != null ? j : ClientAuthentication.NOTNEEDED).toString();
             String sslKeyAlias = (String) collect.get("SSLKeyAlias");
             builder.setSslKeyAlias(sslKeyAlias)

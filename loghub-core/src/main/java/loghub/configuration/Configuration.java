@@ -40,8 +40,6 @@ import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import javax.net.ssl.SSLContext;
-
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
@@ -68,7 +66,7 @@ import loghub.configuration.ConfigListener.Output;
 import loghub.events.Event;
 import loghub.receivers.Receiver;
 import loghub.security.JWTHandler;
-import loghub.security.ssl.ContextLoader;
+import loghub.security.ssl.SslContextBuilder;
 import loghub.senders.Sender;
 import loghub.sources.Source;
 
@@ -359,7 +357,7 @@ public class Configuration {
                                                         .classLoader(classLoader)
                                                         .secrets(secrets)
                                                         .lockedProperties(lockedProperties)
-                                                        .sslContext(resolveSslContext())
+                                                        .sslBuilder(resolveSslContext())
                                                         .jaasConfig(resolveJaasConfig())
                                                         .jwtHandler(resolveJwtHander())
                                                         .cacheManager(cacheManager)
@@ -422,23 +420,17 @@ public class Configuration {
         }
     }
 
-    private SSLContext resolveSslContext() {
-        SSLContext ssl;
+    private SslContextBuilder resolveSslContext() {
         Map<String, Object> sslprops = Helpers.filterPrefix(configurationProperties, "ssl");
         configurationProperties.entrySet().removeIf(i -> i.getKey().startsWith("ssl."));
-        if (! sslprops.isEmpty()) {
-            ssl = ContextLoader.build(classLoader, sslprops);
-        } else {
-            try {
-                ssl = SSLContext.getDefault();
-            } catch (NoSuchAlgorithmException ex) {
-                throw new ConfigException("SSLContext failed to configure: " + ex);
+        try {
+            if (! sslprops.isEmpty()) {
+                return SslContextBuilder.getBuilder(classLoader, sslprops);
+            } else {
+                return SslContextBuilder.getBuilder();
             }
-        }
-        if (ssl == null) {
-            throw new ConfigException("SSLContext failed to configure");
-        } else {
-            return ssl;
+        } catch (RuntimeException ex) {
+            throw new ConfigException("SSLContext failed to configure: " + Helpers.resolveThrowableException(ex), ex);
         }
     }
 
@@ -480,7 +472,8 @@ public class Configuration {
 
         newProperties.put(Properties.PROPSNAMES.CLASSLOADERNAME.toString(), classLoader);
         newProperties.put(Properties.PROPSNAMES.CACHEMANGER.toString(), cacheManager);
-        newProperties.put(Properties.PROPSNAMES.SSLCONTEXT.toString(), conf.sslContext);
+        newProperties.put(Properties.PROPSNAMES.SSLCONTEXTBUILDER.toString(), conf.sslBuilder);
+        newProperties.put(Properties.PROPSNAMES.SSLCONTEXT.toString(), conf.ssl);
         newProperties.put(Properties.PROPSNAMES.JAASCONFIG.toString(), conf.jaasConfig);
 
         Set<Pipeline> pipelines = new HashSet<>();

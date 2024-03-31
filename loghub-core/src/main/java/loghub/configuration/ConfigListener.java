@@ -99,6 +99,7 @@ import loghub.processors.UnwrapEvent;
 import loghub.processors.WrapEvent;
 import loghub.receivers.Receiver;
 import loghub.security.JWTHandler;
+import loghub.security.ssl.SslContextBuilder;
 import loghub.senders.Sender;
 import loghub.sources.Source;
 import lombok.Builder;
@@ -221,7 +222,8 @@ class ConfigListener extends RouteBaseListener {
     final List<Output> outputs = new ArrayList<>();
     final Map<String, AtomicReference<Source>> sources = new HashMap<>();
     final Set<String> outputPipelines = new HashSet<>();
-    final SSLContext sslContext;
+    final SslContextBuilder sslBuilder;
+    final SSLContext ssl;
     final Configuration jaasConfig;
     final JWTHandler jwtHandler;
 
@@ -242,13 +244,14 @@ class ConfigListener extends RouteBaseListener {
 
     @Builder
     private ConfigListener(ClassLoader classLoader, SecretsHandler secrets, Map<String, String> lockedProperties,
-            SSLContext sslContext, javax.security.auth.login.Configuration jaasConfig, JWTHandler jwtHandler, CacheManager cacheManager,
+            SslContextBuilder sslBuilder, javax.security.auth.login.Configuration jaasConfig, JWTHandler jwtHandler, CacheManager cacheManager,
             ConfigurationProperties properties) {
         this.classLoader = classLoader != null ? classLoader : ConfigListener.class.getClassLoader();
         this.secrets = secrets != null ? secrets : SecretsHandler.empty();
         this.lockedProperties = lockedProperties != null ? lockedProperties : new HashMap<>();
         this.beansManager = new BeansManager();
-        this.sslContext = sslContext;
+        this.sslBuilder = Optional.ofNullable(sslBuilder).orElseGet(SslContextBuilder::getBuilder);
+        this.ssl = this.sslBuilder.build();
         this.jaasConfig = jaasConfig;
         this.jwtHandler = jwtHandler;
         this.cacheManager = cacheManager;
@@ -390,7 +393,7 @@ class ConfigListener extends RouteBaseListener {
                 try {
                     Object value;
                     if (c == SSLContext.class) {
-                        value = this.sslContext;
+                        value = this.ssl;
                     } else if (c == Configuration.class) {
                         value = this.jaasConfig;
                     } else if (c == JWTHandler.class) {
