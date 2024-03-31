@@ -234,7 +234,6 @@ class ConfigListener extends RouteBaseListener {
 
     private final ClassLoader classLoader;
     private final SecretsHandler secrets;
-    private final Map<String, String> lockedProperties;
     private final CacheManager cacheManager;
     private final BeansManager beansManager;
     final ConfigurationProperties properties;
@@ -243,12 +242,11 @@ class ConfigListener extends RouteBaseListener {
     private IntStream stream;
 
     @Builder
-    private ConfigListener(ClassLoader classLoader, SecretsHandler secrets, Map<String, String> lockedProperties,
+    private ConfigListener(ClassLoader classLoader, SecretsHandler secrets,
             SslContextBuilder sslBuilder, javax.security.auth.login.Configuration jaasConfig, JWTHandler jwtHandler, CacheManager cacheManager,
             ConfigurationProperties properties) {
         this.classLoader = classLoader != null ? classLoader : ConfigListener.class.getClassLoader();
         this.secrets = secrets != null ? secrets : SecretsHandler.empty();
-        this.lockedProperties = lockedProperties != null ? lockedProperties : new HashMap<>();
         this.beansManager = new BeansManager();
         this.sslBuilder = Optional.ofNullable(sslBuilder).orElseGet(SslContextBuilder::getBuilder);
         this.ssl = this.sslBuilder.build();

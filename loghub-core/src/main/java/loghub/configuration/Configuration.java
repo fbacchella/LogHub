@@ -356,7 +356,6 @@ public class Configuration {
             ConfigListener conflistener = ConfigListener.builder()
                                                         .classLoader(classLoader)
                                                         .secrets(secrets)
-                                                        .lockedProperties(lockedProperties)
                                                         .sslBuilder(resolveSslContext())
                                                         .jaasConfig(resolveJaasConfig())
                                                         .jwtHandler(resolveJwtHander())
