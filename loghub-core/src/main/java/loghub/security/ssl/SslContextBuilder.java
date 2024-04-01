@@ -43,6 +43,7 @@ import lombok.Setter;
 public class SslContextBuilder {
 
     private static final String DEFAULT_SECURERANDOM;
+
     public static class BeansProcessor extends BeansPostProcess.Processor {
 
         @Override
@@ -92,6 +93,7 @@ public class SslContextBuilder {
      * <li><code>providername</code>, A optional security provider for the {@link javax.net.ssl.SSLContext}.</li>
      * <li><code>providerclass</code>, A optional class that will used as a {@link java.security.Provider}, that will used to get the {@link javax.net.ssl.SSLContext}.</li>
      * <li><code>issuers</code>, a array of issuers DN that can be used to validate x.509 clients certificates.</li>
+     * <li><code>clientAlias</code>, The alias of the private key used to authentify</li>
      * <li><code>ephemeralDHKeySize</code>, Can be used to override the <code>jdk.tls.ephemeralDHKeySiz</code> property. Default to 2048.</li>
      * <li><code>rejectClientInitiatedRenegotiation</code>, can be used to override the <code>jdk.tls.rejectClientInitiatedRenegotiatio</code> property. Default to true.</li>
      * <li><code>trusts</code>, a string array of trust source files or definitions.</li>
@@ -124,6 +126,7 @@ public class SslContextBuilder {
         Optional.ofNullable(properties.get("trustmanageralgorithm")).map(Object::toString).ifPresent(s -> builder.trustManagerAlgorithm = s);
         Optional.ofNullable(properties.get("securerandom")).map(Object::toString).ifPresent(s -> builder.secureRandom = s);
         Optional.ofNullable(properties.get("trusts")).map(builder::getKeyStore).ifPresent(s -> builder.trusts = s);
+        Optional.ofNullable(properties.get("clientAlias")).map(Object::toString).ifPresent(s -> builder.clientAlias = s);
 
         if (properties.containsKey("issuers") && properties.get("issuers") instanceof Object[]) {
             Object[] issuers = (Object[]) properties.get("issuers");
@@ -146,15 +149,16 @@ public class SslContextBuilder {
         T getInstance(String name) throws NoSuchAlgorithmException;
     }
 
-    String sslContextName = "TLSv1.2";
-    String sslProviderName = "";
-    String sslProviderClass = "";
-    String keyManagerAlgorithm = KeyManagerFactory.getDefaultAlgorithm();
-    String trustManagerAlgorithm = TrustManagerFactory.getDefaultAlgorithm();
-    String secureRandom = DEFAULT_SECURERANDOM;
-    ClassLoader classLoader = SslContextBuilder.class.getClassLoader();
-    KeyStore trusts = DEFAULT_KEYSTOREE;
-    Set<Principal> trustedIssuers = null;
+    private String sslContextName = "TLSv1.2";
+    private String sslProviderName = "";
+    private String sslProviderClass = "";
+    private String keyManagerAlgorithm = KeyManagerFactory.getDefaultAlgorithm();
+    private String trustManagerAlgorithm = TrustManagerFactory.getDefaultAlgorithm();
+    private String secureRandom = DEFAULT_SECURERANDOM;
+    private ClassLoader classLoader = SslContextBuilder.class.getClassLoader();
+    private KeyStore trusts = DEFAULT_KEYSTOREE;
+    private Set<Principal> trustedIssuers = null;
+    private String clientAlias = null;
 
     private SslContextBuilder() {
     }
@@ -183,7 +187,7 @@ public class SslContextBuilder {
             kmf.init(trusts, "".toCharArray());
             km = kmf.getKeyManagers();
             X509ExtendedKeyManager origkm = (X509ExtendedKeyManager) km[0];
-            kmtranslator = new DynamicKeyManager(origkm, trustedIssuers);
+            kmtranslator = new DynamicKeyManager(origkm, trustedIssuers, clientAlias);
 
             newCtxt.init(new KeyManager[] {kmtranslator}, tm, sr);
             return newCtxt;
@@ -216,6 +220,7 @@ public class SslContextBuilder {
         newBuilder.classLoader = classLoader;
         newBuilder.trusts = trusts;
         newBuilder.trustedIssuers = trustedIssuers != null ? Set.copyOf(trustedIssuers) : null;
+        newBuilder.clientAlias = clientAlias;
         return newBuilder;
     }
 

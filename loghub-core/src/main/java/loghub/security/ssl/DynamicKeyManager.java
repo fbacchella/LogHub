@@ -6,6 +6,7 @@ import java.security.PrivateKey;
 import java.security.cert.X509Certificate;
 import java.util.Arrays;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.X509ExtendedKeyManager;
@@ -16,10 +17,12 @@ public class DynamicKeyManager extends X509ExtendedKeyManager {
 
     private final X509ExtendedKeyManager origkm;
     private final Set<Principal> trustedIssuers;
+    private final String clientAlias;
 
-    public DynamicKeyManager(X509ExtendedKeyManager origkm, Set<Principal> trustedIssuers) {
+    public DynamicKeyManager(X509ExtendedKeyManager origkm, Set<Principal> trustedIssuers, String clientAlias) {
         this.origkm = origkm;
         this.trustedIssuers = trustedIssuers;
+        this.clientAlias = clientAlias;
     }
 
     private Principal[] filterIssuers(Principal[] issuers) {
@@ -59,8 +62,21 @@ public class DynamicKeyManager extends X509ExtendedKeyManager {
     @Override
     public String chooseClientAlias(String[] keyType, Principal[] issuers, Socket socket) {
         Principal[] newIssuers = filterIssuers(issuers);
-        if (newIssuers != null && newIssuers.length == 0) {
-            // The original KeyManager understand a empty issuers list as an any filter, we don't want that
+        if (clientAlias != null && getPrivateKey(clientAlias) != null) {
+            // Check that the private key algorithm matches the required one
+            if (! Arrays.stream(keyType).collect(Collectors.toSet()).contains(getPrivateKey(clientAlias).getAlgorithm())) {
+                return null;
+            }
+            // Check that one of the certificate issuers are allowed
+            Set<Principal> newIssuersSet = Arrays.stream(newIssuers).collect(Collectors.toSet());
+            for (X509Certificate cert: getCertificateChain(clientAlias)) {
+                if (newIssuersSet.contains(cert.getIssuerX500Principal())) {
+                    return clientAlias;
+                }
+            }
+            return null;
+        } else if (newIssuers != null && newIssuers.length == 0) {
+            // The original KeyManager understand an empty issuers list as an any filter, we don't want that
             return null;
         } else {
             return origkm.chooseClientAlias(keyType, newIssuers, socket);
