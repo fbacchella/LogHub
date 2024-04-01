@@ -1,30 +1,16 @@
 package loghub.configuration;
 
-import java.beans.FeatureDescriptor;
-import java.beans.IntrospectionException;
-import java.beans.Introspector;
-import java.beans.PropertyDescriptor;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayDeque;
-import java.util.HashMap;
 import java.util.Map;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import loghub.BuilderClass;
 import loghub.Expression;
 import loghub.Lambda;
+import lombok.Getter;
 import lombok.Setter;
 
 public class GrammarParserFiltering {
-
-    Logger logger = LogManager.getLogger();
-
-    private final Map<Class<?>, Map<String, Method>> beans = new HashMap<>();
 
     public enum SECTION {
         INPUT,
@@ -94,6 +80,9 @@ public class GrammarParserFiltering {
     private BEANTYPE currentBeanType = null;
     @Setter
     private ClassLoader classLoader = this.getClass().getClassLoader();
+    @Getter
+    private final BeansManager manager = new BeansManager();
+
 
     public void enterObject(String objectName) {
         try {
@@ -117,7 +106,7 @@ public class GrammarParserFiltering {
         Class<?> currentClass = objectStack.isEmpty() ? null : objectStack.peek();
         Method m;
         if (currentClass != null && ! Object.class.equals(currentClass)) {
-            m = beans.computeIfAbsent(objectStack.peek(), this::resolveBeans).get(beanName);
+            m = manager.getBean(objectStack.peek(), beanName);
         } else {
             m = null;
         }
@@ -159,30 +148,6 @@ public class GrammarParserFiltering {
         }
     }
 
-    private Map<String, Method> resolveBeans(Class<?> c) {
-        try {
-            Map<String, Method> introspectedBeans = Stream.of(Introspector.getBeanInfo(c, Object.class).getPropertyDescriptors())
-                                                          .filter(pd -> pd.getWriteMethod() != null)
-                                                          .collect(Collectors.toMap(FeatureDescriptor::getName, PropertyDescriptor::getWriteMethod));
-            Map<String, Method> beans = new HashMap<>(introspectedBeans);
-            Class<?> resolvingClass = c;
-            while (resolvingClass != null) {
-                BeansPostProcess annotation = resolvingClass.getAnnotation(BeansPostProcess.class);
-                if (annotation != null) {
-                    Class<? extends BeansPostProcess.Processor> processorClass = annotation.value();
-                    BeansPostProcess.Processor processor = processorClass.getConstructor().newInstance();
-                    processor.process(beans);
-                }
-                resolvingClass = resolvingClass.getSuperclass();
-            }
-            logger.debug("Found beans for {}: {}", c::getName, beans::keySet);
-            return beans;
-        } catch (IntrospectionException | InstantiationException | NoSuchMethodException | IllegalAccessException | InvocationTargetException ex) {
-            logger.atError().withThrowable(ex).log("Failed to resolve beans for {}", c::getName);
-            return Map.of();
-        }
-    }
-
     public boolean allowedBeanType(BEANTYPE alternative) {
         switch (alternative) {
         case INTEGER:
@@ -208,4 +173,5 @@ public class GrammarParserFiltering {
     public void checkProperty(String propertyName) {
         currentBeanType = PROPERTIES_TYPES.get(propertyName);
     }
+
 }

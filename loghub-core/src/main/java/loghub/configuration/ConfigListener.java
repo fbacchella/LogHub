@@ -244,10 +244,10 @@ class ConfigListener extends RouteBaseListener {
     @Builder
     private ConfigListener(ClassLoader classLoader, SecretsHandler secrets,
             SslContextBuilder sslBuilder, javax.security.auth.login.Configuration jaasConfig, JWTHandler jwtHandler, CacheManager cacheManager,
-            ConfigurationProperties properties) {
+            ConfigurationProperties properties, BeansManager beansManager) {
         this.classLoader = classLoader != null ? classLoader : ConfigListener.class.getClassLoader();
         this.secrets = secrets != null ? secrets : SecretsHandler.empty();
-        this.beansManager = new BeansManager();
+        this.beansManager = beansManager != null ? beansManager : new BeansManager();
         this.sslBuilder = Optional.ofNullable(sslBuilder).orElseGet(SslContextBuilder::getBuilder);
         this.ssl = this.sslBuilder.build();
         this.jaasConfig = jaasConfig;

@@ -10,41 +10,57 @@ import java.lang.reflect.Method;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import loghub.Expression;
 
 public class BeansManager {
 
+    private static final Logger logger = LogManager.getLogger();
+
     private final Map<Class<?>, Map<String, Method>> beans = new HashMap<>();
 
+    public Method getBean(Class<?> clazz, String beanName) {
+        return beans.computeIfAbsent(clazz, this::resolveBeansSetter).get(beanName);
+    }
+
     public Optional<Method> getBeanByType(Object beanObject, Class<?> beanType) {
-        return beans.computeIfAbsent(beanObject.getClass(), c -> {
-            try {
-                return Stream.of(Introspector.getBeanInfo(c, Object.class).getPropertyDescriptors())
-                               .filter(pd -> pd.getWriteMethod() != null)
-                               .collect(Collectors.toMap(FeatureDescriptor::getName, PropertyDescriptor::getWriteMethod));
-            } catch (IntrospectionException e) {
-                return Collections.emptyMap();
+        return beans.computeIfAbsent(beanObject.getClass(), this::resolveBeansSetter).values().stream().filter(m -> m.getParameterTypes()[0].isAssignableFrom(beanType)).findFirst();
+    }
+
+    public Map<String, Method> resolveBeansSetter(Class<?> inspectedClass) {
+        try {
+            Map<String, Method> introspectedBeans = Stream.of(Introspector.getBeanInfo(inspectedClass, Object.class).getPropertyDescriptors())
+                                                            .filter(pd -> pd.getWriteMethod() != null)
+                                                            .collect(Collectors.toMap(FeatureDescriptor::getName, PropertyDescriptor::getWriteMethod));
+            Map<String, Method> beans = new HashMap<>(introspectedBeans);
+            Class<?> resolvingClass = inspectedClass;
+            while (resolvingClass != null) {
+                BeansPostProcess annotation = resolvingClass.getAnnotation(BeansPostProcess.class);
+                if (annotation != null) {
+                    Class<? extends BeansPostProcess.Processor> processorClass = annotation.value();
+                    BeansPostProcess.Processor processor = processorClass.getConstructor().newInstance();
+                    processor.process(beans);
+                }
+                resolvingClass = resolvingClass.getSuperclass();
             }
-        }).values().stream().filter(m -> m.getParameterTypes()[0].isAssignableFrom(beanType)).findFirst();
+            logger.debug("Found beans for {}: {}", inspectedClass::getName, beans::keySet);
+            return beans;
+        } catch (IntrospectionException | InstantiationException | NoSuchMethodException | IllegalAccessException | InvocationTargetException ex) {
+            logger.atError().withThrowable(ex).log("Failed to resolve beans for {}", inspectedClass::getName);
+            return Map.of();
+        }
     }
 
     private Method beanResolver(Object beanObject, String beanName) {
-        return beans.computeIfAbsent(beanObject.getClass(), c -> {
-            try {
-                return Stream.of(Introspector.getBeanInfo(c, Object.class).getPropertyDescriptors())
-                             .filter(pd -> pd.getWriteMethod() != null)
-                             .collect(Collectors.toMap(FeatureDescriptor::getName, PropertyDescriptor::getWriteMethod));
-            } catch (IntrospectionException e) {
-                return Collections.emptyMap();
-            }
-        }).get(beanName);
+        return beans.computeIfAbsent(beanObject.getClass(), this::resolveBeansSetter).get(beanName);
     }
 
     /**

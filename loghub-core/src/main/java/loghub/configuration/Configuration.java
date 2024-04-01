@@ -86,6 +86,7 @@ public class Configuration {
     private final Map<String, Object> configurationProperties = new HashMap<>();
     private final Set<Path> loadedConfigurationFiles = new HashSet<>();
     private final ConfigErrorListener errListener = new ConfigErrorListener();
+    private final GrammarParserFiltering filter = new GrammarParserFiltering();
 
     Configuration() {
     }
@@ -122,6 +123,7 @@ public class Configuration {
         CommonTokenStream tokens = new CommonTokenStream(lexer);
         //Passing the tokens to the parser to create the parse tree.
         RouteParser parser = new RouteParser(tokens);
+        parser.filter = filter;
         parser.removeErrorListeners();
         parser.addErrorListener(errListener);
         RouteParser.ConfigurationContext configurationContext = parser.configuration();
@@ -361,6 +363,7 @@ public class Configuration {
                                                         .jwtHandler(resolveJwtHander())
                                                         .cacheManager(cacheManager)
                                                         .properties(new ConfigurationProperties(configurationProperties))
+                                                        .beansManager(filter.getManager())
                                                         .build();
             logger.debug("Walk configuration");
             trees.forEach(t -> {
