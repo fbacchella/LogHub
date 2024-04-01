@@ -45,12 +45,11 @@ public class SslContextBuilder {
     private static final String DEFAULT_SECURERANDOM;
 
     public static class BeansProcessor extends BeansPostProcess.Processor {
-
         @Override
         public void process(Map<String, Method> beans) {
             try {
-                Method m = SslContextBuilder.class.getDeclaredMethod("setTrusts", Object[].class);
-                beans.put("trusts", m);
+                beans.put("trusts", SslContextBuilder.class.getDeclaredMethod("setTrusts", Object[].class));
+                beans.put("issuers", SslContextBuilder.class.getDeclaredMethod("setTrustedIssuers", Object[].class));
             } catch (NoSuchMethodException e) {
                 throw new RuntimeException(e);
             }
@@ -130,12 +129,7 @@ public class SslContextBuilder {
 
         if (properties.containsKey("issuers") && properties.get("issuers") instanceof Object[]) {
             Object[] issuers = (Object[]) properties.get("issuers");
-            builder.trustedIssuers = Arrays.stream(issuers)
-                                           .filter(Objects::nonNull)
-                                           .map(Object::toString)
-                                           .map(builder::resolvePrincipal)
-                                           .filter(Objects::nonNull)
-                                           .collect(Collectors.toSet());
+            builder.setTrustedIssuers(issuers);
             logger.debug("Will filter valid SSL client issuers as {}", builder.trustedIssuers);
         }
         return builder;
@@ -207,6 +201,19 @@ public class SslContextBuilder {
 
     public void setTrusts(Object[] trusts) {
         this.trusts = getKeyStore(trusts);
+    }
+
+    public void setTrustedIssuers(Object[] issuers) {
+        this.trustedIssuers =  Arrays.stream(issuers)
+                                     .filter(Objects::nonNull)
+                                     .map(Object::toString)
+                                     .map(this::resolvePrincipal)
+                                     .filter(Objects::nonNull)
+                                     .collect(Collectors.toSet());
+    }
+
+    public void setTrustedIssuers(Set<X500Principal> issuers) {
+        this.trustedIssuers = Set.copyOf(issuers);
     }
 
     public SslContextBuilder copy() {
