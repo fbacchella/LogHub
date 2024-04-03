@@ -140,7 +140,7 @@ public class Configuration {
         scanProperty(tree);
         trees.add(tree);
         return tree.config.property().stream()
-          .filter(p -> "includes".equals(p.propertyName.getText()))
+          .filter(p -> "includes".equals(p.propertyName == null ? "" : p.propertyName.getText()))
           .map(pc -> Arrays.stream(getStringOrArrayLiteral(pc.beanValue()))
                            .map(Paths::get)
                            .map(p -> consumeIncludes(p, trees))
@@ -150,7 +150,8 @@ public class Configuration {
 
     private void resolveClassPath(RouteParser.ConfigurationContext configurationContext, CharStream cs) {
         for (PropertyContext pc: configurationContext.property()) {
-            if ("plugins".equals(pc.propertyName.getText())) {
+            String propertyName = Optional.ofNullable(pc.propertyName).map(RuleContext::getText).orElse("");
+            if ("plugins".equals(propertyName)) {
                 String[] path = getStringOrArrayLiteral(pc.beanValue());
                 if (path.length > 0) {
                     try {
@@ -234,7 +235,8 @@ public class Configuration {
     private void scanProperty(Tree tree) {
         Map<String, PropertyContext> currentProperties = new HashMap<>();
         for (PropertyContext pc: tree.config.property()) {
-            currentProperties.put(pc.propertyName.getText(), pc);
+            String propertyName = Optional.ofNullable(pc.propertyName).map(RuleContext::getText).orElseGet(() -> pc.pn.getText());
+            currentProperties.put(propertyName, pc);
         }
         // Don’t change order, it's meaningfully
         // locale and timezone first, to check for output format
@@ -248,15 +250,18 @@ public class Configuration {
         // Iterator needed to remove entries while iterating
         for (Iterator<Entry<String, PropertyContext>> it = currentProperties.entrySet().iterator(); it.hasNext(); ) {
             Map.Entry<String, PropertyContext> e = it.next();
-            if ("includes".equals(e.getKey())) {
+            if (e.getValue().beanValue() == null) {
                 it.remove();
-                continue;
-            }
-            try {
-                configurationProperties.put(e.getKey(), resolveBean(e.getValue().beanValue()));
+                configurationProperties.put(e.getKey(), new AtomicReference());
+            } else if ("includes".equals(e.getKey())) {
                 it.remove();
-            } catch (IllegalArgumentException ex) {
-                assert false : String.format("%s: %s", e.getKey(), ex.getMessage());
+            } else {
+                try {
+                    it.remove();
+                    configurationProperties.put(e.getKey(), resolveBean(e.getValue().beanValue()));
+                } catch (IllegalArgumentException ex) {
+                    assert false : String.format("%s: %s", e.getKey(), ex.getMessage());
+                }
             }
         }
         assert currentProperties.size() == 0;

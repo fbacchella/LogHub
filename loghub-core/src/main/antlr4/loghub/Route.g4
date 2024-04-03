@@ -66,8 +66,8 @@ object: QualifiedIdentifier   {filter.enterObject($QualifiedIdentifier.text);} b
 beansDescription: ('{' (bean (',' bean)*)? ','? '}') ?;
 
 // All defined bean names must be replicated as identifier
-bean :
-    {inSection(SECTION.INPUT)}?    (bn='decoder' ':' object)
+bean
+    : {inSection(SECTION.INPUT)}?    (bn='decoder' ':' object)
     | {inSection(SECTION.PIPELINE)}? (bn='if' ':' expression)
     | {inSection(SECTION.PIPELINE)}? (bn=('success' | 'failure' | 'exception') ':' pipenode)
     | {inSection(SECTION.PIPELINE)}? (bn='field' ':' (fsv=stringLiteral | fev=eventVariable))
@@ -80,8 +80,8 @@ bean :
     | (beanName ':' beanValue {filter.cleanBeanType();})
     ;
 
-sslContext :
-    {filter.enterObject("loghub.security.ssl.SslContextBuilder");} beansDescription {filter.exitObject();}
+sslContext
+    : {filter.enterObject("loghub.security.ssl.SslContextBuilder");} beansDescription {filter.exitObject();}
     ;
 
 beanName
@@ -89,7 +89,7 @@ beanName
     ;
 
 beanValue
-    : ({filter.allowedBeanType(BEANTYPE.OBJECT)}? object
+    : {filter.allowedBeanType(BEANTYPE.OBJECT)}? object
     | {filter.allowedBeanType(BEANTYPE.INTEGER)}? integerLiteral
     | {filter.allowedBeanType(BEANTYPE.FLOAT)}? floatingPointLiteral
     | {filter.allowedBeanType(BEANTYPE.CHARACTER)}? characterLiteral
@@ -101,7 +101,7 @@ beanValue
     | {filter.allowedBeanType(BEANTYPE.EXPRESSION)}? expression
     | {filter.allowedBeanType(BEANTYPE.ARRAY)}? array
     | {filter.allowedBeanType(BEANTYPE.OPTIONAL_ARRAY)}? (stringLiteral | array)
-    | {filter.allowedBeanType(BEANTYPE.MAP)}? map)
+    | {filter.allowedBeanType(BEANTYPE.MAP)}? map
     ;
 
 finalpiperef: piperef;
@@ -151,7 +151,8 @@ level
     ;
 
 property
-    : (propertyName ':' {filter.checkProperty($propertyName.text);} beanValue {filter.cleanBeanType();})
+    : (pn='http.sslContext' ':' {filter.checkProperty($pn.text);} sslContext {filter.cleanBeanType();})
+    | (propertyName ':' {filter.checkProperty($propertyName.text);} beanValue {filter.cleanBeanType();})
     ;
 
 propertyName

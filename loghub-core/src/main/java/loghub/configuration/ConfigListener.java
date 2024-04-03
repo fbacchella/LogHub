@@ -703,10 +703,21 @@ class ConfigListener extends RouteBaseListener {
         logger.debug("adding new input {}", input);
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public void exitProperty(PropertyContext ctx) {
         assert stack.peek() instanceof ObjectWrapped;
-        stack.pop();
+        String propertyName;
+        if (ctx.pn != null) {
+            propertyName = ctx.pn.getText();
+        } else {
+            propertyName = ctx.propertyName().getText();
+        }
+        ObjectWrapped<Object> propertyValue = (ObjectWrapped<Object>) stack.pop();
+        Object o = properties.get(propertyName);
+        if (o instanceof AtomicReference) {
+            ((AtomicReference<Object>)o).set(propertyValue.wrapped);
+        }
     }
 
     @Override

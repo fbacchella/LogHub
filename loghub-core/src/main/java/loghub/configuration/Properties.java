@@ -349,7 +349,7 @@ public class Properties extends HashMap<String, Object> {
         }
         if (Boolean.TRUE.equals(collect.get("withSSL"))) {
             builder.setWithSSL(true);
-            builder.setSslContext(sslBuilder.build());
+            builder.setSslContext(Optional.ofNullable(collect.get("sslContext")).map(SSLContext.class::cast).orElse(ssl));
             String clientAuthentication = collect.compute("SSLClientAuthentication", (i, j) -> j != null ? j : ClientAuthentication.NOTNEEDED).toString();
             String sslKeyAlias = (String) collect.get("SSLKeyAlias");
             builder.setSslKeyAlias(sslKeyAlias)

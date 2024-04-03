@@ -37,6 +37,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -54,6 +55,7 @@ import org.apache.logging.log4j.Logger;
 
 import io.netty.util.NetUtil;
 import loghub.configuration.Properties;
+import loghub.security.ssl.SslContextBuilder;
 
 public final class Helpers {
 
@@ -643,7 +645,18 @@ public final class Helpers {
         return input.entrySet()
                     .stream()
                     .filter(i -> i.getKey().startsWith(prefixKey))
+                    .map(Helpers::mapEntry)
                     .collect(Collectors.toMap(i -> i.getKey().substring(prefixLength), Map.Entry::getValue));
+    }
+
+    private static Map.Entry<String, ?> mapEntry(Map.Entry<String, ?> e) {
+        Object value = e.getValue() instanceof AtomicReference
+                               ? ((AtomicReference<?>)e.getValue()).get()
+                               : e.getValue();
+        if (value instanceof SslContextBuilder) {
+            value = ((SslContextBuilder)value).build();
+        }
+        return Map.entry(e.getKey(), value);
     }
 
 }
