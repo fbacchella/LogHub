@@ -236,6 +236,7 @@ class ConfigListener extends RouteBaseListener {
     private final SecretsHandler secrets;
     private final CacheManager cacheManager;
     private final BeansManager beansManager;
+    private final Map<RouteParser.BeanValueContext, Class<?>> implicitObjets;
     final ConfigurationProperties properties;
 
     private Parser parser;
@@ -244,7 +245,7 @@ class ConfigListener extends RouteBaseListener {
     @Builder
     private ConfigListener(ClassLoader classLoader, SecretsHandler secrets,
             SslContextBuilder sslBuilder, javax.security.auth.login.Configuration jaasConfig, JWTHandler jwtHandler, CacheManager cacheManager,
-            ConfigurationProperties properties, BeansManager beansManager) {
+            ConfigurationProperties properties, BeansManager beansManager, Map<RouteParser.BeanValueContext, Class<?>> implicitObjets) {
         this.classLoader = classLoader != null ? classLoader : ConfigListener.class.getClassLoader();
         this.secrets = secrets != null ? secrets : SecretsHandler.empty();
         this.beansManager = beansManager != null ? beansManager : new BeansManager();
@@ -254,6 +255,7 @@ class ConfigListener extends RouteBaseListener {
         this.jwtHandler = jwtHandler;
         this.cacheManager = cacheManager;
         this.properties = Optional.ofNullable(properties).filter(Objects::nonNull).orElseGet(ConfigurationProperties::new);
+        this.implicitObjets = Optional.ofNullable(implicitObjets).filter(Objects::nonNull).orElseGet(Map::of);
     }
 
     public void startWalk(ParserRuleContext config, CharStream stream, RouteParser parser) {
@@ -352,10 +354,16 @@ class ConfigListener extends RouteBaseListener {
 
     private void doBean(String beanName, ObjectWrapped<?> beanValue, ParserRuleContext ctx) {
         ObjectWrapped<Object> beanObject = stack.peekTyped();
+        Object value;
+        if (beanValue.wrapped instanceof SslContextBuilder) {
+           value = ((SslContextBuilder)beanValue.wrapped).build();
+        } else {
+            value = beanValue.wrapped;
+        }
         assert (beanName != null);
         assert (beanValue != null);
         try {
-            beansManager.beanSetter(beanObject.wrapped, beanName, beanValue.wrapped);
+            beansManager.beanSetter(beanObject.wrapped, beanName, value);
         } catch (IntrospectionException | InvocationTargetException | UndeclaredThrowableException e) {
             throw new RecognitionException(Helpers.resolveThrowableException(e), parser, stream, ctx);
         }
@@ -375,9 +383,32 @@ class ConfigListener extends RouteBaseListener {
         } catch (ClassNotFoundException e) {
             throw new RecognitionException("Unknown class " + qualifiedName, parser, stream, ctx);
         } catch (InstantiationException | IllegalAccessException | NoSuchMethodException | IllegalArgumentException | SecurityException e) {
-            throw new RecognitionException("Unsuable class " + qualifiedName + ": " + Helpers.resolveThrowableException(e), parser, stream, ctx);
+            throw new RecognitionException("Unusable class " + qualifiedName + ": " + Helpers.resolveThrowableException(e), parser, stream, ctx);
         } catch (InvocationTargetException e) {
-            throw new RecognitionException("Unsuable class " + qualifiedName + ": " + Helpers.resolveThrowableException(e.getCause()), parser, stream, ctx);
+            throw new RecognitionException("Unusable class " + qualifiedName + ": " + Helpers.resolveThrowableException(e.getCause()), parser, stream, ctx);
+        }
+    }
+
+    @Override
+    public void enterBeanValue(RouteParser.BeanValueContext ctx) {
+        if (ctx.implicitObject() != null) {
+            Class<?> ioClass = implicitObjets.get(ctx);
+            if (ioClass == null) {
+                throw new RecognitionException("Inconsistent state when parsing " + ctx.getParent().getText(), parser, stream, ctx);
+            }
+            try {
+                Object io;
+                if (ioClass == SslContextBuilder.class) {
+                    io = this.sslBuilder.copy();
+                } else {
+                    io = ioClass.getConstructor().newInstance();
+                }
+                stack.push(new ObjectWrapped<>(io));
+            } catch (InstantiationException | IllegalAccessException | NoSuchMethodException | IllegalArgumentException | SecurityException ex) {
+                throw new RecognitionException("Unusable class " + ioClass.getName() + ": " + Helpers.resolveThrowableException(ex), parser, stream, ctx);
+            } catch (InvocationTargetException ex) {
+                throw new RecognitionException("Unusable class " + ioClass.getName() + ": " + Helpers.resolveThrowableException(ex.getCause()), parser, stream, ctx);
+            }
         }
     }
 
@@ -428,17 +459,6 @@ class ConfigListener extends RouteBaseListener {
         } else {
             stack.push(wobject);
         }
-    }
-
-    @Override
-    public void enterSslContext(RouteParser.SslContextContext ctx) {
-        stack.push(new ObjectWrapped<>(sslBuilder.copy()));
-    }
-
-    @Override
-    public void exitSslContext(RouteParser.SslContextContext ctx) {
-        ObjectWrapped<SslContextBuilder> wobject = stack.popTyped();
-        stack.push(new ObjectWrapped<>(wobject.wrapped.build()));
     }
 
     @Override

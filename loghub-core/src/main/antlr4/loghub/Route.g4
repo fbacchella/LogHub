@@ -61,9 +61,17 @@ pipenode
     | path
     ;
 
-object: QualifiedIdentifier   {filter.enterObject($QualifiedIdentifier.text);} beansDescription {filter.exitObject();};
+object
+    : QualifiedIdentifier {filter.enterObject($QualifiedIdentifier.text);} beansDescription? {filter.exitObject();}
+    ;
 
-beansDescription: ('{' (bean (',' bean)*)? ','? '}') ?;
+implicitObject
+    : beansDescription
+    ;
+
+beansDescription
+    : '{' (bean (',' bean)*)? ','? '}'
+    ;
 
 // All defined bean names must be replicated as identifier
 bean
@@ -76,12 +84,8 @@ bean
     | {inSection(SECTION.PIPELINE)}? (bn='destination' ':' (fsv=stringLiteral | fev=eventVariable))
     | {inSection(SECTION.PIPELINE)}? (bn='destinationTemplate' ':' stringLiteral)
     | {inSection(SECTION.OUTPUT)}?   (bn='encoder' ':' object)
-    | (bn='sslContext' ':' sslContext)
+    | (bn='sslContext' ':' {filter.enterImplicitObject($bn.text);} beanValue {filter.exitImplicitObject($ctx.beanValue());})
     | (beanName ':' beanValue {filter.cleanBeanType();})
-    ;
-
-sslContext
-    : {filter.enterObject("loghub.security.ssl.SslContextBuilder");} beansDescription {filter.exitObject();}
     ;
 
 beanName
@@ -89,13 +93,14 @@ beanName
     ;
 
 beanValue
-    : {filter.allowedBeanType(BEANTYPE.OBJECT)}? object
+    : nullLiteral
+    | {filter.allowedBeanType(BEANTYPE.OBJECT)}? object
     | {filter.allowedBeanType(BEANTYPE.INTEGER)}? integerLiteral
+    | {filter.allowedBeanType(BEANTYPE.IMPLICIT_OBJECT)}? implicitObject
     | {filter.allowedBeanType(BEANTYPE.FLOAT)}? floatingPointLiteral
     | {filter.allowedBeanType(BEANTYPE.CHARACTER)}? characterLiteral
     | {filter.allowedBeanType(BEANTYPE.STRING)}? stringLiteral
     | {filter.allowedBeanType(BEANTYPE.BOOLEAN)}? booleanLiteral
-    | nullLiteral
     | {filter.allowedBeanType(BEANTYPE.SECRET)}? secret
     | {filter.allowedBeanType(BEANTYPE.LAMBDA)}? lambda
     | {filter.allowedBeanType(BEANTYPE.EXPRESSION)}? expression
@@ -151,7 +156,7 @@ level
     ;
 
 property
-    : (pn='http.sslContext' ':' {filter.checkProperty($pn.text);} sslContext {filter.cleanBeanType();})
+    : (pn='http.sslContext' ':' {filter.enterImplicitObject($pn.text);} beanValue {filter.exitImplicitObject($ctx.beanValue());})
     | (propertyName ':' {filter.checkProperty($propertyName.text);} beanValue {filter.cleanBeanType();})
     ;
 

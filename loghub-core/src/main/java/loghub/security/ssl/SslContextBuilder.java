@@ -50,6 +50,7 @@ public class SslContextBuilder {
             try {
                 beans.put("trusts", SslContextBuilder.class.getDeclaredMethod("setTrusts", Object[].class));
                 beans.put("issuers", SslContextBuilder.class.getDeclaredMethod("setTrustedIssuers", Object[].class));
+                beans.put("name", SslContextBuilder.class.getDeclaredMethod("setSslContextName", String.class));
             } catch (NoSuchMethodException e) {
                 throw new RuntimeException(e);
             }

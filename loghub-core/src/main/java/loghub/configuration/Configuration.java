@@ -250,10 +250,7 @@ public class Configuration {
         // Iterator needed to remove entries while iterating
         for (Iterator<Entry<String, PropertyContext>> it = currentProperties.entrySet().iterator(); it.hasNext(); ) {
             Map.Entry<String, PropertyContext> e = it.next();
-            if (e.getValue().beanValue() == null) {
-                it.remove();
-                configurationProperties.put(e.getKey(), new AtomicReference());
-            } else if ("includes".equals(e.getKey())) {
+            if ("includes".equals(e.getKey())) {
                 it.remove();
             } else {
                 try {
@@ -284,6 +281,17 @@ public class Configuration {
             return bvc.array().arrayContent().beanValue().stream().map(this::resolveBean).toArray(Object[]::new);
         } else if (bvc.secret() != null) {
             return bvc.secret();
+        } else if (bvc.lambda() != null) {
+            throw new ConfigException("Unexpected lambda", bvc.start.getTokenSource().getSourceName(), bvc.start);
+        } else if (bvc.object() != null) {
+            throw new ConfigException("Unexpected object", bvc.start.getTokenSource().getSourceName(), bvc.start);
+        } else if (bvc.expression() != null) {
+            throw new ConfigException("Unexpected expression", bvc.start.getTokenSource().getSourceName(), bvc.start);
+        } else if (bvc.map() != null) {
+            throw new ConfigException("Unexpected map", bvc.start.getTokenSource().getSourceName(), bvc.start);
+        } else if (bvc.implicitObject() != null) {
+            //Will be processed later
+            return new AtomicReference<>();
         } else {
             throw new ConfigException("Invalid property value " + bvc.getText(), bvc.start.getTokenSource().getSourceName(), bvc.start);
         }
@@ -369,6 +377,7 @@ public class Configuration {
                                                         .cacheManager(cacheManager)
                                                         .properties(new ConfigurationProperties(configurationProperties))
                                                         .beansManager(filter.getManager())
+                                                        .implicitObjets(filter.getImplicitObjets())
                                                         .build();
             logger.debug("Walk configuration");
             trees.forEach(t -> {

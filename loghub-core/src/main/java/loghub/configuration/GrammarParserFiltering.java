@@ -2,11 +2,13 @@ package loghub.configuration;
 
 import java.lang.reflect.Method;
 import java.util.ArrayDeque;
+import java.util.HashMap;
 import java.util.Map;
 
 import loghub.BuilderClass;
 import loghub.Expression;
 import loghub.Lambda;
+import loghub.RouteParser;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -27,6 +29,7 @@ public class GrammarParserFiltering {
         CHARACTER,
         STRING,
         OBJECT,
+        IMPLICIT_OBJECT,
         MAP,
         LITERAL,
         SECRET,
@@ -43,6 +46,7 @@ public class GrammarParserFiltering {
             Map.entry("http.port", BEANTYPE.INTEGER),
             Map.entry("http.listen", BEANTYPE.STRING),
             Map.entry("http.withSSL", BEANTYPE.BOOLEAN),
+            Map.entry("http.sslContext", BEANTYPE.IMPLICIT_OBJECT),
             Map.entry("http.withJolokia", BEANTYPE.BOOLEAN),
             Map.entry("http.jolokiaPolicyLocation", BEANTYPE.STRING),
             Map.entry("includes", BEANTYPE.OPTIONAL_ARRAY),
@@ -76,13 +80,19 @@ public class GrammarParserFiltering {
             Map.entry("zmq.withZap", BEANTYPE.BOOLEAN)
     );
 
+    private static final Map<String, String> IMPLICIT_OBJECT = Map.ofEntries(
+        Map.entry("http.sslContext", "loghub.security.ssl.SslContextBuilder"),
+        Map.entry("sslContext", "loghub.security.ssl.SslContextBuilder")
+    );
+
     private final ArrayDeque<Class<?>> objectStack = new ArrayDeque<>();
     private BEANTYPE currentBeanType = null;
     @Setter
     private ClassLoader classLoader = this.getClass().getClassLoader();
     @Getter
     private final BeansManager manager = new BeansManager();
-
+    @Getter
+    private final Map<RouteParser.BeanValueContext, Class<?>> implicitObjets = new HashMap<>();
 
     public void enterObject(String objectName) {
         try {
@@ -100,6 +110,21 @@ public class GrammarParserFiltering {
 
     public void exitObject() {
         objectStack.pop();
+    }
+
+    public void enterImplicitObject(String beanName) {
+        currentBeanType = BEANTYPE.IMPLICIT_OBJECT;
+        if (IMPLICIT_OBJECT.containsKey(beanName)) {
+            enterObject(IMPLICIT_OBJECT.get(beanName));
+        } else {
+            throw new ConfigException("Not handled bean " + beanName);
+        }
+    }
+
+    public void exitImplicitObject(RouteParser.BeanValueContext value) {
+        currentBeanType = null;
+        implicitObjets.put(value, objectStack.peek());
+        exitObject();
     }
 
     public void resolveBeanType(String beanName) {
@@ -161,6 +186,8 @@ public class GrammarParserFiltering {
             return currentBeanType == null || currentBeanType == alternative || currentBeanType == BEANTYPE.ENUM;
         case SECRET:
             return currentBeanType == null || currentBeanType == alternative || currentBeanType == BEANTYPE.STRING;
+        case IMPLICIT_OBJECT:
+            return currentBeanType == BEANTYPE.IMPLICIT_OBJECT;
         default:
             return currentBeanType == null || currentBeanType == alternative;
         }
