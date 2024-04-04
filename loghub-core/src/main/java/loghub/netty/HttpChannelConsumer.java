@@ -72,7 +72,11 @@ public class HttpChannelConsumer implements ChannelConsumer {
         this.serverCodecSupplier = Optional.ofNullable(builder.serverCodecSupplier).orElse(HttpServerCodec::new);
         this.modelSetup = builder.modelSetup;
         this.authHandler = builder.authHandler;
-        this.logger = Optional.ofNullable(builder.logger).orElseGet(LogManager::getLogger);
+        this.logger = Optional.ofNullable(builder.logger).orElseGet(this::getDefaultLogger);
+    }
+
+    private Logger getDefaultLogger() {
+        return LogManager.getLogger();
     }
 
     @Override
@@ -109,8 +113,7 @@ public class HttpChannelConsumer implements ChannelConsumer {
 
     @Override
     public void exception(ChannelHandlerContext ctx, Throwable cause) {
-        logger.error("Unable to process query: {}", () -> Helpers.resolveThrowableException(cause));
-        logger.catching(Level.DEBUG, cause);
+        logger.atError().withThrowable(logger.getLevel().isLessSpecificThan(Level.DEBUG) ? cause : null).log("Unable to process query: {}", () -> Helpers.resolveThrowableException(cause));
         ctx.pipeline().addAfter(HTTP_OBJECT_AGGREGATOR, "FatalErrorHandler", FATAL_ERROR);
     }
 

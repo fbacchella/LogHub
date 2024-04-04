@@ -90,9 +90,10 @@ public class Dashboard {
         AuthenticationHandler authHandler = getAuthenticationHandler(builder.withJwtUrl, builder.jwtHandlerUrl,
                                                                      builder.jaasNameJwt, builder.jaasConfigJwt);
         HttpChannelConsumer consumer = HttpChannelConsumer.getBuilder()
-                                      .setAuthHandler(authHandler)
-                                      .setModelSetup(this::setupModel)
-                                      .build();
+                                                          .setAuthHandler(authHandler)
+                                                          .setModelSetup(this::setupModel)
+                                                          .setLogger(logger)
+                                                          .build();
 
         transport = getTransport(builder, consumer);
         if (authHandler != null && authHandler.getJwtHandler() != null) {
