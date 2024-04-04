@@ -166,7 +166,7 @@ public abstract class AbstractIpTransport<M, T extends AbstractIpTransport<M, T,
         future.addListener((GenericFutureListener<Future<Channel>>) f -> {
             SSLSession sess = sslHandler.engine().getSession();
             logger.trace("SSL started with {}", () -> sess);
-            Principal principal = checkSslClient(sslClientAuthentication, sess, logger);
+            Principal principal = checkSslClient(sslClientAuthentication, sess);
             logger.debug("Got SSL client identity '{}'", () -> (principal != null ? principal.getName() : ""));
             if (principal != null) {
                 f.get().attr(PRINCIPALATTRIBUTE).set(principal);
@@ -198,8 +198,7 @@ public abstract class AbstractIpTransport<M, T extends AbstractIpTransport<M, T,
         return engine;
     }
 
-    private static Principal checkSslClient(ClientAuthentication sslClientAuthentication, SSLSession sess, Logger logger) throws GeneralSecurityException {
-        logger.debug("Testing ssl client authentication");
+    private static Principal checkSslClient(ClientAuthentication sslClientAuthentication, SSLSession sess) throws GeneralSecurityException {
         if (sslClientAuthentication != ClientAuthentication.NOTNEEDED) {
             try {
                 if (sslClientAuthentication == ClientAuthentication.WANTED || sslClientAuthentication == ClientAuthentication.REQUIRED) {
