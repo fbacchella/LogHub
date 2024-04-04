@@ -29,6 +29,7 @@ import loghub.netty.transport.TcpTransport;
 import loghub.security.AuthenticationHandler;
 import loghub.security.JWTHandler;
 import loghub.security.ssl.ClientAuthentication;
+import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.Accessors;
 
@@ -84,6 +85,7 @@ public class Dashboard {
     private final SimpleChannelInboundHandler<FullHttpRequest> GRAPHMETRIC = new GraphMetric();
     private final SimpleChannelInboundHandler<FullHttpRequest> tokenGenerator;
     private final SimpleChannelInboundHandler<FullHttpRequest> tokenFilter;
+    @Getter
     private final TcpTransport transport;
 
     private Dashboard(Builder builder) {
