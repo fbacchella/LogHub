@@ -24,6 +24,7 @@ import javax.management.MBeanRegistrationException;
 import javax.management.MalformedObjectNameException;
 import javax.management.NotCompliantMBeanException;
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLParameters;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -350,6 +351,7 @@ public class Properties extends HashMap<String, Object> {
         if (Boolean.TRUE.equals(collect.get("withSSL"))) {
             builder.setWithSSL(true);
             builder.setSslContext(Optional.ofNullable(collect.get("sslContext")).map(SSLContext.class::cast).orElse(ssl));
+            builder.setSslParams(Optional.ofNullable(collect.get("sslParams")).map(SSLParameters.class::cast).orElse(null));
             String clientAuthentication = collect.compute("SSLClientAuthentication", (i, j) -> j != null ? j : ClientAuthentication.NOTNEEDED).toString();
             String sslKeyAlias = (String) collect.get("SSLKeyAlias");
             builder.setSslKeyAlias(sslKeyAlias)

@@ -9,6 +9,7 @@ import java.security.Principal;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 import javax.net.ssl.SNIHostName;
 import javax.net.ssl.SSLContext;
@@ -26,7 +27,6 @@ import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
-import io.netty.handler.ssl.ApplicationProtocolNames;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.util.AttributeKey;
 import io.netty.util.concurrent.Future;
@@ -54,6 +54,8 @@ public abstract class AbstractIpTransport<M, T extends AbstractIpTransport<M, T,
         @Setter
         protected SSLContext sslContext;
         @Setter
+        protected SSLParameters sslParams;
+        @Setter
         protected String sslKeyAlias;
         @Setter
         protected ClientAuthentication sslClientAuthentication;
@@ -68,9 +70,9 @@ public abstract class AbstractIpTransport<M, T extends AbstractIpTransport<M, T,
     protected final int sndBuf;
     protected final boolean withSsl;
     protected final SSLContext sslContext;
+    protected final SSLParameters sslParams;
     protected final String sslKeyAlias;
     protected final ClientAuthentication sslClientAuthentication;
-    protected final List<String> applicationProtocols;
 
     protected AbstractIpTransport(B builder) {
         super(builder);
@@ -78,10 +80,25 @@ public abstract class AbstractIpTransport<M, T extends AbstractIpTransport<M, T,
         this.rcvBuf = builder.rcvBuf;
         this.sndBuf = builder.sndBuf;
         this.withSsl = builder.withSsl;
-        this.sslContext = builder.sslContext;
+        this.sslContext = Optional.ofNullable(builder.sslContext).orElseGet(this::getDefaultSslContext);
+        this.sslParams = Optional.ofNullable(builder.sslParams).orElseGet(sslContext::getDefaultSSLParameters);
         this.sslKeyAlias = builder.sslKeyAlias;
         this.sslClientAuthentication = builder.sslClientAuthentication;
-        this.applicationProtocols = Collections.unmodifiableList(builder.applicationProtocols);
+        sslParams.setUseCipherSuitesOrder(true);
+        if (endpoint != null) {
+            sslParams.setServerNames(Collections.singletonList(new SNIHostName(endpoint)));
+        }
+        if (! builder.applicationProtocols.isEmpty()) {
+            sslParams.setApplicationProtocols(builder.applicationProtocols.toArray(String[]::new));
+        }
+    }
+
+    private SSLContext getDefaultSslContext() {
+        try {
+            return SSLContext.getDefault();
+        } catch (NoSuchAlgorithmException ex) {
+            throw new IllegalStateException("SSL context invalid", ex);
+        }
     }
 
     public InetSocketAddress resolveAddress() {
@@ -162,34 +179,18 @@ public abstract class AbstractIpTransport<M, T extends AbstractIpTransport<M, T,
     void addSslClientHandler(ChannelPipeline pipeline) {
         logger.debug("Adding an SSL client handler on {}", pipeline::channel);
         SSLEngine engine = getEngine();
-        SSLParameters params = engine.getSSLParameters();
-        params.setServerNames(Collections.singletonList(new SNIHostName(endpoint)));
-        params.setApplicationProtocols(applicationProtocols.toArray(String[]::new));
-        engine.setSSLParameters(params);
         engine.setUseClientMode(true);
         pipeline.addLast("ssl", new SslHandler(engine));
     }
 
     private SSLEngine getEngine() {
         SSLEngine engine;
-        if (sslContext != null) {
-            if (sslKeyAlias != null && ! sslKeyAlias.isEmpty()) {
-                engine = sslContext.createSSLEngine(sslKeyAlias, DEFINEDSSLALIAS);
-            } else {
-                engine = sslContext.createSSLEngine();
-            }
+        if (sslKeyAlias != null && ! sslKeyAlias.isEmpty()) {
+            engine = sslContext.createSSLEngine(sslKeyAlias, DEFINEDSSLALIAS);
         } else {
-            try {
-                engine = SSLContext.getDefault().createSSLEngine();
-            } catch (NoSuchAlgorithmException ex) {
-                throw new IllegalStateException("SSL context invalid", ex);
-            }
+            engine = sslContext.createSSLEngine();
         }
-
-        SSLParameters params = engine.getSSLParameters();
-        params.setUseCipherSuitesOrder(true);
-        params.setApplicationProtocols(new String[]{ApplicationProtocolNames.HTTP_1_1});
-        engine.setSSLParameters(params);
+        engine.setSSLParameters(sslParams);
 
         if (sslClientAuthentication != null) {
             sslClientAuthentication.configureEngine(engine);

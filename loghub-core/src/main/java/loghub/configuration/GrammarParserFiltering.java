@@ -47,6 +47,7 @@ public class GrammarParserFiltering {
             Map.entry("http.listen", BEANTYPE.STRING),
             Map.entry("http.withSSL", BEANTYPE.BOOLEAN),
             Map.entry("http.sslContext", BEANTYPE.IMPLICIT_OBJECT),
+            Map.entry("http.sslParams", BEANTYPE.IMPLICIT_OBJECT),
             Map.entry("http.withJolokia", BEANTYPE.BOOLEAN),
             Map.entry("http.jolokiaPolicyLocation", BEANTYPE.STRING),
             Map.entry("includes", BEANTYPE.OPTIONAL_ARRAY),
@@ -82,7 +83,9 @@ public class GrammarParserFiltering {
 
     private static final Map<String, String> IMPLICIT_OBJECT = Map.ofEntries(
         Map.entry("http.sslContext", "loghub.security.ssl.SslContextBuilder"),
-        Map.entry("sslContext", "loghub.security.ssl.SslContextBuilder")
+        Map.entry("http.sslParams", "javax.net.ssl.SSLParameters"),
+        Map.entry("sslContext", "loghub.security.ssl.SslContextBuilder"),
+        Map.entry("sslParams", "javax.net.ssl.SSLParameters")
     );
 
     private final ArrayDeque<Class<?>> objectStack = new ArrayDeque<>();

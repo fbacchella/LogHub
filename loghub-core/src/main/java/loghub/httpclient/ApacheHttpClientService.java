@@ -27,6 +27,8 @@ import javax.management.MalformedObjectNameException;
 import javax.management.NotCompliantMBeanException;
 import javax.management.ObjectName;
 import javax.management.StandardMBean;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLParameters;
 
 import org.apache.hc.client5.http.HttpHostConnectException;
 import org.apache.hc.client5.http.HttpRoute;
@@ -52,7 +54,6 @@ import org.apache.hc.core5.http.io.SocketConfig;
 import org.apache.hc.core5.http.io.entity.HttpEntities;
 import org.apache.hc.core5.http.message.BasicClassicHttpRequest;
 import org.apache.hc.core5.http.message.BasicHeader;
-import org.apache.hc.core5.http.ssl.TLS;
 import org.apache.hc.core5.io.CloseMode;
 import org.apache.hc.core5.io.IOCallback;
 import org.apache.hc.core5.pool.ConnPoolControl;
@@ -247,9 +248,11 @@ public class ApacheHttpClientService extends AbstractHttpClientService {
                                                                                                           .build())
                                                                       .setConnPoolPolicy(PoolReusePolicy.FIFO);
         if (builder.sslContext != null) {
+            SSLContext sslContext =  resolveSslContext(builder);
+            SSLParameters sslParams = resolveSslParams(builder, sslContext);
             cmBuilder.setSSLSocketFactory(SSLConnectionSocketFactoryBuilder.create()
                                                   .setSslContext(builder.sslContext)
-                                                  .setTlsVersions(TLS.V_1_3, TLS.V_1_2)
+                                                  .setCiphers(sslParams.getCipherSuites())
                                                   .build());
         }
         PoolingHttpClientConnectionManager cm = cmBuilder.build();

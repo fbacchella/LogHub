@@ -10,6 +10,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
 
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLParameters;
 import javax.security.auth.login.Configuration;
 
 import org.apache.logging.log4j.Level;
@@ -51,6 +52,8 @@ public abstract class Receiver<R extends Receiver<R, B>, B extends Receiver.Buil
         @Setter
         protected SSLContext sslContext;
         @Setter
+        protected SSLParameters sslParams;
+        @Setter
         protected String jaasName = null;
         @Setter
         protected String user = null;
@@ -76,6 +79,8 @@ public abstract class Receiver<R extends Receiver<R, B>, B extends Receiver.Buil
     private final boolean withSSL;
     @Getter
     private final SSLContext sslContext;
+    @Getter
+    private final SSLParameters sslParams;
     @Getter
     private final String SSLKeyAlias;
     @Getter
@@ -108,6 +113,7 @@ public abstract class Receiver<R extends Receiver<R, B>, B extends Receiver.Buil
         }
         this.withSSL = builder.withSSL;
         this.sslContext = builder.sslContext;
+        this.sslParams = builder.sslParams;
         this.SSLClientAuthentication = builder.SSLClientAuthentication;
         this.SSLKeyAlias = builder.SSLKeyAlias;
         this.timeStampField = builder.timeStampField;

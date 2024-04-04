@@ -85,6 +85,7 @@ bean
     | {inSection(SECTION.PIPELINE)}? (bn='destinationTemplate' ':' stringLiteral)
     | {inSection(SECTION.OUTPUT)}?   (bn='encoder' ':' object)
     | (bn='sslContext' ':' {filter.enterImplicitObject($bn.text);} beanValue {filter.exitImplicitObject($ctx.beanValue());})
+    | (bn='sslParams' ':' {filter.enterImplicitObject($bn.text);} beanValue {filter.exitImplicitObject($ctx.beanValue());})
     | (beanName ':' beanValue {filter.cleanBeanType();})
     ;
 
@@ -157,6 +158,7 @@ level
 
 property
     : (pn='http.sslContext' ':' {filter.enterImplicitObject($pn.text);} beanValue {filter.exitImplicitObject($ctx.beanValue());})
+    | (pn='http.sslParams' ':' {filter.enterImplicitObject($pn.text);} beanValue {filter.exitImplicitObject($ctx.beanValue());})
     | (propertyName ':' {filter.checkProperty($propertyName.text);} beanValue {filter.cleanBeanType();})
     ;
 
@@ -283,7 +285,8 @@ sourcedef
     ;
 
 identifier
-    : 'index' | 'seeds' | 'doFire' | 'onFire' | 'expiration' | 'forward' | 'default' | 'merge' | 'inPipeline' | 'path' | 'bean' | 'field' | 'input' | 'in' | 'decoder' | 'sslContext'
+    : 'index' | 'seeds' | 'doFire' | 'onFire' | 'expiration' | 'forward' | 'default' | 'merge' | 'inPipeline' | 'path' | 'bean' | 'field' | 'input' | 'in' | 'decoder'
+    | 'sslContext' | 'sslParams'
     | 'if' | 'success' | 'failure' | 'exception' | 'field' | 'fields' | 'destination' | 'destinationTemplate' | 'encoder' | 'log' | 'fire' | 'pipeline' | 'output' | 'onExpiration'
     | 'defaultMeta' | 'map'
     | 'FATAL' | 'ERROR' | 'WARN' | 'INFO' | 'DEBUG' | 'TRACE'

@@ -5,6 +5,7 @@ import java.lang.reflect.Method;
 import java.util.Map;
 
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLParameters;
 import javax.security.auth.login.Configuration;
 
 import org.apache.logging.log4j.LogManager;
@@ -13,6 +14,7 @@ import org.apache.logging.log4j.Logger;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.FullHttpRequest;
+import io.netty.handler.ssl.ApplicationProtocolNames;
 import loghub.netty.HttpChannelConsumer;
 import loghub.netty.http.GetMetric;
 import loghub.netty.http.GraphMetric;
@@ -44,6 +46,8 @@ public class Dashboard {
         boolean withSSL = false;
         @Setter
         SSLContext sslContext = null;
+        @Setter
+        SSLParameters sslParams = null;
         @Setter
         ClientAuthentication sslClientAuthentication = ClientAuthentication.NONE;
         @Setter
@@ -132,6 +136,8 @@ public class Dashboard {
         if (builder.withSSL) {
             transportBuilder.setWithSsl(true);
             transportBuilder.setSslContext(builder.sslContext);
+            transportBuilder.setSslParams(builder.sslParams);
+            transportBuilder.addApplicationProtocol(ApplicationProtocolNames.HTTP_1_1);
             transportBuilder.setSslKeyAlias(builder.sslKeyAlias);
             transportBuilder.setSslClientAuthentication(builder.sslClientAuthentication);
         }

@@ -4,6 +4,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
 
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLParameters;
 
 import loghub.AbstractBuilder;
 import loghub.Helpers;
@@ -31,6 +32,8 @@ public abstract class AbstractHttpSender extends Sender {
         protected String sslKeyAlias;
         @Setter
         protected SSLContext sslContext;
+        @Setter
+        protected SSLParameters sslParams;
     }
 
     protected final AbstractHttpClientService httpClient;
@@ -50,6 +53,7 @@ public abstract class AbstractHttpSender extends Sender {
             if (builder.sslContext != null) {
                 clientBuilder.setSslContext(builder.sslContext);
                 clientBuilder.setSslKeyAlias(builder.sslKeyAlias);
+                clientBuilder.setSslParams(builder.sslParams);
             }
             httpClient = (AbstractHttpClientService) clientBuilder.build();
         } catch (InvocationTargetException | ClassNotFoundException ex) {

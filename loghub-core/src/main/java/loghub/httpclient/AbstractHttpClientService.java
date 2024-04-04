@@ -1,7 +1,11 @@
 package loghub.httpclient;
 
+import java.security.NoSuchAlgorithmException;
+import java.util.Optional;
+
 import javax.management.ObjectName;
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLParameters;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -33,6 +37,8 @@ public abstract class AbstractHttpClientService {
         protected String sslKeyAlias;
         @Setter
         protected SSLContext sslContext;
+        @Setter
+        protected SSLParameters sslParams;
     }
 
     protected final int timeout;
@@ -45,6 +51,23 @@ public abstract class AbstractHttpClientService {
         timeout = builder.timeout;
         user = builder.user;
         password = builder.password;
+    }
+
+    protected SSLContext resolveSslContext(AbstractHttpClientService.Builder<? extends AbstractHttpClientService> builder) {
+        return Optional.ofNullable(builder.sslContext).orElseGet(this::getDefaultSslContext);
+    }
+
+    protected SSLParameters resolveSslParams(AbstractHttpClientService.Builder<? extends AbstractHttpClientService> builder,
+            SSLContext sslContext) {
+        return Optional.ofNullable(builder.sslParams).orElseGet(sslContext::getDefaultSSLParameters);
+    }
+
+    private SSLContext getDefaultSslContext() {
+        try {
+            return SSLContext.getDefault();
+        } catch (NoSuchAlgorithmException ex) {
+            throw new IllegalStateException("SSL context invalid", ex);
+        }
     }
 
     public abstract <T> HttpRequest<T> getRequest();

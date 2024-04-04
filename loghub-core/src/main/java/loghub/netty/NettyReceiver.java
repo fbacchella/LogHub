@@ -74,6 +74,7 @@ public abstract class NettyReceiver<R extends NettyReceiver<R, M, B>, M, B exten
             if (isWithSSL()) {
                 nettyIpBuilder.setWithSsl(true);
                 nettyIpBuilder.setSslContext(getSslContext());
+                nettyIpBuilder.setSslParams(getSslParams());
                 nettyIpBuilder.setSslClientAuthentication(getSSLClientAuthentication());
                 nettyIpBuilder.setSslKeyAlias(getSSLKeyAlias());
                 nettyIpBuilder.setWithSsl(true);
