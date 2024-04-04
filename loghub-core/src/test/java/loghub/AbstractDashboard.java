@@ -2,11 +2,9 @@ package loghub;
 
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
 import java.net.InetSocketAddress;
 import java.net.URI;
-import java.net.URL;
+import java.net.http.HttpClient;
 import java.nio.charset.StandardCharsets;
 import java.security.NoSuchAlgorithmException;
 import java.util.Collections;
@@ -46,15 +44,6 @@ public abstract class AbstractDashboard {
         System.setProperty("java.util.logging.manager", "org.apache.logging.log4j.jul.LogManager");
     }
 
-    private static final SSLContext previousSslContext;
-    static {
-        try {
-            previousSslContext = SSLContext.getDefault();
-        } catch (NoSuchAlgorithmException ex) {
-            throw new IllegalStateException(ex);
-        }
-    }
-
     private static final JsonFactory factory = new JsonFactory();
     @Getter
     private static final ThreadLocal<ObjectMapper> json = ThreadLocal.withInitial(() -> new ObjectMapper(factory).configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false));
@@ -68,6 +57,8 @@ public abstract class AbstractDashboard {
     private String scheme;
     @Getter
     SSLContext sslContext;
+    @Getter
+    HttpClient client;
 
     @BeforeClass
     static public void configure() throws IOException {
@@ -85,7 +76,6 @@ public abstract class AbstractDashboard {
     @AfterClass
     static public void cleanState() {
         System.clearProperty("java.util.logging.manager");
-        SSLContext.setDefault(previousSslContext);
     }
 
     @Before
@@ -107,6 +97,10 @@ public abstract class AbstractDashboard {
         dashboard.start();
         port = ((InetSocketAddress)dashboard.getTransport().getChannels().findFirst().get().localAddress()).getPort();
         scheme = getDashboardScheme();
+        client = HttpClient.newBuilder()
+                           .sslContext(sslContext)
+                           .followRedirects(HttpClient.Redirect.NEVER)
+                           .build();
     }
 
     protected abstract boolean withSsl();
@@ -119,14 +113,14 @@ public abstract class AbstractDashboard {
     }
 
     @Test
-    public void getIndex() throws IllegalArgumentException, IOException {
-        URL theurl = URI.create(String.format("%s://localhost:%d/static/index.html", scheme, port)).toURL();
-        HttpURLConnection cnx = (HttpURLConnection) theurl.openConnection();
-        cnx.setInstanceFollowRedirects(false);
-        Assert.assertEquals(200, cnx.getResponseCode());
-        String page = readContent(cnx);
-        Assert.assertTrue(page.startsWith("<!DOCTYPE html>"));
-        cnx.disconnect();
+    public void getIndex() throws IllegalArgumentException, IOException, InterruptedException {
+        URI theurl = URI.create(String.format("%s://localhost:%d/static/index.html", scheme, port));
+        java.net.http.HttpRequest request = java.net.http.HttpRequest.newBuilder()
+                                                    .uri(theurl)
+                                                    .build();
+        java.net.http.HttpResponse<String> response = client.send(request, java.net.http.HttpResponse.BodyHandlers.ofString());
+        Assert.assertEquals(200, response.statusCode());
+        Assert.assertTrue(response.body().startsWith("<!DOCTYPE html>"));
     }
 
     @Test
@@ -150,39 +144,25 @@ public abstract class AbstractDashboard {
         }
     }
     @Test
-    public void getFailure1() throws IOException {
-        URL theurl = URI.create(String.format("%s://localhost:%d/metric/1", scheme, port)).toURL();
-        HttpURLConnection cnx = (HttpURLConnection) theurl.openConnection();
-        cnx.setInstanceFollowRedirects(false);
-        Assert.assertEquals(400, cnx.getResponseCode());
-        Assert.assertEquals("Unsupported metric name: 1", readErrorContent(cnx));
-        cnx.disconnect();
+    public void getFailure1() throws IOException, InterruptedException {
+        URI theurl = URI.create(String.format("%s://localhost:%d/metric/1", scheme, port));
+        java.net.http.HttpRequest request = java.net.http.HttpRequest.newBuilder()
+                                                    .uri(theurl)
+                                                    .build();
+        java.net.http.HttpResponse<String> response = client.send(request, java.net.http.HttpResponse.BodyHandlers.ofString());
+        Assert.assertEquals(400, response.statusCode());
+        Assert.assertEquals("Unsupported metric name: 1", response.body().trim());
     }
 
     @Test
-    public void getFailure2() throws IOException {
-        URL theurl = URI.create(String.format("%s://localhost:%d/metric/stranges", scheme, port)).toURL();
-        HttpURLConnection cnx = (HttpURLConnection) theurl.openConnection();
-        cnx.setInstanceFollowRedirects(false);
-        Assert.assertEquals(400, cnx.getResponseCode());
-        Assert.assertEquals("Unsupported metric name: stranges", readErrorContent(cnx));
-        cnx.disconnect();
-    }
-
-    protected String readContent(HttpURLConnection cnx) throws IOException {
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(cnx.getInputStream(), StandardCharsets.UTF_8))) {
-            StringBuilder buf = new StringBuilder();
-            reader.lines().forEach(buf::append);
-            return buf.toString();
-        }
-    }
-
-    private String readErrorContent(HttpURLConnection cnx) throws IOException {
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(cnx.getErrorStream(), StandardCharsets.UTF_8))) {
-            StringBuilder buf = new StringBuilder();
-            reader.lines().forEach(buf::append);
-            return buf.toString();
-        }
+    public void getFailure2() throws IOException, InterruptedException {
+        URI theurl = URI.create(String.format("%s://localhost:%d/metric/stranges", scheme, port));
+        java.net.http.HttpRequest request = java.net.http.HttpRequest.newBuilder()
+                                                    .uri(theurl)
+                                                    .build();
+        java.net.http.HttpResponse<String> response = client.send(request, java.net.http.HttpResponse.BodyHandlers.ofString());
+        Assert.assertEquals(400, response.statusCode());
+        Assert.assertEquals("Unsupported metric name: stranges", response.body().trim());
     }
 
     @Test
