@@ -2,6 +2,7 @@ package loghub;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.time.Duration;
 import java.util.Map;
 
 import javax.net.ssl.SSLContext;
@@ -18,6 +19,7 @@ import io.netty.handler.ssl.ApplicationProtocolNames;
 import loghub.netty.HttpChannelConsumer;
 import loghub.netty.http.GetMetric;
 import loghub.netty.http.GraphMetric;
+import loghub.netty.http.HstsData;
 import loghub.netty.http.JmxProxy;
 import loghub.netty.http.JwtToken;
 import loghub.netty.http.ResourceFiles;
@@ -47,6 +49,8 @@ public class Dashboard {
         boolean withSSL = false;
         @Setter
         SSLContext sslContext = null;
+        @Setter
+        Duration hstsDuration = null;
         @Setter
         SSLParameters sslParams = null;
         @Setter
@@ -91,10 +95,15 @@ public class Dashboard {
     private Dashboard(Builder builder) {
         AuthenticationHandler authHandler = getAuthenticationHandler(builder.withJwtUrl, builder.jwtHandlerUrl,
                                                                      builder.jaasNameJwt, builder.jaasConfigJwt);
+        HstsData hsts = null;
+        if (builder.withSSL && builder.hstsDuration != null) {
+            hsts = HstsData.builder().maxAge(builder.hstsDuration).build();
+        }
         HttpChannelConsumer consumer = HttpChannelConsumer.getBuilder()
                                                           .setAuthHandler(authHandler)
                                                           .setModelSetup(this::setupModel)
                                                           .setLogger(logger)
+                                                          .setHsts(hsts)
                                                           .build();
 
         transport = getTransport(builder, consumer);

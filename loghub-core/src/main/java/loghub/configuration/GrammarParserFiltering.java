@@ -48,6 +48,7 @@ public class GrammarParserFiltering {
             Map.entry("http.withSSL", BEANTYPE.BOOLEAN),
             Map.entry("http.sslContext", BEANTYPE.IMPLICIT_OBJECT),
             Map.entry("http.sslParams", BEANTYPE.IMPLICIT_OBJECT),
+            Map.entry("http.hstsDuration", BEANTYPE.STRING),
             Map.entry("http.withJolokia", BEANTYPE.BOOLEAN),
             Map.entry("http.jolokiaPolicyLocation", BEANTYPE.STRING),
             Map.entry("includes", BEANTYPE.OPTIONAL_ARRAY),

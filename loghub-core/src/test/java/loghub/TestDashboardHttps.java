@@ -8,13 +8,12 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.stream.Collectors;
 
-import javax.net.ssl.SSLException;
-
 import org.junit.Assert;
 import org.junit.Test;
 
 import io.netty.channel.Channel;
 import loghub.configuration.Properties;
+import loghub.netty.http.HstsData;
 
 public class TestDashboardHttps extends AbstractDashboard {
 
@@ -37,7 +36,7 @@ public class TestDashboardHttps extends AbstractDashboard {
 
     private void runDashboard(String sslParams) throws IOException, InterruptedException {
         String p12store = Tools.class.getResource("/loghub.p12").getFile();
-        String config = String.format("http.port: 0 http.withSSL: true http.sslContext: {name: \"TLSv1.3\", trusts: [\"%s\"]} http.sslParams: %s", p12store, sslParams);
+        String config = String.format("http.port: 0 http.withSSL: true http.hstsDuration: \"P365D\" http.sslContext: {name: \"TLSv1.3\", trusts: [\"%s\"]} http.sslParams: %s", p12store, sslParams);
         Properties props = Tools.loadConf(new StringReader(config));
         assert props.dashboard != null;
         props.dashboard.start();
@@ -51,6 +50,8 @@ public class TestDashboardHttps extends AbstractDashboard {
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
         Assert.assertEquals(200, response.statusCode());
         Assert.assertTrue(response.body().startsWith("<!DOCTYPE html>"));
+        String hstsHeader = response.headers().firstValue(HstsData.HEADER_NAME).orElse("");
+        Assert.assertEquals("max-age=31536000", hstsHeader);
     }
 
 }

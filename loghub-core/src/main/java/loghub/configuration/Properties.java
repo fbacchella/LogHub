@@ -4,6 +4,7 @@ import java.lang.management.ManagementFactory;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -356,6 +357,11 @@ public class Properties extends HashMap<String, Object> {
             String sslKeyAlias = (String) collect.get("SSLKeyAlias");
             builder.setSslKeyAlias(sslKeyAlias)
                    .setSslClientAuthentication(ClientAuthentication.valueOf(clientAuthentication.toUpperCase(Locale.ENGLISH)));
+            builder.setHstsDuration(Optional.ofNullable(collect.get("hstsDuration"))
+                                            .map(String.class::cast)
+                                            .map(Duration::parse)
+                                            .orElse(null)
+            );
         } else {
             builder.setWithSSL(false);
         }

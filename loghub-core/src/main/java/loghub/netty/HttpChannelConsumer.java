@@ -23,6 +23,7 @@ import io.netty.handler.stream.ChunkedWriteHandler;
 import loghub.Helpers;
 import loghub.netty.http.AccessControl;
 import loghub.netty.http.FatalErrorHandler;
+import loghub.netty.http.HstsData;
 import loghub.netty.http.NotFound;
 import loghub.security.AuthenticationHandler;
 import lombok.Setter;
@@ -50,6 +51,8 @@ public class HttpChannelConsumer implements ChannelConsumer {
         private int maxContentLength = 1048576;
         @Setter
         private Logger logger;
+        @Setter
+        private HstsData hsts;
         private Builder() {
 
         }
@@ -66,6 +69,7 @@ public class HttpChannelConsumer implements ChannelConsumer {
     private final Consumer<ChannelPipeline> modelSetup;
     private final AuthenticationHandler authHandler;
     private final Logger logger;
+    private final HstsData hsts;
 
     protected HttpChannelConsumer(Builder builder) {
         this.aggregatorSupplier = Optional.ofNullable(builder.aggregatorSupplier).orElse(() -> new HttpObjectAggregator(builder.maxContentLength));
@@ -73,6 +77,7 @@ public class HttpChannelConsumer implements ChannelConsumer {
         this.modelSetup = builder.modelSetup;
         this.authHandler = builder.authHandler;
         this.logger = Optional.ofNullable(builder.logger).orElseGet(this::getDefaultLogger);
+        this.hsts = builder.hsts;
     }
 
     private Logger getDefaultLogger() {
@@ -90,6 +95,10 @@ public class HttpChannelConsumer implements ChannelConsumer {
         if (authHandler != null) {
             p.addLast("Authentication", new AccessControl(authHandler));
             logger.debug("Added authentication");
+        }
+        if (hsts != null) {
+            p.addLast("HstsHandler", hsts.getChannelHandler());
+            logger.debug("Added HSTS header");
         }
         try {
             modelSetup.accept(p);
