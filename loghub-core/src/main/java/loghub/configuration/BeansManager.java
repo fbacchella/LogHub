@@ -9,6 +9,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -151,10 +152,12 @@ public class BeansManager {
                 return (T) Character.valueOf(value.charAt(0));
             } else if (Enum.class.isAssignableFrom(clazz)) {
                 return (T) resolveEnum((Class<? extends Enum>)clazz, value);
+            } else if (clazz == Duration.class) {
+                return (T) Duration.parse(value);
             } else {
                 return clazz.getConstructor(String.class).newInstance(value);
             }
-        } catch (SecurityException | NoSuchMethodException | IllegalArgumentException | InstantiationException |
+        } catch (NoSuchMethodException | RuntimeException | InstantiationException |
                  IllegalAccessException | UnknownHostException ex) {
             throw new InvocationTargetException(ex, clazz.getName());
         }
