@@ -9,7 +9,6 @@ import javax.net.ssl.SSLParameters;
 import loghub.AbstractBuilder;
 import loghub.Helpers;
 import loghub.httpclient.AbstractHttpClientService;
-import loghub.httpclient.ApacheHttpClientService;
 import lombok.Setter;
 
 public abstract class AbstractHttpSender extends Sender {
@@ -27,7 +26,7 @@ public abstract class AbstractHttpSender extends Sender {
         @Setter
         private String[] destinations;
         @Setter
-        private String clientService = ApacheHttpClientService.class.getName();
+        private String clientService = "loghub.httpclient.ApacheHttpClientService";
         @Setter
         protected String sslKeyAlias;
         @Setter
@@ -43,7 +42,7 @@ public abstract class AbstractHttpSender extends Sender {
         super(builder);
         try {
             @SuppressWarnings("unchecked")
-            Class<AbstractHttpClientService> clientClass = (Class<AbstractHttpClientService>) getClass().getClassLoader().loadClass(builder.clientService);
+            Class<AbstractHttpClientService> clientClass = (Class<AbstractHttpClientService>) getClassLoader().loadClass(builder.clientService);
             AbstractHttpClientService.Builder clientBuilder = (AbstractHttpClientService.Builder) AbstractBuilder.resolve(clientClass);
             endpoints = Helpers.stringsToUri(builder.destinations, builder.port, builder.protocol, logger);
             clientBuilder.setTimeout(builder.timeout);

@@ -290,6 +290,7 @@
         <module>loghub-jolokia</module>
         <module>loghub-ratelimiter</module>
         <module>loghub-geoip</module>
+        <module>loghub-apacheclient</module>
     </modules>
 
     <profiles>

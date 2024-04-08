@@ -12,6 +12,7 @@ import org.apache.logging.log4j.Logger;
 
 import loghub.AbstractBuilder;
 import loghub.Helpers;
+import lombok.Getter;
 import lombok.Setter;
 
 public abstract class AbstractHttpClientService {
@@ -22,22 +23,15 @@ public abstract class AbstractHttpClientService {
     public static final String TEXT_HTML = "text/html";
     public static final String TEXT_PLAIN = "text/plain";
 
+    @Setter @Getter
     public abstract static class Builder<B extends AbstractHttpClientService> extends AbstractBuilder<B> {
-        @Setter
         protected String password = null;
-        @Setter
         protected String user = null;
-        @Setter
         protected int timeout = 2;
-        @Setter
         protected int workers;
-        @Setter
         protected ObjectName jmxParent = null;
-        @Setter
         protected String sslKeyAlias;
-        @Setter
         protected SSLContext sslContext;
-        @Setter
         protected SSLParameters sslParams;
     }
 

@@ -3,7 +3,6 @@ package loghub.httpclient;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.OutputStream;
 import java.lang.management.ManagementFactory;
 import java.net.ConnectException;
 import java.net.SocketTimeoutException;
@@ -11,9 +10,7 @@ import java.net.URI;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
-import java.util.ArrayList;
 import java.util.Hashtable;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -35,6 +32,7 @@ import org.apache.hc.client5.http.HttpRoute;
 import org.apache.hc.client5.http.auth.AuthScope;
 import org.apache.hc.client5.http.auth.CredentialsProvider;
 import org.apache.hc.client5.http.auth.UsernamePasswordCredentials;
+import org.apache.hc.client5.http.classic.methods.HttpUriRequestBase;
 import org.apache.hc.client5.http.config.ConnectionConfig;
 import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.impl.auth.BasicCredentialsProvider;
@@ -44,18 +42,12 @@ import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
 import org.apache.hc.client5.http.protocol.HttpClientContext;
 import org.apache.hc.client5.http.ssl.SSLConnectionSocketFactoryBuilder;
-import org.apache.hc.core5.http.ClassicHttpRequest;
 import org.apache.hc.core5.http.ClassicHttpResponse;
 import org.apache.hc.core5.http.HttpEntity;
 import org.apache.hc.core5.http.HttpHost;
-import org.apache.hc.core5.http.HttpVersion;
 import org.apache.hc.core5.http.Method;
 import org.apache.hc.core5.http.io.SocketConfig;
-import org.apache.hc.core5.http.io.entity.HttpEntities;
-import org.apache.hc.core5.http.message.BasicClassicHttpRequest;
-import org.apache.hc.core5.http.message.BasicHeader;
 import org.apache.hc.core5.io.CloseMode;
-import org.apache.hc.core5.io.IOCallback;
 import org.apache.hc.core5.pool.ConnPoolControl;
 import org.apache.hc.core5.pool.PoolReusePolicy;
 import org.apache.hc.core5.util.TimeValue;
@@ -64,8 +56,6 @@ import org.apache.logging.log4j.Level;
 
 import loghub.BuilderClass;
 import loghub.Helpers;
-import lombok.Getter;
-import lombok.experimental.Accessors;
 
 @BuilderClass(ApacheHttpClientService.Builder.class)
 public class ApacheHttpClientService extends AbstractHttpClientService {
@@ -89,104 +79,6 @@ public class ApacheHttpClientService extends AbstractHttpClientService {
     }
     public static ApacheHttpClientService.Builder getBuilder() {
         return new ApacheHttpClientService.Builder();
-    }
-
-    @Accessors(fluent = false, chain = true)
-    private static class HcHttpRequest<T> extends HttpRequest<T> {
-        private HttpVersion httpVersion = HttpVersion.HTTP_1_1;
-        private final List<BasicHeader> headers = new ArrayList<>();
-        private HttpEntity content;
-
-        public String getHttpVersion() {
-            return httpVersion.toString();
-        }
-        public HcHttpRequest<T> setHttpVersion(int major, int minor) {
-            this.httpVersion = HttpVersion.get(major, minor);
-            return this;
-        }
-        public HcHttpRequest<T> addHeader(String header, String value) {
-            headers.add(new BasicHeader(header, value));
-            return this;
-        }
-        public HcHttpRequest<T> clearHeaders() {
-            headers.clear();
-            return this;
-        }
-        public HcHttpRequest<T> setTypeAndContent(ContentType mimeType, byte[] content) {
-            this.content = HttpEntities.createGzipped(content, mapContentType(mimeType));
-            return this;
-        }
-        public HcHttpRequest<T> setTypeAndContent(ContentType mimeType, ContentWriter source) {
-            IOCallback<OutputStream> cp = source::writeTo;
-            content = HttpEntities.createGzipped(cp, mapContentType(mimeType));
-            return this;
-        }
-        private org.apache.hc.core5.http.ContentType mapContentType(ContentType ct) {
-            switch (ct) {
-            case APPLICATION_JSON:
-                return org.apache.hc.core5.http.ContentType.APPLICATION_JSON;
-            case APPLICATION_OCTET_STREAM:
-                return org.apache.hc.core5.http.ContentType.APPLICATION_OCTET_STREAM;
-            case APPLICATION_XML:
-                return org.apache.hc.core5.http.ContentType.APPLICATION_XML;
-            case TEXT_PLAIN:
-                return org.apache.hc.core5.http.ContentType.TEXT_PLAIN;
-            case TEXT_HTML:
-                return org.apache.hc.core5.http.ContentType.TEXT_HTML;
-            default:
-                throw new IllegalArgumentException("Unknown content type");
-            }
-        }
-    }
-
-    @lombok.Builder
-    @Accessors(fluent = false, chain = true)
-    private static class HcHttpResponse<T> extends loghub.httpclient.HttpResponse<T> {
-        private final HttpHost host;
-        private final ClassicHttpResponse response;
-        @Getter
-        private final IOException socketException;
-        @Getter
-        private final GeneralSecurityException sslException;
-        @Getter
-        private final ContentType mimeType;
-        @Getter
-        private final T parsedResponse;
-
-        @Override
-        public String getHost() {
-            return host.getHostName();
-        }
-
-        @Override
-        public void close() throws IOException {
-            if (response != null) {
-                response.close();
-            }
-        }
-
-        @Override
-        public int getStatus() {
-            if (response != null) {
-                return response.getCode();
-            } else {
-                throw new IllegalStateException(socketException);
-            }
-        }
-
-        @Override
-        public String getStatusMessage() {
-            if (response != null) {
-                return response.getReasonPhrase();
-            } else {
-                throw new IllegalStateException(socketException);
-            }
-        }
-
-        @Override
-        public boolean isConnexionFailed() {
-            return socketException != null || sslException != null;
-        }
     }
 
     private static class Implementation extends StandardMBean implements HttpClientStatsMBean {
@@ -215,15 +107,14 @@ public class ApacheHttpClientService extends AbstractHttpClientService {
 
     private final CloseableHttpClient client;
     private final Map<URI, HttpHost> hosts;
+    private final RequestConfig config;
 
     private ApacheHttpClientService(Builder builder) {
         super(builder);
-        // Two names for login/user
-        String user = builder.user;
         CredentialsProvider credsProvider;
-        if (user != null && builder.password != null) {
+        if (builder.user != null && builder.password != null) {
             BasicCredentialsProvider provider = new BasicCredentialsProvider();
-            UsernamePasswordCredentials creds = new UsernamePasswordCredentials(user, builder.password.toCharArray());
+            UsernamePasswordCredentials creds = new UsernamePasswordCredentials(builder.user, builder.password.toCharArray());
             AuthScope scope = new AuthScope(null, -1);
             provider.setCredentials(scope, creds);
             credsProvider = provider;
@@ -274,9 +165,10 @@ public class ApacheHttpClientService extends AbstractHttpClientService {
         VersionInfo vi = VersionInfo.loadVersionInfo("org.apache.hc.client5", getClass().getClassLoader());
         clientBuilder.setUserAgent(String.format("LogHub-HttpClient/%s (Java/%s)", vi.getRelease(), System.getProperty("java.version")));
         clientBuilder.setConnectionManager(cm);
-        clientBuilder.setDefaultRequestConfig(RequestConfig.custom()
-                                                      .setConnectionRequestTimeout(timeout, TimeUnit.SECONDS)
-                                                      .build());
+        this.config = RequestConfig.custom()
+                                   .setConnectionRequestTimeout(timeout, TimeUnit.SECONDS)
+                                   .build();
+        clientBuilder.setDefaultRequestConfig(config);
         clientBuilder.disableCookieManagement();
         if (credsProvider != null) {
             clientBuilder.setDefaultCredentialsProvider(credsProvider);
@@ -302,7 +194,10 @@ public class ApacheHttpClientService extends AbstractHttpClientService {
         );
         builder.host(host);
         Method method = Method.valueOf(therequest.verb.toUpperCase(Locale.ENGLISH));
-        ClassicHttpRequest request = new BasicClassicHttpRequest(method, therequest.uri);
+        HttpUriRequestBase request = new HttpUriRequestBase(method.toString(), therequest.uri);
+        if (hcrequest.requestTimeout != null) {
+            request.setConfig(RequestConfig.copy(config).setResponseTimeout(hcrequest.requestTimeout.toMillis(), TimeUnit.MILLISECONDS).build());
+        }
         if (hcrequest.content != null) {
             request.setEntity(hcrequest.content);
         }

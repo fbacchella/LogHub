@@ -22,10 +22,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 
 import loghub.configuration.Properties;
-import loghub.httpclient.ApacheHttpClientService;
+import loghub.httpclient.AbstractHttpClientService;
 import loghub.httpclient.ContentType;
 import loghub.httpclient.HttpRequest;
 import loghub.httpclient.HttpResponse;
+import loghub.httpclient.javaclient.JavaHttpClientService;
 import loghub.metrics.JmxService;
 
 public class TestDashboard {
@@ -63,9 +64,9 @@ public class TestDashboard {
 
     @Test
     public void jolokia() throws IOException {
-        ApacheHttpClientService.Builder builder = ApacheHttpClientService.getBuilder();
+        JavaHttpClientService.Builder builder = JavaHttpClientService.getBuilder();
         builder.setTimeout(10000000);
-        ApacheHttpClientService client = builder.build();
+        AbstractHttpClientService client = builder.build();
 
         try (HttpResponse<Map<String, ?>> rep = runRequest(client, "GET", "/version", null)) {
             Assert.assertEquals(200, rep.getStatus());
@@ -99,7 +100,7 @@ public class TestDashboard {
         }
     }
 
-    private HttpResponse<Map<String, ?>> runRequest(ApacheHttpClientService client, String verb, String path, String bodypost) {
+    private HttpResponse<Map<String, ?>> runRequest(AbstractHttpClientService client, String verb, String path, String bodypost) {
         HttpRequest<Map<String, ?>> request = client.getRequest();
         request.setUri(URI.create(String.format("http://localhost:%d/jolokia%s", port, path)));
         request.setVerb(verb);

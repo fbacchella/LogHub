@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
 import java.net.URI;
+import java.time.Duration;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -21,11 +22,13 @@ public abstract class HttpRequest<T> {
     @Setter
     protected URI uri;
     @Setter
-    ContentType contentType;
+    protected ContentType contentType;
     @Setter
-    ReadBody<InputStream, T> consumeBytes = is -> null;
+    protected ReadBody<InputStream, T> consumeBytes = is -> null;
     @Setter
-    ReadBody<Reader, T> consumeText = r -> null;
+    protected ReadBody<Reader, T> consumeText = r -> null;
+    @Setter
+    protected Duration requestTimeout = null;
 
     public abstract String getHttpVersion();
 

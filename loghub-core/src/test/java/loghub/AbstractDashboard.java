@@ -6,7 +6,6 @@ import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.nio.charset.StandardCharsets;
-import java.security.NoSuchAlgorithmException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -29,10 +28,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 
 import loghub.configuration.Properties;
-import loghub.httpclient.ApacheHttpClientService;
+import loghub.httpclient.AbstractHttpClientService;
 import loghub.httpclient.ContentType;
 import loghub.httpclient.HttpRequest;
 import loghub.httpclient.HttpResponse;
+import loghub.httpclient.javaclient.JavaHttpClientService;
 import loghub.metrics.JmxService;
 import loghub.security.ssl.SslContextBuilder;
 import lombok.Getter;
@@ -125,9 +125,9 @@ public abstract class AbstractDashboard {
 
     @Test
     public void getIndexWithClient() throws IllegalArgumentException, IOException {
-        ApacheHttpClientService.Builder builder = ApacheHttpClientService.getBuilder();
+        JavaHttpClientService.Builder builder = JavaHttpClientService.getBuilder();
         builder.setSslContext(sslContext);
-        ApacheHttpClientService client = builder.build();
+        AbstractHttpClientService client = builder.build();
         HttpRequest<Object> req = client.getRequest();
         req.setUri(URI.create(String.format("%s://localhost:%d/static/index.html", scheme, port)));
         req.setConsumeText(r -> {
@@ -167,17 +167,17 @@ public abstract class AbstractDashboard {
 
     @Test
     public void jolokia() throws IOException {
-        ApacheHttpClientService.Builder builder = ApacheHttpClientService.getBuilder();
+        JavaHttpClientService.Builder builder = JavaHttpClientService.getBuilder();
         builder.setTimeout(10000000);
         builder.setSslContext(sslContext);
-        ApacheHttpClientService client = builder.build();
+        AbstractHttpClientService client = builder.build();
 
         try (HttpResponse<Map<String, ?>> rep = runRequest(client, "GET", "/version", null)) {
             Assert.assertEquals(404, rep.getStatus());
         }
     }
 
-    private HttpResponse<Map<String, ?>> runRequest(ApacheHttpClientService client, String verb, String path, String bodypost) {
+    private HttpResponse<Map<String, ?>> runRequest(AbstractHttpClientService client, String verb, String path, String bodypost) {
         HttpRequest<Map<String, ?>> request = client.getRequest();
         request.setUri(URI.create(String.format("%s://localhost:%d/jolokia%s", scheme, port, path)));
         request.setVerb(verb);
