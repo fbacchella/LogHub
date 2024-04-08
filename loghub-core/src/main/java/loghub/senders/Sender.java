@@ -119,6 +119,8 @@ public abstract class Sender extends Thread implements Closeable {
         protected int flushInterval = 5;
         @Setter
         private Filter filter;
+        @Setter
+        private ClassLoader classLoader = AbstractBuilder.class.getClassLoader();
     }
 
     protected final Logger logger;
@@ -140,8 +142,11 @@ public abstract class Sender extends Thread implements Closeable {
     private final AtomicReference<Batch> batch;
     private final long flushInterval;
     private volatile boolean closed = false;
+    @Getter
+    private final ClassLoader classLoader;
 
     protected Sender(Builder<? extends Sender> builder) {
+        this.classLoader = builder.classLoader;
         filter = builder.filter;
         setDaemon(true);
         setName("sender-" + getSenderName());
