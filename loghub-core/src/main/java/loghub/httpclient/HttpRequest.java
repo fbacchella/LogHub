@@ -4,12 +4,12 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
 import java.net.URI;
-import java.time.Duration;
 
 import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.Accessors;
 
+@Setter
 @Accessors(fluent = false, chain = true)
 @Getter
 public abstract class HttpRequest<T> {
@@ -17,18 +17,12 @@ public abstract class HttpRequest<T> {
     public interface ReadBody<S, T> {
         T read(S source) throws IOException;
     }
-    @Setter
     protected String verb = "GET";
-    @Setter
     protected URI uri;
-    @Setter
     protected ContentType contentType;
-    @Setter
     protected ReadBody<InputStream, T> consumeBytes = is -> null;
-    @Setter
     protected ReadBody<Reader, T> consumeText = r -> null;
-    @Setter
-    protected Duration requestTimeout = null;
+    protected long requestTimeout = -1;
 
     public abstract String getHttpVersion();
 

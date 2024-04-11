@@ -33,7 +33,6 @@ import io.netty.handler.codec.http.FullHttpRequest;
 import loghub.AbstractBuilder;
 import loghub.LogUtils;
 import loghub.Tools;
-import loghub.httpclient.javaclient.JavaHttpClientService;
 import loghub.jackson.JacksonBuilder;
 import loghub.netty.HttpChannelConsumer;
 import loghub.netty.http.ContentType;
@@ -172,7 +171,7 @@ public class TestJavaHttpClient {
     public void testLoad() throws InvocationTargetException, ClassNotFoundException {
         @SuppressWarnings("unchecked")
         Class<AbstractHttpClientService> clientClass = (Class<AbstractHttpClientService>) this.getClass().getClassLoader().loadClass(
-                "loghub.httpclient.javaclient.JavaHttpClientService");
+                "loghub.httpclient.JavaHttpClientService");
         @SuppressWarnings("unchecked")
         AbstractHttpClientService.Builder<JavaHttpClientService> builder = (AbstractHttpClientService.Builder) AbstractBuilder.resolve(clientClass);
         Assert.assertEquals(JavaHttpClientService.Builder.class, builder.getClass());

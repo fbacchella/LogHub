@@ -112,9 +112,9 @@ public class ApacheHttpClientService extends AbstractHttpClientService {
     private ApacheHttpClientService(Builder builder) {
         super(builder);
         CredentialsProvider credsProvider;
-        if (builder.user != null && builder.password != null) {
+        if (builder.getUser() != null && builder.getPassword() != null) {
             BasicCredentialsProvider provider = new BasicCredentialsProvider();
-            UsernamePasswordCredentials creds = new UsernamePasswordCredentials(builder.user, builder.password.toCharArray());
+            UsernamePasswordCredentials creds = new UsernamePasswordCredentials(builder.getUser(), builder.getPassword().toCharArray());
             AuthScope scope = new AuthScope(null, -1);
             provider.setCredentials(scope, creds);
             credsProvider = provider;
@@ -125,34 +125,32 @@ public class ApacheHttpClientService extends AbstractHttpClientService {
 
         // Build HTTP the connection manager
         PoolingHttpClientConnectionManagerBuilder cmBuilder = PoolingHttpClientConnectionManagerBuilder.create()
-                                                                      .setMaxConnTotal(builder.workers)
-                                                                      .setMaxConnPerRoute(builder.workers)
+                                                                      .setMaxConnTotal(builder.getWorkers())
+                                                                      .setMaxConnPerRoute(builder.getWorkers())
                                                                       .setDefaultSocketConfig(SocketConfig.custom()
                                                                                                       .setTcpNoDelay(true)
                                                                                                       .setSoKeepAlive(true)
-                                                                                                      .setSoTimeout(timeout, TimeUnit.SECONDS)
+                                                                                                      .setSoTimeout(builder.getTimeout(), TimeUnit.SECONDS)
                                                                                                       .build())
                                                                       .setDefaultConnectionConfig(ConnectionConfig.custom()
                                                                                                           .setValidateAfterInactivity(TimeValue.ofSeconds(1))
-                                                                                                          .setSocketTimeout(timeout, TimeUnit.SECONDS)
-                                                                                                          .setConnectTimeout(timeout, TimeUnit.SECONDS)
+                                                                                                          .setSocketTimeout(builder.getTimeout(), TimeUnit.SECONDS)
+                                                                                                          .setConnectTimeout(builder.getTimeout(), TimeUnit.SECONDS)
                                                                                                           .build())
                                                                       .setConnPoolPolicy(PoolReusePolicy.FIFO);
-        if (builder.sslContext != null) {
-            SSLContext sslContext =  resolveSslContext(builder);
-            SSLParameters sslParams = resolveSslParams(builder, sslContext);
-            cmBuilder.setSSLSocketFactory(SSLConnectionSocketFactoryBuilder.create()
-                                                  .setSslContext(builder.sslContext)
-                                                  .setCiphers(sslParams.getCipherSuites())
-                                                  .build());
-        }
+        SSLContext sslContext =  resolveSslContext(builder);
+        SSLParameters sslParams = resolveSslParams(builder, sslContext);
+        cmBuilder.setSSLSocketFactory(SSLConnectionSocketFactoryBuilder.create()
+                                                                       .setSslContext(sslContext)
+                                                                       .setCiphers(sslParams.getCipherSuites())
+                                                                       .build());
         PoolingHttpClientConnectionManager cm = cmBuilder.build();
         try {
-            if (builder.jmxParent != null) {
+            if (builder.getJmxParent() != null) {
                 MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
-                Hashtable<String, String> parentProps = builder.jmxParent.getKeyPropertyList();
+                Hashtable<String, String> parentProps = builder.getJmxParent().getKeyPropertyList();
                 parentProps.put("name", "connectionsPool");
-                ObjectName subName = new ObjectName(builder.jmxParent.getDomain(), parentProps);
+                ObjectName subName = new ObjectName(builder.getJmxParent().getDomain(), parentProps);
                 mbs.registerMBean(new Implementation(cm), subName);
             }
         } catch (NotCompliantMBeanException | MalformedObjectNameException
@@ -166,7 +164,7 @@ public class ApacheHttpClientService extends AbstractHttpClientService {
         clientBuilder.setUserAgent(String.format("LogHub-HttpClient/%s (Java/%s)", vi.getRelease(), System.getProperty("java.version")));
         clientBuilder.setConnectionManager(cm);
         this.config = RequestConfig.custom()
-                                   .setConnectionRequestTimeout(timeout, TimeUnit.SECONDS)
+                                   .setConnectionRequestTimeout(builder.getTimeout(), TimeUnit.SECONDS)
                                    .build();
         clientBuilder.setDefaultRequestConfig(config);
         clientBuilder.disableCookieManagement();
@@ -189,14 +187,14 @@ public class ApacheHttpClientService extends AbstractHttpClientService {
         HcHttpRequest<HcHttpResponse<T>> hcrequest = (HcHttpRequest<HcHttpResponse<T>>) therequest;
         HttpClientContext context = HttpClientContext.create();
 
-        HttpHost host = hosts.computeIfAbsent(therequest.uri,
+        HttpHost host = hosts.computeIfAbsent(therequest.getUri(),
                 u -> new HttpHost(u.getScheme(), u.getHost(), u.getPort())
         );
         builder.host(host);
-        Method method = Method.valueOf(therequest.verb.toUpperCase(Locale.ENGLISH));
-        HttpUriRequestBase request = new HttpUriRequestBase(method.toString(), therequest.uri);
-        if (hcrequest.requestTimeout != null) {
-            request.setConfig(RequestConfig.copy(config).setResponseTimeout(hcrequest.requestTimeout.toMillis(), TimeUnit.MILLISECONDS).build());
+        Method method = Method.valueOf(therequest.getVerb().toUpperCase(Locale.ENGLISH));
+        HttpUriRequestBase request = new HttpUriRequestBase(method.toString(), therequest.getUri());
+        if (hcrequest.getRequestTimeout() > 0) {
+            request.setConfig(RequestConfig.copy(config).setResponseTimeout(hcrequest.getRequestTimeout(), TimeUnit.SECONDS).build());
         }
         if (hcrequest.content != null) {
             request.setEntity(hcrequest.content);
@@ -253,9 +251,9 @@ public class ApacheHttpClientService extends AbstractHttpClientService {
             try (InputStream contentStream = content.getContent()) {
                 if (mimeType.isTextBody()) {
                     Charset cs = ct.getCharset(StandardCharsets.UTF_8);
-                    builder.parsedResponse(request.consumeText.read(new InputStreamReader(contentStream, cs)));
+                    builder.parsedResponse(request.getConsumeText().read(new InputStreamReader(contentStream, cs)));
                 } else {
-                    builder.parsedResponse(request.consumeBytes.read(contentStream));
+                    builder.parsedResponse(request.getConsumeBytes().read(contentStream));
                 }
             } catch (IOException e) {
                 builder.socketException(e);

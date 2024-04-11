@@ -1,4 +1,4 @@
-package loghub.httpclient.javaclient;
+package loghub.httpclient;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -9,15 +9,12 @@ import java.io.UncheckedIOException;
 import java.net.http.HttpClient;
 import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandler;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-import loghub.httpclient.ContentType;
-import loghub.httpclient.ContentWriter;
-import loghub.httpclient.HttpRequest;
 import lombok.experimental.Accessors;
 
 @Accessors(fluent = false, chain = true)
@@ -39,7 +36,7 @@ class JHttpRequest<T> extends HttpRequest<T> {
         } else if (major == 2 && minor == 0) {
             version = HttpClient.Version.HTTP_2;
         } else {
-            throw new IllegalArgumentException(String.format("Unsupported apache version %s.%s", major, minor));
+            throw new IllegalArgumentException(String.format("Unsupported HTTP version %s.%s", major, minor));
         }
         return this;
     }
@@ -96,7 +93,9 @@ class JHttpRequest<T> extends HttpRequest<T> {
     <U> JHttpResponse<T, U> doRequest(HttpClient jHttpClient) {
         java.net.http.HttpRequest.Builder jRequestBuilder = java.net.http.HttpRequest.newBuilder();
         jRequestBuilder.method(getVerb(), this.requestBodyPublisher.get()).uri(uri);
-        Optional.ofNullable(requestTimeout).ifPresent(jRequestBuilder::timeout);
+        if (requestTimeout > 0) {
+            jRequestBuilder.timeout(Duration.ofSeconds(requestTimeout));
+        }
         headers.forEach(jRequestBuilder::header);
         JHttpResponse.JHttpResponseBuilder<T, U> builder = JHttpResponse.builder();
         BodyHandler<U> handler;
@@ -108,14 +107,17 @@ class JHttpRequest<T> extends HttpRequest<T> {
                 builder.body(bodyInputStreamResponse());
                 handler = (BodyHandler<U>) HttpResponse.BodyHandlers.ofInputStream();
             } else {
-                throw new RuntimeException();
+                throw new IllegalStateException("No body content parser defined");
             }
             HttpResponse<U> jResponse = jHttpClient.send(jRequestBuilder.build(), handler);
             builder.jResponse(jResponse);
         } catch (UncheckedIOException e) {
             builder.error(e.getCause());
-        } catch (IOException | InterruptedException e) {
+        } catch (IOException e) {
             builder.error(e);
+        } catch (InterruptedException e) {
+            builder.error(e);
+            Thread.currentThread().interrupt();
         }
         return builder.build();
     }
@@ -124,7 +126,7 @@ class JHttpRequest<T> extends HttpRequest<T> {
         return i -> {
             Reader r = new StringReader((String) i);
             try {
-                return (T) getConsumeText().read(r);
+                return getConsumeText().read(r);
             } catch (IOException e) {
                 throw new UncheckedIOException(e);
             }

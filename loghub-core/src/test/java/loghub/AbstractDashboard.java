@@ -32,7 +32,7 @@ import loghub.httpclient.AbstractHttpClientService;
 import loghub.httpclient.ContentType;
 import loghub.httpclient.HttpRequest;
 import loghub.httpclient.HttpResponse;
-import loghub.httpclient.javaclient.JavaHttpClientService;
+import loghub.httpclient.JavaHttpClientService;
 import loghub.metrics.JmxService;
 import loghub.security.ssl.SslContextBuilder;
 import lombok.Getter;

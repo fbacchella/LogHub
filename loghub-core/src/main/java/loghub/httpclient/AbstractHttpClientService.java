@@ -35,16 +35,10 @@ public abstract class AbstractHttpClientService {
         protected SSLParameters sslParams;
     }
 
-    protected final int timeout;
     protected final Logger logger;
-    protected final String user;
-    protected final String password;
 
     protected AbstractHttpClientService(AbstractHttpClientService.Builder<? extends AbstractHttpClientService> builder) {
         logger = LogManager.getLogger(Helpers.getFirstInitClass());
-        timeout = builder.timeout;
-        user = builder.user;
-        password = builder.password;
     }
 
     protected SSLContext resolveSslContext(AbstractHttpClientService.Builder<? extends AbstractHttpClientService> builder) {

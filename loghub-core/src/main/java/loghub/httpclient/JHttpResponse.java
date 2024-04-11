@@ -1,4 +1,4 @@
-package loghub.httpclient.javaclient;
+package loghub.httpclient;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
@@ -7,9 +7,6 @@ import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import loghub.httpclient.AbstractHttpClientService;
-import loghub.httpclient.ContentType;
-import loghub.httpclient.HttpResponse;
 import lombok.experimental.Accessors;
 
 @lombok.Builder
