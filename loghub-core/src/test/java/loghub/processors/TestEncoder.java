@@ -46,13 +46,14 @@ public class TestEncoder {
     }
 
     @Test
-    public void testSyslogLine() throws IOException, ProcessorException {
+    public void testSyslogLine() throws ProcessorException {
         Syslog.Builder syslogBuilder = Syslog.getBuilder();
         syslogBuilder.setFormat(Syslog.Format.RFC3164);
         syslogBuilder.setDateFormat(null);
         syslogBuilder.setSeverity(new Expression(0));
         syslogBuilder.setFacility(new Expression(0));
         syslogBuilder.setMessage(new Expression("encoded message"));
+        syslogBuilder.setDefaultTimeZone("UTC");
 
         Encoder encoder = new Encoder();
         encoder.setEncoder(syslogBuilder.build());
