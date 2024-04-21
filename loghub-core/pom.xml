@@ -227,12 +227,6 @@
             <version>1.10.0</version>
         </dependency>
         <dependency>
-            <groupId>org.jruby.joni</groupId>
-            <artifactId>joni</artifactId>
-            <!-- API change in 2.2 -->
-            <version>2.1.48</version>
-        </dependency>
-        <dependency>
             <groupId>com.auth0</groupId>
             <artifactId>java-jwt</artifactId>
             <version>4.4.0</version>

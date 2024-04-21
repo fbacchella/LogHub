@@ -14,7 +14,6 @@ import org.joni.exception.SyntaxException;
 
 import loghub.BuilderClass;
 import loghub.Helpers;
-import loghub.ProcessorException;
 import loghub.events.Event;
 import lombok.Setter;
 
@@ -27,8 +26,8 @@ import lombok.Setter;
 @BuilderClass(OnigurumaRegex.Builder.class)
 public class OnigurumaRegex extends FieldsProcessor {
 
+    @Setter
     public static class Builder extends FieldsProcessor.Builder<OnigurumaRegex> {
-        @Setter
         private String pattern;
         public OnigurumaRegex build() {
             return new OnigurumaRegex(this);
@@ -81,7 +80,7 @@ public class OnigurumaRegex extends FieldsProcessor {
     }
 
     @Override
-    public Object fieldFunction(Event event, Object value) throws ProcessorException {
+    public Object fieldFunction(Event event, Object value) {
         String line = value.toString();
         int length;
         Matcher matcher;
@@ -119,8 +118,8 @@ public class OnigurumaRegex extends FieldsProcessor {
             if (regex.numberOfNames() > 0) {
                 Helpers.iteratorToStream(regex.namedBackrefIterator()).forEach( e -> {
                     int number = e.getBackRefs()[0];
-                    int begin = region.beg[number];
-                    int end = region.end[number];
+                    int begin = region.getBeg(number);
+                    int end = region.getEnd(number);
                     String name = new String(e.name, e.nameP, e.nameEnd - e.nameP, cs);
                     if (begin >= 0) {
                         String content = new String(lineBytes, begin, end - begin, cs);
