@@ -85,7 +85,6 @@ public abstract class AbstractDashboard {
         properties.put("trusts", Tools.getDefaultKeyStore());
         properties.putAll(props);
         sslContext = SslContextBuilder.getBuilder(properties).build();
-        SSLContext.setDefault(sslContext);
 
         dashboard = Dashboard.getBuilder()
                              .setWithSSL(withSsl())
@@ -143,6 +142,7 @@ public abstract class AbstractDashboard {
             Assert.assertEquals(ContentType.TEXT_HTML, rep.getMimeType());
         }
     }
+
     @Test
     public void getFailure1() throws IOException, InterruptedException {
         URI theurl = URI.create(String.format("%s://localhost:%d/metric/1", scheme, port));
