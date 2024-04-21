@@ -237,18 +237,6 @@
             <version>0.1.9</version>
         </dependency>
         <dependency>
-            <groupId>com.github.ua-parser</groupId>
-            <artifactId>uap-java</artifactId>
-            <version>1.6.1</version>
-            <exclusions>
-                <exclusion>
-                    <!-- Excluded because caching is done using cache2k -->
-                    <groupId>org.apache.commons</groupId>
-                    <artifactId>commons-collections4</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
             <groupId>com.axibase</groupId>
             <artifactId>date-processor</artifactId>
             <version>1.1.0</version>
