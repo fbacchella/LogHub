@@ -9,8 +9,8 @@
         <version>0.0.1-SNAPSHOT</version>
     </parent>
 
-    <artifactId>loghub-oniguramaregex</artifactId>
-    <name>LogHub :: Oniguruma Regular Expressions</name>
+    <artifactId>loghub-onigurumaregex</artifactId>
+    <name>LogHub :: Oniguruma regular expressions</name>
 
     <dependencies>
         <dependency>

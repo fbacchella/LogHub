@@ -291,7 +291,7 @@
         <module>loghub-ratelimiter</module>
         <module>loghub-geoip</module>
         <module>loghub-apacheclient</module>
-        <module>loghub-oniguramaregex</module>
+        <module>loghub-onigurumaregex</module>
         <module>loghub-uap</module>
     </modules>
 
