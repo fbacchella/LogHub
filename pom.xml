@@ -19,9 +19,9 @@
         <mainClass>loghub.Start</mainClass>
         <cacheapi.version>1.1.1</cacheapi.version>
         <geoip2.version>4.2.0</geoip2.version>
-        <netty.version>4.1.107.Final</netty.version>
+        <netty.version>4.1.109.Final</netty.version>
         <jcommander.version>1.82</jcommander.version>
-        <slf4j.version>2.0.12</slf4j.version>
+        <slf4j.version>2.0.13</slf4j.version>
         <dependency.locations.enabled>true</dependency.locations.enabled>
         <!-- Indirection needed to keep optionnal jacoco settings and external argument lines-->
         <arg.line></arg.line>
@@ -73,7 +73,7 @@
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
-            <version>1.18.30</version>
+            <version>1.18.32</version>
             <scope>provided</scope>
         </dependency>
     </dependencies>
@@ -103,7 +103,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-assembly-plugin</artifactId>
-                    <version>3.7.0</version>
+                    <version>3.7.1</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -123,17 +123,17 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-compiler-plugin</artifactId>
-                    <version>3.12.1</version>
+                    <version>3.13.0</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-jar-plugin</artifactId>
-                    <version>3.3.0</version>
+                    <version>3.4.1</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-source-plugin</artifactId>
-                    <version>3.3.0</version>
+                    <version>3.3.1</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -182,7 +182,7 @@
                 <plugin>
                     <groupId>org.jacoco</groupId>
                     <artifactId>jacoco-maven-plugin</artifactId>
-                    <version>0.8.11</version>
+                    <version>0.8.12</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -207,7 +207,7 @@
                 <plugin>
                     <groupId>org.sonarsource.scanner.maven</groupId>
                     <artifactId>sonar-maven-plugin</artifactId>
-                    <version>3.10.0.2594</version>
+                    <version>3.11.0.3922</version>
                 </plugin>
                 <plugin>
                     <groupId>org.projectlombok</groupId>
