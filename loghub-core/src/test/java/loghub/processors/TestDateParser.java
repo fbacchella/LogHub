@@ -386,7 +386,7 @@ public class TestDateParser {
         checkTZ("", "", 14);
     }
 
-    private void checkPattern(String patternName, String parseDate, Instant expected) throws ProcessorException {
+    private void checkPattern(String patternName, Object parseDate, Instant expected) throws ProcessorException {
         DateParser.Builder builder = DateParser.getBuilder();
         builder.setPattern(patternName);
         builder.setLocale(new Expression(Locale.ENGLISH.toLanguageTag()));
@@ -404,6 +404,8 @@ public class TestDateParser {
 
     @Test
     public void testNamedPatterns() throws ProcessorException {
+        checkPattern("iso", "2023-06-24T11:12:38.000001Z", Instant.ofEpochSecond(1687605158L, 1000L));
+        checkPattern("isO", "2023-06-24T11:12:38.001Z", Instant.ofEpochSecond(1687605158L, 1000000L));
         checkPattern("ISO_DATE_TIME", "2023-06-24T11:12:38.000001Z", Instant.ofEpochSecond(1687605158L, 1000L));
         checkPattern("ISO_INSTANT", "2023-06-24T11:12:38.000001Z", Instant.ofEpochSecond(1687605158L, 1000L));
         checkPattern("RFC_822_WEEK_DAY", "Tue, 1 Dec 2009 08:48:25 +0000", Instant.ofEpochSecond(1259657305L));
@@ -414,15 +416,25 @@ public class TestDateParser {
         checkPattern("RFC_3164", "Dec 1 08:48:25", expected.toInstant());
         checkPattern("RFC_3164", "Dec 11 08:48:25", expected.withDayOfMonth(11).toInstant());
         Instant now = Instant.now();
+        checkPattern("ISO8601", "2023-06-24T11:12:38Z", Instant.ofEpochSecond(1687605158L));
+
         checkPattern("milliseconds", Long.toString(now.toEpochMilli()), Instant.ofEpochMilli(now.toEpochMilli()));
         checkPattern("seconds", Long.toString(now.getEpochSecond()), Instant.ofEpochSecond(now.getEpochSecond()));
-        checkPattern("ISO8601", "2023-06-24T11:12:38Z", Instant.ofEpochSecond(1687605158L));
         checkPattern("UNIX_MS", Long.toString(now.toEpochMilli()), Instant.ofEpochMilli(now.toEpochMilli()));
         checkPattern("UNIX", Long.toString(now.getEpochSecond()), Instant.ofEpochSecond(now.getEpochSecond()));
+        checkPattern("nanoseconds", Long.toString(now.getEpochSecond() * 1_000_000_000L + now.getNano()), now);
+        checkPattern("UNIX_NS", Long.toString(now.getEpochSecond() * 1_000_000_000L + now.getNano()), now);
+        // Resolving number
+        checkPattern("MILLISECONDS", now.toEpochMilli(), Instant.ofEpochMilli(now.toEpochMilli()));
+        checkPattern("SECONDS", now.getEpochSecond(), Instant.ofEpochSecond(now.getEpochSecond()));
+        checkPattern("UNIX_MS", now.toEpochMilli(), Instant.ofEpochMilli(now.toEpochMilli()));
+        checkPattern("UNIX", now.getEpochSecond(), Instant.ofEpochSecond(now.getEpochSecond()));
+        checkPattern("NanoSeconds", now.getEpochSecond() * 1_000_000_000L + now.getNano(), now);
+        checkPattern("UNIX_NS", now.getEpochSecond() * 1_000_000_000L + now.getNano(), now);
     }
 
     @Test
-    public void test_loghub_processors_Crlf() throws IntrospectionException, ReflectiveOperationException {
+    public void test_loghub_processors_DateParser() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.processors.DateParser"
                 , BeanChecks.BeanInfo.build("locale", Expression.class)
                 , BeanChecks.BeanInfo.build("timezone", Expression.class)

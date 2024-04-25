@@ -8,13 +8,10 @@ import java.time.temporal.TemporalAccessor;
 import java.time.zone.ZoneRulesException;
 import java.util.Arrays;
 import java.util.Date;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-
-import org.apache.logging.log4j.Level;
 
 import com.axibase.date.DatetimeProcessor;
 import com.axibase.date.NamedPatterns;
@@ -32,19 +29,90 @@ import lombok.Setter;
 @BuilderClass(DateParser.Builder.class)
 public class DateParser extends FieldsProcessor {
 
-    private static final Map<String, DatetimeProcessor> NAMEDPATTERNS = new LinkedHashMap<>();
+    private static class NanoProcessor implements DatetimeProcessor {
+        private final ZoneId zid;
+
+        public NanoProcessor() {
+            this.zid = ZoneId.of("UTC");
+        }
+
+        public NanoProcessor(ZoneId zid) {
+            this.zid = zid;
+        }
+
+        private Instant getInstant(String datetime) {
+            long value = Long.parseLong(datetime);
+            return Instant.ofEpochSecond(0, 0).plusNanos(value);
+        }
+
+        @Override
+        public long parseMillis(String datetime) {
+            return getInstant(datetime).toEpochMilli();
+        }
+
+        @Override
+        public long parseMillis(String datetime, ZoneId zoneId) {
+            return getInstant(datetime).toEpochMilli();
+        }
+
+        @Override
+        public ZonedDateTime parse(String datetime) {
+            return getInstant(datetime).atZone(zid);
+        }
+
+        @Override
+        public ZonedDateTime parse(String datetime, ZoneId zoneId) {
+            return getInstant(datetime).atZone(zoneId);
+        }
+
+        @Override
+        public String print(long timestamp) {
+            throw new UnsupportedOperationException("Not a formatter");
+        }
+
+        @Override
+        public String print(long timestamp, ZoneId zoneId) {
+            throw new UnsupportedOperationException("Not a formatter");
+        }
+
+        @Override
+        public String print(ZonedDateTime zonedDateTime) {
+            throw new UnsupportedOperationException("Not a formatter");
+        }
+
+        @Override
+        public DatetimeProcessor withLocale(Locale locale) {
+            return this;
+        }
+
+        @Override
+        public DatetimeProcessor withDefaultZone(ZoneId zoneId) {
+            return zoneId.equals(zid) ? this : new NanoProcessor(zoneId);
+        }
+    }
+
+    private static final Map<String, DatetimeProcessor> NAMEDPATTERNS;
     static {
-        NAMEDPATTERNS.put("ISO_DATE_TIME", PatternResolver.createNewFormatter(NamedPatterns.ISO_NANOS));
-        NAMEDPATTERNS.put("ISO_INSTANT", PatternResolver.createNewFormatter(NamedPatterns.ISO_NANOS));
-        NAMEDPATTERNS.put("RFC_822_WEEK_DAY", PatternResolver.createNewFormatter("eee, d MMM yyyy HH:mm:ss Z").withLocale(Locale.getDefault()));
-        NAMEDPATTERNS.put("RFC_822_SHORT", PatternResolver.createNewFormatter("d MMM yyyy HH:mm:ss Z").withLocale(Locale.getDefault()));
-        NAMEDPATTERNS.put("RFC_3164", PatternResolver.createNewFormatter("MMM d HH:mm:ss", ZoneId.systemDefault(), OnMissingDateComponentAction.SET_CURRENT).withLocale(Locale.getDefault()));
-        NAMEDPATTERNS.put("milliseconds", PatternResolver.createNewFormatter(NamedPatterns.MILLISECONDS));
-        NAMEDPATTERNS.put("seconds", PatternResolver.createNewFormatter(NamedPatterns.SECONDS));
-        // For compatibility with logstash date processor
-        NAMEDPATTERNS.put("ISO8601", PatternResolver.createNewFormatter(NamedPatterns.ISO));
-        NAMEDPATTERNS.put("UNIX", PatternResolver.createNewFormatter(NamedPatterns.SECONDS));
-        NAMEDPATTERNS.put("UNIX_MS", PatternResolver.createNewFormatter(NamedPatterns.MILLISECONDS));
+        DatetimeProcessor isoNanos = PatternResolver.createNewFormatter(NamedPatterns.ISO_NANOS);
+        DatetimeProcessor nanos = new NanoProcessor();
+        DatetimeProcessor millis = PatternResolver.createNewFormatter(NamedPatterns.MILLISECONDS);
+        DatetimeProcessor seconds = PatternResolver.createNewFormatter(NamedPatterns.SECONDS);
+        NAMEDPATTERNS = Map.ofEntries(
+            Map.entry("ISO", isoNanos),
+            Map.entry("ISO_DATE_TIME", isoNanos),
+            Map.entry("ISO_INSTANT", isoNanos),
+            Map.entry("RFC_822_WEEK_DAY", PatternResolver.createNewFormatter("eee, d MMM yyyy HH:mm:ss Z").withLocale(Locale.getDefault())),
+            Map.entry("RFC_822_SHORT", PatternResolver.createNewFormatter("d MMM yyyy HH:mm:ss Z").withLocale(Locale.getDefault())),
+            Map.entry("RFC_3164", PatternResolver.createNewFormatter("MMM d HH:mm:ss", ZoneId.systemDefault(), OnMissingDateComponentAction.SET_CURRENT).withLocale(Locale.getDefault())),
+            Map.entry("NANOSECONDS", nanos),
+            Map.entry("MILLISECONDS", millis),
+            Map.entry("SECONDS", seconds),
+            // For compatibility with logstash date processor
+            Map.entry("ISO8601", isoNanos),
+            Map.entry("UNIX", seconds),
+            Map.entry("UNIX_MS", millis),
+            Map.entry("UNIX_NS", nanos)
+        );
     }
 
     @Data
@@ -53,10 +121,11 @@ public class DateParser extends FieldsProcessor {
         private final String timezone;
         private final String locale;
         private DatetimeProcessor getDatetimeProcessor() {
-            if (NAMEDPATTERNS.containsKey(parser)) {
-                return NAMEDPATTERNS.get(parser).withDefaultZone(ZoneId.of(timezone)).withLocale(Locale.forLanguageTag(locale));
+            if (NAMEDPATTERNS.containsKey(parser.toUpperCase(Locale.ENGLISH))) {
+                return NAMEDPATTERNS.get(parser.toUpperCase(Locale.ENGLISH)).withDefaultZone(ZoneId.of(timezone)).withLocale(Locale.forLanguageTag(locale));
+            } else {
+                return PatternResolver.createNewFormatter(parser, ZoneId.of(timezone), OnMissingDateComponentAction.SET_CURRENT).withLocale(Locale.forLanguageTag(locale));
             }
-            return PatternResolver.createNewFormatter(parser, ZoneId.of(timezone), OnMissingDateComponentAction.SET_CURRENT).withLocale(Locale.forLanguageTag(locale));
         }
     }
 
@@ -66,12 +135,13 @@ public class DateParser extends FieldsProcessor {
     public static class Builder extends FieldsProcessor.Builder<DateParser> {
         private Expression locale = new Expression(Locale.ENGLISH.getLanguage());
         private Expression timezone = new Expression(ZoneId.systemDefault());
-        private String[] patterns = List.of("iso_nanos",
-                                    "eee, d MMM yyyy HH:mm:ss Z",
-                                    "d MMM yyyy HH:mm:ss Z",
-                                    "MMM d HH:mm:ss",
-                                    "milliseconds")
-                                .toArray(String[]::new);
+        private String[] patterns = List.of(
+            "iso",
+            "RFC_822_WEEK_DAY",
+            "RFC_822_SHORT",
+            "RFC_3164",
+            "milliseconds"
+        ).toArray(String[]::new);
         public void setPattern(String pattern) {
             patterns = new String[]{pattern};
         }
@@ -118,17 +188,18 @@ public class DateParser extends FieldsProcessor {
                 DatetimeProcessorKey key = new DatetimeProcessorKey(pattern, eventTimeZone, eventLocale);
                 try {
                     DatetimeProcessor formatter = processorsCache.computeIfAbsent(key, k -> key.getDatetimeProcessor());
-                    logger.trace("trying to parse {} with {}", dateString, key.parser);
+                    logger.trace("trying to parse {} with pattern \"{}\"", dateString, key.parser);
                     ZonedDateTime dateParsed = formatter.parse(dateString);
-                    logger.trace("parsed {} as {}", dateString, dateParsed);
+                    logger.trace("parsed \"{}\" as {}", dateString, dateParsed);
                     return dateParsed.toInstant();
                 } catch (ZoneRulesException ex) {
                     throw new ProcessorException(event, String.format(Helpers.resolveThrowableException(ex)));
                 } catch (IllegalArgumentException | DateTimeParseException | StringIndexOutOfBoundsException ex) {
                     //no problem, just wrong parser, keep trying
-                    logger.debug("Failed to parse date with pattern {}: {}", () -> key.parser,
-                            () -> Helpers.resolveThrowableException(ex));
-                    logger.catching(Level.TRACE, ex);
+                    logger.atDebug()
+                          .withThrowable(logger.isTraceEnabled() ? ex : null)
+                          .log("Failed to parse date with pattern \"{}\": {}",
+                               () -> key.parser, ex::getMessage);
                 }
             }
             return FieldsProcessor.RUNSTATUS.FAILED;
@@ -136,8 +207,9 @@ public class DateParser extends FieldsProcessor {
      }
 
     private Object resolveFromNumber(Event event, Number value) throws ProcessorException {
-        boolean isInstant = NamedPatterns.SECONDS.equals(patterns[0]);
-        boolean isDate = NamedPatterns.MILLISECONDS.equals(patterns[0]);
+        boolean isInstant = NamedPatterns.SECONDS.equalsIgnoreCase(patterns[0]) || "UNIX".equalsIgnoreCase(patterns[0]);
+        boolean isDate = NamedPatterns.MILLISECONDS.equalsIgnoreCase(patterns[0]) || "UNIX_MS".equalsIgnoreCase(patterns[0]);
+        boolean isNano = "nanoseconds".equalsIgnoreCase(patterns[0]) || "UNIX_NS".equalsIgnoreCase(patterns[0]);
         if (value instanceof Float || value instanceof Double){
             double d = value.doubleValue();
             // The cast round toward 0
@@ -148,6 +220,8 @@ public class DateParser extends FieldsProcessor {
             return Instant.ofEpochSecond(value.longValue(), 0);
         } else if (isDate) {
             return Instant.ofEpochMilli(value.longValue());
+        } else if (isNano) {
+            return Instant.ofEpochSecond(0, 0).plusNanos(value.longValue());
         } else {
             throw event.buildException("Don't know how to parse date value " + value);
         }
