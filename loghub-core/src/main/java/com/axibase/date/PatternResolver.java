@@ -30,6 +30,8 @@ public class PatternResolver {
            result = new DatetimeProcessorUnixSeconds(zoneId);
         } else if (NamedPatterns.MILLISECONDS.equalsIgnoreCase(pattern)) {
            result = new DatetimeProcessorUnixMillis(zoneId);
+        } else if (NamedPatterns.NANOSECONDS.equalsIgnoreCase(pattern)) {
+            result = new DatetimeProcessorUnixNano(zoneId);
         } else if (NamedPatterns.ISO.equalsIgnoreCase(pattern)) {
             result = new DatetimeProcessorIso8601(3, ZoneOffsetType.ISO8601, zoneId);
         } else if (NamedPatterns.ISO_SECONDS.equalsIgnoreCase(pattern)) {

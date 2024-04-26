@@ -29,72 +29,11 @@ import lombok.Setter;
 @BuilderClass(DateParser.Builder.class)
 public class DateParser extends FieldsProcessor {
 
-    private static class NanoProcessor implements DatetimeProcessor {
-        private final ZoneId zid;
-
-        public NanoProcessor() {
-            this.zid = ZoneId.of("UTC");
-        }
-
-        public NanoProcessor(ZoneId zid) {
-            this.zid = zid;
-        }
-
-        private Instant getInstant(String datetime) {
-            long value = Long.parseLong(datetime);
-            return Instant.ofEpochSecond(0, 0).plusNanos(value);
-        }
-
-        @Override
-        public long parseMillis(String datetime) {
-            return getInstant(datetime).toEpochMilli();
-        }
-
-        @Override
-        public long parseMillis(String datetime, ZoneId zoneId) {
-            return getInstant(datetime).toEpochMilli();
-        }
-
-        @Override
-        public ZonedDateTime parse(String datetime) {
-            return getInstant(datetime).atZone(zid);
-        }
-
-        @Override
-        public ZonedDateTime parse(String datetime, ZoneId zoneId) {
-            return getInstant(datetime).atZone(zoneId);
-        }
-
-        @Override
-        public String print(long timestamp) {
-            throw new UnsupportedOperationException("Not a formatter");
-        }
-
-        @Override
-        public String print(long timestamp, ZoneId zoneId) {
-            throw new UnsupportedOperationException("Not a formatter");
-        }
-
-        @Override
-        public String print(ZonedDateTime zonedDateTime) {
-            throw new UnsupportedOperationException("Not a formatter");
-        }
-
-        @Override
-        public DatetimeProcessor withLocale(Locale locale) {
-            return this;
-        }
-
-        @Override
-        public DatetimeProcessor withDefaultZone(ZoneId zoneId) {
-            return zoneId.equals(zid) ? this : new NanoProcessor(zoneId);
-        }
-    }
 
     private static final Map<String, DatetimeProcessor> NAMEDPATTERNS;
     static {
         DatetimeProcessor isoNanos = PatternResolver.createNewFormatter(NamedPatterns.ISO_NANOS);
-        DatetimeProcessor nanos = new NanoProcessor();
+        DatetimeProcessor nanos = PatternResolver.createNewFormatter(NamedPatterns.NANOSECONDS);
         DatetimeProcessor millis = PatternResolver.createNewFormatter(NamedPatterns.MILLISECONDS);
         DatetimeProcessor seconds = PatternResolver.createNewFormatter(NamedPatterns.SECONDS);
         NAMEDPATTERNS = Map.ofEntries(
