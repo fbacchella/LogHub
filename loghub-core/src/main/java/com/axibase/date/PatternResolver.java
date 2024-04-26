@@ -25,7 +25,7 @@ public class PatternResolver {
     }
 
     public static DatetimeProcessor createNewFormatter(String pattern, ZoneId zoneId, OnMissingDateComponentAction onMissingDateComponent) {
-        final DatetimeProcessor result;
+        DatetimeProcessor result;
         if (NamedPatterns.SECONDS.equalsIgnoreCase(pattern)) {
            result = new DatetimeProcessorUnixSeconds(zoneId);
         } else if (NamedPatterns.MILLISECONDS.equalsIgnoreCase(pattern)) {
@@ -49,23 +49,23 @@ public class PatternResolver {
     }
 
     private static DatetimeProcessor createFromDynamicPattern(String pattern, ZoneId zoneId, OnMissingDateComponentAction onMissingDateComponentAction) {
-        final Matcher matcher = OPTIMIZED_PATTERN.matcher(pattern);
+        Matcher matcher = OPTIMIZED_PATTERN.matcher(pattern);
         if (matcher.matches()) {
-            final int fractions = stringLength(matcher.group(2)) - 1;
-            final ZoneOffsetType offsetType = ZoneOffsetType.byPattern(matcher.group(3));
+            int fractions = stringLength(matcher.group(2)) - 1;
+            ZoneOffsetType offsetType = ZoneOffsetType.byPattern(matcher.group(3));
             if (" ".equals(matcher.group(1)) || "' '".equals(matcher.group(1))) {
                 return new DatetimeProcessorIso8601(fractions, offsetType, zoneId, ' ');
             } else if (offsetType != ZoneOffsetType.NONE) {
                 return new DatetimeProcessorIso8601(fractions, offsetType, zoneId, 'T');
             }
         }
-        final String preprocessedPattern = preprocessPattern(pattern);
-        final DateTimeFormatterBuilder builder = new DateTimeFormatterBuilder()
+        String preprocessedPattern = preprocessPattern(pattern);
+        DateTimeFormatterBuilder builder = new DateTimeFormatterBuilder()
                 .parseCaseInsensitive();
         if (enableLenient(preprocessedPattern)) {
             builder.parseLenient();
         }
-        final DateTimeFormatter dateTimeFormatter = builder
+        DateTimeFormatter dateTimeFormatter = builder
                 .appendPattern(preprocessedPattern)
                 .toFormatter(Locale.US)
                 .withResolverStyle(ResolverStyle.STRICT);
@@ -91,12 +91,12 @@ public class PatternResolver {
      * @return JSR-310 compatible pattern
      */
     private static String preprocessPattern(String pattern) {
-        final int length = pattern.length();
+        int length = pattern.length();
         boolean insideQuotes = false;
-        final StringBuilder sb = new StringBuilder(pattern.length() + 5);
-        final DateFormatParsingState state = new DateFormatParsingState();
+        StringBuilder sb = new StringBuilder(pattern.length() + 5);
+        DateFormatParsingState state = new DateFormatParsingState();
         for (int i = 0; i < length; i++) {
-            final char c = pattern.charAt(i);
+            char c = pattern.charAt(i);
             if (c != 'u') {
                 state.updateU(sb);
             }
@@ -139,7 +139,7 @@ public class PatternResolver {
         return sb.toString();
     }
 
-    private static final class DateFormatParsingState {
+    private static class DateFormatParsingState {
         private int zCount = 0;
         private int uCount = 0;
 

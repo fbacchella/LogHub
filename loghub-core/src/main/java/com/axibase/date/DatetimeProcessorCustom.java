@@ -79,13 +79,13 @@ class DatetimeProcessorCustom implements DatetimeProcessor {
     }
 
     private LocalDate resolveDateFromTemporal(TemporalAccessor parsed, ZoneId zone) {
-        final LocalDate query = parsed.query(TemporalQueries.localDate());
+        LocalDate query = parsed.query(TemporalQueries.localDate());
         if (query != null) {
             return query;
         }
-        final int year;
-        final int month;
-        final int day;
+        int year;
+        int month;
+        int day;
         LocalDate currentDate = null;
         if (parsed.isSupported(ChronoField.YEAR)) {
             year = parsed.get(ChronoField.YEAR);
@@ -138,7 +138,7 @@ class DatetimeProcessorCustom implements DatetimeProcessor {
     }
 
     private static LocalTime resolveTimeFromTemporal(TemporalAccessor parsed) {
-        final LocalTime query = parsed.query(TemporalQueries.localTime());
+        LocalTime query = parsed.query(TemporalQueries.localTime());
         if (query != null) {
             return query;
         }
@@ -169,13 +169,13 @@ class DatetimeProcessorCustom implements DatetimeProcessor {
      * @return millis from epoch
      */
     private ZonedDateTime parseMillisFailSafe(String datetime, ZoneId defaultZoneId) {
-        final TemporalAccessor parsed = dateTimeFormatter.parse(datetime);
+        TemporalAccessor parsed = dateTimeFormatter.parse(datetime);
         ZoneId zone = parsed.query(TemporalQueries.zone());
         if (zone == null) {
             zone = defaultZoneId;
         }
-        final LocalDate localDate = resolveDateFromTemporal(parsed, zone);
-        final LocalTime localTime = resolveTimeFromTemporal(parsed);
+        LocalDate localDate = resolveDateFromTemporal(parsed, zone);
+        LocalTime localTime = resolveTimeFromTemporal(parsed);
         return ZonedDateTime.of(localDate, localTime, zone);
     }
 

@@ -19,10 +19,10 @@ abstract class AbstractMonthDateTimeProcessor implements DatetimeProcessor {
     final ZoneId defaultZone;
 
     AbstractMonthDateTimeProcessor(Locale locale, TextStyle textStyle, TextStyle standaloneTextStyle, ZoneId zoneId) {
-        final DateTimeFormatter defaultFormatter = new DateTimeFormatterBuilder()
+        DateTimeFormatter defaultFormatter = new DateTimeFormatterBuilder()
                 .appendText(MONTH_OF_YEAR, textStyle)
                 .toFormatter(locale);
-        final DateTimeFormatter standaloneFormatter = new DateTimeFormatterBuilder()
+        DateTimeFormatter standaloneFormatter = new DateTimeFormatterBuilder()
                 .appendText(MONTH_OF_YEAR, standaloneTextStyle)
                 .toFormatter(locale);
         this.formatter = defaultFormatter;
@@ -37,7 +37,7 @@ abstract class AbstractMonthDateTimeProcessor implements DatetimeProcessor {
     }
 
     private static Map<String, Month> prepareMap(DateTimeFormatter formatter, DateTimeFormatter standaloneFormatter) {
-        final Map<String, Month> result = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+        Map<String, Month> result = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
         for (Month month : Month.values()) {
             addFormattedValue(formatter.format(month), month, result);
             addFormattedValue(standaloneFormatter.format(month), month, result);
@@ -57,7 +57,7 @@ abstract class AbstractMonthDateTimeProcessor implements DatetimeProcessor {
     }
 
     private ZonedDateTime monthToZonedDateTime(String month, ZoneId zoneId) {
-        final Month parsedMonth = parseMonth(month);
+        Month parsedMonth = parseMonth(month);
         if (parsedMonth == null) {
             throw new DateTimeParseException("Text '" + month + "' could not be parsed at index 0", month, 0);
         }
@@ -91,7 +91,7 @@ abstract class AbstractMonthDateTimeProcessor implements DatetimeProcessor {
 
     @Override
     public String print(long timestamp, ZoneId zoneId) {
-        final ZonedDateTime zonedDateTime = DatetimeProcessorUtil.timestampToZonedDateTime(timestamp, zoneId);
+        ZonedDateTime zonedDateTime = DatetimeProcessorUtil.timestampToZonedDateTime(timestamp, zoneId);
         return formatter.format(zonedDateTime);
     }
 
@@ -102,7 +102,7 @@ abstract class AbstractMonthDateTimeProcessor implements DatetimeProcessor {
 
     @Override
     public void appendTo(long timestamp, StringBuilder accumulator) {
-        final ZonedDateTime zonedDateTime = DatetimeProcessorUtil.timestampToZonedDateTime(timestamp, defaultZone);
+        ZonedDateTime zonedDateTime = DatetimeProcessorUtil.timestampToZonedDateTime(timestamp, defaultZone);
         formatter.formatTo(zonedDateTime, accumulator);
     }
 

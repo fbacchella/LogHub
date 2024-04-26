@@ -29,8 +29,8 @@ public interface DatetimeProcessor extends DatetimePatternTester {
 
     default boolean canParse(String date) {
         try {
-            final ZonedDateTime parsed = parse(date);
-            final int year = parsed.getYear();
+            ZonedDateTime parsed = parse(date);
+            int year = parsed.getYear();
             return year >= DatetimeProcessorUtil.MIN_YEAR_20_CENTURY && year < DatetimeProcessorUtil.MAX_YEAR;
         } catch (Exception e) {
             return false;

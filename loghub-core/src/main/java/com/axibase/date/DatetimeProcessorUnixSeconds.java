@@ -41,8 +41,8 @@ class DatetimeProcessorUnixSeconds implements DatetimeProcessor {
 
     @Override
     public String print(long timestamp) {
-        final long seconds = timestamp / MILLISECONDS_IN_SECOND;
-        final long fractions = timestamp % MILLISECONDS_IN_SECOND;
+        long seconds = timestamp / MILLISECONDS_IN_SECOND;
+        long fractions = timestamp % MILLISECONDS_IN_SECOND;
         if (fractions == 0) {
             return Long.toString(seconds);
         }
@@ -74,7 +74,7 @@ class DatetimeProcessorUnixSeconds implements DatetimeProcessor {
     @Override
     public boolean canParse(String date) {
         if (DatetimeProcessorUtil.isCreatable(date)) {
-            final long millis = parseMillis(date, ZoneOffset.UTC);
+            long millis = parseMillis(date, ZoneOffset.UTC);
             return millis >= 0 && millis < MAX_TIME_MILLIS;
         }
         return false;

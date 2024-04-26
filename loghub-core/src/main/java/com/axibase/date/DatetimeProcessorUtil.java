@@ -5,7 +5,7 @@ import java.time.format.DateTimeParseException;
 import java.time.zone.ZoneRules;
 
 @SuppressWarnings("squid:S109") // magic constant
-public final class DatetimeProcessorUtil {
+public class DatetimeProcessorUtil {
     static final int NANOS_IN_MILLIS = 1_000_000;
     static final int MILLISECONDS_IN_SECOND = 1000;
     static final int UNIX_EPOCH_YEAR = 1970;
@@ -49,27 +49,27 @@ public final class DatetimeProcessorUtil {
     }
 
     static String printIso8601(long timestamp, char delimiter, ZoneId zone, ZoneOffsetType offsetType, int fractionsOfSecond, StringBuilder sb) {
-        final ZoneOffset offset;
-        final long secs;
-        final int nanos;
+        ZoneOffset offset;
+        long secs;
+        int nanos;
         if (zone instanceof ZoneOffset) {
             secs = Math.floorDiv(timestamp, MILLISECONDS_IN_SECOND);
             nanos = Math.floorMod(timestamp, MILLISECONDS_IN_SECOND) * NANOS_IN_MILLIS;
             offset = (ZoneOffset) zone;
         } else {
-            final ZoneRules rules = zone.getRules();
+            ZoneRules rules = zone.getRules();
             if (rules.isFixedOffset()) {
                 secs = Math.floorDiv(timestamp, MILLISECONDS_IN_SECOND);
                 nanos = Math.floorMod(timestamp, MILLISECONDS_IN_SECOND) * NANOS_IN_MILLIS;
                 offset = rules.getOffset(MOCK);
             } else {
-                final Instant instant = Instant.ofEpochMilli(timestamp);
+                Instant instant = Instant.ofEpochMilli(timestamp);
                 secs = instant.getEpochSecond();
                 nanos = instant.getNano();
                 offset = rules.getOffset(instant);
             }
         }
-        final MutableDateTime localDateTime = new MutableDateTime().ofEpochSecond(secs, nanos, offset);
+        MutableDateTime localDateTime = new MutableDateTime().ofEpochSecond(secs, nanos, offset);
         return printIso8601(localDateTime, offset, offsetType, delimiter, fractionsOfSecond, sb);
     }
 
@@ -113,11 +113,11 @@ public final class DatetimeProcessorUtil {
     }
 
     static boolean checkExpectedMilliseconds(String date, int expected) {
-        final int indexOfDot = date.indexOf('.');
+        int indexOfDot = date.indexOf('.');
         if (expected <= 0) {
             return indexOfDot < 0;
         } else {
-            final int length = date.length();
+            int length = date.length();
             int cnt = 0;
             for (int i = indexOfDot + 1; i < length; i++) {
                 if (Character.isDigit(date.charAt(i))) {
@@ -133,9 +133,9 @@ public final class DatetimeProcessorUtil {
     static ZonedDateTime parseIso8601AsZonedDateTime(String date, char delimiter,
                                                      ZoneId defaultOffset, ZoneOffsetType offsetType) {
         try {
-            final ParsingContext context = new ParsingContext();
-            final LocalDateTime localDateTime = parseIso8601AsLocalDateTime(date, delimiter, context);
-            final ZoneId zoneId = extractOffset(date, context.offset, offsetType, defaultOffset);
+            ParsingContext context = new ParsingContext();
+            LocalDateTime localDateTime = parseIso8601AsLocalDateTime(date, delimiter, context);
+            ZoneId zoneId = extractOffset(date, context.offset, offsetType, defaultOffset);
             return ZonedDateTime.of(localDateTime, zoneId);
         } catch (DateTimeException e) {
             throw new DateTimeParseException("Failed to parse date " + date + ": " + e.getMessage(), date, 0, e);
@@ -147,8 +147,8 @@ public final class DatetimeProcessorUtil {
     }
 
     private static ZoneId extractOffset(String date, int offset, ZoneOffsetType offsetType, ZoneId defaultOffset) {
-        final int length = date.length();
-        final ZoneId zoneId;
+        int length = date.length();
+        ZoneId zoneId;
         if (offset == length) {
             if (offsetType != ZoneOffsetType.NONE || defaultOffset == null) {
                 throw new DateTimeParseException("Zone offset required", date, offset);
@@ -183,8 +183,8 @@ public final class DatetimeProcessorUtil {
     }
 
     private static int resolveDigitByCode(String value, int index) {
-        final char c = value.charAt(index);
-        final int result = c - '0';
+        char c = value.charAt(index);
+        int result = c - '0';
         if (result < 0 || result > 9) {
             throw new DateTimeParseException("Failed to parse number at index ", value, index);
         }
@@ -199,7 +199,7 @@ public final class DatetimeProcessorUtil {
     }
 
     private static LocalDateTime parseIso8601AsLocalDateTime(String date, char delimiter, ParsingContext context) {
-        final int length = date.length();
+        int length = date.length();
         int offset = context.offset;
 
         // extract year
@@ -221,7 +221,7 @@ public final class DatetimeProcessorUtil {
         int minutes = parseInt(date, offset += 1, offset += 2, length);
 
         // seconds can be optional
-        final int seconds;
+        int seconds;
         if (date.charAt(offset) == ':') {
             seconds = parseInt(date, offset += 1, offset += 2, length);
         } else {
@@ -229,13 +229,13 @@ public final class DatetimeProcessorUtil {
         }
 
         // milliseconds can be optional in the format
-        final int nanos;
+        int nanos;
         if (offset < length && date.charAt(offset) == '.') {
-            final int startPos = ++offset;
-            final int endPosExcl = Math.min(offset + 9, length);
+            int startPos = ++offset;
+            int endPosExcl = Math.min(offset + 9, length);
             int frac = resolveDigitByCode(date, offset++);
             while (offset < endPosExcl) {
-                final int digit = date.charAt(offset) - '0';
+                int digit = date.charAt(offset) - '0';
                 if (digit < 0 || digit > 9) {
                     break;
                 }
@@ -256,9 +256,9 @@ public final class DatetimeProcessorUtil {
 
     public static OffsetDateTime parseIso8601AsOffsetDateTime(String date, char delimiter) {
         try {
-            final ParsingContext parsingContext = new ParsingContext();
-            final LocalDateTime localDateTime = parseIso8601AsLocalDateTime(date, delimiter, parsingContext);
-            final ZoneOffset zoneOffset = parseOffset(parsingContext.offset, date);
+            ParsingContext parsingContext = new ParsingContext();
+            LocalDateTime localDateTime = parseIso8601AsLocalDateTime(date, delimiter, parsingContext);
+            ZoneOffset zoneOffset = parseOffset(parsingContext.offset, date);
             return OffsetDateTime.of(localDateTime, zoneOffset);
         } catch (DateTimeException e) {
             throw new DateTimeParseException("Failed to parse date " + date + ": " + e.getMessage(), date, 0, e);
@@ -266,8 +266,8 @@ public final class DatetimeProcessorUtil {
     }
 
     private static ZoneOffset parseOffset(int offset, String date) {
-        final int length = date.length();
-        final ZoneOffset zoneOffset;
+        int length = date.length();
+        ZoneOffset zoneOffset;
         if (offset == length) {
             throw new DateTimeParseException("Zone offset required", date, offset);
         } else {
@@ -285,7 +285,7 @@ public final class DatetimeProcessorUtil {
             return sb.append('Z');
         }
         sb.append(offsetSeconds < 0 ? '-' : '+');
-        final int absSeconds = Math.abs(offsetSeconds);
+        int absSeconds = Math.abs(offsetSeconds);
         appendNumberWithFixedPositions(sb, absSeconds / 3600, 2);
         appendNumberWithFixedPositions(sb, (absSeconds / 60) % 60, 2);
         return sb;
@@ -298,7 +298,7 @@ public final class DatetimeProcessorUtil {
      */
     @SuppressWarnings("squid:S3776") // cognitive complexity
     private static int sizeInDigits(int number) {
-        final int result;
+        int result;
         if (number < 100_000) {
             if (number < 100) {
                 result = number < 10 ? 1 : 2;
@@ -361,14 +361,14 @@ public final class DatetimeProcessorUtil {
     }
 
     public static ZonedDateTime timestampToZonedDateTime(long timestamp, ZoneId zoneId) {
-        final ZonedDateTime result;
+        ZonedDateTime result;
         if (zoneId instanceof ZoneOffset) {
             long secs = Math.floorDiv(timestamp, MILLISECONDS_IN_SECOND);
             int milliOfSecond = Math.floorMod(timestamp, MILLISECONDS_IN_SECOND);
             LocalDateTime ldt = LocalDateTime.ofEpochSecond(secs, milliOfSecond * NANOS_IN_MILLIS, (ZoneOffset) zoneId);
             result = ZonedDateTime.of(ldt, zoneId);
         } else {
-            final ZoneRules rules = zoneId.getRules();
+            ZoneRules rules = zoneId.getRules();
             if (rules.isFixedOffset()) {
                 long secs = Math.floorDiv(timestamp, MILLISECONDS_IN_SECOND);
                 int milliOfSecond = Math.floorMod(timestamp, MILLISECONDS_IN_SECOND);
@@ -386,8 +386,8 @@ public final class DatetimeProcessorUtil {
         return Math.addExact(dateTime.toEpochSecond() * MILLISECONDS_IN_SECOND, Math.floorDiv(dateTime.getNano(), NANOS_IN_MILLIS));
     }
 
-    static boolean isNumeric(final CharSequence cs) {
-        final int sz = cs.length();
+    static boolean isNumeric(CharSequence cs) {
+        int sz = cs.length();
         for (int i = 0; i < sz; i++) {
             if (!Character.isDigit(cs.charAt(i))) {
                 return false;
@@ -415,18 +415,18 @@ public final class DatetimeProcessorUtil {
      * @return <code>true</code> if the string is a correctly formatted number
      */
     @SuppressWarnings("all") // ignore static analysis for Apache Commons code
-    static boolean isCreatable(final String str) {
+    static boolean isCreatable(String str) {
         if (str == null || str.length() == 0) {
             return false;
         }
-        final char[] chars = str.toCharArray();
+        char[] chars = str.toCharArray();
         int sz = chars.length;
         boolean hasExp = false;
         boolean hasDecPoint = false;
         boolean allowSigns = false;
         boolean foundDigit = false;
         // deal with any possible sign up front
-        final int start = chars[0] == '-' || chars[0] == '+' ? 1 : 0;
+        int start = chars[0] == '-' || chars[0] == '+' ? 1 : 0;
         if (sz > start + 1 && chars[start] == '0') { // leading 0
             if (chars[start + 1] == 'x' || chars[start + 1] == 'X') { // leading 0x/0X
                 int i = start + 2;
@@ -528,7 +528,7 @@ public final class DatetimeProcessorUtil {
         return !allowSigns && foundDigit;
     }
 
-    private static final class ParsingContext {
+    private static class ParsingContext {
         private int offset;
     }
 }
