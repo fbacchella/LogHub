@@ -54,13 +54,13 @@ public final class DatetimeProcessorUtil {
         final int nanos;
         if (zone instanceof ZoneOffset) {
             secs = Math.floorDiv(timestamp, MILLISECONDS_IN_SECOND);
-            nanos = (int)Math.floorMod(timestamp, MILLISECONDS_IN_SECOND) * NANOS_IN_MILLIS;
+            nanos = Math.floorMod(timestamp, MILLISECONDS_IN_SECOND) * NANOS_IN_MILLIS;
             offset = (ZoneOffset) zone;
         } else {
             final ZoneRules rules = zone.getRules();
             if (rules.isFixedOffset()) {
                 secs = Math.floorDiv(timestamp, MILLISECONDS_IN_SECOND);
-                nanos = (int)Math.floorMod(timestamp, MILLISECONDS_IN_SECOND) * NANOS_IN_MILLIS;
+                nanos = Math.floorMod(timestamp, MILLISECONDS_IN_SECOND) * NANOS_IN_MILLIS;
                 offset = rules.getOffset(MOCK);
             } else {
                 final Instant instant = Instant.ofEpochMilli(timestamp);
@@ -356,9 +356,7 @@ public final class DatetimeProcessorUtil {
     }
 
     public static StringBuilder appendNumberWithFixedPositions(StringBuilder sb, int num, int positions) {
-        for (int i = positions - sizeInDigits(num); i > 0; --i) {
-            sb.append('0');
-        }
+        sb.append("0".repeat(Math.max(0, positions - sizeInDigits(num))));
         return sb.append(num);
     }
 
@@ -366,14 +364,14 @@ public final class DatetimeProcessorUtil {
         final ZonedDateTime result;
         if (zoneId instanceof ZoneOffset) {
             long secs = Math.floorDiv(timestamp, MILLISECONDS_IN_SECOND);
-            int milliOfSecond = (int)Math.floorMod(timestamp, MILLISECONDS_IN_SECOND);
+            int milliOfSecond = Math.floorMod(timestamp, MILLISECONDS_IN_SECOND);
             LocalDateTime ldt = LocalDateTime.ofEpochSecond(secs, milliOfSecond * NANOS_IN_MILLIS, (ZoneOffset) zoneId);
             result = ZonedDateTime.of(ldt, zoneId);
         } else {
             final ZoneRules rules = zoneId.getRules();
             if (rules.isFixedOffset()) {
                 long secs = Math.floorDiv(timestamp, MILLISECONDS_IN_SECOND);
-                int milliOfSecond = (int)Math.floorMod(timestamp, MILLISECONDS_IN_SECOND);
+                int milliOfSecond = Math.floorMod(timestamp, MILLISECONDS_IN_SECOND);
                 ZoneOffset offset = rules.getOffset(MOCK);
                 LocalDateTime ldt = LocalDateTime.ofEpochSecond(secs, milliOfSecond * NANOS_IN_MILLIS, offset);
                 result = ZonedDateTime.ofInstant(ldt, offset, zoneId);

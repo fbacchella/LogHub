@@ -5,8 +5,6 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.Locale;
 
-import static com.axibase.date.DatetimeProcessorUtil.timestampToZonedDateTime;
-
 class DatetimeProcessorUnixNano implements DatetimeProcessor {
     private final ZoneId zoneId;
 

@@ -146,9 +146,7 @@ public class PatternResolver {
         private void updateU(StringBuilder sb) {
             if (uCount > 0) {
                 sb.setLength(sb.length() - uCount);
-                for (int i = 1; i < uCount; i++) {
-                    sb.append('0');
-                }
+                sb.append("0".repeat(Math.max(0, uCount - 1)));
                 sb.append("ccccc");
             }
             uCount = 0;
