@@ -10,53 +10,56 @@ class DatetimeProcessorIso8601 implements DatetimeProcessor {
     private final int fractionsOfSecond;
     private final ZoneOffsetType zoneOffsetType;
     private final ZoneId zoneId;
+    private final char delimitor;
 
-    DatetimeProcessorIso8601(int fractionsOfSecond, ZoneOffsetType zoneOffsetType, ZoneId zoneId) {
+    DatetimeProcessorIso8601(int fractionsOfSecond, ZoneOffsetType zoneOffsetType, ZoneId zoneId, char delimitor) {
         this.fractionsOfSecond = fractionsOfSecond;
         this.zoneOffsetType = zoneOffsetType;
         this.zoneId = zoneId;
+        this.delimitor = delimitor;
     }
 
     @Override
     public long parseMillis(String datetime) {
-        return DatetimeProcessorUtil.parseIso8601AsOffsetDateTime(datetime, 'T').toInstant().toEpochMilli();
+        return DatetimeProcessorUtil.parseIso8601AsOffsetDateTime(datetime, delimitor).toInstant().toEpochMilli();
     }
 
     @Override
     public long parseMillis(String datetime, ZoneId zoneId) {
         return toMillis(
-                DatetimeProcessorUtil.parseIso8601AsZonedDateTime(datetime, 'T', zoneId, zoneOffsetType)
+                DatetimeProcessorUtil.parseIso8601AsZonedDateTime(datetime, delimitor, zoneId, zoneOffsetType)
         );
     }
 
     @Override
     public ZonedDateTime parse(String datetime) {
-        return DatetimeProcessorUtil.parseIso8601AsZonedDateTime(datetime, 'T', zoneId, zoneOffsetType);
+        return DatetimeProcessorUtil.parseIso8601AsZonedDateTime(datetime, delimitor, zoneId, zoneOffsetType);
     }
 
     @Override
     public ZonedDateTime parse(String datetime, ZoneId zoneId) {
-        return DatetimeProcessorUtil.parseIso8601AsZonedDateTime(datetime, 'T', zoneId, zoneOffsetType);
+        return DatetimeProcessorUtil.parseIso8601AsZonedDateTime(datetime, delimitor, zoneId, zoneOffsetType);
     }
 
     @Override
     public String print(long timestamp) {
-        return DatetimeProcessorUtil.printIso8601(timestamp, 'T', zoneId, zoneOffsetType, fractionsOfSecond);
+        return DatetimeProcessorUtil.printIso8601(timestamp, delimitor, zoneId, zoneOffsetType, fractionsOfSecond);
     }
 
     @Override
     public String print(long timestamp, ZoneId zoneId) {
-        return DatetimeProcessorUtil.printIso8601(timestamp, 'T', zoneId, zoneOffsetType, fractionsOfSecond);
+        return DatetimeProcessorUtil.printIso8601(timestamp, delimitor, zoneId, zoneOffsetType, fractionsOfSecond);
     }
 
     @Override
     public String print(ZonedDateTime zonedDateTime) {
-        return DatetimeProcessorUtil.printIso8601(zonedDateTime.toLocalDateTime(), zonedDateTime.getOffset(), zoneOffsetType, 'T', fractionsOfSecond);
+        return DatetimeProcessorUtil.printIso8601(zonedDateTime.toLocalDateTime(), zonedDateTime.getOffset(), zoneOffsetType,
+                delimitor, fractionsOfSecond);
     }
 
     @Override
     public void appendTo(long timestamp, StringBuilder accumulator) {
-        DatetimeProcessorUtil.printIso8601(timestamp, 'T', zoneId, zoneOffsetType, fractionsOfSecond, accumulator);
+        DatetimeProcessorUtil.printIso8601(timestamp, delimitor, zoneId, zoneOffsetType, fractionsOfSecond, accumulator);
     }
 
     @Override
@@ -67,7 +70,7 @@ class DatetimeProcessorIso8601 implements DatetimeProcessor {
     @Override
     public DatetimeProcessor withDefaultZone(ZoneId zoneId) {
         return this.zoneId.equals(zoneId) ? this :
-                new DatetimeProcessorIso8601(fractionsOfSecond, zoneOffsetType, zoneId);
+                new DatetimeProcessorIso8601(fractionsOfSecond, zoneOffsetType, zoneId, delimitor);
     }
 
     @Override

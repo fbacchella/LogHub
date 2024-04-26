@@ -33,11 +33,11 @@ public class PatternResolver {
         } else if (NamedPatterns.NANOSECONDS.equalsIgnoreCase(pattern)) {
             result = new DatetimeProcessorUnixNano(zoneId);
         } else if (NamedPatterns.ISO.equalsIgnoreCase(pattern)) {
-            result = new DatetimeProcessorIso8601(3, ZoneOffsetType.ISO8601, zoneId);
+            result = new DatetimeProcessorIso8601(3, ZoneOffsetType.ISO8601, zoneId, 'T');
         } else if (NamedPatterns.ISO_SECONDS.equalsIgnoreCase(pattern)) {
-            result = new DatetimeProcessorIso8601(0, ZoneOffsetType.ISO8601, zoneId);
+            result = new DatetimeProcessorIso8601(0, ZoneOffsetType.ISO8601, zoneId, 'T');
         } else if (NamedPatterns.ISO_NANOS.equalsIgnoreCase(pattern)) {
-            result = new DatetimeProcessorIso8601(9, ZoneOffsetType.ISO8601, zoneId);
+            result = new DatetimeProcessorIso8601(9, ZoneOffsetType.ISO8601, zoneId, 'T');
         } else if ("MMM".equals(pattern)) {
             result = new ShortMonthDateTimeProcessor(Locale.getDefault(Locale.Category.FORMAT), zoneId);
         } else if ("MMMM".equals(pattern)) {
@@ -53,10 +53,10 @@ public class PatternResolver {
         if (matcher.matches()) {
             final int fractions = stringLength(matcher.group(2)) - 1;
             final ZoneOffsetType offsetType = ZoneOffsetType.byPattern(matcher.group(3));
-            if (" ".equals(matcher.group(1))) {
-                return new DatetimeProcessorLocal(fractions, offsetType, zoneId);
+            if (" ".equals(matcher.group(1)) || "' '".equals(matcher.group(1))) {
+                return new DatetimeProcessorIso8601(fractions, offsetType, zoneId, ' ');
             } else if (offsetType != ZoneOffsetType.NONE) {
-                return new DatetimeProcessorIso8601(fractions, offsetType, zoneId);
+                return new DatetimeProcessorIso8601(fractions, offsetType, zoneId, 'T');
             }
         }
         final String preprocessedPattern = preprocessPattern(pattern);
