@@ -237,11 +237,6 @@
             <version>0.1.9</version>
         </dependency>
         <dependency>
-            <groupId>com.axibase</groupId>
-            <artifactId>date-processor</artifactId>
-            <version>1.1.0</version>
-        </dependency>
-        <dependency>
             <groupId>fr.loghub</groupId>
             <artifactId>netty-beats</artifactId>
             <version>1.0.1-SNAPSHOT</version>
