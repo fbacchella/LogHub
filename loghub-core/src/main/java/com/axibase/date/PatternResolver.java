@@ -38,10 +38,6 @@ public class PatternResolver {
             result = new DatetimeProcessorIso8601(0, ZoneOffsetType.ISO8601, zoneId, 'T');
         } else if (NamedPatterns.ISO_NANOS.equalsIgnoreCase(pattern)) {
             result = new DatetimeProcessorIso8601(9, ZoneOffsetType.ISO8601, zoneId, 'T');
-        } else if ("MMM".equals(pattern)) {
-            result = new ShortMonthDateTimeProcessor(Locale.getDefault(Locale.Category.FORMAT), zoneId);
-        } else if ("MMMM".equals(pattern)) {
-            result = new FullMonthDatetimeProcessor(Locale.getDefault(Locale.Category.FORMAT), zoneId);
         } else {
             result = createFromDynamicPattern(pattern, zoneId, onMissingDateComponent);
         }
