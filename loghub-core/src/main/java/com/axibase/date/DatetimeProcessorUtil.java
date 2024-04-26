@@ -17,8 +17,6 @@ public final class DatetimeProcessorUtil {
         .toEpochMilli();
     private static final Instant MOCK = Instant.now();
     private static final int ISO_LENGTH = "1970-01-01T00:00:00.000000000+00:00:00".length();
-    private static final int TIVOLI_LENGTH = "1yyMMddHHmmssSSS".length();
-    private static final int TIVOLI_EPOCH_YEAR = 1900;
 
     private DatetimeProcessorUtil() {}
 
@@ -112,56 +110,6 @@ public final class DatetimeProcessorUtil {
             appendNumberWithFixedPositions(sb, dateTime.getNano() / powerOfTen(9 - fractionsOfSecond), fractionsOfSecond);
         }
         return offsetType.appendOffset(sb, offset).toString();
-    }
-
-    static LocalDateTime parseTivoliDate(String date) {
-        final int length = date.length();
-        if (length != TIVOLI_LENGTH) {
-            throw new DateTimeParseException(date + " is not a valid Tivoli date: length must be " + TIVOLI_LENGTH, date, 0);
-        }
-        return parseTivoliDate(date, length);
-    }
-
-    static ZonedDateTime parseTivoliDateWithOffset(String date) {
-        if (date.length() > TIVOLI_LENGTH + 1) {
-            final ZoneId zoneId = ZoneOffset.of(date.substring(TIVOLI_LENGTH + 1));
-            return parseTivoliDate(date, TIVOLI_LENGTH).atZone(zoneId);
-        } else {
-            throw new DateTimeParseException(date + " is not a valid Tivoli date with zone id", date, 0);
-        }
-    }
-
-    private static LocalDateTime parseTivoliDate(String date, int length) {
-        int offset = 0;
-        final int centuriesSinceEpoch = parseInt(date, offset, offset += 1, length);
-        final int year = parseInt(date, offset, offset += 2, length);
-        final int month = parseInt(date, offset, offset += 2, length);
-        final int day = parseInt(date, offset, offset += 2, length);
-        final int hour = parseInt(date, offset, offset += 2, length);
-        final int minutes = parseInt(date, offset, offset += 2, length);
-        final int seconds = parseInt(date, offset, offset += 2, length);
-        final int millis = parseInt(date, offset, offset += 3, length);
-        final int fullYear = TIVOLI_EPOCH_YEAR + centuriesSinceEpoch * 100 + year;
-        final int nanos = millis * NANOS_IN_MILLIS;
-        return LocalDateTime.of(fullYear, month, day, hour, minutes, seconds, nanos);
-    }
-
-    static String printTivoliDate(ZonedDateTime dateTime) {
-        return printTivoliDate(dateTime, new StringBuilder(TIVOLI_LENGTH));
-    }
-
-    static String printTivoliDate(ZonedDateTime dateTime, StringBuilder sb) {
-        final int century = (dateTime.getYear() - TIVOLI_EPOCH_YEAR) / 100;
-        final int year = dateTime.getYear() % 100;
-        adjustPossiblyNegative(sb, century, 1);
-        appendNumberWithFixedPositions(sb, year, 2);
-        appendNumberWithFixedPositions(sb, dateTime.getMonthValue(), 2);
-        appendNumberWithFixedPositions(sb, dateTime.getDayOfMonth(), 2);
-        appendNumberWithFixedPositions(sb, dateTime.getHour(), 2);
-        appendNumberWithFixedPositions(sb, dateTime.getMinute(), 2);
-        appendNumberWithFixedPositions(sb, dateTime.getSecond(), 2);
-        appendNumberWithFixedPositions(sb, dateTime.getNano() / NANOS_IN_MILLIS, 3);
-        return sb.toString();
     }
 
     static boolean checkExpectedMilliseconds(String date, int expected) {
