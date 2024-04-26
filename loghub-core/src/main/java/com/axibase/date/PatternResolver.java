@@ -13,7 +13,7 @@ import java.util.regex.Pattern;
  * so consider caching them for better performance in client application.
  */
 public class PatternResolver {
-    private static final Pattern OPTIMIZED_PATTERN = Pattern.compile("yyyy-MM-dd('T'|T| )HH:mm:ss(\\.S[S]{0,8})?(Z{1,2}|'Z'|XXX)?");
+    private static final Pattern OPTIMIZED_PATTERN = Pattern.compile("yyyy-MM-dd('T'|T| |' ')HH:mm:ss(\\.S{1,9})?(Z{1,2}|'Z'|X+)?");
     private static final Pattern DISABLE_LENIENT_MODE = Pattern.compile("^(?:u+|[^u]*u{1,3}[A-Za-z0-9]+)$");
 
     public static DatetimeProcessor createNewFormatter(String pattern) {
