@@ -4,14 +4,12 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.time.Instant;
-import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.Map;
-import java.util.Optional;
-import java.util.ServiceConfigurationError;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
@@ -43,26 +41,21 @@ public class JacksonModule extends SimpleModule {
     );
 
     private abstract static class DateTimeSerializer<T> extends StdSerializer<T> {
-        protected DateTimeSerializer(Class<T> t) {
+        private final Map<SerializationConfig, Integer> configurationCache;
+
+        protected DateTimeSerializer(Map<SerializationConfig, Integer> configurationCache, Class<T> t) {
             super(t);
+            this.configurationCache = configurationCache;
         }
 
         protected void resolve(JsonGenerator gen, SerializerProvider provider,
                 boolean withNanoPrecision,
                 BiFunction<ZoneId, DatetimeProcessor, String> asString, Function<Boolean, BigDecimal> asNumber)
                 throws IOException {
-            SerializationConfig config = provider.getConfig();
-            int activeFeatures = FEATURES_VALUE.keySet()
-                                               .stream()
-                                               .filter(config::isEnabled)
-                                               .mapToInt(FEATURES_VALUE::get)
-                                               .reduce(0, Integer::sum);
+            int activeFeatures = configurationCache.computeIfAbsent(provider.getConfig(), this::getFeatures);
             boolean wantNano = withNanoPrecision && (activeFeatures & WRITE_DATE_TIMESTAMPS_AS_NANOSECONDS) > 0;
 
-            DatetimeProcessor provided = Optional.ofNullable(provider.getConfig().getDateFormat())
-                                                 .filter(DateFormatWrapper.class::isInstance)
-                                                 .map(df -> ((DateFormatWrapper)df).getProcessor())
-                                                 .orElseGet(() -> resolve(withNanoPrecision, activeFeatures));
+            DatetimeProcessor provided = resolve(withNanoPrecision, activeFeatures);
             provided = provided.withLocale(provider.getLocale()).withDefaultZone(provider.getTimeZone().toZoneId());
             ZoneId ctxZid = (activeFeatures & WRITE_DATES_WITH_CONTEXT_TIME_ZONE) > 0 ?
                                     provider.getTimeZone().toZoneId():
@@ -91,11 +84,18 @@ public class JacksonModule extends SimpleModule {
                            asNanoseconds(value.getEpochSecond(), value.getNano()) :
                            new BigDecimal(value.toEpochMilli());
         }
+        private Integer getFeatures(SerializationConfig config) {
+            return FEATURES_VALUE.keySet()
+                                 .stream()
+                                 .filter(config::isEnabled)
+                                 .mapToInt(FEATURES_VALUE::get)
+                                 .reduce(0, Integer::sum);
+        }
     }
 
     public static class InstantSerializer extends DateTimeSerializer<Instant> {
-        public InstantSerializer() {
-            super(Instant.class);
+        public InstantSerializer(Map<SerializationConfig, Integer> configurationCache) {
+            super(configurationCache, Instant.class);
         }
 
         @Override
@@ -108,8 +108,8 @@ public class JacksonModule extends SimpleModule {
         }
     }
     public static class ZonedDateTimeSerializer extends DateTimeSerializer<ZonedDateTime> {
-        public ZonedDateTimeSerializer() {
-            super(ZonedDateTime.class);
+        public ZonedDateTimeSerializer(Map<SerializationConfig, Integer> configurationCache) {
+            super(configurationCache, ZonedDateTime.class);
         }
 
         @Override
@@ -130,8 +130,8 @@ public class JacksonModule extends SimpleModule {
     }
 
     public static class DateSerializer extends DateTimeSerializer<Date> {
-        public DateSerializer() {
-            super(Date.class);
+        public DateSerializer(Map<SerializationConfig, Integer> configurationCache) {
+            super(configurationCache, Date.class);
         }
         @Override
         public void serialize(Date value, JsonGenerator gen, SerializerProvider provider) throws IOException {
@@ -143,8 +143,8 @@ public class JacksonModule extends SimpleModule {
     }
 
     public static class CalendarSerializer extends DateTimeSerializer<Calendar> {
-        public CalendarSerializer() {
-            super(Calendar.class);
+        public CalendarSerializer(Map<SerializationConfig, Integer> configurationCache) {
+            super(configurationCache, Calendar.class);
         }
         @Override
         public void serialize(Calendar value, JsonGenerator gen, SerializerProvider provider) throws IOException {
@@ -157,12 +157,14 @@ public class JacksonModule extends SimpleModule {
 
     @Override
     public void setupModule(SetupContext context) {
+        Map<SerializationConfig, Integer> configurationCache = new ConcurrentHashMap<>();
         super.setupModule(context);
         SimpleSerializers sers = new SimpleSerializers();
-        sers.addSerializer(Instant.class, new InstantSerializer());
-        sers.addSerializer(ZonedDateTime.class, new ZonedDateTimeSerializer());
-        sers.addSerializer(Date.class, new DateSerializer());
-        sers.addSerializer(Calendar.class, new CalendarSerializer());
+        sers.addSerializer(Instant.class, new InstantSerializer(configurationCache));
+        sers.addSerializer(ZonedDateTime.class, new ZonedDateTimeSerializer(configurationCache));
+        sers.addSerializer(Date.class, new DateSerializer(configurationCache));
+        sers.addSerializer(Calendar.class, new CalendarSerializer(configurationCache));
         context.addSerializers(sers);
     }
+
 }
