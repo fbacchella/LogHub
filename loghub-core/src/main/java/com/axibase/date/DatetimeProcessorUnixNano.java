@@ -5,7 +5,7 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.Locale;
 
-class DatetimeProcessorUnixNano implements DatetimeProcessor {
+class DatetimeProcessorUnixNano implements NumericDateTimeProcessor {
     private final ZoneId zoneId;
 
     DatetimeProcessorUnixNano(ZoneId zoneId) {

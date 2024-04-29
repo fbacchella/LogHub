@@ -6,7 +6,7 @@ import java.util.Locale;
 
 import static com.axibase.date.DatetimeProcessorUtil.timestampToZonedDateTime;
 
-class DatetimeProcessorUnixMillis implements DatetimeProcessor {
+class DatetimeProcessorUnixMillis implements NumericDateTimeProcessor {
     private final ZoneId zoneId;
 
     DatetimeProcessorUnixMillis(ZoneId zoneId) {

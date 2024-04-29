@@ -1,19 +1,23 @@
 package com.axibase.date;
 
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.ResolverStyle;
 import java.util.Locale;
+import java.util.function.BiConsumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import static com.axibase.date.DatetimeProcessorUtil.appendFormattedSecondOffset;
 
 /**
  * This class resolves creates for Axibase-supported datetime syntax. Each DatetimeProcessor object is immutable,
  * so consider caching them for better performance in client application.
  */
 public class PatternResolver {
-    private static final Pattern OPTIMIZED_PATTERN = Pattern.compile("yyyy-MM-dd('T'|T| |' ')HH:mm:ss(\\.S{1,9})?(Z{1,2}|'Z'|X+)?");
+    private static final Pattern OPTIMIZED_PATTERN = Pattern.compile("yyyy-MM-dd('.'|.)HH:mm:ss(\\.S{1,9})?(Z{1,2}|X{1,5}|x{1,5})?");
     private static final Pattern DISABLE_LENIENT_MODE = Pattern.compile("^(?:u+|[^u]*u{1,3}[A-Za-z0-9]+)$");
 
     public static DatetimeProcessor createNewFormatter(String pattern) {
@@ -33,11 +37,11 @@ public class PatternResolver {
         } else if (NamedPatterns.NANOSECONDS.equalsIgnoreCase(pattern)) {
             result = new DatetimeProcessorUnixNano(zoneId);
         } else if (NamedPatterns.ISO.equalsIgnoreCase(pattern)) {
-            result = new DatetimeProcessorIso8601(3, ZoneOffsetType.ISO8601, zoneId, 'T');
+            result = new DatetimeProcessorIso8601(3, ZoneOffsetType.ISO8601::appendOffset, zoneId, 'T');
         } else if (NamedPatterns.ISO_SECONDS.equalsIgnoreCase(pattern)) {
-            result = new DatetimeProcessorIso8601(0, ZoneOffsetType.ISO8601, zoneId, 'T');
+            result = new DatetimeProcessorIso8601(0, ZoneOffsetType.ISO8601::appendOffset, zoneId, 'T');
         } else if (NamedPatterns.ISO_NANOS.equalsIgnoreCase(pattern)) {
-            result = new DatetimeProcessorIso8601(9, ZoneOffsetType.ISO8601, zoneId, 'T');
+            result = new DatetimeProcessorIso8601(9, ZoneOffsetType.ISO8601::appendOffset, zoneId, 'T');
         } else {
             result = createFromDynamicPattern(pattern, zoneId, onMissingDateComponent);
         }
@@ -48,12 +52,13 @@ public class PatternResolver {
         Matcher matcher = OPTIMIZED_PATTERN.matcher(pattern);
         if (matcher.matches()) {
             int fractions = stringLength(matcher.group(2)) - 1;
-            ZoneOffsetType offsetType = ZoneOffsetType.byPattern(matcher.group(3));
-            if (" ".equals(matcher.group(1)) || "' '".equals(matcher.group(1))) {
-                return new DatetimeProcessorIso8601(fractions, offsetType, zoneId, ' ');
-            } else if (offsetType != ZoneOffsetType.NONE) {
-                return new DatetimeProcessorIso8601(fractions, offsetType, zoneId, 'T');
+            char delimitor;
+            if (matcher.group(1).length() == 3) {
+                delimitor = matcher.group(1).charAt(1);
+            } else {
+                delimitor = matcher.group(1).charAt(0);
             }
+            return new DatetimeProcessorIso8601(fractions, resolveZoneOffset(matcher.group(3)), zoneId, delimitor);
         }
         String preprocessedPattern = preprocessPattern(pattern);
         DateTimeFormatterBuilder builder = new DateTimeFormatterBuilder()
@@ -161,6 +166,38 @@ public class PatternResolver {
             }
             zCount = 0;
         }
+    }
 
+    private static BiConsumer<StringBuilder, ZoneOffset> resolveZoneOffset(String pattern) {
+        if (pattern == null) {
+            return null;
+        } else {
+            switch (pattern) {
+            case "X":
+                return (sb, offset) -> appendFormattedSecondOffset(true, 1, ' ', offset.getTotalSeconds(), sb);
+            case "Z":
+            case "XX":
+                return (sb, offset) -> appendFormattedSecondOffset(true, 2, ' ', offset.getTotalSeconds(), sb);
+            case "ZZ":
+            case "XXX":
+                return (sb, offset) -> appendFormattedSecondOffset(true, 2, ':', offset.getTotalSeconds(), sb);
+            case "XXXX":
+                return (sb, offset) -> appendFormattedSecondOffset(true, 3, ' ', offset.getTotalSeconds(), sb);
+            case "XXXXX":
+                return (sb, offset) -> appendFormattedSecondOffset(true, 3, ':', offset.getTotalSeconds(), sb);
+            case "x":
+                return (sb, offset) -> appendFormattedSecondOffset(false, 1, ' ', offset.getTotalSeconds(), sb);
+            case "xx":
+                return (sb, offset) -> appendFormattedSecondOffset(false, 2, ' ', offset.getTotalSeconds(), sb);
+            case "xxx":
+                return (sb, offset) -> appendFormattedSecondOffset(false, 2, ':', offset.getTotalSeconds(), sb);
+            case "xxxx":
+                return (sb, offset) -> appendFormattedSecondOffset(false, 3, ' ', offset.getTotalSeconds(), sb);
+            case "xxxxx":
+                return (sb, offset) -> appendFormattedSecondOffset(false, 3, ':', offset.getTotalSeconds(), sb);
+            default:
+                return (sb, offset) -> {};
+            }
+        }
     }
 }

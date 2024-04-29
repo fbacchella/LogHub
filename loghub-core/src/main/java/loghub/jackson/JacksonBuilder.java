@@ -7,6 +7,7 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.function.Consumer;
 
+import com.axibase.date.JacksonModule;
 import com.fasterxml.jackson.core.FormatSchema;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.StreamReadFeature;
@@ -56,11 +57,12 @@ public class JacksonBuilder<T extends ObjectMapper> {
         }
     }
 
-    public static  void defautConfiguration(MapperBuilder<?, ?> builder) {
+    public static void defautConfiguration(MapperBuilder<?, ?> builder) {
         builder.setDefaultTyping(StdTypeResolverBuilder.noTypeInfoBuilder());
         builder.addModule(new JavaTimeModule());
         builder.addModule(new Jdk8Module());
         builder.addModule(new AfterburnerModule());
+        builder.addModule(new JacksonModule());
         builder.enable(StreamReadFeature.USE_FAST_DOUBLE_PARSER);
     }
 

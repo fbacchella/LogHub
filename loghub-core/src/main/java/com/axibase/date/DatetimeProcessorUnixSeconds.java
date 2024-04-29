@@ -9,7 +9,7 @@ import java.util.Locale;
 import static com.axibase.date.DatetimeProcessorUtil.MAX_TIME_MILLIS;
 import static com.axibase.date.DatetimeProcessorUtil.MILLISECONDS_IN_SECOND;
 
-class DatetimeProcessorUnixSeconds implements DatetimeProcessor {
+class DatetimeProcessorUnixSeconds implements NumericDateTimeProcessor {
     private final ZoneId zoneId;
 
     DatetimeProcessorUnixSeconds(ZoneId zoneId) {

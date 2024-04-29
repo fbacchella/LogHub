@@ -1,18 +1,20 @@
 package com.axibase.date;
 
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.Locale;
+import java.util.function.BiConsumer;
 
 import static com.axibase.date.DatetimeProcessorUtil.toMillis;
 
 class DatetimeProcessorIso8601 implements DatetimeProcessor {
     private final int fractionsOfSecond;
-    private final ZoneOffsetType zoneOffsetType;
+    private final BiConsumer<StringBuilder, ZoneOffset> zoneOffsetType;
     private final ZoneId zoneId;
     private final char delimitor;
 
-    DatetimeProcessorIso8601(int fractionsOfSecond, ZoneOffsetType zoneOffsetType, ZoneId zoneId, char delimitor) {
+    DatetimeProcessorIso8601(int fractionsOfSecond, BiConsumer<StringBuilder, ZoneOffset> zoneOffsetType, ZoneId zoneId, char delimitor) {
         this.fractionsOfSecond = fractionsOfSecond;
         this.zoneOffsetType = zoneOffsetType;
         this.zoneId = zoneId;
