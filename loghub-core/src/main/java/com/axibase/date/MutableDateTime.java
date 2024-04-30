@@ -31,9 +31,6 @@
  */
 package com.axibase.date;
 
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.Objects;
 
@@ -63,22 +60,6 @@ public class MutableDateTime {
     private int minute;
     private int second;
     private int nano;
-
-    public MutableDateTime ofInstant(Instant instant, ZoneId zoneId) {
-        ZoneOffset offset = zoneId instanceof ZoneOffset ? (ZoneOffset) zoneId : zoneId.getRules().getOffset(instant);
-        return ofEpochSecond(instant.getEpochSecond(), instant.getNano(), offset);
-    }
-
-    public MutableDateTime ofLocalDateTime(LocalDateTime localDateTime) {
-        this.year = localDateTime.getYear();
-        this.monthValue = localDateTime.getMonthValue();
-        this.dayOfMonth = localDateTime.getDayOfMonth();
-        this.hour = localDateTime.getHour();
-        this.minute = localDateTime.getMinute();
-        this.second = localDateTime.getSecond();
-        this.nano = localDateTime.getNano();
-        return this;
-    }
 
     public MutableDateTime ofEpochSecond(long epochSecond, int nanoOfSecond, ZoneOffset offset) {
         Objects.requireNonNull(offset, "offset");
