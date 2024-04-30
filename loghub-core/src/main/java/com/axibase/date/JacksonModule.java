@@ -21,13 +21,16 @@ import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.module.SimpleSerializers;
 import com.fasterxml.jackson.databind.ser.std.StdSerializer;
 
+import loghub.VarFormatter;
+
 public class JacksonModule extends SimpleModule {
 
     private static final ZoneId UTC = ZoneId.of("UTC");
     private static final DatetimeProcessor AS_IS8601_NANO = PatternResolver.createNewFormatter("yyyy-MM-dd'T'HH:mm:ss.SSSSSSSSSXXX");
-    private static final DatetimeProcessor AS_IS8601_NANO_WITH_ZONEID = PatternResolver.createNewFormatter("yyyy-MM-dd'T'HH:mm:ss.SSSSSSSSSZZ'['VV']'");
     private static final DatetimeProcessor AS_IS8601_MILLI = PatternResolver.createNewFormatter("yyyy-MM-dd'T'HH:mm:ss.SSSxxx");
     private static final BigDecimal GIGA = BigDecimal.valueOf(1_000_000_000L);
+    private static final BigDecimal KILO = BigDecimal.valueOf(1_000L);
+    private static final VarFormatter ZONE_ID_FORMAT = new VarFormatter("${#1%s}[${#2%s}]");
     private static final int WRITE_DATE_TIMESTAMPS_AS_NANOSECONDS = 1;
     private static final int WRITE_DATES_AS_TIMESTAMPS = 2;
     private static final int WRITE_DATES_WITH_CONTEXT_TIME_ZONE = 4;
@@ -50,33 +53,43 @@ public class JacksonModule extends SimpleModule {
 
         protected void resolve(JsonGenerator gen, SerializerProvider provider,
                 boolean withNanoPrecision,
-                BiFunction<ZoneId, DatetimeProcessor, String> asString, Function<Boolean, BigDecimal> asNumber)
-                throws IOException {
+                BiFunction<ZoneId, DatetimeProcessor, String> asString, Function<Boolean, BigDecimal> asNumber,
+                Function<ZoneId, String> getZoneId
+        ) throws IOException {
             int activeFeatures = configurationCache.computeIfAbsent(provider.getConfig(), this::getFeatures);
-            boolean wantNano = withNanoPrecision && (activeFeatures & WRITE_DATE_TIMESTAMPS_AS_NANOSECONDS) > 0;
 
-            DatetimeProcessor provided = resolve(withNanoPrecision, activeFeatures);
+            DatetimeProcessor provided = withNanoPrecision ? AS_IS8601_NANO : AS_IS8601_MILLI;
             provided = provided.withLocale(provider.getLocale()).withDefaultZone(provider.getTimeZone().toZoneId());
+
             ZoneId ctxZid = (activeFeatures & WRITE_DATES_WITH_CONTEXT_TIME_ZONE) > 0 ?
                                     provider.getTimeZone().toZoneId():
                                     null;
-            if ((activeFeatures & WRITE_DATES_AS_TIMESTAMPS) > 0) {
-                gen.writeNumber(asNumber.apply(wantNano));
-            } else {
-                gen.writeString(asString.apply(ctxZid, provided));
-            }
-        }
 
-        private DatetimeProcessor resolve(boolean nanoPrecision, int activeFeatures) {
-            if ((activeFeatures & WRITE_DATES_WITH_ZONE_ID) > 0) {
-                return nanoPrecision ? AS_IS8601_NANO_WITH_ZONEID : AS_IS8601_MILLI;
+            if ((activeFeatures & WRITE_DATES_AS_TIMESTAMPS) > 0) {
+                gen.writeNumber(asNumber.apply((activeFeatures & WRITE_DATE_TIMESTAMPS_AS_NANOSECONDS) > 0));
             } else {
-                return nanoPrecision ? AS_IS8601_NANO : AS_IS8601_MILLI;
+                if ((activeFeatures & WRITE_DATES_WITH_ZONE_ID) > 0) {
+                    String zoneIdentifier = getZoneId.apply(ctxZid);
+                    String formatted = asString.apply(ctxZid, provided);
+                    if (zoneIdentifier.isEmpty()) {
+                        gen.writeString(formatted);
+                    } else {
+                        gen.writeString(ZONE_ID_FORMAT.argsFormat(formatted, zoneIdentifier));
+                    }
+                } else {
+                    gen.writeString(asString.apply(ctxZid, provided));
+                }
             }
         }
 
         private BigDecimal asNanoseconds(long seconds, int nanoseconds) {
-            return BigDecimal.valueOf(nanoseconds).divide(GIGA, MathContext.UNLIMITED).add(BigDecimal.valueOf(seconds));
+            return new BigDecimal(nanoseconds).divide(GIGA, MathContext.UNLIMITED).add(BigDecimal.valueOf(seconds));
+        }
+
+        BigDecimal asNanoseconds(boolean wantNano, long milliseconds) {
+            return wantNano ?
+                 new BigDecimal(milliseconds).divide(KILO, MathContext.UNLIMITED) :
+                 new BigDecimal(milliseconds);
         }
 
         BigDecimal asNanoseconds(boolean wantNano, Instant value) {
@@ -84,6 +97,7 @@ public class JacksonModule extends SimpleModule {
                            asNanoseconds(value.getEpochSecond(), value.getNano()) :
                            new BigDecimal(value.toEpochMilli());
         }
+
         private Integer getFeatures(SerializationConfig config) {
             return FEATURES_VALUE.keySet()
                                  .stream()
@@ -102,8 +116,9 @@ public class JacksonModule extends SimpleModule {
         public void serialize(Instant value, JsonGenerator gen, SerializerProvider provider) throws IOException {
             resolve(gen, provider,
                     true,
-                    (z, dtp) -> AS_IS8601_NANO.print(value.atZone(UTC)),
-                    u -> asNanoseconds(u, value)
+                    (z, dtp) -> AS_IS8601_NANO.print(value.atZone(z != null ? z : UTC)),
+                    u -> asNanoseconds(u, value),
+                    z -> (z != null ? z.getId() : "UTC")
             );
         }
     }
@@ -117,7 +132,9 @@ public class JacksonModule extends SimpleModule {
             resolve(gen, provider,
                     true,
                     (z, dtp) -> checkProvidedTimeZone(z, value, dtp),
-                    u -> asNanoseconds(u, value.toInstant()));
+                    u -> asNanoseconds(u, value.toInstant()),
+                    z -> (z != null ? z : value.getZone()).getId()
+            );
         }
         private String checkProvidedTimeZone(ZoneId zid, ZonedDateTime value, DatetimeProcessor dtp) {
             if (zid == null) {
@@ -137,8 +154,10 @@ public class JacksonModule extends SimpleModule {
         public void serialize(Date value, JsonGenerator gen, SerializerProvider provider) throws IOException {
             resolve(gen, provider,
                     false,
-                    (z, dtp) -> AS_IS8601_MILLI.print(value.getTime(), provider.getTimeZone().toZoneId()),
-                    u -> asNanoseconds(u, value.toInstant()));
+                    (z, dtp) -> AS_IS8601_MILLI.print(value.getTime(), z != null ? z : UTC),
+                    u -> asNanoseconds(u, value.getTime()),
+                    z -> (z != null ? z.getId() : "UTC")
+            );
         }
     }
 
@@ -150,8 +169,10 @@ public class JacksonModule extends SimpleModule {
         public void serialize(Calendar value, JsonGenerator gen, SerializerProvider provider) throws IOException {
             resolve(gen, provider,
                     false,
-                    (z, dtp) -> AS_IS8601_MILLI.print(value.getTimeInMillis(), provider.getTimeZone().toZoneId()),
-                    u -> asNanoseconds(u, value.toInstant()));
+                    (z, dtp) -> AS_IS8601_MILLI.print(value.getTimeInMillis(), z != null ? z : value.getTimeZone().toZoneId()),
+                    u -> asNanoseconds(u, value.getTimeInMillis()),
+                    z -> (z != null ? z : value.getTimeZone().toZoneId()).getId()
+            );
         }
     }
 
