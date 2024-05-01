@@ -80,9 +80,11 @@ public class DatetimeProcessorUtil {
         appendNumberWithFixedPositions(sb, dateTime.getHour(), 2).append(':');
         appendNumberWithFixedPositions(sb, dateTime.getMinute(), 2).append(':');
         appendNumberWithFixedPositions(sb, dateTime.getSecond(), 2);
-        if (fractionsOfSecond > 0) {
+        if (fractionsOfSecond > 0 && dateTime.getNano() > 0) {
             sb.append('.');
             appendNumberWithFixedPositions(sb, dateTime.getNano() / powerOfTen(9 - fractionsOfSecond), fractionsOfSecond);
+            // Remove useless 0
+            cleanFormat(sb);
         }
         offsetType.accept(sb, offset);
         return sb.toString();
@@ -98,9 +100,19 @@ public class DatetimeProcessorUtil {
         if (fractionsOfSecond > 0) {
             sb.append('.');
             appendNumberWithFixedPositions(sb, dateTime.getNano() / powerOfTen(9 - fractionsOfSecond), fractionsOfSecond);
+            cleanFormat(sb);
         }
         offsetType.accept(sb, offset);
         return sb.toString();
+    }
+
+    private static void cleanFormat(StringBuilder sb) {
+        for (int last = sb.length() - 1; sb.charAt(last) == '0'; last--) {
+            sb.deleteCharAt(last);
+        }
+        if (sb.charAt(sb.length() - 1) == '.') {
+            sb.deleteCharAt(sb.length() - 1);
+        }
     }
 
     static boolean checkExpectedMilliseconds(String date, int expected) {

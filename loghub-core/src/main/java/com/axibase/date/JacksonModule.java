@@ -27,7 +27,7 @@ public class JacksonModule extends SimpleModule {
 
     private static final ZoneId UTC = ZoneId.of("UTC");
     private static final DatetimeProcessor AS_IS8601_NANO = PatternResolver.createNewFormatter("yyyy-MM-dd'T'HH:mm:ss.SSSSSSSSSXXX");
-    private static final DatetimeProcessor AS_IS8601_MILLI = PatternResolver.createNewFormatter("yyyy-MM-dd'T'HH:mm:ss.SSSxxx");
+    private static final DatetimeProcessor AS_IS8601_MILLI = PatternResolver.createNewFormatter("yyyy-MM-dd'T'HH:mm:ss.SSSXXX");
     private static final BigDecimal GIGA = BigDecimal.valueOf(1_000_000_000L);
     private static final BigDecimal KILO = BigDecimal.valueOf(1_000L);
     private static final VarFormatter ZONE_ID_FORMAT = new VarFormatter("${#1%s}[${#2%s}]");
