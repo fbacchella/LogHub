@@ -2,6 +2,8 @@ package com.axibase.date;
 
 import java.io.IOException;
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.Calendar;
 import java.util.Date;
@@ -45,7 +47,7 @@ public class TestJacksonModule {
     @BeforeClass
     public static void saveTimeZone() {
         defaultTz = TimeZone.getDefault();
-        TimeZone.setDefault(TimeZone.getTimeZone("Japan/Tokyo"));
+        TimeZone.setDefault(TimeZone.getTimeZone(ZoneId.of("Asia/Tokyo")));
     }
     @AfterClass
     public static void restoreTimeZone() {
@@ -156,7 +158,9 @@ public class TestJacksonModule {
                         )
                 ),
                 Map.entry("Date with nano",
-                        List.of(Instant.ofEpochSecond(seconds, withNanos).atZone(moscow))
+                        List.of(
+                            Instant.ofEpochSecond(seconds, withNanos).atZone(moscow)
+                        )
                 ),
                 Map.entry("Date with milli",
                         List.of(
@@ -169,6 +173,16 @@ public class TestJacksonModule {
                             Instant.ofEpochSecond(seconds, withoutSubSecond).atZone(moscow),
                             fromInstant(Instant.ofEpochSecond(seconds, withoutSubSecond), moscow)
                         )
+                ),
+                Map.entry("DateOffset with nano",
+                        List.of(
+                            OffsetDateTime.ofInstant(Instant.ofEpochSecond(seconds, withNanos), moscow)
+                        )
+                ),
+                Map.entry("LocalDate with nano",
+                        List.of(
+                            LocalDateTime.ofInstant(Instant.ofEpochSecond(seconds, withNanos), moscow)
+                        )
                 )
         );
         Map<String, String> expected = Map.ofEntries(
@@ -179,6 +193,8 @@ public class TestJacksonModule {
                 Map.entry("TIMESTAMPS_AS_MILLISECONDS/Date with nano", "1714421498936"),
                 Map.entry("TIMESTAMPS_AS_MILLISECONDS/Date with milli", "1714421498936"),
                 Map.entry("TIMESTAMPS_AS_MILLISECONDS/Date without subseconds", "1714421498000"),
+                Map.entry("TIMESTAMPS_AS_MILLISECONDS/DateOffset with nano", "1714421498936"),
+                Map.entry("TIMESTAMPS_AS_MILLISECONDS/LocalDate with nano", "1714399898936"),
 
                 Map.entry("TIMESTAMPS_AS_NANOSECONDS/Instant with nano", "1714421498.936155001"),
                 Map.entry("TIMESTAMPS_AS_NANOSECONDS/Instant with milli", "1714421498.936"),
@@ -187,6 +203,8 @@ public class TestJacksonModule {
                 Map.entry("TIMESTAMPS_AS_NANOSECONDS/Date with nano", "1714421498.936155001"),
                 Map.entry("TIMESTAMPS_AS_NANOSECONDS/Date with milli", "1714421498.936"),
                 Map.entry("TIMESTAMPS_AS_NANOSECONDS/Date without subseconds", "1714421498"),
+                Map.entry("TIMESTAMPS_AS_NANOSECONDS/DateOffset with nano", "1714421498.936155001"),
+                Map.entry("TIMESTAMPS_AS_NANOSECONDS/LocalDate with nano", "1714399898.936155001"),
 
                 Map.entry("AS_STRING/Instant with nano", "\"2024-04-29T20:11:38.936155001Z\""),
                 Map.entry("AS_STRING/Instant with milli", "\"2024-04-29T20:11:38.936Z\""),
@@ -195,6 +213,8 @@ public class TestJacksonModule {
                 Map.entry("AS_STRING/Date with nano", "\"2024-04-29T23:11:38.936155001+03:00\""),
                 Map.entry("AS_STRING/Date with milli", "\"2024-04-29T23:11:38.936+03:00\""),
                 Map.entry("AS_STRING/Date without subseconds", "\"2024-04-29T23:11:38+03:00\""),
+                Map.entry("AS_STRING/DateOffset with nano", "\"2024-04-29T23:11:38.936155001+03:00\""),
+                Map.entry("AS_STRING/LocalDate with nano", "\"2024-04-29T23:11:38.936155001+09:00\""),
 
                 Map.entry("WITH_ZONE_ID/Instant with nano", "\"2024-04-29T20:11:38.936155001Z[UTC]\""),
                 Map.entry("WITH_ZONE_ID/Instant with milli", "\"2024-04-29T20:11:38.936Z[UTC]\""),
@@ -203,6 +223,8 @@ public class TestJacksonModule {
                 Map.entry("WITH_ZONE_ID/Date with nano", "\"2024-04-29T23:11:38.936155001+03:00[Europe/Moscow]\""),
                 Map.entry("WITH_ZONE_ID/Date with milli", "\"2024-04-29T23:11:38.936+03:00[Europe/Moscow]\""),
                 Map.entry("WITH_ZONE_ID/Date without subseconds", "\"2024-04-29T23:11:38+03:00[Europe/Moscow]\""),
+                Map.entry("WITH_ZONE_ID/DateOffset with nano", "\"2024-04-29T23:11:38.936155001+03:00[+03:00]\""),
+                Map.entry("WITH_ZONE_ID/LocalDate with nano", "\"2024-04-29T23:11:38.936155001+09:00[Asia/Tokyo]\""),
 
                 Map.entry("WITH_CONTEXT_TIME_ZONE/Instant with nano", "\"2024-04-29T16:11:38.936155001-04:00\""),
                 Map.entry("WITH_CONTEXT_TIME_ZONE/Instant with milli", "\"2024-04-29T16:11:38.936-04:00\""),
@@ -211,6 +233,8 @@ public class TestJacksonModule {
                 Map.entry("WITH_CONTEXT_TIME_ZONE/Date with nano", "\"2024-04-29T16:11:38.936155001-04:00\""),
                 Map.entry("WITH_CONTEXT_TIME_ZONE/Date with milli", "\"2024-04-29T16:11:38.936-04:00\""),
                 Map.entry("WITH_CONTEXT_TIME_ZONE/Date without subseconds", "\"2024-04-29T16:11:38-04:00\""),
+                Map.entry("WITH_CONTEXT_TIME_ZONE/DateOffset with nano", "\"2024-04-29T16:11:38.936155001-04:00\""),
+                Map.entry("WITH_CONTEXT_TIME_ZONE/LocalDate with nano", "\"2024-04-29T10:11:38.936155001-04:00\""),
 
                 Map.entry("WITH_CONTEXT_TIME_ZONE_AND_ID/Instant with nano", "\"2024-04-29T16:11:38.936155001-04:00[America/New_York]\""),
                 Map.entry("WITH_CONTEXT_TIME_ZONE_AND_ID/Instant with milli", "\"2024-04-29T16:11:38.936-04:00[America/New_York]\""),
@@ -218,7 +242,9 @@ public class TestJacksonModule {
                 Map.entry("WITH_CONTEXT_TIME_ZONE_AND_ID/Instant without subseconds", "\"2024-04-29T16:11:38-04:00[America/New_York]\""),
                 Map.entry("WITH_CONTEXT_TIME_ZONE_AND_ID/Date with nano", "\"2024-04-29T16:11:38.936155001-04:00[America/New_York]\""),
                 Map.entry("WITH_CONTEXT_TIME_ZONE_AND_ID/Date with milli", "\"2024-04-29T16:11:38.936-04:00[America/New_York]\""),
-                Map.entry("WITH_CONTEXT_TIME_ZONE_AND_ID/Date without subseconds", "\"2024-04-29T16:11:38-04:00[America/New_York]\"")
+                Map.entry("WITH_CONTEXT_TIME_ZONE_AND_ID/Date without subseconds", "\"2024-04-29T16:11:38-04:00[America/New_York]\""),
+                Map.entry("WITH_CONTEXT_TIME_ZONE_AND_ID/DateOffset with nano", "\"2024-04-29T16:11:38.936155001-04:00[America/New_York]\""),
+                Map.entry("WITH_CONTEXT_TIME_ZONE_AND_ID/LocalDate with nano", "\"2024-04-29T10:11:38.936155001-04:00[America/New_York]\"")
         );
         for (Map.Entry<String, Consumer<JsonMapper>> c: configurators) {
             for (Map.Entry<String, List<Object>> v: values) {

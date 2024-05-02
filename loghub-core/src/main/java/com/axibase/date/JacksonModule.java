@@ -4,6 +4,8 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.Calendar;
@@ -37,10 +39,10 @@ public class JacksonModule extends SimpleModule {
     private static final int WRITE_DATES_WITH_ZONE_ID = 8;
 
     private static final Map<SerializationFeature, Integer> FEATURES_VALUE = Map.of(
-            SerializationFeature.WRITE_DATE_TIMESTAMPS_AS_NANOSECONDS, WRITE_DATE_TIMESTAMPS_AS_NANOSECONDS,
-            SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, WRITE_DATES_AS_TIMESTAMPS,
-            SerializationFeature.WRITE_DATES_WITH_CONTEXT_TIME_ZONE, WRITE_DATES_WITH_CONTEXT_TIME_ZONE,
-            SerializationFeature.WRITE_DATES_WITH_ZONE_ID, WRITE_DATES_WITH_ZONE_ID
+        SerializationFeature.WRITE_DATE_TIMESTAMPS_AS_NANOSECONDS, WRITE_DATE_TIMESTAMPS_AS_NANOSECONDS,
+        SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, WRITE_DATES_AS_TIMESTAMPS,
+        SerializationFeature.WRITE_DATES_WITH_CONTEXT_TIME_ZONE, WRITE_DATES_WITH_CONTEXT_TIME_ZONE,
+        SerializationFeature.WRITE_DATES_WITH_ZONE_ID, WRITE_DATES_WITH_ZONE_ID
     );
 
     private abstract static class DateTimeSerializer<T> extends StdSerializer<T> {
@@ -58,8 +60,8 @@ public class JacksonModule extends SimpleModule {
         ) throws IOException {
             int activeFeatures = configurationCache.computeIfAbsent(provider.getConfig(), this::getFeatures);
 
-            DatetimeProcessor provided = withNanoPrecision ? AS_IS8601_NANO : AS_IS8601_MILLI;
-            provided = provided.withLocale(provider.getLocale()).withDefaultZone(provider.getTimeZone().toZoneId());
+            DatetimeProcessor iso8601Processor = withNanoPrecision ? AS_IS8601_NANO : AS_IS8601_MILLI;
+            iso8601Processor = iso8601Processor.withLocale(provider.getLocale()).withDefaultZone(provider.getTimeZone().toZoneId());
 
             ZoneId ctxZid = (activeFeatures & WRITE_DATES_WITH_CONTEXT_TIME_ZONE) > 0 ?
                                     provider.getTimeZone().toZoneId():
@@ -70,14 +72,14 @@ public class JacksonModule extends SimpleModule {
             } else {
                 if ((activeFeatures & WRITE_DATES_WITH_ZONE_ID) > 0) {
                     String zoneIdentifier = getZoneId.apply(ctxZid);
-                    String formatted = asString.apply(ctxZid, provided);
+                    String formatted = asString.apply(ctxZid, iso8601Processor);
                     if (zoneIdentifier.isEmpty()) {
                         gen.writeString(formatted);
                     } else {
                         gen.writeString(ZONE_ID_FORMAT.argsFormat(formatted, zoneIdentifier));
                     }
                 } else {
-                    gen.writeString(asString.apply(ctxZid, provided));
+                    gen.writeString(asString.apply(ctxZid, iso8601Processor));
                 }
             }
         }
@@ -122,6 +124,7 @@ public class JacksonModule extends SimpleModule {
             );
         }
     }
+
     public static class ZonedDateTimeSerializer extends DateTimeSerializer<ZonedDateTime> {
         public ZonedDateTimeSerializer(Map<SerializationConfig, Integer> configurationCache) {
             super(configurationCache, ZonedDateTime.class);
@@ -134,6 +137,54 @@ public class JacksonModule extends SimpleModule {
                     (z, dtp) -> checkProvidedTimeZone(z, value, dtp),
                     u -> asNanoseconds(u, value.toInstant()),
                     z -> (z != null ? z : value.getZone()).getId()
+            );
+        }
+        private String checkProvidedTimeZone(ZoneId zid, ZonedDateTime value, DatetimeProcessor dtp) {
+            if (zid == null) {
+                return dtp.print(value);
+            } else {
+                ZonedDateTime newValue = value.withZoneSameInstant(zid);
+                return dtp.print(newValue);
+            }
+        }
+    }
+
+    public static class OffsetDateTimeSerializer extends DateTimeSerializer<OffsetDateTime> {
+        public OffsetDateTimeSerializer(Map<SerializationConfig, Integer> configurationCache) {
+            super(configurationCache, OffsetDateTime.class);
+        }
+
+        @Override
+        public void serialize(OffsetDateTime value, JsonGenerator gen, SerializerProvider provider) throws IOException {
+            resolve(gen, provider,
+                    true,
+                    (z, dtp) -> checkProvidedTimeZone(z, value, dtp),
+                    u -> asNanoseconds(u, value.toInstant()),
+                    z -> (z != null ? z : value.toZonedDateTime().getZone()).getId()
+            );
+        }
+        private String checkProvidedTimeZone(ZoneId zid, OffsetDateTime value, DatetimeProcessor dtp) {
+            if (zid == null) {
+                return dtp.print(value.toZonedDateTime());
+            } else {
+                ZonedDateTime newValue = value.toZonedDateTime().withZoneSameInstant(zid);
+                return dtp.print(newValue);
+            }
+        }
+    }
+
+    public static class LocalDateTimeSerializer extends DateTimeSerializer<LocalDateTime> {
+        public LocalDateTimeSerializer(Map<SerializationConfig, Integer> configurationCache) {
+            super(configurationCache, LocalDateTime.class);
+        }
+
+        @Override
+        public void serialize(LocalDateTime value, JsonGenerator gen, SerializerProvider provider) throws IOException {
+            resolve(gen, provider,
+                    true,
+                    (z, dtp) -> checkProvidedTimeZone(z, value.atZone(ZoneId.systemDefault()), dtp),
+                    u -> asNanoseconds(u, value.atZone(ZoneId.systemDefault()).toInstant()),
+                    z -> (z != null ? z : ZoneId.systemDefault()).getId()
             );
         }
         private String checkProvidedTimeZone(ZoneId zid, ZonedDateTime value, DatetimeProcessor dtp) {
@@ -183,6 +234,8 @@ public class JacksonModule extends SimpleModule {
         SimpleSerializers sers = new SimpleSerializers();
         sers.addSerializer(Instant.class, new InstantSerializer(configurationCache));
         sers.addSerializer(ZonedDateTime.class, new ZonedDateTimeSerializer(configurationCache));
+        sers.addSerializer(OffsetDateTime.class, new OffsetDateTimeSerializer(configurationCache));
+        sers.addSerializer(LocalDateTime.class, new LocalDateTimeSerializer(configurationCache));
         sers.addSerializer(Date.class, new DateSerializer(configurationCache));
         sers.addSerializer(Calendar.class, new CalendarSerializer(configurationCache));
         context.addSerializers(sers);
