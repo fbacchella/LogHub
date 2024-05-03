@@ -86,7 +86,7 @@ public class TestSyslog {
 
         byte[] resultbytes = encoder.encode(e);
         String result = new String(resultbytes, StandardCharsets.US_ASCII);
-        Assert.assertEquals("<165>2 1970-01-01T00:00:00.0000Z HOSTNAME APP-NAME PROCID MSGID [loghub] unit test", result);
+        Assert.assertEquals("<165>2 1970-01-01T00:00:00Z HOSTNAME APP-NAME PROCID MSGID [loghub] unit test", result);
     }
 
     @Test
@@ -100,11 +100,11 @@ public class TestSyslog {
         e.put("message", "éèœ");
 
         byte[] resultbytes = encoder.encode(e);
-        String prefix = new String(Arrays.copyOf(resultbytes, 73), StandardCharsets.US_ASCII);
-        Assert.assertEquals("<165>2 1970-01-01T00:00:00.0000Z HOSTNAME APP-NAME PROCID MSGID [loghub] ", prefix);
-        byte[] bom = Arrays.copyOfRange(resultbytes, 73, 76);
+        String prefix = new String(Arrays.copyOf(resultbytes, 68), StandardCharsets.US_ASCII);
+        Assert.assertEquals("<165>2 1970-01-01T00:00:00Z HOSTNAME APP-NAME PROCID MSGID [loghub] ", prefix);
+        byte[] bom = Arrays.copyOfRange(resultbytes, 68, 71);
         Assert.assertArrayEquals(new byte[]{(byte) 0xEF, (byte) 0xBB, (byte) 0xBF}, bom);
-        String message = new String(Arrays.copyOfRange(resultbytes, 76, resultbytes.length), StandardCharsets.UTF_8);
+        String message = new String(Arrays.copyOfRange(resultbytes, 71, resultbytes.length), StandardCharsets.UTF_8);
         Assert.assertEquals("éèœ", message);
     }
 

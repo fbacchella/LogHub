@@ -68,7 +68,7 @@ public class TestCsv {
     public void testDefault() throws EncodeException {
         Csv.Builder builder = Csv.getBuilder();
         builder.setZoneId("UTC");
-        check(builder, "\"V1\",2,true,\"1970-01-01T00:00:00.000Z\",\"1970-01-01T00:00:00.000Z\",\"1970-01-01T00:00:00.000Z\"\n");
+        check(builder, "\"V1\",2,true,\"1970-01-01T00:00:00Z\",\"1970-01-01T00:00:00Z\",\"1970-01-01T00:00:00Z\"\n");
     }
 
     @Test
@@ -128,7 +128,7 @@ public class TestCsv {
         Csv.Builder builder = Csv.getBuilder();
         builder.setZoneId("UTC");
         builder.setSeparator(';');
-        check(builder, "\"V1\";2;true;\"1970-01-01T00:00:00.000Z\";\"1970-01-01T00:00:00.000Z\";\"1970-01-01T00:00:00.000Z\"\n");
+        check(builder, "\"V1\";2;true;\"1970-01-01T00:00:00Z\";\"1970-01-01T00:00:00Z\";\"1970-01-01T00:00:00Z\"\n");
     }
 
     @Test
@@ -137,7 +137,7 @@ public class TestCsv {
         builder.setZoneId("Europe/Paris");
         builder.setSeparator(';');
         builder.setLineSeparator("\r\n");
-        check(builder, "\"V1\";2;true;\"1970-01-01T01:00:00.000+01:00\";\"1970-01-01T00:00:00.000Z\";\"1970-01-01T01:00:00.000+01:00\"\r\n");
+        check(builder, "\"V1\";2;true;\"1970-01-01T01:00:00+01:00\";\"1970-01-01T00:00:00Z\";\"1970-01-01T01:00:00+01:00\"\r\n");
     }
 
     @Test

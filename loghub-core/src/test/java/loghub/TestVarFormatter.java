@@ -232,7 +232,7 @@ public class TestVarFormatter {
         Map<String, Object> eventMapped = readJson(ev);
         @SuppressWarnings("unchecked")
         Map<String, Object> eventMap = (Map<String, Object>) eventMapped.get("loghub.Event");
-        Assert.assertEquals("1970-01-01T00:00:00.000+00:00", eventMap.get("@timestamp"));
+        Assert.assertEquals("1970-01-01T00:00:00Z", eventMap.get("@timestamp"));
         Assert.assertEquals(Collections.emptyMap(), eventMap.get("@fields"));
         Assert.assertEquals(Collections.emptyMap(), eventMap.get("@METAS"));
 
