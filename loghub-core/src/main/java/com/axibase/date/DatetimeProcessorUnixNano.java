@@ -1,5 +1,6 @@
 package com.axibase.date;
 
+import java.math.BigInteger;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -7,6 +8,7 @@ import java.util.Locale;
 
 class DatetimeProcessorUnixNano implements NumericDateTimeProcessor {
     private final ZoneId zoneId;
+    private static final BigInteger ONE_MILLION = BigInteger.valueOf(1_000_000L);
 
     DatetimeProcessorUnixNano(ZoneId zoneId) {
         this.zoneId = zoneId;
@@ -34,7 +36,7 @@ class DatetimeProcessorUnixNano implements NumericDateTimeProcessor {
 
     @Override
     public String print(long timestamp) {
-        return "" + timestamp;
+        return BigInteger.valueOf(timestamp).multiply(ONE_MILLION).toString();
     }
 
     @Override
