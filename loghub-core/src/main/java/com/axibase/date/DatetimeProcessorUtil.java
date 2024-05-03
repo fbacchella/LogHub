@@ -58,8 +58,8 @@ public class DatetimeProcessorUtil {
                 offset = rules.getOffset(instant);
             }
         }
-        MutableDateTime localDateTime = new MutableDateTime().ofEpochSecond(secs, nanos, offset);
-        return printIso8601(localDateTime, offset, offsetType, delimiter, fractionsOfSecond, sb);
+        LocalDateTime ldt = LocalDateTime.ofEpochSecond(secs, nanos, offset);
+        return printIso8601(ldt, offset, offsetType, delimiter, fractionsOfSecond, sb);
     }
 
     /**
@@ -84,22 +84,6 @@ public class DatetimeProcessorUtil {
             sb.append('.');
             appendNumberWithFixedPositions(sb, dateTime.getNano() / powerOfTen(9 - fractionsOfSecond), fractionsOfSecond);
             // Remove useless 0
-            cleanFormat(sb);
-        }
-        offsetType.accept(sb, offset);
-        return sb.toString();
-    }
-
-    static String printIso8601(MutableDateTime dateTime, ZoneOffset offset, BiConsumer<StringBuilder, ZoneOffset> offsetType, char delimiter, int fractionsOfSecond, StringBuilder sb) {
-        adjustPossiblyNegative(sb, dateTime.getYear(), 4).append('-');
-        appendNumberWithFixedPositions(sb, dateTime.getMonthValue(), 2).append('-');
-        appendNumberWithFixedPositions(sb, dateTime.getDayOfMonth(), 2).append(delimiter);
-        appendNumberWithFixedPositions(sb, dateTime.getHour(), 2).append(':');
-        appendNumberWithFixedPositions(sb, dateTime.getMinute(), 2).append(':');
-        appendNumberWithFixedPositions(sb, dateTime.getSecond(), 2);
-        if (fractionsOfSecond > 0) {
-            sb.append('.');
-            appendNumberWithFixedPositions(sb, dateTime.getNano() / powerOfTen(9 - fractionsOfSecond), fractionsOfSecond);
             cleanFormat(sb);
         }
         offsetType.accept(sb, offset);
