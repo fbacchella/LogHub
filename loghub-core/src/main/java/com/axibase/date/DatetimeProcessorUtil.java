@@ -10,7 +10,6 @@ import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeParseException;
 import java.time.zone.ZoneRules;
-import java.util.function.BiConsumer;
 
 public class DatetimeProcessorUtil {
     static final int NANOS_IN_MILLIS = 1_000_000;
@@ -33,11 +32,11 @@ public class DatetimeProcessorUtil {
      * @param offsetType Zone offset format: ISO (+HH:mm), RFC (+HHmm), or NONE
      * @return String representation of the timestamp
      */
-    static String printIso8601(long timestamp, char delimiter, ZoneId zone, BiConsumer<StringBuilder, ZoneOffset> offsetType, int fractionsOfSecond) {
+    static String printIso8601(long timestamp, char delimiter, ZoneId zone, AppendOffset offsetType, int fractionsOfSecond) {
         return printIso8601(timestamp, delimiter, zone, offsetType, fractionsOfSecond, new StringBuilder(ISO_LENGTH));
     }
 
-    static String printIso8601(long timestamp, char delimiter, ZoneId zone, BiConsumer<StringBuilder, ZoneOffset> offsetType, int fractionsOfSecond, StringBuilder sb) {
+    static String printIso8601(long timestamp, char delimiter, ZoneId zone, AppendOffset offsetType, int fractionsOfSecond, StringBuilder sb) {
         ZoneOffset offset;
         long secs;
         int nanos;
@@ -69,11 +68,11 @@ public class DatetimeProcessorUtil {
      * @param offsetType Zone offset format: ISO (+HH:mm), RFC (+HHmm), or NONE
      * @return String representation of the timestamp
      */
-    static String printIso8601(LocalDateTime dateTime, ZoneOffset offset, BiConsumer<StringBuilder, ZoneOffset> offsetType, char delimiter, int fractionsOfSecond) {
+    static String printIso8601(LocalDateTime dateTime, ZoneOffset offset, AppendOffset offsetType, char delimiter, int fractionsOfSecond) {
         return printIso8601(dateTime, offset, offsetType, delimiter, fractionsOfSecond, new StringBuilder(ISO_LENGTH));
     }
 
-    static String printIso8601(LocalDateTime dateTime, ZoneOffset offset, BiConsumer<StringBuilder, ZoneOffset> offsetType, char delimiter, int fractionsOfSecond, StringBuilder sb) {
+    static String printIso8601(LocalDateTime dateTime, ZoneOffset offset, AppendOffset offsetType, char delimiter, int fractionsOfSecond, StringBuilder sb) {
         adjustPossiblyNegative(sb, dateTime.getYear(), 4).append('-');
         appendNumberWithFixedPositions(sb, dateTime.getMonthValue(), 2).append('-');
         appendNumberWithFixedPositions(sb, dateTime.getDayOfMonth(), 2).append(delimiter);
@@ -86,7 +85,7 @@ public class DatetimeProcessorUtil {
             // Remove useless 0
             cleanFormat(sb);
         }
-        offsetType.accept(sb, offset);
+        offsetType.append(sb, offset, dateTime.atZone(offset).toInstant());
         return sb.toString();
     }
 
@@ -118,7 +117,7 @@ public class DatetimeProcessorUtil {
     }
 
     static ZonedDateTime parseIso8601AsZonedDateTime(String date, char delimiter,
-                                                     ZoneId defaultOffset, BiConsumer<StringBuilder, ZoneOffset> offsetType) {
+                                                     ZoneId defaultOffset, AppendOffset offsetType) {
         try {
             ParsingContext context = new ParsingContext();
             LocalDateTime localDateTime = parseIso8601AsLocalDateTime(date, delimiter, context);
@@ -129,7 +128,7 @@ public class DatetimeProcessorUtil {
         }
     }
 
-    private static ZoneId extractOffset(String date, int offset, BiConsumer<StringBuilder, ZoneOffset> offsetType, ZoneId defaultOffset) {
+    private static ZoneId extractOffset(String date, int offset, AppendOffset offsetType, ZoneId defaultOffset) {
         int length = date.length();
         ZoneId zoneId;
         if (offset == length) {

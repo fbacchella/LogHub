@@ -1,12 +1,12 @@
 package com.axibase.date;
 
+import java.time.Instant;
 import java.time.ZoneId;
-import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.ResolverStyle;
 import java.util.Locale;
-import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -37,11 +37,11 @@ public class PatternResolver {
         } else if (NamedPatterns.NANOSECONDS.equalsIgnoreCase(pattern)) {
             result = new DatetimeProcessorUnixNano(zoneId);
         } else if (NamedPatterns.ISO.equalsIgnoreCase(pattern)) {
-            result = new DatetimeProcessorIso8601(3, ZoneOffsetType.ISO8601::appendOffset, zoneId, 'T');
+            result = new DatetimeProcessorIso8601(3, resolveZoneOffset("ZZ"), zoneId, 'T');
         } else if (NamedPatterns.ISO_SECONDS.equalsIgnoreCase(pattern)) {
-            result = new DatetimeProcessorIso8601(0, ZoneOffsetType.ISO8601::appendOffset, zoneId, 'T');
+            result = new DatetimeProcessorIso8601(0, resolveZoneOffset("ZZ"), zoneId, 'T');
         } else if (NamedPatterns.ISO_NANOS.equalsIgnoreCase(pattern)) {
-            result = new DatetimeProcessorIso8601(9, ZoneOffsetType.ISO8601::appendOffset, zoneId, 'T');
+            result = new DatetimeProcessorIso8601(9, resolveZoneOffset("ZZ"), zoneId, 'T');
         } else {
             result = createFromDynamicPattern(pattern, zoneId, onMissingDateComponent);
         }
@@ -49,16 +49,16 @@ public class PatternResolver {
     }
 
     private static DatetimeProcessor createFromDynamicPattern(String pattern, ZoneId zoneId, OnMissingDateComponentAction onMissingDateComponentAction) {
-        Matcher matcher = OPTIMIZED_PATTERN.matcher(pattern);
-        if (matcher.matches()) {
-            int fractions = stringLength(matcher.group(2)) - 1;
+        Matcher matcherIso8601 = OPTIMIZED_PATTERN.matcher(pattern);
+        if (matcherIso8601.matches()) {
+            int fractions = stringLength(matcherIso8601.group(2)) - 1;
             char delimitor;
-            if (matcher.group(1).length() == 3) {
-                delimitor = matcher.group(1).charAt(1);
+            if (matcherIso8601.group(1).length() == 3) {
+                delimitor = matcherIso8601.group(1).charAt(1);
             } else {
-                delimitor = matcher.group(1).charAt(0);
+                delimitor = matcherIso8601.group(1).charAt(0);
             }
-            return new DatetimeProcessorIso8601(fractions, resolveZoneOffset(matcher.group(3)), zoneId, delimitor);
+            return new DatetimeProcessorIso8601(fractions, resolveZoneOffset(matcherIso8601.group(3)), zoneId, delimitor);
         }
         String preprocessedPattern = preprocessPattern(pattern);
         DateTimeFormatterBuilder builder = new DateTimeFormatterBuilder()
@@ -168,35 +168,36 @@ public class PatternResolver {
         }
     }
 
-    private static BiConsumer<StringBuilder, ZoneOffset> resolveZoneOffset(String pattern) {
+    private static AppendOffset resolveZoneOffset(String pattern) {
+        BiFunction<ZoneId, Instant, Integer> resolveOffset = (o, i) -> o.getRules().getOffset(i).getTotalSeconds();
         if (pattern == null) {
             return null;
         } else {
             switch (pattern) {
             case "X":
-                return (sb, offset) -> appendFormattedSecondOffset(true, 1, ' ', offset.getTotalSeconds(), sb);
+                return (sb, offset, instant) -> appendFormattedSecondOffset(true, 1, ' ', resolveOffset.apply(offset, instant), sb);
             case "Z":
             case "XX":
-                return (sb, offset) -> appendFormattedSecondOffset(true, 2, ' ', offset.getTotalSeconds(), sb);
+                return (sb, offset, instant) -> appendFormattedSecondOffset(true, 2, ' ', resolveOffset.apply(offset, instant), sb);
             case "ZZ":
             case "XXX":
-                return (sb, offset) -> appendFormattedSecondOffset(true, 2, ':', offset.getTotalSeconds(), sb);
+                return (sb, offset, instant) -> appendFormattedSecondOffset(true, 2, ':', resolveOffset.apply(offset, instant), sb);
             case "XXXX":
-                return (sb, offset) -> appendFormattedSecondOffset(true, 3, ' ', offset.getTotalSeconds(), sb);
+                return (sb, offset, instant) -> appendFormattedSecondOffset(true, 3, ' ', resolveOffset.apply(offset, instant), sb);
             case "XXXXX":
-                return (sb, offset) -> appendFormattedSecondOffset(true, 3, ':', offset.getTotalSeconds(), sb);
+                return (sb, offset, instant) -> appendFormattedSecondOffset(true, 3, ':', resolveOffset.apply(offset, instant), sb);
             case "x":
-                return (sb, offset) -> appendFormattedSecondOffset(false, 1, ' ', offset.getTotalSeconds(), sb);
+                return (sb, offset, instant) -> appendFormattedSecondOffset(false, 1, ' ', resolveOffset.apply(offset, instant), sb);
             case "xx":
-                return (sb, offset) -> appendFormattedSecondOffset(false, 2, ' ', offset.getTotalSeconds(), sb);
+                return (sb, offset, instant) -> appendFormattedSecondOffset(false, 2, ' ', resolveOffset.apply(offset, instant), sb);
             case "xxx":
-                return (sb, offset) -> appendFormattedSecondOffset(false, 2, ':', offset.getTotalSeconds(), sb);
+                return (sb, offset, instant) -> appendFormattedSecondOffset(false, 2, ':', resolveOffset.apply(offset, instant), sb);
             case "xxxx":
-                return (sb, offset) -> appendFormattedSecondOffset(false, 3, ' ', offset.getTotalSeconds(), sb);
+                return (sb, offset, instant) -> appendFormattedSecondOffset(false, 3, ' ', resolveOffset.apply(offset, instant), sb);
             case "xxxxx":
-                return (sb, offset) -> appendFormattedSecondOffset(false, 3, ':', offset.getTotalSeconds(), sb);
+                return (sb, offset, instant) -> appendFormattedSecondOffset(false, 3, ':', resolveOffset.apply(offset, instant), sb);
             default:
-                return (sb, offset) -> {};
+                return (sb, offset, instant) -> sb;
             }
         }
     }
