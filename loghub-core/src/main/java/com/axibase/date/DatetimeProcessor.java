@@ -4,7 +4,7 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.Locale;
 
-public interface DatetimeProcessor extends DatetimePatternTester {
+public interface DatetimeProcessor {
     long parseMillis(String datetime);
 
     long parseMillis(String datetime, ZoneId zoneId);
@@ -19,21 +19,8 @@ public interface DatetimeProcessor extends DatetimePatternTester {
 
     String print(ZonedDateTime zonedDateTime);
 
-    default void appendTo(long timestamp, StringBuilder accumulator) {
-        accumulator.append(print(timestamp));
-    }
-
     DatetimeProcessor withLocale(Locale locale);
 
     DatetimeProcessor withDefaultZone(ZoneId zoneId);
 
-    default boolean canParse(String date) {
-        try {
-            ZonedDateTime parsed = parse(date);
-            int year = parsed.getYear();
-            return year >= DatetimeProcessorUtil.MIN_YEAR_20_CENTURY && year < DatetimeProcessorUtil.MAX_YEAR;
-        } catch (Exception e) {
-            return false;
-        }
-    }
 }

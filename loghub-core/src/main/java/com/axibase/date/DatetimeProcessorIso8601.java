@@ -60,11 +60,6 @@ class DatetimeProcessorIso8601 implements DatetimeProcessor {
     }
 
     @Override
-    public void appendTo(long timestamp, StringBuilder accumulator) {
-        DatetimeProcessorUtil.printIso8601(timestamp, delimitor, zoneId, zoneOffsetType, fractionsOfSecond, accumulator);
-    }
-
-    @Override
     public DatetimeProcessor withLocale(Locale locale) {
         return this;
     }
@@ -75,9 +70,4 @@ class DatetimeProcessorIso8601 implements DatetimeProcessor {
                 new DatetimeProcessorIso8601(fractionsOfSecond, zoneOffsetType, zoneId, delimitor);
     }
 
-    @Override
-    public boolean canParse(String date) {
-        return DatetimeProcessorUtil.checkExpectedMilliseconds(date, fractionsOfSecond)
-                && DatetimeProcessor.super.canParse(date);
-    }
 }

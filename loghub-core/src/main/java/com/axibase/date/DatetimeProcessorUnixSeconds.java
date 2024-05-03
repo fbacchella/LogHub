@@ -71,12 +71,4 @@ class DatetimeProcessorUnixSeconds implements NumericDateTimeProcessor {
         return this.zoneId.equals(zoneId) ? this : new DatetimeProcessorUnixSeconds(zoneId);
     }
 
-    @Override
-    public boolean canParse(String date) {
-        if (DatetimeProcessorUtil.isCreatable(date)) {
-            long millis = parseMillis(date, ZoneOffset.UTC);
-            return millis >= 0 && millis < MAX_TIME_MILLIS;
-        }
-        return false;
-    }
 }

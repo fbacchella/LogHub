@@ -44,11 +44,6 @@ class DatetimeProcessorUnixMillis implements NumericDateTimeProcessor {
     }
 
     @Override
-    public void appendTo(long timestamp, StringBuilder accumulator) {
-        accumulator.append(timestamp);
-    }
-
-    @Override
     public String print(ZonedDateTime zonedDateTime) {
         return "" + zonedDateTime.toInstant().toEpochMilli();
     }

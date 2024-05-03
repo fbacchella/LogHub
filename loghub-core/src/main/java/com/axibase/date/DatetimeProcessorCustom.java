@@ -61,11 +61,6 @@ class DatetimeProcessorCustom implements DatetimeProcessor {
     }
 
     @Override
-    public void appendTo(long timestamp, StringBuilder accumulator) {
-        dateTimeFormatter.formatTo(timestampToZonedDateTime(timestamp, zoneId), accumulator);
-    }
-
-    @Override
     public DatetimeProcessor withLocale(Locale locale) {
         if (locale.equals(dateTimeFormatter.getLocale())) {
             return this;
