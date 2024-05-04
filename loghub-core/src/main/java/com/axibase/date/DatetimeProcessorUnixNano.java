@@ -7,21 +7,17 @@ import java.time.ZonedDateTime;
 import java.util.Locale;
 
 class DatetimeProcessorUnixNano implements NumericDateTimeProcessor {
+
     private final ZoneId zoneId;
-    private static final BigInteger ONE_MILLION = BigInteger.valueOf(1_000_000L);
+    private static final BigInteger ONE_MILLIARD = BigInteger.valueOf(1_000_000_000L);
 
     DatetimeProcessorUnixNano(ZoneId zoneId) {
         this.zoneId = zoneId;
     }
 
     @Override
-    public long parseMillis(String datetime) {
-        return getInstant(datetime).toEpochMilli();
-    }
-
-    @Override
-    public long parseMillis(String datetime, ZoneId zoneId) {
-        return getInstant(datetime).toEpochMilli();
+    public Instant parseInstant(String datetime) {
+        return getInstant(datetime);
     }
 
     @Override
@@ -30,18 +26,9 @@ class DatetimeProcessorUnixNano implements NumericDateTimeProcessor {
     }
 
     @Override
-    public ZonedDateTime parse(String datetime, ZoneId zoneId) {
-        return getInstant(datetime).atZone(zoneId);
-    }
-
-    @Override
-    public String print(long timestamp) {
-        return BigInteger.valueOf(timestamp).multiply(ONE_MILLION).toString();
-    }
-
-    @Override
-    public String print(long timestamp, ZoneId zoneId) {
-        return print(timestamp);
+    public String print(Instant timestamp) {
+        BigInteger nanos = BigInteger.valueOf(timestamp.getNano());
+        return BigInteger.valueOf(timestamp.getEpochSecond()).multiply(ONE_MILLIARD).add(nanos).toString();
     }
 
     @Override

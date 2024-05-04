@@ -117,7 +117,7 @@ public class Csv extends AbstractJacksonEncoder<Csv.Builder, CsvMapper> {
                 } else if (flattened[i] instanceof TemporalAccessor) {
                     flattened[i] = dateFormat.print(ZonedDateTime.from((TemporalAccessor) flattened[i]));
                 } else if (flattened[i] instanceof Date) {
-                    flattened[i] = dateFormat.print(((Date) flattened[i]).getTime());
+                    flattened[i] = dateFormat.print(((Date) flattened[i]).toInstant());
                 }
             } catch (IgnoredEventException e) {
                 flattened[i] = "Missing value";

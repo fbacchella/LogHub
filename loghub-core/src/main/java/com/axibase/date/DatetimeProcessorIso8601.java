@@ -1,5 +1,6 @@
 package com.axibase.date;
 
+import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.Locale;
@@ -18,15 +19,8 @@ class DatetimeProcessorIso8601 implements DatetimeProcessor {
     }
 
     @Override
-    public long parseMillis(String datetime) {
-        return DatetimeProcessorUtil.parseIso8601AsOffsetDateTime(datetime, delimitor).toInstant().toEpochMilli();
-    }
-
-    @Override
-    public long parseMillis(String datetime, ZoneId zoneId) {
-        return toMillis(
-                DatetimeProcessorUtil.parseIso8601AsZonedDateTime(datetime, delimitor, zoneId, zoneOffsetType)
-        );
+    public Instant parseInstant(String datetime) {
+        return DatetimeProcessorUtil.parseIso8601AsOffsetDateTime(datetime, delimitor).toInstant();
     }
 
     @Override
@@ -35,17 +29,7 @@ class DatetimeProcessorIso8601 implements DatetimeProcessor {
     }
 
     @Override
-    public ZonedDateTime parse(String datetime, ZoneId zoneId) {
-        return DatetimeProcessorUtil.parseIso8601AsZonedDateTime(datetime, delimitor, zoneId, zoneOffsetType);
-    }
-
-    @Override
-    public String print(long timestamp) {
-        return DatetimeProcessorUtil.printIso8601(timestamp, delimitor, zoneId, zoneOffsetType, fractionsOfSecond);
-    }
-
-    @Override
-    public String print(long timestamp, ZoneId zoneId) {
+    public String print(Instant timestamp) {
         return DatetimeProcessorUtil.printIso8601(timestamp, delimitor, zoneId, zoneOffsetType, fractionsOfSecond);
     }
 

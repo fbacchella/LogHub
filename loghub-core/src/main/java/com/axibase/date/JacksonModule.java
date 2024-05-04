@@ -25,9 +25,10 @@ import com.fasterxml.jackson.databind.ser.std.StdSerializer;
 
 import loghub.VarFormatter;
 
+import static java.time.ZoneOffset.UTC;
+
 public class JacksonModule extends SimpleModule {
 
-    private static final ZoneId UTC = ZoneId.of("UTC");
     private static final DatetimeProcessor AS_IS8601_NANO = PatternResolver.createNewFormatter("yyyy-MM-dd'T'HH:mm:ss.SSSSSSSSSXXX");
     private static final DatetimeProcessor AS_IS8601_MILLI = PatternResolver.createNewFormatter("yyyy-MM-dd'T'HH:mm:ss.SSSXXX");
     private static final BigDecimal GIGA = BigDecimal.valueOf(1_000_000_000L);
@@ -205,7 +206,7 @@ public class JacksonModule extends SimpleModule {
         public void serialize(Date value, JsonGenerator gen, SerializerProvider provider) throws IOException {
             resolve(gen, provider,
                     false,
-                    (z, dtp) -> AS_IS8601_MILLI.print(value.getTime(), z != null ? z : UTC),
+                    (z, dtp) -> AS_IS8601_MILLI.withDefaultZone(z != null ? z : UTC).print(value.toInstant()),
                     u -> asNanoseconds(u, value.getTime()),
                     z -> (z != null ? z.getId() : "UTC")
             );
@@ -220,7 +221,7 @@ public class JacksonModule extends SimpleModule {
         public void serialize(Calendar value, JsonGenerator gen, SerializerProvider provider) throws IOException {
             resolve(gen, provider,
                     false,
-                    (z, dtp) -> AS_IS8601_MILLI.print(value.getTimeInMillis(), z != null ? z : value.getTimeZone().toZoneId()),
+                    (z, dtp) -> AS_IS8601_MILLI.withDefaultZone(z != null ? z : value.getTimeZone().toZoneId()).print(value.toInstant()),
                     u -> asNanoseconds(u, value.getTimeInMillis()),
                     z -> (z != null ? z : value.getTimeZone().toZoneId()).getId()
             );

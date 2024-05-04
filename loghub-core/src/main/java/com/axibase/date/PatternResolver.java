@@ -17,6 +17,7 @@ import static com.axibase.date.DatetimeProcessorUtil.appendFormattedSecondOffset
  * so consider caching them for better performance in client application.
  */
 public class PatternResolver {
+
     private static final Pattern OPTIMIZED_PATTERN = Pattern.compile("yyyy-MM-dd('.'|.)HH:mm:ss(\\.S{1,9})?(Z{1,2}|X{1,5}|x{1,5})?");
     private static final Pattern DISABLE_LENIENT_MODE = Pattern.compile("^(?:u+|[^u]*u{1,3}[A-Za-z0-9]+)$");
 
@@ -85,7 +86,7 @@ public class PatternResolver {
      * Replace documented FDF symbols to their JSR-310 analogs. The conversions are performed:
      * unquoted T -> quoted T
      * u -> ccccc (day of week starting from Monday)
-     * ZZ -> XX (zone offset in RFC format: +HHmm, Z for UTC)
+     * Z -> XX (zone offset in RFC format: +HHmm, Z for UTC)
      * ZZ -> XXX (zone offset in ISO format: +HH:mm, Z for UTC)
      * ZZZ -> VV (zone id)
      * @param pattern time formatting pattern

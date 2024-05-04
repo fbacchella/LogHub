@@ -1,10 +1,9 @@
 package com.axibase.date;
 
+import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.Locale;
-
-import static com.axibase.date.DatetimeProcessorUtil.timestampToZonedDateTime;
 
 class DatetimeProcessorUnixMillis implements NumericDateTimeProcessor {
     private final ZoneId zoneId;
@@ -14,38 +13,23 @@ class DatetimeProcessorUnixMillis implements NumericDateTimeProcessor {
     }
 
     @Override
-    public long parseMillis(String datetime) {
-        return Long.parseLong(datetime);
-    }
-
-    @Override
-    public long parseMillis(String datetime, ZoneId zoneId) {
-        return Long.parseLong(datetime);
+    public Instant parseInstant(String datetime) {
+        return Instant.ofEpochMilli(Long.parseLong(datetime));
     }
 
     @Override
     public ZonedDateTime parse(String datetime) {
-        return parse(datetime, zoneId);
+        return parseInstant(datetime).atZone(zoneId);
     }
 
     @Override
-    public ZonedDateTime parse(String datetime, ZoneId zoneId) {
-        return timestampToZonedDateTime(parseMillis(datetime), zoneId);
-    }
-
-    @Override
-    public String print(long timestamp) {
-        return "" + timestamp;
-    }
-
-    @Override
-    public String print(long timestamp, ZoneId zoneId) {
-        return print(timestamp);
+    public String print(Instant timestamp) {
+        return Long.toString(timestamp.toEpochMilli());
     }
 
     @Override
     public String print(ZonedDateTime zonedDateTime) {
-        return "" + zonedDateTime.toInstant().toEpochMilli();
+        return Long.toString(zonedDateTime.toInstant().toEpochMilli());
     }
 
     @Override

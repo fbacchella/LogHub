@@ -32,29 +32,28 @@ public class DatetimeProcessorUtil {
      * @param offsetType Zone offset format: ISO (+HH:mm), RFC (+HHmm), or NONE
      * @return String representation of the timestamp
      */
-    static String printIso8601(long timestamp, char delimiter, ZoneId zone, AppendOffset offsetType, int fractionsOfSecond) {
+    static String printIso8601(Instant timestamp, char delimiter, ZoneId zone, AppendOffset offsetType, int fractionsOfSecond) {
         return printIso8601(timestamp, delimiter, zone, offsetType, fractionsOfSecond, new StringBuilder(ISO_LENGTH));
     }
 
-    static String printIso8601(long timestamp, char delimiter, ZoneId zone, AppendOffset offsetType, int fractionsOfSecond, StringBuilder sb) {
+    static String printIso8601(Instant timestamp, char delimiter, ZoneId zone, AppendOffset offsetType, int fractionsOfSecond, StringBuilder sb) {
         ZoneOffset offset;
         long secs;
         int nanos;
         if (zone instanceof ZoneOffset) {
-            secs = Math.floorDiv(timestamp, MILLISECONDS_IN_SECOND);
-            nanos = Math.floorMod(timestamp, MILLISECONDS_IN_SECOND) * NANOS_IN_MILLIS;
+            secs = timestamp.getEpochSecond();
+            nanos = timestamp.getNano();
             offset = (ZoneOffset) zone;
         } else {
             ZoneRules rules = zone.getRules();
             if (rules.isFixedOffset()) {
-                secs = Math.floorDiv(timestamp, MILLISECONDS_IN_SECOND);
-                nanos = Math.floorMod(timestamp, MILLISECONDS_IN_SECOND) * NANOS_IN_MILLIS;
+                secs = timestamp.getEpochSecond();
+                nanos = timestamp.getNano();
                 offset = rules.getOffset(MOCK);
             } else {
-                Instant instant = Instant.ofEpochMilli(timestamp);
-                secs = instant.getEpochSecond();
-                nanos = instant.getNano();
-                offset = rules.getOffset(instant);
+                secs = timestamp.getEpochSecond();
+                nanos = timestamp.getNano();
+                offset = rules.getOffset(timestamp);
             }
         }
         LocalDateTime ldt = LocalDateTime.ofEpochSecond(secs, nanos, offset);
@@ -98,24 +97,6 @@ public class DatetimeProcessorUtil {
         }
     }
 
-    static boolean checkExpectedMilliseconds(String date, int expected) {
-        int indexOfDot = date.indexOf('.');
-        if (expected <= 0) {
-            return indexOfDot < 0;
-        } else {
-            int length = date.length();
-            int cnt = 0;
-            for (int i = indexOfDot + 1; i < length; i++) {
-                if (Character.isDigit(date.charAt(i))) {
-                    ++cnt;
-                } else {
-                    break;
-                }
-            }
-            return cnt == expected;
-        }
-    }
-
     static ZonedDateTime parseIso8601AsZonedDateTime(String date, char delimiter,
                                                      ZoneId defaultOffset, AppendOffset offsetType) {
         try {
@@ -149,11 +130,11 @@ public class DatetimeProcessorUtil {
         return zoneId;
     }
 
-    private static int parseNanos(int value, int digits) {
+    static int parseNanos(int value, int digits) {
         return value * powerOfTen(9 - digits);
     }
 
-    private static int parseInt(String value, int beginIndex, int endIndex, int valueLength) throws NumberFormatException {
+    static int parseInt(String value, int beginIndex, int endIndex, int valueLength) throws NumberFormatException {
         if (beginIndex < 0 || endIndex > valueLength || beginIndex >= endIndex) {
             throw new DateTimeParseException("Failed to parse number at index ", value, beginIndex);
         }
@@ -164,7 +145,7 @@ public class DatetimeProcessorUtil {
         return result;
     }
 
-    private static int resolveDigitByCode(String value, int index) {
+    static int resolveDigitByCode(String value, int index) {
         char c = value.charAt(index);
         int result = c - '0';
         if (result < 0 || result > 9) {
@@ -173,7 +154,7 @@ public class DatetimeProcessorUtil {
         return result;
     }
 
-    private static void checkOffset(String value, int offset, char expected) throws IndexOutOfBoundsException {
+    static void checkOffset(String value, int offset, char expected) throws IndexOutOfBoundsException {
         char found = value.charAt(offset);
         if (found != expected) {
             throw new DateTimeParseException("Expected '" + expected + "' character but found '" + found + "'", value, offset);
@@ -243,7 +224,7 @@ public class DatetimeProcessorUtil {
         }
     }
 
-    private static ZoneOffset parseOffset(int offset, String date) {
+    static ZoneOffset parseOffset(int offset, String date) {
         int length = date.length();
         ZoneOffset zoneOffset;
         if (offset == length) {
@@ -339,7 +320,7 @@ public class DatetimeProcessorUtil {
         }
     }
 
-    private static StringBuilder adjustPossiblyNegative(StringBuilder sb, int num, int positions) {
+    static StringBuilder adjustPossiblyNegative(StringBuilder sb, int num, int positions) {
         if (num >= 0) {
             return appendNumberWithFixedPositions(sb, num, positions);
         }
@@ -350,32 +331,6 @@ public class DatetimeProcessorUtil {
     public static StringBuilder appendNumberWithFixedPositions(StringBuilder sb, int num, int positions) {
         sb.append("0".repeat(Math.max(0, positions - sizeInDigits(num))));
         return sb.append(num);
-    }
-
-    public static ZonedDateTime timestampToZonedDateTime(long timestamp, ZoneId zoneId) {
-        ZonedDateTime result;
-        if (zoneId instanceof ZoneOffset) {
-            long secs = Math.floorDiv(timestamp, MILLISECONDS_IN_SECOND);
-            int milliOfSecond = Math.floorMod(timestamp, MILLISECONDS_IN_SECOND);
-            LocalDateTime ldt = LocalDateTime.ofEpochSecond(secs, milliOfSecond * NANOS_IN_MILLIS, (ZoneOffset) zoneId);
-            result = ZonedDateTime.of(ldt, zoneId);
-        } else {
-            ZoneRules rules = zoneId.getRules();
-            if (rules.isFixedOffset()) {
-                long secs = Math.floorDiv(timestamp, MILLISECONDS_IN_SECOND);
-                int milliOfSecond = Math.floorMod(timestamp, MILLISECONDS_IN_SECOND);
-                ZoneOffset offset = rules.getOffset(MOCK);
-                LocalDateTime ldt = LocalDateTime.ofEpochSecond(secs, milliOfSecond * NANOS_IN_MILLIS, offset);
-                result = ZonedDateTime.ofInstant(ldt, offset, zoneId);
-            } else {
-                result = ZonedDateTime.ofInstant(Instant.ofEpochMilli(timestamp), zoneId);
-            }
-        }
-        return result;
-    }
-
-    public static long toMillis(ZonedDateTime dateTime) {
-        return Math.addExact(dateTime.toEpochSecond() * MILLISECONDS_IN_SECOND, Math.floorDiv(dateTime.getNano(), NANOS_IN_MILLIS));
     }
 
     /**
@@ -510,7 +465,7 @@ public class DatetimeProcessorUtil {
         return !allowSigns && foundDigit;
     }
 
-    private static class ParsingContext {
+    static class ParsingContext {
         private int offset;
     }
 }
