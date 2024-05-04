@@ -1,94 +1,16 @@
 package com.axibase.date;
 
-import java.time.DateTimeException;
-import java.time.Instant;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
-import java.time.ZonedDateTime;
 import java.time.format.DateTimeParseException;
-import java.time.zone.ZoneRules;
 
 public class DatetimeProcessorUtil {
-    static final int NANOS_IN_MILLIS = 1_000_000;
-    static final int MILLISECONDS_IN_SECOND = 1000;
+
     static final int UNIX_EPOCH_YEAR = 1970;
-    static final int MIN_YEAR_20_CENTURY = 1900;
-    static final int MAX_YEAR = 2200;
-    static final long MAX_TIME_MILLIS = LocalDate.of(MAX_YEAR, 1, 1)
-        .atStartOfDay(ZoneOffset.UTC)
-        .toInstant()
-        .toEpochMilli();
-    private static final Instant MOCK = Instant.now();
-    private static final int ISO_LENGTH = "1970-01-01T00:00:00.000000000+00:00:00".length();
 
     private DatetimeProcessorUtil() {}
 
-    /**
-     * Optimized print of a timestamp in ISO8601 or local format: yyyy-MM-dd[T| ]HH:mm:ss[.SSS]Z
-     * @param timestamp milliseconds since epoch
-     * @param offsetType Zone offset format: ISO (+HH:mm), RFC (+HHmm), or NONE
-     * @return String representation of the timestamp
-     */
-    static String printIso8601(Instant timestamp, char delimiter, ZoneId zone, AppendOffset offsetType, int fractionsOfSecond) {
-        return printIso8601(timestamp, delimiter, zone, offsetType, fractionsOfSecond, new StringBuilder(ISO_LENGTH));
-    }
-
-    static String printIso8601(Instant timestamp, char delimiter, ZoneId zone, AppendOffset offsetType, int fractionsOfSecond, StringBuilder sb) {
-        ZoneOffset offset;
-        long secs;
-        int nanos;
-        if (zone instanceof ZoneOffset) {
-            secs = timestamp.getEpochSecond();
-            nanos = timestamp.getNano();
-            offset = (ZoneOffset) zone;
-        } else {
-            ZoneRules rules = zone.getRules();
-            if (rules.isFixedOffset()) {
-                secs = timestamp.getEpochSecond();
-                nanos = timestamp.getNano();
-                offset = rules.getOffset(MOCK);
-            } else {
-                secs = timestamp.getEpochSecond();
-                nanos = timestamp.getNano();
-                offset = rules.getOffset(timestamp);
-            }
-        }
-        LocalDateTime ldt = LocalDateTime.ofEpochSecond(secs, nanos, offset);
-        return printIso8601(ldt, offset, offsetType, delimiter, fractionsOfSecond, sb);
-    }
-
-    /**
-     * Optimized print of a timestamp in ISO8601 or local format: yyyy-MM-dd[T| ]HH:mm:ss[.SSS]
-     * @param dateTime timestamp as LocalDateTime
-     * @param offset time zone offset
-     * @param offsetType Zone offset format: ISO (+HH:mm), RFC (+HHmm), or NONE
-     * @return String representation of the timestamp
-     */
-    static String printIso8601(LocalDateTime dateTime, ZoneOffset offset, AppendOffset offsetType, char delimiter, int fractionsOfSecond) {
-        return printIso8601(dateTime, offset, offsetType, delimiter, fractionsOfSecond, new StringBuilder(ISO_LENGTH));
-    }
-
-    static String printIso8601(LocalDateTime dateTime, ZoneOffset offset, AppendOffset offsetType, char delimiter, int fractionsOfSecond, StringBuilder sb) {
-        adjustPossiblyNegative(sb, dateTime.getYear(), 4).append('-');
-        appendNumberWithFixedPositions(sb, dateTime.getMonthValue(), 2).append('-');
-        appendNumberWithFixedPositions(sb, dateTime.getDayOfMonth(), 2).append(delimiter);
-        appendNumberWithFixedPositions(sb, dateTime.getHour(), 2).append(':');
-        appendNumberWithFixedPositions(sb, dateTime.getMinute(), 2).append(':');
-        appendNumberWithFixedPositions(sb, dateTime.getSecond(), 2);
-        if (fractionsOfSecond > 0 && dateTime.getNano() > 0) {
-            sb.append('.');
-            appendNumberWithFixedPositions(sb, dateTime.getNano() / powerOfTen(9 - fractionsOfSecond), fractionsOfSecond);
-            // Remove useless 0
-            cleanFormat(sb);
-        }
-        offsetType.append(sb, offset, dateTime.atZone(offset).toInstant());
-        return sb.toString();
-    }
-
-    private static void cleanFormat(StringBuilder sb) {
+    static void cleanFormat(StringBuilder sb) {
         for (int last = sb.length() - 1; sb.charAt(last) == '0'; last--) {
             sb.deleteCharAt(last);
         }
@@ -97,19 +19,7 @@ public class DatetimeProcessorUtil {
         }
     }
 
-    static ZonedDateTime parseIso8601AsZonedDateTime(String date, char delimiter,
-                                                     ZoneId defaultOffset, AppendOffset offsetType) {
-        try {
-            ParsingContext context = new ParsingContext();
-            LocalDateTime localDateTime = parseIso8601AsLocalDateTime(date, delimiter, context);
-            ZoneId zoneId = extractOffset(date, context.offset, offsetType, defaultOffset);
-            return ZonedDateTime.of(localDateTime, zoneId);
-        } catch (DateTimeException e) {
-            throw new DateTimeParseException("Failed to parse date " + date + ": " + e.getMessage(), date, 0, e);
-        }
-    }
-
-    private static ZoneId extractOffset(String date, int offset, AppendOffset offsetType, ZoneId defaultOffset) {
+    static ZoneId extractOffset(String date, int offset, AppendOffset offsetType, ZoneId defaultOffset) {
         int length = date.length();
         ZoneId zoneId;
         if (offset == length) {
@@ -161,69 +71,6 @@ public class DatetimeProcessorUtil {
         }
     }
 
-    private static LocalDateTime parseIso8601AsLocalDateTime(String date, char delimiter, ParsingContext context) {
-        int length = date.length();
-        int offset = context.offset;
-
-        // extract year
-        int year = parseInt(date, offset, offset += 4, length);
-        checkOffset(date, offset, '-');
-
-        // extract month
-        int month = parseInt(date, offset += 1, offset += 2, length);
-        checkOffset(date, offset, '-');
-
-        // extract day
-        int day = parseInt(date, offset += 1, offset += 2, length);
-        checkOffset(date, offset, delimiter);
-
-        // extract hours, minutes, seconds and milliseconds
-        int hour = parseInt(date, offset += 1, offset += 2, length);
-        checkOffset(date, offset, ':');
-
-        int minutes = parseInt(date, offset += 1, offset += 2, length);
-
-        // seconds can be optional
-        int seconds;
-        if (date.charAt(offset) == ':') {
-            seconds = parseInt(date, offset += 1, offset += 2, length);
-        } else {
-            seconds = 0;
-        }
-
-        // milliseconds can be optional in the format
-        int nanos;
-        if (offset < length && date.charAt(offset) == '.') {
-            int startPos = ++offset;
-            int endPosExcl = Math.min(offset + 9, length);
-            int frac = resolveDigitByCode(date, offset++);
-            while (offset < endPosExcl) {
-                int digit = date.charAt(offset) - '0';
-                if (digit < 0 || digit > 9) {
-                    break;
-                }
-                frac = frac * 10 + digit;
-                ++offset;
-            }
-            nanos = parseNanos(frac, offset - startPos);
-        } else {
-            nanos = 0;
-        }
-        context.offset = offset;
-        return LocalDateTime.of(year, month, day, hour, minutes, seconds, nanos);
-    }
-
-    public static OffsetDateTime parseIso8601AsOffsetDateTime(String date, char delimiter) {
-        try {
-            ParsingContext parsingContext = new ParsingContext();
-            LocalDateTime localDateTime = parseIso8601AsLocalDateTime(date, delimiter, parsingContext);
-            ZoneOffset zoneOffset = parseOffset(parsingContext.offset, date);
-            return OffsetDateTime.of(localDateTime, zoneOffset);
-        } catch (DateTimeException e) {
-            throw new DateTimeParseException("Failed to parse date " + date + ": " + e.getMessage(), date, 0, e);
-        }
-    }
-
     static ZoneOffset parseOffset(int offset, String date) {
         int length = date.length();
         ZoneOffset zoneOffset;
@@ -237,31 +84,6 @@ public class DatetimeProcessorUtil {
             }
         }
         return zoneOffset;
-    }
-
-    static StringBuilder appendFormattedSecondOffset(boolean zuluTime, int rank, char separator, int offsetSeconds, StringBuilder sb) {
-        if (offsetSeconds == 0 && zuluTime) {
-            return sb.append('Z');
-        } else {
-            sb.append(offsetSeconds < 0 ? '-' : '+');
-            int absSeconds = Math.abs(offsetSeconds);
-            if (rank >= 1) {
-                appendNumberWithFixedPositions(sb, absSeconds / 3600, 2);
-            }
-            if (rank >= 2) {
-                if (separator == ':') {
-                    sb.append(':');
-                }
-                appendNumberWithFixedPositions(sb, (absSeconds / 60) % 60, 2);
-            }
-            if (rank >= 3) {
-                if (separator == ':') {
-                    sb.append(':');
-                }
-                appendNumberWithFixedPositions(sb, absSeconds % 60, 2);
-            }
-            return sb;
-        }
     }
 
     /**
@@ -296,8 +118,7 @@ public class DatetimeProcessorUtil {
         return result;
     }
 
-    @SuppressWarnings("all") // ignore static analysis for Guava code
-    private static int powerOfTen(int pow) {
+    static int powerOfTen(int pow) {
         switch (pow) {
             case 0: return 1;
             case 1: return 10;
@@ -333,139 +154,4 @@ public class DatetimeProcessorUtil {
         return sb.append(num);
     }
 
-    /**
-     * <p>Checks whether the String a valid Java number.</p>
-     *
-     * <p>Valid numbers include hexadecimal marked with the <code>0x</code> or
-     * <code>0X</code> qualifier, octal numbers, scientific notation and
-     * numbers marked with a type qualifier (e.g. 123L).</p>
-     *
-     * <p>Non-hexadecimal strings beginning with a leading zero are
-     * treated as octal values. Thus the string <code>09</code> will return
-     * <code>false</code>, since <code>9</code> is not a valid octal value.
-     * However, numbers beginning with {@code 0.} are treated as decimal.</p>
-     *
-     * <p><code>null</code> and empty/blank {@code String} will return
-     * <code>false</code>.</p>
-     *
-     * @param str  the <code>String</code> to check
-     * @return <code>true</code> if the string is a correctly formatted number
-     */
-    @SuppressWarnings("all") // ignore static analysis for Apache Commons code
-    static boolean isCreatable(String str) {
-        if (str == null || str.length() == 0) {
-            return false;
-        }
-        char[] chars = str.toCharArray();
-        int sz = chars.length;
-        boolean hasExp = false;
-        boolean hasDecPoint = false;
-        boolean allowSigns = false;
-        boolean foundDigit = false;
-        // deal with any possible sign up front
-        int start = chars[0] == '-' || chars[0] == '+' ? 1 : 0;
-        if (sz > start + 1 && chars[start] == '0') { // leading 0
-            if (chars[start + 1] == 'x' || chars[start + 1] == 'X') { // leading 0x/0X
-                int i = start + 2;
-                if (i == sz) {
-                    return false; // str == "0x"
-                }
-                // checking hex (it can't be anything else)
-                for (; i < chars.length; i++) {
-                    if ((chars[i] < '0' || chars[i] > '9')
-                            && (chars[i] < 'a' || chars[i] > 'f')
-                            && (chars[i] < 'A' || chars[i] > 'F')) {
-                        return false;
-                    }
-                }
-                return true;
-            } else if (Character.isDigit(chars[start + 1])) {
-                // leading 0, but not hex, must be octal
-                int i = start + 1;
-                for (; i < chars.length; i++) {
-                    if (chars[i] < '0' || chars[i] > '7') {
-                        return false;
-                    }
-                }
-                return true;
-            }
-        }
-        sz--; // don't want to loop to the last char, check it afterwords
-        // for type qualifiers
-        int i = start;
-        // loop to the next to last char or to the last char if we need another digit to
-        // make a valid number (e.g. chars[0..5] = "1234E")
-        while (i < sz || i < sz + 1 && allowSigns && !foundDigit) {
-            if (chars[i] >= '0' && chars[i] <= '9') {
-                foundDigit = true;
-                allowSigns = false;
-
-            } else if (chars[i] == '.') {
-                if (hasDecPoint || hasExp) {
-                    // two decimal points or dec in exponent
-                    return false;
-                }
-                hasDecPoint = true;
-            } else if (chars[i] == 'e' || chars[i] == 'E') {
-                // we've already taken care of hex.
-                if (hasExp) {
-                    // two E's
-                    return false;
-                }
-                if (!foundDigit) {
-                    return false;
-                }
-                hasExp = true;
-                allowSigns = true;
-            } else if (chars[i] == '+' || chars[i] == '-') {
-                if (!allowSigns) {
-                    return false;
-                }
-                allowSigns = false;
-                foundDigit = false; // we need a digit after the E
-            } else {
-                return false;
-            }
-            i++;
-        }
-        if (i < chars.length) {
-            if (chars[i] >= '0' && chars[i] <= '9') {
-                // no type qualifier, OK
-                return true;
-            }
-            if (chars[i] == 'e' || chars[i] == 'E') {
-                // can't have an E at the last byte
-                return false;
-            }
-            if (chars[i] == '.') {
-                if (hasDecPoint || hasExp) {
-                    // two decimal points or dec in exponent
-                    return false;
-                }
-                // single trailing decimal point after non-exponent is ok
-                return foundDigit;
-            }
-            if (!allowSigns
-                    && (chars[i] == 'd'
-                    || chars[i] == 'D'
-                    || chars[i] == 'f'
-                    || chars[i] == 'F')) {
-                return foundDigit;
-            }
-            if (chars[i] == 'l'
-                    || chars[i] == 'L') {
-                // not allowing L with an exponent or decimal point
-                return foundDigit && !hasExp && !hasDecPoint;
-            }
-            // last character is illegal
-            return false;
-        }
-        // allowSigns is true iff the val ends in 'E'
-        // found digit it to make sure weird stuff like '.' and '1E-' doesn't pass
-        return !allowSigns && foundDigit;
-    }
-
-    static class ParsingContext {
-        private int offset;
-    }
 }

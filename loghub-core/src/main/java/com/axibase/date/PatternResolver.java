@@ -10,7 +10,7 @@ import java.util.function.BiFunction;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static com.axibase.date.DatetimeProcessorUtil.appendFormattedSecondOffset;
+import static com.axibase.date.DatetimeProcessorUtil.appendNumberWithFixedPositions;
 
 /**
  * This class resolves creates for Axibase-supported datetime syntax. Each DatetimeProcessor object is immutable,
@@ -202,4 +202,30 @@ public class PatternResolver {
             }
         }
     }
+
+    static StringBuilder appendFormattedSecondOffset(boolean zuluTime, int rank, char separator, int offsetSeconds, StringBuilder sb) {
+        if (offsetSeconds == 0 && zuluTime) {
+            return sb.append('Z');
+        } else {
+            sb.append(offsetSeconds < 0 ? '-' : '+');
+            int absSeconds = Math.abs(offsetSeconds);
+            if (rank >= 1) {
+                appendNumberWithFixedPositions(sb, absSeconds / 3600, 2);
+            }
+            if (rank >= 2) {
+                if (separator == ':') {
+                    sb.append(':');
+                }
+                appendNumberWithFixedPositions(sb, (absSeconds / 60) % 60, 2);
+            }
+            if (rank >= 3) {
+                if (separator == ':') {
+                    sb.append(':');
+                }
+                appendNumberWithFixedPositions(sb, absSeconds % 60, 2);
+            }
+            return sb;
+        }
+    }
+
 }
