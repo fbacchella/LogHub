@@ -293,6 +293,7 @@
         <module>loghub-apacheclient</module>
         <module>loghub-onigurumaregex</module>
         <module>loghub-uap</module>
+        <module>loghub-protobuf</module>
     </modules>
 
     <profiles>
