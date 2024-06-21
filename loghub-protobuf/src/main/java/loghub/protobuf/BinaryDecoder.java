@@ -17,9 +17,11 @@ import com.google.protobuf.Descriptors;
 import com.google.protobuf.Duration;
 import com.google.protobuf.Timestamp;
 
+import lombok.Data;
+
 public class BinaryDecoder {
 
-    private final Map<String, Map<Integer, Descriptors.GenericDescriptor>> descriptors;
+   private final Map<String, Map<Integer, Descriptors.GenericDescriptor>> descriptors;
     private final Map<String, FastPathFunction> fastPathMap = new HashMap<>();
 
     @FunctionalInterface
@@ -114,16 +116,26 @@ public class BinaryDecoder {
         }
     }
 
-    public void parseInput(CodedInputStream stream, String messageName, Map<String, Object> values) throws IOException {
+    @Data
+    public static class UnknownField {
+        private final String message;
+        private final int fieldNumber;
+        private final int fieldWireType;
+        private final Object value;
+    }
+
+    public void parseInput(CodedInputStream stream, String messageName, Map<String, Object> values, List<UnknownField> unknownFields) throws IOException {
         Map<Integer, Descriptors.GenericDescriptor> messageMapping = descriptors.get(messageName);
         while (!stream.isAtEnd()) {
             int tag = stream.readTag();
             int fieldNumber = (tag >> 3);
+            int fieldWireType = tag & 3;
+            //System.err.format("%s(%d.%d)%n", messageName, fieldNumber, fieldWireType);
             Descriptors.GenericDescriptor desc = messageMapping.get(fieldNumber);
             if (desc instanceof Descriptors.FieldDescriptor) {
-                resolveValue((Descriptors.FieldDescriptor) desc, stream, values);
+                resolveValue((Descriptors.FieldDescriptor) desc, stream, values, unknownFields);
             } else {
-                throw new RuntimeException("Not a field " + desc);
+                unknownFields.add(new UnknownField(messageName, fieldNumber, fieldWireType, resolveUnknownField(stream, fieldWireType)));
             }
         }
     }
@@ -132,7 +144,7 @@ public class BinaryDecoder {
         return dfd.getEnumType().findValueByNumber(enumKey).getName();
     }
 
-    private void resolveValue(Descriptors.FieldDescriptor dfd, CodedInputStream stream, Map<String, Object> values)
+    private void resolveValue(Descriptors.FieldDescriptor dfd, CodedInputStream stream, Map<String, Object> values,List<BinaryDecoder.UnknownField> unknownFields)
             throws IOException {
         Object val;
         if (fastPathMap.containsKey(dfd.getFullName()) && dfd.getType() != Descriptors.FieldDescriptor.Type.MESSAGE) {
@@ -191,7 +203,7 @@ public class BinaryDecoder {
                     val = fastPathMap.get(dfd.getFullName()).resolve(stream);
                 } else {
                     Map<String, Object> messageValues = new HashMap<>();
-                    parseInput(stream, dfd.getMessageType().getFullName(), messageValues);
+                    parseInput(stream, dfd.getMessageType().getFullName(), messageValues, unknownFields);
                     val = messageValues;
                 }
                 stream.popLimit(oldLimit);
@@ -214,6 +226,26 @@ public class BinaryDecoder {
             content.add(value);
         } else {
             values.put(name, value);
+        }
+    }
+
+    private Object resolveUnknownField(CodedInputStream stream, int wireType) throws IOException {
+        switch (wireType) {
+        case 0:
+            return stream.readRawVarint64();
+        case 1:
+            return stream.readRawBytes(8);
+        case 2:
+            int len = stream.readRawVarint32();
+            return stream.readRawBytes(len);
+        case 3:
+            return stream;
+        case 4:
+            return stream;
+        case 5:
+            return stream.readRawBytes(4);
+        default:
+            return null;
         }
     }
 
