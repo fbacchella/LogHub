@@ -1,0 +1,17 @@
+
+—
+prometheus.protologhub.protobuf.prometheus"b
+WriteRequestF
+
+timeseries (2&.loghub.protobuf.prometheus.TimeSeriesR
+timeseriesJJ"…
+
+TimeSeries9
+labels (2!.loghub.protobuf.prometheus.LabelRlabels<
+samples (2".loghub.protobuf.prometheus.SampleRsamples"1
+Label
+name (	Rname
+value (	Rvalue"<
+Sample
+value (Rvalue
+	timestamp (R	timestampBPbproto3

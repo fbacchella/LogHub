@@ -81,8 +81,7 @@
                             </filters>
                             <artifactSet>
                                 <includes>
-                                    <include>com.github.ua-parser:uap-java</include>
-                                    <include>org.yaml:snakeyaml</include>
+                                    <include>com.google.protobuf:protobuf-java</include>
                                 </includes>
                             </artifactSet>
                         </configuration>
