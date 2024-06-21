@@ -37,6 +37,9 @@ public class BinaryDecoder {
     }
 
     public BinaryDecoder(InputStream source) throws Descriptors.DescriptorValidationException, IOException {
+        if (source == null) {
+            throw new IllegalArgumentException("Not defined InputStream source");
+        }
         descriptors = analyseProto(source);
         initFastPath();
     }
@@ -130,7 +133,6 @@ public class BinaryDecoder {
             int tag = stream.readTag();
             int fieldNumber = (tag >> 3);
             int fieldWireType = tag & 3;
-            //System.err.format("%s(%d.%d)%n", messageName, fieldNumber, fieldWireType);
             Descriptors.GenericDescriptor desc = messageMapping.get(fieldNumber);
             if (desc instanceof Descriptors.FieldDescriptor) {
                 resolveValue((Descriptors.FieldDescriptor) desc, stream, values, unknownFields);
