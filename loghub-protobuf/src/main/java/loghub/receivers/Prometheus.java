@@ -4,15 +4,12 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.security.Principal;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.UUID;
 
 import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.Descriptors;
@@ -40,7 +37,7 @@ import lombok.Setter;
 
 import static loghub.netty.transport.NettyTransport.PRINCIPALATTRIBUTE;
 
-// Generate
+// Generate with the commands
 // $PROTOC_HOME/bin/protoc loghub-protobuf/src/main/protobuf/prometheus/*.proto --descriptor_set_out=loghub-protobuf/src/main/resources/prometheus.binpb -Iloghub-protobuf/src/main/protobuf -I$PROTOC_HOME/include
 // $PROTOC_HOME/bin/protoc loghub-protobuf/src/main/protobuf/prometheus/* loghub-protobuf/src/main/protobuf/gogoproto/gogo.proto --java_out=loghub-protobuf/src/test/java/ -Iloghub-protobuf/src/main/protobuf -Iloghub-protobuf/src/main/protobuf -I$PROTOC_HOME/include
 @Blocking
@@ -53,6 +50,7 @@ public class Prometheus extends AbstractHttpReceiver<Prometheus, Prometheus.Buil
         public Builder() {
             setTransport(TRANSPORT.TCP);
         }
+        protected boolean forwardMetas = false;
         @Override
         public Prometheus build() {
             return new Prometheus(this);
@@ -80,8 +78,8 @@ public class Prometheus extends AbstractHttpReceiver<Prometheus, Prometheus.Buil
                 throws HttpRequestFailure {
             logger.debug("Received request at {}", request::uri);
             ByteBuf content = request.content();
-            ByteBuf uncompressed = ctx.alloc().buffer(content.readableBytes() * 2, content.readableBytes() * 8);
-            byte[] inBufferArray = new byte[]{};
+            ByteBuf uncompressed = ctx.alloc().buffer(content.readableBytes() * 2, content.readableBytes() * 20);
+            byte[] inBufferArray;
             try {
                 snappy.reset();
                 snappy.decode(content, uncompressed);
@@ -96,44 +94,14 @@ public class Prometheus extends AbstractHttpReceiver<Prometheus, Prometheus.Buil
                 Map<String, Object> values = new HashMap<>();
                 List<BinaryDecoder.UnknownField> unknownFields = new ArrayList<>();
                 decoder.parseInput(CodedInputStream.newInstance(uncompressed.nioBuffer()), "prometheus.WriteRequest", values, unknownFields);
-                ((List<Map<String, Object>>) values.get("TimeSeries")).forEach(m -> {
-                    Event ev = Prometheus.this.getEventsFactory().newEvent();
-                    // [Fri Jun 21 16:24:20 CEST 2024]{Label=[{name=__name__, value=prometheus_engine_query_duration_seconds}, {name=instance, value=localhost:9090}, {name=job, value=prometheus}, {name=quantile, value=0.5}, {name=slice, value=result_sort}], Sample=[{value=NaN, timestamp=1718979859422}]}#{}
-                    List<Map<String, String>> labels = (List<Map<String, String>>) m.get("Label");
-                    for (Map<String, String> labelData: labels) {
-                        String label = labelData.get("name");
-                        if ("__name__".equals(label)) {
-                            ev.put("name", labelData.get("value"));
-                        } else {
-                            ev.putAtPath(VariablePath.of("labels", labelData.get("name")), labelData.get("value"));
-                        }
-                     }
-                    List<Map<String, Object>> samples = (List<Map<String, Object>>) m.get("Sample");
-                    if (samples.size() == 1) {
-                        ev.setTimestamp(samples.get(0).get("timestamp"));
-                        Optional.ofNullable(samples.get(0).get("value")).map(Double.class::cast).ifPresent(v -> ev.put("value", v));
-                    }
-                    //System.err.println(ev);
-                    //ev.drop();
-                    send(ev);
-                });
-            } catch (IllegalStateException ex) {
-                System.err.println(request.uri());
-                request.headers().entries().forEach(e -> {
-                    System.err.format("  %s: %s%n", e.getKey(), e.getValue());
-                });
-                /*System.err.println("  " + request.uri());
-                if (inBufferArray.length > 0) {
-                    logger.atError().withThrowable(ex).log(ex.getMessage());
-                    UUID uuid = UUID.randomUUID();
-                    Path p = Path.of("", "data", "loghub", "logs", UUID.randomUUID() + ".dat");
-                    try {
-                        Files.write(p, inBufferArray);
-                    } catch (IOException e) {
-                        throw new RuntimeException(e);
-                    }
-                }*/
-            } catch (IOException ex) {
+                if (values.containsKey("TimeSeries")) {
+                    ((List<Map<String, Object>>) values.get("TimeSeries")).forEach(Prometheus.this::processTimeSerie);
+                } else if (values.containsKey("MetricMetadata") && Prometheus.this.forwardMetas) {
+                    ((List<Map<String, Object>>) values.get("MetricMetadata")).forEach(Prometheus.this::processMetadata);
+                } else {
+                    System.err.println(values.keySet());
+                }
+            } catch (IllegalStateException | IOException ex) {
                 logger.atError().withThrowable(logger.isDebugEnabled() ? ex : null).log("Can't decode content: {}", () -> Helpers.resolveThrowableException(ex));
                 throw new HttpRequestFailure(HttpResponseStatus.BAD_REQUEST, Helpers.resolveThrowableException(ex));
             } finally {
@@ -145,9 +113,11 @@ public class Prometheus extends AbstractHttpReceiver<Prometheus, Prometheus.Buil
     }
 
     private final Prometheus.PrometheusWriteRequestHandler bodyHandler;
+    private final boolean forwardMetas;
 
     public Prometheus(Builder builder) {
         super(builder);
+        this.forwardMetas = builder.forwardMetas;
         try {
             bodyHandler = new PrometheusWriteRequestHandler();
         } catch (IOException | Descriptors.DescriptorValidationException ex) {
@@ -170,6 +140,37 @@ public class Prometheus extends AbstractHttpReceiver<Prometheus, Prometheus.Buil
     @Override
     public String getReceiverName() {
         return "Prometheus/" + getListen() + "/" + getPort();
+    }
+
+    private void processTimeSerie(Map<String, Object> timeSerie) {
+        Event ev = Prometheus.this.getEventsFactory().newEvent();
+        @SuppressWarnings("unchecked")
+        List<Map<String, String>> labels = (List<Map<String, String>>) timeSerie.get("Label");
+        String promName = null;
+        for (Map<String, String> labelData: labels) {
+            String label = labelData.get("name");
+            if ("__name__".equals(label)) {
+                promName = labelData.get("value");
+            } else {
+                ev.putAtPath(VariablePath.of("labels", labelData.get("name")), labelData.get("value"));
+            }
+        }
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> samples = (List<Map<String, Object>>) timeSerie.get("Sample");
+        if (samples.size() == 1 && promName != null) {
+            ev.setTimestamp(samples.get(0).get("timestamp"));
+            VariablePath vp = VariablePath.of(promName);
+            Optional.ofNullable(samples.get(0).get("value")).map(Double.class::cast).ifPresent(v -> ev.putAtPath(vp, v));
+        } else {
+            logger.warn("Unhandled event data{}", () -> (logger.isDebugEnabled() ? "\n" + timeSerie : ""));
+        }
+        send(ev);
+    }
+
+    private void processMetadata(Map<String, Object> metadata) {
+        Event ev = Prometheus.this.getEventsFactory().newEvent();
+        ev.put("MetricMetadata", metadata);
+        send(ev);
     }
 
 }

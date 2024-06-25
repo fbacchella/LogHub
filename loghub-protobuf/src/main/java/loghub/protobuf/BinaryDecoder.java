@@ -241,9 +241,8 @@ public class BinaryDecoder {
             int len = stream.readRawVarint32();
             return stream.readRawBytes(len);
         case 3:
-            return stream;
         case 4:
-            return stream;
+            throw new UnsupportedOperationException("group not handled");
         case 5:
             return stream.readRawBytes(4);
         default:

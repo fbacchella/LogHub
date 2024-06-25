@@ -44,16 +44,6 @@
             <artifactId>protobuf-java-util</artifactId>
             <version>${protbuf.version}</version>
         </dependency>
-        <dependency>
-            <groupId>io.protostuff</groupId>
-            <artifactId>protostuff-core</artifactId>
-            <version>1.7.4</version>
-        </dependency>
-        <dependency>
-            <groupId>io.protostuff</groupId>
-            <artifactId>protostuff-runtime</artifactId>
-            <version>1.7.4</version>
-        </dependency>
     </dependencies>
 
     <build>

@@ -111,8 +111,8 @@ public class TestPrometheus {
         }
         Event ev = queue.poll();
         Map<String, String> labels = (Map<String, String>) ev.getAtPath(VariablePath.of("labels"));
-        Assert.assertEquals(2, labels.size());
-        double value = (double) ev.get("value");
+        Assert.assertEquals(1, labels.size());
+        double value = (double) ev.get("test_event");
         Types.Sample sample = wr.getTimeseries(0).getSamples(0);
         Assert.assertEquals(sample.getValue(), value, 1e-20);
         Assert.assertEquals(sample.getTimestamp(), ev.getTimestamp().getTime());
