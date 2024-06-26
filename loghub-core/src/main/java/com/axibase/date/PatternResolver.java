@@ -81,9 +81,9 @@ public class PatternResolver {
         }
         Matcher matcherRfc3164 = RFC3164_PATTERN.matcher(pattern);
         if (matcherRfc3164.matches()) {
-            int dayLength = matcherRfc3164.group(2).length();
+            int dayLength = matcherRfc3164.group(1).length();
             int fractions = stringLength(matcherRfc3164.group(3)) - 1;
-            boolean withYear = matcherRfc3164.group(1) != null;
+            boolean withYear = matcherRfc3164.group(2) != null;
             AppendOffset appendOffset = Optional.ofNullable(matcherRfc3164.group(4))
                                                 .map(s -> s.substring(1))
                                                 .map(PatternResolver::resolveZoneOffset)

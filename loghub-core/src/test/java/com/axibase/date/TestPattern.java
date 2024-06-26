@@ -108,6 +108,13 @@ public class TestPattern {
     }
 
     @Test
+    public void rfc3164ImplicitYear() {
+        DatetimeProcessor rfc3164Processor = getProcessor("MMM dd HH:mm:ss Z");
+        Assert.assertEquals("2023-05-03T12:56:29Z", rfc3164Processor.parse("May 03  12:56:29 Z").withYear(2023).toString());
+        Assert.assertEquals("2023-05-03T12:56:29Z", rfc3164Processor.parse("May 03 12:56:29 Z").withYear(2023).toString());
+    }
+
+    @Test
     public void iso8164() {
         runTest("iso",
                 List.of(
