@@ -11,10 +11,6 @@ import java.time.format.DateTimeParseException;
 import java.time.zone.ZoneRules;
 import java.util.Locale;
 
-import static com.axibase.date.DatetimeProcessorUtil.checkOffset;
-import static com.axibase.date.DatetimeProcessorUtil.extractOffset;
-import static com.axibase.date.DatetimeProcessorUtil.parseInt;
-
 class DatetimeProcessorIso8601 implements DatetimeProcessor {
 
     private static final int ISO_LENGTH = "1970-01-01T00:00:00.000000000+00:00:00".length();
@@ -23,34 +19,40 @@ class DatetimeProcessorIso8601 implements DatetimeProcessor {
     private final int fractionsOfSecond;
     private final AppendOffset zoneOffsetType;
     private final ZoneId zoneId;
-    private final char delimitor;
+    private final char delimiter;
 
-    DatetimeProcessorIso8601(int fractionsOfSecond, AppendOffset zoneOffsetType, ZoneId zoneId, char delimitor) {
+    DatetimeProcessorIso8601(int fractionsOfSecond, AppendOffset zoneOffsetType, char delimiter) {
+        this.fractionsOfSecond = fractionsOfSecond;
+        this.zoneOffsetType = zoneOffsetType;
+        this.zoneId = ZoneId.systemDefault();
+        this.delimiter = delimiter;
+    }
+
+    private DatetimeProcessorIso8601(int fractionsOfSecond, AppendOffset zoneOffsetType, char delimiter, ZoneId zoneId) {
         this.fractionsOfSecond = fractionsOfSecond;
         this.zoneOffsetType = zoneOffsetType;
         this.zoneId = zoneId;
-        this.delimitor = delimitor;
+        this.delimiter = delimiter;
     }
 
     @Override
     public Instant parseInstant(String datetime) {
-        return parseIso8601AsOffsetDateTime(datetime, delimitor).toInstant();
+        return parseIso8601AsOffsetDateTime(datetime, delimiter).toInstant();
     }
 
     @Override
     public ZonedDateTime parse(String datetime) {
-        return parseIso8601AsZonedDateTime(datetime, delimitor, zoneId, zoneOffsetType);
+        return parseIso8601AsZonedDateTime(datetime, delimiter, zoneId, zoneOffsetType);
     }
 
     @Override
     public String print(Instant timestamp) {
-        return printIso8601(timestamp, delimitor, zoneId, zoneOffsetType, fractionsOfSecond);
+        return printIso8601(timestamp, delimiter, zoneId, zoneOffsetType, fractionsOfSecond);
     }
 
     @Override
     public String print(ZonedDateTime zonedDateTime) {
-        return printIso8601(zonedDateTime.toLocalDateTime(), zonedDateTime.getOffset(), zoneOffsetType,
-                delimitor, fractionsOfSecond);
+        return printIso8601(zonedDateTime.toLocalDateTime(), zonedDateTime.getOffset(), zoneOffsetType, delimiter, fractionsOfSecond);
     }
 
     @Override
@@ -61,60 +63,56 @@ class DatetimeProcessorIso8601 implements DatetimeProcessor {
     @Override
     public DatetimeProcessor withDefaultZone(ZoneId zoneId) {
         return this.zoneId.equals(zoneId) ? this :
-                new DatetimeProcessorIso8601(fractionsOfSecond, zoneOffsetType, zoneId, delimitor);
+                new DatetimeProcessorIso8601(fractionsOfSecond, zoneOffsetType, delimiter, zoneId);
     }
 
     private ZonedDateTime parseIso8601AsZonedDateTime(String date, char delimiter,
             ZoneId defaultOffset, AppendOffset offsetType) {
         try {
-            DatetimeProcessorUtil.ParsingContext context = new DatetimeProcessorUtil.ParsingContext();
-            LocalDateTime localDateTime = parseIso8601AsLocalDateTime(date, delimiter, context);
-            ZoneId zoneId = extractOffset(date, context.offset, offsetType, defaultOffset);
+            ParsingContext context = new ParsingContext(date);
+            LocalDateTime localDateTime = parseIso8601AsLocalDateTime(delimiter, context);
+            ZoneId zoneId = context.extractOffset(offsetType, defaultOffset);
             return ZonedDateTime.of(localDateTime, zoneId);
         } catch (DateTimeException e) {
             throw new DateTimeParseException("Failed to parse date " + date + ": " + e.getMessage(), date, 0, e);
         }
     }
 
-    private LocalDateTime parseIso8601AsLocalDateTime(String date, char delimiter, DatetimeProcessorUtil.ParsingContext context) {
-        int length = date.length();
-        int offset = context.offset;
-
+    private LocalDateTime parseIso8601AsLocalDateTime(char delimiter, ParsingContext context) {
         // extract year
-        int year = parseInt(date, offset, offset += 4, length);
-        checkOffset(date, offset, '-');
+        int year = context.parseInt(-1);
+        context.checkOffset('-');
 
         // extract month
-        int month = parseInt(date, offset += 1, offset += 2, length);
-        checkOffset(date, offset, '-');
+        int month = context.parseInt(2);
+        context.checkOffset('-');
 
         // extract day
-        int day = parseInt(date, offset += 1, offset += 2, length);
-        checkOffset(date, offset, delimiter);
+        int day = context.parseInt(2);
+        context.checkOffset(delimiter);
 
         // extract hours, minutes, seconds and milliseconds
-        int hour = parseInt(date, offset += 1, offset += 2, length);
-        checkOffset(date, offset, ':');
+        int hour = context.parseInt(2);
+        context.checkOffset(':');
 
-        int minutes = parseInt(date, offset += 1, offset += 2, length);
+        int minutes = context.parseInt(2);
 
         // seconds can be optional
         int seconds;
-        if (date.charAt(offset) == ':') {
-            seconds = parseInt(date, offset += 1, offset += 2, length);
+        if (context.datetime.charAt(context.offset) == ':') {
+            context.offset++;
+            seconds = context.parseInt(2);
         } else {
             seconds = 0;
         }
-
-        context.offset = offset;
-        int nanos = DatetimeProcessorUtil.parseNano(length, context, date);
+        int nanos = context.parseNano();
         return LocalDateTime.of(year, month, day, hour, minutes, seconds, nanos);
     }
 
     private OffsetDateTime parseIso8601AsOffsetDateTime(String date, char delimiter) {
         try {
-            DatetimeProcessorUtil.ParsingContext parsingContext = new DatetimeProcessorUtil.ParsingContext();
-            LocalDateTime localDateTime = parseIso8601AsLocalDateTime(date, delimiter, parsingContext);
+            ParsingContext parsingContext = new ParsingContext(date);
+            LocalDateTime localDateTime = parseIso8601AsLocalDateTime(delimiter, parsingContext);
             ZoneOffset zoneOffset = DatetimeProcessorUtil.parseOffset(parsingContext.offset, date);
             return OffsetDateTime.of(localDateTime, zoneOffset);
         } catch (DateTimeException e) {

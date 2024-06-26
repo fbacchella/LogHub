@@ -15,12 +15,15 @@ import java.util.Locale;
 class DatetimeProcessorCustom implements DatetimeProcessor {
     private final DateTimeFormatter dateTimeFormatter;
     private final ZoneId zoneId;
-    private final OnMissingDateComponentAction onMissingDateComponentAction;
 
-    DatetimeProcessorCustom(DateTimeFormatter dateTimeFormatter, ZoneId zoneId, OnMissingDateComponentAction onMissingDateComponentAction) {
+    DatetimeProcessorCustom(DateTimeFormatter dateTimeFormatter) {
         this.dateTimeFormatter = dateTimeFormatter;
-        this.zoneId = zoneId;
-        this.onMissingDateComponentAction = onMissingDateComponentAction;
+        this.zoneId = ZoneId.systemDefault();
+    }
+
+    private DatetimeProcessorCustom(DateTimeFormatter dateTimeFormatter, ZoneId zid) {
+        this.dateTimeFormatter = dateTimeFormatter;
+        this.zoneId = zid;
     }
 
     @Override
@@ -48,12 +51,12 @@ class DatetimeProcessorCustom implements DatetimeProcessor {
         if (locale.equals(dateTimeFormatter.getLocale())) {
             return this;
         }
-        return new DatetimeProcessorCustom(dateTimeFormatter.withLocale(locale), zoneId, onMissingDateComponentAction);
+        return new DatetimeProcessorCustom(dateTimeFormatter.withLocale(locale), zoneId);
     }
 
     @Override
     public DatetimeProcessor withDefaultZone(ZoneId zoneId) {
-        return this.zoneId.equals(zoneId) ? this : new DatetimeProcessorCustom(dateTimeFormatter, zoneId, onMissingDateComponentAction);
+        return this.zoneId.equals(zoneId) ? this : new DatetimeProcessorCustom(dateTimeFormatter, zoneId);
     }
 
     private LocalDate resolveDateFromTemporal(TemporalAccessor parsed, ZoneId zone) {
@@ -72,14 +75,8 @@ class DatetimeProcessorCustom implements DatetimeProcessor {
         } else if (parsed.isSupported(IsoFields.WEEK_BASED_YEAR)) {
             year = parsed.get(IsoFields.WEEK_BASED_YEAR);
         } else {
-            if (onMissingDateComponentAction == OnMissingDateComponentAction.SET_ZERO) {
-                year = DatetimeProcessorUtil.UNIX_EPOCH_YEAR;
-            } else if (onMissingDateComponentAction == OnMissingDateComponentAction.SET_CURRENT) {
-                currentDate = LocalDate.now(zone);
-                year = currentDate.getYear();
-            } else {
-                throw new IllegalStateException("Unknown OnMissingDateComponentAction: " + onMissingDateComponentAction);
-            }
+            currentDate = LocalDate.now(zone);
+            year = currentDate.getYear();
         }
         if (parsed.isSupported(ChronoField.MONTH_OF_YEAR)) {
             month = parsed.get(ChronoField.MONTH_OF_YEAR);
@@ -87,30 +84,18 @@ class DatetimeProcessorCustom implements DatetimeProcessor {
             int quarter = parsed.get(IsoFields.QUARTER_OF_YEAR);
             month = quarter * 3 - 2;
         } else {
-            if (onMissingDateComponentAction == OnMissingDateComponentAction.SET_ZERO) {
-                month = 1;
-            } else if (onMissingDateComponentAction == OnMissingDateComponentAction.SET_CURRENT) {
-                if (currentDate == null) {
-                    currentDate = LocalDate.now(zone);
-                }
-                month = currentDate.getMonthValue();
-            } else {
-                throw new IllegalStateException("Unknown OnMissingDateComponentAction: " + onMissingDateComponentAction);
+            if (currentDate == null) {
+                currentDate = LocalDate.now(zone);
             }
+            month = currentDate.getMonthValue();
         }
         if (parsed.isSupported(ChronoField.DAY_OF_MONTH)) {
             day = parsed.get(ChronoField.DAY_OF_MONTH);
         } else {
-            if (onMissingDateComponentAction == OnMissingDateComponentAction.SET_ZERO) {
-                day = 1;
-            } else if (onMissingDateComponentAction == OnMissingDateComponentAction.SET_CURRENT) {
-                if (currentDate == null) {
-                    currentDate = LocalDate.now(zone);
-                }
-                day = currentDate.getDayOfMonth();
-            } else {
-                throw new IllegalStateException("Unknown OnMissingDateComponentAction: " + onMissingDateComponentAction);
+            if (currentDate == null) {
+                currentDate = LocalDate.now(zone);
             }
+            day = currentDate.getDayOfMonth();
         }
         return LocalDate.of(year, month, day);
     }

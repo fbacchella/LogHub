@@ -12,7 +12,6 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import com.axibase.date.DatetimeProcessor;
-import com.axibase.date.PatternResolver;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.dataformat.csv.CsvMapper;
 import com.fasterxml.jackson.dataformat.csv.CsvSchema;
@@ -31,49 +30,23 @@ import lombok.Setter;
 @CanBatch
 public class Csv extends AbstractJacksonEncoder<Csv.Builder, CsvMapper> {
 
-    public static class Builder extends AbstractJacksonEncoder.Builder<Csv> {
-        @Setter
-        private Expression[] values = new Expression[0];
-        @Setter
-        private Object[] features = new String[]{"ALWAYS_QUOTE_STRINGS"};
-        @Setter
-        private char separator = ',';
-        @Setter
-        private String lineSeparator = "\n";
-        @Setter
-        private String nullValue = "";
-        @Setter
-        private String dateFormat = "iso";
-        @Setter
-        private String zoneId = ZoneId.systemDefault().toString();
-        @Setter
-        private String locale = Locale.getDefault().toString();
-        @Setter
-        protected String charset = Charset.defaultCharset().name();
-
-        @Override
-        public Csv build() {
-            return new Csv(this);
-        }
-    }
-    public static Csv.Builder getBuilder() {
-        return new Csv.Builder();
-    }
-
     private final Expression[] values;
     private final DatetimeProcessor dateFormat;
     private final ZoneId zoneId;
     private final Charset charset;
-
     private Csv(Csv.Builder builder) {
         super(builder);
         values = Arrays.copyOf(builder.values, builder.values.length);
         this.zoneId = ZoneId.of(builder.zoneId);
         this.charset = Charset.forName(builder.charset);
         Locale locale = Locale.forLanguageTag(builder.locale);
-        this.dateFormat = PatternResolver.createNewFormatter(builder.dateFormat)
-                                         .withDefaultZone(zoneId)
-                                         .withLocale(locale);
+        this.dateFormat = DatetimeProcessor.of(builder.dateFormat)
+                                           .withDefaultZone(zoneId)
+                                           .withLocale(locale);
+    }
+
+    public static Csv.Builder getBuilder() {
+        return new Csv.Builder();
     }
 
     @Override
@@ -126,6 +99,32 @@ public class Csv extends AbstractJacksonEncoder<Csv.Builder, CsvMapper> {
             }
         }
         return flattened;
+    }
+
+    public static class Builder extends AbstractJacksonEncoder.Builder<Csv> {
+        @Setter
+        protected String charset = Charset.defaultCharset().name();
+        @Setter
+        private Expression[] values = new Expression[0];
+        @Setter
+        private Object[] features = new String[]{"ALWAYS_QUOTE_STRINGS"};
+        @Setter
+        private char separator = ',';
+        @Setter
+        private String lineSeparator = "\n";
+        @Setter
+        private String nullValue = "";
+        @Setter
+        private String dateFormat = "iso";
+        @Setter
+        private String zoneId = ZoneId.systemDefault().toString();
+        @Setter
+        private String locale = Locale.getDefault().toString();
+
+        @Override
+        public Csv build() {
+            return new Csv(this);
+        }
     }
 
 }

@@ -5,7 +5,6 @@ import java.util.List;
 import java.util.Optional;
 
 import com.axibase.date.DatetimeProcessor;
-import com.axibase.date.PatternResolver;
 import com.beust.jcommander.Parameter;
 
 public class CommandTimePattern  implements BaseCommand {
@@ -16,7 +15,7 @@ public class CommandTimePattern  implements BaseCommand {
     @Override
     public int run(List<String> unknownOptions) {
         if (timepattern != null) {
-            DatetimeProcessor tested = PatternResolver.createNewFormatter(timepattern);
+            DatetimeProcessor tested = DatetimeProcessor.of(timepattern);
             for (String date: unknownOptions) {
                 try {
                     System.out.format("%s -> %s%n", date, tested.parse(date));

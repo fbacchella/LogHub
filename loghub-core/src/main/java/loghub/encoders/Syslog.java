@@ -13,7 +13,6 @@ import java.util.Optional;
 import java.util.stream.IntStream;
 
 import com.axibase.date.DatetimeProcessor;
-import com.axibase.date.PatternResolver;
 
 import loghub.BuilderClass;
 import loghub.CanBatch;
@@ -132,7 +131,7 @@ public class Syslog extends Encoder {
         dateFormatter = Optional.of(timestampformat)
                                 .filter(s -> s.length() != 0)
                                 .map(StringBuilder::toString)
-                                .map(PatternResolver::createNewFormatter)
+                                .map(DatetimeProcessor::of)
                                 .map(f -> f.withDefaultZone(defaultTimeZone))
                                 .orElse(null);
     }

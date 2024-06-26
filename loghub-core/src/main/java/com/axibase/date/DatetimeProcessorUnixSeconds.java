@@ -20,11 +20,11 @@ class DatetimeProcessorUnixSeconds implements NumericDateTimeProcessor {
     private final String pattern;
     private final DecimalFormat formatter;
 
-    DatetimeProcessorUnixSeconds(ZoneId zoneId) {
-        this(zoneId, Locale.getDefault(),"#.###########");
+    DatetimeProcessorUnixSeconds() {
+        this(ZoneId.systemDefault(), Locale.getDefault(),"#.###########");
     }
 
-    DatetimeProcessorUnixSeconds(ZoneId zoneId, Locale locale, String pattern) {
+    private DatetimeProcessorUnixSeconds(ZoneId zoneId, Locale locale, String pattern) {
         this.zoneId = zoneId;
         this.locale = locale;
         this.pattern = pattern;

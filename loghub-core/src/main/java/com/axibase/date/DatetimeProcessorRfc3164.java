@@ -14,8 +14,6 @@ import java.util.stream.IntStream;
 
 import static com.axibase.date.DatetimeProcessorUtil.adjustPossiblyNegative;
 import static com.axibase.date.DatetimeProcessorUtil.appendNumberWithFixedPositions;
-import static com.axibase.date.DatetimeProcessorUtil.checkOffset;
-import static com.axibase.date.DatetimeProcessorUtil.parseInt;
 
 public class DatetimeProcessorRfc3164 implements DatetimeProcessor {
 
@@ -32,7 +30,7 @@ public class DatetimeProcessorRfc3164 implements DatetimeProcessor {
         this(dayLength, withYear, fractions, Locale.getDefault(), ZoneId.systemDefault(), zoneOffsetType);
     }
 
-    DatetimeProcessorRfc3164(int dayLength, boolean withYear, int fractions, Locale locale, ZoneId zoneId, AppendOffset zoneOffsetType) {
+    private DatetimeProcessorRfc3164(int dayLength, boolean withYear, int fractions, Locale locale, ZoneId zoneId, AppendOffset zoneOffsetType) {
         this.dayLength = dayLength;
         this.fractions = fractions;
         this.withYear = withYear;
@@ -41,7 +39,7 @@ public class DatetimeProcessorRfc3164 implements DatetimeProcessor {
         this.zoneOffsetType = zoneOffsetType;
         DateFormatSymbols symbols = new DateFormatSymbols(locale);
         this.shortMonths = symbols.getShortMonths();
-        String[] monthsSymbols = symbols.getMonths();
+        String[] monthsSymbols = symbols.getShortMonths();
         monthsMapping = IntStream.range(0, monthsSymbols.length).mapToObj(i -> Map.entry(monthsSymbols[i].toUpperCase(locale), i + 1))
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }
@@ -53,47 +51,38 @@ public class DatetimeProcessorRfc3164 implements DatetimeProcessor {
 
     @Override
     public ZonedDateTime parse(String datetime) {
-        int length = datetime.length();
-        int offset = 0;
+        ParsingContext context = new ParsingContext(datetime);
         //Skip space
-        while (offset < length && datetime.charAt(offset) == ' ') {offset++;}
-        String monthName = datetime.substring(offset, offset+3).toUpperCase(locale);
-        offset += 3;
+        context.skipSpaces();
+        String monthName = context.findWord().toUpperCase(locale);
         Integer month = monthsMapping.get(monthName);
         if (month == null) {
-            throw new DateTimeParseException("Invalid month name", datetime, offset);
+            throw new DateTimeParseException("Invalid month name", datetime, context.offset);
         }
-        //Skip space
-        while (datetime.charAt(offset) == ' ') {offset++;}
-        int startDay = offset;
-        while (Character.isDigit(datetime.charAt(offset))) {offset++;}
-        int day = parseInt(datetime, startDay, offset, length);
-        //Skip space
-        while (datetime.charAt(offset) == ' ') {offset++;}
+        context.skipSpaces();
+        int day = context.parseInt(2);
+        context.skipSpaces();
         int year;
         if (withYear) {
-            year = parseInt(datetime, offset, offset += 4, length);
-            while (datetime.charAt(offset) == ' ') {offset++;}
+            year = context.parseInt(-1);
+            context.skipSpaces();
         } else {
             year = LocalDateTime.now().getYear();
         }
-        int hour = parseInt(datetime, offset, offset += 2 , length);
-        checkOffset(datetime, offset++, ':');
-        int minutes = parseInt(datetime, offset, offset += 2, length);
-        checkOffset(datetime, offset++, ':');
-        int seconds = parseInt(datetime, offset, offset += 2 , length);
-        DatetimeProcessorUtil.ParsingContext context = new DatetimeProcessorUtil.ParsingContext(offset);
-        int nanos = DatetimeProcessorUtil.parseNano(length, context, datetime);
-        offset = context.offset;
-        //Skip space
-        while (datetime.charAt(offset) == ' ') {offset++;}
-        String zoneInfo = datetime.substring(offset);
+        int hour = context.parseInt(2);
+        context.checkOffset(':');
+        int minutes = context.parseInt(2);
+        context.checkOffset(':');
+        int seconds = context.parseInt(2);
+        int nanos = context.parseNano();
+        context.skipSpaces();
+        String zoneInfo = context.findWord();
         ZoneId parsedZoneId = this.zoneId;
         if (! zoneInfo.isEmpty()) {
             try {
                 parsedZoneId = ZoneId.of(zoneInfo).normalized();
             } catch (DateTimeException ex) {
-                throw new DateTimeParseException(ex.getMessage(), datetime, offset);
+                throw new DateTimeParseException(ex.getMessage(), datetime, context.offset);
             }
         }
         return ZonedDateTime.of(year, month, day, hour, minutes, seconds, nanos, parsedZoneId);
@@ -107,9 +96,9 @@ public class DatetimeProcessorRfc3164 implements DatetimeProcessor {
     @Override
     public String print(ZonedDateTime zonedDateTime) {
         StringBuilder formatted = new StringBuilder();
-        formatted.append(shortMonths[zonedDateTime.getMonthValue() -1]);
+        formatted.append(shortMonths[zonedDateTime.getMonthValue() -1]).append(" ");
         int day = zonedDateTime.getDayOfMonth();
-        formatted.append(" ").append(day <= 9 ? "0": "").append(day);
+        formatted.append((day <= 9 && dayLength == 2) ? "0" : "").append(day);
         if (withYear) {
             formatted.append(" ");
             adjustPossiblyNegative(formatted, zonedDateTime.getYear(), 4);

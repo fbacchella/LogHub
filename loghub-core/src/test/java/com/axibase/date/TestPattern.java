@@ -1,7 +1,9 @@
 package com.axibase.date;
 
 import java.time.Instant;
+import java.time.Month;
 import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Locale;
@@ -34,7 +36,8 @@ public class TestPattern {
                 List.of(
                         Map.entry("03 May 2024 12:56:29 +01:00", "2024-05-03T12:56:29+01:00"),
                         Map.entry("03 May 2024 12:56:29 CET", "2024-05-03T12:56:29+02:00[CET]"),
-                        Map.entry("XXX, 03 May 2024 12:56:29 CET", "2024-05-03T12:56:29+02:00[CET]")
+                        Map.entry("XXX, 03 May 2024 12:56:29 CET", "2024-05-03T12:56:29+02:00[CET]"),
+                        Map.entry("Tue, 3 Jun 2008 11:05:30 +0110", "2008-06-03T11:05:30+01:10")
                 ),
                 List.of(
                         Map.entry(Instant.ofEpochMilli(1000), "Thu, 1 Jan 1970 01:00:01 +0100")
@@ -92,17 +95,42 @@ public class TestPattern {
 
     @Test
     public void rfc3164() {
+        int currentYear = ZonedDateTime.now().getYear();
         runTest("rfc3164",
                 List.of(
+                        Map.entry(" May 03 12:56:29  +01:00", currentYear + "-05-03T12:56:29+01:00"),
+                        Map.entry(" May 03 12:56:29  CET", currentYear + "-05-03T12:56:29+02:00[CET]")
+                ),
+                List.of(
+                        Map.entry(Instant.ofEpochMilli(1000), "Jan 1 01:00:01 +0100")
+                ),
+                List.of(
+                        Map.entry("XXX 03   12:56:29 +01:00", "Invalid month name"),
+                        Map.entry("May 03  12:56:29 XXX", "Unknown time-zone ID: XXX")
+                )
+        );
+        runTest("MMM d yyyy HH:mm:ss Z",
+                List.of(
                         Map.entry(" May 03 2024 12:56:29  +01:00", "2024-05-03T12:56:29+01:00"),
-                        Map.entry(" May 03 2024 12:56:29  CET", "2024-05-03T12:56:29+02:00[CET]")
+                        Map.entry(" May 03 2024 12:56:29  CET", "2024-05-03T12:56:29+02:00[CET]"),
+                        Map.entry("Jun 3 2008 11:05:30 +0110", "2008-06-03T11:05:30+01:10")
+                ),
+                List.of(
+                        Map.entry(Instant.ofEpochMilli(1000), "Jan 1 1970 01:00:01 +0100")
+                ),
+                List.of(
+                 )
+        );
+        runTest("MMM dd yyyy HH:mm:ss Z",
+                List.of(
+                        Map.entry(" May 03 2024 12:56:29  +01:00", "2024-05-03T12:56:29+01:00"),
+                        Map.entry(" May 03 2024 12:56:29  CET", "2024-05-03T12:56:29+02:00[CET]"),
+                        Map.entry("Jun 3 2008 11:05:30 +0110", "2008-06-03T11:05:30+01:10")
                 ),
                 List.of(
                         Map.entry(Instant.ofEpochMilli(1000), "Jan 01 1970 01:00:01 +0100")
                 ),
                 List.of(
-                        Map.entry("XXX 03 2024  12:56:29 +01:00", "Invalid month name"),
-                        Map.entry("May 03 2024  12:56:29 XXX", "Unknown time-zone ID: XXX")
                 )
         );
     }
@@ -242,5 +270,13 @@ public class TestPattern {
         );
     }
 
+    @Test
+    public void testWithLocale() {
+        DatetimeProcessor processor =  PatternResolver.createNewFormatter("rfc822")
+                                                      .withLocale(Locale.FRANCE)
+                                                      .withDefaultZone(ZoneId.of("Europe/London"));
+        ZonedDateTime zdt = processor.parse("1 janv. 2024 04:00:00");
+        Assert.assertEquals(Month.JANUARY, zdt.getMonth());
+    }
 
 }

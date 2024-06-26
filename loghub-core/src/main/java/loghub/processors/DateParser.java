@@ -15,8 +15,6 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import com.axibase.date.DatetimeProcessor;
 import com.axibase.date.NamedPatterns;
-import com.axibase.date.OnMissingDateComponentAction;
-import com.axibase.date.PatternResolver;
 
 import loghub.BuilderClass;
 import loghub.Expression;
@@ -29,20 +27,23 @@ import lombok.Setter;
 @BuilderClass(DateParser.Builder.class)
 public class DateParser extends FieldsProcessor {
 
+    private static final String RFC_822_WEEK_DAY = "eee, d MMM yyyy HH:mm:ss Z";
+    private static final String RFC_822_SHORT = "d MMM yyyy HH:mm:ss Z";
+    private static final String RFC_3164 = "MMM d HH:mm:ss";
 
     private static final Map<String, DatetimeProcessor> NAMEDPATTERNS;
     static {
-        DatetimeProcessor isoNanos = PatternResolver.createNewFormatter(NamedPatterns.ISO_NANOS);
-        DatetimeProcessor nanos = PatternResolver.createNewFormatter(NamedPatterns.NANOSECONDS);
-        DatetimeProcessor millis = PatternResolver.createNewFormatter(NamedPatterns.MILLISECONDS);
-        DatetimeProcessor seconds = PatternResolver.createNewFormatter(NamedPatterns.SECONDS);
+        DatetimeProcessor isoNanos = DatetimeProcessor.of(NamedPatterns.ISO_NANOS);
+        DatetimeProcessor nanos = DatetimeProcessor.of(NamedPatterns.NANOSECONDS);
+        DatetimeProcessor millis = DatetimeProcessor.of(NamedPatterns.MILLISECONDS);
+        DatetimeProcessor seconds = DatetimeProcessor.of(NamedPatterns.SECONDS);
         NAMEDPATTERNS = Map.ofEntries(
             Map.entry("ISO", isoNanos),
             Map.entry("ISO_DATE_TIME", isoNanos),
             Map.entry("ISO_INSTANT", isoNanos),
-            Map.entry("RFC_822_WEEK_DAY", PatternResolver.createNewFormatter("eee, d MMM yyyy HH:mm:ss Z").withLocale(Locale.getDefault())),
-            Map.entry("RFC_822_SHORT", PatternResolver.createNewFormatter("d MMM yyyy HH:mm:ss Z").withLocale(Locale.getDefault())),
-            Map.entry("RFC_3164", PatternResolver.createNewFormatter("MMM d HH:mm:ss", ZoneId.systemDefault(), OnMissingDateComponentAction.SET_CURRENT).withLocale(Locale.getDefault())),
+            Map.entry("RFC_822_WEEK_DAY", DatetimeProcessor.of(RFC_822_WEEK_DAY)),
+            Map.entry("RFC_822_SHORT", DatetimeProcessor.of(RFC_822_SHORT)),
+            Map.entry("RFC_3164", DatetimeProcessor.of(RFC_3164)),
             Map.entry("NANOSECONDS", nanos),
             Map.entry("MILLISECONDS", millis),
             Map.entry("SECONDS", seconds),
@@ -63,7 +64,7 @@ public class DateParser extends FieldsProcessor {
             if (NAMEDPATTERNS.containsKey(parser.toUpperCase(Locale.ENGLISH))) {
                 return NAMEDPATTERNS.get(parser.toUpperCase(Locale.ENGLISH)).withDefaultZone(ZoneId.of(timezone)).withLocale(Locale.forLanguageTag(locale));
             } else {
-                return PatternResolver.createNewFormatter(parser, ZoneId.of(timezone), OnMissingDateComponentAction.SET_CURRENT).withLocale(Locale.forLanguageTag(locale));
+                return DatetimeProcessor.of(parser).withDefaultZone(ZoneId.of(timezone)).withLocale(Locale.forLanguageTag(locale));
             }
         }
     }

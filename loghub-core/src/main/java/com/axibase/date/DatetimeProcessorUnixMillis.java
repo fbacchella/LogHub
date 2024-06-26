@@ -9,7 +9,11 @@ import java.util.Locale;
 class DatetimeProcessorUnixMillis implements NumericDateTimeProcessor {
     private final ZoneId zoneId;
 
-    DatetimeProcessorUnixMillis(ZoneId zoneId) {
+    DatetimeProcessorUnixMillis() {
+        this(ZoneId.systemDefault());
+    }
+
+    private DatetimeProcessorUnixMillis(ZoneId zoneId) {
         this.zoneId = zoneId;
     }
 

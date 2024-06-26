@@ -10,6 +10,7 @@ import java.time.ZonedDateTime;
 import java.time.temporal.ChronoField;
 import java.util.Collections;
 import java.util.Date;
+import java.util.List;
 import java.util.Locale;
 import java.util.TimeZone;
 import java.util.function.Function;
@@ -21,7 +22,7 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import com.axibase.date.PatternResolver;
+import com.axibase.date.DatetimeProcessor;
 
 import loghub.BeanChecks;
 import loghub.Expression;
@@ -57,7 +58,7 @@ public class TestDateParser {
 
         Event event = factory.newEvent();
         ZonedDateTime now = ZonedDateTime.now();
-        event.put("field", PatternResolver.createNewFormatter("iso_nanos").print(now));
+        event.put("field", DatetimeProcessor.of("iso_nanos").print(now));
         parse.process(event);
         Instant parsedDate = (Instant) event.get("field");
         // ZonedDateTime is ms precision in J8 and µs in 11
@@ -74,7 +75,7 @@ public class TestDateParser {
 
         Event event = factory.newEvent();
         ZonedDateTime now = ZonedDateTime.now();
-        event.put("field", PatternResolver.createNewFormatter("iso_nanos").print(now));
+        event.put("field", DatetimeProcessor.of("iso_nanos").print(now));
         parse.process(event);
         Instant parsedDate = (Instant) event.get("field");
         Assert.assertEquals("date not parsed", now.toInstant(), parsedDate);
@@ -413,8 +414,8 @@ public class TestDateParser {
         checkPattern("RFC_822_SHORT", "1 Dec 2009 08:48:25 +0000", Instant.ofEpochSecond(1259657305L));
         checkPattern("RFC_822_SHORT", "11 Dec 2009 08:48:25 +0000", Instant.ofEpochSecond(1260521305L));
         ZonedDateTime expected = Instant.ofEpochSecond(1259657305L).atZone(ZoneId.of("UTC")).withYear(ZonedDateTime.now().getYear());
-        checkPattern("RFC_3164", "Dec 1 08:48:25", expected.toInstant());
-        checkPattern("RFC_3164", "Dec 11 08:48:25", expected.withDayOfMonth(11).toInstant());
+        checkPattern("MMM d HH:mm:ss Z", "Dec 1 08:48:25", expected.toInstant());
+        checkPattern("MMM d HH:mm:ss Z", "Dec 11 08:48:25", expected.withDayOfMonth(11).toInstant());
         Instant now = Instant.now();
         checkPattern("ISO8601", "2023-06-24T11:12:38Z", Instant.ofEpochSecond(1687605158L));
 
@@ -452,4 +453,25 @@ public class TestDateParser {
         );
     }
 
+    @Test
+    public void testResolve() {
+        List.of("yyyy-MM-dd' 'HH:mm:ss,SSS", "MMM dd HH:mm:ss", "MMM  d HH:mm:ss", "MMM dd YYYY HH:mm:ss",
+                "yyyy-MM-dd'T'HH:mm:ss.SSSXXXX", "yyyy-MM-dd HH:mm:ss.SSS", "yyyy-MM-dd'T'HH:mm:ssXXX").forEach(s -> {
+            System.err.format("%s %s%n", s, DatetimeProcessor.of(s));
+        });
+        for (char delimiter: List.of(' ', 'T')) {
+            DatetimeProcessor processor = DatetimeProcessor.of(String.format("yyyy-MM-dd%sHH:mm:ssZ", delimiter));
+            for (String offset: List.of("Z", "-08", "-0830", "-08:30", "-083015", "-08:30:15")) {
+                var toParse = String.format("2024-04-26%s13:47:00%s", delimiter, offset);
+                var time = processor.parse(toParse); //parseIso8601AsOffsetDateTime(toParse, delimiter);
+                System.err.println(time);
+            }
+            /*for (String offset: List.of("Z", "CET")) {
+                var toParse = String.format("2024-04-26%s13:47:00%s", delimiter, offset);
+                var time = DatetimeProcessorUtil.p
+                System.err.println(time);
+            }*/
+        }
+        var delimiter = ' ';
+    }
 }

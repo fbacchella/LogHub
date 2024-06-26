@@ -12,7 +12,11 @@ class DatetimeProcessorUnixNano implements NumericDateTimeProcessor {
     private final ZoneId zoneId;
     private static final BigInteger ONE_MILLIARD = BigInteger.valueOf(1_000_000_000L);
 
-    DatetimeProcessorUnixNano(ZoneId zoneId) {
+    DatetimeProcessorUnixNano() {
+        this.zoneId = ZoneId.systemDefault();
+    }
+
+    private DatetimeProcessorUnixNano(ZoneId zoneId) {
         this.zoneId = zoneId;
     }
 

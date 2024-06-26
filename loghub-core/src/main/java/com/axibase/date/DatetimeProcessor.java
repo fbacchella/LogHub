@@ -19,4 +19,8 @@ public interface DatetimeProcessor {
 
     DatetimeProcessor withDefaultZone(ZoneId zoneId);
 
+    static DatetimeProcessor of(String pattern) {
+        return PatternResolver.createNewFormatter(pattern);
+    }
+
 }

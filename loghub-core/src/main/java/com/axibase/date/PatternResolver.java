@@ -17,46 +17,38 @@ import static com.axibase.date.DatetimeProcessorUtil.appendNumberWithFixedPositi
  * This class resolves creates for Axibase-supported datetime syntax. Each DatetimeProcessor object is immutable,
  * so consider caching them for better performance in client application.
  */
-public class PatternResolver {
+class PatternResolver {
 
     private static final Pattern OPTIMIZED_PATTERN = Pattern.compile("yyyy-MM-dd('.'|.)HH:mm:ss(\\.S{1,9})?(Z{1,2}|X{1,5}|x{1,5})?");
     private static final Pattern RFC822_PATTERN = Pattern.compile("(eee,? +)?(d{1,2}) +MMM( +yyyy)? +HH:mm:ss(\\.S{1,9})?( Z{1,2}|X{1,5}|x{1,5})?");
     private static final Pattern RFC3164_PATTERN = Pattern.compile("MMM +(d{1,2})( yyyy)? HH:mm:ss(\\.S{1,9})?( Z{1,2}|X{1,5}|x{1,5})?");
     private static final Pattern DISABLE_LENIENT_MODE = Pattern.compile("^(?:u+|[^u]*u{1,3}[A-Za-z0-9]+)$");
 
-    public static DatetimeProcessor createNewFormatter(String pattern) {
-        return createNewFormatter(pattern, ZoneId.systemDefault());
-    }
-
-    public static DatetimeProcessor createNewFormatter(String pattern, ZoneId zoneId) {
-        return createNewFormatter(pattern, zoneId, OnMissingDateComponentAction.SET_ZERO);
-    }
-
-    public static DatetimeProcessor createNewFormatter(String pattern, ZoneId zoneId, OnMissingDateComponentAction onMissingDateComponent) {
+    static DatetimeProcessor createNewFormatter(String pattern) {
         DatetimeProcessor result;
         if (NamedPatterns.SECONDS.equalsIgnoreCase(pattern)) {
-           result = new DatetimeProcessorUnixSeconds(zoneId);
+           result = new DatetimeProcessorUnixSeconds();
         } else if (NamedPatterns.MILLISECONDS.equalsIgnoreCase(pattern)) {
-           result = new DatetimeProcessorUnixMillis(zoneId);
+           result = new DatetimeProcessorUnixMillis();
         } else if (NamedPatterns.NANOSECONDS.equalsIgnoreCase(pattern)) {
-            result = new DatetimeProcessorUnixNano(zoneId);
+            result = new DatetimeProcessorUnixNano();
         } else if (NamedPatterns.ISO.equalsIgnoreCase(pattern)) {
-            result = new DatetimeProcessorIso8601(3, resolveZoneOffset("ZZ"), zoneId, 'T');
+            result = new DatetimeProcessorIso8601(3, resolveZoneOffset("ZZ"), 'T');
         } else if (NamedPatterns.ISO_SECONDS.equalsIgnoreCase(pattern)) {
-            result = new DatetimeProcessorIso8601(0, resolveZoneOffset("ZZ"), zoneId, 'T');
+            result = new DatetimeProcessorIso8601(0, resolveZoneOffset("ZZ"), 'T');
         } else if (NamedPatterns.ISO_NANOS.equalsIgnoreCase(pattern)) {
-            result = new DatetimeProcessorIso8601(9, resolveZoneOffset("ZZ"), zoneId, 'T');
+            result = new DatetimeProcessorIso8601(9, resolveZoneOffset("ZZ"), 'T');
         } else if (NamedPatterns.RFC822.equalsIgnoreCase(pattern)) {
             result = new DatetimeProcessorRfc822(true, 1, true, 0, resolveZoneOffset("Z"));
         } else if (NamedPatterns.RFC3164.equalsIgnoreCase(pattern)) {
-            result = new DatetimeProcessorRfc3164(1, true, 0, resolveZoneOffset("Z"));
+            result = new DatetimeProcessorRfc3164(1, false, 0, resolveZoneOffset("Z"));
         } else {
-            result = createFromDynamicPattern(pattern, zoneId, onMissingDateComponent);
+            result = createFromDynamicPattern(pattern);
         }
         return result;
     }
 
-    private static DatetimeProcessor createFromDynamicPattern(String pattern, ZoneId zoneId, OnMissingDateComponentAction onMissingDateComponentAction) {
+    private static DatetimeProcessor createFromDynamicPattern(String pattern) {
         Matcher matcherIso8601 = OPTIMIZED_PATTERN.matcher(pattern);
         if (matcherIso8601.matches()) {
             int fractions = stringLength(matcherIso8601.group(2)) - 1;
@@ -66,7 +58,7 @@ public class PatternResolver {
             } else {
                 delimitor = matcherIso8601.group(1).charAt(0);
             }
-            return new DatetimeProcessorIso8601(fractions, resolveZoneOffset(matcherIso8601.group(3)), zoneId, delimitor);
+            return new DatetimeProcessorIso8601(fractions, resolveZoneOffset(matcherIso8601.group(3)), delimitor);
         }
         Matcher matcherRfc822 = RFC822_PATTERN.matcher(pattern);
         if (matcherRfc822.matches()) {
@@ -100,7 +92,7 @@ public class PatternResolver {
                 .appendPattern(preprocessedPattern)
                 .toFormatter(Locale.US)
                 .withResolverStyle(ResolverStyle.STRICT);
-        return new DatetimeProcessorCustom(dateTimeFormatter, zoneId, onMissingDateComponentAction);
+        return new DatetimeProcessorCustom(dateTimeFormatter);
     }
 
     private static int stringLength(String value) {

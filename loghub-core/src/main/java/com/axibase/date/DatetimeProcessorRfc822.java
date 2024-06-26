@@ -6,7 +6,6 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
-import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoField;
 import java.util.Locale;
 import java.util.Map;
@@ -15,8 +14,6 @@ import java.util.stream.IntStream;
 
 import static com.axibase.date.DatetimeProcessorUtil.adjustPossiblyNegative;
 import static com.axibase.date.DatetimeProcessorUtil.appendNumberWithFixedPositions;
-import static com.axibase.date.DatetimeProcessorUtil.checkOffset;
-import static com.axibase.date.DatetimeProcessorUtil.parseInt;
 
 public class DatetimeProcessorRfc822 implements DatetimeProcessor {
 
@@ -35,7 +32,7 @@ public class DatetimeProcessorRfc822 implements DatetimeProcessor {
         this(weekDay, dayLength, withYear, fractions, Locale.getDefault(), ZoneId.systemDefault(), zoneOffsetType);
     }
 
-    DatetimeProcessorRfc822(boolean weekDay, int dayLength, boolean withYear, int fractions, Locale locale, ZoneId zoneId, AppendOffset zoneOffsetType) {
+    private DatetimeProcessorRfc822(boolean weekDay, int dayLength, boolean withYear, int fractions, Locale locale, ZoneId zoneId, AppendOffset zoneOffsetType) {
         this.weekDay = weekDay;
         this.fractions = fractions;
         this.dayLength = dayLength;
@@ -46,7 +43,7 @@ public class DatetimeProcessorRfc822 implements DatetimeProcessor {
         DateFormatSymbols symbols = new DateFormatSymbols(locale);
         this.shortWeekDays = symbols.getShortWeekdays();
         this.shortMonths = symbols.getShortMonths();
-        String[] monthsSymbols = symbols.getMonths();
+        String[] monthsSymbols = symbols.getShortMonths();
         monthsMapping = IntStream.range(0, monthsSymbols.length)
                                  .mapToObj(i -> Map.entry(monthsSymbols[i].toUpperCase(locale), i + 1))
                                  .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
@@ -59,58 +56,45 @@ public class DatetimeProcessorRfc822 implements DatetimeProcessor {
 
     @Override
     public ZonedDateTime parse(String datetime) {
-        int length = datetime.length();
-        int offset = 0;
-        //Skip space
-        while (offset < length && datetime.charAt(offset) == ' ') {offset++;}
+        ParsingContext context = new ParsingContext(datetime);
+        context.skipSpaces();
         // Skip day of week
-        if (! (datetime.charAt(offset) >= '0' && datetime.charAt(offset) <= '9')) {
-            while (datetime.charAt(offset) != ' ') {offset++;}
-            if (datetime.charAt(offset) == ',') {
-                offset++;
+        if (! (datetime.charAt(context.offset) >= '0' && datetime.charAt(context.offset) <= '9')) {
+            while (datetime.charAt(context.offset) != ' ') {context.offset++;}
+            if (datetime.charAt(context.offset) == ',') {
+                context.offset++;
             }
         }
-        //Skip space
-        while (datetime.charAt(offset) == ' ') {offset++;}
-        int startDay = offset;
-        while (Character.isDigit(datetime.charAt(offset))) {offset++;}
-        int day = parseInt(datetime, startDay, offset, length);
-        //Skip space
-        while (datetime.charAt(offset) == ' ') {offset++;}
-        String monthName = datetime.substring(offset, offset+3).toUpperCase(locale);
-        offset += 3;
+        context.skipSpaces();
+        int day = context.parseInt(2);
+        context.skipSpaces();
+        String monthName = context.findWord().toUpperCase(locale);
         Integer month = monthsMapping.get(monthName);
         if (month == null) {
-            throw new DateTimeParseException("Invalid month name", datetime, offset);
+            throw context.parseException("Invalid month name");
         }
-        //Skip space
-        while (datetime.charAt(offset) == ' ') {offset++;}
+        context.skipSpaces();
         int year;
         if (withYear) {
-            year = parseInt(datetime, offset, offset += 4, length);
-            while (datetime.charAt(offset) == ' ') {offset++;}
+            year = context.parseInt(-1);
+            context.skipSpaces();
         } else {
             year = LocalDateTime.now().getYear();
         }
-        int hour = parseInt(datetime, offset, offset += 2 , length);
-        checkOffset(datetime, offset++, ':');
-        int minutes = parseInt(datetime, offset, offset += 2, length);
-        checkOffset(datetime, offset++, ':');
-        int seconds = parseInt(datetime, offset, offset += 2 , length);
-        DatetimeProcessorUtil.ParsingContext context = new DatetimeProcessorUtil.ParsingContext(offset);
-        int nanos = DatetimeProcessorUtil.parseNano(length, context, datetime);
-        offset = context.offset;
-        //Skip space
-        while (offset < length && datetime.charAt(offset) == ' ') {offset++;}
+        int hour = context.parseInt(2);
+        context.checkOffset(':');
+        int minutes = context.parseInt(2);
+        context.checkOffset(':');
+        int seconds = context.parseInt(2);
+        int nanos = context.parseNano();
+        context.skipSpaces();
         ZoneId parsedZoneId = this.zoneId;
-        if (offset < length) {
-            String zoneInfo = datetime.substring(offset).strip();
-            if (! zoneInfo.isEmpty()) {
-                try {
-                    parsedZoneId = ZoneId.of(zoneInfo).normalized();
-                } catch (DateTimeException ex) {
-                    throw new DateTimeParseException(ex.getMessage(), datetime, offset);
-                }
+        String zoneInfo = context.findWord();
+        if (! zoneInfo.isEmpty()) {
+            try {
+                parsedZoneId = ZoneId.of(zoneInfo).normalized();
+            } catch (DateTimeException ex) {
+                throw context.parseException(ex.getMessage());
             }
         }
         return ZonedDateTime.of(year, month, day, hour, minutes, seconds, nanos, parsedZoneId);
@@ -153,12 +137,12 @@ public class DatetimeProcessorRfc822 implements DatetimeProcessor {
 
     @Override
     public DatetimeProcessor withLocale(Locale locale) {
-        return new DatetimeProcessorRfc822(this.weekDay, this.dayLength, this.withYear, this.fractions, locale, this.zoneId, zoneOffsetType);
+        return locale == this.locale ? this : new DatetimeProcessorRfc822(this.weekDay, this.dayLength, this.withYear, this.fractions, locale, this.zoneId, zoneOffsetType);
     }
 
     @Override
     public DatetimeProcessor withDefaultZone(ZoneId zoneId) {
-        return new DatetimeProcessorRfc822(this.weekDay, this.dayLength, this.withYear, this.fractions, this.locale, zoneId, zoneOffsetType);
+        return zoneId == this.zoneId ? this : new DatetimeProcessorRfc822(this.weekDay, this.dayLength, this.withYear, this.fractions, this.locale, zoneId, zoneOffsetType);
     }
 
 }

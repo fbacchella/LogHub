@@ -1,12 +1,9 @@
 package com.axibase.date;
 
-import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeParseException;
 
 public class DatetimeProcessorUtil {
-
-    static final int UNIX_EPOCH_YEAR = 1970;
 
     private DatetimeProcessorUtil() {}
 
@@ -19,56 +16,8 @@ public class DatetimeProcessorUtil {
         }
     }
 
-    static ZoneId extractOffset(String date, int offset, AppendOffset offsetType, ZoneId defaultOffset) {
-        int length = date.length();
-        ZoneId zoneId;
-        if (offset == length) {
-            if (offsetType != null || defaultOffset == null) {
-                throw new DateTimeParseException("Zone offset required", date, offset);
-            }
-            zoneId = defaultOffset;
-        } else {
-            if (offsetType == null) {
-                throw new DateTimeParseException("Zone offset unexpected", date, offset);
-            }
-            if (offset == length - 1 && date.charAt(offset) == 'Z') {
-                zoneId = ZoneOffset.UTC;
-            } else {
-                zoneId = ZoneOffset.of(date.substring(offset));
-            }
-        }
-        return zoneId;
-    }
-
     static int parseNanos(int value, int digits) {
         return value * powerOfTen(9 - digits);
-    }
-
-    static int parseInt(String value, int beginIndex, int endIndex, int valueLength) throws NumberFormatException {
-        if (beginIndex < 0 || endIndex > valueLength || beginIndex >= endIndex) {
-            throw new DateTimeParseException("Failed to parse number at index ", value, beginIndex);
-        }
-        int result = resolveDigitByCode(value, beginIndex);
-        for (int i = beginIndex + 1; i < endIndex; ++i) {
-            result = result * 10 + resolveDigitByCode(value, i);
-        }
-        return result;
-    }
-
-    static int resolveDigitByCode(String value, int index) {
-        char c = value.charAt(index);
-        int result = c - '0';
-        if (result < 0 || result > 9) {
-            throw new DateTimeParseException("Failed to parse number at index ", value, index);
-        }
-        return result;
-    }
-
-    static void checkOffset(String value, int offset, char expected) throws IndexOutOfBoundsException {
-        char found = value.charAt(offset);
-        if (found != expected) {
-            throw new DateTimeParseException("Expected '" + expected + "' character but found '" + found + "'", value, offset);
-        }
     }
 
     static ZoneOffset parseOffset(int offset, String date) {
@@ -152,39 +101,6 @@ public class DatetimeProcessorUtil {
     public static StringBuilder appendNumberWithFixedPositions(StringBuilder sb, int num, int positions) {
         sb.append("0".repeat(Math.max(0, positions - sizeInDigits(num))));
         return sb.append(num);
-    }
-
-    static class ParsingContext {
-        int offset;
-
-        public ParsingContext(int offset) {
-            this.offset = offset;
-        }
-
-        public ParsingContext() {
-            this.offset = 0;
-        }
-    }
-
-    public static int parseNano(int length, ParsingContext offsetHolder, String date) {
-        int nanos;
-        if (offsetHolder.offset < length && date.charAt(offsetHolder.offset) == '.') {
-            int startPos = ++offsetHolder.offset;
-            int endPosExcl = Math.min(offsetHolder.offset + 9, length);
-            int frac = resolveDigitByCode(date, offsetHolder.offset++);
-            while (offsetHolder.offset < endPosExcl) {
-                int digit = date.charAt(offsetHolder.offset) - '0';
-                if (digit < 0 || digit > 9) {
-                    break;
-                }
-                frac = frac * 10 + digit;
-                ++offsetHolder.offset;
-            }
-            nanos = parseNanos(frac, offsetHolder.offset - startPos);
-        } else {
-            nanos = 0;
-        }
-        return nanos;
     }
 
 }
