@@ -14,18 +14,11 @@ import java.util.Locale;
 import static com.axibase.date.DatetimeProcessorUtil.checkOffset;
 import static com.axibase.date.DatetimeProcessorUtil.extractOffset;
 import static com.axibase.date.DatetimeProcessorUtil.parseInt;
-import static com.axibase.date.DatetimeProcessorUtil.parseNanos;
-import static com.axibase.date.DatetimeProcessorUtil.resolveDigitByCode;
 
 class DatetimeProcessorIso8601 implements DatetimeProcessor {
 
     private static final int ISO_LENGTH = "1970-01-01T00:00:00.000000000+00:00:00".length();
     private static final Instant MOCK = Instant.now();
-
-
-    static class ParsingContext {
-        int offset;
-    }
 
     private final int fractionsOfSecond;
     private final AppendOffset zoneOffsetType;
@@ -74,7 +67,7 @@ class DatetimeProcessorIso8601 implements DatetimeProcessor {
     private ZonedDateTime parseIso8601AsZonedDateTime(String date, char delimiter,
             ZoneId defaultOffset, AppendOffset offsetType) {
         try {
-            ParsingContext context = new ParsingContext();
+            DatetimeProcessorUtil.ParsingContext context = new DatetimeProcessorUtil.ParsingContext();
             LocalDateTime localDateTime = parseIso8601AsLocalDateTime(date, delimiter, context);
             ZoneId zoneId = extractOffset(date, context.offset, offsetType, defaultOffset);
             return ZonedDateTime.of(localDateTime, zoneId);
@@ -83,7 +76,7 @@ class DatetimeProcessorIso8601 implements DatetimeProcessor {
         }
     }
 
-    private LocalDateTime parseIso8601AsLocalDateTime(String date, char delimiter, ParsingContext context) {
+    private LocalDateTime parseIso8601AsLocalDateTime(String date, char delimiter, DatetimeProcessorUtil.ParsingContext context) {
         int length = date.length();
         int offset = context.offset;
 
@@ -113,31 +106,14 @@ class DatetimeProcessorIso8601 implements DatetimeProcessor {
             seconds = 0;
         }
 
-        // milliseconds can be optional in the format
-        int nanos;
-        if (offset < length && date.charAt(offset) == '.') {
-            int startPos = ++offset;
-            int endPosExcl = Math.min(offset + 9, length);
-            int frac = resolveDigitByCode(date, offset++);
-            while (offset < endPosExcl) {
-                int digit = date.charAt(offset) - '0';
-                if (digit < 0 || digit > 9) {
-                    break;
-                }
-                frac = frac * 10 + digit;
-                ++offset;
-            }
-            nanos = parseNanos(frac, offset - startPos);
-        } else {
-            nanos = 0;
-        }
         context.offset = offset;
+        int nanos = DatetimeProcessorUtil.parseNano(length, context, date);
         return LocalDateTime.of(year, month, day, hour, minutes, seconds, nanos);
     }
 
     private OffsetDateTime parseIso8601AsOffsetDateTime(String date, char delimiter) {
         try {
-            ParsingContext parsingContext = new ParsingContext();
+            DatetimeProcessorUtil.ParsingContext parsingContext = new DatetimeProcessorUtil.ParsingContext();
             LocalDateTime localDateTime = parseIso8601AsLocalDateTime(date, delimiter, parsingContext);
             ZoneOffset zoneOffset = DatetimeProcessorUtil.parseOffset(parsingContext.offset, date);
             return OffsetDateTime.of(localDateTime, zoneOffset);

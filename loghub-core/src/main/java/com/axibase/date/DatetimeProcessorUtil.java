@@ -154,4 +154,37 @@ public class DatetimeProcessorUtil {
         return sb.append(num);
     }
 
+    static class ParsingContext {
+        int offset;
+
+        public ParsingContext(int offset) {
+            this.offset = offset;
+        }
+
+        public ParsingContext() {
+            this.offset = 0;
+        }
+    }
+
+    public static int parseNano(int length, ParsingContext offsetHolder, String date) {
+        int nanos;
+        if (offsetHolder.offset < length && date.charAt(offsetHolder.offset) == '.') {
+            int startPos = ++offsetHolder.offset;
+            int endPosExcl = Math.min(offsetHolder.offset + 9, length);
+            int frac = resolveDigitByCode(date, offsetHolder.offset++);
+            while (offsetHolder.offset < endPosExcl) {
+                int digit = date.charAt(offsetHolder.offset) - '0';
+                if (digit < 0 || digit > 9) {
+                    break;
+                }
+                frac = frac * 10 + digit;
+                ++offsetHolder.offset;
+            }
+            nanos = parseNanos(frac, offsetHolder.offset - startPos);
+        } else {
+            nanos = 0;
+        }
+        return nanos;
+    }
+
 }

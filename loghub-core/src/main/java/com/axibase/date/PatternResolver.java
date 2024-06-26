@@ -6,6 +6,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.ResolverStyle;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -19,6 +20,8 @@ import static com.axibase.date.DatetimeProcessorUtil.appendNumberWithFixedPositi
 public class PatternResolver {
 
     private static final Pattern OPTIMIZED_PATTERN = Pattern.compile("yyyy-MM-dd('.'|.)HH:mm:ss(\\.S{1,9})?(Z{1,2}|X{1,5}|x{1,5})?");
+    private static final Pattern RFC822_PATTERN = Pattern.compile("(eee,? +)?(d{1,2}) +MMM( +yyyy)? +HH:mm:ss(\\.S{1,9})?( Z{1,2}|X{1,5}|x{1,5})?");
+    private static final Pattern RFC3164_PATTERN = Pattern.compile("MMM +(d{1,2})( yyyy)? HH:mm:ss(\\.S{1,9})?( Z{1,2}|X{1,5}|x{1,5})?");
     private static final Pattern DISABLE_LENIENT_MODE = Pattern.compile("^(?:u+|[^u]*u{1,3}[A-Za-z0-9]+)$");
 
     public static DatetimeProcessor createNewFormatter(String pattern) {
@@ -43,6 +46,10 @@ public class PatternResolver {
             result = new DatetimeProcessorIso8601(0, resolveZoneOffset("ZZ"), zoneId, 'T');
         } else if (NamedPatterns.ISO_NANOS.equalsIgnoreCase(pattern)) {
             result = new DatetimeProcessorIso8601(9, resolveZoneOffset("ZZ"), zoneId, 'T');
+        } else if (NamedPatterns.RFC822.equalsIgnoreCase(pattern)) {
+            result = new DatetimeProcessorRfc822(true, 1, true, 0, resolveZoneOffset("Z"));
+        } else if (NamedPatterns.RFC3164.equalsIgnoreCase(pattern)) {
+            result = new DatetimeProcessorRfc3164(1, true, 0, resolveZoneOffset("Z"));
         } else {
             result = createFromDynamicPattern(pattern, zoneId, onMissingDateComponent);
         }
@@ -60,6 +67,28 @@ public class PatternResolver {
                 delimitor = matcherIso8601.group(1).charAt(0);
             }
             return new DatetimeProcessorIso8601(fractions, resolveZoneOffset(matcherIso8601.group(3)), zoneId, delimitor);
+        }
+        Matcher matcherRfc822 = RFC822_PATTERN.matcher(pattern);
+        if (matcherRfc822.matches()) {
+            int dayLength = matcherRfc822.group(2).length();
+            int fractions = stringLength(matcherRfc822.group(4)) - 1;
+            boolean withYear = matcherRfc822.group(3) != null;
+            AppendOffset appendOffset = Optional.ofNullable(matcherRfc822.group(5))
+                                                .map(s -> s.substring(1))
+                                                .map(PatternResolver::resolveZoneOffset)
+                                                .orElse(null);
+            return new DatetimeProcessorRfc822(true, dayLength, withYear, fractions, appendOffset);
+        }
+        Matcher matcherRfc3164 = RFC3164_PATTERN.matcher(pattern);
+        if (matcherRfc3164.matches()) {
+            int dayLength = matcherRfc3164.group(2).length();
+            int fractions = stringLength(matcherRfc3164.group(3)) - 1;
+            boolean withYear = matcherRfc3164.group(1) != null;
+            AppendOffset appendOffset = Optional.ofNullable(matcherRfc3164.group(4))
+                                                .map(s -> s.substring(1))
+                                                .map(PatternResolver::resolveZoneOffset)
+                                                .orElse(null);
+            return new DatetimeProcessorRfc3164(dayLength, withYear, fractions, appendOffset);
         }
         String preprocessedPattern = preprocessPattern(pattern);
         DateTimeFormatterBuilder builder = new DateTimeFormatterBuilder()
