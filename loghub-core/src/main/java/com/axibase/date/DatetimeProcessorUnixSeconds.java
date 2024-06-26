@@ -8,6 +8,7 @@ import java.text.FieldPosition;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.time.format.DateTimeParseException;
 import java.util.Locale;
 
 class DatetimeProcessorUnixSeconds implements NumericDateTimeProcessor {
@@ -33,13 +34,17 @@ class DatetimeProcessorUnixSeconds implements NumericDateTimeProcessor {
 
     @Override
     public Instant parseInstant(String datetime) {
-        if (datetime.indexOf('.') == -1) {
-            return Instant.ofEpochSecond(Long.parseLong(datetime));
-        } else {
-            BigDecimal floatValue = new BigDecimal(datetime);
-            long seconds = floatValue.toBigInteger().longValue();
-            int nano = floatValue.abs().subtract(new BigDecimal(seconds)).multiply(ONE_MILLIARD).toBigInteger().intValue();
-            return Instant.ofEpochSecond(seconds, nano);
+        try {
+            if (datetime.indexOf('.') == -1) {
+                return Instant.ofEpochSecond(Long.parseLong(datetime));
+            } else {
+                BigDecimal floatValue = new BigDecimal(datetime);
+                long seconds = floatValue.toBigInteger().longValue();
+                int nano = floatValue.abs().subtract(new BigDecimal(seconds)).multiply(ONE_MILLIARD).toBigInteger().intValue();
+                return Instant.ofEpochSecond(seconds, nano);
+            }
+        } catch (NumberFormatException e) {
+            throw new DateTimeParseException("Not a number", datetime, 0);
         }
     }
 

@@ -119,7 +119,6 @@ public class DatetimeProcessorRfc3164 implements DatetimeProcessor {
         appendNumberWithFixedPositions(formatted, zonedDateTime.getMinute(), 2).append(':');
         appendNumberWithFixedPositions(formatted, zonedDateTime.getSecond(), 2);
         if (zoneOffsetType != null) {
-            System.err.format("%s %s%n", zonedDateTime.getOffset(), zonedDateTime.toInstant());
             formatted.append(" ");
             zoneOffsetType.append(formatted, zonedDateTime.getOffset(), zonedDateTime.toInstant());
         }

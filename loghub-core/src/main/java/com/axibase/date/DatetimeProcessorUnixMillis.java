@@ -3,6 +3,7 @@ package com.axibase.date;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.time.format.DateTimeParseException;
 import java.util.Locale;
 
 class DatetimeProcessorUnixMillis implements NumericDateTimeProcessor {
@@ -14,7 +15,11 @@ class DatetimeProcessorUnixMillis implements NumericDateTimeProcessor {
 
     @Override
     public Instant parseInstant(String datetime) {
-        return Instant.ofEpochMilli(Long.parseLong(datetime));
+        try {
+            return Instant.ofEpochMilli(Long.parseLong(datetime));
+        } catch (NumberFormatException e) {
+            throw new DateTimeParseException("Not a number", datetime, 0);
+        }
     }
 
     @Override

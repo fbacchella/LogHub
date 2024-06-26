@@ -4,6 +4,7 @@ import java.math.BigInteger;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.time.format.DateTimeParseException;
 import java.util.Locale;
 
 class DatetimeProcessorUnixNano implements NumericDateTimeProcessor {
@@ -47,7 +48,11 @@ class DatetimeProcessorUnixNano implements NumericDateTimeProcessor {
     }
 
     private Instant getInstant(String datetime) {
-        long value = Long.parseLong(datetime);
-        return Instant.ofEpochSecond(0, 0).plusNanos(value);
+        try {
+            long value = Long.parseLong(datetime);
+            return Instant.ofEpochSecond(0, 0).plusNanos(value);
+        } catch (NumberFormatException e) {
+            throw new DateTimeParseException("Not a number", datetime, 0);
+        }
     }
 }

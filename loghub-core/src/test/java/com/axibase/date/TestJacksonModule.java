@@ -32,6 +32,8 @@ import com.fasterxml.jackson.module.afterburner.AfterburnerModule;
 import loghub.LogUtils;
 import loghub.Tools;
 
+import static java.time.ZoneOffset.UTC;
+
 public class TestJacksonModule {
 
     private static Logger logger ;

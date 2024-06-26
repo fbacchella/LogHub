@@ -164,6 +164,83 @@ public class TestPattern {
                 List.of(
                 )
         );
+        runTest("yyyy-MM-ddXHH:mm:ss.SSZ",
+                List.of(
+                        Map.entry("2024-05-03X12:56:29+01:00", "2024-05-03T12:56:29+01:00"),
+                        Map.entry("2024-05-03X12:56:29.1+01:00", "2024-05-03T12:56:29.100+01:00"),
+                        Map.entry("2024-05-03X12:56:29.00000001+01:00", "2024-05-03T12:56:29.000000010+01:00")
+                ),
+                List.of(
+                        Map.entry(Instant.ofEpochMilli(1000), "1970-01-01X01:00:01+0100"),
+                        Map.entry(Instant.ofEpochMilli(1001), "1970-01-01X01:00:01+0100"),
+                        Map.entry(Instant.ofEpochMilli(1111), "1970-01-01X01:00:01.11+0100"),
+                        Map.entry(Instant.ofEpochSecond(1,1), "1970-01-01X01:00:01+0100"),
+                        Map.entry(Instant.ofEpochSecond(1,1_000_001), "1970-01-01X01:00:01+0100")
+                ),
+                List.of(
+                )
+        );
     }
+
+    @Test
+    public void seconds() {
+        runTest("seconds",
+                List.of(
+                        Map.entry("1", "1970-01-01T01:00:01+01:00[Europe/London]"),
+                        Map.entry("1000", "1970-01-01T01:16:40+01:00[Europe/London]"),
+                        Map.entry("1000000000", "2001-09-09T02:46:40+01:00[Europe/London]")
+                ),
+                List.of(
+                        Map.entry(Instant.ofEpochMilli(1000), "1"),
+                        Map.entry(Instant.ofEpochMilli(1001), "1.001"),
+                        Map.entry(Instant.ofEpochSecond(1,1), "1.000000001"),
+                        Map.entry(Instant.ofEpochSecond(1,1_000_001), "1.001000001")
+                ),
+                List.of(
+                        Map.entry("totor", "Not a number")
+                )
+        );
+    }
+
+    @Test
+    public void milliseconds() {
+        runTest("milliseconds",
+                List.of(
+                        Map.entry("1", "1970-01-01T01:00:00.001+01:00[Europe/London]"),
+                        Map.entry("1000", "1970-01-01T01:00:01+01:00[Europe/London]"),
+                        Map.entry("1000000000", "1970-01-12T14:46:40+01:00[Europe/London]")
+                ),
+                List.of(
+                        Map.entry(Instant.ofEpochMilli(1000), "1000"),
+                        Map.entry(Instant.ofEpochMilli(1001), "1001"),
+                        Map.entry(Instant.ofEpochSecond(1,1), "1000"),
+                        Map.entry(Instant.ofEpochSecond(1,1_000_001), "1001")
+                ),
+                List.of(
+                        Map.entry("totor", "Not a number")
+                )
+        );
+    }
+
+    @Test
+    public void nanoseconds() {
+        runTest("nanoseconds",
+                List.of(
+                        Map.entry("1", "1970-01-01T01:00:00.000000001+01:00[Europe/London]"),
+                        Map.entry("1000", "1970-01-01T01:00:00.000001+01:00[Europe/London]"),
+                        Map.entry("1000000000", "1970-01-01T01:00:01+01:00[Europe/London]")
+                ),
+                List.of(
+                        Map.entry(Instant.ofEpochMilli(1000), "1000000000"),
+                        Map.entry(Instant.ofEpochMilli(1001), "1001000000"),
+                        Map.entry(Instant.ofEpochSecond(1,1), "1000000001"),
+                        Map.entry(Instant.ofEpochSecond(1,1_000_001), "1001000001")
+                ),
+                List.of(
+                        Map.entry("totor", "Not a number")
+                )
+        );
+    }
+
 
 }
