@@ -3,7 +3,6 @@ package com.axibase.date;
 import java.time.DateTimeException;
 import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
@@ -37,7 +36,7 @@ class DatetimeProcessorIso8601 implements DatetimeProcessor {
 
     @Override
     public Instant parseInstant(String datetime) {
-        return parseIso8601AsOffsetDateTime(datetime, delimiter).toInstant();
+        return parse(datetime).toInstant();
     }
 
     @Override
@@ -109,17 +108,6 @@ class DatetimeProcessorIso8601 implements DatetimeProcessor {
         return LocalDateTime.of(year, month, day, hour, minutes, seconds, nanos);
     }
 
-    private OffsetDateTime parseIso8601AsOffsetDateTime(String date, char delimiter) {
-        try {
-            ParsingContext parsingContext = new ParsingContext(date);
-            LocalDateTime localDateTime = parseIso8601AsLocalDateTime(delimiter, parsingContext);
-            ZoneOffset zoneOffset = DatetimeProcessorUtil.parseOffset(parsingContext.offset, date);
-            return OffsetDateTime.of(localDateTime, zoneOffset);
-        } catch (DateTimeException e) {
-            throw new DateTimeParseException("Failed to parse date " + date + ": " + e.getMessage(), date, 0, e);
-        }
-    }
-
     /**
      * Optimized print of a timestamp in ISO8601 or local format: yyyy-MM-dd[T| ]HH:mm:ss[.SSS]Z
      * @param timestamp milliseconds since epoch
@@ -172,12 +160,7 @@ class DatetimeProcessorIso8601 implements DatetimeProcessor {
         DatetimeProcessorUtil.appendNumberWithFixedPositions(sb, dateTime.getHour(), 2).append(':');
         DatetimeProcessorUtil.appendNumberWithFixedPositions(sb, dateTime.getMinute(), 2).append(':');
         DatetimeProcessorUtil.appendNumberWithFixedPositions(sb, dateTime.getSecond(), 2);
-        if (fractionsOfSecond > 0 && dateTime.getNano() > 0) {
-            sb.append('.');
-            DatetimeProcessorUtil.appendNumberWithFixedPositions(sb, dateTime.getNano() / DatetimeProcessorUtil.powerOfTen(9 - fractionsOfSecond), fractionsOfSecond);
-            // Remove useless 0
-            DatetimeProcessorUtil.cleanFormat(sb);
-        }
+        DatetimeProcessorUtil.printSubSeconds(fractionsOfSecond, dateTime::getNano, sb);
         offsetType.append(sb, offset, dateTime.atZone(offset).toInstant());
         return sb.toString();
     }

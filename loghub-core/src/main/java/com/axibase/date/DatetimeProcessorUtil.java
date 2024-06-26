@@ -1,38 +1,27 @@
 package com.axibase.date;
 
-import java.time.ZoneOffset;
-import java.time.format.DateTimeParseException;
+import java.util.function.IntSupplier;
 
 public class DatetimeProcessorUtil {
 
     private DatetimeProcessorUtil() {}
 
-    static void cleanFormat(StringBuilder sb) {
-        for (int last = sb.length() - 1; sb.charAt(last) == '0'; last--) {
-            sb.deleteCharAt(last);
-        }
-        if (sb.charAt(sb.length() - 1) == '.') {
-            sb.deleteCharAt(sb.length() - 1);
+    static void printSubSeconds(int fractionsOfSecond, IntSupplier nanoSource, StringBuilder sb) {
+        if (fractionsOfSecond > 0 && nanoSource.getAsInt() > 0) {
+            sb.append('.');
+            DatetimeProcessorUtil.appendNumberWithFixedPositions(sb, nanoSource.getAsInt() / DatetimeProcessorUtil.powerOfTen(9 - fractionsOfSecond), fractionsOfSecond);
+            // Remove useless 0
+            for (int last = sb.length() - 1; sb.charAt(last) == '0'; last--) {
+                sb.deleteCharAt(last);
+            }
+            if (sb.charAt(sb.length() - 1) == '.') {
+                sb.deleteCharAt(sb.length() - 1);
+            }
         }
     }
 
     static int parseNanos(int value, int digits) {
         return value * powerOfTen(9 - digits);
-    }
-
-    static ZoneOffset parseOffset(int offset, String date) {
-        int length = date.length();
-        ZoneOffset zoneOffset;
-        if (offset == length) {
-            throw new DateTimeParseException("Zone offset required", date, offset);
-        } else {
-            if (offset == length - 1 && date.charAt(offset) == 'Z') {
-                zoneOffset = ZoneOffset.UTC;
-            } else {
-                zoneOffset = ZoneOffset.of(date.substring(offset));
-            }
-        }
-        return zoneOffset;
     }
 
     /**

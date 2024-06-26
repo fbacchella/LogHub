@@ -107,6 +107,7 @@ public class DatetimeProcessorRfc3164 implements DatetimeProcessor {
         appendNumberWithFixedPositions(formatted, zonedDateTime.getHour(), 2).append(':');
         appendNumberWithFixedPositions(formatted, zonedDateTime.getMinute(), 2).append(':');
         appendNumberWithFixedPositions(formatted, zonedDateTime.getSecond(), 2);
+        DatetimeProcessorUtil.printSubSeconds(fractions, zonedDateTime::getNano, formatted);
         if (zoneOffsetType != null) {
             formatted.append(" ");
             zoneOffsetType.append(formatted, zonedDateTime.getOffset(), zonedDateTime.toInstant());

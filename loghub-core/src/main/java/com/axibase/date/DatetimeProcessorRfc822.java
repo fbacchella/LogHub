@@ -122,12 +122,7 @@ public class DatetimeProcessorRfc822 implements DatetimeProcessor {
         appendNumberWithFixedPositions(formatted, zonedDateTime.getHour(), 2).append(':');
         appendNumberWithFixedPositions(formatted, zonedDateTime.getMinute(), 2).append(':');
         appendNumberWithFixedPositions(formatted, zonedDateTime.getSecond(), 2);
-        if (fractions > 0 && zonedDateTime.getNano() > 0) {
-            formatted.append('.');
-            DatetimeProcessorUtil.appendNumberWithFixedPositions(formatted, zonedDateTime.getNano() / DatetimeProcessorUtil.powerOfTen(9 - fractions), fractions);
-            // Remove useless 0
-            DatetimeProcessorUtil.cleanFormat(formatted);
-        }
+        DatetimeProcessorUtil.printSubSeconds(fractions, zonedDateTime::getNano, formatted);
         if (zoneOffsetType != null) {
             formatted.append(" ");
             zoneOffsetType.append(formatted, zonedDateTime.getOffset(), zonedDateTime.toInstant());
