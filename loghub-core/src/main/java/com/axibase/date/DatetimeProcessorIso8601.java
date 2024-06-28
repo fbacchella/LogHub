@@ -1,12 +1,10 @@
 package com.axibase.date;
 
-import java.time.DateTimeException;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
-import java.time.format.DateTimeParseException;
 import java.time.zone.ZoneRules;
 import java.util.Locale;
 
@@ -41,43 +39,7 @@ class DatetimeProcessorIso8601 implements DatetimeProcessor {
 
     @Override
     public ZonedDateTime parse(String datetime) {
-        return parseIso8601AsZonedDateTime(datetime, delimiter, zoneId, zoneOffsetType);
-    }
-
-    @Override
-    public String print(Instant timestamp) {
-        return printIso8601(timestamp, delimiter, zoneId, zoneOffsetType, fractionsOfSecond);
-    }
-
-    @Override
-    public String print(ZonedDateTime zonedDateTime) {
-        return printIso8601(zonedDateTime.toLocalDateTime(), zonedDateTime.getOffset(), zoneOffsetType, delimiter, fractionsOfSecond);
-    }
-
-    @Override
-    public DatetimeProcessor withLocale(Locale locale) {
-        return this;
-    }
-
-    @Override
-    public DatetimeProcessor withDefaultZone(ZoneId zoneId) {
-        return this.zoneId.equals(zoneId) ? this :
-                new DatetimeProcessorIso8601(fractionsOfSecond, zoneOffsetType, delimiter, zoneId);
-    }
-
-    private ZonedDateTime parseIso8601AsZonedDateTime(String date, char delimiter,
-            ZoneId defaultOffset, AppendOffset offsetType) {
-        try {
-            ParsingContext context = new ParsingContext(date);
-            LocalDateTime localDateTime = parseIso8601AsLocalDateTime(delimiter, context);
-            ZoneId zoneId = context.extractOffset(offsetType, defaultOffset);
-            return ZonedDateTime.of(localDateTime, zoneId);
-        } catch (DateTimeException e) {
-            throw new DateTimeParseException("Failed to parse date " + date + ": " + e.getMessage(), date, 0, e);
-        }
-    }
-
-    private LocalDateTime parseIso8601AsLocalDateTime(char delimiter, ParsingContext context) {
+        ParsingContext context = new ParsingContext(datetime);
         // extract year
         int year = context.parseInt(-1);
         context.checkOffset('-');
@@ -105,10 +67,32 @@ class DatetimeProcessorIso8601 implements DatetimeProcessor {
             seconds = 0;
         }
         int nanos = context.parseNano();
-        return LocalDateTime.of(year, month, day, hour, minutes, seconds, nanos);
+        ZoneId parsedZoneId = context.extractOffset(zoneOffsetType, zoneId);
+        return ZonedDateTime.of(year, month, day, hour, minutes, seconds, nanos, parsedZoneId);
     }
 
-    /**
+    @Override
+    public String print(Instant timestamp) {
+        return printIso8601(timestamp, delimiter, zoneId, zoneOffsetType, fractionsOfSecond);
+    }
+
+    @Override
+    public String print(ZonedDateTime zonedDateTime) {
+        return printIso8601(zonedDateTime.toLocalDateTime(), zonedDateTime.getOffset(), zoneOffsetType, delimiter, fractionsOfSecond);
+    }
+
+    @Override
+    public DatetimeProcessor withLocale(Locale locale) {
+        return this;
+    }
+
+    @Override
+    public DatetimeProcessor withDefaultZone(ZoneId zoneId) {
+        return this.zoneId.equals(zoneId) ? this :
+                new DatetimeProcessorIso8601(fractionsOfSecond, zoneOffsetType, delimiter, zoneId);
+    }
+
+   /**
      * Optimized print of a timestamp in ISO8601 or local format: yyyy-MM-dd[T| ]HH:mm:ss[.SSS]Z
      * @param timestamp milliseconds since epoch
      * @param offsetType Zone offset format: ISO (+HH:mm), RFC (+HHmm), or NONE

@@ -1,13 +1,14 @@
 package com.axibase.date;
 
+import java.time.DateTimeException;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeParseException;
 
 class ParsingContext {
     int offset;
-    int length;
-    String datetime;
+    final int length;
+    final String datetime;
 
     ParsingContext(String datetime) {
         this.offset = 0;
@@ -66,25 +67,28 @@ class ParsingContext {
     }
 
     ZoneId extractOffset(AppendOffset offsetType, ZoneId defaultOffset) {
-        ZoneId zoneId;
-        if (offset == length) {
-            if (offsetType != null || defaultOffset == null) {
-                throw parseException("Zone offset required");
-            }
-            zoneId = defaultOffset;
-        } else {
-            if (offsetType == null) {
-                throw parseException("Zone offset unexpected");
-            }
-            if (offset == length - 1 && datetime.charAt(offset) == 'Z') {
-                zoneId = ZoneOffset.UTC;
+        try {
+            ZoneId zoneId;
+            if (offset == length) {
+                if (offsetType != null || defaultOffset == null) {
+                    throw parseException("Zone offset required");
+                }
+                zoneId = defaultOffset;
             } else {
-                zoneId = ZoneOffset.of(datetime.substring(offset));
+                if (offsetType == null) {
+                    throw parseException("Zone offset unexpected");
+                }
+                if (offset == length - 1 && datetime.charAt(offset) == 'Z') {
+                    zoneId = ZoneOffset.UTC;
+                } else {
+                    zoneId = ZoneOffset.of(findWord());
+                }
             }
+            return zoneId;
+        } catch (DateTimeException ex) {
+            throw this.parseException(ex.getMessage());
         }
-        return zoneId;
     }
-
 
     void checkOffset(char expected){
         if (offset == length) {
@@ -97,7 +101,7 @@ class ParsingContext {
     }
 
     DateTimeParseException parseException(String message) {
-        throw new DateTimeParseException(message, datetime, offset);
+        throw new DateTimeParseException(String.format("Failed to parse date \"%s\": %s", datetime, message), datetime, offset);
     }
 
 

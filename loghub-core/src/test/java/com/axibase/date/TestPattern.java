@@ -43,8 +43,8 @@ public class TestPattern {
                         Map.entry(Instant.ofEpochMilli(1000), "Thu, 1 Jan 1970 01:00:01 +0100")
                 ),
                 List.of(
-                        Map.entry("03 XXX 2024 12:56:29 CET", "Invalid month name"),
-                        Map.entry("03 May 2024 12:56:29  XX", "Unknown time-zone ID: XX")
+                        Map.entry("03 XXX 2024 12:56:29 CET", "Failed to parse date \"03 XXX 2024 12:56:29 CET\": Invalid month name"),
+                        Map.entry("03 May 2024 12:56:29  XX", "Failed to parse date \"03 May 2024 12:56:29  XX\": Unknown time-zone ID: XX")
                 )
         );
 
@@ -58,8 +58,8 @@ public class TestPattern {
                 ), List.of(
                         Map.entry(Instant.ofEpochMilli(1000), "Thu, 1 Jan 1970 01:00:01 +0100")
                 ), List.of(
-                        Map.entry("03 XXX 2024 12:56:29 CET", "Invalid month name"),
-                        Map.entry("03 May 2024 12:56:29  XX", "Unknown time-zone ID: XX")
+                        Map.entry("03 XXX 2024 12:56:29 CET", "Failed to parse date \"03 XXX 2024 12:56:29 CET\": Invalid month name"),
+                        Map.entry("03 May 2024 12:56:29  XX", "Failed to parse date \"03 May 2024 12:56:29  XX\": Unknown time-zone ID: XX")
                 )
         );
         runTest("eee, dd MMM yyyy HH:mm:ss",
@@ -158,8 +158,8 @@ public class TestPattern {
                         Map.entry(Instant.ofEpochSecond(1,1_000_001), "1970-01-01T01:00:01.001+01:00")
                 ),
                 List.of(
-                        Map.entry("2024-05-03 12:56:29+01:00", "Failed to parse date 2024-05-03 12:56:29+01:00: Expected 'T' character but found ' '"),
-                        Map.entry("2024-05-03T12:56:29XXX", "Failed to parse date 2024-05-03T12:56:29XXX: Invalid ID for ZoneOffset, non numeric characters found: XXX")
+                        Map.entry("2024-05-03 12:56:29+01:00", "Failed to parse date \"2024-05-03 12:56:29+01:00\": Expected 'T' character but found ' '"),
+                        Map.entry("2024-05-03T12:56:29XXX", "Failed to parse date \"2024-05-03T12:56:29XXX\": Invalid ID for ZoneOffset, non numeric characters found: XXX")
                 )
         );
         runTest("iso_nanos",
