@@ -414,8 +414,8 @@ public class TestDateParser {
         checkPattern("RFC_822_SHORT", "1 Dec 2009 08:48:25 +0000", Instant.ofEpochSecond(1259657305L));
         checkPattern("RFC_822_SHORT", "11 Dec 2009 08:48:25 +0000", Instant.ofEpochSecond(1260521305L));
         ZonedDateTime expected = Instant.ofEpochSecond(1259657305L).atZone(ZoneId.of("UTC")).withYear(ZonedDateTime.now().getYear());
-        checkPattern("MMM d HH:mm:ss Z", "Dec 1 08:48:25", expected.toInstant());
-        checkPattern("MMM d HH:mm:ss Z", "Dec 11 08:48:25", expected.withDayOfMonth(11).toInstant());
+        checkPattern("MMM d HH:mm:ss", "Dec 1 08:48:25", expected.toInstant());
+        checkPattern("MMM d HH:mm:ss", "Dec 11 08:48:25", expected.withDayOfMonth(11).toInstant());
         Instant now = Instant.now();
         checkPattern("ISO8601", "2023-06-24T11:12:38Z", Instant.ofEpochSecond(1687605158L));
 

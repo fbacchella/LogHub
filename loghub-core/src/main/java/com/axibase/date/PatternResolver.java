@@ -1,13 +1,13 @@
 package com.axibase.date;
 
-import java.time.Instant;
-import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.ResolverStyle;
+import java.time.temporal.TemporalQueries;
 import java.util.Locale;
 import java.util.Optional;
-import java.util.function.BiFunction;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -18,11 +18,26 @@ import static com.axibase.date.DatetimeProcessorUtil.appendNumberWithFixedPositi
  * so consider caching them for better performance in client application.
  */
 class PatternResolver {
+    static final Set<String> VALID_ZONE_FORMATTERS = Set.of(
+            "O", "OOOO",                        // localized zone-offset:  GMT+8; GMT+08:00; UTC-08:00
+            "VV",                               // time-zone ID: America/Los_Angeles: Z; -08:30
+            "X", "XX", "XXX", "XXXX", "XXXXX",  // zone-offset 'Z' for zero: Z; -08; -0830; -08:30; -083015; -08:30:15
+            "Z", "ZZ", "ZZZ", "ZZZZ", "ZZZZZ",  // zone-offset: +0000; -0800; -08:00
+            "v", "vvvv",                        // generic time-zone name: Pacific Time; PT
+            "x", "xx", "xxx", "xxxx", "xxxxx",  // zone-offset: +0000; -08; -0830; -08:30; -083015; -08:30:15
+            "z", "zz", "zzz", "zzzz"            // time-zone name: Pacific Standard Time; PST
+    );
+    private static final String VALID_ZONE_PATTERNS = "(" + String.join("|", VALID_ZONE_FORMATTERS) + ")";
 
-    private static final Pattern OPTIMIZED_PATTERN = Pattern.compile("yyyy-MM-dd('.'|.)HH:mm:ss(\\.S{1,9})?(Z{1,2}|X{1,5}|x{1,5})?");
-    private static final Pattern RFC822_PATTERN = Pattern.compile("(eee,? +)?(d{1,2}) +MMM( +yyyy)? +HH:mm:ss(\\.S{1,9})?( Z{1,2}|X{1,5}|x{1,5})?");
-    private static final Pattern RFC3164_PATTERN = Pattern.compile("MMM +(d{1,2})( yyyy)? HH:mm:ss(\\.S{1,9})?( Z{1,2}|X{1,5}|x{1,5})?");
-    private static final Pattern DISABLE_LENIENT_MODE = Pattern.compile("^(?:u+|[^u]*u{1,3}[A-Za-z0-9]+)$");
+
+    private static final Pattern IO8601_PATTERN = buildPattern("yyyy-MM-dd('.'|.)HH:mm:ss(\\.S{1,9})?(%s)?");
+    private static final Pattern RFC822_PATTERN = buildPattern("(eee,?\\s+)?(d{1,2})\\s+MMM(\\s+yyyy)?\\s+HH:mm:ss(\\.S{1,9})?(\\s+%s)?");
+    private static final Pattern RFC3164_PATTERN = buildPattern("MMM\\s+(d{1,2})(\\s+yyyy)?\\s+HH:mm:ss(\\.S{1,9})?(\\s+%s)?");
+
+    private static Pattern buildPattern(String basePattern) {
+        String effectivePattern = String.format("\\s*" + basePattern + "\\s*", VALID_ZONE_PATTERNS);
+        return Pattern.compile(effectivePattern);
+    }
 
     static DatetimeProcessor createNewFormatter(String pattern) {
         DatetimeProcessor result;
@@ -33,15 +48,15 @@ class PatternResolver {
         } else if (NamedPatterns.NANOSECONDS.equalsIgnoreCase(pattern)) {
             result = new DatetimeProcessorUnixNano();
         } else if (NamedPatterns.ISO.equalsIgnoreCase(pattern)) {
-            result = new DatetimeProcessorIso8601(3, resolveZoneOffset("ZZ"), 'T');
+            result = new DatetimeProcessorIso8601(3, resolveZoneOffset("XXXXX"), zoneOffsetResolver("XXXXX"), 'T');
         } else if (NamedPatterns.ISO_SECONDS.equalsIgnoreCase(pattern)) {
-            result = new DatetimeProcessorIso8601(0, resolveZoneOffset("ZZ"), 'T');
+            result = new DatetimeProcessorIso8601(0, resolveZoneOffset("XXXXX"), zoneOffsetResolver("XXXXX"), 'T');
         } else if (NamedPatterns.ISO_NANOS.equalsIgnoreCase(pattern)) {
-            result = new DatetimeProcessorIso8601(9, resolveZoneOffset("ZZ"), 'T');
+            result = new DatetimeProcessorIso8601(9, resolveZoneOffset("XXXXX"), zoneOffsetResolver("XXXXX"), 'T');
         } else if (NamedPatterns.RFC822.equalsIgnoreCase(pattern)) {
-            result = new DatetimeProcessorRfc822(true, 1, true, 0, resolveZoneOffset("Z"));
+            result = new DatetimeProcessorRfc822(true, 1, true, 0, resolveZoneOffset("Z"), zoneOffsetResolver("Z"));
         } else if (NamedPatterns.RFC3164.equalsIgnoreCase(pattern)) {
-            result = new DatetimeProcessorRfc3164(1, false, 0, resolveZoneOffset("Z"));
+            result = new DatetimeProcessorRfc3164(1, false, 0, null, zoneOffsetResolver("Z"));
         } else {
             result = createFromDynamicPattern(pattern);
         }
@@ -49,7 +64,7 @@ class PatternResolver {
     }
 
     private static DatetimeProcessor createFromDynamicPattern(String pattern) {
-        Matcher matcherIso8601 = OPTIMIZED_PATTERN.matcher(pattern);
+        Matcher matcherIso8601 = IO8601_PATTERN.matcher(pattern);
         if (matcherIso8601.matches()) {
             int fractions = stringLength(matcherIso8601.group(2)) - 1;
             char delimitor;
@@ -58,38 +73,38 @@ class PatternResolver {
             } else {
                 delimitor = matcherIso8601.group(1).charAt(0);
             }
-            return new DatetimeProcessorIso8601(fractions, resolveZoneOffset(matcherIso8601.group(3)), delimitor);
+            return new DatetimeProcessorIso8601(fractions, resolveZoneOffset(matcherIso8601.group(3)), zoneOffsetResolver(matcherIso8601.group(4)), delimitor);
         }
         Matcher matcherRfc822 = RFC822_PATTERN.matcher(pattern);
         if (matcherRfc822.matches()) {
             int dayLength = matcherRfc822.group(2).length();
             int fractions = stringLength(matcherRfc822.group(4)) - 1;
             boolean withYear = matcherRfc822.group(3) != null;
-            AppendOffset appendOffset = Optional.ofNullable(matcherRfc822.group(5))
-                                                .map(s -> s.substring(1))
+            AppendOffset appendOffset = Optional.ofNullable(matcherRfc822.group(6))
                                                 .map(PatternResolver::resolveZoneOffset)
                                                 .orElse(null);
-            return new DatetimeProcessorRfc822(true, dayLength, withYear, fractions, appendOffset);
+            ParseTimeZone ptz = Optional.ofNullable(matcherRfc822.group(6))
+                                        .map(PatternResolver::zoneOffsetResolver)
+                                        .orElse(null);
+            return new DatetimeProcessorRfc822(true, dayLength, withYear, fractions, appendOffset, ptz);
         }
         Matcher matcherRfc3164 = RFC3164_PATTERN.matcher(pattern);
         if (matcherRfc3164.matches()) {
             int dayLength = matcherRfc3164.group(1).length();
             int fractions = stringLength(matcherRfc3164.group(3)) - 1;
             boolean withYear = matcherRfc3164.group(2) != null;
-            AppendOffset appendOffset = Optional.ofNullable(matcherRfc3164.group(4))
-                                                .map(s -> s.substring(1))
+            AppendOffset appendOffset = Optional.ofNullable(matcherRfc3164.group(5))
                                                 .map(PatternResolver::resolveZoneOffset)
                                                 .orElse(null);
-            return new DatetimeProcessorRfc3164(dayLength, withYear, fractions, appendOffset);
+            ParseTimeZone ptz = Optional.ofNullable(matcherRfc3164.group(5))
+                                                .map(PatternResolver::zoneOffsetResolver)
+                                                .orElse(null);
+            return new DatetimeProcessorRfc3164(dayLength, withYear, fractions, appendOffset, ptz);
         }
-        String preprocessedPattern = preprocessPattern(pattern);
         DateTimeFormatterBuilder builder = new DateTimeFormatterBuilder()
-                .parseCaseInsensitive();
-        if (enableLenient(preprocessedPattern)) {
-            builder.parseLenient();
-        }
+                .parseCaseInsensitive().parseLenient();
         DateTimeFormatter dateTimeFormatter = builder
-                .appendPattern(preprocessedPattern)
+                .appendPattern(pattern)
                 .toFormatter(Locale.US)
                 .withResolverStyle(ResolverStyle.STRICT);
         return new DatetimeProcessorCustom(dateTimeFormatter);
@@ -99,141 +114,52 @@ class PatternResolver {
         return value == null ? 0 : value.length();
     }
 
-    private static boolean enableLenient(String pattern) {
-        return !DISABLE_LENIENT_MODE.matcher(pattern).matches();
-    }
-
-    /**
-     * Replace documented FDF symbols to their JSR-310 analogs. The conversions are performed:
-     * unquoted T -> quoted T
-     * u -> ccccc (day of week starting from Monday)
-     * Z -> XX (zone offset in RFC format: +HHmm, Z for UTC)
-     * ZZ -> XXX (zone offset in ISO format: +HH:mm, Z for UTC)
-     * ZZZ -> VV (zone id)
-     * @param pattern time formatting pattern
-     * @return JSR-310 compatible pattern
-     */
-    private static String preprocessPattern(String pattern) {
-        int length = pattern.length();
-        boolean insideQuotes = false;
-        StringBuilder sb = new StringBuilder(pattern.length() + 5);
-        DateFormatParsingState state = new DateFormatParsingState();
-        for (int i = 0; i < length; i++) {
-            char c = pattern.charAt(i);
-            if (c != 'u') {
-                state.updateU(sb);
-            }
-            if (c != 'Z') {
-                state.updateZ(sb);
-            }
-            switch (c) {
-                case '\'':
-                    insideQuotes = !insideQuotes;
-                    sb.append(c);
-                    break;
-                case 'T':
-                    if (!insideQuotes) {
-                        sb.append("'T'");
-                    } else {
-                        sb.append(c);
-                    }
-                    break;
-                case 'Z':
-                    if (!insideQuotes) {
-                        ++state.zCount;
-                    }
-                    sb.append(c);
-                    break;
-                case 'u':
-                    if (!insideQuotes) {
-                        ++state.uCount;
-                    }
-                    sb.append(c);
-                    break;
-                case 'y':
-                    sb.append('u');
-                    break;
-                default:
-                    sb.append(c);
-            }
-        }
-        state.updateU(sb);
-        state.updateZ(sb);
-        return sb.toString();
-    }
-
-    private static class DateFormatParsingState {
-        private int zCount = 0;
-        private int uCount = 0;
-
-        private void updateU(StringBuilder sb) {
-            if (uCount > 0) {
-                sb.setLength(sb.length() - uCount);
-                sb.append("0".repeat(Math.max(0, uCount - 1)));
-                sb.append("ccccc");
-            }
-            uCount = 0;
-        }
-
-        private void updateZ(StringBuilder sb) {
-            if (zCount > 0 && zCount <= 3) {
-                sb.setLength(sb.length() - zCount);
-                if (zCount == 1) {
-                    sb.append("XX");
-                } else if (zCount == 2) {
-                    sb.append("XXX");
-                } else {
-                    sb.append("VV");
-                }
-            }
-            zCount = 0;
-        }
-    }
-
-    private static AppendOffset resolveZoneOffset(String pattern) {
-        BiFunction<ZoneId, Instant, Integer> resolveOffset = (o, i) -> o.getRules().getOffset(i).getTotalSeconds();
+    static AppendOffset resolveZoneOffset(String pattern) {
         if (pattern == null) {
             return null;
         } else {
             switch (pattern) {
-            case "X":
-                return (sb, offset, instant) -> appendFormattedSecondOffset(true, 1, ' ', resolveOffset.apply(offset, instant), sb);
             case "Z":
-            case "XX":
-                return (sb, offset, instant) -> appendFormattedSecondOffset(true, 2, ' ', resolveOffset.apply(offset, instant), sb);
+                return (sb, zdt) -> appendFormattedSecondOffset("+0000", 2, false, ' ', zdt, sb);
             case "ZZ":
+                return (sb, zdt) -> appendFormattedSecondOffset("+0000", 2, false, ' ', zdt, sb);
+            case "X":
+                return (sb, zdt) -> appendFormattedSecondOffset("Z", 2, true, ' ', zdt, sb);
+            case "XX":
+                return (sb, zdt) -> appendFormattedSecondOffset("Z", 2, false, ' ', zdt, sb);
             case "XXX":
-                return (sb, offset, instant) -> appendFormattedSecondOffset(true, 2, ':', resolveOffset.apply(offset, instant), sb);
+                return (sb, zdt) -> appendFormattedSecondOffset("Z", 2, false, ':', zdt, sb);
             case "XXXX":
-                return (sb, offset, instant) -> appendFormattedSecondOffset(true, 3, ' ', resolveOffset.apply(offset, instant), sb);
+                return (sb, zdt) -> appendFormattedSecondOffset("Z", 3, true, ' ', zdt, sb);
             case "XXXXX":
-                return (sb, offset, instant) -> appendFormattedSecondOffset(true, 3, ':', resolveOffset.apply(offset, instant), sb);
+                return (sb, zdt) -> appendFormattedSecondOffset("Z", 3, true, ':', zdt, sb);
             case "x":
-                return (sb, offset, instant) -> appendFormattedSecondOffset(false, 1, ' ', resolveOffset.apply(offset, instant), sb);
+                return (sb, zdt) -> appendFormattedSecondOffset("+00", 2, true, ' ', zdt, sb);
             case "xx":
-                return (sb, offset, instant) -> appendFormattedSecondOffset(false, 2, ' ', resolveOffset.apply(offset, instant), sb);
+                return (sb, zdt) -> appendFormattedSecondOffset("+0000", 2, false, ' ', zdt, sb);
             case "xxx":
-                return (sb, offset, instant) -> appendFormattedSecondOffset(false, 2, ':', resolveOffset.apply(offset, instant), sb);
+                return (sb, zdt) -> appendFormattedSecondOffset("+00:00", 2, false, ':', zdt, sb);
             case "xxxx":
-                return (sb, offset, instant) -> appendFormattedSecondOffset(false, 3, ' ', resolveOffset.apply(offset, instant), sb);
+                return (sb, zdt) -> appendFormattedSecondOffset("+0000", 3, true, ' ', zdt, sb);
             case "xxxxx":
-                return (sb, offset, instant) -> appendFormattedSecondOffset(false, 3, ':', resolveOffset.apply(offset, instant), sb);
+                return (sb,zdt) -> appendFormattedSecondOffset("+00:00", 3, true, ':', zdt, sb);
             default:
-                return (sb, offset, instant) -> sb;
+                return new AppendOffset.PatternAppendOffset(pattern);
             }
         }
     }
 
-    static StringBuilder appendFormattedSecondOffset(boolean zuluTime, int rank, char separator, int offsetSeconds, StringBuilder sb) {
-        if (offsetSeconds == 0 && zuluTime) {
-            return sb.append('Z');
+    static StringBuilder appendFormattedSecondOffset(String zuluTime, int rank, boolean minimum, char separator, ZonedDateTime zdt, StringBuilder sb) {
+        int offsetSeconds = zdt.query(TemporalQueries.offset()).getTotalSeconds();
+        if (offsetSeconds == 0 && ! zuluTime.isEmpty()) {
+            return sb.append(zuluTime);
         } else {
             sb.append(offsetSeconds < 0 ? '-' : '+');
             int absSeconds = Math.abs(offsetSeconds);
-            if (rank >= 1) {
-                appendNumberWithFixedPositions(sb, absSeconds / 3600, 2);
-            }
-            if (rank >= 2) {
+            int minutes = (absSeconds / 60) % 60;
+            int seconds = absSeconds % 60;
+            appendNumberWithFixedPositions(sb, absSeconds / 3600, 2);
+            if (rank >= 2 && ((! minimum) || (minutes != 0 && seconds != 0))) {
                 if (separator == ':') {
                     sb.append(':');
                 }
@@ -246,6 +172,26 @@ class PatternResolver {
                 appendNumberWithFixedPositions(sb, absSeconds % 60, 2);
             }
             return sb;
+        }
+    }
+
+    static ParseTimeZone zoneOffsetResolver(String pattern) {
+        if (pattern != null && VALID_ZONE_FORMATTERS.contains(pattern)) {
+            switch (pattern) {
+            case "v":
+            case "vvvv":
+            case "z":
+            case "zz":
+            case "zzz":
+            case "zzzz": {
+                DateTimeFormatter dtf = DateTimeFormatter.ofPattern(pattern);
+                return (ctx, ot, dzid) -> dtf.parse(ctx.findWord(), TemporalQueries.zoneId());
+            }
+            default:
+                return ParsingContext::extractZoneId;
+            }
+        } else {
+            return (ctx, ot, dzid) -> dzid;
         }
     }
 

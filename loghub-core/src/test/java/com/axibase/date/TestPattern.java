@@ -3,7 +3,9 @@ package com.axibase.date;
 import java.time.Instant;
 import java.time.Month;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Locale;
@@ -62,6 +64,7 @@ public class TestPattern {
                         Map.entry("03 May 2024 12:56:29  XX", "Failed to parse date \"03 May 2024 12:56:29  XX\": Unknown time-zone ID: XX")
                 )
         );
+
         runTest("eee, dd MMM yyyy HH:mm:ss",
                 List.of(
                         Map.entry("Thu,  03 May  2024 12:56:29 ", "2024-05-03T12:56:29+01:00[Europe/London]"),
@@ -98,28 +101,27 @@ public class TestPattern {
         int currentYear = ZonedDateTime.now().getYear();
         runTest("rfc3164",
                 List.of(
-                        Map.entry(" May 03 12:56:29  +01:00", currentYear + "-05-03T12:56:29+01:00"),
-                        Map.entry(" May 03 12:56:29  CET", currentYear + "-05-03T12:56:29+02:00[CET]")
+                        Map.entry(" May 03 12:56:29", currentYear + "-05-03T12:56:29+01:00[Europe/London]")
                 ),
                 List.of(
-                        Map.entry(Instant.ofEpochMilli(1000), "Jan 1 01:00:01 +0100")
+                        Map.entry(Instant.ofEpochMilli(1000), "Jan 1 01:00:01")
                 ),
                 List.of(
                         Map.entry("XXX 03   12:56:29 +01:00", "Invalid month name"),
-                        Map.entry("May 03  12:56:29 XXX", "Unknown time-zone ID: XXX")
+                        Map.entry("May 03  12:56:29 XXX", "Failed to parse date \"May 03  12:56:29 XXX\": Failed to parse date \"May 03  12:56:29 XXX\": Zone ID unexpected")
                 )
         );
         runTest("MMM d yyyy HH:mm:ss Z",
                 List.of(
                         Map.entry(" May 03 2024 12:56:29  +01:00", "2024-05-03T12:56:29+01:00"),
-                        Map.entry(" May 03 2024 12:56:29  CET", "2024-05-03T12:56:29+02:00[CET]"),
+                        Map.entry(" May 03 2024 12:56:29  Europe/Paris", "2024-05-03T12:56:29+02:00[Europe/Paris]"),
                         Map.entry("Jun 3 2008 11:05:30 +0110", "2008-06-03T11:05:30+01:10")
                 ),
                 List.of(
                         Map.entry(Instant.ofEpochMilli(1000), "Jan 1 1970 01:00:01 +0100")
                 ),
                 List.of(
-                 )
+                )
         );
         runTest("MMM dd yyyy HH:mm:ss Z",
                 List.of(
@@ -143,6 +145,52 @@ public class TestPattern {
     }
 
     @Test
+    public void TimeZoneFormatingUTC() {
+        ZonedDateTime zdt = ZonedDateTime.ofInstant(Instant.ofEpochMilli(0), ZoneOffset.UTC);
+        formatting(zdt, Locale.ENGLISH);
+        formatting(zdt, Locale.FRANCE);
+        formatting(zdt, Locale.CHINESE);
+        formatting(zdt.withZoneSameInstant(ZoneId.of("Europe/Paris")), Locale.ENGLISH);
+        formatting(zdt.withZoneSameInstant(ZoneId.of("Europe/Paris")), Locale.FRANCE);
+        formatting(zdt.withZoneSameInstant(ZoneId.of("Europe/Paris")), Locale.CHINESE);
+        formatting(zdt.withZoneSameInstant(ZoneOffset.ofHoursMinutesSeconds(1,2,3)), Locale.CHINESE);
+    }
+
+    private void formatting(ZonedDateTime zdt, Locale locale) {
+        resolveTimeZone("MMM dd HH:mm:ss O", zdt, locale);
+        resolveTimeZone("MMM dd HH:mm:ss OOOO", zdt, locale);
+        resolveTimeZone("MMM dd HH:mm:ss VV", zdt, locale);
+        resolveTimeZone("MMM dd HH:mm:ss X", zdt, locale);
+        resolveTimeZone("MMM dd HH:mm:ss XX", zdt, locale);
+        resolveTimeZone("MMM dd HH:mm:ss XXX", zdt, locale);
+        resolveTimeZone("MMM dd HH:mm:ss XXXX", zdt, locale);
+        resolveTimeZone("MMM dd HH:mm:ss XXXXX", zdt, locale);
+        resolveTimeZone("MMM dd HH:mm:ss Z", zdt, locale);
+        resolveTimeZone("MMM dd HH:mm:ss ZZ", zdt, locale);
+        resolveTimeZone("MMM dd HH:mm:ss ZZZ", zdt, locale);
+        resolveTimeZone("MMM dd HH:mm:ss ZZZZ", zdt, locale);
+        resolveTimeZone("MMM dd HH:mm:ss ZZZZZ", zdt, locale);
+        resolveTimeZone("MMM dd HH:mm:ss v", zdt, locale);
+        resolveTimeZone("MMM dd HH:mm:ss vvvv", zdt, locale);
+        resolveTimeZone("MMM dd HH:mm:ss x", zdt, locale);
+        resolveTimeZone("MMM dd HH:mm:ss xx", zdt, locale);
+        resolveTimeZone("MMM dd HH:mm:ss xxx", zdt, locale);
+        resolveTimeZone("MMM dd HH:mm:ss xxxx", zdt, locale);
+        resolveTimeZone("MMM dd HH:mm:ss xxxxx", zdt, locale);
+        resolveTimeZone("MMM dd HH:mm:ss z", zdt, locale);
+        resolveTimeZone("MMM dd HH:mm:ss zz", zdt, locale);
+        resolveTimeZone("MMM dd HH:mm:ss zzz", zdt, locale);
+        resolveTimeZone("MMM dd HH:mm:ss zzzz", zdt, locale);
+    }
+
+    private void resolveTimeZone(String pattern, ZonedDateTime toFormat, Locale locale) {
+        assertInstance(pattern, DatetimeProcessorRfc3164.class);
+        String tested = getProcessor(pattern).withDefaultZone(ZoneOffset.UTC).withLocale(locale).print(toFormat);
+        String reference = DateTimeFormatter.ofPattern(pattern, locale).format(toFormat);
+        Assert.assertEquals("Testing " +  pattern, reference, tested);
+    }
+
+    @Test
     public void iso8164() {
         runTest("iso",
                 List.of(
@@ -159,7 +207,7 @@ public class TestPattern {
                 ),
                 List.of(
                         Map.entry("2024-05-03 12:56:29+01:00", "Failed to parse date \"2024-05-03 12:56:29+01:00\": Expected 'T' character but found ' '"),
-                        Map.entry("2024-05-03T12:56:29XXX", "Failed to parse date \"2024-05-03T12:56:29XXX\": Invalid ID for ZoneOffset, non numeric characters found: XXX")
+                        Map.entry("2024-05-03T12:56:29XXX", "Failed to parse date \"2024-05-03T12:56:29XXX\": Unknown time-zone ID: XXX")
                 )
         );
         runTest("iso_nanos",
@@ -216,7 +264,10 @@ public class TestPattern {
                 List.of(
                         Map.entry("1", "1970-01-01T01:00:01+01:00[Europe/London]"),
                         Map.entry("1000", "1970-01-01T01:16:40+01:00[Europe/London]"),
-                        Map.entry("1000000000", "2001-09-09T02:46:40+01:00[Europe/London]")
+                        Map.entry("1000000000", "2001-09-09T02:46:40+01:00[Europe/London]"),
+                        Map.entry("1.000000001", "1970-01-01T01:00:01.000000001+01:00[Europe/London]"),
+                        Map.entry("1.001000001", "1970-01-01T01:00:01.001000001+01:00[Europe/London]"),
+                        Map.entry("1.001000001111", "1970-01-01T01:00:01.001000001+01:00[Europe/London]")
                 ),
                 List.of(
                         Map.entry(Instant.ofEpochMilli(1000), "1"),
@@ -277,6 +328,35 @@ public class TestPattern {
                                                       .withDefaultZone(ZoneId.of("Europe/London"));
         ZonedDateTime zdt = processor.parse("1 janv. 2024 04:00:00");
         Assert.assertEquals(Month.JANUARY, zdt.getMonth());
+    }
+
+    private void assertInstance(String pattern, Class<? extends DatetimeProcessor> expected) {
+        DatetimeProcessor dtp = DatetimeProcessor.of(pattern);
+        Assert.assertTrue(String.format("Expecting %s, got %s", expected.getName(), dtp.getClass().getName()), expected.isAssignableFrom(DatetimeProcessor.of(pattern).getClass()));
+    }
+    @Test
+    public void testResolution() {
+        assertInstance("iso", DatetimeProcessorIso8601.class);
+        assertInstance("yyyy-MM-dd HH:mm:ss.SSZ", DatetimeProcessorIso8601.class);
+        assertInstance("yyyy-MM-dd|HH:mm:ss.SSZ", DatetimeProcessorIso8601.class);
+        assertInstance("yyyy-MM-dd'T'HH:mm:ss.SSZ", DatetimeProcessorIso8601.class);
+        assertInstance("yyyy-MM-dd HH:mm:ss.SSS", DatetimeProcessorIso8601.class);
+        assertInstance("iso_nanos", DatetimeProcessorIso8601.class);
+        assertInstance("iso_seconds", DatetimeProcessorIso8601.class);
+        assertInstance("nanoseconds", DatetimeProcessorUnixNano.class);
+        assertInstance("milliseconds", DatetimeProcessorUnixMillis.class);
+        assertInstance("seconds", DatetimeProcessorUnixSeconds.class);
+        assertInstance("rfc822", DatetimeProcessorRfc822.class);
+        assertInstance("eee, d MMM yyyy HH:mm:ss Z", DatetimeProcessorRfc822.class);
+        assertInstance("d MMM yyyy HH:mm:ss Z", DatetimeProcessorRfc822.class);
+        assertInstance("dd MMM yyyy HH:mm:ss Z", DatetimeProcessorRfc822.class);
+        assertInstance("rfc3164", DatetimeProcessorRfc3164.class);
+        assertInstance("MMM d HH:mm:ss", DatetimeProcessorRfc3164.class);
+        assertInstance("MMM dd HH:mm:ss", DatetimeProcessorRfc3164.class);
+        assertInstance("MMM dd yyyy HH:mm:ss", DatetimeProcessorRfc3164.class);
+        assertInstance("MMM dd   yyyy HH:mm:ss", DatetimeProcessorRfc3164.class);
+        assertInstance(" MMM dd   yyyy HH:mm:ss ", DatetimeProcessorRfc3164.class);
+        assertInstance("MMM dd HH:mm:ss.SSS zzz", DatetimeProcessorRfc3164.class);
     }
 
 }

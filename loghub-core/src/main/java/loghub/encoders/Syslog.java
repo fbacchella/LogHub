@@ -115,7 +115,7 @@ public class Syslog extends Encoder {
         if (format == Format.RFC5424) {
             timestampformat.append("yyyy-MM-dd'T'HH:mm:ss.");
             IntStream.range(0, builder.secFrac).forEach(i -> timestampformat.append("S"));
-            timestampformat.append("ZZ");
+            timestampformat.append("XXXXX");
         } else if (format == Format.RFC3164) {
             if (builder.dateFormat == null) {
                 timestampformat.append("eee MMM dd HH:mm:ss");

@@ -9,6 +9,7 @@ import java.time.ZonedDateTime;
 import java.time.temporal.ChronoField;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -27,19 +28,21 @@ public class DatetimeProcessorRfc822 implements DatetimeProcessor {
     private final String[] shortWeekDays;
     private final String[] shortMonths;
     private final AppendOffset zoneOffsetType;
+    private final ParseTimeZone tzParser;
 
-    DatetimeProcessorRfc822(boolean weekDay, int dayLength, boolean withYear, int fractions, AppendOffset zoneOffsetType) {
-        this(weekDay, dayLength, withYear, fractions, Locale.getDefault(), ZoneId.systemDefault(), zoneOffsetType);
+    DatetimeProcessorRfc822(boolean weekDay, int dayLength, boolean withYear, int fractions, AppendOffset zoneOffsetType, ParseTimeZone tzParser) {
+        this(weekDay, dayLength, withYear, fractions, Locale.getDefault(), ZoneId.systemDefault(), zoneOffsetType, tzParser);
     }
 
-    private DatetimeProcessorRfc822(boolean weekDay, int dayLength, boolean withYear, int fractions, Locale locale, ZoneId zoneId, AppendOffset zoneOffsetType) {
+    private DatetimeProcessorRfc822(boolean weekDay, int dayLength, boolean withYear, int fractions, Locale locale, ZoneId zoneId, AppendOffset zoneOffsetType, ParseTimeZone tzParser) {
         this.weekDay = weekDay;
         this.fractions = fractions;
         this.dayLength = dayLength;
         this.withYear = withYear;
         this.locale = locale;
         this.zoneId = zoneId;
-        this.zoneOffsetType = zoneOffsetType;
+        this.zoneOffsetType = Optional.ofNullable(zoneOffsetType).map(z -> z.withLocale(locale)).orElse(null);
+        this.tzParser = tzParser;
         DateFormatSymbols symbols = new DateFormatSymbols(locale);
         this.shortWeekDays = symbols.getShortWeekdays();
         this.shortMonths = symbols.getShortMonths();
@@ -125,19 +128,19 @@ public class DatetimeProcessorRfc822 implements DatetimeProcessor {
         DatetimeProcessorUtil.printSubSeconds(fractions, zonedDateTime::getNano, formatted);
         if (zoneOffsetType != null) {
             formatted.append(" ");
-            zoneOffsetType.append(formatted, zonedDateTime.getOffset(), zonedDateTime.toInstant());
+            zoneOffsetType.append(formatted, zonedDateTime);
         }
         return formatted.toString();
     }
 
     @Override
     public DatetimeProcessor withLocale(Locale locale) {
-        return locale == this.locale ? this : new DatetimeProcessorRfc822(this.weekDay, this.dayLength, this.withYear, this.fractions, locale, this.zoneId, zoneOffsetType);
+        return locale == this.locale ? this : new DatetimeProcessorRfc822(this.weekDay, this.dayLength, this.withYear, this.fractions, locale, this.zoneId, zoneOffsetType, tzParser);
     }
 
     @Override
     public DatetimeProcessor withDefaultZone(ZoneId zoneId) {
-        return zoneId == this.zoneId ? this : new DatetimeProcessorRfc822(this.weekDay, this.dayLength, this.withYear, this.fractions, this.locale, zoneId, zoneOffsetType);
+        return zoneId == this.zoneId ? this : new DatetimeProcessorRfc822(this.weekDay, this.dayLength, this.withYear, this.fractions, this.locale, zoneId, zoneOffsetType, tzParser);
     }
 
 }

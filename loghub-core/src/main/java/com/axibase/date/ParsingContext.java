@@ -32,11 +32,11 @@ class ParsingContext {
 
     int parseInt(int lengthDigit) throws NumberFormatException {
         int startNumber = offset;
-        while (offset < length && Character.isDigit(datetime.charAt(offset))) {
+        while (offset < length && Character.isDigit(datetime.charAt(offset)) && (lengthDigit < 0 || ((offset - startNumber) < lengthDigit))) {
             offset++;
         }
         if (startNumber == offset || (lengthDigit > 0 && (offset - startNumber) > lengthDigit)) {
-            throw new DateTimeParseException("Failed to parse number at index ", datetime, startNumber);
+            throw this.parseException("Failed to parse number");
         }
         int result = resolveDigitByCode(datetime, startNumber);
         for (int i = startNumber + 1; i < offset; ++i) {
@@ -73,20 +73,90 @@ class ParsingContext {
                 if (offsetType != null || defaultOffset == null) {
                     throw parseException("Zone offset required");
                 }
-                zoneId = defaultOffset;
+                return defaultOffset;
             } else {
                 if (offsetType == null) {
                     throw parseException("Zone offset unexpected");
                 }
+                int endZone = offset;
+                int startZone = offset;
+                while (endZone < length && datetime.charAt(endZone) != ' ') {
+                    endZone++;
+                }
+                if (endZone == offset + 1 && datetime.charAt(offset) == 'Z') {
+                    offset++;
+                    return ZoneOffset.UTC;
+                } else if (datetime.charAt(offset) == 'G' && datetime.charAt(offset) == 'M' && datetime.charAt(offset) == 'T') {
+                    offset += 3;
+                    if (offset == endZone) {
+                        return ZoneOffset.UTC;
+                    }
+                } else if (datetime.charAt(offset) == 'U' && datetime.charAt(offset) == 'T' && datetime.charAt(offset) == 'C') {
+                    offset += 3;
+                    if (offset == endZone) {
+                        return ZoneOffset.UTC;
+                    }
+                }
+                int sign = 1;
+                if (datetime.charAt(offset) == '-') {
+                    sign = -1;
+                    offset++;
+                }
+                if (offset == endZone) {
+                    throw parseException("Missing or invalid time zone definition");
+                }
+                if (!Character.isDigit(datetime.charAt(offset))) {
+                    offset = startZone;
+                    return ZoneId.of(findWord());
+                }
+                int hour = parseInt(2);
+                if (offset < endZone && datetime.charAt(offset) == ':') {
+                    offset++;
+                }
+                int minute = 0;
+                if (offset < endZone) {
+                    minute = parseInt(2);
+                    if (offset < endZone && datetime.charAt(offset) == ':') {
+                        offset++;
+                    }
+                }
+                int second = 0;
+                if (offset < endZone) {
+                    second = parseInt(2);
+                    if (offset < endZone && datetime.charAt(offset) == ':') {
+                        offset++;
+                    }
+                }
+                zoneId = (hour == 0 && minute == 0 && second == 0 ) ? ZoneOffset.UTC :
+                                 ZoneOffset.ofTotalSeconds(sign * (hour * 3600 + minute * 60 + second));
+                return zoneId;
+            }
+        } catch (DateTimeException ex) {
+            throw parseException(ex.getMessage());
+        }
+    }
+
+    ZoneId extractZoneId(AppendOffset offsetType, ZoneId defaultOffset) {
+        try {
+            ZoneId zoneId;
+            if (offset == length) {
+                if (offsetType != null || defaultOffset == null) {
+                    throw parseException("Zone ID required");
+                }
+                zoneId = defaultOffset;
+            } else {
+                if (offsetType == null) {
+                    throw parseException("Zone ID unexpected");
+                }
                 if (offset == length - 1 && datetime.charAt(offset) == 'Z') {
                     zoneId = ZoneOffset.UTC;
                 } else {
-                    zoneId = ZoneOffset.of(findWord());
+                    zoneId = ZoneId.of(findWord());
                 }
             }
             return zoneId;
         } catch (DateTimeException ex) {
-            throw this.parseException(ex.getMessage());
+            throw parseException(ex.getMessage(), ex);
         }
     }
 
@@ -102,6 +172,10 @@ class ParsingContext {
 
     DateTimeParseException parseException(String message) {
         throw new DateTimeParseException(String.format("Failed to parse date \"%s\": %s", datetime, message), datetime, offset);
+    }
+
+    DateTimeParseException parseException(String message, Throwable ex) {
+        throw new DateTimeParseException(String.format("Failed to parse date \"%s\": %s", datetime, message), datetime, offset, ex);
     }
 
 

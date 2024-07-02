@@ -1,7 +1,6 @@
 package com.axibase.date;
 
 import java.text.DateFormatSymbols;
-import java.time.DateTimeException;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -9,6 +8,7 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -25,18 +25,20 @@ public class DatetimeProcessorRfc3164 implements DatetimeProcessor {
     private final Map<String, Integer> monthsMapping;
     private final String[] shortMonths;
     private final AppendOffset zoneOffsetType;
+    private final ParseTimeZone tzParser;
 
-    DatetimeProcessorRfc3164(int dayLength, boolean withYear, int fractions, AppendOffset zoneOffsetType) {
-        this(dayLength, withYear, fractions, Locale.getDefault(), ZoneId.systemDefault(), zoneOffsetType);
+    DatetimeProcessorRfc3164(int dayLength, boolean withYear, int fractions, AppendOffset zoneOffsetType, ParseTimeZone tzParser) {
+        this(dayLength, withYear, fractions, Locale.getDefault(), ZoneId.systemDefault(), zoneOffsetType, tzParser);
     }
 
-    private DatetimeProcessorRfc3164(int dayLength, boolean withYear, int fractions, Locale locale, ZoneId zoneId, AppendOffset zoneOffsetType) {
+    private DatetimeProcessorRfc3164(int dayLength, boolean withYear, int fractions, Locale locale, ZoneId zoneId, AppendOffset zoneOffsetType, ParseTimeZone tzParser) {
         this.dayLength = dayLength;
         this.fractions = fractions;
         this.withYear = withYear;
         this.locale = locale;
         this.zoneId = zoneId;
-        this.zoneOffsetType = zoneOffsetType;
+        this.zoneOffsetType = Optional.ofNullable(zoneOffsetType).map(z -> z.withLocale(locale)).orElse(null);
+        this.tzParser = tzParser;
         DateFormatSymbols symbols = new DateFormatSymbols(locale);
         this.shortMonths = symbols.getShortMonths();
         String[] monthsSymbols = symbols.getShortMonths();
@@ -76,15 +78,7 @@ public class DatetimeProcessorRfc3164 implements DatetimeProcessor {
         int seconds = context.parseInt(2);
         int nanos = context.parseNano();
         context.skipSpaces();
-        String zoneInfo = context.findWord();
-        ZoneId parsedZoneId = this.zoneId;
-        if (! zoneInfo.isEmpty()) {
-            try {
-                parsedZoneId = ZoneId.of(zoneInfo).normalized();
-            } catch (DateTimeException ex) {
-                throw new DateTimeParseException(ex.getMessage(), datetime, context.offset);
-            }
-        }
+        ZoneId parsedZoneId = Optional.ofNullable(tzParser).map(tzp -> tzp.parse(context, zoneOffsetType, zoneId)).orElse(zoneId);
         return ZonedDateTime.of(year, month, day, hour, minutes, seconds, nanos, parsedZoneId);
     }
 
@@ -110,19 +104,19 @@ public class DatetimeProcessorRfc3164 implements DatetimeProcessor {
         DatetimeProcessorUtil.printSubSeconds(fractions, zonedDateTime::getNano, formatted);
         if (zoneOffsetType != null) {
             formatted.append(" ");
-            zoneOffsetType.append(formatted, zonedDateTime.getOffset(), zonedDateTime.toInstant());
+            zoneOffsetType.append(formatted, zonedDateTime);
         }
         return formatted.toString();
     }
 
     @Override
     public DatetimeProcessor withLocale(Locale locale) {
-        return new DatetimeProcessorRfc3164(this.dayLength, this.withYear, this.fractions, locale, this.zoneId, zoneOffsetType);
+        return new DatetimeProcessorRfc3164(this.dayLength, this.withYear, this.fractions, locale, this.zoneId, zoneOffsetType, tzParser);
     }
 
     @Override
     public DatetimeProcessor withDefaultZone(ZoneId zoneId) {
-        return new DatetimeProcessorRfc3164(this.dayLength, this.withYear, this.fractions, this.locale, zoneId, zoneOffsetType);
+        return new DatetimeProcessorRfc3164(this.dayLength, this.withYear, this.fractions, this.locale, zoneId, zoneOffsetType, tzParser);
     }
 
 }
