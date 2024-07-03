@@ -1,4 +1,4 @@
-package com.axibase.date;
+package loghub.datetime;
 
 public interface NumericDateTimeProcessor extends DatetimeProcessor {
 }

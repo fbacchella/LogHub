@@ -1,4 +1,4 @@
-package com.axibase.date;
+package loghub.datetime;
 
 import java.text.DateFormatSymbols;
 import java.time.DateTimeException;
@@ -12,9 +12,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-
-import static com.axibase.date.DatetimeProcessorUtil.adjustPossiblyNegative;
-import static com.axibase.date.DatetimeProcessorUtil.appendNumberWithFixedPositions;
 
 public class DatetimeProcessorRfc822 implements DatetimeProcessor {
 
@@ -119,12 +116,12 @@ public class DatetimeProcessorRfc822 implements DatetimeProcessor {
         formatted.append(" ").append(shortMonths[zonedDateTime.getMonthValue() -1]);
         if (withYear) {
             formatted.append(" ");
-            adjustPossiblyNegative(formatted, zonedDateTime.getYear(), 4);
+            DatetimeProcessorUtil.adjustPossiblyNegative(formatted, zonedDateTime.getYear(), 4);
         }
         formatted.append(" ");
-        appendNumberWithFixedPositions(formatted, zonedDateTime.getHour(), 2).append(':');
-        appendNumberWithFixedPositions(formatted, zonedDateTime.getMinute(), 2).append(':');
-        appendNumberWithFixedPositions(formatted, zonedDateTime.getSecond(), 2);
+        DatetimeProcessorUtil.appendNumberWithFixedPositions(formatted, zonedDateTime.getHour(), 2).append(':');
+        DatetimeProcessorUtil.appendNumberWithFixedPositions(formatted, zonedDateTime.getMinute(), 2).append(':');
+        DatetimeProcessorUtil.appendNumberWithFixedPositions(formatted, zonedDateTime.getSecond(), 2);
         DatetimeProcessorUtil.printSubSeconds(fractions, zonedDateTime::getNano, formatted);
         if (zoneOffsetType != null) {
             formatted.append(" ");

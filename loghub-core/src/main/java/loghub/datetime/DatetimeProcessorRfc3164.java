@@ -1,4 +1,4 @@
-package com.axibase.date;
+package loghub.datetime;
 
 import java.text.DateFormatSymbols;
 import java.time.Instant;
@@ -12,8 +12,8 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static com.axibase.date.DatetimeProcessorUtil.adjustPossiblyNegative;
-import static com.axibase.date.DatetimeProcessorUtil.appendNumberWithFixedPositions;
+import static loghub.datetime.DatetimeProcessorUtil.adjustPossiblyNegative;
+import static loghub.datetime.DatetimeProcessorUtil.appendNumberWithFixedPositions;
 
 public class DatetimeProcessorRfc3164 implements DatetimeProcessor {
 

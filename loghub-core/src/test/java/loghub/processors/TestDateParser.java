@@ -22,7 +22,7 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import com.axibase.date.DatetimeProcessor;
+import loghub.datetime.DatetimeProcessor;
 
 import loghub.BeanChecks;
 import loghub.Expression;

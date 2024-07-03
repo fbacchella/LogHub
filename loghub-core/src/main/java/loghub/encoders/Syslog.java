@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.IntStream;
 
-import com.axibase.date.DatetimeProcessor;
+import loghub.datetime.DatetimeProcessor;
 
 import loghub.BuilderClass;
 import loghub.CanBatch;

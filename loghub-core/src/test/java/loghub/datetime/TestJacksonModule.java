@@ -1,4 +1,4 @@
-package com.axibase.date;
+package loghub.datetime;
 
 import java.io.IOException;
 import java.time.Instant;
@@ -31,8 +31,6 @@ import com.fasterxml.jackson.module.afterburner.AfterburnerModule;
 
 import loghub.LogUtils;
 import loghub.Tools;
-
-import static java.time.ZoneOffset.UTC;
 
 public class TestJacksonModule {
 

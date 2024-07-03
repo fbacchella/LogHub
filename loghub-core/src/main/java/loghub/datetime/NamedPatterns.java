@@ -1,4 +1,4 @@
-package com.axibase.date;
+package loghub.datetime;
 
 public final class NamedPatterns {
     public static final String ISO = "iso";

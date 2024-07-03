@@ -13,8 +13,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import com.axibase.date.DatetimeProcessor;
-import com.axibase.date.NamedPatterns;
+import loghub.datetime.DatetimeProcessor;
+import loghub.datetime.NamedPatterns;
 
 import loghub.BuilderClass;
 import loghub.Expression;

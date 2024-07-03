@@ -4,7 +4,7 @@ import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Optional;
 
-import com.axibase.date.DatetimeProcessor;
+import loghub.datetime.DatetimeProcessor;
 import com.beust.jcommander.Parameter;
 
 public class CommandTimePattern  implements BaseCommand {

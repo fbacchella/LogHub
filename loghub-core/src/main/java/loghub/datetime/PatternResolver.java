@@ -1,4 +1,4 @@
-package com.axibase.date;
+package loghub.datetime;
 
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
@@ -11,7 +11,7 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static com.axibase.date.DatetimeProcessorUtil.appendNumberWithFixedPositions;
+import static loghub.datetime.DatetimeProcessorUtil.appendNumberWithFixedPositions;
 
 /**
  * This class resolves creates for Axibase-supported datetime syntax. Each DatetimeProcessor object is immutable,

@@ -1,4 +1,4 @@
-package com.axibase.date;
+package loghub.datetime;
 
 import java.math.BigDecimal;
 import java.math.MathContext;
