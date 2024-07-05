@@ -22,8 +22,6 @@ import javax.cache.Cache;
 import javax.cache.processor.EntryProcessorException;
 import javax.cache.processor.MutableEntry;
 
-import org.apache.logging.log4j.Level;
-
 import com.maxmind.db.CacheKey;
 import com.maxmind.db.DecodedValue;
 import com.maxmind.db.NodeCache;
@@ -90,19 +88,15 @@ public class Geoip2 extends FieldsProcessor {
         }
     }
 
+    @Setter
     public static class Builder extends FieldsProcessor.Builder<Geoip2> {
-        @Setter
         private String geoipdb = null;
-        @Setter
         private String[] types = new String[] {};
-        @Setter
         private String locale = Locale.getDefault().getCountry();
-        @Setter
         private int cacheSize = 100;
-        @Setter
         private String refresh = "";
-        @Setter
         private CacheManager cacheManager;
+        private boolean required = true;
         public Geoip2 build() {
             return new Geoip2(this);
         }
@@ -119,6 +113,7 @@ public class Geoip2 extends FieldsProcessor {
     @Getter
     private volatile Reader reader;
     private final LogHubNodeCache geoipCache;
+    private final boolean required;
     @Getter
     private final Duration delay;
     private final ReadWriteLock dbProtectionLock = new ReentrantReadWriteLock();
@@ -144,12 +139,14 @@ public class Geoip2 extends FieldsProcessor {
             this.delay = null;
         }
         @SuppressWarnings("rawtypes")
-        Cache<CacheKey, DecodedValue> cache = builder.cacheManager.getBuilder(CacheKey.class, DecodedValue.class)
-                                                      .setCacheSize(builder.cacheSize)
-                                                      .setName("Geoip2", this)
-                                                      .setExpiry(Policy.ETERNAL)
-                                                      .build();
+        Cache<CacheKey, DecodedValue> cache = builder.cacheManager
+                                                     .getBuilder(CacheKey.class, DecodedValue.class)
+                                                     .setCacheSize(builder.cacheSize)
+                                                     .setName("Geoip2", this)
+                                                     .setExpiry(Policy.ETERNAL)
+                                                     .build();
         this.geoipCache = new LogHubNodeCache(cache);
+        this.required = builder.required;
     }
 
     @Override
@@ -186,6 +183,12 @@ public class Geoip2 extends FieldsProcessor {
             }
         } else {
             throw event.buildException("It's not an IP address: " + addr);
+        }
+
+        // If reader is null, it started with a failed geoloc db and required is false
+        // so just fails the resolution
+        if (reader == null) {
+            return RUNSTATUS.FAILED;
         }
 
         Country country;
@@ -330,7 +333,7 @@ public class Geoip2 extends FieldsProcessor {
         if (delay != null) {
             properties.registerScheduledTask("refreshgeoip", this::refresh, delay.toMillis());
         }
-        return reader != null && super.configure(properties);
+        return (reader != null || ! required) && super.configure(properties);
     }
 
     private void refresh() {
@@ -338,8 +341,7 @@ public class Geoip2 extends FieldsProcessor {
         try {
             newContent = readNewDb();
         } catch (IOException e) {
-            logger.error("Unable to read the GeoIP database content: {}", () -> Helpers.resolveThrowableException(e));
-            logger.catching(Level.DEBUG, e);
+            logger.atError().withThrowable(logger.isDebugEnabled() ? e : null).log("Unable to read the GeoIP database content: {}", () -> Helpers.resolveThrowableException(e));
             return;
         }
         if (newContent != null) {
@@ -364,8 +366,7 @@ public class Geoip2 extends FieldsProcessor {
                 }
                 lastBuildDate = reader.getMetadata().getBuildDate().getTime();
             } catch (IOException e) {
-                logger.error("Unable to read the GeoIP database content: {}", () -> Helpers.resolveThrowableException(e));
-                logger.catching(Level.DEBUG, e);
+                logger.atError().withThrowable(logger.isDebugEnabled() ? e : null).log("Unable to read the GeoIP database content: {}", () -> Helpers.resolveThrowableException(e));
             } finally {
                 dbProtectionLock.writeLock().unlock();
             }
@@ -374,7 +375,7 @@ public class Geoip2 extends FieldsProcessor {
 
     private Object readNewDb() throws IOException {
         byte[] content = null;
-        Reader temproraryReader = null;
+        Reader temproraryReader;
         if (geoipdb != null && "file".equals(geoipdb.getScheme())) {
             temproraryReader = new Reader(new File(geoipdb.getPath()));
         } else if (geoipdb != null) {
@@ -386,25 +387,21 @@ public class Geoip2 extends FieldsProcessor {
             try (InputStream is = Geoip2.class.getResourceAsStream("GeoLite2-City.mmdb")) {
                 if (is == null) {
                     logger.error("Didn't find a default database");
+                    return null;
                 } else {
                     content = is.readAllBytes();
                     temproraryReader = new Reader(new ByteArrayInputStream(content));
                 }
             }
         }
-        if (temproraryReader != null) {
-            try {
-                if (temproraryReader.getMetadata().getBuildDate().getTime() > lastBuildDate) {
-                    return content != null ? content : new File(geoipdb.getPath());
-                } else {
-                    return null;
-                }
-            } finally {
-                temproraryReader.close();
+        try {
+            if (temproraryReader.getMetadata().getBuildDate().getTime() > lastBuildDate) {
+                return content != null ? content : new File(geoipdb.getPath());
+            } else {
+                return null;
             }
-        } else {
-            logger.debug("No update needed for {}", geoipdb);
-            return null;
+        } finally {
+            temproraryReader.close();
         }
     }
 
