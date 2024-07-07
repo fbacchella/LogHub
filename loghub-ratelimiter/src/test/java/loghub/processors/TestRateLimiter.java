@@ -74,8 +74,8 @@ public class TestRateLimiter {
             b.setRate(100);
             b.setBurstRate(200);
         });
-        logger.debug("Nominal requested rate is {}", () -> (float)countRate /testDuration.toSeconds());
-        logger.debug("Burst requested rate is {}", () -> (float)countBurstRate /testDuration.toSeconds());
+        logger.debug("Nominal requested rate is {}", () -> (float) countRate /testDuration.toSeconds());
+        logger.debug("Burst requested rate is {}", () -> (float) countBurstRate /testDuration.toSeconds());
         Assert.assertTrue("Got " + ((float)countRate / testDuration.toSeconds()) + " event/s", countRate < countBurstRate);
     }
 

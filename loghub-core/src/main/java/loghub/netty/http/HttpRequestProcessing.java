@@ -11,7 +11,6 @@ import loghub.metrics.Stats;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 
-
 public abstract class HttpRequestProcessing extends HttpHandler {
 
     protected HttpRequestProcessing() {

@@ -19,7 +19,7 @@ public class ConfigurationProperties {
         return properties.size();
     }
 
-    public void forEach(BiConsumer<String ,Object> action) {
+    public void forEach(BiConsumer<String, Object> action) {
         properties.forEach(action);
     }
 
