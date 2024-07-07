@@ -42,6 +42,10 @@ import loghub.configuration.CacheManager;
 import loghub.configuration.CacheManager.Policy;
 import loghub.configuration.Properties;
 import loghub.events.Event;
+import loghub.httpclient.AbstractHttpClientService;
+import loghub.httpclient.HttpRequest;
+import loghub.httpclient.HttpResponse;
+import loghub.httpclient.JavaHttpClientService;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -378,6 +382,8 @@ public class Geoip2 extends FieldsProcessor {
         Reader temproraryReader;
         if (geoipdb != null && "file".equals(geoipdb.getScheme())) {
             temproraryReader = new Reader(new File(geoipdb.getPath()));
+        } else if (geoipdb != null && geoipdb.getScheme().startsWith("http")) {
+            temproraryReader =new Reader(new ByteArrayInputStream(readHttp()));
         } else if (geoipdb != null) {
             try (InputStream is = geoipdb.toURL().openStream()) {
                 content = is.readAllBytes();
@@ -402,6 +408,27 @@ public class Geoip2 extends FieldsProcessor {
             }
         } finally {
             temproraryReader.close();
+        }
+    }
+
+    private byte[] readHttp() throws IOException {
+        JavaHttpClientService.Builder clientBuilder = JavaHttpClientService.getBuilder();
+        clientBuilder.setTimeout(5);
+        AbstractHttpClientService httpClient = clientBuilder.build();
+        HttpRequest<byte[]> request = httpClient.getRequest();
+        request.setUri(geoipdb);
+        request.setConsumeBytes(InputStream::readAllBytes);
+        try (HttpResponse<byte[]> response = httpClient.doRequest(request)) {
+            if (! response.isConnexionFailed()) {
+                return response.getParsedResponse();
+            } else {
+                IOException ex = response.getSocketException();
+                if (ex != null) {
+                    throw ex;
+                } else {
+                    return new byte[0];
+                }
+            }
         }
     }
 
