@@ -109,7 +109,7 @@ public class DatetimeProcessorRfc822 implements DatetimeProcessor {
     public String print(ZonedDateTime zonedDateTime) {
         StringBuilder formatted = new StringBuilder();
         // First week day is the empty string
-        String weekDay = shortWeekDays[zonedDateTime.get(ChronoField.DAY_OF_WEEK) + 1];
+        String weekDay = shortWeekDays[(zonedDateTime.get(ChronoField.DAY_OF_WEEK) % 7) + 1];
         formatted.append(weekDay).append(", ");
         int day = zonedDateTime.getDayOfMonth();
         formatted.append((day <= 9 && dayLength == 2) ? "0" : "").append(day);
