@@ -12,6 +12,7 @@ import lombok.experimental.Accessors;
 @lombok.Builder
 @Accessors(fluent = false, chain = true)
 class JHttpResponse<T, U> extends HttpResponse<T> {
+
     private static final Pattern CONTENT_TYPE_PATTERN = Pattern.compile("([a-z/]+)\\s*(?:;\\s*charset=([a-z0-9_-]+))?", Pattern.CASE_INSENSITIVE);
 
     private final java.net.http.HttpResponse<U> jResponse;
@@ -48,12 +49,12 @@ class JHttpResponse<T, U> extends HttpResponse<T> {
 
     @Override
     public String getHost() {
-        return jResponse.uri().getHost();
+        return jResponse != null ? jResponse.uri().getHost() : null;
     }
 
     @Override
     public int getStatus() {
-        return jResponse.statusCode();
+        return jResponse != null ? jResponse.statusCode() : -1;
     }
 
     @Override
@@ -86,7 +87,7 @@ class JHttpResponse<T, U> extends HttpResponse<T> {
 
     @Override
     public T getParsedResponse() {
-        return body.apply(jResponse.body());
+        return jResponse != null ? body.apply(jResponse.body()) : null;
     }
 
     @Override
