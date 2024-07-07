@@ -549,8 +549,12 @@ public final class Helpers {
                         throw new IllegalStateException("Failed to start a processor");
                     }
                 } catch (ExecutionException ex) {
-                    throw new IllegalStateException(
-                            "Failed to start a processor: " + Helpers.resolveThrowableException(ex), ex.getCause());
+                    if (ex.getCause() instanceof RuntimeException) {
+                        throw (RuntimeException) ex.getCause();
+                    } else {
+                        throw new IllegalStateException(
+                                "Failed to start a processor: " + Helpers.resolveThrowableException(ex), ex.getCause());
+                    }
                 } catch (InterruptedException ex) {
                     Thread.currentThread().interrupt();
                     throw new IllegalStateException("Interrupted while starting a processor");
