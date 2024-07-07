@@ -10,6 +10,7 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Consumer;
 
 import org.apache.logging.log4j.Level;
@@ -29,7 +30,7 @@ import loghub.BeanChecks;
 import loghub.BeanChecks.BeanInfo;
 import loghub.LogUtils;
 import loghub.Pipeline;
-import loghub.PriorityBlockingQueue;
+import loghub.queue.PriorityBlockingQueue;
 import loghub.ProtobufTestUtils;
 import loghub.Tools;
 import loghub.VariablePath;
@@ -109,7 +110,7 @@ public class TestPrometheus {
         try (Prometheus receiver = makeReceiver( i -> {}, Collections.emptyMap())) {
             doRequest(wr);
         }
-        Event ev = queue.poll();
+        Event ev = queue.poll().orElseThrow();
         Map<String, String> labels = (Map<String, String>) ev.getAtPath(VariablePath.of("labels"));
         Assert.assertEquals(1, labels.size());
         double value = (double) ev.get("test_event");
