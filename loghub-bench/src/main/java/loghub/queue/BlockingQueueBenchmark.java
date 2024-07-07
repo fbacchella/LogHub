@@ -7,7 +7,7 @@ import java.util.concurrent.TimeUnit;
 
 public abstract class BlockingQueueBenchmark extends AbstractQueueBenchmark {
 
-    private BlockingQueue<CountDownLatch> arrayBlockingQueue = new ArrayBlockingQueue<>(2048);
+    private final BlockingQueue<CountDownLatch> arrayBlockingQueue = new ArrayBlockingQueue<>(2048);
 
     @Override
     CountDownLatch poll()

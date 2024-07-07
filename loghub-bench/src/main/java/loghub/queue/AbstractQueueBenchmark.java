@@ -1,17 +1,22 @@
 package loghub.queue;
 
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import org.openjdk.jmh.annotations.Benchmark;
+import org.openjdk.jmh.annotations.BenchmarkMode;
+import org.openjdk.jmh.annotations.Mode;
+import org.openjdk.jmh.annotations.OutputTimeUnit;
+import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
+import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.TearDown;
-import org.openjdk.jmh.runner.Runner;
-import org.openjdk.jmh.runner.RunnerException;
-import org.openjdk.jmh.runner.options.Options;
-import org.openjdk.jmh.runner.options.OptionsBuilder;
 
 import loghub.ThreadBuilder;
 
+@BenchmarkMode(Mode.AverageTime)
+@OutputTimeUnit(TimeUnit.NANOSECONDS)
+@State(Scope.Benchmark)
 public abstract class AbstractQueueBenchmark {
     private volatile boolean consumerRunning;
 
@@ -60,20 +65,6 @@ public abstract class AbstractQueueBenchmark {
     public void tearDown()
     {
         consumerRunning = false;
-    }
-
-    public static void main(final String[] args) throws RunnerException
-    {
-        Options opt = new OptionsBuilder()
-                .include("loghub.queue.RingBenchmark.P.C")
-                .include("loghub.queue.QueueBenchmark.P.C")
-                .forks(2)
-                //.measurementIterations(1)
-                //.measurementTime(TimeValue.seconds(1))
-                //.warmupTime(TimeValue.seconds(1))
-                //.warmupIterations(1)
-                .build();
-        new Runner(opt).run();
     }
 
 }

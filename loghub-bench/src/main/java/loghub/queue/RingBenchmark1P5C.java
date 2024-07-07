@@ -2,8 +2,8 @@ package loghub.queue;
 
 import org.openjdk.jmh.annotations.Threads;
 
-@Threads(5)
-public class QueueBenchmark5P5C extends BlockingQueueBenchmark {
+@Threads(1)
+public class RingBenchmark1P5C extends RingBufferBenchmark {
 
     @Override
     int countConsumer()

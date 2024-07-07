@@ -33,6 +33,16 @@
             <version>${jmh.version}</version>
             <scope>provided</scope>
         </dependency>
+        <dependency>
+            <groupId>org.apache.xmlgraphics</groupId>
+            <artifactId>batik-all</artifactId>
+            <version>1.17</version>
+        </dependency>
+        <dependency>
+            <groupId>com.axibase</groupId>
+            <artifactId>date-processor</artifactId>
+            <version>1.1.0</version>
+        </dependency>
     </dependencies>
 
     <build>
@@ -47,6 +57,15 @@
                             <goal>shade</goal>
                         </goals>
                         <configuration>
+                            <transformers>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <mainClass>loghub.RunBench</mainClass>
+                                    <manifestEntries>
+                                        <Multi-Release>true</Multi-Release>
+                                    </manifestEntries>
+                                </transformer>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer" />
+                            </transformers>
                             <filters>
                                 <filter>
                                     <!-- Shading signed JARs will fail without this. http://stackoverflow.com/questions/999489/invalid-signature-file-when-attempting-to-run-a-jar -->
@@ -57,10 +76,25 @@
                                         <exclude>META-INF/*.RSA</exclude>
                                     </excludes>
                                 </filter>
+                                <filter>
+                                    <artifact>fr.loghub:loghub-core</artifact>
+                                    <includes>
+                                        <include>loghub/queue/RingBuffer.class</include>
+                                        <include>loghub/ThreadBuilder*.class</include>
+                                        <include>loghub/datetime/*.class</include>
+                                    </includes>
+                                </filter>
                             </filters>
                             <artifactSet>
                                 <includes>
                                     <include>org.openjdk.jmh:jmh-core</include>
+                                    <include>net.sf.jopt-simple:jopt-simple</include>
+                                    <include>org.apache.commons:commons-math3</include>
+                                    <include>fr.loghub:loghub-core</include>
+                                    <include>org.apache.logging.log4j:log4j-api</include>
+                                    <include>org.apache.logging.log4j:log4j-core</include>
+                                    <include>org.apache.xmlgraphics:batik-all</include>
+                                    <include>com.axibase:date-processor</include>
                                 </includes>
                             </artifactSet>
                         </configuration>
