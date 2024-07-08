@@ -28,4 +28,8 @@ public class MsgpackIpSerializer extends JsonSerializer<InetAddress>  {
         MessagePackExtensionType ext = new MessagePackExtensionType(EXTENSION_TYPE, Arrays.copyOf(addressBytes, addressBytes.length));
         ((MessagePackGenerator)gen).writeExtensionType(ext);
     }
+    @Override
+    public Class<InetAddress> handledType() {
+        return InetAddress.class;
+    }
 }
