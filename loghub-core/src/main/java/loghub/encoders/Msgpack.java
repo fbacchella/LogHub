@@ -9,6 +9,7 @@ import loghub.BuilderClass;
 import loghub.CanBatch;
 import loghub.jackson.EventSerializer;
 import loghub.jackson.JacksonBuilder;
+import loghub.jackson.MsgpackIpSerializer;
 import loghub.jackson.MsgpackTimeSerializer.DateSerializer;
 import loghub.jackson.MsgpackTimeSerializer.InstantSerializer;
 import lombok.Setter;
@@ -20,6 +21,8 @@ public class Msgpack extends AbstractJacksonEncoder<Msgpack.Builder, MessagePack
     public static class Builder extends AbstractJacksonEncoder.Builder<Msgpack> {
         @Setter
         public boolean forwardEvent = false;
+        @Setter
+        public boolean ipSerialize = false;
         @Override
         public Msgpack build() {
             return new Msgpack(this);
@@ -31,6 +34,7 @@ public class Msgpack extends AbstractJacksonEncoder<Msgpack.Builder, MessagePack
 
     private static final SimpleModule dateModuleEvent;
     private static final SimpleModule dateModuleMap;
+    private static final SimpleModule ipModule;
     static {
         // They are shared by ObjectMapper, don't create useless instances.
         DateSerializer ds = new DateSerializer();
@@ -43,6 +47,8 @@ public class Msgpack extends AbstractJacksonEncoder<Msgpack.Builder, MessagePack
         dateModuleMap = new SimpleModule("LogHub", new Version(1, 0, 0, null, "loghub", "MsgpackAsMap"));
         dateModuleMap.addSerializer(ds);
         dateModuleMap.addSerializer(is);
+        ipModule = new SimpleModule("LogHub", new Version(1, 0, 0, null, "loghub", "IP"));
+        ipModule.addSerializer(new MsgpackIpSerializer());
     }
 
     private Msgpack(Builder builder) {
@@ -51,8 +57,12 @@ public class Msgpack extends AbstractJacksonEncoder<Msgpack.Builder, MessagePack
 
     @Override
     protected JacksonBuilder<MessagePackMapper> getWriterBuilder(Builder builder) {
-        return JacksonBuilder.get(MessagePackMapper.class)
+        JacksonBuilder<MessagePackMapper> jbuilder = JacksonBuilder.get(MessagePackMapper.class)
                              .module(builder.forwardEvent ? dateModuleEvent : dateModuleMap);
+        if (builder.ipSerialize) {
+            jbuilder.module(ipModule);
+        }
+        return jbuilder;
     }
 
 }

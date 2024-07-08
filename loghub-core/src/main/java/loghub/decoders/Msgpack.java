@@ -11,6 +11,8 @@ import loghub.BuilderClass;
 import loghub.ConnectionContext;
 import loghub.Helpers;
 import loghub.jackson.JacksonBuilder;
+import loghub.jackson.MsgPackIpDeserializer;
+import loghub.jackson.MsgpackIpSerializer;
 import loghub.jackson.MsgpackTimeDeserializer;
 
 /**
@@ -37,6 +39,7 @@ public class Msgpack extends AbstractJacksonDecoder<Msgpack.Builder, MessagePack
     static {
         ExtensionTypeCustomDeserializers extTypeCustomDesers = new ExtensionTypeCustomDeserializers();
         extTypeCustomDesers.addCustomDeser((byte) -1, new MsgpackTimeDeserializer());
+        extTypeCustomDesers.addCustomDeser(MsgpackIpSerializer.EXTENSION_TYPE, new MsgPackIpDeserializer());
         factory = new MessagePackFactory().setExtTypeCustomDesers(extTypeCustomDesers);
     }
 
