@@ -383,7 +383,12 @@ public class Geoip2 extends FieldsProcessor {
         if (geoipdb != null && "file".equals(geoipdb.getScheme())) {
             temproraryReader = new Reader(new File(geoipdb.getPath()));
         } else if (geoipdb != null && geoipdb.getScheme().startsWith("http")) {
-            temproraryReader =new Reader(new ByteArrayInputStream(readHttp()));
+            content = readHttp();
+            if (content != null) {
+                temproraryReader = new Reader(new ByteArrayInputStream(content));
+            } else {
+                return null;
+            }
         } else if (geoipdb != null) {
             try (InputStream is = geoipdb.toURL().openStream()) {
                 content = is.readAllBytes();
@@ -426,7 +431,8 @@ public class Geoip2 extends FieldsProcessor {
                 if (ex != null) {
                     throw ex;
                 } else {
-                    return new byte[0];
+                    logger.error("Failed to download {}: {}", geoipdb, response.getStatus());
+                    return null;
                 }
             }
         }
