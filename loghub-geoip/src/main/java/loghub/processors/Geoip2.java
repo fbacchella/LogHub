@@ -1,12 +1,12 @@
 package loghub.processors;
 
 import java.io.ByteArrayInputStream;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetAddress;
 import java.net.URI;
 import java.net.UnknownHostException;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -90,6 +90,11 @@ public class Geoip2 extends FieldsProcessor {
                 throw new EntryProcessorException(e);
             }
         }
+    }
+
+    @FunctionalInterface
+    interface MakeReader {
+        Reader build(NodeCache cache) throws IOException;
     }
 
     @Setter
@@ -341,14 +346,14 @@ public class Geoip2 extends FieldsProcessor {
     }
 
     private void refresh() {
-        Object newContent;
+        Optional<MakeReader> newContentMaker;
         try {
-            newContent = readNewDb();
+            newContentMaker = readNewDb();
         } catch (IOException e) {
             logger.atError().withThrowable(logger.isDebugEnabled() ? e : null).log("Unable to read the GeoIP database content: {}", () -> Helpers.resolveThrowableException(e));
             return;
         }
-        if (newContent != null) {
+        if (newContentMaker.isPresent()) {
             try {
                 dbProtectionLock.writeLock().lockInterruptibly();
             } catch (InterruptedException e) {
@@ -361,13 +366,7 @@ public class Geoip2 extends FieldsProcessor {
                 if (reader != null) {
                     reader.close();
                 }
-                if (newContent instanceof File) {
-                    reader = new Reader((File) newContent, geoipCache);
-                } else {
-                    try (InputStream is = new ByteArrayInputStream((byte[])newContent)) {
-                        reader = new Reader(is, geoipCache);
-                    }
-                }
+                reader = newContentMaker.get().build(geoipCache);
                 lastBuildDate = reader.getMetadata().getBuildDate().getTime();
             } catch (IOException e) {
                 logger.atError().withThrowable(logger.isDebugEnabled() ? e : null).log("Unable to read the GeoIP database content: {}", () -> Helpers.resolveThrowableException(e));
@@ -377,17 +376,18 @@ public class Geoip2 extends FieldsProcessor {
         }
     }
 
-    private Object readNewDb() throws IOException {
-        byte[] content = null;
+    private Optional<MakeReader> readNewDb() throws IOException {
+        byte[] content;
         Reader temproraryReader;
         if (geoipdb != null && "file".equals(geoipdb.getScheme())) {
-            temproraryReader = new Reader(new File(geoipdb.getPath()));
+            content = null;
+            temproraryReader = new Reader(Path.of(geoipdb).toFile());
         } else if (geoipdb != null && geoipdb.getScheme().startsWith("http")) {
             content = readHttp();
             if (content != null) {
                 temproraryReader = new Reader(new ByteArrayInputStream(content));
             } else {
-                return null;
+                return Optional.empty();
             }
         } else if (geoipdb != null) {
             try (InputStream is = geoipdb.toURL().openStream()) {
@@ -398,7 +398,7 @@ public class Geoip2 extends FieldsProcessor {
             try (InputStream is = Geoip2.class.getResourceAsStream("GeoLite2-City.mmdb")) {
                 if (is == null) {
                     logger.error("Didn't find a default database");
-                    return null;
+                    return Optional.empty();
                 } else {
                     content = is.readAllBytes();
                     temproraryReader = new Reader(new ByteArrayInputStream(content));
@@ -407,9 +407,19 @@ public class Geoip2 extends FieldsProcessor {
         }
         try {
             if (temproraryReader.getMetadata().getBuildDate().getTime() > lastBuildDate) {
-                return content != null ? content : new File(geoipdb.getPath());
+                MakeReader mr;
+                if (content != null) {
+                    mr = c -> {
+                        try (InputStream is = new ByteArrayInputStream(content)) {
+                            return new Reader(is, geoipCache);
+                        }
+                    };
+                } else {
+                    mr = c -> new Reader(Path.of(geoipdb).toFile(), c);
+                }
+                return Optional.of(mr);
             } else {
-                return null;
+                return Optional.empty();
             }
         } finally {
             temproraryReader.close();
