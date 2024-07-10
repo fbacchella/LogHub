@@ -10,7 +10,7 @@ import org.openjdk.jmh.runner.options.OptionsBuilder;
 
 public  abstract class RingBufferBenchmark extends AbstractQueueBenchmark {
 
-    private final RingBuffer<CountDownLatch> arrayBlockingQueue = new RingBuffer<>(2048, CountDownLatch.class);
+    private final RingBuffer<CountDownLatch> arrayBlockingQueue = new RingBuffer<>(2048);
 
     @Override
     CountDownLatch poll()

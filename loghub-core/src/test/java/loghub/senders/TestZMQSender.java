@@ -90,7 +90,7 @@ public class TestZMQSender {
                     .setType(SocketType.PULL);
         sinkconfigure.accept(sinkbuilder);
 
-        RingBuffer<Event> queue = new RingBuffer<>(10, Event.class);
+        RingBuffer<Event> queue = new RingBuffer<>(10);
         AtomicInteger count = new AtomicInteger();
         Thread injector = ThreadBuilder.get().setTask(() -> {
             try {

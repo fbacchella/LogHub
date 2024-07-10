@@ -447,7 +447,7 @@ public class TestElasticSearch {
         esbuilder.setClientService(MockElasticClient.class.getName());
         esbuilder.setIndex(new Expression("default"));
         try (ElasticSearch es = esbuilder.build()) {
-            es.setInQueue(new RingBuffer<>(count, Event.class));
+            es.setInQueue(new RingBuffer<>(count));
             Assert.assertTrue("Elastic configuration failed", es.configure(new Properties(Collections.emptyMap())));
             es.start();
             for (int i = 0 ; i < count ; i++) {
@@ -475,7 +475,7 @@ public class TestElasticSearch {
         esbuilder.setType(Tools.parseExpression("[#type]"));
         esbuilder.setClientService(MockElasticClient.class.getName());
         try (ElasticSearch es = esbuilder.build()) {
-            es.setInQueue(new RingBuffer<>(count, Event.class));
+            es.setInQueue(new RingBuffer<>(count));
             Assert.assertTrue("Elastic configuration failed", es.configure(new Properties(Collections.emptyMap())));
             es.start();
             for (int i = 0 ; i < count ; i++) {
@@ -529,7 +529,7 @@ public class TestElasticSearch {
         esbuilder.setIndex(Tools.parseExpression("[#index]"));
         esbuilder.setType(Tools.parseExpression("[#type]"));
         esbuilder.setClientService(MockElasticClient.class.getName());
-        RingBuffer<Event> inQueue = new RingBuffer<>(count, Event.class);
+        RingBuffer<Event> inQueue = new RingBuffer<>(count);
         try (ElasticSearch es = esbuilder.build()) {
             es.setInQueue(inQueue);
             Assert.assertTrue(es.configure(new Properties(Collections.emptyMap())));
@@ -550,7 +550,7 @@ public class TestElasticSearch {
         Function<MappingIterator<Map<String, ?>>, Map<String, Object>> handleSimpleBulk = mi -> this.handleSimpleBulk(mi, index, "_doc");
         httpOps = r -> elasticMockDialog(index, r, handleSimpleBulk);
         int count = 40;
-        RingBuffer<Event> queue = new RingBuffer<>(count/2, Event.class);
+        RingBuffer<Event> queue = new RingBuffer<>(count/2);
         ElasticSearch.Builder esbuilder = new ElasticSearch.Builder();
         esbuilder.setDestinations(new String[]{"http://localhost:9200"});
         esbuilder.setTimeout(5);
@@ -614,7 +614,7 @@ public class TestElasticSearch {
         esbuilder.setIndex(new Expression("[#index]", VariablePath.ofMeta("index")));
         esbuilder.setClientService(MockElasticClient.class.getName());
         try (ElasticSearch es = esbuilder.build()) {
-            es.setInQueue(new RingBuffer<>(count, Event.class));
+            es.setInQueue(new RingBuffer<>(count));
             Assert.assertTrue("Elastic configuration failed", es.configure(new Properties(Collections.emptyMap())));
             es.start();
             for (int i = 0 ; i < count ; i++) {
@@ -675,7 +675,7 @@ public class TestElasticSearch {
         esbuilder.setClientService(MockElasticClient.class.getName());
         esbuilder.setIlm(true);
         try (ElasticSearch es = esbuilder.build()) {
-            es.setInQueue(new RingBuffer<>(count, Event.class));
+            es.setInQueue(new RingBuffer<>(count));
             Assert.assertTrue("Elastic configuration failed", es.configure(new Properties(Collections.emptyMap())));
             es.start();
             for (int i = 0 ; i < count ; i++) {

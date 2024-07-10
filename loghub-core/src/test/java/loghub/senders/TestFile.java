@@ -49,7 +49,7 @@ public class TestFile {
     public TemporaryFolder folder = new TemporaryFolder();
 
     private String outFile;
-    private final RingBuffer<Event> queue = new RingBuffer<>(10, Event.class);
+    private final RingBuffer<Event> queue = new RingBuffer<>(10);
 
     @Before
     public void reset() {

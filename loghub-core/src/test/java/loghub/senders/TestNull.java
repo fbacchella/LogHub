@@ -38,7 +38,7 @@ public class TestNull {
         LogUtils.setLevel(logger, Level.TRACE, "loghub.senders.Null", "loghub.encoders.StringField");
     }
 
-    private final RingBuffer<Event> queue = new RingBuffer<>(10, Event.class);
+    private final RingBuffer<Event> queue = new RingBuffer<>(10);
 
     private Null send(Consumer<Null.Builder> prepare, Encoder encoder) throws InterruptedException {
         Null.Builder nb = Null.getBuilder();

@@ -43,7 +43,7 @@ public class TestTcp {
         LogUtils.setLevel(logger, Level.TRACE, "loghub.senders.Tcp");
     }
 
-    private final RingBuffer<Event> queue = new RingBuffer<>(10, Event.class);
+    private final RingBuffer<Event> queue = new RingBuffer<>(10);
 
     private ServerSocketChannel ssocket;
     private int port;

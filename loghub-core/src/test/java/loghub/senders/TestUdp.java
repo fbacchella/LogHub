@@ -41,7 +41,7 @@ public class TestUdp {
     }
 
 
-    private final RingBuffer<Event> queue = new RingBuffer<>(10, Event.class);
+    private final RingBuffer<Event> queue = new RingBuffer<>(10);
 
     private DatagramChannel ssocket;
     private int port;

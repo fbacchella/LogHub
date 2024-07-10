@@ -514,7 +514,7 @@ public class Configuration {
 
         PriorityBlockingQueue mainQueue = new PriorityBlockingQueue(queuesDepth, queueWeight);
         Map<String, RingBuffer<Event>> outputQueues = new HashMap<>(namedPipeLine.size());
-        conf.outputPipelines.forEach( i-> outputQueues.put(i, new RingBuffer<>(queuesDepth, Event.class)));
+        conf.outputPipelines.forEach(i -> outputQueues.put(i, new RingBuffer<>(queuesDepth)));
 
         newProperties.put(Properties.PROPSNAMES.MAINQUEUE.toString(), mainQueue);
         newProperties.put(Properties.PROPSNAMES.OUTPUTQUEUE.toString(), outputQueues);

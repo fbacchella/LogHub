@@ -161,7 +161,7 @@ public abstract class Sender extends Thread implements Closeable {
             isAsync = true;
             batchSize = builder.batchSize;
             threads = new Thread[builder.workers];
-            batches = new RingBuffer<>(threads.length * 2, Batch.class);
+            batches = new RingBuffer<>(threads.length * 2);
             publisher = getPublisher();
             batch = new AtomicReference<>(new Batch(this));
         } else {

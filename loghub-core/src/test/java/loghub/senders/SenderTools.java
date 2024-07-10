@@ -32,7 +32,7 @@ public class SenderTools {
 
     public static <S extends Sender> void send(Sender.Builder<S> builder)
             throws IOException, InterruptedException, EncodeException {
-        RingBuffer<Event> queue = new RingBuffer<>(10, Event.class);
+        RingBuffer<Event> queue = new RingBuffer<>(10);
 
         Encoder encoder = mock(Encoder.class);
         doThrow(new EncodeException("Dummy exception")).when(encoder).encode(any(Event.class));

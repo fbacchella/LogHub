@@ -127,11 +127,11 @@ public class PriorityBlockingQueue {
         if (weight < 0) {
             throw new IllegalArgumentException("Weight can't be negative");
         }
-        asyncQueue = new RingBuffer<>(capacity, QueueElement.class);
+        asyncQueue = new RingBuffer<>(capacity);
         if (weight == 0) {
             syncQueue = asyncQueue;
         } else {
-            syncQueue = new RingBuffer<>(capacity, QueueElement.class);
+            syncQueue = new RingBuffer<>(capacity);
         }
         this.weight = weight;
     }
@@ -141,7 +141,7 @@ public class PriorityBlockingQueue {
      * {@link Integer#MAX_VALUE} and no priority management.
      */
     public PriorityBlockingQueue() {
-        asyncQueue = new RingBuffer<>(1000, QueueElement.class);
+        asyncQueue = new RingBuffer<>(1000);
         syncQueue = asyncQueue;
         this.weight = 0;
     }

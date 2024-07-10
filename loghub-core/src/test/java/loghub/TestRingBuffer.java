@@ -14,7 +14,7 @@ public class TestRingBuffer {
 
     @Test(timeout = 5000)
     public void testSimple() throws InterruptedException {
-        RingBuffer<Integer> rb = new RingBuffer<>(10, Integer.class);
+        RingBuffer<Integer> rb = new RingBuffer<>(10);
         Assert.assertTrue(rb.isEmpty());
         Assert.assertNull(rb.peek());
         for (int i = 0; i < 16; i++) {
@@ -34,7 +34,7 @@ public class TestRingBuffer {
         AtomicReference<Throwable> failed1 = new AtomicReference<>(null);
         AtomicReference<Throwable> failed2 = new AtomicReference<>(null);
         AtomicReference<Throwable> failed3 = new AtomicReference<>(null);
-        RingBuffer<Integer> rb = new RingBuffer<>(16, Integer.class);
+        RingBuffer<Integer> rb = new RingBuffer<>(16);
 
         Thread t1 = ThreadBuilder.get().setName("PutterThread").setTask(() -> {
             try {

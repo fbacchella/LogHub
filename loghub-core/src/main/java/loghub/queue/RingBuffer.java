@@ -1,69 +1,59 @@
 package loghub.queue;
 
-import java.lang.invoke.MethodHandles;
-import java.lang.invoke.VarHandle;
-import java.lang.reflect.Array;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReferenceArray;
 import java.util.concurrent.locks.LockSupport;
 
 public class RingBuffer<E> {
-
-    private static final VarHandle HANDLE = MethodHandles.arrayElementVarHandle(Object[].class);
 
     private final AtomicLong headCursor = new AtomicLong(0);
     private final AtomicLong tailCursor = new AtomicLong(0);
     private final Semaphore capacitySemaphore;
     private final Semaphore notEmptySemaphore;
-    private final E[] entries;
+    private final AtomicReferenceArray<E> entries;
     private final int capacity;
     private final int capacityMask;
 
-    public RingBuffer(int capacity, Class<E> entriesClass) {
+    public RingBuffer(int capacity) {
         // Calculate the next power of 2, greater than or equal to x.
         // From Hacker's Delight, Chapter 3, Harry S. Warren Jr.
         this.capacity = 1 << (Integer.SIZE - Integer.numberOfLeadingZeros(capacity - 1));
         capacityMask = this.capacity - 1;
         capacitySemaphore = new Semaphore(this.capacity);
         notEmptySemaphore = new Semaphore(0);
-        entries = arrayInstance(entriesClass, this.capacity);
-    }
-
-    @SuppressWarnings("unchecked")
-    private E[] arrayInstance(Class<E> entriesClass, int capacity) {
-        return (E[]) Array.newInstance(entriesClass, capacity);
+        entries = new AtomicReferenceArray<>(this.capacity);
     }
 
     private boolean compareAndSet(int pos, E refValue, E newValue) {
-        return HANDLE.compareAndSet(this.entries, pos, refValue, newValue);
+        return entries.compareAndSet(pos, refValue, newValue);
     }
 
-    @SuppressWarnings("unchecked")
     private E getAndSet(int pos, E newValue) {
-        return  (E) HANDLE.getAndSet(this.entries, pos, newValue);
+        return entries.getAndSet(pos, newValue);
     }
 
-    @SuppressWarnings("unchecked")
     private E get(int pos) {
-        return (E) HANDLE.get(this.entries, pos);
+        return entries.get(pos);
     }
 
     void clear() {
         notEmptySemaphore.drainPermits();
         capacitySemaphore.drainPermits();
-        Arrays.fill(entries, null);
+        for (int i = 0; i < entries.length(); i++) {
+            entries.set(i, null);
+        }
         headCursor.set(0);
         tailCursor.set(0);
         capacitySemaphore.release(capacity);
     }
 
     int remainingCapacity() {
-        return entries.length - (int) (headCursor.get() - tailCursor.get());
+        return entries.length() - (int) (headCursor.get() - tailCursor.get());
     }
 
     public boolean put(E newEntry, long timeout, TimeUnit timeUnit) {
