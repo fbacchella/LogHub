@@ -47,7 +47,7 @@ class ParsingContext {
 
     int parseNano() {
         int nanos;
-        if (offset < length && datetime.charAt(offset) == '.') {
+        if (offset < length && (datetime.charAt(offset) == '.' || datetime.charAt(offset) == ',')) {
             int startPos = ++offset;
             int endPosExcl = Math.min(offset + 9, length);
             int frac = resolveDigitByCode(datetime, offset++);

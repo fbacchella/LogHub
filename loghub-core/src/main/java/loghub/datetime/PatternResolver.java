@@ -30,7 +30,7 @@ class PatternResolver {
     private static final String VALID_ZONE_PATTERNS = "(" + String.join("|", VALID_ZONE_FORMATTERS) + ")";
 
 
-    private static final Pattern IO8601_PATTERN = buildPattern("yyyy-MM-dd('.'|.)HH:mm:ss(\\.S{1,9})?(%s)?");
+    private static final Pattern IO8601_PATTERN = buildPattern("yyyy-MM-dd('.'|.)HH:mm:ss(([.,])S{1,9})?(%s)?");
     private static final Pattern RFC822_PATTERN = buildPattern("(eee,?\\s+)?(d{1,2})\\s+MMM(\\s+yyyy)?\\s+HH:mm:ss(\\.S{1,9})?(\\s+%s)?");
     private static final Pattern RFC3164_PATTERN = buildPattern("MMM\\s+(d{1,2})(\\s+yyyy)?\\s+HH:mm:ss(\\.S{1,9})?(\\s+%s)?");
 
@@ -48,11 +48,11 @@ class PatternResolver {
         } else if (NamedPatterns.NANOSECONDS.equalsIgnoreCase(pattern)) {
             result = new DatetimeProcessorUnixNano();
         } else if (NamedPatterns.ISO.equalsIgnoreCase(pattern)) {
-            result = new DatetimeProcessorIso8601(3, resolveZoneOffset("XXXXX"), zoneOffsetResolver("XXXXX"), 'T');
+            result = new DatetimeProcessorIso8601(3, resolveZoneOffset("XXXXX"), zoneOffsetResolver("XXXXX"), 'T', '.');
         } else if (NamedPatterns.ISO_SECONDS.equalsIgnoreCase(pattern)) {
-            result = new DatetimeProcessorIso8601(0, resolveZoneOffset("XXXXX"), zoneOffsetResolver("XXXXX"), 'T');
+            result = new DatetimeProcessorIso8601(0, resolveZoneOffset("XXXXX"), zoneOffsetResolver("XXXXX"), 'T', '.');
         } else if (NamedPatterns.ISO_NANOS.equalsIgnoreCase(pattern)) {
-            result = new DatetimeProcessorIso8601(9, resolveZoneOffset("XXXXX"), zoneOffsetResolver("XXXXX"), 'T');
+            result = new DatetimeProcessorIso8601(9, resolveZoneOffset("XXXXX"), zoneOffsetResolver("XXXXX"), 'T', '.');
         } else if (NamedPatterns.RFC822.equalsIgnoreCase(pattern)) {
             result = new DatetimeProcessorRfc822(true, 1, true, 0, resolveZoneOffset("Z"), zoneOffsetResolver("Z"));
         } else if (NamedPatterns.RFC3164.equalsIgnoreCase(pattern)) {
@@ -73,7 +73,13 @@ class PatternResolver {
             } else {
                 delimitor = matcherIso8601.group(1).charAt(0);
             }
-            return new DatetimeProcessorIso8601(fractions, resolveZoneOffset(matcherIso8601.group(3)), zoneOffsetResolver(matcherIso8601.group(4)), delimitor);
+            char decimalMark;
+            if (fractions > 0) {
+                decimalMark = matcherIso8601.group(3).charAt(0);
+            } else {
+                decimalMark = '.';
+            }
+            return new DatetimeProcessorIso8601(fractions, resolveZoneOffset(matcherIso8601.group(4)), zoneOffsetResolver(matcherIso8601.group(5)), delimitor, decimalMark);
         }
         Matcher matcherRfc822 = RFC822_PATTERN.matcher(pattern);
         if (matcherRfc822.matches()) {

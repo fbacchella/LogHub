@@ -195,12 +195,13 @@ public class TestPattern {
     }
 
     @Test
-    public void iso8164() {
+    public void iso8601() {
         runTest("iso",
                 List.of(
                         Map.entry("2024-05-03T12:56:29Z", "2024-05-03T12:56:29Z"),
                         Map.entry("2024-05-03T12:56:29+01:00", "2024-05-03T12:56:29+01:00"),
                         Map.entry("2024-05-03T12:56:29.1+01:00", "2024-05-03T12:56:29.100+01:00"),
+                        Map.entry("2024-05-03T12:56:29,1+01:00", "2024-05-03T12:56:29.100+01:00"),
                         Map.entry("2024-05-03T12:56:29.00000001+01:00", "2024-05-03T12:56:29.000000010+01:00")
                 ),
                 List.of(
@@ -218,6 +219,7 @@ public class TestPattern {
                 List.of(
                         Map.entry("2024-05-03T12:56:29+01:00", "2024-05-03T12:56:29+01:00"),
                         Map.entry("2024-05-03T12:56:29.1+01:00", "2024-05-03T12:56:29.100+01:00"),
+                        Map.entry("2024-05-03T12:56:29,1+01:00", "2024-05-03T12:56:29.100+01:00"),
                         Map.entry("2024-05-03T12:56:29.00000001+01:00", "2024-05-03T12:56:29.000000010+01:00")
                 ),
                 List.of(
@@ -233,6 +235,7 @@ public class TestPattern {
                 List.of(
                         Map.entry("2024-05-03T12:56:29+01:00", "2024-05-03T12:56:29+01:00"),
                         Map.entry("2024-05-03T12:56:29.1+01:00", "2024-05-03T12:56:29.100+01:00"),
+                        Map.entry("2024-05-03T12:56:29,1+01:00", "2024-05-03T12:56:29.100+01:00"),
                         Map.entry("2024-05-03T12:56:29.00000001+01:00", "2024-05-03T12:56:29.000000010+01:00")
                 ),
                 List.of(
@@ -248,6 +251,7 @@ public class TestPattern {
                 List.of(
                         Map.entry("2024-05-03X12:56:29+01:00", "2024-05-03T12:56:29+01:00"),
                         Map.entry("2024-05-03X12:56:29.1+01:00", "2024-05-03T12:56:29.100+01:00"),
+                        Map.entry("2024-05-03X12:56:29,1+01:00", "2024-05-03T12:56:29.100+01:00"),
                         Map.entry("2024-05-03X12:56:29.00000001+01:00", "2024-05-03T12:56:29.000000010+01:00")
                 ),
                 List.of(
@@ -256,6 +260,24 @@ public class TestPattern {
                         Map.entry(Instant.ofEpochMilli(1111), "1970-01-01X01:00:01.11+0100"),
                         Map.entry(Instant.ofEpochSecond(1,1), "1970-01-01X01:00:01+0100"),
                         Map.entry(Instant.ofEpochSecond(1,1_000_001), "1970-01-01X01:00:01+0100")
+                ),
+                List.of(
+                )
+        );
+        // The default ISO 8601 format on logback
+        runTest("yyyy-MM-dd HH:mm:ss,SSS",
+                List.of(
+                        Map.entry("2024-05-03 12:56:29", "2024-05-03T12:56:29+01:00[Europe/London]"),
+                        Map.entry("2024-05-03 12:56:29.1", "2024-05-03T12:56:29.100+01:00[Europe/London]"),
+                        Map.entry("2024-05-03 12:56:29,1", "2024-05-03T12:56:29.100+01:00[Europe/London]"),
+                        Map.entry("2024-05-03 12:56:29,00000001", "2024-05-03T12:56:29.000000010+01:00[Europe/London]")
+                ),
+                List.of(
+                        Map.entry(Instant.ofEpochMilli(1000), "1970-01-01 01:00:01"),
+                        Map.entry(Instant.ofEpochMilli(1001), "1970-01-01 01:00:01,001"),
+                        Map.entry(Instant.ofEpochMilli(1111), "1970-01-01 01:00:01,111"),
+                        Map.entry(Instant.ofEpochSecond(1,1), "1970-01-01 01:00:01"),
+                        Map.entry(Instant.ofEpochSecond(1,1_000_001), "1970-01-01 01:00:01,001")
                 ),
                 List.of(
                 )
@@ -346,6 +368,10 @@ public class TestPattern {
         assertInstance("yyyy-MM-dd|HH:mm:ss.SSZ", DatetimeProcessorIso8601.class);
         assertInstance("yyyy-MM-dd'T'HH:mm:ss.SSZ", DatetimeProcessorIso8601.class);
         assertInstance("yyyy-MM-dd HH:mm:ss.SSS", DatetimeProcessorIso8601.class);
+        assertInstance("yyyy-MM-dd HH:mm:ss,SSS", DatetimeProcessorIso8601.class);
+        assertInstance("yyyy-MM-dd HH:mm:ss", DatetimeProcessorIso8601.class);
+        assertInstance("yyyy-MM-dd HH:mm:ss.SSS", DatetimeProcessorIso8601.class);
+        assertInstance("yyyy-MM-dd HH:mm:ss.SSSOOOO", DatetimeProcessorIso8601.class);
         assertInstance("iso_nanos", DatetimeProcessorIso8601.class);
         assertInstance("iso_seconds", DatetimeProcessorIso8601.class);
         assertInstance("nanoseconds", DatetimeProcessorUnixNano.class);

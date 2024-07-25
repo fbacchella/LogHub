@@ -10,7 +10,6 @@ import java.time.ZonedDateTime;
 import java.time.temporal.ChronoField;
 import java.util.Collections;
 import java.util.Date;
-import java.util.List;
 import java.util.Locale;
 import java.util.TimeZone;
 import java.util.function.Function;
@@ -22,8 +21,6 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import loghub.datetime.DatetimeProcessor;
-
 import loghub.BeanChecks;
 import loghub.Expression;
 import loghub.LogUtils;
@@ -33,6 +30,7 @@ import loghub.Tools;
 import loghub.VarFormatter;
 import loghub.VariablePath;
 import loghub.configuration.Properties;
+import loghub.datetime.DatetimeProcessor;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
 
@@ -453,25 +451,4 @@ public class TestDateParser {
         );
     }
 
-    @Test
-    public void testResolve() {
-        List.of("yyyy-MM-dd' 'HH:mm:ss,SSS", "MMM dd HH:mm:ss", "MMM  d HH:mm:ss", "MMM dd YYYY HH:mm:ss",
-                "yyyy-MM-dd'T'HH:mm:ss.SSSXXXX", "yyyy-MM-dd HH:mm:ss.SSS", "yyyy-MM-dd'T'HH:mm:ssXXX").forEach(s -> {
-            System.err.format("%s %s%n", s, DatetimeProcessor.of(s));
-        });
-        for (char delimiter: List.of(' ', 'T')) {
-            DatetimeProcessor processor = DatetimeProcessor.of(String.format("yyyy-MM-dd%sHH:mm:ssZ", delimiter));
-            for (String offset: List.of("Z", "-08", "-0830", "-08:30", "-083015", "-08:30:15")) {
-                var toParse = String.format("2024-04-26%s13:47:00%s", delimiter, offset);
-                var time = processor.parse(toParse); //parseIso8601AsOffsetDateTime(toParse, delimiter);
-                System.err.println(time);
-            }
-            /*for (String offset: List.of("Z", "CET")) {
-                var toParse = String.format("2024-04-26%s13:47:00%s", delimiter, offset);
-                var time = DatetimeProcessorUtil.p
-                System.err.println(time);
-            }*/
-        }
-        var delimiter = ' ';
-    }
 }

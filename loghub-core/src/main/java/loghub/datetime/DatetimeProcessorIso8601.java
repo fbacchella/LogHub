@@ -14,21 +14,24 @@ class DatetimeProcessorIso8601 implements DatetimeProcessor {
     private final ParseTimeZone tzParser;
     private final ZoneId zoneId;
     private final char delimiter;
+    private final char decimalMark;
 
-    DatetimeProcessorIso8601(int fractionsOfSecond, AppendOffset zoneOffsetType, ParseTimeZone tzParser, char delimiter) {
+    DatetimeProcessorIso8601(int fractionsOfSecond, AppendOffset zoneOffsetType, ParseTimeZone tzParser, char delimiter, char decimalMark) {
         this.fractionsOfSecond = fractionsOfSecond;
         this.zoneOffsetType = zoneOffsetType;
         this.tzParser = tzParser;
         this.zoneId = ZoneId.systemDefault();
         this.delimiter = delimiter;
+        this.decimalMark = decimalMark;
     }
 
-    private DatetimeProcessorIso8601(int fractionsOfSecond, AppendOffset zoneOffsetType, ParseTimeZone tzParser, char delimiter, ZoneId zoneId) {
+    private DatetimeProcessorIso8601(int fractionsOfSecond, AppendOffset zoneOffsetType, ParseTimeZone tzParser, char delimiter, char decimalMark, ZoneId zoneId) {
         this.fractionsOfSecond = fractionsOfSecond;
         this.zoneOffsetType = zoneOffsetType;
         this.tzParser = tzParser;
         this.zoneId = zoneId;
         this.delimiter = delimiter;
+        this.decimalMark = decimalMark;
     }
 
     @Override
@@ -84,8 +87,10 @@ class DatetimeProcessorIso8601 implements DatetimeProcessor {
         DatetimeProcessorUtil.appendNumberWithFixedPositions(sb, zonedDateTime.getHour(), 2).append(':');
         DatetimeProcessorUtil.appendNumberWithFixedPositions(sb, zonedDateTime.getMinute(), 2).append(':');
         DatetimeProcessorUtil.appendNumberWithFixedPositions(sb, zonedDateTime.getSecond(), 2);
-        DatetimeProcessorUtil.printSubSeconds(fractionsOfSecond, zonedDateTime::getNano, sb);
-        zoneOffsetType.append(sb, zonedDateTime);
+        DatetimeProcessorUtil.printSubSeconds(decimalMark, fractionsOfSecond, zonedDateTime::getNano, sb);
+        if (zoneOffsetType != null) {
+            zoneOffsetType.append(sb, zonedDateTime);
+        }
         return sb.toString();
     }
 
@@ -97,7 +102,7 @@ class DatetimeProcessorIso8601 implements DatetimeProcessor {
     @Override
     public DatetimeProcessor withDefaultZone(ZoneId zoneId) {
         return this.zoneId.equals(zoneId) ? this :
-                new DatetimeProcessorIso8601(fractionsOfSecond, zoneOffsetType, tzParser, delimiter, zoneId);
+                       new DatetimeProcessorIso8601(fractionsOfSecond, zoneOffsetType, tzParser, delimiter, decimalMark, zoneId);
     }
 
 }

@@ -6,15 +6,15 @@ public class DatetimeProcessorUtil {
 
     private DatetimeProcessorUtil() {}
 
-    static void printSubSeconds(int fractionsOfSecond, IntSupplier nanoSource, StringBuilder sb) {
+    static void printSubSeconds(char decimalMark, int fractionsOfSecond, IntSupplier nanoSource, StringBuilder sb) {
         if (fractionsOfSecond > 0 && nanoSource.getAsInt() > 0) {
-            sb.append('.');
+            sb.append(decimalMark);
             DatetimeProcessorUtil.appendNumberWithFixedPositions(sb, nanoSource.getAsInt() / DatetimeProcessorUtil.powerOfTen(9 - fractionsOfSecond), fractionsOfSecond);
             // Remove useless 0
             for (int last = sb.length() - 1; sb.charAt(last) == '0'; last--) {
                 sb.deleteCharAt(last);
             }
-            if (sb.charAt(sb.length() - 1) == '.') {
+            if (sb.charAt(sb.length() - 1) == decimalMark) {
                 sb.deleteCharAt(sb.length() - 1);
             }
         }
