@@ -15,7 +15,7 @@ import java.util.stream.Stream;
 
 import javax.net.ssl.SSLHandshakeException;
 
-import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogBuilder;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.message.FormattedMessage;
@@ -96,23 +96,27 @@ public abstract class NettyTransport<SA extends SocketAddress, M, T extends Nett
         }
         @Override
         public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-            if (cause.getCause() instanceof NotSslRecordException) {
-                logger.warn("Not a SSL connexion from {} on SSL listen", () -> ctx.channel().remoteAddress());
-            } else if (cause.getCause() instanceof SSLHandshakeException) {
-                logger.warn("Failed SSL handshake from {}: {}", () -> ctx.channel().remoteAddress(), () -> Helpers.resolveThrowableException(cause));
-                logger.catching(Level.DEBUG, cause);
-            } else if (cause instanceof IOException) {
-                logger.warn("IO exception from {}: {}", () -> ctx.channel().remoteAddress(), () -> Helpers.resolveThrowableException(cause));
-                logger.catching(Level.DEBUG, cause);
-            } else if (cause instanceof CodecException) {
-                logger.warn("Codec exception from {}: {}", () -> ctx.channel().remoteAddress(), () -> Helpers.resolveThrowableException(cause));
-                logger.catching(Level.DEBUG, cause);
+            if (Helpers.isFatal(cause)) {
+                logger.fatal("Caught a critical exception", cause);
+                Start.fatalException(cause);
             } else {
-                logger.warn("Not handled exception {} from {}", () -> Helpers.resolveThrowableException(cause), () -> ctx.channel().remoteAddress());
-                logger.throwing(Level.WARN, cause);
+                LogBuilder lb = logger.atWarn()
+                                      .withThrowable(logger.isDebugEnabled() ? cause : null);
+                if (cause.getCause() instanceof NotSslRecordException) {
+                    lb.log("Not a SSL connexion from {} on SSL listen", () -> ctx.channel().remoteAddress());
+                } else if (cause.getCause() instanceof SSLHandshakeException) {
+                    lb.log("Failed SSL handshake from {}: {}", () -> ctx.channel().remoteAddress(), () -> Helpers.resolveThrowableException(cause));
+                } else if (cause instanceof IOException) {
+                    lb.log("IO exception from {}: {}", () -> ctx.channel().remoteAddress(), () -> Helpers.resolveThrowableException(cause));
+                } else if (cause instanceof CodecException) {
+                    lb.log("Codec exception from {}: {}", () -> ctx.channel().remoteAddress(), () -> Helpers.resolveThrowableException(cause));
+                } else {
+                    lb.withThrowable(logger.isWarnEnabled() ? cause : null)
+                      .log("Not handled exception {} from {}", () -> Helpers.resolveThrowableException(cause), () -> ctx.channel().remoteAddress());
+                }
             }
             if (! (ctx.channel() instanceof DatagramChannel)) {
-                // UDP should not be close
+                // UDP should not be closed
                 ctx.close();
                 logger.warn("channel closed");
             }
