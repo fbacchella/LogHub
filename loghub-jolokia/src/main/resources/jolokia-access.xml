@@ -18,7 +18,11 @@
         </mbean>
         <mbean>
             <name>java.lang:type=Runtime</name>
-            <attribute mode="read">*</attribute>
+            <attribute mode="read">Uptime</attribute>
+            <attribute mode="read">ManagementSpecVersion</attribute>
+            <attribute mode="read">ObjectName</attribute>
+            <attribute mode="read">Pid</attribute>
+            <attribute mode="read">StartTime</attribute>
             <operation>read,list</operation>
         </mbean>
         <mbean>
@@ -33,6 +37,21 @@
         </mbean>
         <mbean>
             <name>java.nio:type=BufferPool,name=*</name>
+            <attribute mode="read">*</attribute>
+            <operation>read,list</operation>
+        </mbean>
+        <mbean>
+            <name>java.lang:type=Compilation</name>
+            <attribute mode="read">*</attribute>
+            <operation>read,list</operation>
+        </mbean>
+        <mbean>
+            <name>java.lang:type=Threading</name>
+            <attribute mode="read">*</attribute>
+            <operation>read,list</operation>
+        </mbean>
+        <mbean>
+            <name>java.lang:type=OperatingSystem</name>
             <attribute mode="read">*</attribute>
             <operation>read,list</operation>
         </mbean>
