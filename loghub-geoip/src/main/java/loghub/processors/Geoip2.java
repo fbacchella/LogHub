@@ -10,6 +10,7 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -346,6 +347,7 @@ public class Geoip2 extends FieldsProcessor {
     }
 
     private void refresh() {
+        logger.debug("Will refresh GeoIP database from {}", () -> geoipdb);
         Optional<MakeReader> newContentMaker;
         try {
             newContentMaker = readNewDb();
@@ -367,6 +369,7 @@ public class Geoip2 extends FieldsProcessor {
                     reader.close();
                 }
                 reader = newContentMaker.get().build(geoipCache);
+                logger.debug("Reloaded GeoIP database of type {} from {}", () -> reader.getMetadata().getDatabaseType(), () -> geoipdb);
                 lastBuildDate = reader.getMetadata().getBuildDate().getTime();
             } catch (IOException e) {
                 logger.atError().withThrowable(logger.isDebugEnabled() ? e : null).log("Unable to read the GeoIP database content: {}", () -> Helpers.resolveThrowableException(e));
@@ -387,6 +390,7 @@ public class Geoip2 extends FieldsProcessor {
             if (content != null) {
                 temproraryReader = new Reader(new ByteArrayInputStream(content));
             } else {
+                logger.debug("Empty DB content from {}", geoipdb);
                 return Optional.empty();
             }
         } else if (geoipdb != null) {
@@ -406,6 +410,7 @@ public class Geoip2 extends FieldsProcessor {
             }
         }
         try {
+            logger.debug("Comparing new DB time {} with old {}", () -> temproraryReader.getMetadata().getBuildDate(), () -> new Date(lastBuildDate));
             if (temproraryReader.getMetadata().getBuildDate().getTime() > lastBuildDate) {
                 MakeReader mr;
                 if (content != null) {
@@ -434,6 +439,7 @@ public class Geoip2 extends FieldsProcessor {
         request.setUri(geoipdb);
         request.setConsumeBytes(InputStream::readAllBytes);
         try (HttpResponse<byte[]> response = httpClient.doRequest(request)) {
+            logger.debug("Response status is {} from {}", response::getStatus, () -> geoipdb);
             if (! response.isConnexionFailed()) {
                 return response.getParsedResponse();
             } else {
