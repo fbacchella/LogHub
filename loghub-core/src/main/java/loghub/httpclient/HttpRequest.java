@@ -36,4 +36,16 @@ public abstract class HttpRequest<T> {
 
     public abstract HttpRequest<T> setTypeAndContent(ContentType mimeType, ContentWriter source);
 
+    public HttpRequest<T> setConsumeBytes(ReadBody<InputStream, T> rb) {
+        this.consumeBytes = rb;
+        this.consumeText =  null;
+        return this;
+    }
+
+    public HttpRequest<T> setConsumeText(ReadBody<Reader, T> rb) {
+        this.consumeBytes = null;
+        this.consumeText =  rb;
+        return this;
+    }
+
 }
