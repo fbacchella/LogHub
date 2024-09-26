@@ -12,6 +12,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import loghub.LogUtils;
+import loghub.NullOrMissingValue;
 import loghub.Processor;
 import loghub.ProcessorException;
 import loghub.Tools;
@@ -23,10 +24,11 @@ import loghub.events.EventsFactory;
 
 public class TestFilter {
 
+    private static final Logger logger = LogManager.getLogger();
+
     @BeforeClass
     static public void configure() throws IOException {
         Tools.configure();
-        Logger logger = LogManager.getLogger();
         LogUtils.setLevel(logger, Level.TRACE, "loghub.configuration", "loghub.processors.Filter");
     }
 
@@ -38,21 +40,41 @@ public class TestFilter {
         EventsFactory factory = new EventsFactory();
         Event ev = factory.newEvent();
         ev.put("a1", 0);
-        ev.putAtPath(VariablePath.of("a", "b"), 0);
-        ev.put("a2", 1);
-        ev.put("a3", List.of(0));
+        ev.putAtPath(VariablePath.of("a2", "b"), 0);
+        ev.putAtPath(VariablePath.of("a2", "c"), List.of());
+        ev.put("a3", 1);
+        ev.put("a4", List.of(0));
+        ev.put("a5", List.of());
+        ev.putAtPath(VariablePath.of("a6", "b"), List.of());
         ev.put("c", 0);
+        ev.put("d", List.of());
         Tools.runProcessing(ev, p.namedPipeLine.get("main"), p);
+        logger.debug("Processed as {}", () -> ev);
         return ev;
     }
 
     @Test
-    public void test() throws IOException, ProcessorException {
+    public void testZero() throws IOException, ProcessorException {
         String conf = "pipeline[main]{ loghub.processors.Filter {lambda: x -> x == 0, fields: [\"a*\", \"b*\"],}}";
         Event ev = runTest(conf);
-        Assert.assertEquals(2, ev.size());
-        Assert.assertEquals(1, ev.get("a2"));
-        Assert.assertFalse(ev.containsKey("a3"));
+        Assert.assertEquals(7, ev.size());
+        Assert.assertEquals(NullOrMissingValue.MISSING, ev.getAtPath(VariablePath.of("a2", "b")));
+        Assert.assertEquals(List.of(), ev.getAtPath(VariablePath.of("a2", "c")));
+        Assert.assertEquals(1, ev.getAtPath(VariablePath.of("a3")));
+        Assert.assertEquals(List.of(), ev.getAtPath(VariablePath.of("a5")));
+        Assert.assertEquals(0, ev.get("c"));
+        Assert.assertEquals(List.of(), ev.get("d"));
+    }
+
+    @Test
+    public void testEmpty() throws IOException, ProcessorException {
+        String conf = "pipeline[main]{ loghub.processors.Filter {lambda: x -> isEmpty(x), field: [a2],} | loghub.processors.Filter {lambda: x -> isEmpty(x), field: [a6],}}";
+        Event ev = runTest(conf);
+        Assert.assertEquals(7, ev.size());
+        Assert.assertEquals(0, ev.getAtPath(VariablePath.of("a2", "b")));
+        Assert.assertEquals(NullOrMissingValue.MISSING, ev.getAtPath(VariablePath.of("a2", "c")));
+        Assert.assertEquals(NullOrMissingValue.MISSING, ev.getAtPath(VariablePath.of("a6")));
+        Assert.assertEquals(1, ev.get("a3"));
         Assert.assertEquals(0, ev.get("c"));
     }
 
@@ -60,9 +82,9 @@ public class TestFilter {
     public void testNoIterate() throws IOException, ProcessorException {
         String conf = "pipeline[main]{ loghub.processors.Filter {lambda: x -> x == 0, fields: [\"a*\", \"b*\"], iterate: false}}";
         Event ev = runTest(conf);
-        Assert.assertEquals(3, ev.size());
-        Assert.assertEquals(1, ev.get("a2"));
-        Assert.assertEquals(List.of(0), ev.get("a3"));
+        Assert.assertEquals(7, ev.size());
+        Assert.assertEquals(NullOrMissingValue.MISSING, ev.getAtPath(VariablePath.of("a2", "b")));
+        Assert.assertEquals(List.of(0), ev.get("a4"));
         Assert.assertEquals(0, ev.get("c"));
     }
 

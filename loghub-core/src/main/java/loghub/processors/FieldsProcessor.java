@@ -96,6 +96,8 @@ public abstract class FieldsProcessor extends Processor {
         }
     }
 
+    @Setter
+    @Getter
     private VariablePath field = DEFAULT_FIELD;
     private Pattern[] patterns = new Pattern[]{};
     private String[] globs = new String[] {};
@@ -164,15 +166,24 @@ public abstract class FieldsProcessor extends Processor {
                 }
                 List<Object> results = new ArrayList<>((values).size() * 2);
                 Collections.reverse(values);
-                event.insertProcessor(new Processor() {
-                    @Override
-                    public boolean process(Event event) {
-                        if (! (FieldsProcessor.this instanceof Filter && results.isEmpty())) {
-                            event.putAtPath(resolveDestination(toprocess), results);
-                        }
+                ProcessEvent pe = ev -> {
+                    ev.putAtPath(resolveDestination(toprocess), results);
+                    if (FieldsProcessor.this instanceof Filter) {
+                        Filter f = (Filter) FieldsProcessor.this;
+                        return FieldsProcessor.this.filterField(ev, toprocess, ev.getAtPath(toprocess), r -> {
+                            try {
+                                if (f.processLeaf(ev, r) == RUNSTATUS.REMOVE) {
+                                    ev.removeAtPath(toprocess);
+                                }
+                            } catch (ProcessorException ex) {
+                                throw new UncheckedProcessorException(ex);
+                            }
+                        });
+                    } else {
                         return true;
                     }
-                });
+                };
+                event.insertProcessor(fromLambda(FieldsProcessor.this, pe));
                 addCollectionsProcessing(values, event, toprocess, results);
                 throw IgnoredEventException.INSTANCE;
             } else {
@@ -335,7 +346,9 @@ public abstract class FieldsProcessor extends Processor {
         try {
             Object processed = resolver.get();
             if (processed instanceof Map && inPlace) {
-                event.putAll((Map) processed);
+                @SuppressWarnings("unchecked")
+                Map<String, ?> pr = (Map<String, ?>) processed;
+                event.putAll(pr);
             } else if (! (processed instanceof RUNSTATUS)) {
                 postProcess.accept(processed);
             } else if (processed == RUNSTATUS.REMOVE) {
@@ -394,12 +407,7 @@ public abstract class FieldsProcessor extends Processor {
     }
 
     void addCollectionsProcessing(List<Object> values, Event event, VariablePath toprocess, List<Object> results) {
-        values.forEach(v -> event.insertProcessor(new Processor() {
-            @Override
-            public boolean process(Event ev) throws ProcessorException {
-                return FieldsProcessor.this.filterField(event, toprocess, v, results::add);
-            }
-        }));
+        values.forEach(v -> event.insertProcessor(fromLambda(this, ev -> FieldsProcessor.this.filterField(ev, toprocess, v, results::add))));
     }
 
     public String[] getFields() {
@@ -413,14 +421,6 @@ public abstract class FieldsProcessor extends Processor {
             this.globs[i] = fields[i];
             this.patterns[i] = Helpers.convertGlobToRegex(this.globs[i]);
         }
-    }
-
-    public VariablePath getField() {
-        return field;
-    }
-
-    public void setField(VariablePath field) {
-        this.field = field;
     }
 
     public void setInPlace(boolean inPlace) {
@@ -447,7 +447,7 @@ public abstract class FieldsProcessor extends Processor {
         }
     }
 
-    public TRAVERSAL_ORDER getTraversal() {
+    protected TRAVERSAL_ORDER getTraversal() {
         return TRAVERSAL_ORDER.NONE;
     }
 

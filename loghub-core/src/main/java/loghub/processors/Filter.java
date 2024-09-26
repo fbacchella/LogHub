@@ -39,17 +39,13 @@ public class Filter extends TreeWalkProcessor {
         if (Boolean.TRUE.equals(filter.eval(event, value))) {
             return RUNSTATUS.REMOVE;
         } else {
-            return RUNSTATUS.NOSTORE;
+            return value;
         }
     }
 
     @Override
     protected Object processNode(Event event, Map<String, Object> value) throws ProcessorException {
-        if (value.isEmpty()) {
-            return RUNSTATUS.REMOVE;
-        } else {
-            return RUNSTATUS.NOSTORE;
-        }
+        return processLeaf(event, value);
     }
 
 }

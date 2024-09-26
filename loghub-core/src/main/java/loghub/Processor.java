@@ -183,4 +183,29 @@ public abstract class Processor {
         this.id = id;
     }
 
+    public interface ProcessEvent {
+        boolean process(Event event) throws ProcessorException;
+    }
+
+    private static class LambdaProcessor extends Processor {
+        private final ProcessEvent processEvent;
+        public LambdaProcessor(Logger logger, ProcessEvent processEvent) {
+            super(logger);
+            this.processEvent = processEvent;
+        }
+        @Override
+        public boolean process(Event event) throws ProcessorException {
+            return processEvent.process(event);
+        }
+
+        @Override
+        public boolean isprocessNeeded(Event event) {
+            return true;
+        }
+    }
+
+    public static Processor fromLambda(Processor holder, ProcessEvent pe) {
+        return new LambdaProcessor(holder.logger, pe);
+    }
+
 }
