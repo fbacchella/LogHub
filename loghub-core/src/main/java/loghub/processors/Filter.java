@@ -10,6 +10,7 @@ import loghub.events.Event;
 import lombok.Setter;
 
 @BuilderClass(Filter.Builder.class)
+@FieldsProcessor.ProcessNullField
 public class Filter extends TreeWalkProcessor {
 
     public static class Builder extends TreeWalkProcessor.Builder<Filter> {
