@@ -12,6 +12,10 @@
     <artifactId>loghub-geoip</artifactId>
     <name>LogHub :: MaxMind GeoIP</name>
 
+    <properties>
+        <geoip2.version>4.2.1</geoip2.version>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>fr.loghub</groupId>

@@ -13,7 +13,7 @@
     <name>LogHub :: Protobuf decoder</name>
 
     <properties>
-        <protbuf.version>4.27.5</protbuf.version>
+        <protbuf.version>4.28.2</protbuf.version>
     </properties>
 
     <dependencies>
