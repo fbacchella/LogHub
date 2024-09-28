@@ -9,6 +9,7 @@ import java.util.Optional;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.jolokia.json.JSONStructure;
 import org.jolokia.jvmagent.JvmAgentConfig;
 import org.jolokia.jvmagent.ParsedUri;
 import org.jolokia.server.core.config.Configuration;
@@ -21,7 +22,6 @@ import org.jolokia.server.core.service.api.JolokiaServiceManager;
 import org.jolokia.server.core.service.api.LogHandler;
 import org.jolokia.server.core.service.api.Restrictor;
 import org.jolokia.server.core.service.impl.ClasspathServiceCreator;
-import org.jolokia.shaded.org.json.simple.JSONAware;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufInputStream;
@@ -48,9 +48,9 @@ public class JolokiaService extends HttpRequestProcessing {
                              .build();
     }
 
+    @Setter
     @Accessors(chain=true)
     public static class Builder {
-        @Setter
         String policyLocation;
         public JolokiaService build() {
             return new JolokiaService(this);
@@ -60,7 +60,7 @@ public class JolokiaService extends HttpRequestProcessing {
         return new Builder();
     }
 
-    private class Log4j2LogHandler implements LogHandler {
+    private static class Log4j2LogHandler implements LogHandler {
         Logger logger = LogManager.getLogger("org.jolokia");
         @Override
         public void debug(String message) {
@@ -122,7 +122,7 @@ public class JolokiaService extends HttpRequestProcessing {
     @Override
     protected void processRequest(FullHttpRequest request, ChannelHandlerContext ctx) throws HttpRequestFailure {
         try {
-            JSONAware response;
+            JSONStructure response;
             HttpMethod method = request.method();
             if (method.equals(HttpMethod.GET)) {
                 response = handleGet(request);
@@ -146,7 +146,7 @@ public class JolokiaService extends HttpRequestProcessing {
         }
     }
 
-    private JSONAware handlePost(FullHttpRequest request) throws IOException, EmptyResponseException {
+    private JSONStructure handlePost(FullHttpRequest request) throws IOException, EmptyResponseException {
         ParsedUri parsedUri = parseUri(request);
         String encoding = Optional.ofNullable(HttpUtil.getCharsetAsSequence(request)).orElse("UTF-8").toString();
         try (InputStream is = new ByteBufInputStream(request.content())) {
@@ -154,7 +154,7 @@ public class JolokiaService extends HttpRequestProcessing {
         }
     }
 
-    private JSONAware handleGet(FullHttpRequest request) throws EmptyResponseException {
+    private JSONStructure handleGet(FullHttpRequest request) throws EmptyResponseException {
         ParsedUri parsedUri = parseUri(request);
         return requestHandler.handleGetRequest(parsedUri.getUri().toString(), parsedUri.getPathInfo(), parsedUri.getParameterMap());
     }
