@@ -38,7 +38,7 @@ public class EsPipelineConvert implements BaseCommand {
         for (String pipeline: unknownOptions) {
             try {
                 Map<String, Object> o = reader.readValue(Helpers.fileUri(pipeline).toURL());
-                @SuppressWarnings("uncheck")
+                @SuppressWarnings("unchecked")
                 List<Map<String, Map<String, Object>>> processors = (List<Map<String, Map<String, Object>>>) o.get("processors");
                 System.out.format("pipeline[%s] {%n", pipelineName);
                 processPipeline(processors, "    ");
@@ -110,6 +110,9 @@ public class EsPipelineConvert implements BaseCommand {
             case "gsub":
                 gsub(params, prefix);
                 break;
+            case "json":
+                json(params, prefix);
+                break;
             default:
                 System.out.println(prefix + "// " + processor);
             }
@@ -139,9 +142,12 @@ public class EsPipelineConvert implements BaseCommand {
     private void foreach(Map<String, Object> params, String prefix) {
         @SuppressWarnings("unchecked")
         Map<String, Map<String, Object>> process = (Map<String, Map<String, Object>>) params.remove("processor");
-        process.get("kv").put("iterate", true);
-        if ("_ingest._value".equals(process.get("kv").get("field")) ) {
-            process.get("kv").put("field", params.remove("field"));
+        if (process.containsKey("kv")) {
+            Map<String, Object> kv = process.get("kv");
+            kv.put("iterate", true);
+            if ("_ingest._value".equals(kv.get("field")) ) {
+                kv.put("field", params.remove("field"));
+            }
         }
         params.remove("if");
         System.out.format("%s// foreach%s%n", prefix, params.isEmpty() ? "": params);
@@ -167,7 +173,7 @@ public class EsPipelineConvert implements BaseCommand {
             String field = resolveField((params.remove("field")));
             System.out.format("%s%s- |%n", etlFilter(prefix, params), field);
         } else {
-            @SuppressWarnings("uncheck")
+            @SuppressWarnings("unchecked")
             List<String> fields = (List<String>) params.remove("field");
             for (String subfield: fields) {
                 System.out.format("%s%s- |%n", etlFilter(prefix, params), resolveField(subfield));
@@ -202,23 +208,19 @@ public class EsPipelineConvert implements BaseCommand {
         }
     }
 
-    private final Pattern varPattern = Pattern.compile("ctx\\??\\.([_.a-zA-Z0-9?]+)");
-    private final Pattern stringPattern = Pattern.compile("'([^']*)'");
-    private final Pattern containsPattern = Pattern.compile("(\\[.*]).contains\\((.*)\\)");
-    Map<Pattern, Function<MatchResult, String>> transformers = Map.ofEntries(
+    private static final List<Map.Entry<Pattern, Function<MatchResult, String>>> transformers = List.of(
+            Map.entry(Pattern.compile("((?<!\\\\))\n"), mr -> mr.group(1)),
             Map.entry(Pattern.compile("ctx\\??\\.([_.a-zA-Z0-9?]+)"), mr -> "[" + mr.group(1).replace(".", " ").replace("?", "") + "]"),
             Map.entry(Pattern.compile("'([^']*)'"), mr -> "\"" + mr.group(1) + "\""),
             Map.entry(Pattern.compile("(\\[.*]).contains\\((.*)\\)"), mr -> mr.group(2) + " in list" + mr.group(1).replace("[", "(").replace("]", ")"))
     );
-    private String resolveExpression(String expr) {
-        for (Map.Entry<Pattern, Function<MatchResult, String>> e: transformers.entrySet()) {
-            expr = e.getKey().matcher(expr).replaceAll(e.getValue());
-        }
-        return expr;
-    }
 
-    private String convert(MatchResult mr) {
-        return "[" + mr.group(1).replace(".", " ").replace("?", "") + "]";
+    private String resolveExpression(String expr) {
+        String newExpression = expr;
+        for (Map.Entry<Pattern, Function<MatchResult, String>> e: transformers) {
+            newExpression = e.getKey().matcher(newExpression).replaceAll(e.getValue());
+        }
+        return newExpression;
     }
 
     Pattern ingestPipelinePattern = Pattern.compile("\\{\\{ IngestPipeline \"(.*)\" }}");
@@ -258,8 +260,8 @@ public class EsPipelineConvert implements BaseCommand {
         String geoipdb = (String) params.remove("database_file");
         attributes.put("geoipdb", resolveValue(geoipdb != null ? geoipdb : "/usr/share/GeoIP/GeoIP2-City.mmdb"));
         attributes.put("refresh", resolveValue("P2D"));
-        attributes.put("field", resolveValue(params.remove("field")));
-        attributes.put("destination", resolveValue(params.remove("target_field")));
+        attributes.put("field", resolveField(params.remove("field")));
+        attributes.put("destination", resolveField(params.remove("target_field")));
         doProcessor(prefix, "loghub.processors.Geoip2", filterComments(params, attributes), attributes);
     }
 
@@ -317,6 +319,13 @@ public class EsPipelineConvert implements BaseCommand {
         Object pattern = params.remove("pattern");
         Object replacement = params.remove("replacement");
         System.out.format("%s%s = gsub(%s, /%s/, %s) |%n", etlFilter(prefix, params), target_field, field, pattern, resolveValue(replacement));
+    }
+
+    private void json(Map<String, Object> params, String prefix) {
+        Map<String, Object> attributes = new HashMap<>();
+        attributes.put("field", resolveField(params.remove("field")));
+        attributes.put("path", resolveField(params.remove("target_field")));
+        doProcessor(prefix, "loghub.processors.ParseJson", filterComments(params, attributes), attributes);
     }
 
     private void doProcessor(String prefix, String processor, String comment, Map<String, Object> fields) {
