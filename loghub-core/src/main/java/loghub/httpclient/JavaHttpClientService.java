@@ -43,6 +43,7 @@ public class JavaHttpClientService extends AbstractHttpClientService {
     private JavaHttpClientService(Builder builder) {
         super(builder);
         HttpClient.Builder clientBuilder = HttpClient.newBuilder()
+                                                     .followRedirects(HttpClient.Redirect.NORMAL)
                                                      .connectTimeout(Duration.ofSeconds(builder.timeout));
         Optional.ofNullable(builder.sslContext).ifPresent(clientBuilder::sslContext);
         Optional.ofNullable(builder.sslParams).ifPresent(clientBuilder::sslParameters);
