@@ -64,6 +64,8 @@ import io.netty.handler.codec.http.QueryStringDecoder;
 import loghub.Helpers;
 import loghub.security.ssl.MultiKeyStoreProvider.SubKeyStore;
 
+import static loghub.Helpers.NATURALSORTSTRING;
+
 public class MultiKeyStoreSpi extends KeyStoreSpi {
 
     private static final Logger logger = LogManager.getLogger();
@@ -362,9 +364,12 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
         if ("system".equals(path)) {
             logger.debug("Loading OS dependent certificates");
             String operatingSystem = System.getProperty("os.name", "");
+            String jvmVersion = System.getProperty("java.version", "0");
             String[] systemStores = new String[] {};
             
-            if (operatingSystem.startsWith("Mac")) {
+            if (operatingSystem.startsWith("Mac") && NATURALSORTSTRING.compare(jvmVersion, "23") >= 0) {
+                systemStores = new String[] {"KeychainStore", "KeychainStore-ROOT"};
+            } else if (operatingSystem.startsWith("Mac")){
                 systemStores = new String[] {"KeychainStore"};
             } else if (operatingSystem.startsWith("Windows")){
                 systemStores = new String[] {"Windows-MY", "Windows-ROOT"};
