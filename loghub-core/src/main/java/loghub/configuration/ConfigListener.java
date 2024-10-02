@@ -82,12 +82,14 @@ import loghub.RouteParser.StringLiteralContext;
 import loghub.RouteParser.TestContext;
 import loghub.RouteParser.TestExpressionContext;
 import loghub.RouteParser.VarPathContext;
+import loghub.RouteParser.ForeachContext;
 import loghub.VarFormatter;
 import loghub.VariablePath;
 import loghub.processors.AnonymousSubPipeline;
 import loghub.processors.Drop;
 import loghub.processors.Etl;
 import loghub.processors.FireEvent;
+import loghub.processors.ForEach;
 import loghub.processors.Forker;
 import loghub.processors.Forwarder;
 import loghub.processors.Log;
@@ -594,8 +596,7 @@ class ConfigListener extends RouteBaseListener {
     @Override
     public void enterPath(PathContext ctx) {
         stack.push(StackMarker.PATH);
-        WrapEvent we = new WrapEvent();
-        we.setPathArray(convertEventVariable(ctx.eventVariable()));
+        WrapEvent we = new WrapEvent(convertEventVariable(ctx.eventVariable()));
         ProcessorInstance pi = new ProcessorInstance(we);
         stack.push(pi);
     }
@@ -615,6 +616,21 @@ class ConfigListener extends RouteBaseListener {
             assert StackMarker.PATH == o || (o instanceof ProcessorInstance) : o.getClass();
         } while(StackMarker.PATH != o);
         stack.push(pipe);
+    }
+
+    @Override
+    public void enterForeach(ForeachContext ctx) {
+        ObjectWrapped<VariablePath> wrapped = new ObjectWrapped<>(convertEventVariable(ctx.eventVariable()));
+        stack.push(wrapped);
+    }
+
+    @Override
+    public void exitForeach(ForeachContext ctx) {
+        ProcessorInstance pi = (ProcessorInstance) stack.pop();
+        @SuppressWarnings("unchecked")
+        ObjectWrapped<VariablePath> wrapped = (ObjectWrapped<VariablePath>) stack.pop();
+        ForEach fe = new ForEach(wrapped.wrapped, pi.wrapped);
+        stack.push(new ProcessorInstance(fe));
     }
 
     @Override

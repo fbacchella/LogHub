@@ -59,6 +59,7 @@ pipenode
     | object
     | '{' pipenodeList? '}'
     | path
+    | foreach
     ;
 
 object
@@ -180,6 +181,10 @@ path
     : 'path' eventVariable pipenode
     ;
  
+foreach
+    : 'foreach' eventVariable pipenode
+    ;
+
 test: testExpression '?' (pipenode | '>' forwardpiperef | '+' forkpiperef ) (':' (pipenode | '>' forwardpiperef | '+' forkpiperef ))? ;
 
 testExpression: expression;
@@ -285,7 +290,7 @@ sourcedef
     ;
 
 identifier
-    : 'index' | 'seeds' | 'doFire' | 'onFire' | 'expiration' | 'forward' | 'default' | 'merge' | 'inPipeline' | 'path' | 'bean' | 'field' | 'input' | 'in' | 'decoder'
+    : 'index' | 'seeds' | 'doFire' | 'onFire' | 'expiration' | 'forward' | 'default' | 'merge' | 'inPipeline' | 'path' | 'foreach' | 'bean' | 'field' | 'input' | 'in' | 'decoder'
     | 'sslContext' | 'sslParams'
     | 'if' | 'success' | 'failure' | 'exception' | 'field' | 'fields' | 'destination' | 'destinationTemplate' | 'encoder' | 'log' | 'fire' | 'pipeline' | 'output' | 'onExpiration'
     | 'defaultMeta' | 'map'
