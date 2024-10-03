@@ -855,7 +855,7 @@ class ConfigListener extends RouteBaseListener {
                 return VariablePath.of(path);
             }
         } else {
-            return VariablePath.parse(".");
+            return VariablePath.parse(ev.vproot.getText());
         }
     }
     private List<String> convertEventVariable(VarPathContext vp) {

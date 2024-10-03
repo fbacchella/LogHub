@@ -88,6 +88,38 @@ public class TestForEach {
         Assert.assertNull(ev.getAtPath(VariablePath.of("a")));
     }
 
+    @Test
+    public void copy() throws IOException, InterruptedException {
+        Consumer<Event> populate = ev -> ev.putAtPath(VariablePath.of("a"), List.of(new HashMap<>(Map.of("b", "1")), new HashMap<>(Map.of("b", "2"))));
+        Event ev = run(new StringReader("pipeline[main]{ foreach[a]([b] == \"1\" ? [. c]=[^]) }"), populate);
+        @SuppressWarnings("unchecked")
+        List<Map<?, ?>> l = (List<Map<?, ?>>) ev.get("a");
+        Assert.assertEquals(1, l.get(0).size());
+        Assert.assertEquals(1, l.get(1).size());
+        Assert.assertEquals(Map.of("b", "1"), ev.get("c"));
+    }
+
+    @Test
+    public void move() throws IOException, InterruptedException {
+        Consumer<Event> populate = ev -> ev.putAtPath(VariablePath.of("a"), List.of(new HashMap<>(Map.of("b", "1")), new HashMap<>(Map.of("b", "2"))));
+        Event ev = run(new StringReader("pipeline[main]{ foreach[a]([b] == \"1\" ? [. c] < [^]) }"), populate);
+        @SuppressWarnings("unchecked")
+        List<Map<?, ?>> l = (List<Map<?, ?>>) ev.get("a");
+        Assert.assertEquals(0, l.get(0).size());
+        Assert.assertEquals(1, l.get(1).size());
+        Assert.assertEquals(Map.of("b", "1"), ev.get("c"));
+    }
+
+    @Test
+    public void delete() throws IOException, InterruptedException {
+        Consumer<Event> populate = ev -> ev.putAtPath(VariablePath.of("a"), List.of(new HashMap<>(Map.of("b", "1")), new HashMap<>(Map.of("b", "2"))));
+        Event ev = run(new StringReader("pipeline[main]{ foreach[a]([b] == \"1\" ? [^]-) }"), populate);
+        @SuppressWarnings("unchecked")
+        List<Map<?, ?>> l = (List<Map<?, ?>>) ev.get("a");
+        Assert.assertTrue(l.get(0).isEmpty());
+        Assert.assertEquals(Map.of("b", "2"), l.get(1));
+    }
+
     public Event run(Reader r, Consumer<Event> populate) throws IOException, InterruptedException {
         BlockingConnectionContext ctx = new BlockingConnectionContext();
         Properties props = Tools.loadConf(r);

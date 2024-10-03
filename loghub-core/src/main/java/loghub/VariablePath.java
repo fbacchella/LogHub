@@ -26,6 +26,8 @@ public abstract class VariablePath {
     private static final AtomicInteger VP_COUNT;
 
     public static final VariablePath EMPTY;
+    public static final VariablePath ROOT;
+    public static final VariablePath CURRENT;
     public static final VariablePath TIMESTAMP;
     public static final VariablePath LASTEXCEPTION;
     public static final VariablePath ALLMETAS;
@@ -42,6 +44,8 @@ public abstract class VariablePath {
         VP_COUNT = new AtomicInteger(0);
         PATH_CACHE_ID = new AtomicReference<>(new VariablePath[128]);
         EMPTY = new Empty();
+        ROOT = new Root();
+        CURRENT = new Current();
         TIMESTAMP = new TimeStamp();
         LASTEXCEPTION = new LastException();
         ALLMETAS = new AllMeta();
@@ -419,6 +423,76 @@ public abstract class VariablePath {
         }
     }
 
+    private static class Root extends VariablePath {
+        @Override
+        public int length() {
+            return 1;
+        }
+        @Override
+        public VariablePath append(String element) {
+            return VariablePath.of(".", element);
+        }
+        @Override
+        public String get(int index) {
+            if (index == 0) {
+                return ".";
+            } else {
+                throw new ArrayIndexOutOfBoundsException("Single element path");
+            }
+        }
+        @Override
+        public String toString() {
+            return "[.]";
+        }
+        @Override
+        public String groovyExpression() {
+            return "event.getRealEvent()";
+        }
+        @Override
+        public int hashCode() {
+            return Root.class.hashCode();
+        }
+        @Override
+        public boolean equals(Object obj) {
+            return obj instanceof Root;
+        }
+    }
+
+    private static class Current extends VariablePath {
+        @Override
+        public int length() {
+            return 1;
+        }
+        @Override
+        public VariablePath append(String element) {
+            return VariablePath.of(element);
+        }
+        @Override
+        public String get(int index) {
+            if (index == 0) {
+                return "^";
+            } else {
+                throw new ArrayIndexOutOfBoundsException("Single element path");
+            }
+        }
+        @Override
+        public String toString() {
+            return "[^]";
+        }
+        @Override
+        public String groovyExpression() {
+            return "event";
+        }
+        @Override
+        public int hashCode() {
+            return Current.class.hashCode();
+        }
+        @Override
+        public boolean equals(Object obj) {
+            return obj instanceof Current;
+        }
+    }
+
     private static class AllMeta extends VariablePath {
         @Override
         public boolean isMeta() {
@@ -500,6 +574,10 @@ public abstract class VariablePath {
             return PATH_CACHE_STRING.computeIfAbsent(path, s -> VariablePath.ofContext(pathElements(s.substring(Event.CONTEXTKEY.length()))));
         } else if (path.startsWith(Event.INDIRECTMARK)) {
             return PATH_CACHE_STRING.computeIfAbsent(path, s -> VariablePath.ofIndirect(pathElements(s.substring(Event.INDIRECTMARK.length()))));
+        } else if (".".equals(path)) {
+            return ROOT;
+        } else if ("^".equals(path)) {
+            return CURRENT;
         } else {
             return PATH_CACHE_STRING.computeIfAbsent(path, s -> {
                 List<String> parts = pathElements(s);
@@ -509,11 +587,31 @@ public abstract class VariablePath {
     }
 
     public static VariablePath of(String... path) {
-        return of(Arrays.stream(path));
+        if (path.length == 1) {
+            if ("^".equals(path[0])) {
+                return CURRENT;
+            } else if (".".equals(path[0])) {
+                return ROOT;
+            } else {
+                return of(Arrays.stream(path));
+            }
+        } else {
+            return of(Arrays.stream(path));
+        }
     }
 
     public static VariablePath of(List<String> path) {
-        return of(path.stream());
+        if (path.size() == 1) {
+            if ("^".equals(path.get(0))) {
+                return CURRENT;
+            } else if (".".equals(path.get(0))) {
+                return ROOT;
+            } else {
+                return of(path.stream());
+            }
+        } else {
+            return of(path.stream());
+        }
     }
 
     public static VariablePath of(Stream<String> path) {

@@ -92,7 +92,15 @@ public class TestVariablePath {
         VariablePath vp = VariablePath.parse(".");
         Assert.assertEquals(VariablePath.of("."), vp);
         Assert.assertEquals("[.]", vp.toString());
-        Assert.assertTrue(groovyPattern.matcher(vp.groovyExpression()).matches());
+        Assert.assertEquals("event.getRealEvent()", vp.groovyExpression());
+    }
+
+    @Test
+    public void current() {
+        VariablePath vp = VariablePath.parse("^");
+        Assert.assertEquals(VariablePath.of("^"), vp);
+        Assert.assertEquals("[^]", vp.toString());
+        Assert.assertEquals("event", vp.groovyExpression());
     }
 
     @Test

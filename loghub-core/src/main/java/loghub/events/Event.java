@@ -1,6 +1,7 @@
 package loghub.events;
 
 import java.io.Serializable;
+import java.lang.reflect.Array;
 import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -9,13 +10,16 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Queue;
+import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.apache.logging.log4j.Logger;
@@ -46,8 +50,8 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
 
     enum Action {
         APPEND(false, Action::Append),          // Exported through appendAtPath
-        GET(false, (i,j,k) -> i.get(j)),       // Exported through getAtPath
-        PUT(false, Map::put),  // Exported through putAtPath
+        GET(false, (i, j, k) -> i.get(j)),       // Exported through getAtPath
+        PUT(false, Action::put),  // Exported through putAtPath
         REMOVE(false, (i, j, k) -> i.remove(j)), // Exported through removeAtPath
         CONTAINS(true, (c, k, v) -> c.containsKey(k)), // Exported through containsAtPath
         CONTAINSVALUE(true, (c, k, v) -> Action.asMap(c, k).containsValue(v)), // Used in EventWrapper
@@ -58,6 +62,52 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
         VALUES(true, (c, k, v) -> Action.asMap(c, k).values()), // Used in EventWrapper
         CHECK_WRAP(true, Action::checkPath)
         ;
+        private static Object put(Map<String, Object> c, String k, Object v) {
+            return c.put(k, duplicate(v));
+        }
+        @SuppressWarnings({"unchecked", "rawtypes"})
+        private static Object duplicate(Object v) {
+            if (v == null ) {
+                return null;
+            } else if (v instanceof Event) {
+                Event e = (Event) v;
+                Map se = e.keySet()
+                          .stream()
+                          .collect(Collectors.toMap(s -> s, e::get));
+                return new HashMap(se);
+            } else if (v instanceof Map) {
+                Map m = (Map)v;
+                Map sm = (Map) m.entrySet()
+                                .stream()
+                                .map(sv -> {
+                                    Entry e = (Entry) sv;
+                                    return Map.entry(e.getKey(), duplicate(e.getValue()));
+                 }).collect(Collectors.toMap(e -> ((Entry)e).getKey(), e -> ((Entry)e).getValue()));
+                return new HashMap(sm);
+            } else if (v instanceof List) {
+                List l = (List)v;
+                List sl = (List) l.stream()
+                           .map(Action::duplicate)
+                           .collect(Collectors.toList());
+                return new ArrayList(sl);
+            } else if (v instanceof Set) {
+                Set s = (Set)v;
+                Set ss = (Set) s.stream()
+                                         .map(Action::duplicate)
+                                         .collect(Collectors.toSet());
+                return new HashSet<>(ss);
+            } else if (v.getClass().isArray()) {
+                Class c = v.getClass().getComponentType();
+                int length = Array.getLength(v);
+                Object newArray = Array.newInstance(c, length);
+                for (int i = 0 ; i < length ; i++) {
+                    Array.set(newArray, i, duplicate(Array.get(v, i)));
+                }
+                return newArray;
+            } else {
+                return v;
+            }
+        }
         @SuppressWarnings("unchecked")
         private static Map<String, Object> asMap(Map<String, Object>c , String k) {
             if (k == null) {
@@ -78,7 +128,7 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
             }
         }
         private static Object checkPath(Map<String, Object>c, String k, Object v) {
-            if (! (c.get(k) instanceof Map)) {
+            if (k != null && ! (c.get(k) instanceof Map)) {
                 throw IgnoredEventException.INSTANCE;
             } else {
                 return v;
@@ -228,7 +278,6 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
             }
         }
         Map<String, Object> current = this;
-        String key;
         if (path.isMeta()) {
             if (path.length() != 0 && f == Action.GET) {
                 return getMeta(path.get(0));
@@ -270,17 +319,20 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
             } else {
                 throw new IllegalArgumentException("No variable specified for " + f);
             }
+        } else if (path == VariablePath.ROOT) {
+            return applyRelativePath(getRealEvent(), f, value);
+        } else if (path == VariablePath.CURRENT) {
+            return applyRelativePath(this, f, value);
         } else {
-            key = path.get(0);
-            if (".".equals(key) && path.length() == 1) {
-                return this;
-            }
-            for (int i = 0 ; i < path.length() - 1; i++) {
+            String key = path.get(0);
+            for (int i = 0; i < path.length() - 1; i++) {
                 String currentkey = path.get(i);
                 if (".".equals(currentkey)) {
                     current = getRealEvent();
                 } else {
-                    Optional<Object> peekNext = Optional.of(current).filter(c -> c.containsKey(currentkey)).map(c -> c.get(currentkey));
+                    Optional<Object> peekNext = Optional.of(current)
+                                                        .filter(c -> c.containsKey(currentkey))
+                                                        .map(c -> c.get(currentkey));
                     Map<String, Object> next;
                     if (peekNext.isEmpty()) {
                         if (create) {
@@ -289,9 +341,9 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
                         } else {
                             return keyMissing(f);
                         }
-                    } else if (! (peekNext.get() instanceof Map) && f == Action.CHECK_WRAP) {
+                    } else if (!(peekNext.get() instanceof Map) && f == Action.CHECK_WRAP) {
                         throw IgnoredEventException.INSTANCE;
-                    } else if (! (peekNext.get() instanceof Map)) {
+                    } else if (!(peekNext.get() instanceof Map)) {
                         return keyMissing(f);
                     } else {
                         next = (Map<String, Object>) peekNext.get();
@@ -300,12 +352,27 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
                 }
                 key = path.get(i + 1);
             }
-            if (create && ! current.containsKey(key)) {
+            if (create && !current.containsKey(key)) {
                 current.put(key, new HashMap<>());
-            } else if (! current.containsKey(key) && f != Action.PUT && f != Action.APPEND) {
+            } else if (!current.containsKey(key) && f != Action.PUT && f != Action.APPEND) {
                 return keyMissing(f);
             }
             return f.action.apply(current, key, value == NullOrMissingValue.NULL ? null : value);
+        }
+    }
+
+    private Object applyRelativePath(Event ev, Action f, Object value) {
+        switch (f) {
+        case GET:
+            return ev;
+        case CONTAINS:
+            return true;
+        case REMOVE:
+            Object oldValue = Action.duplicate(ev);
+            Action.CLEAR.action.apply(ev, null, value == NullOrMissingValue.NULL ? null : value);
+            return oldValue;
+        default:
+            return f.action.apply(ev, null, value == NullOrMissingValue.NULL ? null : value);
         }
     }
 

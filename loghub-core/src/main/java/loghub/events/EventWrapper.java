@@ -51,6 +51,10 @@ class EventWrapper extends Event {
         VariablePath lpath;
         if (key == null) {
             lpath = path;
+        } else if ("^".equals(key)){
+            lpath = VariablePath.CURRENT;
+        } else if (".".equals(key)){
+            lpath = VariablePath.ROOT;
         } else {
             lpath = path.append(key);
         }

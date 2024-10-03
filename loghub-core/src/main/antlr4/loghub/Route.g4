@@ -275,7 +275,7 @@ source
     : '%' identifier
     ;
 
-eventVariable: '[' (ts='@timestamp' | lex='@lastException' | (ctx='@context' '.'? (vp1=varPath)?) | (indirect='<-'? (MetaName | (root='.'? vp2=varPath))) | vproot='.') ']' ;
+eventVariable: '[' (ts='@timestamp' | lex='@lastException' | (ctx='@context' '.'? (vp1=varPath)?) | (indirect='<-'? (MetaName | (root='.'? vp2=varPath))) | vproot=('.' | '^')) ']' ;
 
 varPath: (pathElement pathElement*) | QualifiedIdentifier;
 

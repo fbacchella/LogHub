@@ -5,8 +5,11 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -30,6 +33,39 @@ public class TestEventApply {
         Tools.configure();
         Logger logger = LogManager.getLogger();
         LogUtils.setLevel(logger, Level.TRACE, "loghub");
+    }
+
+    @Test
+    public void duplicateCollection() {
+        Event e = factory.newEvent();
+        List<?> l = new ArrayList<>(List.of("l"));
+        List<List<?>> ll = List.of(new ArrayList<>(List.of("l")));
+        Set<?> s = new HashSet<>(Set.of("s"));
+        Map<String, List<?>> m = new HashMap<>(Map.of("m", new ArrayList<>(List.of("l"))));
+        Object[] ao = new Object[]{"a"};
+        int[] ai = new int[]{1};
+        e.applyAtPath(Event.Action.PUT, VariablePath.parse("l"), l);
+        e.applyAtPath(Event.Action.PUT, VariablePath.parse("ll"), ll);
+        e.applyAtPath(Event.Action.PUT, VariablePath.parse("s"), s);
+        e.applyAtPath(Event.Action.PUT, VariablePath.parse("m"), m);
+        e.applyAtPath(Event.Action.PUT, VariablePath.parse("ao"), ao);
+        e.applyAtPath(Event.Action.PUT, VariablePath.parse("ai"), ai);
+        e.applyAtPath(Event.Action.PUT, VariablePath.parse("e"), e.getAtPath(VariablePath.parse(".")));
+        l.clear();
+        ll.get(0).clear();
+        s.clear();
+        m.get("m").clear();
+        m.clear();
+        ao[0] = null;
+        ai[0] = 0;
+        Assert.assertArrayEquals(new Object[]{"a"}, (Object[]) e.get("ao"));
+        Assert.assertArrayEquals(new int[]{1}, (int[]) e.get("ai"));
+        Assert.assertEquals(List.of("l"), e.get("l"));
+        Assert.assertEquals(Set.of("s"), e.get("s"));
+        ll = List.of(new ArrayList<>(List.of("l")));
+        Assert.assertEquals(ll, e.get("ll"));
+        Assert.assertEquals(Map.of("m", List.of("l")), e.get("m"));
+        Assert.assertFalse(e.get("") instanceof Event);
     }
 
     @Test
@@ -82,6 +118,11 @@ public class TestEventApply {
 
         applyAction(e, null, Event.Action.CLEAR, null);
         applyAction(e, 0, Event.Action.SIZE, null);
+
+        e.put("a", 1);
+        applyAction(e, 1, Event.Action.SIZE, null, ".");
+        applyAction(e, null, Event.Action.CLEAR, null, ".");
+        applyAction(e, 0, Event.Action.SIZE, null, ".");
     }
 
     @Test
