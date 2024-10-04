@@ -200,8 +200,8 @@ public class TestEtl {
     public void testElementNull() throws ProcessorException {
         Event ev =  RunEtl("[b] = [a]", i -> i.put("a", NullOrMissingValue.NULL));
         Assert.assertTrue(ev.containsKey("b"));
-        Assert.assertNull(ev.get("b"));
-        // Ensure that JUnis is not doing any magic tricks when checking NotNull
+        Assert.assertEquals(NullOrMissingValue.NULL, ev.get("b"));
+        // Ensure that JUnit is not doing any magic tricks when checking NotNull
         Assert.assertNotNull(NullOrMissingValue.NULL);
 
     }

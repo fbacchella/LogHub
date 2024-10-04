@@ -42,6 +42,7 @@ public class TestEventApply {
         List<List<?>> ll = List.of(new ArrayList<>(List.of("l")));
         Set<?> s = new HashSet<>(Set.of("s"));
         Map<String, List<?>> m = new HashMap<>(Map.of("m", new ArrayList<>(List.of("l"))));
+        m.get("m").add(null);
         Object[] ao = new Object[]{"a"};
         int[] ai = new int[]{1};
         e.applyAtPath(Event.Action.PUT, VariablePath.parse("l"), l);
@@ -51,6 +52,8 @@ public class TestEventApply {
         e.applyAtPath(Event.Action.PUT, VariablePath.parse("ao"), ao);
         e.applyAtPath(Event.Action.PUT, VariablePath.parse("ai"), ai);
         e.applyAtPath(Event.Action.PUT, VariablePath.parse("e"), e.getAtPath(VariablePath.parse(".")));
+        e.applyAtPath(Event.Action.PUT, VariablePath.parse("f"), null);
+
         l.clear();
         ll.get(0).clear();
         s.clear();
@@ -64,8 +67,9 @@ public class TestEventApply {
         Assert.assertEquals(Set.of("s"), e.get("s"));
         ll = List.of(new ArrayList<>(List.of("l")));
         Assert.assertEquals(ll, e.get("ll"));
-        Assert.assertEquals(Map.of("m", List.of("l")), e.get("m"));
+        Assert.assertEquals(Map.of("m", List.of("l", NullOrMissingValue.NULL)), e.get("m"));
         Assert.assertFalse(e.get("") instanceof Event);
+        Assert.assertEquals(NullOrMissingValue.NULL, e.get("f"));
     }
 
     @Test

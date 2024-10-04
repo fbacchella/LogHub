@@ -85,7 +85,7 @@ public class TestForEach {
         Consumer<Event> populate = ev -> ev.putAtPath(VariablePath.of("a"), null);
         Event ev = run(new StringReader("pipeline[main]{ foreach[a]([c]=[b])}"), populate);
         Assert.assertEquals(1, ev.size());
-        Assert.assertNull(ev.getAtPath(VariablePath.of("a")));
+        Assert.assertEquals(NullOrMissingValue.NULL, ev.getAtPath(VariablePath.of("a")));
     }
 
     @Test

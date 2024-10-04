@@ -68,7 +68,7 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
         @SuppressWarnings({"unchecked", "rawtypes"})
         private static Object duplicate(Object v) {
             if (v == null ) {
-                return null;
+                return NullOrMissingValue.NULL;
             } else if (v instanceof Event) {
                 Event e = (Event) v;
                 Map se = e.keySet()
