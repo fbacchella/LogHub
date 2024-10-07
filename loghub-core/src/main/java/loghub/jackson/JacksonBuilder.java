@@ -7,6 +7,7 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.function.Consumer;
 
+import loghub.NullOrMissingValue;
 import loghub.datetime.JacksonModule;
 import com.fasterxml.jackson.core.FormatSchema;
 import com.fasterxml.jackson.core.JsonFactory;
@@ -21,6 +22,7 @@ import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.databind.cfg.MapperBuilder;
 import com.fasterxml.jackson.databind.jsontype.impl.StdTypeResolverBuilder;
 import com.fasterxml.jackson.databind.module.SimpleModule;
+import com.fasterxml.jackson.databind.module.SimpleSerializers;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.fasterxml.jackson.module.afterburner.AfterburnerModule;
@@ -63,6 +65,7 @@ public class JacksonBuilder<T extends ObjectMapper> {
         builder.addModule(new Jdk8Module());
         builder.addModule(new AfterburnerModule());
         builder.addModule(new JacksonModule());
+        builder.addModule(new NullOrMissingValue.JacksonModule());
         builder.enable(StreamReadFeature.USE_FAST_DOUBLE_PARSER);
     }
 
