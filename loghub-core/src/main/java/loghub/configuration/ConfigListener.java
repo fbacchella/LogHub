@@ -1010,7 +1010,7 @@ class ConfigListener extends RouteBaseListener {
             } else  if (exlist != null) {
                 ExpressionBuilder expressions = ExpressionBuilder.of(exlist);
                 Expression.ExpressionLambda listLambda = expressions.getPayload();
-                expression = ExpressionBuilder.of(ed -> vf.format(listLambda.apply(ed)));
+                expression = ExpressionBuilder.of(ed -> vf.format(listLambda.apply(ed))).setDeepCopy(false);
             } else {
                 expression = ExpressionBuilder.of(vf);
             }
@@ -1025,39 +1025,39 @@ class ConfigListener extends RouteBaseListener {
             expression = ExpressionBuilder.of(literal.wrapped);
         } else if (ctx.ev != null) {
             VariablePath path = convertEventVariable(ctx.ev);
-            expression = ExpressionBuilder.of(path);
+            expression = ExpressionBuilder.of(path).setDeepCopy(true);
         } else if (ctx.opm != null) {
             ObjectWrapped<Pattern> patternWrap = stack.popTyped();
             Pattern pattern = patternWrap.wrapped;
             ExpressionBuilder pre = stack.popTyped();
             String patterOperator = ctx.opm.getText();
-            expression = ExpressionBuilder.of(pre, o -> Expression.regex(o, patterOperator, pattern));
+            expression = ExpressionBuilder.of(pre, o -> Expression.regex(o, patterOperator, pattern)).setDeepCopy(false);
         } else if (ctx.opnotlogical != null) {
             // '!'
             ExpressionBuilder post = stack.popTyped();
-            expression = ExpressionBuilder.of(post, o -> ! Expression.asBoolean(o));
+            expression = ExpressionBuilder.of(post, o -> ! Expression.asBoolean(o)).setDeepCopy(false);
         } else if (ctx.opnotbinary != null) {
             // '.~'
             ExpressionBuilder post = stack.popTyped();
-            expression = ExpressionBuilder.of(post, o -> Expression.groovyOperator("~", o));
+            expression = ExpressionBuilder.of(post, o -> Expression.groovyOperator("~", o)).setDeepCopy(false);
         } else if (ctx.op3 != null) {
             // '+'|'-'
             ExpressionBuilder post = stack.popTyped();
             String op3 = ctx.op3.getText();
             ExpressionBuilder sign = ExpressionBuilder.of("-".equals(op3) ? -1 : 1);
-            expression = ExpressionBuilder.of(sign, "*", post);
+            expression = ExpressionBuilder.of(sign, "*", post).setDeepCopy(false);
         } else if (ctx.opinfix != null) {
             // '*'|'/'|'%' |'+'|'-'|'<<'|'>>'|'>>>'|'**'
             String op = ctx.opinfix.getText();
             ExpressionBuilder post = stack.popTyped();
             ExpressionBuilder pre = stack.popTyped();
-            expression = ExpressionBuilder.of(pre, op, post);
+            expression = ExpressionBuilder.of(pre, op, post).setDeepCopy(false);
         } else if (ctx.opin != null) {
             // 'in'|'!in'
             String op = ctx.opin.getText();
             ExpressionBuilder post = stack.popTyped();
             ExpressionBuilder pre = stack.popTyped();
-            expression = ExpressionBuilder.of(pre, post, (o1, o2) -> Expression.in(op, o1, o2));
+            expression = ExpressionBuilder.of(pre, post, (o1, o2) -> Expression.in(op, o1, o2)).setDeepCopy(false);
         } else if (ctx.opinstance != null) {
             try {
                 String className = ctx.qualifiedIdentifier().getText();
@@ -1065,7 +1065,7 @@ class ConfigListener extends RouteBaseListener {
                 // 'instanceof'|'!instanceof'
                 boolean negated = ctx.neg != null || ctx.opinstance.getText().startsWith("!");
                 ExpressionBuilder pre = (ExpressionBuilder) stack.pop();
-                expression = ExpressionBuilder.of(pre, o -> Expression.instanceOf(negated, o, clazz));
+                expression = ExpressionBuilder.of(pre, o -> Expression.instanceOf(negated, o, clazz)).setDeepCopy(false);
             } catch (ClassNotFoundException e) {
                 throw new RecognitionException(Helpers.resolveThrowableException(e), parser, stream, ctx);
             }
@@ -1074,28 +1074,28 @@ class ConfigListener extends RouteBaseListener {
             String op = ctx.opcomp.getText();
             ExpressionBuilder post = stack.popTyped();
             ExpressionBuilder pre = stack.popTyped();
-            expression = ExpressionBuilder.of(pre, post, (o1, o2) -> Expression.compare(op, o1, o2));
+            expression = ExpressionBuilder.of(pre, post, (o1, o2) -> Expression.compare(op, o1, o2)).setDeepCopy(false);
         } else if (ctx.exists != null) {
             // (== | !=) *
             VariablePath path = convertEventVariable(ctx.exists);
             String op = ctx.op.getText();
-            expression = ExpressionBuilder.of(ed -> Expression.compare(op, ed.getEvent().getAtPath(path), Expression.ANYVALUE));
+            expression = ExpressionBuilder.of(ed -> Expression.compare(op, ed.getEvent().getAtPath(path), Expression.ANYVALUE)).setDeepCopy(false);
         } else if (ctx.opbininfix != null) {
             // '.&'|'.^'|'.|'
             String op = ctx.opbininfix.getText().substring(1);
             ExpressionBuilder post = stack.popTyped();
             ExpressionBuilder pre = stack.popTyped();
-            expression = ExpressionBuilder.of(pre, op, post);
+            expression = ExpressionBuilder.of(pre, op, post).setDeepCopy(false);
         } else if (ctx.op12 != null) {
             // '&&'
             ExpressionBuilder post = stack.popTyped();
             ExpressionBuilder pre = stack.popTyped();
-            expression = ExpressionBuilder.of(pre, post, (o1, o2) -> Expression.asBoolean(o1) && Expression.asBoolean(o2));
+            expression = ExpressionBuilder.of(pre, post, (o1, o2) -> Expression.asBoolean(o1) && Expression.asBoolean(o2)).setDeepCopy(false);
         } else if (ctx.op13 != null) {
             // '||'
             ExpressionBuilder post = stack.popTyped();
             ExpressionBuilder pre = stack.popTyped();
-            expression = ExpressionBuilder.of(pre, post, (o1, o2) -> Expression.asBoolean(o1) || Expression.asBoolean(o2));
+            expression = ExpressionBuilder.of(pre, post, (o1, o2) -> Expression.asBoolean(o1) || Expression.asBoolean(o2)).setDeepCopy(false);
         } else if (ctx.e3 != null) {
             expression = stack.popTyped();
         } else if (ctx.newclass != null) {
@@ -1110,7 +1110,7 @@ class ConfigListener extends RouteBaseListener {
             try {
                 Class<?> theClass = classLoader.loadClass(ctx.newclass.getText());
                 expression = ExpressionBuilder.of(ed -> Expression.newInstance(theClass,
-                        (List<Object>) argsLambda.apply(ed)));
+                        (List<Object>) argsLambda.apply(ed))).setDeepCopy(false);
             } catch (ClassNotFoundException e) {
                 throw new RecognitionException("Unknown class: " + ctx.newclass.getText(), parser, stream, ctx);
             }
@@ -1118,15 +1118,15 @@ class ConfigListener extends RouteBaseListener {
             int arrayIndexSign = ctx.arrayIndexSign != null ? -1 : 1;
             int arrayIndex = ((ObjectWrapped<Number>) stack.popTyped()).wrapped.intValue() * arrayIndexSign;
             ExpressionBuilder subexpression = stack.popTyped();
-            expression = ExpressionBuilder.of(subexpression, o -> Expression.getIterableIndex(o, arrayIndex));
+            expression = ExpressionBuilder.of(subexpression, o -> Expression.getIterableIndex(o, arrayIndex)).setDeepCopy(subexpression.isDeepCopy());
         } else if (ctx.stringFunction != null) {
             ExpressionBuilder subexpression = stack.popTyped();
             String stringFunction = ctx.stringFunction.getText();
-            expression = ExpressionBuilder.of(subexpression, o -> Expression.stringFunction(stringFunction, o));
+            expression = ExpressionBuilder.of(subexpression, o -> Expression.stringFunction(stringFunction, o)).setDeepCopy(false);
         } else if (ctx.join != null) {
             ExpressionBuilder source = stack.popTyped();
             ObjectWrapped<String> joinWrapper = stack.popTyped();
-            expression = ExpressionBuilder.of(source, o -> Expression.join(joinWrapper.wrapped, o));
+            expression = ExpressionBuilder.of(source, o -> Expression.join(joinWrapper.wrapped, o)).setDeepCopy(false);
         } else if (ctx.split != null) {
             ExpressionBuilder source = stack.popTyped();
             Pattern pattern;
@@ -1141,21 +1141,21 @@ class ConfigListener extends RouteBaseListener {
                     throw new RecognitionException(Helpers.resolveThrowableException(ex), parser, stream, ctx);
                 }
             }
-            expression = ExpressionBuilder.of(source, o -> Expression.split(o, pattern));
+            expression = ExpressionBuilder.of(source, o -> Expression.split(o, pattern)).setDeepCopy(false);
         } else if (ctx.gsub != null) {
             ObjectWrapped<String> substitution = stack.popTyped();
             ObjectWrapped<Pattern> patternWrapped  = stack.popTyped();
             ExpressionBuilder source = stack.popTyped();
             expression = ExpressionBuilder.of(source,
-                    o -> Expression.gsub(o, patternWrapped.wrapped, substitution.wrapped));
+                    o -> Expression.gsub(o, patternWrapped.wrapped, substitution.wrapped)).setDeepCopy(false);
         } else if (ctx.now != null) {
-            expression = ExpressionBuilder.of(ed -> Instant.now());
+            expression = ExpressionBuilder.of(ed -> Instant.now()).setDeepCopy(false);
         } else if (ctx.isEmpty != null) {
             ExpressionBuilder subexpression = stack.popTyped();
-            expression = ExpressionBuilder.of(subexpression, Expression::isEmpty);
+            expression = ExpressionBuilder.of(subexpression, Expression::isEmpty).setDeepCopy(false);
         } else if (ctx.isIp != null) {
             ExpressionBuilder subexpression = stack.popTyped();
-            expression = ExpressionBuilder.of(subexpression, Expression::isIpAddress);
+            expression = ExpressionBuilder.of(subexpression, Expression::isIpAddress).setDeepCopy(false);
         } else if (ctx.collection != null) {
             String collectionType = ctx.collection.getText();
             if (ctx.expressionsList() == null) {
@@ -1163,15 +1163,18 @@ class ConfigListener extends RouteBaseListener {
             } else {
                 List<ExpressionBuilder> exlist = stack.popTyped();
                 ExpressionBuilder expressions = ExpressionBuilder.of(exlist);
-                expression = ExpressionBuilder.of(expressions, o -> Expression.asCollection(collectionType, o));
+                expression = ExpressionBuilder.of(expressions, o -> Expression.asCollection(collectionType, o)).setDeepCopy(false);
             }
         } else if (ctx.lambdavar != null) {
-            expression = ExpressionBuilder.of(Expression.ExpressionData::getValue);
+            expression = ExpressionBuilder.of(Expression.ExpressionData::getValue).setDeepCopy(true);
         } else {
             throw new IllegalStateException("Unreachable code");
         }
         expressionDepth--;
         if (expressionDepth == 0) {
+            if (expression.isDeepCopy()) {
+                expression = ExpressionBuilder.of(expression, Expression::deepCopy);
+            }
             String expressionSource;
             if (stream instanceof CharStream) {
                 CharStream cs = (CharStream) stream;

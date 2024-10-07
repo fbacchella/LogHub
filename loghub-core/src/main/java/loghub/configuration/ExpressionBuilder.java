@@ -11,6 +11,7 @@ import loghub.ProcessorException;
 import loghub.VarFormatter;
 import loghub.VariablePath;
 import lombok.Getter;
+import lombok.Setter;
 
 class ExpressionBuilder {
 
@@ -24,6 +25,8 @@ class ExpressionBuilder {
     @Getter
     private ExpressionType type;
     private Object payload;
+    @Getter
+    private boolean deepCopy;
 
     private ExpressionBuilder() {
     }
@@ -38,8 +41,16 @@ class ExpressionBuilder {
         return this;
     }
 
+    ExpressionBuilder setDeepCopy(boolean deepCopy) {
+        this.deepCopy = deepCopy;
+        return this;
+    }
+
     public ExpressionBuilder setType(ExpressionType type) {
         this.type = type;
+        if (type == ExpressionType.LITERAL || type == ExpressionType.FORMATTER) {
+            deepCopy = false;
+        }
         return this;
     }
 
@@ -108,7 +119,7 @@ class ExpressionBuilder {
         if (pre.type == ExpressionType.LITERAL && post.type == ExpressionType.LITERAL) {
             return evalStatic(lambda);
         } else {
-            return new ExpressionBuilder().setType(ExpressionType.LAMBDA).setPayload(lambda);
+            return new ExpressionBuilder().setType(ExpressionType.LAMBDA).setPayload(lambda).setDeepCopy(false);
         }
     }
 

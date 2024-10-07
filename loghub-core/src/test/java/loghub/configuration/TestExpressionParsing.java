@@ -97,8 +97,8 @@ public class TestExpressionParsing {
     public void testRoot() throws ProcessorException {
         Event ev =  factory.newEvent();
         ev.putAtPath(VariablePath.of("a", "b"), "1");
-        Assert.assertEquals(ev, Tools.evalExpression("[.]", ev.wrap(VariablePath.of("a"))));
-        Assert.assertEquals(ev, Tools.evalExpression("[.]", ev));
+        Assert.assertEquals(Map.copyOf(ev), Tools.evalExpression("[.]", ev.wrap(VariablePath.of("a"))));
+        Assert.assertEquals(Map.copyOf(ev), Tools.evalExpression("[.]", ev));
         Assert.assertEquals(false, Tools.evalExpression("isEmpty([.])", ev));
     }
 

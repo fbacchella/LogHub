@@ -175,6 +175,41 @@ public class TestEtl {
         Assert.assertTrue(ev.isEmpty());
     }
 
+    @Test
+    public void tesDeepCop() throws ProcessorException {
+        Etl etl1 = parseEtl("[b] = [a]");
+        Etl etl2 = parseEtl("[e] = [a e][0]");
+        Event ev = factory.newEvent();
+        ev.putAtPath(VariablePath.of("a", "b"), 1);
+        List<Integer> c = new ArrayList<>(List.of(1));
+        ev.putAtPath(VariablePath.of("a", "c"), c);
+        int[] d = new int[] { 1 };
+        ev.putAtPath(VariablePath.of("a", "d"), d);
+        List<Integer> e = new ArrayList<>(List.of(1));
+        ev.putAtPath(VariablePath.of("a", "e"), new ArrayList<>(List.of(e)));
+        Assert.assertTrue(etl1.process(ev));
+        Assert.assertTrue(etl2.process(ev));
+
+        // Updating the content of [a] path
+        ev.putAtPath(VariablePath.of("a", "b"), 2);
+        c.set(0, 2);
+        e.set(0, 2);
+        d[0] = 2;
+
+        Assert.assertEquals(2, ev.removeAtPath(VariablePath.of("a", "b")));
+        Assert.assertEquals(1, ev.removeAtPath(VariablePath.of("b", "b")));
+
+        Assert.assertEquals(List.of(2), ev.removeAtPath(VariablePath.of("a", "c")));
+        Assert.assertEquals(List.of(1), ev.removeAtPath(VariablePath.of("b", "c")));
+
+        Assert.assertEquals(List.of(List.of(2)), ev.removeAtPath(VariablePath.of("a", "e")));
+        Assert.assertEquals(List.of(List.of(1)), ev.removeAtPath(VariablePath.of("b", "e")));
+        Assert.assertEquals(List.of(1), ev.removeAtPath(VariablePath.of("e")));
+
+        Assert.assertArrayEquals(new int[] { 2 }, (int[]) ev.removeAtPath(VariablePath.of("a", "d")));
+        Assert.assertArrayEquals(new int[] { 1 }, (int[]) ev.removeAtPath(VariablePath.of("b", "d")));
+    }
+
     private void runElementMissing(String etl) throws ExecutionException, InterruptedException {
         CompletableFuture<Event> holder = new CompletableFuture<>();
         Assert.assertThrows(IgnoredEventException.class, () -> RunEtl(etl, i -> {}, true, holder));
@@ -275,6 +310,23 @@ public class TestEtl {
     public void testRemove() throws ProcessorException {
         Event ev =  RunEtl("[a]-", i -> i.put("a", 1));
         Assert.assertTrue(ev.isEmpty());
+    }
+
+    @Test
+    public void testRemoveRoot() throws ProcessorException {
+        Event ev =  RunEtl("[.]-", i -> i.put("a", 1));
+        Assert.assertTrue(ev.isEmpty());
+    }
+
+    @Test
+    public void testRemoveRelative() throws ProcessorException {
+        Etl e =  parseEtl("[^]-");
+        Event ev = factory.newEvent();
+        ev.putAtPath(VariablePath.of("a", "b"), 1);
+        Event wev = ev.wrap(VariablePath.of("a"));
+        Assert.assertTrue(e.process(wev));
+        Assert.assertTrue(e.process(wev));
+        Assert.assertEquals(NullOrMissingValue.MISSING, ev.getAtPath(VariablePath.of("a", "b")));
     }
 
     @Test

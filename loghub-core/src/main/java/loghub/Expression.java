@@ -14,6 +14,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -638,6 +639,53 @@ public class Expression {
     public static <T> T newInstance(Class <T> theClass, List<Object> args) {
         MetaClass mc = registry.getMetaClass(theClass);
         return (T) mc.invokeConstructor(args.toArray(Object[]::new));
+    }
+
+    public static Object deepCopy(Object v) {
+        if (v == null ) {
+            return NullOrMissingValue.NULL;
+        } else if (v instanceof Event) {
+            Event e = (Event) v;
+            Map se = e.keySet()
+                             .stream()
+                             .collect(Collectors.toMap(s -> s, e::get));
+            return new HashMap(se);
+        } else if (v instanceof Map) {
+            Map m = (Map)v;
+            Map sm = (Map) m.entrySet()
+                                   .stream()
+                                   .filter(sv -> {
+                                       Map.Entry e = (Map.Entry) sv;
+                                       return e.getValue() != NullOrMissingValue.MISSING;
+                                   })
+                                   .map(sv -> {
+                                       Map.Entry e = (Map.Entry) sv;
+                                       return Map.entry(e.getKey(), deepCopy(e.getValue()));
+                                   }).collect(Collectors.toMap(e -> ((Map.Entry)e).getKey(), e -> ((Map.Entry)e).getValue()));
+            return new HashMap(sm);
+        } else if (v instanceof List) {
+            List l = (List)v;
+            List sl = (List) l.stream()
+                                     .map(Expression::deepCopy)
+                                     .collect(Collectors.toList());
+            return new ArrayList(sl);
+        } else if (v instanceof Set) {
+            Set s = (Set)v;
+            Set ss = (Set) s.stream()
+                                   .map(Expression::deepCopy)
+                                   .collect(Collectors.toSet());
+            return new HashSet<>(ss);
+        } else if (v.getClass().isArray()) {
+            Class c = v.getClass().getComponentType();
+            int length = Array.getLength(v);
+            Object newArray = Array.newInstance(c, length);
+            for (int i = 0 ; i < length ; i++) {
+                Array.set(newArray, i, deepCopy(Array.get(v, i)));
+            }
+            return newArray;
+        } else {
+            return v;
+        }
     }
 
     /**
