@@ -889,9 +889,35 @@ class ConfigListener extends RouteBaseListener {
             break;
         }
         case("="): {
-            Expression expression = resolveWrappedExpression();
-            etl = new Etl.Assign();
-            ((Etl.Assign)etl).setExpression(expression);
+            if (ctx.children.get(2) instanceof EventVariableContext) {
+                EventVariableContext evc = (EventVariableContext) ctx.children.get(2);
+                VariablePath vp = convertEventVariable(evc);
+                etl = new Etl.Copy();
+                ((Etl.Copy) etl).setSource(vp);
+            } else if (ctx.nl != null) {
+                stack.pop();
+                etl = new Etl.FromLitteral();
+                ((Etl.FromLitteral) etl).setLitteral(NullOrMissingValue.NULL);
+            } else if (ctx.sl != null) {
+                ObjectWrapped<String> stringWrapped = stack.popTyped();
+                String format = stringWrapped.wrapped;
+                VarFormatter vf = new VarFormatter(format);
+                if (vf.isEmpty()) {
+                    etl = new Etl.FromLitteral();
+                    ((Etl.FromLitteral) etl).setLitteral(format);
+                } else {
+                    etl = new Etl.VarFormat();
+                    ((Etl.VarFormat) etl).setFormatter(vf);
+                }
+            } else if (ctx.c != null || ctx.l != null) {
+                ObjectWrapped<Character> payload = stack.popTyped();
+                etl = new Etl.FromLitteral();
+                ((Etl.FromLitteral) etl).setLitteral(payload.wrapped);
+            } else {
+                Expression expression = resolveWrappedExpression();
+                etl = new Etl.Assign();
+                ((Etl.Assign)etl).setExpression(expression);
+            }
             break;
         }
         case("=+"): {

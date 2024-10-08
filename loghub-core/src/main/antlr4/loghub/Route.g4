@@ -171,6 +171,8 @@ propertyName
 etl
     : eventVariable op='<' s=eventVariable
     | eventVariable op='-'
+    | eventVariable op='=' eventVariable
+    | eventVariable op='=' (sl = stringLiteral | nl = nullLiteral | c = characterLiteral | l = nonStringliteral)
     | eventVariable op='=' expression
     | eventVariable op='=+' expression
     | eventVariable op='@' e=expression map

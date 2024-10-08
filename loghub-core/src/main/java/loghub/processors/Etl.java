@@ -3,6 +3,7 @@ package loghub.processors;
 import loghub.Expression;
 import loghub.Processor;
 import loghub.ProcessorException;
+import loghub.VarFormatter;
 import loghub.VariablePath;
 import loghub.configuration.Properties;
 import loghub.events.Event;
@@ -44,6 +45,37 @@ public abstract class Etl extends Processor {
         }
     }
 
+    public static class FromLitteral extends Etl {
+        @Getter @Setter
+        private Object litteral;
+        @Override
+        public boolean process(Event event) throws ProcessorException {
+            event.putAtPath(lvalue, litteral);
+            return true;
+        }
+    }
+
+    public static class VarFormat extends Etl {
+        @Getter @Setter
+        private loghub.VarFormatter formatter;
+        @Override
+        public boolean process(Event event) throws ProcessorException {
+            event.putAtPath(lvalue, formatter.format(event));
+            return true;
+        }
+    }
+
+    public static class Copy extends Etl {
+        @Getter @Setter
+        VariablePath source;
+        @Override
+        public boolean process(Event event) throws ProcessorException {
+            Object o = Expression.deepCopy(event.getAtPath(source));
+            event.putAtPath(lvalue, o);
+            return true;
+        }
+    }
+
     public static class Append extends Etl {
         @Getter @Setter
         private Expression expression;
@@ -77,7 +109,6 @@ public abstract class Etl extends Processor {
             this.className = className;
         }
     }
-
 
     public static class Remove extends Etl {
         @Override
