@@ -22,6 +22,7 @@ import loghub.configuration.ConfigurationTools;
 import loghub.configuration.Properties;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
+import loghub.processors.Etl;
 import loghub.processors.Mapper;
 
 public class TestFileMap {
@@ -57,11 +58,7 @@ public class TestFileMap {
         FileMap s = builder.build();
         s.configure(null);
 
-        Mapper p = new Mapper();
-        p.setExpression(ConfigurationTools.unWrap("[type]", RouteParser::expression));
-        p.setLvalue(VariablePath.of("type"));
-        p.setMap(s);
-
+        Etl p = Mapper.of(VariablePath.of("type"), s, ConfigurationTools.unWrap("[type]", RouteParser::expression));
         Event e = factory.newEvent();
         e.put("type", "1");
 
@@ -78,11 +75,7 @@ public class TestFileMap {
         FileMap s = builder.build();
         s.configure(null);
 
-        Mapper p = new Mapper();
-        p.setExpression(ConfigurationTools.unWrap("[type]", RouteParser::expression));
-        p.setLvalue(VariablePath.of("type"));
-        p.setMap(s);
-
+        Etl p = Mapper.of(VariablePath.of("type"), s, ConfigurationTools.unWrap("[type]", RouteParser::expression));
         Event e = factory.newEvent();
         e.put("type", "a");
 

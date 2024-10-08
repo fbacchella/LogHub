@@ -118,9 +118,7 @@ public class TestPausingEvent {
         onsucces = (e, v) -> false;
         Event e = factory.newEvent();
         SleepingProcessor sp = new SleepingProcessor();
-        Etl.Assign assign = new Etl.Assign();
-        assign.setExpression(new Expression(1));
-        assign.setLvalue(VariablePath.of("a"));
+        Etl assign = Etl.Assign.of(VariablePath.of("a"), new Expression(1));
         sp.setFailure(assign);
         Tools.ProcessingStatus status = Tools.runProcessing(e, "main", Collections.singletonList(sp), (i,j) -> { /* empty */ });
         e = status.mainQueue.take();
@@ -135,9 +133,7 @@ public class TestPausingEvent {
         onexception = (e, x) -> Boolean.FALSE;
         Event e = factory.newEvent();
         SleepingProcessor sp = new SleepingProcessor();
-        Etl.Assign assign = new Etl.Assign();
-        assign.setExpression(new Expression(1));
-        assign.setLvalue(VariablePath.of("a"));
+        Etl assign = Etl.Assign.of(VariablePath.of("a"), new Expression(1));
         sp.setFailure(assign);
         Tools.ProcessingStatus status = Tools.runProcessing(e, "main", Collections.singletonList(sp), (i,j) -> { /* empty */ });
         e = status.mainQueue.take();
@@ -155,9 +151,7 @@ public class TestPausingEvent {
         }};
         Event e = factory.newEvent();
         SleepingProcessor sp = new SleepingProcessor();
-        Etl.Assign assign = new Etl.Assign();
-        assign.setExpression(new Expression(1));
-        assign.setLvalue(VariablePath.of("a"));
+        Etl assign = Etl.Assign.of(VariablePath.of("a"), new Expression(1));
         sp.setException(assign);
         Tools.ProcessingStatus status = Tools.runProcessing(e, "main", Collections.singletonList(sp), (i,j) -> { /* empty */ });
         e = status.mainQueue.take();

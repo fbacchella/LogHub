@@ -8,14 +8,21 @@ import loghub.VariablePath;
 import loghub.configuration.Properties;
 import loghub.events.Event;
 import lombok.Getter;
-import lombok.Setter;
 
+@Getter
 public abstract class Etl extends Processor {
 
-    protected VariablePath lvalue;
-
     public static class Rename extends Etl {
-        private VariablePath sourcePath;
+        public static Etl of(VariablePath lvalue, VariablePath sourcePath) {
+            return new Rename(lvalue, sourcePath);
+        }
+
+        private final VariablePath sourcePath;
+
+        private Rename(VariablePath lvalue, VariablePath sourcePath) {
+            super(lvalue);
+            this.sourcePath = sourcePath;
+        }
         @Override
         public boolean process(Event event) throws ProcessorException {
             if (event.containsAtPath(sourcePath)) {
@@ -29,14 +36,19 @@ public abstract class Etl extends Processor {
         public VariablePath getSource() {
             return sourcePath;
         }
-        public void setSource(VariablePath source) {
-            this.sourcePath = source;
-        }
     }
 
     public static class Assign extends Etl {
-        @Getter @Setter
-        private Expression expression;
+        public static Etl of(VariablePath lvalue, Expression expression) {
+            return new Assign(lvalue, expression);
+        }
+
+        private final Expression expression;
+
+        private Assign(VariablePath lvalue, Expression expression) {
+            super(lvalue);
+            this.expression = expression;
+        }
         @Override
         public boolean process(Event event) throws ProcessorException {
             Object o = expression.eval(event);
@@ -45,19 +57,38 @@ public abstract class Etl extends Processor {
         }
     }
 
-    public static class FromLitteral extends Etl {
-        @Getter @Setter
-        private Object litteral;
+    @Getter
+    public static class FromLiteral extends Etl {
+        public static Etl of(VariablePath lvalue, Object litteral) {
+            return new FromLiteral(lvalue, litteral);
+        }
+
+        private final Object literal;
+
+        private FromLiteral(VariablePath lvalue, Object literal) {
+            super(lvalue);
+            this.literal = literal;
+        }
+
         @Override
         public boolean process(Event event) throws ProcessorException {
-            event.putAtPath(lvalue, litteral);
+            event.putAtPath(lvalue, literal);
             return true;
         }
     }
 
+    @Getter
     public static class VarFormat extends Etl {
-        @Getter @Setter
-        private loghub.VarFormatter formatter;
+        public static Etl of(VariablePath lvalue, VarFormatter formatter) {
+            return new VarFormat(lvalue, formatter);
+        }
+
+        private final loghub.VarFormatter formatter;
+
+        private VarFormat(VariablePath lvalue, VarFormatter formatter) {
+            super(lvalue);
+            this.formatter = formatter;
+        }
         @Override
         public boolean process(Event event) throws ProcessorException {
             event.putAtPath(lvalue, formatter.format(event));
@@ -65,9 +96,18 @@ public abstract class Etl extends Processor {
         }
     }
 
+    @Getter
     public static class Copy extends Etl {
-        @Getter @Setter
-        VariablePath source;
+        public static Etl of(VariablePath lvalue, VariablePath source) {
+            return new Copy(lvalue, source);
+        }
+
+        private final VariablePath source;
+
+        private Copy(VariablePath lvalue, VariablePath source) {
+            super(lvalue);
+            this.source = source;
+        }
         @Override
         public boolean process(Event event) throws ProcessorException {
             Object o = Expression.deepCopy(event.getAtPath(source));
@@ -76,9 +116,18 @@ public abstract class Etl extends Processor {
         }
     }
 
+    @Getter
     public static class Append extends Etl {
-        @Getter @Setter
-        private Expression expression;
+        public static Etl of(VariablePath lvalue, Expression expression) {
+            return new Append(lvalue, expression);
+        }
+
+        private final Expression expression;
+
+        private Append(VariablePath lvalue, Expression expression) {
+            super(lvalue);
+            this.expression = expression;
+        }
         @Override
         public boolean process(Event event) throws ProcessorException {
             Object o = expression.eval(event);
@@ -87,8 +136,18 @@ public abstract class Etl extends Processor {
     }
 
     public static class Convert extends Etl {
-        private String className = null;
+        public static Etl of(VariablePath lvalue, String className) {
+            return new Convert(lvalue, className);
+        }
+
+        @Getter
+        private final String className;
         private loghub.processors.Convert converter;
+
+        private Convert(VariablePath lvalue, String className) {
+            super(lvalue);
+            this.className = className;
+        }
         @Override
         public boolean process(Event event) throws ProcessorException {
             return converter.process(event);
@@ -102,15 +161,16 @@ public abstract class Etl extends Processor {
             converter = builder.build();
             return converter.configure(properties) && super.configure(properties);
         }
-        public String getClassName() {
-            return className;
-        }
-        public void setClassName(String className) {
-            this.className = className;
-        }
     }
 
     public static class Remove extends Etl {
+        public static Etl of(VariablePath lvalue) {
+            return new Remove(lvalue);
+        }
+
+        private Remove(VariablePath lvalue) {
+            super(lvalue);
+        }
         @Override
         public boolean process(Event event) throws ProcessorException {
             event.removeAtPath(lvalue);
@@ -118,14 +178,12 @@ public abstract class Etl extends Processor {
         }
     }
 
-    public abstract boolean process(Event event) throws ProcessorException; 
+    protected final VariablePath lvalue;
 
-    public VariablePath getLvalue() {
-        return lvalue;
-    }
-
-    public void setLvalue(VariablePath lvalue) {
+    protected Etl(VariablePath lvalue) {
         this.lvalue = lvalue;
     }
+
+    public abstract boolean process(Event event) throws ProcessorException;
 
 }

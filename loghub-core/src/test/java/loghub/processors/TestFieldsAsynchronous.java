@@ -187,9 +187,7 @@ public class TestFieldsAsynchronous {
         Builder builder = new Builder();
         builder.setField(VariablePath.of("a"));
         SleepingProcessor sp = builder.build();
-        Etl.Assign assign = new Etl.Assign();
-        assign.setExpression(new Expression(2));
-        assign.setLvalue(VariablePath.of("a"));
+        Etl assign = Etl.Assign.of(VariablePath.of("a"), new Expression(2));
         sp.setFailure(assign);
         Tools.ProcessingStatus status = Tools.runProcessing(e, "main", Collections.singletonList(sp), (i,j) -> { /* empty */ });
         e = status.mainQueue.take();
@@ -214,16 +212,12 @@ public class TestFieldsAsynchronous {
         builder.setField(VariablePath.of("a"));
         SleepingProcessor sp = builder.build();
 
-        Etl.Assign assign = new Etl.Assign();
-        assign.setExpression(new Expression(true));
-        assign.setLvalue(VariablePath.of("failure"));
+        Etl assign = Etl.Assign.of(VariablePath.of("failure"), new Expression(true));
         sp.setFailure(assign);
 
         List<Processor> processors = new ArrayList<>(2);
 
-        Etl.Assign assign2 = new Etl.Assign();
-        assign2.setExpression(new Expression(true));
-        assign2.setLvalue(VariablePath.of("b"));
+        Etl assign2 = Etl.Assign.of(VariablePath.of("b"), new Expression(true));
 
         processors.add(sp);
         processors.add(assign2);
@@ -244,9 +238,7 @@ public class TestFieldsAsynchronous {
         Builder builder = new Builder();
         builder.setField(VariablePath.of("a"));
         SleepingProcessor sp = builder.build();
-        Etl.Assign assign = new Etl.Assign();
-        assign.setExpression(new Expression(2));
-        assign.setLvalue(VariablePath.of("a"));
+        Etl assign = Etl.Assign.of(VariablePath.of("a"), new Expression(2));
         sp.setFailure(assign);
         Tools.ProcessingStatus status = Tools.runProcessing(e, "main", Collections.singletonList(sp), (i,j) -> { /* empty */ });
         e = status.mainQueue.take();
@@ -269,9 +261,7 @@ public class TestFieldsAsynchronous {
         Builder builder = new Builder();
         builder.setField(VariablePath.of("a"));
         SleepingProcessor sp = builder.build();
-        Etl.Assign assign = new Etl.Assign();
-        assign.setExpression(new Expression(2));
-        assign.setLvalue(VariablePath.of("a"));
+        Etl assign = Etl.Assign.of(VariablePath.of("a"), new Expression(2));
         sp.setException(assign);
         Tools.ProcessingStatus status = Tools.runProcessing(e, "main", Collections.singletonList(sp), (i,j) -> { /* empty */ });
         e = status.mainQueue.take();

@@ -6,6 +6,7 @@ import loghub.Expression;
 import loghub.IgnoredEventException;
 import loghub.NullOrMissingValue;
 import loghub.ProcessorException;
+import loghub.VariablePath;
 import loghub.events.Event;
 import lombok.Getter;
 import lombok.Setter;
@@ -13,8 +14,18 @@ import lombok.Setter;
 @Getter @Setter
 public class Mapper extends Etl {
 
-    private Map<Object, Object> map;
-    private Expression expression;
+    public static Etl of(VariablePath lvalue, Map<Object, Object> map, Expression expression) {
+        return new Mapper(lvalue, map, expression);
+    }
+
+    private final Map<Object, Object> map;
+    private final Expression expression;
+
+    public Mapper(VariablePath lvalue, Map<Object, Object> map, Expression expression) {
+        super(lvalue);
+        this.map = map;
+        this.expression = expression;
+    }
 
     @Override
     public boolean process(Event event) throws ProcessorException {

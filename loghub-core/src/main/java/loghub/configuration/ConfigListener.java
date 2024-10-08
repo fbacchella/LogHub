@@ -878,66 +878,56 @@ class ConfigListener extends RouteBaseListener {
         }
 
         Etl etl;
+        VariablePath lvalue = convertEventVariable(ctx.eventVariable().get(0));
 
         switch(ctx.op.getText()) {
         case("-"):
-            etl = new Etl.Remove();
+            etl = Etl.Remove.of(lvalue);
         break;
         case("<"): {
-            etl = new Etl.Rename();
-            ((Etl.Rename) etl).setSource(convertEventVariable(ctx.eventVariable().get(1)));
+            etl = Etl.Rename.of(lvalue, convertEventVariable(ctx.eventVariable().get(1)));
             break;
         }
         case("="): {
             if (ctx.children.get(2) instanceof EventVariableContext) {
                 EventVariableContext evc = (EventVariableContext) ctx.children.get(2);
                 VariablePath vp = convertEventVariable(evc);
-                etl = new Etl.Copy();
-                ((Etl.Copy) etl).setSource(vp);
+                etl = Etl.Copy.of(lvalue, vp);
             } else if (ctx.nl != null) {
                 stack.pop();
-                etl = new Etl.FromLitteral();
-                ((Etl.FromLitteral) etl).setLitteral(NullOrMissingValue.NULL);
+                etl = Etl.FromLiteral.of(lvalue, NullOrMissingValue.NULL);
             } else if (ctx.sl != null) {
                 ObjectWrapped<String> stringWrapped = stack.popTyped();
                 String format = stringWrapped.wrapped;
                 VarFormatter vf = new VarFormatter(format);
                 if (vf.isEmpty()) {
-                    etl = new Etl.FromLitteral();
-                    ((Etl.FromLitteral) etl).setLitteral(format);
+                    etl = Etl.FromLiteral.of(lvalue, format);
                 } else {
-                    etl = new Etl.VarFormat();
-                    ((Etl.VarFormat) etl).setFormatter(vf);
+                    etl = Etl.VarFormat.of(lvalue, vf);
                 }
             } else if (ctx.c != null || ctx.l != null) {
                 ObjectWrapped<Character> payload = stack.popTyped();
-                etl = new Etl.FromLitteral();
-                ((Etl.FromLitteral) etl).setLitteral(payload.wrapped);
+                etl = Etl.FromLiteral.of(lvalue, payload.wrapped);
             } else {
                 Expression expression = resolveWrappedExpression();
-                etl = new Etl.Assign();
-                ((Etl.Assign)etl).setExpression(expression);
+                etl = Etl.Assign.of(lvalue, expression);
             }
             break;
         }
         case("=+"): {
             Expression expression = resolveWrappedExpression();
-            etl = new Etl.Append();
-            ((Etl.Append)etl).setExpression(expression);
+            etl = Etl.Append.of(lvalue, expression);
             break;
         }
         case("("): {
-            etl = new Etl.Convert();
-            ((Etl.Convert)etl).setClassName(ctx.QualifiedIdentifier().getText());
+            etl = Etl.Convert.of(lvalue, ctx.QualifiedIdentifier().getText());
             break;
         }
         case("@"): {
-            etl = new Mapper();
             ObjectWrapped<Map<Object, Object>> wrapmap = stack.popTyped();
             Map<Object, Object> map = wrapmap.wrapped;
             Expression expression = resolveWrappedExpression();
-            ((Mapper) etl).setMap(map);
-            ((Mapper) etl).setExpression(expression);
+            etl = Mapper.of(lvalue, map, expression);
             break;
         }
         default:
@@ -946,7 +936,6 @@ class ConfigListener extends RouteBaseListener {
         // Remove Etl marker
         Object o = stack.pop();
         assert StackMarker.ETL == o;
-        etl.setLvalue(convertEventVariable(ctx.eventVariable().get(0)));
         stack.push(new ProcessorInstance(etl));
     }
 

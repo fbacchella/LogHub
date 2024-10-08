@@ -76,9 +76,7 @@ public class TestEtl {
     @Test
     public void test1() throws ProcessorException {
         Properties props = new Properties(Collections.emptyMap());
-        Etl.Assign etl = new Etl.Assign();
-        etl.setLvalue(VariablePath.of("a", "b"));
-        etl.setExpression(Tools.parseExpression("[c] + 1"));
+        Etl etl = Etl.Assign.of(VariablePath.of("a", "b"), Tools.parseExpression("[c] + 1"));
         boolean done = etl.configure(props);
         Assert.assertTrue("configuration failed", done);
         Event event = factory.newEvent();
@@ -89,8 +87,7 @@ public class TestEtl {
 
     @Test
     public void test2() throws ProcessorException {
-        Etl etl = new Etl.Remove();
-        etl.setLvalue(VariablePath.of("a"));
+        Etl etl = Etl.Remove.of(VariablePath.of("a"));
         boolean done = etl.configure(new Properties(Collections.emptyMap()));
         Assert.assertTrue("configuration failed", done);
         Event event = factory.newEvent();
@@ -101,9 +98,7 @@ public class TestEtl {
 
     @Test
     public void test3() throws ProcessorException {
-        Etl.Rename etl = new Etl.Rename();
-        etl.setLvalue(VariablePath.of("b"));
-        etl.setSource(VariablePath.of("a"));
+        Etl etl = Etl.Rename.of(VariablePath.of("b"), VariablePath.of("a"));
         boolean done = etl.configure(new Properties(Collections.emptyMap()));
         Assert.assertTrue("configuration failed", done);
         Event event = factory.newEvent();
@@ -118,10 +113,7 @@ public class TestEtl {
         Map<String, Object> properties = new HashMap<>();
         properties.put("__FORMATTERS", formats);
         Properties props = new Properties(properties);
-        Etl.Assign etl = new Etl.Assign();
-        etl.setLvalue(VariablePath.of("a"));
-        etl.setExpression(Tools.parseExpression("\"${#1%t<GMT>H}\"([@timestamp])"));
-        //etl.setExpression(new Expression("formatters.a.format(event.getTimestamp())", props.groovyClassLoader, props.formatters));
+        Etl etl = Etl.Assign.of(VariablePath.of("a"), Tools.parseExpression("\"${#1%t<GMT>H}\"([@timestamp])"));
         boolean done = etl.configure(props);
         Assert.assertTrue("configuration failed", done);
         Event event = factory.newEvent();
@@ -444,6 +436,12 @@ public class TestEtl {
     public void testFormatMeta() throws ProcessorException {
         Event ev =  RunEtl("[a]=\"${#1%s} ${#2%s}\"([#type], [type])", i -> {i.putMeta("type", 1);i.put("type", 2);} );
         Assert.assertEquals("1 2", ev.get("a"));
+    }
+
+    @Test
+    public void testFormatSimple() throws ProcessorException {
+        Event ev =  RunEtl("[c]=\"${a%s} ${b%s}\"", i -> {i.put("a", 1);i.put("b", 2);} );
+        Assert.assertEquals("1 2", ev.get("c"));
     }
 
     @Test

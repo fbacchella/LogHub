@@ -1,9 +1,9 @@
 package loghub.processors;
 
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 import loghub.BuilderClass;
@@ -18,10 +18,9 @@ import lombok.Setter;
 @BuilderClass(Hierarchical.Builder.class)
 public class Hierarchical extends Processor {
 
+    @Setter
     public static class Builder extends Processor.Builder<Hierarchical> {
-        @Setter
         private VariablePath destination = VariablePath.EMPTY;
-        @Setter
         private String[] fields = new String[] {"*"};
         public Hierarchical build() {
             return new Hierarchical(this);
@@ -34,7 +33,6 @@ public class Hierarchical extends Processor {
     @Getter
     private final VariablePath destination;
     private final Pattern[] patterns;
-    private final ThreadLocal<Etl.Rename> renamer = ThreadLocal.withInitial(Etl.Rename::new);
 
     public Hierarchical(Builder builder) {
         super(builder);
@@ -47,19 +45,17 @@ public class Hierarchical extends Processor {
 
     @Override
     public boolean process(Event event) throws ProcessorException {
-        Etl.Rename localRenamer = renamer.get();
-        for (String eventField: new HashSet<>(event.keySet())) {
+        for (String eventField: Set.copyOf(event.keySet())) {
             for (Pattern p: patterns) {
                 if (p.matcher(eventField).matches()) {
-                    localRenamer.setSource(VariablePath.of(eventField));
                     List<String> path = VariablePath.pathElements(eventField);
                     if (!path.isEmpty()) {
                         VariablePath d = destination;
                         for (String e: path) {
                             d = d.append(e);
                         }
-                        localRenamer.setLvalue(d);
-                        localRenamer.process(event);
+                        Etl renamer = Etl.Rename.of(d, VariablePath.of(eventField));
+                        renamer.process(event);
                     }
                 }
             }
