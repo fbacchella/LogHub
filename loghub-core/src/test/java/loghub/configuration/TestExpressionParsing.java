@@ -14,6 +14,7 @@ import java.security.Principal;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
@@ -1079,6 +1080,23 @@ public class TestExpressionParsing {
         ExpressionBuilder b3 = ExpressionBuilder.of(b1, o -> Expression.instanceOf(true, o, Integer.class));
         Assert.assertEquals(true, b2.build("1 instanceof Integer").eval());
         Assert.assertEquals(false, b3.build("1 ! instanceof Integer").eval());
+    }
+
+    @Test
+    public void testWrappedDeepCopy() {
+        Event ev = factory.newEvent();
+        ev.putAtPath(VariablePath.of("a", "b"), 1);
+        ev.putAtPath(VariablePath.of("a", "c"), null);
+        List<Object> d = new ArrayList<>(2);
+        d.add(NullOrMissingValue.NULL);
+        d.add(null);
+        ev.putAtPath(VariablePath.of("a", "d"), d);
+        Event wrapped = ev.wrap(VariablePath.of("a"));
+        @SuppressWarnings("unchecked")
+        Map<String, Object> map = (Map<String, Object>) Expression.deepCopy(wrapped);
+        Assert.assertEquals(1, map.get("b"));
+        Assert.assertEquals(NullOrMissingValue.NULL, map.get("c"));
+        Assert.assertEquals(List.of(NullOrMissingValue.NULL, NullOrMissingValue.NULL), map.get("d"));
     }
 
 }

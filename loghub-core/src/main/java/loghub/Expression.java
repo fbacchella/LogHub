@@ -641,42 +641,35 @@ public class Expression {
         return (T) mc.invokeConstructor(args.toArray(Object[]::new));
     }
 
+    private static Map<?, ?> copyMap(Map<?, ?> map) {
+        Map<?, ?> newMap = map.entrySet()
+                .stream()
+                .filter(sv -> sv.getValue() != NullOrMissingValue.MISSING)
+                .map(e -> Map.entry(e.getKey(), deepCopy(e.getValue())))
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+        return new HashMap<>(newMap);
+    }
     public static Object deepCopy(Object v) {
         if (v == null ) {
             return NullOrMissingValue.NULL;
         } else if (v instanceof Event) {
             Event e = (Event) v;
-            Map se = e.keySet()
-                             .stream()
-                             .collect(Collectors.toMap(s -> s, e::get));
-            return new HashMap(se);
+            return copyMap(e);
         } else if (v instanceof Map) {
-            Map m = (Map)v;
-            Map sm = (Map) m.entrySet()
-                                   .stream()
-                                   .filter(sv -> {
-                                       Map.Entry e = (Map.Entry) sv;
-                                       return e.getValue() != NullOrMissingValue.MISSING;
-                                   })
-                                   .map(sv -> {
-                                       Map.Entry e = (Map.Entry) sv;
-                                       return Map.entry(e.getKey(), deepCopy(e.getValue()));
-                                   }).collect(Collectors.toMap(e -> ((Map.Entry)e).getKey(), e -> ((Map.Entry)e).getValue()));
-            return new HashMap(sm);
+            Map<?, ?> m = (Map<?, ?>)v;
+            return copyMap(m);
         } else if (v instanceof List) {
-            List l = (List)v;
-            List sl = (List) l.stream()
-                                     .map(Expression::deepCopy)
-                                     .collect(Collectors.toList());
-            return new ArrayList(sl);
+            List<?> l = (List<?>)v;
+            return l.stream()
+                    .map(Expression::deepCopy)
+                    .collect(Collectors.toCollection(ArrayList::new));
         } else if (v instanceof Set) {
-            Set s = (Set)v;
-            Set ss = (Set) s.stream()
-                                   .map(Expression::deepCopy)
-                                   .collect(Collectors.toSet());
-            return new HashSet<>(ss);
+            Set<?> s = (Set<?>)v;
+            return s.stream()
+                    .map(Expression::deepCopy)
+                    .collect(Collectors.toCollection(HashSet::new));
         } else if (v.getClass().isArray()) {
-            Class c = v.getClass().getComponentType();
+            Class<?> c = v.getClass().getComponentType();
             int length = Array.getLength(v);
             Object newArray = Array.newInstance(c, length);
             for (int i = 0 ; i < length ; i++) {

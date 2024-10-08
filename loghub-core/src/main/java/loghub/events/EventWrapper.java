@@ -6,11 +6,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.BiFunction;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.apache.logging.log4j.Logger;
 
 import loghub.ConnectionContext;
+import loghub.NullOrMissingValue;
 import loghub.Pipeline;
 import loghub.PriorityBlockingQueue;
 import loghub.Processor;
@@ -36,11 +38,6 @@ class EventWrapper extends Event {
         event.applyAtPath(Action.CHECK_WRAP, path, null, false);
         this.event = event;
         this.path = path;
-    }
-
-    @Override
-    public Set<java.util.Map.Entry<String, Object>> entrySet() {
-        return event.entrySet();
     }
 
     private Object action(Action f, String key) {
@@ -111,10 +108,23 @@ class EventWrapper extends Event {
         return Boolean.TRUE.equals(action(Action.CONTAINSVALUE, null));
     }
 
-    @SuppressWarnings("unchecked")
     @Override
     public Set<String> keySet() {
-        return (Set<String>) action(Action.KEYSET, null);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> level = (Map<String, Object>) event.getAtPath(path);
+        return level.keySet();
+    }
+
+    @Override
+    public Set<Map.Entry<String, Object>> entrySet() {
+        @SuppressWarnings("unchecked")
+        Map<String, Object> level = (Map<String, Object>) event.getAtPath(path);
+        return level.keySet().stream().map(k -> Map.entry(k, getNotNull(k))).collect(Collectors.toSet());
+    }
+
+    private Object getNotNull(String k) {
+        Object o = get(k);
+        return o == null ? NullOrMissingValue.NULL : o;
     }
 
     @SuppressWarnings("unchecked")
