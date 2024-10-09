@@ -642,13 +642,11 @@ public class Expression {
     }
 
     private static Map<?, ?> copyMap(Map<?, ?> map) {
-        Map<?, ?> newMap = map.entrySet()
-                .stream()
-                .filter(sv -> sv.getValue() != NullOrMissingValue.MISSING)
-                .map(e -> Map.entry(e.getKey(), deepCopy(e.getValue())))
-                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-        return new HashMap<>(newMap);
+        return map.entrySet()
+                  .stream()
+                  .collect(Collectors.toMap(Map.Entry::getKey, e -> deepCopy(e.getValue())));
     }
+
     public static Object deepCopy(Object v) {
         if (v == null ) {
             return NullOrMissingValue.NULL;
