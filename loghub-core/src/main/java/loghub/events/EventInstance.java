@@ -329,6 +329,11 @@ class EventInstance extends Event {
     }
 
     @Override
+    public boolean containsData() {
+        return true;
+    }
+
+    @Override
     public int processingDone() {
         return stepsCount;
     }

@@ -6,7 +6,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.BiFunction;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.apache.logging.log4j.Logger;
@@ -40,11 +39,12 @@ class EventWrapper extends Event {
         this.path = path;
     }
 
-    private Object action(Action f, String key) {
+    private <T> T action(Action f, String key) {
         return action(f, key, null, false);
     }
 
-    private Object action(Action f, String key, Object value, boolean create) {
+    @SuppressWarnings("unchecked")
+    private <T> T action(Action f, String key, Object value, boolean create) {
         VariablePath lpath;
         if (key == null) {
             lpath = path;
@@ -55,7 +55,7 @@ class EventWrapper extends Event {
         } else {
             lpath = path.append(key);
         }
-        return event.applyAtPath(f, lpath, value, create);
+        return (T) event.applyAtPath(f, lpath, value, create);
     }
 
     @Override
@@ -83,6 +83,10 @@ class EventWrapper extends Event {
         return Boolean.TRUE.equals(action(Action.CONTAINS, key.toString()));
     }
 
+    public boolean containsData() {
+        return getRealEvent().getAtPath(path) != NullOrMissingValue.MISSING;
+    }
+
     @Override
     public String toString() {
         return event.toString();
@@ -90,12 +94,12 @@ class EventWrapper extends Event {
 
     @Override
     public int size() {
-        return (Integer) action(Action.SIZE, null);
+        return action(Action.SIZE, null);
     }
 
     @Override
     public boolean isEmpty() {
-        return (Boolean) action(Action.ISEMPTY, null);
+        return action(Action.ISEMPTY, null);
     }
 
     @Override
@@ -110,27 +114,17 @@ class EventWrapper extends Event {
 
     @Override
     public Set<String> keySet() {
-        @SuppressWarnings("unchecked")
-        Map<String, Object> level = (Map<String, Object>) event.getAtPath(path);
-        return level.keySet();
+        return action(Action.KEYSET, null);
     }
 
     @Override
     public Set<Map.Entry<String, Object>> entrySet() {
-        @SuppressWarnings("unchecked")
-        Map<String, Object> level = (Map<String, Object>) event.getAtPath(path);
-        return level.keySet().stream().map(k -> Map.entry(k, getNotNull(k))).collect(Collectors.toSet());
+        return action(Action.ENTRYSET, null);
     }
 
-    private Object getNotNull(String k) {
-        Object o = get(k);
-        return o == null ? NullOrMissingValue.NULL : o;
-    }
-
-    @SuppressWarnings("unchecked")
     @Override
     public Collection<Object> values() {
-        return (Collection<Object>) action(Action.VALUES, null);
+        return action(Action.VALUES, null);
     }
 
     @Override
@@ -276,7 +270,7 @@ class EventWrapper extends Event {
     @Override
     public void mergeMeta(Event event,
                           BiFunction<Object, Object, Object> cumulator) {
-        event.mergeMeta(event, cumulator);
+        getRealEvent().mergeMeta(event, cumulator);
     }
 
     @Override

@@ -14,8 +14,10 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Queue;
+import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.apache.logging.log4j.Logger;
@@ -48,7 +50,7 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
     enum Action {
         APPEND(false, Action::Append),          // Exported through appendAtPath
         GET(false, Action::get),       // Exported through getAtPath
-        PUT(false, Map::put),  // Exported through putAtPath
+        PUT(false, Action::put),  // Exported through putAtPath
         REMOVE(false, (i, j, k) -> i.remove(j)), // Exported through removeAtPath
         CONTAINS(true, (c, k, v) -> c.containsKey(k)), // Exported through containsAtPath
         CONTAINSVALUE(true, (c, k, v) -> Action.asMap(c, k).containsValue(v)), // Used in EventWrapper
@@ -56,15 +58,27 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
         SIZE(true, (c, k, v) ->  Action.size(c, k)), // Used in EventWrapper
         CLEAR(true, (c, k, v) -> {asMap(c, k).clear(); return null;}), // Used in EventWrapper
         KEYSET(true, (c, k, v) -> Action.asMap(c, k).keySet()), // Used in EventWrapper
+        ENTRYSET(true, (c, k, v) -> Action.entrySet(Action.asMap(c, k))), // Used in EventWrapper
         VALUES(true, (c, k, v) -> Action.asMap(c, k).values()), // Used in EventWrapper
         CHECK_WRAP(true, Action::checkPath)
         ;
         private static Object get(Map<String, Object> c, String k, Object v) {
             Object value = c.get(k);
+            assert value != NullOrMissingValue.MISSING;
             return value == NullOrMissingValue.NULL ? null : value;
         }
+        private static Object getNotNull(Map<String, Object> m, String k) {
+            Object o = m.get(k);
+            assert o != NullOrMissingValue.MISSING;
+            return o == null ? NullOrMissingValue.NULL : o;
+        }
+        private static Object put(Map<String, Object> c, String k, Object v) {
+            assert v != NullOrMissingValue.MISSING;
+            Object r = c.put(k, v == null ? NullOrMissingValue.NULL : v);
+            return r == NullOrMissingValue.NULL ? null : r;
+        }
         @SuppressWarnings("unchecked")
-        private static Map<String, Object> asMap(Map<String, Object>c , String k) {
+        private static Map<String, Object> asMap(Map<String, Object> c , String k) {
             if (k == null) {
                 return c;
             } else if (c.containsKey(k) && c.get(k) instanceof Map){
@@ -73,7 +87,10 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
                 return Collections.emptyMap();
             }
         }
-        private static int size(Map<String, Object>c , String k) {
+        private static Set<Entry<String, Object>> entrySet(Map<String, Object> m) {
+            return m.keySet().stream().map(k -> Map.entry(k, getNotNull(m, k))).collect(Collectors.toSet());
+        }
+        private static int size(Map<String, Object> c, String k) {
             if (k == null) {
                 return c.size();
             } else if (c.containsKey(k) && c.get(k) instanceof Map){
@@ -277,6 +294,9 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
         } else if (path == VariablePath.ROOT) {
             return applyRelativePath(getRealEvent(), f, value);
         } else if (path == VariablePath.CURRENT) {
+            if (! containsData()) {
+                throw IgnoredEventException.INSTANCE;
+            }
             return applyRelativePath(this, f, value);
         } else {
             String key = path.get(0);
@@ -312,7 +332,7 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
             } else if (!current.containsKey(key) && f != Action.PUT && f != Action.APPEND) {
                 return keyMissing(f);
             }
-            return f.action.apply(current, key, value == NullOrMissingValue.NULL ? null : value);
+            return f.action.apply(current, key, value);
         }
     }
 
@@ -341,7 +361,8 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
             return false;
         case KEYSET:
         case VALUES:
-            return Collections.emptySet();
+        case ENTRYSET:
+            return Set.of();
         default:
             throw IgnoredEventException.INSTANCE;
         }
@@ -494,10 +515,11 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
         return Boolean.TRUE.equals(applyAtPath(Action.CONTAINS, path, null, false));
     }
 
+    public abstract boolean containsData();
+
     public Object removeAtPath(VariablePath path) {
         return applyAtPath(Action.REMOVE, path, null, false);
     }
-
 
     public abstract void end();
 

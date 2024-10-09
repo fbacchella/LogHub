@@ -1,6 +1,7 @@
 package loghub.configuration;
 
 import java.io.IOException;
+import java.io.StringReader;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -13,33 +14,37 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import loghub.EventsProcessor;
+import loghub.IgnoredEventException;
 import loghub.LogUtils;
+import loghub.NullOrMissingValue;
 import loghub.ProcessorException;
+import loghub.RouteParser;
 import loghub.Tools;
+import loghub.VariablePath;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
+import loghub.processors.Etl;
 
 public class TestWrapping {
 
-    private static Logger logger;
     private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
     static public void configure() throws IOException {
         Tools.configure();
-        logger = LogManager.getLogger();
+        Logger logger = LogManager.getLogger();
         LogUtils.setLevel(logger, Level.TRACE, "loghub.Event", "loghub.EventsProcessor", "loghub");
     }
 
     @Test
-    public void testSourceLoadingContains() throws ConfigException, IOException, ProcessorException, InterruptedException {
+    public void testSourceLoadingContains() throws ConfigException, IOException, InterruptedException {
         Event ev = factory.newEvent();
         ev.put("a", new HashMap<String, Object>());
         checkEvent(ev);
     }
 
     @Test
-    public void testSourceLoadingNotContains() throws ConfigException, IOException, ProcessorException, InterruptedException {
+    public void testSourceLoadingNotContains() throws ConfigException, IOException, InterruptedException {
         Event ev = factory.newEvent();
         checkEvent(ev);
     }
@@ -58,6 +63,55 @@ public class TestWrapping {
         Assert.assertEquals(1, ((Map<String, Object>)processed.get("a")).get("#f"));
         Assert.assertEquals(2, ((Map<String, Object>)processed.get("a")).get("@timestamp"));
         ep.stopProcessing();
+    }
+
+    @Test
+    public void testWrongMapping() {
+        Event ev = factory.newEvent();
+        ev.putAtPath(VariablePath.of("a"), 1);
+        Event wrapped = ev.wrap(VariablePath.of("b"));
+        Assert.assertTrue(wrapped.keySet().isEmpty());
+        Assert.assertTrue(wrapped.entrySet().isEmpty());
+        Assert.assertThrows(IgnoredEventException.class, () -> wrapped.size());
+        Assert.assertEquals(NullOrMissingValue.MISSING, ev.getAtPath(VariablePath.of("b", "b")));
+        Assert.assertEquals(NullOrMissingValue.MISSING, wrapped.get("b"));
+        Assert.assertThrows(IgnoredEventException.class, () -> wrapped.getAtPath(VariablePath.of("^")));
+    }
+
+    @Test
+    public void fromConfiguration1() throws IOException, ProcessorException {
+        runEmptyPath("pipeline[main]{path[a]([. c] = [b])}");
+    }
+
+    @Test
+    public void fromConfiguration2() throws IOException, ProcessorException {
+        runEmptyPath("pipeline[main]{path[a](isEmpty([b]) ? [. a1] = true) | isEmpty([a b]) ? [. a2] = true}");
+    }
+
+    @Test
+    public void fromConfiguration3() throws IOException, ProcessorException {
+        runEmptyPath("pipeline[main]{path[a](isEmpty([^]) ? [. a1] = true) | isEmpty([a b]) ? [. a2] = true}");
+    }
+
+    @Test
+    public void fromConfiguration4() throws IOException, ProcessorException {
+        runEmptyPath("pipeline[main]{path[a]([. b] = [^]) | isEmpty([b]) ? [. ab] = true}");
+    }
+
+    @Test
+    public void canFill() throws IOException, ProcessorException {
+        Properties p =  Configuration.parse(new StringReader("pipeline[main]{path[a]([. b] = 1 | [b] = 2)}"));
+        Event ev = factory.newEvent();
+        Tools.runProcessing(ev, p.namedPipeLine.get("main"), p);
+        Assert.assertEquals(1, ev.getAtPath(VariablePath.of("b")));
+        Assert.assertEquals(2, ev.getAtPath(VariablePath.of("a", "b")));
+    }
+
+    private void runEmptyPath(String configuration) throws IOException, ProcessorException {
+        Properties p =  Configuration.parse(new StringReader(configuration));
+        Event ev = factory.newEvent();
+        Tools.runProcessing(ev, p.namedPipeLine.get("main"), p);
+        Assert.assertTrue(ev.isEmpty());
     }
 
 }

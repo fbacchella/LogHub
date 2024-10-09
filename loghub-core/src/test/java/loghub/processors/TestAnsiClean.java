@@ -13,6 +13,7 @@ import org.junit.Test;
 
 import loghub.BeanChecks;
 import loghub.Expression;
+import loghub.IgnoredEventException;
 import loghub.LogUtils;
 import loghub.NullOrMissingValue;
 import loghub.Processor;
@@ -45,7 +46,9 @@ public class TestAnsiClean {
         Assert.assertTrue(cv.configure(props));
 
         Event e = factory.newEvent();
-        e.put("message", message);
+        if (message != NullOrMissingValue.MISSING) {
+            e.put("message", message);
+        }
         e.process(cv);
         return e;
     }
@@ -69,9 +72,8 @@ public class TestAnsiClean {
     }
 
     @Test
-    public void testAnsiNullOrMissingValue() throws ProcessorException {
-        Event ev = resolve("", NullOrMissingValue.MISSING);
-        Assert.assertEquals(NullOrMissingValue.MISSING, ev.get("message"));
+    public void testAnsiNullOrMissingValue() {
+        Assert.assertThrows(IgnoredEventException.class, () -> resolve("", NullOrMissingValue.MISSING));
     }
 
     @Test
