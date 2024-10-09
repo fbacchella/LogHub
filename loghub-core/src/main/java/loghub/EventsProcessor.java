@@ -303,8 +303,10 @@ public class EventsProcessor extends Thread {
                     Start.fatalException(ex);
                 } else {
                     e.doMetric(Stats.PipelineStat.EXCEPTION, ex);
-                    e.getPipelineLogger().error("Failed to transform event {} with unmanaged error {}", e, Helpers.resolveThrowableException(ex));
-                    e.getPipelineLogger().catching(Level.DEBUG, ex);
+                    Logger plogger =  e.getPipelineLogger();
+                    plogger.atError()
+                           .withThrowable(plogger.isDebugEnabled() ? ex : null)
+                           .log("Failed to transform event {} with unmanaged error {}", e, Helpers.resolveThrowableException(ex));
                 }
                 status = ProcessingStatus.ERROR;
             }
