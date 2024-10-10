@@ -6,6 +6,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Consumer;
+import java.util.Map;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -14,6 +15,7 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import loghub.Expression;
 import loghub.LogUtils;
 import loghub.NullOrMissingValue;
 import loghub.Processor;
@@ -64,25 +66,26 @@ public class TestFilter {
     public void testZero() throws IOException, ProcessorException {
         String conf = "pipeline[main]{ loghub.processors.Filter {lambda: x -> x == 0, fields: [\"a*\", \"b*\"],}}";
         Event ev = runTest(conf, this::commonFill);
-        Assert.assertEquals(7, ev.size());
         Assert.assertEquals(NullOrMissingValue.MISSING, ev.getAtPath(VariablePath.of("a2", "b")));
         Assert.assertEquals(List.of(), ev.getAtPath(VariablePath.of("a2", "c")));
         Assert.assertEquals(1, ev.getAtPath(VariablePath.of("a3")));
+        Assert.assertEquals(List.of(), ev.getAtPath(VariablePath.of("a4")));
         Assert.assertEquals(List.of(), ev.getAtPath(VariablePath.of("a5")));
         Assert.assertEquals(0, ev.get("c"));
         Assert.assertEquals(List.of(), ev.get("d"));
+        Assert.assertEquals(7, ev.size());
     }
 
     @Test
     public void testEmpty() throws IOException, ProcessorException {
         String conf = "pipeline[main]{ loghub.processors.Filter {lambda: x -> isEmpty(x), field: [a2],} | loghub.processors.Filter {lambda: x -> isEmpty(x), field: [a6],}}";
         Event ev = runTest(conf, this::commonFill);
-        Assert.assertEquals(7, ev.size());
         Assert.assertEquals(0, ev.getAtPath(VariablePath.of("a2", "b")));
         Assert.assertEquals(NullOrMissingValue.MISSING, ev.getAtPath(VariablePath.of("a2", "c")));
         Assert.assertEquals(NullOrMissingValue.MISSING, ev.getAtPath(VariablePath.of("a6")));
         Assert.assertEquals(1, ev.get("a3"));
         Assert.assertEquals(0, ev.get("c"));
+        Assert.assertEquals(7, ev.size());
     }
 
     @Test
@@ -94,22 +97,47 @@ public class TestFilter {
             e.putAtPath(VariablePath.of("related", "user"), Set.of("root", "apache"));
             e.putAtPath(VariablePath.of("related", "hash"), null);
         });
-        Assert.assertEquals(1, ev.size());
-        Assert.assertEquals(1, ((java.util.Map)ev.get("related")).size());
+        Assert.assertEquals(1, ((Map<?, ?>)ev.get("related")).size());
         Assert.assertEquals(NullOrMissingValue.MISSING, ev.getAtPath(VariablePath.of("related", "hosts")));
         Assert.assertEquals(NullOrMissingValue.MISSING, ev.getAtPath(VariablePath.of("related", "ip")));
         Assert.assertEquals(NullOrMissingValue.MISSING, ev.getAtPath(VariablePath.of("related", "hash")));
         Assert.assertEquals(Set.of("apache", "root"), Set.copyOf((Collection<?>) ev.getAtPath(VariablePath.of("related", "user"))));
+        Assert.assertEquals(1, ev.size());
     }
 
     @Test
     public void testNoIterate() throws IOException, ProcessorException {
         String conf = "pipeline[main]{ loghub.processors.Filter {lambda: x -> x == 0, fields: [\"a*\", \"b*\"], iterate: false}}";
         Event ev = runTest(conf, this::commonFill);
-        Assert.assertEquals(7, ev.size());
         Assert.assertEquals(NullOrMissingValue.MISSING, ev.getAtPath(VariablePath.of("a2", "b")));
         Assert.assertEquals(List.of(0), ev.get("a4"));
         Assert.assertEquals(0, ev.get("c"));
+        Assert.assertEquals(7, ev.size());
+    }
+
+    @Test
+    public void testDeep() throws IOException, ProcessorException {
+        String conf = "pipeline[main]{ foreach[a b] (loghub.processors.Filter {lambda: x -> isEmpty(x), field: [^]})}";
+        Consumer<Event> c = ev -> {
+            Map<String, Object> t1 = Map.ofEntries(
+                    java.util.Map.entry("c", NullOrMissingValue.NULL),
+                    java.util.Map.entry("d", "1d"),
+                    java.util.Map.entry("e", "1e")
+            );
+            Map<String, Object> t2 = Map.ofEntries(
+                    java.util.Map.entry("c", NullOrMissingValue.NULL),
+                    java.util.Map.entry("d", "2d"),
+                    java.util.Map.entry("e", "2e")
+            );
+            ev.putAtPath(VariablePath.of("a", "b"), Expression.deepCopy(List.of(t1, t2)));
+        };
+        Event ev = runTest(conf, c);
+        @SuppressWarnings("unchecked")
+        List<Map<String, String>> ab = (List<Map<String, String>>) ev.getAtPath(VariablePath.of("a", "b"));
+        Map<String, String> ab0 = ab.get(0);
+        Map<String, String> ab1 = ab.get(1);
+        Assert.assertEquals(Map.of("d", "1d", "e", "1e"), ab0);
+        Assert.assertEquals(Map.of("d", "2d", "e", "2e"), ab1);
     }
 
 }

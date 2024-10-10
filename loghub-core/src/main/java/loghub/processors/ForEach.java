@@ -93,7 +93,9 @@ public class ForEach extends Processor {
             Collection<Object> c = (Collection<Object>) o;
             l = new ArrayList<>(c);
         } else {
+            event.insertProcessor(new UnwrapEvent());
             event.insertProcessor(subProcessor);
+            event.insertProcessor(new WrapEvent(collectionPath));
             return true;
         }
         if (!l.isEmpty()) {

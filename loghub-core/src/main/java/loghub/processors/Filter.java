@@ -13,8 +13,8 @@ import lombok.Setter;
 @FieldsProcessor.ProcessNullField
 public class Filter extends TreeWalkProcessor {
 
+    @Setter
     public static class Builder extends TreeWalkProcessor.Builder<Filter> {
-        @Setter
         private Lambda lambda;
         public Builder() {
             this.setTraversal(TRAVERSAL_ORDER.DEPTH);
@@ -39,6 +39,8 @@ public class Filter extends TreeWalkProcessor {
     protected Object processLeaf(Event event, Object value) throws ProcessorException {
         if (Boolean.TRUE.equals(filter.eval(event, value))) {
             return RUNSTATUS.REMOVE;
+        } else if (value instanceof Event){
+            return Expression.deepCopy(value);
         } else {
             return value;
         }
