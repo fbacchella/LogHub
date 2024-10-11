@@ -11,7 +11,6 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.Set;
@@ -231,20 +230,18 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
             }
         }
         if (path.isIndirect()) {
-            Function<Object, String[]> convert = o -> {
+            Function<Object, VariablePath> convert = o -> {
                 if (o instanceof String[]) {
-                    return (String[]) o;
-                } else if (o.getClass().isArray() || o == NullOrMissingValue.MISSING) {
+                    return VariablePath.of((String[]) o);
+                } else if (o.getClass().isArray() || o instanceof NullOrMissingValue) {
                     return null;
                 } else {
-                    return new String[] {o.toString()};
+                    return VariablePath.parse(o.toString());
                 }
             };
             path = Optional.ofNullable(applyAtPath(Action.GET, VariablePath.of(path), false))
-                    .map(convert)
-                    .filter(Objects::nonNull)
-                    .map(VariablePath::of)
-                    .orElse(null);
+                           .map(convert)
+                           .orElse(null);
             if (path == null) {
                 return NullOrMissingValue.MISSING;
             }

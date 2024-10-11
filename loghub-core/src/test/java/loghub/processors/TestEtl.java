@@ -234,7 +234,7 @@ public class TestEtl {
     }
 
     @Test
-    public void testAssignIndirect() throws ProcessorException {
+    public void testAssignIndirect1() throws ProcessorException {
         Etl e = parseEtl("[<- a] = 1");
         Event ev = factory.newEvent();
         ev.put("a", "b");
@@ -242,6 +242,16 @@ public class TestEtl {
         Assert.assertEquals(1, ev.remove("b"));
         Assert.assertEquals("b", ev.remove("a"));
         Assert.assertTrue(ev.isEmpty());
+    }
+
+    @Test
+    public void testAssignIndirect2() throws ProcessorException {
+        Etl e = parseEtl("[<- a] = 1");
+        Event ev = factory.newEvent();
+        ev.put("a", "b.c");
+        Assert.assertTrue(e.process(ev));
+        Assert.assertEquals(1, ev.removeAtPath(VariablePath.of("b", "c")));
+        Assert.assertEquals("b.c", ev.remove("a"));
     }
 
     @Test
