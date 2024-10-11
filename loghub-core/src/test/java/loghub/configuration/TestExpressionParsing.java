@@ -998,6 +998,13 @@ public class TestExpressionParsing {
     }
 
     @Test
+    public void parseLambdaConstant() throws ProcessorException {
+        String lambda = "x -> 1";
+        Lambda l = ConfigurationTools.unWrap(lambda, RouteParser::lambda);
+        Assert.assertEquals(1, l.getExpression().eval(null, 1));
+    }
+
+    @Test
     public void parseLambdaIsEmpty() throws ProcessorException {
         String lambda = "x -> isEmpty(x)";
         Lambda l = ConfigurationTools.unWrap(lambda, RouteParser::lambda);

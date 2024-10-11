@@ -130,6 +130,7 @@ class ConfigListener extends RouteBaseListener {
         EXPRESSION_LIST,
         FIRE,
         ETL,
+        LAMBDA,
         MAP
     }
 
@@ -1199,7 +1200,8 @@ class ConfigListener extends RouteBaseListener {
                 expressionSource = ctx.getText();
             }
             Expression expr = expression.build(expressionSource);
-            if (expression.getType() == ExpressionBuilder.ExpressionType.LITERAL) {
+            // A lambda only takes Expression as argument, so never optimize it
+            if (stack.peek() != StackMarker.LAMBDA && expression.getType() == ExpressionBuilder.ExpressionType.LITERAL) {
                 try {
                     stack.push(new ObjectWrapped<>(expr.eval()));
                 } catch (ProcessorException e) {
@@ -1214,8 +1216,14 @@ class ConfigListener extends RouteBaseListener {
     }
 
     @Override
+    public void enterLambda(RouteParser.LambdaContext ctx) {
+        stack.push(StackMarker.LAMBDA);
+    }
+
+    @Override
     public void exitLambda(RouteParser.LambdaContext ctx) {
         ObjectWrapped<Expression> exw = stack.popTyped();
+        stack.pop();
         stack.push(new ObjectWrapped<>(new Lambda(exw.wrapped)));
     }
 
