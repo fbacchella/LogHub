@@ -29,7 +29,6 @@ public abstract class TreeWalkProcessor extends FieldsProcessor {
         } else {
             return processLeaf(event, value);
         }
-
      }
 
     protected abstract Object processLeaf(Event event, Object value) throws ProcessorException;

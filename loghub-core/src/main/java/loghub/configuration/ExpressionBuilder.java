@@ -11,7 +11,6 @@ import loghub.ProcessorException;
 import loghub.VarFormatter;
 import loghub.VariablePath;
 import lombok.Getter;
-import lombok.Setter;
 
 class ExpressionBuilder {
 
