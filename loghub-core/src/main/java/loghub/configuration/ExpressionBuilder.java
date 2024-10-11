@@ -87,7 +87,7 @@ class ExpressionBuilder {
 
     private ExpressionBuilder setPayload(List<ExpressionBuilder> list) {
         List<Expression.ExpressionLambda> lambdas = list.stream().map(ExpressionBuilder::asLambda).filter(Objects::nonNull).collect(Collectors.toList());
-        this.payload = (Expression.ExpressionLambda)ed -> lambdas.stream().map(l -> l.apply(ed)).collect(Collectors.toList());
+        this.payload = (Expression.ExpressionLambda) ed -> lambdas.stream().map(l -> l.apply(ed)).collect(Collectors.toList());
         return this;
     }
 
@@ -131,7 +131,8 @@ class ExpressionBuilder {
         if (exp.type == ExpressionType.LITERAL) {
             return new ExpressionBuilder().setType(ExpressionType.LITERAL).setPayload(f.apply((T) exp.payload));
         } else {
-            Expression.ExpressionLambda l = ed -> f.apply((T) exp.asLambda().apply(ed));
+            Expression.ExpressionLambda asLambda = exp.asLambda();
+            Expression.ExpressionLambda l = ed -> f.apply((T) asLambda.apply(ed));
             return new ExpressionBuilder().setType(ExpressionType.LAMBDA).setPayload(l);
         }
     }
@@ -141,7 +142,9 @@ class ExpressionBuilder {
         if (exp1.type == ExpressionType.LITERAL && exp2.type == ExpressionType.LITERAL ) {
             return new ExpressionBuilder().setType(ExpressionType.LITERAL).setPayload(f.apply((T) exp1.payload, (U) exp2.payload));
         } else {
-            Expression.ExpressionLambda l = ed -> f.apply((T) exp1.asLambda().apply(ed), (U) exp2.asLambda().apply(ed));
+            Expression.ExpressionLambda asLambda1 = exp1.asLambda();
+            Expression.ExpressionLambda asLambda2 = exp2.asLambda();
+            Expression.ExpressionLambda l = ed -> f.apply((T) asLambda1.apply(ed), (U) asLambda2.apply(ed));
             return new ExpressionBuilder().setType(ExpressionType.LAMBDA).setPayload(l);
         }
     }
