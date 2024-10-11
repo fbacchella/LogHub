@@ -85,6 +85,7 @@ import loghub.RouteParser.VarPathContext;
 import loghub.RouteParser.ForeachContext;
 import loghub.VarFormatter;
 import loghub.VariablePath;
+import loghub.events.Event;
 import loghub.processors.AnonymousSubPipeline;
 import loghub.processors.Drop;
 import loghub.processors.Etl;
@@ -1024,9 +1025,37 @@ class ConfigListener extends RouteBaseListener {
             if (vf.isEmpty()) {
                 expression = ExpressionBuilder.of(format);
             } else  if (exlist != null) {
+                // Used to detect if all the arguments are constant, so it can be evaluated during parsing
+                boolean allLitterals = exlist.stream()
+                                             .collect(
+                            Collectors.reducing(
+                                 Boolean.TRUE,
+                                 eb -> eb.getType() == ExpressionBuilder.ExpressionType.LITERAL,
+                                 (a, b) -> a && b
+                            )
+                );
                 ExpressionBuilder expressions = ExpressionBuilder.of(exlist);
                 Expression.ExpressionLambda listLambda = expressions.getPayload();
-                expression = ExpressionBuilder.of(ed -> vf.format(listLambda.apply(ed))).setDeepCopy(false);
+                if (allLitterals) {
+                    Expression.ExpressionData ed = new Expression.ExpressionData() {
+                        @Override
+                        public Event getEvent() {
+                            return null;
+                        }
+                        @Override
+                        public Expression getExpression() {
+                            return null;
+                        }
+                        @Override
+                        public Object getValue() {
+                            return null;
+                        }
+                    };
+                    Object formatted = vf.format(listLambda.apply(ed));
+                    expression = ExpressionBuilder.of(formatted);
+                } else {
+                    expression = ExpressionBuilder.of(ed -> vf.format(listLambda.apply(ed))).setDeepCopy(false);
+                }
             } else {
                 expression = ExpressionBuilder.of(vf);
             }

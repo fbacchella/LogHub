@@ -991,6 +991,30 @@ public class TestExpressionParsing {
     }
 
     @Test
+    public void optimizeVarFormat() {
+        String lambda = "\">${#1%s}<\"(1)";
+        Assert.assertEquals(">1<", ConfigurationTools.unWrap(lambda, RouteParser::expression));
+    }
+
+    @Test
+    public void optimizeVarFormatWithEvent() {
+        String lambda = "\"${%j}\"";
+        Assert.assertEquals(Expression.class, ConfigurationTools.unWrap(lambda, RouteParser::expression).getClass());
+    }
+
+    @Test
+    public void optimizeConstantNumeric() {
+        String lambda = "1";
+        Assert.assertEquals(Integer.valueOf(1), ConfigurationTools.unWrap(lambda, RouteParser::expression));
+    }
+
+    @Test
+    public void optimizeConstantString() {
+        String lambda = "\"1\"";
+        Assert.assertEquals("1", ConfigurationTools.unWrap(lambda, RouteParser::expression));
+    }
+
+    @Test
     public void parseLambda() throws ProcessorException {
         String lambda = "x -> x + 1";
         Lambda l = ConfigurationTools.unWrap(lambda, RouteParser::lambda);
@@ -1002,6 +1026,20 @@ public class TestExpressionParsing {
         String lambda = "x -> 1";
         Lambda l = ConfigurationTools.unWrap(lambda, RouteParser::lambda);
         Assert.assertEquals(1, l.getExpression().eval(null, 1));
+    }
+
+    @Test
+    public void parseLambdaFormatter() throws ProcessorException {
+        String lambda = "x -> \">${#1%s}<\"(x)";
+        Lambda l = ConfigurationTools.unWrap(lambda, RouteParser::lambda);
+        Assert.assertEquals(">1<", l.getExpression().eval(null, 1));
+    }
+
+    @Test
+    public void parseLambdaConstantFormatter() throws ProcessorException {
+        String lambda = "x -> \">${#1%s}<\"(1)";
+        Lambda l = ConfigurationTools.unWrap(lambda, RouteParser::lambda);
+        Assert.assertEquals(">1<", l.getExpression().eval(null, null));
     }
 
     @Test
