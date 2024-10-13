@@ -324,7 +324,7 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
                 }
                 key = path.get(i + 1);
             }
-            if (create && !current.containsKey(key)) {
+            if (create && !current.containsKey(key) && f != Action.APPEND) {
                 current.put(key, new HashMap<>());
             } else if (!current.containsKey(key) && f != Action.PUT && f != Action.APPEND) {
                 return keyMissing(f);
@@ -492,7 +492,7 @@ public abstract class Event extends HashMap<String, Object> implements Serializa
     }
 
     public boolean appendAtPath(VariablePath path, Object o) {
-        Boolean status = (Boolean) applyAtPath(Action.APPEND, path, o, false);
+        Boolean status = (Boolean) applyAtPath(Action.APPEND, path, o, true);
         if (status == null) {
             throw IgnoredEventException.INSTANCE;
         } else {

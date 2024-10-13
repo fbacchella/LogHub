@@ -21,7 +21,6 @@ import loghub.BuilderClass;
 import loghub.EventsProcessor;
 import loghub.Expression;
 import loghub.LogUtils;
-import loghub.NullOrMissingValue;
 import loghub.Processor;
 import loghub.ProcessorException;
 import loghub.Tools;
@@ -410,6 +409,19 @@ public class TestConfigurations {
                 Assert.assertEquals(message, property.getValue(), props.get("a"));
             }
         }
+    }
+
+    @Test
+    public void testin() throws ConfigException, IOException, ProcessorException {
+        String confile = "pipeline[main] {\n" +
+                                 "[a b] in list(\"1\") ? [b c] =+ 1 |\n" +
+                                 "[a b] in list(\"1\") ? [b c] =+ 2 " +
+                                 "}\n";
+        Properties  p = Configuration.parse(new StringReader(confile));
+        Event ev = factory.newEvent();
+        ev.putAtPath(VariablePath.of("a", "b"), "1");
+        Tools.runProcessing(ev, p.namedPipeLine.get("main"), p);
+        Assert.assertEquals(List.of(1, 2), ev.getAtPath(VariablePath.of("b", "c")));
     }
 
 }
