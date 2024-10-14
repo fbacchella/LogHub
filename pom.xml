@@ -11,10 +11,10 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.release>11</maven.compiler.release>
-        <log4j.version>2.23.1</log4j.version>
+        <log4j.version>2.24.1</log4j.version>
         <antlr>4.13.2</antlr>
         <jackson>2.18.0</jackson>
-        <metrics>4.2.27</metrics>
+        <metrics>4.2.28</metrics>
         <cache2k>2.6.1.Final</cache2k>
         <mainClass>loghub.Start</mainClass>
         <cacheapi.version>1.1.1</cacheapi.version>
@@ -56,7 +56,7 @@
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-core</artifactId>
-            <version>5.14.0</version>
+            <version>5.14.1</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -87,7 +87,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-surefire-report-plugin</artifactId>
-                    <version>3.5.0</version>
+                    <version>3.5.1</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -146,7 +146,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-javadoc-plugin</artifactId>
-                    <version>3.10.0</version>
+                    <version>3.10.1</version>
                     <configuration>
                         <quiet />
                         <source>${maven.compiler.release}</source>
@@ -169,7 +169,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-surefire-plugin</artifactId>
-                    <version>3.5.0</version>
+                    <version>3.5.1</version>
                     <configuration>
                         <!-- issue https://issues.apache.org/jira/browse/SUREFIRE-1588, show only on circle-ci -->
                         <useSystemClassLoader>false</useSystemClassLoader>
@@ -210,7 +210,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-site-plugin</artifactId>
-                    <version>3.20.0</version>
+                    <version>4.0.0-M16</version>
                 </plugin>
                 <plugin>
                     <groupId>org.sonarsource.scanner.maven</groupId>
