@@ -113,6 +113,9 @@ public class EsPipelineConvert implements BaseCommand {
             case "json":
                 json(params, prefix);
                 break;
+            case "user_agent":
+                userAgent(params, prefix);
+                break;
             default:
                 System.out.println(prefix + "// " + processor);
             }
@@ -323,9 +326,24 @@ public class EsPipelineConvert implements BaseCommand {
 
     private void json(Map<String, Object> params, String prefix) {
         Map<String, Object> attributes = new HashMap<>();
+        String field = resolveField(params.remove("field"));
+        String target_field = resolveField(params.remove("target_field"));
+        if (target_field != null) {
+            attributes.put("field", field.replace("[", "[. "));
+            System.out.format("%spath%s(%n", prefix, target_field);
+            doProcessor(prefix + "    ", "loghub.processors.ParseJson", filterComments(params, attributes), attributes);
+            System.out.format("%s) |%n", prefix);
+        } else {
+            attributes.put("field", field);
+            doProcessor(prefix, "loghub.processors.ParseJson", filterComments(params, attributes), attributes);
+        }
+    }
+
+    private void userAgent(Map<String, Object> params, String prefix) {
+        Map<String, Object> attributes = new HashMap<>();
         attributes.put("field", resolveField(params.remove("field")));
-        attributes.put("path", resolveField(params.remove("target_field")));
-        doProcessor(prefix, "loghub.processors.ParseJson", filterComments(params, attributes), attributes);
+        attributes.put("destination", resolveField(Optional.ofNullable(params.remove("target_field")).orElse("user_agent")));
+        doProcessor(prefix, "loghub.processors.UserAgent", filterComments(params, attributes), attributes);
     }
 
     private void doProcessor(String prefix, String processor, String comment, Map<String, Object> fields) {
