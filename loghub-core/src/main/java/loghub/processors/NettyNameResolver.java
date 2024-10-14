@@ -208,7 +208,7 @@ public class NettyNameResolver extends
         eventLoop = builder.poller.getEventLoopGroup(1, ThreadBuilder.get().setDaemon(false).getFactory("dnsresolver")).next();
         DnsNameResolverBuilder resolverBuilder = new DnsNameResolverBuilder(eventLoop)
                                                          .queryTimeoutMillis(getTimeout() * 1000L)
-                                                         .channelFactory(() -> channelFactory(TRANSPORT.UDP, builder.poller, builder.rcvBuf, builder.sndBuf))
+                                                         .datagramChannelFactory(() -> channelFactory(TRANSPORT.UDP, builder.poller, builder.rcvBuf, builder.sndBuf))
                                                          .socketChannelFactory(() -> channelFactory(TRANSPORT.TCP, builder.poller, builder.rcvBuf, builder.sndBuf))
                                                          .negativeTtl(failureCachingTtl);
         Object parent;
