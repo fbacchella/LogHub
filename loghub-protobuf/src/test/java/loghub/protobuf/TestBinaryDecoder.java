@@ -49,15 +49,15 @@ public class TestBinaryDecoder {
         Assert.assertEquals(1, values.size());
         Assert.assertEquals(0, unknownFields.size());
         @SuppressWarnings("unchecked")
-        List<Map<String,Object>> ts = (List<Map<String, Object>>) values.get("TimeSeries");
+        List<Map<String,Object>> ts = (List<Map<String, Object>>) values.get("timeseries");
         Assert.assertEquals(1, ts.size());
         Map<String,Object> s1 = ts.get(0);
         @SuppressWarnings("unchecked")
-        List<TestBinaryDecoder.CustomSample> samples = (List<CustomSample>) s1.get("Sample");
+        List<TestBinaryDecoder.CustomSample> samples = (List<CustomSample>) s1.get("samples");
         Assert.assertEquals(1, samples.size());
         samples.forEach(s -> Assert.assertTrue(s instanceof CustomSample));
         @SuppressWarnings("unchecked")
-        List<TestBinaryDecoder.CustomSample> labels = (List<CustomSample>) s1.get("Label");
+        List<TestBinaryDecoder.CustomSample> labels = (List<CustomSample>) s1.get("labels");
         Assert.assertEquals(2, labels.size());
     }
 

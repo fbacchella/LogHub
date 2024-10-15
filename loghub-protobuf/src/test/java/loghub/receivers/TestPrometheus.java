@@ -8,7 +8,9 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
@@ -37,7 +39,6 @@ import loghub.configuration.Properties;
 import loghub.events.Event;
 import loghub.security.ssl.ClientAuthentication;
 import prometheus.Remote;
-import prometheus.Types;
 
 public class TestPrometheus {
 
@@ -110,12 +111,13 @@ public class TestPrometheus {
             doRequest(wr);
         }
         Event ev = queue.poll();
-        Map<String, String> labels = (Map<String, String>) ev.getAtPath(VariablePath.of("labels"));
-        Assert.assertEquals(1, labels.size());
-        double value = (double) ev.get("test_event");
-        Types.Sample sample = wr.getTimeseries(0).getSamples(0);
-        Assert.assertEquals(sample.getValue(), value, 1e-20);
-        Assert.assertEquals(sample.getTimestamp(), ev.getTimestamp().getTime());
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> timeseries = (List<Map<String, Object>>) ev.getAtPath(VariablePath.of("timeseries"));
+        Assert.assertEquals(1, timeseries.size());
+        Map<String, Object> timeserie = timeseries.get(0);
+        Assert.assertEquals("test_event", timeserie.get("name"));
+        Assert.assertEquals(Map.of("label", "value"), timeserie.get("labels"));
+        Assert.assertEquals(Map.of("value", 1.0, "timestamp", Instant.ofEpochMilli(1)), timeserie.get("sample"));
     }
 
     @Test

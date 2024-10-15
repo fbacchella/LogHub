@@ -21,7 +21,7 @@ import lombok.Data;
 
 public class BinaryDecoder {
 
-   private final Map<String, Map<Integer, Descriptors.GenericDescriptor>> descriptors;
+    private final Map<String, Map<Integer, Descriptors.GenericDescriptor>> descriptors;
     private final Map<String, FastPathFunction> fastPathMap = new HashMap<>();
 
     @FunctionalInterface
@@ -51,7 +51,7 @@ public class BinaryDecoder {
         initFastPath();
     }
 
-    private void initFastPath() {
+    protected void initFastPath() {
         fastPathMap.put("com.google.protobuf.Any", s -> Any.parseFrom(s.readByteBuffer()));
         fastPathMap.put("com.google.protobuf.Duration", s -> Duration.parseFrom(s.readByteBuffer()));
         fastPathMap.put("com.google.protobuf.Timestamp", s -> Timestamp.parseFrom(s.readByteBuffer()));
@@ -142,11 +142,11 @@ public class BinaryDecoder {
         }
     }
 
-    private Object resolveEnum(Descriptors.FieldDescriptor dfd, int enumKey) {
+    public Object resolveEnum(Descriptors.FieldDescriptor dfd, int enumKey) {
         return dfd.getEnumType().findValueByNumber(enumKey).getName();
     }
 
-    private void resolveValue(Descriptors.FieldDescriptor dfd, CodedInputStream stream, Map<String, Object> values,List<BinaryDecoder.UnknownField> unknownFields)
+    public void resolveValue(Descriptors.FieldDescriptor dfd, CodedInputStream stream, Map<String, Object> values,List<BinaryDecoder.UnknownField> unknownFields)
             throws IOException {
         Object val;
         if (fastPathMap.containsKey(dfd.getFullName()) && dfd.getType() != Descriptors.FieldDescriptor.Type.MESSAGE) {
@@ -199,16 +199,7 @@ public class BinaryDecoder {
                 val = stream.readByteArray();
                 break;
             case MESSAGE:
-                int len = stream.readRawVarint32();
-                int oldLimit = stream.pushLimit(len);
-                if (fastPathMap.containsKey(dfd.getFullName())) {
-                    val = fastPathMap.get(dfd.getFullName()).resolve(stream);
-                } else {
-                    Map<String, Object> messageValues = new HashMap<>();
-                    parseInput(stream, dfd.getMessageType().getFullName(), messageValues, unknownFields);
-                    val = messageValues;
-                }
-                stream.popLimit(oldLimit);
+                val = parseMessage(dfd, stream, unknownFields);
                 break;
             case ENUM:
                 val = resolveEnum(dfd, stream.readEnum());
@@ -220,8 +211,24 @@ public class BinaryDecoder {
         putValue(values, dfd, val);
     }
 
+    public <T> T parseMessage(Descriptors.FieldDescriptor dfd, CodedInputStream stream, List<BinaryDecoder.UnknownField> unknownFields)
+            throws IOException {
+        T val;
+        int len = stream.readRawVarint32();
+        int oldLimit = stream.pushLimit(len);
+        if (fastPathMap.containsKey(dfd.getFullName())) {
+            val = (T) fastPathMap.get(dfd.getFullName()).resolve(stream);
+        } else {
+            Map<String, Object> messageValues = new HashMap<>();
+            parseInput(stream, dfd.getMessageType().getFullName(), messageValues, unknownFields);
+            val = (T) messageValues;
+        }
+        stream.popLimit(oldLimit);
+        return val;
+    }
+
     private void putValue(Map<String, Object> values, Descriptors.FieldDescriptor dfd, Object value) {
-        String name = dfd.getType() == Descriptors.FieldDescriptor.Type.MESSAGE ? dfd.getMessageType().getName() : dfd.getName();
+        String name = dfd.getName();
         if (dfd.isRepeated()) {
             @SuppressWarnings("unchecked")
             List<Object> content = (List<Object>) values.computeIfAbsent(name, k -> new ArrayList<>());
@@ -248,6 +255,11 @@ public class BinaryDecoder {
         default:
             return null;
         }
+    }
+
+    public Descriptors.GenericDescriptor resolve(String name, int tag) {
+        int fieldNumber = (tag >> 3);
+        return descriptors.get(name).get(fieldNumber);
     }
 
 }
