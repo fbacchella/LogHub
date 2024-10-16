@@ -1,9 +1,8 @@
 package loghub.types;
 
-import java.util.Objects;
+import java.util.Arrays;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.IntStream;
 
 import com.fasterxml.jackson.annotation.JsonValue;
 
@@ -13,18 +12,18 @@ import lombok.EqualsAndHashCode;
 @EqualsAndHashCode
 public class MacAddress {
 
-    private static final Pattern macPattern = Pattern.compile("^([0-9A-Fa-f]{2})[-:.]([0-9A-Fa-f]{2})[-:.]([0-9A-Fa-f]{2})[-:.]([0-9A-Fa-f]{2})[-:.]([0-9A-Fa-f]{2})[-:.]([0-9A-Fa-f]{2})(?:[-:.]([0-9A-Fa-f]{2})[-:.]([0-9A-Fa-f]{2}))?$");
+    private static final Pattern macPattern = Pattern.compile("([0-9A-Fa-f]{2})[-:.]([0-9A-Fa-f]{2})[-:.]([0-9A-Fa-f]{2})[-:.]([0-9A-Fa-f]{2})[-:.]([0-9A-Fa-f]{2})[-:.]([0-9A-Fa-f]{2})(?:[-:.]([0-9A-Fa-f]{2})[-:.]([0-9A-Fa-f]{2}))?");
     private static final ThreadLocal<Matcher> localMatcher = ThreadLocal.withInitial(() -> macPattern.matcher(""));
     private static final VarFormatter formatter48 = new VarFormatter("${#1%02X}-${#2%02X}-${#3%02X}-${#4%02X}-${#5%02X}-${#6%02X}");
     private static final VarFormatter formatter64 = new VarFormatter("${#1%02X}-${#2%02X}-${#3%02X}-${#4%02X}-${#5%02X}-${#6%02X}-${#7%02X}-${#8%02X}");
 
-    private final Byte[] address;
+    private final byte[] address;
 
     public MacAddress(byte[] address) {
         if (address.length != 6 && address.length != 8) {
             throw new IllegalArgumentException("Invalid mac address length " + address.length);
         } else {
-            this.address = IntStream.range(0, address.length).mapToObj(i -> address[i]).toArray(Byte[]::new);
+            this.address = Arrays.copyOf(address, address.length);
         }
     }
 
@@ -33,8 +32,25 @@ public class MacAddress {
         if (! m.matches()) {
             throw new IllegalArgumentException(addressStr + " is not a valid mac address");
         } else {
-            address = IntStream.range(1, m.groupCount() + 1).mapToObj(m::group).filter(Objects::nonNull).map(g -> Short.decode("0x" + g).byteValue()).toArray(Byte[]::new);
+            int length = 0;
+            for (int i = 1 ; i <= m.groupCount(); i++) {
+                if (m.group(i) == null) {
+                    break;
+                } else {
+                    length = i;
+                }
+            }
+            address = new byte[length];
+
+            for (int i = 0 ; i < address.length; i++) {
+                String j = m.group(i + 1);
+                address[i] = Short.decode("0x" + j).byteValue();
+            }
         }
+    }
+
+    public byte[] getBytes() {
+        return Arrays.copyOf(address, address.length);
     }
 
     @Override
