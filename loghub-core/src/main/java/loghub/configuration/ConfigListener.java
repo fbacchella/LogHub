@@ -332,16 +332,7 @@ class ConfigListener extends RouteBaseListener {
     public void exitBean(BeanContext ctx) {
         String beanName;
         ObjectWrapped<Object> beanValue = stack.popTyped();
-        if (ctx.fev != null) {
-            stack.push(beanValue);
-            beanName = ctx.bn.getText();
-            VariablePath ev = convertEventVariable(ctx.fev);
-            beanValue = new ObjectWrapped(ev);
-        } else if (ctx.fsv != null) {
-            beanName = ctx.bn.getText();
-            Object value = VariablePath.parse(ctx.fsv.getText());
-            beanValue = new ObjectWrapped(value);
-        } else if (ctx.bn != null) {
+        if (ctx.bn != null) {
             beanName = ctx.bn.getText();
         } else {
             beanName = ctx.beanName().getText();
@@ -1012,6 +1003,27 @@ class ConfigListener extends RouteBaseListener {
         } catch (PatternSyntaxException e) {
             throw new RecognitionException(Helpers.resolveThrowableException(e), parser, stream, ctx);
         }
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>The default implementation does nothing.</p>
+     *
+     * @param ctx
+     */
+    @Override
+    public void exitEventVariableBean(RouteParser.EventVariableBeanContext ctx) {
+        VariablePath vp = null;
+        if (ctx.fev != null) {
+            vp = convertEventVariable(ctx.fev);
+        } else if (ctx.fsv != null) {
+            // Removed the String litteral
+            stack.pop();
+            vp = VariablePath.parse(ctx.fsv.getText());
+        }
+        assert vp != null;
+        stack.push(new ObjectWrapped<>(vp));
     }
 
     @Override

@@ -9,6 +9,7 @@ import loghub.BuilderClass;
 import loghub.Expression;
 import loghub.Lambda;
 import loghub.RouteParser;
+import loghub.VariablePath;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -36,6 +37,7 @@ public class GrammarParserFiltering {
         EXPRESSION,
         OPTIONAL_ARRAY,
         LAMBDA,
+        VARIABLE_PATH,
     }
 
     private static final Map<String, BEANTYPE> PROPERTIES_TYPES = Map.ofEntries(
@@ -167,6 +169,8 @@ public class GrammarParserFiltering {
                 currentBeanType =  BEANTYPE.EXPRESSION;
             } else if (Lambda.class.equals(clazz)) {
                 currentBeanType =  BEANTYPE.LAMBDA;
+            } else if (VariablePath.class.equals(clazz)) {
+                currentBeanType =  BEANTYPE.VARIABLE_PATH;
             } else if (Map.class.isAssignableFrom(clazz)) {
                 currentBeanType =  BEANTYPE.MAP;
             } else {
@@ -177,23 +181,28 @@ public class GrammarParserFiltering {
         }
     }
 
-    public boolean allowedBeanType(BEANTYPE alternative) {
-        switch (alternative) {
+    public boolean allowedBeanType(BEANTYPE proposition) {
+        switch (proposition) {
         case INTEGER:
             // A float bean can accept integer or float values
             return currentBeanType == null || currentBeanType == BEANTYPE.INTEGER || currentBeanType == BEANTYPE.FLOAT;
         case OPTIONAL_ARRAY:
             // Only allowed when explicitly required
-            return currentBeanType == alternative;
+            return currentBeanType == proposition;
         case STRING:
-            // String is also valid for an Enum type
-            return currentBeanType == null || currentBeanType == alternative || currentBeanType == BEANTYPE.ENUM;
+            // String is also valid for an Enum type or a VariablePath
+            return currentBeanType == null || currentBeanType == proposition || currentBeanType == BEANTYPE.ENUM || currentBeanType == BEANTYPE.VARIABLE_PATH;
         case SECRET:
-            return currentBeanType == null || currentBeanType == alternative || currentBeanType == BEANTYPE.STRING;
+            return currentBeanType == null || currentBeanType == proposition || currentBeanType == BEANTYPE.STRING;
+        case EXPRESSION:
+            return currentBeanType != BEANTYPE.VARIABLE_PATH && (currentBeanType == null || currentBeanType == proposition);
         case IMPLICIT_OBJECT:
             return currentBeanType == BEANTYPE.IMPLICIT_OBJECT;
+        case VARIABLE_PATH:
+            // VARIABLE_PATH is valid only when explicitely required
+            return currentBeanType == BEANTYPE.VARIABLE_PATH;
         default:
-            return currentBeanType == null || currentBeanType == alternative;
+            return currentBeanType == null || currentBeanType == proposition;
         }
     }
 

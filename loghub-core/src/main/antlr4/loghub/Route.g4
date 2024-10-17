@@ -79,10 +79,7 @@ bean
     : {inSection(SECTION.INPUT)}?    (bn='decoder' ':' object)
     | {inSection(SECTION.PIPELINE)}? (bn='if' ':' expression)
     | {inSection(SECTION.PIPELINE)}? (bn=('success' | 'failure' | 'exception') ':' pipenode)
-    | {inSection(SECTION.PIPELINE)}? (bn='field' ':' (fsv=stringLiteral | fev=eventVariable))
     | {inSection(SECTION.PIPELINE)}? (bn='fields' ':' array)
-    | {inSection(SECTION.PIPELINE)}? (bn='path' ':' (fsv=stringLiteral | fev=eventVariable))
-    | {inSection(SECTION.PIPELINE)}? (bn='destination' ':' (fsv=stringLiteral | fev=eventVariable))
     | {inSection(SECTION.PIPELINE)}? (bn='destinationTemplate' ':' stringLiteral)
     | {inSection(SECTION.OUTPUT)}?   (bn='encoder' ':' object)
     | (bn='sslContext' ':' {filter.enterImplicitObject($bn.text);} beanValue {filter.exitImplicitObject($ctx.beanValue());})
@@ -96,6 +93,7 @@ beanName
 
 beanValue
     : nullLiteral
+    | {filter.allowedBeanType(BEANTYPE.VARIABLE_PATH)}? eventVariableBean
     | {filter.allowedBeanType(BEANTYPE.OBJECT)}? object
     | {filter.allowedBeanType(BEANTYPE.INTEGER)}? integerLiteral
     | {filter.allowedBeanType(BEANTYPE.IMPLICIT_OBJECT)}? implicitObject
@@ -109,6 +107,10 @@ beanValue
     | {filter.allowedBeanType(BEANTYPE.ARRAY)}? array
     | {filter.allowedBeanType(BEANTYPE.OPTIONAL_ARRAY)}? (stringLiteral | array)
     | {filter.allowedBeanType(BEANTYPE.MAP)}? map
+    ;
+
+eventVariableBean
+    : (fsv=stringLiteral | fev=eventVariable)
     ;
 
 finalpiperef: piperef;
