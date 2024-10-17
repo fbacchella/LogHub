@@ -414,7 +414,7 @@ class EventInstance extends Event {
     }
 
     public Logger getPipelineLogger() {
-        return pipeLineLogger;
+        return pipeLineLogger != null ? pipeLineLogger : LogManager.getLogger();
     }
 
 }
