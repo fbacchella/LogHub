@@ -15,6 +15,7 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 
 import loghub.AsyncProcessor;
+import loghub.TrashedEventException;
 import loghub.EventsRepository;
 import loghub.Expression;
 import loghub.NullOrMissingValue;
@@ -396,7 +397,7 @@ public class Merge extends Processor {
                 }
             }
             if (! forward) {
-                throw new ProcessorException.DroppedEventException(event);
+                throw TrashedEventException.INSTANCE;
             } else {
                 return true;
             }

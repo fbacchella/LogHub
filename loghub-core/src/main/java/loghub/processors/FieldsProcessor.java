@@ -22,6 +22,7 @@ import java.util.function.Supplier;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import loghub.TrashedEventException;
 import loghub.Helpers;
 import loghub.IgnoredEventException;
 import loghub.Processor;
@@ -358,7 +359,7 @@ public abstract class FieldsProcessor extends Processor {
         } catch (UncheckedProcessorException ex) {
             try {
                 throw ex.getProcessorException();
-            } catch (ProcessorException.DroppedEventException e) {
+            } catch (TrashedEventException e) {
                 throw e;
             } catch (UncheckedProcessorException e) {
                 ProcessorException newpe = event.buildException("Field with path \"" + currentField.toString() + "\" invalid: " + e.getMessage(), (Exception) e.getProcessorException().getCause());
