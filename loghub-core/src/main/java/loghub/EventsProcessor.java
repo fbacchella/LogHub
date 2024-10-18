@@ -275,9 +275,9 @@ public class EventsProcessor extends Thread {
                     e.getPipelineLogger().catching(Level.DEBUG, ex);
                     status = ProcessingStatus.ERROR;
                 }
-            } catch (TrashedEventException ex) {
+            } catch (DiscardedEventException ex) {
                 status = ProcessingStatus.DROPED;
-                e.doMetric(PipelineStat.TRASH);
+                e.doMetric(PipelineStat.DISCARD);
             } catch (IgnoredEventException ex) {
                 // A "do nothing" process
                 status = ProcessingStatus.CONTINUE;

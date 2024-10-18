@@ -16,7 +16,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import loghub.AsyncProcessor;
-import loghub.TrashedEventException;
+import loghub.DiscardedEventException;
 import loghub.Helpers;
 import loghub.LogUtils;
 import loghub.Tools;
@@ -74,7 +74,7 @@ public class TestMerge {
 
         AsyncProcessor.PausedEventException ex = Assert.assertThrows(AsyncProcessor.PausedEventException.class, () -> m.process(e1));
         Assert.assertNull(ex.getFuture());
-        Assert.assertThrows(TrashedEventException.class, () -> m.process(e2));
+        Assert.assertThrows(DiscardedEventException.class, () -> m.process(e2));
 
         Thread.yield();
         Event e = p.mainQueue.remove();

@@ -11,7 +11,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Stream;
 
 import loghub.BuilderClass;
-import loghub.TrashedEventException;
+import loghub.DiscardedEventException;
 import loghub.Expression;
 import loghub.IgnoredEventException;
 import loghub.PriorityBlockingQueue;
@@ -98,7 +98,7 @@ public class Slicer extends Processor {
             }
             ev.reinject(event, mainQueue);
         }
-        throw TrashedEventException.INSTANCE;
+        throw DiscardedEventException.INSTANCE;
     }
 
     private Event buildNewEvent(Event oldEvent) {

@@ -36,7 +36,7 @@ public final class Stats {
 
     static final String METRIC_PIPELINE_FAILED = "failed";
     static final String METRIC_PIPELINE_DROPPED = "dropped";
-    static final String METRIC_PIPELINE_TRASHED = "trashed";
+    static final String METRIC_PIPELINE_DISCARDED = "discarded";
     static final String METRIC_PIPELINE_EXCEPTION = "exception";
     static final String METRIC_PIPELINE_LOOPOVERFLOW = "loopOverflow";
     static final String METRIC_PIPELINE_INFLIGHT = "inflight";
@@ -78,7 +78,7 @@ public final class Stats {
     public enum PipelineStat {
         FAILURE,
         DROP,
-        TRASH,
+        DISCARD,
         EXCEPTION,
         LOOPOVERFLOW,
         INFLIGHTUP,
@@ -257,9 +257,9 @@ public final class Stats {
             getMetric(Meter.class, String.class, METRIC_PIPELINE_DROPPED).mark();
             getMetric(Meter.class, name, METRIC_PIPELINE_DROPPED).mark();
             break;
-        case TRASH:
-            getMetric(Meter.class, String.class, METRIC_PIPELINE_TRASHED).mark();
-            getMetric(Meter.class, name, METRIC_PIPELINE_TRASHED).mark();
+        case DISCARD:
+            getMetric(Meter.class, String.class, METRIC_PIPELINE_DISCARDED).mark();
+            getMetric(Meter.class, name, METRIC_PIPELINE_DISCARDED).mark();
             break;
         case EXCEPTION:
             if (ex != null) {
