@@ -105,7 +105,7 @@ public abstract class Receiver<R extends Receiver<R, B>, B extends Receiver.Buil
         this.blocking = isBlocking() && builder.blocking;
         if (getClass().getAnnotation(SelfDecoder.class) != null) {
             if (builder.decoder != null) {
-                throw new IllegalArgumentException("Decoder " + builder.decoder.getClass().getName().toString() + " will be ignored, this receiver handle decoding");
+                throw new IllegalArgumentException("Decoder " + builder.decoder.getClass().getName() + " will be ignored, this receiver handle decoding");
             }
             this.decoder = null;
         } else {
