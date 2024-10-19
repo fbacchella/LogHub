@@ -98,7 +98,7 @@ public class BaseChannelConsumer<R extends NettyReceiver<R, SM, B>, SM, B extend
 
     @Override
     public void addHandlers(ChannelPipeline p) {
-        logger.debug("New connection {}", () -> p.channel());
+        logger.debug("New connection {}", p::channel);
         p.addFirst(ContextExtractor.NAME, extractor);
         p.addLast("ContentExtractor", new ContentExtractor());
         filter.ifPresent(i -> p.addLast("Filter", i));

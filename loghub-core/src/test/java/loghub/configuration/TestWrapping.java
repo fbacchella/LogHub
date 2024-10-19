@@ -70,7 +70,7 @@ public class TestWrapping {
         Event wrapped = ev.wrap(VariablePath.of("b"));
         Assert.assertTrue(wrapped.keySet().isEmpty());
         Assert.assertTrue(wrapped.entrySet().isEmpty());
-        Assert.assertThrows(IgnoredEventException.class, () -> wrapped.size());
+        Assert.assertThrows(IgnoredEventException.class, wrapped::size);
         Assert.assertEquals(NullOrMissingValue.MISSING, ev.getAtPath(VariablePath.of("b", "b")));
         Assert.assertEquals(NullOrMissingValue.MISSING, wrapped.get("b"));
         Assert.assertThrows(IgnoredEventException.class, () -> wrapped.getAtPath(VariablePath.of("^")));
