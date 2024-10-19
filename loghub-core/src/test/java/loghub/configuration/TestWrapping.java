@@ -18,12 +18,10 @@ import loghub.IgnoredEventException;
 import loghub.LogUtils;
 import loghub.NullOrMissingValue;
 import loghub.ProcessorException;
-import loghub.RouteParser;
 import loghub.Tools;
 import loghub.VariablePath;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
-import loghub.processors.Etl;
 
 public class TestWrapping {
 

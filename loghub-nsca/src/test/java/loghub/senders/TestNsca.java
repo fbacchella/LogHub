@@ -13,7 +13,6 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import loghub.BeanChecks;
-import loghub.Expression;
 import loghub.LogUtils;
 import loghub.Tools;
 import loghub.configuration.ConfigException;
