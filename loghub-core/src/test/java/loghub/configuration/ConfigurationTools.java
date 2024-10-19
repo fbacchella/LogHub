@@ -35,7 +35,7 @@ public class ConfigurationTools {
         ConfigListener conf = ConfigListener.builder().build();
         conf.startWalk(tree, fragment, parser);
         Object o = null;
-        if (conf.stack.size() >= 1) {
+        if (!conf.stack.isEmpty()) {
             o = conf.stack.pop();
         }
         Assert.assertTrue(conf.stack.isEmpty());

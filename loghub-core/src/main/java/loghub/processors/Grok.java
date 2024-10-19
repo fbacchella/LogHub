@@ -65,7 +65,7 @@ public class Grok extends FieldsProcessor {
             Match gm = grok.match(value.toString());
             //Results from grok needs to be cleaned
             Map<String, Object> captures = gm.capture();
-            if (captures.size() > 0) {
+            if (!captures.isEmpty()) {
                 returned = RUNSTATUS.NOSTORE;
                 for (Map.Entry<String, Object> e : captures.entrySet()) {
                     String destinationField = e.getKey();

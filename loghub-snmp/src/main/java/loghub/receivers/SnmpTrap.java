@@ -268,7 +268,7 @@ public class SnmpTrap extends Receiver<SnmpTrap, SnmpTrap.Builder> implements Co
     @SuppressWarnings("unchecked")
     private void smartPut(Map<String, Object> e, OID oid, Object value) {
         Map<String, Object> oidindex = formatter.store.parseIndexOID(oid.getValue());
-        if (oidindex.size() == 0) {
+        if (oidindex.isEmpty()) {
             e.put(oid.format(), value);
         } else if (oidindex.size() == 1) {
             Object indexvalue = oidindex.values().stream().findFirst().orElse(null);

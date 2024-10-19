@@ -34,7 +34,7 @@ public class Log4JExtract extends ObjectExtractor<LoggingEvent> {
         }
         @SuppressWarnings("unchecked")
         Map<String, ?> m = o.getProperties();
-        if(m.size() > 0) {
+        if(!m.isEmpty()) {
             event.put("properties", m);
         }
         event.putAtPath(VariablePath.TIMESTAMP, o.getTimeStamp());

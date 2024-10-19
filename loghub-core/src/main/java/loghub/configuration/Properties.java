@@ -166,7 +166,7 @@ public class Properties extends HashMap<String, Object> {
                 _identifiedProcessors.put(id, j);
             }
         }));
-        identifiedProcessors = _identifiedProcessors.size() > 0 ? Collections.unmodifiableMap(_identifiedProcessors) : Collections.emptyMap();
+        identifiedProcessors = !_identifiedProcessors.isEmpty() ? Collections.unmodifiableMap(_identifiedProcessors) : Collections.emptyMap();
 
         if (properties.containsKey("numWorkers")) {
             numWorkers = (Integer) properties.remove("numWorkers");

@@ -52,7 +52,7 @@ public class Tcp extends Sender {
         super(builder);
         port = builder.port;
         destination = builder.destination;
-        if (builder.separator.length() > 0) {
+        if (!builder.separator.isEmpty()) {
             localmessagevector = ThreadLocal.withInitial(() -> newMessageVector(builder.separator));
         } else {
             localmessagevector = null;

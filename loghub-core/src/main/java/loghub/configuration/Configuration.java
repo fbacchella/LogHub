@@ -261,7 +261,7 @@ public class Configuration {
                 }
             }
         }
-        assert currentProperties.size() == 0;
+        assert currentProperties.isEmpty();
     }
 
     private Object resolveBean(RouteParser.BeanValueContext bvc) {
