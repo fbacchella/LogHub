@@ -24,6 +24,7 @@ import loghub.Helpers;
 import loghub.zmq.ZMQHelper.Method;
 import loghub.zmq.ZMQSocketFactory.SocketBuilder;
 import loghub.zmq.ZapDomainHandler.ZapDomainHandlerProvider;
+import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.Accessors;
 import zmq.io.mechanism.Mechanisms;
@@ -96,6 +97,7 @@ public class ZMQHandler<M> implements AutoCloseable {
 
     private volatile boolean running = false;
     private PrepareFactory makeThreadLocal;
+    @Getter
     private Socket socket;
     private Thread runningThread = null;
     private ZPoller pooler;
@@ -305,14 +307,6 @@ public class ZMQHandler<M> implements AutoCloseable {
                 logger.error("Failed to handle interrupt: {}", Helpers.resolveThrowableException(ex), ex);
             }
         }
-    }
-
-    /**
-     * Can only be called from the same thread that consume the socket
-     * @return the socket
-     */
-    public Socket getSocket() {
-        return socket;
     }
 
     public Certificate getCertificate() {

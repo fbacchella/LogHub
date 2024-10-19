@@ -11,10 +11,12 @@ import loghub.VariablePath;
 import loghub.configuration.Properties;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
+import lombok.Getter;
 
 public class FireEvent extends Processor {
 
     private Map<VariablePath, Expression> expressions;
+    @Getter
     private String destination;
     private Pipeline pipeDestination;
     private PriorityBlockingQueue mainQueue;
@@ -60,13 +62,6 @@ public class FireEvent extends Processor {
      */
     public void setFields(Map<VariablePath, Expression> fields) {
         this.expressions = Map.copyOf(fields);
-    }
-
-    /**
-     * @return the destination
-     */
-    public String getDestination() {
-        return destination;
     }
 
     /**

@@ -6,17 +6,12 @@ import loghub.ProcessorException;
 import loghub.SubPipeline;
 import loghub.configuration.Properties;
 import loghub.events.Event;
+import lombok.Getter;
 
+@Getter
 public class AnonymousSubPipeline extends Processor implements SubPipeline {
 
     private Pipeline pipeline;
-
-    /**
-     * @return the pipeline
-     */
-    public Pipeline getPipeline() {
-        return pipeline;
-    }
 
     /**
      * @param pipeline the pipeline to set

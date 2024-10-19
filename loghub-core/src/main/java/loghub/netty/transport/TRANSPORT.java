@@ -2,6 +2,9 @@ package loghub.netty.transport;
 
 import java.net.SocketAddress;
 
+import lombok.Getter;
+
+@Getter
 public enum TRANSPORT {
     LOCAL(true) {
         @SuppressWarnings("unchecked")
@@ -48,9 +51,6 @@ public enum TRANSPORT {
     private final boolean connectedServer;
     TRANSPORT(boolean connectedServer) {
         this.connectedServer = connectedServer;
-    }
-    public boolean isConnectedServer() {
-        return connectedServer;
     }
     public abstract <B extends NettyTransport.Builder<S, M, ?, ?>, S extends SocketAddress, M> B getBuilder();
 }

@@ -19,10 +19,12 @@ import lombok.Setter;
 public class ParseCsv extends FieldsProcessor {
 
     private String[] columns = new String[0];
+    @Getter
     private String[] features = new String[0];
     private char separator= ',';
     @Getter @Setter
     private char escapeChar = '\0';
+    @Getter
     private String nullValue = "";
     private ObjectReader reader;
 
@@ -74,24 +76,10 @@ public class ParseCsv extends FieldsProcessor {
     }
 
     /**
-     * @return the nullValue
-     */
-    public String getNullValue() {
-        return nullValue;
-    }
-
-    /**
      * @param nullValue the nullValue to set
      */
     public void setNullValue(String nullValue) {
         this.nullValue = nullValue;
-    }
-
-    /**
-     * @return the features
-     */
-    public String[] getFeatures() {
-        return features;
     }
 
     /**

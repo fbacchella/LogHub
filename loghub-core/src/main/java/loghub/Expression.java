@@ -99,12 +99,10 @@ public class Expression {
         Object getValue();
     }
 
+    @Getter
     private static class BindingMap implements ExpressionData, Closeable {
-        @Getter
         private Event event;
-        @Getter
         private Expression expression;
-        @Getter
         private Object value;
 
         @Override

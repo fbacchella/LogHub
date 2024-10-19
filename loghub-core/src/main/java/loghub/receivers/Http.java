@@ -43,6 +43,7 @@ import lombok.Setter;
 
 import static loghub.netty.transport.NettyTransport.PRINCIPALATTRIBUTE;
 
+@Getter
 @Blocking
 @SelfDecoder
 @BuilderClass(Http.Builder.class)
@@ -139,7 +140,6 @@ public class Http extends AbstractHttpReceiver<Http, Http.Builder> {
         return new Builder();
     }
 
-    @Getter
     private final Map<String, Decoder> decoders;
 
     protected Http(Builder builder) {

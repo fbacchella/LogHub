@@ -6,7 +6,9 @@ import java.time.temporal.ChronoUnit;
 import java.util.function.Function;
 
 import io.netty.buffer.ByteBuf;
+import lombok.Getter;
 
+@Getter
 public class Netflow9Packet extends TemplateBasePacket implements NetflowPacket {
 
     private static final Function<ByteBuf, HeaderInfo> headerreder = i -> {
@@ -26,10 +28,6 @@ public class Netflow9Packet extends TemplateBasePacket implements NetflowPacket 
     @Override
     public int getVersion() {
         return 9;
-    }
-
-    public Duration getSysUpTime() {
-        return sysUpTime;
     }
 
 }

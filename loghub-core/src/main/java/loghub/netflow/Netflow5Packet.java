@@ -14,18 +14,22 @@ import org.apache.logging.log4j.Logger;
 
 import io.netty.buffer.ByteBuf;
 import loghub.netflow.TemplateBasePacket.TemplateType;
+import lombok.Getter;
 
 public class Netflow5Packet implements NetflowPacket {
 
     private static final Logger logger = LogManager.getLogger();
 
     private final int count;
+    @Getter
     private final Duration sysUpTime;
     private final Instant exportTime;
     private final long sequenceNumber;
     private final int type;
     private final Integer id;
+    @Getter
     private final short samplingInterval;
+    @Getter
     private final byte samplingMode;
     List<Map<String, Object>> records;
 
@@ -122,28 +126,10 @@ public class Netflow5Packet implements NetflowPacket {
     }
 
     /**
-     * @return the sampling_mode
-     */
-    public byte getSamplingMode() {
-        return samplingMode;
-    }
-
-    /**
-     * @return the sampling_interval
-     */
-    public short getSamplingInterval() {
-        return samplingInterval;
-    }
-
-    /**
      * @return the type
      */
     public int getEngineType() {
         return type;
-    }
-
-    public Duration getSysUpTime() {
-        return sysUpTime;
     }
 
 }

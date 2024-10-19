@@ -19,6 +19,8 @@ import org.apache.logging.log4j.Logger;
 
 import com.auth0.jwt.exceptions.JWTVerificationException;
 
+import lombok.Getter;
+
 public class AuthenticationHandler {
 
     public static Builder getBuilder() {
@@ -82,10 +84,12 @@ public class AuthenticationHandler {
     private final char[] password;
 
     // Jaas password
+    @Getter
     private final String jaasName ;
     private final Configuration jaasConfig;
 
     //JWT authentication
+    @Getter
     private final JWTHandler jwtHandler;
 
     private AuthenticationHandler(Builder builder) {
@@ -175,20 +179,12 @@ public class AuthenticationHandler {
         }
     }
 
-    public JWTHandler getJwtHandler() {
-        return jwtHandler;
-    }
-
     public boolean isWithJwt() {
         return jwtHandler != null;
     }
 
     public boolean useJaas() {
         return ! jaasName.isEmpty();
-    }
-
-    public String getJaasName() {
-        return jaasName;
     }
 
 }

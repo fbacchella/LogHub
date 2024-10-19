@@ -13,31 +13,20 @@ import zmq.io.mechanism.Mechanisms;
 
 import static loghub.zmq.ZapService.ZAP_VERSION;
 
+@Getter
 public class ZapRequest {
 
-    @Getter
     private final String version;   //  Version number, must be "1.0"
-    @Getter
     private final byte[] requestId;  //  Sequence number of request
-    @Getter
     private final String domain;    //  Server socket domain
-    @Getter
     private final String address;   //  Client IP address
-    @Getter
     private final String identity;  //  Server socket identity
-    @Getter
     private final Mechanisms mechanism; //  Security mechanism
-    @Getter
     private final String username;  //  PLAIN username
-    @Getter
     private final String password;  //  PLAIN password, in clear text
-    @Getter
     private final byte[] clientKey; //  CURVE client public key in ASCII
-    @Getter
     private final String principal; //  GSSAPI principal
-    @Getter
     private String       userId;    //  User-Id to return in the ZAP Response
-    @Getter
     private final Map<String, String> metadata = new HashMap<>();  // metadata to eventually return
 
     public ZapRequest(ZMsg request) {

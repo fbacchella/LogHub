@@ -38,6 +38,7 @@ import loghub.SubPipeline;
 import loghub.VariablePath;
 import loghub.metrics.Stats;
 import loghub.metrics.Stats.PipelineStat;
+import lombok.Getter;
 
 class EventInstance extends Event {
 
@@ -101,7 +102,9 @@ class EventInstance extends Event {
 
     private final LinkedList<Processor> processors;
 
+    @Getter
     private String currentPipeline;
+    @Getter
     private String nextPipeline;
     private Date timestamp = new Date();
     private final Map<String, Object> metas = new HashMap<>();
@@ -292,14 +295,6 @@ class EventInstance extends Event {
         processors.clear();
         currentPipeline = null;
         pipeLineLogger = null;
-    }
-
-    public String getCurrentPipeline() {
-        return currentPipeline;
-    }
-
-    public String getNextPipeline() {
-        return nextPipeline;
     }
 
     @Override

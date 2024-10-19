@@ -12,6 +12,7 @@ import lombok.Getter;
 
 public class Pipeline {
 
+    @Getter
     private final String name;
     @Getter
     private final Logger logger;
@@ -44,10 +45,6 @@ public class Pipeline {
 
     public int size() {
         return processors.size();
-    }
-
-    public String getName() {
-        return name;
     }
 
 }

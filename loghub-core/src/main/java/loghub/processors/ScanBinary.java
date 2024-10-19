@@ -13,11 +13,14 @@ import java.util.stream.IntStream;
 import loghub.ProcessorException;
 import loghub.configuration.Properties;
 import loghub.events.Event;
+import lombok.Getter;
 
 public class ScanBinary extends FieldsProcessor {
 
+    @Getter
     private Object[] bitsNames = new Object[0];
     private int[] fieldsLength = null;
+    @Getter
     private boolean asMap = false;
 
     @Override
@@ -75,13 +78,6 @@ public class ScanBinary extends FieldsProcessor {
     }
 
     /**
-     * @return the matching
-     */
-    public Object[] getBitsNames() {
-        return bitsNames;
-    }
-
-    /**
      * @param matching the matching to set
      */
     public void setBitsNames(Object[] matching) {
@@ -114,13 +110,6 @@ public class ScanBinary extends FieldsProcessor {
                 this.fieldsLength[i] = 0;
             }
         });
-    }
-
-    /**
-     * @return the asMap
-     */
-    public boolean isAsMap() {
-        return asMap;
     }
 
     /**

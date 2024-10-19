@@ -3,11 +3,13 @@ package loghub.processors;
 import loghub.Processor;
 import loghub.ProcessorException;
 import loghub.events.Event;
+import lombok.Getter;
 
 public abstract class ObjectExtractor<T> extends Processor {
 
     public abstract void extract(Event event, T object);
 
+    @Getter
     private String source;
     private final Class<T> clazz;
 
@@ -27,10 +29,6 @@ public abstract class ObjectExtractor<T> extends Processor {
         } else {
             throw event.buildException("can't extract "+  getClassType().getCanonicalName() + " from " + o.getClass().getCanonicalName());
         }
-    }
-
-    public String getSource() {
-        return source;
     }
 
     public void setSource(String source) {

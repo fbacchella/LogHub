@@ -7,9 +7,9 @@ import loghub.Processor;
 import loghub.configuration.Properties;
 import lombok.Getter;
 
+@Getter
 public class PreSubPipline extends Processor {
 
-    @Getter
     private final Pipeline pipe;
 
     PreSubPipline(Pipeline pipe) {

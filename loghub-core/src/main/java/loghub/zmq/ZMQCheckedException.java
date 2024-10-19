@@ -9,8 +9,10 @@ import org.zeromq.ZMQ;
 import org.zeromq.ZMQ.Socket;
 import org.zeromq.ZMQException;
 
+import lombok.Getter;
 import zmq.ZError;
 
+@Getter
 public class ZMQCheckedException extends Exception {
 
     private final ZMQ.Error error;
@@ -62,10 +64,6 @@ public class ZMQCheckedException extends Exception {
         this.error = error;
     }
 
-    public ZMQ.Error getError() {
-        return error;
-    }
-    
     public boolean isInterruption() {
         return error == ZMQ.Error.EINTR || error == ZMQ.Error.ETERM;
     }

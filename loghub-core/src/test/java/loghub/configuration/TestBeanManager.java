@@ -16,28 +16,29 @@ import lombok.Setter;
 
 public class TestBeanManager {
 
+    @Getter
     public static class BeanContener {
-        @Getter @Setter
+        @Setter
         private int integer;
-        @Getter @Setter
+        @Setter
         private boolean bool;
-        @Getter @Setter
+        @Setter
         private double doublefloat;
-        @Getter @Setter
+        @Setter
         private float simplefloat;
-        @Getter @Setter
+        @Setter
         private byte octet;
-        @Getter @Setter
+        @Setter
         private long i64;
-        @Getter @Setter
+        @Setter
         private short i16;
-        @Getter @Setter
+        @Setter
         private char character;
-        @Getter @Setter
+        @Setter
         private TimeUnit enumeration = null;
-        @Getter @Setter
+        @Setter
         private BeanContener[] bc;
-        @Getter @Setter
+        @Setter
         private Expression ex;
     }
 

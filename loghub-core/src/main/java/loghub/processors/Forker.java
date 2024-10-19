@@ -8,6 +8,7 @@ import loghub.ProcessorException;
 import loghub.configuration.Properties;
 import loghub.events.Event;
 import loghub.metrics.Stats;
+import lombok.Getter;
 
 /**
  * An empty processor, it's just a placeholder. It should never be used directly
@@ -17,6 +18,7 @@ import loghub.metrics.Stats;
  */
 public class Forker extends Processor {
 
+    @Getter
     private String destination;
     private Pipeline pipeDestination;
     private PriorityBlockingQueue mainQueue;
@@ -36,13 +38,6 @@ public class Forker extends Processor {
             event.doMetric(Stats.PipelineStat.FAILURE, ex);
 
         }
-    }
-
-    /**
-     * @return the destination
-     */
-    public String getDestination() {
-        return destination;
     }
 
     /**

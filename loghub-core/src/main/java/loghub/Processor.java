@@ -10,6 +10,7 @@ import loghub.configuration.Properties;
 import loghub.events.Event;
 import loghub.processors.AnonymousSubPipeline;
 import loghub.processors.UnstackException;
+import lombok.Getter;
 import lombok.Setter;
 
 public abstract class Processor {
@@ -35,9 +36,13 @@ public abstract class Processor {
 
     private VariablePath path = VariablePath.EMPTY;
     private Expression ifexpression = null;
+    @Getter
     private Processor success = null;
+    @Getter
     private Processor failure = null;
+    @Getter
     private Processor exception = null;
+    @Getter
     private String id = null;
 
     protected Processor() {
@@ -134,24 +139,10 @@ public abstract class Processor {
     }
 
     /**
-     * @return the failure
-     */
-    public Processor getFailure() {
-        return failure;
-    }
-
-    /**
      * @param failure the failure to set
      */
     public void setFailure(Processor failure) {
         this.failure = failure;
-    }
-
-    /**
-     * @return the success
-     */
-    public Processor getSuccess() {
-        return success;
     }
 
     /**
@@ -162,21 +153,10 @@ public abstract class Processor {
     }
 
     /**
-     * @return the exception
-     */
-    public Processor getException() {
-        return exception;
-    }
-
-    /**
      * @param exception the success to set
      */
     public void setException(Processor exception) {
         this.exception = exception;
-    }
-
-    public String getId() {
-        return id;
     }
 
     public void setId(String id) {

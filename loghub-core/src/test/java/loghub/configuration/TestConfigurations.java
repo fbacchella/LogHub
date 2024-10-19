@@ -144,6 +144,7 @@ public class TestConfigurations {
         Assert.assertEquals(10, conf.mainQueue.getWeight());
     }
 
+    @Getter
     @BuilderClass(TestArrayProcessor.Builder.class)
     public static class TestArrayProcessor extends Processor {
         public static class Builder extends Processor.Builder<TestArrayProcessor> {
@@ -157,7 +158,6 @@ public class TestConfigurations {
             return new TestArrayProcessor.Builder();
         }
 
-        @Getter
         private final Expression[] expressions;
         public TestArrayProcessor(Builder builder) {
             expressions = builder.expressions;

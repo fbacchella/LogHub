@@ -10,6 +10,7 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
 
+@Getter
 public class Compressor extends AbstractCompDecomp {
 
     @EqualsAndHashCode(callSuper=true) @ToString
@@ -25,7 +26,6 @@ public class Compressor extends AbstractCompDecomp {
         return new Builder();
     }
 
-    @Getter
     protected final String format;
 
     public Compressor(Builder builder) {

@@ -83,10 +83,9 @@ public abstract class Sender extends Thread implements Closeable {
     // A marker to end processing
     private static final Batch NULL_BATCH = new Batch();
 
+    @Getter
     public static class EventFuture extends CompletableFuture<Boolean> {
-        @Getter
         private final Event event;
-        @Getter
         private String message;
         public EventFuture(Event ev) {
             this.event = ev;

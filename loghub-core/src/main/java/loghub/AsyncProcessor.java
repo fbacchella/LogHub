@@ -10,9 +10,9 @@ import lombok.Getter;
 
 public interface AsyncProcessor<FI, F extends Future<FI>> {
     
+    @Getter
     class PausedEventException extends RuntimeException {
 
-        @Getter
         private final Future<?> future;
 
         public PausedEventException(Future<?> future) {

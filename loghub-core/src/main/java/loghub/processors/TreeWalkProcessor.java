@@ -7,6 +7,7 @@ import loghub.events.Event;
 import lombok.Getter;
 import lombok.Setter;
 
+@Getter
 public abstract class TreeWalkProcessor extends FieldsProcessor {
 
     public abstract static class Builder<WP extends TreeWalkProcessor> extends FieldsProcessor.Builder<WP> {
@@ -14,7 +15,6 @@ public abstract class TreeWalkProcessor extends FieldsProcessor {
         private TRAVERSAL_ORDER traversal = TRAVERSAL_ORDER.BREADTH;
     }
 
-    @Getter
     private final TRAVERSAL_ORDER traversal;
 
     TreeWalkProcessor(Builder builder) {
