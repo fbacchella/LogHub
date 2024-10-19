@@ -88,16 +88,12 @@ public class SnmpTrap extends Receiver<SnmpTrap, SnmpTrap.Builder> implements Co
     private static final byte TAG_FLOAT = (byte) 0x78;
     private static final byte TAG_DOUBLE = (byte) 0x79;
 
+    @Setter
     public static class Builder extends Receiver.Builder<SnmpTrap, SnmpTrap.Builder> {
-        @Setter
         private PROTOCOL protocol = PROTOCOL.udp;
-        @Setter
         private int port = 162;
-        @Setter
         private String listen = "0.0.0.0";
-        @Setter
         private int worker = 1;
-        @Setter
         protected int rcvBuf = -1;
         @Override
         public SnmpTrap build() {

@@ -324,6 +324,7 @@ public class Merge extends Processor {
 
     private Object defaultSeedType = new Object[]{};
 
+    @Setter
     @Getter
     private Map<String, Object> seeds = Collections.emptyMap();
     private Map<String, BiFunction<Object, Object, Object>> cumulators;
@@ -427,10 +428,6 @@ public class Merge extends Processor {
     @Override
     public String getName() {
         return "Merge/" + index.getSource();
-    }
-
-    public void setSeeds(Map<String, Object> seeds) {
-        this.seeds = seeds;
     }
 
     public Processor getOnExpire() {

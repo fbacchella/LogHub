@@ -12,26 +12,17 @@ import loghub.httpclient.AbstractHttpClientService;
 import lombok.Setter;
 
 public abstract class AbstractHttpSender extends Sender {
+    @Setter
     public abstract static class Builder<S extends AbstractHttpSender> extends Sender.Builder<S> {
-        @Setter
         public String protocol = "https";
-        @Setter
         private String user = null;
-        @Setter
         private String password = null;
-        @Setter
         private int timeout = 2;
-        @Setter
         private int port = -1;
-        @Setter
         private String[] destinations;
-        @Setter
         private String clientService = "loghub.httpclient.ApacheHttpClientService";
-        @Setter
         protected String sslKeyAlias;
-        @Setter
         protected SSLContext sslContext;
-        @Setter
         protected SSLParameters sslParams;
     }
 

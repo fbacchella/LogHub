@@ -13,8 +13,8 @@ import lombok.Setter;
 
 public abstract class AbstractStringJackson<JB extends AbstractStringJackson.Builder<? extends AbstractStringJackson<JB, OM>>, OM extends ObjectMapper> extends AbstractJacksonDecoder<JB, OM> implements TextDecoder {
 
+    @Setter
     public abstract static class Builder<B extends AbstractStringJackson<?, ?>> extends AbstractJacksonDecoder.Builder<B> {
-        @Setter
         protected String charset = Charset.defaultCharset().name();
     }
 

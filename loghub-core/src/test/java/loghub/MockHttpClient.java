@@ -25,23 +25,16 @@ public abstract class MockHttpClient extends AbstractHttpClientService {
         this.operations = operations;
     }
 
+    @Setter
     @Accessors(fluent = false, chain = true)
     public static class ResponseBuilder<T> {
-        @Setter
         private ContentType mimeType = ContentType.TEXT_HTML;
-        @Setter
         private String host = "localhost";
-        @Setter
         private int status = 200;
-        @Setter
         private String statusMessage = "OK";
-        @Setter
         private boolean connexionFailed = false;
-        @Setter
         private IOException ioException = null;
-        @Setter
         private GeneralSecurityException sslException = null;
-        @Setter
         private T parsedResponse = null;
 
         public HttpResponse<T> build() {

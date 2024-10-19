@@ -11,8 +11,8 @@ import lombok.Setter;
 @SelfEncoder
 public class Null extends Sender {
 
+    @Setter
     public static class Builder extends Sender.Builder<Null> {
-        @Setter
         boolean encode = false;
 
         @Override

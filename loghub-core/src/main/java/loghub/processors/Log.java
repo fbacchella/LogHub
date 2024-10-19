@@ -15,10 +15,9 @@ public class Log extends Processor {
     private final Expression message;
     private final Level level;
 
+    @Setter
     public static class Builder extends Processor.Builder<Log> {
-        @Setter
         String level;
-        @Setter
         Expression message;
         public Log build() {
             return new Log(this);

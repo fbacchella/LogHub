@@ -16,10 +16,9 @@ import lombok.Setter;
 @BuilderClass(Split.Builder.class)
 public class Split extends FieldsProcessor {
 
+    @Setter
     public static class Builder extends FieldsProcessor.Builder<Split> {
-        @Setter
         private String pattern = "\n";
-        @Setter
         private boolean keepempty = true;
         public Split build() {
             return new Split(this);

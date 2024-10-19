@@ -37,42 +37,25 @@ public class ZMQHandler<M> implements AutoCloseable {
         void run() throws ZMQCheckedException;
     }
 
+    @Setter
     public static class Builder<M> extends AbstractBuilder<ZMQHandler<M>> {
-        @Setter
         String socketUrl;
-        @Setter
         SocketType type;
-        @Setter
         int hwm;
-        @Setter
         Method method;
-        @Setter
         Logger logger;
-        @Setter
         String name;
-        @Setter
         int mask;
-        @Setter
         Mechanisms security = Mechanisms.NULL;
-        @Setter
         Certificate serverPublicKey;
-        @Setter
         PrivateKeyEntry keyEntry = null;
-        @Setter
         byte[] topic = null;
-        @Setter
         Runnable stopFunction = () -> {};
-        @Setter
         Consumer<String> injectError;
-        @Setter
         ZMQSocketFactory zfactory = null;
-        @Setter
         CountDownLatch latch = null;
-        @Setter
         Function<Socket, M> receive = null;
-        @Setter
         BiFunction<Socket, M, Boolean> send = null;
-        @Setter
         ZapDomainHandlerProvider zapHandler = ZapDomainHandlerProvider.ALLOW;
 
         public Builder<M> setServerPublicKeyToken(String serverKeyToken) {

@@ -24,22 +24,15 @@ import zmq.io.mechanism.Mechanisms;
 @BuilderClass(ZMQ.Builder.class)
 public class ZMQ extends Receiver<ZMQ, ZMQ.Builder> {
 
+    @Setter
     public static class Builder extends Receiver.Builder<ZMQ, ZMQ.Builder> {
-        @Setter
         ZMQHelper.Method method = ZMQHelper.Method.BIND;
-        @Setter
         String listen = "tcp://localhost:2120";
-        @Setter
         int hwm = 1000;
-        @Setter
         SocketType type = SocketType.SUB;
-        @Setter
         String serverKey = null;
-        @Setter
         Mechanisms security = Mechanisms.NULL;
-        @Setter
         String topic = "";
-        @Setter
         ZapDomainHandlerProvider zapHandler = ZapDomainHandlerProvider.ALLOW;
         @Override
         public ZMQ build() {

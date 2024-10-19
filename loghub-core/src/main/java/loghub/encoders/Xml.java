@@ -13,12 +13,10 @@ import lombok.Setter;
 @CanBatch
 public class Xml extends AbstractJacksonEncoder<Xml.Builder, XmlMapper> {
 
+    @Setter
     public static class Builder extends AbstractJacksonEncoder.Builder<Xml> {
-        @Setter
         private boolean pretty = false;
-        @Setter
         private boolean dateAsText = false;
-        @Setter
         private boolean xmlDeclaration = true;
         @Override
         public Xml build() {

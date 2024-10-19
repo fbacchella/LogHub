@@ -5,6 +5,7 @@ import loghub.Processor;
 import loghub.configuration.Properties;
 import loghub.events.Event;
 import lombok.Getter;
+import lombok.Setter;
 
 /**
  * An empty processor, it's just a place holder. It should never be used directly
@@ -14,6 +15,7 @@ import lombok.Getter;
  */
 public class Forwarder extends Processor {
 
+    @Setter
     @Getter
     private String destination;
     private Pipeline pipeDestination;
@@ -26,13 +28,6 @@ public class Forwarder extends Processor {
     public void forward(Event event) {
         event.finishPipeline();
         event.refill(pipeDestination);
-    }
-
-    /**
-     * @param destination the destination to set
-     */
-    public void setDestination(String destination) {
-        this.destination = destination;
     }
 
     @Override

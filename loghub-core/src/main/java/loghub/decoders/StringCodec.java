@@ -10,8 +10,8 @@ import lombok.Setter;
 @BuilderClass(StringCodec.Builder.class)
 public class StringCodec extends Decoder {
 
+    @Setter
     public static class Builder extends Decoder.Builder<StringCodec> {
-        @Setter
         private String charset = Charset.defaultCharset().name();
         @Override
         public StringCodec build() {

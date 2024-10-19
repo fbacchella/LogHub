@@ -9,6 +9,7 @@ import loghub.configuration.Properties;
 import loghub.events.Event;
 import loghub.metrics.Stats;
 import lombok.Getter;
+import lombok.Setter;
 
 /**
  * An empty processor, it's just a placeholder. It should never be used directly
@@ -18,6 +19,7 @@ import lombok.Getter;
  */
 public class Forker extends Processor {
 
+    @Setter
     @Getter
     private String destination;
     private Pipeline pipeDestination;
@@ -38,13 +40,6 @@ public class Forker extends Processor {
             event.doMetric(Stats.PipelineStat.FAILURE, ex);
 
         }
-    }
-
-    /**
-     * @param destination the destination to set
-     */
-    public void setDestination(String destination) {
-        this.destination = destination;
     }
 
     @Override

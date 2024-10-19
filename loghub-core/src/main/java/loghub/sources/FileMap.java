@@ -25,20 +25,15 @@ import lombok.Setter;
 @BuilderClass(FileMap.Builder.class)
 public class FileMap extends HashMap<Object, Object> implements Source {
 
+    @Setter
     @EqualsAndHashCode(callSuper = true)
     @Data
     public static class Builder extends AbstractBuilder<FileMap> {
-        @Setter
         private String mappingFile = null;
-        @Setter
         private String csvFormat = "default";
-        @Setter
         private String keyName = null;
-        @Setter
         private String valueName = null;
-        @Setter
         private int keyColumn = -1;
-        @Setter
         private int valueColumn = -1;
         @Override
         public FileMap build() {

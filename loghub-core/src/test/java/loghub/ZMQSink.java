@@ -24,28 +24,18 @@ public class ZMQSink<M> extends Thread implements AutoCloseable {
 
     private static final Logger logger = LogManager.getLogger();
 
+    @Setter
     public static class Builder<M> {
-        @Setter
         private String source = "tcp://localhost:2120";
-        @Setter
         private SocketType type = SocketType.SUB;
-        @Setter
         private int hwm = 1000;
-        @Setter
         private Method method = Method.BIND;
-        @Setter
         private String serverKey = null;
-        @Setter
         PrivateKeyEntry keyEntry = null;
-        @Setter
         private Mechanisms security = Mechanisms.NULL;
-        @Setter
         private ZapDomainHandlerProvider zapHandler = ZapDomainHandlerProvider.ALLOW;
-        @Setter
         private ZMQSocketFactory zmqFactory = null;
-        @Setter
         Function<Socket, M> receive = null;
-        @Setter
         byte[] topic = null;
 
         private Builder() {}

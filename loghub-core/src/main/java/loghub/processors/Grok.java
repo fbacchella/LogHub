@@ -26,12 +26,10 @@ public class Grok extends FieldsProcessor {
 
     public static final String PATTERNSFOLDER = "patterns";
 
+    @Setter
     public static class Builder extends FieldsProcessor.Builder<Grok> {
-        @Setter
         private String[] patterns;
-        @Setter
         private Map<Object, Object> customPatterns = Collections.emptyMap();
-        @Setter
         private ClassLoader classLoader = Grok.class.getClassLoader();
         public void setPattern(String pattern) {
             patterns = new String[]{pattern};

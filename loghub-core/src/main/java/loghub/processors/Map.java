@@ -10,8 +10,8 @@ import lombok.Setter;
 @BuilderClass(Map.Builder.class)
 public class Map extends TreeWalkProcessor {
 
+    @Setter
     public static class Builder extends TreeWalkProcessor.Builder<Map> {
-        @Setter
         private Lambda lambda;
         public Map build() {
             return new Map(this);

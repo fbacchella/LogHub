@@ -22,10 +22,9 @@ public class Crlf extends FieldsProcessor {
         }
     }
 
+    @Setter
     public static class Builder extends FieldsProcessor.Builder<Crlf> {
-        @Setter
         private Format format = Format.KEEP;
-        @Setter
         private boolean escape;
         public Crlf build() {
             return new Crlf(this);

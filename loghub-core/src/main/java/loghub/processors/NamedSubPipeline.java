@@ -6,9 +6,11 @@ import loghub.SubPipeline;
 import loghub.configuration.Properties;
 import loghub.events.Event;
 import lombok.Getter;
+import lombok.Setter;
 
 public class NamedSubPipeline extends Processor implements SubPipeline {
 
+    @Setter
     @Getter
     private String pipeRef;
     private Pipeline pipe;
@@ -32,10 +34,6 @@ public class NamedSubPipeline extends Processor implements SubPipeline {
             return false;
         }
         return super.configure(properties);
-    }
-
-    public void setPipeRef(String pipeRef) {
-        this.pipeRef = pipeRef;
     }
 
     @Override

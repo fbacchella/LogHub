@@ -63,8 +63,8 @@ public class Cidr extends FieldsProcessor {
         }
     }
 
+    @Setter
     public static class Builder extends FieldsProcessor.Builder<Cidr> {
-        @Setter
         private String[] networks = new String[]{};
         public Cidr build() {
             return new Cidr(this);

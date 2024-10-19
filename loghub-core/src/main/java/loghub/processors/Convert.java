@@ -31,14 +31,11 @@ import lombok.Setter;
 @BuilderClass(Convert.Builder.class)
 public class Convert extends FieldsProcessor {
 
+    @Setter
     public static class Builder extends FieldsProcessor.Builder<Convert> {
-        @Setter
         private String className = "java.lang.String";
-        @Setter
         private String charset = null;
-        @Setter
         private String byteOrder = "NATIVE";
-        @Setter
         private ClassLoader classLoader = Grok.class.getClassLoader();
         public Convert build() {
             return new Convert(this);

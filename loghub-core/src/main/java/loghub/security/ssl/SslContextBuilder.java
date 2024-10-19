@@ -192,12 +192,12 @@ public class SslContextBuilder {
         }
     }
 
-    public void setTrusts(Path keystore) {
-        this.trusts = getKeyStore(keystore.toString());
-    }
-
     public void setTrusts(KeyStore keystore) {
         this.trusts = keystore;
+    }
+
+    public void setTrusts(Path keystore) {
+        this.trusts = getKeyStore(keystore.toString());
     }
 
     public void setTrusts(Object[] trusts) {

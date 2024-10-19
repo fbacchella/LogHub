@@ -64,22 +64,15 @@ public class ElasticSearch extends AbstractHttpSender {
         DEPRECATED,
     }
 
+    @Setter
     public static class Builder extends AbstractHttpSender.Builder<ElasticSearch> {
-        @Setter
         private Expression type = new Expression("_doc");
-        @Setter
         private String dateformat = null;
-        @Setter
         private Expression index = null;
-        @Setter
         private String templateName = "loghub";
-        @Setter
         private String templatePath = null;
-        @Setter
         private TYPEHANDLING typeHandling = TYPEHANDLING.USING;
-        @Setter
         private boolean ilm = false;
-        @Setter
         private String pipeline = null;
 
         public Builder() {

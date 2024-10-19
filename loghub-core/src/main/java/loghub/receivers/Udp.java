@@ -18,11 +18,11 @@ import lombok.Setter;
 @BuilderClass(Udp.Builder.class)
 public class Udp extends NettyReceiver<Udp, DatagramPacket, Udp.Builder> implements ConsumerProvider {
 
+    @Setter
     public static class Builder extends NettyReceiver.Builder<Udp, DatagramPacket, Udp.Builder> {
         public Builder() {
             setTransport(TRANSPORT.UDP);
         }
-        @Setter
         private int bufferSize = -1;
         @Override
         public Udp build() {

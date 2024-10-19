@@ -64,16 +64,14 @@ public class MultiLinesStream extends AbstractNettyStream<MultiLinesStream, Mult
 
     }
 
+    @Setter
     public static class Builder extends AbstractNettyStream.Builder<MultiLinesStream, MultiLinesStream.Builder> {
         public Builder() {
             super();
             setTransport(TRANSPORT.TCP);
         }
-        @Setter
         private String charset = Charset.defaultCharset().name();
-        @Setter
         private String joinWith = null;
-        @Setter
         private String mergePattern = " +(?<payload>.*)";
         @Override
         public MultiLinesStream build() {

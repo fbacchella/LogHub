@@ -35,23 +35,17 @@ public class HttpChannelConsumer implements ChannelConsumer {
     private static final SimpleChannelInboundHandler<FullHttpRequest> FATAL_ERROR = new FatalErrorHandler();
     private static final String HTTP_OBJECT_AGGREGATOR = "HttpObjectAggregator";
 
+    @Setter
     @Accessors(chain = true)
     public static class Builder {
         // Both aggregatorSupplier and serverCodecSupplier needs a supplier because
         // they are usually not sharable, so each pipeline needs its own instance.
-        @Setter
         private Supplier<HttpObjectAggregator> aggregatorSupplier;
-        @Setter
         private Supplier<HttpServerCodec> serverCodecSupplier;
-        @Setter
         private Consumer<ChannelPipeline> modelSetup;
-        @Setter
         private AuthenticationHandler authHandler;
-        @Setter
         private int maxContentLength = 1048576;
-        @Setter
         private Logger logger;
-        @Setter
         private HstsData hsts;
         private Builder() {
 

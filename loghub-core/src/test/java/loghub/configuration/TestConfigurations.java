@@ -147,8 +147,8 @@ public class TestConfigurations {
     @Getter
     @BuilderClass(TestArrayProcessor.Builder.class)
     public static class TestArrayProcessor extends Processor {
+        @Setter
         public static class Builder extends Processor.Builder<TestArrayProcessor> {
-            @Setter
             private Expression[] expressions;
             public TestArrayProcessor build() {
                 return new TestArrayProcessor(this);

@@ -9,12 +9,11 @@ import loghub.events.Event;
 import lombok.Getter;
 import lombok.Setter;
 
+@Setter
 @Getter
 public class Encoder extends Processor {
 
-    @Setter
     loghub.encoders.Encoder encoder;
-    @Setter
     private VariablePath field = VariablePath.of("message");
 
     @Override

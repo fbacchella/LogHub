@@ -25,12 +25,10 @@ import ua_parser.Parser;
 @BuilderClass(UserAgent.Builder.class)
 public class UserAgent extends FieldsProcessor {
 
+    @Setter
     public static class Builder extends FieldsProcessor.Builder<UserAgent> {
-        @Setter
         private int cacheSize = 1000;
-        @Setter
         private String agentsFile = null;
-        @Setter
         private String agentsUrl = null;
         public UserAgent build() {
             return new UserAgent(this);

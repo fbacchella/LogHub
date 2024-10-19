@@ -107,23 +107,19 @@ public abstract class Sender extends Thread implements Closeable {
         }
     }
 
+    @Setter
     public abstract static class Builder<B extends Sender> extends AbstractBuilder<B> {
-        @Setter
         protected Encoder encoder;
-        @Setter
         protected int batchSize = -1;
-        @Setter
         protected int workers = 2;
-        @Setter
         protected int flushInterval = 5;
-        @Setter
         private Filter filter;
-        @Setter
         private ClassLoader classLoader = AbstractBuilder.class.getClassLoader();
     }
 
     protected final Logger logger;
 
+    @Setter
     private BlockingQueue<Event> inQueue;
     @Getter
     private final Encoder encoder;
@@ -504,10 +500,6 @@ public abstract class Sender extends Thread implements Closeable {
             Stats.failedSentEvent(this, event);
         }
         event.end();
-    }
-
-    public void setInQueue(BlockingQueue<Event> inQueue) {
-        this.inQueue = inQueue;
     }
 
     @Override

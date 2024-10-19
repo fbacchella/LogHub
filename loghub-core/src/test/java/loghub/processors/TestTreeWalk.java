@@ -24,8 +24,8 @@ import lombok.Setter;
 public class TestTreeWalk {
 
     private static class TreeWalkTester extends TreeWalkProcessor {
+        @Setter
         public static class Builder extends TreeWalkProcessor.Builder<TreeWalkTester> {
-            @Setter
             private boolean saveNodes = false;
             public TreeWalkTester build() {
                 return new TreeWalkTester(this);

@@ -27,8 +27,8 @@ public class AnsiClean extends FieldsProcessor {
     private static final Pattern ANSIESCAPE = Pattern.compile(String.format("\u001B(?:%s|%s|%s|%s|%s)", CSI, FE, FS, FP, NF));
     private static final ThreadLocal<Matcher> MATCHERS = ThreadLocal.withInitial(() -> ANSIESCAPE.matcher(""));
 
+    @Setter
     public static class Builder extends FieldsProcessor.Builder<AnsiClean> {
-        @Setter
         private String replacement = "";
         public AnsiClean build() {
             return new AnsiClean(this);

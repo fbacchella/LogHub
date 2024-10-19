@@ -30,30 +30,19 @@ import lombok.Setter;
 @BuilderClass(ZabbixSender.Builder.class)
 public class ZabbixSender extends Sender {
 
+     @Setter
      public static class Builder extends Sender.Builder<ZabbixSender> {
-         @Setter
          private Expression clock;
-         @Setter
          private Expression host;
-         @Setter
          private Expression key;
-         @Setter
          private Expression keyValues = null;
-         @Setter
          private Expression value;
-         @Setter
          private boolean fullEvent;
-         @Setter
          private int port = -1;
-         @Setter
          private String zabbixServer;
-         @Setter
          private int connectTimeout = -1;
-         @Setter
          private int socketTimeout = -1;
-         @Setter
          private SSLContext sslContext;
-         @Setter
          private boolean withSsl;
          @Override
          public ZabbixSender build() {

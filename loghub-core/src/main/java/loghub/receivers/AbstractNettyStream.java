@@ -20,14 +20,13 @@ import lombok.Setter;
 public abstract class AbstractNettyStream<R extends AbstractNettyStream<R, B>, B extends AbstractNettyStream.Builder<R, B>> extends NettyReceiver<R, ByteBuf, B>
         implements ConsumerProvider {
 
+    @Setter
     public abstract static class Builder<R extends AbstractNettyStream<R, B>, B extends AbstractNettyStream.Builder<R, B>> extends NettyReceiver.Builder<R, ByteBuf, B> {
         protected Builder() {
             super();
             setTransport(TRANSPORT.TCP);
         }
-        @Setter
         protected int maxLength = 256;
-        @Setter
         protected String separator = null;
     }
 

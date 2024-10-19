@@ -38,10 +38,9 @@ public class Jfr extends Receiver<Jfr, Jfr.Builder> {
         SECONDS_FLOAT,
     }
 
+    @Setter
     public static class Builder extends Receiver.Builder<Jfr, Jfr.Builder> {
-        @Setter
         protected String jfrFile = "-";
-        @Setter
         protected DURATION_FORMAT durationUnit = null;
         public Jfr build() {
             return new Jfr(this);

@@ -11,8 +11,8 @@ import lombok.Setter;
 @BuilderClass(Stdout.Builder.class)
 public class Stdout extends Sender {
 
+    @Setter
     public static class Builder extends Sender.Builder<Stdout> {
-        @Setter
         private String destination = "stdout";
         @Override
         public Stdout build() {

@@ -32,9 +32,9 @@ import lombok.Setter;
 @BuilderClass(JournaldExport.Builder.class)
 public class JournaldExport extends Decoder {
 
+    @Setter
     public static class Builder extends Decoder.Builder<JournaldExport> {
         // Used in journald receiver
-        @Setter
         private EventsFactory factory = null;
         @Override
         public JournaldExport build() {

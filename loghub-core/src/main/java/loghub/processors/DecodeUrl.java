@@ -13,14 +13,11 @@ import lombok.Setter;
 @BuilderClass(DecodeUrl.Builder.class)
 public class DecodeUrl extends FieldsProcessor {
 
+    @Setter
     public static class Builder extends FieldsProcessor.Builder<DecodeUrl> {
-        @Setter
         private String encoding = "UTF-8";
-        @Setter
         private boolean loop = false;
-        @Setter
         private boolean strict = false;
-        @Setter
         private int depth = 5;
         public DecodeUrl build() {
             return new DecodeUrl(this);

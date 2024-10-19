@@ -14,12 +14,15 @@ import loghub.ProcessorException;
 import loghub.configuration.Properties;
 import loghub.events.Event;
 import lombok.Getter;
+import lombok.Setter;
 
 public class ScanBinary extends FieldsProcessor {
 
+    @Setter
     @Getter
     private Object[] bitsNames = new Object[0];
     private int[] fieldsLength = null;
+    @Setter
     @Getter
     private boolean asMap = false;
 
@@ -78,13 +81,6 @@ public class ScanBinary extends FieldsProcessor {
     }
 
     /**
-     * @param matching the matching to set
-     */
-    public void setBitsNames(Object[] matching) {
-        this.bitsNames = matching;
-    }
-
-    /**
      * @return the fieldsLength, can be null
      */
     public Object[] getFieldsLength() {
@@ -110,13 +106,6 @@ public class ScanBinary extends FieldsProcessor {
                 this.fieldsLength[i] = 0;
             }
         });
-    }
-
-    /**
-     * @param asMap the asMap to set
-     */
-    public void setAsMap(boolean asMap) {
-        this.asMap = asMap;
     }
 
 }

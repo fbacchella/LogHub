@@ -32,43 +32,29 @@ public class Syslog extends Encoder {
         RFC3164
     }
 
+    @Setter
     public static class Builder extends Encoder.Builder<Syslog> {
-        @Setter
         private Format format = Format.RFC5424;
-        @Setter
         private Expression severity = new Expression("-");
-        @Setter
         private Expression facility = new Expression("-");
-        @Setter
         private int version = 1;
-        @Setter
         private Expression hostname = new Expression("-");
-        @Setter
         private Expression appname = new Expression("-");
-        @Setter
         private Expression procid = new Expression("-");
-        @Setter
         private Expression msgid = new Expression("-");
         /**
          * Default to the event timestamp, if it returns a number, it's millisecond since Unix epoch
          * @param the expression for the timestamp value
          */
-        @Setter
         private Expression timestamp = null;
-        @Setter
         private Expression message = new Expression("-");
-        @Setter
         private boolean withbom = false;
-        @Setter
         private String charset = StandardCharsets.US_ASCII.name();
         /**
          * If RFC3164, setting to null or empty string, not timestamp will not be displayed
          */
-        @Setter
         private String dateFormat = null;
-        @Setter
         private int secFrac = 3;
-        @Setter
         private String defaultTimeZone = ZoneId.systemDefault().getId();
         @Override
         public Syslog build() {

@@ -10,14 +10,11 @@ import lombok.Setter;
 @BuilderClass(Properties.Builder.class)
 public class Properties extends AbstractStringJackson<Properties.Builder, JavaPropsMapper> {
 
+    @Setter
     public static class Builder extends AbstractStringJackson.Builder<Properties> {
-       @Setter
-        private String keyValueSeparator= "=";
-        @Setter
+       private String keyValueSeparator= "=";
         private String pathSeparator= ".";
-        @Setter
         private boolean parseSimpleIndexes = true;
-        @Setter
         private int firstArrayOffset = 1;
 
         @Override

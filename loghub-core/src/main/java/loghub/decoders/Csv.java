@@ -13,18 +13,13 @@ import lombok.Setter;
 @BuilderClass(Csv.Builder.class)
 public class Csv extends AbstractStringJackson<Csv.Builder, CsvMapper> {
 
+    @Setter
     public static class Builder extends AbstractStringJackson.Builder<Csv> {
-        @Setter
         private String[] columns = new String[0];
-        @Setter
         private String[] features = new String[0];
-        @Setter
         private char separator= ',';
-        @Setter
         private String lineSeparator= "\n";
-        @Setter
         private String nullValue = "";
-        @Setter
         private boolean header = false;
 
         @Override

@@ -52,15 +52,13 @@ import lombok.Setter;
 @Blocking
 public class Beats extends NettyReceiver<Beats, ByteBuf, Beats.Builder> implements ConsumerProvider {
 
+    @Setter
     public static class Builder extends NettyReceiver.Builder<Beats, ByteBuf, Beats.Builder> {
         public Builder() {
             setTransport(TRANSPORT.TCP);
         }
-        @Setter
         private int clientInactivityTimeoutSeconds;
-        @Setter
         private int maxPayloadSize = 8192;
-        @Setter
         private int workers = 4;
         @Override
         public Beats build() {

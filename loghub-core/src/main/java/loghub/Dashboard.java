@@ -39,39 +39,24 @@ public class Dashboard {
 
     private static final Logger logger = LogManager.getLogger();
 
+    @Setter
     @Accessors(chain=true)
     public static class Builder {
-        @Setter
         int port = -1;
-        @Setter
         String listen = null;
-        @Setter
         boolean withSSL = false;
-        @Setter
         SSLContext sslContext = null;
-        @Setter
         Duration hstsDuration = null;
-        @Setter
         SSLParameters sslParams = null;
-        @Setter
         ClientAuthentication sslClientAuthentication = ClientAuthentication.NONE;
-        @Setter
         String sslKeyAlias = null;
-        @Setter
         POLLER poller = POLLER.DEFAULTPOLLER;
-        @Setter
         Configuration jaasConfigJwt = null;
-        @Setter
         String jaasNameJwt = null;
-        @Setter
         boolean withJwtUrl = false;
-        @Setter
         JWTHandler jwtHandlerUrl = null;
-        @Setter
         boolean withJolokia = false;
-        @Setter
         String jolokiaPolicyLocation = null;
-        @Setter
         ClassLoader classLoader = Dashboard.class.getClassLoader();
         public Dashboard build() {
             return new Dashboard(this);

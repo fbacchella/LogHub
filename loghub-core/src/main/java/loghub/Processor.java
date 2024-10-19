@@ -36,12 +36,16 @@ public abstract class Processor {
 
     private VariablePath path = VariablePath.EMPTY;
     private Expression ifexpression = null;
+    @Setter
     @Getter
     private Processor success = null;
+    @Setter
     @Getter
     private Processor failure = null;
+    @Setter
     @Getter
     private Processor exception = null;
+    @Setter
     @Getter
     private String id = null;
 
@@ -136,31 +140,6 @@ public abstract class Processor {
                 return true;
             }
         }
-    }
-
-    /**
-     * @param failure the failure to set
-     */
-    public void setFailure(Processor failure) {
-        this.failure = failure;
-    }
-
-    /**
-     * @param success the success to set
-     */
-    public void setSuccess(Processor success) {
-        this.success = success;
-    }
-
-    /**
-     * @param exception the success to set
-     */
-    public void setException(Processor exception) {
-        this.exception = exception;
-    }
-
-    public void setId(String id) {
-        this.id = id;
     }
 
     public interface ProcessEvent {

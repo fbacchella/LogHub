@@ -130,10 +130,9 @@ public abstract class AsyncFieldsProcessor<FI, F extends Future<FI>> extends Fie
 
     }
 
+    @Setter
     public abstract static class Builder<AFP extends AsyncFieldsProcessor<FI, F>, FI, F extends Future<FI>> extends FieldsProcessor.Builder<AFP> {
-        @Setter
         private int queueDepth = -1;
-        @Setter
         private int timeout = 10;
     }
 

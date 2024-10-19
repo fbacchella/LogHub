@@ -48,14 +48,11 @@ import lombok.Setter;
 @BuilderClass(File.Builder.class)
 public class File extends Sender {
 
+    @Setter
     public static class Builder extends Sender.Builder<File> {
-        @Setter
         private Expression fileName;
-        @Setter
         private String separator = "";
-        @Setter
         private boolean truncate = false;
-        @Setter
         private int cacheSize = 10;
         @Override
         public File build() {

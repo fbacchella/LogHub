@@ -51,8 +51,8 @@ public class XmlXslt extends Decoder implements ErrorListener, ErrorHandler {
         }
     }
 
+    @Setter
     public static class Builder extends Decoder.Builder<XmlXslt> {
-        @Setter
         private String xslt;
         @Override
         public XmlXslt build() {

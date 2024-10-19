@@ -13,10 +13,9 @@ import lombok.Setter;
 @BuilderClass(EvalExpression.Builder.class)
 public class EvalExpression extends Encoder {
 
+    @Setter
     public static class Builder extends Encoder.Builder<EvalExpression> {
-        @Setter
         private String charset = Charset.defaultCharset().name();
-        @Setter
         private Expression format = null;
         @Override
         public EvalExpression build() {

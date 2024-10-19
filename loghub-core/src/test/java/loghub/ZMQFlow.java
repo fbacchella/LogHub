@@ -24,28 +24,18 @@ public class ZMQFlow extends Thread implements AutoCloseable {
 
     private static final Logger logger = LogManager.getLogger();
 
+    @Setter
     public static class Builder {
-        @Setter
         private String destination = "tcp://localhost:2120";
-        @Setter
         private SocketType type = SocketType.PUB;
-        @Setter
         private int hwm = 1000;
-        @Setter
         private Method method = Method.CONNECT;
-        @Setter
         private String serverKey = null;
-        @Setter
         PrivateKeyEntry keyEntry = null;
-        @Setter
         private Mechanisms security = Mechanisms.NULL;
-        @Setter
         private ZapDomainHandlerProvider zapHandler = ZapDomainHandlerProvider.ALLOW;
-        @Setter
         private Supplier<byte[]> source;
-        @Setter
         private int msPause;
-        @Setter
         private ZMQSocketFactory zmqFactory = null;
 
         public ZMQFlow build() {

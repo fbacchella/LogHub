@@ -125,11 +125,11 @@ public class Http extends AbstractHttpReceiver<Http, Http.Builder> {
 
     }
 
+    @Setter
     public static class Builder extends AbstractHttpReceiver.Builder<Http, Http.Builder> {
         public Builder() {
             setTransport(TRANSPORT.TCP);
         }
-        @Setter
         private Map<String, Decoder> decoders = Collections.emptyMap();
         @Override
         public Http build() {

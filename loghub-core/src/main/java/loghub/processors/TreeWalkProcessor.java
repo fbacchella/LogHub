@@ -10,8 +10,8 @@ import lombok.Setter;
 @Getter
 public abstract class TreeWalkProcessor extends FieldsProcessor {
 
+    @Setter
     public abstract static class Builder<WP extends TreeWalkProcessor> extends FieldsProcessor.Builder<WP> {
-        @Setter
         private TRAVERSAL_ORDER traversal = TRAVERSAL_ORDER.BREADTH;
     }
 

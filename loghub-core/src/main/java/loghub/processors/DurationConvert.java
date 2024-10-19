@@ -95,10 +95,9 @@ public class DurationConvert extends FieldsProcessor {
         public abstract Number to(Duration p);
     }
 
+    @Setter
     public static class Builder extends FieldsProcessor.Builder<DurationConvert> {
-        @Setter
         private DurationUnit in = DurationUnit.SECOND;
-        @Setter
         private DurationUnit out = DurationUnit.SECOND;
         public DurationConvert build() {
             return new DurationConvert(this);

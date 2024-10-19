@@ -40,36 +40,22 @@ import lombok.Setter;
 @Blocking(false)
 public abstract class Receiver<R extends Receiver<R, B>, B extends Receiver.Builder<R, B>> extends Thread implements Closeable {
 
+    @Setter
     public abstract static class Builder<R extends Receiver<R, B>, B extends Builder<R, B>> extends AbstractBuilder<R> {
-        @Setter
         protected Decoder decoder;
-        @Setter
         protected boolean withSSL = false;
-        @Setter
         protected ClientAuthentication SSLClientAuthentication = ClientAuthentication.NONE;
-        @Setter
         protected String SSLKeyAlias;
-        @Setter
         protected SSLContext sslContext;
-        @Setter
         protected SSLParameters sslParams;
-        @Setter
         protected String jaasName = null;
-        @Setter
         protected String user = null;
-        @Setter
         protected String password = null;
-        @Setter
         protected boolean useJwt = false;
-        @Setter
         protected JWTHandler jwtHandler;
-        @Setter
         protected Configuration jaasConfig;
-        @Setter
         protected String timeStampField = Event.TIMESTAMPKEY;
-        @Setter
         protected Filter filter;
-        @Setter
         protected boolean blocking = true;
     }
 
@@ -92,7 +78,9 @@ public abstract class Receiver<R extends Receiver<R, B>, B extends Receiver.Buil
     @Getter
     private final AuthenticationHandler authenticationHandler;
 
+    @Setter
     private PriorityBlockingQueue outQueue;
+    @Setter
     private Pipeline pipeline;
     private final boolean blocking;
     protected final Decoder decoder;
@@ -320,13 +308,5 @@ public abstract class Receiver<R extends Receiver<R, B>, B extends Receiver.Buil
     }
 
     public abstract String getReceiverName();
-
-    public void setOutQueue(PriorityBlockingQueue outQueue) {
-        this.outQueue = outQueue;
-    }
-
-    public void setPipeline(Pipeline pipeline) {
-        this.pipeline = pipeline;
-    }
 
 }

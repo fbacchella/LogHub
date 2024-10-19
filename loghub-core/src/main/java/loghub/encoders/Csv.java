@@ -101,24 +101,16 @@ public class Csv extends AbstractJacksonEncoder<Csv.Builder, CsvMapper> {
         return flattened;
     }
 
+    @Setter
     public static class Builder extends AbstractJacksonEncoder.Builder<Csv> {
-        @Setter
         protected String charset = Charset.defaultCharset().name();
-        @Setter
         private Expression[] values = new Expression[0];
-        @Setter
         private Object[] features = new String[]{"ALWAYS_QUOTE_STRINGS"};
-        @Setter
         private char separator = ',';
-        @Setter
         private String lineSeparator = "\n";
-        @Setter
         private String nullValue = "";
-        @Setter
         private String dateFormat = "iso";
-        @Setter
         private String zoneId = ZoneId.systemDefault().toString();
-        @Setter
         private String locale = Locale.getDefault().toString();
 
         @Override

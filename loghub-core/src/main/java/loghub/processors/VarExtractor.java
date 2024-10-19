@@ -27,10 +27,9 @@ public class VarExtractor extends FieldsProcessor {
         AS_LIST,
     }
 
+    @Setter
     public static class Builder extends FieldsProcessor.Builder<VarExtractor> {
-        @Setter
         private String parser = "(?<name>\\p{Alnum}+)\\s?[=:]\\s?(?<value>[^;,:]+)[;,:]?";
-        @Setter
         private Collision_handling collision = Collision_handling.KEEP_LAST;
         public VarExtractor build() {
             return new VarExtractor(this);

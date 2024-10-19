@@ -112,10 +112,9 @@ public class Dissect extends FieldsProcessor {
         Object value;
     }
 
+    @Setter
     public static class Builder extends FieldsProcessor.Builder<Dissect> {
-        @Setter
         String pattern;
-        @Setter
         String appendSeparator = "";
         public Builder() {
             setInPlace(true);

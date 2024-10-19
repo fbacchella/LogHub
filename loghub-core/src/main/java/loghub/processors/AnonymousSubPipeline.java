@@ -7,18 +7,13 @@ import loghub.SubPipeline;
 import loghub.configuration.Properties;
 import loghub.events.Event;
 import lombok.Getter;
+import lombok.Setter;
 
+@Setter
 @Getter
 public class AnonymousSubPipeline extends Processor implements SubPipeline {
 
     private Pipeline pipeline;
-
-    /**
-     * @param pipeline the pipeline to set
-     */
-    public void setPipeline(Pipeline pipeline) {
-        this.pipeline = pipeline;
-    }
 
     @Override
     public boolean process(Event event) throws ProcessorException {

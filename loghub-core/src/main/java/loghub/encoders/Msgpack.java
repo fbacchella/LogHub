@@ -17,8 +17,8 @@ import lombok.Setter;
 @CanBatch
 public class Msgpack extends AbstractJacksonEncoder<Msgpack.Builder, MessagePackMapper> {
 
+    @Setter
     public static class Builder extends AbstractJacksonEncoder.Builder<Msgpack> {
-        @Setter
         public boolean forwardEvent = false;
         @Override
         public Msgpack build() {

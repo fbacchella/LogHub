@@ -28,12 +28,10 @@ public class Tcp extends Sender {
     private static final String METRIC_SOCKET_CONNECT = "socketConnect";
     private static final String METRIC_SOCKET_RESET = "socketReset";
 
+    @Setter
     public static class Builder extends Sender.Builder<Tcp> {
-        @Setter
         private String destination = "127.0.0.1";
-        @Setter
         private int port = -1;
-        @Setter
         private String separator = "";
         @Override
         public Tcp build() {

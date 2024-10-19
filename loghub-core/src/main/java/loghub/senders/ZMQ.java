@@ -28,20 +28,20 @@ import zmq.io.mechanism.Mechanisms;
 @CanBatch
 public class ZMQ extends Sender {
 
+    @Setter
     public static class Builder extends Sender.Builder<ZMQ> {
-        @Setter @Getter
+        @Getter
         private String destination = "tcp://localhost:2120";
-        @Setter @Getter
+        @Getter
         private SocketType type = SocketType.PUB;
-        @Setter @Getter
+        @Getter
         private int hwm = 1000;
-        @Setter @Getter
+        @Getter
         private ZMQHelper.Method method = ZMQHelper.Method.BIND;
-        @Setter  @Getter
+        @Getter
         private String serverKey = null;
-        @Setter  @Getter
+        @Getter
         private Mechanisms security = Mechanisms.NULL;
-        @Setter
         ZapDomainHandlerProvider zapHandler = ZapDomainHandlerProvider.ALLOW;
 
         public ZMQ build() {

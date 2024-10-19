@@ -46,16 +46,12 @@ public class Kafka extends Receiver<Kafka, Kafka.Builder> {
         }
     }
 
+    @Setter
     public static class Builder extends Receiver.Builder<Kafka, Kafka.Builder> {
-        @Setter
         private String[] brokers = new String[] { "localhost"};
-        @Setter
         private int port = 9092;
-        @Setter
         private String topic;
-        @Setter
         private String group ="loghub";
-        @Setter
         private String keyDeserializer = ByteArrayDeserializer.class.getName();
         @Override
         public Kafka build() {

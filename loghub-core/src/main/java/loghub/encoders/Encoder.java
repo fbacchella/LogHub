@@ -15,8 +15,8 @@ import lombok.Setter;
 
 public abstract class Encoder {
 
+    @Setter
     public abstract static class Builder<B extends Encoder> extends AbstractBuilder<B> {
-        @Setter
         private String field = "message";
     }
 

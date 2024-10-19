@@ -16,10 +16,9 @@ import lombok.Setter;
 @BuilderClass(Udp.Builder.class)
 public class Udp extends Sender {
 
+    @Setter
     public static class Builder extends Sender.Builder<Udp> {
-        @Setter
         private int port = -1;
-        @Setter
         private String destination = "127.0.0.1";
         @Override
         public Udp build() {

@@ -16,8 +16,8 @@ import lombok.Setter;
 @FieldsProcessor.InPlace
 public class UrlParser extends FieldsProcessor {
 
+    @Setter
     public static class Builder extends FieldsProcessor.Builder<UrlParser> {
-        @Setter
         private String reference;
         public UrlParser build() {
             return new UrlParser(this);

@@ -19,9 +19,9 @@ import lombok.ToString;
 
 abstract class AbstractCompDecomp implements Filter {
 
+    @Setter
     @EqualsAndHashCode(callSuper=true) @ToString
     public abstract static class Builder<B extends AbstractCompDecomp> extends AbstractBuilder<B> {
-        @Setter
         protected int memoryLimitInKb = -1;
     }
 

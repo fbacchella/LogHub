@@ -12,10 +12,9 @@ import lombok.Setter;
 @CanBatch
 public class ToJson extends AbstractJacksonEncoder<ToJson.Builder, JsonMapper> {
     
+    @Setter
     public static class Builder extends AbstractJacksonEncoder.Builder<ToJson> {
-        @Setter
         private boolean pretty = false;
-        @Setter
         private boolean dateAsText = false;
         @Override
         public ToJson build() {
