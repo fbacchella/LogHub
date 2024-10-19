@@ -20,13 +20,12 @@ import loghub.events.EventsFactory;
 
 public class TestFire {
 
-    private static Logger logger;
     private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
     static public void configure() throws IOException {
         Tools.configure();
-        logger = LogManager.getLogger();
+        Logger logger = LogManager.getLogger();
         LogUtils.setLevel(logger, Level.TRACE);
     }
 

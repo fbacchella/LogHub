@@ -44,7 +44,6 @@ public class TestJournald {
 
     private Journald receiver = null;
     private PriorityBlockingQueue queue;
-    private String hostname;
     private int port;
 
     @After
@@ -56,7 +55,7 @@ public class TestJournald {
     }
 
     public Journald makeReceiver(Consumer<Journald.Builder> prepare, Map<String, Object> propsMap) throws IOException {
-        hostname =  InetAddress.getLoopbackAddress().getHostAddress();
+        String hostname = InetAddress.getLoopbackAddress().getHostAddress();
         port = Tools.tryGetPort();
 
         queue = new PriorityBlockingQueue();

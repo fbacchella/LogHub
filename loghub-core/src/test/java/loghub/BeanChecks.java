@@ -18,8 +18,6 @@ import static java.util.Locale.ENGLISH;
 
 public class BeanChecks {
 
-    private static Logger logger;
-
     public static final Class<? extends String[]> LSTRING = String[].class;
 
     public static class BeanInfo {
@@ -41,7 +39,7 @@ public class BeanChecks {
     @BeforeClass
     static public void configure() throws IOException {
         Tools.configure();
-        logger = LogManager.getLogger();
+        Logger logger = LogManager.getLogger();
         LogUtils.setLevel(logger, Level.TRACE);
     }
 

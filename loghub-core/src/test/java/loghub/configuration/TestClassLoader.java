@@ -22,15 +22,13 @@ import loghub.VarFormatter;
 
 public class TestClassLoader {
 
-    private static Logger logger ;
-
     @Rule
     public TemporaryFolder testFolder = new TemporaryFolder();
 
     @BeforeClass
     static public void configure() throws IOException {
         Tools.configure();
-        logger = LogManager.getLogger();
+        Logger logger = LogManager.getLogger();
         LogUtils.setLevel(logger, Level.TRACE, "loghub.configuration");
     }
 

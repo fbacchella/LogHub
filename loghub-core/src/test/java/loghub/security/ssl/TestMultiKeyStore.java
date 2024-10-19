@@ -24,12 +24,10 @@ import loghub.security.ssl.MultiKeyStoreProvider.SubKeyStore;
 
 public class TestMultiKeyStore {
 
-    private static Logger logger;
-
     @BeforeClass
     static public void configure() throws IOException {
         Tools.configure();
-        logger = LogManager.getLogger();
+        Logger logger = LogManager.getLogger();
         LogUtils.setLevel(logger, Level.TRACE, "loghub.security.ssl");
     }
 

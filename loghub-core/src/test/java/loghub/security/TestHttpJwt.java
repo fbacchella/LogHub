@@ -27,12 +27,10 @@ import loghub.netty.transport.TcpTransport;
 
 public class TestHttpJwt {
 
-    private static Logger logger;
-
     @BeforeClass
     static public void configure() throws IOException {
         Tools.configure();
-        logger = LogManager.getLogger();
+        Logger logger = LogManager.getLogger();
         LogUtils.setLevel(logger, Level.TRACE, "loghub.security.ssl", "loghub.HttpTestServer", "loghub.netty");
         Configurator.setLevel("org", Level.WARN);
     }
