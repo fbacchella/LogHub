@@ -82,21 +82,27 @@ public class Slicer extends Processor {
             throw IgnoredEventException.INSTANCE;
         }
         Iterator<Object> iter = enumerator.iterator();
-        while (iter.hasNext()) {
-            Object i = iter.next();
-            event.putAtPath(toSlice, i);
-            Object key = bucket.eval(event.wrap(toSlice));
-            Event newEvent = events.computeIfAbsent(key, k -> buildNewEvent(event));
-            ((List<Object>) newEvent.getAtPath(toSlice)).add(i);
-        }
-        for (Event ev: events.values()) {
-            if (flatten) {
-                List<Object> sub = ((List<Object>) ev.getAtPath(toSlice));
-                if (sub.size() == 1) {
-                    ev.putAtPath(toSlice, sub.get(0));
-                }
+        try {
+            while (iter.hasNext()) {
+                Object i = iter.next();
+                event.putAtPath(toSlice, i);
+                Object key = bucket.eval(event.wrap(toSlice));
+                Event newEvent = events.computeIfAbsent(key, k -> buildNewEvent(event));
+                ((List<Object>) newEvent.getAtPath(toSlice)).add(i);
             }
-            ev.reinject(event, mainQueue);
+            for (Event ev: events.values()) {
+                if (flatten) {
+                    List<Object> sub = ((List<Object>) ev.getAtPath(toSlice));
+                    if (sub.size() == 1) {
+                        ev.putAtPath(toSlice, sub.get(0));
+                    }
+                }
+                ev.reinject(event, mainQueue);
+            }
+        } catch (ProcessorException | RuntimeException ex) {
+            throw ex;
+        } finally {
+            event.putAtPath(toSlice, values);
         }
         throw DiscardedEventException.INSTANCE;
     }

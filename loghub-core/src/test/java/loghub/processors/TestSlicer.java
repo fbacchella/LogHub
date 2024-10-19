@@ -17,17 +17,16 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import loghub.BeanChecks;
-import loghub.EventsProcessor;
 import loghub.Expression;
 import loghub.LogUtils;
 import loghub.PriorityBlockingQueue;
 import loghub.Processor;
+import loghub.ProcessorException;
 import loghub.Tools;
 import loghub.VariablePath;
 import loghub.configuration.Properties;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
-import loghub.senders.BlockingConnectionContext;
 
 public class TestSlicer {
 
@@ -41,7 +40,7 @@ public class TestSlicer {
     }
 
     @Test
-    public void testDoNothing() throws IOException, InterruptedException {
+    public void testDoNothing() throws IOException, InterruptedException, ProcessorException {
         Consumer<Event> populate = ev -> ev.putAtPath(
                 VariablePath.of("a"), List.of(java.util.Map.of("b", "1"), Map.of("b", "2"))
         );
@@ -50,7 +49,7 @@ public class TestSlicer {
     }
 
     @Test
-    public void testSingle() throws IOException, InterruptedException {
+    public void testSingle() throws IOException, InterruptedException, ProcessorException {
         Consumer<Event> populate = ev -> ev.putAtPath(
                 VariablePath.of("a"), List.of(java.util.Map.of("b", "1"), Map.of("b", "2"))
         );
@@ -62,7 +61,7 @@ public class TestSlicer {
     }
 
     @Test
-    public void testSingleDefault() throws IOException, InterruptedException {
+    public void testSingleDefault() throws IOException, InterruptedException, ProcessorException {
         Consumer<Event> populate = ev -> ev.putAtPath(
                 VariablePath.of("a"), List.of(java.util.Map.of("b", "1"), Map.of("b", "2"))
         );
@@ -74,7 +73,7 @@ public class TestSlicer {
     }
 
     @Test
-    public void testMany() throws IOException, InterruptedException {
+    public void testMany() throws IOException, InterruptedException, ProcessorException {
         Consumer<Event> populate = ev -> ev.putAtPath(
                 VariablePath.of("a"), List.of(java.util.Map.of("b", 1), Map.of("b", 2), Map.of("b", 3), Map.of("b", 4))
         );
@@ -85,17 +84,13 @@ public class TestSlicer {
         Assert.assertEquals(List.of(Map.of("b", 2), Map.of("b", 4)), ev2.getAtPath(VariablePath.of("a")));
     }
 
-    public PriorityBlockingQueue run(Reader r, Consumer<Event> populate) throws IOException, InterruptedException {
-        BlockingConnectionContext ctx = new BlockingConnectionContext();
+    public PriorityBlockingQueue run(Reader r, Consumer<Event> populate)
+            throws IOException, InterruptedException, ProcessorException {
         Properties props = Tools.loadConf(r);
-        EventsProcessor ep = new EventsProcessor(props.mainQueue, props.outputQueues, props.namedPipeLine, 100, props.repository);
-        ep.start();
-        Event ev = factory.newEvent(ctx);
+        Event ev = factory.newEvent();
         populate.accept(ev);
-        ev.inject(props.namedPipeLine.get("main"), props.mainQueue, true);
-        boolean computed = ctx.getLocalAddress().tryAcquire(5, TimeUnit.DAYS);
-        Assert.assertTrue(computed);
-        ep.interrupt();
+        Tools.runProcessing(ev, props.namedPipeLine.get("main"), props);
+        Assert.assertEquals(ev, props.mainQueue.poll(5, TimeUnit.SECONDS));
         return props.mainQueue;
     }
 

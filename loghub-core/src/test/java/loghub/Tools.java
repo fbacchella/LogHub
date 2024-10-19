@@ -30,12 +30,13 @@ import loghub.processors.UnwrapEvent;
 import loghub.processors.WrapEvent;
 import loghub.security.ssl.MultiKeyStoreProvider;
 
+import static loghub.EventsProcessor.ProcessingStatus.DISCARD;
 import static loghub.EventsProcessor.ProcessingStatus.DROPED;
 import static loghub.EventsProcessor.ProcessingStatus.ERROR;
 
 public class Tools {
 
-    static public void configure() throws IOException {
+    public static void configure() throws IOException {
         Locale.setDefault(new Locale("POSIX"));
         LogUtils.configure();
     }
@@ -80,7 +81,7 @@ public class Tools {
         return loadConf(configname, true);
     }
 
-    public static void runProcessing(Event sent, Pipeline pipe, Properties props) throws ProcessorException {
+    public static void runProcessing(Event sent, Pipeline pipe, Properties props) {
         EventsProcessor ep = new EventsProcessor(props.mainQueue, props.outputQueues, props.namedPipeLine, props.maxSteps, props.repository);
         sent.inject(pipe, props.mainQueue, false);
         Processor processor;
@@ -94,7 +95,7 @@ public class Tools {
                 if (status == DROPED) {
                     sent.drop();
                     break;
-                } else if (status == ERROR) {
+                } else if (status == ERROR || status == DISCARD) {
                     sent.end();
                     break;
                 }
@@ -121,7 +122,7 @@ public class Tools {
         return runProcessing(sent, pipename, steps, prepare, new Properties(Collections.emptyMap()));
     }
 
-    public static ProcessingStatus runProcessing(Event sent, String pipename, List<Processor> steps, BiConsumer<Properties, List<Processor>> prepare, Properties props) throws ProcessorException {
+    public static ProcessingStatus runProcessing(Event sent, String pipename, List<Processor> steps, BiConsumer<Properties, List<Processor>> prepare, Properties props) {
         ProcessingStatus ps = new ProcessingStatus();
         ps.mainQueue = props.mainQueue;
         ps.status = new ArrayList<>();

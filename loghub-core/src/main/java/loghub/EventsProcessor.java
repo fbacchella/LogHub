@@ -33,6 +33,7 @@ public class EventsProcessor extends Thread {
         PAUSED,
         DROPED,
         ERROR,
+        DISCARD,
     }
 
     private static final Logger logger = LogManager.getLogger();
@@ -120,6 +121,11 @@ public class EventsProcessor extends Thread {
                             // It was a drop action
                             event.getPipelineLogger().debug("Dropped event {}", event);
                             event.drop();
+                            break;
+                        }
+                        case DISCARD: {
+                            event.getPipelineLogger().debug("Discarded event {}", event);
+                            event.end();
                             break;
                         }
                         case ERROR: {
@@ -276,7 +282,7 @@ public class EventsProcessor extends Thread {
                     status = ProcessingStatus.ERROR;
                 }
             } catch (DiscardedEventException ex) {
-                status = ProcessingStatus.DROPED;
+                status = ProcessingStatus.DISCARD;
                 e.doMetric(PipelineStat.DISCARD);
             } catch (IgnoredEventException ex) {
                 // A "do nothing" process
