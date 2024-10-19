@@ -64,7 +64,7 @@ public enum POLLER {
         pollers[ordinal()].setKeepAlive(config, cnt, idle, intvl);
     }
 
-    public static POLLER DEFAULTPOLLER;
+    public static final POLLER DEFAULTPOLLER;
 
     private static final PollerServiceProvider[] pollers = new PollerServiceProvider[POLLER.values().length];
 
