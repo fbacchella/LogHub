@@ -117,7 +117,6 @@ public class TestFile {
     @Test(timeout=2000)
     public void testFailing()
             throws IOException, InterruptedException, SendException, EncodeException, ProcessorException {
-        @SuppressWarnings("resource")
         File fsend = send(i -> {}, -1, false);
         Files.setPosixFilePermissions(Paths.get(fsend.getFileName().eval(null).toString()), Collections.emptySet());
         Event evok = factory.newEvent();

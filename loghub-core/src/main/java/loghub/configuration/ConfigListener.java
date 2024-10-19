@@ -327,7 +327,6 @@ class ConfigListener extends RouteBaseListener {
         }
     }
 
-    @SuppressWarnings({ "unchecked", "rawtypes" })
     @Override
     public void exitBean(BeanContext ctx) {
         String beanName;
@@ -642,7 +641,6 @@ class ConfigListener extends RouteBaseListener {
         stack.push(StackMarker.TEST);
     }
 
-    @SuppressWarnings("unchecked")
     @Override
     public void exitTest(TestContext ctx) {
         Test test = new Test();
