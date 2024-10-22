@@ -31,7 +31,6 @@ import loghub.BeanChecks;
 import loghub.Expression;
 import loghub.Helpers;
 import loghub.LogUtils;
-import loghub.ProcessorException;
 import loghub.Tools;
 import loghub.configuration.Properties;
 import loghub.events.Event;

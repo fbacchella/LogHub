@@ -6,7 +6,6 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import loghub.Helpers;
-import loghub.ProcessorException;
 import loghub.Tools;
 import loghub.configuration.ConfigException;
 import loghub.configuration.Properties;

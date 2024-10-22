@@ -5,7 +5,6 @@ import java.io.StringReader;
 
 import org.junit.Test;
 
-import loghub.ProcessorException;
 import loghub.configuration.ConfigException;
 import loghub.configuration.Configuration;
 

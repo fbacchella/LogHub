@@ -2,7 +2,6 @@ package loghub.processors;
 
 import loghub.Pipeline;
 import loghub.Processor;
-import loghub.ProcessorException;
 import loghub.SubPipeline;
 import loghub.configuration.Properties;
 import loghub.events.Event;

@@ -16,7 +16,6 @@ import io.krakens.grok.api.GrokCompiler;
 import io.krakens.grok.api.Match;
 import loghub.BuilderClass;
 import loghub.Helpers;
-import loghub.ProcessorException;
 import loghub.VariablePath;
 import loghub.events.Event;
 import lombok.Setter;

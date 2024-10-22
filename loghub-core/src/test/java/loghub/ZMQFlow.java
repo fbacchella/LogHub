@@ -1,6 +1,5 @@
 package loghub;
 
-import java.io.IOException;
 import java.security.KeyStore.PrivateKeyEntry;
 import java.util.function.Supplier;
 

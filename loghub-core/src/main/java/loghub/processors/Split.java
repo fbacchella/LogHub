@@ -7,7 +7,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import loghub.BuilderClass;
-import loghub.ProcessorException;
 import loghub.events.Event;
 import lombok.Getter;
 import lombok.Setter;

@@ -1,7 +1,5 @@
 package loghub.metrics;
 
-import javax.management.InstanceAlreadyExistsException;
-import javax.management.MBeanRegistrationException;
 import javax.management.MXBean;
 import javax.management.MalformedObjectNameException;
 import javax.management.NotCompliantMBeanException;

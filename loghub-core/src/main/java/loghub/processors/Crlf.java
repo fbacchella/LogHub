@@ -3,7 +3,6 @@ package loghub.processors;
 import java.util.stream.Collectors;
 
 import loghub.BuilderClass;
-import loghub.ProcessorException;
 import loghub.events.Event;
 import lombok.Setter;
 

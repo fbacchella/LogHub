@@ -5,7 +5,6 @@ import java.util.regex.Pattern;
 
 import loghub.BuilderClass;
 import loghub.NullOrMissingValue;
-import loghub.ProcessorException;
 import loghub.events.Event;
 import lombok.Setter;
 

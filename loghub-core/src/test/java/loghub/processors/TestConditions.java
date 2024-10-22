@@ -10,7 +10,6 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import loghub.LogUtils;
-import loghub.ProcessorException;
 import loghub.Tools;
 import loghub.configuration.ConfigException;
 import loghub.configuration.Properties;

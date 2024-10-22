@@ -1,7 +1,6 @@
 package loghub.processors;
 
 import loghub.Processor;
-import loghub.ProcessorException;
 import loghub.events.Event;
 
 public class Identity extends Processor {

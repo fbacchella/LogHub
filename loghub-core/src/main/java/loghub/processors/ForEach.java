@@ -8,7 +8,6 @@ import org.codehaus.groovy.runtime.typehandling.DefaultTypeTransformation;
 
 import loghub.NullOrMissingValue;
 import loghub.Processor;
-import loghub.ProcessorException;
 import loghub.VariablePath;
 import loghub.events.Event;
 

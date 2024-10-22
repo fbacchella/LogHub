@@ -1,6 +1,5 @@
 package loghub.security;
 
-import java.io.UnsupportedEncodingException;
 import java.security.Principal;
 import java.util.UUID;
 
