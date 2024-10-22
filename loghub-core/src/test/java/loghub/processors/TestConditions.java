@@ -29,7 +29,7 @@ public class TestConditions {
     }
 
     @Test
-    public void testif() throws ProcessorException, ConfigException, IOException {
+    public void testif() throws ConfigException, IOException {
         Properties conf = Tools.loadConf("conditions.conf");
         Event sent = factory.newEvent();
         sent.put("a", "1");
@@ -40,7 +40,7 @@ public class TestConditions {
     }
 
     @Test
-    public void testsuccess() throws ProcessorException, ConfigException, IOException {
+    public void testsuccess() throws ConfigException, IOException {
         Properties conf = Tools.loadConf("conditions.conf");
 
         Event sent = factory.newEvent();
@@ -52,7 +52,7 @@ public class TestConditions {
     }
 
     @Test
-    public void testfailure() throws ProcessorException, ConfigException, IOException {
+    public void testfailure() throws ConfigException, IOException {
         Properties conf = Tools.loadConf("conditions.conf");
 
         Event sent = factory.newEvent();
@@ -66,7 +66,7 @@ public class TestConditions {
     }
 
     @Test
-    public void testsubpipe() throws ProcessorException, ConfigException, IOException {
+    public void testsubpipe() throws ConfigException, IOException {
         Properties conf = Tools.loadConf("conditions.conf");
 
         Event sent = factory.newEvent();
@@ -78,7 +78,7 @@ public class TestConditions {
     }
 
     @Test
-    public void testignored() throws ProcessorException, ConfigException, IOException {
+    public void testignored() throws ConfigException, IOException {
         Properties conf = Tools.loadConf("conditions.conf");
 
         Event sent = factory.newEvent();

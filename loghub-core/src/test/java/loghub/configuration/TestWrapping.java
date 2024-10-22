@@ -97,7 +97,7 @@ public class TestWrapping {
     }
 
     @Test
-    public void canFill() throws IOException, ProcessorException {
+    public void canFill() throws IOException {
         Properties p =  Configuration.parse(new StringReader("pipeline[main]{path[a]([. b] = 1 | [b] = 2)}"));
         Event ev = factory.newEvent();
         Tools.runProcessing(ev, p.namedPipeLine.get("main"), p);
@@ -105,7 +105,7 @@ public class TestWrapping {
         Assert.assertEquals(2, ev.getAtPath(VariablePath.of("a", "b")));
     }
 
-    private void runEmptyPath(String configuration) throws IOException, ProcessorException {
+    private void runEmptyPath(String configuration) throws IOException {
         Properties p =  Configuration.parse(new StringReader(configuration));
         Event ev = factory.newEvent();
         Tools.runProcessing(ev, p.namedPipeLine.get("main"), p);

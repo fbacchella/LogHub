@@ -35,7 +35,7 @@ public class Map extends TreeWalkProcessor {
     }
 
     @Override
-    protected Object processNode(Event event, java.util.Map<String, Object> value) throws ProcessorException {
+    protected Object processNode(Event event, java.util.Map<String, Object> value) {
         return RUNSTATUS.NOSTORE;
     }
 

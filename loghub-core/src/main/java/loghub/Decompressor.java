@@ -26,7 +26,7 @@ public class Decompressor extends AbstractCompDecomp {
         return csf.createCompressorInputStream(CompressorStreamFactory.detect(wrappedInput), wrappedInput);
     }
 
-    protected OutputStream destination(OutputStream wrappedOutput) throws CompressorException {
+    protected OutputStream destination(OutputStream wrappedOutput) {
         return wrappedOutput;
     }
 

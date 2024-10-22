@@ -60,7 +60,8 @@ public class TestNettyNameResolver {
         cacheManager.close();
     }
 
-    private Tools.ProcessingStatus dorequest(Consumer<NettyNameResolver.Builder> setupProc, Event e, String... warmup) throws ProcessorException, ConfigException, IOException {
+    private Tools.ProcessingStatus dorequest(Consumer<NettyNameResolver.Builder> setupProc, Event e, String... warmup) throws
+            ConfigException, IOException {
         NettyNameResolver.Builder builder = NettyNameResolver.getBuilder();
         builder.setCacheManager(cacheManager);
         setupProc.accept(builder);
@@ -314,7 +315,7 @@ public class TestNettyNameResolver {
     }
 
     @Test
-    public void TestParallel() throws ProcessorException, IOException {
+    public void TestParallel() throws IOException {
         String configFile = "pipeline[resolve] { loghub.processors.NettyNameResolver{resolvers: [\"8.8.8.8:53\", \"8.8.4.4:53\"], resolutionMode: \"PARALLEL\"}  }";
         Properties p =  Configuration.parse(new StringReader(configFile));
         Helpers.parallelStartProcessor(p);

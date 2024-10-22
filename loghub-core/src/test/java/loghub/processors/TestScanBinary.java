@@ -72,13 +72,13 @@ public class TestScanBinary {
     }
 
     @Test
-    public void simpleTestNoName() throws ProcessorException {
+    public void simpleTestNoName() {
         ScanBinary fs = new ScanBinary();
         Assert.assertFalse(fs.configure(new Properties(Collections.emptyMap())));
     }
 
     @Test
-    public void testConfigFile() throws ProcessorException, InterruptedException, ConfigException, IOException {
+    public void testConfigFile() throws ConfigException, IOException {
         Properties conf = Tools.loadConf("scanbinary.conf");
         Helpers.parallelStartProcessor(conf);
         Event sent = factory.newEvent();

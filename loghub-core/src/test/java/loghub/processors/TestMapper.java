@@ -18,7 +18,7 @@ public class TestMapper {
     private final EventsFactory factory = new EventsFactory();
 
     @Test
-    public void test1() throws ProcessorException, InterruptedException, ConfigException, IOException {
+    public void test1() throws ConfigException, IOException {
         Properties conf = Tools.loadConf("map.conf");
         Helpers.parallelStartProcessor(conf);
         Event sent = factory.newEvent();
@@ -29,7 +29,7 @@ public class TestMapper {
     }
 
     @Test
-    public void test2() throws ProcessorException, InterruptedException, ConfigException, IOException {
+    public void test2() throws ConfigException, IOException {
         Properties conf = Tools.loadConf("map.conf");
         Helpers.parallelStartProcessor(conf);
         Event sent = factory.newEvent();
@@ -40,7 +40,7 @@ public class TestMapper {
     }
 
     @Test
-    public void testNotMapped() throws ProcessorException, InterruptedException, ConfigException, IOException {
+    public void testNotMapped() throws ConfigException, IOException {
         Properties conf = Tools.loadConf("map.conf");
         Helpers.parallelStartProcessor(conf);
         Event sent = factory.newEvent();
@@ -51,7 +51,7 @@ public class TestMapper {
     }
 
     @Test
-    public void test4() throws ProcessorException, InterruptedException, ConfigException, IOException {
+    public void test4() throws ConfigException, IOException {
         Properties conf = Tools.loadConf("map.conf");
         Helpers.parallelStartProcessor(conf);
         Event sent = factory.newEvent();
@@ -62,7 +62,7 @@ public class TestMapper {
     }
 
     @Test
-    public void testExpression() throws ProcessorException, InterruptedException, ConfigException, IOException {
+    public void testExpression() throws ConfigException, IOException {
         Properties conf = Tools.loadConf("map.conf");
         Helpers.parallelStartProcessor(conf);
         Event sent = factory.newEvent();

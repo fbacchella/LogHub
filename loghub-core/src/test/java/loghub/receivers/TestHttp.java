@@ -65,7 +65,7 @@ public class TestHttp {
     private String hostname;
     private int port;
 
-    public Http makeReceiver(Consumer<Http.Builder> prepare, Map<String, Object> propsMap) throws IOException {
+    public Http makeReceiver(Consumer<Http.Builder> prepare, Map<String, Object> propsMap) {
         // Generate a locally bound random socket
         port = Tools.tryGetPort();
         hostname = InetAddress.getLoopbackAddress().getCanonicalHostName();
@@ -211,7 +211,7 @@ public class TestHttp {
     }
 
     @Test(timeout = 5000)
-    public void testFailedAuthentication1() throws IOException {
+    public void testFailedAuthentication1() {
         try {
             makeReceiver( i -> { i.setUser("user") ; i.setPassword("password");}, Collections.emptyMap());
             doRequest(new URL("http", hostname, port, "/?a=1"),
@@ -225,7 +225,7 @@ public class TestHttp {
     }
 
     @Test(timeout = 5000)
-    public void testFailedAuthentication2() throws IOException {
+    public void testFailedAuthentication2() {
         try {
             makeReceiver( i -> { i.setUser("user") ; i.setPassword("password");}, Collections.emptyMap());
             URL dest = new URL("http", hostname, port, "/?a=1");

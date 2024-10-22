@@ -39,7 +39,7 @@ public class ProcessorTest {
     }
 
     @Test(timeout=1000)
-    public void test() throws IOException, DecodeException, ProcessorException, InterruptedException {
+    public void test() throws IOException, DecodeException {
         Processor p = new Processor();
 
         ByteBuf bbuffer;

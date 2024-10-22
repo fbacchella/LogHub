@@ -69,7 +69,7 @@ public class TestHierarchical {
     }
 
     @Test
-    public void testConfigurationParsingPath() throws IOException, InterruptedException, ProcessorException {
+    public void testConfigurationParsingPath() throws IOException, InterruptedException {
         String confile = "pipeline[hierarchy] {path[sub](loghub.processors.Hierarchical {destination: [.], fields: [\"a.*\", \"b\"] })}";
         Properties conf = Configuration.parse(new StringReader(confile));
         Event ev = factory.newEvent();

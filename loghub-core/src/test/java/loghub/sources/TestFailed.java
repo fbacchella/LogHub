@@ -12,7 +12,7 @@ import loghub.configuration.Configuration;
 public class TestFailed {
 
     @Test(expected=ConfigException.class)
-    public void testLog() throws ConfigException, IOException, ProcessorException {
+    public void testLog() throws ConfigException, IOException {
         String confile = "pipeline[main] {[a] @ [a] %source1}";
         Configuration.parse(new StringReader(confile));
     }

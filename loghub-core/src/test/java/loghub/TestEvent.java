@@ -142,7 +142,7 @@ public class TestEvent {
     }
 
     @Test
-    public void testWrapEmptyPath() throws IOException, ProcessorException {
+    public void testWrapEmptyPath() throws IOException {
         String confile = "pipeline[main] {path[a]([.b]=1)}";
         Properties conf = Tools.loadConf(new StringReader(confile));
         Event sent = factory.newEvent();

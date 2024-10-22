@@ -85,7 +85,7 @@ public class TestSlicer {
     }
 
     public PriorityBlockingQueue run(Reader r, Consumer<Event> populate)
-            throws IOException, InterruptedException, ProcessorException {
+            throws IOException, InterruptedException {
         Properties props = Tools.loadConf(r);
         Event ev = factory.newEvent();
         populate.accept(ev);

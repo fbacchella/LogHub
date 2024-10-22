@@ -81,7 +81,7 @@ public class ForEach extends Processor {
     }
 
     @Override
-    public boolean process(Event event) throws ProcessorException {
+    public boolean process(Event event) {
         Object o = event.getAtPath(collectionPath);
         List<Object> l;
         if (o instanceof NullOrMissingValue || o == null) {

@@ -173,22 +173,22 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
     }
 
     @Override
-    public void engineSetKeyEntry(String alias, Key key, char[] password, Certificate[] chain) throws KeyStoreException {
+    public void engineSetKeyEntry(String alias, Key key, char[] password, Certificate[] chain) {
         throw new UnsupportedOperationException("Read-only key store");
     }
 
     @Override
-    public void engineSetKeyEntry(String alias, byte[] key, Certificate[] chain) throws KeyStoreException {
+    public void engineSetKeyEntry(String alias, byte[] key, Certificate[] chain) {
         throw new UnsupportedOperationException("Read-only key store");
     }
 
     @Override
-    public void engineSetCertificateEntry(String alias, Certificate cert) throws KeyStoreException {
+    public void engineSetCertificateEntry(String alias, Certificate cert) {
         throw new UnsupportedOperationException("Read-only key store");
     }
 
     @Override
-    public void engineDeleteEntry(String alias) throws KeyStoreException {
+    public void engineDeleteEntry(String alias) {
         throw new UnsupportedOperationException("Read-only key store");
     }
 
@@ -334,12 +334,12 @@ public class MultiKeyStoreSpi extends KeyStoreSpi {
     }
 
     @Override
-    public void engineStore(OutputStream stream, char[] password) throws IOException, NoSuchAlgorithmException, CertificateException {
+    public void engineStore(OutputStream stream, char[] password) {
         throw new UnsupportedOperationException("Non persistent key store");
     }
 
     @Override
-    public void engineLoad(InputStream stream, char[] password) throws IOException, NoSuchAlgorithmException, CertificateException {
+    public void engineLoad(InputStream stream, char[] password) {
         throw new UnsupportedOperationException("Non persistent key store");
     }
 

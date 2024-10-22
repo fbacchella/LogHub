@@ -44,7 +44,7 @@ public class Crlf extends FieldsProcessor {
     }
 
     @Override
-    public Object fieldFunction(Event event, Object value) throws ProcessorException {
+    public Object fieldFunction(Event event, Object value) {
         if (!(value instanceof String) || (format == Format.KEEP && !escape)) {
             return value;
         }

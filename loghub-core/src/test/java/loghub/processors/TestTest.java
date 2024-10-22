@@ -31,7 +31,7 @@ public class TestTest {
     }
 
     @Test
-    public void testOK() throws ProcessorException, ConfigException, IOException {
+    public void testOK() throws ConfigException, IOException {
         Properties conf = Tools.loadConf("testclause.conf");
         Helpers.parallelStartProcessor(conf);
         Event sent = factory.newEvent();
@@ -42,7 +42,7 @@ public class TestTest {
     }
 
     @Test
-    public void testKO() throws ProcessorException, ConfigException, IOException {
+    public void testKO() throws ConfigException, IOException {
         Properties conf = Tools.loadConf("testclause.conf");
         Helpers.parallelStartProcessor(conf);
 
@@ -55,7 +55,7 @@ public class TestTest {
     }
 
     @Test
-    public void testMissingPath() throws ProcessorException, ConfigException, IOException {
+    public void testMissingPath() throws ConfigException, IOException {
         Properties conf = Tools.loadConf("testclause.conf");
         Helpers.parallelStartProcessor(conf);
 
@@ -67,7 +67,7 @@ public class TestTest {
     }
 
     @Test
-    public void testSub() throws ProcessorException, ConfigException, IOException {
+    public void testSub() throws ConfigException, IOException {
         Stats.reset();
         Properties conf = Tools.loadConf("testclause.conf");
         Helpers.parallelStartProcessor(conf);

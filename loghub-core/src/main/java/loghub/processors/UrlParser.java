@@ -35,7 +35,7 @@ public class UrlParser extends FieldsProcessor {
     }
 
     @Override
-    public Object fieldFunction(Event event, Object value) throws ProcessorException {
+    public Object fieldFunction(Event event, Object value) {
         URI valueUri;
         try {
             if (value instanceof URI) {

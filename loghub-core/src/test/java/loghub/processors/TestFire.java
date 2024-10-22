@@ -30,7 +30,7 @@ public class TestFire {
     }
 
     @Test
-    public void test() throws ProcessorException, InterruptedException, ConfigException, IOException {
+    public void test() throws ConfigException, IOException {
         Properties conf = Tools.loadConf("fire.conf");
         Helpers.parallelStartProcessor(conf);
         Event sent = factory.newEvent();

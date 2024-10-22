@@ -24,8 +24,7 @@ public class GraphMetric extends HttpRequestProcessing implements ChannelInbound
 
     @Override
     protected void processRequest(FullHttpRequest request,
-                                  ChannelHandlerContext ctx)
-                                                  throws HttpRequestFailure {
+                                  ChannelHandlerContext ctx) {
         writeResponse(ctx, request, HttpResponseStatus.MOVED_PERMANENTLY, Unpooled.EMPTY_BUFFER, 0);
     }
 

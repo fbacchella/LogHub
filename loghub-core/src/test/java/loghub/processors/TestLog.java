@@ -50,7 +50,7 @@ public class TestLog {
     }
 
     @Test
-    public void testLog() throws IOException, ProcessorException {
+    public void testLog() throws IOException {
         String confile = "pipeline[main] {log(\"fixed message\", FATAL) | log(\"${%s}\", ERROR)} timezone: \"UTC\"";
         Properties conf = Tools.loadConf(new StringReader(confile));
         Helpers.parallelStartProcessor(conf);

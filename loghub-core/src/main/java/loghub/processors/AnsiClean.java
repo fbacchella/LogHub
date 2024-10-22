@@ -45,7 +45,7 @@ public class AnsiClean extends FieldsProcessor {
     }
 
     @Override
-    public Object fieldFunction(Event event, Object value) throws ProcessorException {
+    public Object fieldFunction(Event event, Object value) {
         if (value == null || value instanceof NullOrMissingValue) {
             return FieldsProcessor.RUNSTATUS.NOSTORE;
         } else {

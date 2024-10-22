@@ -164,7 +164,7 @@ public class TestFieldsProcessor {
     }
 
     @Test
-    public void testDefaultMessage() throws ProcessorException, IOException {
+    public void testDefaultMessage() throws IOException {
         String confile = "pipeline[defaultmessage] {\n" +
                                  "   loghub.processors.Convert {className: \"java.net.InetAddress\"}\n" +
                                  "}\n";

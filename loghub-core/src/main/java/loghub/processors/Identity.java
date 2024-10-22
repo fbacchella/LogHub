@@ -12,7 +12,7 @@ public class Identity extends Processor {
     }
 
     @Override
-    public boolean process(Event event) throws ProcessorException {
+    public boolean process(Event event) {
         return true;
     }
 

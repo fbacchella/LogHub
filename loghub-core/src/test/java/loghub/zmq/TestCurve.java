@@ -195,7 +195,7 @@ public class TestCurve {
     }
 
     @Test
-    public void testSocketFactory() throws ZMQCheckedException, InvalidKeySpecException {
+    public void testSocketFactory() throws InvalidKeySpecException {
         for (String kstype: new String[] {"jceks"/*, "jks"*/}) {
             Path kspath = Paths.get(testFolder.getRoot().getAbsolutePath(), "zmqsocketfactory." + kstype).toAbsolutePath();
             PrivateKeyEntry pke1;

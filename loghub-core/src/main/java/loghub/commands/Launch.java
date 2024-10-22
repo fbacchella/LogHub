@@ -135,7 +135,7 @@ public class Launch implements BaseCommand {
         }
     }
 
-    public void launch(Properties props, SystemdHandler systemd) throws ConfigException, IOException {
+    public void launch(Properties props, SystemdHandler systemd) throws ConfigException {
         Start.hprofdump = props.hprofdump;
         try {
             JmxService.start(props.jmxServiceConfiguration);

@@ -112,7 +112,7 @@ public class TestConfigurations {
     }
 
     @Test
-    public void testForward() throws InterruptedException, ProcessorException, ConfigException, IOException {
+    public void testForward() throws InterruptedException, ConfigException, IOException {
         Properties conf = Tools.loadConf("forkforward.conf");
         EventsProcessor ep = new EventsProcessor(conf.mainQueue, conf.outputQueues, conf.namedPipeLine, conf.maxSteps, conf.repository);
         ep.start();
@@ -164,7 +164,7 @@ public class TestConfigurations {
         }
 
         @Override
-        public boolean process(Event event) throws ProcessorException {
+        public boolean process(Event event) {
             return false;
         }
     }
@@ -189,7 +189,7 @@ public class TestConfigurations {
     }
 
     @Test
-    public void testLog() throws ConfigException, IOException, ProcessorException {
+    public void testLog() throws ConfigException, IOException {
         String confile = "pipeline[main] {log([info], INFO)}";
         Properties conf = Configuration.parse(new StringReader(confile));
         Event sent = factory.newEvent();
@@ -200,7 +200,7 @@ public class TestConfigurations {
     }
 
     @Test
-    public void testSubPipeline() throws ProcessorException, InterruptedException, ConfigException, IOException {
+    public void testSubPipeline() throws ConfigException, IOException {
         Properties conf = Tools.loadConf("subpipeline.conf");
         Event sent = factory.newEvent();
         sent.put("a", "1");
@@ -261,7 +261,7 @@ public class TestConfigurations {
     }
 
     @Test
-    public void testMissingPipeInput() throws ConfigException, IOException {
+    public void testMissingPipeInput() throws ConfigException {
         ConfigException ex = Assert.assertThrows(ConfigException.class, () -> {
             String confile = "input { loghub.receivers.TimeSerie } | $pipe";
             Configuration.parse(new StringReader(confile));
@@ -270,7 +270,7 @@ public class TestConfigurations {
     }
 
     @Test
-    public void testBadBean() throws ConfigException, IOException {
+    public void testBadBean() throws ConfigException {
         ConfigException ex = Assert.assertThrows(ConfigException.class, () -> {
             String confile = "pipeline[bad] {\n" + 
                     "   loghub.processors.Identity {bad: true}\n" + 
@@ -305,7 +305,7 @@ public class TestConfigurations {
     }
 
     @Test
-    public void testPathString() throws ConfigException, IOException, ProcessorException {
+    public void testPathString() throws ConfigException, IOException {
         String confile = "pipeline[withpath] {\n" +
                         "   loghub.processors.UrlParser {field: \"a\", path: \"b\"}\n" +
                         "}\n";
@@ -323,7 +323,7 @@ public class TestConfigurations {
     }
 
     @Test
-    public void testPathEventVariable() throws ConfigException, IOException, ProcessorException {
+    public void testPathEventVariable() throws ConfigException, IOException {
         String confile = "pipeline[withpath] {\n" +
                         "   loghub.processors.UrlParser {field: [a b], path: [c d]}\n" +
                         "}\n";
@@ -380,7 +380,7 @@ public class TestConfigurations {
     }
 
     @Test
-    public void testBadProperty() throws IOException {
+    public void testBadProperty() {
         for (String confile: List.of(
                 "queueDepth: 'a'",
                 "http.jwt: \"true\"",
@@ -412,7 +412,7 @@ public class TestConfigurations {
     }
 
     @Test
-    public void testin() throws ConfigException, IOException, ProcessorException {
+    public void testin() throws ConfigException, IOException {
         String confile = "pipeline[main] {\n" +
                                  "[a b] in list(\"1\") ? [b c] =+ 1 |\n" +
                                  "[a b] in list(\"1\") ? [b c] =+ 2 " +

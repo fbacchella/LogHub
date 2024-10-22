@@ -32,14 +32,12 @@ public class StringCodec extends Decoder {
 
     @Override
     protected Object decodeObject(ConnectionContext<?> connectionContext,
-                                  byte[] msg, int offset, int length)
-                                                  throws DecodeException {
+                                  byte[] msg, int offset, int length) {
         return new String(msg, offset, length, charset);
     }
 
     @Override
-    protected Object decodeObject(ConnectionContext<?> ctx, ByteBuf bbuf)
-                    throws DecodeException {
+    protected Object decodeObject(ConnectionContext<?> ctx, ByteBuf bbuf) {
         return bbuf.toString(charset);
     }
 

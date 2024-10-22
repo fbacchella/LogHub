@@ -55,7 +55,7 @@ public interface StatsMBean {
         }
 
         public Implementation()
-                        throws NotCompliantMBeanException, MalformedObjectNameException, InstanceAlreadyExistsException, MBeanRegistrationException {
+                        throws NotCompliantMBeanException {
             super(StatsMBean.class);
             // Ensure that all metrics are created
             getTotalEvents();

@@ -89,7 +89,7 @@ public class ZMQSink<M> extends Thread implements AutoCloseable {
     }
 
     @Override
-    public synchronized void close() throws IOException, ZMQCheckedException {
+    public synchronized void close() {
        handler.stopRunning();
     }
 

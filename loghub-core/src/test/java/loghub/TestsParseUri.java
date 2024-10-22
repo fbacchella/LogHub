@@ -12,7 +12,7 @@ import org.junit.Test;
 public class TestsParseUri {
 
     @Test
-    public void testCheckURI() throws IOException, URISyntaxException {
+    public void testCheckURI() {
         String root = Paths.get(".").toAbsolutePath().normalize().toString();
         docheck("file:test",  Paths.get(root, "test"), null, null);
         docheck("file:dir/test", Paths.get(root, "dir", "test"), null, null);

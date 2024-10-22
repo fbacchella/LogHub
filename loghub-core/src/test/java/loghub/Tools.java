@@ -118,7 +118,7 @@ public class Tools {
         return runProcessing(sent, pipename, steps, (i,j) -> {});
     }
 
-    public static ProcessingStatus runProcessing(Event sent, String pipename, List<Processor> steps, BiConsumer<Properties, List<Processor>> prepare) throws ProcessorException {
+    public static ProcessingStatus runProcessing(Event sent, String pipename, List<Processor> steps, BiConsumer<Properties, List<Processor>> prepare) {
         return runProcessing(sent, pipename, steps, prepare, new Properties(Collections.emptyMap()));
     }
 

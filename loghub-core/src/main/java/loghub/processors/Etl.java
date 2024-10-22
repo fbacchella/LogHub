@@ -24,7 +24,7 @@ public abstract class Etl extends Processor {
             this.sourcePath = sourcePath;
         }
         @Override
-        public boolean process(Event event) throws ProcessorException {
+        public boolean process(Event event) {
             if (event.containsAtPath(sourcePath)) {
                 Object old = event.removeAtPath(sourcePath);
                 event.putAtPath(lvalue, old);
@@ -71,7 +71,7 @@ public abstract class Etl extends Processor {
         }
 
         @Override
-        public boolean process(Event event) throws ProcessorException {
+        public boolean process(Event event) {
             event.putAtPath(lvalue, literal);
             return true;
         }
@@ -90,7 +90,7 @@ public abstract class Etl extends Processor {
             this.formatter = formatter;
         }
         @Override
-        public boolean process(Event event) throws ProcessorException {
+        public boolean process(Event event) {
             event.putAtPath(lvalue, formatter.format(event));
             return true;
         }
@@ -109,7 +109,7 @@ public abstract class Etl extends Processor {
             this.source = source;
         }
         @Override
-        public boolean process(Event event) throws ProcessorException {
+        public boolean process(Event event) {
             Object o = Expression.deepCopy(event.getAtPath(source));
             event.putAtPath(lvalue, o);
             return true;
@@ -172,7 +172,7 @@ public abstract class Etl extends Processor {
             super(lvalue);
         }
         @Override
-        public boolean process(Event event) throws ProcessorException {
+        public boolean process(Event event) {
             event.removeAtPath(lvalue);
             return true;
         }

@@ -106,7 +106,7 @@ public class TestConvert {
     }
 
     @Test
-    public void TestIterableEtl() throws ProcessorException, IOException {
+    public void TestIterableEtl() throws IOException {
         String configFile = "pipeline[convert] { (java.lang.Integer)[message] }";
         Properties p =  Configuration.parse(new StringReader(configFile));
         Helpers.parallelStartProcessor(p);

@@ -54,7 +54,7 @@ public class TestJournald {
         }
     }
 
-    public Journald makeReceiver(Consumer<Journald.Builder> prepare, Map<String, Object> propsMap) throws IOException {
+    public Journald makeReceiver(Consumer<Journald.Builder> prepare, Map<String, Object> propsMap) {
         String hostname = InetAddress.getLoopbackAddress().getHostAddress();
         port = Tools.tryGetPort();
 

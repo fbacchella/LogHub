@@ -95,7 +95,7 @@ public class ZMQFlow extends Thread implements AutoCloseable {
     }
 
     @Override
-    public synchronized void close() throws IOException, ZMQCheckedException {
+    public synchronized void close() {
         running = false;
         handler.stopRunning();
     }

@@ -205,7 +205,7 @@ public class TestSyslogPriority {
     }
 
     @Test
-    public void TestNotMatch() throws ProcessorException {
+    public void TestNotMatch() {
         SyslogPriority.Builder builder = SyslogPriority.getBuilder();
         builder.setField(VariablePath.of("message"));
         SyslogPriority sp = builder.build();

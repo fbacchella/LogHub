@@ -32,7 +32,7 @@ public class TestFactory {
     }
 
     @Test(timeout=5000)
-    public void testPushPull() throws ZMQCheckedException, InterruptedException {
+    public void testPushPull() throws InterruptedException {
         String rendezvous = "tcp://localhost:" + Tools.tryGetPort();
         try (ZMQSocketFactory factory = new ZMQSocketFactory()) {
             StringBuilder received = new StringBuilder();

@@ -61,7 +61,7 @@ public interface ExceptionsMBean {
         }
 
         public Implementation()
-                        throws NotCompliantMBeanException, MalformedObjectNameException, InstanceAlreadyExistsException, MBeanRegistrationException {
+                        throws NotCompliantMBeanException {
             super(ExceptionsMBean.class);
         }
 

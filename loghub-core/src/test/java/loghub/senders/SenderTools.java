@@ -31,7 +31,7 @@ public class SenderTools {
     }
 
     public static <S extends Sender> void send(Sender.Builder<S> builder)
-            throws IOException, InterruptedException, EncodeException {
+            throws InterruptedException, EncodeException {
         ArrayBlockingQueue<Event> queue = new ArrayBlockingQueue<>(10);
 
         Encoder encoder = mock(Encoder.class);

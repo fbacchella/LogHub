@@ -24,14 +24,14 @@ public class Raw extends Decoder {
     }
 
     @Override
-    protected Object decodeObject(ConnectionContext<?> ctx, ByteBuf bbuf) throws DecodeException {
+    protected Object decodeObject(ConnectionContext<?> ctx, ByteBuf bbuf) {
         byte[] content =  new byte[bbuf.readableBytes()];
         bbuf.readBytes(content);
         return content;
     }
 
     @Override
-    protected Object decodeObject(ConnectionContext<?> ctx, byte[] msg, int offset, int length) throws DecodeException {
+    protected Object decodeObject(ConnectionContext<?> ctx, byte[] msg, int offset, int length) {
         return Arrays.copyOfRange(msg,offset, offset + length);
     }
 

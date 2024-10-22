@@ -162,7 +162,7 @@ public class TestMultiKeyStore {
         Assert.assertEquals(1, Collections.list(mks.engineAliases()).size());
     }
 
-    private MultiKeyStoreSpi load(String... paths) throws NoSuchAlgorithmException, CertificateException, IOException {
+    private MultiKeyStoreSpi load(String... paths) {
         SubKeyStore sks = new SubKeyStore();
         for (String p: paths) {
             sks.addSubStore(p);

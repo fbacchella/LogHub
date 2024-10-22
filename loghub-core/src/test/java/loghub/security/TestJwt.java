@@ -19,7 +19,7 @@ import loghub.security.JWTHandler.JWTPrincipal;
 public class TestJwt {
 
     @Test
-    public void testRoundTrip() throws IllegalArgumentException, JWTCreationException, UnsupportedEncodingException {
+    public void testRoundTrip() throws IllegalArgumentException, JWTCreationException {
         String secret = UUID.randomUUID().toString();
         String issuer = UUID.randomUUID().toString();
         String token = JWT.create()
@@ -34,7 +34,7 @@ public class TestJwt {
     }
 
     @Test(expected=SignatureVerificationException.class)
-    public void testFailing() throws IllegalArgumentException, JWTCreationException, UnsupportedEncodingException {
+    public void testFailing() throws IllegalArgumentException, JWTCreationException {
         String secret = UUID.randomUUID().toString();
         String issuer = UUID.randomUUID().toString();
         String token = JWT.create()

@@ -49,7 +49,7 @@ public class TestJmxConnection {
     }
 
     @After
-    public void stopJmx() throws IOException {
+    public void stopJmx() {
         JmxService.stop();
     }
 

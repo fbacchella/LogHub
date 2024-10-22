@@ -199,9 +199,7 @@ public class Properties extends HashMap<String, Object> {
                             .registerSenders(senders)
                             .registerPipelines(pipelines)
                             .setJaasConfig(jaasConfig);
-        } catch (NotCompliantMBeanException | MalformedObjectNameException
-                        | InstanceAlreadyExistsException
-                        | MBeanRegistrationException ex) {
+        } catch (NotCompliantMBeanException ex) {
             throw new ConfigException("Unusable JMX setup: " + Helpers.resolveThrowableException(ex), ex);
         }
 

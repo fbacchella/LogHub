@@ -54,7 +54,7 @@ public class TestWithZMQ {
 
     @Ignore
     @Test(timeout=3000) 
-    public void testSimpleInput() throws InterruptedException, ConfigException, IOException, ExecutionException, ZMQCheckedException {
+    public void testSimpleInput() throws InterruptedException, ConfigException, IOException, ZMQCheckedException {
         latch = new CountDownLatch(1);
 
         Properties conf = Tools.loadConf("simpleinput.conf");

@@ -59,7 +59,7 @@ public class Grok extends FieldsProcessor {
     }
 
     @Override
-    public Object fieldFunction(Event event, Object value) throws ProcessorException {
+    public Object fieldFunction(Event event, Object value) {
         Object returned = FieldsProcessor.RUNSTATUS.FAILED;
         for (io.krakens.grok.api.Grok grok : groks) {
             Match gm = grok.match(value.toString());

@@ -37,7 +37,7 @@ public class TestFilter {
         LogUtils.setLevel(logger, Level.TRACE, "loghub.configuration", "loghub.processors.Filter");
     }
 
-    private Event runTest(String conf, Consumer<Event> fillEvent) throws ProcessorException, IOException {
+    private Event runTest(String conf, Consumer<Event> fillEvent) throws IOException {
         Properties p = Configuration.parse(new StringReader(conf));
         Processor pr = p.namedPipeLine.get("main").processors.get(0);
         Assert.assertTrue(pr.configure(p));

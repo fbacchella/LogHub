@@ -53,7 +53,7 @@ public class TestCriticalFailure {
     }
 
     @Test(timeout=10000)
-    public void test() throws ConfigException, IOException, InterruptedException{
+    public void test() throws ConfigException, IOException {
         String confile = String.format("pipeline[newpipe] {} hprofDumpPath:\"%s/loghub.hprof\"", folder.getRoot());
 
         Properties props = Tools.loadConf(new StringReader(confile));

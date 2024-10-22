@@ -33,7 +33,7 @@ public class Compressor extends AbstractCompDecomp {
         this.format = builder.format;
     }
 
-    protected InputStream source(InputStream wrappedInput) throws CompressorException {
+    protected InputStream source(InputStream wrappedInput) {
         return wrappedInput;
     }
 

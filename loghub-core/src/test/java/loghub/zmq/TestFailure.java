@@ -70,7 +70,7 @@ public class TestFailure {
     }
 
     @Test
-    public void interrupted() throws InterruptedException, ExecutionException, ZMQCheckedException, TimeoutException {
+    public void interrupted() throws InterruptedException {
         ZMQSocketFactory ctx = tctxt.getFactory();
         String endpoint = "tcp://localhost:" + Tools.tryGetPort();
         CountDownLatch latch = new CountDownLatch(1);

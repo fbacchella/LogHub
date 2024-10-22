@@ -123,7 +123,7 @@ public class TestEtl {
     }
 
     @Test
-    public void test5() throws ProcessorException, ConfigException, IOException {
+    public void test5() throws ConfigException, IOException {
         Properties conf = Tools.loadConf("etl.conf");
         Helpers.parallelStartProcessor(conf);
         Event sent = factory.newEvent();
@@ -135,7 +135,7 @@ public class TestEtl {
     }
 
     @Test
-    public void test7() throws ProcessorException, ConfigException, IOException {
+    public void test7() throws ConfigException, IOException {
         Properties conf = Tools.loadConf("etl.conf");
         Helpers.parallelStartProcessor(conf);
         Event sent = factory.newEvent();
@@ -148,7 +148,7 @@ public class TestEtl {
     }
 
     @Test
-    public void test8() throws ProcessorException, ConfigException, IOException {
+    public void test8() throws ConfigException, IOException {
         Properties conf = Tools.loadConf("etl.conf");
         Helpers.parallelStartProcessor(conf);
         Event sent = factory.newEvent();

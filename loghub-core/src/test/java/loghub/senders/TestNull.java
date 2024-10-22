@@ -82,7 +82,7 @@ public class TestNull {
     }
 
     @Test
-    public void testFailing() throws InterruptedException {
+    public void testFailing() {
         IllegalArgumentException ex = Assert.assertThrows(IllegalArgumentException.class, () -> send(b -> b.setEncode(true), null));
         Assert.assertEquals("Encoding requested, but no encoder given", ex.getMessage());
     }

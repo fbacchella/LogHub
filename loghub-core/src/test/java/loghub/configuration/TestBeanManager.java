@@ -145,7 +145,7 @@ public class TestBeanManager {
     }
 
     @Test
-    public void testExpression() throws InvocationTargetException, IntrospectionException, ProcessorException {
+    public void testExpression() {
         BeanContener c = new BeanContener();
         Stream.of((byte) 1, (short) 1, 1, 1L, Math.PI, 1.0f, "a", 'a', this).forEach(o -> {
             try {

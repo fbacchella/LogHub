@@ -15,7 +15,7 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 public class RootRedirect extends HttpRequestProcessing implements ChannelInboundHandler {
 
     @Override
-    protected void processRequest(FullHttpRequest request, ChannelHandlerContext ctx) throws HttpRequestFailure {
+    protected void processRequest(FullHttpRequest request, ChannelHandlerContext ctx) {
         writeResponse(ctx, request, HttpResponseStatus.MOVED_PERMANENTLY, Unpooled.EMPTY_BUFFER, 0);
     }
 

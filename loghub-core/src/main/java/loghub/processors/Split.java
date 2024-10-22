@@ -40,7 +40,7 @@ public class Split extends FieldsProcessor {
     }
 
     @Override
-    public Object fieldFunction(Event event, Object value) throws ProcessorException {
+    public Object fieldFunction(Event event, Object value) {
         String valueString = value.toString();
         Matcher localMatch = matchers.get().reset(value.toString());
         List<String> elements = new ArrayList<>();
