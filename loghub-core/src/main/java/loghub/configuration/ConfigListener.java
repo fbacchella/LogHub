@@ -4,6 +4,9 @@ import java.beans.IntrospectionException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.math.BigInteger;
+import java.net.UnknownHostException;
+import java.nio.ByteOrder;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayDeque;
@@ -17,6 +20,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.UnaryOperator;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 import java.util.stream.Collectors;
@@ -1153,6 +1157,27 @@ class ConfigListener extends RouteBaseListener {
             expression = ExpressionBuilder.of(pre, post, (o1, o2) -> Expression.asBoolean(o1) || Expression.asBoolean(o2)).setDeepCopy(false);
         } else if (ctx.e3 != null) {
             expression = stack.popTyped();
+        } else if (ctx.convertclass != null) {
+            ExpressionBuilder subexpression = stack.popTyped();
+            try {
+                Class<?> theClass = classLoader.loadClass(ctx.convertclass.getText());
+                UnaryOperator<Object> convert = o -> {
+                    try {
+                       return Expression.convertObject(
+                           theClass, o, Charset.defaultCharset(), ByteOrder.nativeOrder()
+                       );
+                    } catch (UnknownHostException ex) {
+                        throw new IllegalArgumentException("Failed to parse IP address \"" + o + "\"", ex);
+                    } catch (NumberFormatException ex) {
+                        throw new IllegalArgumentException("Unable to parse \""+ o +"\" as a " + theClass.getName(), ex);
+                    } catch (InvocationTargetException ex) {
+                        throw new IllegalArgumentException(ex.getCause());
+                    }
+                };
+                expression = ExpressionBuilder.of(subexpression, convert).setDeepCopy(false);
+            } catch (ClassNotFoundException e) {
+                throw new RecognitionException("Unknown class: " + ctx.newclass.getText(), parser, stream, ctx);
+            }
         } else if (ctx.newclass != null) {
             Expression.ExpressionLambda argsLambda;
             if (ctx.expressionsList() != null) {

@@ -221,7 +221,7 @@ public class TestExpressionParsing {
     }
 
     @Test
-    public void testOperators() {
+    public void testOperators() throws UnknownHostException {
         Event ev = factory.newEvent();
         Object[] tryExpression = new Object[] {
                 "'a' + 'b'", "ab",
@@ -264,6 +264,8 @@ public class TestExpressionParsing {
                 "!0", true,
                 "!true", false,
                 "!false", true,
+               "(java.lang.Integer) 1", 1,
+                "(java.net.InetAddress) \"127.0.0.1\"", InetAddress.getByName("127.0.0.1"),
         };
         enumerateExpressions(ev, tryExpression);
     }

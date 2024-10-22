@@ -2,11 +2,13 @@ package loghub.configuration;
 
 import java.io.IOException;
 import java.io.StringReader;
+import java.net.InetAddress;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.logging.log4j.Level;
@@ -43,7 +45,7 @@ public class TestConfigurations {
     public ZMQFactory tctxt = new ZMQFactory();
 
     @BeforeClass
-    static public void configure() throws IOException {
+    public static void configure() throws IOException {
         Tools.configure();
         logger = LogManager.getLogger();
         LogUtils.setLevel(logger, Level.TRACE, "loghub.SmartContext", "loghub.Pipeline", "loghub.configuration","loghub.receivers.ZMQ", "loghub.Receiver", "loghub.processors.Forker", "loghub", "loghub.EventsProcessor");
@@ -92,7 +94,7 @@ public class TestConfigurations {
     }
 
     @Test
-    public void testFork() throws InterruptedException, ProcessorException, ConfigException, IOException {
+    public void testFork() throws InterruptedException, ConfigException, IOException {
         Properties conf = Tools.loadConf("forkforward.conf");
         EventsProcessor ep = new EventsProcessor(conf.mainQueue, conf.outputQueues, conf.namedPipeLine, conf.maxSteps, conf.repository);
         ep.start();
@@ -424,4 +426,20 @@ public class TestConfigurations {
         Assert.assertEquals(List.of(1, 2), ev.getAtPath(VariablePath.of("b", "c")));
     }
 
+    @Test
+    public void testSet() throws ConfigException, IOException {
+        String confile = "pipeline[main] {\n" +
+                                 "[related ip] = set() |" +
+                                 "[related ip] =+ \"127.0.0.1\" |" +
+                                 "[related ip] =+ \"127.0.0.1\" |" +
+                                 "[related ip] =+ \"127.0.0.2\" |" +
+                                 "    loghub.processors.Map { field: [related ip], lambda: x -> (java.net.InetAddress) x,  }\n" +
+                                 "}\n";
+        Properties  p = Configuration.parse(new StringReader(confile));
+        Event ev = factory.newEvent();
+        Tools.runProcessing(ev, p.namedPipeLine.get("main"), p);
+        Assert.assertEquals(Set.of(InetAddress.getByName("127.0.0.1"), InetAddress.getByName("127.0.0.2")), ev.getAtPath(VariablePath.of("related", "ip")));
+    }
+
 }
+

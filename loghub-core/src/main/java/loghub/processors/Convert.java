@@ -1,22 +1,19 @@
 package loghub.processors;
 
 import java.lang.reflect.InvocationTargetException;
-import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.BufferUnderflowException;
-import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 
 import loghub.BuilderClass;
+import loghub.Expression;
 import loghub.Helpers;
 import loghub.ProcessorException;
 import loghub.VariablePath;
-import loghub.configuration.BeansManager;
 import loghub.events.Event;
-import loghub.types.MacAddress;
 import lombok.Setter;
 
 /**
@@ -46,7 +43,6 @@ public class Convert extends FieldsProcessor {
     }
 
     private final Charset charset;
-    private final String className;
     private final Class<?> clazz;
     private final ByteOrder byteOrder;
 
@@ -63,7 +59,7 @@ public class Convert extends FieldsProcessor {
         default:
             byteOrder = ByteOrder.nativeOrder();
         }
-        className = builder.className;
+        String className = builder.className;
         try {
             clazz = builder.classLoader.loadClass(className);
         } catch (ClassNotFoundException e) {
@@ -73,103 +69,19 @@ public class Convert extends FieldsProcessor {
 
     @Override
     public Object fieldFunction(Event event, Object value) throws ProcessorException {
-        if (value == null) {
-            return null;
-        } else if (clazz.isAssignableFrom(value.getClass())) {
-            // Nothing to do, just return the value
-            return value;
-        } else if (value instanceof byte[] && clazz == String.class) {
-            return new String((byte[]) value, charset);
-        } else if (value instanceof byte[] && clazz == MacAddress.class) {
-            return new MacAddress((byte[]) value);
-        } else if (value instanceof byte[] && InetAddress.class == clazz) {
-            try {
-                return InetAddress.getByAddress((byte[]) value);
-            } catch (UnknownHostException ex) {
-                throw event.buildException("Failed to parse IP address", ex);
-            }
-        } else if (value instanceof byte[]) {
-            try {
-                ByteBuffer buffer = ByteBuffer.wrap((byte[]) value);
-                buffer.order(byteOrder);
-                Object o;
-                switch (className) {
-                case "java.lang.Character":
-                    o = buffer.getChar();
-                    break;
-                case "java.lang.Byte" :
-                    o = buffer.get();
-                    break;
-                case "java.lang.Short":
-                    o = buffer.getShort();
-                    break;
-                case "java.lang.Integer":
-                    o = buffer.getInt();
-                    break;
-                case "java.lang.Long":
-                    o = buffer.getLong();
-                    break;
-                case "java.lang.Float":
-                    o = buffer.getFloat();
-                    break;
-                case "java.lang.Double":
-                    o = buffer.getDouble();
-                    break;
-                default:
-                    logger.debug(() -> "Failed to parsed byte array event " + event);
-                    throw event.buildException("Unable to parse field as a " + className);
-                }
-                return o;
-            } catch (BufferUnderflowException ex) {
-                logger.debug(() -> "Failed to parsed event " + event, ex);
-                throw event.buildException("Unable to parse field as a " + className + ", not enough bytes", ex);
-            }
-        } else {
-            String valueStr = value.toString();
-            if (valueStr.isBlank()) {
-                return RUNSTATUS.NOSTORE;
-            } else {
-                try {
-                    Object o;
-                    switch (className) {
-                    case "java.lang.Integer":
-                        o = Integer.valueOf(valueStr);
-                        break;
-                    case "java.lang.Byte" :
-                        o = Byte.valueOf(valueStr);
-                        break;
-                    case "java.lang.Short":
-                        o = Short.valueOf(valueStr);
-                        break;
-                    case "java.lang.Long":
-                        o = Long.valueOf(valueStr);
-                        break;
-                    case "java.lang.Float":
-                        o = Float.valueOf(valueStr);
-                        break;
-                    case "java.lang.Double":
-                        o = Double.valueOf(valueStr);
-                        break;
-                    case "java.lang.Boolean":
-                        o = Boolean.valueOf(valueStr);
-                        break;
-                    case "java.net.InetAddress":
-                        o = Helpers.parseIpAddress(valueStr);
-                        if (o == null) {
-                            logger.debug(() -> "Failed to parsed event " + event);
-                            throw event.buildException("\"" + valueStr + "\" not a valid IP address");
-                        }
-                        break;
-                    default:
-                        o = BeansManager.constructFromString(clazz, valueStr);
-                        break;
-                    }
-                    return o;
-                } catch (NumberFormatException | InvocationTargetException | UnknownHostException ex) {
-                    logger.debug(() -> "Failed to parsed event " + event, ex);
-                    throw event.buildException("Unable to parse \""+ valueStr +"\" as a " + className + ": " + Helpers.resolveThrowableException(ex));
-                }
-            }
+        try {
+            return Expression.convertObject(clazz, value, charset, byteOrder);
+        } catch (BufferUnderflowException ex) {
+            throw event.buildException("Unable to parse field as a " + clazz.getName() + ", not enough bytes", ex);
+        } catch (UnknownHostException ex) {
+            throw event.buildException("\"" + value + "\" not a valid IP address", ex);
+        } catch (NumberFormatException ex) {
+             throw event.buildException("Unable to parse \""+ value +"\" as a " + clazz.getName() + ": " + Helpers.resolveThrowableException(ex));
+        } catch (InvocationTargetException ex) {
+            logger.atDebug()
+                  .withThrowable(ex.getCause())
+                  .log("Failed to parsed event {}", event);
+            throw event.buildException("Unable to parse \""+ value +"\" as a " + clazz.getName() + ": " + Helpers.resolveThrowableException(ex));
         }
     }
 

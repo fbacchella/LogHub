@@ -2,9 +2,13 @@ package loghub;
 
 import java.io.Closeable;
 import java.lang.reflect.Array;
+import java.lang.reflect.InvocationTargetException;
 import java.math.BigDecimal;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.charset.Charset;
 import java.time.DateTimeException;
 import java.time.Instant;
 import java.time.temporal.Temporal;
@@ -31,6 +35,7 @@ import java.util.stream.Stream;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.codehaus.groovy.runtime.StringGroovyMethods;
+import org.codehaus.groovy.runtime.metaclass.MissingMethodExceptionNoStack;
 import org.codehaus.groovy.runtime.typehandling.DefaultTypeTransformation;
 import org.codehaus.groovy.runtime.typehandling.NumberMath;
 
@@ -44,7 +49,9 @@ import groovy.runtime.metaclass.java.lang.NumberMetaClass;
 import groovy.runtime.metaclass.java.lang.StringMetaClass;
 import groovy.runtime.metaclass.java.util.CollectionMetaClass;
 import io.netty.util.NetUtil;
+import loghub.configuration.BeansManager;
 import loghub.events.Event;
+import loghub.types.MacAddress;
 import lombok.Getter;
 
 /**
@@ -193,7 +200,10 @@ public class Expression {
                            .orElse(null);
         } catch (IgnoredEventException e) {
             throw e;
+        } catch (MissingMethodExceptionNoStack ex) {
+            throw event.buildException(String.format("Incompatible type: %s", source, Helpers.resolveThrowableException(ex)), ex);
         } catch (RuntimeException ex) {
+            ex.printStackTrace();
             throw event.buildException(String.format("Failed expression %s: %s", source, Helpers.resolveThrowableException(ex)), ex);
         }
     }
@@ -631,6 +641,92 @@ public class Expression {
         MetaClass mc = registry.getMetaClass(arg1.getClass());
         GroovyMethods groovyOp = GroovyMethods.resolveSymbol(operator);
         return mc.invokeMethod(arg1, groovyOp.groovyMethod, new Object[]{arg2});
+    }
+
+    @SuppressWarnings("unchecked")
+    public static <T> T convertObject(Class<T> clazz, Object value, Charset charset, ByteOrder byteOrder)
+            throws UnknownHostException, InvocationTargetException {
+        if (value == NullOrMissingValue.MISSING) {
+            return (T) NullOrMissingValue.MISSING;
+        } else if (value == null || value == NullOrMissingValue.NULL) {
+            return null;
+        } else if (clazz.isAssignableFrom(value.getClass())) {
+            // Nothing to do, just return the value
+            return (T) value;
+        } else if (value instanceof byte[] && clazz == String.class) {
+            return (T) new String((byte[]) value, charset);
+        } else if (value instanceof byte[] && clazz == MacAddress.class) {
+            return (T) new MacAddress((byte[]) value);
+        } else if (value instanceof byte[] && InetAddress.class == clazz) {
+                return (T) InetAddress.getByAddress((byte[]) value);
+        } else if (value instanceof byte[]) {
+            ByteBuffer buffer = ByteBuffer.wrap((byte[]) value);
+            buffer.order(byteOrder);
+            Object o;
+            switch (clazz.getName()) {
+            case "java.lang.Character":
+                o = buffer.getChar();
+                break;
+            case "java.lang.Byte" :
+                o = buffer.get();
+                break;
+            case "java.lang.Short":
+                o = buffer.getShort();
+                break;
+            case "java.lang.Integer":
+                o = buffer.getInt();
+                break;
+            case "java.lang.Long":
+                o = buffer.getLong();
+                break;
+            case "java.lang.Float":
+                o = buffer.getFloat();
+                break;
+            case "java.lang.Double":
+                o = buffer.getDouble();
+                break;
+            default:
+                throw IgnoredEventException.INSTANCE;
+            }
+            return (T) o;
+        } else {
+            String valueStr = value.toString();
+            if (valueStr.isBlank()) {
+                throw IgnoredEventException.INSTANCE;
+            } else {
+                Object o;
+                switch (clazz.getName()) {
+                case "java.lang.Integer":
+                    o = Integer.valueOf(valueStr);
+                    break;
+                case "java.lang.Byte" :
+                    o = Byte.valueOf(valueStr);
+                    break;
+                case "java.lang.Short":
+                    o = Short.valueOf(valueStr);
+                    break;
+                case "java.lang.Long":
+                    o = Long.valueOf(valueStr);
+                    break;
+                case "java.lang.Float":
+                    o = Float.valueOf(valueStr);
+                    break;
+                case "java.lang.Double":
+                    o = Double.valueOf(valueStr);
+                    break;
+                case "java.lang.Boolean":
+                    o = Boolean.valueOf(valueStr);
+                    break;
+                case "java.net.InetAddress":
+                    o = Helpers.parseIpAddress(valueStr);
+                    break;
+                 default:
+                    o = BeansManager.constructFromString(clazz, valueStr);
+                    break;
+                }
+                return (T) o;
+            }
+        }
     }
 
     @SuppressWarnings("unchecked")
