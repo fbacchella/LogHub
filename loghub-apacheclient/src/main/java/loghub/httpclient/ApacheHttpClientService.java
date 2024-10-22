@@ -30,18 +30,18 @@ import javax.net.ssl.SSLParameters;
 import org.apache.hc.client5.http.HttpHostConnectException;
 import org.apache.hc.client5.http.HttpRoute;
 import org.apache.hc.client5.http.auth.AuthScope;
-import org.apache.hc.client5.http.auth.CredentialsProvider;
 import org.apache.hc.client5.http.auth.UsernamePasswordCredentials;
 import org.apache.hc.client5.http.classic.methods.HttpUriRequestBase;
 import org.apache.hc.client5.http.config.ConnectionConfig;
 import org.apache.hc.client5.http.config.RequestConfig;
+import org.apache.hc.client5.http.config.TlsConfig;
 import org.apache.hc.client5.http.impl.auth.BasicCredentialsProvider;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.HttpClientBuilder;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
 import org.apache.hc.client5.http.protocol.HttpClientContext;
-import org.apache.hc.client5.http.ssl.SSLConnectionSocketFactoryBuilder;
+import org.apache.hc.client5.http.ssl.DefaultClientTlsStrategy;
 import org.apache.hc.core5.http.ClassicHttpResponse;
 import org.apache.hc.core5.http.HttpEntity;
 import org.apache.hc.core5.http.HttpHost;
@@ -111,16 +111,6 @@ public class ApacheHttpClientService extends AbstractHttpClientService {
 
     private ApacheHttpClientService(Builder builder) {
         super(builder);
-        CredentialsProvider credsProvider;
-        if (builder.getUser() != null && builder.getPassword() != null) {
-            BasicCredentialsProvider provider = new BasicCredentialsProvider();
-            UsernamePasswordCredentials creds = new UsernamePasswordCredentials(builder.getUser(), builder.getPassword().toCharArray());
-            AuthScope scope = new AuthScope(null, -1);
-            provider.setCredentials(scope, creds);
-            credsProvider = provider;
-        } else {
-            credsProvider = null;
-        }
         hosts = new ConcurrentHashMap<>();
 
         // Build HTTP the connection manager
@@ -140,10 +130,12 @@ public class ApacheHttpClientService extends AbstractHttpClientService {
                                                                       .setConnPoolPolicy(PoolReusePolicy.FIFO);
         SSLContext sslContext =  resolveSslContext(builder);
         SSLParameters sslParams = resolveSslParams(builder, sslContext);
-        cmBuilder.setSSLSocketFactory(SSLConnectionSocketFactoryBuilder.create()
-                                                                       .setSslContext(sslContext)
-                                                                       .setCiphers(sslParams.getCipherSuites())
-                                                                       .build());
+        cmBuilder.setDefaultTlsConfig(TlsConfig.custom()
+                                               .setSupportedCipherSuites(sslParams.getCipherSuites())
+                                               .setHandshakeTimeout(builder.getTimeout(), TimeUnit.SECONDS)
+                                               .setSupportedProtocols(sslParams.getProtocols())
+                                               .build());
+        cmBuilder.setTlsSocketStrategy(new DefaultClientTlsStrategy(sslContext));
         PoolingHttpClientConnectionManager cm = cmBuilder.build();
         try {
             if (builder.getJmxParent() != null) {
@@ -168,11 +160,20 @@ public class ApacheHttpClientService extends AbstractHttpClientService {
                                    .build();
         clientBuilder.setDefaultRequestConfig(config);
         clientBuilder.disableCookieManagement();
-        if (credsProvider != null) {
-            clientBuilder.setDefaultCredentialsProvider(credsProvider);
-        }
-
+        setCredentialsProvider(builder, clientBuilder);
         client = clientBuilder.build();
+    }
+
+    private void setCredentialsProvider(Builder builder, HttpClientBuilder clientBuilder) {
+        if (builder.getUser() != null && builder.getPassword() != null) {
+            BasicCredentialsProvider provider = new BasicCredentialsProvider();
+            UsernamePasswordCredentials creds = new UsernamePasswordCredentials(
+                    builder.getUser(), builder.getPassword().toCharArray()
+            );
+            AuthScope scope = new AuthScope(null, -1);
+            provider.setCredentials(scope, creds);
+            clientBuilder.setDefaultCredentialsProvider(provider);
+        }
     }
 
     @Override
@@ -240,8 +241,7 @@ public class ApacheHttpClientService extends AbstractHttpClientService {
         }
     }
 
-    private <T> HcHttpResponse.HcHttpResponseBuilder<T> resolve(HcHttpResponse.HcHttpResponseBuilder<T> builder, HttpRequest<T> request, ClassicHttpResponse response)
-            throws IOException {
+    private <T> HcHttpResponse.HcHttpResponseBuilder<T> resolve(HcHttpResponse.HcHttpResponseBuilder<T> builder, HttpRequest<T> request, ClassicHttpResponse response) {
         builder.response(response);
         HttpEntity content = response.getEntity();
         if (content != null) {
