@@ -16,6 +16,7 @@ public interface PipelineMBean {
     long getLoopOverflow();
     long getExceptions();
     long getDropped();
+    long getDiscarded();
     long getFailed();
     long getInflight();
     long getCount();
@@ -28,6 +29,7 @@ public interface PipelineMBean {
         private final Meter loopOverflow;
         private final Meter exception;
         private final Meter dropped;
+        private final Meter discarded;
         private final Meter failed;
         private final Counter inflight;
         private final Timer timer;
@@ -39,6 +41,7 @@ public interface PipelineMBean {
             Object metricidentity = name != null ? name : String.class;
             loopOverflow = Stats.getMetric(Meter.class, metricidentity, Stats.METRIC_PIPELINE_LOOPOVERFLOW);
             dropped = Stats.getMetric(Meter.class, metricidentity, Stats.METRIC_PIPELINE_DROPPED);
+            discarded = Stats.getMetric(Meter.class, metricidentity, Stats.METRIC_PIPELINE_DISCARDED);
             exception = Stats.getMetric(Meter.class, metricidentity, Stats.METRIC_PIPELINE_EXCEPTION);
             failed = Stats.getMetric(Meter.class, metricidentity, Stats.METRIC_PIPELINE_FAILED);
             inflight = Stats.getMetric(Counter.class, metricidentity, Stats.METRIC_PIPELINE_INFLIGHT);
@@ -67,6 +70,11 @@ public interface PipelineMBean {
         @Override
         public long getDropped() {
             return dropped.getCount();
+        }
+
+        @Override
+        public long getDiscarded() {
+            return discarded.getCount();
         }
 
         @Override

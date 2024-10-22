@@ -425,6 +425,7 @@ public final class Stats {
     }
 
     public static void duplicateEnd() {
+        getMetric(Counter.class, Stats.class, Stats.METRIC_ALL_EVENT_DUPLICATEEND).inc();
         getMetric(Counter.class, METRIC_ALL_EVENT_DUPLICATEEND).inc();
     }
 
