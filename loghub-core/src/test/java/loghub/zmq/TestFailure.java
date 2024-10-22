@@ -35,7 +35,7 @@ public class TestFailure {
     }
 
     @Rule()
-    public ZMQFactory tctxt = new ZMQFactory();
+    public final ZMQFactory tctxt = new ZMQFactory();
 
     @Test(expected = ZMQCheckedException.class)
     public void reuse() throws ZMQCheckedException {

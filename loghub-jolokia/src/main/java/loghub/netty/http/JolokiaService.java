@@ -61,7 +61,7 @@ public class JolokiaService extends HttpRequestProcessing {
     }
 
     private static class Log4j2LogHandler implements LogHandler {
-        Logger logger = LogManager.getLogger("org.jolokia");
+        final Logger logger = LogManager.getLogger("org.jolokia");
         @Override
         public void debug(String message) {
             logger.debug(message);

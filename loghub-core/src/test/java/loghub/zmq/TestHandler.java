@@ -32,10 +32,10 @@ public class TestHandler {
     private static Logger logger;
 
     @Rule(order=1)
-    public TemporaryFolder testFolder = new TemporaryFolder();
+    public final TemporaryFolder testFolder = new TemporaryFolder();
 
     @Rule(order=2)
-    public ZMQFactory tctxt = new ZMQFactory(testFolder, "secure");
+    public final ZMQFactory tctxt = new ZMQFactory(testFolder, "secure");
 
     @BeforeClass
     static public void configure() throws IOException {

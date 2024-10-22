@@ -44,7 +44,7 @@ public class TestIntegrated {
     private static Logger logger ;
 
     @Rule
-    public ZMQFactory tctxt = new ZMQFactory();
+    public final ZMQFactory tctxt = new ZMQFactory();
 
     @BeforeClass
     static public void configure() throws IOException {

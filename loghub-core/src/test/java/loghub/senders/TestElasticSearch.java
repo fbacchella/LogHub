@@ -494,7 +494,7 @@ public class TestElasticSearch {
     }
 
     private static class NotificationConnectionContext extends ConnectionContext<Object> {
-        AtomicInteger counter;
+        final AtomicInteger counter;
         NotificationConnectionContext(AtomicInteger counter) {
             this.counter = counter;
             counter.incrementAndGet();

@@ -38,7 +38,7 @@ import static org.mockito.Mockito.when;
 public class TestCriticalFailure {
 
     @Rule
-    public TemporaryFolder folder = new TemporaryFolder();
+    public final TemporaryFolder folder = new TemporaryFolder();
 
     @BeforeClass
     static public void configure() throws IOException {

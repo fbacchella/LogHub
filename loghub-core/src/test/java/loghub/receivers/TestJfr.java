@@ -35,7 +35,7 @@ public class TestJfr {
     private static Logger logger;
 
     @Rule
-    public TemporaryFolder tempFolder = new TemporaryFolder();
+    public final TemporaryFolder tempFolder = new TemporaryFolder();
 
     public Path jfrFile;
 

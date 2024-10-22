@@ -98,7 +98,7 @@ public class TestSimpleReceiver {
     }
 
     @Rule
-    public TemporaryFolder folder = new TemporaryFolder();
+    public final TemporaryFolder folder = new TemporaryFolder();
 
     @BeforeClass
     static public void configure() throws IOException {

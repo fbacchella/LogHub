@@ -54,10 +54,10 @@ public class TestZMQReceiver {
 
     private static final Pattern ZMQ_SOCKETADDRESS_PATTERN = Pattern.compile("\\d+.\\d+.\\d+.\\d+:\\d+");
     @Rule(order=1)
-    public TemporaryFolder testFolder = new TemporaryFolder();
+    public final TemporaryFolder testFolder = new TemporaryFolder();
 
     @Rule(order=2)
-    public ZMQFactory tctxt = new ZMQFactory(testFolder, "secure");
+    public final ZMQFactory tctxt = new ZMQFactory(testFolder, "secure");
 
     private void dotest(Consumer<ZMQ.Builder> configure, Consumer<ZMQFlow.Builder> flowconfigure) throws IOException, InterruptedException, ZMQCheckedException {
         String rendezvous = "tcp://localhost:" + Tools.tryGetPort();

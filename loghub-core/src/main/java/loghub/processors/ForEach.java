@@ -58,7 +58,7 @@ public class ForEach extends Processor {
     }
 
     private class FinishIterate extends Processor {
-        List<Object> processed;
+        final List<Object> processed;
 
         private FinishIterate(StepContext sc) {
             this.processed = sc.processed;

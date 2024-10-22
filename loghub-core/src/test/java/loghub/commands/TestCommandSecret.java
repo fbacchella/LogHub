@@ -28,7 +28,7 @@ import loghub.configuration.SecretsHandler;
 public class TestCommandSecret {
 
     @Rule
-    public TemporaryFolder folder = new TemporaryFolder();
+    public final TemporaryFolder folder = new TemporaryFolder();
 
     @Test
     public void runcommand() throws IOException {

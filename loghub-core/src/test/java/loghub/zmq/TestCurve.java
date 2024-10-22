@@ -44,10 +44,10 @@ import zmq.io.mechanism.curve.Curve;
 public class TestCurve {
 
     @Rule(order=1)
-    public TemporaryFolder testFolder = new TemporaryFolder();
+    public final TemporaryFolder testFolder = new TemporaryFolder();
 
     @Rule(order=2)
-    public ZMQFactory tctxt = new ZMQFactory(testFolder, "secure");
+    public final ZMQFactory tctxt = new ZMQFactory(testFolder, "secure");
 
     private static final Logger logger = LogManager.getLogger();
 

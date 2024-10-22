@@ -46,7 +46,7 @@ public class TestFile {
     }
 
     @Rule
-    public TemporaryFolder folder = new TemporaryFolder();
+    public final TemporaryFolder folder = new TemporaryFolder();
 
     private String outFile;
     private final ArrayBlockingQueue<Event> queue = new ArrayBlockingQueue<>(10);
