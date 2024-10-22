@@ -1,5 +1,6 @@
 package loghub.processors;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -71,11 +72,11 @@ public abstract class AsyncFieldsProcessor<FI, F extends Future<FI>> extends Fie
 
     private class AsyncFieldCollectionProcessor extends DelegatorProcessor implements AsyncProcessor<FI, F> {
 
-        private final List<Object> results;
+        private final Collection<Object> results;
         private final VariablePath toprocess;
         private final Object value;
 
-        AsyncFieldCollectionProcessor(Object value, List<Object> results, VariablePath toprocess) {
+        AsyncFieldCollectionProcessor(Object value, Collection<Object> results, VariablePath toprocess) {
             this.results = results;
             this.toprocess = toprocess;
             this.value = value;
@@ -171,7 +172,7 @@ public abstract class AsyncFieldsProcessor<FI, F extends Future<FI>> extends Fie
     }
 
     @Override
-    void addCollectionsProcessing(List<Object> values, Event event, VariablePath toprocess, List<Object> results) {
+    void addCollectionsProcessing(List<Object> values, Event event, VariablePath toprocess, Collection<Object> results) {
         values.forEach(v -> event.insertProcessor(new AsyncFieldCollectionProcessor(v, results, toprocess)));
     }
 

@@ -3,6 +3,7 @@ package loghub.processors;
 import java.io.IOException;
 import java.io.StringReader;
 import java.util.List;
+import java.util.Set;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -13,7 +14,6 @@ import org.junit.Test;
 
 import loghub.LogUtils;
 import loghub.Processor;
-import loghub.ProcessorException;
 import loghub.Tools;
 import loghub.VariablePath;
 import loghub.configuration.Configuration;
@@ -26,13 +26,13 @@ public class TestMap {
     final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
-    static public void configure() throws IOException {
+    public static void configure() throws IOException {
         Tools.configure();
         Logger logger = LogManager.getLogger();
         LogUtils.setLevel(logger, Level.TRACE, "loghub.configuration", "loghub.processors.Filter");
     }
 
-    public void runTest(String conf, Event ev) throws IOException, ProcessorException {
+    public void runTest(String conf, Event ev) throws IOException {
         Properties p = Configuration.parse(new StringReader(conf));
         Processor pr = p.namedPipeLine.get("main").processors.get(0);
         Assert.assertTrue(pr.configure(p));
@@ -40,7 +40,7 @@ public class TestMap {
     }
 
     @Test
-    public void test() throws IOException, ProcessorException {
+    public void test() throws IOException {
         String conf = "pipeline[main]{ loghub.processors.Map {lambda: x -> x + 1, fields: [\"a*\", \"b*\"],}}";
         Event ev = factory.newEvent();
         ev.put("a1", 0);
@@ -56,7 +56,7 @@ public class TestMap {
     }
 
     @Test
-    public void testIterable() throws IOException, ProcessorException {
+    public void testIterable() throws IOException {
         String conf = "pipeline[main]{ loghub.processors.Map {lambda: x -> x + 1, field: [a],}}";
         Event ev = factory.newEvent();
         ev.put("a", new Object[]{1, 2, 3});
@@ -68,7 +68,19 @@ public class TestMap {
     }
 
     @Test
-    public void testNotIterate() throws IOException, ProcessorException {
+    public void testSet() throws IOException {
+        String conf = "pipeline[main]{ loghub.processors.Map {lambda: x -> x % 2, field: [a],}}";
+        Event ev = factory.newEvent();
+        ev.put("a", Set.of(1, 2, 3, 4));
+        runTest(conf, ev);
+        Assert.assertEquals(1, ev.size());
+        @SuppressWarnings("unchecked")
+        Set<Object> a = (Set<Object>) ev.get("a");
+        Assert.assertEquals(Set.of(0, 1), a);
+    }
+
+    @Test
+    public void testNotIterate() throws IOException {
         String conf = "pipeline[main]{ loghub.processors.Map {lambda: x -> x + 1, field: [a], iterate: false}}";
         Event ev = factory.newEvent();
         ev.put("a", new Object[]{1, 2, 3});

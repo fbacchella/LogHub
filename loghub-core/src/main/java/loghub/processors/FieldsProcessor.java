@@ -113,7 +113,7 @@ public abstract class FieldsProcessor extends Processor {
 
     protected abstract class DelegatorProcessor extends Processor {
 
-        public DelegatorProcessor() {
+        protected DelegatorProcessor() {
             super(FieldsProcessor.this.logger);
         }
 
@@ -165,8 +165,10 @@ public abstract class FieldsProcessor extends Processor {
                  } else {
                     values = Arrays.stream((Object[])value).collect(Collectors.toList());
                 }
-                List<Object> results = new ArrayList<>((values).size() * 2);
                 Collections.reverse(values);
+                Collection<Object> results = value instanceof Set ?
+                                                     new LinkedHashSet<>((values).size() * 2) :
+                                                     new ArrayList<>((values).size() * 2);
                 ProcessEvent pe = ev -> {
                     ev.putAtPath(resolveDestination(toprocess), results);
                     if (FieldsProcessor.this instanceof Filter) {
@@ -407,7 +409,7 @@ public abstract class FieldsProcessor extends Processor {
         return new FieldSubProcessor(processing);
     }
 
-    void addCollectionsProcessing(List<Object> values, Event event, VariablePath toprocess, List<Object> results) {
+    void addCollectionsProcessing(List<Object> values, Event event, VariablePath toprocess, Collection<Object> results) {
         values.forEach(v -> event.insertProcessor(fromLambda(this, ev -> FieldsProcessor.this.filterField(ev, toprocess, v, results::add))));
     }
 
