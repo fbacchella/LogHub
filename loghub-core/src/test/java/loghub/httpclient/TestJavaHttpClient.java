@@ -77,7 +77,7 @@ public class TestJavaHttpClient {
     }
 
     @BeforeClass
-    static public void configure() throws IOException {
+    static public void configure() {
         Tools.configure();
         Logger logger = LogManager.getLogger();
         LogUtils.setLevel(logger, Level.TRACE, "loghub.httpclient", "java.net.http", "io.netty");

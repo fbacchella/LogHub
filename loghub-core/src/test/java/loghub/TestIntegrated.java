@@ -47,7 +47,7 @@ public class TestIntegrated {
     public final ZMQFactory tctxt = new ZMQFactory();
 
     @BeforeClass
-    static public void configure() throws IOException {
+    static public void configure() {
         Tools.configure();
         logger = LogManager.getLogger();
         LogUtils.setLevel(logger, Level.DEBUG, "loghub.EventsProcessor", "loghub.zmq", "loghub.ZMQFactory");

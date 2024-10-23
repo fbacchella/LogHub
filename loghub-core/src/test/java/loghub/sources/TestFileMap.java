@@ -30,7 +30,7 @@ public class TestFileMap {
     private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
-    static public void configure() throws IOException {
+    static public void configure() {
         Tools.configure();
         Logger logger = LogManager.getLogger();
         LogUtils.setLevel(logger, Level.TRACE, "loghub.source");
@@ -47,7 +47,7 @@ public class TestFileMap {
     }
 
     @Test
-    public void testone() throws ProcessorException {
+    public void testone() {
         URL ifpixurl = getClass().getResource("/ipfix-information-elements.csv");
         FileMap.Builder builder = FileMap.getBuilder();
         builder.setMappingFile(ifpixurl.getFile());
@@ -67,7 +67,7 @@ public class TestFileMap {
     }
 
     @Test
-    public void testJson() throws ProcessorException {
+    public void testJson() {
         URL jsonurl = getClass().getResource("/mapping.json");
         FileMap.Builder builder = FileMap.getBuilder();
         builder.setMappingFile(jsonurl.getFile());

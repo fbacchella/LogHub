@@ -28,7 +28,7 @@ public class TestWrapping {
     private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
-    static public void configure() throws IOException {
+    static public void configure() {
         Tools.configure();
         Logger logger = LogManager.getLogger();
         LogUtils.setLevel(logger, Level.TRACE, "loghub.Event", "loghub.EventsProcessor", "loghub");
@@ -77,22 +77,22 @@ public class TestWrapping {
     }
 
     @Test
-    public void fromConfiguration1() throws IOException, ProcessorException {
+    public void fromConfiguration1() throws IOException {
         runEmptyPath("pipeline[main]{path[a]([. c] = [b])}");
     }
 
     @Test
-    public void fromConfiguration2() throws IOException, ProcessorException {
+    public void fromConfiguration2() throws IOException {
         runEmptyPath("pipeline[main]{path[a](isEmpty([b]) ? [. a1] = true) | isEmpty([a b]) ? [. a2] = true}");
     }
 
     @Test
-    public void fromConfiguration3() throws IOException, ProcessorException {
+    public void fromConfiguration3() throws IOException {
         runEmptyPath("pipeline[main]{path[a](isEmpty([^]) ? [. a1] = true) | isEmpty([a b]) ? [. a2] = true}");
     }
 
     @Test
-    public void fromConfiguration4() throws IOException, ProcessorException {
+    public void fromConfiguration4() throws IOException {
         runEmptyPath("pipeline[main]{path[a]([. b] = [^]) | isEmpty([b]) ? [. ab] = true}");
     }
 

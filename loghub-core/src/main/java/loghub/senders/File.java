@@ -80,14 +80,10 @@ public class File extends Sender {
     private static class FileEventListener implements CacheEntryRemovedListener<Path,FileEntry> {
         @Override
         public void onRemoved(
-                Iterable<CacheEntryEvent<? extends Path, ? extends FileEntry>> cacheEntryEvents)
-                throws CacheEntryListenerException {
+                Iterable<CacheEntryEvent<? extends Path, ? extends FileEntry>> cacheEntryEvents
+        ) throws CacheEntryListenerException {
             cacheEntryEvents.forEach(e -> {
-                try {
-                    e.getValue().close();
-                } catch (IOException ex) {
-                    throw new CacheEntryListenerException(ex);
-                }
+                e.getValue().close();
             });
         }
     }
@@ -107,7 +103,7 @@ public class File extends Sender {
             position = new AtomicLong(this.destination.size());
         }
 
-        public void close() throws IOException {
+        public void close() {
             if (destination.isOpen()) {
                 try {
                     // The lock will not be released, as you don't release a closed file
@@ -178,7 +174,7 @@ public class File extends Sender {
     }
 
     @Override
-    public boolean send(Event event) throws SendException, EncodeException {
+    public boolean send(Event event) throws EncodeException {
         logger.trace("Sending event {}", event);
         try {
             byte[] msg = getEncoder().encode(event);
@@ -211,7 +207,7 @@ public class File extends Sender {
             try {
                 boolean status = send(ev.getEvent());
                 ev.complete(status);
-            } catch (SendException | EncodeException ex) {
+            } catch (EncodeException ex) {
                 ev.completeExceptionally(ex);
             }
         });

@@ -36,7 +36,7 @@ import static loghub.EventsProcessor.ProcessingStatus.ERROR;
 
 public class Tools {
 
-    public static void configure() throws IOException {
+    public static void configure() {
         Locale.setDefault(new Locale("POSIX"));
         LogUtils.configure();
     }
@@ -114,7 +114,7 @@ public class Tools {
 
     }
 
-    public static ProcessingStatus runProcessing(Event sent, String pipename, List<Processor> steps) throws ProcessorException {
+    public static ProcessingStatus runProcessing(Event sent, String pipename, List<Processor> steps) {
         return runProcessing(sent, pipename, steps, (i,j) -> {});
     }
 

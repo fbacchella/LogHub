@@ -30,11 +30,7 @@ public abstract class AsyncFieldsProcessor<FI, F extends Future<FI>> extends Fie
         @Override
         public boolean processCallback(Event event, FI content) throws ProcessorException {
             Supplier<Object> resolver = () -> {
-                try {
-                    return AsyncFieldsProcessor.this.asyncProcess(event, content);
-                } catch (ProcessorException ex) {
-                    throw new UncheckedProcessorException(ex);
-                }
+                return AsyncFieldsProcessor.this.asyncProcess(event, content);
             };
             try {
                 return processField(event, toprocess, resolver, r -> event.putAtPath(resolveDestination(toprocess), r));
@@ -85,11 +81,7 @@ public abstract class AsyncFieldsProcessor<FI, F extends Future<FI>> extends Fie
         @Override
         public boolean processCallback(Event event, FI content) throws ProcessorException {
             Supplier<Object> resolver = () -> {
-                try {
-                    return AsyncFieldsProcessor.this.asyncProcess(event, content);
-                } catch (ProcessorException ex) {
-                    throw new UncheckedProcessorException(ex);
-                }
+                return AsyncFieldsProcessor.this.asyncProcess(event, content);
             };
             try {
                 return processField(event, toprocess, resolver, results::add);
@@ -137,7 +129,7 @@ public abstract class AsyncFieldsProcessor<FI, F extends Future<FI>> extends Fie
         private int timeout = 10;
     }
 
-    public abstract Object asyncProcess(Event event, FI content) throws ProcessorException;
+    public abstract Object asyncProcess(Event event, FI content);
     public abstract boolean manageException(Event event, Exception e, VariablePath variablePath) throws ProcessorException;
     public abstract BiConsumer<Event, F> getTimeoutHandler();
 

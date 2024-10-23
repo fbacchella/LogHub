@@ -28,14 +28,14 @@ public class TestUrlDecoders {
     private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
-    static public void configure() throws IOException {
+    static public void configure() {
         Tools.configure();
         logger = LogManager.getLogger();
         LogUtils.setLevel(logger, Level.TRACE, "loghub.processors.DecodeUrl");
     }
 
     @Test
-    public void testUrlDecoder() throws ProcessorException {
+    public void testUrlDecoder() {
         DecodeUrl t = DecodeUrl.getBuilder().build();
         t.setFields(new String[]{"*"});
         Event e = factory.newEvent();
@@ -47,7 +47,7 @@ public class TestUrlDecoders {
     }
 
     @Test
-    public void testUrlDecoderLoop() throws ProcessorException {
+    public void testUrlDecoderLoop() {
         DecodeUrl.Builder builder = DecodeUrl.getBuilder();
         builder.setFields(new String[]{"userAgent"});
         builder.setLoop(true);
@@ -61,7 +61,7 @@ public class TestUrlDecoders {
     }
 
     @Test
-    public void testFailedStrict() throws ProcessorException {
+    public void testFailedStrict() {
         DecodeUrl.Builder builder = DecodeUrl.getBuilder();
         builder.setField(VariablePath.parse("userAgent"));
         builder.setLoop(true);
@@ -75,7 +75,7 @@ public class TestUrlDecoders {
     }
 
     @Test
-    public void testFailedNotStrict() throws ProcessorException {
+    public void testFailedNotStrict() {
         DecodeUrl.Builder builder = DecodeUrl.getBuilder();
         builder.setField(VariablePath.parse("userAgent"));
         builder.setLoop(true);

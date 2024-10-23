@@ -44,7 +44,7 @@ public class TestEvent {
     private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
-    static public void configure() throws IOException {
+    static public void configure() {
         Tools.configure();
         logger = LogManager.getLogger();
         LogUtils.setLevel(logger, Level.TRACE, "loghub");
@@ -153,7 +153,7 @@ public class TestEvent {
     }
 
     @Test
-    public void testWrapEmptyProcessor() throws IOException, ProcessorException {
+    public void testWrapEmptyProcessor() throws IOException {
         String confile = "pipeline[main] {loghub.processors.Grok{pattern: \"a%{GREEDYDATA:a}\", field: [.message], path: [a]}}";
         Properties conf = Tools.loadConf(new StringReader(confile));
         Event sent = factory.newEvent();

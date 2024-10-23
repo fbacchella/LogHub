@@ -71,7 +71,7 @@ public class TestTreeWalk {
     private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
-    static public void configure() throws IOException {
+    static public void configure() {
         Tools.configure();
     }
 
@@ -95,7 +95,7 @@ public class TestTreeWalk {
         return ev;
     }
 
-    private void runTest(Consumer<TreeWalkTester.Builder> conf, Event e, List<Object> expected) throws ProcessorException {
+    private void runTest(Consumer<TreeWalkTester.Builder> conf, Event e, List<Object> expected) {
         TreeWalkTester.Builder builder = TreeWalkTester.getBuilder();
         builder.setField(VariablePath.of("f"));
         conf.accept(builder);
@@ -104,17 +104,17 @@ public class TestTreeWalk {
         Assert.assertEquals(expected, w.leafs);
     }
 
-    private void runTest(Consumer<TreeWalkTester.Builder> conf, List<Object> expected) throws ProcessorException {
+    private void runTest(Consumer<TreeWalkTester.Builder> conf, List<Object> expected) {
         runTest(conf, getWikipediaEvent(), expected);
     }
 
     @Test
-    public void testDefaultWikipedia() throws ProcessorException {
+    public void testDefaultWikipedia() {
         runTest(b -> b.setSaveNodes(true), List.of("f", "b", "g", "a", "d", "i", "c", "e", "h"));
     }
 
     @Test
-    public void testDepthWikipedia() throws ProcessorException {
+    public void testDepthWikipedia() {
         Event e = factory.newEvent();
         e.putAtPath(VariablePath.parse("f.b.a"), "a");
         e.putAtPath(VariablePath.parse("f.b.d.c"), "c");
@@ -124,12 +124,12 @@ public class TestTreeWalk {
     }
 
     @Test
-    public void testBreadthWikipedia() throws ProcessorException {
+    public void testBreadthWikipedia() {
         runTest(b -> {b.setTraversal(FieldsProcessor.TRAVERSAL_ORDER.BREADTH); b.setSaveNodes(true);}, List.of("f", "b", "g", "a", "d", "i", "c", "e", "h"));
     }
 
     @Test
-    public void testIterate() throws ProcessorException {
+    public void testIterate() {
         Event e = factory.newEvent();
         e.putAtPath(VariablePath.parse("f.b.c"), List.of("1", "2"));
         e.putAtPath(VariablePath.parse("f.b.d"), "3");
@@ -141,7 +141,7 @@ public class TestTreeWalk {
     }
 
     @Test
-    public void testNotIterate() throws ProcessorException {
+    public void testNotIterate() {
         Event e = factory.newEvent();
         e.putAtPath(VariablePath.parse("f.b.c"), List.of("1", "2"));
         e.putAtPath(VariablePath.parse("f.b.d"), "3");

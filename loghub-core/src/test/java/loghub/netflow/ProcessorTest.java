@@ -32,7 +32,7 @@ public class ProcessorTest {
     private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
-    static public void configure() throws IOException {
+    static public void configure() {
         Tools.configure();
         logger = LogManager.getLogger();
         LogUtils.setLevel(logger, Level.TRACE);
@@ -58,11 +58,7 @@ public class ProcessorTest {
             e.setTimestamp((Date) content.remove(Event.TIMESTAMPKEY));
             e.putAll(content);
             ProcessingStatus ps;
-            try {
-                ps = Tools.runProcessing(e, "main", Collections.singletonList(p));
-            } catch (ProcessorException ex) {
-                throw new RuntimeException(ex);
-            }
+            ps = Tools.runProcessing(e, "main", Collections.singletonList(p));
             logger.debug(ps.mainQueue.remove());
             logger.debug(ps.mainQueue.remove());
             logger.debug(ps.mainQueue.remove());

@@ -57,7 +57,7 @@ public class TestZMQSender {
     public final ZMQFactory tctxt = new ZMQFactory(testFolder, "secure");
 
     @BeforeClass
-    static public void configure() throws IOException {
+    static public void configure() {
         Tools.configure();
         logger = LogManager.getLogger();
         LogUtils.setLevel(logger, Level.TRACE, "loghub.zmq", "loghub.ZMQSink", "loghub.senders.ZMQ", "loghub.ContextRule");
@@ -76,7 +76,7 @@ public class TestZMQSender {
     }
 
     private void dotest(Consumer<ZMQ.Builder> configure, Consumer<ZMQSink.Builder<String>> sinkconfigure, String pattern)
-                    throws IOException, InterruptedException, ZMQCheckedException {
+                    throws InterruptedException {
         received.setLength(0);
         ZMQSocketFactory ctx = tctxt.getFactory();
 
@@ -128,21 +128,21 @@ public class TestZMQSender {
    }
 
     @Test(timeout=5000)
-    public void bind() throws IOException, InterruptedException, ZMQCheckedException {
+    public void bind() throws InterruptedException {
          dotest(s ->  s.setMethod(Method.CONNECT),
                 s -> s.setMethod(Method.BIND),
                 "(\\{\"message\":\\d+\\})+");
     }
 
     @Test(timeout=5000)
-    public void connect() throws IOException, InterruptedException, ZMQCheckedException {
+    public void connect() throws InterruptedException {
         dotest(s ->  s.setMethod(Method.BIND),
                s -> s.setMethod(Method.CONNECT),
                "(\\{\"message\":\\d+\\})+");
     }
 
     @Test(timeout=5000)
-    public void batchConnect() throws IOException, InterruptedException, ZMQCheckedException {
+    public void batchConnect() throws InterruptedException {
         dotest((s) -> {
             s.setMethod(Method.CONNECT);
             s.setBatchSize(2);
@@ -150,7 +150,7 @@ public class TestZMQSender {
     }
 
     @Test(timeout=5000)
-    public void batchBind() throws IOException, InterruptedException, ZMQCheckedException {
+    public void batchBind() throws InterruptedException {
         dotest((s) -> {
             s.setMethod(Method.BIND);
             s.setBatchSize(2);
@@ -170,7 +170,7 @@ public class TestZMQSender {
     }
 
     @Test(timeout=5000)
-    public void curveClient() throws IOException, InterruptedException, ZMQCheckedException {
+    public void curveClient() throws InterruptedException {
         dotest(s -> {
             s.setMethod(Method.BIND);
             s.setSecurity(Mechanisms.CURVE);
@@ -181,7 +181,7 @@ public class TestZMQSender {
     }
 
     @Test(timeout=5000)
-    public void curveServer() throws IOException, InterruptedException, ZMQCheckedException {
+    public void curveServer() throws InterruptedException {
         dotest(s -> {
             s.setMethod(Method.BIND);
             s.setSecurity(Mechanisms.CURVE);
@@ -191,7 +191,7 @@ public class TestZMQSender {
     }
 
     @Test(timeout=2000)
-    public void testEncodeError() throws IOException, InterruptedException, EncodeException {
+    public void testEncodeError() throws InterruptedException, EncodeException {
         ZMQ.Builder builder = ZMQ.getBuilder();
         builder.setEncoder(ToJson.getBuilder().build());
         builder.setType(SocketType.PUSH);

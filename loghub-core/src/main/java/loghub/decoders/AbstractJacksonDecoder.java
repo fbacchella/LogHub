@@ -19,7 +19,7 @@ public abstract class AbstractJacksonDecoder<JB extends AbstractJacksonDecoder.B
 
     @FunctionalInterface
     public interface ObjectResolver {
-        Object deserialize(ObjectReader reader) throws DecodeException, IOException;
+        Object deserialize(ObjectReader reader) throws IOException;
     }
 
     private final ObjectReader reader;

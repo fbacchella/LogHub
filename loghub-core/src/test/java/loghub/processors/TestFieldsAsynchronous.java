@@ -38,7 +38,7 @@ public class TestFieldsAsynchronous {
     private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
-    static public void configure() throws IOException {
+    static public void configure() {
         Tools.configure();
         logger = LogManager.getLogger();
         LogUtils.setLevel(logger, Level.TRACE, "loghub.processors", "loghub.EventsProcessor", "loghub.Event", "loghub.EventsRepository", "io.netty.util.HashedWheelTimer");
@@ -106,7 +106,7 @@ public class TestFieldsAsynchronous {
     }
 
     @Test(timeout=2000)
-    public void success() throws ProcessorException, InterruptedException {
+    public void success() throws InterruptedException {
         long started = Instant.now().toEpochMilli();
         logger.debug("starting");
         todo = (v) -> {
@@ -130,7 +130,7 @@ public class TestFieldsAsynchronous {
     }
 
     @Test(timeout=2000)
-    public void successWithCollection() throws ProcessorException, InterruptedException {
+    public void successWithCollection() throws InterruptedException {
         long started = Instant.now().toEpochMilli();
         logger.debug("starting");
         todo = (v) -> {
@@ -154,7 +154,7 @@ public class TestFieldsAsynchronous {
     }
 
     @Test(timeout=1000)
-    public void successWithDestination() throws ProcessorException, InterruptedException {
+    public void successWithDestination() throws InterruptedException {
         long started = Instant.now().toEpochMilli();
         logger.debug("starting");
         todo = (v) -> {
@@ -179,7 +179,7 @@ public class TestFieldsAsynchronous {
     }
 
     @Test(timeout=1000)
-    public void failed() throws ProcessorException, InterruptedException {
+    public void failed() throws InterruptedException {
         todo = (v) -> v.setSuccess(this);
         transform = (e, v) -> FieldsProcessor.RUNSTATUS.FAILED;
         Event e = factory.newEvent();
@@ -195,7 +195,7 @@ public class TestFieldsAsynchronous {
     }
 
     @Test(timeout=5000)
-    public void timeout() throws ProcessorException, InterruptedException {
+    public void timeout() throws InterruptedException {
         todo = (v) -> {
             try {
                 Thread.sleep(2000);
@@ -229,7 +229,7 @@ public class TestFieldsAsynchronous {
     }
 
     @Test(timeout=1000)
-    public void exceptionFalse() throws ProcessorException, InterruptedException {
+    public void exceptionFalse() throws InterruptedException {
         todo = (v) -> v.setFailure(new RuntimeException());
         onexception = (e, x) -> Boolean.FALSE;
         transform = (e, v) -> v.getClass().getCanonicalName();
@@ -246,7 +246,7 @@ public class TestFieldsAsynchronous {
     }
 
     @Test(timeout=1000)
-    public void exceptionException() throws ProcessorException, InterruptedException {
+    public void exceptionException() throws InterruptedException {
         todo = (v) -> v.setFailure(new RuntimeException());
         transform = (e, v) -> v.getClass().getCanonicalName();
         onexception = (e, x) -> {

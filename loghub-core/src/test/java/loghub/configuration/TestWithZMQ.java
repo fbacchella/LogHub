@@ -36,7 +36,7 @@ public class TestWithZMQ {
     public final ZMQFactory tctxt = new ZMQFactory();
 
     @BeforeClass
-    static public void configure() throws IOException {
+    static public void configure() {
         Tools.configure();
         logger = LogManager.getLogger();
         LogUtils.setLevel(logger, Level.TRACE, "loghub.zmq", "loghub.receivers.ZMQ", "loghub.senders.ZMQ", "loghub.ZMQSink", "loghub.ZMQFlow");
@@ -53,7 +53,7 @@ public class TestWithZMQ {
 
     @Ignore
     @Test(timeout=3000) 
-    public void testSimpleInput() throws InterruptedException, ConfigException, IOException, ZMQCheckedException {
+    public void testSimpleInput() throws InterruptedException, ConfigException, IOException {
         latch = new CountDownLatch(1);
 
         Properties conf = Tools.loadConf("simpleinput.conf");

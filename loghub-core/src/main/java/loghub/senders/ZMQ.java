@@ -167,7 +167,7 @@ public class ZMQ extends Sender {
     }
 
     @Override
-    protected void flush(Batch batch) throws SendException, EncodeException {
+    protected void flush(Batch batch) throws EncodeException {
         byte[] msg = encode(batch);
         try {
             if (isRunning()) {

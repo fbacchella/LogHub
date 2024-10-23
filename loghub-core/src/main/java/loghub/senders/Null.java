@@ -35,7 +35,7 @@ public class Null extends Sender {
     }
 
     @Override
-    protected boolean send(Event e) throws SendException, EncodeException {
+    protected boolean send(Event e) throws EncodeException {
         if (encode) {
             encode(e);
         }

@@ -31,7 +31,7 @@ public class TestGrok {
     private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
-    static public void configure() throws IOException {
+    static public void configure() {
         Tools.configure();
         logger = LogManager.getLogger();
         LogUtils.setLevel(logger, Level.TRACE, "loghub.processors.Grok", "loghub.EventsProcessor");
@@ -93,7 +93,7 @@ public class TestGrok {
     }
 
     @Test
-    public void TestLoadPatterns5() throws ProcessorException {
+    public void TestLoadPatterns5() {
         Grok.Builder builder = Grok.getBuilder();
         builder.setPattern("%{HOSTNAME:.}\\.google\\.com");
         Grok grok = builder.build();
@@ -113,7 +113,7 @@ public class TestGrok {
     }
 
     @Test
-    public void TestLoadPatterns6() throws ProcessorException {
+    public void TestLoadPatterns6() {
         Grok.Builder builder = Grok.getBuilder();
         builder.setFields(new String[]{"remotehost"});
         builder.setPattern("%{HOSTNAME:.}\\.google\\.com");
@@ -133,7 +133,7 @@ public class TestGrok {
     }
 
     @Test
-    public void TestWithPath() throws ProcessorException {
+    public void TestWithPath() {
         Grok.Builder builder = Grok.getBuilder();
         builder.setFields(new String[]{"remotehost"});
         builder.setPattern("%{HOSTNAME:google.com}\\.google\\.com");
@@ -167,7 +167,7 @@ public class TestGrok {
     }
 
     @Test
-    public void TestNoMatch() throws ProcessorException {
+    public void TestNoMatch() {
         Grok.Builder builder = Grok.getBuilder();
         builder.setFields(new String[]{"host"});
         builder.setPattern("%{HOSTNAME:.}\\.google\\.com");
@@ -183,7 +183,7 @@ public class TestGrok {
     }
 
     @Test
-    public void TestMultiPattern() throws ProcessorException {
+    public void TestMultiPattern() {
         Grok.Builder builder = Grok.getBuilder();
         builder.setFields(new String[]{"host"});
         builder.setPatterns(List.of("%{HOSTNAME:google}\\.google\\.com", "%{HOSTNAME:yahoo}\\.yahoo\\.com").toArray(String[]::new));

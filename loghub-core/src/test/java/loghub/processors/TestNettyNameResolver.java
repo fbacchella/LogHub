@@ -49,7 +49,7 @@ public class TestNettyNameResolver {
     private final CacheManager cacheManager = new CacheManager(getClass().getClassLoader());
 
     @BeforeClass
-    static public void configure() throws IOException {
+    static public void configure() {
         Tools.configure();
         logger = LogManager.getLogger();
         LogUtils.setLevel(logger, Level.TRACE, "loghub.processors.NettyNameResolver", "io.netty.resolver", "loghub.configuration.CacheManager", "javax.cache", "org.cache2k");
@@ -169,7 +169,7 @@ public class TestNettyNameResolver {
     }
 
     @Test(timeout=6000)
-    public void arootasipv4string() throws ProcessorException, InterruptedException, ConfigException, IOException {
+    public void arootasipv4string() throws InterruptedException, ConfigException, IOException {
         Event e = factory.newEvent();
         /// resolving a.root-servers.net. in IPv4 as String
         e.put("host", "198.41.0.4");
@@ -203,7 +203,7 @@ public class TestNettyNameResolver {
     }
 
     @Test(timeout=6000)
-    public void arootasipv6string() throws ProcessorException, InterruptedException, ConfigException, IOException {
+    public void arootasipv6string() throws InterruptedException, ConfigException, IOException {
         Event e = factory.newEvent();
         // resolving a.root-servers.net. in IPv6 as a String
         e.put("host", "2001:503:ba3e::2:30");
@@ -220,7 +220,7 @@ public class TestNettyNameResolver {
     }
 
     @Test(timeout=6000)
-    public void resolvemany() throws ProcessorException, InterruptedException, ConfigException, IOException {
+    public void resolvemany() throws InterruptedException, ConfigException, IOException {
         Event e = factory.newEvent();
         e.put("hostipv6str", "2001:503:ba3e::2:30");
         e.put("hostipv6inet",  InetAddress.getByName("2001:503:ba3e::2:30"));

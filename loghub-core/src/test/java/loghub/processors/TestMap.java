@@ -26,7 +26,7 @@ public class TestMap {
     final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
-    public static void configure() throws IOException {
+    public static void configure() {
         Tools.configure();
         Logger logger = LogManager.getLogger();
         LogUtils.setLevel(logger, Level.TRACE, "loghub.configuration", "loghub.processors.Filter");

@@ -34,13 +34,13 @@ public class TestSlicer {
     private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
-    public static void configure() throws IOException {
+    public static void configure() {
         Tools.configure();
         LogUtils.setLevel(logger, Level.TRACE, "loghub.configuration", "loghub.processors.Slicer", "loghub.EventsProcessor");
     }
 
     @Test
-    public void testDoNothing() throws IOException, InterruptedException, ProcessorException {
+    public void testDoNothing() throws IOException, InterruptedException {
         Consumer<Event> populate = ev -> ev.putAtPath(
                 VariablePath.of("a"), List.of(java.util.Map.of("b", "1"), Map.of("b", "2"))
         );
@@ -49,7 +49,7 @@ public class TestSlicer {
     }
 
     @Test
-    public void testSingle() throws IOException, InterruptedException, ProcessorException {
+    public void testSingle() throws IOException, InterruptedException {
         Consumer<Event> populate = ev -> ev.putAtPath(
                 VariablePath.of("a"), List.of(java.util.Map.of("b", "1"), Map.of("b", "2"))
         );
@@ -61,7 +61,7 @@ public class TestSlicer {
     }
 
     @Test
-    public void testSingleDefault() throws IOException, InterruptedException, ProcessorException {
+    public void testSingleDefault() throws IOException, InterruptedException {
         Consumer<Event> populate = ev -> ev.putAtPath(
                 VariablePath.of("a"), List.of(java.util.Map.of("b", "1"), Map.of("b", "2"))
         );
@@ -73,7 +73,7 @@ public class TestSlicer {
     }
 
     @Test
-    public void testMany() throws IOException, InterruptedException, ProcessorException {
+    public void testMany() throws IOException, InterruptedException {
         Consumer<Event> populate = ev -> ev.putAtPath(
                 VariablePath.of("a"), List.of(java.util.Map.of("b", 1), Map.of("b", 2), Map.of("b", 3), Map.of("b", 4))
         );

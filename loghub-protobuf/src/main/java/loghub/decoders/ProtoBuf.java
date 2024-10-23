@@ -27,7 +27,7 @@ import lombok.Setter;
 public class ProtoBuf extends Decoder {
 
     private interface GetInputStream {
-        InputStream get() throws IOException;
+        InputStream get();
     }
 
     @Setter

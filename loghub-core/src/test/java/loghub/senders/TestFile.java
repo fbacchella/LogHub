@@ -39,7 +39,7 @@ public class TestFile {
     private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
-    static public void configure() throws IOException {
+    static public void configure() {
         Tools.configure();
         logger = LogManager.getLogger();
         LogUtils.setLevel(logger, Level.TRACE, "loghub.senders.File", "loghub.encoders");
@@ -116,7 +116,7 @@ public class TestFile {
 
     @Test(timeout=2000)
     public void testFailing()
-            throws IOException, InterruptedException, SendException, EncodeException, ProcessorException {
+            throws IOException, InterruptedException, EncodeException, ProcessorException {
         File fsend = send(i -> {}, -1, false);
         Files.setPosixFilePermissions(Paths.get(fsend.getFileName().eval(null).toString()), Collections.emptySet());
         Event evok = factory.newEvent();

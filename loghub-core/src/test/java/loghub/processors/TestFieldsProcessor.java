@@ -38,14 +38,14 @@ public class TestFieldsProcessor {
     private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
-    static public void configure() throws IOException {
+    static public void configure() {
         Tools.configure();
         Logger logger = LogManager.getLogger();
         LogUtils.setLevel(logger, Level.TRACE, "loghub.processors", "loghub.EventsProcessor");
     }
 
     @Test
-    public void test() throws ProcessorException {
+    public void test() {
         FieldsProcessor p = new FieldsProcessor() {
 
             @Override
@@ -73,7 +73,7 @@ public class TestFieldsProcessor {
     }
 
     @Test
-    public void testIterate() throws ProcessorException {
+    public void testIterate() {
         FieldsProcessor p = new FieldsProcessor() {
 
             @Override
@@ -102,7 +102,7 @@ public class TestFieldsProcessor {
     }
 
     @Test
-    public void testFailing() throws ProcessorException {
+    public void testFailing() {
         Stats.reset();
         FieldsProcessor p = new FieldsProcessor() {
 
@@ -133,7 +133,7 @@ public class TestFieldsProcessor {
     }
 
     @Test
-    public void testFailingUnchecked() throws ProcessorException {
+    public void testFailingUnchecked() {
         Stats.reset();
         FieldsProcessor p = new FieldsProcessor() {
 

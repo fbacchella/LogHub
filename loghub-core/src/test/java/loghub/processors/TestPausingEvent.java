@@ -35,7 +35,7 @@ public class TestPausingEvent {
     private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
-    static public void configure() throws IOException {
+    static public void configure() {
         Tools.configure();
         logger = LogManager.getLogger();
         LogUtils.setLevel(logger, Level.TRACE, "loghub.processors.SleepingProcessor", "loghub.EventsProcessor");
@@ -97,7 +97,7 @@ public class TestPausingEvent {
     }
 
     @Test(timeout=2000)
-    public void success() throws ProcessorException, InterruptedException {
+    public void success() throws InterruptedException {
         long started = Instant.now().toEpochMilli();
         logger.debug("starting");
         todo = () -> future.setSuccess(this);
@@ -112,7 +112,7 @@ public class TestPausingEvent {
     }
 
     @Test(timeout=2000)
-    public void failed() throws ProcessorException, InterruptedException {
+    public void failed() throws InterruptedException {
         Stats.reset();
         todo = () -> future.setSuccess(Boolean.TRUE);
         onsucces = (e, v) -> false;
@@ -127,7 +127,7 @@ public class TestPausingEvent {
 
 
     @Test(timeout=2000)
-    public void exceptionFalse() throws ProcessorException, InterruptedException {
+    public void exceptionFalse() throws InterruptedException {
         Stats.reset();
         todo = () -> future.setFailure(new RuntimeException());
         onexception = (e, x) -> Boolean.FALSE;
@@ -141,7 +141,7 @@ public class TestPausingEvent {
     }
 
     @Test(timeout=2000)
-    public void exceptionException() throws ProcessorException, InterruptedException {
+    public void exceptionException() throws InterruptedException {
         Stats.reset();
         todo = () -> future.setFailure(new RuntimeException());
         onexception = (e, x) -> {try {

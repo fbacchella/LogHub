@@ -32,7 +32,7 @@ public class TestFilter {
     private static final Logger logger = LogManager.getLogger();
 
     @BeforeClass
-    static public void configure() throws IOException {
+    static public void configure() {
         Tools.configure();
         LogUtils.setLevel(logger, Level.TRACE, "loghub.configuration", "loghub.processors.Filter");
     }
@@ -63,7 +63,7 @@ public class TestFilter {
     }
 
     @Test
-    public void testZero() throws IOException, ProcessorException {
+    public void testZero() throws IOException {
         String conf = "pipeline[main]{ loghub.processors.Filter {lambda: x -> x == 0, fields: [\"a*\", \"b*\"],}}";
         Event ev = runTest(conf, this::commonFill);
         Assert.assertEquals(NullOrMissingValue.MISSING, ev.getAtPath(VariablePath.of("a2", "b")));
@@ -77,7 +77,7 @@ public class TestFilter {
     }
 
     @Test
-    public void testEmpty() throws IOException, ProcessorException {
+    public void testEmpty() throws IOException {
         String conf = "pipeline[main]{ loghub.processors.Filter {lambda: x -> isEmpty(x), field: [a2],} | loghub.processors.Filter {lambda: x -> isEmpty(x), field: [a6],}}";
         Event ev = runTest(conf, this::commonFill);
         Assert.assertEquals(0, ev.getAtPath(VariablePath.of("a2", "b")));
@@ -89,7 +89,7 @@ public class TestFilter {
     }
 
     @Test
-    public void testRelated() throws IOException, ProcessorException {
+    public void testRelated() throws IOException {
         String conf = "pipeline[main]{ loghub.processors.Filter {lambda: x -> isEmpty(x), field: [related],}}";
         Event ev = runTest(conf, e -> {
             e.putAtPath(VariablePath.of("related", "hosts"), Set.of());
@@ -106,7 +106,7 @@ public class TestFilter {
     }
 
     @Test
-    public void testNoIterate() throws IOException, ProcessorException {
+    public void testNoIterate() throws IOException {
         String conf = "pipeline[main]{ loghub.processors.Filter {lambda: x -> x == 0, fields: [\"a*\", \"b*\"], iterate: false}}";
         Event ev = runTest(conf, this::commonFill);
         Assert.assertEquals(NullOrMissingValue.MISSING, ev.getAtPath(VariablePath.of("a2", "b")));
@@ -116,7 +116,7 @@ public class TestFilter {
     }
 
     @Test
-    public void testDeep() throws IOException, ProcessorException {
+    public void testDeep() throws IOException {
         String conf = "pipeline[main]{ foreach[a b] (loghub.processors.Filter {lambda: x -> isEmpty(x), field: [^]})}";
         Consumer<Event> c = ev -> {
             Map<String, Object> t1 = Map.ofEntries(

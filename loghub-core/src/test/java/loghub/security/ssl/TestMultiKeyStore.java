@@ -25,14 +25,14 @@ import loghub.security.ssl.MultiKeyStoreProvider.SubKeyStore;
 public class TestMultiKeyStore {
 
     @BeforeClass
-    static public void configure() throws IOException {
+    static public void configure() {
         Tools.configure();
         Logger logger = LogManager.getLogger();
         LogUtils.setLevel(logger, Level.TRACE, "loghub.security.ssl");
     }
 
     @Test
-    public void loadmulti() throws NoSuchAlgorithmException, CertificateException, IOException {
+    public void loadmulti() {
         MultiKeyStoreSpi mks = load("src/test/resources/loghub.p12", "src/test/resources/crypto/package1.pem");
 
         // Extracted from package1.pem
@@ -67,42 +67,42 @@ public class TestMultiKeyStore {
    }
 
     @Test
-    public void loadinversed() throws NoSuchAlgorithmException, CertificateException, IOException {
+    public void loadinversed() {
         MultiKeyStoreSpi mks = load("src/test/resources/crypto/package2.pem");
 
         Assert.assertTrue(mks.engineEntryInstanceOf("localhost", KeyStore.PrivateKeyEntry.class));
     }
 
     @Test
-    public void loadwithalias() throws NoSuchAlgorithmException, CertificateException, IOException {
+    public void loadwithalias() {
         MultiKeyStoreSpi mks = load("file:src/test/resources/crypto/package1.pem?alias=otheralias");
 
         Assert.assertTrue(mks.engineEntryInstanceOf("otheralias", KeyStore.PrivateKeyEntry.class));
     }
 
     @Test
-    public void loadduplicate() throws NoSuchAlgorithmException, CertificateException, IOException {
+    public void loadduplicate() {
         MultiKeyStoreSpi mks = load("src/test/resources/crypto/package1.pem", "src/test/resources/crypto/package2.pem");
 
         Assert.assertTrue(mks.engineEntryInstanceOf("localhost", KeyStore.PrivateKeyEntry.class));
     }
 
     @Test
-    public void loadwrongpem() throws NoSuchAlgorithmException, CertificateException, IOException {
+    public void loadwrongpem() {
         MultiKeyStoreSpi mks = load("src/test/resources/crypto/openssh.pem");
 
         Assert.assertEquals(0, mks.engineSize());
     }
 
     @Test
-    public void loadwrongtype() throws NoSuchAlgorithmException, CertificateException, IOException {
+    public void loadwrongtype() {
         MultiKeyStoreSpi mks = load("src/test/resources/etl.conf");
 
         Assert.assertEquals(0, mks.engineSize());
     }
 
     @Test
-    public void loadmissing() throws NoSuchAlgorithmException, CertificateException, IOException {
+    public void loadmissing() {
         MultiKeyStoreSpi mks = load("__nofile__.pem");
 
         Assert.assertEquals(0, mks.engineSize());
@@ -110,7 +110,7 @@ public class TestMultiKeyStore {
 
     @Test
     public void loadrsakeypem()
-            throws NoSuchAlgorithmException, CertificateException, IOException, UnrecoverableKeyException {
+            throws NoSuchAlgorithmException, UnrecoverableKeyException {
         MultiKeyStoreSpi mks = load("src/test/resources/crypto/package3.pem");
         Assert.assertEquals(1, mks.engineSize());
         String alias = mks.engineAliases().nextElement();
@@ -120,7 +120,7 @@ public class TestMultiKeyStore {
 
     @Test
     public void loadencryptedpcks8()
-            throws NoSuchAlgorithmException, CertificateException, IOException, UnrecoverableKeyException {
+            throws NoSuchAlgorithmException, UnrecoverableKeyException {
         MultiKeyStoreSpi mks = load("file:src/test/resources/crypto/package4.pem?password=loghub&alias=encrypted");
         Assert.assertEquals(1, mks.engineSize());
         String alias = mks.engineAliases().nextElement();
@@ -130,7 +130,7 @@ public class TestMultiKeyStore {
     }
 
     @Test
-    public void loadcacert() throws NoSuchAlgorithmException, CertificateException, IOException {
+    public void loadcacert() {
         String javahome = System.getProperty("java.home");
         MultiKeyStoreSpi mks = load(javahome + "/lib/security/cacerts");
 
@@ -138,26 +138,26 @@ public class TestMultiKeyStore {
     }
 
     @Test
-    public void loadsampleca() throws NoSuchAlgorithmException, CertificateException, IOException {
+    public void loadsampleca() {
         MultiKeyStoreSpi mks = load("src/test/resources/crypto/sampleca.pem");
 
         Assert.assertEquals(4, Collections.list(mks.engineAliases()).size());
     }
 
     @Test
-    public void loaddefault() throws NoSuchAlgorithmException, CertificateException, IOException {
+    public void loaddefault() {
         MultiKeyStoreSpi mks = load("default");
         Assert.assertTrue(Collections.list(mks.engineAliases()).size() > 1);
     }
 
     @Test
-    public void loadsystem() throws NoSuchAlgorithmException, CertificateException, IOException {
+    public void loadsystem() {
         MultiKeyStoreSpi mks = load("system");
         Assert.assertTrue(Collections.list(mks.engineAliases()).size() > 1);
     }
 
     @Test
-    public void loadLetsEncrypt() throws NoSuchAlgorithmException, CertificateException, IOException {
+    public void loadLetsEncrypt() {
         MultiKeyStoreSpi mks = load("https://letsencrypt.org/certs/isrgrootx1.pem.txt?content-type=application/x-pem-file");
         Assert.assertEquals(1, Collections.list(mks.engineAliases()).size());
     }

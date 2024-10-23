@@ -46,7 +46,7 @@ public class TestZMQReceiver {
     private static Logger logger;
 
     @BeforeClass
-    static public void configure() throws IOException {
+    static public void configure() {
         Tools.configure();
         logger = LogManager.getLogger();
         LogUtils.setLevel(logger, Level.TRACE, "loghub.zmq", "loghub.receivers.ZMQ", "loghub.ContextRule", "loghub.ZMQFlow");
@@ -59,7 +59,7 @@ public class TestZMQReceiver {
     @Rule(order=2)
     public final ZMQFactory tctxt = new ZMQFactory(testFolder, "secure");
 
-    private void dotest(Consumer<ZMQ.Builder> configure, Consumer<ZMQFlow.Builder> flowconfigure) throws IOException, InterruptedException, ZMQCheckedException {
+    private void dotest(Consumer<ZMQ.Builder> configure, Consumer<ZMQFlow.Builder> flowconfigure) throws IOException, InterruptedException {
         String rendezvous = "tcp://localhost:" + Tools.tryGetPort();
 
         ZMQSocketFactory ctx = tctxt.getFactory();
@@ -99,7 +99,7 @@ public class TestZMQReceiver {
     }
 
     @Test(timeout=5000)
-    public void testConnect() throws InterruptedException, IOException, ZMQCheckedException {
+    public void testConnect() throws InterruptedException, IOException {
         dotest(r -> {
             r.setMethod(Method.CONNECT);
             r.setType(SocketType.PULL);
@@ -107,7 +107,7 @@ public class TestZMQReceiver {
     }
 
     @Test(timeout=5000)
-    public void testBind() throws InterruptedException, IOException, ZMQCheckedException {
+    public void testBind() throws InterruptedException, IOException {
         dotest(r -> {
             r.setMethod(Method.BIND);
             r.setType(SocketType.PULL);
@@ -115,7 +115,7 @@ public class TestZMQReceiver {
     }
 
     @Test(timeout=5000)
-    public void testSub() throws InterruptedException, IOException, ZMQCheckedException {
+    public void testSub() throws InterruptedException, IOException {
         dotest(r -> {
             r.setMethod(Method.BIND);
             r.setType(SocketType.SUB);
@@ -124,7 +124,7 @@ public class TestZMQReceiver {
     }
 
     @Test(timeout=5000)
-    public void testCurveServer() throws InterruptedException, IOException, ZMQCheckedException {
+    public void testCurveServer() throws InterruptedException, IOException {
         Path keyPubpath = Paths.get(testFolder.getRoot().getPath(), "secure", "zmqtest.pub");
         String keyPub;
         try (ByteArrayOutputStream pubkeyBuffer = new ByteArrayOutputStream()) {
@@ -141,7 +141,7 @@ public class TestZMQReceiver {
     }
 
     @Test(timeout=5000)
-    public void testCurveClient() throws InterruptedException, IOException, ZMQCheckedException {
+    public void testCurveClient() throws InterruptedException, IOException {
         Path keyPubpath = Paths.get(testFolder.getRoot().getPath(), "secure", "zmqtest.pub");
         String keyPub;
         try (ByteArrayOutputStream pubkeyBuffer = new ByteArrayOutputStream()) {

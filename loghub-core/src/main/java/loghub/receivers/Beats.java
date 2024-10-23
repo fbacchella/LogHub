@@ -73,8 +73,7 @@ public class Beats extends NettyReceiver<Beats, ByteBuf, Beats.Builder> implemen
     private class StatsHandler extends MessageToMessageDecoder<Batch> {
 
         @Override
-        protected void decode(ChannelHandlerContext ctx, Batch msg, List<Object> out)
-                        throws Exception {
+        protected void decode(ChannelHandlerContext ctx, Batch msg, List<Object> out) {
             Stats.getMetric(Histogram.class, Beats.this, "batchesSize").update(msg.size());
             out.add(msg);
         }

@@ -52,7 +52,7 @@ public class TestJmxStats {
     private final MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
 
     @BeforeClass
-    public static void configure() throws IOException {
+    public static void configure() {
         Tools.configure();
         Logger logger = LogManager.getLogger();
         LogUtils.setLevel(logger, Level.TRACE, "loghub.configuration", "loghub.metrics");

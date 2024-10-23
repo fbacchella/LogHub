@@ -41,7 +41,7 @@ import lombok.Setter;
 public class XmlXslt extends Decoder implements ErrorListener, ErrorHandler {
 
     private interface GetInputStream {
-        InputStream get() throws IOException;
+        InputStream get();
     }
 
     private static final String CATCHED = "__CATCHED__";
