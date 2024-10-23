@@ -34,12 +34,12 @@ public class TestDashboard {
     private static final JsonFactory factory = new JsonFactory();
     private static final ThreadLocal<ObjectMapper> json = ThreadLocal.withInitial(() -> new ObjectMapper(factory).configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false));
 
-    private final static Properties props = new Properties(Collections.emptyMap());
+    private static final Properties props = new Properties(Collections.emptyMap());
     private Dashboard dashboard = null;
     private final int port = Tools.tryGetPort();
 
     @BeforeClass
-    static public void configure() throws IOException {
+    public static void configure() throws IOException {
         Tools.configure();
         Logger logger = LogManager.getLogger();
         LogUtils.setLevel(logger, Level.TRACE, "loghub.Dashboard", "loghub.netty", "org.jolokia");
@@ -47,7 +47,7 @@ public class TestDashboard {
     }
 
     @AfterClass
-    static public void stopJmx() {
+    public static void stopJmx() {
         JmxService.stop();
     }
 

@@ -26,7 +26,7 @@ public class TestClassLoader {
     public final TemporaryFolder testFolder = new TemporaryFolder();
 
     @BeforeClass
-    static public void configure() {
+    public static void configure() {
         Tools.configure();
         Logger logger = LogManager.getLogger();
         LogUtils.setLevel(logger, Level.TRACE, "loghub.configuration");

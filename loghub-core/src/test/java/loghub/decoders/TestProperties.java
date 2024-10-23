@@ -25,7 +25,7 @@ public class TestProperties {
     private static Logger logger;
 
     @BeforeClass
-    static public void configure() {
+    public static void configure() {
         Tools.configure();
         logger = LogManager.getLogger();
         LogUtils.setLevel(logger, Level.TRACE);

@@ -44,9 +44,9 @@ public class TestMsgpack {
 
     private final EventsFactory factory = new EventsFactory();
 
-    private final static MessagePackMapper objectMapper = JacksonBuilder.get(MessagePackMapper.class)
+    private static final MessagePackMapper objectMapper = JacksonBuilder.get(MessagePackMapper.class)
                                                                         .getMapper();
-    private final static Map<String, Object> obj = new HashMap<>();
+    private static final Map<String, Object> obj = new HashMap<>();
 
     static {
         obj.put("a", "0");
@@ -58,7 +58,7 @@ public class TestMsgpack {
     }
 
     @BeforeClass
-    static public void configure() {
+    public static void configure() {
         Tools.configure();
         Logger logger = LogManager.getLogger();
         LogUtils.setLevel(logger, Level.TRACE, "loghub.encoders.Msgpack");

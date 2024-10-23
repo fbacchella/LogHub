@@ -37,7 +37,7 @@ public class TestFieldsAsynchronous {
     private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
-    static public void configure() {
+    public static void configure() {
         Tools.configure();
         logger = LogManager.getLogger();
         LogUtils.setLevel(logger, Level.TRACE, "loghub.processors", "loghub.EventsProcessor", "loghub.Event", "loghub.EventsRepository", "io.netty.util.HashedWheelTimer");

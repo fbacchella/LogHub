@@ -52,7 +52,7 @@ public class TestCurve {
     private static final Logger logger = LogManager.getLogger();
 
     @BeforeClass
-    static public void configure() {
+    public static void configure() {
         Tools.configure();
         LogUtils.setLevel(logger, Level.TRACE, "loghub.zmq");
     }

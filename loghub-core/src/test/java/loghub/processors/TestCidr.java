@@ -28,7 +28,7 @@ public class TestCidr {
     private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
-    static public void configure() {
+    public static void configure() {
         Tools.configure();
         logger = LogManager.getLogger();
         LogUtils.setLevel(logger, Level.TRACE, "loghub.processors");

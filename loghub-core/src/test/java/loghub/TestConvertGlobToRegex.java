@@ -7,7 +7,7 @@ import org.junit.Test;
 public class TestConvertGlobToRegex {
 
     @BeforeClass
-    static public void configure() {
+    public static void configure() {
         Tools.configure();
     }
 

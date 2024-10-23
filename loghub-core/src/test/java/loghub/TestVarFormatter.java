@@ -41,7 +41,7 @@ public class TestVarFormatter {
     private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
-    static public void configure() {
+    public static void configure() {
         Tools.configure();
         LogUtils.setLevel(logger, Level.TRACE, "loghub.Expression");
         Configurator.setLevel("loghub.VarFormatter", Level.DEBUG);

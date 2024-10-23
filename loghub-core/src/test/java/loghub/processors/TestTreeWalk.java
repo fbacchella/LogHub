@@ -69,7 +69,7 @@ public class TestTreeWalk {
     private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
-    static public void configure() {
+    public static void configure() {
         Tools.configure();
     }
 

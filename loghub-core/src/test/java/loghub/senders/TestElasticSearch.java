@@ -293,7 +293,7 @@ public class TestElasticSearch {
     }
 
     @BeforeClass
-    static public void configure() {
+    public static void configure() {
         Tools.configure();
         logger = LogManager.getLogger();
         LogUtils.setLevel(logger, Level.TRACE, "loghub.senders.ElasticSearch", "loghub.HttpTestServer");
@@ -302,7 +302,7 @@ public class TestElasticSearch {
     }
 
     @AfterClass
-    static public void checkLeaks() {
+    public static void checkLeaks() {
         Assert.assertEquals(0, Stats.getMetric(Counter.class, Stats.class, "EventLeaked").getCount());
         Assert.assertEquals(0, Stats.getMetric(Counter.class, Stats.class, "EventDuplicateEnd").getCount());
     }

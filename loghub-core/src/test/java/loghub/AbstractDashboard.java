@@ -49,7 +49,7 @@ public abstract class AbstractDashboard {
     private static final ThreadLocal<ObjectMapper> json = ThreadLocal.withInitial(() -> new ObjectMapper(factory).configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false));
 
     @Getter
-    private final static Properties props = new Properties(Collections.emptyMap());
+    private static final Properties props = new Properties(Collections.emptyMap());
     private Dashboard dashboard = null;
     @Getter
     private int port;
@@ -61,7 +61,7 @@ public abstract class AbstractDashboard {
     HttpClient client;
 
     @BeforeClass
-    static public void configure() throws IOException {
+    public static void configure() throws IOException {
         Tools.configure();
         Logger logger = LogManager.getLogger();
         LogUtils.setLevel(logger, Level.TRACE, "loghub.Dashboard", "loghub.netty");
@@ -69,12 +69,12 @@ public abstract class AbstractDashboard {
     }
 
     @AfterClass
-    static public void stopJmx() {
+    public static void stopJmx() {
         JmxService.stop();
     }
 
     @AfterClass
-    static public void cleanState() {
+    public static void cleanState() {
         System.clearProperty("java.util.logging.manager");
     }
 

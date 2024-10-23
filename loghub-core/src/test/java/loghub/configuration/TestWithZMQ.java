@@ -35,7 +35,7 @@ public class TestWithZMQ {
     public final ZMQFactory tctxt = new ZMQFactory();
 
     @BeforeClass
-    static public void configure() {
+    public static void configure() {
         Tools.configure();
         logger = LogManager.getLogger();
         LogUtils.setLevel(logger, Level.TRACE, "loghub.zmq", "loghub.receivers.ZMQ", "loghub.senders.ZMQ", "loghub.ZMQSink", "loghub.ZMQFlow");

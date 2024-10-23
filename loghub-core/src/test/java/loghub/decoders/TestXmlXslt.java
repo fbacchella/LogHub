@@ -27,7 +27,7 @@ public class TestXmlXslt {
     private static Logger logger;
 
     @BeforeClass
-    static public void configure() {
+    public static void configure() {
         Tools.configure();
         Stats.reset();
         logger = LogManager.getLogger();

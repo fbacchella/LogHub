@@ -28,7 +28,7 @@ import loghub.netty.transport.TcpTransport;
 public class TestHttpJwt {
 
     @BeforeClass
-    static public void configure() {
+    public static void configure() {
         Tools.configure();
         Logger logger = LogManager.getLogger();
         LogUtils.setLevel(logger, Level.TRACE, "loghub.security.ssl", "loghub.HttpTestServer", "loghub.netty");

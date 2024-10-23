@@ -37,7 +37,7 @@ public class TestHandler {
     public final ZMQFactory tctxt = new ZMQFactory(testFolder, "secure");
 
     @BeforeClass
-    static public void configure() {
+    public static void configure() {
         Tools.configure();
         logger = LogManager.getLogger();
         LogUtils.setLevel(logger, Level.TRACE, "loghub.zmq", "loghub.ContextRule");

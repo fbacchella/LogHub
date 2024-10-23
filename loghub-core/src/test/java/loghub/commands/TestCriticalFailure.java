@@ -41,7 +41,7 @@ public class TestCriticalFailure {
     public final TemporaryFolder folder = new TemporaryFolder();
 
     @BeforeClass
-    static public void configure() {
+    public static void configure() {
         Tools.configure();
         Logger logger = LogManager.getLogger();
         LogUtils.setLevel(logger, Level.TRACE, "loghub");

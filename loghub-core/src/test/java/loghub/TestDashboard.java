@@ -27,12 +27,12 @@ import loghub.metrics.JmxService;
 public class TestDashboard extends AbstractDashboard {
 
     @BeforeClass
-    static public void configure() throws IOException {
+    public static void configure() throws IOException {
         JmxService.start(getProps().jmxServiceConfiguration);
     }
 
     @AfterClass
-    static public void stopJmx() {
+    public static void stopJmx() {
         JmxService.stop();
     }
 

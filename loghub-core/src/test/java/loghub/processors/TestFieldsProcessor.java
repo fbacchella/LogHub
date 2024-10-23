@@ -38,7 +38,7 @@ public class TestFieldsProcessor {
     private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
-    static public void configure() {
+    public static void configure() {
         Tools.configure();
         Logger logger = LogManager.getLogger();
         LogUtils.setLevel(logger, Level.TRACE, "loghub.processors", "loghub.EventsProcessor");

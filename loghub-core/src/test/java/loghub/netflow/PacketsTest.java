@@ -27,13 +27,13 @@ public class PacketsTest {
     private static Logger logger;
 
     @BeforeClass
-    static public void configure() {
+    public static void configure() {
         Tools.configure();
         logger = LogManager.getLogger();
         LogUtils.setLevel(logger, Level.TRACE, "loghub.netflow");
     }
 
-    private final static String[] captures = new String[] {
+    private static final String[] captures = new String[] {
             "ipfix.dat",
             "ipfix_test_barracuda_data256.dat",
             "ipfix_test_barracuda_tpl.dat",

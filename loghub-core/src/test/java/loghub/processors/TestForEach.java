@@ -32,7 +32,7 @@ public class TestForEach {
     private final EventsFactory factory = new EventsFactory();
 
     @BeforeClass
-    static public void configure() {
+    public static void configure() {
         Tools.configure();
         LogUtils.setLevel(logger, Level.TRACE, "loghub.configuration", "loghub.processors.ForEach", "loghub.EventsProcessor");
     }
