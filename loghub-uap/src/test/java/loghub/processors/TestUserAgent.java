@@ -1,7 +1,6 @@
 package loghub.processors;
 
 import java.beans.IntrospectionException;
-import java.io.IOException;
 import java.util.Collections;
 
 import org.apache.logging.log4j.Level;

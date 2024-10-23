@@ -1,7 +1,6 @@
 package loghub.processors;
 
 import java.beans.IntrospectionException;
-import java.io.IOException;
 import java.util.Collections;
 
 import org.apache.logging.log4j.Level;
@@ -15,7 +14,6 @@ import loghub.BeanChecks;
 import loghub.Expression;
 import loghub.LogUtils;
 import loghub.Processor;
-import loghub.ProcessorException;
 import loghub.Tools;
 import loghub.VarFormatter;
 import loghub.VariablePath;

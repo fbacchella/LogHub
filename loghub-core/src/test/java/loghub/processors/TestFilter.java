@@ -19,7 +19,6 @@ import loghub.Expression;
 import loghub.LogUtils;
 import loghub.NullOrMissingValue;
 import loghub.Processor;
-import loghub.ProcessorException;
 import loghub.Tools;
 import loghub.VariablePath;
 import loghub.configuration.Configuration;

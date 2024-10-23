@@ -12,7 +12,6 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import loghub.LogUtils;
-import loghub.ProcessorException;
 import loghub.RouteParser;
 import loghub.Tools;
 import loghub.Tools.ProcessingStatus;

@@ -1,7 +1,6 @@
 package loghub.processors;
 
 import java.beans.IntrospectionException;
-import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Map;

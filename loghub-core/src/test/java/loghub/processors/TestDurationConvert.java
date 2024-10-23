@@ -1,6 +1,5 @@
 package loghub.processors;
 
-import java.io.IOException;
 import java.time.Instant;
 import java.util.Collections;
 

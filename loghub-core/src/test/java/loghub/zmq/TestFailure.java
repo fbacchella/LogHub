@@ -1,6 +1,5 @@
 package loghub.zmq;
 
-import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.FutureTask;

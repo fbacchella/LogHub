@@ -1,7 +1,6 @@
 package loghub.netflow;
 
 import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;

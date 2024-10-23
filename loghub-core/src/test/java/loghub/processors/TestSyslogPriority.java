@@ -1,7 +1,6 @@
 package loghub.processors;
 
 import java.beans.IntrospectionException;
-import java.io.IOException;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.List;

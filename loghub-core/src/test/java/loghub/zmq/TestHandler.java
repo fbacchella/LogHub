@@ -1,6 +1,5 @@
 package loghub.zmq;
 
-import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;

@@ -1,7 +1,6 @@
 package loghub.senders;
 
 import java.beans.IntrospectionException;
-import java.io.IOException;
 import java.util.Collections;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.Semaphore;

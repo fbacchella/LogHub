@@ -17,7 +17,6 @@ import loghub.EventsProcessor;
 import loghub.IgnoredEventException;
 import loghub.LogUtils;
 import loghub.NullOrMissingValue;
-import loghub.ProcessorException;
 import loghub.Tools;
 import loghub.VariablePath;
 import loghub.events.Event;

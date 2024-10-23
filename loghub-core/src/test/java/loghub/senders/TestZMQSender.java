@@ -39,7 +39,6 @@ import loghub.encoders.EncodeException;
 import loghub.encoders.ToJson;
 import loghub.events.Event;
 import loghub.events.EventsFactory;
-import loghub.zmq.ZMQCheckedException;
 import loghub.zmq.ZMQHelper.Method;
 import loghub.zmq.ZMQSocketFactory;
 import loghub.zmq.ZapDomainHandler.ZapDomainHandlerProvider;

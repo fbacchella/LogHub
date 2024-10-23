@@ -18,7 +18,6 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import loghub.IpConnectionContext;
 import loghub.LogUtils;
-import loghub.ProcessorException;
 import loghub.Tools;
 import loghub.Tools.ProcessingStatus;
 import loghub.decoders.DecodeException;

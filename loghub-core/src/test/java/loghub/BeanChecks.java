@@ -2,7 +2,6 @@ package loghub;
 
 import java.beans.IntrospectionException;
 import java.beans.PropertyDescriptor;
-import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Modifier;
 

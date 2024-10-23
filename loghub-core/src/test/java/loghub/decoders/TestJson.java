@@ -1,7 +1,6 @@
 package loghub.decoders;
 
 import java.beans.IntrospectionException;
-import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;

@@ -1,6 +1,5 @@
 package loghub.processors;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -11,7 +10,6 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import loghub.ProcessorException;
 import loghub.Tools;
 import loghub.VariablePath;
 import loghub.events.Event;

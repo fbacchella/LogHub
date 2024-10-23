@@ -25,7 +25,6 @@ import loghub.ZMQSink;
 import loghub.events.Event;
 import loghub.receivers.Receiver;
 import loghub.senders.Sender;
-import loghub.zmq.ZMQCheckedException;
 import loghub.zmq.ZMQHelper.Method;
 
 public class TestWithZMQ {

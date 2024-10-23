@@ -1,6 +1,5 @@
 package loghub;
 
-import java.io.IOException;
 import java.time.Instant;
 import java.time.LocalTime;
 import java.time.ZoneId;
