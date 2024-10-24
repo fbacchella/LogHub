@@ -142,7 +142,7 @@ public class TestZMQSender {
 
     @Test(timeout=5000)
     public void batchConnect() throws InterruptedException {
-        dotest((s) -> {
+        dotest(s -> {
             s.setMethod(Method.CONNECT);
             s.setBatchSize(2);
         }, s -> s.setMethod(Method.BIND), "(\\[\\{\"message\":\\d+\\},\\{\"message\":\\d+\\}\\])+");
@@ -150,7 +150,7 @@ public class TestZMQSender {
 
     @Test(timeout=5000)
     public void batchBind() throws InterruptedException {
-        dotest((s) -> {
+        dotest(s -> {
             s.setMethod(Method.BIND);
             s.setBatchSize(2);
         }, s -> s.setMethod(Method.CONNECT), "(\\[\\{\"message\":\\d+\\},\\{\"message\":\\d+\\}\\])+");

@@ -32,11 +32,11 @@ public class IpfixInformationElementsTest {
         IpfixInformationElements iie = new IpfixInformationElements();
         Map<String, Set<String>> values = new HashMap<>();
         iie.elements.forEach((k,v) -> {
-            values.computeIfAbsent("Abstract Data Type", (i) -> new HashSet<>()).add(v.type);
-            values.computeIfAbsent("Data Type Semantics", (i) -> new HashSet<>()).add(v.semantics);
-            values.computeIfAbsent("Status", (i) -> new HashSet<>()).add(v.semantics);
-            values.computeIfAbsent("Units", (i) -> new HashSet<>()).add(v.units);
-            values.computeIfAbsent("Additional Information", (i) -> new HashSet<>()).add(v.additional);
+            values.computeIfAbsent("Abstract Data Type", i -> new HashSet<>()).add(v.type);
+            values.computeIfAbsent("Data Type Semantics", i -> new HashSet<>()).add(v.semantics);
+            values.computeIfAbsent("Status", i -> new HashSet<>()).add(v.semantics);
+            values.computeIfAbsent("Units", i -> new HashSet<>()).add(v.units);
+            values.computeIfAbsent("Additional Information", i -> new HashSet<>()).add(v.additional);
         });
         Assert.assertNotEquals(0, values.size());
         values.forEach((i, j) -> {

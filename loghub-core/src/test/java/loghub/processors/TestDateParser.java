@@ -298,7 +298,7 @@ public class TestDateParser {
         DateParser parse = builder.build();
         Assert.assertTrue(parse.configure(new Properties(Collections.emptyMap())));
 
-        Function<Instant, Number> tonumber = (i) -> 1.0 * (i.getEpochSecond()) + i.getNano()/1e9;
+        Function<Instant, Number> tonumber = i -> 1.0 * (i.getEpochSecond()) + i.getNano()/1e9;
         resolve(parse, Instant.ofEpochSecond(155, 330000000), tonumber);
         resolve(parse, Instant.ofEpochSecond(155, 30), tonumber);
         resolve(parse, Instant.ofEpochSecond(-155, 330000000), tonumber);

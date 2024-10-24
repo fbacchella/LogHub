@@ -108,7 +108,7 @@ public class TestFieldsAsynchronous {
     public void success() throws InterruptedException {
         long started = Instant.now().toEpochMilli();
         logger.debug("starting");
-        todo = (v) -> {
+        todo = v -> {
             if ( ! v.isDone()) {
                 v.setSuccess(TestFieldsAsynchronous.this);
             }
@@ -132,7 +132,7 @@ public class TestFieldsAsynchronous {
     public void successWithCollection() throws InterruptedException {
         long started = Instant.now().toEpochMilli();
         logger.debug("starting");
-        todo = (v) -> {
+        todo = v -> {
             if ( ! v.isDone()) {
                 v.setSuccess(TestFieldsAsynchronous.this);
             }
@@ -156,7 +156,7 @@ public class TestFieldsAsynchronous {
     public void successWithDestination() throws InterruptedException {
         long started = Instant.now().toEpochMilli();
         logger.debug("starting");
-        todo = (v) -> {
+        todo = v -> {
             if ( ! v.isDone()) {
                 v.setSuccess(this);
             }
@@ -179,7 +179,7 @@ public class TestFieldsAsynchronous {
 
     @Test(timeout=1000)
     public void failed() throws InterruptedException {
-        todo = (v) -> v.setSuccess(this);
+        todo = v -> v.setSuccess(this);
         transform = (e, v) -> FieldsProcessor.RUNSTATUS.FAILED;
         Event e = factory.newEvent();
         e.put("a", 1);
@@ -195,7 +195,7 @@ public class TestFieldsAsynchronous {
 
     @Test(timeout=5000)
     public void timeout() throws InterruptedException {
-        todo = (v) -> {
+        todo = v -> {
             try {
                 Thread.sleep(2000);
                 v.setSuccess(this);
@@ -229,7 +229,7 @@ public class TestFieldsAsynchronous {
 
     @Test(timeout=1000)
     public void exceptionFalse() throws InterruptedException {
-        todo = (v) -> v.setFailure(new RuntimeException());
+        todo = v -> v.setFailure(new RuntimeException());
         onexception = (e, x) -> Boolean.FALSE;
         transform = (e, v) -> v.getClass().getCanonicalName();
         Event e = factory.newEvent();
@@ -246,7 +246,7 @@ public class TestFieldsAsynchronous {
 
     @Test(timeout=1000)
     public void exceptionException() throws InterruptedException {
-        todo = (v) -> v.setFailure(new RuntimeException());
+        todo = v -> v.setFailure(new RuntimeException());
         transform = (e, v) -> v.getClass().getCanonicalName();
         onexception = (e, x) -> {
             try {
