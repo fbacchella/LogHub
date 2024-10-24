@@ -181,8 +181,14 @@ public class TestEventProcessing {
         jsonappender.start();
         config.addAppender(jsonappender);
         AppenderRef ref = AppenderRef.createAppenderRef(APPENDERNAME, null, null);
-        LoggerConfig loggerConfig = LoggerConfig.createLogger(false, LOGLEVEL, LOGGERNAME, "false", new AppenderRef[] {ref}, new Property[]{}, config,
-                null);
+        LoggerConfig loggerConfig = LoggerConfig.newBuilder()
+                                                .withAdditivity(false)
+                                                .withLevel(LOGLEVEL)
+                                                .withLoggerName(LOGGERNAME)
+                                                .withIncludeLocation("false")
+                                                .withRefs(new AppenderRef[] {ref})
+                                                .withConfig(config)
+                                                .build();
         loggerConfig.addAppender(jsonappender, null, null);
         config.removeLogger(LOGGERNAME);
         config.addLogger(LOGGERNAME, loggerConfig);
