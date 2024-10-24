@@ -3,6 +3,9 @@ package loghub.processors;
 import java.beans.IntrospectionException;
 import java.io.IOException;
 import java.io.StringReader;
+import java.net.Inet4Address;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.Collections;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -34,6 +37,16 @@ public class TestGeoip2 {
     private static Logger logger;
     private final EventsFactory factory = new EventsFactory();
 
+    private static final InetAddress google;
+
+    static {
+        try {
+            google = Inet4Address.getByName("8.8.8.8");
+        } catch (UnknownHostException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     @BeforeClass
     public static void configure() {
         Tools.configure();
@@ -47,7 +60,7 @@ public class TestGeoip2 {
             b.setGeoipdb(TestGeoip2.class.getResource("/GeoLite2-City.mmdb").toString());
             b.setTypes(new String[0]);
         } );
-        Map<Object, Object> geoinfos = run(geoip);
+        Map<Object, Object> geoinfos = runString(geoip);
         assertEquals("not enough elements", 7, geoinfos.size());
     }
 
@@ -57,7 +70,7 @@ public class TestGeoip2 {
             b.setGeoipdb(TestGeoip2.class.getResource("/GeoLite2-City.mmdb").toString());
             b.setTypes(new String[]{Geoip2.LocationType.COUNTRY.name()});
         });
-        Map<Object, Object> geoinfos = run(geoip);
+        Map<Object, Object> geoinfos = runString(geoip);
         assertEquals(1, geoinfos.size());
         @SuppressWarnings("unchecked")
         Map<String, String> country = (Map<String, String>) geoinfos.get("country");
@@ -68,7 +81,7 @@ public class TestGeoip2 {
     @Test
     public void testProcessCountry() throws ProcessorException {
         Geoip2 geoip = build(b -> b.setGeoipdb(TestGeoip2.class.getResource("/GeoLite2-Country.mmdb").toString()));
-        Map<Object, Object> geoinfos = run(geoip);
+        Map<Object, Object> geoinfos = runString(geoip);
         assertEquals(3, geoinfos.size());
         assertEquals("North America", geoinfos.get("continent"));
     }
@@ -93,7 +106,7 @@ public class TestGeoip2 {
         return geoip;
     }
 
-    private Map<Object, Object> run(Geoip2 geoip) throws ProcessorException {
+    private Map<Object, Object> runString(Geoip2 geoip) throws ProcessorException {
         Event e = factory.newEvent();
         e.put("ip", "8.8.8.8");
 
@@ -103,20 +116,36 @@ public class TestGeoip2 {
         return geoinfos;
     }
 
+    private Map<Object, Object> runIP(Geoip2 geoip) throws ProcessorException {
+        Event e = factory.newEvent();
+        e.put("ip", google);
+
+        geoip.process(e);
+        @SuppressWarnings("unchecked")
+        Map<Object, Object> geoinfos = (Map<Object, Object>) e.get("geoip");
+        return geoinfos;
+    }
+
     @Test
+    @SuppressWarnings("unchecked")
     public void parseConfig() throws IOException, ProcessorException {
         String geoipPath = TestGeoip2.class.getResource("/GeoLite2-City.mmdb").toString();
         String config = String.format("pipeline[geoip]{loghub.processors.Geoip2 {geoipdb: \"%s\", field: [ip], types: [\"country\"], destination: [geoip]}}", geoipPath);
         Properties conf = Configuration.parse(new StringReader(config));
         Geoip2 geoip = conf.namedPipeLine.get("geoip").processors.stream().findAny().map(Geoip2.class::cast).orElseThrow(() -> new IllegalStateException("No received defined"));
         geoip.configure(conf);
-        Map<Object, Object> geoinfos = run(geoip);
+        // Resolve a String
+        Map<Object, Object> geoinfos = runString(geoip);
         assertEquals(1, geoinfos.size());
-        @SuppressWarnings("unchecked")
         Map<String, String> country = (Map<String, String>) geoinfos.get("country");
         assertEquals("US", country.get("code"));
-    }
 
+        // Resolve a InetAddress
+        geoinfos = runIP(geoip);
+        assertEquals(1, geoinfos.size());
+        country = (Map<String, String>) geoinfos.get("country");
+        assertEquals("US", country.get("code"));
+    }
 
     @Test
     public void test_loghub_processors_Geoip2() throws IntrospectionException, ReflectiveOperationException {
