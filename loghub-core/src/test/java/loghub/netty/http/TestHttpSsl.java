@@ -3,6 +3,8 @@ package loghub.netty.http;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.SocketException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.Collections;
 import java.util.HashMap;
@@ -97,8 +99,8 @@ public class TestHttpSsl {
     }
 
     @Test(expected=javax.net.ssl.SSLHandshakeException.class)
-    public void TestGoogle() throws IOException {
-        URL google = new URL("https://www.google.com");
+    public void TestGoogle() throws IOException, URISyntaxException {
+        URL google = new URI("https://www.google.com").toURL();
         HttpsURLConnection cnx = (HttpsURLConnection) google.openConnection();
         cnx.setSSLSocketFactory(getContext.apply(Collections.emptyMap()).getSocketFactory());
         cnx.connect();
@@ -149,9 +151,9 @@ public class TestHttpSsl {
     }
 
     @Test(expected=SocketException.class)
-    public void TestNoSsl() throws IOException, IllegalArgumentException {
+    public void TestNoSsl() throws IOException, IllegalArgumentException, URISyntaxException {
         URL theURL = startHttpServer(Collections.emptyMap(), i -> i.setSslKeyAlias("invalidalias"));
-        URL nohttpsurl = new URL("http", theURL.getHost(), theURL.getPort(), theURL.getFile());
+        URL nohttpsurl = new URI("http", null, theURL.getHost(), theURL.getPort(), theURL.getFile(), null, null).toURL();
         HttpURLConnection cnx = (HttpURLConnection) nohttpsurl.openConnection();
         // This generate two log lines, HttpURLConnection retry the connection
         cnx.connect();

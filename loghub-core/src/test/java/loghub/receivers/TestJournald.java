@@ -7,6 +7,7 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.InetAddress;
+import java.net.URI;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
@@ -76,7 +77,7 @@ public class TestJournald {
     @Test
     public void testStart() throws Exception {
         try (Journald r = makeReceiver(i -> {}, Collections.emptyMap())) {
-            URL journaldURL = new URL("http://localhost:" + port + "/upload");
+            URL journaldURL = new URI("http://localhost:" + port + "/upload").toURL();
             HttpURLConnection cnx = (HttpURLConnection) journaldURL.openConnection();
             cnx.setChunkedStreamingMode(1024);
             cnx.setRequestMethod("POST");

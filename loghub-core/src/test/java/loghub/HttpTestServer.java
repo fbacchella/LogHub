@@ -1,6 +1,8 @@
 package loghub;
 
 import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.Arrays;
 import java.util.Optional;
@@ -39,8 +41,8 @@ public class HttpTestServer extends ExternalResource {
             transport.bind();
             String listen = transport.getEndpoint();
             boolean ssl = transport.isWithSsl();
-            return new URL(String.format("%s://%s:%d/", ssl ? "https" : "http", listen, transport.getPort()));
-        } catch (MalformedURLException ex) {
+            return new URI(String.format("%s://%s:%d/", ssl ? "https" : "http", listen, transport.getPort())).toURL();
+        } catch (URISyntaxException | MalformedURLException ex) {
             throw new IllegalStateException(ex);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();

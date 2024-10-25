@@ -4,6 +4,8 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.Base64;
 import java.util.Optional;
@@ -60,8 +62,8 @@ public class TestHttpJwt {
     }
 
     @Test
-    public void testTokenGeneration() throws IOException {
-        URL tokenUrl = new URL(resourceUrl.toString() + "token");
+    public void testTokenGeneration() throws IOException, URISyntaxException {
+        URL tokenUrl = new URI(resourceUrl.toString() + "token").toURL();
         HttpURLConnection cnx = null;
         String token;
         try {

@@ -83,6 +83,7 @@ public class TestEventProcessing {
         }
 
         @Override
+        @Deprecated
         public String getFormat() {
             return null;
         }
