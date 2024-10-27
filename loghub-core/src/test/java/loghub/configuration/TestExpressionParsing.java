@@ -241,6 +241,7 @@ public class TestExpressionParsing {
                 "2 ** (999999999 + 1)", Double.NaN,
                 "2 * 2 ", 4,
                 "2 + 4", 6,
+                "true + false", true,
                 "2 - 1", 1,
                 "2 * 3", 6,
                 "7 % 3", 1,

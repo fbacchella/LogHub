@@ -42,15 +42,16 @@ import org.codehaus.groovy.runtime.typehandling.NumberMath;
 import groovy.lang.GroovySystem;
 import groovy.lang.MetaClass;
 import groovy.lang.MetaClassRegistry;
-import loghub.groovy.GroovyMethods;
-import loghub.groovy.TemporalMetaClass;
-import loghub.groovy.CharacterMetaClass;
-import loghub.groovy.NumberMetaClass;
-import loghub.groovy.StringMetaClass;
-import loghub.groovy.CollectionMetaClass;
 import io.netty.util.NetUtil;
 import loghub.configuration.BeansManager;
 import loghub.events.Event;
+import loghub.groovy.BooleanMetaClass;
+import loghub.groovy.CharacterMetaClass;
+import loghub.groovy.CollectionMetaClass;
+import loghub.groovy.NumberMetaClass;
+import loghub.groovy.ObjectMetaClass;
+import loghub.groovy.StringMetaClass;
+import loghub.groovy.TemporalMetaClass;
 import loghub.types.MacAddress;
 import lombok.Getter;
 
@@ -69,12 +70,14 @@ public class Expression {
 
     static {
         java.util.Map<Class<?>, Function<MetaClass, MetaClass>> metaClassFactories = new HashMap<>();
-        metaClassFactories.put(String.class, StringMetaClass::new);
+        metaClassFactories.put(CharSequence.class, StringMetaClass::new);
         metaClassFactories.put(Character.class, CharacterMetaClass::new);
         metaClassFactories.put(Date.class, TemporalMetaClass::new);
         metaClassFactories.put(Temporal.class, TemporalMetaClass::new);
         metaClassFactories.put(Number.class, NumberMetaClass::new);
+        metaClassFactories.put(Boolean.class, BooleanMetaClass::new);
         metaClassFactories.put(Collection.class, CollectionMetaClass::new);
+        metaClassFactories.put(Object.class, ObjectMetaClass::new);
 
         registry.setMetaClassCreationHandle(new MetaClassRegistry.MetaClassCreationHandle() {
             @Override
@@ -87,9 +90,11 @@ public class Expression {
                     return doCreate(Number.class, theClass);
                 } else if (Collection.class.isAssignableFrom(theClass)) {
                     return doCreate(Collection.class, theClass);
+                } else if (CharSequence.class.isAssignableFrom(theClass)) {
+                    return doCreate(CharSequence.class, theClass);
                 } else {
                     logger.debug("Creating unhandled MetaClass {}", theClass::getName);
-                    return super.createNormalMetaClass(theClass, registry);
+                    return doCreate(Object.class, theClass);
                 }
             }
             MetaClass doCreate(Class<?> key, Class<?> c) {
@@ -218,7 +223,6 @@ public class Expression {
         } catch (MissingMethodExceptionNoStack ex) {
             throw event.buildException(String.format("Incompatible type: %s", source, Helpers.resolveThrowableException(ex)), ex);
         } catch (RuntimeException ex) {
-            ex.printStackTrace();
             throw event.buildException(String.format("Failed expression %s: %s", source, Helpers.resolveThrowableException(ex)), ex);
         }
     }
@@ -645,8 +649,7 @@ public class Expression {
             throw IgnoredEventException.INSTANCE;
         }
         MetaClass mc = registry.getMetaClass(arg1.getClass());
-        GroovyMethods groovyOp = GroovyMethods.resolveSymbol(operator);
-        return mc.invokeMethod(arg1, groovyOp.groovyMethod, new Object[]{});
+        return mc.invokeMethod(arg1, operator, new Object[]{});
     }
 
     public static Object groovyOperator(String operator, Object arg1, Object arg2) {
@@ -654,8 +657,7 @@ public class Expression {
             throw IgnoredEventException.INSTANCE;
         }
         MetaClass mc = registry.getMetaClass(arg1.getClass());
-        GroovyMethods groovyOp = GroovyMethods.resolveSymbol(operator);
-        return mc.invokeMethod(arg1, groovyOp.groovyMethod, new Object[]{arg2});
+        return mc.invokeMethod(arg1, operator, new Object[]{arg2});
     }
 
     @SuppressWarnings("unchecked")
