@@ -1168,11 +1168,11 @@ class ConfigListener extends RouteBaseListener {
                            theClass, o, Charset.defaultCharset(), ByteOrder.nativeOrder()
                        );
                     } catch (UnknownHostException ex) {
-                        throw new IllegalArgumentException("Failed to parse IP address \"" + o + "\"", ex);
+                        throw new RecognitionException("Failed to parse IP address \"" + o + "\"", parser, stream, ctx);
                     } catch (NumberFormatException ex) {
-                        throw new IllegalArgumentException("Unable to parse \""+ o +"\" as a " + theClass.getName(), ex);
+                        throw new RecognitionException("Unable to parse \""+ o +"\" as a " + theClass.getName(), parser, stream, ctx);
                     } catch (InvocationTargetException ex) {
-                        throw new IllegalArgumentException(ex.getCause());
+                        throw new RecognitionException(Helpers.resolveThrowableException(ex.getCause()), parser, stream, ctx);
                     }
                 };
                 expression = ExpressionBuilder.of(subexpression, convert).setDeepCopy(false);

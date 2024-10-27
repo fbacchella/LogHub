@@ -180,20 +180,22 @@ public class TestExpressionParsing {
         for (int i = 0; i < tryExpression.length; ) {
             tests.put(tryExpression[i++].toString(), tryExpression[i++]);
         }
-        tests.forEach((x, r) -> {
-            try {
-                Object o = Tools.evalExpression(x, ev);
-                Assert.assertEquals(x, r, o);
-            } catch (IgnoredEventException e) {
-                if (r != IgnoredEventException.class) {
-                    Assert.fail(x + ", got an unexpected " + Helpers.resolveThrowableException(e));
-                }
-            } catch (ProcessorException e) {
-                if (r != ProcessorException.class) {
-                    Assert.fail(x + ", got an unexpected " + Helpers.resolveThrowableException(e));
-                }
+        tests.forEach((x, r) -> checkExpression(ev, x, r));
+    }
+
+    private void checkExpression(Event ev, String x, Object r) {
+        try {
+            Object o = Tools.evalExpression(x, ev);
+            Assert.assertEquals(x, r, o);
+        } catch (IgnoredEventException e) {
+            if (r != IgnoredEventException.class) {
+                Assert.fail(x + ", got an unexpected " + Helpers.resolveThrowableException(e));
             }
-        });
+        } catch (ProcessorException e) {
+            if (r != ProcessorException.class) {
+                Assert.fail(x + ", got an unexpected " + Helpers.resolveThrowableException(e));
+            }
+        }
     }
 
     @Test
@@ -272,6 +274,33 @@ public class TestExpressionParsing {
                 "(java.net.InetAddress) \"127.0.0.1\"", InetAddress.getByName("127.0.0.1"),
         };
         enumerateExpressions(ev, tryExpression);
+    }
+
+    @Test
+    public void testInOperator() {
+        Event ev = factory.newEvent();
+        ev.put("a", 1);
+        ev.put("b", 2);
+        ev.put("c", 3);
+        ev.put("d", List.of(1, 2, 3));
+        checkExpression(ev, "1 in ([a], [b], [c])", true);
+        checkExpression(ev, "1 in [d]", true);
+        checkExpression(ev, "[a] in [d]", true);
+    }
+
+    @Test
+    public void testErrors() {
+        Event ev = factory.newEvent();
+        RecognitionException ex1 = Assert.assertThrows(
+                RecognitionException.class,
+                () -> Tools.evalExpression("(java.net.InetAddress) \"255\"", ev)
+        );
+        Assert.assertEquals("Failed to parse IP address \"255\"", ex1.getMessage());
+        RecognitionException ex2 = Assert.assertThrows(
+                RecognitionException.class,
+                () -> Tools.evalExpression("(java.net.InetAddress) \"255\"", ev)
+        );
+        Assert.assertEquals("Failed to parse IP address \"255\"", ex2.getMessage());
     }
 
     @Test
@@ -368,6 +397,7 @@ public class TestExpressionParsing {
                 "null == [#a]", false,
                 "2 == [#a]", false,
                 "[#a] == 2", false,
+                "(java.lang.Double)[a]", IgnoredEventException.class,
         };
         enumerateExpressions(ev, tryExpression);
     }
@@ -419,6 +449,7 @@ public class TestExpressionParsing {
                 "[#a] == null", true,
                 "2 == [#a]", false,
                 "[#a] == 2", false,
+                "(java.lang.Double)[a]", null,
         };
         enumerateExpressions(ev, tryExpression);
     }
