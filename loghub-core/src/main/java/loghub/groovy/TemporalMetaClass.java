@@ -1,4 +1,4 @@
-package groovy.runtime.metaclass.java.java.time.temporal;
+package loghub.groovy;
 
 import java.time.DateTimeException;
 import java.time.Duration;
@@ -7,7 +7,6 @@ import java.util.Date;
 
 import groovy.lang.DelegatingMetaClass;
 import groovy.lang.MetaClass;
-import groovy.runtime.metaclass.GroovyMethods;
 import loghub.IgnoredEventException;
 
 public class TemporalMetaClass extends DelegatingMetaClass {

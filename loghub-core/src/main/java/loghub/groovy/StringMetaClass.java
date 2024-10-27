@@ -1,10 +1,9 @@
-package groovy.runtime.metaclass.java.lang;
+package loghub.groovy;
 
 import org.codehaus.groovy.runtime.StringGroovyMethods;
 
 import groovy.lang.DelegatingMetaClass;
 import groovy.lang.MetaClass;
-import groovy.runtime.metaclass.GroovyMethods;
 import loghub.IgnoredEventException;
 import loghub.NullOrMissingValue;
 

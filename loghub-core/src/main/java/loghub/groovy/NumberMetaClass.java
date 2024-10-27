@@ -1,4 +1,4 @@
-package groovy.runtime.metaclass.java.lang;
+package loghub.groovy;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -7,7 +7,6 @@ import org.codehaus.groovy.runtime.typehandling.NumberMath;
 
 import groovy.lang.DelegatingMetaClass;
 import groovy.lang.MetaClass;
-import groovy.runtime.metaclass.GroovyMethods;
 import loghub.IgnoredEventException;
 import loghub.NullOrMissingValue;
 

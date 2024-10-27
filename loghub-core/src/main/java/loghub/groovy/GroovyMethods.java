@@ -1,4 +1,4 @@
-package groovy.runtime.metaclass;
+package loghub.groovy;
 
 import java.util.HashMap;
 import java.util.Map;

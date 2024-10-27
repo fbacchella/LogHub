@@ -1,11 +1,10 @@
-package groovy.runtime.metaclass.java.util;
+package loghub.groovy;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.Collection;
 
 import groovy.lang.DelegatingMetaClass;
 import groovy.lang.MetaClass;
-import groovy.runtime.metaclass.GroovyMethods;
 
 public class CollectionMetaClass extends DelegatingMetaClass {
 
