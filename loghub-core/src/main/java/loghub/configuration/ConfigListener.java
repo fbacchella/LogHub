@@ -1028,6 +1028,17 @@ class ConfigListener extends RouteBaseListener {
         stack.push(new ObjectWrapped<>(vp));
     }
 
+    /**
+     * Used to detect if all the arguments are constant, so it can be evaluated during parsing
+     * @param exlist
+     * @return
+     */
+    private boolean isExpressionListConstant(List<ExpressionBuilder> exlist) {
+        return exlist.stream()
+                     .map(eb -> eb.getType() == ExpressionBuilder.ExpressionType.LITERAL)
+                     .reduce(Boolean.TRUE, (a, b) -> a && b);
+    }
+
     @Override
     public void exitExpression(ExpressionContext ctx) {
         ExpressionBuilder expression;
@@ -1039,33 +1050,10 @@ class ConfigListener extends RouteBaseListener {
             if (vf.isEmpty()) {
                 expression = ExpressionBuilder.of(format);
             } else  if (exlist != null) {
-                // Used to detect if all the arguments are constant, so it can be evaluated during parsing
-                boolean allLitterals = exlist.stream()
-                                             .collect(
-                            Collectors.reducing(
-                                 Boolean.TRUE,
-                                 eb -> eb.getType() == ExpressionBuilder.ExpressionType.LITERAL,
-                                 (a, b) -> a && b
-                            )
-                );
                 ExpressionBuilder expressions = ExpressionBuilder.of(exlist);
                 Expression.ExpressionLambda listLambda = expressions.getPayload();
-                if (allLitterals) {
-                    Expression.ExpressionData ed = new Expression.ExpressionData() {
-                        @Override
-                        public Event getEvent() {
-                            return null;
-                        }
-                        @Override
-                        public Expression getExpression() {
-                            return null;
-                        }
-                        @Override
-                        public Object getValue() {
-                            return null;
-                        }
-                    };
-                    Object formatted = vf.format(listLambda.apply(ed));
+                if (isExpressionListConstant(exlist)) {
+                    Object formatted = vf.format(listLambda.apply(Expression.EMPTY_EXPRESSION_DATA));
                     expression = ExpressionBuilder.of(formatted);
                 } else {
                     expression = ExpressionBuilder.of(ed -> vf.format(listLambda.apply(ed))).setDeepCopy(false);
@@ -1111,6 +1099,19 @@ class ConfigListener extends RouteBaseListener {
             ExpressionBuilder post = stack.popTyped();
             ExpressionBuilder pre = stack.popTyped();
             expression = ExpressionBuilder.of(pre, op, post).setDeepCopy(false);
+        } else if (ctx.opin != null  && ctx.el != null) {
+            // 'in'|'!in' with explicit set
+            List<ExpressionBuilder> exlist = stack.popTyped();
+            ExpressionBuilder post;
+            if (isExpressionListConstant(exlist)) {
+                Set<?> content = exlist.stream().map(ExpressionBuilder::getPayload).collect(Collectors.toSet());
+                post = ExpressionBuilder.of(content).setDeepCopy(false);
+            } else {
+                post = ExpressionBuilder.of(exlist).setDeepCopy(false);
+            }
+            String op = ctx.opin.getText();
+            ExpressionBuilder pre = stack.popTyped();
+            expression = ExpressionBuilder.of(pre, post, (o1, o2) -> Expression.in(op, o1, o2)).setDeepCopy(false);
         } else if (ctx.opin != null) {
             // 'in'|'!in'
             String op = ctx.opin.getText();

@@ -217,7 +217,7 @@ expression
     |   e1 = expression opinfix=('+'|'-') e2=expression
     |   e1 = expression opinfix=('<<'|'>>'|'>>>') e2=expression
     |   e1 = expression opcomp=('<'|'<='|'>'|'>=') e2=expression
-    |   e1 = expression opin=('in'|'!in') e2=expression
+    |   e1 = expression opin=('in'|'!in') ((('set' | 'list')? el=expressionsList) | e2=expression)
     |   e1 = expression (neg='!')? opinstance='instanceof' qi=qualifiedIdentifier
     |   e1 = expression opinstance='!instanceof' qi=qualifiedIdentifier
     |   (exists = eventVariable op=('=='|'!=') '*' | '*' op=('=='|'!=') exists = eventVariable)

@@ -106,6 +106,21 @@ public class Expression {
         Object getValue();
     }
 
+    public static final ExpressionData EMPTY_EXPRESSION_DATA = new Expression.ExpressionData() {
+        @Override
+        public Event getEvent() {
+            return null;
+        }
+        @Override
+        public Expression getExpression() {
+            return null;
+        }
+        @Override
+        public Object getValue() {
+            return null;
+        }
+    };
+
     @Getter
     private static class BindingMap implements ExpressionData, Closeable {
         private Event event;
