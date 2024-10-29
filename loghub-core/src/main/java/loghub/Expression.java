@@ -224,8 +224,6 @@ public class Expression {
                            .orElse(null);
         } catch (IgnoredEventException e) {
             throw e;
-        } catch (MissingMethodExceptionNoStack ex) {
-            throw event.buildException(String.format("Incompatible type: %s", source, Helpers.resolveThrowableException(ex)), ex);
         } catch (RuntimeException ex) {
             throw event.buildException(String.format("Failed expression %s: %s", source, Helpers.resolveThrowableException(ex)), ex);
         }
@@ -590,7 +588,7 @@ public class Expression {
             value = ipCompare(arg1, arg2);
             break;
         default:
-            value = false;
+            value = arg1.equals(arg2);
         }
         return "==".equals(operator) == value;
     }

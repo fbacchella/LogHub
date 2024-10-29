@@ -1,26 +1,31 @@
 package loghub.groovy;
 
-import groovy.lang.DelegatingMetaClass;
 import groovy.lang.MetaClass;
 import loghub.Expression;
 
 /**
  * This wrapper object can be called when doing comparison of a collection
  */
-public class ObjectMetaClass extends DelegatingMetaClass {
+public class ObjectMetaClass extends LoghubMetaClass<Object> {
+
     public ObjectMetaClass(MetaClass delegate) {
         super(delegate);
     }
 
     @Override
-    public Object invokeMethod(Object object, String methodName, Object[] arguments) {
-        if (GroovyMethods.EQUALS.groovyMethod.equals(methodName) && arguments.length == 1) {
-            return Expression.compare("==", object, arguments[0]);
-        } else if (GroovyMethods.COMPARE_TO.groovyMethod.equals(methodName) && arguments.length == 1) {
-            return Expression.compare("<=>", object, arguments[0]);
+    protected Object callMethod(Object object, GroovyMethods method, Object argument) {
+        if (GroovyMethods.EQUALS ==  method) {
+            return Expression.compare("==", object, argument);
+        } else if (GroovyMethods.COMPARE_TO == method) {
+            return Expression.compare("<=>", object, argument);
         } else {
-            return super.invokeMethod(object, methodName, arguments);
+            return superInvokeMethod(object, method.groovyMethod, new Object[]{argument});
         }
+    }
+
+    @Override
+    protected boolean isHandledClass(Object o) {
+        return true;
     }
 
 }

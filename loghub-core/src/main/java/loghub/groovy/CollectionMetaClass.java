@@ -3,14 +3,12 @@ package loghub.groovy;
 import java.lang.reflect.Array;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Consumer;
-import java.util.stream.Collectors;
 
 import groovy.lang.MetaClass;
 
@@ -79,7 +77,7 @@ public class CollectionMetaClass extends LoghubMetaClass<CollectionMetaClass.Ite
         if (method == GroovyMethods.PLUS) {
             try {
                 Collection<Object> c;
-                // Explicited test because List.of() return a class with no public constructor
+                // Explicit test because List.of() return a class with no public constructor
                 if (handler.collection instanceof List || handler.array != null) {
                     c = new ArrayList<>();
                 } else if (handler.collection instanceof Set) {

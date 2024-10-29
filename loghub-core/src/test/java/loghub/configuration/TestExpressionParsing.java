@@ -60,7 +60,7 @@ public class TestExpressionParsing {
     public static void configure() {
         Tools.configure();
         Logger logger = LogManager.getLogger();
-        LogUtils.setLevel(logger, Level.TRACE, "loghub.configuration", "loghub.Expression", "loghub.VarFormatter");
+        LogUtils.setLevel(logger, Level.TRACE, "loghub.configuration", "loghub.Expression", "loghub.VarFormatter", "loghub.groovy");
     }
 
     @Test
@@ -271,8 +271,10 @@ public class TestExpressionParsing {
                 "!0", true,
                 "!true", false,
                 "!false", true,
-               "(java.lang.Integer) 1", 1,
+                "(java.lang.Integer) 1", 1,
                 "(java.net.InetAddress) \"127.0.0.1\"", InetAddress.getByName("127.0.0.1"),
+                "(loghub.types.MacAddress)\"01:02:03:04:05:06\" == (loghub.types.MacAddress)\"01-02-03-04-05-06\"", true,
+                "(loghub.types.MacAddress)\"01:02:03:04:05:06\" + (loghub.types.MacAddress)\"01-02-03-04-05-06\"", IgnoredEventException.class,
         };
         enumerateExpressions(ev, tryExpression);
     }
@@ -536,6 +538,7 @@ public class TestExpressionParsing {
         Event ev = factory.newEvent();
         ev.put("a", new Integer[] {1, 2, 3});
         ev.put("b", new int[] {4, 5, 6});
+        @SuppressWarnings("unchecked")
         List<Object> i = (List<Object>) Tools.evalExpression("[a] + [b]", ev);
         Assert.assertEquals(List.of(1, 2, 3, 4, 5, 6), i);
     }
@@ -551,7 +554,7 @@ public class TestExpressionParsing {
     }
 
     @Test
-    public void testArrayMixed() throws ProcessorException, UnknownHostException {
+    public void testArrayMixed() throws ProcessorException {
         Event ev = factory.newEvent();
         ev.put("a", new Integer[] {1, 2, 3});
         ev.put("b", List.of(4, 5, 6));

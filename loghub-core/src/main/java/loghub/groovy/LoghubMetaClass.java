@@ -1,11 +1,18 @@
 package loghub.groovy;
 
+import java.util.Arrays;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import groovy.lang.DelegatingMetaClass;
 import groovy.lang.MetaClass;
 import loghub.IgnoredEventException;
 import loghub.NullOrMissingValue;
 
 public abstract class LoghubMetaClass<T> extends DelegatingMetaClass {
+
+    private static final Logger logger = LogManager.getLogger();
 
     protected LoghubMetaClass(MetaClass theClass) {
         super(theClass);
@@ -34,14 +41,29 @@ public abstract class LoghubMetaClass<T> extends DelegatingMetaClass {
 
     @Override
     public Object invokeMethod(Object object, String methodName, Object[] arguments) {
-        GroovyMethods method = GroovyMethods.resolveSymbol(methodName);
+        GroovyMethods method = GroovyMethods.resolveGroovyName(methodName);
         if (isHandledClass(object) && arguments.length == 1) {
             return invokeTypedMethod(object, method, arguments[0]);
         } else if (isHandledClass(object) && arguments.length == 0) {
             return invokeTypedMethod(object, method);
         } else {
-            assert false: String.format("Unhandled invoke %s %s: %d", object.getClass(), methodName, arguments.length);
+            logger.info("Unhandled invoke {} {}: {}", object::getClass, () -> methodName, () -> arguments.length);
+            assert false: String.format("Unhandled invoke %s %s %s", object.getClass(), methodName, Arrays.toString(arguments));
             return super.invokeMethod(object, methodName, arguments);
+        }
+    }
+
+    public Object superInvokeMethod(Object object, String methodName, Object[] arguments) {
+        try {
+            return super.invokeMethod(object, methodName, arguments);
+        } catch (RuntimeException ex) {
+            // log4j2 unable to handle correctly exception with no stack
+            logger.atDebug()
+                  .withThrowable(ex).log(
+                      "Unhandled operation {} {} {}{}",
+                      object::getClass, () -> methodName, () -> Arrays.toString(arguments), () -> ex.getStackTrace().length == 0 ? "\n    " : ""
+            );
+            throw IgnoredEventException.INSTANCE;
         }
     }
 
@@ -58,12 +80,14 @@ public abstract class LoghubMetaClass<T> extends DelegatingMetaClass {
     }
 
     protected Object invokeMethod(Object object, GroovyMethods method, Object argument) {
+        logger.info("Unhandled invoke {} {} {}", object::getClass, () -> method.groovyMethod, () -> argument);
         assert false: String.format("Unhandled invoke %s %s: %s", object.getClass(), method, argument.getClass());
         return super.invokeMethod(object, method.groovyMethod, new Object[] { argument });
     }
 
     protected Object invokeMethod(Object object, GroovyMethods method) {
-        assert false: String.format("Unhandled invoke %s %s: %d", object.getClass(), method);
+        logger.info("Unhandled invoke {} {}", object::getClass, () -> method.groovyMethod);
+        assert false: String.format("Unhandled invoke %s %s", object.getClass(), method);
         return super.invokeMethod(object, method.groovyMethod, new Object[] { });
     }
 
