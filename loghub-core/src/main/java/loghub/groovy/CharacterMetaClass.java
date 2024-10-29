@@ -10,13 +10,7 @@ public class CharacterMetaClass extends LoghubMetaClass<Character> {
 
     @Override
     public Object callMethod(Character object, GroovyMethods method, Object argument) {
-        if (GroovyMethods.COMPARE_TO == method) {
-            if (argument instanceof CharSequence) {
-                return object.toString().compareTo((argument.toString()));
-            } else {
-                return false;
-            }
-        } else if (GroovyMethods.PLUS == method){
+        if (GroovyMethods.PLUS == method) {
             return object.toString() + argument.toString();
         } else {
             return invokeMethod(object, method, argument);

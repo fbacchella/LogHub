@@ -551,7 +551,7 @@ public class TestExpressionParsing {
     }
 
     @Test
-    public void testArrayMixed() throws ProcessorException {
+    public void testArrayMixed() throws ProcessorException, UnknownHostException {
         Event ev = factory.newEvent();
         ev.put("a", new Integer[] {1, 2, 3});
         ev.put("b", List.of(4, 5, 6));
@@ -570,6 +570,8 @@ public class TestExpressionParsing {
         Assert.assertEquals(true, Tools.evalExpression("[a] == [d]", ev));
         Assert.assertEquals(true, Tools.evalExpression("[a] == [e]", ev));
         Assert.assertEquals(true, Tools.evalExpression("[a] == [f]", ev));
+        Assert.assertEquals(true, Tools.evalExpression("list((java.net.InetAddress)\"8.8.8.8\") == list((java.net.InetAddress)\"8.8.8.8\")", ev));
+        Assert.assertEquals(true, Tools.evalExpression("list('c') == list('c')", ev));
     }
 
     @Test

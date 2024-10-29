@@ -63,9 +63,6 @@ public class NumberMetaClass extends LoghubMetaClass<Number> {
                     }
                 }
                 break;
-            case COMPARE_TO:
-                value = NumberMath.compareTo(arg1, arg2);
-                break;
             default:
                 return invokeMethod(arg1, method, argument);
             }
@@ -84,8 +81,6 @@ public class NumberMetaClass extends LoghubMetaClass<Number> {
                 }
             }
             return value;
-        } else if (method == GroovyMethods.COMPARE_TO) {
-            return false;
         } else if (method == GroovyMethods.PLUS && argument instanceof CharSequence){
             return arg1.toString() + argument;
         } else {

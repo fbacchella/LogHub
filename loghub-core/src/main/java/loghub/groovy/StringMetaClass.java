@@ -10,16 +10,9 @@ public class StringMetaClass extends LoghubMetaClass<CharSequence> {
 
     @Override
     protected Object callMethod(CharSequence object, GroovyMethods method, Object argument) {
-        switch (method) {
-        case COMPARE_TO:
-            if (argument instanceof CharSequence) {
-                return object.toString().compareTo(argument.toString());
-            } else {
-                return false;
-            }
-        case PLUS:
+        if (method == GroovyMethods.PLUS) {
             return object.toString() + argument.toString();
-        default:
+        } else {
             return invokeMethod(object, method, argument);
         }
     }

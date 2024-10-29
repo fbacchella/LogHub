@@ -634,7 +634,9 @@ public class Expression {
     }
 
     private static boolean ipCompare(Object arg1, Object arg2) {
-        if (arg1 instanceof InetAddress && arg2 instanceof InetAddress[]) {
+        if (arg1 instanceof InetAddress && arg2 instanceof InetAddress) {
+            return arg1.equals(arg2);
+        } else if (arg1 instanceof InetAddress && arg2 instanceof InetAddress[]) {
             InetAddress ip1 = (InetAddress) arg1;
             InetAddress[] ip2 = (InetAddress[]) arg2;
             return Arrays.asList(ip2).contains(ip1);

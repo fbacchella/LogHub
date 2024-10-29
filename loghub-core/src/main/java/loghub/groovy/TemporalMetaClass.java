@@ -31,8 +31,6 @@ public class TemporalMetaClass extends LoghubMetaClass<Temporal> {
             }
         } else if (GroovyMethods.MINUS == method) {
             throw IgnoredEventException.INSTANCE;
-        } else if (GroovyMethods.COMPARE_TO == method){
-            return false;
         } else {
             return invokeMethod(arg1, method, argument);
         }
