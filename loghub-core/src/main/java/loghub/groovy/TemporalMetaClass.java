@@ -15,7 +15,7 @@ public class TemporalMetaClass extends LoghubMetaClass<Temporal> {
     }
 
     @Override
-    protected Object invokeTypedMethod(Temporal arg1, GroovyMethods method, Object argument) {
+    protected Object callMethod(Temporal arg1, GroovyMethods method, Object argument) {
         Temporal arg2 = convertArgument(argument);
         if ((GroovyMethods.MINUS == method || GroovyMethods.COMPARE_TO == method) && arg1 != null && arg2 != null) {
             Duration d;

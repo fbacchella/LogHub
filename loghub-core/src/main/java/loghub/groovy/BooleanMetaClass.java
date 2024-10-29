@@ -9,7 +9,7 @@ public class BooleanMetaClass extends LoghubMetaClass<Boolean> {
     }
 
     @Override
-    protected Object invokeTypedMethod(Boolean arg1, GroovyMethods method, Object argument) {
+    protected Object callMethod(Boolean arg1, GroovyMethods method, Object argument) {
         boolean arg2 = convertArgument(argument);
         boolean value;
         switch (method) {

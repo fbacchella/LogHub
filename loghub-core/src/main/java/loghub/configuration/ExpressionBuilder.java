@@ -10,6 +10,7 @@ import loghub.Expression;
 import loghub.ProcessorException;
 import loghub.VarFormatter;
 import loghub.VariablePath;
+import loghub.groovy.GroovyMethods;
 import lombok.Getter;
 
 class ExpressionBuilder {
@@ -114,7 +115,7 @@ class ExpressionBuilder {
     public static ExpressionBuilder of(ExpressionBuilder pre, String op, ExpressionBuilder post) {
         Expression.ExpressionLambda l1 = pre.asLambda();
         Expression.ExpressionLambda l2 = post.asLambda();
-        Expression.ExpressionLambda lambda = ed -> Expression.groovyOperator(op, l1.apply(ed), l2.apply(ed));
+        Expression.ExpressionLambda lambda = ed -> Expression.groovyOperator(GroovyMethods.resolveSymbol(op), l1.apply(ed), l2.apply(ed));
         if (pre.type == ExpressionType.LITERAL && post.type == ExpressionType.LITERAL) {
             return evalStatic(lambda);
         } else {

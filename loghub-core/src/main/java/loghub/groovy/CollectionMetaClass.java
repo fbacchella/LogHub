@@ -75,7 +75,7 @@ public class CollectionMetaClass extends LoghubMetaClass<CollectionMetaClass.Ite
 
     @SuppressWarnings("unchecked")
     @Override
-    protected Object invokeTypedMethod(IterableHandler handler, GroovyMethods method, Object argument) {
+    protected Object callMethod(IterableHandler handler, GroovyMethods method, Object argument) {
         if (method == GroovyMethods.PLUS) {
             try {
                 Collection<Object> c;

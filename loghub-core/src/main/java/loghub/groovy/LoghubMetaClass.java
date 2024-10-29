@@ -11,9 +11,9 @@ public abstract class LoghubMetaClass<T> extends DelegatingMetaClass {
         super(theClass);
     }
 
-    protected abstract Object invokeTypedMethod(T object, GroovyMethods method, Object argument);
+    protected abstract Object callMethod(T object, GroovyMethods method, Object argument);
 
-    protected Object invokeTypedMethod(T object, GroovyMethods method) {
+    protected Object callMethod(T object, GroovyMethods method) {
         return invokeMethod(object, method);
     }
 
@@ -35,16 +35,26 @@ public abstract class LoghubMetaClass<T> extends DelegatingMetaClass {
     @Override
     public Object invokeMethod(Object object, String methodName, Object[] arguments) {
         GroovyMethods method = GroovyMethods.resolveSymbol(methodName);
-        if (arguments.length == 1 && arguments[0] instanceof NullOrMissingValue) {
-            return handleNullOrMissing(method);
-        } else if (isHandledClass(object) && arguments.length == 1) {
-            return invokeTypedMethod(convertArgument(object), method, arguments[0]);
+        if (isHandledClass(object) && arguments.length == 1) {
+            return invokeTypedMethod(object, method, arguments[0]);
         } else if (isHandledClass(object) && arguments.length == 0) {
-            return invokeTypedMethod(convertArgument(object), method);
+            return invokeTypedMethod(object, method);
         } else {
             assert false: String.format("Unhandled invoke %s %s: %d", object.getClass(), methodName, arguments.length);
             return super.invokeMethod(object, methodName, arguments);
         }
+    }
+
+    public Object invokeTypedMethod(Object object, GroovyMethods method, Object argument) {
+        if (argument instanceof NullOrMissingValue) {
+            return handleNullOrMissing(method);
+        } else {
+            return callMethod(convertArgument(object), method, argument);
+        }
+    }
+
+    public Object invokeTypedMethod(Object object, GroovyMethods method) {
+        return callMethod(convertArgument(object), method);
     }
 
     protected Object invokeMethod(Object object, GroovyMethods method, Object argument) {

@@ -90,6 +90,7 @@ import loghub.RouteParser.ForeachContext;
 import loghub.VarFormatter;
 import loghub.VariablePath;
 import loghub.events.Event;
+import loghub.groovy.GroovyMethods;
 import loghub.processors.AnonymousSubPipeline;
 import loghub.processors.Drop;
 import loghub.processors.Etl;
@@ -1086,7 +1087,7 @@ class ConfigListener extends RouteBaseListener {
         } else if (ctx.opnotbinary != null) {
             // '.~'
             ExpressionBuilder post = stack.popTyped();
-            expression = ExpressionBuilder.of(post, o -> Expression.groovyOperator("~", o)).setDeepCopy(false);
+            expression = ExpressionBuilder.of(post, o -> Expression.groovyOperator(GroovyMethods.BITWISE_NEGATE, o)).setDeepCopy(false);
         } else if (ctx.op3 != null) {
             // '+'|'-'
             ExpressionBuilder post = stack.popTyped();

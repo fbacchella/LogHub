@@ -9,7 +9,7 @@ public class CharacterMetaClass extends LoghubMetaClass<Character> {
     }
 
     @Override
-    public Object invokeTypedMethod(Character object, GroovyMethods method, Object argument) {
+    public Object callMethod(Character object, GroovyMethods method, Object argument) {
         if (GroovyMethods.COMPARE_TO == method) {
             if (argument instanceof CharSequence) {
                 return object.toString().compareTo((argument.toString()));

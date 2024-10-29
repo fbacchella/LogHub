@@ -14,7 +14,7 @@ public class NumberMetaClass extends LoghubMetaClass<Number> {
     }
 
     @Override
-    public Object invokeTypedMethod(Number arg1, GroovyMethods method, Object argument) {
+    public Object callMethod(Number arg1, GroovyMethods method, Object argument) {
         if (argument instanceof Number) {
             Number arg2 = (Number) argument;
             Number value;
@@ -94,7 +94,7 @@ public class NumberMetaClass extends LoghubMetaClass<Number> {
     }
 
     @Override
-    public Object invokeTypedMethod(Number object, GroovyMethods method) {
+    public Object callMethod(Number object, GroovyMethods method) {
         if (method == GroovyMethods.BITWISE_NEGATE) {
             return NumberMath.bitwiseNegate(object);
         } else {

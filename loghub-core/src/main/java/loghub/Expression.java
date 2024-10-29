@@ -48,6 +48,8 @@ import loghub.events.Event;
 import loghub.groovy.BooleanMetaClass;
 import loghub.groovy.CharacterMetaClass;
 import loghub.groovy.CollectionMetaClass;
+import loghub.groovy.GroovyMethods;
+import loghub.groovy.LoghubMetaClass;
 import loghub.groovy.NumberMetaClass;
 import loghub.groovy.ObjectMetaClass;
 import loghub.groovy.StringMetaClass;
@@ -756,21 +758,21 @@ public class Expression {
         }
     }
 
-    public static Object groovyOperator(String operator, Object arg1) {
+    public static Object groovyOperator(GroovyMethods operator, Object arg1) {
         arg1 = nullfilter(arg1);
         if (arg1 instanceof NullOrMissingValue) {
             throw IgnoredEventException.INSTANCE;
         }
-        MetaClass mc = registry.getMetaClass(arg1.getClass());
-        return mc.invokeMethod(arg1, operator, new Object[]{});
+        LoghubMetaClass<?> mc = (LoghubMetaClass<?>) registry.getMetaClass(arg1.getClass());
+        return mc.invokeTypedMethod(arg1, operator);
     }
 
-    public static Object groovyOperator(String operator, Object arg1, Object arg2) {
+    public static Object groovyOperator(GroovyMethods operator, Object arg1, Object arg2) {
         if (arg1 instanceof NullOrMissingValue) {
             throw IgnoredEventException.INSTANCE;
         }
-        MetaClass mc = registry.getMetaClass(arg1.getClass());
-        return mc.invokeMethod(arg1, operator, new Object[]{arg2});
+        LoghubMetaClass<?> mc = (LoghubMetaClass<?>) registry.getMetaClass(arg1.getClass());
+        return mc.invokeTypedMethod(arg1, operator, arg2);
     }
 
     @SuppressWarnings("unchecked")
