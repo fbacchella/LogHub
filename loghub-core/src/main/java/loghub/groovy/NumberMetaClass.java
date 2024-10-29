@@ -85,7 +85,9 @@ public class NumberMetaClass extends LoghubMetaClass<Number> {
             }
             return value;
         } else if (method == GroovyMethods.COMPARE_TO) {
-            throw new ClassCastException(argument + " not a number");
+            return false;
+        } else if (method == GroovyMethods.PLUS && argument instanceof CharSequence){
+            return arg1.toString() + argument;
         } else {
             return invokeMethod(arg1, method, argument);
         }

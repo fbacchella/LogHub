@@ -86,8 +86,7 @@ public class TestMap {
         ev.put("a", new Object[]{1, 2, 3});
         runTest(conf, ev);
         Assert.assertEquals(1, ev.size());
-        Object[] a = (Object[]) ev.get("a");
-        Assert.assertArrayEquals(new Object[]{1, 2, 3, 1}, a);
+        Assert.assertEquals(List.of(1, 2, 3, 1), ev.get("a"));
     }
 
 }

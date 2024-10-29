@@ -5,7 +5,7 @@ import java.util.Map;
 
 public enum GroovyMethods {
 
-    COMPARE_TO("compareTo", null),
+    COMPARE_TO("compareTo", "compareTo"),
     DIV("div", "/"),
     MULTIPLY("multiply", "*"),
     XOR("xor", "^"),

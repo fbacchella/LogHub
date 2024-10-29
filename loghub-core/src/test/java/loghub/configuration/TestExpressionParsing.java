@@ -330,6 +330,7 @@ public class TestExpressionParsing {
                 "[c] == [d]", false,
                 "[d] == [a]", false,
                 "[d] == [b]", false,
+                "[d] == [c]", false,
                 "[d] == [c]", false
         };
         enumerateExpressions(ev, tryExpression);
@@ -534,9 +535,9 @@ public class TestExpressionParsing {
     public void testArrayJoin() throws ProcessorException {
         Event ev = factory.newEvent();
         ev.put("a", new Integer[] {1, 2, 3});
-        ev.put("b", new Integer[] {4, 5, 6});
-        Object[] i = (Object[]) Tools.evalExpression("[a] + [b]", ev);
-        Assert.assertArrayEquals(new Integer[]{1, 2, 3, 4, 5, 6}, i);
+        ev.put("b", new int[] {4, 5, 6});
+        List<Object> i = (List<Object>) Tools.evalExpression("[a] + [b]", ev);
+        Assert.assertEquals(List.of(1, 2, 3, 4, 5, 6), i);
     }
 
     @Test
@@ -555,11 +556,20 @@ public class TestExpressionParsing {
         ev.put("a", new Integer[] {1, 2, 3});
         ev.put("b", List.of(4, 5, 6));
         ev.put("c", new LinkedHashSet<>(List.of(7, 8, 9)));
-        Object[] i = (Object[]) Tools.evalExpression("[a] + [b] + [c]", ev);
-        Assert.assertArrayEquals(new Integer[]{1, 2, 3, 4, 5, 6, 7, 8, 9}, i);
-        // Check by starting with an immutable list and no public constructor
-        Object i2 = Tools.evalExpression("[b] + [c]", ev);
-        Assert.assertEquals(List.of(4, 5, 6, 7, 8, 9), i2);
+        ev.put("d", List.of(1, 2, 3));
+        ev.put("e", new int[] {1, 2, 3});
+        ev.put("f", new ArrayList<>(List.of(1, 2, 3)));
+        Assert.assertEquals(List.of(1, 2, 3, 4, 5, 6, 7, 8, 9), Tools.evalExpression("[a] + [b] + [c]", ev));
+        Assert.assertEquals(List.of(4, 5, 6, 7, 8, 9), Tools.evalExpression("[b] + [c]", ev));
+        Assert.assertEquals(Set.of(7, 8, 9, 4, 5, 6), Tools.evalExpression("[c] + [b]", ev));
+        Assert.assertEquals(List.of(1, 2, 3, 1, 2, 3), Tools.evalExpression("[a] + [d]", ev));
+        Assert.assertEquals(List.of(true, false, true), Tools.evalExpression("list(true, false) + set(true)", ev));
+        Assert.assertEquals(List.of('a', 'b', 'c'), Tools.evalExpression("list('a', 'b') + set('c')", ev));
+        Assert.assertEquals(List.of(1, 2, 3, 4), Tools.evalExpression("list(1, 2) + 3 + 4", ev));
+        Assert.assertEquals(Set.of(1, 2), Tools.evalExpression("set(1, 2) + 1 + 2", ev));
+        Assert.assertEquals(true, Tools.evalExpression("[a] == [d]", ev));
+        Assert.assertEquals(true, Tools.evalExpression("[a] == [e]", ev));
+        Assert.assertEquals(true, Tools.evalExpression("[a] == [f]", ev));
     }
 
     @Test

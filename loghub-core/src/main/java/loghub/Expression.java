@@ -92,6 +92,8 @@ public class Expression {
                     return doCreate(Collection.class, theClass);
                 } else if (CharSequence.class.isAssignableFrom(theClass)) {
                     return doCreate(CharSequence.class, theClass);
+                } else if (theClass.isArray()) {
+                    return doCreate(Collection.class, theClass);
                 } else {
                     logger.debug("Creating unhandled MetaClass {}", theClass::getName);
                     return doCreate(Object.class, theClass);
@@ -483,55 +485,148 @@ public class Expression {
         }
     }
 
+    private enum ComparaisonClass {
+        NULL,
+        STRING,
+        DATE,
+        IP_ADDRESS,
+        NUMBER,
+        COLLECTION,
+        COMPARABLE,
+        OTHER;
+        private static ComparaisonClass resolve(Object o) {
+            if (o == null || o == NullOrMissingValue.NULL){
+                return NULL;
+            } else if (o instanceof CharSequence) {
+                return STRING;
+            } else if (o instanceof Date || o instanceof TemporalAccessor) {
+                return DATE;
+            } else if (o instanceof InetAddress || o instanceof InetAddress[]) {
+                return IP_ADDRESS;
+            } else if (o instanceof Collection || o.getClass().isArray()) {
+                return COLLECTION;
+            } else if (o instanceof Number) {
+                return NUMBER;
+            } else if (o instanceof Comparable) {
+                return COMPARABLE;
+            } else {
+                return OTHER;
+            }
+        }
+    }
+
     public static Object compare(String operator, Object arg1, Object arg2) {
-        arg1 = nullfilter(arg1);
-        arg2 = protect(operator, arg2);
-        // Detect if comparing an IP with a String, try to compare both as InetAddress
-        arg2 = checkStringIp(arg1, arg2);
-        arg1 = checkStringIp(arg2, arg1);
-        boolean dateCompare = (arg1 instanceof Date || arg1 instanceof TemporalAccessor) &&
-                              (arg2 instanceof Date || arg2 instanceof TemporalAccessor);
-        boolean ipCompare = (arg1 instanceof InetAddress || arg1 instanceof InetAddress[]) &&
-                            (arg2 instanceof InetAddress || arg2 instanceof InetAddress[]);
         if (arg2 == ANYVALUE) {
             return ((arg1 != NullOrMissingValue.MISSING) ^ "!=".equals(operator));
         } else if ((arg1 == NullOrMissingValue.MISSING || arg2 == NullOrMissingValue.MISSING) &&
-                                                         ("==".equals(operator) || "===".equals(operator))) {
+                           ("==".equals(operator) || "===".equals(operator))) {
             return false;
         } else if ((arg1 == NullOrMissingValue.MISSING || arg2 == NullOrMissingValue.MISSING)) {
             throw IgnoredEventException.INSTANCE;
-        } else if ("==".equals(operator) && ipCompare) {
-            return ipCompare(arg1, arg2);
-        } else if ("==".equals(operator) && !dateCompare) {
-            return arg1.equals(arg2);
-        } else if ("!=".equals(operator) && !dateCompare) {
-            return ! arg1.equals(arg2);
-        } else if ("===".equals(operator) && !dateCompare) {
-            return System.identityHashCode(arg1) == System.identityHashCode(arg2);
-        } else if ("!==".equals(operator) && !dateCompare) {
-            return System.identityHashCode(arg1) != System.identityHashCode(arg2);
-        } else if (dateCompare || (arg1 instanceof Comparable && arg2 instanceof Comparable)){
-            int compare = compareObjects(arg1, arg2);
+        } else if ("!==".equals(operator) || "===".equals(operator)) {
             switch (operator) {
-            case "==":
-                return compare == 0;
-            case "!=":
-                return compare != 0;
-            case "<":
-                return compare < 0;
-            case ">":
-                return compare > 0;
-            case ">=":
-                return compare >= 0;
-            case "<=":
-                return compare <= 0;
-            case "<=>":
-                return compare;
+            case "===":
+                return arg1 == arg2;
+            case "!==":
+                return arg1 != arg2;
             default:
-                assert false : operator;
                 throw IgnoredEventException.INSTANCE;
             }
         } else {
+            arg1 = nullfilter(arg1);
+            arg2 = protect(operator, arg2);
+            // Detect if comparing an IP with a String, try to compare both as InetAddress
+            arg2 = checkStringIp(arg1, arg2);
+            arg1 = checkStringIp(arg2, arg1);
+            ComparaisonClass arg1Class = ComparaisonClass.resolve(arg1);
+            ComparaisonClass arg2Class = ComparaisonClass.resolve(arg2);
+            if (arg1Class == ComparaisonClass.STRING && arg2Class == ComparaisonClass.NUMBER) {
+                arg2Class = ComparaisonClass.STRING;
+            }
+            if (arg2Class == ComparaisonClass.STRING && arg1Class == ComparaisonClass.NUMBER) {
+                arg1Class = ComparaisonClass.STRING;
+            }
+            if (arg1Class != arg2Class) {
+                switch (operator) {
+                case "==":
+                    return false;
+                case "!=":
+                    return true;
+                default:
+                    throw IgnoredEventException.INSTANCE;
+                }
+            } else if ("==".equals(operator) || "!=".equals(operator)) {
+                return compareBoolean(operator, arg1Class, arg1, arg2);
+            } else {
+                return compareOrdered(operator, arg1Class, arg1, arg2);
+            }
+        }
+    }
+
+    private static boolean compareBoolean(String operator, ComparaisonClass argClass, Object arg1, Object arg2) {
+        boolean value;
+        switch (argClass) {
+        case NULL:
+            value = true;
+            break;
+        case STRING:
+            value = arg1.toString().equals(arg2.toString());
+            break;
+        case DATE:
+            value = dateCompare(arg1, arg2) == 0;
+            break;
+        case NUMBER:
+            value = numberCompare(arg1, arg2) == 0;
+            break;
+        case COLLECTION:
+            value = DefaultTypeTransformation.compareEqual(arg1, arg2);
+            break;
+        case COMPARABLE:
+            value = compareComparable(arg1, arg2) == 0;
+            break;
+        case IP_ADDRESS:
+            value = ipCompare(arg1, arg2);
+            break;
+        default:
+            value = false;
+        }
+        return "==".equals(operator) == value;
+    }
+
+    private static Object compareOrdered(String operator, ComparaisonClass argClass, Object arg1, Object arg2) {
+        int compare;
+        switch (argClass) {
+        case NULL:
+            compare = 0;
+            break;
+        case DATE:
+            compare = dateCompare(arg1, arg2);
+            break;
+        case NUMBER:
+            compare = numberCompare(arg1, arg2);
+            break;
+        case STRING:
+            compare = Helpers.NATURALSORTSTRING.compare(arg1.toString(), arg2.toString());
+            break;
+        case COMPARABLE:
+            compare = compareComparable(arg1, arg2);
+            break;
+        default:
+            throw IgnoredEventException.INSTANCE;
+        }
+        switch (operator) {
+        case "<":
+            return compare < 0;
+        case ">":
+            return compare > 0;
+        case ">=":
+            return compare >= 0;
+        case "<=":
+            return compare <= 0;
+        case "<=>":
+            return compare;
+        default:
+            assert false : operator;
             throw IgnoredEventException.INSTANCE;
         }
     }
@@ -556,10 +651,8 @@ public class Expression {
         }
     }
 
-    private static int compareObjects(Object arg1, Object arg2) {
-        if (arg1 instanceof Number && arg2 instanceof Number) {
-            return NumberMath.compareTo((Number)arg1, (Number)arg2);
-        } else if (arg1 instanceof Date && arg2 instanceof TemporalAccessor) {
+    private static int dateCompare(Object arg1, Object arg2) {
+        if (arg1 instanceof Date && arg2 instanceof TemporalAccessor) {
             try {
                 long t1 = ((Date)arg1).getTime();
                 long t2 = Instant.from((TemporalAccessor)arg2).toEpochMilli();
@@ -584,24 +677,44 @@ public class Expression {
             } catch (DateTimeException e) {
                 throw IgnoredEventException.INSTANCE;
             }
-        } else if (arg1 instanceof Comparable && arg1.getClass().isAssignableFrom(arg2.getClass())) {
-            try {
-                @SuppressWarnings({ "unchecked", "rawtypes" })
-                int compare = ((Comparable)arg1).compareTo(arg2);
-                return compare;
-            } catch (ClassCastException ex1) {
-                try {
-                    // Perhaps groovy is smarter
-                    return DefaultTypeTransformation.compareTo(arg1, arg2);
-                } catch (Exception ex2) {
-                    throw IgnoredEventException.INSTANCE;
-                }
-            }
+        } else if (arg1 instanceof Date && arg2 instanceof Date) {
+            return ((Date) arg1).compareTo((Date) arg2);
         } else {
+            assert false : "Not reachable";
+            throw IgnoredEventException.INSTANCE;
+        }
+    }
+
+    private static int numberCompare(Object arg1, Object arg2) {
+        if (arg1 instanceof Number && arg2 instanceof Number) {
+            return NumberMath.compareTo((Number)arg1, (Number)arg2);
+        } else {
+            assert false : "not reachable";
+            throw IgnoredEventException.INSTANCE;
+        }
+    }
+
+    private static int compareComparable(Object arg1, Object arg2) {
+        if (arg1 instanceof Comparable && arg1.getClass().isAssignableFrom(arg2.getClass())) {
+            return doComparableComparison(arg1, arg2);
+        } else if (arg2 instanceof Comparable && arg2.getClass().isAssignableFrom(arg1.getClass())) {
+            return doComparableComparison(arg2, arg1) * -1;
+        } else {
+            assert false : "not reachable";
+            throw IgnoredEventException.INSTANCE;
+        }
+    }
+
+    private static int doComparableComparison(Object c1, Object c2) {
+        try {
+            @SuppressWarnings({ "unchecked", "rawtypes" })
+            int value = ((Comparable)c1).compareTo(c2);
+            return value;
+        } catch (ClassCastException ex1) {
             try {
-                //Used as the last hope, it's very slow
-                return DefaultTypeTransformation.compareTo(arg1, arg2);
-            } catch (Exception e) {
+                // Perhaps groovy is smarter
+                return DefaultTypeTransformation.compareTo(c1, c2);
+            } catch (Exception ex2) {
                 throw IgnoredEventException.INSTANCE;
             }
         }

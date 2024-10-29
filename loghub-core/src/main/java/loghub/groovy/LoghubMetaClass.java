@@ -42,15 +42,18 @@ public abstract class LoghubMetaClass<T> extends DelegatingMetaClass {
         } else if (isHandledClass(object) && arguments.length == 0) {
             return invokeTypedMethod(convertArgument(object), method);
         } else {
+            assert false: String.format("Unhandled invoke %s %s: %d", object.getClass(), methodName, arguments.length);
             return super.invokeMethod(object, methodName, arguments);
         }
     }
 
     protected Object invokeMethod(Object object, GroovyMethods method, Object argument) {
+        assert false: String.format("Unhandled invoke %s %s: %s", object.getClass(), method, argument.getClass());
         return super.invokeMethod(object, method.groovyMethod, new Object[] { argument });
     }
 
     protected Object invokeMethod(Object object, GroovyMethods method) {
+        assert false: String.format("Unhandled invoke %s %s: %d", object.getClass(), method);
         return super.invokeMethod(object, method.groovyMethod, new Object[] { });
     }
 
