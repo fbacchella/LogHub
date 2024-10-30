@@ -28,8 +28,8 @@ public interface ReceiverMBean {
         private final Meter failed;
         private final Meter blocked;
         private final Meter exception;
-        private final Receiver r;
-        public Implementation(Receiver r)
+        private final Receiver<?, ?> r;
+        public Implementation(Receiver<?, ?> r)
                         throws NotCompliantMBeanException {
             super(ReceiverMBean.class);
             Object metricidentity = r != null ? r : Receiver.class;

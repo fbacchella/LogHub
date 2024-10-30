@@ -144,7 +144,7 @@ public final class Stats {
     private static String getMetricName(Object key, String name) {
         StringBuilder buffer = new StringBuilder();
         if (key instanceof Receiver) {
-            Receiver r = (Receiver) key;
+            Receiver<?, ?> r = (Receiver<?, ?>) key;
             buffer.append("Receivers.");
             buffer.append(r.getReceiverName());
             buffer.append(".");
@@ -192,34 +192,34 @@ public final class Stats {
     |* Handling receivers events *|
     \*****************************/
 
-    public static void newReceivedEvent(Receiver r) {
+    public static void newReceivedEvent(Receiver<?, ?> r) {
         getMetric(Meter.class, r, METRIC_RECEIVER_COUNT).mark();
         getMetric(Meter.class, Receiver.class, METRIC_RECEIVER_COUNT).mark();
     }
 
-    public static void newReceivedMessage(Receiver r, int bytes) {
+    public static void newReceivedMessage(Receiver<?, ?> r, int bytes) {
         getMetric(Meter.class, r, METRIC_RECEIVER_BYTES).mark(bytes);
         getMetric(Meter.class, Receiver.class, METRIC_RECEIVER_BYTES).mark(bytes);
     }
 
-    public static void newDecodError(Receiver r, String msg) {
+    public static void newDecodError(Receiver<?, ?> r, String msg) {
         getMetric(Meter.class, r, METRIC_RECEIVER_FAILEDDECODE).mark();
         getMetric(Meter.class, Receiver.class, METRIC_RECEIVER_FAILEDDECODE).mark();
         storeException(decodeMessage, msg);
     }
 
-    public static void newBlockedError(Receiver r) {
+    public static void newBlockedError(Receiver<?, ?> r) {
         getMetric(Meter.class, r, METRIC_RECEIVER_BLOCKED).mark();
         getMetric(Meter.class, Receiver.class, METRIC_RECEIVER_BLOCKED).mark();
     }
 
-    public static void newUnhandledException(Receiver receiver, Exception ex) {
+    public static void newUnhandledException(Receiver<?, ?> receiver, Exception ex) {
         getMetric(Meter.class, receiver, METRIC_RECEIVER_EXCEPTION).mark();
         getMetric(Meter.class, Receiver.class, METRIC_RECEIVER_EXCEPTION).mark();
         storeException(exceptions, ex);
     }
 
-    public static void newReceivedError(Receiver r, String msg) {
+    public static void newReceivedError(Receiver<?, ?> r, String msg) {
         getMetric(Meter.class, r, METRIC_RECEIVER_ERROR).mark();
         getMetric(Meter.class, Receiver.class, METRIC_RECEIVER_ERROR).mark();
         storeException(receiverMessages, msg);

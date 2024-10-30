@@ -57,7 +57,7 @@ class EventInstance extends Event {
                 throw new IllegalStateException();
             } else {
                 FastObjectInputStream fois = (FastObjectInputStream) input;
-                ConnectionContext ctx = (ConnectionContext) fois.readObjectFast();
+                ConnectionContext<?> ctx = (ConnectionContext<?>) fois.readObjectFast();
                 value = (EventInstance) fois.getFactory().newEvent(ctx);
                 value.timestamp = new Date(fois.readLong());
                 value.currentPipeline = fois.readUTF();

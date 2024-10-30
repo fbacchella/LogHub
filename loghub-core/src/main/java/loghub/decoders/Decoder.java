@@ -42,14 +42,14 @@ public abstract class Decoder {
 
     @Getter
     protected final String field;
-    private Receiver receiver;
+    private Receiver<?, ?> receiver;
 
     protected Decoder(Builder<?  extends Decoder> builder) {
         logger = LogManager.getLogger(stacklocator.getCallerClass(2));
         field = builder.field;
     }
 
-    public boolean configure(Properties properties, Receiver receiver) {
+    public boolean configure(Properties properties, Receiver<?, ?> receiver) {
         this.receiver = receiver;
         return true;
     }

@@ -34,7 +34,7 @@ public abstract class AbstractHttpSender extends Sender {
         try {
             @SuppressWarnings("unchecked")
             Class<AbstractHttpClientService> clientClass = (Class<AbstractHttpClientService>) getClassLoader().loadClass(builder.clientService);
-            AbstractHttpClientService.Builder clientBuilder = (AbstractHttpClientService.Builder) AbstractBuilder.resolve(clientClass);
+            AbstractHttpClientService.Builder<?> clientBuilder = (AbstractHttpClientService.Builder<?>) AbstractBuilder.resolve(clientClass);
             endpoints = Helpers.stringsToUri(builder.destinations, builder.port, builder.protocol, logger);
             clientBuilder.setTimeout(builder.timeout);
             clientBuilder.setUser(builder.user);

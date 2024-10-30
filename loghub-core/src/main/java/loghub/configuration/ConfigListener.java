@@ -140,9 +140,9 @@ class ConfigListener extends RouteBaseListener {
     }
 
     static final class Input {
-        final List<ObjectWrapped<Receiver>> receiver;
+        final List<ObjectWrapped<Receiver<?, ?>>> receiver;
         final String piperef;
-        Input(List<ObjectWrapped<Receiver>>receiver, String piperef) {
+        Input(List<ObjectWrapped<Receiver<?, ?>>>receiver, String piperef) {
             this.piperef = piperef;
             this.receiver = receiver;
         }
@@ -728,7 +728,7 @@ class ConfigListener extends RouteBaseListener {
             // if no pipe name given, events are sent to the main pipe
             piperef = new PipeRefName("main");
         }
-        List<ObjectWrapped<Receiver>> receivers = stack.popTyped();
+        List<ObjectWrapped<Receiver<?, ?>>> receivers = stack.popTyped();
         Input input = new Input(receivers, piperef.piperef);
         inputs.add(input);
         logger.debug("adding new input {}", input);

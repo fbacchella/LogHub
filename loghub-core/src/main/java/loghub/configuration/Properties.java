@@ -101,7 +101,7 @@ public class Properties extends HashMap<String, Object> {
     public final Map<String, Pipeline> namedPipeLine;
     public final Collection<Pipeline> pipelines;
     public final Map<String, Processor> identifiedProcessors;
-    public final Collection<Receiver> receivers;
+    public final Collection<Receiver<?, ?>> receivers;
     public final Collection<Sender> senders;
     public final Map<String, Source> sources;
     public final JmxService.Configuration jmxServiceConfiguration;
@@ -152,7 +152,7 @@ public class Properties extends HashMap<String, Object> {
 
         pipelines = properties.containsKey(PROPSNAMES.PIPELINES.toString()) ? (Collection<Pipeline>) properties.remove(PROPSNAMES.PIPELINES.toString()) : Collections.emptyList();
 
-        receivers = properties.containsKey(PROPSNAMES.RECEIVERS.toString()) ? (Collection<Receiver>) properties.remove(PROPSNAMES.RECEIVERS.toString()) : Collections.emptyList();
+        receivers = properties.containsKey(PROPSNAMES.RECEIVERS.toString()) ? (Collection<Receiver<?, ?>>) properties.remove(PROPSNAMES.RECEIVERS.toString()) : Collections.emptyList();
 
         senders = properties.containsKey(PROPSNAMES.SENDERS.toString()) ? (Collection<Sender>) properties.remove(PROPSNAMES.SENDERS.toString()) : Collections.emptyList();
 

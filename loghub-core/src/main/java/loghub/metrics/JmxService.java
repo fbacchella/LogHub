@@ -115,7 +115,7 @@ public class JmxService {
             return this;
         }
 
-        public Configuration registerReceivers(Collection<Receiver> receivers) {
+        public Configuration registerReceivers(Collection<Receiver<?, ?>> receivers) {
             receivers.forEach(r -> {
                 try {
                     ReceiverMBean.Implementation rmb = new ReceiverMBean.Implementation(r);

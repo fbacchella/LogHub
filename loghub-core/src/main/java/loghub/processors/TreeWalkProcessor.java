@@ -17,7 +17,7 @@ public abstract class TreeWalkProcessor extends FieldsProcessor {
 
     private final TRAVERSAL_ORDER traversal;
 
-    TreeWalkProcessor(Builder builder) {
+    TreeWalkProcessor(Builder<?> builder) {
         super(builder);
         this.traversal = builder.traversal;
     }
