@@ -89,7 +89,6 @@ import loghub.RouteParser.VarPathContext;
 import loghub.RouteParser.ForeachContext;
 import loghub.VarFormatter;
 import loghub.VariablePath;
-import loghub.events.Event;
 import loghub.groovy.GroovyMethods;
 import loghub.processors.AnonymousSubPipeline;
 import loghub.processors.Drop;
