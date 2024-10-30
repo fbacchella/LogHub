@@ -9,6 +9,7 @@ import com.beust.jcommander.Parameter;
 
 public class CommandTimePattern  implements BaseCommand {
 
+    @SuppressWarnings("CanBeFinal")
     @Parameter(names = {"--timepattern"}, description = "A time pattern to test")
     private String timepattern = null;
 

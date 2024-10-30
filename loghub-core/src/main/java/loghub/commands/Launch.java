@@ -37,6 +37,7 @@ public class Launch implements BaseCommand {
 
     private static final Logger logger = LogManager.getLogger();
 
+    @SuppressWarnings("CanBeFinal")
     @Parameter(names = {"--configfile", "-c"}, description = "File")
     private String configFile = null;
 
@@ -49,6 +50,7 @@ public class Launch implements BaseCommand {
     @Parameter(names = {"--stats", "-s"}, description = "Dump stats on exit")
     private boolean dumpstats = false;
 
+    @SuppressWarnings("CanBeFinal")
     @Parameter(names = {"--testprocessor", "-p"}, description = "A field processor to test")
     private String testedprocessor = null;
 

@@ -46,21 +46,27 @@ public class CommandJwt implements VerbCommand {
         }
     }
 
+    @SuppressWarnings("CanBeFinal")
     @Parameter(names = { "--gen" }, description = "Generate a JWT token")
     private boolean generate = false;
 
+    @SuppressWarnings("CanBeFinal")
     @Parameter(names = { "--subject", "-s" }, description = "Generate a JWT token")
     private String subject = null;
 
+    @SuppressWarnings("CanBeFinal")
     @Parameter(names = { "--validity", "-v" }, description = "The jwt token validity in days")
     private long validity = -1;
 
+    @SuppressWarnings("CanBeFinal")
     @Parameter(names = { "--claim", "-c" }, description = "Add a claim", converter = ClaimConverter.class)
     private List<AbstractMap.SimpleImmutableEntry<String, String>> claims = new ArrayList<>();
 
+    @SuppressWarnings("CanBeFinal")
     @Parameter(names = { "--sign" }, description = "Sign a JWT token")
     private boolean sign = false;
 
+    @SuppressWarnings("CanBeFinal")
     @Parameter(names = { "--signfile", "-f" }, description = "The jwt token to sign")
     private String signfile = null;
 

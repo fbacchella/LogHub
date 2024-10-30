@@ -26,6 +26,7 @@ public class CommandPassword implements CommandRunner {
     String fromFile = null;
     @Parameter(names = { "--console", "-c" }, description = "Read from console")
     boolean fromConsole = false;
+    @SuppressWarnings("CanBeFinal")
     @Parameter(names = { "--stdin", "-i" }, description = "Read from stdin")
     boolean fromStdin = false;
 
@@ -40,6 +41,7 @@ public class CommandPassword implements CommandRunner {
     boolean add = false;
     @Parameter(names = { "--del" }, description = "Delete a secret")
     boolean delete = false;
+    @SuppressWarnings("CanBeFinal")
     @Parameter(names = { "--list" }, description = "List secrets")
     boolean list = false;
     @Parameter(names = { "--create" }, description = "Create te store file")
