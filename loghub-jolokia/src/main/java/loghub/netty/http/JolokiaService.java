@@ -108,7 +108,7 @@ public class JolokiaService extends HttpRequestProcessing {
                         log,
                         restrictor);
 
-        serviceManager.addServices(new ClasspathServiceCreator("services"));
+        serviceManager.addServices(new ClasspathServiceCreator(this.getClass().getClassLoader(), "services"));
         JolokiaContext jolokiaContext = serviceManager.start();
         requestHandler = new HttpRequestHandler(jolokiaContext);
     }
