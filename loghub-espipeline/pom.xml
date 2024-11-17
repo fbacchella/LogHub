@@ -75,6 +75,7 @@
                                         <include>loghub/jackson/**</include>
                                         <include>loghub/Start.*</include>
                                         <include>loghub/Helpers.*</include>
+                                        <include>loghub/NullOrMissingValue*.class</include>
                                     </includes>
                                 </filter>
                                 <filter>

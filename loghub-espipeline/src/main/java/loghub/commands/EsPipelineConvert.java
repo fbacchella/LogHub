@@ -27,7 +27,7 @@ import lombok.ToString;
 public class EsPipelineConvert implements BaseCommand {
 
     @Parameter(names = {"-p", "--pipeline"}, description = "YAML files")
-    public String pipelineName = "main";
+    public String pipelineName;
 
     @Parameter(names = {"--help", "-h"}, help = true)
     private boolean help;
@@ -123,9 +123,9 @@ public class EsPipelineConvert implements BaseCommand {
     }
 
     private void rename(Map<String, Object> params, String prefix) {
-        String target_field = (String) params.remove("target_field");
+        String targetField = (String) params.remove("target_field");
         String field = (String) params.remove("field");
-        System.out.format("%s%s < %s |%n", etlFilter(prefix, params), resolveField(target_field), resolveField(field));
+        System.out.format("%s%s < %s |%n", etlFilter(prefix, params), resolveField(targetField), resolveField(field));
     }
 
     private void script(Map<String, Object> params, String prefix) {
@@ -226,17 +226,16 @@ public class EsPipelineConvert implements BaseCommand {
         return newExpression;
     }
 
-    Pattern ingestPipelinePattern = Pattern.compile("\\{\\{ IngestPipeline \"(.*)\" }}");
+    final Pattern ingestPipelinePattern = Pattern.compile("\\{\\{ IngestPipeline \"(.*)\" }}");
     private void pipeline(Map<String, Object> params, String prefix) {
         String ifexpr = (String) params.get("if");
         if (ifexpr != null && ! ifexpr.isBlank()) {
-            System.out.format(prefix + "// %s ?%n", ifexpr);
+            System.out.format("%s// %s ?%n", prefix, ifexpr);
         }
         String pipelineExpress = (String) params.get("name");
         Matcher m = ingestPipelinePattern.matcher(pipelineExpress);
         if (m.matches()) {
-            String pipelineName = m.group(1);
-            System.out.format(prefix + "$%s |%n", pipelineName);
+            System.out.format("%s$%s |%n", prefix, m.group(1));
         }
     }
 
@@ -276,10 +275,10 @@ public class EsPipelineConvert implements BaseCommand {
 
     private void kv(Map<String, Object> params, String prefix) {
         Map<String, Object> attributes = new HashMap<>();
-        char field_split = Optional.ofNullable(params.remove("field_split")).map(String.class::cast).map(s -> s.charAt(0)).orElse(' ');
-        char value_split = Optional.ofNullable(params.remove("value_split")).map(String.class::cast).map(s -> s.charAt(0)).orElse('=');
-        Character trim_key = Optional.ofNullable(params.remove("trim_key")).map(String.class::cast).map(s -> s.charAt(0)).orElse(null);
-        attributes.put("parser", String.format("\"(?<name>[^%s]+)%s(?<value>[^%s]*)%s\"", value_split, value_split, field_split, (trim_key!= null ? String.format("%s*", trim_key) : "")));
+        char fieldSplit = Optional.ofNullable(params.remove("field_split")).map(String.class::cast).map(s -> s.charAt(0)).orElse(' ');
+        char valueSplit = Optional.ofNullable(params.remove("value_split")).map(String.class::cast).map(s -> s.charAt(0)).orElse('=');
+        Character trimSey = Optional.ofNullable(params.remove("trim_key")).map(String.class::cast).map(s -> s.charAt(0)).orElse(null);
+        attributes.put("parser", String.format("\"(?<name>[^%s]+)%s(?<value>[^%s]*)%s\"", valueSplit, valueSplit, fieldSplit, (trimSey!= null ? String.format("%s*", trimSey) : "")));
         doProcessor(prefix, "loghub.processors.VarExtractor", filterComments(params, attributes), attributes);
     }
 
@@ -315,13 +314,13 @@ public class EsPipelineConvert implements BaseCommand {
 
     private void gsub(Map<String, Object> params, String prefix) {
         Object field = resolveField(params.remove("field"));
-        Object target_field = resolveField(params.remove("target_field"));
-        if (target_field == null) {
-            target_field = field;
+        Object targetField = resolveField(params.remove("target_field"));
+        if (targetField == null) {
+            targetField = field;
         }
         Object pattern = params.remove("pattern");
         Object replacement = params.remove("replacement");
-        System.out.format("%s%s = gsub(%s, /%s/, %s) |%n", etlFilter(prefix, params), target_field, field, pattern, resolveValue(replacement));
+        System.out.format("%s%s = gsub(%s, /%s/, %s) |%n", etlFilter(prefix, params), targetField, field, pattern, resolveValue(replacement));
     }
 
     private void json(Map<String, Object> params, String prefix) {
@@ -372,7 +371,7 @@ public class EsPipelineConvert implements BaseCommand {
                 System.out.format("%s    iterate: false%n", prefix);
             } else if (e.getValue() instanceof Map) {
                 Map<String, Object> map = (Map<String, Object>) e.getValue();
-                StringBuffer definitions = new StringBuffer();
+                StringBuilder definitions = new StringBuilder();
                 for (Map.Entry<String, Object> me: map.entrySet()) {
                     definitions.append(prefix).append("        \"").append(me.getKey()).append("\": ").append(resolveValue(me.getValue())).append(",\n");
                 }
