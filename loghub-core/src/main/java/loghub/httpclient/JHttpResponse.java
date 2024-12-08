@@ -13,7 +13,7 @@ import lombok.experimental.Accessors;
 @Accessors(fluent = false, chain = true)
 class JHttpResponse<T, U> extends HttpResponse<T> {
 
-    private static final Pattern CONTENT_TYPE_PATTERN = Pattern.compile("([a-z/]+)\\s*(?:;\\s*charset=([a-z0-9_-]+))?", Pattern.CASE_INSENSITIVE);
+    private static final Pattern CONTENT_TYPE_PATTERN = Pattern.compile("^([a-z/-]+)((?:;\\s*(?:[a-z0-9]+)=(?:[^;\\s]+))*)$", Pattern.CASE_INSENSITIVE);
 
     private final java.net.http.HttpResponse<U> jResponse;
     private final Exception error;
@@ -34,6 +34,8 @@ class JHttpResponse<T, U> extends HttpResponse<T> {
             switch (ct) {
             case AbstractHttpClientService.TEXT_HTML:
                 return ContentType.TEXT_HTML;
+            case AbstractHttpClientService.TEXT_PLAIN:
+                return ContentType.TEXT_PLAIN;
             case AbstractHttpClientService.APPLICATION_JSON:
                 return ContentType.APPLICATION_JSON;
             case AbstractHttpClientService.APPLICATION_XML:
