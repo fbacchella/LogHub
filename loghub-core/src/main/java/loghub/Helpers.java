@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Enumeration;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -38,9 +39,11 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BinaryOperator;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import java.util.regex.Pattern;
@@ -643,24 +646,28 @@ public final class Helpers {
      * @param prefix
      * @return
      */
-    public static Map<String, Object> filterPrefix(Map<String, Object> input, String prefix) {
+    public static <I, O> Map<String, O> filterPrefix(Map<String, I> input, String prefix) {
         int prefixLength = prefix.length() + 1;
         String prefixKey = prefix + ".";
+        Function<Map.Entry<String, I>, String> mapKey = e -> e.getKey().substring(prefixLength);
+        Function<Map.Entry<String, I>, O> mapValue = Helpers::mapValue;
+        BinaryOperator<O> mergeValues = (v1, v2) -> v2;
+        Supplier<Map<String, O>> mapSupplier = HashMap::new;
         return input.entrySet()
                     .stream()
                     .filter(i -> i.getKey().startsWith(prefixKey))
-                    .map(Helpers::mapEntry)
-                    .collect(Collectors.toMap(i -> i.getKey().substring(prefixLength), Map.Entry::getValue));
+                    .collect(Collectors.toMap(mapKey, mapValue, mergeValues, mapSupplier));
     }
 
-    private static Map.Entry<String, ?> mapEntry(Map.Entry<String, ?> e) {
-        Object value = e.getValue() instanceof AtomicReference
-                               ? ((AtomicReference<?>)e.getValue()).get()
-                               : e.getValue();
+    @SuppressWarnings("unchecked")
+    private static <I, O> O mapValue(Map.Entry<String, I> v) {
+        I eValue = v.getValue();
+        Object value = (eValue instanceof AtomicReference
+                               ? ((AtomicReference<?>)eValue).get() : eValue);
         if (value instanceof SslContextBuilder) {
             value = ((SslContextBuilder)value).build();
         }
-        return Map.entry(e.getKey(), value);
+        return (O) value;
     }
 
 }
