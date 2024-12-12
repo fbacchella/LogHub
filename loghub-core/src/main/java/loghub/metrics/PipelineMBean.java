@@ -5,7 +5,6 @@ import java.util.Hashtable;
 import javax.management.MalformedObjectNameException;
 import javax.management.NotCompliantMBeanException;
 import javax.management.ObjectName;
-import javax.management.StandardMBean;
 
 import com.codahale.metrics.Counter;
 import com.codahale.metrics.Meter;
@@ -13,17 +12,47 @@ import com.codahale.metrics.Timer;
 
 public interface PipelineMBean {
 
+    @Units(Units.EVENTS)
+    @MetricType(MetricType.COUNTER)
+    @Description(value = "Number of events discarded because of processing steps exceeding a threshold")
     long getLoopOverflow();
+
+    @Units(Units.EXCEPTIONS)
+    @MetricType(MetricType.COUNTER)
+    @Description("The number of unhandled exceptions")
     long getExceptions();
+
+    @Units(Units.EVENTS)
+    @MetricType(MetricType.COUNTER)
+    @Description(value = "The number of events explicitly dropped")
     long getDropped();
+
+    @Units(Units.EVENTS)
+    @MetricType(MetricType.COUNTER)
     long getDiscarded();
+
+    @Units(Units.EVENTS)
+    @MetricType(MetricType.COUNTER)
     long getFailed();
+
+    @Units(Units.EVENTS)
+    @MetricType(MetricType.COUNTER)
+    @Description(value = "The number of events currently processed")
     long getInflight();
+
+    @Units(Units.EVENTS)
+    @MetricType(MetricType.COUNTER)
     long getCount();
+
+    @Units(Units.MILLISECONDS)
+    @MetricType(MetricType.GAUGE)
     double getMedian();
+
+    @Units(Units.MILLISECONDS)
+    @MetricType(MetricType.GAUGE)
     double get95per();
 
-    class Implementation extends StandardMBean implements PipelineMBean {
+    class Implementation extends DocumentedMBean implements PipelineMBean {
 
         private final String name;
         private final Meter loopOverflow;

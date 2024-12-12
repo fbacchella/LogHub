@@ -4,13 +4,14 @@ import javax.management.MXBean;
 import javax.management.MalformedObjectNameException;
 import javax.management.NotCompliantMBeanException;
 import javax.management.ObjectName;
-import javax.management.StandardMBean;
 
 import loghub.Helpers;
 
 @MXBean
 public interface ExceptionsMBean {
 
+    @Units(Units.EXCEPTIONS)
+    @MetricType(MetricType.GAUGE)
     default String[] getProcessorsFailures() {
         return loghub.metrics.Stats.getErrors().stream()
                         .map(i -> Helpers.resolveThrowableException((Throwable)i))
@@ -18,10 +19,14 @@ public interface ExceptionsMBean {
                         ;
     }
 
+    @Units(Units.EXCEPTIONS)
+    @MetricType(MetricType.GAUGE)
     default String[] getDecodersFailures() {
         return Stats.getDecodeErrors().toArray(String[]::new);
     }
 
+    @Units(Units.EXCEPTIONS)
+    @MetricType(MetricType.GAUGE)
     default String[] getUnhandledExceptions() {
         return loghub.metrics.Stats.getExceptions().stream()
                         .map( i -> {
@@ -38,23 +43,27 @@ public interface ExceptionsMBean {
                         ;
     }
 
+    @Units(Units.EXCEPTIONS)
+    @MetricType(MetricType.GAUGE)
     default String[] getSendersFailures() {
         return Stats.getSenderError().toArray(String[]::new);
     }
 
+    @Units(Units.EXCEPTIONS)
+    @MetricType(MetricType.GAUGE)
     default String[] getReceiversFailures() {
         return Stats.getReceiverError().toArray(String[]::new);
     }
 
 
-    class Implementation extends StandardMBean implements ExceptionsMBean {
+    class Implementation extends DocumentedMBean implements ExceptionsMBean {
 
         public static final ObjectName NAME;
         static {
             try {
                 NAME = ObjectName.getInstance("loghub", "type", "Exceptions");
             } catch (MalformedObjectNameException e) {
-                throw new RuntimeException(e);
+                throw new IllegalStateException(e.getMessage());
             }
         }
 

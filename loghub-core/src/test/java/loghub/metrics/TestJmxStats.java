@@ -13,6 +13,7 @@ import java.util.stream.Collectors;
 import javax.management.AttributeNotFoundException;
 import javax.management.InstanceNotFoundException;
 import javax.management.IntrospectionException;
+import javax.management.MBeanAttributeInfo;
 import javax.management.MBeanException;
 import javax.management.MBeanFeatureInfo;
 import javax.management.MBeanInfo;
@@ -149,7 +150,12 @@ public class TestJmxStats {
         for (String type: List.of("Global", "Exceptions", "Pipelines", "Receivers", "Senders")) {
             ObjectName on = ObjectName.getInstance("loghub", "type", type);
             MBeanInfo info = mbs.getMBeanInfo(on);
-            List<String> attrList = Arrays.stream(info.getAttributes()).map(MBeanFeatureInfo::getName)
+            for (MBeanAttributeInfo ai: info.getAttributes()) {
+                Assert.assertNotNull(on + "." + ai.getName(), ai.getDescriptor().getFieldValue("units"));
+                Assert.assertNotNull(on + "." + ai.getName(), ai.getDescriptor().getFieldValue("metricType"));
+            }
+            List<String> attrList = Arrays.stream(info.getAttributes())
+                                          .map(MBeanFeatureInfo::getName)
                                           .sorted()
                                           .collect(Collectors.toList());
             attributes.put(type, attrList);

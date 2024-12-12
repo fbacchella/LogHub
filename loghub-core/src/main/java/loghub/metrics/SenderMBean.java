@@ -6,7 +6,6 @@ import java.util.function.Supplier;
 import javax.management.MalformedObjectNameException;
 import javax.management.NotCompliantMBeanException;
 import javax.management.ObjectName;
-import javax.management.StandardMBean;
 
 import com.codahale.metrics.Counter;
 import com.codahale.metrics.Gauge;
@@ -17,20 +16,56 @@ import com.codahale.metrics.Timer;
 import loghub.senders.Sender;
 
 public interface SenderMBean {
-    
+
+    @Units(Units.EVENTS)
+    @MetricType(MetricType.COUNTER)
     long getCount();
+
+    @Units(Units.BYTES)
+    @MetricType(MetricType.COUNTER)
     long getBytes();
+
+    @Units(Units.EVENTS)
+    @MetricType(MetricType.COUNTER)
     long getFailed();
+
+    @Units(Units.EVENTS)
+    @MetricType(MetricType.COUNTER)
+    @Description("The number of unhandled exceptions")
     long getExceptions();
+
+    @Units(Units.EVENTS)
+    @MetricType(MetricType.COUNTER)
+    @Description("The number of failed event")
     long getErrors();
+
+    @Units(Units.BATCHES)
+    @MetricType(MetricType.GAUGE)
     long getWaitingBatches();
+
+    @Units(Units.BATCHES)
+    @MetricType(MetricType.GAUGE)
     long getActiveBatches();
+
+    @Units(Units.BATCHES)
+    @MetricType(MetricType.COUNTER)
     long getDoneBatches();
+
+    @Units(Units.MILLISECONDS)
+    @MetricType(MetricType.GAUGE)
+    @Description("The median of batch flush duration")
     double getFlushDurationMedian();
+
+    @Units(Units.MILLISECONDS)
+    @MetricType(MetricType.GAUGE)
+    @Description("The 95 percentile of batch flush duration")
     double getFlushDuration95();
+
+    @Units(Units.EVENTS)
+    @MetricType(MetricType.GAUGE)
     int getQueueSize();
 
-    class Implementation extends StandardMBean implements SenderMBean {
+    class Implementation extends DocumentedMBean implements SenderMBean {
 
         private final Sender s;
         private final Meter sent;

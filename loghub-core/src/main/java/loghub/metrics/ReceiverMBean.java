@@ -5,7 +5,6 @@ import java.util.Hashtable;
 import javax.management.MalformedObjectNameException;
 import javax.management.NotCompliantMBeanException;
 import javax.management.ObjectName;
-import javax.management.StandardMBean;
 
 import com.codahale.metrics.Meter;
 
@@ -13,14 +12,34 @@ import loghub.receivers.Receiver;
 
 public interface ReceiverMBean {
 
+    @MetricType(MetricType.COUNTER)
+    @Units(Units.EVENTS)
+    @Description(value = "The number of events received")
     long getCount();
+
+    @MetricType(MetricType.COUNTER)
+    @Units(Units.BYTES)
+    @Description(value = "The number of processed bytes messages")
     long getBytes();
+
+    @MetricType(MetricType.COUNTER)
+    @Units(Units.EVENTS)
     long getFailedDecode();
+
+    @MetricType(MetricType.COUNTER)
+    @Units(Units.EVENTS)
     long getFailed();
+
+    @MetricType(MetricType.COUNTER)
+    @Units(Units.EVENTS)
     long getBlocked();
+
+    @MetricType(MetricType.COUNTER)
+    @Units(Units.EXCEPTIONS)
+    @Description("The number of unhandled exceptions")
     long getExceptions();
 
-    class Implementation extends StandardMBean implements ReceiverMBean {
+    class Implementation extends DocumentedMBean implements ReceiverMBean {
 
         private final Meter count;
         private final Meter bytes;

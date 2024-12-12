@@ -122,6 +122,7 @@ public class JmxService {
                     mbeans.put(rmb.getObjectName(), rmb);
                 } catch (NotCompliantMBeanException
                                 | MalformedObjectNameException e) {
+                    // Ignored exception
                 }
             });
             try {
@@ -129,6 +130,7 @@ public class JmxService {
                 mbeans.put(rmb.getObjectName(), rmb);
             } catch (NotCompliantMBeanException
                             | MalformedObjectNameException e) {
+                // Ignored exception
             }
             return this;
         }
@@ -140,6 +142,7 @@ public class JmxService {
                     mbeans.put(smb.getObjectName(), smb);
                 } catch (NotCompliantMBeanException
                                 | MalformedObjectNameException e) {
+                    // Ignored exception
                 }
             });
             try {
@@ -147,6 +150,7 @@ public class JmxService {
                 mbeans.put(smb.getObjectName(), smb);
             } catch (NotCompliantMBeanException
                             | MalformedObjectNameException e) {
+                // Ignored exception
             }
             return this;
         }
@@ -159,12 +163,14 @@ public class JmxService {
                     mbeans.put(pmb.getObjectName(), pmb);
                 } catch (NotCompliantMBeanException
                                 | MalformedObjectNameException e) {
+                    // Ignored exception
                 }
             });
             try {
                 PipelineMBean.Implementation pmb = new PipelineMBean.Implementation(null);
                 mbeans.put(pmb.getObjectName(), pmb);
             } catch (NotCompliantMBeanException | MalformedObjectNameException e) {
+                // Ignored exception
             }
 
             return this;
@@ -193,7 +199,7 @@ public class JmxService {
             throw new IllegalStateException("Unusuable JMX setup: " + Helpers.resolveThrowableException(ex.getCause()), ex);
         }
 
-        startJmxReporter(conf);
+        startJmxReporter();
 
         if (conf.port >= 0) {
             server = startConnectorServer(conf);
@@ -204,19 +210,7 @@ public class JmxService {
         ObjectName metricName;
         Matcher m = pipepattern.matcher(name);
         if (m.matches()) {
-            Hashtable<String, String> table = new Hashtable<>(4);
-            String service = m.group(1);
-            table.put("type", service);
-            if (m.group(3) != null) {
-                String servicename = m.group(2);
-                String metric = m.group(4);
-                table.put("servicename", servicename);
-                table.put("name", metric);
-            } else {
-                String metric = m.group(2);
-                table.put("name", metric);
-                table.put("level", "details");
-            }
+            Hashtable<String, String> table = getStringStringHashtable(m);
             try {
                 metricName = new ObjectName("loghub", table);
             } catch (MalformedObjectNameException e) {
@@ -228,9 +222,26 @@ public class JmxService {
         return metricName;
     }
 
-    private static void startJmxReporter(Configuration conf) {
+    private static Hashtable<String, String> getStringStringHashtable(Matcher m) {
+        Hashtable<String, String> table = new Hashtable<>(4);
+        String service = m.group(1);
+        table.put("type", service);
+        if (m.group(3) != null) {
+            String servicename = m.group(2);
+            String metric = m.group(4);
+            table.put("servicename", servicename);
+            table.put("name", metric);
+        } else {
+            String metric = m.group(2);
+            table.put("name", metric);
+            table.put("level", "details");
+        }
+        return table;
+    }
+
+    private static void startJmxReporter() {
         ObjectNameFactory donf = new DefaultObjectNameFactory();
-        Pattern pipepattern = Pattern.compile("^([^\\.]+)\\.(.+?)(\\.([a-zA-Z0-9]+))?$");
+        Pattern pipepattern = Pattern.compile("^([^.]+)\\.(.+?)(\\.([a-zA-Z0-9]+))?$");
         ObjectNameFactory factory = (t, d, n) -> createMetricName(t, d, n, donf, pipepattern);
         reporter = JmxReporter.forRegistry(Stats.metricsRegistry).createsObjectNamesWith(factory).registerWith(mbs).build();
         reporter.start();
@@ -298,7 +309,8 @@ public class JmxService {
             try {
                 mbs.unregisterMBean(t);
             } catch (MBeanRegistrationException
-                            | InstanceNotFoundException e1) {
+                            | InstanceNotFoundException ex) {
+                // Ignored exception
             }
         });
         registred.clear();
@@ -306,6 +318,7 @@ public class JmxService {
             try {
                 t.stop();
             } catch (IOException e) {
+                // Ignored exception
             }
         });
         stopMetrics();
