@@ -60,6 +60,7 @@ public class TestXmlXslt {
     @Test
     public void test_loghub_decoders_XmlDom() throws IntrospectionException, ReflectiveOperationException {
         BeanChecks.beansCheck(logger, "loghub.decoders.XmlXslt"
+                , BeanChecks.BeanInfo.build("nameSpaceAware", Boolean.TYPE)
                 , BeanChecks.BeanInfo.build("xslt", String.class)
         );
     }
