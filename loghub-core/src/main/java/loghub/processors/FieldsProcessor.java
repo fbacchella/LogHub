@@ -401,7 +401,8 @@ public abstract class FieldsProcessor extends Processor {
             return false;
         } else {
             Object value = event.getAtPath(vp);
-            return iterate && value != null && (value instanceof Collection || value.getClass().isArray());
+            // a byte array is not intended to be iterated
+            return iterate && value != null && ! (value instanceof byte[]) && (value instanceof Collection || value.getClass().isArray());
         }
     }
 
