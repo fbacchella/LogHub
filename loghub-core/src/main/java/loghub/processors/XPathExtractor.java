@@ -38,6 +38,7 @@ public class XPathExtractor extends FieldsProcessor {
     private final ThreadLocal<XPathExpression> localExpression;
 
     private XPathExtractor(Builder builder) {
+        super(builder);
         // Validate the expression
         XPathFactory xPathFactory = XPathFactory.newInstance();
         getXPathExpression(xPathFactory, builder.xpath);

@@ -40,13 +40,13 @@ public class TestXml {
     @Test
     public void extractValue() throws ProcessorException {
         Event ev = run("//c/text()", "<?xml version=\"1.0\" encoding=\"utf-16\"?><a><b><c>value</c></b></a>");
-        Assert.assertEquals("value", ev.get("message"));
+        Assert.assertEquals("value", ev.getAtPath(VariablePath.of("a", "b")));
     }
 
     @Test
     public void extractList() throws ProcessorException {
         Event ev = run("//c/text()", "<?xml version=\"1.0\" encoding=\"utf-16\"?><a><b><c>value1</c><c>value2</c></b></a>");
-        Assert.assertEquals(List.of("value1", "value2"), ev.get("message"));
+        Assert.assertEquals(List.of("value1", "value2"), ev.getAtPath(VariablePath.of("a", "b")));
     }
 
     @Test
@@ -58,20 +58,22 @@ public class TestXml {
     private Event run(String xpath, String xml) throws ProcessorException {
         Properties p = new Properties(Collections.emptyMap());
         ParseXml.Builder parserBuilder = ParseXml.getBuilder();
+        parserBuilder.setField(VariablePath.of("a", "b"));
         parserBuilder.setNameSpaceAware(false);
         ParseXml parser = parserBuilder.build();
         Assert.assertTrue(parser.configure(p));
 
         XPathExtractor.Builder extractorBuilder = XPathExtractor.getBuilder();
         extractorBuilder.setXpath(xpath);
+        extractorBuilder.setField(VariablePath.of("a", "b"));
         XPathExtractor extractor = extractorBuilder.build();
         Assert.assertTrue(extractor.configure(p));
 
         Event ev = factory.newEvent();
-        ev.put("message", xml);
+        ev.putAtPath(VariablePath.of("a", "b"), xml);
         Assert.assertTrue(parser.process(ev));
         Assert.assertTrue(extractor.process(ev));
-        return  ev;
+        return ev;
     }
 
     @Test

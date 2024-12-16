@@ -29,9 +29,9 @@ public abstract class AbstractXmlDecoder<X extends AbstractXmlDecoder<X, XB>, XB
     protected AbstractXmlDecoder(XB builder) {
         super(builder);
         handler = XmlHandler.getBuilder()
-                          .setLogger(logger)
-                          .setNameSpaceAware(builder.nameSpaceAware)
-                          .build();
+                            .setLogger(logger)
+                            .setNameSpaceAware(builder.nameSpaceAware)
+                            .build();
     }
 
     @Override
