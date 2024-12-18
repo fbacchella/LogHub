@@ -331,28 +331,27 @@ public class Properties extends HashMap<String, Object> {
     private Dashboard buildDashboard(Map<String, Object> collect) {
         Dashboard.Builder builder = Dashboard.getBuilder();
         builder.setClassLoader(classloader);
-        int port = ((Number) collect.compute("port", (i, j) -> {
-            if (j != null && ! (j instanceof Number)) {
+        int port = Optional.ofNullable(collect.remove("port")).map(j -> {
+            if (!(j instanceof Number)) {
                 throw new IllegalArgumentException("HTTP dashboard port is not an integer");
+            } else {
+                return (Number) j;
             }
-            return j != null ? j : -1;
-        })).intValue();
+        }).orElse(-1).intValue();
         if (port < 0) {
             return null;
         }
         builder.setPort(port);
-        if (collect.containsKey("listen")) {
-            builder.setListen(collect.get("listen").toString());
-        }
-        if (Boolean.TRUE.equals(collect.get("withSSL"))) {
+        Optional.ofNullable(collect.remove("listen")).ifPresent( p -> builder.setListen(p.toString()));
+        if (Boolean.TRUE.equals(Optional.ofNullable(collect.remove("withSSL")).orElse(Boolean.FALSE))) {
             builder.setWithSSL(true);
-            builder.setSslContext(Optional.ofNullable(collect.get("sslContext")).map(SSLContext.class::cast).orElse(ssl));
-            builder.setSslParams(Optional.ofNullable(collect.get("sslParams")).map(SSLParameters.class::cast).orElse(null));
-            String clientAuthentication = collect.compute("SSLClientAuthentication", (i, j) -> j != null ? j : ClientAuthentication.NOTNEEDED).toString();
-            String sslKeyAlias = (String) collect.get("SSLKeyAlias");
+            builder.setSslContext(Optional.ofNullable(collect.remove("sslContext")).map(SSLContext.class::cast).orElse(ssl));
+            builder.setSslParams(Optional.ofNullable(collect.remove("sslParams")).map(SSLParameters.class::cast).orElse(null));
+            String clientAuthentication = Optional.ofNullable(collect.remove("SSLClientAuthentication")).orElse(ClientAuthentication.NOTNEEDED).toString();
+            String sslKeyAlias = (String) collect.remove("SSLKeyAlias");
             builder.setSslKeyAlias(sslKeyAlias)
                    .setSslClientAuthentication(ClientAuthentication.valueOf(clientAuthentication.toUpperCase(Locale.ENGLISH)));
-            builder.setHstsDuration(Optional.ofNullable(collect.get("hstsDuration"))
+            builder.setHstsDuration(Optional.ofNullable(collect.remove("hstsDuration"))
                                             .map(String.class::cast)
                                             .map(Duration::parse)
                                             .orElse(null)
@@ -360,23 +359,19 @@ public class Properties extends HashMap<String, Object> {
         } else {
             builder.setWithSSL(false);
         }
-        if (Boolean.TRUE.equals(collect.compute("jwt", (i,j) -> Boolean.TRUE.equals(j)))) {
+        if (Boolean.TRUE.equals(Optional.ofNullable(collect.remove("jwt")).orElse(Boolean.FALSE))) {
             builder.setWithJwtUrl(true).setJwtHandlerUrl(jwtHandler);
         } else {
             builder.setWithJwtUrl(false);
         }
-        String jaasName = collect.compute("jaasName", (i,j) -> (j != null) ? j : "").toString();
-        if (jaasName != null && ! jaasName.isBlank()) {
+        String jaasName = Optional.ofNullable(collect.remove("jaasName")).orElse("").toString();
+        if (! jaasName.isBlank()) {
             builder.setJaasNameJwt(jaasName).setJaasConfigJwt(jaasConfig);
         }
-        if (Boolean.TRUE.equals(collect.compute("withJolokia", (i,j) -> Boolean.TRUE.equals(j)))) {
-            builder.setWithJolokia(true);
-            if (collect.containsKey("jolokiaPolicyLocation")) {
-                builder.setJolokiaPolicyLocation(collect.get("jolokiaPolicyLocation").toString());
-            }
-        } else {
-            builder.setWithJolokia(false);
-        }
+        // Kept for compatibility
+        Optional.ofNullable(collect.remove("jolokiaPolicyLocation"))
+                .ifPresent( p -> collect.put("jolokia.policyLocation", p.toString()));
+        builder.setDashboardServicesProperties(collect);
         return builder.build();
     }
 

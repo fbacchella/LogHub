@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
@@ -53,7 +54,11 @@ public class TestDashboard {
 
     @Before
     public void startDashBoard() throws IllegalArgumentException, InterruptedException {
-        dashboard = Dashboard.getBuilder().setPort(port).setListen("localhost").setWithJolokia(true).build();
+        dashboard = Dashboard.getBuilder()
+                             .setPort(port)
+                             .setListen("localhost")
+                             .setDashboardServicesProperties(new HashMap<>(Map.of("withJolokia", true)))
+                             .build();
         dashboard.start();
     }
 

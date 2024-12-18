@@ -1,9 +1,12 @@
 package loghub;
 
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.ServiceLoader;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLParameters;
@@ -16,6 +19,7 @@ import io.netty.channel.ChannelPipeline;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.ssl.ApplicationProtocolNames;
+import loghub.netty.DashboardService;
 import loghub.netty.HttpChannelConsumer;
 import loghub.netty.http.GetMetric;
 import loghub.netty.http.GraphMetric;
@@ -55,9 +59,8 @@ public class Dashboard {
         String jaasNameJwt = null;
         boolean withJwtUrl = false;
         JWTHandler jwtHandlerUrl = null;
-        boolean withJolokia = false;
-        String jolokiaPolicyLocation = null;
         ClassLoader classLoader = Dashboard.class.getClassLoader();
+        Map<String, Object> dashboardServicesProperties = new HashMap<>();
         public Dashboard build() {
             return new Dashboard(this);
         }
@@ -69,11 +72,11 @@ public class Dashboard {
 
     private final SimpleChannelInboundHandler<FullHttpRequest> ROOTREDIRECT = new RootRedirect();
     private final SimpleChannelInboundHandler<FullHttpRequest> JMXPROXY = new JmxProxy();
-    private final SimpleChannelInboundHandler<FullHttpRequest> JOLOKIA_SERVICE;
     private final SimpleChannelInboundHandler<FullHttpRequest> GETMETRIC = new GetMetric();
     private final SimpleChannelInboundHandler<FullHttpRequest> GRAPHMETRIC = new GraphMetric();
     private final SimpleChannelInboundHandler<FullHttpRequest> tokenGenerator;
     private final SimpleChannelInboundHandler<FullHttpRequest> tokenFilter;
+    private final List<SimpleChannelInboundHandler<FullHttpRequest>> SERVICES = new ArrayList<>();
     @Getter
     private final TcpTransport transport;
 
@@ -99,26 +102,18 @@ public class Dashboard {
             tokenGenerator = null;
             tokenFilter = null;
         }
-        if (builder.withJolokia) {
-            logger.debug("Jolokia requested");
-            // temporary variable as the stacking of exceptions confuse the compiler
-            SimpleChannelInboundHandler<FullHttpRequest> jolokiaServiceTemp = null;
-            try {
-                Class<?> jsClass = builder.classLoader.loadClass("loghub.netty.http.JolokiaService");
-                Map<String, Object> jsProps;
-                if (builder.jolokiaPolicyLocation != null) {
-                    jsProps = Map.of("jolokiaPolicyLocation", builder.jolokiaPolicyLocation);
-                } else {
-                    jsProps = Map.of();
-                }
-                Method ofMethod = jsClass.getMethod("of", Map.class);
-                jolokiaServiceTemp = (SimpleChannelInboundHandler<FullHttpRequest>)ofMethod.invoke(null, jsProps);
-            } catch (ClassNotFoundException | NoSuchMethodException | IllegalAccessException | InvocationTargetException ex) {
-                logger.atError().withThrowable(ex).log("Failed to start Jolokia service: {}", () -> Helpers.resolveThrowableException(ex));
-            }
-            JOLOKIA_SERVICE = jolokiaServiceTemp;
+        ServiceLoader<DashboardService> serviceLoader = ServiceLoader.load(DashboardService.class, builder.classLoader);
+        serviceLoader.forEach(ds -> SERVICES.addAll(startService(ds, builder.dashboardServicesProperties)));
+    }
+
+    private List<SimpleChannelInboundHandler<FullHttpRequest>> startService(DashboardService ds, Map<String, Object> dashboardServicesProperties) {
+        String name = ds.getPrefix();
+        String withProperty = "with" + Character.toUpperCase(name.charAt(0)) + name.substring(1);
+        if (Boolean.TRUE.equals(Optional.ofNullable(dashboardServicesProperties.remove(withProperty)).orElse(Boolean.FALSE))) {
+            logger.info("Activating dashboard service {}", name);
+            return ds.getServices(Helpers.filterPrefix(dashboardServicesProperties, name));
         } else {
-            JOLOKIA_SERVICE = null;
+            return List.of();
         }
     }
 
@@ -159,9 +154,7 @@ public class Dashboard {
         p.addLast(ROOTREDIRECT);
         p.addLast(new ResourceFiles());
         p.addLast(JMXPROXY);
-        if (JOLOKIA_SERVICE != null) {
-            p.addLast(JOLOKIA_SERVICE);
-        }
+        SERVICES.forEach(p::addLast);
         p.addLast(GETMETRIC);
         p.addLast(GRAPHMETRIC);
         if (tokenGenerator != null && tokenFilter != null) {

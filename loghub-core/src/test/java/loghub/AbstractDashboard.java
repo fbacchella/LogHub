@@ -91,7 +91,6 @@ public abstract class AbstractDashboard {
                              .setSslContext(sslContext)
                              .setPort(0)
                              .setListen("localhost")
-                             .setWithJolokia(false)
                              .build();
         dashboard.start();
         port = ((InetSocketAddress)dashboard.getTransport().getChannels().findFirst().get().localAddress()).getPort();
