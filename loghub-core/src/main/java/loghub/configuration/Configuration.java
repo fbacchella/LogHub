@@ -384,7 +384,9 @@ public class Configuration {
                 resolveSources(t, conflistener);
                 conflistener.startWalk(t.config, t.stream, t.parser);
             });
-            return analyze(conflistener);
+            Properties props = analyze(conflistener);
+            filter.checkUndeclaredProperties(logger);
+            return props;
         } catch (RecognitionException e) {
             if (e.getCtx() instanceof ParserRuleContext) {
                 ParserRuleContext ctx = (ParserRuleContext) e.getCtx();
