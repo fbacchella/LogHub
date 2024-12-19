@@ -18,7 +18,7 @@ import loghub.configuration.GrammarParserFiltering.SECTION;
     boolean inLambda() {
         return lambdaVariable != null;
     }
-    public GrammarParserFiltering filter = new GrammarParserFiltering();
+    public GrammarParserFiltering filter;
 }
 
 configuration: (pipeline|input|output|sources|property)+ EOF;

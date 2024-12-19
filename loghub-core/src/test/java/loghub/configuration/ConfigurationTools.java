@@ -26,6 +26,7 @@ public class ConfigurationTools {
 
         CommonTokenStream tokens = new CommonTokenStream(lexer);
         RouteParser parser = new RouteParser(tokens);
+        parser.filter = new GrammarParserFiltering();
         parser.removeErrorListeners();
         ConfigErrorListener errListener = new ConfigErrorListener();
         parser.addErrorListener(errListener);

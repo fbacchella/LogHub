@@ -1,9 +1,17 @@
 package loghub.configuration;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.Method;
 import java.util.ArrayDeque;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Properties;
+import java.util.Set;
+
+import org.apache.logging.log4j.Logger;
 
 import loghub.BuilderClass;
 import loghub.Expression;
@@ -11,7 +19,6 @@ import loghub.Lambda;
 import loghub.RouteParser;
 import loghub.VariablePath;
 import lombok.Getter;
-import lombok.Setter;
 
 public class GrammarParserFiltering {
 
@@ -40,50 +47,6 @@ public class GrammarParserFiltering {
         VARIABLE_PATH,
     }
 
-    private static final Map<String, BEANTYPE> PROPERTIES_TYPES = Map.ofEntries(
-            Map.entry("hprofDumpPath", BEANTYPE.STRING),
-            Map.entry("http.SSLKeyAlias", BEANTYPE.STRING),
-            Map.entry("http.jaasName", BEANTYPE.STRING),
-            Map.entry("http.jwt", BEANTYPE.BOOLEAN),
-            Map.entry("http.port", BEANTYPE.INTEGER),
-            Map.entry("http.listen", BEANTYPE.STRING),
-            Map.entry("http.withSSL", BEANTYPE.BOOLEAN),
-            Map.entry("http.sslContext", BEANTYPE.IMPLICIT_OBJECT),
-            Map.entry("http.sslParams", BEANTYPE.IMPLICIT_OBJECT),
-            Map.entry("http.hstsDuration", BEANTYPE.STRING),
-            Map.entry("http.withJolokia", BEANTYPE.BOOLEAN),
-            Map.entry("http.jolokiaPolicyLocation", BEANTYPE.STRING),
-            Map.entry("includes", BEANTYPE.OPTIONAL_ARRAY),
-            Map.entry("plugins", BEANTYPE.OPTIONAL_ARRAY),
-            Map.entry("ssl.trusts", BEANTYPE.OPTIONAL_ARRAY),
-            Map.entry("ssl.issuers", BEANTYPE.OPTIONAL_ARRAY),
-            Map.entry("ssl.context", BEANTYPE.STRING),
-            Map.entry("ssl.providerclass", BEANTYPE.STRING),
-            Map.entry("ssl.ephemeralDHKeySize", BEANTYPE.INTEGER),
-            Map.entry("ssl.rejectClientInitiatedRenegotiation", BEANTYPE.INTEGER),
-            Map.entry("ssl.keymanageralgorithm", BEANTYPE.STRING),
-            Map.entry("ssl.trustmanageralgorithm", BEANTYPE.STRING),
-            Map.entry("ssl.securerandom", BEANTYPE.STRING),
-            Map.entry("secrets.source", BEANTYPE.STRING),
-            Map.entry("timezone", BEANTYPE.STRING),
-            Map.entry("locale", BEANTYPE.STRING),
-            Map.entry("log4j.configFile", BEANTYPE.STRING),
-            Map.entry("log4j.configURL", BEANTYPE.STRING),
-            Map.entry("logfile", BEANTYPE.STRING),
-            Map.entry("queueDepth", BEANTYPE.INTEGER),
-            Map.entry("queueWeight", BEANTYPE.INTEGER),
-            Map.entry("numWorkers", BEANTYPE.INTEGER),
-            Map.entry("maxSteps", BEANTYPE.INTEGER),
-            Map.entry("jmx.port", BEANTYPE.INTEGER),
-            Map.entry("jmx.protocol", BEANTYPE.STRING),
-            Map.entry("mibdirs", BEANTYPE.ARRAY),
-            Map.entry("zmq.certsDirectory", BEANTYPE.STRING),
-            Map.entry("zmq.keystore", BEANTYPE.STRING),
-            Map.entry("zmq.linger", BEANTYPE.INTEGER),
-            Map.entry("zmq.numSocket", BEANTYPE.INTEGER),
-            Map.entry("zmq.withZap", BEANTYPE.BOOLEAN)
-    );
-
     private static final Map<String, String> IMPLICIT_OBJECT = Map.ofEntries(
         Map.entry("http.sslContext", "loghub.security.ssl.SslContextBuilder"),
         Map.entry("http.sslParams", "javax.net.ssl.SSLParameters"),
@@ -91,14 +54,41 @@ public class GrammarParserFiltering {
         Map.entry("sslParams", "javax.net.ssl.SSLParameters")
     );
 
+    private final Map<String, BEANTYPE> propertiesTypes = new HashMap<>();
     private final ArrayDeque<Class<?>> objectStack = new ArrayDeque<>();
     private BEANTYPE currentBeanType = null;
-    @Setter
-    private ClassLoader classLoader = this.getClass().getClassLoader();
+    private ClassLoader classLoader = getClass().getClassLoader();
     @Getter
     private final BeansManager manager = new BeansManager();
     @Getter
     private final Map<RouteParser.BeanValueContext, Class<?>> implicitObjets = new HashMap<>();
+    private final Set<String> undeclaredProperties = new HashSet<>();
+
+    public GrammarParserFiltering() {
+        refreshPropertiesTypes();
+    }
+
+    public void setClassLoader(ClassLoader classLoader) {
+        this.classLoader = classLoader;
+        refreshPropertiesTypes();
+    }
+
+    private void refreshPropertiesTypes() {
+        undeclaredProperties.clear();
+        Properties ptypes = new Properties();
+        classLoader.resources("propertiestype.properties").forEach(p -> {
+            try (InputStream is = p.openStream()) {
+                ptypes.load(is);
+            } catch (IOException e) {
+                // Ignored
+            }
+        });
+        ptypes.forEach((k, v) -> {
+            String propName = k.toString();
+            BEANTYPE propType = BEANTYPE.valueOf(v.toString().toUpperCase(Locale.US));
+            propertiesTypes.put(propName, propType);
+        });
+    }
 
     public void enterObject(String objectName) {
         try {
@@ -211,7 +201,16 @@ public class GrammarParserFiltering {
     }
 
     public void checkProperty(String propertyName) {
-        currentBeanType = PROPERTIES_TYPES.get(propertyName);
+        currentBeanType = propertiesTypes.get(propertyName);
+        if (currentBeanType == null) {
+            undeclaredProperties.add(propertyName);
+        }
+    }
+
+    public void checkUndeclaredProperties(Logger logger) {
+        if (! undeclaredProperties.isEmpty()) {
+            logger.warn("Unspecified properties, possible textual error: {}", () -> String.join(", ", undeclaredProperties));
+        }
     }
 
 }

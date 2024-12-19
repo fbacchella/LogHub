@@ -133,7 +133,6 @@ public class Configuration {
             logger.debug("Resolving classpath");
             resolveClassPath(configurationContext, cs);
         }
-        parser.filter.setClassLoader(classLoader);
         logger.debug("Find configuration root");
         Tree tree = Tree.of(cs, configurationContext, parser);
         logger.debug("Scan properties");
@@ -157,6 +156,7 @@ public class Configuration {
                     try {
                         logger.debug("Looking for plugins in {}", (Object[])path);
                         classLoader = doClassLoader(path);
+                        filter.setClassLoader(classLoader);
                         cacheManager = new CacheManager(classLoader);
                         lockedProperties.put("plugins", pc.beanValue().getText());
                     } catch (IOException | UncheckedIOException ex) {
@@ -384,7 +384,9 @@ public class Configuration {
                 resolveSources(t, conflistener);
                 conflistener.startWalk(t.config, t.stream, t.parser);
             });
-            return analyze(conflistener);
+            Properties props = analyze(conflistener);
+            filter.checkUndeclaredProperties(logger);
+            return props;
         } catch (RecognitionException e) {
             if (e.getCtx() instanceof ParserRuleContext) {
                 ParserRuleContext ctx = (ParserRuleContext) e.getCtx();

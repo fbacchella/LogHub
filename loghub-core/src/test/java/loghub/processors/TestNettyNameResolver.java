@@ -310,7 +310,7 @@ public class TestNettyNameResolver {
     }
 
     private Properties getProperties() throws ConfigException, IOException {
-        String conf = "queuesDepth: 10";
+        String conf = "queueDepth: 10";
         return Tools.loadConf(new StringReader(conf));
     }
 

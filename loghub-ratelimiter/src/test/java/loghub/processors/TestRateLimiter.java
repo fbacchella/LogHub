@@ -42,7 +42,7 @@ public class TestRateLimiter {
     }
 
     private int runFlow(Duration testDuration, Consumer<RateLimiter.Builder> configurator) throws IOException, InterruptedException {
-        Properties props = Tools.loadConf(new StringReader("queueDepth: 1 queueWeigth: 2"));
+        Properties props = Tools.loadConf(new StringReader("queueDepth: 1 queueWeight: 2"));
         AtomicInteger ai = new AtomicInteger();
         RateLimiter.Builder builder = RateLimiter.getBuilder();
         configurator.accept(builder);
