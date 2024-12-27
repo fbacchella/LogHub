@@ -3,6 +3,10 @@ package loghub.metrics;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.lang.reflect.UndeclaredThrowableException;
+import java.net.InetAddress;
+import java.net.MalformedURLException;
+import java.net.UnknownHostException;
+import java.rmi.registry.LocateRegistry;
 import java.rmi.server.RMIClientSocketFactory;
 import java.rmi.server.RMIServerSocketFactory;
 import java.security.Principal;
@@ -30,8 +34,11 @@ import javax.management.remote.JMXConnectorServer;
 import javax.management.remote.JMXConnectorServerFactory;
 import javax.management.remote.JMXServiceURL;
 import javax.management.remote.rmi.RMIConnectorServer;
+import javax.net.ServerSocketFactory;
 import javax.net.ssl.SSLContext;
-import javax.rmi.ssl.SslRMIServerSocketFactory;
+import javax.net.ssl.SSLParameters;
+import javax.net.ssl.SSLServerSocket;
+import javax.rmi.ssl.SslRMIClientSocketFactory;
 import javax.security.auth.Subject;
 
 import com.codahale.metrics.jmx.DefaultObjectNameFactory;
@@ -43,27 +50,24 @@ import loghub.Pipeline;
 import loghub.receivers.Receiver;
 import loghub.security.AuthenticationHandler;
 import loghub.senders.Sender;
+import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.Accessors;
 
 public class JmxService {
 
-    public static final PROTOCOL DEFAULTPROTOCOL = PROTOCOL.rmi;
-    public enum PROTOCOL {
-        rmi,
-        jmxmp,
-    }
+    public static final String DEFAULTPROTOCOL = "rmi";
 
     public static Configuration configuration() {
         return new Configuration();
     }
 
-    private static final Set<ObjectName> registred = new HashSet<>();
-
     @Accessors(chain = true)
     public static class Configuration {
         @Setter
-        private PROTOCOL protocol = DEFAULTPROTOCOL;
+        private String protocol = DEFAULTPROTOCOL;
+        @Setter
+        private String protocolProvider = null;
         @Setter
         private int port = -1;
         @Setter
@@ -72,15 +76,29 @@ public class JmxService {
         @Setter
         private SSLContext sslContext = null;
         @Setter
+        private SSLParameters sslParams = null;
+        @Setter
         private boolean withSsl = false;
         @Setter
         private String jaasName = null;
         @Setter
         private javax.security.auth.login.Configuration jaasConfig = null;
+        @Setter
+        private ClassLoader classloader = Configuration.class.getClassLoader();
+        @Setter
+        private JMXServiceURL serviceUrl = null;
+        @Setter
+        private InetAddress listen;
 
         private final Map<ObjectName, Object> mbeans = new HashMap<>();
 
-        private Configuration() { }
+        private Configuration() {
+            try {
+                listen = InetAddress.getByName("0.0.0.0");
+            } catch (UnknownHostException e) {
+                throw new IllegalStateException(e);
+            }
+        }
 
         public Configuration setProperties(Map<String, Object> values) {
             values.forEach(this::setProperty);
@@ -90,9 +108,12 @@ public class JmxService {
         public Configuration setProperty(String key, Object value) {
             switch(key) {
             case "protocol": 
-                protocol = PROTOCOL.valueOf(value.toString().toLowerCase(Locale.ENGLISH));
+                protocol = value.toString().toLowerCase(Locale.ENGLISH);
                 break;
-            case "port": 
+            case "providerPackages":
+                protocolProvider = value.toString().toLowerCase(Locale.ENGLISH);
+                break;
+            case "port":
                 port = ((Number)value).intValue();
                 break;
             case "hostname": 
@@ -103,6 +124,29 @@ public class JmxService {
                 break;
             case "withSsl": 
                 withSsl = (Boolean) value;
+                break;
+            case "sslContext":
+                sslContext = (SSLContext) value;
+                break;
+            case "sslParams":
+                sslParams = (SSLParameters) value;
+                break;
+            case "classLoader":
+                classloader = (ClassLoader) value;
+                break;
+            case "listen":
+                try {
+                    listen = InetAddress.getByName(value.toString());
+                } catch (UnknownHostException ex) {
+                    throw new IllegalArgumentException("Invalid listen address for JMX service URL: " + Helpers.resolveThrowableException(ex), ex);
+                }
+                break;
+            case "serviceUrl":
+                try {
+                    serviceUrl = new JMXServiceURL(value.toString());
+                } catch (MalformedURLException ex) {
+                    throw new IllegalArgumentException("Invalid JMX service URL: " + Helpers.resolveThrowableException(ex), ex);
+                }
                 break;
             default:
                 throw new IllegalArgumentException("Unknown property " + key);
@@ -180,6 +224,7 @@ public class JmxService {
     private static JmxReporter reporter;
     private static MBeanServer mbs;
     private static JMXConnectorServer server;
+    private static final Set<ObjectName> registered = new HashSet<>();
 
     public static void start(Configuration conf) throws IOException {
         mbs = ManagementFactory.getPlatformMBeanServer();
@@ -188,7 +233,7 @@ public class JmxService {
             conf.mbeans.forEach((k,v) -> {
                 try {
                     mbs.registerMBean(v,k);
-                    registred.add(k);
+                    registered.add(k);
                 } catch (InstanceAlreadyExistsException
                                 | MBeanRegistrationException
                                 | NotCompliantMBeanException ex) {
@@ -201,7 +246,7 @@ public class JmxService {
 
         startJmxReporter();
 
-        if (conf.port >= 0) {
+        if (conf.port >= 0 || conf.serviceUrl !=  null) {
             server = startConnectorServer(conf);
         }
     }
@@ -210,9 +255,9 @@ public class JmxService {
         ObjectName metricName;
         Matcher m = pipepattern.matcher(name);
         if (m.matches()) {
-            Hashtable<String, String> table = getStringStringHashtable(m);
+            Map<String, String> table = getStringStringHashtable(m);
             try {
-                metricName = new ObjectName("loghub", table);
+                metricName = new ObjectName("loghub", new Hashtable<>(table));
             } catch (MalformedObjectNameException e) {
                 metricName = donf.createName(type, domain, name);
             }
@@ -222,8 +267,8 @@ public class JmxService {
         return metricName;
     }
 
-    private static Hashtable<String, String> getStringStringHashtable(Matcher m) {
-        Hashtable<String, String> table = new Hashtable<>(4);
+    private static Map<String, String> getStringStringHashtable(Matcher m) {
+        Map<String, String> table = new HashMap<>(4);
         String service = m.group(1);
         table.put("type", service);
         if (m.group(3) != null) {
@@ -249,6 +294,8 @@ public class JmxService {
 
     private static JMXConnectorServer startConnectorServer(Configuration conf) throws IOException {
         Map<String, Object> env = new HashMap<>();
+        env.put(JMXConnectorServerFactory.DEFAULT_CLASS_LOADER, conf.classloader);
+        env.put(JMXConnectorServerFactory.PROTOCOL_PROVIDER_CLASS_LOADER, conf.classloader);
         RMIClientSocketFactory csf = null;
         RMIServerSocketFactory ssf = null;
         if (conf.hostname != null) {
@@ -256,8 +303,14 @@ public class JmxService {
             System.setProperty("java.rmi.server.useLocalHostname", "false");
         }
         if (conf.withSsl) {
-            ssf = new SslRMIServerSocketFactory(conf.sslContext, null, null, false);
+            if (conf.sslParams == null) {
+                conf.sslParams = conf.sslContext.getDefaultSSLParameters();
+            }
+            csf = new SslRMIClientSocketFactory();
+            ssf = getServerSocketFactory(conf);
             env.put(RMIConnectorServer.RMI_SERVER_SOCKET_FACTORY_ATTRIBUTE, ssf);
+            env.put(RMIConnectorServer.RMI_CLIENT_SOCKET_FACTORY_ATTRIBUTE, csf);
+            env.put("com.sun.jndi.rmi.factory.socket", csf);
         }
         if (conf.jaasName != null) {
             AuthenticationHandler ah = AuthenticationHandler.getBuilder()
@@ -266,7 +319,6 @@ public class JmxService {
                             .build();
 
             env.put(JMXConnectorServer.AUTHENTICATOR, (JMXAuthenticator) credentials -> {
-
                 Principal p = null;
                 if ((credentials instanceof String[])) {
                     String[] loginPassword = (String[]) credentials;
@@ -289,14 +341,24 @@ public class JmxService {
                 }
             });
         }
-        String path = "/";
-        if (conf.protocol == PROTOCOL.rmi) {
-            java.rmi.registry.LocateRegistry.createRegistry(conf.port, csf, ssf);
-            path = "/jndi/rmi://0.0.0.0:" + conf.port + "/jmxrmi";
+        if (conf.protocolProvider != null) {
+            env.put(JMXConnectorServerFactory.PROTOCOL_PROVIDER_PACKAGES, conf.protocolProvider);
         }
-        JMXServiceURL url = new JMXServiceURL(conf.protocol.toString(), "0.0.0.0",
-                                              conf.port, path);
-        JMXConnectorServer cs = JMXConnectorServerFactory.newJMXConnectorServer(url,
+        JMXServiceURL listen;
+        if (conf.serviceUrl != null) {
+            listen = conf.serviceUrl;
+        } else {
+            String path = "/";
+            if ("rmi".equals(conf.protocol)) {
+                path = String.format("/jndi/rmi://%s:%d/jmxrmi", conf.listen.getHostAddress(), conf.port);
+            }
+            listen = new JMXServiceURL(conf.protocol, conf.listen.getHostAddress(), conf.port, path);
+        }
+        if ("rmi".equals(listen.getProtocol())) {
+            LocateRegistry.createRegistry(listen.getPort(), csf, ssf);
+        }
+
+        JMXConnectorServer cs = JMXConnectorServerFactory.newJMXConnectorServer(listen,
                                                                                 env,
                                                                                 mbs);
         cs.start();
@@ -305,7 +367,7 @@ public class JmxService {
 
     public static void stop() {
         Optional.ofNullable(reporter).ifPresent(JmxReporter::stop);
-        registred.forEach(t -> {
+        registered.forEach(t -> {
             try {
                 mbs.unregisterMBean(t);
             } catch (MBeanRegistrationException
@@ -313,7 +375,7 @@ public class JmxService {
                 // Ignored exception
             }
         });
-        registred.clear();
+        registered.clear();
         Optional.ofNullable(server).ifPresent(t -> {
             try {
                 t.stop();
@@ -331,4 +393,18 @@ public class JmxService {
         reporter = null;
     }
 
+    private static RMIServerSocketFactory getServerSocketFactory(Configuration conf) {
+        ServerSocketFactory ssf = conf.sslContext.getServerSocketFactory();
+        SSLParameters ssp = conf.sslParams;
+        return p -> {
+            SSLServerSocket ss = (SSLServerSocket) ssf.createServerSocket(p);
+            ss.setSSLParameters(ssp);
+            ss.setSoTimeout(5000);
+            return ss;
+        };
+    }
+
+    private JmxService() {
+        // Intentionally kept empty
+    }
 }

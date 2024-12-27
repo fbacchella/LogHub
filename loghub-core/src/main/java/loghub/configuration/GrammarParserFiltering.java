@@ -51,7 +51,9 @@ public class GrammarParserFiltering {
         Map.entry("http.sslContext", "loghub.security.ssl.SslContextBuilder"),
         Map.entry("http.sslParams", "javax.net.ssl.SSLParameters"),
         Map.entry("sslContext", "loghub.security.ssl.SslContextBuilder"),
-        Map.entry("sslParams", "javax.net.ssl.SSLParameters")
+        Map.entry("sslParams", "javax.net.ssl.SSLParameters"),
+        Map.entry("jmx.sslContext", "loghub.security.ssl.SslContextBuilder"),
+        Map.entry("jmx.sslParams", "javax.net.ssl.SSLParameters")
     );
 
     private final Map<String, BEANTYPE> propertiesTypes = new HashMap<>();

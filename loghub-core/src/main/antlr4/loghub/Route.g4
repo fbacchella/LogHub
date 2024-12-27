@@ -162,6 +162,8 @@ level
 property
     : (pn='http.sslContext' ':' {filter.enterImplicitObject($pn.text);} beanValue {filter.exitImplicitObject($ctx.beanValue());})
     | (pn='http.sslParams' ':' {filter.enterImplicitObject($pn.text);} beanValue {filter.exitImplicitObject($ctx.beanValue());})
+    | (pn='jmx.sslContext' ':' {filter.enterImplicitObject($pn.text);} beanValue {filter.exitImplicitObject($ctx.beanValue());})
+    | (pn='jmx.sslParams' ':' {filter.enterImplicitObject($pn.text);} beanValue {filter.exitImplicitObject($ctx.beanValue());})
     | (propertyName ':' {filter.checkProperty($propertyName.text);} beanValue {filter.cleanBeanType();})
     ;
 

@@ -188,14 +188,15 @@ public class Properties extends HashMap<String, Object> {
 
         try {
             jmxServiceConfiguration = JmxService.configuration()
-                            .setProperties(Helpers.filterPrefix(properties, "jmx"))
-                            .setSslContext(sslBuilder.build())
-                            .register(StatsMBean.Implementation.NAME, new StatsMBean.Implementation())
-                            .register(ExceptionsMBean.Implementation.NAME, new ExceptionsMBean.Implementation())
-                            .registerReceivers(receivers)
-                            .registerSenders(senders)
-                            .registerPipelines(pipelines)
-                            .setJaasConfig(jaasConfig);
+                                                .setJaasConfig(jaasConfig)
+                                                .setClassloader(classloader)
+                                                .setSslContext(sslBuilder.build())
+                                                .setProperties(Helpers.filterPrefix(properties, "jmx"))
+                                                .register(StatsMBean.Implementation.NAME, new StatsMBean.Implementation())
+                                                .register(ExceptionsMBean.Implementation.NAME, new ExceptionsMBean.Implementation())
+                                                .registerReceivers(receivers)
+                                                .registerSenders(senders)
+                                                .registerPipelines(pipelines);
         } catch (NotCompliantMBeanException ex) {
             throw new ConfigException("Unusable JMX setup: " + Helpers.resolveThrowableException(ex), ex);
         }
