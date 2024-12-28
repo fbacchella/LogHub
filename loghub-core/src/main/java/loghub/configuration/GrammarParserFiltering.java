@@ -11,6 +11,8 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 
+import javax.net.ssl.SSLParameters;
+
 import org.apache.logging.log4j.Logger;
 
 import loghub.BuilderClass;
@@ -18,6 +20,7 @@ import loghub.Expression;
 import loghub.Lambda;
 import loghub.RouteParser;
 import loghub.VariablePath;
+import loghub.security.ssl.SslContextBuilder;
 import lombok.Getter;
 
 public class GrammarParserFiltering {
@@ -48,12 +51,12 @@ public class GrammarParserFiltering {
     }
 
     private static final Map<String, String> IMPLICIT_OBJECT = Map.ofEntries(
-        Map.entry("http.sslContext", "loghub.security.ssl.SslContextBuilder"),
-        Map.entry("http.sslParams", "javax.net.ssl.SSLParameters"),
-        Map.entry("sslContext", "loghub.security.ssl.SslContextBuilder"),
-        Map.entry("sslParams", "javax.net.ssl.SSLParameters"),
-        Map.entry("jmx.sslContext", "loghub.security.ssl.SslContextBuilder"),
-        Map.entry("jmx.sslParams", "javax.net.ssl.SSLParameters")
+        Map.entry("http.sslContext", SslContextBuilder.class.getName()),
+        Map.entry("http.sslParams", SSLParameters.class.getName()),
+        Map.entry("sslContext", SslContextBuilder.class.getName()),
+        Map.entry("sslParams", SSLParameters.class.getName()),
+        Map.entry("jmx.sslContext", SslContextBuilder.class.getName()),
+        Map.entry("jmx.sslParams", SSLParameters.class.getName())
     );
 
     private final Map<String, BEANTYPE> propertiesTypes = new HashMap<>();

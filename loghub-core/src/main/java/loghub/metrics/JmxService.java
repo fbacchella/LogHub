@@ -50,7 +50,6 @@ import loghub.Pipeline;
 import loghub.receivers.Receiver;
 import loghub.security.AuthenticationHandler;
 import loghub.senders.Sender;
-import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.Accessors;
 
